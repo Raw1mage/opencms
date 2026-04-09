@@ -19,7 +19,6 @@ import { Config } from "@/config/config"
 import { ProviderTransform } from "@/provider/transform"
 import { SessionPrompt } from "./prompt"
 import { SharedContext } from "./shared-context"
-import { codexServerCompact } from "../provider/codex-compaction"
 import { ContinuationInvalidatedEvent } from "../plugin/codex-auth"
 
 const SessionDeletedEvent = BusEvent.define(
@@ -74,7 +73,7 @@ export namespace SessionCompaction {
   export interface RebindCheckpoint {
     sessionID: string
     timestamp: number
-    source: "codex-server" | "llm"
+    source: string
     snapshot: string
     lastMessageId: string
     opaqueItems?: unknown[]
@@ -129,7 +128,7 @@ export namespace SessionCompaction {
    */
   export async function saveCheckpointAfterCompaction(input: {
     sessionID: string
-    source: "codex-server" | "llm"
+    source: string
     summary: string
     lastMessageId: string
     opaqueItems?: unknown[]
@@ -570,13 +569,9 @@ export namespace SessionCompaction {
   }) {
     const userMessage = input.messages.findLast((m) => m.info.id === input.parentID)!.info as MessageV2.User
 
-    // --- Server-side compaction for codex provider (Phase 4) ---
-    const isCodex = userMessage.model.providerId === "codex" || userMessage.model.providerId === "openai"
-    if (isCodex) {
-      const serverResult = await tryServerCompaction(input, userMessage)
-      if (serverResult) return serverResult
-      log.info("codex server compaction unavailable, falling back to LLM agent")
-    }
+    // --- Plugin-provided server compaction (e.g. Codex /responses/compact) ---
+    const serverResult = await tryPluginCompaction(input, userMessage)
+    if (serverResult) return serverResult
 
     // --- LEAGCY RESTORATION: Always trigger true Summary for others (like Gemini) ---
     const agent = await Agent.get("compaction")
@@ -944,15 +939,13 @@ When constructing the summary, try to stick to this template:
   }
 
   /**
-   * Try server-side compaction via Codex /responses/compact endpoint.
+   * Try plugin-provided server compaction via session.compact hook.
    *
-   * Sends CompactionInput { model, input, instructions, tools, parallel_tool_calls }
-   * and receives { output: ResponseItem[] }. The output is opaque and must not be
-   * pruned — it IS the canonical next context window.
-   *
-   * Returns "continue" on success, null if server compaction is unavailable.
+   * If a plugin (e.g. codex-provider) handles compaction server-side,
+   * it returns compactedItems + summary. Core uses those as the canonical
+   * next context window. If no plugin handles it, returns null → LLM fallback.
    */
-  async function tryServerCompaction(
+  async function tryPluginCompaction(
     input: {
       parentID: string
       messages: MessageV2.WithParts[]
@@ -963,13 +956,13 @@ When constructing the summary, try to stick to this template:
     userMessage: MessageV2.User,
   ): Promise<"continue" | "stop" | null> {
     try {
-      // Build Responses API input items from conversation messages
-      const conversationInput: unknown[] = []
+      // Build generic conversation items from messages (provider-agnostic serialization)
+      const conversationItems: unknown[] = []
       for (const msg of input.messages) {
         if (msg.info.role === "user") {
           const textParts = msg.parts.filter((p) => p.type === "text")
           if (textParts.length > 0) {
-            conversationInput.push({
+            conversationItems.push({
               type: "message",
               role: "user",
               content: textParts.map((p) => ({
@@ -981,7 +974,7 @@ When constructing the summary, try to stick to this template:
         } else if (msg.info.role === "assistant") {
           const textParts = msg.parts.filter((p) => p.type === "text")
           if (textParts.length > 0) {
-            conversationInput.push({
+            conversationItems.push({
               type: "message",
               role: "assistant",
               content: textParts.map((p) => ({
@@ -990,17 +983,16 @@ When constructing the summary, try to stick to this template:
               })),
             })
           }
-          // Include tool calls and outputs
           for (const p of msg.parts) {
             if (p.type === "tool" && p.state.status === "completed") {
-              conversationInput.push({
+              conversationItems.push({
                 type: "function_call",
                 call_id: (p as any).toolCallId ?? p.id,
                 name: p.tool,
                 arguments:
                   typeof (p as any).input === "string" ? (p as any).input : JSON.stringify((p as any).input ?? {}),
               })
-              conversationInput.push({
+              conversationItems.push({
                 type: "function_call_output",
                 call_id: (p as any).toolCallId ?? p.id,
                 output: typeof p.state.output === "string" ? p.state.output : JSON.stringify(p.state.output ?? ""),
@@ -1010,33 +1002,33 @@ When constructing the summary, try to stick to this template:
         }
       }
 
-      if (conversationInput.length === 0) return null
+      if (conversationItems.length === 0) return null
 
-      // Build tool specs for compaction (server needs tools to produce correct output)
-      const model = await Provider.getModel(userMessage.model.providerId, userMessage.model.modelID)
       const agent = await Agent.get(userMessage.agent ?? "default")
-      // Instructions: use system prompts that the session was using
       const instructions = (agent.prompt ?? "").slice(0, 50000)
 
-      const result = await codexServerCompact({
-        model: userMessage.model.modelID,
-        input: conversationInput,
-        instructions,
-        tools: [], // tools are not strictly required for compaction
-        parallel_tool_calls: true,
-      })
+      // Ask plugins if they can handle compaction server-side
+      const hookResult = await Plugin.trigger(
+        "session.compact",
+        {
+          sessionID: input.sessionID,
+          model: {
+            providerId: userMessage.model.providerId,
+            modelID: userMessage.model.modelID,
+            accountId: userMessage.model.accountId,
+          },
+          conversationItems,
+          instructions,
+        },
+        { compactedItems: null as unknown[] | null, summary: null as string | null },
+      )
 
-      if (!result.success || !result.output) return null
+      const compactedItems = hookResult.compactedItems
+      if (!compactedItems) return null
 
-      // Server compaction succeeded.
-      // Per API spec: "Do not prune /responses/compact output. The returned
-      // window is the canonical next context window."
-      // Extract readable text for the summary marker (best-effort, not authoritative)
-      const summaryText =
-        result.output
-          .filter((item: any) => item.type === "message")
-          .flatMap((item: any) => (item.content ?? []).map((c: any) => c.text ?? ""))
-          .join("\n") || "[Server-compacted conversation history]"
+      // Plugin provided server-compacted items — use as canonical context window
+      const summaryText = hookResult.summary || "[Server-compacted conversation history]"
+      const model = await Provider.getModel(userMessage.model.providerId, userMessage.model.modelID)
 
       await compactWithSharedContext({
         sessionID: input.sessionID,
@@ -1045,26 +1037,26 @@ When constructing the summary, try to stick to this template:
         auto: input.auto,
       })
 
-      log.info("codex server compaction complete", {
+      log.info("plugin server compaction complete", {
         sessionID: input.sessionID,
-        outputItems: result.output.length,
+        providerId: userMessage.model.providerId,
+        outputItems: compactedItems.length,
       })
 
-      // T3.4: Save checkpoint after A (Codex server) compaction with opaqueItems
       const lastMsgId = input.messages.at(-1)?.info.id
       if (lastMsgId) {
         void saveCheckpointAfterCompaction({
           sessionID: input.sessionID,
-          source: "codex-server",
+          source: `${userMessage.model.providerId}-server`,
           summary: summaryText,
           lastMessageId: lastMsgId,
-          opaqueItems: result.output,
+          opaqueItems: compactedItems,
         })
       }
 
       return "continue"
     } catch (err) {
-      log.warn("codex server compaction failed", { error: String(err) })
+      log.warn("plugin server compaction failed, falling back to LLM agent", { error: String(err) })
       return null
     }
   }

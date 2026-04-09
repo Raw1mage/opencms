@@ -246,7 +246,7 @@ export namespace ProviderTransform {
     }
 
     for (const msg of unique([...system, ...final])) {
-      const useMessageLevelOptions = providerId === "claude-cli" || providerId.includes("bedrock")
+      const useMessageLevelOptions = providerId.includes("bedrock")
       const shouldUseContentOptions = !useMessageLevelOptions && Array.isArray(msg.content) && msg.content.length > 0
 
       if (shouldUseContentOptions) {
@@ -265,7 +265,7 @@ export namespace ProviderTransform {
       systemCount: system.length,
       finalCount: final.length,
       messageRoles: unique([...system, ...final]).map((msg) => msg.role),
-      useMessageLevelOptions: providerId === "claude-cli" || providerId.includes("bedrock"),
+      useMessageLevelOptions: providerId.includes("bedrock"),
       providerOptionKeys: Object.keys(providerOptions).sort(),
       cacheKeywords: JSON.stringify(providerOptions).includes("cache") ? ["cache"] : [],
     })
@@ -315,17 +315,16 @@ export namespace ProviderTransform {
     msgs = unsupportedParts(msgs, model)
     msgs = normalizeMessages(msgs, model, options)
     if (
-      model.providerId === "claude-cli" ||
       model.api.id.includes("anthropic") ||
       model.api.id.includes("claude") ||
       model.id.includes("anthropic") ||
       model.id.includes("claude") ||
       model.api.npm === "@ai-sdk/anthropic"
     ) {
-      // Disable caching for subscription sessions — caching is handled by the provider itself.
-      // claude-cli uses native LanguageModelV2 provider with its own cache_control logic.
+      // Disable caching for subscription sessions and native providers — caching is handled by the provider itself.
       const isSubscription = options?.subscription || model.providerId.includes("subscription")
       const isNativeProvider = model.api.npm === "@opencode-ai/claude-provider"
+        || model.api.npm === "@opencode-ai/codex-provider"
       if (!isSubscription && !isNativeProvider) {
         msgs = applyCaching(msgs, model.providerId)
       }
@@ -458,13 +457,8 @@ export namespace ProviderTransform {
             thinking: { thinking_budget: 4000 },
           }
         }
-        const copilotEfforts = iife(() => {
-          // codex models support xhigh per official ReasoningEffort schema
-          if (id.includes("codex")) return [...WIDELY_SUPPORTED_EFFORTS, "xhigh"]
-          return WIDELY_SUPPORTED_EFFORTS
-        })
         return Object.fromEntries(
-          copilotEfforts.map((effort) => [
+          WIDELY_SUPPORTED_EFFORTS.map((effort) => [
             effort,
             {
               reasoningEffort: effort,
@@ -486,7 +480,6 @@ export namespace ProviderTransform {
         // When using openai-compatible SDK with Claude/Anthropic models,
         // use snake_case (budget_tokens) for thinking params.
         if (
-          model.providerId === "claude-cli" ||
           model.api.id.includes("anthropic") ||
           model.api.id.includes("claude") ||
           model.id.includes("anthropic") ||
@@ -530,10 +523,6 @@ export namespace ProviderTransform {
         // https://v5.ai-sdk.dev/providers/ai-sdk-providers/openai
         if (id === "gpt-5-pro") return {}
         const openaiEfforts = iife(() => {
-          if (id.includes("codex")) {
-            // All codex models support xhigh per official ReasoningEffort schema
-            return [...WIDELY_SUPPORTED_EFFORTS, "xhigh"]
-          }
           const arr = [...WIDELY_SUPPORTED_EFFORTS]
           if (id.includes("gpt-5-") || id === "gpt-5") {
             arr.unshift("minimal")
@@ -705,9 +694,7 @@ export namespace ProviderTransform {
     // openai and providers using openai package should set store to false by default.
     if (
       input.model.providerId === "openai" ||
-      input.model.providerId === "codex" ||
       input.model.api.npm === "@ai-sdk/openai" ||
-      input.model.api.npm === "@opencode-ai/codex-provider" ||
       input.model.api.npm === "@ai-sdk/github-copilot"
     ) {
       result["store"] = false
@@ -738,15 +725,9 @@ export namespace ProviderTransform {
 
     if (
       input.model.providerId === "openai" ||
-      input.model.providerId === "codex" ||
       input.providerOptions?.setCacheKey
     ) {
       result["promptCacheKey"] = input.sessionID
-    }
-
-    // Codex (ChatGPT subscription) — priority service tier
-    if (input.model.providerId === "codex") {
-      result["serviceTier"] = "priority"
     }
 
     if (input.model.api.npm === "@ai-sdk/google" || input.model.api.npm === "@ai-sdk/google-vertex") {
@@ -794,7 +775,6 @@ export namespace ProviderTransform {
       // Chat models (e.g. gpt-5.2-chat-latest) only support "medium" verbosity
       if (
         input.model.api.id.includes("gpt-5.") &&
-        !input.model.api.id.includes("codex") &&
         !input.model.api.id.includes("-chat") &&
         input.model.providerId !== "azure"
       ) {

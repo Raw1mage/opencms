@@ -233,6 +233,27 @@ export interface Hooks {
     input: { sessionID: string },
     output: { context: string[]; prompt?: string },
   ) => Promise<void>
+  /**
+   * Called when session needs compaction. Allows provider plugins to handle
+   * compaction server-side (e.g. Codex /responses/compact endpoint).
+   *
+   * - If plugin sets `compactedItems` to a non-null array, core uses those items
+   *   as the canonical next context window and skips LLM-based compaction.
+   * - If `compactedItems` remains null, core falls through to default LLM compaction.
+   * - `summary` should be a human-readable text for the SharedContext marker.
+   */
+  "session.compact"?: (
+    input: {
+      sessionID: string
+      model: { providerId: string; modelID: string; accountId?: string }
+      conversationItems: unknown[]
+      instructions: string
+    },
+    output: {
+      compactedItems: unknown[] | null
+      summary: string | null
+    },
+  ) => Promise<void>
   "experimental.text.complete"?: (
     input: { sessionID: string; messageID: string; partID: string },
     output: { text: string },

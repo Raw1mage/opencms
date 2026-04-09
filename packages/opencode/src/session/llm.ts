@@ -110,14 +110,6 @@ export namespace LLM {
   let lastRateLimitToastAt = 0
   let lastRotationToastAt = 0
 
-  /** Per-session codex state for incremental delta (response_id + hash tracking). */
-  const codexSessionState = new Map<
-    string,
-    {
-      responseId?: string
-      optionsHash?: string
-    }
-  >()
 
   export type StreamInput = {
     user: MessageV2.User
@@ -653,31 +645,6 @@ export namespace LLM {
       trace: input.sessionID,
     })
 
-    // Codex incremental delta: inject previousResponseId when eligible
-    if (input.model.providerId === "codex") {
-      const prev = codexSessionState.get(input.sessionID)
-      const currentHash = JSON.stringify({
-        system: systemMessages.map((m) => (typeof m === "string" ? m : "")),
-        tools: Object.keys(tools).sort(),
-      })
-      const hashMatch = prev?.optionsHash === currentHash
-      if (prev?.responseId && hashMatch) {
-        const key = Object.keys(requestProviderOptions)[0]
-        if (key) (requestProviderOptions as any)[key].previousResponseId = prev.responseId
-        l.info("codex delta: injecting previousResponseId", {
-          sessionID: input.sessionID,
-          responseId: prev.responseId.slice(0, 16) + "...",
-        })
-      } else if (prev?.responseId && !hashMatch) {
-        l.info("codex delta: hash mismatch, skipping previousResponseId", {
-          sessionID: input.sessionID,
-          hasResponseId: true,
-        })
-      }
-      // Update hash for next comparison (responseId captured in onFinish)
-      codexSessionState.set(input.sessionID, { ...prev, optionsHash: currentHash })
-    }
-
     const serializeError = (err: unknown): unknown => {
       if (!(err instanceof Error)) return err
       const base: Record<string, unknown> = {
@@ -758,23 +725,6 @@ export namespace LLM {
         }
         RequestMonitor.get().recordRequest(input.model.providerId, accountId || "unknown", input.model.id, totalTokens)
 
-        // Capture codex response_id for incremental delta on next turn
-        if (input.model.providerId === "codex") {
-          const responseId = (event.providerMetadata as any)?.openai?.responseId
-          if (responseId) {
-            const prev = codexSessionState.get(input.sessionID)
-            codexSessionState.set(input.sessionID, { ...prev, responseId })
-            l.info("codex delta: captured responseId", {
-              sessionID: input.sessionID,
-              responseId: responseId.slice(0, 16) + "...",
-            })
-          } else {
-            l.info("codex delta: no responseId in providerMetadata", {
-              sessionID: input.sessionID,
-              hasMetadata: !!event.providerMetadata,
-            })
-          }
-        }
       },
       async onError(error) {
         l.error("stream error", { error: serializeError(error) })

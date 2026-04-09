@@ -26,6 +26,7 @@ import { Log } from "../util/log"
 import { Installation } from "../installation"
 import { Auth } from "../auth"
 import { BusEvent } from "@/bus/bus-event"
+import { codexServerCompact } from "../provider/codex-compaction"
 import { z } from "zod"
 
 /** Emitted when WS continuation state is invalidated (e.g., after compaction). */
@@ -173,6 +174,33 @@ async function refreshIfNeeded(
 
 export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> {
   return {
+    "session.compact": async (_input, output) => {
+      // Only handle compaction for codex/openai providers
+      if (_input.model.providerId !== "codex" && _input.model.providerId !== "openai") return
+
+      const result = await codexServerCompact({
+        model: _input.model.modelID,
+        input: _input.conversationItems as unknown[],
+        instructions: _input.instructions,
+        tools: [],
+        parallel_tool_calls: true,
+      })
+
+      if (!result.success || !result.output) return
+
+      // Extract human-readable summary from compacted output
+      output.compactedItems = result.output
+      output.summary =
+        result.output
+          .filter((item: any) => item.type === "message")
+          .flatMap((item: any) => (item.content ?? []).map((c: any) => c.text ?? ""))
+          .join("\n") || "[Server-compacted conversation history]"
+
+      log.info("codex server compaction via hook", {
+        sessionID: _input.sessionID,
+        outputItems: result.output.length,
+      })
+    },
     auth: {
       provider: "codex",
       async loader(getAuth, provider) {
