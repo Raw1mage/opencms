@@ -1085,6 +1085,45 @@ export namespace SessionPrompt {
       })
       console.error(`[LOOP-MODEL] ${sessionID} step=${step} getModel done`)
 
+      // ── Provider switch detection ──
+      // When the user switches providers mid-session (e.g. gemini → github-copilot),
+      // the old provider's tool call/result history is structurally incompatible with
+      // the new provider's API. Force a SharedContext compaction to give the new
+      // provider a clean, text-only context.
+      if (step === 1 && !session.parentID && session.execution?.providerId) {
+        const prevProvider = session.execution.providerId
+        const nextProvider = lastUser.model.providerId
+        if (prevProvider !== nextProvider) {
+          log.warn("provider switch detected, forcing context reinit", {
+            sessionID,
+            prevProvider,
+            nextProvider,
+          })
+          const snap = await SharedContext.snapshot(sessionID)
+          if (snap) {
+            SessionCompaction.recordCompaction(sessionID, step)
+            await SessionCompaction.compactWithSharedContext({
+              sessionID,
+              snapshot: snap,
+              model,
+              auto: true,
+            })
+            continue
+          } else {
+            // No SharedContext available — fall through to LLM compaction
+            log.warn("provider switch: no SharedContext snapshot, falling back to LLM compaction", { sessionID })
+            await SessionCompaction.create({
+              sessionID,
+              agent: lastUser.agent,
+              model: lastUser.model,
+              format: lastUser.format,
+              auto: true,
+            })
+            continue
+          }
+        }
+      }
+
       if (step === 1 && !session.parentID) {
         try {
           const checkpoint = await SessionCompaction.loadRebindCheckpoint(sessionID)

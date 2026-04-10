@@ -678,7 +678,7 @@ When constructing the summary, try to stick to this template:
       sessionID: input.sessionID,
       tools: {},
       system: [],
-      messages: [
+      messages: sanitizeOrphanedToolCalls([
         ...history.messages,
         {
           role: "user",
@@ -689,7 +689,7 @@ When constructing the summary, try to stick to this template:
             },
           ],
         },
-      ],
+      ]),
       model,
     })
 
