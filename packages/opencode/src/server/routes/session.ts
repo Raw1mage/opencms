@@ -3,6 +3,7 @@ import path from "path"
 import { stream } from "hono/streaming"
 import { describeRoute, validator, resolver } from "hono-openapi"
 import z from "zod"
+import { generateText } from "ai"
 import { Session } from "../../session"
 import { MessageV2 } from "../../session/message-v2"
 import { SessionPrompt } from "../../session/prompt"
@@ -31,6 +32,7 @@ import {
   mutatePendingContinuationQueue,
 } from "@/session/workflow-runner"
 import { KillSwitchService } from "../killswitch/service"
+import { Provider } from "../../provider/provider"
 
 const AutonomousWorkflowHealthSchema = z.object({
   state: z.enum(["idle", "running", "waiting_user", "blocked", "completed"]),
@@ -2083,6 +2085,149 @@ export const SessionRoutes = lazy(() =>
           reply: c.req.valid("json").response,
         })
         return c.json(true)
+      },
+    )
+    .post(
+      "/:sessionID/transcribe",
+      describeRoute({
+        summary: "Transcribe audio",
+        description:
+          "Accept an audio recording and return transcribed text using an audio-capable model.",
+        operationId: "session.transcribe",
+        responses: {
+          200: {
+            description: "Transcription result",
+            content: {
+              "application/json": {
+                schema: resolver(
+                  z.object({
+                    text: z.string(),
+                  }),
+                ),
+              },
+            },
+          },
+          ...errors(400, 404, 500),
+        },
+      }),
+      validator(
+        "param",
+        z.object({
+          sessionID: z.string().meta({ description: "Session ID" }),
+        }),
+      ),
+      async (c) => {
+        const log = Log.create({ service: "session.transcribe" })
+        const { sessionID } = c.req.valid("param")
+
+        // Parse multipart form data
+        const formData = await c.req.formData().catch(() => null)
+        if (!formData) {
+          return c.json({ code: "INVALID_BODY", message: "Expected multipart form data with audio file" }, 400)
+        }
+        const audioFile = formData.get("audio")
+        if (!audioFile || !(audioFile instanceof File)) {
+          return c.json({ code: "MISSING_AUDIO", message: "Missing 'audio' field in form data" }, 400)
+        }
+
+        const mime = audioFile.type || "audio/webm"
+        if (!mime.startsWith("audio/")) {
+          return c.json({ code: "INVALID_MIME", message: `Expected audio/* MIME type, got ${mime}` }, 400)
+        }
+
+        // Resolve model from session or form hint
+        const modelHint = formData.get("model") as string | null
+        const providerHint = formData.get("provider") as string | null
+
+        let model: Provider.Model | undefined
+        try {
+          if (providerHint && modelHint) {
+            model = await Provider.getModel(providerHint, modelHint)
+          } else {
+            // Try to resolve from session's last used model
+            const session = await Session.get(sessionID).catch(() => undefined)
+            if (session?.modelID && session?.providerId) {
+              model = await Provider.getModel(session.providerId, session.modelID).catch(() => undefined)
+            }
+          }
+
+          // If resolved model doesn't support audio, find one that does
+          if (model && !model.capabilities.input.audio) {
+            log.info("session model lacks audio input, searching for audio-capable model", {
+              sessionID,
+              originalModel: `${model.providerId}/${model.id}`,
+            })
+            model = undefined
+          }
+
+          if (!model) {
+            // Search all providers for an audio-capable model
+            const providers = await Provider.list()
+            for (const [, provider] of Object.entries(providers)) {
+              for (const [, m] of Object.entries(provider.models)) {
+                if (m.capabilities.input.audio) {
+                  model = m
+                  break
+                }
+              }
+              if (model) break
+            }
+          }
+        } catch (err) {
+          log.error("failed to resolve model for transcription", { sessionID, error: err })
+        }
+
+        if (!model) {
+          return c.json(
+            {
+              code: "NO_AUDIO_MODEL",
+              message: "No audio-capable model available. Configure a provider with audio input support (e.g. Gemini).",
+            },
+            400,
+          )
+        }
+
+        log.info("transcribing audio", {
+          sessionID,
+          model: `${model.providerId}/${model.id}`,
+          mime,
+          size: audioFile.size,
+        })
+
+        try {
+          const language = await Provider.getLanguage(model)
+          const audioBuffer = await audioFile.arrayBuffer()
+          const audioData = new Uint8Array(audioBuffer)
+
+          const result = await generateText({
+            model: language,
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "file",
+                    data: audioData,
+                    mimeType: mime,
+                  },
+                  {
+                    type: "text",
+                    text: "Transcribe this audio recording exactly as spoken. Output only the transcribed text, nothing else. Preserve the original language.",
+                  },
+                ],
+              },
+            ],
+            maxRetries: 1,
+          })
+
+          const text = result.text?.trim() ?? ""
+          log.info("transcription complete", { sessionID, textLength: text.length })
+          return c.json({ text })
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "Transcription failed"
+          log.error("transcription failed", { sessionID, error: err })
+          return c.json({ code: "TRANSCRIPTION_FAILED", message }, 500)
+        }
       },
     ),
 )
