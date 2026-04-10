@@ -1836,8 +1836,18 @@ static void route_complete_request(PendingRequest *pr) {
     /* ─── Check public web routes ───────────────────────────────────── */
     WebRoute *wr = match_web_route(req.path);
     if (wr) {
+        /* Redirect exact prefix without trailing slash → prefix/ */
+        size_t plen = strlen(wr->prefix);
+        if (strlen(req.path) == plen) {
+            char loc[300];
+            snprintf(loc, sizeof(loc), "Location: %s/\r\n", wr->prefix);
+            http_send(fd, 301, "Moved Permanently", NULL, loc, NULL, 0);
+            close(fd);
+            return;
+        }
+
         LOGI("routing public webapp %s to %s:%d", req.path, wr->host, wr->port);
-        
+
         /* Use blocking connect for localhost — instant success or ECONNREFUSED.
          * Set non-blocking AFTER connect succeeds, before entering splice loop. */
         int backend_fd = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
