@@ -340,20 +340,33 @@ static uid_t ctl_peer_uid(int fd) {
     return 0;
 }
 
+/** Extract a JSON string value by key from a flat JSON line.
+ *  e.g. json_extract_str(line, "prefix", buf, 256) for {"prefix":"/foo"} → "/foo" */
+static void json_extract_str(const char *line, const char *key, char *out, size_t outsz) {
+    char needle[64];
+    snprintf(needle, sizeof(needle), "\"%s\"", key);
+    const char *p = strstr(line, needle);
+    if (!p) return;
+    p += strlen(needle);
+    while (*p && *p != ':') p++;
+    if (!*p) return;
+    p++; /* skip colon */
+    while (*p == ' ' || *p == '\t') p++;
+    if (*p != '"') return;
+    p++; /* skip opening quote */
+    const char *q = strchr(p, '"');
+    if (q && (size_t)(q - p) < outsz) memcpy(out, p, (size_t)(q - p));
+}
+
 static void ctl_handle_line(CtlClient *cc, char *line) {
     /* Minimal JSON parsing — we only need "action", "prefix", "host", "port" */
     char action[32] = {0}, prefix[256] = {0}, host[64] = {0};
     int port = 0;
 
-    /* Extract action */
-    char *p = strstr(line, "\"action\"");
-    if (!p) { ctl_send(cc, "{\"ok\":false,\"error\":\"missing action\"}"); return; }
-    p = strchr(p + 8, '"'); if (!p) { ctl_send(cc, "{\"ok\":false,\"error\":\"bad json\"}"); return; }
-    p++; /* skip opening quote */
-    p = strchr(p, '"'); if (!p) { ctl_send(cc, "{\"ok\":false,\"error\":\"bad json\"}"); return; }
-    p++; /* skip the colon-side quote */
-    char *q = strchr(p, '"');
-    if (q && (size_t)(q - p) < sizeof(action)) { memcpy(action, p, (size_t)(q - p)); }
+    /* Extract fields */
+    json_extract_str(line, "action", action, sizeof(action));
+    if (!action[0]) { ctl_send(cc, "{\"ok\":false,\"error\":\"missing action\"}"); return; }
+    char *p, *q; (void)q;
 
     if (strcmp(action, "list") == 0) {
         char resp[CTL_BUF_SIZE];
@@ -371,17 +384,12 @@ static void ctl_handle_line(CtlClient *cc, char *line) {
     }
 
     /* Extract prefix for publish/remove */
-    p = strstr(line, "\"prefix\"");
-    if (p) {
-        p = strchr(p + 8, '"'); if (p) { p++; p = strchr(p, '"'); }
-        if (p) { p++; q = strchr(p, '"'); if (q && (size_t)(q - p) < sizeof(prefix)) memcpy(prefix, p, (size_t)(q - p)); }
-    }
+    json_extract_str(line, "prefix", prefix, sizeof(prefix));
 
     if (strcmp(action, "remove") == 0) {
         if (!prefix[0]) { ctl_send(cc, "{\"ok\":false,\"error\":\"missing prefix\"}"); return; }
         int idx = find_web_route(prefix);
         if (idx < 0) { ctl_send(cc, "{\"ok\":false,\"error\":\"prefix not found\"}"); return; }
-        /* Shift array */
         for (int i = idx; i < g_nweb_routes - 1; i++) g_web_routes[i] = g_web_routes[i + 1];
         g_nweb_routes--;
         flush_web_routes();
@@ -393,13 +401,8 @@ static void ctl_handle_line(CtlClient *cc, char *line) {
     if (strcmp(action, "publish") == 0) {
         if (!prefix[0]) { ctl_send(cc, "{\"ok\":false,\"error\":\"missing prefix\"}"); return; }
 
-        /* Extract host */
-        p = strstr(line, "\"host\"");
-        if (p) {
-            p = strchr(p + 6, '"'); if (p) { p++; p = strchr(p, '"'); }
-            if (p) { p++; q = strchr(p, '"'); if (q && (size_t)(q - p) < sizeof(host)) memcpy(host, p, (size_t)(q - p)); }
-        }
-        /* Extract port */
+        json_extract_str(line, "host", host, sizeof(host));
+        /* Extract port (numeric) */
         p = strstr(line, "\"port\"");
         if (p) {
             p += 6;
@@ -464,8 +467,8 @@ static int setup_ctl_socket(void) {
     if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
         LOGE("ctl bind: %m"); close(fd); return -1;
     }
-    /* Set group writable: opencode group members can connect */
-    chmod(CTL_SOCK_PATH, 0660);
+    /* Allow any local user to connect */
+    chmod(CTL_SOCK_PATH, 0666);
 
     if (listen(fd, 4) < 0) {
         LOGE("ctl listen: %m"); close(fd); return -1;
@@ -1835,7 +1838,9 @@ static void route_complete_request(PendingRequest *pr) {
     if (wr) {
         LOGI("routing public webapp %s to %s:%d", req.path, wr->host, wr->port);
         
-        int backend_fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+        /* Use blocking connect for localhost — instant success or ECONNREFUSED.
+         * Set non-blocking AFTER connect succeeds, before entering splice loop. */
+        int backend_fd = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
         if (backend_fd >= 0) {
             struct sockaddr_in addr = {0};
             addr.sin_family = AF_INET;
@@ -1843,7 +1848,8 @@ static void route_complete_request(PendingRequest *pr) {
             inet_pton(AF_INET, wr->host, &addr.sin_addr);
 
             int res = connect(backend_fd, (struct sockaddr *)&addr, sizeof(addr));
-            if (res == 0 || (res < 0 && errno == EINPROGRESS)) {
+            if (res == 0) {
+                set_nonblock(backend_fd);
                 // Connection in progress or successful
                 Connection *c = alloc_conn();
                 if (c) {
