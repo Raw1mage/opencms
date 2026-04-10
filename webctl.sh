@@ -2618,6 +2618,89 @@ do_reload() {
 }
 
 # ---------------------------------------------------------------------------
+# Web Routes (via gateway ctl.sock)
+# ---------------------------------------------------------------------------
+CTL_SOCK="/run/opencode-gateway/ctl.sock"
+
+ctl_send() {
+    local json="$1"
+    if [ ! -S "$CTL_SOCK" ]; then
+        log_error "Gateway ctl.sock not found at $CTL_SOCK — is the gateway running?"
+        exit 1
+    fi
+    # Send JSON + newline, read one line response
+    echo "$json" | socat - UNIX-CONNECT:"$CTL_SOCK" 2>/dev/null
+}
+
+do_publish_route() {
+    local prefix="${1:-}"
+    local host="${2:-127.0.0.1}"
+    local port="${3:-}"
+
+    if [ -z "$prefix" ] || [ -z "$port" ]; then
+        log_error "Usage: ./webctl.sh publish-route <prefix> [host] <port>"
+        log_error "  Example: ./webctl.sh publish-route /cecelearn 127.0.0.1 5173"
+        exit 1
+    fi
+
+    local resp
+    resp=$(ctl_send "{\"action\":\"publish\",\"prefix\":\"$prefix\",\"host\":\"$host\",\"port\":$port}")
+    echo "$resp"
+    if echo "$resp" | grep -q '"ok":true'; then
+        log_success "Route published: $prefix → $host:$port"
+    else
+        log_error "Failed to publish route"
+        exit 1
+    fi
+}
+
+do_remove_route() {
+    local prefix="${1:-}"
+    if [ -z "$prefix" ]; then
+        log_error "Usage: ./webctl.sh remove-route <prefix>"
+        exit 1
+    fi
+
+    local resp
+    resp=$(ctl_send "{\"action\":\"remove\",\"prefix\":\"$prefix\"}")
+    echo "$resp"
+    if echo "$resp" | grep -q '"ok":true'; then
+        log_success "Route removed: $prefix"
+    else
+        log_error "Failed to remove route"
+        exit 1
+    fi
+}
+
+do_list_routes() {
+    local resp
+    resp=$(ctl_send '{"action":"list"}')
+    if [ -z "$resp" ]; then
+        log_error "No response from gateway — is ctl.sock available?"
+        exit 1
+    fi
+    echo "$resp" | python3 -c "
+import sys, json
+try:
+    d = json.loads(sys.stdin.read())
+    if not d.get('ok'):
+        print('Error:', d.get('error', 'unknown'))
+        sys.exit(1)
+    routes = d.get('routes', [])
+    if not routes:
+        print('No routes registered.')
+    else:
+        print(f\"{'PREFIX':<30} {'TARGET':<25} {'UID'}\")
+        print('-' * 65)
+        for r in routes:
+            print(f\"{r['prefix']:<30} {r['host']}:{r['port']:<15} {r.get('uid', '?')}\")
+except json.JSONDecodeError:
+    print('Invalid response from gateway')
+    sys.exit(1)
+" 2>/dev/null || echo "$resp"
+}
+
+# ---------------------------------------------------------------------------
 # help
 # ---------------------------------------------------------------------------
 do_help() {
@@ -2643,6 +2726,9 @@ do_help() {
     echo "  build-frontend    Build packages/app/dist/ (run after frontend changes)"
     echo "  build-binary      Build native binary for current platform"
     echo "  compile-mcp       Recompile stale internal MCP server binaries"
+    echo "  publish-route     Register a public web route via gateway ctl.sock"
+    echo "  remove-route      Remove a public web route"
+    echo "  list-routes       List all registered public web routes"
     echo "  compile-gateway   Compile the C root gateway daemon"
     echo "  gateway-start     Compile + start the gateway daemon"
     echo "  gateway-stop      Stop the gateway daemon"
@@ -2725,6 +2811,9 @@ case "${1:-}" in
     build-frontend) do_build_frontend ;;
     build-binary)   do_build_binary   ;;
     compile-mcp)    compile_internal_mcp_if_stale ;;
+    publish-route)   do_publish_route "${@:2}" ;;
+    remove-route)    do_remove_route "${@:2}" ;;
+    list-routes)     do_list_routes ;;
     compile-gateway) do_compile_gateway ;;
     gateway-start)  do_gateway_start "${@:2}" ;;
     gateway-stop)   do_gateway_stop   ;;
