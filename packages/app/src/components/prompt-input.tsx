@@ -70,6 +70,8 @@ import { invalidateQuotaHint, loadQuotaHint, peekQuotaHint } from "@/utils/quota
 import { getSupportedProviderLabel } from "@/utils/provider-registry"
 import { sendSessionReloadDebugBeacon } from "@/utils/debug-beacon"
 import { createSpeechRecognition } from "@/utils/speech"
+import { createAudioRecorder } from "@/utils/audio-recorder"
+import { transcribeAudio } from "@/utils/transcribe"
 
 interface PromptInputProps {
   class?: string
@@ -610,13 +612,36 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
 
   const [composing, setComposing] = createSignal(false)
   const isImeComposing = (event: KeyboardEvent) => event.isComposing || composing() || event.keyCode === 229
+
+  // ── Voice Input: dual-path (desktop speech recognition + mobile recording) ──
+
+  // Capability-based route selection: desktop browsers with SpeechRecognition
+  // use live transcription; mobile/unsupported browsers with MediaRecorder
+  // use record-then-transcribe; neither = unsupported.
+  const speech = createSpeechRecognition({
+    onTranscript: applyVoiceTranscript,
+  })
+  const recorder = createAudioRecorder()
+
+  type VoicePath = "speech" | "recording" | "unsupported"
+  const voicePath = createMemo((): VoicePath => {
+    if (speech.isSupported()) return "speech"
+    if (recorder.isSupported()) return "recording"
+    return "unsupported"
+  })
+  const voiceSupported = createMemo(() => voicePath() !== "unsupported")
+  // Unified recording state — true when either path is actively capturing
+  const voiceActive = createMemo(() => speech.isRecording() || recorder.state() === "recording")
+  const [voiceTranscribing, setVoiceTranscribing] = createSignal(false)
+  const voiceBusy = createMemo(() => voiceActive() || voiceTranscribing())
+
   // Speech: snapshot the prompt before recording starts so live transcript
   // can be appended without losing pre-existing content.
   let speechBasePrompt: ContentPart[] | null = null
 
-  const applySpeechTranscript = (text: string) => {
+  function applyVoiceTranscript(text: string) {
     if (!speechBasePrompt) return
-    console.debug("[speech] applySpeechTranscript", text)
+    console.debug("[voice] applyTranscript", text)
 
     // Clone base parts each time so the snapshot is never mutated
     const inputParts = speechBasePrompt.filter((part) => part.type !== "image").map((p) => ({ ...p }))
@@ -647,30 +672,91 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     })
   }
 
-  const speech = createSpeechRecognition({
-    onTranscript: applySpeechTranscript,
-  })
-  const speechSupported = createMemo(() => speech.isSupported())
-  const speechRecording = createMemo(() => speech.isRecording())
-  const speechTranscript = createMemo(() => speech.transcript())
-  const speechTooltip = createMemo(() => {
-    if (!speechSupported()) return language.t("prompt.voice.unsupported")
-    if (speechRecording()) return language.t("prompt.action.voiceInputStop")
+  /** Append transcribed text to prompt (mobile recording path). */
+  function appendTranscribedText(text: string) {
+    speechBasePrompt = prompt.current().map((p) => (p.type === "image" ? p : { ...p }))
+    applyVoiceTranscript(text)
+    speechBasePrompt = null
+  }
+
+  const voiceTooltip = createMemo(() => {
+    if (!voiceSupported()) return language.t("prompt.voice.unsupported")
+    if (voiceTranscribing()) return language.t("prompt.voice.transcribing")
+    if (voiceActive()) return language.t("prompt.action.voiceInputStop")
     return language.t("prompt.action.voiceInputStart")
   })
-  const speechButtonDisabled = createMemo(() => !speechSupported() || working())
+  const voiceButtonDisabled = createMemo(() => !voiceSupported() || working() || voiceTranscribing())
 
-  createEffect(() => {
-    if (store.mode !== "normal" && speechRecording()) {
+  const startVoice = () => {
+    const path = voicePath()
+    if (path === "unsupported") return
+    if (path === "speech") {
+      speechBasePrompt = prompt.current().map((p) => (p.type === "image" ? p : { ...p }))
+      speech.start()
+    } else {
+      recorder.start()
+    }
+  }
+
+  const stopVoice = async () => {
+    const path = voicePath()
+    if (path === "speech") {
       speechBasePrompt = null
       speech.stop()
+      return
+    }
+    if (path === "recording" && recorder.state() === "recording") {
+      setVoiceTranscribing(true)
+      try {
+        const result = await recorder.stop()
+        const sessionID = params.id
+        if (!sessionID) {
+          console.warn("[voice] no session ID for transcription")
+          return
+        }
+        console.debug("[voice] uploading audio for transcription", {
+          mime: result.mime,
+          size: result.blob.size,
+          durationMs: result.durationMs,
+        })
+        const { text } = await transcribeAudio(globalSDK.url, globalSDK.fetch, {
+          sessionID,
+          audio: result.blob,
+          mime: result.mime,
+        })
+        if (text) {
+          appendTranscribedText(text)
+        } else {
+          console.warn("[voice] transcription returned empty text")
+        }
+      } catch (err) {
+        console.error("[voice] transcription failed:", err)
+        const msg = err instanceof Error ? err.message : "Transcription failed"
+        showToast({
+          title: language.t("prompt.voice.transcriptionFailed"),
+          description: msg,
+          variant: "error",
+        })
+      } finally {
+        setVoiceTranscribing(false)
+      }
+    }
+  }
+
+  // Auto-stop voice on mode change or when working
+  createEffect(() => {
+    if (store.mode !== "normal" && voiceActive()) {
+      speechBasePrompt = null
+      speech.stop()
+      recorder.cancel()
     }
   })
 
   createEffect(() => {
-    if (working() && speechRecording()) {
+    if (working() && voiceActive()) {
       speechBasePrompt = null
       speech.stop()
+      recorder.cancel()
     }
   })
 
@@ -1415,30 +1501,37 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
               {placeholder()}
             </div>
           </Show>
-          <Show when={store.mode === "normal" && speechSupported()}>
+          <Show when={store.mode === "normal" && voiceSupported()}>
             <button
               type="button"
               class="absolute top-2.5 right-2.5 p-0.5 rounded hover:bg-fill-quaternary transition-colors"
-              disabled={speechButtonDisabled()}
+              disabled={voiceButtonDisabled()}
               onClick={() => {
-                if (speechRecording()) {
-                  speechBasePrompt = null
-                  speech.stop()
+                if (voiceActive()) {
+                  stopVoice()
                   return
                 }
-                speechBasePrompt = prompt.current().map((p) => (p.type === "image" ? p : { ...p }))
-                speech.start()
+                startVoice()
               }}
-              aria-label={speechTooltip()}
-              title={speechTooltip()}
+              aria-label={voiceTooltip()}
+              title={voiceTooltip()}
             >
               <Show
-                when={!speechRecording()}
+                when={!voiceActive() && !voiceTranscribing()}
                 fallback={
-                  <svg class="size-4.5" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                    <circle cx="10" cy="10" r="7" fill="#ef4444" />
-                    <circle cx="10" cy="10" r="3" fill="#fff" />
-                  </svg>
+                  <Show
+                    when={!voiceTranscribing()}
+                    fallback={
+                      <svg class="size-4.5 animate-spin" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                        <circle cx="10" cy="10" r="7" stroke="#94a3b8" stroke-width="2" stroke-dasharray="30 14" />
+                      </svg>
+                    }
+                  >
+                    <svg class="size-4.5" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                      <circle cx="10" cy="10" r="7" fill="#ef4444" />
+                      <circle cx="10" cy="10" r="3" fill="#fff" />
+                    </svg>
+                  </Show>
                 }
               >
                 <Icon name="microphone" class="size-4.5 text-text-weak" />
@@ -1521,14 +1614,20 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                 {promptMeta()}
               </span>
             </Show>
-            <Show when={store.mode === "normal" && speechRecording()}>
+            <Show when={store.mode === "normal" && voiceBusy()}>
               <span class="text-12-regular text-text-weak whitespace-nowrap overflow-hidden text-ellipsis min-w-0 flex items-center gap-1">
                 <Icon
                   name="speech-bubble"
                   size="small"
-                  class="text-icon-danger-base"
+                  class={voiceTranscribing() ? "text-text-weak animate-pulse" : "text-icon-danger-base"}
                 />
-                <span class="truncate">{language.t("prompt.voice.recording")}</span>
+                <span class="truncate">
+                  {voiceTranscribing()
+                    ? language.t("prompt.voice.transcribing")
+                    : voicePath() === "recording"
+                      ? language.t("prompt.voice.recordingMobile")
+                      : language.t("prompt.voice.recording")}
+                </span>
               </span>
             </Show>
           </div>

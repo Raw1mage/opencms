@@ -297,6 +297,9 @@ export const dict = {
   "prompt.action.send": "Send",
   "prompt.action.stop": "Stop",
   "prompt.voice.recording": "Listening...",
+  "prompt.voice.recordingMobile": "Recording...",
+  "prompt.voice.transcribing": "Transcribing...",
+  "prompt.voice.transcriptionFailed": "Transcription failed",
   "prompt.voice.unsupported": "Voice input is not supported in this browser",
 
   "prompt.toast.pasteUnsupported.title": "Unsupported paste",

@@ -297,6 +297,9 @@ export const dict = {
   "prompt.action.send": "傳送",
   "prompt.action.stop": "停止",
   "prompt.voice.recording": "正在聆聽...",
+  "prompt.voice.recordingMobile": "正在錄音...",
+  "prompt.voice.transcribing": "正在轉寫...",
+  "prompt.voice.transcriptionFailed": "語音轉寫失敗",
   "prompt.voice.unsupported": "此瀏覽器不支援語音輸入",
 
   "prompt.toast.pasteUnsupported.title": "不支援的貼上",
