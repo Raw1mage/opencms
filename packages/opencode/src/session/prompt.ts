@@ -829,62 +829,52 @@ export namespace SessionPrompt {
 
     // Context Sharing v2: load parent messages once for child sessions.
     // These form a stable prefix in every LLM call → automatic cache hit.
-    // Exception: Codex fork — parent context is inherited via previousResponseId
-    // at the transport layer, so re-sending it wastes ~100K tokens.
     let parentMessagePrefix: MessageV2.WithParts[] | undefined
     if (session.parentID) {
-      if (session.codexForkResponseId) {
-        log.info("context sharing: codex fork active, skipping parentMessagePrefix", {
-          sessionID,
-          parentID: session.parentID,
-          forkResponseId: session.codexForkResponseId.slice(0, 16) + "...",
-        })
-      } else {
-        const parentFiltered = await MessageV2.filterCompacted(MessageV2.stream(session.parentID))
-        parentMessagePrefix = parentFiltered.messages
-        const fullCount = parentMessagePrefix.length
+      const parentFiltered = await MessageV2.filterCompacted(MessageV2.stream(session.parentID))
+      parentMessagePrefix = parentFiltered.messages
+      const fullCount = parentMessagePrefix.length
 
-        // Checkpoint-based reduction: if parent has a rebind checkpoint,
-        // replace full history with [synthetic summary + post-boundary messages].
-        // Reduces ~100K token prefix to ~4K for all providers.
-        const checkpoint = await SessionCompaction.loadRebindCheckpoint(session.parentID)
-        if (checkpoint && parentMessagePrefix.length > 0) {
-          const parentSession = await Session.get(session.parentID).catch(() => undefined)
-          const exec = parentSession?.execution
-          const stubModel = {
-            id: exec?.modelID ?? "unknown",
-            providerId: exec?.providerId ?? "unknown",
-          } as Provider.Model
-          const result = SessionCompaction.applyRebindCheckpoint({
-            sessionID: session.parentID,
-            checkpoint,
-            messages: parentMessagePrefix,
-            model: stubModel,
-          })
-          if (result.applied) {
-            parentMessagePrefix = result.messages
-            log.info("context sharing: checkpoint reduction applied", {
-              sessionID,
-              parentID: session.parentID,
-              fullCount,
-              reducedCount: parentMessagePrefix.length,
-              checkpointAge: Date.now() - checkpoint.timestamp,
-            })
-          } else {
-            log.info("context sharing: checkpoint reduction skipped", {
-              sessionID,
-              parentID: session.parentID,
-              reason: result.reason,
-              fullCount,
-            })
-          }
-        } else {
-          log.info("context sharing: loaded parent messages (no checkpoint)", {
+      // Checkpoint-based reduction: if parent has a rebind checkpoint,
+      // replace full history with [synthetic summary + post-boundary messages].
+      // Reduces ~100K token prefix to ~4K for all providers.
+      const checkpoint = await SessionCompaction.loadRebindCheckpoint(session.parentID)
+      if (checkpoint && parentMessagePrefix.length > 0) {
+        const parentSession = await Session.get(session.parentID).catch(() => undefined)
+        const exec = parentSession?.execution
+        const stubModel = {
+          id: exec?.modelID ?? "unknown",
+          providerId: exec?.providerId ?? "unknown",
+        } as Provider.Model
+        const result = SessionCompaction.applyRebindCheckpoint({
+          sessionID: session.parentID,
+          checkpoint,
+          messages: parentMessagePrefix,
+          model: stubModel,
+        })
+        if (result.applied) {
+          parentMessagePrefix = result.messages
+          log.info("context sharing: checkpoint reduction applied", {
             sessionID,
             parentID: session.parentID,
-            parentMessageCount: fullCount,
+            fullCount,
+            reducedCount: parentMessagePrefix.length,
+            checkpointAge: Date.now() - checkpoint.timestamp,
+          })
+        } else {
+          log.info("context sharing: checkpoint reduction skipped", {
+            sessionID,
+            parentID: session.parentID,
+            reason: result.reason,
+            fullCount,
           })
         }
+      } else {
+        log.info("context sharing: loaded parent messages (no checkpoint)", {
+          sessionID,
+          parentID: session.parentID,
+          parentMessageCount: fullCount,
+        })
       }
     }
 

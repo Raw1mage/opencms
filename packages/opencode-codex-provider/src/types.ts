@@ -143,9 +143,6 @@ export interface ContinuationState {
   lastResponseId?: string
   lastInputLength?: number
   accountId?: string
-  /** When true, this continuation was pre-seeded from a parent session (fork).
-   *  Fresh WS connections should preserve previous_response_id instead of clearing it. */
-  isForkSeed?: boolean
 }
 
 /** Window generation tracking for context-window lineage */

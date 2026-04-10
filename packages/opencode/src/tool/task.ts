@@ -26,7 +26,6 @@ import { Global } from "@/global"
 import path from "path"
 import { Instance } from "@/project/instance"
 import { SharedContext } from "@/session/shared-context"
-import { getContinuation, updateContinuation } from "@opencode-ai/codex-provider/continuation"
 // Note: orchestrateModelSelection no longer used — subagent validates model against registry directly
 
 // NOTE: @event_task_tool_complex_input
@@ -1550,35 +1549,6 @@ export const TaskTool = Tool.define("task", async (ctx) => {
             accountId: model.accountId,
           },
         })
-
-        // ── Codex fork dispatch: seed child with parent's responseId ──
-        // Avoids re-sending ~100K token parent history. Child's first WS call
-        // continues from parent's server-side conversation state.
-        if (model.providerId === "codex") {
-          const parentContinuation = getContinuation(ctx.sessionID)
-          if (parentContinuation.lastResponseId) {
-            // 1. Store on session info so prompt.ts knows to skip parentMessagePrefix
-            await Session.update(session.id, (draft) => {
-              draft.codexForkResponseId = parentContinuation.lastResponseId
-            })
-            // 2. Pre-seed child's WS continuation so transport uses it on fresh connection
-            updateContinuation(session.id, {
-              lastResponseId: parentContinuation.lastResponseId,
-              lastInputLength: 0,
-              isForkSeed: true,
-            })
-            log.info("codex fork: seeded child with parent responseId", {
-              parentSessionID: ctx.sessionID,
-              childSessionID: session.id,
-              responseId: parentContinuation.lastResponseId.slice(0, 16) + "...",
-            })
-          } else {
-            log.info("codex fork: parent has no responseId, falling back to full context sharing", {
-              parentSessionID: ctx.sessionID,
-              childSessionID: session.id,
-            })
-          }
-        }
 
         // SYSLOG: Log final subagent model decision
         debugCheckpoint("syslog.subagent", "task: subagent model decision", {
