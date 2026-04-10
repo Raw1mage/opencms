@@ -547,9 +547,29 @@ export namespace SessionMonitor {
     for (const sessionID of targetIDs) {
       const status = st.statuses.get(sessionID)
       if (!status || status.type === "idle") {
-        st.rows.delete(sessionID)
-        st.lastScanAt.delete(sessionID)
-        st.dirty.delete(sessionID)
+        // When explicitly requesting descendants, keep completed (idle) sessions
+        // so their telemetry remains visible. Only clean up truly orphaned rows.
+        if (input?.includeDescendants && sessionID !== input?.sessionID) {
+          // Descendant is idle — do a one-time scan if we have no rows yet,
+          // but don't delete existing rows.
+          if (!st.rows.has(sessionID)) {
+            let session = st.sessions.get(sessionID)
+            if (!session) {
+              session = await Session.get(sessionID).catch(() => undefined)
+              if (session) st.sessions.set(sessionID, session)
+            }
+            if (session) {
+              const rows = await scanSession(session, maxMessages)
+              st.rows.set(sessionID, rows)
+              st.lastScanAt.set(sessionID, Date.now())
+            }
+          }
+          st.dirty.delete(sessionID)
+        } else {
+          st.rows.delete(sessionID)
+          st.lastScanAt.delete(sessionID)
+          st.dirty.delete(sessionID)
+        }
         continue
       }
 
