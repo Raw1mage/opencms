@@ -1,8 +1,9 @@
 # Event: webapp voice input MVP
 
-Date: 2026-04-08 (updated 2026-04-10)
-Status: Build In Progress — Mobile Slice (beta/webapp-voice-input-mvp)
-Plan Root: `plans/20260408_webapp/`
+Date: 2026-04-08 (closed 2026-04-10)
+Status: Completed — merged to main, plan closed to `specs/webapp/voice-input/`
+Plan Root: `plans/20260408_webapp/` (closed)
+Spec: `specs/webapp/voice-input/spec.md`
 
 ## 需求
 

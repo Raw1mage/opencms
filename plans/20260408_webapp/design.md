@@ -50,7 +50,8 @@
   - route selection is capability-based and only chooses the shared speech path when support is present; otherwise it selects unsupported state.
   - the decision must be visible in control state and never silently switch after recording starts.
 - Boundary:
-  - 所有狀態都停留在 browser/client；不跨到 `packages/opencode/src/server/**`。
+  - 桌面 speech path 停留在 browser/client。
+  - 手機 recording path 跨到 server（`POST /session/:id/transcribe`），使用 audio-capable model 做轉寫。
 
 ## Risks / Trade-offs
 

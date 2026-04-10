@@ -1,6 +1,8 @@
 # Handoff
 
-## Execution Contract
+**CLOSED** — This plan has been completed and promoted to `specs/webapp/voice-input/spec.md`.
+
+## Execution Contract (historical)
 
 - Build agent must read `implementation-spec.md` first.
 - Build agent must read `proposal.md`, `spec.md`, `design.md`, and `tasks.md` before coding.
