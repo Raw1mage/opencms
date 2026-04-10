@@ -28,7 +28,6 @@ import { FileTime } from "../file/time"
 import { Flag } from "../flag/flag"
 import { ulid } from "ulid"
 import { Command } from "../command"
-import { Storage } from "@/storage/storage"
 import { SessionSummary } from "./summary"
 import { NamedError } from "@opencode-ai/util/error"
 import { fn } from "@/util/fn"
@@ -317,7 +316,7 @@ export namespace SessionPrompt {
         kind: "interrupt",
       })
     }
-    return runLoop(input.sessionID, { replaceRuntime: shouldReplaceRuntime })
+    return runLoop(input.sessionID, { replaceRuntime: shouldReplaceRuntime, incomingModel: input.model })
   })
 
   export async function resolvePromptParts(template: string): Promise<PromptInput["parts"]> {
@@ -805,20 +804,10 @@ export namespace SessionPrompt {
     return { kind: "continue" as const, continueDecision }
   }
 
-  /** Read only the latest user message info (no parts) — O(1) storage reads from the tail. */
-  async function findLatestUserMessageInfo(sessionID: string): Promise<MessageV2.User | undefined> {
-    const list = await Array.fromAsync(await Storage.list(["message", sessionID]))
-    // Messages are stored in ascending order; scan from the end.
-    for (let i = list.length - 1; i >= 0; i--) {
-      const info = await Storage.read<MessageV2.Info>(list[i])
-      if (info.role === "user") return info as MessageV2.User
-      // Don't scan more than the last 5 messages — if no user message found, bail.
-      if (list.length - 1 - i >= 5) break
-    }
-    return undefined
-  }
-
-  async function runLoop(sessionID: string, options?: { replaceRuntime?: boolean }) {
+  async function runLoop(sessionID: string, options?: {
+    replaceRuntime?: boolean
+    incomingModel?: { providerId: string; modelID: string }
+  }) {
     const runtime = start(sessionID, { replace: options?.replaceRuntime })
     if (!runtime) {
       return new Promise<MessageV2.WithParts>((resolve, reject) => {
@@ -961,18 +950,17 @@ export namespace SessionPrompt {
     // ── Pre-loop provider switch detection ──
     // Must run BEFORE the main loop to avoid the expensive filterCompacted scan
     // on a session whose entire history is incompatible with the new provider.
-    // Reads only the latest user message info (no parts, no full scan).
-    if (!session.parentID && session.execution?.providerId) {
-      const latestUserInfo = await findLatestUserMessageInfo(sessionID)
-      const incomingProvider = latestUserInfo?.model?.providerId
-      if (incomingProvider && incomingProvider !== session.execution.providerId) {
-        const prevProvider = session.execution.providerId
+    // Uses incomingModel from the caller — zero storage reads needed.
+    if (!session.parentID && session.execution?.providerId && options?.incomingModel) {
+      const prevProvider = session.execution.providerId
+      const nextProvider = options.incomingModel.providerId
+      if (prevProvider !== nextProvider) {
         log.warn("provider switch detected (pre-loop), forcing context reinit", {
           sessionID,
           prevProvider,
-          nextProvider: incomingProvider,
+          nextProvider,
         })
-        const model = await Provider.getModel(incomingProvider, latestUserInfo!.model!.modelID).catch(() => undefined)
+        const model = await Provider.getModel(nextProvider, options.incomingModel.modelID).catch(() => undefined)
         if (model) {
           // Resolution chain: SharedContext (in-memory) → rebind checkpoint (disk) → minimal stub.
           // LLM compaction is NOT safe because old provider's tool call history is incompatible.
@@ -982,7 +970,7 @@ export namespace SessionPrompt {
           await SessionCompaction.compactWithSharedContext({
             sessionID,
             snapshot: snap
-              ?? `[Provider switched from ${prevProvider} to ${incomingProvider}. Previous conversation context was not recoverable. The user may re-state their request.]`,
+              ?? `[Provider switched from ${prevProvider} to ${nextProvider}. Previous conversation context was not recoverable. The user may re-state their request.]`,
             model,
             auto: true,
           })
