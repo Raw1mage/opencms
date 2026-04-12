@@ -537,6 +537,12 @@ import type {
   TuiSubmitPromptResponses,
   VcsGet2Responses,
   VcsGetResponses,
+  WebRouteList2Responses,
+  WebRouteListResponses,
+  WebRoutePublish2Responses,
+  WebRoutePublishResponses,
+  WebRouteRemove2Responses,
+  WebRouteRemoveResponses,
   WorkspaceActive2Errors,
   WorkspaceActive2Responses,
   WorkspaceActiveErrors,
@@ -824,8 +830,8 @@ export class Config extends HeyApiClient {
    * Update global OpenCode configuration settings and preferences.
    */
   public update<ThrowOnError extends boolean = false>(
-    parameters?: {
-      config?: Config3
+    parameters: {
+      config: Config3
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -860,8 +866,8 @@ export class Config extends HeyApiClient {
    * Update global OpenCode configuration settings and preferences.
    */
   public update2<ThrowOnError extends boolean = false>(
-    parameters?: {
-      config?: Config3
+    parameters: {
+      config: Config3
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -1110,7 +1116,7 @@ export class Auth2 extends HeyApiClient {
   public set<ThrowOnError extends boolean = false>(
     parameters: {
       providerId: string
-      auth?: Auth4
+      auth: Auth4
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -1164,7 +1170,7 @@ export class Auth2 extends HeyApiClient {
   public set2<ThrowOnError extends boolean = false>(
     parameters: {
       providerId: string
-      auth?: Auth4
+      auth: Auth4
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -2388,9 +2394,9 @@ export class Config2 extends HeyApiClient {
    * Update OpenCode configuration settings and preferences.
    */
   public update<ThrowOnError extends boolean = false>(
-    parameters?: {
+    parameters: {
       directory?: string
-      config?: Config3
+      config: Config3
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -2461,9 +2467,9 @@ export class Config2 extends HeyApiClient {
    * Update OpenCode configuration settings and preferences.
    */
   public update2<ThrowOnError extends boolean = false>(
-    parameters?: {
+    parameters: {
       directory?: string
-      config?: Config3
+      config: Config3
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -3089,9 +3095,9 @@ export class Worktree extends HeyApiClient {
    * Remove a git worktree and delete its branch.
    */
   public remove<ThrowOnError extends boolean = false>(
-    parameters?: {
+    parameters: {
       directory?: string
-      worktreeRemoveInput?: WorktreeRemoveInput
+      worktreeRemoveInput: WorktreeRemoveInput
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -3143,9 +3149,9 @@ export class Worktree extends HeyApiClient {
    * Create a new git worktree for the current project and run any configured startup scripts.
    */
   public create<ThrowOnError extends boolean = false>(
-    parameters?: {
+    parameters: {
       directory?: string
-      worktreeCreateInput?: WorktreeCreateInput
+      worktreeCreateInput: WorktreeCreateInput
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -3178,9 +3184,9 @@ export class Worktree extends HeyApiClient {
    * Reset a worktree branch to the primary default branch.
    */
   public reset<ThrowOnError extends boolean = false>(
-    parameters?: {
+    parameters: {
       directory?: string
-      worktreeResetInput?: WorktreeResetInput
+      worktreeResetInput: WorktreeResetInput
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -3213,9 +3219,9 @@ export class Worktree extends HeyApiClient {
    * Remove a git worktree and delete its branch.
    */
   public remove2<ThrowOnError extends boolean = false>(
-    parameters?: {
+    parameters: {
       directory?: string
-      worktreeRemoveInput?: WorktreeRemoveInput
+      worktreeRemoveInput: WorktreeRemoveInput
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -3267,9 +3273,9 @@ export class Worktree extends HeyApiClient {
    * Create a new git worktree for the current project and run any configured startup scripts.
    */
   public create2<ThrowOnError extends boolean = false>(
-    parameters?: {
+    parameters: {
       directory?: string
-      worktreeCreateInput?: WorktreeCreateInput
+      worktreeCreateInput: WorktreeCreateInput
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -3302,9 +3308,9 @@ export class Worktree extends HeyApiClient {
    * Reset a worktree branch to the primary default branch.
    */
   public reset2<ThrowOnError extends boolean = false>(
-    parameters?: {
+    parameters: {
       directory?: string
-      worktreeResetInput?: WorktreeResetInput
+      worktreeResetInput: WorktreeResetInput
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -5841,7 +5847,7 @@ export class Part extends HeyApiClient {
       messageID: string
       partID: string
       directory?: string
-      part?: Part2
+      part: Part2
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -5912,7 +5918,7 @@ export class Part extends HeyApiClient {
       messageID: string
       partID: string
       directory?: string
-      part?: Part2
+      part: Part2
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -8186,9 +8192,9 @@ export class Control extends HeyApiClient {
    * Submit a response to the TUI request queue to complete a pending request.
    */
   public response<ThrowOnError extends boolean = false>(
-    parameters?: {
+    parameters: {
       directory?: string
-      body?: unknown
+      body: unknown
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -8240,9 +8246,9 @@ export class Control extends HeyApiClient {
    * Submit a response to the TUI request queue to complete a pending request.
    */
   public response2<ThrowOnError extends boolean = false>(
-    parameters?: {
+    parameters: {
       directory?: string
-      body?: unknown
+      body: unknown
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -8502,9 +8508,9 @@ export class Tui extends HeyApiClient {
    * Publish a TUI event
    */
   public publish<ThrowOnError extends boolean = false>(
-    parameters?: {
+    parameters: {
       directory?: string
-      body?:
+      body:
         | EventTuiProviderRefresh
         | EventTuiPromptAppend
         | EventTuiCommandExecute
@@ -8802,9 +8808,9 @@ export class Tui extends HeyApiClient {
    * Publish a TUI event
    */
   public publish2<ThrowOnError extends boolean = false>(
-    parameters?: {
+    parameters: {
       directory?: string
-      body?:
+      body:
         | EventTuiProviderRefresh
         | EventTuiPromptAppend
         | EventTuiCommandExecute
@@ -11252,6 +11258,194 @@ export class GoogleBinding extends HeyApiClient {
   }
 }
 
+export class WebRoute extends HeyApiClient {
+  /**
+   * List web routes
+   *
+   * List all published web routes for the current user.
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<WebRouteListResponses, unknown, ThrowOnError>({
+      url: "/api/v2/web-route",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Publish a web route
+   *
+   * Register a new public web route via the gateway.
+   */
+  public publish<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      prefix?: string
+      host?: string
+      port?: number
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "prefix" },
+            { in: "body", key: "host" },
+            { in: "body", key: "port" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<WebRoutePublishResponses, unknown, ThrowOnError>({
+      url: "/api/v2/web-route/publish",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Remove a web route
+   *
+   * Unregister a published web route.
+   */
+  public remove<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      prefix?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "prefix" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<WebRouteRemoveResponses, unknown, ThrowOnError>({
+      url: "/api/v2/web-route/remove",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * List web routes
+   *
+   * List all published web routes for the current user.
+   */
+  public list2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<WebRouteList2Responses, unknown, ThrowOnError>({
+      url: "/web-route",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Publish a web route
+   *
+   * Register a new public web route via the gateway.
+   */
+  public publish2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      prefix?: string
+      host?: string
+      port?: number
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "prefix" },
+            { in: "body", key: "host" },
+            { in: "body", key: "port" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<WebRoutePublish2Responses, unknown, ThrowOnError>({
+      url: "/web-route/publish",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Remove a web route
+   *
+   * Unregister a published web route.
+   */
+  public remove2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      prefix?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "prefix" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<WebRouteRemove2Responses, unknown, ThrowOnError>({
+      url: "/web-route/remove",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
 export class Find extends HeyApiClient {
   /**
    * Find text
@@ -12166,6 +12360,11 @@ export class OpencodeClient extends HeyApiClient {
   private _googleBinding?: GoogleBinding
   get googleBinding(): GoogleBinding {
     return (this._googleBinding ??= new GoogleBinding({ client: this.client }))
+  }
+
+  private _webRoute?: WebRoute
+  get webRoute(): WebRoute {
+    return (this._webRoute ??= new WebRoute({ client: this.client }))
   }
 
   private _find?: Find

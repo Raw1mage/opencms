@@ -3488,7 +3488,7 @@ export type GlobalConfigGetResponses = {
 export type GlobalConfigGetResponse = GlobalConfigGetResponses[keyof GlobalConfigGetResponses]
 
 export type GlobalConfigUpdateData = {
-  body?: Config
+  body: Config
   path?: never
   query?: never
   url: "/api/v2/global/config"
@@ -3604,7 +3604,7 @@ export type GlobalLogLevelGetResponses = {
 export type GlobalLogLevelGetResponse = GlobalLogLevelGetResponses[keyof GlobalLogLevelGetResponses]
 
 export type GlobalLogLevelSetData = {
-  body?: {
+  body: {
     level: number
   }
   path?: never
@@ -3652,7 +3652,7 @@ export type AuthRemoveResponses = {
 export type AuthRemoveResponse = AuthRemoveResponses[keyof AuthRemoveResponses]
 
 export type AuthSetData = {
-  body?: Auth
+  body: Auth
   path: {
     providerId: string
   }
@@ -3715,7 +3715,7 @@ export type ProjectCurrentResponses = {
 export type ProjectCurrentResponse = ProjectCurrentResponses[keyof ProjectCurrentResponses]
 
 export type ProjectUpdateData = {
-  body?: {
+  body: {
     name?: string
     icon?: {
       url?: string
@@ -4349,7 +4349,7 @@ export type PtyListResponses = {
 export type PtyListResponse = PtyListResponses[keyof PtyListResponses]
 
 export type PtyCreateData = {
-  body?: {
+  body: {
     command?: string
     args?: Array<string>
     cwd?: string
@@ -4442,7 +4442,7 @@ export type PtyGetResponses = {
 export type PtyGetResponse = PtyGetResponses[keyof PtyGetResponses]
 
 export type PtyUpdateData = {
-  body?: {
+  body: {
     title?: string
     size?: {
       rows: number
@@ -4524,7 +4524,7 @@ export type ConfigGetResponses = {
 export type ConfigGetResponse = ConfigGetResponses[keyof ConfigGetResponses]
 
 export type ConfigUpdateData = {
-  body?: Config
+  body: Config
   path?: never
   query?: {
     directory?: string
@@ -4574,7 +4574,7 @@ export type ConfigProvidersResponses = {
 export type ConfigProvidersResponse = ConfigProvidersResponses[keyof ConfigProvidersResponses]
 
 export type ExperimentalDebugBeaconData = {
-  body?: {
+  body: {
     source?: string
     event: string
     directory?: string
@@ -4630,7 +4630,7 @@ export type ExperimentalScrollCaptureLatestResponse =
   ExperimentalScrollCaptureLatestResponses[keyof ExperimentalScrollCaptureLatestResponses]
 
 export type ExperimentalScrollCaptureRecordData = {
-  body?: {
+  body: {
     source?: string
     capturedAt?: number
     payload: {
@@ -4781,7 +4781,7 @@ export type ToolListResponses = {
 export type ToolListResponse = ToolListResponses[keyof ToolListResponses]
 
 export type WorktreeRemoveData = {
-  body?: WorktreeRemoveInput
+  body: WorktreeRemoveInput
   path?: never
   query?: {
     directory?: string
@@ -4826,7 +4826,7 @@ export type WorktreeListResponses = {
 export type WorktreeListResponse = WorktreeListResponses[keyof WorktreeListResponses]
 
 export type WorktreeCreateData = {
-  body?: WorktreeCreateInput
+  body: WorktreeCreateInput
   path?: never
   query?: {
     directory?: string
@@ -4853,7 +4853,7 @@ export type WorktreeCreateResponses = {
 export type WorktreeCreateResponse = WorktreeCreateResponses[keyof WorktreeCreateResponses]
 
 export type WorktreeResetData = {
-  body?: WorktreeResetInput
+  body: WorktreeResetInput
   path?: never
   query?: {
     directory?: string
@@ -4983,7 +4983,7 @@ export type SessionListResponses = {
 export type SessionListResponse = SessionListResponses[keyof SessionListResponses]
 
 export type SessionCreateData = {
-  body?: {
+  body: {
     parentID?: string
     title?: string
     permission?: PermissionRuleset
@@ -5148,7 +5148,7 @@ export type SessionGetResponses = {
 export type SessionGetResponse = SessionGetResponses[keyof SessionGetResponses]
 
 export type SessionUpdateData = {
-  body?: {
+  body: {
     title?: string
     execution?: {
       providerId: string
@@ -5314,7 +5314,7 @@ export type SessionSkillLayerListResponses = {
 export type SessionSkillLayerListResponse = SessionSkillLayerListResponses[keyof SessionSkillLayerListResponses]
 
 export type SessionSkillLayerActionData = {
-  body?: {
+  body: {
     action: "pin" | "unpin" | "promote" | "demote" | "unload"
   }
   path: {
@@ -5367,7 +5367,7 @@ export type SessionSkillLayerActionResponses = {
 export type SessionSkillLayerActionResponse = SessionSkillLayerActionResponses[keyof SessionSkillLayerActionResponses]
 
 export type SessionAutonomousData = {
-  body?: {
+  body: {
     enabled: boolean
     enqueue?: boolean
   }
@@ -5553,7 +5553,7 @@ export type SessionAutonomousQueueResponses = {
 export type SessionAutonomousQueueResponse = SessionAutonomousQueueResponses[keyof SessionAutonomousQueueResponses]
 
 export type SessionAutonomousQueueControlData = {
-  body?: {
+  body: {
     action: "resume_once" | "drop_pending"
   }
   path: {
@@ -5644,7 +5644,7 @@ export type SessionAutonomousQueueControlResponse =
   SessionAutonomousQueueControlResponses[keyof SessionAutonomousQueueControlResponses]
 
 export type SessionInitData = {
-  body?: {
+  body: {
     modelID: string
     providerID: string
     messageID: string
@@ -5684,7 +5684,7 @@ export type SessionInitResponses = {
 export type SessionInitResponse = SessionInitResponses[keyof SessionInitResponses]
 
 export type SessionForkData = {
-  body?: {
+  body: {
     messageID?: string
   }
   path: {
@@ -5847,7 +5847,7 @@ export type SessionDiffResponses = {
 export type SessionDiffResponse = SessionDiffResponses[keyof SessionDiffResponses]
 
 export type SessionSummarizeData = {
-  body?: {
+  body: {
     providerId: string
     modelID: string
     auto?: boolean
@@ -5927,7 +5927,7 @@ export type SessionMessagesResponses = {
 export type SessionMessagesResponse = SessionMessagesResponses[keyof SessionMessagesResponses]
 
 export type SessionPromptData = {
-  body?: {
+  body: {
     messageID?: string
     model?: {
       providerId: string
@@ -6113,7 +6113,7 @@ export type PartDeleteResponses = {
 export type PartDeleteResponse = PartDeleteResponses[keyof PartDeleteResponses]
 
 export type PartUpdateData = {
-  body?: Part
+  body: Part
   path: {
     /**
      * Session ID
@@ -6157,7 +6157,7 @@ export type PartUpdateResponses = {
 export type PartUpdateResponse = PartUpdateResponses[keyof PartUpdateResponses]
 
 export type SessionPromptAsyncData = {
-  body?: {
+  body: {
     messageID?: string
     model?: {
       providerId: string
@@ -6213,7 +6213,7 @@ export type SessionPromptAsyncResponses = {
 export type SessionPromptAsyncResponse = SessionPromptAsyncResponses[keyof SessionPromptAsyncResponses]
 
 export type SessionCommandData = {
-  body?: {
+  body: {
     messageID?: string
     agent?: string
     model?:
@@ -6273,7 +6273,7 @@ export type SessionCommandResponses = {
 export type SessionCommandResponse = SessionCommandResponses[keyof SessionCommandResponses]
 
 export type SessionShellData = {
-  body?: {
+  body: {
     agent: string
     model?: {
       providerId: string
@@ -6318,7 +6318,7 @@ export type SessionShellResponses = {
 export type SessionShellResponse = SessionShellResponses[keyof SessionShellResponses]
 
 export type SessionRevertData = {
-  body?: {
+  body: {
     messageID: string
     partID?: string
   }
@@ -6387,7 +6387,7 @@ export type SessionUnrevertResponses = {
 export type SessionUnrevertResponse = SessionUnrevertResponses[keyof SessionUnrevertResponses]
 
 export type PermissionRespondData = {
-  body?: {
+  body: {
     response: "once" | "always" | "reject"
   }
   path: {
@@ -6461,7 +6461,7 @@ export type SessionTranscribeResponses = {
 export type SessionTranscribeResponse = SessionTranscribeResponses[keyof SessionTranscribeResponses]
 
 export type PermissionReplyData = {
-  body?: {
+  body: {
     reply: "once" | "always" | "reject"
     message?: string
   }
@@ -6533,7 +6533,7 @@ export type QuestionListResponses = {
 export type QuestionListResponse = QuestionListResponses[keyof QuestionListResponses]
 
 export type QuestionReplyData = {
-  body?: {
+  body: {
     /**
      * User answers in order of questions (each answer is an array of selected labels)
      */
@@ -6648,7 +6648,7 @@ export type ProviderAuthResponses = {
 export type ProviderAuthResponse = ProviderAuthResponses[keyof ProviderAuthResponses]
 
 export type ProviderOauthAuthorizeData = {
-  body?: {
+  body: {
     /**
      * Auth method index
      */
@@ -6685,7 +6685,7 @@ export type ProviderOauthAuthorizeResponses = {
 export type ProviderOauthAuthorizeResponse = ProviderOauthAuthorizeResponses[keyof ProviderOauthAuthorizeResponses]
 
 export type ProviderOauthCallbackData = {
-  body?: {
+  body: {
     /**
      * Auth method index
      */
@@ -7235,7 +7235,7 @@ export type McpAppsUninstallResponses = {
 export type McpAppsUninstallResponse = McpAppsUninstallResponses[keyof McpAppsUninstallResponses]
 
 export type McpAppsConfigData = {
-  body?: {
+  body: {
     keys: Array<string>
   }
   path: {
@@ -7802,7 +7802,7 @@ export type McpStatusResponses = {
 export type McpStatusResponse = McpStatusResponses[keyof McpStatusResponses]
 
 export type McpAddData = {
-  body?: {
+  body: {
     name: string
     config: McpLocalConfig | McpRemoteConfig
   }
@@ -7903,7 +7903,7 @@ export type McpAuthStartResponses = {
 export type McpAuthStartResponse = McpAuthStartResponses[keyof McpAuthStartResponses]
 
 export type McpAuthCallbackData = {
-  body?: {
+  body: {
     /**
      * Authorization code from OAuth callback
      */
@@ -8030,7 +8030,7 @@ export type McpStoreListResponses = {
 }
 
 export type McpStoreAddData = {
-  body?: {
+  body: {
     path?: string
     githubUrl?: string
     id?: string
@@ -8058,7 +8058,7 @@ export type McpStoreAddResponses = {
 }
 
 export type McpStorePreviewData = {
-  body?: {
+  body: {
     path: string
   }
   path?: never
@@ -8101,7 +8101,7 @@ export type McpStoreRemoveResponses = {
 }
 
 export type McpStoreUpdateData = {
-  body?: {
+  body: {
     enabled: boolean
   }
   path: {
@@ -8121,7 +8121,7 @@ export type McpStoreUpdateResponses = {
 }
 
 export type McpStoreSetConfigData = {
-  body?: {
+  body: {
     config: {
       [key: string]: string | number | boolean
     }
@@ -8143,7 +8143,7 @@ export type McpStoreSetConfigResponses = {
 }
 
 export type TuiAppendPromptData = {
-  body?: {
+  body: {
     text: string
   }
   path?: never
@@ -8280,7 +8280,7 @@ export type TuiClearPromptResponses = {
 export type TuiClearPromptResponse = TuiClearPromptResponses[keyof TuiClearPromptResponses]
 
 export type TuiExecuteCommandData = {
-  body?: {
+  body: {
     command: string
   }
   path?: never
@@ -8309,7 +8309,7 @@ export type TuiExecuteCommandResponses = {
 export type TuiExecuteCommandResponse = TuiExecuteCommandResponses[keyof TuiExecuteCommandResponses]
 
 export type TuiShowToastData = {
-  body?: {
+  body: {
     title?: string
     message: string
     variant: "info" | "success" | "warning" | "error"
@@ -8335,7 +8335,7 @@ export type TuiShowToastResponses = {
 export type TuiShowToastResponse = TuiShowToastResponses[keyof TuiShowToastResponses]
 
 export type TuiPublishData = {
-  body?:
+  body:
     | EventTuiProviderRefresh
     | EventTuiPromptAppend
     | EventTuiCommandExecute
@@ -8367,7 +8367,7 @@ export type TuiPublishResponses = {
 export type TuiPublishResponse = TuiPublishResponses[keyof TuiPublishResponses]
 
 export type TuiSelectSessionData = {
-  body?: {
+  body: {
     /**
      * Session ID to navigate to
      */
@@ -8424,7 +8424,7 @@ export type TuiControlNextResponses = {
 export type TuiControlNextResponse = TuiControlNextResponses[keyof TuiControlNextResponses]
 
 export type TuiControlResponseData = {
-  body?: unknown
+  body: unknown
   path?: never
   query?: {
     directory?: string
@@ -8591,7 +8591,7 @@ export type AccountListAllResponses = {
 export type AccountListAllResponse = AccountListAllResponses[keyof AccountListAllResponses]
 
 export type AccountSetActiveData = {
-  body?: {
+  body: {
     /**
      * Target account ID under the selected provider key
      */
@@ -8732,7 +8732,7 @@ export type AccountRemoveResponses = {
 export type AccountRemoveResponse = AccountRemoveResponses[keyof AccountRemoveResponses]
 
 export type AccountUpdateData = {
-  body?: {
+  body: {
     name: string
     /**
      * Canonical provider key alias; must match legacy :family route param when provided
@@ -8924,7 +8924,7 @@ export type AccountListAll2Responses = {
 export type AccountListAll2Response = AccountListAll2Responses[keyof AccountListAll2Responses]
 
 export type AccountSetActive2Data = {
-  body?: {
+  body: {
     /**
      * Target account ID under the selected provider key
      */
@@ -9065,7 +9065,7 @@ export type AccountRemove2Responses = {
 export type AccountRemove2Response = AccountRemove2Responses[keyof AccountRemove2Responses]
 
 export type AccountUpdate2Data = {
-  body?: {
+  body: {
     name: string
     /**
      * Canonical provider key alias; must match legacy :family route param when provided
@@ -9163,7 +9163,7 @@ export type RotationStatusResponses = {
 export type RotationStatusResponse = RotationStatusResponses[keyof RotationStatusResponses]
 
 export type RotationRecommendData = {
-  body?: {
+  body: {
     taskType?: "dialog" | "task" | "background" | "coding" | "review"
     preferSubscription?: boolean
     currentVector?: {
@@ -9218,7 +9218,7 @@ export type RotationRecommendResponses = {
 export type RotationRecommendResponse = RotationRecommendResponses[keyof RotationRecommendResponses]
 
 export type RotationFallbackData = {
-  body?: {
+  body: {
     current: {
       providerId: string
       accountId: string
@@ -9288,7 +9288,7 @@ export type ModelPreferencesGetResponses = {
 export type ModelPreferencesGetResponse = ModelPreferencesGetResponses[keyof ModelPreferencesGetResponses]
 
 export type ModelPreferencesUpdateData = {
-  body?: {
+  body: {
     favorite: Array<{
       providerId: string
       modelID: string
@@ -9355,7 +9355,7 @@ export type KillswitchStatusResponses = {
 export type KillswitchStatusResponse = KillswitchStatusResponses[keyof KillswitchStatusResponses]
 
 export type KillswitchTriggerData = {
-  body?: {
+  body: {
     initiator?: string
     reason: string
     mode?: string
@@ -9386,7 +9386,7 @@ export type KillswitchTriggerResponses = {
 export type KillswitchTriggerResponse = KillswitchTriggerResponses[keyof KillswitchTriggerResponses]
 
 export type KillswitchCancelData = {
-  body?: {
+  body: {
     requestID?: string
     initiator?: string
   }
@@ -9410,7 +9410,7 @@ export type KillswitchCancelResponses = {
 export type KillswitchCancelResponse = KillswitchCancelResponses[keyof KillswitchCancelResponses]
 
 export type KillswitchTaskControlData = {
-  body?: {
+  body: {
     initiator?: string
     action?: "pause" | "resume" | "cancel" | "snapshot" | "set_priority"
     seq?: number
@@ -9532,7 +9532,7 @@ export type CronJobsListResponses = {
 export type CronJobsListResponse = CronJobsListResponses[keyof CronJobsListResponses]
 
 export type CronJobsCreateData = {
-  body?: {
+  body: {
     name: string
     description?: string
     enabled?: boolean
@@ -9793,7 +9793,7 @@ export type CronJobsGetResponses = {
 export type CronJobsGetResponse = CronJobsGetResponses[keyof CronJobsGetResponses]
 
 export type CronJobsUpdateData = {
-  body?: {
+  body: {
     name?: string
     description?: string
     enabled?: boolean
@@ -10106,6 +10106,80 @@ export type GoogleBindingUnbindResponses = {
 
 export type GoogleBindingUnbindResponse = GoogleBindingUnbindResponses[keyof GoogleBindingUnbindResponses]
 
+export type WebRouteListData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/web-route"
+}
+
+export type WebRouteListResponses = {
+  /**
+   * List of web routes
+   */
+  200: {
+    ok: boolean
+    routes: Array<{
+      prefix: string
+      host: string
+      port: number
+      uid: number
+    }>
+  }
+}
+
+export type WebRouteListResponse = WebRouteListResponses[keyof WebRouteListResponses]
+
+export type WebRoutePublishData = {
+  body: {
+    prefix: string
+    host?: string
+    port: number
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/web-route/publish"
+}
+
+export type WebRoutePublishResponses = {
+  /**
+   * Publish result
+   */
+  200: {
+    ok: boolean
+    error?: string
+  }
+}
+
+export type WebRoutePublishResponse = WebRoutePublishResponses[keyof WebRoutePublishResponses]
+
+export type WebRouteRemoveData = {
+  body: {
+    prefix: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/web-route/remove"
+}
+
+export type WebRouteRemoveResponses = {
+  /**
+   * Remove result
+   */
+  200: {
+    ok: boolean
+    error?: string
+  }
+}
+
+export type WebRouteRemoveResponse = WebRouteRemoveResponses[keyof WebRouteRemoveResponses]
+
 export type FindTextData = {
   body?: never
   path?: never
@@ -10311,7 +10385,7 @@ export type CommandListResponses = {
 export type CommandListResponse = CommandListResponses[keyof CommandListResponses]
 
 export type AppLogData = {
-  body?: {
+  body: {
     /**
      * Service name for the log entry
      */
@@ -10570,7 +10644,7 @@ export type GlobalConfigGet2Responses = {
 export type GlobalConfigGet2Response = GlobalConfigGet2Responses[keyof GlobalConfigGet2Responses]
 
 export type GlobalConfigUpdate2Data = {
-  body?: Config
+  body: Config
   path?: never
   query?: never
   url: "/global/config"
@@ -10687,7 +10761,7 @@ export type GlobalLogLevelGet2Responses = {
 export type GlobalLogLevelGet2Response = GlobalLogLevelGet2Responses[keyof GlobalLogLevelGet2Responses]
 
 export type GlobalLogLevelSet2Data = {
-  body?: {
+  body: {
     level: number
   }
   path?: never
@@ -10735,7 +10809,7 @@ export type AuthRemove2Responses = {
 export type AuthRemove2Response = AuthRemove2Responses[keyof AuthRemove2Responses]
 
 export type AuthSet2Data = {
-  body?: Auth
+  body: Auth
   path: {
     providerId: string
   }
@@ -10798,7 +10872,7 @@ export type ProjectCurrent2Responses = {
 export type ProjectCurrent2Response = ProjectCurrent2Responses[keyof ProjectCurrent2Responses]
 
 export type ProjectUpdate2Data = {
-  body?: {
+  body: {
     name?: string
     icon?: {
       url?: string
@@ -11432,7 +11506,7 @@ export type PtyList2Responses = {
 export type PtyList2Response = PtyList2Responses[keyof PtyList2Responses]
 
 export type PtyCreate2Data = {
-  body?: {
+  body: {
     command?: string
     args?: Array<string>
     cwd?: string
@@ -11525,7 +11599,7 @@ export type PtyGet2Responses = {
 export type PtyGet2Response = PtyGet2Responses[keyof PtyGet2Responses]
 
 export type PtyUpdate2Data = {
-  body?: {
+  body: {
     title?: string
     size?: {
       rows: number
@@ -11607,7 +11681,7 @@ export type ConfigGet2Responses = {
 export type ConfigGet2Response = ConfigGet2Responses[keyof ConfigGet2Responses]
 
 export type ConfigUpdate2Data = {
-  body?: Config
+  body: Config
   path?: never
   query?: {
     directory?: string
@@ -11657,7 +11731,7 @@ export type ConfigProviders2Responses = {
 export type ConfigProviders2Response = ConfigProviders2Responses[keyof ConfigProviders2Responses]
 
 export type ExperimentalDebugBeacon2Data = {
-  body?: {
+  body: {
     source?: string
     event: string
     directory?: string
@@ -11714,7 +11788,7 @@ export type ExperimentalScrollCaptureLatest2Response =
   ExperimentalScrollCaptureLatest2Responses[keyof ExperimentalScrollCaptureLatest2Responses]
 
 export type ExperimentalScrollCaptureRecord2Data = {
-  body?: {
+  body: {
     source?: string
     capturedAt?: number
     payload: {
@@ -11865,7 +11939,7 @@ export type ToolList2Responses = {
 export type ToolList2Response = ToolList2Responses[keyof ToolList2Responses]
 
 export type WorktreeRemove2Data = {
-  body?: WorktreeRemoveInput
+  body: WorktreeRemoveInput
   path?: never
   query?: {
     directory?: string
@@ -11910,7 +11984,7 @@ export type WorktreeList2Responses = {
 export type WorktreeList2Response = WorktreeList2Responses[keyof WorktreeList2Responses]
 
 export type WorktreeCreate2Data = {
-  body?: WorktreeCreateInput
+  body: WorktreeCreateInput
   path?: never
   query?: {
     directory?: string
@@ -11937,7 +12011,7 @@ export type WorktreeCreate2Responses = {
 export type WorktreeCreate2Response = WorktreeCreate2Responses[keyof WorktreeCreate2Responses]
 
 export type WorktreeReset2Data = {
-  body?: WorktreeResetInput
+  body: WorktreeResetInput
   path?: never
   query?: {
     directory?: string
@@ -12068,7 +12142,7 @@ export type SessionList2Responses = {
 export type SessionList2Response = SessionList2Responses[keyof SessionList2Responses]
 
 export type SessionCreate2Data = {
-  body?: {
+  body: {
     parentID?: string
     title?: string
     permission?: PermissionRuleset
@@ -12233,7 +12307,7 @@ export type SessionGet2Responses = {
 export type SessionGet2Response = SessionGet2Responses[keyof SessionGet2Responses]
 
 export type SessionUpdate2Data = {
-  body?: {
+  body: {
     title?: string
     execution?: {
       providerId: string
@@ -12399,7 +12473,7 @@ export type SessionSkillLayerList2Responses = {
 export type SessionSkillLayerList2Response = SessionSkillLayerList2Responses[keyof SessionSkillLayerList2Responses]
 
 export type SessionSkillLayerAction2Data = {
-  body?: {
+  body: {
     action: "pin" | "unpin" | "promote" | "demote" | "unload"
   }
   path: {
@@ -12453,7 +12527,7 @@ export type SessionSkillLayerAction2Response =
   SessionSkillLayerAction2Responses[keyof SessionSkillLayerAction2Responses]
 
 export type SessionAutonomous2Data = {
-  body?: {
+  body: {
     enabled: boolean
     enqueue?: boolean
   }
@@ -12640,7 +12714,7 @@ export type SessionAutonomousQueue2Responses = {
 export type SessionAutonomousQueue2Response = SessionAutonomousQueue2Responses[keyof SessionAutonomousQueue2Responses]
 
 export type SessionAutonomousQueueControl2Data = {
-  body?: {
+  body: {
     action: "resume_once" | "drop_pending"
   }
   path: {
@@ -12731,7 +12805,7 @@ export type SessionAutonomousQueueControl2Response =
   SessionAutonomousQueueControl2Responses[keyof SessionAutonomousQueueControl2Responses]
 
 export type SessionInit2Data = {
-  body?: {
+  body: {
     modelID: string
     providerID: string
     messageID: string
@@ -12771,7 +12845,7 @@ export type SessionInit2Responses = {
 export type SessionInit2Response = SessionInit2Responses[keyof SessionInit2Responses]
 
 export type SessionFork2Data = {
-  body?: {
+  body: {
     messageID?: string
   }
   path: {
@@ -12934,7 +13008,7 @@ export type SessionDiff2Responses = {
 export type SessionDiff2Response = SessionDiff2Responses[keyof SessionDiff2Responses]
 
 export type SessionSummarize2Data = {
-  body?: {
+  body: {
     providerId: string
     modelID: string
     auto?: boolean
@@ -13014,7 +13088,7 @@ export type SessionMessages2Responses = {
 export type SessionMessages2Response = SessionMessages2Responses[keyof SessionMessages2Responses]
 
 export type SessionPrompt2Data = {
-  body?: {
+  body: {
     messageID?: string
     model?: {
       providerId: string
@@ -13200,7 +13274,7 @@ export type PartDelete2Responses = {
 export type PartDelete2Response = PartDelete2Responses[keyof PartDelete2Responses]
 
 export type PartUpdate2Data = {
-  body?: Part
+  body: Part
   path: {
     /**
      * Session ID
@@ -13244,7 +13318,7 @@ export type PartUpdate2Responses = {
 export type PartUpdate2Response = PartUpdate2Responses[keyof PartUpdate2Responses]
 
 export type SessionPromptAsync2Data = {
-  body?: {
+  body: {
     messageID?: string
     model?: {
       providerId: string
@@ -13300,7 +13374,7 @@ export type SessionPromptAsync2Responses = {
 export type SessionPromptAsync2Response = SessionPromptAsync2Responses[keyof SessionPromptAsync2Responses]
 
 export type SessionCommand2Data = {
-  body?: {
+  body: {
     messageID?: string
     agent?: string
     model?:
@@ -13360,7 +13434,7 @@ export type SessionCommand2Responses = {
 export type SessionCommand2Response = SessionCommand2Responses[keyof SessionCommand2Responses]
 
 export type SessionShell2Data = {
-  body?: {
+  body: {
     agent: string
     model?: {
       providerId: string
@@ -13405,7 +13479,7 @@ export type SessionShell2Responses = {
 export type SessionShell2Response = SessionShell2Responses[keyof SessionShell2Responses]
 
 export type SessionRevert2Data = {
-  body?: {
+  body: {
     messageID: string
     partID?: string
   }
@@ -13474,7 +13548,7 @@ export type SessionUnrevert2Responses = {
 export type SessionUnrevert2Response = SessionUnrevert2Responses[keyof SessionUnrevert2Responses]
 
 export type PermissionRespond2Data = {
-  body?: {
+  body: {
     response: "once" | "always" | "reject"
   }
   path: {
@@ -13548,7 +13622,7 @@ export type SessionTranscribe2Responses = {
 export type SessionTranscribe2Response = SessionTranscribe2Responses[keyof SessionTranscribe2Responses]
 
 export type PermissionReply2Data = {
-  body?: {
+  body: {
     reply: "once" | "always" | "reject"
     message?: string
   }
@@ -13620,7 +13694,7 @@ export type QuestionList2Responses = {
 export type QuestionList2Response = QuestionList2Responses[keyof QuestionList2Responses]
 
 export type QuestionReply2Data = {
-  body?: {
+  body: {
     /**
      * User answers in order of questions (each answer is an array of selected labels)
      */
@@ -13735,7 +13809,7 @@ export type ProviderAuth2Responses = {
 export type ProviderAuth2Response = ProviderAuth2Responses[keyof ProviderAuth2Responses]
 
 export type ProviderOauthAuthorize2Data = {
-  body?: {
+  body: {
     /**
      * Auth method index
      */
@@ -13772,7 +13846,7 @@ export type ProviderOauthAuthorize2Responses = {
 export type ProviderOauthAuthorize2Response = ProviderOauthAuthorize2Responses[keyof ProviderOauthAuthorize2Responses]
 
 export type ProviderOauthCallback2Data = {
-  body?: {
+  body: {
     /**
      * Auth method index
      */
@@ -14322,7 +14396,7 @@ export type McpAppsUninstall2Responses = {
 export type McpAppsUninstall2Response = McpAppsUninstall2Responses[keyof McpAppsUninstall2Responses]
 
 export type McpAppsConfig2Data = {
-  body?: {
+  body: {
     keys: Array<string>
   }
   path: {
@@ -14889,7 +14963,7 @@ export type McpStatus2Responses = {
 export type McpStatus2Response = McpStatus2Responses[keyof McpStatus2Responses]
 
 export type McpAdd2Data = {
-  body?: {
+  body: {
     name: string
     config: McpLocalConfig | McpRemoteConfig
   }
@@ -14990,7 +15064,7 @@ export type McpAuthStart2Responses = {
 export type McpAuthStart2Response = McpAuthStart2Responses[keyof McpAuthStart2Responses]
 
 export type McpAuthCallback2Data = {
-  body?: {
+  body: {
     /**
      * Authorization code from OAuth callback
      */
@@ -15117,7 +15191,7 @@ export type McpStoreList2Responses = {
 }
 
 export type McpStoreAdd2Data = {
-  body?: {
+  body: {
     path?: string
     githubUrl?: string
     id?: string
@@ -15145,7 +15219,7 @@ export type McpStoreAdd2Responses = {
 }
 
 export type McpStorePreview2Data = {
-  body?: {
+  body: {
     path: string
   }
   path?: never
@@ -15188,7 +15262,7 @@ export type McpStoreRemove2Responses = {
 }
 
 export type McpStoreUpdate2Data = {
-  body?: {
+  body: {
     enabled: boolean
   }
   path: {
@@ -15208,7 +15282,7 @@ export type McpStoreUpdate2Responses = {
 }
 
 export type McpStoreSetConfig2Data = {
-  body?: {
+  body: {
     config: {
       [key: string]: string | number | boolean
     }
@@ -15230,7 +15304,7 @@ export type McpStoreSetConfig2Responses = {
 }
 
 export type TuiAppendPrompt2Data = {
-  body?: {
+  body: {
     text: string
   }
   path?: never
@@ -15367,7 +15441,7 @@ export type TuiClearPrompt2Responses = {
 export type TuiClearPrompt2Response = TuiClearPrompt2Responses[keyof TuiClearPrompt2Responses]
 
 export type TuiExecuteCommand2Data = {
-  body?: {
+  body: {
     command: string
   }
   path?: never
@@ -15396,7 +15470,7 @@ export type TuiExecuteCommand2Responses = {
 export type TuiExecuteCommand2Response = TuiExecuteCommand2Responses[keyof TuiExecuteCommand2Responses]
 
 export type TuiShowToast2Data = {
-  body?: {
+  body: {
     title?: string
     message: string
     variant: "info" | "success" | "warning" | "error"
@@ -15422,7 +15496,7 @@ export type TuiShowToast2Responses = {
 export type TuiShowToast2Response = TuiShowToast2Responses[keyof TuiShowToast2Responses]
 
 export type TuiPublish2Data = {
-  body?:
+  body:
     | EventTuiProviderRefresh
     | EventTuiPromptAppend
     | EventTuiCommandExecute
@@ -15454,7 +15528,7 @@ export type TuiPublish2Responses = {
 export type TuiPublish2Response = TuiPublish2Responses[keyof TuiPublish2Responses]
 
 export type TuiSelectSession2Data = {
-  body?: {
+  body: {
     /**
      * Session ID to navigate to
      */
@@ -15511,7 +15585,7 @@ export type TuiControlNext2Responses = {
 export type TuiControlNext2Response = TuiControlNext2Responses[keyof TuiControlNext2Responses]
 
 export type TuiControlResponse2Data = {
-  body?: unknown
+  body: unknown
   path?: never
   query?: {
     directory?: string
@@ -15678,7 +15752,7 @@ export type AccountListAll3Responses = {
 export type AccountListAll3Response = AccountListAll3Responses[keyof AccountListAll3Responses]
 
 export type AccountSetActive3Data = {
-  body?: {
+  body: {
     /**
      * Target account ID under the selected provider key
      */
@@ -15819,7 +15893,7 @@ export type AccountRemove3Responses = {
 export type AccountRemove3Response = AccountRemove3Responses[keyof AccountRemove3Responses]
 
 export type AccountUpdate3Data = {
-  body?: {
+  body: {
     name: string
     /**
      * Canonical provider key alias; must match legacy :family route param when provided
@@ -16011,7 +16085,7 @@ export type AccountListAll4Responses = {
 export type AccountListAll4Response = AccountListAll4Responses[keyof AccountListAll4Responses]
 
 export type AccountSetActive4Data = {
-  body?: {
+  body: {
     /**
      * Target account ID under the selected provider key
      */
@@ -16152,7 +16226,7 @@ export type AccountRemove4Responses = {
 export type AccountRemove4Response = AccountRemove4Responses[keyof AccountRemove4Responses]
 
 export type AccountUpdate4Data = {
-  body?: {
+  body: {
     name: string
     /**
      * Canonical provider key alias; must match legacy :family route param when provided
@@ -16250,7 +16324,7 @@ export type RotationStatus2Responses = {
 export type RotationStatus2Response = RotationStatus2Responses[keyof RotationStatus2Responses]
 
 export type RotationRecommend2Data = {
-  body?: {
+  body: {
     taskType?: "dialog" | "task" | "background" | "coding" | "review"
     preferSubscription?: boolean
     currentVector?: {
@@ -16305,7 +16379,7 @@ export type RotationRecommend2Responses = {
 export type RotationRecommend2Response = RotationRecommend2Responses[keyof RotationRecommend2Responses]
 
 export type RotationFallback2Data = {
-  body?: {
+  body: {
     current: {
       providerId: string
       accountId: string
@@ -16375,7 +16449,7 @@ export type ModelPreferencesGet2Responses = {
 export type ModelPreferencesGet2Response = ModelPreferencesGet2Responses[keyof ModelPreferencesGet2Responses]
 
 export type ModelPreferencesUpdate2Data = {
-  body?: {
+  body: {
     favorite: Array<{
       providerId: string
       modelID: string
@@ -16442,7 +16516,7 @@ export type KillswitchStatus2Responses = {
 export type KillswitchStatus2Response = KillswitchStatus2Responses[keyof KillswitchStatus2Responses]
 
 export type KillswitchTrigger2Data = {
-  body?: {
+  body: {
     initiator?: string
     reason: string
     mode?: string
@@ -16473,7 +16547,7 @@ export type KillswitchTrigger2Responses = {
 export type KillswitchTrigger2Response = KillswitchTrigger2Responses[keyof KillswitchTrigger2Responses]
 
 export type KillswitchCancel2Data = {
-  body?: {
+  body: {
     requestID?: string
     initiator?: string
   }
@@ -16497,7 +16571,7 @@ export type KillswitchCancel2Responses = {
 export type KillswitchCancel2Response = KillswitchCancel2Responses[keyof KillswitchCancel2Responses]
 
 export type KillswitchTaskControl2Data = {
-  body?: {
+  body: {
     initiator?: string
     action?: "pause" | "resume" | "cancel" | "snapshot" | "set_priority"
     seq?: number
@@ -16619,7 +16693,7 @@ export type CronJobsList2Responses = {
 export type CronJobsList2Response = CronJobsList2Responses[keyof CronJobsList2Responses]
 
 export type CronJobsCreate2Data = {
-  body?: {
+  body: {
     name: string
     description?: string
     enabled?: boolean
@@ -16880,7 +16954,7 @@ export type CronJobsGet2Responses = {
 export type CronJobsGet2Response = CronJobsGet2Responses[keyof CronJobsGet2Responses]
 
 export type CronJobsUpdate2Data = {
-  body?: {
+  body: {
     name?: string
     description?: string
     enabled?: boolean
@@ -17193,6 +17267,80 @@ export type GoogleBindingUnbind2Responses = {
 
 export type GoogleBindingUnbind2Response = GoogleBindingUnbind2Responses[keyof GoogleBindingUnbind2Responses]
 
+export type WebRouteList2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/web-route"
+}
+
+export type WebRouteList2Responses = {
+  /**
+   * List of web routes
+   */
+  200: {
+    ok: boolean
+    routes: Array<{
+      prefix: string
+      host: string
+      port: number
+      uid: number
+    }>
+  }
+}
+
+export type WebRouteList2Response = WebRouteList2Responses[keyof WebRouteList2Responses]
+
+export type WebRoutePublish2Data = {
+  body: {
+    prefix: string
+    host?: string
+    port: number
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/web-route/publish"
+}
+
+export type WebRoutePublish2Responses = {
+  /**
+   * Publish result
+   */
+  200: {
+    ok: boolean
+    error?: string
+  }
+}
+
+export type WebRoutePublish2Response = WebRoutePublish2Responses[keyof WebRoutePublish2Responses]
+
+export type WebRouteRemove2Data = {
+  body: {
+    prefix: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/web-route/remove"
+}
+
+export type WebRouteRemove2Responses = {
+  /**
+   * Remove result
+   */
+  200: {
+    ok: boolean
+    error?: string
+  }
+}
+
+export type WebRouteRemove2Response = WebRouteRemove2Responses[keyof WebRouteRemove2Responses]
+
 export type FindText2Data = {
   body?: never
   path?: never
@@ -17398,7 +17546,7 @@ export type CommandList2Responses = {
 export type CommandList2Response = CommandList2Responses[keyof CommandList2Responses]
 
 export type AppLog2Data = {
-  body?: {
+  body: {
     /**
      * Service name for the log entry
      */

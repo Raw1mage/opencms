@@ -795,13 +795,37 @@ export namespace Session {
       })
     }
 
+    // Build a set of projectIDs that map to the requested directory.
+    // This handles repo moves: old sessions may have a stale directory string
+    // but their projectID still maps to the same worktree via the project record.
+    const matchingProjectIDs = new Set<string>()
+    if (input?.directory !== undefined) {
+      for (const [pid, proj] of projectByID) {
+        if (proj.worktree === input.directory) {
+          matchingProjectIDs.add(pid)
+        }
+      }
+    }
+
     const items = await Storage.list(["session"])
     const sessionContents = await Promise.all(
       items.map(async (item) => {
         const session = await Storage.read<Info>(item).catch(() => undefined)
         if (!session) return null
 
-        if (input?.directory !== undefined && session.directory !== input.directory) return null
+        if (input?.directory !== undefined) {
+          const dirMatch = session.directory === input.directory
+          const projMatch = matchingProjectIDs.has(session.projectID)
+          if (!dirMatch && !projMatch) return null
+          if (!dirMatch && projMatch) {
+            log.warn("session directory mismatch (repo moved?)", {
+              sessionID: session.id,
+              stored: session.directory,
+              current: input.directory,
+              projectID: session.projectID,
+            })
+          }
+        }
         if (input?.roots && session.parentID) return null
         if (input?.start !== undefined && session.time.updated < input.start) return null
         if (input?.cursor !== undefined && session.time.updated >= input.cursor) return null

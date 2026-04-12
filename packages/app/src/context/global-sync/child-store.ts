@@ -217,7 +217,7 @@ export function createChildStoreManager(input: {
             codex_transport: {},
             lsp: [],
             vcs: vcsStore.value,
-            limit: 25,
+            limit: 100,
             message: {},
             part: {},
           })
