@@ -14,10 +14,10 @@
 - [x] **Phase 3.3** — 移除 normalizeProviderFamily + isPromptQuotaProviderFamily deprecated aliases
 - [x] **Phase 5** — 歸檔 4 plans: plan-tool-cleanup, published-web-sidebar, 20260408_webapp, subagent-evolution
 - [x] **Phase 6.1** — 7 個 one-shot patch scripts → recyclebin/patches/
-- [ ] **Phase 2.4** — clipboardy 降級移除（需測試）
-- [ ] **Phase 3.4** — disabled test suites 審查
-- [ ] **Phase 4** — refs/ 整理（需討論）
-- [ ] **Phase 6.2** — Alpha/PR-preview 依賴更新
+- [x] **Phase 2.4** — clipboardy → native clipboard text reading（pbpaste/wl-paste/xclip/xsel/powershell）
+- [x] **Phase 3.4** — disabled test suites 審查：刪除 2 個 enabled_providers dead tests，re-enable unicode snapshot test（通過），保留 3 個 env-flaky tests
+- [x] **Phase 4** — refs/ 全部保留（使用者決定）
+- [x] **Phase 6.2** — 記錄 3 個非穩定依賴：@solidjs/start(PR-preview), nitro(alpha), @clack/prompts(alpha)，待上游穩定後更新
 
 ---
 
