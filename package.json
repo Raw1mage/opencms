@@ -111,7 +111,6 @@
     "mcp-server-fetch-typescript": "0.1.1",
     "prettier": "3.8.2",
     "semver": "^7.6.0",
-    "sst": "3.17.23",
     "turbo": "2.9.6",
     "typescript": "catalog:",
     "typescript-eslint": "8.58.1",
