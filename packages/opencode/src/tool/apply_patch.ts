@@ -46,9 +46,31 @@ export type ApplyPatchMetadata = {
   error?: string
 }
 
-const PatchParams = z.object({
-  patchText: z.string().describe("The full patch text that describes all changes to be made"),
-})
+// Match codex-rs canonical schema: parameter name is "input"
+// (see refs/codex/codex-rs/core/src/tools/handlers/apply_patch.rs create_apply_patch_json_tool)
+const PatchParams = z
+  .object({
+    input: z.string().optional().describe("The entire contents of the apply_patch command"),
+    // Legacy opencode parameter name — kept for backward compatibility
+    patchText: z.string().optional(),
+  })
+  .passthrough()
+
+/**
+ * Resolve the actual patch text from params, trying codex-rs canonical
+ * name first ("input"), then legacy opencode name ("patchText"), then
+ * any single string value as last resort.
+ */
+function resolvePatchText(params: Record<string, unknown>): string | undefined {
+  // codex-rs canonical name
+  if (typeof params.input === "string" && params.input) return params.input
+  // Legacy opencode name
+  if (typeof params.patchText === "string" && params.patchText) return params.patchText
+  // Last resort: if there's exactly one string value in the object, use it
+  const stringValues = Object.values(params).filter((v): v is string => typeof v === "string" && v.length > 0)
+  if (stringValues.length === 1) return stringValues[0]
+  return undefined
+}
 
 export const ApplyPatchTool = Tool.define("apply_patch", {
   description: DESCRIPTION,
@@ -57,9 +79,15 @@ export const ApplyPatchTool = Tool.define("apply_patch", {
     const reportMetadata = (input: { title?: string; metadata?: ApplyPatchMetadata }) => ctx.metadata(input)
 
     try {
-      if (!params.patchText) {
-        throw new Error("patchText is required")
+      const resolvedPatchText = resolvePatchText(params as Record<string, unknown>)
+      if (!resolvedPatchText) {
+        throw new Error(
+          'input is required. Call as: apply_patch({ input: "*** Begin Patch\\n...\\n*** End Patch" })',
+        )
       }
+      // Normalize: write back so downstream code (e.g. owned-diff) can find it
+      ;(params as any).input = resolvedPatchText
+      ;(params as any).patchText = resolvedPatchText
 
       reportMetadata({
         metadata: {
@@ -70,14 +98,14 @@ export const ApplyPatchTool = Tool.define("apply_patch", {
       // Parse the patch to get hunks
       let hunks: Patch.Hunk[]
       try {
-        const parseResult = Patch.parsePatch(params.patchText)
+        const parseResult = Patch.parsePatch(resolvedPatchText)
         hunks = parseResult.hunks
       } catch (error) {
         throw new Error(`apply_patch verification failed: ${error}`)
       }
 
       if (hunks.length === 0) {
-        const normalized = params.patchText.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim()
+        const normalized = resolvedPatchText.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim()
         if (normalized === "*** Begin Patch\n*** End Patch") {
           throw new Error("patch rejected: empty patch")
         }

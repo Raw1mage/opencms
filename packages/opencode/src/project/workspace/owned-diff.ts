@@ -37,7 +37,10 @@ function collectExplicitTouchedFiles(messages: MessageV2.WithParts[], directory:
         if (filePath) explicitTouched.add(normalizeSessionPath(directory, filePath))
       }
       if (part.tool === "apply_patch") {
-        const patchText = typeof input.patchText === "string" ? input.patchText : undefined
+        // Support both codex-rs canonical ("input") and legacy opencode ("patchText")
+        const patchText = typeof input.input === "string" ? input.input
+          : typeof input.patchText === "string" ? input.patchText
+          : undefined
         if (patchText) parseApplyPatchFiles(patchText)
       }
       if (part.tool === "filesystem_write_file" || part.tool === "filesystem_edit_file") {

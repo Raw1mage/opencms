@@ -1,4 +1,5 @@
 import z from "zod"
+import { asSchema, type Tool as AITool } from "@ai-sdk/provider-utils"
 import { Tool } from "./tool"
 import { UnlockedTools } from "../session/unlocked-tools"
 import { Log } from "../util/log"
@@ -33,6 +34,32 @@ function extractExtendedSummary(description: string) {
   const text = lines.slice(0, 2).join(" ").trim()
   const match = text.match(/^(?:[^.!?]+[.!?]\s?){1,2}/)
   return (match?.[0] ?? text).slice(0, 200)
+}
+
+/**
+ * Extract a compact parameter signature from a tool's inputSchema.
+ * e.g. "(input: string)" or "(command: string, timeout?: number)"
+ */
+function extractParamSignature(tool: unknown): string {
+  try {
+    const schema = (tool as AITool)?.inputSchema
+    if (!schema) return ""
+    const resolved = asSchema(schema)
+    const jsonSch = resolved?.jsonSchema as Record<string, unknown> | undefined
+    if (!jsonSch || jsonSch.type !== "object") return ""
+    const props = jsonSch.properties as Record<string, { type?: string; description?: string }> | undefined
+    if (!props) return ""
+    const required = new Set((jsonSch.required as string[]) ?? [])
+    const parts: string[] = []
+    for (const [name, prop] of Object.entries(props)) {
+      const opt = required.has(name) ? "" : "?"
+      const type = prop.type ?? "any"
+      parts.push(`${name}${opt}: ${type}`)
+    }
+    return parts.length > 0 ? `(${parts.join(", ")})` : ""
+  } catch {
+    return ""
+  }
 }
 
 export function buildCatalog(allTools: { id: string; description: string }[], scores: Record<string, number>) {
@@ -109,7 +136,8 @@ export function formatLazyCatalogPrompt(
     const entries = categories[cat]
     lines.push(`### ${cat}`)
     for (const entry of entries) {
-      lines.push(`- **${entry.id}**: ${entry.summary}`)
+      const sig = extractParamSignature(lazyTools.get(entry.id))
+      lines.push(`- **${entry.id}**${sig}: ${entry.summary}`)
     }
     lines.push("")
   }

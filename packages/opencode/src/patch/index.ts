@@ -7,9 +7,9 @@ import { Log } from "../util/log"
 export namespace Patch {
   const log = Log.create({ service: "patch" })
 
-  // Schema definitions
+  // Schema definitions — canonical param name matches codex-rs ("input")
   export const PatchSchema = z.object({
-    patchText: z.string().describe("The full patch text that describes all changes to be made"),
+    input: z.string().describe("The entire contents of the apply_patch command"),
   })
 
   export type PatchParams = z.infer<typeof PatchSchema>

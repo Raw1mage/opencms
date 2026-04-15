@@ -103,6 +103,84 @@ export const PromptTelemetryEvent = BusEvent.define(
   }),
 )
 
+/**
+ * Attempt to repair tool call arguments when the LLM used wrong parameter
+ * names (common with lazy/deferred tools where schema wasn't visible).
+ *
+ * Strategy:
+ * 1. Parse the expected schema's required properties
+ * 2. Parse the LLM's provided args
+ * 3. If required props are missing, try to map from LLM's provided props
+ *    (e.g., LLM sent "content" but schema expects "input")
+ * 4. If only one required string prop exists and LLM sent a single string
+ *    value under a different name, remap it
+ *
+ * Returns the repaired JSON string, or undefined if no repair was possible.
+ */
+function tryRepairToolArgs(
+  toolName: string,
+  rawInput: string,
+  inputSchema: (opts: { toolName: string }) => unknown,
+): string | undefined {
+  try {
+    const schema = inputSchema({ toolName }) as Record<string, unknown> | null
+    if (!schema || schema.type !== "object") return undefined
+
+    const props = schema.properties as Record<string, { type?: string }> | undefined
+    if (!props) return undefined
+
+    const required = new Set((schema.required as string[]) ?? Object.keys(props))
+    let parsed: Record<string, unknown>
+    try {
+      parsed = JSON.parse(rawInput)
+    } catch {
+      return undefined
+    }
+    if (typeof parsed !== "object" || parsed === null) return undefined
+
+    // Check if all required props are already present
+    const missing = [...required].filter((k) => !(k in parsed))
+    if (missing.length === 0) return undefined // args look fine already
+
+    // Strategy: for each missing required prop, try to find a provided value
+    // that matches the expected type
+    const repaired = { ...parsed }
+    let didRepair = false
+
+    for (const missingKey of missing) {
+      const expectedType = props[missingKey]?.type
+
+      // Look for a value under a different name with matching type
+      for (const [providedKey, providedVal] of Object.entries(parsed)) {
+        if (required.has(providedKey)) continue // don't steal from another required prop
+        if (providedKey in props) continue // it's a known optional prop, don't reassign
+
+        const matches =
+          expectedType === "string"
+            ? typeof providedVal === "string"
+            : expectedType === "number"
+              ? typeof providedVal === "number"
+              : expectedType === "boolean"
+                ? typeof providedVal === "boolean"
+                : expectedType === "array"
+                  ? Array.isArray(providedVal)
+                  : true // unknown type, accept anything
+
+        if (matches) {
+          repaired[missingKey] = providedVal
+          delete repaired[providedKey]
+          didRepair = true
+          break
+        }
+      }
+    }
+
+    return didRepair ? JSON.stringify(repaired) : undefined
+  } catch {
+    return undefined
+  }
+}
+
 export namespace LLM {
   const log = Log.create({ service: "llm" })
 
@@ -357,10 +435,14 @@ export namespace LLM {
       Auth.get(executionModel.providerId),
     ])
     const billingMode = resolveProviderBillingMode(cfg, executionModel.providerId)
-    const skillLayerEntries = SkillLayerRegistry.listForInjection(input.sessionID, {
-      billingMode,
-      latestUserText: extractLatestUserText(input.messages),
-    })
+    const isLiteProvider =
+      (cfg.provider as Record<string, { lite?: boolean }> | undefined)?.[executionModel.providerId]?.lite === true
+    const skillLayerEntries = isLiteProvider
+      ? []
+      : SkillLayerRegistry.listForInjection(input.sessionID, {
+          billingMode,
+          latestUserText: extractLatestUserText(input.messages),
+        })
 
     debugCheckpoint("llm", "Provider and auth loaded", {
       providerId: input.model.providerId,
@@ -382,65 +464,80 @@ export namespace LLM {
     const subagentSession = await isSubagentSession(input.sessionID)
     const injectEnablementSnapshot = shouldInjectEnablementSnapshot(input.messages)
     const system = []
-    const systemPartEntries = [
-      {
-        key: "provider_prompt",
-        name: "提供者層",
-        // Always load provider prompt regardless of wire format.
-        // useInstructionsOption only controls HOW the prompt is sent
-        // (instructions field vs system messages), not WHETHER to load it.
-        policy: "always_on",
-        text: (await SystemPrompt.provider(input.model)).join("\n"),
-      },
-      {
-        key: "agent_prompt",
-        name: "代理提詞",
-        policy: "conditional",
-        text: input.agent.prompt ?? "",
-      },
-      {
-        key: "dynamic_system",
-        name: "上下文層",
-        policy: "dynamic",
-        text: input.system.join("\n"),
-      },
-      {
-        key: "enablement_snapshot",
-        name: "能力快照",
-        policy: injectEnablementSnapshot ? "conditional_active" : "conditional_skipped",
-        text: injectEnablementSnapshot ? buildEnablementSnapshot(input.messages) : "",
-      },
-      {
-        key: "user_system",
-        name: "自訂提詞",
-        policy: "conditional",
-        text: input.user.system ?? "",
-      },
-      {
-        key: "critical_boundary_separator",
-        name: "安全邊界",
-        policy: "always_on",
-        text: `\n\n--- CRITICAL OPERATIONAL BOUNDARY ---\n\n`,
-      },
-      {
-        key: "core_system_prompt",
-        name: "核心提詞",
-        policy: "always_on",
-        text: (await SystemPrompt.system(subagentSession)).join("\n"),
-      },
-      {
-        key: "identity_reinforcement",
-        name: "身分強化",
-        policy: "always_on",
-        text:
-          `\n\n[IDENTITY REINFORCEMENT]\n` +
-          `Current Role: ${subagentSession ? "Subagent" : "Main Agent"}\n` +
-          `Session Context: ${subagentSession ? "Sub-task" : "Main-task Orchestration"}`,
-      },
-      {
-        ...buildSkillLayerRegistrySystemPart(skillLayerEntries),
-      },
-    ]
+    const systemPartEntries = isLiteProvider
+      ? [
+          {
+            key: "lite_system_prompt",
+            name: "精簡提詞",
+            policy: "always_on",
+            text: [
+              "You are a helpful assistant. Be concise and direct.",
+              "Reply in the same language the user uses.",
+              input.user.system ?? "",
+            ]
+              .filter(Boolean)
+              .join("\n"),
+          },
+        ]
+      : [
+          {
+            key: "provider_prompt",
+            name: "提供者層",
+            // Always load provider prompt regardless of wire format.
+            // useInstructionsOption only controls HOW the prompt is sent
+            // (instructions field vs system messages), not WHETHER to load it.
+            policy: "always_on",
+            text: (await SystemPrompt.provider(input.model)).join("\n"),
+          },
+          {
+            key: "agent_prompt",
+            name: "代理提詞",
+            policy: "conditional",
+            text: input.agent.prompt ?? "",
+          },
+          {
+            key: "dynamic_system",
+            name: "上下文層",
+            policy: "dynamic",
+            text: input.system.join("\n"),
+          },
+          {
+            key: "enablement_snapshot",
+            name: "能力快照",
+            policy: injectEnablementSnapshot ? "conditional_active" : "conditional_skipped",
+            text: injectEnablementSnapshot ? buildEnablementSnapshot(input.messages) : "",
+          },
+          {
+            key: "user_system",
+            name: "自訂提詞",
+            policy: "conditional",
+            text: input.user.system ?? "",
+          },
+          {
+            key: "critical_boundary_separator",
+            name: "安全邊界",
+            policy: "always_on",
+            text: `\n\n--- CRITICAL OPERATIONAL BOUNDARY ---\n\n`,
+          },
+          {
+            key: "core_system_prompt",
+            name: "核心提詞",
+            policy: "always_on",
+            text: (await SystemPrompt.system(subagentSession)).join("\n"),
+          },
+          {
+            key: "identity_reinforcement",
+            name: "身分強化",
+            policy: "always_on",
+            text:
+              `\n\n[IDENTITY REINFORCEMENT]\n` +
+              `Current Role: ${subagentSession ? "Subagent" : "Main Agent"}\n` +
+              `Session Context: ${subagentSession ? "Sub-task" : "Main-task Orchestration"}`,
+          },
+          {
+            ...buildSkillLayerRegistrySystemPart(skillLayerEntries),
+          },
+        ]
 
     system.push(
       systemPartEntries
@@ -551,7 +648,7 @@ export namespace LLM {
           OUTPUT_TOKEN_MAX,
         )
 
-    const tools = await resolveTools(input)
+    const tools = isLiteProvider ? {} : await resolveTools(input)
 
     // LiteLLM and some Anthropic proxies require the tools parameter to be present
     // when message history contains tool calls, even if no tools are being used.
@@ -613,6 +710,31 @@ export namespace LLM {
       blocks: promptTelemetryBlocks,
       timestamp: Date.now(),
     }).catch(() => {})
+
+    // Config-driven system directive injection for thinking control.
+    // Models can define `defaultSystemDirective` (used when no variant is selected)
+    // and per-variant `systemDirective` (used when that variant is active).
+    // This allows models like Qwen3 to use prompt-level /think or /no_think directives.
+    if (filteredSystem.length > 0) {
+      const providerModels = (cfg.provider as Record<string, { models?: Record<string, { defaultSystemDirective?: string }> }> | undefined)?.[
+        executionModel.providerId
+      ]?.models
+      const modelConfig = providerModels?.[executionModel.id]
+      const variantDirective = (variant as { systemDirective?: string })?.systemDirective
+      const directive = variantDirective ?? modelConfig?.defaultSystemDirective
+      log.info("systemDirective", {
+        providerId: executionModel.providerId,
+        modelId: executionModel.id,
+        hasProviderModels: !!providerModels,
+        modelConfigKeys: modelConfig ? Object.keys(modelConfig) : [],
+        variantDirective,
+        defaultDirective: modelConfig?.defaultSystemDirective,
+        resolvedDirective: directive,
+      })
+      if (directive) {
+        filteredSystem[0] = directive + "\n" + filteredSystem[0]
+      }
+    }
 
     const systemMessages =
       capabilities.systemMessageRole === "user"
@@ -842,8 +964,19 @@ export namespace LLM {
               sessionID: input.sessionID,
               toolID: failed.toolCall.toolName,
             })
-            // Retry the tool call with the now-available tool
-            return failed.toolCall
+
+            // Try to repair mismatched arguments using the now-known schema.
+            // LLMs calling deferred tools often guess parameter names wrong
+            // because the lazy catalog only shows summaries, not schemas.
+            const repairedInput = tryRepairToolArgs(
+              failed.toolCall.toolName,
+              failed.toolCall.input,
+              failed.inputSchema,
+            )
+            return {
+              ...failed.toolCall,
+              ...(repairedInput !== undefined ? { input: repairedInput } : {}),
+            }
           }
         }
 
