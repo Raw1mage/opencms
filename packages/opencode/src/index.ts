@@ -141,8 +141,9 @@ const cli = yargs(hideBin(process.argv))
   })
   .strict()
 
+const isHeadless = process.argv.includes("serve") || process.argv.includes("web")
 const tui = await (async () => {
-  if (process.env.OPENCODE_SKIP_TUI === "1") return []
+  if (isHeadless || process.env.OPENCODE_SKIP_TUI === "1") return []
   const attach = await import("./cli/cmd/tui/attach")
   const thread = await import("./cli/cmd/tui/thread")
   return [thread.TuiThreadCommand, attach.AttachCommand]

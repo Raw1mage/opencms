@@ -2364,6 +2364,55 @@ static void route_complete_request(PendingRequest *pr) {
             } else {
                 LOGI("daemon entry for '%s': state=%d pid=%d socket='%s'",
                      username, d->state, d->pid, d->socket_path);
+
+                /* Fast path: if daemon needs cold start and this is a browser
+                 * page request (not XHR/API), return a loading page immediately
+                 * instead of blocking the HTTP response for 5+ seconds.
+                 * ensure_daemon_running() still runs (blocking this thread) but
+                 * the user already has visual feedback. On success, the loading
+                 * page's JS polling detects health and auto-redirects. */
+                int needs_cold_start = (d->state == DAEMON_NONE || d->state == DAEMON_DEAD);
+                int is_page_request = (strcmp(req.path, "/") == 0 ||
+                                       strncmp(req.path, "/session", 8) == 0 ||
+                                       strncmp(req.path, "/admin", 6) == 0);
+                if (needs_cold_start && is_page_request) {
+                    LOGI("daemon cold start for '%s', returning loading page while spawning", username);
+                    const char *loading_page =
+                        "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
+                        "<title>TheSmartAI</title>"
+                        "<style>"
+                        "body{margin:0;height:100vh;display:flex;align-items:center;"
+                        "justify-content:center;background:#0a0a0a;color:#a0a0a0;"
+                        "font-family:system-ui,sans-serif;flex-direction:column}"
+                        ".spinner{width:24px;height:24px;border:2px solid #333;"
+                        "border-top-color:#888;border-radius:50%;"
+                        "animation:spin .8s linear infinite;margin-bottom:16px}"
+                        "@keyframes spin{to{transform:rotate(360deg)}}"
+                        "#status{font-size:13px;transition:opacity .3s}"
+                        "</style></head><body>"
+                        "<div class=\"spinner\"></div>"
+                        "<div id=\"status\">Starting daemon\u2026</div>"
+                        "<script>"
+                        "const el=document.getElementById('status');"
+                        "const steps=['Starting daemon','Loading modules','Initializing workspace'];"
+                        "let i=0,t=setInterval(()=>{if(++i<steps.length)el.textContent=steps[i]+'\\u2026'},1800);"
+                        "async function poll(){"
+                        "try{const r=await fetch('/api/v2/global/health');"
+                        "if(r.ok){clearInterval(t);el.textContent='Ready';window.location.replace(window.location.href)}}"
+                        "catch(e){}"
+                        "setTimeout(poll,800)}"
+                        "setTimeout(poll,1500);"
+                        "</script></body></html>";
+                    http_send(fd, 200, "OK", "text/html; charset=utf-8",
+                              "Cache-Control: no-store\r\n",
+                              loading_page, strlen(loading_page));
+                    close(fd);
+                    /* Spawn daemon in this thread (blocking) — it will be
+                     * ready by the time the loading page's JS polls health. */
+                    ensure_daemon_running(d);
+                    return;
+                }
+
                 /* Phase 4 (daemonization-v2): retry-once on splice failure.
                  * If start_splice_proxy fails, the daemon may have crashed
                  * between ensure_daemon_running and connect_unix. Mark DEAD
