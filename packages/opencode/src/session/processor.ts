@@ -281,9 +281,30 @@ export namespace SessionProcessor {
                 input.accountId ??
                 input.assistantMessage.accountId ??
                 streamInput.user.model.accountId
-              const sessionExecution = !explicitAccountId
+              let sessionExecution = !explicitAccountId
                 ? (await Session.get(input.sessionID))?.execution?.accountId
                 : undefined
+              // Validate pinned account still exists — stale accounts from previous
+              // daemon versions cause silent 401s instead of graceful fallback.
+              if (sessionExecution && family) {
+                const exists = await Account.list(family).then(
+                  (accounts) => sessionExecution! in accounts,
+                  () => false,
+                )
+                if (!exists) {
+                  l.warn("session pinned to stale account, falling back to active", {
+                    sessionID: input.sessionID,
+                    staleAccountId: sessionExecution,
+                    provider: family,
+                  })
+                  debugCheckpoint("session", "stale_account_fallback", {
+                    sessionID: input.sessionID,
+                    staleAccountId: sessionExecution,
+                    provider: family,
+                  })
+                  sessionExecution = undefined
+                }
+              }
               const sessionPinnedAccountId = explicitAccountId ?? sessionExecution
               const accountId = sessionPinnedAccountId ?? (family ? await Account.getActive(family) : undefined)
 
