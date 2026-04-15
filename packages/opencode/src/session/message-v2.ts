@@ -633,6 +633,46 @@ export namespace MessageV2 {
   })
   export type WithParts = z.infer<typeof WithParts>
 
+  /**
+   * Known parameter renames across tool schema versions.
+   * Maps: toolName → { oldParamName → newCanonicalName }
+   * Used to normalize historical tool call inputs in LLM context
+   * so the model doesn't learn/copy stale parameter names.
+   */
+  const TOOL_PARAM_MIGRATIONS: Record<string, Record<string, string>> = {
+    apply_patch: { patchText: "input", patch_text: "input" },
+  }
+
+  /**
+   * Normalize a historical tool call's input to match the current schema.
+   * Returns a new object if migration was applied, or the original if no changes needed.
+   * Never modifies the original input — read-only transform.
+   */
+  function normalizeToolCallInput(toolName: string, input: unknown): unknown {
+    if (!input || typeof input !== "object" || Array.isArray(input)) return input
+    const migrations = TOOL_PARAM_MIGRATIONS[toolName]
+    if (!migrations) return input
+
+    const obj = input as Record<string, unknown>
+    let needsMigration = false
+    for (const oldKey of Object.keys(migrations)) {
+      if (oldKey in obj && !(migrations[oldKey] in obj)) {
+        needsMigration = true
+        break
+      }
+    }
+    if (!needsMigration) return input
+
+    const normalized = { ...obj }
+    for (const [oldKey, newKey] of Object.entries(migrations)) {
+      if (oldKey in normalized && !(newKey in normalized)) {
+        normalized[newKey] = normalized[oldKey]
+        delete normalized[oldKey]
+      }
+    }
+    return normalized
+  }
+
   export function toModelMessages(input: WithParts[], model: Provider.Model): ModelMessage[] {
     const result: UIMessage[] = []
     const toolNames = new Set<string>()
@@ -786,7 +826,7 @@ export namespace MessageV2 {
                 type: ("tool-" + part.tool) as `tool-${string}`,
                 state: "output-available",
                 toolCallId: part.callID,
-                input: part.state.input ?? {},
+                input: normalizeToolCallInput(part.tool, part.state.input) ?? {},
                 output,
                 ...(flushRemoteRefs ? {} : { callProviderMetadata: part.metadata }),
               })
@@ -796,7 +836,7 @@ export namespace MessageV2 {
                 type: ("tool-" + part.tool) as `tool-${string}`,
                 state: "output-error",
                 toolCallId: part.callID,
-                input: part.state.input ?? {},
+                input: normalizeToolCallInput(part.tool, part.state.input) ?? {},
                 errorText: part.state.error ?? "[Unknown error]",
                 ...(flushRemoteRefs ? {} : { callProviderMetadata: part.metadata }),
               })
@@ -807,7 +847,7 @@ export namespace MessageV2 {
                 type: ("tool-" + part.tool) as `tool-${string}`,
                 state: "output-error",
                 toolCallId: part.callID,
-                input: part.state.input ?? {},
+                input: normalizeToolCallInput(part.tool, part.state.input) ?? {},
                 errorText: "[Tool execution was interrupted]",
                 ...(flushRemoteRefs ? {} : { callProviderMetadata: part.metadata }),
               })
