@@ -7,12 +7,41 @@ import { Locale } from "../../util/locale"
 import { Flag } from "../../flag/flag"
 import { EOL } from "os"
 import path from "path"
+import * as fs from "fs"
 import { Bus } from "@/bus"
 import { createInterface } from "node:readline"
 import { Project } from "@/project/project"
 import { Log } from "@/util/log"
 
 const log = Log.create({ service: "session-worker" })
+
+/**
+ * Pre-bootstrap file logger for worker processes.
+ * Writes directly to filesystem, bypassing Bus (which isn't initialized until bootstrap completes).
+ * This is the only way to get diagnostics when bootstrap hangs or crashes.
+ */
+function createWorkerFileLogger() {
+  // Resolve log path without depending on Global.Path (requires Instance, not yet available)
+  const dataHome = process.env.OPENCODE_DATA_HOME
+    || (process.env.XDG_DATA_HOME ? path.join(process.env.XDG_DATA_HOME, "opencode") : undefined)
+    || path.join(process.env.HOME || "/tmp", ".local", "share", "opencode")
+  const logDir = path.join(dataHome, "log")
+  const logFile = path.join(logDir, `worker-${process.pid}.log`)
+
+  try { fs.mkdirSync(logDir, { recursive: true }) } catch {}
+
+  const write = (phase: string, extra?: Record<string, unknown>) => {
+    const entry = JSON.stringify({ ts: new Date().toISOString(), pid: process.pid, phase, ...extra })
+    try { fs.appendFileSync(logFile, entry + "\n") } catch {}
+  }
+
+  const cleanup = () => {
+    // On successful bootstrap, truncate to just a "completed" marker to prevent accumulation
+    try { fs.writeFileSync(logFile, JSON.stringify({ ts: new Date().toISOString(), pid: process.pid, phase: "completed" }) + "\n") } catch {}
+  }
+
+  return { write, cleanup, logFile }
+}
 
 function pagerCmd(): string[] {
   const lessOptions = ["-R", "-S"]
@@ -160,7 +189,13 @@ export const SessionWorkerCommand = cmd({
     process.env.OPENCODE_NON_INTERACTIVE = "1"
     process.env.OPENCODE_TASK_EVENT_BRIDGE = "1"
 
+    const workerLog = createWorkerFileLogger()
+    workerLog.write("spawned", { cwd: process.cwd(), ppid: process.ppid })
+    workerLog.write("bootstrap_start")
+
     await bootstrap(process.cwd(), async () => {
+      workerLog.write("bootstrap_complete")
+      workerLog.cleanup()
       const { SessionPrompt } = await import("../../session/prompt")
       const rl = createInterface({
         input: process.stdin,

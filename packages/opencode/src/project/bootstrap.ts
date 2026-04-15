@@ -62,5 +62,18 @@ export async function InstanceBootstrap() {
     }
   })
 
+  // Orphan task recovery: scan for ToolParts stuck in "running" from previous daemon instance.
+  // Runs async after a 5-second delay to avoid racing with workers that may still be finishing.
+  setTimeout(async () => {
+    try {
+      const { scanOrphanToolParts } = await import("../tool/task")
+      await scanOrphanToolParts()
+    } catch (err) {
+      Log.Default.warn("orphan task scan failed", {
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }, 5_000)
+
   debugCheckpoint("bootstrap", "ready", { directory: Instance.directory })
 }

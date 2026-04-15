@@ -153,6 +153,16 @@ export const TaskWorkerEvent = {
       workerID: z.string(),
     }),
   ),
+  OrphanRecovered: BusEvent.define(
+    "task.worker.orphan_recovered",
+    z.object({
+      sessionID: z.string(),
+      parentSessionID: z.string(),
+      parentMessageID: z.string(),
+      toolCallID: z.string(),
+      partID: z.string(),
+    }),
+  ),
 }
 
 /**
@@ -200,6 +210,80 @@ const SessionActiveChildPayloadSchema = z.object({
 export const SessionActiveChildEvent = BusEvent.define("session.active-child.updated", SessionActiveChildPayloadSchema)
 
 export type SessionActiveChildState = NonNullable<z.infer<typeof SessionActiveChildPayloadSchema>["activeChild"]>
+
+/**
+ * Scan all sessions for ToolParts stuck in "running" state with tool="task".
+ * These are orphans from a previous daemon instance whose workers were killed on restart.
+ * Marks them as "error" and publishes OrphanRecovered events for UI notification.
+ */
+export async function scanOrphanToolParts() {
+  const scanLog = Log.create({ service: "task.orphan-scan" })
+  scanLog.info("orphan scan starting")
+  let recovered = 0
+
+  try {
+    for await (const session of Session.list()) {
+      // Only scan sessions that could have child tasks (non-archived, recent)
+      if (session.time.archived) continue
+
+      for await (const msg of MessageV2.stream(session.id)) {
+        if (msg.info.role !== "assistant") continue
+        for (const part of msg.parts) {
+          if (part.type !== "tool" || part.tool !== "task") continue
+          if (part.state.status !== "running") continue
+
+          // This ToolPart claims to be running, but no worker exists (we just restarted)
+          // Check if any live worker owns this session
+          const childSessionID = (part.state.input as any)?.session_id
+          const isOwnedByLiveWorker = workers.some(
+            (w) => w.current?.sessionID === childSessionID || w.current?.toolCallID === part.callID,
+          )
+          if (isOwnedByLiveWorker) continue
+
+          scanLog.info("recovering orphan ToolPart", {
+            sessionID: session.id,
+            messageID: msg.info.id,
+            partID: part.id,
+            callID: part.callID,
+            childSessionID,
+          })
+
+          // Transition to error state
+          await Session.updatePart({
+            ...part,
+            messageID: msg.info.id,
+            sessionID: session.id,
+            state: {
+              ...part.state,
+              status: "error",
+              output: "daemon restarted while task was in-flight",
+              time: {
+                ...part.state.time,
+                end: Date.now(),
+              },
+            },
+          })
+
+          // Publish event for parent session continuation
+          await Bus.publish(TaskWorkerEvent.OrphanRecovered, {
+            sessionID: childSessionID ?? session.id,
+            parentSessionID: session.id,
+            parentMessageID: msg.info.id,
+            toolCallID: part.callID,
+            partID: part.id,
+          })
+
+          recovered++
+        }
+      }
+    }
+  } catch (err) {
+    scanLog.error("orphan scan failed", { error: err instanceof Error ? err.message : String(err) })
+  }
+
+  scanLog.info("orphan scan complete", { recovered })
+  debugCheckpoint("task.orphan-scan", "complete", { recovered })
+}
 
 function createActiveChildState() {
   const data: Record<string, SessionActiveChildState | undefined> = {}
@@ -1003,13 +1087,20 @@ async function getReadyWorker(config: Awaited<ReturnType<typeof Config.get>>) {
   await Promise.race([worker.readyPromise, Bun.sleep(WORKER_READY_TIMEOUT_MS)])
   if (!worker.ready) {
     const stderrHint = worker.lastStderr ? ` | stderr: ${worker.lastStderr.slice(-500)}` : ""
+    // Point to worker's pre-bootstrap log file for post-mortem diagnosis
+    const workerPid = worker.proc.pid
+    const workerLogHint = workerPid
+      ? ` | worker log: ${path.join(Global.Path.log, `worker-${workerPid}.log`)}`
+      : ""
     log.error("worker failed to become ready", {
       workerID: worker.id,
       lastPhase: worker.lastPhase,
       lastStderr: worker.lastStderr?.slice(-500),
       timeoutMs: WORKER_READY_TIMEOUT_MS,
+      workerPid,
+      workerLogPath: workerPid ? path.join(Global.Path.log, `worker-${workerPid}.log`) : undefined,
     })
-    throw new Error(`subagent worker failed to become ready${stderrHint}`)
+    throw new Error(`subagent worker failed to become ready${stderrHint}${workerLogHint}`)
   }
   return worker
 }
