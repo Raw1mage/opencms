@@ -1492,7 +1492,9 @@ do_restart() {
     log_info "Restarting (reload + gateway auto-detect)..."
 
     # 1. Reload daemons (build + kill — gateway untouched by reload)
-    do_reload --force
+    # Note: no --force here — let _frontend_needs_build decide whether to rebuild.
+    # Use `restart --force-gateway` only for gateway binary, not frontend.
+    do_reload
 
     # 2. Detect whether gateway needs restart
     #    Reasons: binary source changed, config changed, or explicit --force-gateway
