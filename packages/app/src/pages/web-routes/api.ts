@@ -10,6 +10,13 @@ export type WebRoute = {
   uid: number
 }
 
+export type ServiceHealth = {
+  alive: boolean
+  host: string
+  port: number
+  webctlPath: string
+}
+
 export function createWebRouteApi(baseUrl: string, fetchFn: typeof fetch) {
   const base = `${baseUrl}/api/v2/web-route`
 
@@ -42,6 +49,21 @@ export function createWebRouteApi(baseUrl: string, fetchFn: typeof fetch) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prefix }),
+      })
+      return json(res)
+    },
+
+    async health(): Promise<Record<string, ServiceHealth>> {
+      const res = await fetchFn(`${base}/health`)
+      const data = await json<{ ok: boolean; status: Record<string, ServiceHealth> }>(res)
+      return data.status
+    },
+
+    async toggle(entryName: string, action: "start" | "stop"): Promise<{ ok: boolean; output?: string; error?: string }> {
+      const res = await fetchFn(`${base}/toggle`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entryName, action }),
       })
       return json(res)
     },

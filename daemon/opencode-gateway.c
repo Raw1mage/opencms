@@ -712,38 +712,63 @@ static void parse_opencode_argv(void) {
 /* ─── Runtime path detection (DD-7: WSL2 environment adaptation) ── */
 /*
  * Resolves the runtime directory for a given uid.
- * Priority: /run/user/<uid> → $XDG_RUNTIME_DIR → /tmp/opencode-<uid>
- * Writes the selected path to out (max outlen bytes) and logs the choice.
+ * Priority: /run/user/<uid> (create if missing) → $XDG_RUNTIME_DIR → /tmp/opencode-<uid>
+ *
+ * In WSL2, users authenticate via Google OAuth through the gateway — there is
+ * no PAM/logind session to create /run/user/<uid>.  The gateway (running as
+ * root) IS the session manager for these users, so it creates the directory
+ * on their behalf with the same semantics as systemd-logind (owner=uid, 0700).
  */
 static void resolve_runtime_dir(uid_t uid, char *out, size_t outlen) {
     struct stat st;
     char candidate[128];
 
-    /* 1. Standard systemd path */
+    /* 1. Standard systemd path — use if present, or create it */
     snprintf(candidate, sizeof(candidate), "/run/user/%u", uid);
     if (stat(candidate, &st) == 0 && S_ISDIR(st.st_mode)) {
         snprintf(out, outlen, "%s", candidate);
         return;
     }
+    /* /run/user/<uid> doesn't exist — create it (gateway runs as root) */
+    if (mkdir(candidate, 0700) == 0) {
+        if (chown(candidate, uid, uid) != 0) {
+            LOGW("runtime dir: created %s but chown(%u) failed: %s", candidate, uid, strerror(errno));
+        } else {
+            LOGI("runtime dir: created /run/user/%u for daemon (no logind session)", uid);
+            snprintf(out, outlen, "%s", candidate);
+            return;
+        }
+    } else {
+        LOGW("runtime dir: cannot create /run/user/%u: %s", uid, strerror(errno));
+    }
 
     /* 2. XDG_RUNTIME_DIR if set and valid */
     const char *xdg = getenv("XDG_RUNTIME_DIR");
     if (xdg && xdg[0] && stat(xdg, &st) == 0 && S_ISDIR(st.st_mode)) {
-        LOGI("runtime dir: /run/user/%u not available, using XDG_RUNTIME_DIR=%s", uid, xdg);
+        LOGI("runtime dir: using XDG_RUNTIME_DIR=%s for uid %u", xdg, uid);
         snprintf(out, outlen, "%s", xdg);
         return;
     }
 
-    /* 3. Fallback: /tmp/opencode-<uid> (mkdir 700) */
+    /* 3. Last-resort fallback: /tmp/opencode-<uid> */
     snprintf(candidate, sizeof(candidate), "/tmp/opencode-%u", uid);
     if (stat(candidate, &st) != 0) {
         if (mkdir(candidate, 0700) == 0) {
-            LOGI("runtime dir: created fallback %s", candidate);
+            if (chown(candidate, uid, uid) != 0)
+                LOGW("runtime dir: created %s but chown(%u) failed: %s", candidate, uid, strerror(errno));
+            LOGI("runtime dir: created fallback %s (owner=%u)", candidate, uid);
         } else {
             LOGW("runtime dir: failed to create %s: %s", candidate, strerror(errno));
         }
+    } else if (st.st_uid != uid) {
+        if (chown(candidate, uid, uid) == 0) {
+            LOGI("runtime dir: fixed ownership of %s from uid %u to %u", candidate, st.st_uid, uid);
+        } else {
+            LOGW("runtime dir: %s owned by uid %u, chown(%u) failed: %s",
+                 candidate, st.st_uid, uid, strerror(errno));
+        }
     }
-    LOGI("runtime dir: /run/user/%u not available, using fallback %s", uid, candidate);
+    LOGW("runtime dir: /run/user/%u unavailable, using fallback %s", uid, candidate);
     snprintf(out, outlen, "%s", candidate);
 }
 
