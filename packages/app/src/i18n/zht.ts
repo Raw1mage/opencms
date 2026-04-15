@@ -181,6 +181,12 @@ export const dict = {
   "provider.custom.field.name.placeholder": "我的 AI 提供商",
   "provider.custom.field.baseURL.label": "基礎 URL",
   "provider.custom.field.baseURL.placeholder": "https://api.myprovider.com/v1",
+  "provider.custom.field.freeToUse.label": "FreeToUse 提供商",
+  "provider.custom.field.freeToUse.description":
+    "若這個提供商在 model manager 中不需要任何帳號或 API key 帳號選擇，請啟用此選項。",
+  "provider.custom.field.lite.label": "Lite 模式（小型本地模型）",
+  "provider.custom.field.lite.description":
+    "跳過工具呼叫、MCP、代理和龐大的系統提示詞。僅注入精簡的系統提示。適用於處理簡單問答任務的小型本地模型。",
   "provider.custom.field.apiKey.label": "API 金鑰",
   "provider.custom.field.apiKey.placeholder": "API 金鑰",
   "provider.custom.field.apiKey.description": "選填。若您透過標頭管理驗證，可留空。",

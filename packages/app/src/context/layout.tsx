@@ -15,6 +15,8 @@ const AVATAR_COLOR_KEYS = ["pink", "mint", "orange", "purple", "cyan", "lime"] a
 const DEFAULT_PANEL_WIDTH = 344
 const DEFAULT_SESSION_WIDTH = 600
 const DEFAULT_TERMINAL_HEIGHT = 280
+const STATUS_SIDEBAR_ORDER_DEFAULT = ["servers", "monitor", "todo", "skills", "mcp", "llm"] as const
+type StatusSidebarKey = (typeof STATUS_SIDEBAR_ORDER_DEFAULT)[number]
 const CONTEXT_SIDEBAR_ORDER_DEFAULT = ["summary", "breakdown", "promptTelemetry", "roundTelemetry", "quota"] as const
 type ContextSidebarKey = (typeof CONTEXT_SIDEBAR_ORDER_DEFAULT)[number]
 export type AvatarColorKey = (typeof AVATAR_COLOR_KEYS)[number]
@@ -699,26 +701,21 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
       statusSidebar: {
         order: createMemo(() =>
           (
-            store.statusSidebar?.order?.filter(
-              (key): key is "monitor" | "todo" | "skills" | "servers" | "mcp" | "llm" =>
-                ["servers", "monitor", "todo", "skills", "mcp", "llm"].includes(key as any),
-            ) ?? ["servers", "monitor", "todo", "skills", "mcp", "llm"]
-          ).concat(
-            ["servers", "monitor", "todo", "skills", "mcp", "llm"].filter(
-              (key) => !(store.statusSidebar?.order ?? []).includes(key),
-            ),
-          ),
+            store.statusSidebar?.order?.filter((key): key is StatusSidebarKey =>
+              STATUS_SIDEBAR_ORDER_DEFAULT.includes(key as StatusSidebarKey),
+            ) ?? STATUS_SIDEBAR_ORDER_DEFAULT
+          ).concat(STATUS_SIDEBAR_ORDER_DEFAULT.filter((key) => !(store.statusSidebar?.order ?? []).includes(key))),
         ),
-        setOrder(order: Array<"monitor" | "todo" | "skills" | "servers" | "mcp" | "llm">) {
+        setOrder(order: StatusSidebarKey[]) {
           setStore("statusSidebar", "order", order)
         },
-        expanded(key: "monitor" | "todo" | "skills" | "servers" | "mcp" | "llm") {
+        expanded(key: StatusSidebarKey) {
           return () => store.statusSidebar?.expanded?.[key] ?? true
         },
-        setExpanded(key: "monitor" | "todo" | "skills" | "servers" | "mcp" | "llm", value: boolean) {
+        setExpanded(key: StatusSidebarKey, value: boolean) {
           setStore("statusSidebar", "expanded", key, value)
         },
-        toggleExpanded(key: "monitor" | "todo" | "skills" | "servers" | "mcp" | "llm") {
+        toggleExpanded(key: StatusSidebarKey) {
           setStore("statusSidebar", "expanded", key, (value) => !value)
         },
       },

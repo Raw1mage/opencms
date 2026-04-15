@@ -3,6 +3,7 @@ import {
   buildAccountRows,
   buildCustomProviderEntries,
   buildProviderRows,
+  FREE_TO_USE_ACCOUNT_LABEL,
   filterModelsForMode,
   loadFavoriteProvidersFromStorage,
   loadHiddenProvidersFromStorage,
@@ -10,7 +11,9 @@ import {
   parseHiddenProvidersStorageValue,
   pickSelectedAccount,
   pickSelectedModel,
+  resolveAccountDisplayLabel,
   sameModelSelectorSelection,
+  usesFreeToUseAccountLabel,
 } from "./model-selector-state"
 
 describe("model selector state", () => {
@@ -70,6 +73,25 @@ describe("model selector state", () => {
     expect(rows).toHaveLength(1)
     expect(rows[0]?.id).toBe("miat")
     expect((rows[0]?.models as Record<string, { id?: string }>)?.["qwen3.5:9b-128k"]?.id).toBe("qwen3.5:9b-128k")
+  })
+
+  test("provider rows include custom providers from merged frontend provider surface", () => {
+    const rows = buildProviderRows({
+      providers: [
+        { id: "openai", name: "OpenAI" },
+        ...buildCustomProviderEntries({
+          ollama: {
+            npm: "@ai-sdk/openai-compatible",
+            name: "Ollama",
+            models: {
+              llama3: { name: "Llama 3" },
+            },
+          },
+        }),
+      ],
+    })
+
+    expect(rows.find((row) => row.providerKey === "ollama")?.name).toBe("Ollama")
   })
 
   test("account rows keep stable label ordering and include cooldown reason", () => {
@@ -176,6 +198,44 @@ describe("model selector state", () => {
         ],
       }),
     ).toBe("acct1")
+  })
+
+  test("freeToUse flag enables FreeToUse label for no-account providers", () => {
+    expect(
+      usesFreeToUseAccountLabel({
+        freeToUse: true,
+        accounts: [],
+        models: [{ id: "llama3", provider: { id: "ollama" } }],
+      }),
+    ).toBe(true)
+    expect(
+      resolveAccountDisplayLabel({
+        usesFreeToUseLabel: true,
+      }),
+    ).toBe(FREE_TO_USE_ACCOUNT_LABEL)
+  })
+
+  test("no-account providers stay account-based until freeToUse flag is enabled", () => {
+    expect(
+      usesFreeToUseAccountLabel({
+        freeToUse: false,
+        accounts: [],
+        models: [{ id: "llama3", provider: { id: "ollama" } }],
+      }),
+    ).toBe(false)
+    expect(
+      resolveAccountDisplayLabel({
+        fallbackLabel: "No account data",
+      }),
+    ).toBe("No account data")
+  })
+
+  test("account display label keeps active account fallback for account-based providers", () => {
+    expect(
+      resolveAccountDisplayLabel({
+        activeAccountId: "acct2",
+      }),
+    ).toBe("acct2")
   })
 
   test("favorites mode only keeps visible models in selected provider key", () => {

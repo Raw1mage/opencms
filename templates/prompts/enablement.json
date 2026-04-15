@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "last_updated": "2026-03-23",
+  "last_updated": "2026-04-14",
   "purpose": "Single source of truth for tool/skill/MCP capability discovery and routing.",
   "usage_contract": {
     "prompt_injection": "Inject a concise snapshot from this registry into SYSTEM prompt context.",
@@ -52,7 +52,7 @@
       },
       {
         "name": "apply_patch",
-        "capability": "Patch files safely using structured diffs"
+        "capability": "Patch files safely using structured diffs; do not patch an existing file unless the immediately previous action was reading that exact file"
       }
     ],
     "system_manager_mcp": [
@@ -249,7 +249,17 @@
       },
       {
         "intent": "diagram generation (IDEF0/Grafcet)",
-        "keywords": ["idef0", "grafcet", "diagram", "svg", "draw", "render", "architecture diagram", "functional model", "sequential control"],
+        "keywords": [
+          "idef0",
+          "grafcet",
+          "diagram",
+          "svg",
+          "draw",
+          "render",
+          "architecture diagram",
+          "functional model",
+          "sequential control"
+        ],
         "requires_mcp": ["drawmiat"],
         "prefer": ["drawmiat_generate_diagram", "drawmiat_validate_diagram"],
         "fallback": ["miatdiagram skill for JSON generation, then drawmiat MCP for SVG rendering"],

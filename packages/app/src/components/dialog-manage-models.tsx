@@ -22,11 +22,11 @@ export const DialogManageModels: Component = () => {
   const globalSync = useGlobalSync()
   const language = useLanguage()
   const dialog = useDialog()
-  const billingModeOptions = [
+  const billingModeOptions: Array<{ value: "token" | "request" | "unknown"; label: string }> = [
     { value: "token", label: "Token" },
     { value: "request", label: "Request" },
     { value: "unknown", label: "Unknown" },
-  ] as const
+  ]
 
   const handleConnectProvider = () => {
     dialog.show(() => <DialogSelectProvider />)

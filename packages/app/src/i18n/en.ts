@@ -180,6 +180,12 @@ export const dict = {
   "provider.custom.field.name.placeholder": "My AI Provider",
   "provider.custom.field.baseURL.label": "Base URL",
   "provider.custom.field.baseURL.placeholder": "https://api.myprovider.com/v1",
+  "provider.custom.field.freeToUse.label": "FreeToUse provider",
+  "provider.custom.field.freeToUse.description":
+    "Enable this when the provider does not require any account or API-key-backed account selection in model manager.",
+  "provider.custom.field.lite.label": "Lite mode (small local models)",
+  "provider.custom.field.lite.description":
+    "Bypasses tools, MCP, agents, and heavy system prompts. Only injects a minimal system prompt. Ideal for small local models used for simple Q&A tasks.",
   "provider.custom.field.apiKey.label": "API key",
   "provider.custom.field.apiKey.placeholder": "API key",
   "provider.custom.field.apiKey.description": "Optional. Leave empty if you manage auth via headers.",

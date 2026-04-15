@@ -99,7 +99,6 @@ describe("getSessionWorkflowChips", () => {
       }),
     ).toEqual([
       { label: "Auto", tone: "info" },
-      { label: "Model auto", tone: "info" },
       { label: "Waiting", tone: "neutral" },
       { label: "Max continuous rounds", tone: "neutral" },
     ])
@@ -116,7 +115,6 @@ describe("getSessionWorkflowChips", () => {
       }),
     ).toEqual([
       { label: "Auto", tone: "info" },
-      { label: "Model auto", tone: "info" },
       { label: "Blocked", tone: "warning" },
       { label: "Resume failed: provider exhausted", tone: "warning" },
     ])

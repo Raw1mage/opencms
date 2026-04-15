@@ -1665,7 +1665,7 @@ export default function Layout(props: ParentProps) {
   const createWorkspace = async (project: LocalProject) => {
     clearSidebarHoverState()
     const created = await globalSDK.client.worktree
-      .create({ directory: project.worktree })
+      .create({ directory: project.worktree, worktreeCreateInput: {} })
       .then((x) => x.data)
       .catch((err) => {
         showToast({
@@ -2033,11 +2033,14 @@ export default function Layout(props: ParentProps) {
                   logoutLabel={() => "Logout"}
                   onLogout={logout}
                   renderPanel={() => (
-                    <Show when={isTasksRoute()} fallback={
-                      <Show when={currentProject()} keyed>
-                        {(project) => <SidebarPanel project={project} />}
-                      </Show>
-                    }>
+                    <Show
+                      when={isTasksRoute()}
+                      fallback={
+                        <Show when={currentProject()} keyed>
+                          {(project) => <SidebarPanel project={project} />}
+                        </Show>
+                      }
+                    >
                       <div class="flex-1 min-w-0 bg-background-stronger border border-b-0 border-border-weak-base flex flex-col">
                         <TaskSidebar />
                       </div>
@@ -2049,11 +2052,14 @@ export default function Layout(props: ParentProps) {
             {/* Push sidebar — project session list OR task list (inline flex, pushes main content) */}
             <Show when={layout.sidebar.opened() && (desktopOverlayProject() || isTasksRoute())}>
               <div class="shrink-0 h-full flex relative" style={{ width: `${layout.sidebar.width()}px` }}>
-                <Show when={isTasksRoute()} fallback={
-                  <Show when={desktopOverlayProject()} keyed>
-                    {(project) => <SidebarPanel project={project} />}
-                  </Show>
-                }>
+                <Show
+                  when={isTasksRoute()}
+                  fallback={
+                    <Show when={desktopOverlayProject()} keyed>
+                      {(project) => <SidebarPanel project={project} />}
+                    </Show>
+                  }
+                >
                   <div class="flex-1 min-w-0 bg-background-stronger border border-b-0 border-border-weak-base flex flex-col">
                     <TaskSidebar />
                   </div>
@@ -2125,9 +2131,14 @@ export default function Layout(props: ParentProps) {
               onOpenSettings={openSettings}
               logoutLabel={() => "Logout"}
               onLogout={logout}
-              renderPanel={() => isTasksRoute()
-                ? <div class="flex-1 min-w-0 bg-background-stronger flex flex-col"><TaskSidebar /></div>
-                : <SidebarPanel project={currentProject()} mobile />
+              renderPanel={() =>
+                isTasksRoute() ? (
+                  <div class="flex-1 min-w-0 bg-background-stronger flex flex-col">
+                    <TaskSidebar />
+                  </div>
+                ) : (
+                  <SidebarPanel project={currentProject()} mobile />
+                )
               }
             />
           </nav>

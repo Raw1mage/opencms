@@ -1,4 +1,4 @@
-import { Component, Show } from "solid-js"
+import { Component, Show, createMemo, onMount } from "solid-js"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { popularProviders, useProviders } from "@/hooks/use-providers"
 import { Dialog } from "@opencode-ai/ui/dialog"
@@ -11,6 +11,8 @@ import { useLanguage } from "@/context/language"
 import { useGlobalSync } from "@/context/global-sync"
 import { DialogCustomProvider } from "./dialog-custom-provider"
 import { isSupportedProviderKey } from "@/utils/provider-registry"
+import { useParams } from "@solidjs/router"
+import { decode64 } from "@/utils/base64"
 
 const CUSTOM_ID = "_custom"
 
@@ -24,6 +26,12 @@ export const DialogSelectProvider: Component = () => {
   const language = useLanguage()
   const globalSync = useGlobalSync()
   const providers = useProviders()
+  const params = useParams()
+  const currentDirectory = createMemo(() => decode64(params.dir) ?? "")
+
+  onMount(() => {
+    void globalSync.refreshProviderState(currentDirectory()).catch(() => {})
+  })
 
   const popularGroup = () => language.t("dialog.provider.group.popular")
   const otherGroup = () => language.t("dialog.provider.group.other")

@@ -1168,6 +1168,16 @@ export namespace Config {
         .enum(["token", "request", "unknown"])
         .optional()
         .describe("Provider billing mode authority for prompt-management policy: token, request, or unknown"),
+      freeToUse: z
+        .boolean()
+        .optional()
+        .describe("Mark this provider as usable without any configured account; UI should label it as FreeToUse"),
+      lite: z
+        .boolean()
+        .optional()
+        .describe(
+          "Lite mode for small local models. Bypasses tool calls, MCP, agents, enablement, and heavy system prompts. Only injects a minimal system prompt suitable for simple Q&A tasks.",
+        ),
       whitelist: z.array(z.string()).optional(),
       blacklist: z.array(z.string()).optional(),
       models: z
@@ -1185,6 +1195,12 @@ export namespace Config {
               )
               .optional()
               .describe("Variant-specific configuration"),
+            defaultSystemDirective: z
+              .string()
+              .optional()
+              .describe(
+                "System prompt directive injected when no variant is selected (e.g. '/no_think' for Qwen3 models)",
+              ),
           }),
         )
         .optional(),

@@ -34,6 +34,8 @@ type FormState = {
   providerID: string
   name: string
   baseURL: string
+  freeToUse: boolean
+  lite: boolean
   models: ModelRow[]
   headers: HeaderRow[]
   saving: boolean
@@ -172,6 +174,8 @@ function validateCustomProvider(input: ValidateArgs) {
       config: {
         npm: OPENAI_COMPATIBLE,
         name,
+        freeToUse: input.form.freeToUse,
+        lite: input.form.lite || undefined,
         options,
         models,
       },
@@ -202,6 +206,8 @@ export function DialogCustomProvider(props: Props) {
         string,
         {
           name?: string
+          freeToUse?: boolean
+          lite?: boolean
           options?: { baseURL?: string; headers?: Record<string, string> }
           models?: Record<string, { name?: string; limit?: { context?: number } }>
         }
@@ -249,6 +255,8 @@ export function DialogCustomProvider(props: Props) {
     providerID: props.editProviderId ?? "",
     name: editConfig()?.name ?? editProvider()?.name ?? "",
     baseURL: editConfig()?.options?.baseURL ?? "",
+    freeToUse: editConfig()?.freeToUse ?? false,
+    lite: editConfig()?.lite ?? false,
     models: initModels(),
     headers: initHeaders(),
     saving: false,
@@ -421,6 +429,38 @@ export function DialogCustomProvider(props: Props) {
               validationState={errors.baseURL ? "invalid" : undefined}
               error={errors.baseURL}
             />
+            <label class="flex items-start gap-3 rounded-lg border border-border-base px-3 py-2 text-14-regular text-text-base">
+              <input
+                type="checkbox"
+                class="mt-0.5"
+                checked={form.freeToUse}
+                onChange={(event) => setForm("freeToUse", event.currentTarget.checked)}
+              />
+              <div class="flex flex-col gap-1">
+                <span class="text-14-medium text-text-strong">
+                  {language.t("provider.custom.field.freeToUse.label")}
+                </span>
+                <span class="text-12-regular text-text-weak">
+                  {language.t("provider.custom.field.freeToUse.description")}
+                </span>
+              </div>
+            </label>
+            <label class="flex items-start gap-3 rounded-lg border border-border-base px-3 py-2 text-14-regular text-text-base">
+              <input
+                type="checkbox"
+                class="mt-0.5"
+                checked={form.lite}
+                onChange={(event) => setForm("lite", event.currentTarget.checked)}
+              />
+              <div class="flex flex-col gap-1">
+                <span class="text-14-medium text-text-strong">
+                  {language.t("provider.custom.field.lite.label")}
+                </span>
+                <span class="text-12-regular text-text-weak">
+                  {language.t("provider.custom.field.lite.description")}
+                </span>
+              </div>
+            </label>
           </div>
 
           <div class="flex flex-col gap-3">

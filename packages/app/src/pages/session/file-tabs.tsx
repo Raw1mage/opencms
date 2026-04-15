@@ -732,7 +732,7 @@ export function FileTabContent(props: {
           <Match when={state()?.loaded && isHtml()}>
             <iframe
               sandbox="allow-same-origin"
-              srcDoc={contents()}
+              srcdoc={contents()}
               class="w-full border-0"
               style={{ height: "calc(100vh - 120px)" }}
               title={path()?.split("/").pop() ?? "HTML"}

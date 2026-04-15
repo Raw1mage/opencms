@@ -11,7 +11,11 @@ import {
   type JSX,
 } from "solid-js"
 // eslint-disable-next-line no-control-regex
-const stripAnsi = (s: string) => s.replace(/[\u001B\u009B][[\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\d/#&.:=?%@~_]+)*|[a-zA-Z\d]+(?:;[-a-zA-Z\d/#&.:=?%@~_]*)*)?\u0007)|(?:(?:\d{1,4}(?:;\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~]))/g, "")
+const stripAnsi = (s: string) =>
+  s.replace(
+    /[\u001B\u009B][[\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\d/#&.:=?%@~_]+)*|[a-zA-Z\d]+(?:;[-a-zA-Z\d/#&.:=?%@~_]*)*)?\u0007)|(?:(?:\d{1,4}(?:;\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~]))/g,
+    "",
+  )
 import { Dynamic } from "solid-js/web"
 import {
   AgentPart,
@@ -1799,7 +1803,7 @@ ToolRegistry.register({
     return (
       <BasicTool
         {...props}
-        icon="file-text"
+        icon="folder"
         trigger={{
           title: "File Viewer",
           subtitle: title(),
@@ -1813,7 +1817,7 @@ ToolRegistry.register({
               }}
               class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-border-base hover:bg-white/5 transition-colors text-12-regular text-text-dimmed-2 cursor-pointer"
             >
-              <Icon name="file-text" size="small" />
+              <Icon name="folder" size="small" />
               <span class="truncate max-w-[300px]">{title()}</span>
             </button>
           </div>

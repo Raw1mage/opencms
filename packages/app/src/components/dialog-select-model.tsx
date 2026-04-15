@@ -19,7 +19,7 @@ import { useGlobalSync } from "@/context/global-sync"
 import { useGlobalSDK } from "@/context/global-sdk"
 import { useSDK } from "@/context/sdk"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
-import { popularProviders } from "@/hooks/use-providers"
+import { popularProviders, useProviders } from "@/hooks/use-providers"
 import { Button } from "@opencode-ai/ui/button"
 import { IconButton } from "@opencode-ai/ui/icon-button"
 import { Tag } from "@opencode-ai/ui/tag"
@@ -41,6 +41,7 @@ import { iconNames, type IconName } from "@opencode-ai/ui/icons/provider"
 import {
   buildAccountRows,
   buildProviderRows,
+  FREE_TO_USE_ACCOUNT_LABEL,
   filterModelsForMode,
   getActiveAccountForProviderKey,
   getFilteredModelsForSelection,
@@ -50,7 +51,9 @@ import {
   pickSelectedModel,
   pickSelectedProvider,
   providerKeyOf,
+  resolveAccountDisplayLabel,
   sameModelSelectorSelection,
+  usesFreeToUseAccountLabel,
 } from "./model-selector-state"
 import { loadQuotaHint, peekQuotaHint } from "@/utils/quota-hint-cache"
 import "./dialog-select-model.css"
@@ -67,7 +70,6 @@ const MODEL_MANAGER_PROVIDER_MIN_PX = 160
 const MODEL_MANAGER_ACCOUNT_MIN_PX = 200
 const MODEL_MANAGER_MODEL_MIN_PX = 160
 const MODEL_MANAGER_DEFAULT_COLUMN_LAYOUT = { providerRatio: 0.31, accountRatio: 0.35 }
-
 
 type AccountRecord = {
   id: string
@@ -717,6 +719,7 @@ export const DialogSelectModel: Component<{
   const language = useLanguage()
   const local = props.onModelSelect ? undefined : useLocal()
   const models = useModels()
+  const providerStore = useProviders()
   const params = useParams()
   const globalSync = useGlobalSync()
   const globalSDK = useGlobalSDK()
@@ -938,7 +941,6 @@ export const DialogSelectModel: Component<{
     applyDialogFrame()
   })
 
-
   createEffect(() => {
     if (layoutHydrated()) return
     loadDialogLayout()
@@ -1150,9 +1152,8 @@ export const DialogSelectModel: Component<{
   const preferredProviderId = createMemo(() => props.provider || providerKeyOf(currentModel()?.provider.id ?? ""))
 
   const providers = createMemo(() => {
-    const allProviders = globalSync.data.provider.all ?? []
     return buildProviderRows({
-      providers: allProviders,
+      providers: providerStore.all(),
       accountFamilies: accountProviders(),
       hiddenProviders: new Set(models.hiddenProviders()),
     })
@@ -1370,6 +1371,29 @@ export const DialogSelectModel: Component<{
     })
   })
 
+  const selectedProviderFreeToUse = createMemo(() => {
+    const providerId = selectedProviderId()
+    if (!providerId) return false
+    const providerConfig = globalSync.data.config.provider?.[providerId] as { freeToUse?: boolean } | undefined
+    return providerConfig?.freeToUse === true
+  })
+
+  const selectedProviderUsesFreeToUseLabel = createMemo(() =>
+    usesFreeToUseAccountLabel({
+      freeToUse: selectedProviderFreeToUse(),
+      accounts: accountsForSelectedProvider(),
+      models: filteredModels(),
+    }),
+  )
+
+  const selectedAccountDisplayLabel = createMemo(() =>
+    resolveAccountDisplayLabel({
+      selectedAccountId: selectedAccountId(),
+      activeAccountId: selectedProviderId() ? activeAccountForProvider(selectedProviderId()) : undefined,
+      usesFreeToUseLabel: selectedProviderUsesFreeToUseLabel(),
+    }),
+  )
+
   createEffect(() => {
     const selected = pickSelectedModel<ModelListEntry>({
       selected: (() => {
@@ -1451,7 +1475,7 @@ export const DialogSelectModel: Component<{
     return {
       providerID: model.provider.id,
       modelID: model.id,
-      accountID: selectedAccountId() || undefined,
+      accountID: selectedProviderUsesFreeToUseLabel() ? undefined : selectedAccountId() || undefined,
     }
   })
 
@@ -1474,7 +1498,13 @@ export const DialogSelectModel: Component<{
     const model = selectedFilteredModel()
     if (!model) return
     const sessionID = params.id || undefined
-    const accountId = selectedAccountId() || activeAccountForProvider(model.provider.id)
+    const accountId = selectedProviderUsesFreeToUseLabel()
+      ? undefined
+      : selectedAccountId() || activeAccountForProvider(model.provider.id)
+    const accountLabel = resolveAccountDisplayLabel({
+      selectedAccountId: accountId,
+      usesFreeToUseLabel: selectedProviderUsesFreeToUseLabel(),
+    })
     const unavailable = modelUnavailableReason(model.provider.id, accountId)
     if (unavailable) {
       showToast({
@@ -1505,7 +1535,7 @@ export const DialogSelectModel: Component<{
         title: language.t("dialog.model.submit.toast.title"),
         description: language.t("dialog.model.submit.toast.description", {
           provider: providerKey,
-          account: selectedAccountId() || "--",
+          account: accountLabel,
           model: (model as ModelListEntry).name,
         }),
       })
@@ -1529,7 +1559,7 @@ export const DialogSelectModel: Component<{
         title: language.t("dialog.model.submit.toast.title"),
         description: language.t("dialog.model.submit.toast.description", {
           provider: providerKey,
-          account: selectedAccountId() || "--",
+          account: accountLabel,
           model: (model as ModelListEntry).name,
         }),
       })
@@ -1712,7 +1742,7 @@ export const DialogSelectModel: Component<{
                 size="small"
                 variant="ghost"
                 class="h-6 rounded-full px-2 text-11-medium border border-border-base"
-                disabled={!selectedProviderId()}
+                disabled={!selectedProviderId() || selectedProviderUsesFreeToUseLabel()}
                 onClick={openAddAccount}
               >
                 Add
@@ -1721,7 +1751,7 @@ export const DialogSelectModel: Component<{
                 size="small"
                 variant="ghost"
                 class="h-6 rounded-full px-2 text-11-medium border border-border-base"
-                disabled={!selectedProviderId()}
+                disabled={!selectedProviderId() || selectedProviderUsesFreeToUseLabel()}
                 onClick={() => setAccountManagementMode((current) => !current)}
               >
                 {accountManagementMode() ? "Done" : "Manage"}
@@ -1731,7 +1761,11 @@ export const DialogSelectModel: Component<{
           <div class="model-manager-column-scroll p-2 space-y-1 overflow-y-auto flex-1 min-h-0">
             <Show
               when={accountsForSelectedProvider().length > 0}
-              fallback={<div class="px-3 py-2 text-12-regular text-text-weak">No account data</div>}
+              fallback={
+                <div class="px-3 py-2 text-12-regular text-text-weak">
+                  {selectedProviderUsesFreeToUseLabel() ? FREE_TO_USE_ACCOUNT_LABEL : "No account data"}
+                </div>
+              }
             >
               <For each={accountsForSelectedProvider()}>
                 {(row) => (
@@ -1830,7 +1864,7 @@ export const DialogSelectModel: Component<{
           <div class="px-3 pb-1 text-11-regular text-text-weak md:hidden">
             <span>{selectedProviderId() || "--"}</span>
             <span class="px-1">/</span>
-            <span>{selectedAccountId() || "--"}</span>
+            <span>{selectedAccountDisplayLabel()}</span>
           </div>
           <div ref={modelPanelEl} class="flex-1 overflow-hidden relative">
             <List

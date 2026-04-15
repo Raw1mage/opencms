@@ -112,6 +112,8 @@ export type ModelListItemLike = {
   provider: { id: string }
 }
 
+export const FREE_TO_USE_ACCOUNT_LABEL = "FreeToUse"
+
 export function parseHiddenProvidersStorageValue(value: string | null | undefined) {
   if (!value) return [] as string[]
   try {
@@ -197,12 +199,9 @@ export function buildProviderRows(input: {
 
   // Resolve visibility: hiddenProviders (blacklist) is the canonical API.
   // favoriteProviders (whitelist) is kept for backward compatibility with tests.
-  const hiddenSet = input.hiddenProviders
-    ? new Set(input.hiddenProviders)
-    : undefined
-  const favoriteSet = !hiddenSet && input.favoriteProviders
-    ? new Set(input.favoriteProviders.map((p) => providerKeyOf(p)))
-    : undefined
+  const hiddenSet = input.hiddenProviders ? new Set(input.hiddenProviders) : undefined
+  const favoriteSet =
+    !hiddenSet && input.favoriteProviders ? new Set(input.favoriteProviders.map((p) => providerKeyOf(p))) : undefined
 
   for (const providerKey of providerUniverse) {
     const providerAccounts = input.accountFamilies?.[providerKey]
@@ -214,11 +213,7 @@ export function buildProviderRows(input: {
 
     // hiddenSet: enabled = NOT hidden (blacklist model, default visible)
     // favoriteSet: enabled = IS favorite (whitelist model, default hidden) — legacy
-    const enabled = hiddenSet
-      ? !hiddenSet.has(providerKey)
-      : favoriteSet
-        ? favoriteSet.has(providerKey)
-        : true  // no filter → all visible
+    const enabled = hiddenSet ? !hiddenSet.has(providerKey) : favoriteSet ? favoriteSet.has(providerKey) : true // no filter → all visible
 
     out.set(providerKey, {
       id: providerKey,
@@ -373,6 +368,24 @@ export function pickSelectedModel<T extends ModelListItemLike>(input: {
     input.models.find((model) => model.provider.id === candidate.providerID && model.id === candidate.modelID)
 
   return matches(input.selected) ?? matches(input.preferred) ?? input.models[0]
+}
+
+export function usesFreeToUseAccountLabel(input: {
+  freeToUse?: boolean
+  accounts: Array<unknown>
+  models: Array<unknown>
+}) {
+  return Boolean(input.freeToUse) && input.accounts.length === 0 && input.models.length > 0
+}
+
+export function resolveAccountDisplayLabel(input: {
+  selectedAccountId?: string
+  activeAccountId?: string
+  usesFreeToUseLabel?: boolean
+  fallbackLabel?: string
+}) {
+  if (input.usesFreeToUseLabel) return FREE_TO_USE_ACCOUNT_LABEL
+  return input.selectedAccountId || input.activeAccountId || input.fallbackLabel || "--"
 }
 
 export function sameModelSelectorSelection(

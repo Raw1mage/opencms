@@ -1087,7 +1087,7 @@ export namespace Provider {
             temperature: model.temperature ?? existingModel?.capabilities.temperature ?? false,
             reasoning: model.reasoning ?? existingModel?.capabilities.reasoning ?? false,
             attachment: model.attachment ?? existingModel?.capabilities.attachment ?? false,
-            toolcall: model.tool_call ?? existingModel?.capabilities.toolcall ?? true,
+            toolcall: provider.lite ? false : (model.tool_call ?? existingModel?.capabilities.toolcall ?? true),
             input: {
               text: model.modalities?.input?.includes("text") ?? existingModel?.capabilities.input.text ?? true,
               audio: model.modalities?.input?.includes("audio") ?? existingModel?.capabilities.input.audio ?? false,

@@ -151,6 +151,7 @@ You are a worker spawned for a specific task. Complete it and report back.
 ### File Operations (two mutually exclusive chains)
 
 - Primary: `read`, `write`, `edit`. Always read before edit/write.
+- `apply_patch`: do not patch an existing file unless your immediately previous action was `read` on that exact file.
 - Secondary (`filesystem_*`): Only when primary is insufficient. Never mix chains.
 
 ### Search

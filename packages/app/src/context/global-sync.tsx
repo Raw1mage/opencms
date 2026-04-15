@@ -327,10 +327,7 @@ function createGlobalSync() {
         // preserve in-memory child sessions — trimSessions handles both.
         const sessions = trimSessions(nonArchived, { limit, permission: store.permission })
         const rootCount = nonArchived.filter((s) => !s.parentID).length
-        setStore(
-          "sessionTotal",
-          estimateRootSessionTotal({ count: rootCount, limit: x.limit, limited: x.limited }),
-        )
+        setStore("sessionTotal", estimateRootSessionTotal({ count: rootCount, limit: x.limit, limited: x.limited }))
         setStore("session", reconcile(sessions, { key: "id" }))
         sessionMeta.set(directory, { limit })
       })
@@ -400,7 +397,10 @@ function createGlobalSync() {
       // Toast is the only event guaranteed to bypass directory routing,
       // so we piggyback structured history onto it.
       if (typeof message === "string" && message.includes("->")) {
-        const lines = message.split("\n").map((l: string) => l.trim()).filter(Boolean)
+        const lines = message
+          .split("\n")
+          .map((l: string) => l.trim())
+          .filter(Boolean)
         // lines[0] = "(reason)detail", lines[1] = "from->", lines[2] = "to"
         if (lines.length >= 2) {
           const reason = lines[0] ?? ""
@@ -412,8 +412,11 @@ function createGlobalSync() {
             const [fromProvider, fromModel, fromAccount] = fromPart.split(",")
             const [toProvider, toModel, toAccount] = toPart.split(",")
             // Find child store for this directory and push history
-            const resolved = children.children[directory]
-              ?? children.children[Object.keys(children.children).find((k) => normalizeDirectoryKey(k) === directory) ?? ""]
+            const resolved =
+              children.children[directory] ??
+              children.children[
+                Object.keys(children.children).find((k) => normalizeDirectoryKey(k) === directory) ?? ""
+              ]
             if (resolved) {
               const [, setStore] = resolved
               const entry: LlmHistoryEntry = {
@@ -684,6 +687,17 @@ function createGlobalSync() {
     await setDisabledProviders([...current])
   }
 
+  const refreshProviderState = async (directory?: string) => {
+    await refreshGlobal({
+      config: true,
+      provider: true,
+      provider_auth: true,
+      account_families: true,
+    })
+    if (!directory) return
+    await bootstrapInstance(directory)
+  }
+
   return {
     data: globalStore,
     set: setGlobalStore,
@@ -696,6 +710,7 @@ function createGlobalSync() {
     child: children.child,
     bootstrap,
     updateConfig,
+    refreshProviderState,
     configActions: {
       disabledProviders: effectiveDisabledProviders,
       isProviderDisabled(providerID: string) {
