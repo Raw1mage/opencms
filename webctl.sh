@@ -1886,7 +1886,7 @@ do_build_frontend() {
         "${BUN_BIN}" install
     fi
 
-    "${BUN_BIN}" run build
+    "${BUN_BIN}" run build 2>&1 | tail -1
 
     log_success "Frontend built: ${FRONTEND_DIST}"
 }
