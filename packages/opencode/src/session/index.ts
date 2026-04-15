@@ -12,6 +12,7 @@ import { Installation } from "../installation"
 
 import { Storage } from "../storage/storage"
 import { Log } from "../util/log"
+import { debugCheckpoint } from "../util/debug"
 import { MessageV2 } from "./message-v2"
 import { Instance } from "../project/instance"
 import { Project } from "../project/project"
@@ -577,6 +578,20 @@ export namespace Session {
 
   export const get = fn(Identifier.schema("session"), async (id) => {
     const read = await Storage.read<Info>(["session", Instance.project.id, id])
+    // Version guard: detect sessions created by a different daemon version
+    if (read.version && read.version !== Installation.VERSION) {
+      ;(read as any)._staleVersion = true
+      Log.Default.warn("session version mismatch", {
+        sessionID: id,
+        sessionVersion: read.version,
+        daemonVersion: Installation.VERSION,
+      })
+      debugCheckpoint("session", "version_drift", {
+        sessionID: id,
+        sessionVersion: read.version,
+        daemonVersion: Installation.VERSION,
+      })
+    }
     return read as Info
   })
 
