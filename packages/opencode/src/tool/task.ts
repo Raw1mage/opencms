@@ -212,47 +212,86 @@ export const SessionActiveChildEvent = BusEvent.define("session.active-child.upd
 export type SessionActiveChildState = NonNullable<z.infer<typeof SessionActiveChildPayloadSchema>["activeChild"]>
 
 /**
- * Scan all sessions for ToolParts stuck in "running" state with tool="task".
- * These are orphans from a previous daemon instance whose workers were killed on restart.
- * Marks them as "error" and publishes OrphanRecovered events for UI notification.
+ * Running Task Registry — persists which tasks are in-flight so orphan recovery
+ * after daemon restart is O(running tasks) instead of O(all sessions × all messages).
  */
-export async function scanOrphanToolParts() {
-  const scanLog = Log.create({ service: "task.orphan-scan" })
-  scanLog.info("orphan scan starting")
+const REGISTRY_FILENAME = "running-tasks.json"
+function registryPath() {
+  return path.join(Global.Path.data, REGISTRY_FILENAME)
+}
+
+interface RegistryEntry {
+  sessionID: string        // child session
+  parentSessionID: string
+  parentMessageID: string
+  toolCallID: string
+  partID?: string
+  registeredAt: number
+}
+
+async function registryRead(): Promise<Record<string, RegistryEntry>> {
+  try {
+    const raw = await Bun.file(registryPath()).text()
+    return JSON.parse(raw)
+  } catch {
+    return {}
+  }
+}
+
+async function registryWrite(entries: Record<string, RegistryEntry>) {
+  await Bun.write(registryPath(), JSON.stringify(entries))
+}
+
+export async function registryAdd(entry: RegistryEntry) {
+  const entries = await registryRead()
+  entries[entry.toolCallID] = entry
+  await registryWrite(entries)
+}
+
+export async function registryRemove(toolCallID: string) {
+  const entries = await registryRead()
+  if (!(toolCallID in entries)) return
+  delete entries[toolCallID]
+  await registryWrite(entries)
+}
+
+/**
+ * Recover orphan tasks from previous daemon instance.
+ * Reads the persisted registry (a handful of entries at most),
+ * marks each as error, then deletes the registry file.
+ */
+export async function recoverOrphanTasks() {
+  const scanLog = Log.create({ service: "task.orphan-recovery" })
+  const entries = await registryRead()
+  const keys = Object.keys(entries)
+  if (keys.length === 0) {
+    scanLog.info("no orphan tasks to recover")
+    return
+  }
+
+  scanLog.info("orphan recovery starting", { count: keys.length })
   let recovered = 0
 
-  try {
-    for await (const session of Session.list()) {
-      // Only scan sessions that could have child tasks (non-archived, recent)
-      if (session.time.archived) continue
-
-      for await (const msg of MessageV2.stream(session.id)) {
-        if (msg.info.role !== "assistant") continue
+  for (const [toolCallID, entry] of Object.entries(entries)) {
+    try {
+      // Find the specific message + part to mark as error
+      for await (const msg of MessageV2.stream(entry.parentSessionID)) {
+        if (msg.info.id !== entry.parentMessageID) continue
         for (const part of msg.parts) {
-          if (part.type !== "tool" || part.tool !== "task") continue
+          if (part.callID !== toolCallID) continue
           if (part.state.status !== "running") continue
 
-          // This ToolPart claims to be running, but no worker exists (we just restarted)
-          // Check if any live worker owns this session
-          const childSessionID = (part.state.input as any)?.session_id
-          const isOwnedByLiveWorker = workers.some(
-            (w) => w.current?.sessionID === childSessionID || w.current?.toolCallID === part.callID,
-          )
-          if (isOwnedByLiveWorker) continue
-
           scanLog.info("recovering orphan ToolPart", {
-            sessionID: session.id,
-            messageID: msg.info.id,
-            partID: part.id,
-            callID: part.callID,
-            childSessionID,
+            parentSessionID: entry.parentSessionID,
+            messageID: entry.parentMessageID,
+            toolCallID,
+            childSessionID: entry.sessionID,
           })
 
-          // Transition to error state
           await Session.updatePart({
             ...part,
             messageID: msg.info.id,
-            sessionID: session.id,
+            sessionID: entry.parentSessionID,
             state: {
               ...part.state,
               status: "error",
@@ -264,25 +303,34 @@ export async function scanOrphanToolParts() {
             },
           })
 
-          // Publish event for parent session continuation
           await Bus.publish(TaskWorkerEvent.OrphanRecovered, {
-            sessionID: childSessionID ?? session.id,
-            parentSessionID: session.id,
-            parentMessageID: msg.info.id,
-            toolCallID: part.callID,
+            sessionID: entry.sessionID,
+            parentSessionID: entry.parentSessionID,
+            parentMessageID: entry.parentMessageID,
+            toolCallID,
             partID: part.id,
           })
 
           recovered++
         }
+        break // found the target message, no need to keep streaming
       }
+    } catch (err) {
+      scanLog.error("failed to recover orphan", {
+        toolCallID,
+        error: err instanceof Error ? err.message : String(err),
+      })
     }
-  } catch (err) {
-    scanLog.error("orphan scan failed", { error: err instanceof Error ? err.message : String(err) })
   }
 
-  scanLog.info("orphan scan complete", { recovered })
-  debugCheckpoint("task.orphan-scan", "complete", { recovered })
+  // Clear the registry — all entries have been processed
+  try {
+    const fs = await import("fs/promises")
+    await fs.unlink(registryPath())
+  } catch {}
+
+  scanLog.info("orphan recovery complete", { recovered, total: keys.length })
+  debugCheckpoint("task.orphan-recovery", "complete", { recovered, total: keys.length })
 }
 
 function createActiveChildState() {
@@ -681,6 +729,7 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
               worker.lastPhase = "done"
               const req = worker.current
               worker.current = undefined
+              if (req) registryRemove(req.toolCallID).catch(() => {})
               worker.busy = false
               scheduleIdleReap(worker)
               if (!req) continue
@@ -829,6 +878,7 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
           worker.lastWorkerMessage = typeof msg.error === "string" ? `done:${msg.error}` : "done"
           const req = worker.current
           worker.current = undefined
+          if (req) registryRemove(req.toolCallID).catch(() => {})
           log.info("[TRACE][DONE_CURRENT_CLEARED] worker.current set to undefined after done", { workerID: worker.id, reqId: req?.id })
           worker.busy = false
           scheduleIdleReap(worker)
@@ -902,6 +952,7 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
           worker.lastWorkerMessage = `canceled:${msg.sessionID}`
           const req = worker.current
           worker.current = undefined
+          if (req) registryRemove(req.toolCallID).catch(() => {})
           worker.busy = false
           scheduleIdleReap(worker)
           if (!req) continue
@@ -935,6 +986,7 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
           if (worker.current && msg.id === worker.current.id) {
             const req = worker.current
             worker.current = undefined
+            registryRemove(req.toolCallID).catch(() => {})
             worker.busy = false
             scheduleIdleReap(worker)
             Bus.publish(
@@ -967,6 +1019,7 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
     const req = worker.current
     log.info("[TRACE][EXIT_HANDLER] stdout loop ended, entering exit handler", { workerID, hasReq: !!req, reqId: req?.id, reqSessionID: req?.sessionID, reqParentSessionID: req?.parentSessionID, reqToolCallID: req?.toolCallID, workerPhase: worker.lastPhase, workerBusy: worker.busy })
     worker.current = undefined
+    if (req) registryRemove(req.toolCallID).catch(() => {})
     worker.busy = false
     removeWorker(worker.id)
     const exitCode = await proc.exited.catch(() => -1)
@@ -1200,6 +1253,14 @@ async function dispatchToWorker(input: {
     })
 
     worker.current!.dispatchedAt = Date.now()
+    // Persist to running-task registry for orphan recovery on daemon restart
+    registryAdd({
+      sessionID: input.sessionID,
+      parentSessionID: input.parentSessionID,
+      parentMessageID: input.parentMessageID,
+      toolCallID: input.toolCallID,
+      registeredAt: Date.now(),
+    }).catch((err) => log.warn("registry add failed", { toolCallID: input.toolCallID, error: String(err) }))
     const stdin = worker.proc.stdin
     if (typeof stdin !== "number") {
       stdin?.write(

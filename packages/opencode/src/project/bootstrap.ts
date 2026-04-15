@@ -62,18 +62,16 @@ export async function InstanceBootstrap() {
     }
   })
 
-  // Orphan task recovery: scan for ToolParts stuck in "running" from previous daemon instance.
-  // Runs async after a 5-second delay to avoid racing with workers that may still be finishing.
-  setTimeout(async () => {
-    try {
-      const { scanOrphanToolParts } = await import("../tool/task")
-      await scanOrphanToolParts()
-    } catch (err) {
-      Log.Default.warn("orphan task scan failed", {
-        error: err instanceof Error ? err.message : String(err),
-      })
-    }
-  }, 5_000)
+  // Orphan task recovery: check the running-task registry from the previous daemon instance.
+  // Only recovers the specific tasks that were in-flight — O(running tasks), not O(all sessions).
+  try {
+    const { recoverOrphanTasks } = await import("../tool/task")
+    await recoverOrphanTasks()
+  } catch (err) {
+    Log.Default.warn("orphan task recovery failed", {
+      error: err instanceof Error ? err.message : String(err),
+    })
+  }
 
   debugCheckpoint("bootstrap", "ready", { directory: Instance.directory })
 }
