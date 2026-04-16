@@ -74,23 +74,37 @@ export const { use: useWebAuth, provider: WebAuthProvider } = createSimpleContex
         headers,
         credentials: "include",
       })
-      const response = await fetch(next)
+      let response = await fetch(next)
       if (response.status === 401 || response.status === 403) {
         if (!enabled()) {
-          // Gateway mode: 401 may mean (a) JWT expired, or (b) daemon temporarily
-          // unavailable during reload. Probe gateway health before nuking the cookie.
-          // If gateway itself is healthy, the JWT is the problem → redirect to login.
-          // If gateway is also down, the daemon is restarting → just propagate error.
+          // Gateway mode: try to renew JWT silently before giving up.
+          // The old behavior nuked the cookie and did window.location.replace("/"),
+          // which destroyed all terminal state — unacceptable for long sessions.
+          try {
+            const renewRes = await fetch(`${server.url}/auth/renew`, { credentials: "include" })
+            if (renewRes.ok) {
+              // JWT renewed — retry the original request once
+              response = await fetch(new Request(input, { headers, credentials: "include" }))
+              if (response.ok || (response.status !== 401 && response.status !== 403)) {
+                return response
+              }
+            }
+          } catch {
+            // Renewal network error — fall through
+          }
+
+          // Renewal failed. Probe health to distinguish JWT-dead vs daemon-down.
           try {
             const probe = await fetch(`${server.url}/global/health`, { credentials: "include" })
             if (probe.ok) {
-              // Gateway is healthy but rejected our request → JWT is bad
+              // Gateway healthy, JWT truly dead — force re-auth without hard redirect
               document.cookie = "oc_jwt=; Path=/; Max-Age=0"
-              window.location.replace("/")
+              setForcedUnauthenticated(true)
+              void sessionActions.refetch()
             }
-            // else: gateway also unhealthy → transient, don't clear cookie
+            // else: gateway unhealthy → transient, don't touch auth state
           } catch {
-            // Network error → transient, don't clear cookie
+            // Network error → transient
           }
           throw new Error("__OPENCODE_SILENT_UNAUTHORIZED__")
         }
