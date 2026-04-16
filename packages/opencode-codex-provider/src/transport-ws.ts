@@ -439,7 +439,9 @@ export async function tryWsTransport(input: WsTransportInput): Promise<ReadableS
     invalidateContinuation(sessionId)
 
     try {
-      return wsRequest({ ws, body: reqBody, sessionId, state })
+      const events = wsRequest({ ws, body: reqBody, sessionId, state })
+      const probed = await probeFirstFrame(events, sessionId, state)
+      if (probed) return probed
     } catch {}
 
     state.ws = null
