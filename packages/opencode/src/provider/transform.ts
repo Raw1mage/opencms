@@ -550,26 +550,45 @@ export namespace ProviderTransform {
       // https://v5.ai-sdk.dev/providers/ai-sdk-providers/anthropic
       case "@ai-sdk/google-vertex/anthropic":
         // https://v5.ai-sdk.dev/providers/ai-sdk-providers/google-vertex#anthropic-provider
-        // Levels: low=1k, medium=8k, high=16k budget tokens. No "max" per product decision.
-        return {
-          low: {
-            thinking: {
-              type: "enabled",
-              budgetTokens: Math.min(1_024, model.limit.output - 1),
+        // Levels: low=1k, medium=8k, high=16k budget tokens.
+        // Opus 4.7+ (claude-cli v2.1.111, 2026-03) also exposes `xhigh` with a
+        // larger budget — opt into it only when the model id or release date
+        // says it is Opus 4.7 or later. Pattern mirrors the OpenAI xhigh gate
+        // above (@plans/provider-hotfix Phase 3).
+        {
+          const anthropicVariants: Record<string, Record<string, any>> = {
+            low: {
+              thinking: {
+                type: "enabled",
+                budgetTokens: Math.min(1_024, model.limit.output - 1),
+              },
             },
-          },
-          medium: {
-            thinking: {
-              type: "enabled",
-              budgetTokens: Math.min(8_000, Math.floor(model.limit.output / 2 - 1)),
+            medium: {
+              thinking: {
+                type: "enabled",
+                budgetTokens: Math.min(8_000, Math.floor(model.limit.output / 2 - 1)),
+              },
             },
-          },
-          high: {
-            thinking: {
-              type: "enabled",
-              budgetTokens: Math.min(16_000, model.limit.output - 1),
+            high: {
+              thinking: {
+                type: "enabled",
+                budgetTokens: Math.min(16_000, model.limit.output - 1),
+              },
             },
-          },
+          }
+          const isOpus47Plus =
+            /claude-opus-4-(\d+)/.exec(id)?.[1] !== undefined
+              ? Number(/claude-opus-4-(\d+)/.exec(id)![1]) >= 7
+              : model.release_date >= "2026-03-19"
+          if (isOpus47Plus) {
+            anthropicVariants.xhigh = {
+              thinking: {
+                type: "enabled",
+                budgetTokens: Math.min(32_000, model.limit.output - 1),
+              },
+            }
+          }
+          return anthropicVariants
         }
 
       case "@ai-sdk/amazon-bedrock":

@@ -1751,6 +1751,48 @@ describe("ProviderTransform.variants", () => {
         },
       })
     })
+
+    // @plans/provider-hotfix Phase 3 — xhigh variant for Opus 4.7+
+    test("claude-opus-4-7 gains xhigh variant (upstream parity)", () => {
+      const model = createMockModel({
+        id: "anthropic/claude-opus-4-7",
+        providerId: "anthropic",
+        api: { id: "claude-opus-4-7", url: "https://api.anthropic.com", npm: "@ai-sdk/anthropic" },
+        release_date: "2026-03-19",
+        limit: { context: 200_000, output: 64_000 },
+      })
+      const result = ProviderTransform.variants(model)
+      expect(Object.keys(result)).toEqual(["low", "medium", "high", "xhigh"])
+      expect(result.xhigh).toEqual({
+        thinking: { type: "enabled", budgetTokens: 32_000 },
+      })
+    })
+
+    test("claude-opus-4-6 does NOT expose xhigh", () => {
+      const model = createMockModel({
+        id: "anthropic/claude-opus-4-6",
+        providerId: "anthropic",
+        api: { id: "claude-opus-4-6", url: "https://api.anthropic.com", npm: "@ai-sdk/anthropic" },
+        release_date: "2025-11-01",
+        limit: { context: 200_000, output: 64_000 },
+      })
+      const result = ProviderTransform.variants(model)
+      expect(Object.keys(result)).toEqual(["low", "medium", "high"])
+      expect(result.xhigh).toBeUndefined()
+    })
+
+    test("xhigh budget is capped by model output limit minus one", () => {
+      const model = createMockModel({
+        id: "anthropic/claude-opus-4-8",
+        providerId: "anthropic",
+        api: { id: "claude-opus-4-8", url: "https://api.anthropic.com", npm: "@ai-sdk/anthropic" },
+        release_date: "2026-06-01",
+        limit: { context: 200_000, output: 8_000 },
+      })
+      const result = ProviderTransform.variants(model)
+      // output=8000 → xhigh capped at 7999 (min(32000, 7999))
+      expect(result.xhigh?.thinking.budgetTokens).toBe(7_999)
+    })
   })
 
   describe("@ai-sdk/amazon-bedrock", () => {
