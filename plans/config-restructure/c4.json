@@ -1,0 +1,230 @@
+{
+  "diagram_title": "Config Restructure — C4 Component Diagram",
+  "diagram_level": "component",
+  "systems": [
+    {
+      "id": "SYS1",
+      "name": "opencode Daemon",
+      "description": "Backend process serving HTTP + MCP + session",
+      "external": false
+    },
+    {
+      "id": "SYS2",
+      "name": "opencode Webapp",
+      "description": "Browser-side React app consuming /global/config",
+      "external": false
+    },
+    {
+      "id": "SYS3",
+      "name": "XDG Config Filesystem",
+      "description": "~/.config/opencode and ~/.local/state/opencode on operator machine",
+      "external": true
+    }
+  ],
+  "containers": [
+    {
+      "id": "CT1",
+      "name": "Config Subsystem",
+      "description": "Load, merge, snapshot, and serve application config",
+      "technology": "TypeScript (Bun)",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT2",
+      "name": "HTTP Server",
+      "description": "Hono-based API serving /config, /provider, etc.",
+      "technology": "TypeScript + Hono",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT3",
+      "name": "Provider Subsystem",
+      "description": "Provider catalog, availability, account mapping",
+      "technology": "TypeScript",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT4",
+      "name": "Webapp Frontend",
+      "description": "SDK context + error boundary components",
+      "technology": "React + TypeScript",
+      "systemRef": "SYS2"
+    },
+    {
+      "id": "CT5",
+      "name": "Migration Tools",
+      "description": "One-shot CLI scripts for denylist cleanup + split",
+      "technology": "TypeScript (Bun CLI)",
+      "systemRef": "SYS1"
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "name": "ConfigLoader",
+      "description": "Parse JSONC, merge sub-files, expose Config.get()",
+      "technology": "TypeScript module",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/opencode/src/config/config.ts"
+    },
+    {
+      "id": "C2",
+      "name": "JsonError (Structured)",
+      "description": "Error type carrying code/path/line/column/hint without raw text",
+      "technology": "TypeScript error class",
+      "containerRef": "CT1",
+      "moduleRef": "A3",
+      "filePath": "packages/opencode/src/config/config.ts"
+    },
+    {
+      "id": "C3",
+      "name": "LKGSnapshot",
+      "description": "Atomic read/write of last-known-good config at ~/.local/state/opencode/lkg.json",
+      "technology": "TypeScript module",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/opencode/src/config/config.ts"
+    },
+    {
+      "id": "C4",
+      "name": "LoadSplit Merger",
+      "description": "Section-level loader combining opencode.json / providers.json / mcp.json",
+      "technology": "TypeScript module",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/opencode/src/config/config.ts"
+    },
+    {
+      "id": "C5",
+      "name": "ProviderAvailability",
+      "description": "Derive enabled/disabled from accounts.json with providers.json override",
+      "technology": "TypeScript module",
+      "containerRef": "CT3",
+      "moduleRef": "A2",
+      "filePath": "packages/opencode/src/provider/availability.ts"
+    },
+    {
+      "id": "C6",
+      "name": "OnErrorHandler",
+      "description": "Translate ConfigJsonError/ConfigInvalidError to HTTP 503 structured body",
+      "technology": "TypeScript + Hono",
+      "containerRef": "CT2",
+      "moduleRef": "A3",
+      "filePath": "packages/opencode/src/server/app.ts"
+    },
+    {
+      "id": "C7",
+      "name": "ConfigErrorBoundary",
+      "description": "Render structured error without ever inserting raw body as text",
+      "technology": "React component",
+      "containerRef": "CT4",
+      "moduleRef": "A3",
+      "filePath": "packages/app/src/context/sdk.tsx"
+    },
+    {
+      "id": "C8",
+      "name": "MigrateDisabledProviders",
+      "description": "Dry-run CLI cleaning redundant disabled_providers against accounts.json",
+      "technology": "Bun CLI",
+      "containerRef": "CT5",
+      "moduleRef": "A4",
+      "filePath": "scripts/migrate-disabled-providers.ts"
+    },
+    {
+      "id": "C9",
+      "name": "MigrateConfigSplit",
+      "description": "Dry-run CLI splitting legacy opencode.json into three files with backup",
+      "technology": "Bun CLI",
+      "containerRef": "CT5",
+      "moduleRef": "A4",
+      "filePath": "scripts/migrate-config-split.ts"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "REL1",
+      "source": "C1",
+      "target": "C4",
+      "description": "state() delegates multi-file merging to LoadSplit",
+      "technology": "function call"
+    },
+    {
+      "id": "REL2",
+      "source": "C4",
+      "target": "C3",
+      "description": "On success write LKG; on main-file failure read LKG fallback",
+      "technology": "function call"
+    },
+    {
+      "id": "REL3",
+      "source": "C1",
+      "target": "C2",
+      "description": "Throw structured JsonError with slim payload",
+      "technology": "throw"
+    },
+    {
+      "id": "REL4",
+      "source": "C2",
+      "target": "C6",
+      "description": "Hono onError translates to HTTP 503",
+      "technology": "error propagation"
+    },
+    {
+      "id": "REL5",
+      "source": "C6",
+      "target": "SYS3",
+      "description": "log.error writes debug snippet to daemon log",
+      "technology": "log write"
+    },
+    {
+      "id": "REL6",
+      "source": "C6",
+      "target": "C7",
+      "description": "Send structured 503 body over HTTP",
+      "technology": "HTTP JSON"
+    },
+    {
+      "id": "REL7",
+      "source": "C5",
+      "target": "SYS3",
+      "description": "Read accounts.json and providers.json override",
+      "technology": "file read"
+    },
+    {
+      "id": "REL8",
+      "source": "CT3",
+      "target": "C5",
+      "description": "Provider catalog filter calls providerAvailability",
+      "technology": "function call"
+    },
+    {
+      "id": "REL9",
+      "source": "C1",
+      "target": "SYS3",
+      "description": "Read opencode.json / providers.json / mcp.json",
+      "technology": "file read"
+    },
+    {
+      "id": "REL10",
+      "source": "C3",
+      "target": "SYS3",
+      "description": "Atomic write/read lkg.json at ~/.local/state/opencode",
+      "technology": "file rename"
+    },
+    {
+      "id": "REL11",
+      "source": "C8",
+      "target": "SYS3",
+      "description": "Dry-run diff vs opencode.json disabled_providers and accounts.json",
+      "technology": "file read/write"
+    },
+    {
+      "id": "REL12",
+      "source": "C9",
+      "target": "SYS3",
+      "description": "Split legacy opencode.json into three files with .pre-split.bak",
+      "technology": "file write"
+    }
+  ]
+}

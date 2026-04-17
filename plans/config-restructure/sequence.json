@@ -1,0 +1,329 @@
+[
+  {
+    "diagram_title": "Config Parse Failure With LKG Fallback",
+    "scenario": "opencode.json 檔尾被誤 append 非法字元，daemon 用 LKG 快照繼續服務並透過結構化 503 通知 webapp",
+    "moduleRef": "A1",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "Webapp",
+        "type": "system",
+        "componentRef": "SYS2"
+      },
+      {
+        "id": "P2",
+        "name": "HTTP Server",
+        "type": "component",
+        "componentRef": "C6"
+      },
+      {
+        "id": "P3",
+        "name": "ConfigLoader",
+        "type": "component",
+        "componentRef": "C1"
+      },
+      {
+        "id": "P4",
+        "name": "LoadSplit",
+        "type": "component",
+        "componentRef": "C4"
+      },
+      {
+        "id": "P5",
+        "name": "LKGSnapshot",
+        "type": "component",
+        "componentRef": "C3"
+      },
+      {
+        "id": "P6",
+        "name": "ErrorBoundary",
+        "type": "component",
+        "componentRef": "C7"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P1",
+        "to": "P2",
+        "label": "GET /global/config",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P2",
+        "to": "P3",
+        "label": "Config.get()",
+        "type": "sync",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P3",
+        "to": "P4",
+        "label": "loadSplit(paths)",
+        "type": "sync",
+        "order": 3
+      },
+      {
+        "id": "MSG4",
+        "from": "P4",
+        "to": "P4",
+        "label": "parseJsonc(opencode.json) → ParseError",
+        "type": "sync",
+        "order": 4
+      },
+      {
+        "id": "MSG5",
+        "from": "P4",
+        "to": "P5",
+        "label": "readLKG()",
+        "type": "sync",
+        "order": 5
+      },
+      {
+        "id": "MSG6",
+        "from": "P5",
+        "to": "P4",
+        "label": "lkg snapshot + timestamp",
+        "type": "return",
+        "order": 6
+      },
+      {
+        "id": "MSG7",
+        "from": "P4",
+        "to": "P3",
+        "label": "config { configStale: true } + log.warn(reason)",
+        "type": "return",
+        "order": 7
+      },
+      {
+        "id": "MSG8",
+        "from": "P3",
+        "to": "P2",
+        "label": "return stale config",
+        "type": "return",
+        "order": 8
+      },
+      {
+        "id": "MSG9",
+        "from": "P2",
+        "to": "P1",
+        "label": "200 { ...config, configStale: true }",
+        "type": "return",
+        "order": 9
+      },
+      {
+        "id": "MSG10",
+        "from": "P1",
+        "to": "P6",
+        "label": "render stale banner (not error)",
+        "type": "sync",
+        "order": 10
+      }
+    ],
+    "fragments": [
+      {
+        "id": "FRAG1",
+        "type": "alt",
+        "label": "lkg exists vs lkg missing",
+        "messageRefs": ["MSG5", "MSG6"]
+      }
+    ]
+  },
+  {
+    "diagram_title": "Config Parse Failure Without LKG — Structured 503",
+    "scenario": "首次安裝或 lkg 被誤刪，daemon 回傳結構化 503 而非 500，webapp 以 ErrorBoundary 呈現，絕不渲染 raw body",
+    "moduleRef": "A3",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "Webapp",
+        "type": "system",
+        "componentRef": "SYS2"
+      },
+      {
+        "id": "P2",
+        "name": "HTTP Server",
+        "type": "component",
+        "componentRef": "C6"
+      },
+      {
+        "id": "P3",
+        "name": "ConfigLoader",
+        "type": "component",
+        "componentRef": "C1"
+      },
+      {
+        "id": "P4",
+        "name": "JsonError",
+        "type": "component",
+        "componentRef": "C2"
+      },
+      {
+        "id": "P5",
+        "name": "ErrorBoundary",
+        "type": "component",
+        "componentRef": "C7"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P1",
+        "to": "P2",
+        "label": "GET /global/config",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P2",
+        "to": "P3",
+        "label": "Config.get()",
+        "type": "sync",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P3",
+        "to": "P4",
+        "label": "new JsonError({code, path, line, column, hint, debugSnippet})",
+        "type": "create",
+        "order": 3
+      },
+      {
+        "id": "MSG4",
+        "from": "P3",
+        "to": "P2",
+        "label": "throw JsonError",
+        "type": "async",
+        "order": 4
+      },
+      {
+        "id": "MSG5",
+        "from": "P2",
+        "to": "P2",
+        "label": "log.error(debugSnippet) (daemon-side only)",
+        "type": "sync",
+        "order": 5
+      },
+      {
+        "id": "MSG6",
+        "from": "P2",
+        "to": "P1",
+        "label": "503 { code, path, line, column, hint }",
+        "type": "return",
+        "order": 6
+      },
+      {
+        "id": "MSG7",
+        "from": "P1",
+        "to": "P5",
+        "label": "render structured error card",
+        "type": "sync",
+        "order": 7
+      }
+    ],
+    "fragments": [
+      {
+        "id": "FRAG1",
+        "type": "critical",
+        "label": "絕不渲染 raw config text（AGENTS.md 安全要求）",
+        "messageRefs": ["MSG7"]
+      }
+    ]
+  },
+  {
+    "diagram_title": "Provider Availability Derivation From accounts.json",
+    "scenario": "Provider catalog 過濾時呼叫 providerAvailability，從 accounts.json 推導並合併 providers.json override",
+    "moduleRef": "A2",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "Provider Catalog",
+        "type": "system",
+        "componentRef": "SYS1"
+      },
+      {
+        "id": "P2",
+        "name": "ProviderAvailability",
+        "type": "component",
+        "componentRef": "C5"
+      },
+      {
+        "id": "P3",
+        "name": "XDG Config FS",
+        "type": "system",
+        "componentRef": "SYS3"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P1",
+        "to": "P2",
+        "label": "providerAvailability(providerId)",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P2",
+        "to": "P3",
+        "label": "read providers.json override",
+        "type": "sync",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P3",
+        "to": "P2",
+        "label": "override map",
+        "type": "return",
+        "order": 3
+      },
+      {
+        "id": "MSG4",
+        "from": "P2",
+        "to": "P3",
+        "label": "read accounts.json",
+        "type": "sync",
+        "order": 4
+      },
+      {
+        "id": "MSG5",
+        "from": "P3",
+        "to": "P2",
+        "label": "accounts[] for providerId",
+        "type": "return",
+        "order": 5
+      },
+      {
+        "id": "MSG6",
+        "from": "P2",
+        "to": "P2",
+        "label": "merge: override > has_account > no-account (+ log.info if no-account)",
+        "type": "sync",
+        "order": 6
+      },
+      {
+        "id": "MSG7",
+        "from": "P2",
+        "to": "P1",
+        "label": "\"enabled\" | \"disabled\" | \"no-account\"",
+        "type": "return",
+        "order": 7
+      }
+    ],
+    "fragments": [
+      {
+        "id": "FRAG1",
+        "type": "alt",
+        "label": "override present vs account present vs no-account",
+        "messageRefs": ["MSG6"]
+      }
+    ]
+  }
+]

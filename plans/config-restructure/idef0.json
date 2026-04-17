@@ -1,0 +1,137 @@
+{
+  "diagram_title": "Config Restructure — Functional Decomposition",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Load Config Files",
+      "description": "讀取 opencode.json / providers.json / mcp.json，解析失敗時走 LKG 快照或 section-level 空集",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Derive Provider Availability",
+      "description": "從 accounts.json 推導 provider enabled/disabled，並合併 providers.json 的 user override",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Emit Error Response",
+      "description": "Daemon 於 config 解析失敗時回傳結構化 503，並於 webapp 側以 ErrorBoundary 呈現，嚴禁原文外洩",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Migrate Legacy Config",
+      "description": "一次性遷移腳本：刪除冗餘 disabled_providers、拆分 opencode.json 成三檔",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "XDG Config Files",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "AGENTS.md Rule #1 (No Silent Fallback)",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "Parsed Config Snapshot",
+      "type": "output"
+    },
+    {
+      "id": "AR4",
+      "source": "EXTERNAL",
+      "target": "A1:mechanism",
+      "label": "Config Namespace + LKG Store",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR5",
+      "source": "EXTERNAL",
+      "target": "A2:input",
+      "label": "accounts.json",
+      "type": "input"
+    },
+    {
+      "id": "AR6",
+      "source": "A2:output",
+      "target": "EXTERNAL",
+      "label": "Provider Availability Map",
+      "type": "output"
+    },
+    {
+      "id": "AR7",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "label": "providerAvailability Module",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR8",
+      "source": "A1:output",
+      "target": "A3:input",
+      "label": "Parse Failure Signal",
+      "type": "input"
+    },
+    {
+      "id": "AR9",
+      "source": "EXTERNAL",
+      "target": "A3:control",
+      "label": "HTTP 503 Contract",
+      "type": "control"
+    },
+    {
+      "id": "AR10",
+      "source": "A3:output",
+      "target": "EXTERNAL",
+      "label": "Structured Error Card",
+      "type": "output"
+    },
+    {
+      "id": "AR11",
+      "source": "EXTERNAL",
+      "target": "A3:mechanism",
+      "label": "onError Handler + Webapp ErrorBoundary",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR12",
+      "source": "EXTERNAL",
+      "target": "A4:input",
+      "label": "Legacy opencode.json",
+      "type": "input"
+    },
+    {
+      "id": "AR13",
+      "source": "EXTERNAL",
+      "target": "A4:control",
+      "label": "Dry-run + Backup Policy",
+      "type": "control"
+    },
+    {
+      "id": "AR14",
+      "source": "A4:output",
+      "target": "EXTERNAL",
+      "label": "Split Config Files",
+      "type": "output"
+    },
+    {
+      "id": "AR15",
+      "source": "EXTERNAL",
+      "target": "A4:mechanism",
+      "label": "Migration Scripts (bun)",
+      "type": "mechanism"
+    }
+  ]
+}
