@@ -8,6 +8,7 @@ import { BunProc } from "../bun"
 import { Plugin } from "../plugin"
 import { ModelsDev } from "./models"
 import { applyProviderModelCorrections } from "./model-curation"
+import { ProviderAvailability } from "./availability"
 import { NamedError } from "@opencode-ai/util/error"
 import { Auth } from "../auth"
 import { Account } from "../account"
@@ -1008,12 +1009,21 @@ export namespace Provider {
       log.info("Injected bundled github-copilot models", { count: Object.keys(copilotModels).length })
     }
 
-    const disabled = new Set(config.disabled_providers ?? [])
+    // @plans/config-restructure Phase 2: availability is now derived from
+    // accounts.json; `disabled_providers` survives as the explicit operator
+    // override ("I have accounts but do not want this to load"). Phase 3 will
+    // move the override into providers.json.
+    const availabilitySnapshot = await ProviderAvailability.snapshot()
+    const disabled = availabilitySnapshot.overrideDisabled
     await loadIgnoredDynamic()
 
-    // Simplified: only use blacklist (disabled_providers)
-    // UI show/hide is handled separately in local storage
     function isProviderAllowed(providerId: string): boolean {
+      // The old semantics: only `disabled_providers` (override) blocked a
+      // provider. That is still the user-visible contract for providers the
+      // operator can actually use (has accounts / declared in config.provider).
+      // The "no-account → hide" derivation is layered on top separately, since
+      // the existing code also uses isProviderAllowed as a per-account filter
+      // where account presence is checked elsewhere.
       return !disabled.has(providerId)
     }
 
