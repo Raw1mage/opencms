@@ -50,6 +50,11 @@
 - **DD-7 向後相容 = 一個 release cycle**
   - Rationale：避免使用者一次升級就炸；migration 腳本支援 dry-run；daemon log.info 提示遷移但不強制
 
+- **DD-8 Phase 2 runtime 行為不變，只交付 API + migration**（2026-04-17 rev2 追加）
+  - Rationale：`provider.ts::initState` 原本就在 env / auth / account / plugin 每條載入路徑各自檢查帳號/金鑰存在與 `disabled` 覆寫，沒有帳號的 provider 不會進 `providers` dict — 現行的 109 筆 `disabled_providers` 多數是歷史遺留而非當前行為必需。若在中央再加一道「no-account → 隱藏」過濾，反而會誤殺 env 或 plugin 路徑進來但恰好無帳號的 provider
+  - 實際交付：(1) `ProviderAvailability` API 供未來 consumer（admin UI 顯示三態）使用；(2) migration 腳本一次把使用者的 `disabled_providers` 壓到實際 override 筆數；(3) daemon boot 時 `log.info` 列出「real override」vs「redundant」，給 operator 自主決定
+  - 不做：中央新過濾點（保留 `isProviderAllowed` 原語意 `!disabled.has(id)`），避免 Phase 2 造成 runtime regression
+
 ## Data / State / Control Flow
 
 ### Phase 1：Parse 失敗防線

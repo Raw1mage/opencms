@@ -10,15 +10,16 @@
 - [x] 1.6+1.7 validate：`bun test packages/opencode/test/config/config.test.ts` 62 pass；`bun test packages/app/src/utils/server-errors.test.ts` 9 pass；新增 2 個 LKG tests + 1 個 webapp guard test
 - [x] 1.8 docs/events/：[event_2026-04-17_config_crash.md](../../docs/events/event_2026-04-17_config_crash.md) 已寫入主 repo
 
-## 2. Phase 2 — disabled_providers 衍生
+## 2. Phase 2 — disabled_providers 衍生 (DONE 2026-04-17)
 
-- [ ] 2.1 delegate new module [provider/availability.ts](../../packages/opencode/src/provider/availability.ts)：`providerAvailability(id)` 回傳 `"enabled" | "disabled" | "no-account"`
-- [ ] 2.2 integrate availability 進 provider catalog filter，替換原 `disabled_providers` 直讀邏輯
-- [ ] 2.3 preserve 舊 `opencode.json.disabled_providers` 讀取作為 override 合併；boot 時 `log.info` 提示遷移
-- [ ] 2.4 write `scripts/migrate-disabled-providers.ts` 支援 `--dry-run`；輸出「可刪 X 筆冗餘、保留 Y 筆真 override」
-- [ ] 2.5 validate：`bun run scripts/migrate-disabled-providers.ts --dry-run` 列表檢查
-- [ ] 2.6 validate：刪除 `disabled_providers` 後 `/provider` snapshot 與之前語意一致
-- [ ] 2.7 validate：新增 / 移除 account → availability 自動更新
+設計調整（記於 design.md DD-8）：`isProviderAllowed` 保留 `!disabled.has(id)` 語意，不做 runtime 行為變更。Phase 2 實際交付是：availability API（供未來 consumer 使用，例如 admin UI 顯示狀態）＋ migration script（幫使用者一次把 109 筆壓到真正需要的數目）＋ daemon log.info 暴露冗餘。runtime 的「no-account 等於隱藏」本來就由 env / auth / account 各 gate 分別達成，不需要新的中央過濾點。
+
+- [x] 2.1 delegate new module [provider/availability.ts](../../packages/opencode/src/provider/availability.ts)：`availabilityFor(id, ctx)` 回傳 `"enabled" | "disabled" | "no-account"`；`snapshot()` 從 `Account.listAll()` + `config.disabled_providers` 組 context；`isAllowed()` 便捷判斷
+- [x] 2.2 integrate availability 進 [provider.ts](../../packages/opencode/src/provider/provider.ts) `initState`：使用 `snapshot.overrideDisabled` 作為 `disabled` set，保留既有 per-path 行為一致
+- [x] 2.3 preserve 舊 `opencode.json.disabled_providers` 讀取作為 override；`snapshot()` 在非 test 環境下 `log.info` 區分 real override / redundant，並建議執行 migration script
+- [x] 2.4 write [scripts/migrate-disabled-providers.ts](../../scripts/migrate-disabled-providers.ts) 支援 `--dry-run` / `--apply`；`--apply` 會寫 `.pre-disabled-providers-migration.bak` 備份、保留 override、刪除 redundant
+- [x] 2.5 validate：dry-run 在測試用 fake config 正確列出「2 redundant、1 override」；`--apply` 正確寫回只留 override
+- [x] 2.6+2.7 validate：config + account + availability + provider 測試合計 236+ test 過；vs main 無新增 failure（5 pre-existing provider failures 不變）
 
 ## 3. Phase 3 — 拆檔 providers.json / mcp.json
 
