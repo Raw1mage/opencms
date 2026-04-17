@@ -41,6 +41,7 @@ import { logSessionAccountAudit, resolveAccountAuditSource } from "./account-aud
 import { resolveProviderBillingMode } from "@/provider/billing-mode"
 import { SkillLayerRegistry } from "./skill-layer-registry"
 import { buildSkillLayerRegistrySystemPart } from "./skill-layer-seam"
+import { ALWAYS_PRESENT_TOOLS } from "@/tool/tool-loader"
 
 /**
  * Bus event for real-time LLM error reporting to the webapp sidebar.
@@ -940,10 +941,11 @@ export namespace LLM {
         }
       },
       async experimental_repairToolCall(failed) {
-        const lower = failed.toolCall.toolName.toLowerCase()
-        if (lower !== failed.toolCall.toolName && tools[lower]) {
+        const toolName = failed.toolCall.toolName
+        const lower = toolName.toLowerCase()
+        if (lower !== toolName && tools[lower]) {
           l.info("repairing tool call", {
-            tool: failed.toolCall.toolName,
+            tool: toolName,
             repaired: lower,
           })
           return {
@@ -953,16 +955,16 @@ export namespace LLM {
         }
 
         // Active Loader: check if tool exists in lazyTools and auto-unlock it
-        if (input.lazyTools?.has(failed.toolCall.toolName)) {
+        if (input.lazyTools?.has(toolName)) {
           const { UnlockedTools: UnlockedToolsMod } = await import("@/session/unlocked-tools")
-          UnlockedToolsMod.unlock(input.sessionID, [failed.toolCall.toolName])
+          UnlockedToolsMod.unlock(input.sessionID, [toolName])
           // Add lazy tool to active tools so it can be called on NEXT attempt
-          const lazyTool = input.lazyTools.get(failed.toolCall.toolName)
+          const lazyTool = input.lazyTools.get(toolName)
           if (lazyTool) {
-            tools[failed.toolCall.toolName] = lazyTool
+            tools[toolName] = lazyTool
             l.info("auto-unlocked lazy tool on demand", {
               sessionID: input.sessionID,
-              toolID: failed.toolCall.toolName,
+              toolID: toolName,
             })
 
             // Don't execute the LLM's first call — it was constructed from a
@@ -973,18 +975,43 @@ export namespace LLM {
             return {
               ...failed.toolCall,
               input: JSON.stringify({
-                tool: failed.toolCall.toolName,
-                error: `Tool "${failed.toolCall.toolName}" loaded. Retry — full schema is now available.`,
+                tool: toolName,
+                error: `Tool "${toolName}" loaded. Retry — full schema is now available.`,
               }),
               toolName: "invalid",
             }
           }
         }
 
+        // Tool IS in the active set — this is a schema validation failure on
+        // a tool the LLM already has full visibility into (e.g. todowrite
+        // args missing a required field). Don't silently redirect to
+        // `invalid` — that swallows the call and prevents the tool's execute
+        // from ever running. Return null so the AI SDK surfaces the
+        // validation error back to the LLM, which can then retry with fixed
+        // args. (AGENTS.md 第一條: no silent fallback.)
+        const activeHit = tools[toolName] ?? tools[lower]
+        if (activeHit) {
+          const alwaysPresent = ALWAYS_PRESENT_TOOLS.has(toolName) || ALWAYS_PRESENT_TOOLS.has(lower)
+          l.warn("tool call schema validation failed — deferring to AI SDK", {
+            sessionID: input.sessionID,
+            tool: toolName,
+            alwaysPresent,
+            error: failed.error.message,
+          })
+          return null
+        }
+
+        l.warn("unknown tool call — redirecting to invalid", {
+          sessionID: input.sessionID,
+          tool: toolName,
+          error: failed.error.message,
+          lazyKnown: input.lazyTools ? [...input.lazyTools.keys()].length : 0,
+        })
         return {
           ...failed.toolCall,
           input: JSON.stringify({
-            tool: failed.toolCall.toolName,
+            tool: toolName,
             error: failed.error.message,
           }),
           toolName: "invalid",

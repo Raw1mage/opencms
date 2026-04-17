@@ -45,14 +45,21 @@ export const TodoWriteTool = Tool.define("todowrite", {
     // - Plan mode: todo is a working ledger. Freeform structure changes are allowed.
     //   Auto-promote status_update to working_ledger when structure changes are detected.
     // - Build mode: todo is an execution ledger. Structure changes require explicit
-    //   plan_materialization or replan_adoption mode.
+    //   plan_materialization or replan_adoption mode — EXCEPT when current is empty
+    //   (first-time seeding), which is auto-promoted to replan_adoption so the
+    //   incoming todos don't get silently discarded by applyStatusOnlyUpdate.
+    //   (AGENTS.md 第一條: no silent fallback.)
     let mode: Todo.UpdateMode = params.mode ?? "status_update"
     if (inPlanMode && structureChanged) {
       mode = "working_ledger"
-    } else if (!inPlanMode && mode === "status_update" && structureChanged && current.length > 0) {
-      throw new Error(
-        "todowrite(status_update) cannot rewrite todo structure in build mode. Use mode=plan_materialization or mode=replan_adoption only when planner artifacts changed or a replan was explicitly adopted.",
-      )
+    } else if (!inPlanMode && mode === "status_update" && structureChanged) {
+      if (current.length === 0) {
+        mode = "replan_adoption"
+      } else {
+        throw new Error(
+          "todowrite(status_update) cannot rewrite todo structure in build mode. Use mode=plan_materialization or mode=replan_adoption only when planner artifacts changed or a replan was explicitly adopted.",
+        )
+      }
     }
 
     await Todo.update({
