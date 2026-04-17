@@ -38,6 +38,34 @@ export async function refreshAccessToken(refreshToken: string): Promise<TokenRes
   return response.json()
 }
 
+/**
+ * Revoke an OAuth refresh token upstream.
+ *
+ * Mirrors upstream codex-rs commit 22f7ef1cb7 (2026) — logout must notify the
+ * OAuth edge before clearing local state, otherwise the backend token lives on
+ * detached from any client record. Fail-closed is handled by the caller: this
+ * helper throws on any non-2xx or network error so the caller can preserve
+ * local credentials and surface the failure.
+ */
+export async function revokeRefreshToken(refreshToken: string): Promise<void> {
+  const response = await fetch(`${ISSUER}/oauth/revoke`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      token: refreshToken,
+      token_type_hint: "refresh_token",
+      client_id: CLIENT_ID,
+    }).toString(),
+  })
+  if (!response.ok) {
+    const body = await response.text().catch(() => "")
+    // Truncate body in case upstream echoes the token or other sensitive data.
+    const snippet = body.slice(0, 200)
+    throw new Error(`Token revoke failed: HTTP ${response.status}${snippet ? ` — ${snippet}` : ""}`)
+  }
+  // 200/204 is a success per RFC 7009. No body content expected.
+}
+
 // ---------------------------------------------------------------------------
 // § 2  PKCE helpers
 // ---------------------------------------------------------------------------
