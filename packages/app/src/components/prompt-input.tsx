@@ -63,7 +63,7 @@ import { PromptContextItems } from "./prompt-input/context-items"
 import { PromptImageAttachments } from "./prompt-input/image-attachments"
 import { PromptDragOverlay } from "./prompt-input/drag-overlay"
 import { promptPlaceholder } from "./prompt-input/placeholder"
-import { shouldRefreshProviderQuota } from "./prompt-input/quota-refresh"
+import { isPromptQuotaProviderKey, shouldRefreshProviderQuota } from "./prompt-input/quota-refresh"
 import { ImagePreview } from "@opencode-ai/ui/image-preview"
 import { buildAccountRows, providerKeyOf } from "./model-selector-state"
 import { invalidateQuotaHint, loadQuotaHint, peekQuotaHint } from "@/utils/quota-hint-cache"
@@ -331,6 +331,50 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       pendingFreshQuotaLoad = true
     }
     setQuotaRefresh((value) => value + 1)
+  })
+
+  // Footer quota poller for long-running turns.
+  // The completion hook above fires only when an assistant message of the
+  // PARENT session lands — subagent (task tool) runs can keep the parent
+  // "busy" for 10+ minutes without emitting a single parent-level assistant
+  // completion, so the footer would sit stale for the whole duration. While
+  // working() is true we actively poll every 10 s with invalidate + fresh=1
+  // so the operator sees usage tick down in real time. Upstream wham/usage
+  // is a metadata endpoint (no token cost) so the poll is cheap.
+  const QUOTA_POLL_INTERVAL_MS = 10_000
+  createEffect(() => {
+    const sessionID = params.id
+    if (!sessionID) return
+    if (!working()) return
+    const model = currentModel()
+    if (!model) return
+    const providerKey = effectiveProviderKey() ?? model.provider.id
+    if (!isPromptQuotaProviderKey(providerKey)) return
+
+    let disposed = false
+    const tick = () => {
+      if (disposed) return
+      const accountId = local.model.selection(sessionID)?.accountID
+      invalidateQuotaHint({
+        baseURL: globalSDK.url,
+        providerId: providerKey,
+        accountId,
+        modelID: model.id,
+        format: "footer" as const,
+      })
+      pendingFreshQuotaLoad = true
+      // Keep the completion-hook throttle in sync so it does not double-fire
+      // right after the poller already refreshed.
+      setLastQuotaRefreshAt(Date.now())
+      setQuotaRefresh((v) => v + 1)
+    }
+    // Fire once on entering the busy state, then on the fixed cadence.
+    tick()
+    const timer = setInterval(tick, QUOTA_POLL_INTERVAL_MS)
+    onCleanup(() => {
+      disposed = true
+      clearInterval(timer)
+    })
   })
 
   const imageAttachments = createMemo(() =>
