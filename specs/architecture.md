@@ -210,6 +210,29 @@ Legacy all-in-one `opencode.json` continues to work unchanged — the split file
 - Runtime custom providers and config-injected providers may still exist for execution, but unsupported keys must fail closed at the provider-list boundary and must not appear in `/provider` or primary UI provider lists unless explicitly added to the registry.
 - Legacy provider aliases are not universally interchangeable. In particular, transport/protocol aliasing such as `anthropic -> claude-cli` must not be reused for WebApp disabled-provider matching or favorites/provider-visibility gates.
 
+### `disabled_providers` runtime scope (plans/provider-hotfix, 2026-04-18)
+
+- `disabled_providers` is an **auto-gate**, not a global kill. A listed provider is hidden from catalog iterators (`Provider.list()`, default-model selector, TUI/CLI provider lists, `/provider` REST surface) but the provider entry STAYS in `state().providers`.
+- Explicit lookups via `Provider.getModel(providerId, modelId)` continue to resolve for disabled providers — this is the operator's rescue path when they have accounts or `config.provider.<id>` entries but listed the id in `disabled_providers` (e.g. to suppress default-model churn). Every explicit bypass logs once via `log.info`.
+- `Provider.listAllIncludingHidden()` exposes the full set for admin/debug flows that need to show hidden entries.
+- This narrowing mirrors the sibling `plans/manual-pin-bypass-preflight/` philosophy: auto-path gates must never block explicit operator intent.
+
+### Codex provider request envelope (plans/provider-hotfix Phase 2, 2026-04-18)
+
+- `/responses` requests carry three context-window lineage headers in addition to `ChatGPT-Account-Id` and `x-codex-turn-state`:
+  - `x-codex-window-id` — `conversationId:generation` (stable per session; already present pre-hotfix)
+  - `x-codex-parent-thread-id` — `Session.parentID` when the session is a subagent
+  - `x-openai-subagent` — agent name for subagent lineage
+- `session/llm.ts` sets `x-opencode-parent-session` / `x-opencode-subagent` opencode-side headers; `packages/opencode-codex-provider/src/provider.ts` reads them and feeds `buildHeaders()` in `packages/opencode-codex-provider/src/headers.ts`, which emits the upstream names.
+
+### Codex logout revoke (plans/provider-hotfix Phase 1, 2026-04-18)
+
+- `Account.remove("codex", accountId)` calls `CodexAuth.logoutCodex(refreshToken)` BEFORE deleting the local entry. The helper POSTs to `https://auth.openai.com/oauth/revoke` with `token_type_hint=refresh_token` and is **fail-closed**: a non-2xx response or network error throws, and the local credentials stay in place until the operator retries. This prevents orphaned backend tokens after logout.
+
+### Anthropic effort variants for Opus 4.7+ (plans/provider-hotfix Phase 3, 2026-04-18)
+
+- `packages/opencode/src/provider/transform.ts` Anthropic branch returns the `xhigh` variant (budget `min(32_000, model.limit.output - 1)`) for models whose id matches `claude-opus-4-N` with `N >= 7`, or whose `release_date >= "2026-03-19"`. Mirrors the OpenAI `xhigh` gate pattern.
+
 ## Managed App Registry (MCP Apps)
 
 ### Overview
