@@ -23,8 +23,9 @@
 - 四個開放問題使用者已決策：Scope 全部三個 Phase／LKG 路徑 `$XDG_STATE_HOME/opencode/config-lkg.json`／Override `providers.json`／Webapp 只修 `/global/config`
 - MCP lifecycle 已驗證為 lazy（首次 message 才連線），Phase 3 不需 preflight
 - **Phase 1 DONE**（2026-04-17 beta commit b121eeb28）：JsonError 瘦身、LKG snapshot、503 結構化回應、webapp ErrorBoundary、62+9 tests 全過、`docs/events/event_2026-04-17_config_crash.md` 已留痕
-- **Phase 2 DONE**（2026-04-17 同日）：availability API + migration script + daemon log.info。design.md DD-8 記錄：runtime 行為不變，只交付 API + 一次性清理，避免中央過濾點的 regression 風險。62+9+5 tests 全過、對 main 無新增 failure
-- **Phase 3 尚未動工**；Phase 1+2 已 commit 在 beta/config-restructure，等待 fetch-back / merge 決策
+- **Phase 2 DONE**（2026-04-17 同日 beta commit 0ed7d0b42）：availability API + migration script + daemon log.info。design.md DD-8 記錄：runtime 行為不變，只交付 API + 一次性清理，避免中央過濾點的 regression 風險。62+9+5 tests 全過、對 main 無新增 failure
+- **Phase 3 DONE**（2026-04-17 同日）：`loadSectionFile` section-level 隔離載入 providers.json / mcp.json；templates + manifest 同步；`migrate-config-split.ts --dry-run/--apply`；`specs/architecture.md` 已同步。67 config tests + 130 provider tests 全過，對 main 無新增 failure
+- **全部 3 phase 已 commit 在 beta/config-restructure**；test/config-restructure 已做 Phase 1+2 的 fetch-back 驗證但尚未含 Phase 3；使用者選擇 **不 merge**，維持現狀
 
 ## Stop Gates In Force
 

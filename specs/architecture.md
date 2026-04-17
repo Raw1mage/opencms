@@ -175,6 +175,33 @@ The frontend is built with Solid.js and uses a bottom-up dependency model:
 - Config resolution for non-git nested projects must not be prematurely truncated by current-worktree boundaries alone; nested non-git execution surfaces may still inherit parent `opencode.json` / `.opencode` configuration through the documented upward merge path.
 - Config/state initialization should follow the same lazy-state safety rule as other runtime modules so config import does not become a hidden bootstrap-time failure surface.
 
+### Split Config Files + Crash Defense (plans/config-restructure)
+
+**Three-file layout** (all optional; missing files → no-op merge):
+
+- `~/.config/opencode/opencode.json` — boot-critical keys (`$schema`, `plugin`, `permissionMode`, `username`, `keybinds`, `compaction`, etc.). A parse failure here falls back through the LKG snapshot (see below); if no snapshot exists, `/config` returns HTTP 503 without crashing the daemon.
+- `~/.config/opencode/providers.json` — `provider`, `disabled_providers`, `model`. **Section-isolated**: a parse failure only zeroes out the provider section. Other subsystems keep running.
+- `~/.config/opencode/mcp.json` — `mcp`. **Section-isolated and lazy**: a parse failure only disables the MCP subsystem; MCP connects are already lazy (first tool call) so the main UI is untouched.
+
+Legacy all-in-one `opencode.json` continues to work unchanged — the split files simply overlay additional merge layers when present.
+
+**Error flow** (`packages/opencode/src/config/config.ts`, `packages/opencode/src/server/app.ts`, `packages/app/src/utils/server-errors.ts`):
+
+- `Config.JsonError` / `Config.InvalidError` / `Config.ConfigDirectoryTypoError` map to HTTP **503** in `onError`. The response body is structured (`{ name, data: { path, line, column, code, problemLine, hint } }`) — **raw config text must never leave the daemon**. Daemon-side `log.error` carries a ±3-line debug snippet for operators.
+- Webapp renders `ConfigJsonError` / `ConfigInvalidError` via `formatServerError` with a `truncate()` guard (500-char cap) as a defense in depth for older daemons or unexpected shapes.
+
+**Last-known-good snapshot**:
+
+- Path: `$XDG_STATE_HOME/opencode/config-lkg.json` (defaults to `~/.local/state/opencode/config-lkg.json`).
+- Written atomically (`.pid.tmp` + `rename`) on every successful `createState()`; every fallback read emits `log.warn` with the failed path + snapshot age (AGENTS.md rule #1: no silent fallback).
+- Served as `{ ...config, configStale: true }` so downstream consumers can surface a "using snapshot" banner when relevant.
+
+**Provider availability derivation** (`packages/opencode/src/provider/availability.ts`):
+
+- `ProviderAvailability.snapshot()` reads `Account.listAll()` + `config.disabled_providers` and yields `{ hasAccount, overrideDisabled, byProvider }` with availability ∈ `"enabled" | "disabled" | "no-account"`.
+- Runtime behavior of `isProviderAllowed` is unchanged (still `!disabled.has(id)`) — the existing per-path gates (env / auth / account / plugin) already handle "no-account → hide" correctly, so a central filter would regress env-based providers. Availability is a first-class surface for UI and future Phase 3 `providers.json` override.
+- `scripts/migrate-disabled-providers.ts --dry-run|--apply` and `scripts/migrate-config-split.ts --dry-run|--apply` are operator-invoked one-shots (with `.pre-*.bak` backups) for pruning the legacy denylist and splitting the combined config.
+
 ## Provider Universe Authority
 
 - The cms official provider universe is defined by the repo-owned supported provider registry, not by observed runtime/config/models/account provider IDs.

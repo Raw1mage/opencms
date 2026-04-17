@@ -21,19 +21,19 @@
 - [x] 2.5 validate：dry-run 在測試用 fake config 正確列出「2 redundant、1 override」；`--apply` 正確寫回只留 override
 - [x] 2.6+2.7 validate：config + account + availability + provider 測試合計 236+ test 過；vs main 無新增 failure（5 pre-existing provider failures 不變）
 
-## 3. Phase 3 — 拆檔 providers.json / mcp.json
+## 3. Phase 3 — 拆檔 providers.json / mcp.json (DONE 2026-04-17)
 
-- [ ] 3.1 design `loadSplit(paths)` in [config.ts](../../packages/opencode/src/config/config.ts)：section-level try/catch、per-sub-file `JsonError`
-- [ ] 3.2 integrate `providers.json` 載入：失敗走 lkg 或空集、`log.warn`
-- [ ] 3.3 integrate `mcp.json` 載入（lazy，連線時才讀）：失敗停用 MCP subsystem、`log.warn`
-- [ ] 3.4 preserve 舊單檔 `opencode.json` 格式讀取（向後相容一個 release cycle）
-- [ ] 3.5 delegate `templates/opencode.json` / `templates/providers.json` / `templates/mcp.json` 新範本同步
-- [ ] 3.6 delegate `scripts/migrate-config-split.ts`：讀舊單檔、拆 3 檔、寫 `.pre-split.bak`、支援 `--dry-run`
-- [ ] 3.7 validate unit test：三檔存在時 merge 結果 = 舊單檔語意
-- [ ] 3.8 validate：`mcp.json` 壞掉 → daemon boot 成功、主 UI 活、MCP 全 disable
-- [ ] 3.9 validate：`providers.json` 壞掉 → daemon boot 成功、其他功能正常
-- [ ] 3.10 sync [specs/architecture.md](../../specs/architecture.md) config subsystem 段落
-- [ ] 3.11 sync [templates/AGENTS.md](../../templates/AGENTS.md) 與 [templates/prompts/SYSTEM.md](../../templates/prompts/SYSTEM.md)（若涉及）
+- [x] 3.1 add `loadSectionFile` helper in [config.ts](../../packages/opencode/src/config/config.ts)：section-level try/catch 包 `loadFile`；`JsonError` / `InvalidError` 捕捉後 `log.warn` 回傳 `{}`
+- [x] 3.2 integrate `providers.json` 載入：主 dir loop + project findUp 兩處皆支援，失敗走 section-isolated empty + `log.warn`
+- [x] 3.3 integrate `mcp.json` 載入（MCP 連線本來就 lazy，Phase 1 已驗證）：失敗停用 MCP subsystem、`log.warn`
+- [x] 3.4 preserve 舊單檔 `opencode.json` 格式讀取 — 新增是純 additive，無 migration 強制；5 個新 test 含「三檔 merge == 舊單檔」語意等價
+- [x] 3.5 delegate templates：[templates/providers.json](../../templates/providers.json) / [templates/mcp.json](../../templates/mcp.json) 為最小 schema stub（不破壞 upgrade 路徑）；[templates/manifest.json](../../templates/manifest.json) + `fallbackEntries` 同步
+- [x] 3.6 delegate [scripts/migrate-config-split.ts](../../scripts/migrate-config-split.ts)：`--dry-run` / `--apply` + `.pre-split.bak` 備份；手動驗證 `/tmp` 測試資料 split 成功、opencode.json 僅剩 boot-critical 鍵
+- [x] 3.7 validate unit test：「three-file merge carries sub-file keys that legacy did too」assert equal
+- [x] 3.8 validate：「broken providers.json is section-isolated」pass — daemon 正常、permissionMode + mcp section 仍載入
+- [x] 3.9 validate：「broken mcp.json is section-isolated」pass — provider + disabled_providers 仍載入
+- [x] 3.10 sync [specs/architecture.md](../../specs/architecture.md) — 新增「Split Config Files + Crash Defense」段落涵蓋 3 檔 layout / error flow / LKG / availability
+- [x] 3.11 sync templates — 無需動 AGENTS.md / SYSTEM.md；config 行為變更本身不影響 prompt 規範
 
 ## 4. Documentation / Retrospective
 
