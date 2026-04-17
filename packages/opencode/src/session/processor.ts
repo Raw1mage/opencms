@@ -426,7 +426,16 @@ export namespace SessionProcessor {
                   accountId,
                   modelID: streamInput.model.id,
                 }
-                if (isVectorRateLimited(vector)) {
+                // Pre-flight cooldown is flood-protection for AUTO rotation
+                // (operator did not pin an account — we picked one from global
+                // active). When the operator explicitly pinned an account
+                // (sessionPinnedAccountId is set), respect that intent: fire
+                // the request and let upstream surface a real 429 if the limit
+                // is still in effect. This prevents persisted tracker state
+                // from silently blocking deliberate user actions while keeping
+                // auto-rotation flood-safe.
+                // @plans/manual-pin-bypass-preflight hotfix, 2026-04-17
+                if (isVectorRateLimited(vector) && !sessionPinnedAccountId) {
                   // Child sessions must not self-rotate — escalate to parent
                   if (isChildSession) {
                     debugCheckpoint("syslog.rotation", "child session pre-flight rate limit — escalating to parent", {
