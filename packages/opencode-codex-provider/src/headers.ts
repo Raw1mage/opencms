@@ -14,6 +14,10 @@ export interface BuildHeadersOptions {
   turnState?: string
   /** Context-window lineage */
   window?: WindowState
+  /** Parent thread id when this request is part of a subagent session */
+  parentThreadId?: string
+  /** Subagent lineage label (agent name) when this session is a subagent */
+  subagentLabel?: string
   /** Installation UUID for analytics */
   installationId?: string
   /** Session ID for correlation */
@@ -39,9 +43,20 @@ export function buildHeaders(options: BuildHeadersOptions): Record<string, strin
     headers["x-codex-turn-state"] = options.turnState
   }
 
-  // Context-window lineage (§6 of whitepaper)
+  // Context-window lineage (§6 of whitepaper; upstream codex-rs 9e19004bc2).
+  // window-id is always emitted so the server can key its cache even for
+  // top-level sessions. parent-thread-id + subagent are emitted only when
+  // applicable — empty sentinels still travel but we pick the richest hint.
   if (options.window) {
     headers["x-codex-window-id"] = `${options.window.conversationId}:${options.window.generation}`
+  }
+
+  if (options.parentThreadId) {
+    headers["x-codex-parent-thread-id"] = options.parentThreadId
+  }
+
+  if (options.subagentLabel) {
+    headers["x-openai-subagent"] = options.subagentLabel
   }
 
   if (options.sessionId) {

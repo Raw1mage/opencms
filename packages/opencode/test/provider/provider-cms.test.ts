@@ -108,6 +108,59 @@ test("cms provider list models can be resolved via getModel", async () => {
   })
 })
 
+// @plans/provider-hotfix Phase 4 — disabled_providers is now an auto-gate.
+// When the operator lists <id> in disabled_providers AND has config.provider.<id>
+// (or OAuth accounts for it), the explicit path (getModel) must still resolve.
+// Prior behavior deleted the provider from the dict at post-processing, which
+// silently blocked the operator's own pinned requests.
+test("explicit getModel resolves even when provider is in disabled_providers", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      // config.provider.openai causes openai to be merged into the providers
+      // dict via the configProviders loop (which does NOT check disabled,
+      // unlike the env/auth/plugin auto-load loops).
+      await Bun.write(
+        path.join(dir, "opencode.json"),
+        JSON.stringify({
+          $schema: "https://opencode.ai/config.json",
+          disabled_providers: ["openai"],
+          provider: {
+            openai: {
+              options: { apiKey: "openai-hotfix-key" },
+            },
+          },
+        }),
+      )
+    },
+  })
+
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      // Provider state is cached globally across tests; reset so our
+      // disabled_providers override is actually honored on rebuild.
+      Provider.reset()
+
+      // Provider.list() filters auto-hidden providers (TUI / catalog view).
+      const visible = await Provider.list()
+      expect(visible["openai"]).toBeUndefined()
+
+      // listAllIncludingHidden() returns the full set for admin / explicit flows.
+      const full = await Provider.listAllIncludingHidden()
+      expect(full["openai"]).toBeDefined()
+      const modelIDs = Object.keys(full["openai"].models)
+      expect(modelIDs.length).toBeGreaterThan(0)
+      const firstModelID = modelIDs[0]
+
+      // Explicit getModel resolves — operator rescue path when they have
+      // accounts but kept the provider in disabled_providers.
+      const model = await Provider.getModel("openai", firstModelID)
+      expect(model.id).toBe(firstModelID)
+      expect(model.providerId).toBe("openai")
+    },
+  })
+})
+
 test("cms admin-like nvidia api account shows provider model list", async () => {
   await using tmp = await tmpdir({
     init: async (dir) => {

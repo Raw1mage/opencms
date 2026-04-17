@@ -217,6 +217,12 @@ export namespace LLM {
     return !!info?.parentID
   }
 
+  async function resolveParentSessionID(sessionID: string): Promise<string | undefined> {
+    const { Session: SessionMod } = await import("@/session")
+    const info = await SessionMod.get(sessionID)
+    return info?.parentID
+  }
+
   function extractLatestUserText(messages: ModelMessage[]): string {
     const user = [...messages].reverse().find((m) => m.role === "user")
     if (!user) return ""
@@ -463,6 +469,9 @@ export namespace LLM {
     const usesInstructions = capabilities.useInstructionsOption
 
     const subagentSession = await isSubagentSession(input.sessionID)
+    // @plans/provider-hotfix Phase 2 — parent session id feeds the
+    // x-codex-parent-thread-id header on codex Responses API calls.
+    const parentSessionID = subagentSession ? await resolveParentSessionID(input.sessionID) : undefined
     const injectEnablementSnapshot = shouldInjectEnablementSnapshot(input.messages)
     const system = []
     const systemPartEntries = isLiteProvider
@@ -1039,6 +1048,12 @@ export namespace LLM {
             ? {
                 session_id: input.sessionID,
                 "x-opencode-session": input.sessionID,
+                // @plans/provider-hotfix Phase 2 — context-window lineage
+                // baseline (upstream codex-rs 9e19004bc2). Empty-string
+                // sentinels surface a "top-level session" explicitly instead
+                // of relying on header absence.
+                "x-opencode-parent-session": parentSessionID ?? "",
+                "x-opencode-subagent": subagentSession ? (input.agent.name ?? "") : "",
               }
             : input.model.api.npm !== "@opencode-ai/claude-provider"
               ? {

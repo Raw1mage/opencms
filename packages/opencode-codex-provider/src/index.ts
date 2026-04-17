@@ -54,6 +54,7 @@ export { parseSSEStream, mapResponseStream, mapFinishReason } from "./sse.js"
 export {
   refreshAccessToken,
   refreshTokenWithMutex,
+  revokeRefreshToken,
   generatePKCE,
   generateState,
   exchangeCodeForTokens,

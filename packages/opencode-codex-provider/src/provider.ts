@@ -99,6 +99,12 @@ class CodexLanguageModel implements LanguageModelV2 {
     const accountId = requestHeaders?.["x-opencode-account-id"]
       ?? this.options.credentials.accountId
 
+    // @plans/provider-hotfix Phase 2 — context-window lineage pulled from
+    // opencode request headers (llm.ts sets them only for subagent sessions;
+    // empty-string sentinel means "top level, do not emit").
+    const parentThreadId = requestHeaders?.["x-opencode-parent-session"] || undefined
+    const subagentLabel = requestHeaders?.["x-opencode-subagent"] || undefined
+
     // Stable prompt_cache_key per session (NOT per model instance)
     const cacheKey = sessionId
       ? `codex-${accountId || "default"}-${sessionId}`
@@ -207,6 +213,8 @@ class CodexLanguageModel implements LanguageModelV2 {
       accountId: accountId,
       turnState: this.turnState,
       window: this.window,
+      parentThreadId,
+      subagentLabel,
       installationId: this.options.installationId,
       sessionId: wsSessionId,
       userAgent: this.options.userAgent,

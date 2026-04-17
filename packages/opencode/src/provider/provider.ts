@@ -1856,13 +1856,14 @@ export namespace Provider {
       mergeProvider(providerId, partial)
     }
 
+    // @plans/provider-hotfix Phase 4 — auto-hidden set. disabled_providers is
+    // now a soft gate: the provider entry stays in `providers` so explicit
+    // `getModel(providerId, modelId)` calls resolve, but auto pickers and
+    // `Provider.list()` filter it out. Mirrors the manual-pin-bypass
+    // philosophy shipped in plans/manual-pin-bypass-preflight/.
+    const autoHidden = new Set<string>()
     for (const [providerId, provider] of Object.entries(providers)) {
       debugCheckpoint("provider", "post-processing start", { providerId })
-      if (!isProviderAllowed(providerId)) {
-        debugCheckpoint("provider", "provider disabled", { providerId })
-        delete providers[providerId]
-        continue
-      }
 
       const configProvider = config.provider?.[providerId]
       provider.models = applyProviderModelCorrections(providerId, provider.models)
@@ -1922,6 +1923,17 @@ export namespace Provider {
         continue
       }
 
+      // @plans/provider-hotfix Phase 4 — mark disabled providers as auto-hidden
+      // AFTER curation, so explicit getModel still resolves to the fully
+      // processed entry. AGENTS.md 第一條: log once per marking decision.
+      if (!isProviderAllowed(providerId)) {
+        autoHidden.add(providerId)
+        log.info("provider auto-hidden (disabled_providers override); explicit getModel still resolves", {
+          providerId,
+          modelCount: Object.keys(provider.models).length,
+        })
+      }
+
       debugCheckpoint("provider", "post-processing end", { providerId })
       log.info("found", { providerId })
     }
@@ -1929,6 +1941,7 @@ export namespace Provider {
     return {
       models: languages,
       providers,
+      autoHidden,
       sdk,
       sdkSet,
       modelLoaders,
@@ -1945,7 +1958,29 @@ export namespace Provider {
       log.error("model discovery failed", { error: err })
     })
 
-    return state().then((state) => state.providers)
+    // @plans/provider-hotfix Phase 4 — auto-hidden providers (those in
+    // disabled_providers) are filtered out of the catalog surface so
+    // TUI / CLI / REST iterators continue to see only active providers.
+    // Explicit callers use `getModel(providerId, modelId)` which reads
+    // `state().providers[id]` directly and bypasses this filter by design.
+    const s = await state()
+    if (s.autoHidden.size === 0) return s.providers
+    const visible: Record<string, Info> = {}
+    for (const [id, provider] of Object.entries(s.providers)) {
+      if (!s.autoHidden.has(id)) visible[id] = provider
+    }
+    return visible
+  }
+
+  /**
+   * @plans/provider-hotfix Phase 4 — internal accessor returning ALL
+   * providers including auto-hidden ones. Used by callers that need to
+   * explicitly target a disabled-but-pinned provider (e.g. UI tooltips
+   * showing "disabled via disabled_providers" state).
+   */
+  export async function listAllIncludingHidden() {
+    await state()
+    return state().then((s) => s.providers)
   }
 
   export function reset() {
@@ -2324,6 +2359,16 @@ export namespace Provider {
       const matches = fuzzysort.go(providerId, availableProviders, { limit: 3, threshold: -10000 })
       const suggestions = matches.map((m) => m.target)
       throw new ModelNotFoundError({ providerId, modelID, suggestions })
+    }
+
+    // @plans/provider-hotfix Phase 4 — make explicit use of an auto-hidden
+    // provider observable so operators can see why a "disabled" provider is
+    // still responding to requests (AGENTS.md 第一條).
+    if (s.autoHidden.has(providerId)) {
+      log.info("explicit getModel on auto-hidden provider (bypassing disabled_providers gate)", {
+        providerId,
+        modelID,
+      })
     }
 
     const info = provider.models[modelID]

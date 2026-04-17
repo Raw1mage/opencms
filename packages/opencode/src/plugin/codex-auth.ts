@@ -20,6 +20,7 @@ import {
   generatePKCE,
   generateState,
   refreshAccessToken,
+  revokeRefreshToken,
 } from "@opencode-ai/codex-provider"
 import { createCodex } from "@opencode-ai/codex-provider/provider"
 import { isCodexCredentials } from "@opencode-ai/codex-provider/auth"
@@ -174,6 +175,34 @@ async function refreshIfNeeded(
   })
   currentAuth.access = tokens.access_token
   authWithAccount.accountId = newAccountId
+}
+
+// ── Logout (upstream token revoke) ──
+
+/**
+ * Revoke a codex OAuth refresh token upstream before local teardown. Mirrors
+ * upstream codex-rs 22f7ef1cb7 (logout_with_revoke) — fail-closed so a
+ * failed revoke propagates to the caller and local credentials stay in
+ * place until the operator can retry. AGENTS.md 第一條.
+ *
+ * No-op when refreshToken is missing / empty: there is nothing to revoke,
+ * but emit log.info so the branch is observable.
+ */
+export async function logoutCodex(refreshToken: string | undefined | null, context: { accountId?: string } = {}) {
+  if (!refreshToken) {
+    log.info("codex logout: no refresh token on account, skipping upstream revoke", context)
+    return
+  }
+  try {
+    await revokeRefreshToken(refreshToken)
+    log.info("codex logout: upstream revoke succeeded", context)
+  } catch (err) {
+    log.warn("codex logout: upstream revoke failed (fail-closed — local state preserved)", {
+      ...context,
+      error: err instanceof Error ? err.message : String(err),
+    })
+    throw err
+  }
 }
 
 // ── Plugin Entry ──

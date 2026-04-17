@@ -588,14 +588,30 @@ export namespace Account {
   }
 
   /**
-   * Remove an account
+   * Remove an account.
+   *
+   * For codex-family subscription accounts, this also revokes the refresh
+   * token upstream (`https://auth.openai.com/oauth/revoke`) BEFORE deleting
+   * the local entry — fail-closed per AGENTS.md 第一條. If the upstream
+   * revoke call errors, the local credentials stay in place and the error
+   * propagates so the operator can retry.
+   * (@plans/provider-hotfix Phase 1)
    */
   export function remove(provider: string, accountId: string): Promise<void> {
     return withMutex(async () => {
       const storage = await state()
 
-      if (!providersOf(storage)[provider]?.accounts[accountId]) {
+      const info = providersOf(storage)[provider]?.accounts[accountId]
+      if (!info) {
         return
+      }
+
+      // Upstream revoke before local teardown (codex family only).
+      if (provider === "codex" && info.type === "subscription") {
+        const { logoutCodex } = await import("../plugin/codex-auth")
+        // logoutCodex is fail-closed: throws on revoke failure, we preserve
+        // local state by letting the throw propagate before the delete below.
+        await logoutCodex(info.refreshToken, { accountId })
       }
 
       delete providersOf(storage)[provider].accounts[accountId]
