@@ -1,0 +1,335 @@
+[
+  {
+    "diagram_title": "Codex 5H Detected Proactively Via Cockpit",
+    "scenario": "Operator pinned codex account is near 5H exhaustion; cockpit hits wham/usage before stream dispatch, sees zero hourly remaining, triggers rotation to a healthy codex sibling",
+    "moduleRef": "A1",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "ProcessorPreflight",
+        "type": "component",
+        "componentRef": "C8"
+      },
+      {
+        "id": "P2",
+        "name": "CockpitStrategyGate",
+        "type": "component",
+        "componentRef": "C2"
+      },
+      {
+        "id": "P3",
+        "name": "OpenAIQuotaFetcher",
+        "type": "component",
+        "componentRef": "C1"
+      },
+      {
+        "id": "P4",
+        "name": "whamUsageEdge",
+        "type": "system",
+        "componentRef": "SYS2"
+      },
+      {
+        "id": "P5",
+        "name": "HandleRateLimitFallback",
+        "type": "component",
+        "componentRef": "C7"
+      },
+      {
+        "id": "P6",
+        "name": "FallbackCandidateBuilder",
+        "type": "component",
+        "componentRef": "C3"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P1",
+        "to": "P2",
+        "label": "fetchCockpitBackoff(providerId=codex, accountId)",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P2",
+        "to": "P3",
+        "label": "getOpenAIQuota(accountId, waitFresh=true)",
+        "type": "sync",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P3",
+        "to": "P4",
+        "label": "GET /backend-api/wham/usage with codex bearer",
+        "type": "sync",
+        "order": 3
+      },
+      {
+        "id": "MSG4",
+        "from": "P4",
+        "to": "P3",
+        "label": "hourlyRemaining 0 weeklyRemaining 42",
+        "type": "return",
+        "order": 4
+      },
+      {
+        "id": "MSG5",
+        "from": "P3",
+        "to": "P2",
+        "label": "quota snapshot",
+        "type": "return",
+        "order": 5
+      },
+      {
+        "id": "MSG6",
+        "from": "P2",
+        "to": "P2",
+        "label": "log.info codex cockpit exhausted",
+        "type": "sync",
+        "order": 6
+      },
+      {
+        "id": "MSG7",
+        "from": "P2",
+        "to": "P1",
+        "label": "non-null backoff 5h reset delta",
+        "type": "return",
+        "order": 7
+      },
+      {
+        "id": "MSG8",
+        "from": "P1",
+        "to": "P5",
+        "label": "handleRateLimitFallback(codex vector)",
+        "type": "sync",
+        "order": 8
+      },
+      {
+        "id": "MSG9",
+        "from": "P5",
+        "to": "P6",
+        "label": "findFallback / buildFallbackCandidates",
+        "type": "sync",
+        "order": 9
+      },
+      {
+        "id": "MSG10",
+        "from": "P6",
+        "to": "P5",
+        "label": "codex sibling with headroom",
+        "type": "return",
+        "order": 10
+      },
+      {
+        "id": "MSG11",
+        "from": "P5",
+        "to": "P1",
+        "label": "rotated to sibling",
+        "type": "return",
+        "order": 11
+      }
+    ],
+    "fragments": [
+      {
+        "id": "FRAG1",
+        "type": "critical",
+        "label": "Proactive path so stream never stalls",
+        "messageRefs": ["MSG7", "MSG8"]
+      }
+    ]
+  },
+  {
+    "diagram_title": "Rotation Candidate Filter Drops Exhausted Codex Account",
+    "scenario": "Rotation fires on codex vector with 3 siblings; one sibling is also exhausted, the other two have quota; the filter excludes the exhausted one before scoring",
+    "moduleRef": "A2",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "FallbackCandidateBuilder",
+        "type": "component",
+        "componentRef": "C3"
+      },
+      {
+        "id": "P2",
+        "name": "OpenAIQuotaFetcher",
+        "type": "component",
+        "componentRef": "C1"
+      },
+      {
+        "id": "P3",
+        "name": "DaemonLogger",
+        "type": "component",
+        "componentRef": "C9"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P1",
+        "to": "P2",
+        "label": "getOpenAIQuotas(codex accounts)",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P2",
+        "to": "P1",
+        "label": "map account -> quota snapshot",
+        "type": "return",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P1",
+        "to": "P1",
+        "label": "mark isQuotaLimited when hourly or weekly remaining <= 0",
+        "type": "sync",
+        "order": 3
+      },
+      {
+        "id": "MSG4",
+        "from": "P1",
+        "to": "P3",
+        "label": "log.info codex candidate skipped isQuotaLimited",
+        "type": "sync",
+        "order": 4
+      },
+      {
+        "id": "MSG5",
+        "from": "P1",
+        "to": "P1",
+        "label": "return filtered pool two healthy codex",
+        "type": "sync",
+        "order": 5
+      }
+    ],
+    "fragments": [
+      {
+        "id": "FRAG1",
+        "type": "alt",
+        "label": "one exhausted vs two healthy",
+        "messageRefs": ["MSG3", "MSG4"]
+      }
+    ]
+  },
+  {
+    "diagram_title": "Codex Family Exhausted Surfaces Dedicated Error",
+    "scenario": "All codex accounts are 5H or weekly exhausted; rotation refuses cross-provider fallback per hard-coded Option A and raises CodexFamilyExhausted which the processor preflight renders to the operator",
+    "moduleRef": "A3",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "HandleRateLimitFallback",
+        "type": "component",
+        "componentRef": "C7"
+      },
+      {
+        "id": "P2",
+        "name": "FallbackCandidateBuilder",
+        "type": "component",
+        "componentRef": "C3"
+      },
+      {
+        "id": "P3",
+        "name": "CodexFamilyOnlyGate",
+        "type": "component",
+        "componentRef": "C4"
+      },
+      {
+        "id": "P4",
+        "name": "CodexFamilyExhaustedError",
+        "type": "component",
+        "componentRef": "C5"
+      },
+      {
+        "id": "P5",
+        "name": "ProcessorPreflightSurface",
+        "type": "component",
+        "componentRef": "C8"
+      },
+      {
+        "id": "P6",
+        "name": "DaemonLogger",
+        "type": "component",
+        "componentRef": "C9"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P1",
+        "to": "P2",
+        "label": "findFallback(codex vector)",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P2",
+        "to": "P3",
+        "label": "drop non-codex candidates",
+        "type": "sync",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P3",
+        "to": "P6",
+        "label": "log.info rejected anthropic candidate per codex-only rule",
+        "type": "sync",
+        "order": 3
+      },
+      {
+        "id": "MSG4",
+        "from": "P3",
+        "to": "P2",
+        "label": "empty filtered pool",
+        "type": "return",
+        "order": 4
+      },
+      {
+        "id": "MSG5",
+        "from": "P2",
+        "to": "P1",
+        "label": "null fallback",
+        "type": "return",
+        "order": 5
+      },
+      {
+        "id": "MSG6",
+        "from": "P1",
+        "to": "P4",
+        "label": "new CodexFamilyExhausted",
+        "type": "create",
+        "order": 6
+      },
+      {
+        "id": "MSG7",
+        "from": "P1",
+        "to": "P5",
+        "label": "throw CodexFamilyExhausted",
+        "type": "async",
+        "order": 7
+      },
+      {
+        "id": "MSG8",
+        "from": "P5",
+        "to": "P6",
+        "label": "log.error + surface to session",
+        "type": "sync",
+        "order": 8
+      }
+    ],
+    "fragments": [
+      {
+        "id": "FRAG1",
+        "type": "critical",
+        "label": "No silent cross-provider fallback",
+        "messageRefs": ["MSG2", "MSG3", "MSG6"]
+      }
+    ]
+  }
+]
