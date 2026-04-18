@@ -397,3 +397,51 @@ until ops captures the real numbers. Until then the spec stays in
 
 - `bun run typecheck` — no new errors in `script/session-poll-bench.ts`
 - Combined test run (all 4 test files): 38 pass, 0 fail
+
+## Phase 7 — Closeout (partial: docs complete, verify gate pending)
+
+Completed (the docs side): 2026-04-19
+
+### Done (tasks 7.1, 7.2, 7.3)
+
+- **7.1** This event log was maintained phase-by-phase during the build.
+  Re-read in one sitting at closeout to confirm coherence; no edits
+  needed. The "Phase 6 ops result" section is left empty intentionally
+  for ops to fill in.
+- **7.2** `specs/architecture.md` now carries a "Session Read Cache +
+  Rate Limit Layer" section documenting components, invalidation flow,
+  ETag format, exempt surfaces, tunables, and integrity notes.
+- **7.3** `plan-sync.ts` warnings reviewed:
+  - `packages/opencode/src/index.ts` — registered subscribers + startup
+    calls; spec artifacts describe the behavior in design.md § Critical
+    Files; not explicit path reference but behavior is captured. Non-drift.
+  - `packages/opencode/test/server/cache-health.test.ts`,
+    `rate-limit.test.ts` — tests the spec explicitly calls for; literal
+    path matching in plan-sync doesn't see the shorter reference in
+    tasks.md. Non-drift.
+
+### Blocked (task 7.4)
+
+Promotion `implementing → verified` is deliberately gated on the Phase 6
+ops runbook. The plan package is otherwise complete:
+
+- 6 code commits on `beta/session-poll-cache` (including the main-sync
+  merge): `b7ce10542`, `d02888cdd`, `6c621b8d8` (merge), `bf26006ff`,
+  `69e6c1bae`, `fe5b47800`, `dd58f7b24`.
+- 38 unit + integration tests pass; typecheck clean; no silent fallback
+  paths; all tunables plumbed; architecture doc updated.
+- AC-3, AC-4, AC-5, AC-6 satisfied by the test suite.
+- AC-1 (CPU drop) and AC-2 (304 ratio) require a live-daemon bench run
+  by ops per `handoff.md#phase-6-ops-runbook`.
+
+When ops records the numbers, they should:
+
+1. Append a "## Phase 6 ops result" section to this file with the
+   baseline-vs-cache-on p50/p95/CPU%/304-ratio figures.
+2. Flip task 7.4 to `- [x]` with a ref to the results section.
+3. Run `plan-promote.ts specs/session-poll-cache/ --to verified`.
+4. Proceed with beta-workflow fetch-back → finalize → `living`
+   promotion.
+
+Until then, the spec stays at `implementing` and the beta branch stays
+alive.

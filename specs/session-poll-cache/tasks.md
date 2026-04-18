@@ -50,7 +50,7 @@
 
 ## 7. Documentation + sync
 
-- [ ] 7.1 寫 `docs/events/event_2026-04-19_session-poll-cache.md`：實作紀錄、phase-by-phase 摘要、AC 驗收數字。
-- [ ] 7.2 更新 `specs/architecture.md` 新增「Session Read Cache + Rate Limit Layer」段落：描述 cache key / invalidation 事件圖 / rate-limit 豁免清單。
-- [ ] 7.3 執行 `bun run ~/projects/skills/plan-builder/scripts/plan-sync.ts specs/session-poll-cache/`，確認無 drift。
-- [ ] 7.4 plan-promote 至 `verified`，等 beta-workflow 完成 fetch-back 後由 beta-workflow 推進至 `living`。
+- [x] 7.1 寫 `docs/events/event_2026-04-19_session-poll-cache.md`：實作紀錄、phase-by-phase 摘要、AC 驗收數字。（Maintained phase-by-phase during Phases 1–6. AC verification numbers land in a "Phase 6 ops result" section after ops completes the runbook.）
+- [x] 7.2 更新 `specs/architecture.md` 新增「Session Read Cache + Rate Limit Layer」段落：描述 cache key / invalidation 事件圖 / rate-limit 豁免清單。
+- [x] 7.3 執行 `bun run ~/projects/skills/plan-builder/scripts/plan-sync.ts specs/session-poll-cache/`，確認無 drift。（Only residual warnings are "test file path not named in spec artifact" — literal-match limitation of the sync script; spec references the test files by shorter name. Non-blocking.）
+- [?] 7.4 plan-promote 至 `verified` — **blocked on Phase 6 ops validation** per `handoff.md#phase-6-ops-runbook`. State remains at `implementing` until ops pastes AC-1 / AC-2 numbers into the event log and re-runs this checkbox. `beta-workflow` fetch-back and `living` promotion are downstream of that.

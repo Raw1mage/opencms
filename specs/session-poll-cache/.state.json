@@ -82,6 +82,19 @@
         "packages/opencode/test/server/session-cache.test.ts"
       ],
       "commit": "bf26006ff348a862c322bbee57627db971bf9cae"
+    },
+    {
+      "at": "2026-04-18T19:59:55.035Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/index.ts, packages/opencode/test/server/cache-health.test.ts, packages/opencode/test/server/rate-limit.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/index.ts",
+        "packages/opencode/test/server/cache-health.test.ts",
+        "packages/opencode/test/server/rate-limit.test.ts"
+      ],
+      "commit": "dd58f7b242aa0d62eace8ca77e93001940559904"
     }
   ]
 }
