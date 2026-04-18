@@ -199,6 +199,42 @@ export function getVectorWaitTime(vector: ModelVector): number {
   return tracker.getWaitTime(vector.accountId, vector.providerId, vector.modelID)
 }
 
+/**
+ * @plans/codex-rotation-hotfix Phase 2 — families whose candidate quota is
+ * read from the wham/usage endpoint. `getOpenAIQuotas()` already bundles
+ * both openai and codex subscription accounts into one result dict (see
+ * packages/opencode/src/account/quota/openai.ts:247-249), so the gate here
+ * just has to recognise both families.
+ */
+export const WHAM_USAGE_FAMILIES = new Set<string>(["openai", "codex"])
+
+export interface QuotaEvaluation {
+  exhausted: boolean
+  hourlyRemaining?: number
+  weeklyRemaining?: number
+}
+
+/**
+ * Decide whether a candidate's wham/usage-sourced quota is exhausted.
+ * Exported so Phase 2 tests can validate the gate without spinning up the
+ * full `buildFallbackCandidates` integration harness.
+ */
+export function evaluateWhamUsageQuota(
+  providerId: string,
+  accountId: string,
+  quotas: Record<string, { hourlyRemaining: number; weeklyRemaining: number } | null | undefined>,
+): QuotaEvaluation {
+  if (!WHAM_USAGE_FAMILIES.has(providerId)) return { exhausted: false }
+  const quota = quotas[accountId]
+  if (!quota) return { exhausted: false }
+  const exhausted = quota.hourlyRemaining <= 0 || quota.weeklyRemaining <= 0
+  return {
+    exhausted,
+    hourlyRemaining: quota.hourlyRemaining,
+    weeklyRemaining: quota.weeklyRemaining,
+  }
+}
+
 // ============================================================================
 // FALLBACK SELECTION
 // ============================================================================
@@ -593,15 +629,18 @@ export async function buildFallbackCandidates(
   const enrich = (vector: ModelVector, reason: FallbackCandidate["reason"]): FallbackCandidate => {
     const model = providers[vector.providerId]?.models?.[vector.modelID]
 
-    let isQuotaLimited = false
-
-    if (vector.providerId === "openai") {
-      const quota = openaiQuotas[vector.accountId]
-      if (quota) {
-        if (quota.hourlyRemaining <= 0 || quota.weeklyRemaining <= 0) {
-          isQuotaLimited = true
-        }
-      }
+    const quotaEval = evaluateWhamUsageQuota(vector.providerId, vector.accountId, openaiQuotas)
+    const isQuotaLimited = quotaEval.exhausted
+    if (quotaEval.exhausted) {
+      // One line per candidate skip so operators can trace the pool
+      // filter decision in the daemon log (AGENTS.md 第一條).
+      log.info("rotation candidate skipped — quota exhausted", {
+        providerId: vector.providerId,
+        accountId: vector.accountId,
+        modelID: vector.modelID,
+        hourlyRemaining: quotaEval.hourlyRemaining,
+        weeklyRemaining: quotaEval.weeklyRemaining,
+      })
     }
 
     const baseWaitTime = rateLimitTracker.getWaitTime(vector.accountId, vector.providerId, vector.modelID)
@@ -765,13 +804,50 @@ export async function buildFallbackCandidates(
     return true
   })
 
+  // @plans/codex-rotation-hotfix Phase 3 — codex family is hard-coded to
+  // same-provider-only fallback. Drop non-codex candidates from the pool
+  // when the current vector is codex; if nothing is left, callers
+  // (handleRateLimitFallback) turn that into CodexFamilyExhausted so the
+  // operator isn't silently switched to anthropic / gemini / etc.
+  // One log per rejected cross-provider candidate keeps the decision
+  // observable (AGENTS.md 第一條).
+  const codexOnlyFiltered = enforceCodexFamilyOnly(current, unique)
+
   log.debug("Built fallback candidates", {
     current: makeKey(current),
-    totalCandidates: unique.length,
-    available: unique.filter((c) => !c.isRateLimited).length,
+    totalCandidates: codexOnlyFiltered.length,
+    available: codexOnlyFiltered.filter((c) => !c.isRateLimited).length,
   })
 
-  return unique
+  return codexOnlyFiltered
+}
+
+/**
+ * @plans/codex-rotation-hotfix Phase 3 — exported so tests can validate the
+ * codex-family-only gate against a synthetic candidate list without the
+ * full buildFallbackCandidates harness.
+ */
+export function enforceCodexFamilyOnly(
+  current: ModelVector,
+  candidates: FallbackCandidate[],
+): FallbackCandidate[] {
+  if (current.providerId !== "codex") return candidates
+  const kept: FallbackCandidate[] = []
+  for (const candidate of candidates) {
+    if (candidate.providerId === "codex") {
+      kept.push(candidate)
+      continue
+    }
+    log.info("rotation candidate rejected — codex family is same-provider-only", {
+      currentProviderId: current.providerId,
+      currentAccountId: current.accountId,
+      rejectedProviderId: candidate.providerId,
+      rejectedAccountId: candidate.accountId,
+      rejectedModelID: candidate.modelID,
+      rejectedReason: candidate.reason,
+    })
+  }
+  return kept
 }
 
 // ============================================================================
