@@ -471,31 +471,10 @@ export const SessionRoutes = lazy(() =>
             503,
           )
         }
-        const session = await Session.get(sessionID)
+        // Mission-based tasks.md seeding removed 2026-04-18 along with the
+        // mission schema. Todo list is now exclusively AI-maintained via
+        // TodoWrite (plan-builder skill owns plan reconciliation).
         const currentTodos = await Todo.get(sessionID)
-
-        if (session?.mission?.executionReady) {
-          const tasksPath = session.mission.artifactPaths.tasks
-          const absoluteTasksPath = path.isAbsolute(tasksPath)
-            ? tasksPath
-            : path.resolve(session.directory || process.cwd(), tasksPath)
-          const tasksFile = Bun.file(absoluteTasksPath)
-          if (await tasksFile.exists()) {
-            const tasksText = await tasksFile.text().catch(() => "")
-            const seedTodos = extractChecklistItems(tasksText).map((content, index) => ({
-              id: `plan_${index + 1}`,
-              content,
-              status: "pending",
-              priority: "medium",
-            }))
-            const projected = Todo.projectSeedWithProgress(currentTodos, seedTodos)
-            if (!Todo.sameStructure(currentTodos, projected)) {
-              const reconciled = await Todo.setDerived({ sessionID, todos: projected })
-              return c.json(reconciled)
-            }
-          }
-        }
-
         return c.json(currentTodos)
       },
     )

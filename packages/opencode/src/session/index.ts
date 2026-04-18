@@ -26,7 +26,6 @@ import { PermissionNext } from "@/permission/next"
 import { Global } from "@/global"
 import type { LanguageModelV2Usage } from "@ai-sdk/provider"
 import { iife } from "@/util/iife"
-import { plannerArtifacts, plannerRoot } from "./planner-layout"
 
 export namespace Session {
   const log = Log.create({ service: "session" })
@@ -208,77 +207,6 @@ export namespace Session {
   })
   export type WorkflowInfo = z.output<typeof WorkflowInfo>
 
-  export const MissionArtifactPaths = z.object({
-    root: z.string(),
-    implementationSpec: z.string(),
-    proposal: z.string(),
-    spec: z.string(),
-    design: z.string(),
-    tasks: z.string(),
-    handoff: z.string(),
-    idef0: z.string().optional(),
-    grafcet: z.string().optional(),
-    c4: z.string().optional(),
-    sequence: z.string().optional(),
-  })
-  export type MissionArtifactPaths = z.output<typeof MissionArtifactPaths>
-
-  export const MissionArtifactIntegrity = z.object({
-    implementationSpec: z.string(),
-    tasks: z.string(),
-    handoff: z.string(),
-  })
-  export type MissionArtifactIntegrity = z.output<typeof MissionArtifactIntegrity>
-
-  export const MissionContract = z.object({
-    source: z.literal("openspec_compiled_plan"),
-    contract: z.literal("implementation_spec"),
-    approvedAt: z.number(),
-    planPath: z.string(),
-    artifactPaths: MissionArtifactPaths,
-    artifactIntegrity: MissionArtifactIntegrity.optional(),
-    beta: z
-      .object({
-        branchName: z.string(),
-        baseBranch: z.string(),
-        repoPath: z.string().optional(),
-        mainWorktreePath: z.string().optional(),
-        betaPath: z.string(),
-        runtimePolicy: z.string().optional(),
-      })
-      .optional(),
-    admission: z
-      .object({
-        betaQuiz: z
-          .object({
-            status: z.enum(["pending", "passed", "failed"]),
-            reflectionUsed: z.boolean(),
-            passedAt: z.number().optional(),
-            mismatchCount: z.number().int().nonnegative().optional(),
-            lastMismatches: z
-              .array(
-                z.object({
-                  field: z.string(),
-                  expected: z.string(),
-                  actual: z.string(),
-                }),
-              )
-              .optional(),
-          })
-          .optional(),
-      })
-      .optional(),
-    executionReady: z.boolean(),
-  })
-  export type MissionContract = z.output<typeof MissionContract>
-
-  /** @deprecated Planner intent is no longer tracked in session state. Kept for backwards compat with existing data. */
-  export const PlannerState = z.object({
-    committedIntent: z.enum(["plan_enter", "plan_exit"]).optional(),
-    updatedAt: z.number().optional(),
-  })
-  export type PlannerState = z.output<typeof PlannerState>
-
   export const ExecutionIdentity = z.object({
     providerId: z.string(),
     modelID: z.string(),
@@ -326,10 +254,8 @@ export namespace Session {
         })
         .optional(),
       stats: Stats.optional(),
-      planner: PlannerState.optional(),
       execution: ExecutionIdentity.optional(),
       workflow: WorkflowInfo.optional(),
-      mission: MissionContract.optional(),
     })
     .meta({
       ref: "Session",
@@ -568,14 +494,6 @@ export namespace Session {
     return result
   }
 
-  export function planRoot(input: { slug: string; time: { created: number } }) {
-    return plannerRoot(input)
-  }
-
-  export function plan(input: { slug: string; title?: string; time: { created: number } }) {
-    return plannerArtifacts(input).implementationSpec
-  }
-
   export const get = fn(Identifier.schema("session"), async (id) => {
     const read = await Storage.read<Info>(["session", Instance.project.id, id])
     // Version guard: detect sessions created by a different daemon version
@@ -731,27 +649,6 @@ export namespace Session {
           current: draft.execution,
           model: input.model,
         })
-      },
-      { touch: false },
-    )
-  }
-
-  export async function setMission(input: { sessionID: string; mission: MissionContract }) {
-    return update(
-      input.sessionID,
-      (draft) => {
-        draft.mission = input.mission
-      },
-      { touch: false },
-    )
-  }
-
-
-  export async function clearMission(sessionID: string) {
-    return update(
-      sessionID,
-      (draft) => {
-        delete draft.mission
       },
       { touch: false },
     )

@@ -71,7 +71,6 @@ import {
   getPendingContinuation,
   shouldInterruptAutonomousRun,
 } from "./workflow-runner"
-import { consumeMissionArtifacts, deriveDelegatedExecutionRole } from "./mission-consumption"
 import { resolveDialogTriggerPolicy } from "./dialog-trigger"
 
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -392,49 +391,9 @@ export namespace SessionPrompt {
     sessionID: string
     user: MessageV2.User
     decision: Extract<Awaited<ReturnType<typeof decideAutonomousContinuation>>, { continue: true }>
-    narrationOverride?: string
     autonomousRounds: number
-    emitNarration?: typeof emitAutonomousNarration
     enqueueContinue?: typeof enqueueAutonomousContinue
   }) {
-    const session = await Session.get(input.sessionID)
-    const missionConsumption = session.mission ? await consumeMissionArtifacts(session.mission) : undefined
-    if (session.mission && missionConsumption && !missionConsumption.ok) {
-      const emitNarration = input.emitNarration ?? emitAutonomousNarration
-      const narration = {
-        kind: "pause" as const,
-        text: "Paused: approved mission artifacts could not be consumed safely, so autonomous execution stopped.",
-      }
-      await emitNarration({
-        sessionID: input.sessionID,
-        parentID: input.user.id,
-        agent: input.user.agent,
-        variant: input.user.variant,
-        model: input.user.model,
-        text: narration.text,
-        kind: narration.kind,
-      })
-      await Session.setWorkflowState({
-        sessionID: input.sessionID,
-        state: "waiting_user",
-        stopReason: "mission_not_consumable",
-        lastRunAt: Date.now(),
-      })
-      return {
-        halted: true as const,
-        nextRoundCount: input.autonomousRounds,
-        narration,
-      }
-    }
-    const todo = input.decision.todo!
-    const delegation = missionConsumption?.ok
-      ? deriveDelegatedExecutionRole({
-          todo,
-          mission: missionConsumption.trace,
-        })
-      : undefined
-    // Runner silent: no narration emitted
-    // The autonomous runner operates silently in the background
     const enqueueContinue = input.enqueueContinue ?? enqueueAutonomousContinue
     const nextRoundCount = input.autonomousRounds + 1
 
@@ -442,16 +401,12 @@ export namespace SessionPrompt {
       sessionID: input.sessionID,
       user: input.user,
       roundCount: nextRoundCount,
-      text:
-        delegation && delegation.role !== "generic"
-          ? `Continue with the next planned ${delegation.role} step: ${todo.content}`
-          : input.decision.text,
-      delegation,
+      text: input.decision.text,
     })
     return {
       halted: false as const,
       nextRoundCount,
-      narration: undefined, // Runner no longer emits narration
+      narration: undefined,
     }
   }
 
@@ -1815,7 +1770,6 @@ export namespace SessionPrompt {
         }
         const decision = await decideAutonomousContinuation({
           sessionID,
-          roundCount: autonomousRounds,
           lastDecisionReason,
         })
         lastDecisionReason = decision.reason
@@ -1827,42 +1781,14 @@ export namespace SessionPrompt {
             autonomousRounds,
           })
           autonomousRounds = continuationResult.nextRoundCount
-          if (continuationResult.halted) {
-            debugCheckpoint("prompt", "loop:continuation_halted", {
-              sessionID,
-              step,
-              autonomousRounds,
-            })
-            break
-          }
           continue
         }
-        const completedReasons = ["todo_complete"] as const
-        const waitingReasons = [
-          "max_continuous_rounds",
-          "approval_needed",
-          "product_decision_needed",
-          "mission_not_approved",
-        ] as const
-        if ((completedReasons as readonly string[]).includes(decision.reason)) {
+        // Stop. Persist workflow state by reason.
+        if (decision.reason === "todo_complete") {
           await Session.setWorkflowState({
             sessionID,
             state: "completed",
-            stopReason: decision.reason,
-            lastRunAt: Date.now(),
-          })
-        } else if (decision.reason === "wait_subagent") {
-          await Session.setWorkflowState({
-            sessionID,
-            state: "idle",
-            stopReason: "wait_subagent",
-            lastRunAt: Date.now(),
-          })
-        } else if ((waitingReasons as readonly string[]).includes(decision.reason)) {
-          await Session.setWorkflowState({
-            sessionID,
-            state: "waiting_user",
-            stopReason: decision.reason,
+            stopReason: "todo_complete",
             lastRunAt: Date.now(),
           })
         }
@@ -1872,11 +1798,7 @@ export namespace SessionPrompt {
           reason: decision.reason,
           autonomousRounds,
         })
-        log.info("loop:continuation_stopped", {
-          sessionID,
-          reason: decision.reason,
-          state: decision.reason === "wait_subagent" ? "idle" : "waiting_user",
-        })
+        log.info("loop:continuation_stopped", { sessionID, reason: decision.reason })
         break
       }
       continue
