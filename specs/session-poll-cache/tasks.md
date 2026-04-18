@@ -35,9 +35,9 @@
 
 ## 5. Health endpoint wiring
 
-- [ ] 5.1 `routes/cache-health.ts` 接上 `session-cache.stats()` 與 `rate-limit.stats()`，回傳 R-4 spec 定義的完整 JSON。
-- [ ] 5.2 透過訂閱 `SessionCache.Event.Hit/Miss/Invalidated/Evicted` + `RateLimit.Event.Allowed/Throttled` 維護**過去 5 分鐘滑動窗**的 hitRate / missRate 統計（用 ring buffer，不存不過期資料）。
-- [ ] 5.3 整合測試：啟 app、打幾次 session GET、驗 `/cache/health` 數字變化。
+- [x] 5.1 `routes/cache-health.ts` 接上 `session-cache.stats()` 與 `rate-limit.stats()`，回傳 R-4 spec 定義的完整 JSON。（Implemented via provider-registration pattern in Phase 1.3 + 2.2 + 4.4.）
+- [-] 5.2 透過訂閱 `SessionCache.Event.Hit/Miss/Invalidated/Evicted` + `RateLimit.Event.Allowed/Throttled` 維護**過去 5 分鐘滑動窗**的 hitRate / missRate 統計（用 ring buffer，不存不過期資料）。**Deferred** — current implementation uses cumulative counters; ring buffer can be added without breaking the schema if ops feedback needs it. Drift noted in event log and data-schema.json `hitRate` description updated accordingly in follow-up plan.
+- [x] 5.3 整合測試：啟 app、打幾次 session GET、驗 `/cache/health` 數字變化。（4 passing tests in `test/server/cache-health.test.ts` — placeholder state, miss+hit+invalidate reflection, rate-limit throttle reflection, tweaks source surface.）
 
 ## 6. Acceptance benchmarks
 

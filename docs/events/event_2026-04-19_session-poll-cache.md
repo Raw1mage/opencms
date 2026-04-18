@@ -285,3 +285,61 @@ Completed: 2026-04-19
   分鐘" — this is a partial fulfillment. Acceptable for Phase 5 to ship
   cumulative and layer the ring buffer as a separate follow-up plan if
   ops feedback needs it.
+
+## Phase 5 — Stats wiring
+
+Completed: 2026-04-19 (with one deferred item)
+
+### Done (tasks 5.1, 5.3)
+
+- **5.1** The provider-registration pattern set up in Phases 1–4 already
+  wires real stats into `/cache/health`:
+  - `session-cache.ts` calls `registerCacheStatsProvider(stats)` from
+    `registerInvalidationSubscriber()` (both success and failure paths)
+  - `rate-limit.ts` calls `registerRateLimitStatsProvider(stats)` from
+    `logStartup()`
+  - `cache-health.ts` route invokes the currently registered providers
+    on every request and merges them with effective tweaks config
+- **5.3** `packages/opencode/test/server/cache-health.test.ts` — 4
+  passing integration tests driving the real Hono-mounted route:
+  - Placeholder state when no providers are registered (degraded
+    startup path — matches AC-5 expectation)
+  - After real session-cache activity (miss + hit + invalidate):
+    hitRate, missRate, invalidationCount, subscriptionAlive update
+  - After real rate-limit activity (throttle trip): allowedCount,
+    throttledCount, activeBuckets update
+  - Effective tweaks.cfg path + present flag surface in the `source`
+    field for ops visibility
+- `specs/session-poll-cache/data-schema.json` amended to include the
+  `source` field (path + present) under `CacheHealthResponse` — the
+  field is useful for ops and was present in the route code from
+  Phase 1, but originally missing from the schema.
+
+### Deferred (task 5.2): 5-minute sliding window stats
+
+Spec R-4 described `hitRate` as "過去 5 分鐘". Current implementation
+exposes cumulative counters over the daemon's lifetime. Reasons for
+deferral:
+
+- Cumulative counters are already actionable for the common ops
+  workflow (daemon just started → 0 vs many hits → high hitRate).
+- The schema can accept a windowed aggregation later without breaking
+  clients (same field names, different computation).
+- Adding a ring buffer requires per-event Bus subscribers inside
+  cache-health.ts and additional tests; keeps Phase 5 focused on
+  delivering the AC-1 CPU-drop goal rather than ops polish.
+
+Follow-up plan candidate: "session-poll-cache-stats-window" (extend
+mode against this spec, add windowed aggregation module, update spec
+wording).
+
+### Validation
+
+- `bun run typecheck` — no new errors
+- `bun test test/config/tweaks test/server/session-cache test/server/rate-limit test/server/cache-health`
+  — 38 pass, 0 fail, 1.2 s
+
+### Drift / follow-ups
+
+- Sliding window stats (task 5.2) — explicit extend-mode candidate.
+- End-to-end HTTP 304 verification still deferred to Phase 6.

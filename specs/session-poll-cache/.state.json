@@ -71,6 +71,17 @@
         "packages/opencode/test/tool/read.test.ts"
       ],
       "commit": "6c621b8d8fd98d2000c337cc86f5de0eedf6bc28"
+    },
+    {
+      "at": "2026-04-18T19:54:06.012Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/test/server/session-cache.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/test/server/session-cache.test.ts"
+      ],
+      "commit": "bf26006ff348a862c322bbee57627db971bf9cae"
     }
   ]
 }
