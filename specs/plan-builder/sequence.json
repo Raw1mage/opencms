@@ -1,0 +1,173 @@
+[
+  {
+    "diagram_title": "New spec creation (new mode)",
+    "scenario": "User asks plan-builder to create a brand-new spec; skill scaffolds proposal.md and .state.json, state=proposed",
+    "moduleRef": "A4",
+    "participants": [
+      { "id": "P1", "name": "User", "type": "actor", "componentRef": "C1" },
+      { "id": "P2", "name": "plan-init.ts", "type": "component", "componentRef": "C2" },
+      { "id": "P3", "name": "templates/", "type": "component", "componentRef": "C12" },
+      { "id": "P4", "name": "Repo FS", "type": "system", "componentRef": "SYS2" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "bun run plan-init.ts <slug>", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P3", "label": "read proposal template", "type": "sync", "order": 2 },
+      { "id": "MSG3", "from": "P3", "to": "P2", "label": "template content", "type": "return", "order": 3 },
+      { "id": "MSG4", "from": "P2", "to": "P4", "label": "write specs/<slug>/proposal.md", "type": "sync", "order": 4 },
+      { "id": "MSG5", "from": "P2", "to": "P4", "label": "write specs/<slug>/.state.json {state:proposed, history:[created]}", "type": "sync", "order": 5 },
+      { "id": "MSG6", "from": "P2", "to": "P1", "label": "log: created specs/<slug>/ at state=proposed", "type": "return", "order": 6 }
+    ],
+    "fragments": []
+  },
+  {
+    "diagram_title": "State query with on-touch migration",
+    "scenario": "User runs plan-state against a legacy plans/<slug>/; script auto-migrates then reports inferred state",
+    "moduleRef": "A1",
+    "participants": [
+      { "id": "P1", "name": "User", "type": "actor", "componentRef": "C1" },
+      { "id": "P2", "name": "plan-state.ts", "type": "component", "componentRef": "C3" },
+      { "id": "P3", "name": "ensure-new-format.ts", "type": "component", "componentRef": "C9" },
+      { "id": "P4", "name": "state-inference.ts", "type": "component", "componentRef": "C10" },
+      { "id": "P5", "name": "Repo FS (git)", "type": "system", "componentRef": "SYS2" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "bun run plan-state.ts plans/<slug>/", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P3", "label": "ensureNewFormat(path)", "type": "sync", "order": 2 },
+      { "id": "MSG3", "from": "P3", "to": "P5", "label": "detect: no .state.json + path in plans/", "type": "sync", "order": 3 },
+      { "id": "MSG4", "from": "P3", "to": "P4", "label": "inferState(path)", "type": "sync", "order": 4 },
+      { "id": "MSG5", "from": "P4", "to": "P5", "label": "read artifacts to match inference rules", "type": "sync", "order": 5 },
+      { "id": "MSG6", "from": "P4", "to": "P3", "label": "inferred state (e.g. implementing)", "type": "return", "order": 6 },
+      { "id": "MSG7", "from": "P3", "to": "P5", "label": "snapshot to specs/<slug>/.archive/pre-migration-YYYYMMDD/", "type": "sync", "order": 7 },
+      { "id": "MSG8", "from": "P3", "to": "P5", "label": "git mv plans/<slug>/ specs/<slug>/", "type": "sync", "order": 8 },
+      { "id": "MSG9", "from": "P3", "to": "P5", "label": "write .state.json {state:implementing, history:[migration]}", "type": "sync", "order": 9 },
+      { "id": "MSG10", "from": "P3", "to": "P1", "label": "log every migration step with [plan-builder-migrate] prefix", "type": "async", "order": 10 },
+      { "id": "MSG11", "from": "P3", "to": "P2", "label": "migration complete, return", "type": "return", "order": 11 },
+      { "id": "MSG12", "from": "P2", "to": "P5", "label": "read .state.json.state", "type": "sync", "order": 12 },
+      { "id": "MSG13", "from": "P2", "to": "P1", "label": "current state: implementing", "type": "return", "order": 13 }
+    ],
+    "fragments": [
+      { "id": "FRAG1", "type": "alt", "label": "Format is already new (.state.json exists) — skip migration", "messageRefs": ["MSG3"] },
+      { "id": "FRAG2", "type": "alt", "label": "State inference fails — throw StateInferenceError (no default)", "messageRefs": ["MSG4", "MSG5", "MSG6"] }
+    ]
+  },
+  {
+    "diagram_title": "State promotion with validation gate",
+    "scenario": "User promotes spec from designed to planned; script validates artifact requirements before writing history",
+    "moduleRef": "A1",
+    "participants": [
+      { "id": "P1", "name": "User", "type": "actor", "componentRef": "C1" },
+      { "id": "P2", "name": "plan-promote.ts", "type": "component", "componentRef": "C4" },
+      { "id": "P3", "name": "plan-validate.ts", "type": "component", "componentRef": "C5" },
+      { "id": "P4", "name": "state.schema.json", "type": "component", "componentRef": "C11" },
+      { "id": "P5", "name": "Repo FS", "type": "system", "componentRef": "SYS2" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "bun run plan-promote.ts <path> --to planned", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P5", "label": "read current .state.json", "type": "sync", "order": 2 },
+      { "id": "MSG3", "from": "P2", "to": "P3", "label": "validate artifacts required for target state (planned)", "type": "sync", "order": 3 },
+      { "id": "MSG4", "from": "P3", "to": "P5", "label": "check tasks.md, handoff.md, test-vectors.json, errors.md, observability.md", "type": "sync", "order": 4 },
+      { "id": "MSG5", "from": "P3", "to": "P2", "label": "validation result", "type": "return", "order": 5 },
+      { "id": "MSG6", "from": "P2", "to": "P4", "label": "validate new .state.json shape", "type": "sync", "order": 6 },
+      { "id": "MSG7", "from": "P2", "to": "P5", "label": "write .state.json {state:planned, history:+[promote]}", "type": "sync", "order": 7 },
+      { "id": "MSG8", "from": "P2", "to": "P1", "label": "promoted to planned", "type": "return", "order": 8 }
+    ],
+    "fragments": [
+      { "id": "FRAG1", "type": "alt", "label": "Validation fails — promotion rejected, state unchanged", "messageRefs": ["MSG5"] },
+      { "id": "FRAG2", "type": "alt", "label": "Transition is illegal (e.g. proposed → implementing) — reject with reason", "messageRefs": ["MSG2"] }
+    ]
+  },
+  {
+    "diagram_title": "Dog-fooding: self-migration of this plan",
+    "scenario": "Phase 5 of plan-builder implementation: this very plan migrates from plans/plan-builder/ to specs/plan-builder/",
+    "moduleRef": "A3",
+    "participants": [
+      { "id": "P1", "name": "Build Agent", "type": "actor", "componentRef": "C1" },
+      { "id": "P2", "name": "plan-migrate.ts", "type": "component", "componentRef": "C6" },
+      { "id": "P3", "name": "ensure-new-format.ts", "type": "component", "componentRef": "C9" },
+      { "id": "P4", "name": "state-inference.ts", "type": "component", "componentRef": "C10" },
+      { "id": "P5", "name": "Repo FS (git)", "type": "system", "componentRef": "SYS2" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "bun run plan-migrate.ts plans/plan-builder/", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P3", "label": "ensureNewFormat(plans/plan-builder/)", "type": "sync", "order": 2 },
+      { "id": "MSG3", "from": "P3", "to": "P4", "label": "inferState", "type": "sync", "order": 3 },
+      { "id": "MSG4", "from": "P4", "to": "P5", "label": "read tasks.md: some items checked", "type": "sync", "order": 4 },
+      { "id": "MSG5", "from": "P4", "to": "P3", "label": "inferred state=implementing", "type": "return", "order": 5 },
+      { "id": "MSG6", "from": "P3", "to": "P5", "label": "git mv + snapshot", "type": "sync", "order": 6 },
+      { "id": "MSG7", "from": "P3", "to": "P5", "label": "write specs/plan-builder/.state.json", "type": "sync", "order": 7 },
+      { "id": "MSG8", "from": "P2", "to": "P1", "label": "migration complete; spec now at specs/plan-builder/", "type": "return", "order": 8 }
+    ],
+    "fragments": []
+  },
+  {
+    "diagram_title": "Post-task sync check (warn strategy)",
+    "scenario": "beta-workflow just checked off a task; auto-invokes plan-sync to detect code-spec drift, warns but does not block",
+    "moduleRef": "A5",
+    "participants": [
+      { "id": "P1", "name": "beta-workflow", "type": "system", "componentRef": "SYS3" },
+      { "id": "P2", "name": "plan-sync.ts", "type": "component", "componentRef": "C14" },
+      { "id": "P3", "name": "Repo FS (git)", "type": "system", "componentRef": "SYS2" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "bun run plan-sync.ts specs/{slug}/ (after task checkbox toggle)", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P3", "label": "git diff since last sync-aligned commit", "type": "sync", "order": 2 },
+      { "id": "MSG3", "from": "P3", "to": "P2", "label": "changed files + hunks", "type": "return", "order": 3 },
+      { "id": "MSG4", "from": "P2", "to": "P3", "label": "read data-schema.json / errors.md / test-vectors.json to detect drift", "type": "sync", "order": 4 },
+      { "id": "MSG5", "from": "P2", "to": "P1", "label": "[plan-sync] WARN: drift in user.session.lastActive (suggest amend mode)", "type": "return", "order": 5 },
+      { "id": "MSG6", "from": "P2", "to": "P3", "label": "write .state.json.history += {mode:sync, result:warned, drift:[...]}", "type": "sync", "order": 6 },
+      { "id": "MSG7", "from": "P2", "to": "P1", "label": "exit 0 (non-blocking)", "type": "return", "order": 7 }
+    ],
+    "fragments": [
+      { "id": "FRAG1", "type": "alt", "label": "No drift detected — write history {result:clean} + exit 0", "messageRefs": ["MSG5", "MSG6"] }
+    ]
+  },
+  {
+    "diagram_title": "Refactor with auto-snapshot and rollback option",
+    "scenario": "User triggers refactor mode; artifacts snapshot to .history/, current files reset to proposed skeleton; rollback available",
+    "moduleRef": "A1",
+    "participants": [
+      { "id": "P1", "name": "User", "type": "actor", "componentRef": "C1" },
+      { "id": "P2", "name": "plan-promote.ts", "type": "component", "componentRef": "C4" },
+      { "id": "P3", "name": "snapshot.ts", "type": "component", "componentRef": "C17" },
+      { "id": "P4", "name": "plan-rollback-refactor.ts", "type": "component", "componentRef": "C15" },
+      { "id": "P5", "name": "Repo FS (git)", "type": "system", "componentRef": "SYS2" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "bun run plan-promote.ts --mode refactor specs/{slug}/", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P3", "label": "snapshotArtifacts(path)", "type": "sync", "order": 2 },
+      { "id": "MSG3", "from": "P3", "to": "P5", "label": "git mv spec.md/design.md/c4.json/... → .history/refactor-YYYY-MM-DD/", "type": "sync", "order": 3 },
+      { "id": "MSG4", "from": "P2", "to": "P5", "label": "write reset artifact skeletons (proposed-stage shape)", "type": "sync", "order": 4 },
+      { "id": "MSG5", "from": "P2", "to": "P5", "label": "write .state.json {state:proposed, history:+[refactor, snapshot:.history/refactor-...]}", "type": "sync", "order": 5 },
+      { "id": "MSG6", "from": "P2", "to": "P1", "label": "refactor snapshot complete; state reset to proposed", "type": "return", "order": 6 },
+      { "id": "MSG7", "from": "P1", "to": "P4", "label": "bun run plan-rollback-refactor.ts specs/{slug}/ (if needed)", "type": "sync", "order": 7 },
+      { "id": "MSG8", "from": "P4", "to": "P5", "label": "restore files from .history/refactor-latest/", "type": "sync", "order": 8 },
+      { "id": "MSG9", "from": "P4", "to": "P5", "label": "write .state.json.history += {mode:refactor-rollback, restored-from:...}", "type": "sync", "order": 9 },
+      { "id": "MSG10", "from": "P4", "to": "P1", "label": "rollback complete", "type": "return", "order": 10 }
+    ],
+    "fragments": [
+      { "id": "FRAG1", "type": "opt", "label": "Rollback path only invoked when user reverts refactor decision", "messageRefs": ["MSG7", "MSG8", "MSG9", "MSG10"] }
+    ]
+  },
+  {
+    "diagram_title": "Archive via state transition",
+    "scenario": "User archives a living spec; optionally moves folder to specs/archive/",
+    "moduleRef": "A6",
+    "participants": [
+      { "id": "P1", "name": "User", "type": "actor", "componentRef": "C1" },
+      { "id": "P2", "name": "plan-archive.ts", "type": "component", "componentRef": "C7" },
+      { "id": "P3", "name": "ensure-new-format.ts", "type": "component", "componentRef": "C9" },
+      { "id": "P4", "name": "Repo FS (git)", "type": "system", "componentRef": "SYS2" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "bun run plan-archive.ts <path> [--move-to-archive-folder]", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P3", "label": "ensureNewFormat(path)", "type": "sync", "order": 2 },
+      { "id": "MSG3", "from": "P2", "to": "P4", "label": "verify state=living", "type": "sync", "order": 3 },
+      { "id": "MSG4", "from": "P2", "to": "P4", "label": "write .state.json {state:archived, history:+[archive]}", "type": "sync", "order": 4 },
+      { "id": "MSG5", "from": "P2", "to": "P4", "label": "if --move-to-archive-folder: git mv to specs/archive/<slug>-YYYY-MM-DD/", "type": "sync", "order": 5 },
+      { "id": "MSG6", "from": "P2", "to": "P1", "label": "archived", "type": "return", "order": 6 }
+    ],
+    "fragments": [
+      { "id": "FRAG1", "type": "opt", "label": "Physical move only when --move-to-archive-folder flag provided", "messageRefs": ["MSG5"] }
+    ]
+  }
+]

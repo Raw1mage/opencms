@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "state": "planned",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "planned",
+      "at": "2026-04-18T09:08:21.567Z",
+      "by": "pkcs12",
+      "mode": "migration",
+      "reason": "peaceful on-touch migration from plans/plan-builder/",
+      "snapshot": ".archive/pre-migration-20260418"
+    }
+  ]
+}

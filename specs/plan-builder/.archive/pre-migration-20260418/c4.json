@@ -1,0 +1,378 @@
+{
+  "diagram_title": "plan-builder — C4 Component Diagram",
+  "diagram_level": "component",
+  "systems": [
+    {
+      "id": "SYS1",
+      "name": "plan-builder skill",
+      "description": "Claude Code skill exposing plan lifecycle management via slash command and scripts",
+      "external": false
+    },
+    {
+      "id": "SYS2",
+      "name": "Repo File System",
+      "description": "Git-controlled working tree containing plans/ (legacy) and specs/ (new) directories",
+      "external": true
+    },
+    {
+      "id": "SYS3",
+      "name": "beta-workflow skill",
+      "description": "Downstream skill that materializes runtime todo from tasks.md",
+      "external": true
+    },
+    {
+      "id": "SYS4",
+      "name": "miatdiagram skill",
+      "description": "Companion skill producing idef0.json and grafcet.json",
+      "external": true
+    }
+  ],
+  "containers": [
+    {
+      "id": "CT1",
+      "name": "Skill Prompt Layer",
+      "description": "SKILL.md content presented to LLM as operational context",
+      "technology": "Markdown",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT2",
+      "name": "Scripts Runtime",
+      "description": "Bun-executed TypeScript scripts for deterministic operations",
+      "technology": "Bun + TypeScript",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT3",
+      "name": "Templates & Schemas",
+      "description": "Artifact templates + JSON Schemas packaged with the skill",
+      "technology": "Markdown + JSON Schema",
+      "systemRef": "SYS1"
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "name": "SKILL.md",
+      "description": "Usage contract, state×artifact matrix, mode×transition matrix, migration rules",
+      "technology": "Markdown",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "~/.claude/skills/plan-builder/SKILL.md"
+    },
+    {
+      "id": "C2",
+      "name": "plan-init.ts",
+      "description": "Create specs/<slug>/proposal.md + .state.json (state=proposed)",
+      "technology": "Bun/TypeScript",
+      "containerRef": "CT2",
+      "moduleRef": "A4",
+      "filePath": "~/.claude/skills/plan-builder/scripts/plan-init.ts"
+    },
+    {
+      "id": "C3",
+      "name": "plan-state.ts",
+      "description": "Read .state.json; trigger on-touch migration if legacy",
+      "technology": "Bun/TypeScript",
+      "containerRef": "CT2",
+      "moduleRef": "A1",
+      "filePath": "~/.claude/skills/plan-builder/scripts/plan-state.ts"
+    },
+    {
+      "id": "C4",
+      "name": "plan-promote.ts",
+      "description": "Validate artifact requirements for target state; write history and update state",
+      "technology": "Bun/TypeScript",
+      "containerRef": "CT2",
+      "moduleRef": "A1",
+      "filePath": "~/.claude/skills/plan-builder/scripts/plan-promote.ts"
+    },
+    {
+      "id": "C5",
+      "name": "plan-validate.ts",
+      "description": "State-aware artifact validator: validates only artifacts required for current state",
+      "technology": "Bun/TypeScript",
+      "containerRef": "CT2",
+      "moduleRef": "A2",
+      "filePath": "~/.claude/skills/plan-builder/scripts/plan-validate.ts"
+    },
+    {
+      "id": "C6",
+      "name": "plan-migrate.ts",
+      "description": "Explicit migration entry; reuses ensureNewFormat library",
+      "technology": "Bun/TypeScript",
+      "containerRef": "CT2",
+      "moduleRef": "A3",
+      "filePath": "~/.claude/skills/plan-builder/scripts/plan-migrate.ts"
+    },
+    {
+      "id": "C7",
+      "name": "plan-archive.ts",
+      "description": "Promote state to archived; optional physical move to specs/archive/",
+      "technology": "Bun/TypeScript",
+      "containerRef": "CT2",
+      "moduleRef": "A6",
+      "filePath": "~/.claude/skills/plan-builder/scripts/plan-archive.ts"
+    },
+    {
+      "id": "C8",
+      "name": "plan-gaps.ts",
+      "description": "Analyze spec for code-independence gaps (missing schema, abstract GWT, no errors, etc.)",
+      "technology": "Bun/TypeScript",
+      "containerRef": "CT2",
+      "moduleRef": "A5",
+      "filePath": "~/.claude/skills/plan-builder/scripts/plan-gaps.ts"
+    },
+    {
+      "id": "C9",
+      "name": "ensure-new-format.ts",
+      "description": "Idempotent helper: detect legacy plans/ path, trigger migration, log every action",
+      "technology": "Bun/TypeScript",
+      "containerRef": "CT2",
+      "moduleRef": "A3",
+      "filePath": "~/.claude/skills/plan-builder/scripts/lib/ensure-new-format.ts"
+    },
+    {
+      "id": "C10",
+      "name": "state-inference.ts",
+      "description": "Deterministic state inference from legacy artifact combination; throws StateInferenceError on miss",
+      "technology": "Bun/TypeScript",
+      "containerRef": "CT2",
+      "moduleRef": "A3",
+      "filePath": "~/.claude/skills/plan-builder/scripts/lib/state-inference.ts"
+    },
+    {
+      "id": "C11",
+      "name": "state.schema.json",
+      "description": "JSON Schema for .state.json (state enum, history entry shape, profile array)",
+      "technology": "JSON Schema draft-07",
+      "containerRef": "CT3",
+      "moduleRef": "A1",
+      "filePath": "~/.claude/skills/plan-builder/schemas/state.schema.json"
+    },
+    {
+      "id": "C12",
+      "name": "Core artifact templates",
+      "description": "proposal/spec/design/tasks/handoff/data-schema/test-vectors/errors/observability/invariants templates",
+      "technology": "Markdown + JSON",
+      "containerRef": "CT3",
+      "moduleRef": "A4",
+      "filePath": "~/.claude/skills/plan-builder/templates/"
+    },
+    {
+      "id": "C13",
+      "name": "SSDLC profile templates",
+      "description": "threat-model / data-classification / compliance-map templates (optional profile)",
+      "technology": "Markdown",
+      "containerRef": "CT3",
+      "moduleRef": "A4",
+      "filePath": "~/.claude/skills/plan-builder/templates/ssdlc/"
+    },
+    {
+      "id": "C14",
+      "name": "plan-sync.ts",
+      "description": "Detect code-spec drift via git diff; emit WARN + write .state.json.history without blocking commit",
+      "technology": "Bun/TypeScript",
+      "containerRef": "CT2",
+      "moduleRef": "A5",
+      "filePath": "~/.claude/skills/plan-builder/scripts/plan-sync.ts"
+    },
+    {
+      "id": "C15",
+      "name": "plan-rollback-refactor.ts",
+      "description": "Restore artifact set from .history/refactor-*/ to undo a refactor snapshot",
+      "technology": "Bun/TypeScript",
+      "containerRef": "CT2",
+      "moduleRef": "A1",
+      "filePath": "~/.claude/skills/plan-builder/scripts/plan-rollback-refactor.ts"
+    },
+    {
+      "id": "C16",
+      "name": "inline-delta.ts",
+      "description": "Helper for injecting inline delta markers, SUPERSEDED tags and version prefixes into Markdown artifacts",
+      "technology": "Bun/TypeScript",
+      "containerRef": "CT2",
+      "moduleRef": "A4",
+      "filePath": "~/.claude/skills/plan-builder/scripts/lib/inline-delta.ts"
+    },
+    {
+      "id": "C17",
+      "name": "snapshot.ts",
+      "description": "Helper that git mv artifacts into .history/refactor-YYYY-MM-DD/ for refactor mode",
+      "technology": "Bun/TypeScript",
+      "containerRef": "CT2",
+      "moduleRef": "A1",
+      "filePath": "~/.claude/skills/plan-builder/scripts/lib/snapshot.ts"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "REL1",
+      "source": "C1",
+      "target": "C2",
+      "description": "SKILL.md instructs LLM to invoke plan-init.ts for new specs",
+      "technology": "bun run"
+    },
+    {
+      "id": "REL2",
+      "source": "C1",
+      "target": "C3",
+      "description": "SKILL.md references plan-state.ts for state inquiry",
+      "technology": "bun run"
+    },
+    {
+      "id": "REL3",
+      "source": "C1",
+      "target": "C4",
+      "description": "SKILL.md references plan-promote.ts for state transitions",
+      "technology": "bun run"
+    },
+    {
+      "id": "REL4",
+      "source": "C1",
+      "target": "C5",
+      "description": "SKILL.md references plan-validate.ts for state-aware validation",
+      "technology": "bun run"
+    },
+    {
+      "id": "REL5",
+      "source": "C3",
+      "target": "C9",
+      "description": "plan-state calls ensureNewFormat before reading state",
+      "technology": "import"
+    },
+    {
+      "id": "REL6",
+      "source": "C4",
+      "target": "C9",
+      "description": "plan-promote calls ensureNewFormat before promotion",
+      "technology": "import"
+    },
+    {
+      "id": "REL7",
+      "source": "C5",
+      "target": "C9",
+      "description": "plan-validate calls ensureNewFormat before validation",
+      "technology": "import"
+    },
+    {
+      "id": "REL8",
+      "source": "C8",
+      "target": "C9",
+      "description": "plan-gaps calls ensureNewFormat before analysis",
+      "technology": "import"
+    },
+    {
+      "id": "REL9",
+      "source": "C6",
+      "target": "C9",
+      "description": "plan-migrate directly invokes ensureNewFormat",
+      "technology": "import"
+    },
+    {
+      "id": "REL10",
+      "source": "C9",
+      "target": "C10",
+      "description": "ensureNewFormat delegates state inference to state-inference lib",
+      "technology": "import"
+    },
+    {
+      "id": "REL11",
+      "source": "C9",
+      "target": "SYS2",
+      "description": "ensureNewFormat executes git mv and writes .state.json",
+      "technology": "git CLI + fs"
+    },
+    {
+      "id": "REL12",
+      "source": "C4",
+      "target": "C11",
+      "description": "plan-promote validates .state.json writes against schema",
+      "technology": "JSON Schema validator"
+    },
+    {
+      "id": "REL13",
+      "source": "C5",
+      "target": "C11",
+      "description": "plan-validate reads .state.json schema to interpret state value",
+      "technology": "JSON Schema validator"
+    },
+    {
+      "id": "REL14",
+      "source": "C2",
+      "target": "C12",
+      "description": "plan-init reads core templates to scaffold artifacts per state",
+      "technology": "fs read"
+    },
+    {
+      "id": "REL15",
+      "source": "C2",
+      "target": "C13",
+      "description": "plan-init reads SSDLC templates when profile=ssdlc enabled",
+      "technology": "fs read"
+    },
+    {
+      "id": "REL16",
+      "source": "SYS3",
+      "target": "SYS2",
+      "description": "beta-workflow reads tasks.md from specs/<slug>/ (post-migration path)",
+      "technology": "fs read"
+    },
+    {
+      "id": "REL17",
+      "source": "SYS4",
+      "target": "SYS2",
+      "description": "miatdiagram generates idef0.json and grafcet.json into specs/<slug>/",
+      "technology": "fs write"
+    },
+    {
+      "id": "REL18",
+      "source": "C7",
+      "target": "C9",
+      "description": "plan-archive calls ensureNewFormat before archiving",
+      "technology": "import"
+    },
+    {
+      "id": "REL19",
+      "source": "C7",
+      "target": "SYS2",
+      "description": "plan-archive optionally git mv to specs/archive/",
+      "technology": "git CLI"
+    },
+    {
+      "id": "REL20",
+      "source": "SYS3",
+      "target": "C14",
+      "description": "beta-workflow invokes plan-sync after each task checkbox toggle",
+      "technology": "bun run"
+    },
+    {
+      "id": "REL21",
+      "source": "C14",
+      "target": "SYS2",
+      "description": "plan-sync reads git diff and compares with spec artifacts to detect drift",
+      "technology": "git CLI + fs"
+    },
+    {
+      "id": "REL22",
+      "source": "C4",
+      "target": "C17",
+      "description": "plan-promote --mode refactor delegates artifact snapshot to snapshot lib",
+      "technology": "import"
+    },
+    {
+      "id": "REL23",
+      "source": "C4",
+      "target": "C16",
+      "description": "plan-promote --mode amend/revise/extend delegates inline delta marker injection",
+      "technology": "import"
+    },
+    {
+      "id": "REL24",
+      "source": "C15",
+      "target": "SYS2",
+      "description": "plan-rollback-refactor restores artifacts from .history/refactor-*/",
+      "technology": "git CLI + fs"
+    }
+  ]
+}

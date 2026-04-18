@@ -1,0 +1,117 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "Idle — awaiting spec path from user or script entry",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1, 8],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["new_spec_requested", "legacy_plans_path_detected"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Proposed — proposal.md + .state.json only",
+    "LinkInputType": ["track", "track"],
+    "LinkInputNumber": [0, 8],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["design_artifacts_drafted AND promote_requested"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Designed — spec/design/IDEF0/C4/Sequence/data-schema present",
+    "LinkInputType": ["convergence_or", "convergence_or", "convergence_or"],
+    "LinkInputNumber": [1, 6, 8],
+    "LinkOutputNumber": [3],
+    "LinkOutputType": "track",
+    "Condition": ["tasks_and_handoff_drafted AND promote_requested"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Planned — tasks.md + handoff.md + test-vectors/errors/observability complete",
+    "LinkInputType": ["convergence_or", "convergence_or"],
+    "LinkInputNumber": [2, 8],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["first_task_checked"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Implementing — tasks being checked off, build in progress",
+    "LinkInputType": ["convergence_or", "convergence_or"],
+    "LinkInputNumber": [3, 8],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["all_tasks_checked AND validation_evidence_attached"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Verified — acceptance checks pass, validation evidence captured",
+    "LinkInputType": ["convergence_or", "convergence_or"],
+    "LinkInputNumber": [4, 8],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["merged_to_main"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Living — spec equals current code state, iterates via amend/revise/extend/refactor/sync",
+    "LinkInputType": ["convergence_or", "convergence_or", "convergence_or"],
+    "LinkInputNumber": [5, 6, 8],
+    "LinkOutputNumber": [6, 2, 7],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["amend_mode", "revise_or_extend_or_refactor_mode", "archive_mode"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A6",
+    "StepType": "normal",
+    "StepAction": "Archived — spec frozen, read-only reference",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [6],
+    "LinkOutputNumber": [],
+    "LinkOutputType": "track",
+    "Condition": ["terminal"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 8,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Migrating — inferring state, snapshotting, git mv to specs/<slug>/",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [1, 2, 3, 4, 5, 6],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "inferred_proposed",
+      "inferred_designed",
+      "inferred_planned",
+      "inferred_implementing",
+      "inferred_verified",
+      "inferred_living"
+    ],
+    "SubGrafcet": []
+  }
+]

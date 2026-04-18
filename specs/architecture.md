@@ -61,6 +61,8 @@ The frontend is built with Solid.js and uses a bottom-up dependency model:
 
 ## Planner / Spec Repository Lifecycle
 
+> **Transition in progress (2026-04-18)**: the legacy `/plans/` vs `/specs/` split is being superseded by the `plan-builder` skill (see `## plan-builder Skill Lifecycle` below). New plans go straight into `/specs/<slug>/` and carry a `.state.json` lifecycle file. Legacy `/plans/<slug>/` packages remain functional and are migrated on-touch — see the plan-builder launch event for details.
+
 - **Active plan/build workspace**: dated plan packages now live under `/plans/` inside the repo worktree.
 - **Global architecture SSOT**: `specs/architecture.md` remains the long-lived architecture document and is not part of any dated plan package.
 - **Formalized specs**: post-implementation, post-commit, post-merge formalized feature specs belong under semantic per-feature roots in `/specs/`.
@@ -71,6 +73,25 @@ The frontend is built with Solid.js and uses a bottom-up dependency model:
 - **Promoted codex websocket package**: after user confirmation of completion, `plans/codex-websocket/` was promoted into `/specs/codex/websocket/` and removed from `/plans/`.
 - **Unified codex semantic root**: Codex protocol-observation material lives under `/specs/codex/protocol/`; `specs/codex/` is now the unified semantic root for codex-related specs.
 - **Legacy dated packages under `/specs/`**: these require explicit status-based triage; implemented packages belong in formalized spec roots, non-implemented packages belong in `/plans/`. Silent dual-root fallback is prohibited.
+
+## plan-builder Skill Lifecycle
+
+Launched 2026-04-18 to supersede the legacy `planner` skill (see `docs/events/event_2026-04-18_plan-builder_launch.md`).
+
+- **Skill location**: `~/projects/skills/plan-builder/` (symlinked to `~/.claude/skills/plan-builder/`).
+- **Single-folder model**: per-feature specs live at `/specs/<slug>/` from day 0 through archive. There is no separate `/plans/<slug>/` location under the new model. `/specs/architecture.md` continues to be the repo-wide architecture SSOT and is not per-feature.
+- **State machine (`.state.json`)**: each spec folder carries a `.state.json` file whose `state` is one of `proposed`, `designed`, `planned`, `implementing`, `verified`, `living`, `archived`. The file also holds a `history` array recording every transition, sync checkpoint, migration, refactor snapshot, and rollback. Schema: `~/projects/skills/plan-builder/schemas/state.schema.json`.
+- **Seven change modes**: `new`, `amend`, `revise`, `extend`, `refactor`, `sync`, `archive` (plus internal `promote`, `migration`, `refactor-rollback`). Mode selection is objective — based on which artifact layer a change touches — rather than subjective small/medium/large judgment.
+- **State-aware validation**: `plan-validate.ts` only checks artifacts required for the current state. `plan-promote.ts` validates against the target state before a transition commits.
+- **Mandatory sync checkpoint**: `beta-workflow` is the single automatic trigger for `plan-sync.ts`, invoked after every `tasks.md` checkbox toggle during build execution. Drift warns but does not block commits. Every sync run — clean or warned — is recorded in `.state.json.history`, giving auditor-grade change-management evidence (SOC 2 CC8.1).
+- **Peaceful on-touch migration**: any plan-builder script operating on a legacy `plans/<slug>/` path auto-promotes the folder to `specs/<slug>/`. State is inferred from artifact combination per deterministic rules; failure to infer throws `StateInferenceError` rather than defaulting (AGENTS.md rule 1 compliance). `git mv` is used when files are tracked; plain `mv` when the source is untracked (with explicit log rationale). Snapshot of pre-migration content is preserved under `specs/<slug>/.archive/pre-migration-YYYYMMDD/`.
+- **Three-layer history**: (1) inline delta markers (strikethrough / version prefix) for amend/revise/extend in Markdown artifacts, (2) section-level `[SUPERSEDED by DD-N]` tags for design decisions and requirements, (3) full artifact snapshot to `.history/refactor-YYYY-MM-DD/` for `refactor` mode, reversible via `plan-rollback-refactor.ts`.
+- **Code-independence gap analysis**: `plan-gaps.ts` scores a spec's readiness for mechanical codegen across five dimensions — data schema typing, test vector coverage, error catalogue completeness, observability declaration, invariant enforcement points. Output is a numerical score (target ≥90% for high-confidence codegen) plus an explicit gap list.
+- **Optional SSDLC profile**: enabled by setting `.state.json.profile` to `["ssdlc"]`. Activates three additional artifact requirements: `threat-model.md` (STRIDE anchored on C4 components), `data-classification.md` (PII flow traced to Sequence diagram messages), `compliance-map.md` (bidirectional Requirement ↔ external-control mapping for SOC 2 / ISO 27001 / GDPR / HIPAA / PCI-DSS).
+- **Prompt + script architecture**: all state lives in repo files, all operations are stateless transforms. The skill is deliberately not promoted to an MCP server because there is no in-memory state to share across agents and no cross-session coordination need. Scripts live in `~/projects/skills/plan-builder/scripts/`; shared libraries in `scripts/lib/`.
+- **Deprecation contract**: the legacy `planner` skill remains loaded with a deprecation banner for backward compatibility. Any legacy `plans/<slug>/` package remains usable until it is touched by plan-builder, at which point it is peacefully migrated. There is no bulk migration pass; migration is strictly on-touch.
+- **Dog-food reference**: the plan that produced this skill — `specs/plan-builder/` — was itself migrated from `plans/plan-builder/` by the freshly-built `plan-migrate.ts`, making it the first real migration test vector.
+- **Future HLS layer (planned, not yet implemented)**: a separate skill (likely `hls-synthesizer`) will sit between plan-builder's `designed` state and `beta-workflow`'s build execution. It will produce pseudo-code artifacts (signature, pre/post conditions, step sequence, exception paths) that bridge the gap between architecture diagrams and target-language code. Will be added via plan-builder's own `extend` mode, serving as the first production demonstration of that mode.
 
 ## Planner Runtime Surfaces
 

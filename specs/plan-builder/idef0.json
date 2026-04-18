@@ -1,0 +1,212 @@
+{
+  "diagram_title": "plan-builder — Spec Lifecycle Management",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Manage Spec State",
+      "description": "讀寫 .state.json、推斷狀態、執行合法狀態轉換",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Validate State-Aware Artifacts",
+      "description": "依當前 state 驗證對應 artifact 集合的結構與完整性",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Migrate Legacy Plan",
+      "description": "偵測 legacy plans/<slug>/ 並 on-touch 搬移到 specs/<slug>/，保留 git history 與快照",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Author Artifact Content",
+      "description": "撰寫或更新 proposal/spec/design/tasks/handoff 以及 5 類 core + 3 類 SSDLC artifact 內容（人類與 AI 合作產出）",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Analyze Code-Independence Gaps",
+      "description": "掃描 spec 是否有缺 schema、缺 test-vectors、abstract GWT、缺 errors 等 code-independence 漏洞",
+      "decomposition": null
+    },
+    {
+      "id": "A6",
+      "title": "Archive Spec",
+      "description": "將 spec 推進到 archived 狀態並可選地搬移至 specs/archive/ 資料夾",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "User Spec Path",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "State Transition Rules",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "Current State",
+      "type": "output"
+    },
+    {
+      "id": "AR4",
+      "source": "A1:output",
+      "target": "EXTERNAL",
+      "label": "Updated .state.json",
+      "type": "output"
+    },
+    {
+      "id": "AR5",
+      "source": "EXTERNAL",
+      "target": "A1:mechanism",
+      "label": "plan-state.ts / plan-promote.ts",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR6",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "State × Artifact Requirement Matrix",
+      "type": "control"
+    },
+    {
+      "id": "AR7",
+      "source": "A2:output",
+      "target": "EXTERNAL",
+      "label": "Validation Report",
+      "type": "output"
+    },
+    {
+      "id": "AR8",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "label": "plan-validate.ts",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR9",
+      "source": "EXTERNAL",
+      "target": "A3:input",
+      "label": "Legacy plans/<slug>/ Path",
+      "type": "input"
+    },
+    {
+      "id": "AR10",
+      "source": "EXTERNAL",
+      "target": "A3:control",
+      "label": "State Inference Rules + No Silent Fallback",
+      "type": "control"
+    },
+    {
+      "id": "AR11",
+      "source": "A3:output",
+      "target": "EXTERNAL",
+      "label": "specs/<slug>/ + .archive/pre-migration/",
+      "type": "output"
+    },
+    {
+      "id": "AR12",
+      "source": "EXTERNAL",
+      "target": "A3:mechanism",
+      "label": "plan-migrate.ts + ensureNewFormat + git mv",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR13",
+      "source": "EXTERNAL",
+      "target": "A4:input",
+      "label": "User Requirement Wording",
+      "type": "input"
+    },
+    {
+      "id": "AR14",
+      "source": "EXTERNAL",
+      "target": "A4:control",
+      "label": "Artifact Templates + Required Headings",
+      "type": "control"
+    },
+    {
+      "id": "AR15",
+      "source": "A4:output",
+      "target": "A2:input",
+      "label": "Artifact Content",
+      "type": "output"
+    },
+    {
+      "id": "AR16",
+      "source": "EXTERNAL",
+      "target": "A4:mechanism",
+      "label": "plan-init.ts + Author (Human/AI)",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR17",
+      "source": "A2:output",
+      "target": "A5:input",
+      "label": "Valid Artifact Set",
+      "type": "input"
+    },
+    {
+      "id": "AR18",
+      "source": "EXTERNAL",
+      "target": "A5:control",
+      "label": "Code-Independence Criteria",
+      "type": "control"
+    },
+    {
+      "id": "AR19",
+      "source": "A5:output",
+      "target": "EXTERNAL",
+      "label": "Gap Report",
+      "type": "output"
+    },
+    {
+      "id": "AR20",
+      "source": "EXTERNAL",
+      "target": "A5:mechanism",
+      "label": "plan-gaps.ts",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR21",
+      "source": "A1:output",
+      "target": "A6:input",
+      "label": "Spec Ready for Archive",
+      "type": "input"
+    },
+    {
+      "id": "AR22",
+      "source": "EXTERNAL",
+      "target": "A6:control",
+      "label": "Archive Policy (keep-in-place vs move-to-archive)",
+      "type": "control"
+    },
+    {
+      "id": "AR23",
+      "source": "A6:output",
+      "target": "EXTERNAL",
+      "label": "Archived Spec (frozen)",
+      "type": "output"
+    },
+    {
+      "id": "AR24",
+      "source": "EXTERNAL",
+      "target": "A6:mechanism",
+      "label": "plan-archive.ts",
+      "type": "mechanism"
+    }
+  ]
+}
