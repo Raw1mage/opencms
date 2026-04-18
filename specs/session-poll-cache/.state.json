@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "state": "planned",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-04-18T17:01:44.769Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-04-18T17:11:59.902Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "spec/design/diagrams/schema drafted"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-04-18T17:12:33.069Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "tasks + handoff + errors + observability + test vectors ready"
+    }
+  ]
+}

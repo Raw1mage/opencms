@@ -1,0 +1,240 @@
+[
+    {
+      "id": "TV-1",
+      "requirement": "R-1",
+      "scenario": "First read populates cache",
+      "given": {
+        "cacheState": { "entries": 0 },
+        "sessionID": "ses_TV1aaaaaaaaaaaaaaaaaaa",
+        "storedMessages": 3
+      },
+      "when": {
+        "request": { "method": "GET", "path": "/api/v2/session/ses_TV1aaaaaaaaaaaaaaaaaaa/message", "query": { "limit": "400" } }
+      },
+      "then": {
+        "response": { "status": 200, "body": { "length": 3 } },
+        "cacheState": { "entries": 1, "keyPresent": "messages:ses_TV1aaaaaaaaaaaaaaaaaaa:400" },
+        "busEvents": ["SessionCache.Event.Miss"]
+      }
+    },
+    {
+      "id": "TV-2",
+      "requirement": "R-1",
+      "scenario": "Second identical read hits cache",
+      "given": {
+        "priorVector": "TV-1",
+        "cacheState": { "keyPresent": "messages:ses_TV1aaaaaaaaaaaaaaaaaaa:400" }
+      },
+      "when": {
+        "request": { "method": "GET", "path": "/api/v2/session/ses_TV1aaaaaaaaaaaaaaaaaaa/message", "query": { "limit": "400" } }
+      },
+      "then": {
+        "response": { "status": 200, "body": { "length": 3 } },
+        "diskIO": { "readsCount": 0 },
+        "handlerDurationMsP95Max": 5,
+        "busEvents": ["SessionCache.Event.Hit"]
+      }
+    },
+    {
+      "id": "TV-3",
+      "requirement": "R-1",
+      "scenario": "MessageV2.Event.Updated from worker invalidates cache",
+      "given": {
+        "priorVector": "TV-2",
+        "busSource": "worker-process-via-publishBridgedEvent"
+      },
+      "when": {
+        "busEvent": { "type": "message.updated", "properties": { "info": { "sessionID": "ses_TV1aaaaaaaaaaaaaaaaaaa", "id": "msg_new" } } }
+      },
+      "then": {
+        "cacheState": { "keyAbsent": "messages:ses_TV1aaaaaaaaaaaaaaaaaaa:400" },
+        "versionCounter": { "ses_TV1aaaaaaaaaaaaaaaaaaa": ">= 1 (bumped)" },
+        "busEvents": ["SessionCache.Event.Invalidated"]
+      }
+    },
+    {
+      "id": "TV-4",
+      "requirement": "R-1",
+      "scenario": "Subscription failure leaves daemon unhealthy, not silent",
+      "given": {
+        "injection": "Bus.subscribeGlobal throws Error('wired-for-test')"
+      },
+      "when": {
+        "startup": "session-cache module init"
+      },
+      "then": {
+        "logEntries": [{ "level": "warn", "match": "session-cache subscription failed" }],
+        "healthEndpoint": { "subscriptionAlive": false },
+        "cacheBehavior": "every request treated as miss; no stale entries served"
+      }
+    },
+    {
+      "id": "TV-5",
+      "requirement": "R-2",
+      "scenario": "ETag round-trip — 304 on match",
+      "given": {
+        "priorVector": "TV-2",
+        "etagObserved": "W/\"ses_TV1aaaaaaaaaaaaaaaaaaa:1\""
+      },
+      "when": {
+        "request": {
+          "method": "GET",
+          "path": "/api/v2/session/ses_TV1aaaaaaaaaaaaaaaaaaa/message",
+          "query": { "limit": "400" },
+          "headers": { "If-None-Match": "W/\"ses_TV1aaaaaaaaaaaaaaaaaaa:1\"" }
+        }
+      },
+      "then": {
+        "response": { "status": 304, "bodyEmpty": true },
+        "handlerDurationMsP95Max": 2,
+        "jsonSerializedCount": 0
+      }
+    },
+    {
+      "id": "TV-6",
+      "requirement": "R-2",
+      "scenario": "ETag mismatch returns 200 with fresh body",
+      "given": {
+        "priorVector": "TV-3",
+        "oldEtag": "W/\"ses_TV1aaaaaaaaaaaaaaaaaaa:1\"",
+        "currentVersion": 2
+      },
+      "when": {
+        "request": {
+          "method": "GET",
+          "path": "/api/v2/session/ses_TV1aaaaaaaaaaaaaaaaaaa/message",
+          "query": { "limit": "400" },
+          "headers": { "If-None-Match": "W/\"ses_TV1aaaaaaaaaaaaaaaaaaa:1\"" }
+        }
+      },
+      "then": {
+        "response": {
+          "status": 200,
+          "headers": { "ETag": "W/\"ses_TV1aaaaaaaaaaaaaaaaaaa:2\"" }
+        }
+      }
+    },
+    {
+      "id": "TV-7",
+      "requirement": "R-3",
+      "scenario": "Quota allows 10 QPS per user/path",
+      "given": {
+        "tweaks": { "ratelimit_qps_per_user_per_path": 10, "ratelimit_burst": 20 },
+        "username": "local"
+      },
+      "when": {
+        "batch": "20 GETs in 1s to /api/v2/session/ses_TV1aaaaaaaaaaaaaaaaaaa"
+      },
+      "then": {
+        "allowedCount": 20,
+        "throttledCount": 0,
+        "response": { "firstRequest": { "status": 200 }, "lastRequest": { "status": 200 } }
+      }
+    },
+    {
+      "id": "TV-8",
+      "requirement": "R-3",
+      "scenario": "Burst exceeded returns 429 with Retry-After",
+      "given": {
+        "tweaks": { "ratelimit_qps_per_user_per_path": 10, "ratelimit_burst": 20 },
+        "priorBatch": "TV-7"
+      },
+      "when": {
+        "batch": "additional 10 GETs within same 1s window"
+      },
+      "then": {
+        "response": {
+          "status": 429,
+          "headers": { "Retry-After": "^[1-9][0-9]?$" },
+          "body": {
+            "code": "RATE_LIMIT",
+            "path": "/api/v2/session/:id",
+            "retryAfterSec": "1..60"
+          }
+        },
+        "busEvents": ["RateLimit.Event.Throttled"]
+      }
+    },
+    {
+      "id": "TV-9",
+      "requirement": "R-3",
+      "scenario": "Internal worker hostname is exempt",
+      "given": {
+        "request": { "hostname": "opencode.internal" }
+      },
+      "when": {
+        "batch": "1000 GETs in 1s"
+      },
+      "then": {
+        "throttledCount": 0,
+        "allowedCount": 1000
+      }
+    },
+    {
+      "id": "TV-10",
+      "requirement": "R-4",
+      "scenario": "Health endpoint exposes current state",
+      "given": {
+        "priorActivity": "any mix of hits/misses/invalidations/throttles recorded in last 5 min"
+      },
+      "when": {
+        "request": { "method": "GET", "path": "/api/v2/server/cache/health" }
+      },
+      "then": {
+        "response": {
+          "status": 200,
+          "body": { "$ref": "./data-schema.json#/definitions/CacheHealthResponse" }
+        },
+        "handlerDurationMsP95Max": 10
+      }
+    },
+    {
+      "id": "TV-11",
+      "requirement": "R-5",
+      "scenario": "tweaks.cfg missing uses defaults with log.info",
+      "given": { "filesystem": { "/etc/opencode/tweaks.cfg": "absent" } },
+      "when": { "startup": "daemon init" },
+      "then": {
+        "effectiveConfig": {
+          "session_cache_enabled": true,
+          "session_cache_ttl_sec": 60,
+          "session_cache_max_entries": 500,
+          "ratelimit_enabled": true,
+          "ratelimit_qps_per_user_per_path": 10,
+          "ratelimit_burst": 20
+        },
+        "logEntries": [{ "level": "info", "match": "tweaks.cfg not found; using defaults" }]
+      }
+    },
+    {
+      "id": "TV-12",
+      "requirement": "R-5",
+      "scenario": "tweaks.cfg malformed value falls back with log.warn",
+      "given": { "filesystem": { "/etc/opencode/tweaks.cfg": "ratelimit_qps_per_user_per_path=not_a_number\n" } },
+      "when": { "startup": "daemon init" },
+      "then": {
+        "effectiveConfig": { "ratelimit_qps_per_user_per_path": 10 },
+        "logEntries": [{ "level": "warn", "match": "tweaks.cfg invalid value for ratelimit_qps_per_user_per_path" }]
+      }
+    },
+    {
+      "id": "TV-13",
+      "requirement": "R-1",
+      "scenario": "LRU evicts oldest entry when full",
+      "given": {
+        "tweaks": { "session_cache_max_entries": 3 },
+        "cacheState": { "entries": 3, "oldestKey": "messages:A:400" }
+      },
+      "when": {
+        "request": { "method": "GET", "path": "/api/v2/session/D/message", "query": { "limit": "400" } }
+      },
+      "then": {
+        "cacheState": {
+          "entries": 3,
+          "keyPresent": "messages:D:400",
+          "keyAbsent": "messages:A:400"
+        },
+        "busEvents": ["SessionCache.Event.Miss", "SessionCache.Event.Evicted"]
+      }
+    }
+]

@@ -1,0 +1,170 @@
+{
+  "diagram_title": "Session Poll Defence Layer",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Serve Cached Session Read",
+      "description": "Return session metadata and message list from in-process cache when fresh; on miss, load from storage and memoize.",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Invalidate Cache On Write Event",
+      "description": "Subscribe to MessageV2.Event.* and Session.Event.* (including worker-bridged events) and drop all cache keys for the affected sessionID; bump per-session version counter.",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Evaluate Conditional GET",
+      "description": "Compute weak ETag from sessionID + version; compare If-None-Match header; short-circuit with 304 when matching.",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Enforce Per-Identity Rate Limit",
+      "description": "Apply token-bucket per (username, method, routePattern); return 429 with Retry-After when exhausted; exempt internal and health paths.",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Expose Cache And RateLimit Health",
+      "description": "Serve GET /api/v2/server/cache/health with entries, hit/miss rate, eviction count, subscriptionAlive, and rate-limit stats over the past 5 minutes.",
+      "decomposition": null
+    },
+    {
+      "id": "A6",
+      "title": "Load Tunables From tweaks.cfg",
+      "description": "Parse /etc/opencode/tweaks.cfg with defaults; log actual effective values at startup; warn (not silently fall back) on format errors.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A4:input",
+      "label": "HTTP Request (session GET / messages GET)",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "A4:output",
+      "target": "A3:input",
+      "label": "Allowed Request",
+      "type": "input"
+    },
+    {
+      "id": "AR3",
+      "source": "A3:output",
+      "target": "A1:input",
+      "label": "Non-304 Request (needs body)",
+      "type": "input"
+    },
+    {
+      "id": "AR4",
+      "source": "A1:output",
+      "target": "EXTERNAL",
+      "label": "200 Response With ETag + Body",
+      "type": "output"
+    },
+    {
+      "id": "AR5",
+      "source": "A3:output",
+      "target": "EXTERNAL",
+      "label": "304 Not Modified",
+      "type": "output"
+    },
+    {
+      "id": "AR6",
+      "source": "A4:output",
+      "target": "EXTERNAL",
+      "label": "429 Too Many Requests",
+      "type": "output"
+    },
+    {
+      "id": "AR7",
+      "source": "EXTERNAL",
+      "target": "A2:input",
+      "label": "Bus MessageV2/Session Event",
+      "type": "input"
+    },
+    {
+      "id": "AR8",
+      "source": "A2:output",
+      "target": "A1:control",
+      "label": "Invalidation Signal For sessionID",
+      "type": "control"
+    },
+    {
+      "id": "AR9",
+      "source": "A2:output",
+      "target": "A3:control",
+      "label": "Bumped Version Counter",
+      "type": "control"
+    },
+    {
+      "id": "AR10",
+      "source": "A6:output",
+      "target": "A1:control",
+      "label": "TTL / MaxEntries / Enable Flag",
+      "type": "control"
+    },
+    {
+      "id": "AR11",
+      "source": "A6:output",
+      "target": "A4:control",
+      "label": "QPS / Burst / Enable Flag / Exempt List",
+      "type": "control"
+    },
+    {
+      "id": "AR12",
+      "source": "EXTERNAL",
+      "target": "A6:input",
+      "label": "/etc/opencode/tweaks.cfg File",
+      "type": "input"
+    },
+    {
+      "id": "AR13",
+      "source": "EXTERNAL",
+      "target": "A1:mechanism",
+      "label": "Storage.read (fallback disk loader)",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR14",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "label": "Bus.subscribeGlobal",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR15",
+      "source": "EXTERNAL",
+      "target": "A5:input",
+      "label": "HTTP GET /cache/health",
+      "type": "input"
+    },
+    {
+      "id": "AR16",
+      "source": "A1:output",
+      "target": "A5:input",
+      "label": "Cache Stats Snapshot",
+      "type": "input"
+    },
+    {
+      "id": "AR17",
+      "source": "A4:output",
+      "target": "A5:input",
+      "label": "RateLimit Stats Snapshot",
+      "type": "input"
+    },
+    {
+      "id": "AR18",
+      "source": "A5:output",
+      "target": "EXTERNAL",
+      "label": "Health JSON",
+      "type": "output"
+    }
+  ]
+}

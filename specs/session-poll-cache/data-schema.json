@@ -1,0 +1,147 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://opencode.local/specs/session-poll-cache/data-schema.json",
+  "title": "Session Poll Cache — Data Contracts",
+  "definitions": {
+    "SessionCacheKey": {
+      "type": "string",
+      "pattern": "^(session:[a-zA-Z0-9_-]+|messages:[a-zA-Z0-9_-]+:[0-9]+)$",
+      "description": "Cache key namespace. `session:<id>` for Session.get, `messages:<id>:<limit>` for Session.messages."
+    },
+    "SessionCacheEntry": {
+      "type": "object",
+      "required": ["key", "data", "version", "createdAt", "accessAt"],
+      "additionalProperties": false,
+      "properties": {
+        "key": { "$ref": "#/definitions/SessionCacheKey" },
+        "data": {
+          "description": "Opaque payload returned by Session.get / Session.messages at the time of caching.",
+          "type": ["object", "array"]
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Monotonically increasing version counter for the sessionID as of the time of entry creation."
+        },
+        "createdAt": {
+          "type": "integer",
+          "description": "UNIX ms timestamp when the entry was created."
+        },
+        "accessAt": {
+          "type": "integer",
+          "description": "UNIX ms timestamp of last access (for LRU ordering)."
+        }
+      }
+    },
+    "EtagHeaderValue": {
+      "type": "string",
+      "pattern": "^W/\"[a-zA-Z0-9_-]+:[0-9]+\"$",
+      "description": "Weak ETag format: W/\"<sessionID>:<version>\"."
+    },
+    "RateLimitBucketKey": {
+      "type": "string",
+      "pattern": "^[^:]+:(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS):/.+$",
+      "description": "Bucket key: `<username>:<method>:<routePattern>`. routePattern is the hono pattern string, not the concrete URL."
+    },
+    "RateLimitBucketState": {
+      "type": "object",
+      "required": ["key", "tokens", "lastRefillAt", "capacity", "refillPerSec"],
+      "additionalProperties": false,
+      "properties": {
+        "key": { "$ref": "#/definitions/RateLimitBucketKey" },
+        "tokens": { "type": "number", "minimum": 0 },
+        "capacity": { "type": "number", "exclusiveMinimum": 0 },
+        "refillPerSec": { "type": "number", "exclusiveMinimum": 0 },
+        "lastRefillAt": {
+          "type": "integer",
+          "description": "UNIX ms timestamp of last refill computation."
+        }
+      }
+    },
+    "TweaksCfgSessionCache": {
+      "type": "object",
+      "required": [
+        "session_cache_enabled",
+        "session_cache_ttl_sec",
+        "session_cache_max_entries"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "session_cache_enabled": { "type": "boolean", "default": true },
+        "session_cache_ttl_sec": { "type": "integer", "minimum": 0, "default": 60 },
+        "session_cache_max_entries": { "type": "integer", "minimum": 1, "default": 500 }
+      }
+    },
+    "TweaksCfgRateLimit": {
+      "type": "object",
+      "required": [
+        "ratelimit_enabled",
+        "ratelimit_qps_per_user_per_path",
+        "ratelimit_burst"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "ratelimit_enabled": { "type": "boolean", "default": true },
+        "ratelimit_qps_per_user_per_path": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 10,
+          "description": "Refill rate in tokens per second."
+        },
+        "ratelimit_burst": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 20,
+          "description": "Bucket capacity."
+        }
+      }
+    },
+    "CacheHealthResponse": {
+      "type": "object",
+      "required": [
+        "entries",
+        "maxEntries",
+        "hitRate",
+        "missRate",
+        "invalidationCount",
+        "evictionCount",
+        "subscriptionAlive",
+        "ttlSec",
+        "rateLimit"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "entries": { "type": "integer", "minimum": 0 },
+        "maxEntries": { "type": "integer", "minimum": 1 },
+        "hitRate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "missRate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "invalidationCount": { "type": "integer", "minimum": 0 },
+        "evictionCount": { "type": "integer", "minimum": 0 },
+        "subscriptionAlive": { "type": "boolean" },
+        "ttlSec": { "type": "integer", "minimum": 0 },
+        "rateLimit": {
+          "type": "object",
+          "required": ["enabled", "allowedCount", "throttledCount", "activeBuckets"],
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "allowedCount": { "type": "integer", "minimum": 0 },
+            "throttledCount": { "type": "integer", "minimum": 0 },
+            "activeBuckets": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "RateLimit429Body": {
+      "type": "object",
+      "required": ["code", "message", "path", "retryAfterSec"],
+      "additionalProperties": false,
+      "properties": {
+        "code": { "const": "RATE_LIMIT" },
+        "message": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1 },
+        "retryAfterSec": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

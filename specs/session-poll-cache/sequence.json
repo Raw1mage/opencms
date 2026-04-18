@@ -1,0 +1,97 @@
+[
+  {
+    "diagram_title": "Polling Request — Cache Hit Happy Path",
+    "scenario": "Frontend polls the same /message endpoint while nothing has changed; response served from cache with ETag allowing next poll to 304.",
+    "moduleRef": "A1",
+    "participants": [
+      { "id": "P1", "name": "Frontend", "type": "actor", "componentRef": "C4" },
+      { "id": "P2", "name": "RateLimit MW", "type": "component", "componentRef": "C4" },
+      { "id": "P3", "name": "ETag Evaluator", "type": "component", "componentRef": "C3" },
+      { "id": "P4", "name": "Session Cache", "type": "component", "componentRef": "C1" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "GET /session/:id/message (no If-None-Match)", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P3", "label": "Allowed (token consumed)", "type": "sync", "order": 2 },
+      { "id": "MSG3", "from": "P3", "to": "P4", "label": "Lookup messages:<id>:400", "type": "sync", "order": 3 },
+      { "id": "MSG4", "from": "P4", "to": "P3", "label": "Cache hit (data + version)", "type": "return", "order": 4 },
+      { "id": "MSG5", "from": "P3", "to": "P1", "label": "200 + ETag W/\"<id>:<v>\" + body", "type": "return", "order": 5 }
+    ],
+    "fragments": []
+  },
+  {
+    "diagram_title": "Polling Request — Conditional GET 304",
+    "scenario": "Frontend has the latest version and polls with If-None-Match; backend short-circuits with 304 without consulting the cache body or loading from disk.",
+    "moduleRef": "A3",
+    "participants": [
+      { "id": "P6", "name": "Frontend", "type": "actor", "componentRef": "C4" },
+      { "id": "P7", "name": "RateLimit MW", "type": "component", "componentRef": "C4" },
+      { "id": "P8", "name": "ETag Evaluator", "type": "component", "componentRef": "C3" },
+      { "id": "P9", "name": "Version Counter", "type": "component", "componentRef": "C2" }
+    ],
+    "messages": [
+      { "id": "MSG6", "from": "P6", "to": "P7", "label": "GET /session/:id/message If-None-Match W/\"<id>:42\"", "type": "sync", "order": 1 },
+      { "id": "MSG7", "from": "P7", "to": "P8", "label": "Allowed", "type": "sync", "order": 2 },
+      { "id": "MSG8", "from": "P8", "to": "P9", "label": "Read current version for <id>", "type": "sync", "order": 3 },
+      { "id": "MSG9", "from": "P9", "to": "P8", "label": "42 (match)", "type": "return", "order": 4 },
+      { "id": "MSG10", "from": "P8", "to": "P6", "label": "304 Not Modified (no body)", "type": "return", "order": 5 }
+    ],
+    "fragments": []
+  },
+  {
+    "diagram_title": "Worker Write Invalidates Daemon Cache",
+    "scenario": "Worker appends a message during an LLM turn; publishBridgedEvent relays the event to the daemon bus where the cache invalidation subscriber drops affected keys and bumps the version counter.",
+    "moduleRef": "A2",
+    "participants": [
+      { "id": "P11", "name": "Worker Process", "type": "actor", "componentRef": "C7" },
+      { "id": "P12", "name": "Bus Bridge", "type": "component", "componentRef": "C7" },
+      { "id": "P13", "name": "Daemon Bus", "type": "component", "componentRef": "C7" },
+      { "id": "P14", "name": "Invalidation Subscriber", "type": "component", "componentRef": "C2" },
+      { "id": "P15", "name": "Session Cache", "type": "component", "componentRef": "C1" }
+    ],
+    "messages": [
+      { "id": "MSG11", "from": "P11", "to": "P12", "label": "Bus.publish(MessageV2.Event.Updated)", "type": "sync", "order": 1 },
+      { "id": "MSG12", "from": "P12", "to": "P13", "label": "publishBridgedEvent (cross-process)", "type": "sync", "order": 2 },
+      { "id": "MSG13", "from": "P13", "to": "P14", "label": "deliver event", "type": "sync", "order": 3 },
+      { "id": "MSG14", "from": "P14", "to": "P15", "label": "invalidate(sessionID)", "type": "sync", "order": 4 },
+      { "id": "MSG15", "from": "P14", "to": "P14", "label": "version[sessionID] += 1", "type": "sync", "order": 5 },
+      { "id": "MSG16", "from": "P14", "to": "P13", "label": "Bus.publish(SessionCache.Event.Invalidated)", "type": "sync", "order": 6 }
+    ],
+    "fragments": []
+  },
+  {
+    "diagram_title": "Rate Limit Rejection",
+    "scenario": "A runaway polling client exhausts its token bucket and receives 429 with Retry-After; subsequent requests remain rejected until tokens refill.",
+    "moduleRef": "A4",
+    "participants": [
+      { "id": "P16", "name": "Misbehaving Client", "type": "actor", "componentRef": "C4" },
+      { "id": "P17", "name": "RateLimit MW", "type": "component", "componentRef": "C4" },
+      { "id": "P18", "name": "Logger", "type": "component", "componentRef": "C4" }
+    ],
+    "messages": [
+      { "id": "MSG17", "from": "P16", "to": "P17", "label": "GET /session/:id/message (bucket empty)", "type": "sync", "order": 1 },
+      { "id": "MSG18", "from": "P17", "to": "P18", "label": "log.warn rate-limit throttled", "type": "sync", "order": 2 },
+      { "id": "MSG19", "from": "P17", "to": "P16", "label": "429 + Retry-After: 1 + {code:RATE_LIMIT}", "type": "return", "order": 3 }
+    ],
+    "fragments": []
+  },
+  {
+    "diagram_title": "Health Endpoint",
+    "scenario": "Operator queries /cache/health; endpoint aggregates cache and rate-limit stats over past 5 min and returns JSON.",
+    "moduleRef": "A5",
+    "participants": [
+      { "id": "P20", "name": "Operator", "type": "actor", "componentRef": "C5" },
+      { "id": "P21", "name": "Cache Health Route", "type": "component", "componentRef": "C5" },
+      { "id": "P22", "name": "Session Cache", "type": "component", "componentRef": "C1" },
+      { "id": "P23", "name": "RateLimit MW", "type": "component", "componentRef": "C4" }
+    ],
+    "messages": [
+      { "id": "MSG20", "from": "P20", "to": "P21", "label": "GET /api/v2/server/cache/health", "type": "sync", "order": 1 },
+      { "id": "MSG21", "from": "P21", "to": "P22", "label": "stats()", "type": "sync", "order": 2 },
+      { "id": "MSG22", "from": "P22", "to": "P21", "label": "entries/hitRate/subscriptionAlive", "type": "return", "order": 3 },
+      { "id": "MSG23", "from": "P21", "to": "P23", "label": "stats()", "type": "sync", "order": 4 },
+      { "id": "MSG24", "from": "P23", "to": "P21", "label": "allowed/throttled counts", "type": "return", "order": 5 },
+      { "id": "MSG25", "from": "P21", "to": "P20", "label": "200 + CacheHealthResponse JSON", "type": "return", "order": 6 }
+    ],
+    "fragments": []
+  }
+]

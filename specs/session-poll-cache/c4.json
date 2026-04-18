@@ -1,0 +1,130 @@
+{
+  "diagram_title": "Session Poll Defence Components",
+  "diagram_level": "component",
+  "systems": [
+    {
+      "id": "SYS1",
+      "name": "OpenCode Daemon HTTP Surface",
+      "description": "The bun daemon process that serves /api/v2 HTTP endpoints to TUI, webapp, and admin panel clients.",
+      "external": false
+    }
+  ],
+  "containers": [
+    {
+      "id": "CT1",
+      "name": "Daemon HTTP Server",
+      "description": "Hono-based request pipeline inside the bun daemon.",
+      "technology": "TypeScript / Bun / Hono",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT2",
+      "name": "In-Process Bus",
+      "description": "Cross-module event bus; cross-process events from worker are bridged here via publishBridgedEvent.",
+      "technology": "TypeScript namespace with in-process subscriptions",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT3",
+      "name": "Session Storage",
+      "description": "Filesystem-backed storage for session metadata and message parts.",
+      "technology": "filesystem (JSON files)",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT4",
+      "name": "Ops Config Surface",
+      "description": "Static tunables file consumed at daemon startup.",
+      "technology": "INI-style key=value file",
+      "systemRef": "SYS1"
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "name": "Session Cache",
+      "description": "In-process LRU keyed by session:<id> / messages:<id>:<limit>; TTL and LRU cap controlled by tweaks.",
+      "technology": "TypeScript module",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/opencode/src/server/session-cache.ts"
+    },
+    {
+      "id": "C2",
+      "name": "Cache Invalidation Subscriber",
+      "description": "Subscribes to MessageV2.Event.* and Session.Event.*; drops affected cache keys and bumps per-session version counter.",
+      "technology": "TypeScript module",
+      "containerRef": "CT1",
+      "moduleRef": "A2",
+      "filePath": "packages/opencode/src/server/session-cache.ts"
+    },
+    {
+      "id": "C3",
+      "name": "ETag Evaluator",
+      "description": "Middleware inside routes/session.ts computing weak ETag and short-circuiting 304 responses.",
+      "technology": "TypeScript / Hono handler",
+      "containerRef": "CT1",
+      "moduleRef": "A3",
+      "filePath": "packages/opencode/src/server/routes/session.ts"
+    },
+    {
+      "id": "C4",
+      "name": "Rate Limit Middleware",
+      "description": "Token bucket per (username, method, routePattern); returns 429 with Retry-After.",
+      "technology": "TypeScript / Hono middleware",
+      "containerRef": "CT1",
+      "moduleRef": "A4",
+      "filePath": "packages/opencode/src/server/rate-limit.ts"
+    },
+    {
+      "id": "C5",
+      "name": "Cache Health Route",
+      "description": "GET /api/v2/server/cache/health endpoint; reads cache and rate-limit stats.",
+      "technology": "TypeScript / Hono handler",
+      "containerRef": "CT1",
+      "moduleRef": "A5",
+      "filePath": "packages/opencode/src/server/routes/cache-health.ts"
+    },
+    {
+      "id": "C6",
+      "name": "Tweaks Loader",
+      "description": "Parses /etc/opencode/tweaks.cfg; emits startup log with effective values; logs warnings on parse errors.",
+      "technology": "TypeScript module",
+      "containerRef": "CT1",
+      "moduleRef": "A6",
+      "filePath": "packages/opencode/src/config/tweaks.ts"
+    },
+    {
+      "id": "C7",
+      "name": "Worker Bus Bridge",
+      "description": "Existing publishBridgedEvent function that relays worker-process events into the daemon bus.",
+      "technology": "TypeScript",
+      "containerRef": "CT2",
+      "moduleRef": "A2",
+      "filePath": "packages/opencode/src/tool/task.ts"
+    },
+    {
+      "id": "C8",
+      "name": "Session Storage Reader",
+      "description": "Existing Session.get / Session.messages / MessageV2.stream functions that remain the fallback loader.",
+      "technology": "TypeScript",
+      "containerRef": "CT3",
+      "moduleRef": "A1",
+      "filePath": "packages/opencode/src/session/index.ts"
+    }
+  ],
+  "relationships": [
+    { "from": "C4", "to": "C3", "label": "Forwards allowed request to ETag check" },
+    { "from": "C3", "to": "C1", "label": "Requests body on ETag mismatch" },
+    { "from": "C1", "to": "C8", "label": "Loads on cache miss" },
+    { "from": "C7", "to": "CT2", "label": "Bridges worker-process bus events" },
+    { "from": "CT2", "to": "C2", "label": "Delivers MessageV2/Session events" },
+    { "from": "C2", "to": "C1", "label": "Invalidates keys by sessionID" },
+    { "from": "C2", "to": "C3", "label": "Bumps per-session version counter" },
+    { "from": "C6", "to": "C1", "label": "Supplies TTL and max entries" },
+    { "from": "C6", "to": "C4", "label": "Supplies QPS, burst, enable flag" },
+    { "from": "C5", "to": "C1", "label": "Reads cache stats" },
+    { "from": "C5", "to": "C4", "label": "Reads rate-limit stats" },
+    { "from": "CT4", "to": "C6", "label": "Provides configuration values" }
+  ]
+}
