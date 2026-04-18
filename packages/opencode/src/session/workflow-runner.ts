@@ -13,13 +13,6 @@ import { isAuthError, isRateLimitError } from "@/account/rate-limit-judge"
 import { PermissionNext } from "@/permission/next"
 import { Question } from "@/question"
 import { RuntimeEventService } from "@/system/runtime-event-service"
-import {
-  BETA_ADMISSION_FIELDS,
-  consumeMissionArtifacts,
-  evaluateBetaAdmissionAnswers,
-  parseAdmissionAnswersFromText,
-  resolveBetaAdmissionAuthority,
-} from "./mission-consumption"
 import { debugCheckpoint } from "@/util/debug"
 import { Log } from "@/util/log"
 
@@ -27,12 +20,8 @@ const log = Log.create({ service: "workflow-runner" })
 import RUNNER_CONTRACT from "./prompt/runner.txt"
 import {
   type RunTrigger,
-  type TriggerGateResult,
-  evaluateGates,
   buildContinuationTrigger,
   buildApiTrigger,
-  CONTINUATION_GATE_POLICY,
-  API_GATE_POLICY,
 } from "./trigger"
 import { RunQueue, type QueueEntry } from "./queue"
 import { type Lane, LANES_BY_PRIORITY, LANE_CONFIGS } from "./lane-policy"
@@ -59,202 +48,28 @@ function applyRunnerContract(text: string) {
   return `${RUNNER_CONTRACT.trim()}\n\n${text}`
 }
 
-function buildBetaAdmissionPrompt(session: Pick<Session.Info, "mission">, reflection?: boolean) {
-  const authority = resolveBetaAdmissionAuthority(session.mission)
-  const prefix = reflection
-    ? "Beta admission mismatch detected. Reflect on your previous answers and restate the authoritative execution metadata exactly."
-    : "Beta build admission quiz: restate the authoritative execution metadata exactly before continuing."
-  return applyRunnerContract(
-    [
-      prefix,
-      "Answer these fields exactly and machine-checkably (use the format '- fieldName: value'):",
-      ...BETA_ADMISSION_FIELDS.map((field) => `- ${field}: ${authority[field]}`),
-    ].join("\n"),
-  )
-}
-
-function applyBetaWorkflowContract(input: { text: string; session: Pick<Session.Info, "mission"> }) {
-  const mission = input.session.mission as (Session.Info["mission"] & { beta?: unknown }) | undefined
-  if (!mission?.beta) return applyRunnerContract(input.text)
-  if (mission.admission?.betaQuiz?.status !== "passed") {
-    const reflection = mission.admission?.betaQuiz?.reflectionUsed === true
-    return buildBetaAdmissionPrompt(input.session, reflection)
-  }
-  return applyRunnerContract(
-    [
-      'FIRST: Load skill "beta-workflow" before continuing beta-enabled build execution.',
-      "Use the admitted beta execution context for implementation work.",
-      input.text,
-    ].join("\n\n"),
-  )
-}
-
-/**
- * Plan-trusting mode: when a session has a fully approved mission
- * (openspec_compiled_plan + implementation_spec + executionReady),
- * the runner should trust the plan and not stop for advisory reasons.
- */
-export function isPlanTrusting(mission: Session.Info["mission"]): boolean {
-  return (
-    !!mission &&
-    mission.source === "openspec_compiled_plan" &&
-    mission.contract === "implementation_spec" &&
-    mission.executionReady === true
-  )
-}
-
-/**
- * Stage 5 — Tight loop drain mode.
- * Lowered threshold: autonomous + executionReady + hasPendingTodos.
- * Does NOT require openspec_compiled_plan or implementation_spec contract.
- */
-export function isPlanTrustingTight(session: Pick<Session.Info, "workflow" | "mission">): boolean {
-  return (
-    // autonomous is always-on
-    !!session.mission?.executionReady && true // hasPendingTodos checked separately via getNextActionableTodo
-  )
-}
-
 export type HardBlocker = "abort_signal" | "kill_switch_active" | "user_message_pending"
 
-/**
- * Stage 5 — Hard blocker check for drain-on-stop.
- * Only factual checks, no decisions. Returns the blocker reason or null.
- *
- * User message preemption is handled by the while(true) loop itself:
- * new user message → loop re-reads messages → lastUser.id > lastAssistant.id → natural flow.
- */
 export async function checkHardBlockers(sessionID: string, abort: AbortSignal): Promise<HardBlocker | null> {
   if (abort.aborted) return "abort_signal"
-
-  // Kill-switch: check if globally active
   const ksState = await KillSwitchService.getState().catch(() => undefined)
   if (ksState?.active) return "kill_switch_active"
-
   return null
 }
 
-function buildMissionMetadata(session: Pick<Session.Info, "mission">) {
-  const mission = session.mission
-  if (!mission) return undefined
-  return {
-    source: mission.source,
-    contract: mission.contract,
-    approvedAt: mission.approvedAt,
-    executionReady: mission.executionReady,
-    planPath: mission.planPath,
-    artifactPaths: mission.artifactPaths,
-    beta: mission.beta,
-    admission: mission.admission,
-  }
-}
-
-export async function recordBetaAdmissionResult(input: {
-  sessionID: string
-  answers: Partial<Record<(typeof BETA_ADMISSION_FIELDS)[number], string>>
-}) {
-  const session = await Session.get(input.sessionID)
-  if (!session.mission?.beta) return { ok: true as const, mismatches: [] }
-  const authority = resolveBetaAdmissionAuthority(session.mission)
-  const result = evaluateBetaAdmissionAnswers({ authority, answers: input.answers })
-  await Session.update(
-    input.sessionID,
-    (draft) => {
-      if (!draft.mission) return
-      draft.mission.admission ??= {}
-      draft.mission.admission.betaQuiz = {
-        status: result.ok ? "passed" : "failed",
-        reflectionUsed: draft.mission.admission.betaQuiz?.reflectionUsed ?? false,
-        passedAt: result.ok ? Date.now() : draft.mission.admission.betaQuiz?.passedAt,
-        mismatchCount: result.mismatches.length,
-        lastMismatches: result.mismatches,
-      }
-    },
-    { touch: false },
-  )
-  return result
-}
-
-/**
- * AI self-verification gate: extract admission answers from the last assistant
- * message and validate them against authoritative metadata.
- *
- * Returns undefined if betaQuiz is not pending (no action needed).
- * Returns { ok, needsRetry } when validation was attempted.
- */
-export async function validatePendingBetaAdmission(
-  sessionID: string,
-): Promise<{ ok: boolean; needsRetry: boolean } | undefined> {
-  const session = await Session.get(sessionID)
-  const quiz = session.mission?.admission?.betaQuiz
-  if (!quiz || quiz.status !== "pending") return undefined
-  if (!session.mission?.beta) return undefined
-
-  // Find the last assistant message and extract text
-  const messages = await Session.messages({ sessionID })
-  const lastAssistant = messages.findLast((m) => m.info.role === "assistant")
-  if (!lastAssistant) return undefined
-
-  const textParts = lastAssistant.parts.filter((p) => p.type === "text").map((p) => (p as MessageV2.TextPart).text)
-  const fullText = textParts.join("\n")
-  if (!fullText.trim()) return undefined
-
-  const answers = parseAdmissionAnswersFromText(fullText)
-  const answeredCount = Object.keys(answers).length
-  if (answeredCount === 0) return undefined // AI hasn't answered yet
-
-  const result = await recordBetaAdmissionResult({ sessionID, answers })
-
-  if (result.ok) {
-    return { ok: true, needsRetry: false }
-  }
-
-  // First failure: allow one reflection retry
-  if (!quiz.reflectionUsed) {
-    await Session.update(
-      sessionID,
-      (draft) => {
-        if (draft.mission?.admission?.betaQuiz) {
-          draft.mission.admission.betaQuiz.reflectionUsed = true
-          // Reset to pending so the next tick injects reflection prompt
-          draft.mission.admission.betaQuiz.status = "pending"
-        }
-      },
-      { touch: false },
-    )
-    log.info("beta admission first attempt failed, allowing reflection retry", {
-      sessionID,
-      mismatches: result.mismatches.length,
-    })
-    return { ok: false, needsRetry: true }
-  }
-
-  // Second failure after reflection: hard block
-  log.warn("beta admission failed after reflection", {
-    sessionID,
-    mismatches: result.mismatches.map((m) => `${m.field}: expected=${m.expected} actual=${m.actual}`),
-  })
-  return { ok: false, needsRetry: false }
-}
-
+// Runloop continuation decision surface.
+//
+// Design contract (2026-04-18): autonomous runner is a dumb todolist engine
+// layered on top of the turn-based conversation. It stimulates the AI to
+// keep the todolist up-to-date and exits when the AI declines to add more.
+// The runner itself never synthesises stop conditions — the AI decides all
+// blocking/approval/question behaviour via its normal tool calls.
 export type ContinuationDecisionReason =
   | "subagent_session"
-  | "autonomous_disabled"
-  | "mission_not_approved"
-  | "mission_not_consumable"
-  | "spec_dirty"
-  | "replan_required"
-  | "blocked"
-  | "max_continuous_rounds"
   | "todo_complete"
-  | "wait_subagent"
-  | "approval_needed"
-  | "product_decision_needed"
   | "todo_in_progress"
   | "todo_pending"
   | "completion_verify"
-
-export type ApprovalGate = "push" | "destructive" | "architecture_change"
 
 export type AutonomousNextAction =
   | {
@@ -423,101 +238,6 @@ export async function getAutonomousWorkflowHealth(sessionID: string, input?: { e
     pending,
     events,
   })
-}
-
-export function detectWaitSubagentMismatch(input: {
-  todos: Todo.Info[]
-  activeSubtasks?: number
-  decision: { continue: boolean; reason: ContinuationDecisionReason }
-}) {
-  if (input.decision.reason !== "wait_subagent") return undefined
-  if ((input.activeSubtasks ?? 0) > 0) return undefined
-  const waitingTodos = actionableTodos(input.todos).filter(
-    (todo) => todo.action?.waitingOn === "subagent" || todo.action?.kind === "wait",
-  )
-  if (!waitingTodos.length) return undefined
-  return {
-    anomalyCode: "unreconciled_wait_subagent",
-    waitingTodoIDs: waitingTodos.map((todo) => todo.id),
-    waitingTodoContents: waitingTodos.map((todo) => todo.content),
-    activeSubtasks: input.activeSubtasks ?? 0,
-  }
-}
-
-function actionableTodos(todos: Todo.Info[]) {
-  return todos.filter((todo) => {
-    if (todo.status === "in_progress") return true
-    if (todo.status !== "pending") return false
-    return Todo.isDependencyReady(todo, todos)
-  })
-}
-
-function detectStructuredStopReason(
-  todos: Todo.Info[],
-): Extract<ContinuationDecisionReason, "approval_needed" | "product_decision_needed" | "wait_subagent"> | undefined {
-  const actionable = actionableTodos(todos)
-  if (
-    actionable.some(
-      (todo) => todo.action?.waitingOn === "approval" || todo.action?.kind === "approval" || todo.action?.needsApproval,
-    )
-  ) {
-    return "approval_needed"
-  }
-  if (actionable.some((todo) => todo.action?.waitingOn === "decision" || todo.action?.kind === "decision")) {
-    return "product_decision_needed"
-  }
-  if (actionable.some((todo) => todo.action?.waitingOn === "subagent" || todo.action?.kind === "wait")) {
-    return "wait_subagent"
-  }
-}
-
-function detectStructuredApprovalGate(todos: Todo.Info[]): ApprovalGate | undefined {
-  const actionable = actionableTodos(todos)
-  if (actionable.some((todo) => todo.action?.kind === "push")) return "push"
-  if (actionable.some((todo) => todo.action?.kind === "destructive")) return "destructive"
-  if (actionable.some((todo) => todo.action?.kind === "architecture_change")) return "architecture_change"
-}
-
-function normalizeApprovalGates(gates?: string[]) {
-  return new Set(
-    (gates ?? []).filter((gate): gate is ApprovalGate => ["push", "destructive", "architecture_change"].includes(gate)),
-  )
-}
-
-export function detectApprovalRequiredForTodos(input: { gates?: string[]; todos: Todo.Info[] }) {
-  const required = normalizeApprovalGates(input.gates)
-  if (required.size === 0) return undefined
-  const structured = detectStructuredApprovalGate(input.todos)
-  if (structured && required.has(structured)) return structured
-  const actionable = actionableTodos(input.todos)
-  const text = actionable.map((todo) => todo.content.toLowerCase()).join("\n")
-
-  if (
-    required.has("push") &&
-    (text.includes("push") || text.includes("deploy") || text.includes("release") || text.includes("publish"))
-  ) {
-    return "push" as const
-  }
-  if (
-    required.has("destructive") &&
-    (text.includes("delete") ||
-      text.includes("remove") ||
-      text.includes("drop ") ||
-      text.includes("reset") ||
-      text.includes("destroy"))
-  ) {
-    return "destructive" as const
-  }
-  if (
-    required.has("architecture_change") &&
-    (text.includes("architecture") ||
-      text.includes("refactor") ||
-      text.includes("schema") ||
-      text.includes("migration") ||
-      text.includes("breaking change"))
-  ) {
-    return "architecture_change" as const
-  }
 }
 
 export const PendingContinuationInfo = z.object({
@@ -840,12 +560,8 @@ async function resolvePendingContinuationBudget(item: PendingContinuationInfo) {
 }
 
 export function evaluateAutonomousContinuation(input: {
-  session: Pick<Session.Info, "parentID" | "workflow" | "time" | "mission">
+  session: Pick<Session.Info, "parentID" | "workflow" | "time">
   todos: Todo.Info[]
-  roundCount: number
-  activeSubtasks?: number
-  pendingApprovals?: number
-  pendingQuestions?: number
   lastDecisionReason?: ContinuationDecisionReason
 }) {
   const next = planAutonomousNextAction(input)
@@ -857,43 +573,34 @@ export function evaluateAutonomousContinuation(input: {
 /**
  * Plan the next autonomous action for a session.
  *
- * Internally delegates to the trigger system (Phase 5B):
- * 1. Build a continuation trigger from the next actionable todo
- * 2. Evaluate session-level gates via TriggerEvaluator
- * 3. Convert the result back to AutonomousNextAction format
- *
- * External signature and semantics are unchanged — all 14 ContinuationDecisionReasons
- * are preserved with identical evaluation order.
+ * Pure-logic counterpart to decideAutonomousContinuation. Given a session
+ * and todo list, decide whether to continue (pending/in-progress todo or
+ * a first-time completion-verify nudge) or stop (subagent / todo_complete).
  */
 export function planAutonomousNextAction(input: {
-  session: Pick<Session.Info, "parentID" | "workflow" | "time" | "mission">
+  session: Pick<Session.Info, "parentID" | "workflow" | "time">
   todos: Todo.Info[]
-  roundCount: number
-  activeSubtasks?: number
-  pendingApprovals?: number
-  pendingQuestions?: number
   lastDecisionReason?: ContinuationDecisionReason
 }): AutonomousNextAction {
-  // Build a continuation trigger from the next actionable todo
+  // Structural boundary: subagents are driven by their parent; they never
+  // run the autonomous continuation engine themselves.
+  if (input.session.parentID) {
+    return { type: "stop", reason: "subagent_session" }
+  }
+
   const current = Todo.nextActionableTodo(input.todos)
   const trigger = buildContinuationTrigger({
     todo: current,
-    textForPending: applyBetaWorkflowContract({ text: AUTONOMOUS_CONTINUE_TEXT, session: input.session }),
-    textForInProgress: applyBetaWorkflowContract({ text: AUTONOMOUS_PROGRESS_TEXT, session: input.session }),
+    textForPending: applyRunnerContract(AUTONOMOUS_CONTINUE_TEXT),
+    textForInProgress: applyRunnerContract(AUTONOMOUS_PROGRESS_TEXT),
   })
 
-  // No actionable todo → nothing to continue, skip gate evaluation entirely.
-  // Gates only matter when there IS work to gate; evaluating a placeholder trigger
-  // causes false "mission_not_approved" stops in normal conversation sessions.
+  // No actionable todo → send "update the todolist" nudge once.
+  // If AI already got nudged (lastDecisionReason === completion_verify) and
+  // still did not update the todo list, treat as genuine completion and stop.
   if (!trigger) {
-    // Completion-verify nudge: whenever todos drain, send "Update the
-    // todolist" once and let the AI decide. If lastDecisionReason was
-    // already "completion_verify" the AI just had its chance and chose
-    // not to add anything — treat as genuine completion and stop.
-    const autonomousEnabled = input.session.workflow?.autonomous?.enabled === true
-    const hadTodos = input.todos.some((t) => t.status === "completed" || t.status === "cancelled")
     const alreadyVerified = input.lastDecisionReason === "completion_verify"
-    if (autonomousEnabled && hadTodos && !alreadyVerified) {
+    if (!alreadyVerified) {
       const verifyTodo: Todo.Info = {
         id: "_runner_completion_verify",
         content: "[runner] update the todolist",
@@ -904,76 +611,23 @@ export function planAutonomousNextAction(input: {
       return {
         type: "continue",
         reason: "completion_verify",
-        text: applyBetaWorkflowContract({
-          text: AUTONOMOUS_COMPLETION_VERIFY_TEXT,
-          session: input.session,
-        }),
+        text: applyRunnerContract(AUTONOMOUS_COMPLETION_VERIFY_TEXT),
         todo: verifyTodo,
       }
     }
     return { type: "stop", reason: "todo_complete" }
   }
 
-  const gateResult = evaluateGates({
-    trigger,
-    session: input.session,
-    todos: input.todos,
-    roundCount: input.roundCount,
-    activeSubtasks: input.activeSubtasks,
-    pendingApprovals: input.pendingApprovals,
-    pendingQuestions: input.pendingQuestions,
-    isPlanTrusting: isPlanTrusting(input.session.mission),
-    detectStructuredStopReason,
-    detectApprovalGate: detectApprovalRequiredForTodos,
-  })
-
-  if (!gateResult.pass) {
-    // Gate evaluator never produces "todo_pending" / "todo_in_progress" /
-    // "completion_verify" as stop reasons (those are continue reasons).
-    return {
-      type: "stop",
-      reason: gateResult.reason as Exclude<
-        ContinuationDecisionReason,
-        "todo_pending" | "todo_in_progress" | "completion_verify"
-      >,
-    }
-  }
-
+  // Trigger exists → continue. No pre-emptive gates.
+  // AI decides on blockers / approvals / questions itself and signals stop
+  // by ending the turn without updating the todolist. The runloop only
+  // stimulates the AI to update its todolist; it never silently gates work.
   return {
     type: "continue",
     reason: trigger.source,
     text: trigger.payload.text,
     todo: trigger.payload.todo,
   }
-}
-
-/**
- * Evaluate gates for an arbitrary RunTrigger.
- *
- * This is the generic entry point for non-continuation triggers (e.g. API triggers).
- * Continuation triggers should use planAutonomousNextAction() which wraps this.
- */
-export function evaluateTriggerGates(input: {
-  trigger: RunTrigger
-  session: Pick<Session.Info, "parentID" | "workflow" | "time" | "mission">
-  todos: Todo.Info[]
-  roundCount: number
-  activeSubtasks?: number
-  pendingApprovals?: number
-  pendingQuestions?: number
-}): TriggerGateResult {
-  return evaluateGates({
-    trigger: input.trigger,
-    session: input.session,
-    todos: input.todos,
-    roundCount: input.roundCount,
-    activeSubtasks: input.activeSubtasks,
-    pendingApprovals: input.pendingApprovals,
-    pendingQuestions: input.pendingQuestions,
-    isPlanTrusting: isPlanTrusting(input.session.mission),
-    detectStructuredStopReason,
-    detectApprovalGate: detectApprovalRequiredForTodos,
-  })
 }
 
 export function describeAutonomousNextAction(action: AutonomousNextAction): AutonomousNarration {
@@ -991,46 +645,8 @@ export function describeAutonomousNextAction(action: AutonomousNextAction): Auto
   }
 
   switch (action.reason) {
-    case "approval_needed":
-      return { kind: "pause", text: "Paused: approval is required before the next gated step." }
-    case "product_decision_needed":
-      return {
-        kind: "pause",
-        text: "Paused: I need a product decision or beta admission correction before continuing.",
-      }
-    case "wait_subagent":
-      return { kind: "pause", text: "Runner paused: a delegated subagent task is still running." }
-    case "max_continuous_rounds":
-      return {
-        kind: "pause",
-        text: "Paused: I hit the current autonomous round limit and am waiting for your next instruction.",
-      }
     case "todo_complete":
       return { kind: "complete", text: "Runner complete: the current planned todo set is done." }
-    case "blocked":
-      return { kind: "pause", text: "Paused: the workflow is currently blocked." }
-    case "mission_not_approved":
-      return {
-        kind: "pause",
-        text: "Paused: autonomous runner requires an approved OpenSpec mission contract before continuing.",
-      }
-    case "mission_not_consumable":
-      return {
-        kind: "pause",
-        text: "Paused: approved mission artifacts could not be consumed safely, so autonomous execution stopped.",
-      }
-    case "spec_dirty":
-      return {
-        kind: "pause",
-        text: "Paused: approved planner artifacts changed after approval. Re-enter plan mode before continuing.",
-      }
-    case "replan_required":
-      return {
-        kind: "pause",
-        text: "Paused: execution now requires a planner re-entry before autonomous continuation can proceed.",
-      }
-    case "autonomous_disabled":
-      return { kind: "pause", text: "Autonomous continuation is disabled, so I am waiting for your next instruction." }
     case "subagent_session":
       return { kind: "pause", text: "Autonomous continuation only runs for root sessions." }
   }
@@ -1050,130 +666,26 @@ export function shouldInterruptAutonomousRun(input: {
 
 export async function decideAutonomousContinuation(input: {
   sessionID: string
-  roundCount: number
   lastDecisionReason?: ContinuationDecisionReason
 }) {
-  // AI self-verification gate: validate pending beta admission before evaluating continuation
-  const quizResult = await validatePendingBetaAdmission(input.sessionID)
-  if (quizResult) {
-    if (quizResult.ok) {
-      // Passed — continue to normal evaluation (betaQuiz.status is now "passed")
-      log.info("beta admission passed via AI self-verification", { sessionID: input.sessionID })
-    } else if (quizResult.needsRetry) {
-      // First failure — re-fetch session with reflectionUsed=true, build reflection prompt
-      const freshSession = await Session.get(input.sessionID)
-      const reflectionText = buildBetaAdmissionPrompt(freshSession, true)
-      const todos = await Todo.get(input.sessionID)
-      const todo = todos.find((t) => t.status === "pending" || t.status === "in_progress")
-      return {
-        continue: true as const,
-        reason: "todo_pending" as const,
-        text: reflectionText,
-        todo: todo ?? { id: "beta_admission_retry", content: "Beta admission reflection retry", status: "pending" as const, priority: "high" as const },
-      }
-    } else {
-      // Hard block after reflection
-      return { continue: false as const, reason: "product_decision_needed" as const }
-    }
-  }
-
   const session = await Session.get(input.sessionID)
   const todos = await Todo.get(input.sessionID)
-  const activeSubtasks = await countActiveSubtasks(input.sessionID)
-  const [pendingApprovals, pendingQuestions] = await Promise.all([
-    countPendingApprovals(input.sessionID),
-    countPendingQuestions(input.sessionID),
-  ])
   const decision = evaluateAutonomousContinuation({
     session,
     todos,
-    roundCount: input.roundCount,
-    activeSubtasks,
-    pendingApprovals,
-    pendingQuestions,
     lastDecisionReason: input.lastDecisionReason,
   })
   debugCheckpoint("workflow", "continuation_decision", {
     sessionID: input.sessionID,
     continue: decision.continue,
     reason: decision.reason,
-    roundCount: input.roundCount,
     todosTotal: todos.length,
     todosPending: todos.filter((t) => t.status === "pending").length,
     todosInProgress: todos.filter((t) => t.status === "in_progress").length,
     todosCompleted: todos.filter((t) => t.status === "completed").length,
-    activeSubtasks,
-    pendingApprovals,
-    pendingQuestions,
     workflowState: session.workflow?.state,
-    missionExists: !!session.mission,
-    missionReady: session.mission?.executionReady,
   })
-  // NOTE: subagent completion collection is handled by collectCompletedSubagents()
-  // at the runloop boundary in prompt.ts, BEFORE this decision function is called.
-  // This function only decides whether to continue — it does not collect results.
-  if (decision.continue && session.mission) {
-    const missionConsumption = await consumeMissionArtifacts(session.mission)
-    if (!missionConsumption.ok) {
-      const specDirty = missionConsumption.issues.some((issue) => issue.startsWith("spec_dirty:"))
-      await RuntimeEventService.append({
-        sessionID: input.sessionID,
-        level: "warn",
-        domain: "anomaly",
-        eventType: specDirty ? "workflow.spec_dirty" : "workflow.mission_not_consumable",
-        anomalyFlags: [specDirty ? "spec_dirty" : "mission_not_consumable"],
-        payload: {
-          issues: missionConsumption.issues,
-          consumedArtifacts: missionConsumption.consumedArtifacts,
-        },
-      }).catch(() => undefined)
-      return {
-        continue: false as const,
-        reason: specDirty ? ("spec_dirty" as const) : ("mission_not_consumable" as const),
-      }
-    }
-  }
-  const mismatch = detectWaitSubagentMismatch({
-    todos,
-    activeSubtasks,
-    decision: {
-      continue: decision.continue,
-      reason: decision.reason,
-    },
-  })
-  if (mismatch) {
-    await RuntimeEventService.append({
-      sessionID: input.sessionID,
-      level: "warn",
-      domain: "anomaly",
-      eventType: "workflow.unreconciled_wait_subagent",
-      todoID: mismatch.waitingTodoIDs[0],
-      anomalyFlags: [mismatch.anomalyCode],
-      payload: mismatch,
-    }).catch(() => undefined)
-  }
   return decision
-}
-
-async function countPendingApprovals(sessionID: string) {
-  return (await PermissionNext.list()).filter((item) => item.sessionID === sessionID).length
-}
-
-async function countPendingQuestions(sessionID: string) {
-  return (await Question.list()).filter((item) => item.sessionID === sessionID).length
-}
-
-async function countActiveSubtasks(sessionID: string) {
-  let active = 0
-  for await (const message of MessageV2.stream(sessionID)) {
-    if (message.info.role !== "assistant") continue
-    for (const part of message.parts) {
-      if (part.type !== "tool") continue
-      if (part.tool !== "task") continue
-      if (part.state.status === "pending" || part.state.status === "running") active++
-    }
-  }
-  return active
 }
 
 function queueKey(sessionID: string) {
@@ -1547,27 +1059,10 @@ export async function enqueueAutonomousContinue(input: {
   user: MessageV2.User
   text?: string
   roundCount?: number
-  delegation?: {
-    role: "coding" | "testing" | "docs" | "review" | "generic"
-    source: "todo_action" | "todo_content" | "mission_validation" | "generic"
-    todoID: string
-    todoContent: string
-  }
 }) {
   const now = Date.now()
   const session = await Session.get(input.sessionID)
-  const text =
-    input.text ??
-    (input.delegation && input.delegation.role !== "generic"
-      ? applyBetaWorkflowContract({
-          text: `Continue with the next planned ${input.delegation.role} step: ${input.delegation.todoContent}`,
-          session,
-        })
-      : applyBetaWorkflowContract({ text: AUTONOMOUS_CONTINUE_TEXT, session }))
-  const missionConsumption = session.mission ? await consumeMissionArtifacts(session.mission) : undefined
-  if (session.mission && missionConsumption && !missionConsumption.ok) {
-    throw new Error(`mission_not_consumable:${missionConsumption.issues.join("; ")}`)
-  }
+  const text = input.text ?? applyRunnerContract(AUTONOMOUS_CONTINUE_TEXT)
   const pinnedModel = session.execution
     ? {
         providerId: session.execution.providerId,
@@ -1622,9 +1117,6 @@ export async function enqueueAutonomousContinue(input: {
     messageID: message.id,
     metadata: {
       modelArbitration: arbitration.trace,
-      mission: buildMissionMetadata(session),
-      missionConsumption: missionConsumption?.ok ? missionConsumption.trace : undefined,
-      delegation: input.delegation,
     },
   })
   await enqueuePendingContinuation({
@@ -1639,8 +1131,8 @@ export async function enqueueAutonomousContinue(input: {
 }
 
 // Re-export trigger types for consumers
-export { type RunTrigger, type TriggerGateResult, type TriggerPriority, type TriggerGatePolicy } from "./trigger"
-export { buildContinuationTrigger, buildApiTrigger, CONTINUATION_GATE_POLICY, API_GATE_POLICY } from "./trigger"
+export { type RunTrigger, type TriggerPriority } from "./trigger"
+export { buildContinuationTrigger, buildApiTrigger } from "./trigger"
 
 /**
  * Collect completed subagent results from the RunQueue.

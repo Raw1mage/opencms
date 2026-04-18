@@ -59,55 +59,6 @@ describe("session execution identity", () => {
     })
   })
 
-  it("persists approved mission contracts on the session", async () => {
-    await using tmp = await tmpdir()
-    await Instance.provide({
-      directory: tmp.path,
-      fn: async () => {
-        const session = await Session.create({})
-        await Session.setMission({
-          sessionID: session.id,
-          mission: {
-            source: "openspec_compiled_plan",
-            contract: "implementation_spec",
-            approvedAt: 123,
-            planPath: "plans/20260315_test/implementation-spec.md",
-            executionReady: true,
-            artifactPaths: {
-              root: "plans/20260315_test",
-              implementationSpec: "plans/20260315_test/implementation-spec.md",
-              proposal: "plans/20260315_test/proposal.md",
-              spec: "plans/20260315_test/spec.md",
-              design: "plans/20260315_test/design.md",
-              tasks: "plans/20260315_test/tasks.md",
-              handoff: "plans/20260315_test/handoff.md",
-            },
-          },
-        })
-
-        const updated = await Session.get(session.id)
-        expect(updated.mission).toEqual({
-          source: "openspec_compiled_plan",
-          contract: "implementation_spec",
-          approvedAt: 123,
-          planPath: "plans/20260315_test/implementation-spec.md",
-          executionReady: true,
-          artifactPaths: {
-            root: "plans/20260315_test",
-            implementationSpec: "plans/20260315_test/implementation-spec.md",
-            proposal: "plans/20260315_test/proposal.md",
-            spec: "plans/20260315_test/spec.md",
-            design: "plans/20260315_test/design.md",
-            tasks: "plans/20260315_test/tasks.md",
-            handoff: "plans/20260315_test/handoff.md",
-          },
-        })
-
-        await Session.clearMission(session.id)
-        const cleared = await Session.get(session.id)
-        expect(cleared.mission).toBeUndefined()
-        await Session.remove(session.id)
-      },
-    })
-  })
+  // Mission contract + Session.setMission/clearMission removed 2026-04-18.
+  // Autonomous runner is todolist-driven; mission binding was dead code.
 })
