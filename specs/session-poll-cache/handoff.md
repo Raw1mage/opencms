@@ -55,6 +55,88 @@ After 目標（AC-1/AC-2）：
 - `/message` p95 < 5 ms（cache hit）
 - 304 比例 > 95%（當 session 無寫入）
 
+## Phase 6 Ops Runbook
+
+**Required before promoting the plan to `verified`.** AC-1 and AC-2 are
+CPU / latency numbers that can only be honest when measured against a
+live daemon. The test suite cannot substitute.
+
+### 1. Prerequisites
+
+- A daemon running the `beta/session-poll-cache` branch (fetch-back not
+  yet required — the script can target any daemon reachable over HTTP).
+- A session ID that the daemon knows about with ≥5 messages so cache
+  hit / miss behavior is observable.
+- The daemon's PID if you want CPU sampling (optional but recommended).
+
+### 2. Baseline run — cache off
+
+```bash
+# Start daemon with OPENCODE_TWEAKS_PATH pointing to a temp file:
+printf "session_cache_enabled=0\n" > /tmp/tweaks.baseline.cfg
+OPENCODE_TWEAKS_PATH=/tmp/tweaks.baseline.cfg <your usual daemon start>
+
+# In another terminal, 5-minute polling at 20 QPS:
+bun run script/session-poll-bench.ts \
+  --base=http://localhost:1080 \
+  --session=ses_<id> \
+  --qps=20 \
+  --seconds=300 \
+  --daemon-pid=<pid> \
+  > /tmp/bench-baseline.json
+```
+
+Record from `/tmp/bench-baseline.json`:
+
+- `latency_ms.p50`, `p95`
+- `cpu_summary.avg_ticks_per_sample` → normalize to % by dividing by
+  `(cpu_sample_sec * <USER_HZ>)` — `getconf CLK_TCK` gives USER_HZ
+  (usually 100)
+
+### 3. After run — cache on (default)
+
+```bash
+printf "" > /tmp/tweaks.cache.cfg   # empty = all defaults
+OPENCODE_TWEAKS_PATH=/tmp/tweaks.cache.cfg <restart daemon>
+
+bun run script/session-poll-bench.ts \
+  --base=http://localhost:1080 \
+  --session=ses_<id> \
+  --qps=20 \
+  --seconds=300 \
+  --daemon-pid=<pid> \
+  > /tmp/bench-cache.json
+```
+
+### 4. Verify AC-1 / AC-2
+
+Compare both JSON files:
+
+- **AC-1**: baseline avg CPU ≥30%; cache-on avg CPU <10%. If not, some
+  other polling source is still hitting the daemon — stop those and retry.
+- **AC-2**: in `/tmp/bench-cache.json`, `ratios.status_304` should be
+  >0.95 because the bench echoes `If-None-Match` on every request after
+  the first 200.
+
+Copy the numbers into `docs/events/event_2026-04-19_session-poll-cache.md`
+under a new "## Phase 6 ops result" section.
+
+### 5. Optional — stress run (AC-4 live)
+
+If you want a live confirmation on top of the unit test:
+
+```bash
+bun run script/session-poll-bench.ts \
+  --base=http://localhost:1080 \
+  --session=ses_<id> \
+  --qps=100 \
+  --seconds=60
+```
+
+`report.requests.by_status` should include a 429 entry; the bench
+doesn't decode Retry-After itself but any 429 proves the middleware
+fired. The unit test already asserts Retry-After header + body shape.
+
 ## Post-merge Follow-ups (not in this plan)
 
 以下項目**不在**本 plan 範圍，完成後記錄於 handoff 供未來 plan 參考：

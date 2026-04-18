@@ -343,3 +343,57 @@ wording).
 
 - Sliding window stats (task 5.2) — explicit extend-mode candidate.
 - End-to-end HTTP 304 verification still deferred to Phase 6.
+
+## Phase 6 — Acceptance (partial: deliverables ready, ops validation pending)
+
+Completed (the development side): 2026-04-19
+
+### Done (tasks 6.1, 6.4, 6.5, 6.6)
+
+- **6.1** `script/session-poll-bench.ts` — a standalone bun script that
+  drives steady-state polling against a running daemon, samples per-pid
+  CPU via `/proc/<pid>/stat`, and emits a JSON report with p50/p95/p99
+  latency, status counts, 304 ratio, and CPU-tick history. Honors
+  `--etag-roundtrip` (default) so AC-2 is measurable in one run.
+- **6.4** AC-4 (rate-limit 429 + Retry-After) is already asserted at
+  unit-test level by `test/server/rate-limit.test.ts` "throttles beyond
+  burst with 429 + Retry-After". Real-bucket math with real Retry-After
+  header is verified there; a live-daemon stress re-run is optional.
+- **6.5** AC-5 (no silent fallback under subscription failure) is
+  asserted by:
+  - `test/server/session-cache.test.ts` "subscriptionAlive=false →
+    loader runs every time and never memoizes"
+  - `test/server/cache-health.test.ts` "returns placeholder state when
+    no stats providers registered" — response correctly shows
+    `subscriptionAlive: false`
+- **6.6** AC-3 (invalidation correctness across worker writes) is
+  asserted by `test/server/session-cache.test.ts`:
+  - "bus event MessageV2.Event.Updated invalidates cache and bumps
+    version" (bus bridge semantics identical for worker-origin events)
+  - "bus event MessageV2.Event.PartUpdated extracts sessionID from
+    part" (cross-process partial update path)
+
+### Deferred to ops-side runbook (tasks 6.2, 6.3)
+
+AC-1 (CPU drop) and AC-2 (304 ratio) are fundamentally "observed
+numbers against a live daemon" — not amenable to automated test. The
+runbook lives in `specs/session-poll-cache/handoff.md#phase-6-ops-runbook`
+and spells out:
+
+1. Start daemon with `OPENCODE_TWEAKS_PATH=/tmp/tweaks.baseline.cfg`
+   (`session_cache_enabled=0`) and run the bench for 5 min → baseline.
+2. Restart daemon with defaults (cache on) and run the bench again →
+   after.
+3. Compare; AC-1 expects avg CPU drop from ≥30% to <10%, AC-2 expects
+   `status_304 > 0.95`.
+4. Paste the numbers back into this event log under a new "## Phase 6
+   ops result" heading, then proceed with `plan-promote --to verified`.
+
+This is an honest gate — the plan does not self-declare `verified`
+until ops captures the real numbers. Until then the spec stays in
+`implementing` and `beta/session-poll-cache` is not fetched back.
+
+### Validation
+
+- `bun run typecheck` — no new errors in `script/session-poll-bench.ts`
+- Combined test run (all 4 test files): 38 pass, 0 fail

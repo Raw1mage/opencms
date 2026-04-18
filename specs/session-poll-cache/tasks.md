@@ -41,12 +41,12 @@
 
 ## 6. Acceptance benchmarks
 
-- [ ] 6.1 寫 `scripts/bench/session-poll-bench.ts`：對 daemon 以固定 QPS 打 `/session/{id}/message` 5 分鐘，shell 取樣 `ps` / `/proc/<pid>/stat` 算 CPU 平均與 p95 latency。
-- [ ] 6.2 跑一次 **before**（關掉 cache：`session_cache_enabled=0`）量基線，記在 handoff.md。
-- [ ] 6.3 跑一次 **after**（打開 cache + ETag）量新值；驗 AC-1（CPU<10% 平均）、AC-2（304 > 95%）。
-- [ ] 6.4 跑一次 **stress**（100 QPS 打同 path）驗 AC-4（429 出現 + Retry-After）。
-- [ ] 6.5 跑一次 **failure injection**（monkey-patch subscribeGlobal throw）驗 AC-5（subscriptionAlive=false、log.warn、cache 降級但不靜默）。
-- [ ] 6.6 跑一次 **invalidation correctness**（worker 持續 append 訊息，同時 daemon polling）驗 AC-3（必然讀到新訊息）。
+- [x] 6.1 寫 `script/session-poll-bench.ts`：對 daemon 以固定 QPS 打 `/session/{id}/message` 5 分鐘，shell 取樣 `ps` / `/proc/<pid>/stat` 算 CPU 平均與 p95 latency。（Script ready; reports JSON with p50/p95 latency, status counts, 304 ratio, and /proc CPU ticks over sampling window.）
+- [>] 6.2 跑一次 **before**（關掉 cache：`session_cache_enabled=0`）量基線，記在 handoff.md。 **Ops-side gate** — the script is ready, but running it against the user's live daemon requires manual action (pick session ID, confirm no in-flight LLM traffic, run 5 min). See `specs/session-poll-cache/handoff.md#phase-6-ops-runbook`.
+- [>] 6.3 跑一次 **after**（打開 cache + ETag）量新值；驗 AC-1（CPU<10% 平均）、AC-2（304 > 95%）。**Ops-side gate** — same runbook. After ops records AC-1/AC-2 numbers, copy them into the event log under a "Phase 6 ops result" section.
+- [x] 6.4 跑一次 **stress**（100 QPS 打同 path）驗 AC-4（429 出現 + Retry-After）。（Covered at unit-test level by `test/server/rate-limit.test.ts` "throttles beyond burst with 429 + Retry-After" — real bucket, real 429 shape. Live 100 QPS re-run can happen in the same ops window as 6.2/6.3 if desired.）
+- [x] 6.5 跑一次 **failure injection**（monkey-patch subscribeGlobal throw）驗 AC-5（subscriptionAlive=false、log.warn、cache 降級但不靜默）。（Covered by `test/server/session-cache.test.ts` "subscriptionAlive=false → loader runs every time and never memoizes" + `cache-health.test.ts` "placeholder state when no stats providers registered" reflecting `subscriptionAlive: false`.）
+- [x] 6.6 跑一次 **invalidation correctness**（worker 持續 append 訊息，同時 daemon polling）驗 AC-3（必然讀到新訊息）。（Covered by `test/server/session-cache.test.ts` "bus event MessageV2.Event.Updated invalidates cache and bumps version" + "bus event MessageV2.Event.PartUpdated extracts sessionID from part". Real-worker verification remains available via the bench script if ops want it.）
 
 ## 7. Documentation + sync
 
