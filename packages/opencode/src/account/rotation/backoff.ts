@@ -116,7 +116,23 @@ export function parseRateLimitReason(
       return "QUOTA_EXHAUSTED"
     }
 
-    if (lower.includes("quota")) {
+    // @plans/codex-rotation-hotfix Phase 4 — belt-and-suspenders for the codex
+    // 5H window. Even when cockpit is offline or the error stream is parsed
+    // before the quota fetcher responds, these message patterns force a
+    // QUOTA_EXHAUSTED classification so the account does not silently cycle
+    // through the short RPM backoff path.
+    if (
+      lower.includes("5 hour limit") ||
+      lower.includes("5-hour limit") ||
+      lower.includes("five hour limit") ||
+      lower.includes("response_time_window_exhausted") ||
+      lower.includes("response time window exhausted") ||
+      lower.includes("usage limit reached") ||
+      lower.includes("usage limit has been reached") ||
+      lower.includes("usage limit exceeded") ||
+      lower.includes("weekly limit") ||
+      lower.includes("weekly usage")
+    ) {
       return "QUOTA_EXHAUSTED"
     }
 
