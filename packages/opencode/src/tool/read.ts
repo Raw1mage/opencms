@@ -50,10 +50,14 @@ export const ReadTool = Tool.define("read", {
 
       if (!dirExists) {
         const matches: string[] = []
-        const glob = new Bun.Glob(`**/${base}`)
-        for await (const item of glob.scan({ cwd: Instance.worktree, onlyFiles: true })) {
-          matches.push(path.join(Instance.worktree, item))
-          if (matches.length >= 3) break
+        try {
+          const glob = new Bun.Glob(`**/${base}`)
+          for await (const item of glob.scan({ cwd: Instance.worktree, onlyFiles: true })) {
+            matches.push(path.join(Instance.worktree, item))
+            if (matches.length >= 3) break
+          }
+        } catch (err: any) {
+          if (err?.code !== "EACCES" && err?.code !== "EPERM") throw err
         }
         if (matches.length > 0) {
           throw new Error(`File not found: ${filepath}\n\nDid you mean one of these?\n${matches.join("\n")}`)
@@ -201,6 +205,14 @@ export const ReadTool = Tool.define("read", {
       output += `\n\n(End of file - total ${totalLines} lines)`
     }
     output += "\n</file>"
+
+    if (path.basename(filepath) === "SKILL.md") {
+      output +=
+        "\n\n<skill_advisory>\n" +
+        "Reading of SKILL.md is detected.\n" +
+        "If you intend to load a skill, use skill() instead, else just go ahead.\n" +
+        "</skill_advisory>"
+    }
 
     // just warms the lsp client
     LSP.touchFile(filepath, false)

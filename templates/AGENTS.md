@@ -8,7 +8,7 @@
 **啟動後只需載入最小必要底盤：**
 
 1.  **載入工作流**：`skill(name="agent-workflow")`
-    - _目的_：獲取 planner-first + delegation-first 的 autorunner 工作流契約。
+    - _目的_：獲取 plan-builder-first + delegation-first 的 autorunner 工作流契約。
 
 其餘 skills（如 `model-selector`、`mcp-finder`、`skill-finder`、`software-architect`）均為 **on-demand**，不應在 bootstrap 預設加載。
 
@@ -114,7 +114,7 @@
 
 - 預設策略：避免頻繁切換 model / account；優先在當前 session execution identity 下完成工作。
 - 若任務真的需要額外模型策略分析，才 on-demand 使用 `model-selector` 或 `system-manager`。
-- 不要把模型切換當成 autorunner 的日常主路徑；autorunner 的主要問題應先由 planner / workflow / delegation contract 解決。
+- 不要把模型切換當成 autorunner 的日常主路徑；autorunner 的主要問題應先由 plan-builder / workflow / delegation contract 解決。
 
 ## 5. 指揮官紅線 (Commander's Red Lines)
 
@@ -171,7 +171,7 @@
    - 若框架文件不足，應在本次任務中補齊，而不是接受知識缺口常態化。
 
 8. **Plan / Spec Lifecycle Contract（規劃、實作、升格的強制規則）**
-   - **Active plan/build workspace 一律在 `/plans/`**：planner 與 build mode 進行中的 dated plan roots 必須建立於 `/plans/<YYYYMMDD>_<slug>/`；AGENTS 不得再把 dated roots 的進行中計畫導向 `/specs/`。
+   - **Active plan/build workspace 一律在 `/plans/`**：plan-builder 與 build mode 進行中的 dated plan roots 必須建立於 `/plans/<YYYYMMDD>_<slug>/`；AGENTS 不得再把 dated roots 的進行中計畫導向 `/specs/`。
    - **`specs/architecture.md` 仍是架構單一真相來源**：長期架構、模組邊界、資料流、狀態機、runtime flows 仍以 `specs/architecture.md` 為準，不因 active plans 移到 `/plans/` 而改變。
    - **Formalized specs 採 semantic per-feature roots**：只有已正式沉澱、需長期維護的功能規格才放入 `/specs/<feature>/`；`/specs/` 不承接進行中的 dated execution roots。
    - **Tasks Checklist 即時同步**：當 coding agent 依據 `/plans/<YYYYMMDD>_<slug>/` 下的計畫文件實作時，每完成一個 task item，立即更新對應 `tasks.md` 的 checkbox（`[ ]` → `[x]`）。若 task 不適用或需拆分，標記 `[~] <reason>`。禁止所有工作完成後才一次性勾選。

@@ -50,6 +50,7 @@ Everything else you do yourself:
 ### 2.4 Skill Loading
 
 - When a task matches an available skill, load it yourself with `skill()` **before** any other action. This is instinct, not a decision.
+- **`skill()` is the only supported load path.** Reading `SKILL.md` via the `read` tool does NOT load the skill — it bypasses `SkillLayerRegistry`, so sidebar visibility, pin/summarize/unload, and token accounting all break. Only use `read` on `SKILL.md` when you are **developing or reviewing** the skill itself, never when you want to **use** it.
 - Subagents can also load skills for their own context. When delegating coding/explore tasks that have a matching skill, instruct the subagent to load it as their first action.
 
 ### 2.5 Planning-First Flow
@@ -58,10 +59,12 @@ For non-trivial multi-step or architecture-sensitive work, enter plan mode befor
 
 **Skill loading (mandatory before any plan work):**
 
-1. `planner` — full methodology: artifact definitions, workflow phases, validation checklist, traceability chain.
+Call `skill({name: "<name>"})` as your first tool calls in plan mode:
+
+1. `plan-builder` — full methodology: artifact definitions, workflow phases, validation checklist, traceability chain.
 2. `miatdiagram` — IDEF0 functional decomposition + GRAFCET state machine modeling. Required for `idef0.json`, `grafcet.json`.
 
-Both skills MUST be loaded. IDEF0/GRAFCET artifacts are mandatory parts of the plan spec, not optional.
+Both skills MUST be loaded via `skill()`. Reading their `SKILL.md` files does not count as loading. IDEF0/GRAFCET artifacts are mandatory parts of the plan spec, not optional.
 
 **Mode contract:**
 

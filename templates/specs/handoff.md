@@ -6,7 +6,7 @@
 - Build/implementation agent must read `tasks.md` before coding.
 - Runtime todo must be materialized from `tasks.md` before execution continues.
 - Build/implementation agent must not resume from discussion memory alone when this plan package is available.
-- User-visible progress and decision prompts must reuse the same planner-derived todo naming.
+- User-visible progress and decision prompts must reuse the same plan-builder-derived todo naming.
 
 ## Required Reads
 
@@ -19,7 +19,7 @@
 ## Stop Gates In Force
 
 - Preserve approval, decision, and blocker gates from `implementation-spec.md`.
-- Return to plan mode before coding if a new implementation slice is not represented in planner artifacts.
+- Return to plan mode before coding if a new implementation slice is not represented in plan-builder artifacts.
 - Do not create a brand-new sibling plan unless the user explicitly requests it, or explicitly approves an assistant proposal to branch.
 
 ## Execution-Ready Checklist

@@ -24,7 +24,7 @@
 - [ ] 4.3 Produce a validation checklist covering requirement satisfaction, gaps, deferred items, and evidence
 
 <!--
-Unchecked checklist items are the planner handoff seed for runtime todo materialization.
+Unchecked checklist items are the plan-builder handoff seed for runtime todo materialization.
 Checked items may remain for human readability, but they are not used as new todo seeds.
 Runtime todo is the visible execution ledger and must not be replaced by a private parallel checklist.
 -->

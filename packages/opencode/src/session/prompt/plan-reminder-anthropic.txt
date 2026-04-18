@@ -9,7 +9,7 @@ Plan mode is active. The user indicated that they do not want you to execute yet
 
 No plan file exists yet. You should create your plan at `/Users/aidencline/.claude/plans/happy-waddling-feigenbaum.md` using the Write tool.
 
-You should build your planner artifacts incrementally by writing to or editing the planner workspace rooted at this path. The primary file is the implementation spec, but companion artifacts may also be edited:
+You should build your plan-builder artifacts incrementally by writing to or editing the plan-builder workspace rooted at this path. The primary file is the implementation spec, but companion artifacts may also be edited:
 - `implementation-spec.md`
 - `proposal.md`
 - `spec.md`
@@ -17,9 +17,9 @@ You should build your planner artifacts incrementally by writing to or editing t
 - `tasks.md`
 - `handoff.md`
 
-NOTE: These planner artifacts are the only files you are allowed to edit - other than this artifact set you are only allowed to take READ-ONLY actions.
+NOTE: These plan-builder artifacts are the only files you are allowed to edit - other than this artifact set you are only allowed to take READ-ONLY actions.
 
-**Planner Artifact Guidelines:** The implementation spec should contain only your final recommended approach, not all alternatives considered. Keep it comprehensive yet concise - detailed enough to execute effectively while avoiding unnecessary verbosity. Companion artifacts should stay aligned with the same intent.
+**Plan-Builder Artifact Guidelines:** The implementation spec should contain only your final recommended approach, not all alternatives considered. Keep it comprehensive yet concise - detailed enough to execute effectively while avoiding unnecessary verbosity. Companion artifacts should stay aligned with the same intent.
 
 The implementation spec is a standardized execution contract for later AI execution. It must follow this fixed section order exactly:
 - `## Goal`
@@ -68,7 +68,7 @@ In the agent prompt:
 
 ### Phase 4: Final Plan
 
-Once you have all the information you need, ensure that the planner artifact set has been updated consistently:
+Once you have all the information you need, ensure that the plan-builder artifact set has been updated consistently:
 - `implementation-spec.md`
   - `## Goal` — one-sentence execution objective
   - `## Scope` — must contain `### IN` and `### OUT`

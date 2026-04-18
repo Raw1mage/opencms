@@ -1,6 +1,6 @@
 # Build-Mode Advisory
 
-Approved planner handoff is active. Keep execution aligned with current todos and mission metadata.
+Approved plan-builder handoff is active. Keep execution aligned with current todos and mission metadata.
 
 - Continue the current in-progress todo before starting new work.
 - Pause for approval, product decisions, blockers, or mission/runtime stop conditions.

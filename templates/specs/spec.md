@@ -14,11 +14,11 @@ The system SHALL <behavior>.
 - **WHEN** <action>
 - **THEN** <outcome>
 
-### Requirement: Runtime todo derives from planner tasks
-The system SHALL treat planner `tasks.md` unchecked checklist items as the runtime todo seed.
+### Requirement: Runtime todo derives from plan-builder tasks
+The system SHALL treat plan-builder `tasks.md` unchecked checklist items as the runtime todo seed.
 
 #### Scenario: plan is approved for execution
-- **GIVEN** planner artifacts are execution-ready
+- **GIVEN** plan-builder artifacts are execution-ready
 - **WHEN** the plan is materialized into runtime execution
 - **THEN** runtime todo must be derived from `tasks.md`, not from ad hoc conversational checklists
 
@@ -28,7 +28,7 @@ The system SHALL extend the existing plan root for the same workstream instead o
 #### Scenario: a new idea or bug appears within the same workstream
 - **GIVEN** an existing plan already captures the active workstream
 - **WHEN** follow-up scope, fixes, or design slices are added
-- **THEN** the planner must update the same plan root unless the user explicitly requests or approves a new plan
+- **THEN** the plan-builder must update the same plan root unless the user explicitly requests or approves a new plan
 
 ### Requirement: New plans require user-approved branching
 The system SHALL only create a new plan root when the user explicitly requests one, or explicitly approves the assistant's proposal to branch.

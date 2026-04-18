@@ -215,7 +215,7 @@ Instructions from: $XDG_CONFIG_HOME/opencode/AGENTS.md (fallback: $HOME/.config/
 - **執行流程**:
   1.  **初始化 (Initialization)**:
       - 務必**靜默載入 (Silent Load)** 以下核心技能：
-        - `agent-workflow`: 載入 planner-first、delegation-first 的標準作業程序。
+        - `agent-workflow`: 載入 plan-builder-first、delegation-first 的標準作業程序。
   2.  **任務拆解 (Decomposition)**:
       - 將複雜需求分解為原子化步驟。
       - 預設在當前 session execution identity 下工作，並使用 `Task` 工具委派最合適的 Subagent。

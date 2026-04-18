@@ -440,4 +440,37 @@ describe("tool.read binary detection", () => {
       },
     })
   })
+
+  test("appends skill_advisory when reading SKILL.md", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(path.join(dir, "SKILL.md"), "---\nname: demo\ndescription: demo skill\n---\nbody")
+      },
+    })
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const read = await ReadTool.init()
+        const result = await read.execute({ filePath: path.join(tmp.path, "SKILL.md") }, ctx)
+        expect(result.output).toContain("<skill_advisory>")
+        expect(result.output).toContain("use skill() instead")
+      },
+    })
+  })
+
+  test("does not append skill_advisory for regular markdown", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(path.join(dir, "README.md"), "regular content")
+      },
+    })
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const read = await ReadTool.init()
+        const result = await read.execute({ filePath: path.join(tmp.path, "README.md") }, ctx)
+        expect(result.output).not.toContain("<skill_advisory>")
+      },
+    })
+  })
 })
