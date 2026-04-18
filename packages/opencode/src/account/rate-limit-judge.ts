@@ -18,6 +18,7 @@
 import { Log } from "../util/log"
 import { Bus } from "../bus"
 import { BusEvent } from "../bus/bus-event"
+import { NamedError } from "@opencode-ai/util/error"
 import z from "zod"
 import {
   isRateLimitError as _isRateLimitError,
@@ -131,15 +132,36 @@ export type BackoffStrategy = "cockpit" | "counter" | "passive"
 
 /**
  * Determine the backoff detection strategy for a provider.
- * - cockpit: OpenAI — query live quota API for quota-window based backoff
+ * - cockpit: OpenAI / codex — query live quota API for quota-window based backoff
+ *   (both families are ChatGPT subscription; they share the wham/usage endpoint)
  * - counter: gemini-cli/google-api — use RequestMonitor RPM/RPD counts
  * - passive: everyone else — rely on error response only
  */
 export function getBackoffStrategy(providerId: string): BackoffStrategy {
-  if (providerId === "openai") return "cockpit"
+  if (providerId === "openai" || providerId === "codex") return "cockpit"
   if (providerId === "gemini-cli" || providerId === "google-api") return "counter"
   return "passive"
 }
+
+// Families whose cockpit strategy is backed by the wham/usage endpoint.
+// Used by fetchCockpitBackoff to accept codex alongside openai.
+const COCKPIT_WHAM_USAGE_FAMILIES = new Set<string>(["openai", "codex"])
+
+// @plans/codex-rotation-hotfix Phase 3 — codex family is hard-coded to
+// same-provider-only fallback. When every codex subscription account has
+// exhausted its 5H/weekly quota, the rotation pool becomes empty. Raising
+// this error (instead of returning null silently) gives the operator a
+// codex-specific next step: wait for 5H reset or switch provider manually.
+export const CodexFamilyExhausted = NamedError.create(
+  "CodexFamilyExhausted",
+  z.object({
+    providerId: z.string(),
+    accountId: z.string(),
+    modelId: z.string(),
+    triedCount: z.number(),
+    message: z.string(),
+  }),
+)
 
 // ============================================================================
 // Re-exports for convenience (so callers don't need to import rotation.ts)
@@ -533,6 +555,18 @@ export namespace RateLimitJudge {
  * 3. Converts exhausted hourly/weekly windows into a conservative cooldown
  * 4. Returns the quota-sourced backoff or the fallback value
  */
+// Exported for unit tests in packages/opencode/test/account/codex-cockpit-backoff.test.ts.
+// Not part of the public RateLimitJudge surface; callers should use
+// RateLimitJudge.markRateLimited which dispatches on getBackoffStrategy.
+export async function __testOnly_fetchCockpitBackoff(
+  providerId: string,
+  accountId: string,
+  modelId: string,
+  fallbackBackoffMs: number,
+): Promise<{ backoffMs: number; fromCockpit: boolean }> {
+  return fetchCockpitBackoff(providerId, accountId, modelId, fallbackBackoffMs)
+}
+
 async function fetchCockpitBackoff(
   providerId: string,
   accountId: string,
@@ -540,13 +574,22 @@ async function fetchCockpitBackoff(
   fallbackBackoffMs: number,
 ): Promise<{ backoffMs: number; fromCockpit: boolean }> {
   try {
-    if (providerId !== "openai") {
+    // @plans/codex-rotation-hotfix Phase 1 — codex joins the openai cockpit
+    // strategy. wham/usage is the same endpoint, codex OAuth tokens are the
+    // same shape, so we reuse getOpenAIQuota directly. If upstream ever
+    // diverges per-family, switch to a dispatch table here.
+    if (!COCKPIT_WHAM_USAGE_FAMILIES.has(providerId)) {
       return { backoffMs: fallbackBackoffMs, fromCockpit: false }
     }
 
     const { getOpenAIQuota } = await import("./quota/openai")
     const quota = await getOpenAIQuota(accountId, { waitFresh: true })
     if (!quota) {
+      log.info("cockpit quota unavailable — falling through to passive backoff", {
+        providerId,
+        accountId,
+        modelId,
+      })
       return { backoffMs: fallbackBackoffMs, fromCockpit: false }
     }
 
@@ -562,17 +605,27 @@ async function fetchCockpitBackoff(
     }
 
     if (fromCockpit) {
-      log.info("Got backoff from OpenAI quota", {
+      log.info("cockpit quota exhausted — applying backoff", {
         providerId,
         accountId,
         modelId,
+        hourlyRemaining: quota.hourlyRemaining,
+        weeklyRemaining: quota.weeklyRemaining,
         backoffMs,
+      })
+    } else {
+      log.info("cockpit quota healthy — no backoff imposed", {
+        providerId,
+        accountId,
+        modelId,
+        hourlyRemaining: quota.hourlyRemaining,
+        weeklyRemaining: quota.weeklyRemaining,
       })
     }
 
     return { backoffMs, fromCockpit }
   } catch (e) {
-    log.warn("Failed to fetch OpenAI quota backoff", {
+    log.warn("cockpit quota fetch failed — falling through to passive backoff", {
       providerId,
       accountId,
       modelId,
