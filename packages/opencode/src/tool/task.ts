@@ -1985,6 +1985,12 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         const WATCHDOG_INTERVAL_MS = 5_000
         const SILENCE_THRESHOLD_MS = 90_000
         const DISK_GRACE_MS = 60_000
+        // Warmup: subagents are normally busy (spawning, loading context,
+        // first LLM call handshake) during the first minute, so silence
+        // accumulation is skipped for that window. Process-exit and
+        // disk-terminal checks remain active throughout so legitimate
+        // fast finishes / crashes are still caught.
+        const WATCHDOG_WARMUP_MS = 60_000
         const TERMINAL_FINISHES = ["stop", "error", "length", "canceled"]
 
         type ProcSample = {
@@ -2048,6 +2054,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         }>((resolveWD) => {
           let prev: ProcSample | null = null
           let silentSinceMs: number | null = null
+          const watchdogStartMs = Date.now()
           watchdogTimer = setInterval(async () => {
             try {
               const worker = assignedWorkerID ? workers.find((w) => w.id === assignedWorkerID) : undefined
@@ -2110,7 +2117,11 @@ export const TaskTool = Tool.define("task", async (ctx) => {
               prev = sample
 
               const now = Date.now()
-              if (alive) {
+              // Skip silence accumulation during warmup. Subagents spend
+              // the first ~minute on context load + initial LLM handshake,
+              // which looks identical to being dead from outside.
+              const withinWarmup = now - watchdogStartMs < WATCHDOG_WARMUP_MS
+              if (alive || withinWarmup) {
                 silentSinceMs = null
               } else {
                 if (silentSinceMs === null) silentSinceMs = now
