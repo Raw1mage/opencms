@@ -300,7 +300,7 @@ export namespace SessionProcessor {
           // for-await blocked forever. Watchdog resets on each event; on
           // no-progress it aborts the underlying fetch via a combined
           // AbortSignal, kicking control into the catch handler below.
-          const STREAM_IDLE_TIMEOUT_MS = 90_000
+          const STREAM_IDLE_TIMEOUT_MS = 60_000
           const idleController = new AbortController()
           const originalStreamAbort = streamInput.abort
           streamInput.abort = AbortSignal.any([originalStreamAbort, idleController.signal])

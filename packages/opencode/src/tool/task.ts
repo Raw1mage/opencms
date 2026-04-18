@@ -1,6 +1,7 @@
 import { Tool } from "./tool"
 import DESCRIPTION from "./task.txt"
 import z from "zod"
+import { readdir, readFile } from "node:fs/promises"
 import { Session } from "../session"
 import { Bus } from "../bus"
 import { MessageV2 } from "../session/message-v2"
@@ -1934,33 +1935,6 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         }
         ctx.abort.addEventListener("abort", cleanup)
 
-        // Unconditional wait: never timeout a subagent.  Only give up when the
-        // worker subprocess is confirmed dead.  Periodic liveness checks log
-        // diagnostics but do NOT kill the worker.
-        const LIVENESS_CHECK_INTERVAL_MS = 30_000
-
-        const livenessTimer = setInterval(() => {
-          const worker = assignedWorkerID ? workers.find((w) => w.id === assignedWorkerID) : undefined
-          if (!worker) return // not yet assigned
-          const proc = worker.proc
-          const exited = proc.exitCode !== null || proc.killed
-          if (exited) {
-            Log.create({ service: "task" }).warn("Subagent worker process is dead", {
-              callID: ctx.callID,
-              sessionID: session.id,
-              workerID: assignedWorkerID,
-              exitCode: proc.exitCode,
-              elapsedMs: elapsedFromStart(),
-            })
-            // The stdout reader will handle cleanup via the exit path;
-            // just mark it stalled for observability.
-            if (ctx.callID) ProcessSupervisor.markStalled(ctx.callID)
-          } else {
-            // Touch supervisor to signal we're still alive.
-            if (ctx.callID) ProcessSupervisor.touch(ctx.callID)
-          }
-        }, LIVENESS_CHECK_INTERVAL_MS)
-
         let run: Awaited<ReturnType<typeof dispatchToWorker>>
         try {
           run = await dispatchToWorker({
@@ -1994,116 +1968,205 @@ export const TaskTool = Tool.define("task", async (ctx) => {
             firstEventMs: undefined,
           })
         } finally {
-          clearInterval(livenessTimer)
           ctx.abort.removeEventListener("abort", cleanup)
           unsub()
         }
 
-        // ── Direct completion channel + disk-based fallback ───────────
-        // Primary: await the worker's done promise (resolved by stdout reader).
-        // Two fallback paths cover hang scenarios:
-        //   1. Disk terminal finish — child wrote a terminal finish but the
-        //      done promise is stuck (worker post-loop cleanup hung).
-        //   2. No-progress timeout (Fix C) — worker is alive but not
-        //      producing events: neither terminal finish on disk nor
-        //      stdout bridge activity. Covers stream-stalled scenarios
-        //      (server accepted request but sent no body) even when the
-        //      child-side idle watchdog does not rescue itself.
-        const DISK_WATCHDOG_INTERVAL_MS = 5_000
-        const DISK_WATCHDOG_GRACE_MS = 60_000
-        const NO_PROGRESS_TIMEOUT_MS = 180_000
+        // ── Unified proc-scan watchdog ────────────────────────────────
+        // Replaces the old livenessTimer + disk-watchdog + no-progress
+        // watchdog. Every 5s polls the worker's linux process for any
+        // sign of activity:
+        //   1. Process exit code → immediate terminate
+        //   2. Disk terminal finish (past grace) → collect (worker done,
+        //      bridge just didn't get the message out)
+        //   3. CPU time / IO bytes / child processes — any tick = alive
+        // If all three activity signals stay flat for 90s AND there is
+        // no disk terminal finish, the worker is judged dead and killed.
+        const WATCHDOG_INTERVAL_MS = 5_000
+        const SILENCE_THRESHOLD_MS = 90_000
+        const DISK_GRACE_MS = 60_000
         const TERMINAL_FINISHES = ["stop", "error", "length", "canceled"]
 
-        let diskWatchdogTimer: ReturnType<typeof setInterval> | undefined
-        const diskCompletion = new Promise<{ ok: boolean; finish: string }>((resolveDisk) => {
-          diskWatchdogTimer = setInterval(async () => {
+        type ProcSample = {
+          cpu: number
+          readBytes: number
+          writeBytes: number
+          hasChildren: boolean
+        }
+        async function readProcSample(pid: number): Promise<ProcSample | null> {
+          try {
+            const stat = await readFile(`/proc/${pid}/stat`, "utf-8")
+            // Skip the first two fields (pid and `(comm)`); comm may contain spaces.
+            const rp = stat.lastIndexOf(")")
+            if (rp === -1) return null
+            const tail = stat.slice(rp + 2).trim().split(/\s+/)
+            // After comm: state(0) ppid(1) pgrp(2) session(3) tty_nr(4) tpgid(5)
+            // flags(6) minflt(7) cminflt(8) majflt(9) cmajflt(10) utime(11) stime(12)
+            const utime = Number(tail[11])
+            const stime = Number(tail[12])
+            const cpu = (Number.isFinite(utime) ? utime : 0) + (Number.isFinite(stime) ? stime : 0)
+            let readBytes = 0
+            let writeBytes = 0
             try {
-              // Path 1: terminal finish on disk past grace window.
-              const { messages: childMsgs } = await MessageV2.filterCompacted(MessageV2.stream(session.id))
-              const lastAssistant = childMsgs.findLast((m) => m.info.role === "assistant")
-              if (lastAssistant) {
-                const info = lastAssistant.info as MessageV2.Assistant
-                if (info.finish && TERMINAL_FINISHES.includes(info.finish)) {
-                  const completedAt = info.time?.completed
-                  if (completedAt) {
-                    const elapsed = Date.now() - completedAt
-                    if (elapsed >= DISK_WATCHDOG_GRACE_MS) {
-                      Log.create({ service: "task" }).warn("disk-based completion fallback triggered", {
+              const io = await readFile(`/proc/${pid}/io`, "utf-8")
+              for (const line of io.split("\n")) {
+                const [k, v] = line.split(": ")
+                if (k === "read_bytes") readBytes = Number(v) || 0
+                if (k === "write_bytes") writeBytes = Number(v) || 0
+              }
+            } catch {
+              // /proc/<pid>/io may be restricted; fall through
+            }
+            let hasChildren = false
+            try {
+              const tids = await readdir(`/proc/${pid}/task`)
+              for (const tid of tids) {
+                try {
+                  const kids = await readFile(`/proc/${pid}/task/${tid}/children`, "utf-8")
+                  if (kids.trim().length > 0) {
+                    hasChildren = true
+                    break
+                  }
+                } catch {
+                  // ignore unreadable task
+                }
+              }
+            } catch {
+              // /proc/<pid>/task gone; treat as no children
+            }
+            return { cpu, readBytes, writeBytes, hasChildren }
+          } catch {
+            return null
+          }
+        }
+
+        let watchdogTimer: ReturnType<typeof setInterval> | undefined
+        const watchdogCompletion = new Promise<{
+          resolution: "worker_dead" | "disk_terminal" | "silent_kill"
+          ok: boolean
+          finish: string
+        }>((resolveWD) => {
+          let prev: ProcSample | null = null
+          let silentSinceMs: number | null = null
+          watchdogTimer = setInterval(async () => {
+            try {
+              const worker = assignedWorkerID ? workers.find((w) => w.id === assignedWorkerID) : undefined
+              if (!worker) return // worker not yet assigned; skip this tick
+
+              // 1. Process exit
+              const proc = worker.proc
+              if (proc.exitCode !== null || proc.killed) {
+                Log.create({ service: "task" }).warn("proc-watchdog: worker process exited", {
+                  childSessionID: session.id,
+                  workerID: assignedWorkerID,
+                  exitCode: proc.exitCode,
+                })
+                if (ctx.callID) ProcessSupervisor.markStalled(ctx.callID)
+                resolveWD({ resolution: "worker_dead", ok: false, finish: "worker_exited" })
+                return
+              }
+
+              // Touch supervisor so monitor UI knows we're polling.
+              if (ctx.callID) ProcessSupervisor.touch(ctx.callID)
+
+              // 2. Disk terminal finish past grace
+              try {
+                const { messages: childMsgs } = await MessageV2.filterCompacted(MessageV2.stream(session.id))
+                const lastAssistant = childMsgs.findLast((m) => m.info.role === "assistant")
+                if (lastAssistant) {
+                  const info = lastAssistant.info as MessageV2.Assistant
+                  if (info.finish && TERMINAL_FINISHES.includes(info.finish)) {
+                    const completedAt = info.time?.completed
+                    if (completedAt && Date.now() - completedAt >= DISK_GRACE_MS) {
+                      Log.create({ service: "task" }).warn("proc-watchdog: disk terminal finish past grace", {
                         childSessionID: session.id,
-                        parentSessionID: ctx.sessionID,
-                        finish: info.finish,
-                        completedAt,
-                        elapsedMs: elapsed,
                         workerID: assignedWorkerID,
+                        finish: info.finish,
+                        elapsedMs: Date.now() - completedAt,
                       })
-                      console.error(`[DISK-WATCHDOG] ${session.id} fallback triggered: finish=${info.finish} elapsed=${elapsed}ms`)
-                      resolveDisk({ ok: info.finish === "stop", finish: info.finish })
+                      resolveWD({
+                        resolution: "disk_terminal",
+                        ok: info.finish === "stop",
+                        finish: info.finish,
+                      })
                       return
                     }
                   }
                 }
+              } catch {
+                // disk read failed — keep going, try again next tick
               }
 
-              // Path 2 (Fix C): worker has been silent too long.
-              const worker = assignedWorkerID ? workers.find((w) => w.id === assignedWorkerID) : undefined
-              if (worker?.current && worker.current.sessionID === session.id) {
-                const lastMark =
-                  worker.current.lastEventAt ??
-                  worker.current.firstEventAt ??
-                  worker.current.dispatchedAt ??
-                  worker.current.createdAt
-                const elapsedSinceEvent = Date.now() - lastMark
-                if (elapsedSinceEvent >= NO_PROGRESS_TIMEOUT_MS) {
-                  Log.create({ service: "task" }).warn("no-progress watchdog fallback triggered", {
+              // 3. Proc activity sample
+              const sample = await readProcSample(proc.pid as number)
+              if (!sample) {
+                // /proc gone — process likely vanished between exit-code check and here
+                return
+              }
+              const tickedCpu = prev && sample.cpu !== prev.cpu
+              const tickedIoRead = prev && sample.readBytes !== prev.readBytes
+              const tickedIoWrite = prev && sample.writeBytes !== prev.writeBytes
+              const alive = sample.hasChildren || tickedCpu || tickedIoRead || tickedIoWrite || !prev
+              prev = sample
+
+              const now = Date.now()
+              if (alive) {
+                silentSinceMs = null
+              } else {
+                if (silentSinceMs === null) silentSinceMs = now
+                const silentFor = now - silentSinceMs
+                if (silentFor >= SILENCE_THRESHOLD_MS) {
+                  Log.create({ service: "task" }).warn("proc-watchdog: worker silent past threshold — killing", {
                     childSessionID: session.id,
-                    parentSessionID: ctx.sessionID,
-                    elapsedSinceLastEventMs: elapsedSinceEvent,
-                    eventCount: worker.current.eventCount,
                     workerID: assignedWorkerID,
+                    silentMs: silentFor,
                   })
-                  console.error(`[DISK-WATCHDOG] ${session.id} no-progress fallback: elapsed=${elapsedSinceEvent}ms events=${worker.current.eventCount}`)
-                  resolveDisk({ ok: false, finish: "no_progress_timeout" })
+                  resolveWD({ resolution: "silent_kill", ok: false, finish: "no_progress_timeout" })
                 }
               }
             } catch {
-              // Non-fatal: retry on next interval
+              // Non-fatal — retry next interval
             }
-          }, DISK_WATCHDOG_INTERVAL_MS)
+          }, WATCHDOG_INTERVAL_MS)
         })
 
         let workerOk = true
         let workerError: string | undefined
-        let completionSource: "worker" | "disk" = "worker"
+        let completionSource: "worker" | "watchdog" = "worker"
+        let watchdogResolution: "worker_dead" | "disk_terminal" | "silent_kill" | undefined
         try {
           const outcome = await Promise.race([
-            run.done.then(() => ({ source: "worker" as const })),
-            diskCompletion.then((d) => ({ source: "disk" as const, ...d })),
+            run.done.then(() => ({ kind: "worker" as const })),
+            watchdogCompletion.then((d) => ({ kind: "watchdog" as const, ...d })),
           ])
-          completionSource = outcome.source
-          if (outcome.source === "worker") {
+          if (outcome.kind === "worker") {
+            completionSource = "worker"
             mark("worker_done_resolved")
           } else {
+            completionSource = "watchdog"
+            watchdogResolution = outcome.resolution
             workerOk = outcome.ok
             if (!outcome.ok) workerError = `child session finished with: ${outcome.finish}`
-            mark("worker_done_disk_fallback", { finish: outcome.finish, ok: outcome.ok })
+            mark("worker_done_watchdog_fallback", { resolution: outcome.resolution, ok: outcome.ok })
           }
         } catch (err) {
           workerOk = false
           workerError = err instanceof Error ? err.message : String(err)
           mark("worker_done_rejected", { error: workerError })
         } finally {
-          if (diskWatchdogTimer) clearInterval(diskWatchdogTimer)
-          // Always clear active child UI state — the floating status bar
-          // must disappear regardless of how the worker finishes.
+          if (watchdogTimer) clearInterval(watchdogTimer)
           await SessionActiveChild.set(ctx.sessionID, null).catch(() => undefined)
         }
-        if (completionSource === "disk") {
-          Log.create({ service: "task" }).warn("disk fallback: attempting to kill hung worker", {
-            childSessionID: session.id,
-            workerID: assignedWorkerID,
-          })
+        // Kill worker on disk_terminal (bridge stuck) or silent_kill (truly hung).
+        // worker_dead path has an already-exited process; nothing to kill.
+        if (completionSource === "watchdog" && watchdogResolution !== "worker_dead") {
           const worker = assignedWorkerID ? workers.find((w) => w.id === assignedWorkerID) : undefined
           if (worker) {
+            Log.create({ service: "task" }).warn("proc-watchdog: killing worker", {
+              childSessionID: session.id,
+              workerID: assignedWorkerID,
+              resolution: watchdogResolution,
+            })
             try { worker.proc.kill() } catch { /* already dead */ }
           }
         }
