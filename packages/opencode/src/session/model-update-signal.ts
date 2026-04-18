@@ -31,13 +31,26 @@ export function wait(sessionID: string): Promise<ModelUpdatePayload> {
   // so we don't leak promises.
   const existing = pending.get(sessionID)
   if (existing) {
+    // [rot-rca] Phase A instrument — detect RW-1 (new wait cancels old)
+    process.stderr.write(
+      `[rot-rca] signal wait-overwrite session=${sessionID} RW-1 prior-pending-dropped\n`,
+    )
     clearTimeout(existing.timer)
     pending.delete(sessionID)
   }
 
+  // [rot-rca] log every wait() invocation for chain timing
+  const __rotRcaWaitRegisterTs = Date.now()
+  process.stderr.write(
+    `[rot-rca] signal wait-register session=${sessionID} ts=${__rotRcaWaitRegisterTs}\n`,
+  )
+
   return new Promise<ModelUpdatePayload>((resolve, reject) => {
     const timer = setTimeout(() => {
       pending.delete(sessionID)
+      process.stderr.write(
+        `[rot-rca] signal wait-timeout session=${sessionID} elapsedMs=${Date.now() - __rotRcaWaitRegisterTs}\n`,
+      )
       reject(new Error(`ModelUpdateSignal timeout (${MODEL_UPDATE_TIMEOUT_MS}ms) for session ${sessionID}`))
     }, MODEL_UPDATE_TIMEOUT_MS)
     // Don't hold the process alive just for this timer.
@@ -53,7 +66,13 @@ export function wait(sessionID: string): Promise<ModelUpdatePayload> {
  */
 export function resolve(sessionID: string, model: ModelUpdatePayload): boolean {
   const entry = pending.get(sessionID)
-  if (!entry) return false
+  if (!entry) {
+    // [rot-rca] Phase A instrument — track dropped model_update (no pending wait)
+    process.stderr.write(
+      `[rot-rca] signal resolve-miss session=${sessionID} RW-1 no-pending-wait\n`,
+    )
+    return false
+  }
   clearTimeout(entry.timer)
   pending.delete(sessionID)
   entry.resolve(model)

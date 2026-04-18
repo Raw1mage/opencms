@@ -1286,6 +1286,8 @@ export namespace SessionProcessor {
                   cumulativeEscalationCount,
                 })
                 // Emit escalation event (bridged to parent via stdout)
+                // [rot-rca] Phase A instrument — measure chain latency
+                const __rotRcaPublishStart = Date.now()
                 await Bus.publish(RateLimitEscalationEvent, {
                   sessionID: input.sessionID,
                   currentModel: {
@@ -1296,11 +1298,20 @@ export namespace SessionProcessor {
                   error: e.message,
                   triedVectors: Array.from(triedVectors),
                 })
+                debugCheckpoint("syslog.rotation", "[rot-rca] child publish-done", {
+                  sessionID: input.sessionID,
+                  accountIdTail: currentAccountId?.slice(-8),
+                  triedCount: triedVectors.size,
+                  publishElapsedMs: Date.now() - __rotRcaPublishStart,
+                })
                 // Wait for parent to push a new model
+                const __rotRcaWaitStart = Date.now()
                 try {
                   const newModel = await ModelUpdateSignal.wait(input.sessionID)
-                  debugCheckpoint("syslog.rotation", "child session received model update from parent (runtime)", {
+                  debugCheckpoint("syslog.rotation", "[rot-rca] child wait-resolved", {
                     sessionID: input.sessionID,
+                    waitElapsedMs: Date.now() - __rotRcaWaitStart,
+                    totalElapsedMs: Date.now() - __rotRcaPublishStart,
                     newModel,
                   })
                   // Apply the new model and continue the retry loop
@@ -1327,8 +1338,9 @@ export namespace SessionProcessor {
                   triedVectors.clear()
                   continue
                 } catch (timeoutErr) {
-                  debugCheckpoint("syslog.rotation", "child session model update timeout — fail fast", {
+                  debugCheckpoint("syslog.rotation", "[rot-rca] child wait-timeout", {
                     sessionID: input.sessionID,
+                    waitElapsedMs: Date.now() - __rotRcaWaitStart,
                     error: timeoutErr instanceof Error ? timeoutErr.message : String(timeoutErr),
                   })
                   input.assistantMessage.error = MessageV2.fromError(e, { providerId: input.model.providerId })

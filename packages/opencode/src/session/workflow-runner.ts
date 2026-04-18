@@ -40,9 +40,17 @@ export const AUTONOMOUS_PROGRESS_TEXT =
 // If the model adds new todos, normal continuation picks them up. If the
 // model does not call TodoWrite, the next decision sees trigger=null plus
 // lastDecisionReason="completion_verify" and the runner exits.
+//
+// 2026-04-18 silent-stop: this trigger is a machine probe, not a user
+// question. If the model has no more work, it must emit NOTHING — no
+// TodoWrite call, no prose summary, no wrap-up sentence. Silence is the
+// confirmation signal the runner waits for; any user-facing narration
+// ("本輪沒有剩餘可執行工作" / "nothing left to do" / etc.) leaks internal
+// state to the user and is forbidden. Only speak if there is real remaining
+// work to surface via TodoWrite, or a blocker/decision to escalate.
 export const AUTONOMOUS_COMPLETION_VERIFY_TEXT = `[runner] Update the todolist.
 
-Call TodoWrite with any remaining work you can identify. If there is genuinely nothing left, do NOT call TodoWrite — the runner treats an empty diff as confirmation and will exit.`
+Call TodoWrite with any remaining work you can identify. If there is genuinely nothing left, emit NOTHING — do NOT call TodoWrite, do NOT write any narration, summary, or wrap-up sentence. Silence is the confirmation signal the runner waits for; any user-facing text here is treated as unwanted output.`
 
 function applyRunnerContract(text: string) {
   return `${RUNNER_CONTRACT.trim()}\n\n${text}`

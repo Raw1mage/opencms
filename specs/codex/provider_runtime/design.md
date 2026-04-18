@@ -59,6 +59,14 @@ merged 計畫不只是在「加功能」，也包含：
 
 這些清理屬於正式架構邊界，未來不應輕易回退。
 
+### DD-6: Codex provider 為純 TS，C library 已移除 (2026-04-18)
+
+`packages/opencode-codex-provider/` 先前保留了一整組 C 語言實作（`src/*.c`、`include/codex_provider.h`、`CMakeLists.txt`、`build/`）作為潛在的 `bun:ffi` native path，對照 `packages/opencode/src/plugin/claude-native.ts` 的 `dlopen("claude_provider.so")` 做法。
+
+但線上實際路徑從未走過 C library：`packages/opencode-codex-provider/src/index.ts` 只 export TS 模組，`provider.ts` 以 `fetch` + `tryWsTransport` 直接走網路，整套 C 實作是 dead code。2026-04-18 診斷 subagent rotation 問題時因此誤判 `transport.c` 的 retry loop 為線上 bug，浪費半天工時。
+
+處置：完整刪除 C library 與 build 系統（見 `specs/codex/revision/2026-04-18_codex-c-library-removal/`）。codex provider 正式定位為純 TS package；未來若需要 native path，需重新開 spec，不可悄悄補回 C sources。
+
 ## Runtime Flow Summary
 
 ```text
