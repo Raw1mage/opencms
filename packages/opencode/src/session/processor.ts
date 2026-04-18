@@ -294,26 +294,10 @@ export namespace SessionProcessor {
         while (true) {
           if (input.abort.aborted) break
 
-          // ── Fix A: per-attempt stream idle watchdog ────────────────────
-          // streamText has no request/idle timeout — a server that accepts
-          // the request and then stalls the response stream keeps the
-          // for-await blocked forever. Watchdog resets on each event; on
-          // no-progress it aborts the underlying fetch via a combined
-          // AbortSignal, kicking control into the catch handler below.
-          const STREAM_IDLE_TIMEOUT_MS = 60_000
-          const idleController = new AbortController()
-          const originalStreamAbort = streamInput.abort
-          streamInput.abort = AbortSignal.any([originalStreamAbort, idleController.signal])
-          let idleTimer: ReturnType<typeof setTimeout> | undefined
-          const resetIdleTimer = () => {
-            if (idleTimer) clearTimeout(idleTimer)
-            idleTimer = setTimeout(() => {
-              idleController.abort(
-                new Error(`Stream idle timeout (${STREAM_IDLE_TIMEOUT_MS}ms): no events from model`),
-              )
-            }, STREAM_IDLE_TIMEOUT_MS)
-          }
-          resetIdleTimer()
+          // Stream idle watchdog removed 2026-04-18. Parent-side proc-scan
+          // watchdog (task.ts) is now the single authority for subagent
+          // liveness — stream stalls show up as /proc activity flatlining
+          // and are caught there along with every other hang mode.
 
           try {
             // Pre-flight rate-limit check: read shared rotation-state.json
@@ -689,7 +673,6 @@ export namespace SessionProcessor {
             }
 
             for await (const value of stream.fullStream) {
-              resetIdleTimer()
               input.abort.throwIfAborted()
               switch (value.type) {
                 case "start":
@@ -1768,9 +1751,6 @@ export namespace SessionProcessor {
               error: input.assistantMessage.error,
             })
             SessionStatus.set(input.sessionID, { type: "idle" })
-          } finally {
-            if (idleTimer) clearTimeout(idleTimer)
-            streamInput.abort = originalStreamAbort
           }
           if (snapshot) {
             const patch = await Snapshot.patch(snapshot)

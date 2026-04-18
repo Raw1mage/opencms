@@ -1982,22 +1982,24 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         //   3. CPU time / IO bytes / child processes — any tick = alive
         // If all three activity signals stay flat for 90s AND there is
         // no disk terminal finish, the worker is judged dead and killed.
+        // Single 60s timeout. Watchdog polls every 5s. Any death signal
+        // fires immediately, no warmup, no grace beyond the 5s disk-race
+        // margin below.
         const WATCHDOG_INTERVAL_MS = 5_000
-        const SILENCE_THRESHOLD_MS = 90_000
-        const DISK_GRACE_MS = 60_000
-        // Warmup: subagents are normally busy (spawning, loading context,
-        // first LLM call handshake) during the first minute, so silence
-        // accumulation is skipped for that window. Process-exit and
-        // disk-terminal checks remain active throughout so legitimate
-        // fast finishes / crashes are still caught.
-        const WATCHDOG_WARMUP_MS = 60_000
+        const SILENCE_THRESHOLD_MS = 60_000
+        // Tiny grace on disk-terminal-finish so the worker's stdout `done`
+        // signal wins the race with the disk read when both arrive within
+        // the same poll cycle.
+        const DISK_GRACE_MS = 5_000
         const TERMINAL_FINISHES = ["stop", "error", "length", "canceled"]
 
         type ProcSample = {
+          state: string // R/S/D/Z/T/X from /proc/<pid>/stat
           cpu: number
           readBytes: number
           writeBytes: number
           hasChildren: boolean
+          wchan?: string // kernel function the process is blocked in, if any
         }
         async function readProcSample(pid: number): Promise<ProcSample | null> {
           try {
@@ -2008,6 +2010,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
             const tail = stat.slice(rp + 2).trim().split(/\s+/)
             // After comm: state(0) ppid(1) pgrp(2) session(3) tty_nr(4) tpgid(5)
             // flags(6) minflt(7) cminflt(8) majflt(9) cmajflt(10) utime(11) stime(12)
+            const state = tail[0] ?? "?"
             const utime = Number(tail[11])
             const stime = Number(tail[12])
             const cpu = (Number.isFinite(utime) ? utime : 0) + (Number.isFinite(stime) ? stime : 0)
@@ -2040,7 +2043,14 @@ export const TaskTool = Tool.define("task", async (ctx) => {
             } catch {
               // /proc/<pid>/task gone; treat as no children
             }
-            return { cpu, readBytes, writeBytes, hasChildren }
+            let wchan: string | undefined
+            try {
+              const w = (await readFile(`/proc/${pid}/wchan`, "utf-8")).trim()
+              if (w && w !== "0") wchan = w
+            } catch {
+              // wchan unreadable — diagnostic only, skip
+            }
+            return { state, cpu, readBytes, writeBytes, hasChildren, wchan }
           } catch {
             return null
           }
@@ -2051,32 +2061,20 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           resolution: "worker_dead" | "disk_terminal" | "silent_kill"
           ok: boolean
           finish: string
+          wchan?: string
         }>((resolveWD) => {
           let prev: ProcSample | null = null
           let silentSinceMs: number | null = null
-          const watchdogStartMs = Date.now()
           watchdogTimer = setInterval(async () => {
             try {
               const worker = assignedWorkerID ? workers.find((w) => w.id === assignedWorkerID) : undefined
               if (!worker) return // worker not yet assigned; skip this tick
 
-              // 1. Process exit
-              const proc = worker.proc
-              if (proc.exitCode !== null || proc.killed) {
-                Log.create({ service: "task" }).warn("proc-watchdog: worker process exited", {
-                  childSessionID: session.id,
-                  workerID: assignedWorkerID,
-                  exitCode: proc.exitCode,
-                })
-                if (ctx.callID) ProcessSupervisor.markStalled(ctx.callID)
-                resolveWD({ resolution: "worker_dead", ok: false, finish: "worker_exited" })
-                return
-              }
-
               // Touch supervisor so monitor UI knows we're polling.
               if (ctx.callID) ProcessSupervisor.touch(ctx.callID)
 
-              // 2. Disk terminal finish past grace
+              // A. Disk terminal finish past 5s grace — child self-reported
+              //    completion. Always honored regardless of proc signals.
               try {
                 const { messages: childMsgs } = await MessageV2.filterCompacted(MessageV2.stream(session.id))
                 const lastAssistant = childMsgs.findLast((m) => m.info.role === "assistant")
@@ -2104,24 +2102,51 @@ export const TaskTool = Tool.define("task", async (ctx) => {
                 // disk read failed — keep going, try again next tick
               }
 
-              // 3. Proc activity sample
+              // B. Proc scan: process state + activity signals.
+              const proc = worker.proc
               const sample = await readProcSample(proc.pid as number)
-              if (!sample) {
-                // /proc gone — process likely vanished between exit-code check and here
+
+              // B1. Process state letter: Z (zombie) / X (dead) is direct
+              //     death — faster than waiting for bun's exitCode to land.
+              if (sample && (sample.state === "Z" || sample.state === "X")) {
+                Log.create({ service: "task" }).warn("proc-watchdog: worker process state terminal", {
+                  childSessionID: session.id,
+                  workerID: assignedWorkerID,
+                  state: sample.state,
+                })
+                resolveWD({ resolution: "worker_dead", ok: false, finish: "worker_exited" })
                 return
               }
+
+              // B2. Also honor bun's exitCode (catches cases where state
+              //     polling missed the transition or /proc was unreadable).
+              if (proc.exitCode !== null || proc.killed) {
+                Log.create({ service: "task" }).warn("proc-watchdog: worker process exited", {
+                  childSessionID: session.id,
+                  workerID: assignedWorkerID,
+                  exitCode: proc.exitCode,
+                })
+                if (ctx.callID) ProcessSupervisor.markStalled(ctx.callID)
+                resolveWD({ resolution: "worker_dead", ok: false, finish: "worker_exited" })
+                return
+              }
+
+              if (!sample) {
+                // /proc gone — process likely vanished between checks; next
+                // tick's exit-code path will handle it.
+                return
+              }
+
+              // B3. Activity signals. Any one ticking = alive → reset silence.
               const tickedCpu = prev && sample.cpu !== prev.cpu
               const tickedIoRead = prev && sample.readBytes !== prev.readBytes
               const tickedIoWrite = prev && sample.writeBytes !== prev.writeBytes
               const alive = sample.hasChildren || tickedCpu || tickedIoRead || tickedIoWrite || !prev
+              const lastWchan = sample.wchan
               prev = sample
 
               const now = Date.now()
-              // Skip silence accumulation during warmup. Subagents spend
-              // the first ~minute on context load + initial LLM handshake,
-              // which looks identical to being dead from outside.
-              const withinWarmup = now - watchdogStartMs < WATCHDOG_WARMUP_MS
-              if (alive || withinWarmup) {
+              if (alive) {
                 silentSinceMs = null
               } else {
                 if (silentSinceMs === null) silentSinceMs = now
@@ -2131,8 +2156,14 @@ export const TaskTool = Tool.define("task", async (ctx) => {
                     childSessionID: session.id,
                     workerID: assignedWorkerID,
                     silentMs: silentFor,
+                    wchan: lastWchan ?? "(unknown)",
                   })
-                  resolveWD({ resolution: "silent_kill", ok: false, finish: "no_progress_timeout" })
+                  resolveWD({
+                    resolution: "silent_kill",
+                    ok: false,
+                    finish: "no_progress_timeout",
+                    wchan: lastWchan,
+                  })
                 }
               }
             } catch {
