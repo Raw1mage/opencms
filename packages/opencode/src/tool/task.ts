@@ -437,11 +437,19 @@ async function handleRateLimitEscalation(props: {
 }) {
   const log = Log.create({ service: "task.escalation" })
   const childSessionID = props.sessionID
+  // [rot-rca] Phase A instrument — parent-side timing
+  const __rotRcaParentStart = Date.now()
+  log.info("[rot-rca] parent recv", {
+    childSessionID,
+    accountIdTail: props.currentModel.accountId?.slice(-8),
+    triedCount: props.triedVectors.length,
+    ts: __rotRcaParentStart,
+  })
 
   // Find the worker running this child session
   const worker = workers.find((w) => w.current?.sessionID === childSessionID)
   if (!worker) {
-    log.warn("Escalation received but no worker found for session", { childSessionID })
+    log.warn("[rot-rca] parent no-worker — RW-3 race", { childSessionID, elapsedMs: Date.now() - __rotRcaParentStart })
     return
   }
 
@@ -486,19 +494,26 @@ async function handleRateLimitEscalation(props: {
     sessionIdentity,
     { silent: true },
   ).catch((err) => {
-    log.warn("Escalation: rotation3d threw", {
+    log.warn("[rot-rca] rotation3d threw", {
       childSessionID,
       error: err instanceof Error ? err.message : String(err),
+      elapsedMs: Date.now() - __rotRcaParentStart,
     })
     return null
   })
+  log.info("[rot-rca] parent fallback-done", {
+    childSessionID,
+    foundFallback: !!fallback,
+    fallbackElapsedMs: Date.now() - __rotRcaParentStart,
+  })
 
   if (!fallback) {
-    log.warn("Escalation: no rotation fallback available — letting child ModelUpdateSignal timeout", {
+    log.warn("[rot-rca] H1 — no fallback, child will timeout", {
       childSessionID,
       parentSessionID,
       childCurrentModel: props.currentModel,
       triedVectors: props.triedVectors,
+      elapsedMs: Date.now() - __rotRcaParentStart,
     })
     debugCheckpoint("syslog.rotation", "parent escalation: no fallback — child will timeout", {
       parentSessionID,
@@ -528,6 +543,7 @@ async function handleRateLimitEscalation(props: {
     log.error("Escalation: worker stdin not writable", { workerID: worker.id, childSessionID })
     return
   }
+  const __rotRcaStdinStart = Date.now()
   try {
     stdin?.write(
       JSON.stringify({
@@ -538,8 +554,13 @@ async function handleRateLimitEscalation(props: {
         accountId: newModel.accountId,
       }) + "\n",
     )
+    log.info("[rot-rca] parent stdin-send", {
+      childSessionID,
+      stdinWriteMs: Date.now() - __rotRcaStdinStart,
+      totalElapsedMs: Date.now() - __rotRcaParentStart,
+    })
   } catch (err) {
-    log.error("Escalation: failed to write model_update to worker stdin", {
+    log.error("[rot-rca] RW-6 stdin write failed", {
       workerID: worker.id,
       childSessionID,
       error: err instanceof Error ? err.message : String(err),

@@ -316,12 +316,19 @@ export const SessionWorkerCommand = cmd({
           typeof msg.providerId === "string" &&
           typeof msg.modelID === "string"
         ) {
+          // [rot-rca] Phase A instrument — worker receipt of parent's model_update
+          const __rotRcaRecvTs = Date.now()
           const { resolve } = await import("../../session/model-update-signal")
           const resolved = resolve(msg.sessionID, {
             providerId: msg.providerId,
             modelID: msg.modelID,
             accountId: typeof msg.accountId === "string" ? msg.accountId : undefined,
           })
+          process.stderr.write(
+            `[rot-rca] worker stdin-recv session=${msg.sessionID} resolved=${resolved} ts=${__rotRcaRecvTs}${
+              resolved ? "" : " (RW-1: no pending wait, payload dropped)"
+            }\n`,
+          )
           send({ type: "model_updated", sessionID: msg.sessionID, resolved })
           continue
         }
