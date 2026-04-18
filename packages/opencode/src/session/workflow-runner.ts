@@ -487,37 +487,13 @@ function normalizeApprovalGates(gates?: string[]) {
 export function detectApprovalRequiredForTodos(input: { gates?: string[]; todos: Todo.Info[] }) {
   const required = normalizeApprovalGates(input.gates)
   if (required.size === 0) return undefined
+  // Trust structured action metadata only. The keyword-regex fallback used
+  // to fire false positives (e.g. a todo mentioning "architecture.md" as a
+  // filename would trigger the architecture_change gate). If the AI wants
+  // approval gating it should set `action.kind` explicitly.
   const structured = detectStructuredApprovalGate(input.todos)
   if (structured && required.has(structured)) return structured
-  const actionable = actionableTodos(input.todos)
-  const text = actionable.map((todo) => todo.content.toLowerCase()).join("\n")
-
-  if (
-    required.has("push") &&
-    (text.includes("push") || text.includes("deploy") || text.includes("release") || text.includes("publish"))
-  ) {
-    return "push" as const
-  }
-  if (
-    required.has("destructive") &&
-    (text.includes("delete") ||
-      text.includes("remove") ||
-      text.includes("drop ") ||
-      text.includes("reset") ||
-      text.includes("destroy"))
-  ) {
-    return "destructive" as const
-  }
-  if (
-    required.has("architecture_change") &&
-    (text.includes("architecture") ||
-      text.includes("refactor") ||
-      text.includes("schema") ||
-      text.includes("migration") ||
-      text.includes("breaking change"))
-  ) {
-    return "architecture_change" as const
-  }
+  return undefined
 }
 
 export const PendingContinuationInfo = z.object({

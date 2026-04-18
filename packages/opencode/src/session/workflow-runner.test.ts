@@ -223,30 +223,20 @@ describe("Session workflow runner", () => {
     ).toEqual({ type: "stop", reason: "approval_needed" })
   })
 
-  it("uses requireApprovalFor policy to gate push/destructive/architecture todos", () => {
+  it("uses requireApprovalFor policy to gate push/destructive/architecture todos via structured action.kind only", () => {
+    // Keyword text heuristic removed 2026-04-18 — caused false positives
+    // (e.g. "architecture.md" filename misread as architecture_change gate).
+    // Trust action.kind exclusively.
+
+    // Text-only wording without structured kind → NOT gated
     expect(
       detectApprovalRequiredForTodos({
         gates: ["push", "destructive", "architecture_change"],
         todos: [{ id: "a", content: "push branch and deploy release", status: "pending", priority: "high" }],
       }),
-    ).toBe("push")
+    ).toBeUndefined()
 
-    expect(
-      detectApprovalRequiredForTodos({
-        gates: ["destructive"],
-        todos: [{ id: "a", content: "delete old workspace cache", status: "pending", priority: "high" }],
-      }),
-    ).toBe("destructive")
-
-    expect(
-      detectApprovalRequiredForTodos({
-        gates: ["architecture_change"],
-        todos: [
-          { id: "a", content: "schema migration for architecture refactor", status: "pending", priority: "high" },
-        ],
-      }),
-    ).toBe("architecture_change")
-
+    // Structured kind present → gated
     expect(
       detectApprovalRequiredForTodos({
         gates: ["push", "destructive", "architecture_change"],
@@ -261,9 +251,39 @@ describe("Session workflow runner", () => {
         ],
       }),
     ).toBe("push")
+
+    expect(
+      detectApprovalRequiredForTodos({
+        gates: ["destructive"],
+        todos: [
+          {
+            id: "c",
+            content: "drop stale cache",
+            status: "pending",
+            priority: "high",
+            action: { kind: "destructive", needsApproval: true },
+          },
+        ],
+      }),
+    ).toBe("destructive")
+
+    expect(
+      detectApprovalRequiredForTodos({
+        gates: ["architecture_change"],
+        todos: [
+          {
+            id: "d",
+            content: "introduce service bus",
+            status: "pending",
+            priority: "high",
+            action: { kind: "architecture_change", needsApproval: true },
+          },
+        ],
+      }),
+    ).toBe("architecture_change")
   })
 
-  it("planner stops for policy-gated todos even without live approval queue entries", () => {
+  it("planner stops for policy-gated todos via action.kind", () => {
     expect(
       planAutonomousNextAction({
         session: {
@@ -280,7 +300,15 @@ describe("Session workflow runner", () => {
           },
           time: { created: 1, updated: 1 },
         },
-        todos: [{ id: "a", content: "push release branch", status: "pending", priority: "high" }],
+        todos: [
+          {
+            id: "a",
+            content: "push release branch",
+            status: "pending",
+            priority: "high",
+            action: { kind: "push", needsApproval: true },
+          },
+        ],
         roundCount: 0,
       }),
     ).toEqual({ type: "stop", reason: "approval_needed" })
@@ -2275,7 +2303,15 @@ describe("RunTrigger and TriggerEvaluator (Phase 5B)", () => {
       expect(
         planAutonomousNextAction({
           session: baseSession({ requireApprovalFor: ["push"] }),
-          todos: [{ id: "a", content: "push release", status: "pending", priority: "high" }],
+          todos: [
+            {
+              id: "a",
+              content: "push release",
+              status: "pending",
+              priority: "high",
+              action: { kind: "push", needsApproval: true },
+            },
+          ],
           roundCount: 0,
         }).reason,
       ).toBe("approval_needed")
