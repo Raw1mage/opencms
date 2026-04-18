@@ -980,7 +980,6 @@ export namespace SessionPrompt {
     }
 
     while (true) {
-      console.error(`[LOOP-TOP] ${sessionID} step=${step} abort=${abort.aborted}`)
       SessionStatus.set(sessionID, { type: "busy" })
       log.info("loop", { step, sessionID })
       if (abort.aborted) break
@@ -992,15 +991,11 @@ export namespace SessionPrompt {
       // completion message in this session — we just consume the queue
       // entry so the supervisor doesn't also try to resume us, and set
       // a flag so the break logic below knows not to exit this iteration.
-      console.error(`[LOOP-COLLECT] ${sessionID} step=${step} collectCompletedSubagents start`)
       const hasSubagentCompletion = !!(await collectCompletedSubagents(sessionID))
-      console.error(`[LOOP-COLLECT] ${sessionID} step=${step} collectCompletedSubagents done hasCompletion=${hasSubagentCompletion}`)
       if (hasSubagentCompletion) {
         log.info("loop: subagent completion collected from queue", { sessionID, step })
       }
-      console.error(`[LOOP-FILTER] ${sessionID} step=${step} filterCompacted start`)
       const filteredResult = await MessageV2.filterCompacted(MessageV2.stream(sessionID))
-      console.error(`[LOOP-FILTER] ${sessionID} step=${step} filterCompacted done msgs=${filteredResult.messages.length}`)
       let msgs = filteredResult.messages
       if (filteredResult.stoppedByBudget) {
         log.warn("filterCompacted stopped by token budget guard", { sessionID, messageCount: msgs.length })
@@ -1063,7 +1058,6 @@ export namespace SessionPrompt {
         emptyRoundCount = 0
       }
 
-      console.error(`[LOOP-EXIT-CHECK] ${sessionID} step=${step} lastAssistant.finish=${lastAssistant?.finish} lastAssistant.id=${lastAssistant?.id} lastUser.id=${lastUser?.id} hasSubagentCompletion=${hasSubagentCompletion} userBeforeAssistant=${lastUser ? lastUser.id < (lastAssistant?.id ?? "") : "N/A"}`)
       if (
         lastAssistant?.finish &&
         !["tool-calls", "unknown"].includes(lastAssistant.finish) &&
@@ -1082,13 +1076,11 @@ export namespace SessionPrompt {
           }).toObject()
           await Session.updateMessage(lastAssistant)
         }
-        console.error(`[LOOP-EXIT] ${sessionID} step=${step} exiting loop`)
         log.info("exiting loop", { sessionID })
         break
       }
 
       step++
-      console.error(`[LOOP-STEP] ${sessionID} step=${step}`)
       if (step === 1)
         ensureTitle({
           session,
@@ -1100,13 +1092,10 @@ export namespace SessionPrompt {
       // Respect session's pinned execution identity (set by rotation3d after rate-limit fallback).
       // Without this, each tool-loop iteration re-resolves to the original (rate-limited) model,
       // causing a retry storm as rotation fires on every iteration.
-      console.error(`[LOOP-SESSION-GET] ${sessionID} step=${step} start`)
       const sessionExec = step > 1 ? (await Session.get(sessionID).catch(() => undefined))?.execution : undefined
-      console.error(`[LOOP-SESSION-GET] ${sessionID} step=${step} done`)
       const effectiveProviderId = sessionExec?.providerId ?? lastUser.model.providerId
       const effectiveModelID = sessionExec?.modelID ?? lastUser.model.modelID
       const effectiveAccountId = sessionExec?.accountId ?? lastUser.model.accountId
-      console.error(`[LOOP-MODEL] ${sessionID} step=${step} getModel start`)
       const model = await Provider.getModel(effectiveProviderId, effectiveModelID).catch((e) => {
         if (Provider.ModelNotFoundError.isInstance(e)) {
           const hint = e.data.suggestions?.length ? ` Did you mean: ${e.data.suggestions.join(", ")}?` : ""
@@ -1119,7 +1108,6 @@ export namespace SessionPrompt {
         }
         throw e
       })
-      console.error(`[LOOP-MODEL] ${sessionID} step=${step} getModel done`)
 
       if (step === 1 && !session.parentID) {
         try {
@@ -1178,7 +1166,6 @@ export namespace SessionPrompt {
         }
       }
       const task = tasks.pop()
-      console.error(`[LOOP-TASK] ${sessionID} step=${step} task=${task?.type ?? "none"}`)
       // pending subtask (invocation routed via ToolInvoker)
       if (task?.type === "subtask") {
         const taskTool = await TaskTool.init()
@@ -1499,7 +1486,6 @@ export namespace SessionPrompt {
       }
 
       // normal processing
-      console.error(`[LOOP-NORMAL] ${sessionID} step=${step} entering normal processing`)
       const userMsg = msgs.findLast((m) => m.info.role === "user")
       const imageResolution = await resolveImageRequest({
         model,
@@ -1702,7 +1688,6 @@ export namespace SessionPrompt {
         model: activeModel,
         toolChoice: format.type === "json_schema" ? "required" : undefined,
       })
-      console.error(`[LOOP-PROCESSOR] ${sessionID} step=${step} result=${result} finish=${processor.message.finish}`)
 
       if (structuredOutput !== undefined) {
         processor.message.structured = structuredOutput
@@ -1782,77 +1767,9 @@ export namespace SessionPrompt {
           }
         }
 
-        // ── Deterministic continuation decision ──────────────────────
-        // No LLM governor. Three conditions: autonomous enabled + plan exists + pending todo.
-        const decision = await decideAutonomousContinuation({
-          sessionID,
-          roundCount: autonomousRounds,
-        })
-        if (decision.continue) {
-          const continuationResult = await handleContinuationSideEffects({
-            sessionID,
-            user: lastUser,
-            decision,
-            autonomousRounds,
-          })
-          autonomousRounds = continuationResult.nextRoundCount
-          if (continuationResult.halted) {
-            debugCheckpoint("prompt", "loop:continuation_halted", {
-              sessionID,
-              step,
-              autonomousRounds,
-            })
-            break
-          }
-          continue
-        }
-        // Stopped — set workflow state (runner silent, no narration)
-        // The autonomous runner should not emit completion messages.
-        // Let the LLM's own outputs speak for the status.
-        const completedReasons = ["todo_complete"] as const
-        const waitingReasons = [
-          "max_continuous_rounds",
-          "approval_needed",
-          "product_decision_needed",
-          "mission_not_approved",
-        ] as const
-        if ((completedReasons as readonly string[]).includes(decision.reason)) {
-          await Session.setWorkflowState({
-            sessionID,
-            state: "completed",
-            stopReason: decision.reason,
-            lastRunAt: Date.now(),
-          })
-        } else if (decision.reason === "wait_subagent") {
-          // Subagent still running — set idle so supervisor auto-resumes
-          // when task-worker-continuation enqueues task_completion.
-          // Do NOT set waiting_user: that requires manual user push.
-          await Session.setWorkflowState({
-            sessionID,
-            state: "idle",
-            stopReason: "wait_subagent",
-            lastRunAt: Date.now(),
-          })
-        } else if ((waitingReasons as readonly string[]).includes(decision.reason)) {
-          await Session.setWorkflowState({
-            sessionID,
-            state: "waiting_user",
-            stopReason: decision.reason,
-            lastRunAt: Date.now(),
-          })
-        }
-        debugCheckpoint("prompt", "loop:continuation_stopped", {
-          sessionID,
-          step,
-          reason: decision.reason,
-          autonomousRounds,
-        })
-        log.info("loop:continuation_stopped breaking out of while(true)", {
-          sessionID,
-          reason: decision.reason,
-          state: decision.reason === "wait_subagent" ? "idle" : "waiting_user",
-        })
-        console.error(`[LOOP-BREAK] ${sessionID} reason=${decision.reason} step=${step}`)
+        // processor returned "stop" → blocked (permission/question rejected)
+        // or assistant error. Workflow state is already set inside processor.
+        // Don't run autonomous continuation: the user must unblock first.
         break
       }
       if (result === "compact") {
@@ -1876,36 +1793,98 @@ export namespace SessionPrompt {
       } else {
         consecutiveCompactions = 0
       }
-      // Early exit: if the processor completed with a terminal finish, the session
-      // is done. Don't loop back to the top where async ops (filterCompacted,
-      // collectCompletedSubagents) might hang on a dead promise and block forever.
-      // This is the authoritative completion signal — the processor already persisted
-      // the final message with this finish status.
+      // Terminal finish boundary: decide whether the session continues.
+      //   • Subagent: always break (child is done). The parent-side watchdog
+      //     in task.ts owns hang recovery — no retry needed here.
+      //   • Root session: evaluate autonomous continuation. If there's a
+      //     pending todo, enqueue a synthetic continuation and loop again.
+      //     Otherwise persist the stop reason and break.
       if (
         processor.message.finish &&
         !["tool-calls", "unknown"].includes(processor.message.finish)
       ) {
-        log.info("loop: early exit on terminal finish", {
+        if (session.parentID) {
+          log.info("loop: subagent terminal finish", {
+            sessionID,
+            step,
+            finish: processor.message.finish,
+            result,
+          })
+          break
+        }
+        const decision = await decideAutonomousContinuation({
+          sessionID,
+          roundCount: autonomousRounds,
+        })
+        if (decision.continue) {
+          const continuationResult = await handleContinuationSideEffects({
+            sessionID,
+            user: lastUser,
+            decision,
+            autonomousRounds,
+          })
+          autonomousRounds = continuationResult.nextRoundCount
+          if (continuationResult.halted) {
+            debugCheckpoint("prompt", "loop:continuation_halted", {
+              sessionID,
+              step,
+              autonomousRounds,
+            })
+            break
+          }
+          continue
+        }
+        const completedReasons = ["todo_complete"] as const
+        const waitingReasons = [
+          "max_continuous_rounds",
+          "approval_needed",
+          "product_decision_needed",
+          "mission_not_approved",
+        ] as const
+        if ((completedReasons as readonly string[]).includes(decision.reason)) {
+          await Session.setWorkflowState({
+            sessionID,
+            state: "completed",
+            stopReason: decision.reason,
+            lastRunAt: Date.now(),
+          })
+        } else if (decision.reason === "wait_subagent") {
+          await Session.setWorkflowState({
+            sessionID,
+            state: "idle",
+            stopReason: "wait_subagent",
+            lastRunAt: Date.now(),
+          })
+        } else if ((waitingReasons as readonly string[]).includes(decision.reason)) {
+          await Session.setWorkflowState({
+            sessionID,
+            state: "waiting_user",
+            stopReason: decision.reason,
+            lastRunAt: Date.now(),
+          })
+        }
+        debugCheckpoint("prompt", "loop:continuation_stopped", {
           sessionID,
           step,
-          finish: processor.message.finish,
-          result,
+          reason: decision.reason,
+          autonomousRounds,
         })
-        console.error(`[LOOP-EARLY-EXIT] ${sessionID} step=${step} finish=${processor.message.finish}`)
+        log.info("loop:continuation_stopped", {
+          sessionID,
+          reason: decision.reason,
+          state: decision.reason === "wait_subagent" ? "idle" : "waiting_user",
+        })
         break
       }
       continue
     }
 
     // ── Session Snapshot + Shared Context: incremental update + idle compaction at turn boundary ──
-    console.error(`[POSTLOOP] ${sessionID} step=${step} entering post-loop cleanup`)
     {
       const config = await Config.get()
       if (config.compaction?.sharedContext !== false) {
         try {
-          console.error(`[POSTLOOP] ${sessionID} filterCompacted start`)
           const { messages: finalMsgs } = await MessageV2.filterCompacted(MessageV2.stream(sessionID))
-          console.error(`[POSTLOOP] ${sessionID} filterCompacted done, msgs=${finalMsgs.length}`)
           const lastAssistantMsg = finalMsgs.findLast((m) => m.info.role === "assistant")
           if (lastAssistantMsg) {
             const assistantText = lastAssistantMsg.parts
@@ -1913,14 +1892,12 @@ export namespace SessionPrompt {
               .map((p) => p.text)
               .join("\n")
 
-            console.error(`[POSTLOOP] ${sessionID} SharedContext.updateFromTurn start`)
             await SharedContext.updateFromTurn({
               sessionID,
               parts: lastAssistantMsg.parts,
               assistantText,
               turnNumber: step,
             })
-            console.error(`[POSTLOOP] ${sessionID} SharedContext.updateFromTurn done`)
 
             void SharedContext.persistSnapshot(sessionID)
 
@@ -1931,14 +1908,12 @@ export namespace SessionPrompt {
               if (hasTaskDispatch) {
                 const lastFinishedInfo = lastAssistantMsg.info as MessageV2.Assistant
                 if (lastFinishedInfo.tokens) {
-                  console.error(`[POSTLOOP] ${sessionID} idleCompaction start`)
                   const model = await Provider.getModel(lastFinishedInfo.providerId, lastFinishedInfo.modelID)
                   await SessionCompaction.idleCompaction({
                     sessionID,
                     model,
                     config,
                   })
-                  console.error(`[POSTLOOP] ${sessionID} idleCompaction done`)
                 }
               }
             }
@@ -1951,14 +1926,11 @@ export namespace SessionPrompt {
       }
     }
 
-    console.error(`[POSTLOOP] ${sessionID} pruning start`)
     log.info("loop:pruning_compacting_and_returning", { sessionID })
     SessionCompaction.prune({ sessionID })
-    console.error(`[POSTLOOP] ${sessionID} pruning done, streaming messages`)
     for await (const item of MessageV2.stream(sessionID)) {
       if (item.info.role === "user") continue
       const queued = consumeCallbacks(sessionID)
-      console.error(`[POSTLOOP] ${sessionID} returning msg=${item.info.id} queued=${queued.length}`)
       log.info("loop:found_assistant_message_returning", {
         sessionID,
         returnedMessageID: item.info.id,
@@ -1969,7 +1941,6 @@ export namespace SessionPrompt {
       }
       return item
     }
-    console.error(`[POSTLOOP] ${sessionID} ERROR: no assistant message found — will throw Impossible`)
     throw new Error("Impossible")
   }
 

@@ -246,6 +246,13 @@ export namespace SessionProcessor {
     // repeatedly, it means all accounts are exhausted. Stop early.
     let consecutiveNullFallbacks = 0
     const MAX_CONSECUTIVE_NULL_FALLBACKS = 2
+    // Fix B2: cumulative rate-limit escalation counter (child sessions only).
+    // fallbackAttempts and triedVectors are reset each time the parent pushes
+    // a new model, so a parent that keeps pushing rate-limited vectors could
+    // loop indefinitely. This counter is NEVER reset — after enough hops the
+    // child fails fast instead of hammering the server.
+    let cumulativeEscalationCount = 0
+    const MAX_CUMULATIVE_ESCALATIONS = 5
     // SAFETY KILL SWITCH: global consecutive error counter.
     // Regardless of error type (401, 429, 500, etc.), if we fail this many
     // times in a row without a single successful stream, force-stop the loop.
@@ -286,6 +293,28 @@ export namespace SessionProcessor {
 
         while (true) {
           if (input.abort.aborted) break
+
+          // ── Fix A: per-attempt stream idle watchdog ────────────────────
+          // streamText has no request/idle timeout — a server that accepts
+          // the request and then stalls the response stream keeps the
+          // for-await blocked forever. Watchdog resets on each event; on
+          // no-progress it aborts the underlying fetch via a combined
+          // AbortSignal, kicking control into the catch handler below.
+          const STREAM_IDLE_TIMEOUT_MS = 90_000
+          const idleController = new AbortController()
+          const originalStreamAbort = streamInput.abort
+          streamInput.abort = AbortSignal.any([originalStreamAbort, idleController.signal])
+          let idleTimer: ReturnType<typeof setTimeout> | undefined
+          const resetIdleTimer = () => {
+            if (idleTimer) clearTimeout(idleTimer)
+            idleTimer = setTimeout(() => {
+              idleController.abort(
+                new Error(`Stream idle timeout (${STREAM_IDLE_TIMEOUT_MS}ms): no events from model`),
+              )
+            }, STREAM_IDLE_TIMEOUT_MS)
+          }
+          resetIdleTimer()
+
           try {
             // Pre-flight rate-limit check: read shared rotation-state.json
             // before hitting the API. If the current vector is already marked
@@ -439,11 +468,28 @@ export namespace SessionProcessor {
                 if (isVectorRateLimited(vector) && !sessionPinnedAccountId) {
                   // Child sessions must not self-rotate — escalate to parent
                   if (isChildSession) {
+                    // Fix B2: cumulative escalation guard
+                    cumulativeEscalationCount++
+                    if (cumulativeEscalationCount > MAX_CUMULATIVE_ESCALATIONS) {
+                      const err = new Error(
+                        `Child session exceeded ${MAX_CUMULATIVE_ESCALATIONS} cumulative rate-limit escalations; every rotation target was rate-limited. Failing fast.`,
+                      )
+                      input.assistantMessage.error = MessageV2.fromError(err, {
+                        providerId: streamInput.model.providerId,
+                      })
+                      Bus.publish(Session.Event.Error, {
+                        sessionID: input.assistantMessage.sessionID,
+                        error: input.assistantMessage.error,
+                      })
+                      SessionStatus.set(input.sessionID, { type: "idle" })
+                      break
+                    }
                     debugCheckpoint("syslog.rotation", "child session pre-flight rate limit — escalating to parent", {
                       sessionID: input.sessionID,
                       providerId: streamInput.model.providerId,
                       modelID: streamInput.model.id,
                       accountId,
+                      cumulativeEscalationCount,
                     })
                     // Emit escalation event (bridged to parent via stdout)
                     await Bus.publish(RateLimitEscalationEvent, {
@@ -643,6 +689,7 @@ export namespace SessionProcessor {
             }
 
             for await (const value of stream.fullStream) {
+              resetIdleTimer()
               input.abort.throwIfAborted()
               switch (value.type) {
                 case "start":
@@ -1214,12 +1261,29 @@ export namespace SessionProcessor {
               // Escalate to parent process which decides the new model.
               if (isChildSession) {
                 const currentAccountId = streamInput.accountId ?? input.accountId ?? input.assistantMessage.accountId
+                // Fix B2: cumulative escalation guard (shared across pre-flight and retry paths)
+                cumulativeEscalationCount++
+                if (cumulativeEscalationCount > MAX_CUMULATIVE_ESCALATIONS) {
+                  const failErr = new Error(
+                    `Child session exceeded ${MAX_CUMULATIVE_ESCALATIONS} cumulative rate-limit escalations; every rotation target was rate-limited. Failing fast.`,
+                  )
+                  input.assistantMessage.error = MessageV2.fromError(failErr, {
+                    providerId: streamInput.model.providerId,
+                  })
+                  Bus.publish(Session.Event.Error, {
+                    sessionID: input.assistantMessage.sessionID,
+                    error: input.assistantMessage.error,
+                  })
+                  SessionStatus.set(input.sessionID, { type: "idle" })
+                  break
+                }
                 debugCheckpoint("syslog.rotation", "child session rate limit — escalating to parent", {
                   sessionID: input.sessionID,
                   providerId: streamInput.model.providerId,
                   modelID: streamInput.model.id,
                   accountId: currentAccountId,
                   error: e.message,
+                  cumulativeEscalationCount,
                 })
                 // Emit escalation event (bridged to parent via stdout)
                 await Bus.publish(RateLimitEscalationEvent, {
@@ -1692,6 +1756,9 @@ export namespace SessionProcessor {
               error: input.assistantMessage.error,
             })
             SessionStatus.set(input.sessionID, { type: "idle" })
+          } finally {
+            if (idleTimer) clearTimeout(idleTimer)
+            streamInput.abort = originalStreamAbort
           }
           if (snapshot) {
             const patch = await Snapshot.patch(snapshot)

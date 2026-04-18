@@ -12,6 +12,7 @@ import { defer } from "@/util/defer"
 import { Config } from "../config/config"
 import { PermissionNext } from "@/permission/next"
 import { Provider } from "../provider/provider"
+import { LLM } from "../session/llm"
 import { Log } from "@/util/log"
 import { debugCheckpoint } from "@/util/debug"
 import { fileURLToPath } from "url"
@@ -416,7 +417,17 @@ async function publishBridgedEvent(event: { type: string; properties: any }) {
 
 /**
  * Handle a rate-limit escalation from a child session.
- * Read the parent's current execution identity and push it to the worker.
+ *
+ * Fix B1 (2026-04-18): run proper rotation3d on the parent side using the
+ * child's triedVectors. Previously this just echoed parent.execution back to
+ * the worker, which—when parent and child shared a rate-limited account—looped
+ * the child through the same vector until either side timed out. Now we:
+ *   1. Resolve the child's current Provider.Model and ask rotation3d
+ *      for a fresh vector excluding triedVectors.
+ *   2. If a fallback exists, push it to the worker via stdin model_update.
+ *   3. If no fallback exists, do NOT push parent.execution (that would just
+ *      re-hit the same 429). Let ModelUpdateSignal.wait() expire (30s) so
+ *      the child fails fast with a clear error.
  */
 async function handleRateLimitEscalation(props: {
   sessionID: string
@@ -441,24 +452,74 @@ async function handleRateLimitEscalation(props: {
     return
   }
 
-  // Read parent session's execution identity to determine what model to use
+  // Read parent session's execution identity for sessionIdentity hint only.
   const parentSession = await Session.get(parentSessionID).catch(() => undefined)
-  if (!parentSession?.execution) {
-    log.warn("Escalation: parent session has no execution identity", { parentSessionID, childSessionID })
+
+  // Resolve child's current Provider.Model (needed for rotation3d input).
+  let currentProviderModel: Provider.Model | undefined
+  try {
+    currentProviderModel = await Provider.getModel(
+      props.currentModel.providerId,
+      props.currentModel.modelID,
+    )
+  } catch (err) {
+    log.error("Escalation: cannot resolve child's current model for rotation", {
+      childSessionID,
+      providerId: props.currentModel.providerId,
+      modelID: props.currentModel.modelID,
+      error: err instanceof Error ? err.message : String(err),
+    })
+    return
+  }
+
+  const triedSet = new Set(props.triedVectors)
+  const sessionIdentity =
+    parentSession?.execution
+      ? { providerId: parentSession.execution.providerId, accountId: parentSession.execution.accountId }
+      : undefined
+  const fallback = await LLM.handleRateLimitFallback(
+    currentProviderModel,
+    "account-first",
+    triedSet,
+    new Error(props.error),
+    props.currentModel.accountId,
+    sessionIdentity,
+    { silent: true },
+  ).catch((err) => {
+    log.warn("Escalation: rotation3d threw", {
+      childSessionID,
+      error: err instanceof Error ? err.message : String(err),
+    })
+    return null
+  })
+
+  if (!fallback) {
+    log.warn("Escalation: no rotation fallback available — letting child ModelUpdateSignal timeout", {
+      childSessionID,
+      parentSessionID,
+      childCurrentModel: props.currentModel,
+      triedVectors: props.triedVectors,
+    })
+    debugCheckpoint("syslog.rotation", "parent escalation: no fallback — child will timeout", {
+      parentSessionID,
+      childSessionID,
+      triedVectors: props.triedVectors,
+    })
     return
   }
 
   const newModel = {
-    providerId: parentSession.execution.providerId,
-    modelID: parentSession.execution.modelID,
-    accountId: parentSession.execution.accountId,
+    providerId: fallback.model.providerId,
+    modelID: fallback.model.id,
+    accountId: fallback.accountId,
   }
 
-  debugCheckpoint("syslog.rotation", "parent handling child escalation — sending model_update", {
+  debugCheckpoint("syslog.rotation", "parent handling child escalation — rotation3d found fallback", {
     parentSessionID,
     childSessionID,
-    parentModel: newModel,
+    rotationPicked: newModel,
     childCurrentModel: props.currentModel,
+    triedVectorCount: triedSet.size,
   })
 
   // Send model_update command to worker via stdin
@@ -1919,37 +1980,70 @@ export const TaskTool = Tool.define("task", async (ctx) => {
 
         // ── Direct completion channel + disk-based fallback ───────────
         // Primary: await the worker's done promise (resolved by stdout reader).
-        // Fallback: if the child session's last assistant message is terminal
-        // on disk but the done promise hasn't resolved (worker loop hung),
-        // a watchdog timer detects this and unblocks the parent.
+        // Two fallback paths cover hang scenarios:
+        //   1. Disk terminal finish — child wrote a terminal finish but the
+        //      done promise is stuck (worker post-loop cleanup hung).
+        //   2. No-progress timeout (Fix C) — worker is alive but not
+        //      producing events: neither terminal finish on disk nor
+        //      stdout bridge activity. Covers stream-stalled scenarios
+        //      (server accepted request but sent no body) even when the
+        //      child-side idle watchdog does not rescue itself.
         const DISK_WATCHDOG_INTERVAL_MS = 5_000
         const DISK_WATCHDOG_GRACE_MS = 60_000
+        const NO_PROGRESS_TIMEOUT_MS = 180_000
         const TERMINAL_FINISHES = ["stop", "error", "length", "canceled"]
 
         let diskWatchdogTimer: ReturnType<typeof setInterval> | undefined
         const diskCompletion = new Promise<{ ok: boolean; finish: string }>((resolveDisk) => {
           diskWatchdogTimer = setInterval(async () => {
             try {
+              // Path 1: terminal finish on disk past grace window.
               const { messages: childMsgs } = await MessageV2.filterCompacted(MessageV2.stream(session.id))
               const lastAssistant = childMsgs.findLast((m) => m.info.role === "assistant")
-              if (!lastAssistant) return
-              const info = lastAssistant.info as MessageV2.Assistant
-              if (!info.finish || !TERMINAL_FINISHES.includes(info.finish)) return
-              const completedAt = info.time?.completed
-              if (!completedAt) return
-              const elapsed = Date.now() - completedAt
-              if (elapsed < DISK_WATCHDOG_GRACE_MS) return
-              // Child session finished on disk but done promise still pending — worker loop is hung.
-              Log.create({ service: "task" }).warn("disk-based completion fallback triggered", {
-                childSessionID: session.id,
-                parentSessionID: ctx.sessionID,
-                finish: info.finish,
-                completedAt,
-                elapsedMs: elapsed,
-                workerID: assignedWorkerID,
-              })
-              console.error(`[DISK-WATCHDOG] ${session.id} fallback triggered: finish=${info.finish} elapsed=${elapsed}ms`)
-              resolveDisk({ ok: info.finish === "stop", finish: info.finish })
+              if (lastAssistant) {
+                const info = lastAssistant.info as MessageV2.Assistant
+                if (info.finish && TERMINAL_FINISHES.includes(info.finish)) {
+                  const completedAt = info.time?.completed
+                  if (completedAt) {
+                    const elapsed = Date.now() - completedAt
+                    if (elapsed >= DISK_WATCHDOG_GRACE_MS) {
+                      Log.create({ service: "task" }).warn("disk-based completion fallback triggered", {
+                        childSessionID: session.id,
+                        parentSessionID: ctx.sessionID,
+                        finish: info.finish,
+                        completedAt,
+                        elapsedMs: elapsed,
+                        workerID: assignedWorkerID,
+                      })
+                      console.error(`[DISK-WATCHDOG] ${session.id} fallback triggered: finish=${info.finish} elapsed=${elapsed}ms`)
+                      resolveDisk({ ok: info.finish === "stop", finish: info.finish })
+                      return
+                    }
+                  }
+                }
+              }
+
+              // Path 2 (Fix C): worker has been silent too long.
+              const worker = assignedWorkerID ? workers.find((w) => w.id === assignedWorkerID) : undefined
+              if (worker?.current && worker.current.sessionID === session.id) {
+                const lastMark =
+                  worker.current.lastEventAt ??
+                  worker.current.firstEventAt ??
+                  worker.current.dispatchedAt ??
+                  worker.current.createdAt
+                const elapsedSinceEvent = Date.now() - lastMark
+                if (elapsedSinceEvent >= NO_PROGRESS_TIMEOUT_MS) {
+                  Log.create({ service: "task" }).warn("no-progress watchdog fallback triggered", {
+                    childSessionID: session.id,
+                    parentSessionID: ctx.sessionID,
+                    elapsedSinceLastEventMs: elapsedSinceEvent,
+                    eventCount: worker.current.eventCount,
+                    workerID: assignedWorkerID,
+                  })
+                  console.error(`[DISK-WATCHDOG] ${session.id} no-progress fallback: elapsed=${elapsedSinceEvent}ms events=${worker.current.eventCount}`)
+                  resolveDisk({ ok: false, finish: "no_progress_timeout" })
+                }
+              }
             } catch {
               // Non-fatal: retry on next interval
             }
