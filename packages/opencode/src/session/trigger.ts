@@ -54,35 +54,27 @@ export namespace RunTrigger {
 export type TriggerPriority = "critical" | "normal" | "background"
 
 export type TriggerGatePolicy = {
-  requireApprovedMission: boolean
   respectMaxRounds: boolean
   checkApprovalGates: boolean
   checkStructuredStops: boolean
-  requireBetaAdmission: boolean
 }
 
 export const CONTINUATION_GATE_POLICY: TriggerGatePolicy = {
-  requireApprovedMission: true,
   respectMaxRounds: true,
   checkApprovalGates: true,
   checkStructuredStops: true,
-  requireBetaAdmission: true,
 }
 
 export const API_GATE_POLICY: TriggerGatePolicy = {
-  requireApprovedMission: true,
   respectMaxRounds: false,
   checkApprovalGates: true,
   checkStructuredStops: true,
-  requireBetaAdmission: true,
 }
 
 export const CRON_GATE_POLICY: TriggerGatePolicy = {
-  requireApprovedMission: false,
   respectMaxRounds: false,
   checkApprovalGates: false,
   checkStructuredStops: false,
-  requireBetaAdmission: false,
 }
 
 /**
@@ -124,18 +116,11 @@ export function evaluateGates(input: {
     return { pass: false, reason: "blocked" }
   }
 
-  // Mission gate — plan must exist and be execution-ready
-  if (policy.requireApprovedMission) {
-    if (!input.session.mission || !input.session.mission.executionReady) {
-      return { pass: false, reason: "mission_not_approved" }
-    }
-  }
-  if (policy.requireBetaAdmission && input.session.mission?.beta) {
-    const status = input.session.mission.admission?.betaQuiz?.status
-    if (status !== "passed") {
-      return { pass: false, reason: "product_decision_needed" }
-    }
-  }
+  // Mission / beta-admission gates removed 2026-04-18.
+  // Autonomous runner is a dumb todolist engine — the skill / AI layer
+  // owns planning. Session.setMission() has no caller since the old
+  // plan_enter tool was ripped out on 2026-04-09, so these gates just
+  // blocked every non-chat session from continuing. Dead code.
 
   // Pending approvals / questions
   if ((input.pendingApprovals ?? 0) > 0) {

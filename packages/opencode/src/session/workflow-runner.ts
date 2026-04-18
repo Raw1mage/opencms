@@ -44,6 +44,17 @@ export const AUTONOMOUS_CONTINUE_TEXT =
 export const AUTONOMOUS_PROGRESS_TEXT =
   "Continue the task already in progress. Finish or unblock it before starting new work, unless reprioritization is clearly necessary."
 
+// D1/D2 (2026-04-18): completion-verify nudge.
+// Whenever the todo list drains, the runner sends this minimal instruction.
+// The skill layer is responsible for expanding "Update the todolist" into
+// concrete behavior (reconcile with tasks.md, /plans, /specs, etc.).
+// If the model adds new todos, normal continuation picks them up. If the
+// model does not call TodoWrite, the next decision sees trigger=null plus
+// lastDecisionReason="completion_verify" and the runner exits.
+export const AUTONOMOUS_COMPLETION_VERIFY_TEXT = `[runner] Update the todolist.
+
+Call TodoWrite with any remaining work you can identify. If there is genuinely nothing left, do NOT call TodoWrite — the runner treats an empty diff as confirmation and will exit.`
+
 function applyRunnerContract(text: string) {
   return `${RUNNER_CONTRACT.trim()}\n\n${text}`
 }
@@ -241,14 +252,18 @@ export type ContinuationDecisionReason =
   | "product_decision_needed"
   | "todo_in_progress"
   | "todo_pending"
+  | "completion_verify"
 
 export type ApprovalGate = "push" | "destructive" | "architecture_change"
 
 export type AutonomousNextAction =
-  | { type: "stop"; reason: Exclude<ContinuationDecisionReason, "todo_pending" | "todo_in_progress"> }
+  | {
+      type: "stop"
+      reason: Exclude<ContinuationDecisionReason, "todo_pending" | "todo_in_progress" | "completion_verify">
+    }
   | {
       type: "continue"
-      reason: "todo_pending" | "todo_in_progress"
+      reason: "todo_pending" | "todo_in_progress" | "completion_verify"
       text: string
       todo: Todo.Info
     }
@@ -831,6 +846,7 @@ export function evaluateAutonomousContinuation(input: {
   activeSubtasks?: number
   pendingApprovals?: number
   pendingQuestions?: number
+  lastDecisionReason?: ContinuationDecisionReason
 }) {
   const next = planAutonomousNextAction(input)
   return next.type === "continue"
@@ -856,6 +872,7 @@ export function planAutonomousNextAction(input: {
   activeSubtasks?: number
   pendingApprovals?: number
   pendingQuestions?: number
+  lastDecisionReason?: ContinuationDecisionReason
 }): AutonomousNextAction {
   // Build a continuation trigger from the next actionable todo
   const current = Todo.nextActionableTodo(input.todos)
@@ -869,6 +886,31 @@ export function planAutonomousNextAction(input: {
   // Gates only matter when there IS work to gate; evaluating a placeholder trigger
   // causes false "mission_not_approved" stops in normal conversation sessions.
   if (!trigger) {
+    // Completion-verify nudge: whenever todos drain, send "Update the
+    // todolist" once and let the AI decide. If lastDecisionReason was
+    // already "completion_verify" the AI just had its chance and chose
+    // not to add anything — treat as genuine completion and stop.
+    const autonomousEnabled = input.session.workflow?.autonomous?.enabled === true
+    const hadTodos = input.todos.some((t) => t.status === "completed" || t.status === "cancelled")
+    const alreadyVerified = input.lastDecisionReason === "completion_verify"
+    if (autonomousEnabled && hadTodos && !alreadyVerified) {
+      const verifyTodo: Todo.Info = {
+        id: "_runner_completion_verify",
+        content: "[runner] update the todolist",
+        status: "pending",
+        priority: "high",
+        action: { kind: "decision", risk: "low", needsApproval: false, canDelegate: false },
+      }
+      return {
+        type: "continue",
+        reason: "completion_verify",
+        text: applyBetaWorkflowContract({
+          text: AUTONOMOUS_COMPLETION_VERIFY_TEXT,
+          session: input.session,
+        }),
+        todo: verifyTodo,
+      }
+    }
     return { type: "stop", reason: "todo_complete" }
   }
 
@@ -886,10 +928,14 @@ export function planAutonomousNextAction(input: {
   })
 
   if (!gateResult.pass) {
-    // Gate evaluator never produces "todo_pending" or "todo_in_progress" as stop reasons
+    // Gate evaluator never produces "todo_pending" / "todo_in_progress" /
+    // "completion_verify" as stop reasons (those are continue reasons).
     return {
       type: "stop",
-      reason: gateResult.reason as Exclude<ContinuationDecisionReason, "todo_pending" | "todo_in_progress">,
+      reason: gateResult.reason as Exclude<
+        ContinuationDecisionReason,
+        "todo_pending" | "todo_in_progress" | "completion_verify"
+      >,
     }
   }
 
@@ -932,6 +978,9 @@ export function evaluateTriggerGates(input: {
 
 export function describeAutonomousNextAction(action: AutonomousNextAction): AutonomousNarration {
   if (action.type === "continue") {
+    if (action.reason === "completion_verify") {
+      return { kind: "continue", text: "Runner verifying completion before stopping." }
+    }
     return {
       kind: "continue",
       text:
@@ -999,7 +1048,11 @@ export function shouldInterruptAutonomousRun(input: {
   return input.lastUserSynthetic || input.hasPendingContinuation
 }
 
-export async function decideAutonomousContinuation(input: { sessionID: string; roundCount: number }) {
+export async function decideAutonomousContinuation(input: {
+  sessionID: string
+  roundCount: number
+  lastDecisionReason?: ContinuationDecisionReason
+}) {
   // AI self-verification gate: validate pending beta admission before evaluating continuation
   const quizResult = await validatePendingBetaAdmission(input.sessionID)
   if (quizResult) {
@@ -1038,6 +1091,7 @@ export async function decideAutonomousContinuation(input: { sessionID: string; r
     activeSubtasks,
     pendingApprovals,
     pendingQuestions,
+    lastDecisionReason: input.lastDecisionReason,
   })
   debugCheckpoint("workflow", "continuation_decision", {
     sessionID: input.sessionID,
