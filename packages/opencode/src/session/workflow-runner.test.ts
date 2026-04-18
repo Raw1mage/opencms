@@ -64,7 +64,7 @@ describe("planAutonomousNextAction", () => {
     expect(action.type).toBe("continue")
     if (action.type === "continue") {
       expect(action.reason).toBe("todo_pending")
-      expect(action.text).toContain("Continue with the next planned step")
+      expect(action.text).toContain("Continuation Gate")
       expect(action.todo.id).toBe("a")
     }
   })
@@ -77,7 +77,7 @@ describe("planAutonomousNextAction", () => {
     expect(action.type).toBe("continue")
     if (action.type === "continue") {
       expect(action.reason).toBe("todo_in_progress")
-      expect(action.text).toContain("Continue the task already in progress")
+      expect(action.text).toContain("Continuation Gate")
     }
   })
 
@@ -104,7 +104,7 @@ describe("planAutonomousNextAction", () => {
     expect(action.type).toBe("continue")
     if (action.type === "continue") {
       expect(action.reason).toBe("completion_verify")
-      expect(action.text).toContain("Update the todolist")
+      expect(action.text).toContain("Continuation Gate")
       expect(action.todo.id).toBe("_runner_completion_verify")
     }
   })

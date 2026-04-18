@@ -27,34 +27,11 @@ import { RunQueue, type QueueEntry } from "./queue"
 import { type Lane, LANES_BY_PRIORITY, LANE_CONFIGS } from "./lane-policy"
 import { KillSwitchService } from "@/server/killswitch/service"
 
-export const AUTONOMOUS_CONTINUE_TEXT =
-  "Continue with the next planned step. Only stop and ask the user if you hit a real blocker or need a product decision."
-
-export const AUTONOMOUS_PROGRESS_TEXT =
-  "Continue the task already in progress. Finish or unblock it before starting new work, unless reprioritization is clearly necessary."
-
-// D1/D2 (2026-04-18): completion-verify nudge.
-// Whenever the todo list drains, the runner sends this minimal instruction.
-// The skill layer is responsible for expanding "Update the todolist" into
-// concrete behavior (reconcile with tasks.md, /plans, /specs, etc.).
-// If the model adds new todos, normal continuation picks them up. If the
-// model does not call TodoWrite, the next decision sees trigger=null plus
-// lastDecisionReason="completion_verify" and the runner exits.
-//
-// 2026-04-18 silent-stop: this trigger is a machine probe, not a user
-// question. If the model has no more work, it must emit NOTHING — no
-// TodoWrite call, no prose summary, no wrap-up sentence. Silence is the
-// confirmation signal the runner waits for; any user-facing narration
-// ("本輪沒有剩餘可執行工作" / "nothing left to do" / etc.) leaks internal
-// state to the user and is forbidden. Only speak if there is real remaining
-// work to surface via TodoWrite, or a blocker/decision to escalate.
-export const AUTONOMOUS_COMPLETION_VERIFY_TEXT = `[runner] Update the todolist.
-
-Call TodoWrite with any remaining work you can identify. If there is genuinely nothing left, emit NOTHING — do NOT call TodoWrite, do NOT write any narration, summary, or wrap-up sentence. Silence is the confirmation signal the runner waits for; any user-facing text here is treated as unwanted output.`
-
-function applyRunnerContract(text: string) {
-  return `${RUNNER_CONTRACT.trim()}\n\n${text}`
-}
+// Single continuation message sent on every autonomous pump.
+// The if/else gate in runner.txt tells the AI when to continue vs silently
+// end; per-scenario bodies (pending/in-progress/drain) were removed because
+// the AI can already see todo state in its context.
+export const RUNNER_CONTINUATION_TEXT = RUNNER_CONTRACT.trim()
 
 export type HardBlocker = "abort_signal" | "kill_switch_active" | "user_message_pending"
 
@@ -599,8 +576,8 @@ export function planAutonomousNextAction(input: {
   const current = Todo.nextActionableTodo(input.todos)
   const trigger = buildContinuationTrigger({
     todo: current,
-    textForPending: applyRunnerContract(AUTONOMOUS_CONTINUE_TEXT),
-    textForInProgress: applyRunnerContract(AUTONOMOUS_PROGRESS_TEXT),
+    textForPending: RUNNER_CONTINUATION_TEXT,
+    textForInProgress: RUNNER_CONTINUATION_TEXT,
   })
 
   // No actionable todo → send "update the todolist" nudge once.
@@ -619,7 +596,7 @@ export function planAutonomousNextAction(input: {
       return {
         type: "continue",
         reason: "completion_verify",
-        text: applyRunnerContract(AUTONOMOUS_COMPLETION_VERIFY_TEXT),
+        text: RUNNER_CONTINUATION_TEXT,
         todo: verifyTodo,
       }
     }
@@ -1070,7 +1047,7 @@ export async function enqueueAutonomousContinue(input: {
 }) {
   const now = Date.now()
   const session = await Session.get(input.sessionID)
-  const text = input.text ?? applyRunnerContract(AUTONOMOUS_CONTINUE_TEXT)
+  const text = input.text ?? RUNNER_CONTINUATION_TEXT
   const pinnedModel = session.execution
     ? {
         providerId: session.execution.providerId,

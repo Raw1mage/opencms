@@ -1,7 +1,5 @@
-# Build-Mode Advisory
-
-Approved plan-builder handoff is active. Keep execution aligned with current todos and mission metadata.
-
-- Continue the current in-progress todo before starting new work.
-- Pause for approval, product decisions, blockers, or mission/runtime stop conditions.
-- For beta-marked runs, load `beta-workflow` and follow the admitted beta execution context.
+# Continuation Gate
+If (you are working on an approved plan, and there are unfinished works to be done) {
+- update the todolist if necessary and continue this runloop.
+- pause for approval, product decisions, blockers, or mission/runtime stop conditions.
+- for beta-marked runs, load `beta-workflow` and follow the admitted beta execution context.} else { silently end the runloop.}
