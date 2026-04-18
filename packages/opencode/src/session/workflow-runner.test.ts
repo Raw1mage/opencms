@@ -597,9 +597,9 @@ describe("Session workflow runner", () => {
     expect(decision.reason).toBe("todo_in_progress")
   })
 
-  it("marks workflow complete after verify round when no actionable todos remain", () => {
-    // roundCount=1 means the D1 completion-verify round already fired and the
-    // model did not add new todos. Second call should stop for real.
+  it("marks workflow complete after verify round when model did not add new todos", () => {
+    // lastDecisionReason="completion_verify" means the AI just got a nudge to
+    // update the todolist and chose not to add anything. Treat as real stop.
     const decision = evaluateAutonomousContinuation({
       session: {
         parentID: undefined,
@@ -616,6 +616,7 @@ describe("Session workflow runner", () => {
       },
       todos: [{ id: "a", content: "done", status: "completed", priority: "high" }],
       roundCount: 1,
+      lastDecisionReason: "completion_verify",
     })
 
     expect(decision).toEqual({ continue: false, reason: "todo_complete" })
@@ -1803,7 +1804,7 @@ describe("Session workflow runner", () => {
     expect(picked.map((item) => item.pending.sessionID)).toEqual(["session_healthy"])
   })
 
-  it("injects completion-verify round when roundCount=0 and every todo is completed", () => {
+  it("injects completion-verify round whenever todos drain and prior decision was not verify", () => {
     const action = planAutonomousNextAction({
       session: {
         parentID: undefined,
@@ -1820,13 +1821,33 @@ describe("Session workflow runner", () => {
     expect(action.type).toBe("continue")
     if (action.type === "continue") {
       expect(action.reason).toBe("completion_verify")
-      expect(action.text).toContain("final inventory")
-      expect(action.text).toContain("TodoWrite")
+      expect(action.text).toContain("Update the todolist")
       expect(action.todo.id).toBe("_runner_completion_verify")
     }
   })
 
-  it("stops with todo_complete after verify round when model added no new todos (roundCount=1)", () => {
+  it("injects completion-verify even on later exhaustions as long as the previous decision was not verify", () => {
+    const action = planAutonomousNextAction({
+      session: {
+        parentID: undefined,
+        workflow: {
+          ...Session.defaultWorkflow(1),
+          autonomous: { ...Session.defaultWorkflow(1).autonomous, enabled: true },
+          state: "running",
+        },
+        time: { created: 1, updated: 1 },
+      },
+      todos: [{ id: "a", content: "done task", status: "completed", priority: "high" }],
+      roundCount: 5,
+      lastDecisionReason: "todo_pending",
+    })
+    expect(action.type).toBe("continue")
+    if (action.type === "continue") {
+      expect(action.reason).toBe("completion_verify")
+    }
+  })
+
+  it("stops with todo_complete when previous decision was already completion_verify", () => {
     const action = planAutonomousNextAction({
       session: {
         parentID: undefined,
@@ -1839,6 +1860,7 @@ describe("Session workflow runner", () => {
       },
       todos: [{ id: "a", content: "done task", status: "completed", priority: "high" }],
       roundCount: 1,
+      lastDecisionReason: "completion_verify",
     })
     expect(action).toEqual({ type: "stop", reason: "todo_complete" })
   })

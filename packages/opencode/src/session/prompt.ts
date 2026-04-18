@@ -822,6 +822,7 @@ export namespace SessionPrompt {
 
     let step = 0
     let autonomousRounds = 0
+    let lastDecisionReason: Awaited<ReturnType<typeof decideAutonomousContinuation>>["reason"] | undefined
     let emptyRoundCount = 0
     let consecutiveCompactions = 0
     let subagentNudgeCount = 0
@@ -1815,7 +1816,9 @@ export namespace SessionPrompt {
         const decision = await decideAutonomousContinuation({
           sessionID,
           roundCount: autonomousRounds,
+          lastDecisionReason,
         })
+        lastDecisionReason = decision.reason
         if (decision.continue) {
           const continuationResult = await handleContinuationSideEffects({
             sessionID,

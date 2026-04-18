@@ -44,25 +44,16 @@ export const AUTONOMOUS_CONTINUE_TEXT =
 export const AUTONOMOUS_PROGRESS_TEXT =
   "Continue the task already in progress. Finish or unblock it before starting new work, unless reprioritization is clearly necessary."
 
-// D1/D2 (2026-04-18): first-round completion-verify nudge.
-// When the model wraps every todo in one turn and autonomousRounds was never
-// incremented, the runner has not had a chance to validate. Inject a single
-// close-out verification round whose sole contract is: do a follow-up
-// inventory via TodoWrite. If new todos show up, normal continuation picks
-// them up. If TodoWrite is not called at all, the runner takes the empty
-// diff as genuine completion and exits on the next decision call.
-export const AUTONOMOUS_COMPLETION_VERIFY_TEXT = `[runner completion check]
+// D1/D2 (2026-04-18): completion-verify nudge.
+// Whenever the todo list drains, the runner sends this minimal instruction.
+// The skill layer is responsible for expanding "Update the todolist" into
+// concrete behavior (reconcile with tasks.md, /plans, /specs, etc.).
+// If the model adds new todos, normal continuation picks them up. If the
+// model does not call TodoWrite, the next decision sees trigger=null plus
+// lastDecisionReason="completion_verify" and the runner exits.
+export const AUTONOMOUS_COMPLETION_VERIFY_TEXT = `[runner] Update the todolist.
 
-Every todo is marked completed and the runner has not continued once this turn. Before exiting, do a final inventory of follow-up work that was NOT captured as a todo:
-
-- Uncommitted changes or untracked files that belong to this work?
-- Docs / specs / events / plan artifacts still to sync?
-- A closing summary that was never written?
-- Any step the delegated subagent finished but you have not yet acknowledged?
-
-If you find anything, call TodoWrite to add the remaining items. The runner will continue on them.
-
-If the inventory is genuinely empty, do NOT call TodoWrite in this round. The runner treats an empty TodoWrite diff as confirmation and will exit cleanly.`
+Call TodoWrite with any remaining work you can identify. If there is genuinely nothing left, do NOT call TodoWrite — the runner treats an empty diff as confirmation and will exit.`
 
 function applyRunnerContract(text: string) {
   return `${RUNNER_CONTRACT.trim()}\n\n${text}`
@@ -855,6 +846,7 @@ export function evaluateAutonomousContinuation(input: {
   activeSubtasks?: number
   pendingApprovals?: number
   pendingQuestions?: number
+  lastDecisionReason?: ContinuationDecisionReason
 }) {
   const next = planAutonomousNextAction(input)
   return next.type === "continue"
@@ -880,6 +872,7 @@ export function planAutonomousNextAction(input: {
   activeSubtasks?: number
   pendingApprovals?: number
   pendingQuestions?: number
+  lastDecisionReason?: ContinuationDecisionReason
 }): AutonomousNextAction {
   // Build a continuation trigger from the next actionable todo
   const current = Todo.nextActionableTodo(input.todos)
@@ -893,17 +886,17 @@ export function planAutonomousNextAction(input: {
   // Gates only matter when there IS work to gate; evaluating a placeholder trigger
   // causes false "mission_not_approved" stops in normal conversation sessions.
   if (!trigger) {
-    // D1/D2 completion-verify guard: if the runner has not yet incremented
-    // roundCount once, inject a single verification round so the model gets
-    // one chance to catch missing docs/commits/summary before we exit.
-    // Gated to autonomous=enabled sessions that actually used todos this
-    // session — pure chat sessions never trigger the extra round.
+    // Completion-verify nudge: whenever todos drain, send "Update the
+    // todolist" once and let the AI decide. If lastDecisionReason was
+    // already "completion_verify" the AI just had its chance and chose
+    // not to add anything — treat as genuine completion and stop.
     const autonomousEnabled = input.session.workflow?.autonomous?.enabled === true
     const hadTodos = input.todos.some((t) => t.status === "completed" || t.status === "cancelled")
-    if (autonomousEnabled && hadTodos && input.roundCount === 0) {
+    const alreadyVerified = input.lastDecisionReason === "completion_verify"
+    if (autonomousEnabled && hadTodos && !alreadyVerified) {
       const verifyTodo: Todo.Info = {
         id: "_runner_completion_verify",
-        content: "[runner] pre-exit summary and sync",
+        content: "[runner] update the todolist",
         status: "pending",
         priority: "high",
         action: { kind: "decision", risk: "low", needsApproval: false, canDelegate: false },
@@ -1055,7 +1048,11 @@ export function shouldInterruptAutonomousRun(input: {
   return input.lastUserSynthetic || input.hasPendingContinuation
 }
 
-export async function decideAutonomousContinuation(input: { sessionID: string; roundCount: number }) {
+export async function decideAutonomousContinuation(input: {
+  sessionID: string
+  roundCount: number
+  lastDecisionReason?: ContinuationDecisionReason
+}) {
   // AI self-verification gate: validate pending beta admission before evaluating continuation
   const quizResult = await validatePendingBetaAdmission(input.sessionID)
   if (quizResult) {
@@ -1094,6 +1091,7 @@ export async function decideAutonomousContinuation(input: { sessionID: string; r
     activeSubtasks,
     pendingApprovals,
     pendingQuestions,
+    lastDecisionReason: input.lastDecisionReason,
   })
   debugCheckpoint("workflow", "continuation_decision", {
     sessionID: input.sessionID,
