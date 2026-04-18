@@ -429,6 +429,15 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         if (sessionID) {
           return (
             getFirstValidModel(
+              () => {
+                const exec = sync.data.session.find((s) => s.id === sessionID)?.execution
+                if (!exec) return undefined
+                return {
+                  providerId: exec.providerId,
+                  modelID: exec.modelID,
+                  accountId: exec.accountId,
+                }
+              },
               () => modelStore.model[buildModelScopeKey(a.name, sessionID)],
               () => a.model,
               fallbackModel,

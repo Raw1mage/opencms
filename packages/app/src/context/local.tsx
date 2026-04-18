@@ -189,6 +189,15 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         if (sessionID) {
           const m1 = ephemeral.model[buildModelScopeKey(a.name, sessionID)]
           return getFirstValidModel(
+            () => {
+              const exec = sync.data.session.find((s: { id: string }) => s.id === sessionID)?.execution
+              if (!exec) return undefined
+              return {
+                providerID: exec.providerId,
+                modelID: exec.modelID,
+                accountID: exec.accountId,
+              }
+            },
             () => m1,
             () => (a.model ? { providerID: a.model.providerId, modelID: a.model.modelID } : undefined),
             fallbackModel,
