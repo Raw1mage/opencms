@@ -19,6 +19,7 @@ import { Question } from "@/question"
 import { debugCheckpoint } from "@/util/debug"
 import { isRateLimitError, getRateLimitTracker } from "@/account/rotation"
 import { isVectorRateLimited } from "@/account/rotation3d"
+import { CodexFamilyExhausted } from "@/account/rate-limit-judge"
 import { Global } from "@/global"
 import path from "path"
 import { materializeToolAttachments } from "./attachment-ownership"
@@ -1304,18 +1305,42 @@ export namespace SessionProcessor {
                 SessionStatus.set(input.sessionID, { type: "idle" })
                 break
               } else {
-                const fallback = await LLM.handleRateLimitFallback(
-                  streamInput.model,
-                  "account-first",
-                  triedVectors,
-                  e,
-                  streamInput.accountId ??
-                    input.accountId ??
-                    input.assistantMessage.accountId ??
-                    streamInput.user.model.accountId,
-                  sessionIdentity,
-                  { silent: streamInput.agent.name === "cron" },
-                )
+                let fallback: Awaited<ReturnType<typeof LLM.handleRateLimitFallback>> = null
+                let codexFamilyError: unknown = null
+                try {
+                  fallback = await LLM.handleRateLimitFallback(
+                    streamInput.model,
+                    "account-first",
+                    triedVectors,
+                    e,
+                    streamInput.accountId ??
+                      input.accountId ??
+                      input.assistantMessage.accountId ??
+                      streamInput.user.model.accountId,
+                    sessionIdentity,
+                    { silent: streamInput.agent.name === "cron" },
+                  )
+                } catch (fallbackErr) {
+                  if (CodexFamilyExhausted.isInstance(fallbackErr)) {
+                    codexFamilyError = fallbackErr
+                  } else {
+                    throw fallbackErr
+                  }
+                }
+                if (codexFamilyError) {
+                  log.error("Codex family exhausted during temporary-error rotation", {
+                    fallbackAttempts,
+                  })
+                  input.assistantMessage.error = MessageV2.fromError(codexFamilyError as Error, {
+                    providerId: input.model.providerId,
+                  })
+                  Bus.publish(Session.Event.Error, {
+                    sessionID: input.assistantMessage.sessionID,
+                    error: input.assistantMessage.error,
+                  })
+                  SessionStatus.set(input.sessionID, { type: "idle" })
+                  break
+                }
                 if (fallback) {
                   consecutiveNullFallbacks = 0
                   log.info("Switching to fallback model (temporary error)", {
@@ -1417,18 +1442,42 @@ export namespace SessionProcessor {
               // Trigger rotation to find a working model
               fallbackAttempts++
               if (fallbackAttempts <= MAX_FALLBACK_ATTEMPTS) {
-                const fallback = await LLM.handleRateLimitFallback(
-                  streamInput.model,
-                  "account-first",
-                  triedVectors,
-                  e,
-                  streamInput.accountId ??
-                    input.accountId ??
-                    input.assistantMessage.accountId ??
-                    streamInput.user.model.accountId,
-                  sessionIdentity,
-                  { silent: streamInput.agent.name === "cron" },
-                )
+                let fallback: Awaited<ReturnType<typeof LLM.handleRateLimitFallback>> = null
+                let codexFamilyError: unknown = null
+                try {
+                  fallback = await LLM.handleRateLimitFallback(
+                    streamInput.model,
+                    "account-first",
+                    triedVectors,
+                    e,
+                    streamInput.accountId ??
+                      input.accountId ??
+                      input.assistantMessage.accountId ??
+                      streamInput.user.model.accountId,
+                    sessionIdentity,
+                    { silent: streamInput.agent.name === "cron" },
+                  )
+                } catch (fallbackErr) {
+                  if (CodexFamilyExhausted.isInstance(fallbackErr)) {
+                    codexFamilyError = fallbackErr
+                  } else {
+                    throw fallbackErr
+                  }
+                }
+                if (codexFamilyError) {
+                  log.error("Codex family exhausted during permanent-error rotation", {
+                    fallbackAttempts,
+                  })
+                  input.assistantMessage.error = MessageV2.fromError(codexFamilyError as Error, {
+                    providerId: input.model.providerId,
+                  })
+                  Bus.publish(Session.Event.Error, {
+                    sessionID: input.assistantMessage.sessionID,
+                    error: input.assistantMessage.error,
+                  })
+                  SessionStatus.set(input.sessionID, { type: "idle" })
+                  break
+                }
                 if (fallback) {
                   consecutiveNullFallbacks = 0
                   log.info("Switching to fallback model (permanent error)", {
@@ -1530,18 +1579,43 @@ export namespace SessionProcessor {
               }
               if (isRateLimitRetry && fallbackAttempts <= MAX_FALLBACK_ATTEMPTS) {
                 fallbackAttempts++
-                const fallback = await LLM.handleRateLimitFallback(
-                  streamInput.model,
-                  "account-first",
-                  triedVectors,
-                  e,
-                  streamInput.accountId ??
-                    input.accountId ??
-                    input.assistantMessage.accountId ??
-                    streamInput.user.model.accountId,
-                  sessionIdentity,
-                  { silent: streamInput.agent.name === "cron" },
-                )
+                let fallback: Awaited<ReturnType<typeof LLM.handleRateLimitFallback>> = null
+                let codexFamilyError: unknown = null
+                try {
+                  fallback = await LLM.handleRateLimitFallback(
+                    streamInput.model,
+                    "account-first",
+                    triedVectors,
+                    e,
+                    streamInput.accountId ??
+                      input.accountId ??
+                      input.assistantMessage.accountId ??
+                      streamInput.user.model.accountId,
+                    sessionIdentity,
+                    { silent: streamInput.agent.name === "cron" },
+                  )
+                } catch (fallbackErr) {
+                  if (CodexFamilyExhausted.isInstance(fallbackErr)) {
+                    codexFamilyError = fallbackErr
+                  } else {
+                    throw fallbackErr
+                  }
+                }
+                if (codexFamilyError) {
+                  log.error("Codex family exhausted during retry-path rotation", {
+                    retryMessage: retry,
+                    fallbackAttempts,
+                  })
+                  input.assistantMessage.error = MessageV2.fromError(codexFamilyError as Error, {
+                    providerId: input.model.providerId,
+                  })
+                  Bus.publish(Session.Event.Error, {
+                    sessionID: input.assistantMessage.sessionID,
+                    error: input.assistantMessage.error,
+                  })
+                  SessionStatus.set(input.sessionID, { type: "idle" })
+                  break
+                }
                 if (fallback) {
                   consecutiveNullFallbacks = 0
                   log.info("Retry-path rotation: switching to fallback", {

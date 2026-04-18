@@ -33,7 +33,13 @@ import { Bus } from "@/bus"
 import { BusEvent } from "@/bus/bus-event"
 import { TuiEvent } from "@/cli/cmd/tui/event"
 import { debugCheckpoint } from "@/util/debug"
-import { RateLimitJudge, isRateLimitError, isAuthError, formatRateLimitReason } from "@/account/rate-limit-judge"
+import {
+  RateLimitJudge,
+  isRateLimitError,
+  isAuthError,
+  formatRateLimitReason,
+  CodexFamilyExhausted,
+} from "@/account/rate-limit-judge"
 
 import { RequestMonitor } from "@/account/monitor"
 import ENABLEMENT from "./prompt/enablement.json"
@@ -992,23 +998,36 @@ export namespace LLM {
           }
         }
 
-        // Tool IS in the active set — this is a schema validation failure on
-        // a tool the LLM already has full visibility into (e.g. todowrite
-        // args missing a required field). Don't silently redirect to
-        // `invalid` — that swallows the call and prevents the tool's execute
-        // from ever running. Return null so the AI SDK surfaces the
-        // validation error back to the LLM, which can then retry with fixed
-        // args. (AGENTS.md 第一條: no silent fallback.)
+        // Tool IS in the active set — schema validation failed on a tool the
+        // LLM already has full visibility into (e.g. todowrite missing a
+        // required field, question with empty args). Redirect to `invalid`
+        // (same pattern as the unknown-tool branch below) so the LLM sees a
+        // normal tool result with the validation issues and self-corrects
+        // on the next turn, instead of the UI rendering a red ContentError.
+        //
+        // This is NOT a violation of AGENTS.md 第一條 (no silent fallback):
+        // the failure is in LLM↔tool input negotiation, not in internal
+        // execution. The call never reached the tool's execute(), the LLM
+        // still receives the error via the `invalid` tool's output (so it
+        // can retry), and dev visibility is preserved via the l.warn below.
+        // Internal-execution failures still throw and surface as before.
         const activeHit = tools[toolName] ?? tools[lower]
         if (activeHit) {
           const alwaysPresent = ALWAYS_PRESENT_TOOLS.has(toolName) || ALWAYS_PRESENT_TOOLS.has(lower)
-          l.warn("tool call schema validation failed — deferring to AI SDK", {
+          l.warn("tool call schema validation failed — redirecting to invalid for self-heal", {
             sessionID: input.sessionID,
             tool: toolName,
             alwaysPresent,
             error: failed.error.message,
           })
-          return null
+          return {
+            ...failed.toolCall,
+            input: JSON.stringify({
+              tool: toolName,
+              error: failed.error.message,
+            }),
+            toolName: "invalid",
+          }
         }
 
         l.warn("unknown tool call — redirecting to invalid", {
@@ -1253,6 +1272,22 @@ export namespace LLM {
         triedVectorCount: triedVectors.size,
         note: "all candidates exhausted or rate-limited",
       })
+      // @plans/codex-rotation-hotfix Phase 3 — codex family is same-provider-only
+      // by design. When the pool is empty AND we came in on codex, it means every
+      // codex subscription account is out of 5H / weekly quota. Surface this as a
+      // codex-specific error so the operator gets an actionable message instead
+      // of the generic "all accounts rate-limited" fallback downstream.
+      if (currentModel.providerId === "codex") {
+        throw new CodexFamilyExhausted({
+          providerId: currentModel.providerId,
+          accountId: currentAccountId,
+          modelId: currentModel.id,
+          triedCount: triedVectors.size,
+          message:
+            "All codex subscription accounts have exhausted their 5H/weekly quota. " +
+            "Wait for the next 5H reset or switch provider manually.",
+        })
+      }
       return null
     }
 

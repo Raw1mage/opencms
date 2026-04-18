@@ -233,6 +233,13 @@ Legacy all-in-one `opencode.json` continues to work unchanged — the split file
 
 - `packages/opencode/src/provider/transform.ts` Anthropic branch returns the `xhigh` variant (budget `min(32_000, model.limit.output - 1)`) for models whose id matches `claude-opus-4-N` with `N >= 7`, or whose `release_date >= "2026-03-19"`. Mirrors the OpenAI `xhigh` gate pattern.
 
+### Codex family rotation rule (plans/codex-rotation-hotfix, 2026-04-18)
+
+- Codex and openai share the ChatGPT subscription `wham/usage` endpoint. `RateLimitJudge.getBackoffStrategy` returns `"cockpit"` for both families; `fetchCockpitBackoff` treats them identically via the `COCKPIT_WHAM_USAGE_FAMILIES` set. The pure helper `evaluateWhamUsageQuota` drives per-candidate `isQuotaLimited` inside `rotation3d.buildFallbackCandidates`, so a codex account that drained its 5H or weekly window is skipped instead of blindly retried.
+- `rotation3d.enforceCodexFamilyOnly` applies after candidate scoring: when the current vector's providerId is `codex`, non-codex candidates are removed from the pool (with a per-candidate `log.info` recording the rejection). Auto-rotation is strictly same-family; manual provider switches from UI/TUI remain unaffected.
+- When `findFallback` returns null under the codex-only path, `session/llm.ts::handleRateLimitFallback` throws `CodexFamilyExhausted` (NamedError defined in `rate-limit-judge.ts`). `session/processor.ts` wraps each in-catch-block `handleRateLimitFallback` call with a local try/catch that surfaces the error via `MessageV2.fromError` and sets session state to idle; the preflight call in the outer try block bubbles the throw into the existing catch-fallthrough path.
+- `account/rotation/backoff.ts::parseRateLimitReason` adds passive message-pattern guards for codex 5H / response-time-window / weekly-usage strings as a belt-and-suspenders when cockpit is unreachable, mapping them to `QUOTA_EXHAUSTED`.
+
 ## Managed App Registry (MCP Apps)
 
 ### Overview
