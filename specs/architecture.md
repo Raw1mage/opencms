@@ -601,3 +601,89 @@ Space {
 
 - `opencode-gateway.service`: Root-level gateway daemon (`/usr/local/bin/opencode-gateway`)
 - `opencode-user@.service`: Per-user daemon template (`/usr/local/bin/opencode serve --unix-socket ...`)
+
+## Session Read Cache + Rate Limit Layer
+
+Added 2026-04-19 via `specs/session-poll-cache/`. Defends the daemon against
+high-frequency frontend polling on `GET /api/v2/session/{id}` and
+`GET /api/v2/session/{id}/message` without forcing clients to migrate off
+polling.
+
+### Components (src paths)
+
+- `packages/opencode/src/config/tweaks.ts` — `Tweaks` namespace. Parses
+  `/etc/opencode/tweaks.cfg` (override via `OPENCODE_TWEAKS_PATH`). Missing
+  file uses defaults + `log.info`; invalid values warn + per-key default
+  fallback (AGENTS.md rule 1).
+- `packages/opencode/src/server/session-cache.ts` — `SessionCache` namespace.
+  In-process LRU keyed by `session:<id>` / `messages:<id>:<limit>`, plus a
+  per-session monotonic version counter used in weak ETags.
+- `packages/opencode/src/server/rate-limit.ts` — `RateLimit` namespace.
+  Token bucket middleware keyed by `${username}:${method}:${routePattern}`,
+  with `normalizeRoutePattern()` collapsing opencode ID segments into `:id`
+  so per-session URLs share one bucket.
+- `packages/opencode/src/server/routes/cache-health.ts` — `GET
+  /api/v2/server/cache/health` endpoint exposing cache + rate-limit stats
+  via the pluggable `registerCacheStatsProvider` /
+  `registerRateLimitStatsProvider` pattern.
+- `packages/opencode/src/server/routes/session.ts` — `GET /:sessionID`,
+  `GET /:sessionID/message`, `GET /:sessionID/autonomous/health` route
+  through `SessionCache.get()` with loader-wrapped `Session.get` /
+  `Session.messages`; 304 short-circuit via `SessionCache.currentEtag` +
+  `isEtagMatch`.
+
+### Invalidation flow
+
+- Worker process writes trigger `Bus.publish(MessageV2.Event.*)` inside the
+  worker's local bus.
+- `packages/opencode/src/tool/task.ts:publishBridgedEvent` relays those
+  events to the daemon's local bus (same mechanism already used for other
+  cross-process session state).
+- The daemon's `SessionCache.registerInvalidationSubscriber` subscribes to
+  `MessageV2.Event.{Updated, Removed, PartUpdated, PartRemoved}` and
+  `Session.Event.{Created, Updated, Deleted}`; each event bumps the
+  per-session version counter and drops matching cache keys.
+  `Session.Event.Deleted` additionally clears the counter entirely (I-4).
+
+### ETag format
+
+`W/"<sessionID>:<version>:<process-epoch>"` where `process-epoch =
+Date.now().toString(36)` captured at module load. The epoch makes
+post-restart ETag collisions impossible even though the version counter
+resets to 0 per process.
+
+### Rate-limit exempt surfaces
+
+`EXEMPT_PATH_PREFIXES` in `rate-limit.ts`:
+
+- `/log`, `/api/v2/global/log` — log ingestion is high-volume by design
+- `/api/v2/global/health`, `/api/v2/server/cache/health` — ops inspectability
+  must not be throttled
+- `/api/v2/server/` (entire prefix) — ops surfaces extend here over time
+- `hostname === "opencode.internal"` — internal worker-to-daemon requests
+
+Unresolvable usernames produce a `log.warn` bypass (E-RATE-002) rather than
+a silent throttle or a guess.
+
+### Operator tunables (`/etc/opencode/tweaks.cfg`)
+
+- `session_cache_enabled` (default `1`)
+- `session_cache_ttl_sec` (default `60`)
+- `session_cache_max_entries` (default `500`)
+- `ratelimit_enabled` (default `1`)
+- `ratelimit_qps_per_user_per_path` (default `10`)
+- `ratelimit_burst` (default `20`)
+
+Defaults live in `templates/system/tweaks.cfg` and are copied to
+`/etc/opencode/tweaks.cfg` during install. Daemon reads once at startup;
+restart to apply changes (same model as `opencode.cfg`).
+
+### Race / integrity notes
+
+- Subscription wiring failure → `subscriptionAlive=false`, `log.warn`, and
+  **no memoization**; loader still runs per request (I-3).
+- Cumulative stats only (no 5-min sliding window yet) — tracked as a
+  follow-up plan candidate. The schema accommodates either implementation.
+- The forwarded-to-per-user-daemon path
+  (`UserDaemonManager.routeSessionReadEnabled`) is intentionally **not**
+  cached on the gateway side; the per-user daemon owns its own cache.

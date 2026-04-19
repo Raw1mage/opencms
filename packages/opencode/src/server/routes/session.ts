@@ -24,6 +24,7 @@ import { errors } from "../error"
 import { lazy } from "../../util/lazy"
 import { RequestUser } from "@/runtime/request-user"
 import { UserDaemonManager } from "../user-daemon"
+import { SessionCache } from "../session-cache"
 import { debugCheckpoint } from "@/util/debug"
 import {
   enqueueAutonomousContinue,
@@ -370,7 +371,25 @@ export const SessionRoutes = lazy(() =>
           )
         }
         log.info("SEARCH", { url: c.req.url })
-        const session = await Session.get(sessionID)
+
+        // Conditional GET short-circuit — if the client already has the
+        // latest version we avoid the cache lookup, the loader, and JSON
+        // serialization entirely. See specs/session-poll-cache/ R-2.
+        const etag = SessionCache.currentEtag(sessionID)
+        const ifNoneMatch = c.req.header("if-none-match")
+        if (SessionCache.isEtagMatch(sessionID, ifNoneMatch)) {
+          c.header("ETag", etag)
+          return c.body(null, 304)
+        }
+
+        const { data: session } = await SessionCache.get(
+          `session:${sessionID}`,
+          sessionID,
+          async () => {
+            const data = await Session.get(sessionID)
+            return { data, version: SessionCache.getVersion(sessionID) }
+          },
+        )
         sessionRouteDebug("session.get response", {
           sessionID,
           found: !!session,
@@ -381,6 +400,7 @@ export const SessionRoutes = lazy(() =>
           found: !!session,
           directory: session?.directory,
         })
+        c.header("ETag", SessionCache.currentEtag(sessionID))
         return c.json(session)
       },
     )
@@ -926,7 +946,12 @@ export const SessionRoutes = lazy(() =>
           )
         }
 
-        await Session.get(sessionID)
+        // Existence guard piggybacks on the session cache so every polling hit
+        // to /autonomous/health doesn't trigger a fresh Session.get disk read.
+        await SessionCache.get(`session:${sessionID}`, sessionID, async () => {
+          const data = await Session.get(sessionID)
+          return { data, version: SessionCache.getVersion(sessionID) }
+        })
         const health = await getAutonomousWorkflowHealth(sessionID)
         return c.json(health)
       },
@@ -1490,10 +1515,23 @@ export const SessionRoutes = lazy(() =>
             503,
           )
         }
-        const messages = await Session.messages({
+        // Conditional GET short-circuit for message listing. See R-2.
+        const etag = SessionCache.currentEtag(sessionID)
+        const ifNoneMatch = c.req.header("if-none-match")
+        if (SessionCache.isEtagMatch(sessionID, ifNoneMatch)) {
+          c.header("ETag", etag)
+          return c.body(null, 304)
+        }
+
+        const cacheKey = `messages:${sessionID}:${query.limit ?? "all"}`
+        const { data: messages } = await SessionCache.get(
+          cacheKey,
           sessionID,
-          limit: query.limit,
-        })
+          async () => {
+            const data = await Session.messages({ sessionID, limit: query.limit })
+            return { data, version: SessionCache.getVersion(sessionID) }
+          },
+        )
         sessionRouteDebug("session.messages response", {
           sessionID,
           count: messages.length,
@@ -1504,6 +1542,7 @@ export const SessionRoutes = lazy(() =>
           count: messages.length,
           limit: query.limit,
         })
+        c.header("ETag", SessionCache.currentEtag(sessionID))
         return c.json(messages)
       },
     )

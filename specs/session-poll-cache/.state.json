@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "planned",
+  "state": "implementing",
   "profile": [],
   "history": [
     {
@@ -26,6 +26,75 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "tasks + handoff + errors + observability + test vectors ready"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-04-18T17:49:10.641Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Phase 1 tasks 1.1-1.5 complete: tweaks.cfg loader, template, cache-health route, mount, tests"
+    },
+    {
+      "at": "2026-04-18T17:49:10.686Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "e0784efda7c9f8add8450584c09a5df38068f840"
+    },
+    {
+      "at": "2026-04-18T17:54:52.688Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/test/config/tweaks.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/test/config/tweaks.test.ts"
+      ],
+      "commit": "b7ce10542495918df8b0b62aadd2ba0bd1bf6a94"
+    },
+    {
+      "at": "2026-04-18T19:50:55.992Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/account/rotation/coalesce.test.ts, packages/opencode/src/account/rotation/coalesce.ts, packages/opencode/src/index.ts, packages/opencode/src/session/llm.ts, packages/opencode/src/session/prompt.ts, packages/opencode/src/tool/read.ts, packages/opencode/test/server/session-cache.test.ts, packages/opencode/test/tool/read.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/account/rotation/coalesce.test.ts",
+        "packages/opencode/src/account/rotation/coalesce.ts",
+        "packages/opencode/src/index.ts",
+        "packages/opencode/src/session/llm.ts",
+        "packages/opencode/src/session/prompt.ts",
+        "packages/opencode/src/tool/read.ts",
+        "packages/opencode/test/server/session-cache.test.ts",
+        "packages/opencode/test/tool/read.test.ts"
+      ],
+      "commit": "6c621b8d8fd98d2000c337cc86f5de0eedf6bc28"
+    },
+    {
+      "at": "2026-04-18T19:54:06.012Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/test/server/session-cache.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/test/server/session-cache.test.ts"
+      ],
+      "commit": "bf26006ff348a862c322bbee57627db971bf9cae"
+    },
+    {
+      "at": "2026-04-18T19:59:55.035Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/index.ts, packages/opencode/test/server/cache-health.test.ts, packages/opencode/test/server/rate-limit.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/index.ts",
+        "packages/opencode/test/server/cache-health.test.ts",
+        "packages/opencode/test/server/rate-limit.test.ts"
+      ],
+      "commit": "dd58f7b242aa0d62eace8ca77e93001940559904"
     }
   ]
 }

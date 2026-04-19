@@ -39,6 +39,8 @@ import { errors } from "./error"
 import { QuestionRoutes } from "./routes/question"
 import { PermissionRoutes } from "./routes/permission"
 import { GlobalRoutes } from "./routes/global"
+import { ServerRoutes } from "./routes/cache-health"
+import { RateLimit } from "./rate-limit"
 import { AccountRoutes } from "./routes/account"
 import { RotationRoutes } from "./routes/rotation"
 import { ModelRoutes } from "./routes/model"
@@ -214,6 +216,8 @@ export function createApp(app: Hono): Hono {
     }
   })
 
+  app.use(RateLimit.middleware())
+
   app.use(async (c, next) => {
     if (c.req.path === "/log" || c.req.path.endsWith("/log")) return next()
     const requestUser = RequestUser.username()
@@ -304,6 +308,7 @@ export function createApp(app: Hono): Hono {
   const api = new Hono()
 
   api.route("/global", GlobalRoutes())
+  api.route("/server", ServerRoutes())
 
   api.put(
     "/auth/:providerId",

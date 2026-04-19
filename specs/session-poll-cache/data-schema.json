@@ -107,7 +107,8 @@
         "evictionCount",
         "subscriptionAlive",
         "ttlSec",
-        "rateLimit"
+        "rateLimit",
+        "source"
       ],
       "additionalProperties": false,
       "properties": {
@@ -128,6 +129,16 @@
             "allowedCount": { "type": "integer", "minimum": 0 },
             "throttledCount": { "type": "integer", "minimum": 0 },
             "activeBuckets": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "source": {
+          "type": "object",
+          "required": ["path", "present"],
+          "additionalProperties": false,
+          "description": "Effective tweaks.cfg source surfaced to operators.",
+          "properties": {
+            "path": { "type": "string" },
+            "present": { "type": "boolean" }
           }
         }
       }
