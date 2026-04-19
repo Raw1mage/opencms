@@ -6,7 +6,11 @@ import { showToast } from "@opencode-ai/ui/toast"
 import type { QuestionAnswer, QuestionRequest } from "@opencode-ai/sdk/v2"
 import { useLanguage } from "@/context/language"
 import { useSDK } from "@/context/sdk"
+import { questionCacheKey } from "./question-cache-key"
 
+// Cache key: `${sessionID}:${fnv1a32(canonicalJson(questions))}` — stable
+// across AI re-asks of identical question content (new request.id) so the
+// user's typed draft is restored automatically. See question-cache-key.ts.
 const cache = new Map<string, { tab: number; answers: QuestionAnswer[]; custom: string[] }>()
 
 export const QuestionDock: Component<{ request: QuestionRequest }> = (props) => {
@@ -15,7 +19,8 @@ export const QuestionDock: Component<{ request: QuestionRequest }> = (props) => 
 
   const questions = createMemo(() => props.request.questions)
   const single = createMemo(() => questions().length === 1 && questions()[0]?.multiple !== true)
-  const cached = cache.get(props.request.id)
+  const cacheKey = createMemo(() => questionCacheKey(props.request))
+  const cached = cache.get(cacheKey())
 
   const [store, setStore] = createStore({
     tab: cached?.tab ?? 0,
@@ -44,7 +49,7 @@ export const QuestionDock: Component<{ request: QuestionRequest }> = (props) => 
 
   onCleanup(() => {
     if (replied) return
-    cache.set(props.request.id, {
+    cache.set(cacheKey(), {
       tab: store.tab,
       answers: store.answers.map((a) => (a ? [...a] : [])),
       custom: store.custom.map((s) => s ?? ""),
@@ -58,7 +63,7 @@ export const QuestionDock: Component<{ request: QuestionRequest }> = (props) => 
     try {
       await sdk.client.question.reply({ requestID: props.request.id, answers })
       replied = true
-      cache.delete(props.request.id)
+      cache.delete(cacheKey())
     } catch (err) {
       fail(err)
     } finally {
@@ -73,7 +78,7 @@ export const QuestionDock: Component<{ request: QuestionRequest }> = (props) => 
     try {
       await sdk.client.question.reject({ requestID: props.request.id })
       replied = true
-      cache.delete(props.request.id)
+      cache.delete(cacheKey())
     } catch (err) {
       fail(err)
     } finally {

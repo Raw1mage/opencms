@@ -86,6 +86,7 @@ export namespace Question {
         info: Request
         resolve: (answers: Answer[]) => void
         reject: (e: any) => void
+        dispose: () => void
       }
     > = {}
 
@@ -107,13 +108,37 @@ export namespace Question {
     return fallbackState
   }
 
+  function abortReasonLabel(reason: unknown): string {
+    if (typeof reason === "string" && reason.length > 0) return reason
+    if (reason instanceof Error) return reason.message || reason.name
+    if (reason === undefined) return "unknown"
+    try {
+      return JSON.stringify(reason)
+    } catch {
+      return String(reason)
+    }
+  }
+
   export async function ask(input: {
     sessionID: string
     questions: Info[]
     tool?: { messageID: string; callID: string }
+    abort?: AbortSignal
   }): Promise<Answer[]> {
     const s = await state()
     const id = Identifier.ascending("question")
+
+    // Pre-aborted signal: short-circuit without publishing question.asked.
+    // Avoids a dialog flash when the stream is already torn down.
+    if (input.abort?.aborted) {
+      const reason = abortReasonLabel(input.abort.reason)
+      log.info("aborted-pre-ask", { id, sessionID: input.sessionID, reason })
+      Bus.publish(Event.Rejected, {
+        sessionID: input.sessionID,
+        requestID: id,
+      })
+      throw new RejectedError(`pre-aborted: ${reason}`)
+    }
 
     log.info("asking", { id, questions: input.questions.length })
 
@@ -124,11 +149,41 @@ export namespace Question {
         questions: input.questions,
         tool: input.tool,
       }
+
+      const abort = input.abort
+      const onAbort = abort
+        ? () => {
+            // Only act if the pending entry is still there. `reply` / `reject`
+            // delete it first, so a late abort after a successful reply is a
+            // no-op — no duplicate `question.rejected` publish.
+            const existing = s.pending[id]
+            if (!existing) return
+            delete s.pending[id]
+            const reason = abortReasonLabel(abort.reason)
+            log.info("aborted", { id, sessionID: info.sessionID, reason })
+            Bus.publish(Event.Rejected, {
+              sessionID: info.sessionID,
+              requestID: id,
+            })
+            reject(new RejectedError(`aborted: ${reason}`))
+          }
+        : undefined
+
+      const dispose = onAbort && abort
+        ? () => abort.removeEventListener("abort", onAbort)
+        : () => {}
+
       s.pending[id] = {
         info,
         resolve,
         reject,
+        dispose,
       }
+
+      if (onAbort && abort) {
+        abort.addEventListener("abort", onAbort, { once: true })
+      }
+
       Bus.publish(Event.Asked, info)
     })
   }
@@ -141,6 +196,7 @@ export namespace Question {
       return
     }
     delete s.pending[input.requestID]
+    existing.dispose()
 
     log.info("replied", { requestID: input.requestID, answers: input.answers })
 
@@ -161,6 +217,7 @@ export namespace Question {
       return
     }
     delete s.pending[requestID]
+    existing.dispose()
 
     log.info("rejected", { requestID })
 
@@ -173,8 +230,9 @@ export namespace Question {
   }
 
   export class RejectedError extends Error {
-    constructor() {
-      super("The user dismissed this question")
+    constructor(detail?: string) {
+      super(detail ? `The question was dismissed (${detail})` : "The user dismissed this question")
+      this.name = "QuestionRejectedError"
     }
   }
 

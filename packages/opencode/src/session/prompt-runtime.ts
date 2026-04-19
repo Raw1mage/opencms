@@ -6,6 +6,23 @@ import { Log } from "../util/log"
 
 const log = Log.create({ service: "session.prompt-runtime" })
 
+/**
+ * Canonical reasons for aborting a running session prompt. Every caller of
+ * `cancel` must supply a value from this union; TypeScript enforces the
+ * closed set so log grep (`grep '"reason":"rate-limit-fallback"'`) stays
+ * reliable across the codebase.
+ */
+export type CancelReason =
+  | "manual-stop"
+  | "rate-limit-fallback"
+  | "monitor-watchdog"
+  | "instance-dispose"
+  | "replace"
+  | "session-switch"
+  | "killswitch"
+  | "parent-abort"
+  | "unknown"
+
 type RuntimeEntry = {
   runID: string
   abort: AbortController
@@ -27,8 +44,17 @@ function createState() {
 
 async function cleanupState(current: ReturnType<typeof createState>) {
   for (const item of Object.values(current)) {
-    item.abort.abort()
+    item.abort.abort("instance-dispose" satisfies CancelReason)
   }
+}
+
+function callerFrame(): string | undefined {
+  // Drop first 3 frames: Error header, callerFrame itself, direct caller (cancel).
+  // The useful frame is the site that invoked cancel.
+  const stack = new Error().stack
+  if (!stack) return undefined
+  const lines = stack.split("\n")
+  return lines[3]?.trim()
 }
 
 let stateGetter: (() => ReturnType<typeof createState>) | undefined
@@ -53,7 +79,7 @@ export function start(sessionID: string, options?: { replace?: boolean }): Runti
   const s = state()
   const current = s[sessionID]
   if (current && !options?.replace) return
-  if (current && options?.replace) current.abort.abort()
+  if (current && options?.replace) current.abort.abort("replace" satisfies CancelReason)
   const controller = new AbortController()
   const runID = `${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 10)}`
   s[sessionID] = {
@@ -86,14 +112,16 @@ export function consumeCallbacks(sessionID: string) {
   return s[sessionID]?.callbacks ?? []
 }
 
-export function cancel(sessionID: string) {
+export function cancel(sessionID: string, reason: CancelReason) {
   const s = state()
   const match = s[sessionID]
+  const caller = callerFrame()
+  log.info("cancel", { sessionID, reason, caller })
   if (!match) {
     SessionStatus.set(sessionID, { type: "idle" })
     return
   }
-  match.abort.abort()
+  match.abort.abort(reason)
 }
 
 export function finish(sessionID: string, runID: string) {

@@ -1,0 +1,121 @@
+{
+  "diagram_title": "Question tool abort lifecycle",
+  "node_reference": "A0",
+  "parent_reference": null,
+  "standard": "IEEE 1320.1-1998 / FIPS 183 (IDEF0)",
+  "activities": [
+    {
+      "id": "A1",
+      "label": "Ask question with stream abort binding",
+      "description": "LLM 呼叫 question tool；Question.ask 註冊 pending + 若 abort signal 已 aborted 則立即拒絕",
+      "inputs": [
+        "LLM tool call params (questions array)",
+        "sessionID / messageID / callID",
+        "stream AbortSignal (ctx.abort)"
+      ],
+      "outputs": [
+        "pending[id] entry",
+        "Bus: question.asked",
+        "awaiting promise"
+      ],
+      "controls": [
+        "DD-1: reuse RejectedError",
+        "DD-3: abort reason from signal.reason"
+      ],
+      "mechanisms": [
+        "Instance.state pending map",
+        "Bus.publish"
+      ]
+    },
+    {
+      "id": "A2",
+      "label": "Render QuestionDock with content-hashed cache",
+      "description": "Webapp 接 question.asked 後 mount QuestionDock；以 sessionID + hash(questions) 回填先前輸入",
+      "inputs": [
+        "Bus: question.asked payload",
+        "cache map keyed by sessionID+hash"
+      ],
+      "outputs": [
+        "rendered dialog with tab/answers/custom restored",
+        "user keystrokes"
+      ],
+      "controls": [
+        "DD-2: canonical JSON + SHA-1 hash",
+        "DD-5: sorted key serializer"
+      ],
+      "mechanisms": [
+        "SolidJS createStore",
+        "Web Crypto SubtleCrypto"
+      ]
+    },
+    {
+      "id": "A3",
+      "label": "Resolve manually (reply or reject)",
+      "description": "使用者送出 Submit / Dismiss；HTTP 路由 /question.reply 或 /question.reject 呼叫 Question.reply/reject",
+      "inputs": [
+        "user action (submit/dismiss)",
+        "requestID + answers"
+      ],
+      "outputs": [
+        "pending[id] delete",
+        "Bus: question.replied / rejected",
+        "promise resolved/rejected"
+      ],
+      "controls": [
+        "pending[id] 是否存在 (idempotent)"
+      ],
+      "mechanisms": [
+        "server route handler",
+        "Question.reply / Question.reject"
+      ]
+    },
+    {
+      "id": "A4",
+      "label": "Cancel stream with reason telemetry",
+      "description": "任一 caller（manual stop / rate-limit fallback / monitor / instance dispose）呼叫 cancel(reason)，AbortController abort(reason) 散播訊號",
+      "inputs": [
+        "sessionID",
+        "reason enum"
+      ],
+      "outputs": [
+        "AbortSignal.aborted=true, signal.reason=<reason>",
+        "log: cancel {sessionID, reason, caller-stack-top}",
+        "SessionStatus → idle"
+      ],
+      "controls": [
+        "DD-3: CancelReason union 限定集合",
+        "DD-4: stack top first non-framework frame"
+      ],
+      "mechanisms": [
+        "AbortController",
+        "Log.info"
+      ]
+    },
+    {
+      "id": "A5",
+      "label": "Stream abort handler (auto-reject pending)",
+      "description": "Question.ask 內部 abort handler 收到 signal，執行 delete + publish rejected + reject promise",
+      "inputs": [
+        "signal.reason",
+        "pending[id]"
+      ],
+      "outputs": [
+        "pending[id] removed",
+        "Bus: question.rejected",
+        "Question.RejectedError thrown"
+      ],
+      "controls": [
+        "pending[id] 存在性檢查（避免 double-publish）"
+      ],
+      "mechanisms": [
+        "AbortSignal.addEventListener('abort', ...)"
+      ]
+    }
+  ],
+  "relationships": [
+    { "from": "A1", "to": "A2", "kind": "triggers", "via": "Bus: question.asked" },
+    { "from": "A2", "to": "A3", "kind": "produces-input", "via": "user submit" },
+    { "from": "A4", "to": "A5", "kind": "triggers", "via": "AbortSignal.abort" },
+    { "from": "A5", "to": "A2", "kind": "unmounts", "via": "Bus: question.rejected" }
+  ]
+}

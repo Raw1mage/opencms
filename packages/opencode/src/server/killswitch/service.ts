@@ -226,11 +226,11 @@ export namespace KillSwitchService {
     try {
       switch (input.action) {
         case "cancel": {
-          SessionPrompt.cancel(input.sessionID)
+          SessionPrompt.cancel(input.sessionID, "killswitch")
           break
         }
         case "pause": {
-          await SessionPrompt.cancel(input.sessionID)
+          await SessionPrompt.cancel(input.sessionID, "killswitch")
           break
         }
         case "resume": {
@@ -318,7 +318,7 @@ export namespace KillSwitchService {
   }
 
   export async function forceKill(sessionID: string, requestID: string, initiator: string, reason = "ack_timeout") {
-    SessionPrompt.cancel(sessionID)
+    SessionPrompt.cancel(sessionID, "killswitch")
     await writeAudit({
       requestID,
       sessionID,

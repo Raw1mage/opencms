@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "state": "implementing",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-04-18T22:00:00Z",
+      "by": "Raw1mage",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "proposed",
+      "at": "2026-04-19T06:05:00Z",
+      "by": "Raw1mage",
+      "mode": "sync",
+      "result": "warned",
+      "drift": [
+        "proposal.md + .state.json lost during branch switch to test/session-poll-cache; rebuilt"
+      ],
+      "reason": "rebuild after branch switch caused file loss"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-04-18T22:05:43.526Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "A+B+C scope design artifacts drafted (spec/design/idef0/grafcet/c4/sequence/data-schema)"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-04-18T22:08:27.649Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "tasks/handoff/test-vectors/errors/observability drafted; ready for build-mode"
+    },
+    {
+      "at": "2026-04-19T04:13:34.170Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "9b21e804297e7c05ffd419ea3e7a0cc8612639e8"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-04-19T04:14:38.996Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Phase 1 complete: Question.ask AbortSignal wiring + 6/6 tests pass"
+    },
+    {
+      "at": "2026-04-19T04:20:12.369Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/question/index.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/question/index.test.ts"
+      ],
+      "commit": "e88298e50715904e8ee374a882ab309bea84eaa7"
+    },
+    {
+      "at": "2026-04-19T04:24:08.041Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/cli/cmd/session.ts, packages/opencode/src/server/killswitch/service.ts, packages/opencode/src/tool/task.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/cli/cmd/session.ts",
+        "packages/opencode/src/server/killswitch/service.ts",
+        "packages/opencode/src/tool/task.ts"
+      ],
+      "commit": "207f4ce61e8c57976cb3dccc280aaedefacedee1"
+    },
+    {
+      "at": "2026-04-19T04:25:44.217Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/app/src/components/question-dock.tsx",
+      "result": "warned",
+      "drift": [
+        "packages/app/src/components/question-dock.tsx"
+      ],
+      "commit": "7b972bb1c0a9da6149857815a8173b2451a250c2"
+    }
+  ]
+}

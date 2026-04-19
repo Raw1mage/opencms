@@ -1,0 +1,136 @@
+{
+  "systems": [
+    {
+      "id": "S1",
+      "name": "opencode",
+      "description": "Core agent / provider / session runtime",
+      "external": false
+    }
+  ],
+  "containers": [
+    {
+      "id": "C1",
+      "systemRef": "S1",
+      "name": "Daemon (bun runtime)",
+      "description": "opencode packages/opencode process serving HTTP + SSE",
+      "technology": "Bun + TypeScript + Hono"
+    },
+    {
+      "id": "C2",
+      "systemRef": "S1",
+      "name": "Webapp (SolidJS SPA)",
+      "description": "packages/app SPA served by webctl",
+      "technology": "SolidJS + Vite"
+    }
+  ],
+  "components": [
+    {
+      "id": "CP1",
+      "containerRef": "C1",
+      "name": "Question state (namespace Question)",
+      "description": "Pending question map + ask/reply/reject entry points",
+      "moduleRef": "A1/A3/A5",
+      "path": "packages/opencode/src/question/index.ts"
+    },
+    {
+      "id": "CP2",
+      "containerRef": "C1",
+      "name": "QuestionTool",
+      "description": "Tool wrapper invoking Question.ask with ctx.abort",
+      "moduleRef": "A1",
+      "path": "packages/opencode/src/tool/question.ts"
+    },
+    {
+      "id": "CP3",
+      "containerRef": "C1",
+      "name": "prompt-runtime",
+      "description": "Per-session AbortController registry",
+      "moduleRef": "A4",
+      "path": "packages/opencode/src/session/prompt-runtime.ts"
+    },
+    {
+      "id": "CP4",
+      "containerRef": "C1",
+      "name": "SessionPrompt",
+      "description": "Public cancel/start entry points (wraps prompt-runtime)",
+      "moduleRef": "A4",
+      "path": "packages/opencode/src/session/prompt.ts"
+    },
+    {
+      "id": "CP5",
+      "containerRef": "C1",
+      "name": "Session routes (HTTP)",
+      "description": "/session/:id/abort and friends",
+      "moduleRef": "A4",
+      "path": "packages/opencode/src/server/routes/session.ts"
+    },
+    {
+      "id": "CP6",
+      "containerRef": "C1",
+      "name": "Processor (rate-limit fallback)",
+      "description": "Stream processor with rotation retry logic",
+      "moduleRef": "A4",
+      "path": "packages/opencode/src/session/processor.ts"
+    },
+    {
+      "id": "CP7",
+      "containerRef": "C2",
+      "name": "QuestionDock",
+      "description": "SolidJS component rendering question UI + cache",
+      "moduleRef": "A2",
+      "path": "packages/app/src/components/question-dock.tsx"
+    },
+    {
+      "id": "CP8",
+      "containerRef": "C2",
+      "name": "global-sync event reducer",
+      "description": "Drives sync.data.question[sessionID] from Bus events",
+      "moduleRef": "A2",
+      "path": "packages/app/src/context/global-sync/event-reducer.ts"
+    }
+  ],
+  "relationships": [
+    {
+      "from": "CP2",
+      "to": "CP1",
+      "description": "invokes Question.ask with ctx.abort",
+      "technology": "function call"
+    },
+    {
+      "from": "CP1",
+      "to": "CP8",
+      "description": "publishes question.asked / replied / rejected",
+      "technology": "Bus event"
+    },
+    {
+      "from": "CP8",
+      "to": "CP7",
+      "description": "feeds sync.data.question[sessionID]",
+      "technology": "SolidJS store"
+    },
+    {
+      "from": "CP5",
+      "to": "CP4",
+      "description": "POST /abort → SessionPrompt.cancel(id, 'manual-stop')",
+      "technology": "HTTP handler"
+    },
+    {
+      "from": "CP4",
+      "to": "CP3",
+      "description": "delegates to prompt-runtime.cancel",
+      "technology": "function call"
+    },
+    {
+      "from": "CP6",
+      "to": "CP3",
+      "description": "aborts current AbortController on fallback rotation",
+      "technology": "function call"
+    },
+    {
+      "from": "CP3",
+      "to": "CP1",
+      "description": "AbortSignal propagates via ctx.abort → Question abort handler",
+      "technology": "AbortSignal"
+    }
+  ]
+}

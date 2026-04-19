@@ -1855,7 +1855,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         })
 
         function cancel() {
-          SessionPrompt.cancel(session.id)
+          SessionPrompt.cancel(session.id, "parent-abort")
         }
         ctx.abort.addEventListener("abort", cancel)
         using _ = defer(() => ctx.abort.removeEventListener("abort", cancel))
@@ -1931,7 +1931,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         // Link abort signal to process kill via Manager
         const cleanup = () => {
           if (ctx.callID) ProcessSupervisor.kill(ctx.callID)
-          SessionPrompt.cancel(session.id)
+          SessionPrompt.cancel(session.id, "parent-abort")
         }
         ctx.abort.addEventListener("abort", cleanup)
 

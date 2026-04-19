@@ -1,0 +1,88 @@
+[
+  {
+    "id": "S0",
+    "label": "Idle",
+    "description": "No pending question; QuestionDock unmounted",
+    "actions": [],
+    "transitions": [
+      {
+        "to": "S1",
+        "condition": "Question.ask called with abort signal",
+        "refs": ["A1"]
+      }
+    ]
+  },
+  {
+    "id": "S1",
+    "label": "Pending",
+    "description": "pending[id] stored; Bus: question.asked published; QuestionDock mounted with cache lookup",
+    "actions": [
+      "store pending[id] = { info, resolve, reject, dispose }",
+      "attach abort handler to signal",
+      "Bus.publish(question.asked, info)",
+      "QuestionDock: lookup cache[sessionID+hash], restore store if hit"
+    ],
+    "transitions": [
+      {
+        "to": "S2",
+        "condition": "user submits → /question.reply",
+        "refs": ["A3"]
+      },
+      {
+        "to": "S3",
+        "condition": "user dismisses → /question.reject",
+        "refs": ["A3"]
+      },
+      {
+        "to": "S4",
+        "condition": "stream abort signal fires",
+        "refs": ["A4", "A5"]
+      }
+    ]
+  },
+  {
+    "id": "S2",
+    "label": "Replied",
+    "description": "pending[id] deleted; promise resolved with answers; Bus: question.replied; QuestionDock unmounted (cache cleared via replied=true path)",
+    "actions": [
+      "delete pending[id]",
+      "resolve promise with answers",
+      "Bus.publish(question.replied)",
+      "dispose abort listener",
+      "QuestionDock: clear cache[sessionID+hash]"
+    ],
+    "transitions": [
+      { "to": "S0", "condition": "always", "refs": [] }
+    ]
+  },
+  {
+    "id": "S3",
+    "label": "Rejected (manual)",
+    "description": "pending[id] deleted; promise rejected with RejectedError; Bus: question.rejected; QuestionDock unmounted",
+    "actions": [
+      "delete pending[id]",
+      "reject promise with Question.RejectedError",
+      "Bus.publish(question.rejected)",
+      "dispose abort listener",
+      "QuestionDock: clear cache[sessionID+hash]"
+    ],
+    "transitions": [
+      { "to": "S0", "condition": "always", "refs": [] }
+    ]
+  },
+  {
+    "id": "S4",
+    "label": "Aborted (stream)",
+    "description": "AbortSignal fired; abort handler: delete pending + publish rejected + reject promise with RejectedError; QuestionDock unmounts (onCleanup preserves cache for future AI re-ask)",
+    "actions": [
+      "delete pending[id]",
+      "Bus.publish(question.rejected)",
+      "reject promise with Question.RejectedError",
+      "log: question aborted, reason=<signal.reason>",
+      "QuestionDock.onCleanup: cache[sessionID+hash] = store snapshot (for re-ask restore)"
+    ],
+    "transitions": [
+      { "to": "S0", "condition": "always", "refs": [] }
+    ]
+  }
+]
