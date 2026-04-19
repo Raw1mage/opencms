@@ -42,6 +42,16 @@ afterEach(() => {
   SkillLayerRegistry.reset()
 })
 
+// Tests run against the real XDG_CONFIG_HOME (~/.config/opencode/AGENTS.md may
+// contain an opencode:mandatory-skills block listing skills like "plan-builder").
+// Isolate each test to only the tmpdir's project contributions.
+function projectOnly(result: { list: string[]; bySkill: Record<string, string[]> }) {
+  return result.list.filter((name) => (result.bySkill[name] ?? []).includes("agents_md_project"))
+}
+function codingTxtOnly(result: { list: string[]; bySkill: Record<string, string[]> }) {
+  return result.list.filter((name) => (result.bySkill[name] ?? []).includes("coding_txt"))
+}
+
 test("TV10: resolveMandatoryList reads project AGENTS.md sentinel for main agent", async () => {
   await using tmp = await tmpdir()
   await writeAgentsMd(tmp.path, ["test-skill-alpha", "test-skill-beta"])
@@ -53,7 +63,7 @@ test("TV10: resolveMandatoryList reads project AGENTS.md sentinel for main agent
         agent: { name: "main" },
         isSubagent: false,
       })
-      expect(result.list).toEqual(["test-skill-alpha", "test-skill-beta"])
+      expect(projectOnly(result)).toEqual(["test-skill-alpha", "test-skill-beta"])
       expect(result.bySkill["test-skill-alpha"]).toEqual(["agents_md_project"])
       expect(result.bySkill["test-skill-beta"]).toEqual(["agents_md_project"])
     },
@@ -73,9 +83,10 @@ test("TV10: preload pins existing skill from project .claude/skills/", async () 
         agent: { name: "main" },
         isSubagent: false,
       })
+      const projectList = projectOnly(resolved)
       const outcomes = await preloadMandatorySkills({
         sessionID,
-        list: resolved.list,
+        list: projectList,
         bySkill: resolved.bySkill,
       })
       expect(outcomes.length).toBe(1)
@@ -143,11 +154,12 @@ test("TV9: missing skill file — loud warn + continue, no pin, no crash", async
         agent: { name: "main" },
         isSubagent: false,
       })
-      expect(resolved.list).toEqual(["present-skill", "absent-skill"])
+      expect(projectOnly(resolved)).toEqual(["present-skill", "absent-skill"])
 
+      const projectList = projectOnly(resolved)
       const outcomes = await preloadMandatorySkills({
         sessionID,
-        list: resolved.list,
+        list: projectList,
         bySkill: resolved.bySkill,
       })
       expect(outcomes.length).toBe(2)
@@ -180,7 +192,7 @@ test("main agent ignores coding.txt sentinel (AGENTS.md is sole source)", async 
         agent: { name: "main" },
         isSubagent: false,
       })
-      expect(resolved.list).toEqual(["agents-skill"])
+      expect(projectOnly(resolved)).toEqual(["agents-skill"])
       expect(resolved.list).not.toContain("coding-only-skill")
     },
   })
