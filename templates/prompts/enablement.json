@@ -92,7 +92,6 @@
   },
   "skills": {
     "bundled_templates": [
-      "agent-workflow",
       "beta-workflow",
       "bun-package-dev",
       "agent-creator",

@@ -72,4 +72,33 @@ describe("skill layer registry", () => {
     const sessionID = `ses_registry_missing_${Date.now().toString(36)}`
     expect(() => SkillLayerRegistry.pin(sessionID, "planner")).toThrow("skill layer session registry missing")
   })
+
+  it("TV12: pinned entry survives 35min idle under token billing (no decay)", () => {
+    const sessionID = `ses_registry_pinned_aged_${Date.now().toString(36)}`
+    const now = Date.now()
+    const thirtyFiveMinutesAgo = now - 35 * 60 * 1000
+
+    SkillLayerRegistry.recordLoaded(sessionID, "plan-builder", {
+      content: "plan-builder-content",
+      now: thirtyFiveMinutesAgo,
+    })
+    SkillLayerRegistry.pin(sessionID, "plan-builder", thirtyFiveMinutesAgo)
+
+    const result = SkillLayerRegistry.listForInjection(sessionID, { billingMode: "token", now })
+    const entry = result.find((x) => x.name === "plan-builder")
+
+    expect(entry?.pinned).toBe(true)
+    expect(entry?.runtimeState).toBe("sticky")
+    expect(entry?.desiredState).toBe("full")
+    expect(entry?.lastReason).toBe("session_pinned_keep_full")
+  })
+
+  it("peek returns undefined for missing entry, entry for existing", () => {
+    const sessionID = `ses_registry_peek_${Date.now().toString(36)}`
+    expect(SkillLayerRegistry.peek(sessionID, "ghost")).toBeUndefined()
+    SkillLayerRegistry.recordLoaded(sessionID, "plan-builder", { content: "x" })
+    const entry = SkillLayerRegistry.peek(sessionID, "plan-builder")
+    expect(entry?.name).toBe("plan-builder")
+    expect(entry?.content).toBe("x")
+  })
 })

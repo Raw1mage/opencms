@@ -214,8 +214,7 @@ Instructions from: $XDG_CONFIG_HOME/opencode/AGENTS.md (fallback: $HOME/.config/
 - **判斷條件**: 對話來自用戶直接輸入，且**無** Task 格式。
 - **執行流程**:
   1.  **初始化 (Initialization)**:
-      - 務必**靜默載入 (Silent Load)** 以下核心技能：
-        - `agent-workflow`: 載入 plan-builder-first、delegation-first 的標準作業程序。
+      - `plan-builder` 已由 runtime mandatory-skills preload 機制（2026-04-19）自動載入並 pin；不需手動呼叫 `skill()`。autonomous 通用紀律請直接參照 repo AGENTS.md 的「Autonomous Agent 核心紀律」段落（已每輪自動注入 prompt）。
   2.  **任務拆解 (Decomposition)**:
       - 將複雜需求分解為原子化步驟。
       - 預設在當前 session execution identity 下工作，並使用 `Task` 工具委派最合適的 Subagent。
@@ -239,7 +238,7 @@ Instructions from: $XDG_CONFIG_HOME/opencode/AGENTS.md (fallback: $HOME/.config/
 
 ## 3. 工作流狀態機 (Workflow Integration)
 
-所有 Agent 必須遵循 `agent-workflow` 定義的狀態機進行狀態轉換：
+所有 Agent 必須遵循以下狀態機（原定義在已退役的 `agent-workflow` §2，2026-04-20 搬進 repo AGENTS.md 的「Autonomous Agent 核心紀律」段落）：
 
 1.  **ANALYSIS (分析)**: 收集資訊，確認需求。禁止寫入。
 2.  **PLANNING (規劃)**: 擬定計畫，輸出 `docs/events/`。禁止寫入程式碼。

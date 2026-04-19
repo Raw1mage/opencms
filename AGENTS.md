@@ -43,6 +43,139 @@
 
 ---
 
+## 第三條：自主 Continuation 契約
+
+當 Main Agent 工作在 plan-builder 管理的 spec 且 `.state.json.state === "implementing"` 時，runloop 靠「todolist 殘留」自主持續推進。AI 必須在每個 turn 結束**之前**判斷是否該補 pending todo 觸發下一輪；否則 runloop 會因 todolist 清空而停下。
+
+### 觸發條件（**必須同時成立**才 append pending todo）
+
+1. 當前 spec `.state.json.state === "implementing"`
+2. `specs/<slug>/tasks.md` 仍有 `- [ ]` / `- [~]` 未完成項
+3. TodoWrite 沒有 `in_progress` 項，或剛把當前 `in_progress` 標為 `completed`
+4. 沒有使用者決定 / 批准 / 外部 blocker 擋住下一步（`- [!]` / `- [?]` 都沒卡）
+
+### 停止條件（**任一成立**即結束 turn，**不要** append）
+
+- `tasks.md` 全 `- [x]`（清單耗盡，準備 promote 到 `verified`）
+- 有 `- [!] blocked` 或 `- [?] decision/approval` 未解除
+- 使用者插話 / interrupt — 交由使用者主導下一步
+- 偵測到 scope drift 需走 `extend` / `refactor` mode — 停下請求模式切換
+- 非 plan-builder 管理的任務 — 只做使用者當輪明確要求的工作，不自動續跑
+
+### 實踐方式（per-task ritual 同時發生）
+
+每關閉一個 todo：
+
+1. 標記當前 TodoWrite item = `completed`、tasks.md 對應 `- [x]`
+2. 執行 `plan-sync.ts` 寫入 sync 歷史
+3. **評估觸發條件**：
+   - 四項全成立 → **同一個 `todowrite` 呼叫**內 append 下一項為 `pending`，並把其中一項設為新的 `in_progress`
+   - 任一不成立 → 結束 turn，runloop 偵測 todolist 無 pending/in_progress → 自然停下
+
+### 與 runloop 的關係
+
+- runloop（`workflow-runner.ts planAutonomousNextAction`）只認 TodoWrite 殘留，不懂 spec 狀態，也不讀 tasks.md。
+- 所以這條紀律**完全靠 AI 自律執行**：append 了 pending → runloop continue；沒 append → runloop stop。
+- **不存在 runtime 閘在你判斷錯誤時救你**——runloop 刻意做成無知的純 todolist 引擎。
+
+### Why
+
+- runloop 的無知是刻意設計：continuation 判準必須能從 AI 可讀的介面表達（tasks.md + TodoWrite），不該藏在 runtime state machine 裡。
+- AI 每輪能穩定讀到的文件只有 `SYSTEM.md` + `AGENTS.md` + runtime preloaded skills（見下方 Mandatory Skills 區塊）；這條紀律住在 AGENTS.md 是因為 runtime 每輪硬注入，不受 skill idle-decay 影響。
+- 2026-04-19 `mandatory-skills-preload` spec 把這條契約從 `agent-workflow` skill 搬來——skill 層 30min idle 就會 unload，無法承載關鍵紀律。
+
+---
+
+## Mandatory Skills（runtime-preloaded）
+
+本 repo 由 `packages/opencode/src/session/mandatory-skills.ts` 在 Main Agent 每輪 session prompt 組裝時自動 preload + pin 下列 skills，繞過 AI 自律呼叫 `skill()` 工具的環節：
+
+<!-- opencode:mandatory-skills -->
+- plan-builder
+<!-- /opencode:mandatory-skills -->
+
+### 規則
+
+- 上面 sentinel 區塊內的 skill 名稱會每輪進入 system prompt 並標 `pinned=true`，不受 `SkillLayerRegistry.applyIdleDecay` 影響（不會被 10min summarize / 30min unload 掉）。
+- 修改列表後下一輪（AGENTS.md mtime 變化 → `InstructionPrompt.systemCache` 失效）自動生效。
+- 若某 skill 的 `SKILL.md` 在本機找不到，runtime 會 `log.warn` + 發 `skill.mandatory_missing` anomaly event，**session 不中斷**；AI 仍可用 `skill()` 工具手動載入作為 fallback（符合第一條 loud-warn 原則）。
+- 使用者可在本檔 sentinel 區塊增減項目；**不要**手動修改 runtime code 或 skill-layer-registry 的 pin 行為。
+
+### Coding subagent 的獨立清單
+
+coding subagent 不讀 AGENTS.md（runtime 故意排除）。它的 mandatory 清單位於 `packages/opencode/src/agent/prompt/coding.txt` 內的同款 sentinel 區塊，runtime 使用同一 parser 處理。
+
+---
+
+## Autonomous Agent 核心紀律（原 agent-workflow 併入）
+
+2026-04-20 把原本住在 `agent-workflow` skill 的 autonomous 通用紀律搬進 AGENTS.md，確保每輪 runtime 硬注入、不受 skill idle-decay 影響。
+
+### 八項核心原則
+
+1. **Autonomy 依賴計畫，不依賴靈感。**
+2. **計畫不必完美，但必須可執行** — 至少要有 goal / 可執行 todo / `dependsOn` / stop gates。
+3. **todo 是 mode-aware runtime contract** — plan mode = working ledger（自由寫）；build mode = execution ledger（嚴格對齊 `plan-builder` tasks.md）。細節見 `plan-builder` §16.2。
+4. **一律對話中可觀測** — 重要進展、阻塞、replan 必須讓使用者能理解。
+5. **可持續執行 ≠ 可靜默亂跑** — 遇到 approval / decision / blocker 必停。
+6. **Debug 必須 system-first** — 複雜 bug 先看系統邊界、資料流、觀測訊號；詳細 checkpoint schema 見 `code-thinker` §3 Syslog-style Debug Contract。
+7. **Single-thread by default** — 主代理預設直接執行，不因「能委派就一定要委派」而無謂切換 subagent。委派觸發條件由各 subagent driver 自身 description 宣告，本檔不重列。最常用的委派只有 `explore` 與 `coding`。
+8. **Narration ≠ Pause；Completion = Silent** — 執行中必須 narrate 進度；所有 todo 收斂後 silent stop 才是正確信號，不需 wrap-up 總結。
+
+### Narration 紀律（執行中可觀測）
+
+autonomous run 必須在對話中明確敘述以下五類訊號：
+
+- **Kickoff**：現在開始哪個步驟
+- **Subagent milestone**：委派什麼 / 完成什麼 / 卡在哪
+- **Pause / Block**：為什麼停 / 需要誰提供什麼
+- **Complete**：哪個計畫段落完成
+- **Replanning**：使用者插話導致重排的說明
+
+> narration 是 side-channel visibility，**不是 pause boundary**。只有 stop gate 才真的暫停。
+
+### Stop / Waiting 回報格式（結束 turn 前必出）
+
+遇到以下情境必停：
+
+- `needsApproval = true`
+- `action.kind ∈ {push, destructive, architecture_change}` 且策略要求批准
+- `waitingOn ∈ {approval, decision}`
+- 真正 blocker（權限、外部依賴、不可恢復錯誤）
+
+暫停時回報格式：
+
+```
+Paused: <原因>
+Need:
+  - <使用者批准 / 決策 / 外部資訊>
+Next after reply:
+  - <恢復後的第一步>
+```
+
+### Interrupt-safe Replanning（使用者插話時）
+
+1. **承認中斷發生** — 明示舊 autonomous run 已暫停
+2. **重評估既有 todo** — 保留 / 取消（明確標 `cancelled`）/ 延後 / 新增
+3. **重新排序 `dependsOn`**，保留唯一 `in_progress`
+4. **宣告下一步** — 讓使用者看到續跑路線
+
+原則：不要把舊計畫整份丟掉除非已完全失效；優先保留仍然有效的已完成工作。
+
+### 操作準則摘要（Ops digest）
+
+- Search first, then read
+- Read before write
+- Absolute paths only
+- 一次只有一個 `in_progress` todo
+- 用結構化 todo metadata，不用模糊條列
+- 執行中 narrate；最後一個 todo 完成後 silent stop
+- Stop for approval / decision / blocker
+- 使用者插話 → 明確 replan
+- Finish only after validation + event log + architecture sync（若未動架構則註記 `Verified (No doc changes)`）
+
+---
+
 ## 專案背景
 
 本專案源自 `origin/dev` 分支，現已衍生為 `main` 分支作為主要產品線。
