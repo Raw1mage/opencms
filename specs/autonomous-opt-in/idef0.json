@@ -1,0 +1,78 @@
+{
+  "diagram_title": "Gate Autonomous Runloop Execution",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Detect Autorun Arm Intent",
+      "description": "Receive verbal trigger phrases or MCP question answers and derive an arm signal when preconditions hold",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Maintain Session Spec Binding",
+      "description": "Persist and resolve the session-to-spec-slug mapping that anchors runtime reads of plan state",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Gate Runloop Continuation",
+      "description": "Short-circuit runloop pumping when disarmed; dispatch continuation only when armed and todos actionable",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Refill Todolist From Plan",
+      "description": "When armed and todolist drains, materialize the next tasks.md phase into TodoWrite or end autorun on plan exhaustion",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Disarm On Interruption",
+      "description": "Flip armed flag to false when user speaks, blocker fires, or abort signal arrives",
+      "decomposition": null
+    },
+    {
+      "id": "A6",
+      "title": "Demote Plan On Edit",
+      "description": "Detect non-checkbox edits to bound spec during implementing and enforce state demotion to planned plus disarm",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "user message text", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A1:input", "label": "MCP question answer", "type": "input" },
+    { "id": "AR3", "source": "EXTERNAL", "target": "A1:control", "label": "tweaks.cfg autorun.trigger_phrases", "type": "control" },
+    { "id": "AR4", "source": "A2:output", "target": "A1:control", "label": "session spec binding", "type": "control" },
+    { "id": "AR5", "source": "EXTERNAL", "target": "A1:mechanism", "label": "regex matcher", "type": "mechanism" },
+    { "id": "AR6", "source": "A1:output", "target": "A3:input", "label": "arm signal", "type": "output" },
+
+    { "id": "AR7", "source": "EXTERNAL", "target": "A2:input", "label": "plan-promote --session invocation", "type": "input" },
+    { "id": "AR8", "source": "EXTERNAL", "target": "A2:input", "label": "session open event", "type": "input" },
+    { "id": "AR9", "source": "EXTERNAL", "target": "A2:mechanism", "label": "Storage API", "type": "mechanism" },
+    { "id": "AR10", "source": "A2:output", "target": "A3:control", "label": "active spec slug", "type": "output" },
+
+    { "id": "AR11", "source": "EXTERNAL", "target": "A3:input", "label": "turn end event", "type": "input" },
+    { "id": "AR12", "source": "EXTERNAL", "target": "A3:control", "label": "Todo.nextActionableTodo result", "type": "control" },
+    { "id": "AR13", "source": "EXTERNAL", "target": "A3:control", "label": ".state.json.state", "type": "control" },
+    { "id": "AR14", "source": "EXTERNAL", "target": "A3:mechanism", "label": "workflow-runner code path", "type": "mechanism" },
+    { "id": "AR15", "source": "A3:output", "target": "EXTERNAL", "label": "continuation message (when armed)", "type": "output" },
+    { "id": "AR16", "source": "A3:output", "target": "A4:input", "label": "drain event", "type": "output" },
+    { "id": "AR17", "source": "A3:output", "target": "EXTERNAL", "label": "stop decision (when disarmed)", "type": "output" },
+
+    { "id": "AR18", "source": "EXTERNAL", "target": "A4:input", "label": "bound spec tasks.md content", "type": "input" },
+    { "id": "AR19", "source": "EXTERNAL", "target": "A4:mechanism", "label": "TodoWrite tool", "type": "mechanism" },
+    { "id": "AR20", "source": "A4:output", "target": "A3:input", "label": "refilled todolist or plan_drained", "type": "output" },
+
+    { "id": "AR21", "source": "EXTERNAL", "target": "A5:input", "label": "non-synthetic user message", "type": "input" },
+    { "id": "AR22", "source": "EXTERNAL", "target": "A5:input", "label": "blocker event", "type": "input" },
+    { "id": "AR23", "source": "EXTERNAL", "target": "A5:input", "label": "abort / killswitch signal", "type": "input" },
+    { "id": "AR24", "source": "A5:output", "target": "A3:control", "label": "disarm signal", "type": "output" },
+
+    { "id": "AR25", "source": "EXTERNAL", "target": "A6:input", "label": "plan-builder write script invocation", "type": "input" },
+    { "id": "AR26", "source": "EXTERNAL", "target": "A6:input", "label": "spec artifact file write (optional watcher)", "type": "input" },
+    { "id": "AR27", "source": "EXTERNAL", "target": "A6:mechanism", "label": "checkbox vs structural diff rule", "type": "mechanism" },
+    { "id": "AR28", "source": "A6:output", "target": "EXTERNAL", "label": "state transition implementing->planned", "type": "output" },
+    { "id": "AR29", "source": "A6:output", "target": "A5:input", "label": "forced disarm signal", "type": "output" }
+  ]
+}

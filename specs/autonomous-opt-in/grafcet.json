@@ -1,0 +1,78 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A0",
+    "StepType": "initial",
+    "StepAction": "Session idle; runloop does not pump autonomous continuations",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["arm_signal_received AND binding_valid AND state IN {planned, implementing} AND has_actionable_todo"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Autorun armed; runloop pumps continuation when todolist has actionable items",
+    "LinkInputType": "track",
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2, 3, 4],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "todolist_drained AND plan_has_next_phase",
+      "user_speaks OR blocker_fires OR abort_signal",
+      "plan_edit_during_implementing"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Refill TodoWrite from tasks.md next phase; log autorun.refill event",
+    "LinkInputType": "track",
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [1, 5],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["refill_non_empty", "refill_empty"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Disarm: flip autorun_armed to false; log autorun.disarmed with reason; .state.json unchanged",
+    "LinkInputType": "track",
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["disarm_complete"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A6",
+    "StepType": "normal",
+    "StepAction": "Demote .state.json implementing->planned; flip autorun_armed to false; log autorun.demoted_by_edit",
+    "LinkInputType": "track",
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["demotion_complete"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Plan fully drained; flip autorun_armed to false; emit autorun.completed; return stop reason plan_drained",
+    "LinkInputType": "track",
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["cleanup_complete"],
+    "SubGrafcet": []
+  }
+]
