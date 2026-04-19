@@ -4,6 +4,7 @@ import { Global } from "../global"
 import { Config } from "../config/config"
 import { Instance } from "../project/instance"
 import { Flag } from "@/flag/flag"
+import { RebindEpoch } from "./rebind-epoch"
 
 // @event_2026-02-16_instruction_simplify:
 // Instruction loading simplified to deterministic 2-source model:
@@ -12,11 +13,22 @@ import { Flag } from "@/flag/flag"
 //   3. opencode.json `instructions` field (user-explicit only)
 // Removed: CLAUDE.md/CONTEXT.md compat, ~/.claude/ fallback, OPENCODE_CONFIG_DIR
 //          fallback, sub-directory resolve() walk-up auto-injection.
+//
+// @event_2026-04-20_session_rebind_capability_refresh:
+// systemCache was 10s TTL (time-based) — replaced with per-session rebind
+// epoch invalidation. Cache now lives indefinitely within a rebind epoch; a
+// bump on the session (daemon start / session resume / provider switch /
+// slash /reload / refresh_capability_layer tool) invalidates on next read.
+// Cache key now includes `epoch`; callers passing sessionID get per-session
+// isolation; legacy callers without sessionID share a "none" namespace
+// that behaves like a stable cache (until flushSystemCache is called).
 
 export namespace InstructionPrompt {
+  type CacheEntry = { value: string[]; cachedAtEpoch: number; cachedAtTimeMs: number }
+
   function createState() {
     return {
-      systemCache: new Map<string, { value: string[]; at: number }>(),
+      systemCache: new Map<string, CacheEntry>(),
     }
   }
 
@@ -32,7 +44,6 @@ export namespace InstructionPrompt {
     fallbackState ||= createState()
     return fallbackState
   }
-  const SYSTEM_CACHE_TTL_MS = 10_000
 
   export async function systemPaths() {
     const config = await Config.get()
@@ -77,15 +88,27 @@ export namespace InstructionPrompt {
     return paths
   }
 
-  export async function system() {
+  /**
+   * Load AGENTS.md + user-configured instruction files into a string[].
+   *
+   * The cache is keyed by (directory, instructions shape, disableProject flag,
+   * per-session rebind epoch). When `sessionID` is supplied the epoch comes
+   * from `RebindEpoch.current`; legacy callers that omit sessionID share a
+   * stable "none" namespace (epoch=0). See DD-3 in
+   * `specs/session-rebind-capability-refresh/design.md`.
+   */
+  export async function system(sessionID?: string) {
     const config = await Config.get()
+    const epoch = sessionID ? RebindEpoch.current(sessionID) : 0
     const cacheKey = JSON.stringify({
       directory: Instance.directory,
       instructions: config.instructions ?? [],
       disableProject: !!Flag.OPENCODE_DISABLE_PROJECT_CONFIG,
+      sessionID: sessionID ?? "none",
+      epoch,
     })
     const cached = state().systemCache.get(cacheKey)
-    if (cached && Date.now() - cached.at < SYSTEM_CACHE_TTL_MS) return cached.value
+    if (cached) return cached.value
 
     const paths = await systemPaths()
 
@@ -112,7 +135,17 @@ export namespace InstructionPrompt {
     )
 
     const value = await Promise.all([...files, ...fetches]).then((result) => result.filter(Boolean))
-    state().systemCache.set(cacheKey, { value, at: Date.now() })
+    state().systemCache.set(cacheKey, { value, cachedAtEpoch: epoch, cachedAtTimeMs: Date.now() })
     return value
+  }
+
+  /**
+   * Explicit cache invalidation, primarily used by tests and callers that want
+   * to reset cached state without going through RebindEpoch. Production code
+   * should drive invalidation through `RebindEpoch.bumpEpoch` so other
+   * capability-layer consumers see the new epoch too.
+   */
+  export function flushSystemCache() {
+    state().systemCache.clear()
   }
 }

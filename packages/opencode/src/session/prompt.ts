@@ -73,11 +73,42 @@ import {
   shouldInterruptAutonomousRun,
 } from "./workflow-runner"
 import { resolveDialogTriggerPolicy } from "./dialog-trigger"
-import {
-  resolveMandatoryList,
-  preloadMandatorySkills,
-  reconcileMandatoryList,
-} from "./mandatory-skills"
+import { RebindEpoch } from "./rebind-epoch"
+import { CapabilityLayer } from "./capability-layer"
+import { registerProductionCapabilityLoader } from "./capability-layer-loader"
+
+// Production capability-layer loader is registered once per process. The
+// context resolver reads runtime-known fields (agent, isSubagent) from the
+// session the loader is asked to serve. prompt.ts is a natural bootstrap
+// location because every LLM round flows through this module.
+let _capabilityLoaderRegistered = false
+function ensureCapabilityLoaderRegistered() {
+  if (_capabilityLoaderRegistered) return
+  _capabilityLoaderRegistered = true
+  registerProductionCapabilityLoader(async (sessionID) => {
+    const session = await Session.get(sessionID).catch(() => undefined)
+    if (!session) return undefined
+    // Agent selection: prefer the session's latest user-message agent; fall
+    // back to "main" for silent refresh (where no user message exists).
+    const stream = MessageV2.stream(sessionID)
+    let agentName: string | undefined
+    try {
+      for await (const item of stream) {
+        if (item.info.role === "user") {
+          agentName = (item.info as MessageV2.User).agent
+        }
+      }
+    } catch {
+      // best-effort; silent-refresh path lacks a recent user message
+    }
+    return {
+      sessionID,
+      epoch: RebindEpoch.current(sessionID),
+      agent: { name: agentName ?? (session.parentID ? "coding" : "main") },
+      isSubagent: !!session.parentID,
+    }
+  })
+}
 
 globalThis.AI_SDK_LOG_WARNINGS = false
 
@@ -944,6 +975,18 @@ export namespace SessionPrompt {
           prevProvider,
           nextProvider,
         })
+        // DD-4 order contract: bump rebind epoch FIRST (capability layer will
+        // naturally cache-miss on next runLoop iteration and re-read fresh
+        // AGENTS.md / driver / skills for the new provider). Only then can
+        // compactWithSharedContext safely rebuild conversation-layer messages
+        // with the new provider's context — capability layer must be fresh
+        // before checkpoint apply.
+        ensureCapabilityLoaderRegistered()
+        await RebindEpoch.bumpEpoch({
+          sessionID,
+          trigger: "provider_switch",
+          reason: `provider ${prevProvider} → ${nextProvider}`,
+        })
         const model = await Provider.getModel(nextProvider, options.incomingModel.modelID).catch(() => undefined)
         if (model) {
           // Resolution chain: SharedContext (in-memory) → rebind checkpoint (disk) → minimal stub.
@@ -1646,32 +1689,30 @@ export namespace SessionPrompt {
         instructionCount: instructionPrompts.length,
       })
 
-      // ── Mandatory skills preload (AGENTS.md 第三條 + DD-1..DD-10) ──
-      // Every round: parse sentinel blocks from authoritative sources, reconcile
-      // registry pins (drop removed), then preload + pin new entries. The
-      // skill-layer-seam in llm.ts will inject their content into system[]
-      // automatically via SkillLayerRegistry.listForInjection.
+      // ── Capability layer refresh (session-rebind-capability-refresh) ──
+      // DD-15: the existing mandatory-skills hook is now a forwarder onto
+      // CapabilityLayer.get. Cache-hit rounds do zero disk I/O; cache-miss
+      // (after a rebind event bumps the epoch) triggers the production loader
+      // which internally performs resolve + reconcile + preload for skills
+      // AND picks up the freshly-read AGENTS.md.
       //
-      // Main agent path → global + project AGENTS.md (parentID === undefined).
-      // Coding subagent path → coding.txt only (parentID set && agent.name === "coding").
-      // Other subagents → no-op (resolveMandatoryList returns empty list).
+      // Lazy daemon_start bump (Phase 4.1): if this session has never been
+      // bumped (epoch=0) — e.g. first round after a fresh daemon — mark it as
+      // the implicit daemon_start rebind so the capability-layer cache gets
+      // populated at epoch=1 on the next CapabilityLayer.get call.
       try {
-        const mandatory = await resolveMandatoryList({
-          sessionID,
-          agent: { name: agent.name },
-          isSubagent: !!session.parentID,
-        })
-        await reconcileMandatoryList({ sessionID, desired: mandatory.list })
-        if (mandatory.list.length > 0) {
-          await preloadMandatorySkills({
+        ensureCapabilityLoaderRegistered()
+        if (RebindEpoch.current(sessionID) === 0) {
+          await RebindEpoch.bumpEpoch({
             sessionID,
-            list: mandatory.list,
-            bySkill: mandatory.bySkill,
+            trigger: "daemon_start",
+            reason: "first runLoop iteration after daemon start",
           })
         }
+        await CapabilityLayer.get(sessionID, RebindEpoch.current(sessionID))
       } catch (err) {
         // Loud warn — AGENTS.md 第一條 prohibits silent fallback.
-        log.warn("mandatory skills preload failed (non-fatal, continuing prompt assembly)", {
+        log.warn("capability-layer refresh failed (non-fatal, continuing prompt assembly)", {
           sessionID,
           error: err instanceof Error ? err.message : String(err),
         })

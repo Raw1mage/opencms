@@ -361,3 +361,36 @@ export const KEEP_RULES = {
   AGENTS_MD: KEEP_RULE_AGENTS,
   CODING_TXT: KEEP_RULE_CODING,
 } as const
+
+/**
+ * Convenience high-level call used by CapabilityLayer's production loader
+ * (see `session-rebind-capability-refresh` spec, Phase 4.4 / DD-15).
+ *
+ * Combines `resolveMandatoryList` + `reconcileMandatoryList` + `preloadMandatorySkills`
+ * into one step so the capability-layer loader can request a single skill_content
+ * layer bundle without duplicating the three-call sequence at every call site.
+ */
+export async function loadAndPinAll(input: ResolveInput): Promise<{
+  pinnedSkills: string[]
+  missingSkills: string[]
+  outcomes: PreloadOutcome[]
+  resolved: ResolveResult
+}> {
+  const resolved = await resolveMandatoryList(input)
+  await reconcileMandatoryList({ sessionID: input.sessionID, desired: resolved.list })
+  let outcomes: PreloadOutcome[] = []
+  if (resolved.list.length > 0) {
+    outcomes = await preloadMandatorySkills({
+      sessionID: input.sessionID,
+      list: resolved.list,
+      bySkill: resolved.bySkill,
+    })
+  }
+  const pinnedSkills: string[] = []
+  const missingSkills: string[] = []
+  for (const o of outcomes) {
+    if (o.status === "missing") missingSkills.push(o.skill)
+    else pinnedSkills.push(o.skill)
+  }
+  return { pinnedSkills, missingSkills, outcomes, resolved }
+}

@@ -28,6 +28,7 @@ import { LspTool } from "./lsp"
 import { Truncate } from "./truncation"
 import { ApplyPatchTool } from "./apply_patch"
 import { CronCreateTool, CronListTool, CronDeleteTool } from "./cron"
+import { RefreshCapabilityLayerTool } from "./refresh-capability-layer"
 import { ToolLoaderTool } from "./tool-loader"
 import { pathToFileURL } from "url"
 
@@ -150,6 +151,7 @@ export namespace ToolRegistry {
       CronCreateTool,
       CronListTool,
       CronDeleteTool,
+      RefreshCapabilityLayerTool,
       ...(Flag.OPENCODE_EXPERIMENTAL_LSP_TOOL ? [LspTool] : []),
       ...(config.experimental?.batch_tool === true ? [BatchTool] : []),
       ...custom,

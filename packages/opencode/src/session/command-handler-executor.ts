@@ -10,7 +10,9 @@ import { Command } from "../command"
 import { lastModel } from "./last-model"
 
 export async function executeHandledCommand(input: {
-  commandInfo: Command.Info & { handler: () => Promise<{ output: string; title?: string }> }
+  commandInfo: Command.Info & {
+    handler: (ctx?: Command.HandlerContext) => Promise<{ output: string; title?: string }>
+  }
   command: string
   sessionID: string
   arguments: string
@@ -85,7 +87,7 @@ export async function executeHandledCommand(input: {
   }
   await Session.updateMessage(assistantMsg)
 
-  const result = await input.commandInfo.handler()
+  const result = await input.commandInfo.handler({ sessionID: input.sessionID })
 
   const part = await Session.updatePart({
     id: Identifier.ascending("part"),
