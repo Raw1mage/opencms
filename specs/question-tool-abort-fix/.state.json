@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "planned",
+  "state": "implementing",
   "profile": [],
   "history": [
     {
@@ -38,6 +38,33 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "tasks/handoff/test-vectors/errors/observability drafted; ready for build-mode"
+    },
+    {
+      "at": "2026-04-19T04:13:34.170Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "9b21e804297e7c05ffd419ea3e7a0cc8612639e8"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-04-19T04:14:38.996Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Phase 1 complete: Question.ask AbortSignal wiring + 6/6 tests pass"
+    },
+    {
+      "at": "2026-04-19T04:20:12.369Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/question/index.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/question/index.test.ts"
+      ],
+      "commit": "e88298e50715904e8ee374a882ab309bea84eaa7"
     }
   ]
 }

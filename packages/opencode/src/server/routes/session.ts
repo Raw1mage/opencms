@@ -1177,7 +1177,7 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         const sessionID = c.req.valid("param").sessionID
         // Cancel immediately — don't block on daemon call
-        SessionPrompt.cancel(sessionID)
+        SessionPrompt.cancel(sessionID, "manual-stop")
         // Also terminate any active child worker for this session
         const { terminateActiveChild } = await import("@/tool/task")
         terminateActiveChild(sessionID).catch(() => {})
@@ -1225,7 +1225,7 @@ export const SessionRoutes = lazy(() =>
         //    if worker.current was already cleared.
         const busyIDs = await KillSwitchService.listBusySessionIDs()
         for (const id of busyIDs) {
-          SessionPrompt.cancel(id)
+          SessionPrompt.cancel(id, "manual-stop")
           terminateActiveChild(id).catch(() => {})
         }
 

@@ -12,20 +12,24 @@
 
 ## 2. Server Telemetry — Cancel Reason (Requirement C)
 
-- [ ] 2.1 Define `CancelReason` union type in `prompt-runtime.ts` (or a dedicated `cancel-reason.ts`)
-- [ ] 2.2 Change `prompt-runtime.cancel(sessionID)` → `cancel(sessionID, reason: CancelReason)` (required arg)
-- [ ] 2.3 Pass reason into `controller.abort(reason)` in cancel / cleanupState / replace paths
-- [ ] 2.4 Add caller-stack-top log: `log.info("cancel", { sessionID, reason, caller })` using `new Error().stack`
-- [ ] 2.5 Update `SessionPrompt.cancel` wrapper to take + forward reason
-- [ ] 2.6 Update all call sites:
-  - [ ] 2.6.1 `server/routes/session.ts` `/session/:id/abort` → `"manual-stop"`
-  - [ ] 2.6.2 `server/routes/session.ts` `/session/abort-all` → `"manual-stop"`
-  - [ ] 2.6.3 `session/processor.ts` rate-limit fallback rotation abort → `"rate-limit-fallback"`
-  - [ ] 2.6.4 `prompt-runtime.ts` `start({ replace: true })` internal abort → `"replace"`
-  - [ ] 2.6.5 `prompt-runtime.ts` `cleanupState` per-session abort → `"instance-dispose"`
-  - [ ] 2.6.6 Any session monitor / watchdog that aborts → `"monitor-watchdog"`
-  - [ ] 2.6.7 ACP `session.abort` caller → `"session-switch"` or `"manual-stop"` based on trigger
-- [ ] 2.7 TypeScript tsc pass: exhaustive reason argument enforcement
+- [x] 2.1 Define `CancelReason` union type in `prompt-runtime.ts` (added `parent-abort` beyond original spec after surveying task.ts cascade sites)
+- [x] 2.2 Change `prompt-runtime.cancel(sessionID)` → `cancel(sessionID, reason: CancelReason)` (required arg)
+- [x] 2.3 Pass reason into `controller.abort(reason)` in cancel / cleanupState / replace paths
+- [x] 2.4 Add caller-stack-top log: `log.info("cancel", { sessionID, reason, caller })` using `new Error().stack`
+- [x] 2.5 Update `SessionPrompt.cancel` wrapper to take + forward reason (stopReason workflow value remains `manual_interrupt` to preserve NON_RESUMABLE_WAITING_REASONS gate)
+- [x] 2.6 Update all call sites:
+  - [x] 2.6.1 `server/routes/session.ts` `/session/:id/abort` → `"manual-stop"`
+  - [x] 2.6.2 `server/routes/session.ts` `/session/abort-all` → `"manual-stop"`
+  - ~~[-] 2.6.3 processor rate-limit rotation abort~~ cancelled: processor.ts rotation uses `continue` (error-driven loop restart), does not invoke `SessionPrompt.cancel`. If the target bug turns out to be triggered here, we add it in a later amend with a new `"stream-error-restart"` reason value.
+  - [x] 2.6.4 `prompt-runtime.ts` `start({ replace: true })` internal abort → `"replace"`
+  - [x] 2.6.5 `prompt-runtime.ts` `cleanupState` per-session abort → `"instance-dispose"`
+  - ~~[-] 2.6.6 session monitor / watchdog aborts~~ cancelled: `session/monitor.ts` grep for `cancel|abort` returns no hits; monitor does not call cancel today.
+  - ~~[-] 2.6.7 ACP `session.abort` caller~~ cancelled: ACP calls the HTTP route, which is already wired via 2.6.1 → `"manual-stop"`.
+  - [x] 2.6.8 `cli/cmd/session.ts` SIGTERM/SIGINT cleanup → `"manual-stop"` (found during survey)
+  - [x] 2.6.9 `cli/cmd/session.ts` worker cancel msg → `"manual-stop"`
+  - [x] 2.6.10 `tool/task.ts` subagent parent-abort cascade → `"parent-abort"` (both sites)
+  - [x] 2.6.11 `server/killswitch/service.ts` all cancel paths → `"killswitch"`
+- [x] 2.7 TypeScript tsc pass: no new errors on touched files; `bun test src/question/ src/session/prompt-runtime.test.ts` → 7/7 pass
 
 ## 3. Webapp — Content-hashed QuestionDock Cache (Requirement B)
 

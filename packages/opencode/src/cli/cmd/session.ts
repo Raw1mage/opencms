@@ -212,7 +212,7 @@ export const SessionWorkerCommand = cmd({
 
       const cleanup = async () => {
         if (activeRun) {
-          SessionPrompt.cancel(activeRun.sessionID)
+          SessionPrompt.cancel(activeRun.sessionID, "manual-stop")
           // Wait for async tool cleanup (child processes)
           await new Promise((resolve) => setTimeout(resolve, 1000))
         }
@@ -305,7 +305,7 @@ export const SessionWorkerCommand = cmd({
           if (activeRun && activeRun.sessionID === msg.sessionID) {
             activeRun.cancelRequested = true
           }
-          SessionPrompt.cancel(msg.sessionID)
+          SessionPrompt.cancel(msg.sessionID, "manual-stop")
           send({ type: "canceled", sessionID: msg.sessionID })
           continue
         }

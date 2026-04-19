@@ -46,6 +46,7 @@ import {
   finish as finishRuntime,
   enqueueCallback,
   consumeCallbacks,
+  type CancelReason,
 } from "./prompt-runtime"
 import { TuiEvent } from "@/cli/cmd/tui/event"
 import { runShellPrompt } from "./shell-runner"
@@ -352,13 +353,17 @@ export namespace SessionPrompt {
     return startRuntime(sessionID, options)
   }
 
-  export function cancel(sessionID: string) {
-    log.info("cancel", { sessionID })
-    cancelRuntime(sessionID)
+  export function cancel(sessionID: string, reason: CancelReason) {
+    log.info("cancel", { sessionID, reason })
+    cancelRuntime(sessionID, reason)
     void clearPendingContinuation(sessionID).catch(() => undefined)
     void Session.setWorkflowState({
       sessionID,
       state: "waiting_user",
+      // `manual_interrupt` remains the canonical workflow stop reason so the
+      // NON_RESUMABLE_WAITING_REASONS gate continues to block auto-resume.
+      // The `reason` argument is separately surfaced via the telemetry log
+      // line above and via AbortSignal.reason inside prompt-runtime.cancel.
       stopReason: "manual_interrupt",
       lastRunAt: Date.now(),
     }).catch(() => undefined)
