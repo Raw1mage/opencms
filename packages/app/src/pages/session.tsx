@@ -170,6 +170,33 @@ export default function Page() {
   const view = createMemo(() => layout.view(sessionKey))
   let initialHydratedSessionID: string | undefined
 
+  // Trigger daemon capability-layer refresh on session open. Backend returns
+  // busy_skipped harmlessly when mid-turn. On success, dispatch a window
+  // event so the skills panel in the side bar can refetch its state.
+  createEffect(
+    on(
+      () => params.id,
+      (id) => {
+        if (!id) return
+        void sdk
+          .fetch(`${sdk.url}/api/v2/session/${id}/resume`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ clientID: "web" }),
+          })
+          .then((res) => {
+            if (!res.ok) return
+            window.dispatchEvent(
+              new CustomEvent("opencode:capability_refreshed", {
+                detail: { sessionID: id },
+              }),
+            )
+          })
+          .catch(() => {})
+      },
+    ),
+  )
+
   createEffect(
     on(
       () => params.id,

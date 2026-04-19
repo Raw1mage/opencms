@@ -45,9 +45,9 @@ Delegation-aware execution checklist. Phases map to the pipeline: core modules �
 - [x] 6.1 `POST /session/:id/resume` endpoint landed in `src/server/routes/session.ts` — validates via Unix-socket daemon boundary (no AI-reachable TCP); calls `RebindEpoch.bumpEpoch(session_resume)`; if `SessionStatus.get === "busy" | "retry"` returns `{status: "busy_skipped"}` without reinject (DD-5 simplified); otherwise synchronous `CapabilityLayer.reinject`; returns `{status, previousEpoch, currentEpoch, trigger, reinject}` payload
 - [x] 6.2 Zod schemas `SessionResumeRequestSchema` / `SessionResumeResponseSchema` added; mirror data-schema.json definitions; exposed via OpenAPI `resolver()`
 - [x] 6.3 `test/server/session-resume.test.ts`: 4 integration cases pass (happy path bumps + reinjects; busy session returns `busy_skipped` with epoch bump but no cache fill; rate-limit hit at 6th bump; unknown sessionID returns 4xx)
-- [ ] 6.4 Frontend (TUI) — session-switch handler to POST `/session/:id/resume` + subscribe to SSE `capability_layer.refreshed`. **Deferred to per-client PR** (`packages/opencode/src/cli/cmd/tui/**`); runtime + endpoint ready, frontend wiring is surface-specific work
-- [ ] 6.5 Frontend (web, `packages/app/src/**`) — same as 6.4. **Deferred to per-client PR**; endpoint schema available via OpenAPI
-- [ ] 6.6 Manual verification (dashboard shows pinned skill within 2s of session switch) — blocked on 6.4/6.5 UI landing
+- [x] 6.4 Frontend (TUI) — `packages/opencode/src/cli/cmd/tui/app.tsx` fires fire-and-forget POST `/api/v2/session/:id/resume` on session navigation (createEffect watches `route.data`, tracks last-resumed sessionID to avoid duplicate calls); `context/sdk.tsx` exposes `fetch` accessor. TUI has no "loaded skills" panel equivalent, so SSE subscription N/A on TUI
+- [x] 6.5 Frontend (web, `packages/app/src/**`) — `pages/session.tsx` POSTs `/api/v2/session/:id/resume` on `params.id` change, then dispatches `window` event `opencode:capability_refreshed`; `pages/session/session-side-panel.tsx` skills panel listens and refetches `/api/v2/session/:id/skill-layer`. Custom window event used because `RuntimeEventService.append` is storage-only and doesn't flow through SSE
+- [ ] 6.6 Manual verification (dashboard shows pinned skill within 2s of session switch) — **user action** (open old session in web → check 已載技能 panel)
 
 ## 7. Observability — Events, Logs, Dashboard
 

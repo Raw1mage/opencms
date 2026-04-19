@@ -700,6 +700,16 @@ export function SessionSidePanel(props: {
                       }
                       createEffect(() => fetchLayers())
 
+                      // Refetch after session.tsx dispatches this window event,
+                      // which fires once POST /session/:id/resume completes and
+                      // the daemon has reinjected the capability layer.
+                      const onRefreshed = (e: Event) => {
+                        const detail = (e as CustomEvent<{ sessionID?: string }>).detail
+                        if (detail?.sessionID === activeSessionID()) void fetchLayers()
+                      }
+                      window.addEventListener("opencode:capability_refreshed", onRefreshed)
+                      onCleanup(() => window.removeEventListener("opencode:capability_refreshed", onRefreshed))
+
                       return (
                         <>
                           <Show when={error()}>

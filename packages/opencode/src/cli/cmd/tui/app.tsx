@@ -397,6 +397,24 @@ function App() {
     ),
   )
 
+  // POST /session/:id/resume on session navigation so the daemon refreshes
+  // the capability layer (AGENTS.md + mandatory skills) for the reopened
+  // session. Fire-and-forget; busy sessions return busy_skipped harmlessly.
+  let lastResumedSessionID: string | undefined
+  createEffect(() => {
+    if (route.data.type !== "session") return
+    const sessionID = route.data.sessionID
+    if (!sessionID || sessionID === lastResumedSessionID) return
+    lastResumedSessionID = sessionID
+    void sdk
+      .fetch(`${sdk.url}/api/v2/session/${sessionID}/resume`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ clientID: "tui" }),
+      })
+      .catch(() => {})
+  })
+
   // Update terminal window title based on current route and session
   createEffect(() => {
     if (!terminalTitleEnabled() || Flag.OPENCODE_DISABLE_TERMINAL_TITLE) return

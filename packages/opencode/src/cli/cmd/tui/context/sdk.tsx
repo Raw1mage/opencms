@@ -127,6 +127,9 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
       },
       event: emitter,
       url: props.url,
+      get fetch() {
+        return props.fetch ?? fetch
+      },
       get directory() {
         return activeDirectory()
       },
