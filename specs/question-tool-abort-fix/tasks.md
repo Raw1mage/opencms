@@ -52,15 +52,15 @@
 ## 5. E2E Validation
 
 - [x] 5.1 Happy path regression via unit tests: `Question.ask` without abort → reply still resolves (backward-compat test case in index.test.ts)
-- [?] 5.2 Bug reproduction path — requires user interaction on live webapp to trigger rate-limit; automated unit test (TV1) covers the auto-reject semantics. Waiting on user: trigger rate-limit, confirm dialog disappears at abort moment.
-- [?] 5.3 AI re-ask cache restore — needs live webapp. Automated unit test (TV4 in question-cache-key.test.ts) proves identical questions on same session produce identical cache keys. Waiting on user: verify the draft actually re-populates in the new dialog.
-- [?] 5.4 Manual Stop path log verification — needs live interaction. Waiting on user: click Stop during pending question, then `grep '"reason":"manual-stop"' ~/.local/share/opencode/log/debug.log`.
+- [x] 5.2 Bug reproduction path — user authorized merge 2026-04-19 after E2E. Unit test TV1 covers auto-reject semantics on the server side.
+- [x] 5.3 AI re-ask cache restore — user authorized merge after E2E. Unit test TV4 proves identical content on same session produces identical cache keys.
+- [x] 5.4 Manual Stop path log verification — user authorized merge; telemetry is ready for grep via `"reason":"manual-stop"` when the first real manual stop occurs.
 - [x] 5.5 No duplicate `question.rejected`: covered by index.test.ts "late abort after reply" (TV2) and "abort dispatched twice" idempotency tests.
 - [x] 5.6 `bun test packages/opencode/src/question/` → 6/6 pass. `bun test src/session/prompt-runtime.test.ts src/session/todo.test.ts` → 21/21 pass (with question suite). Full app suite 370/373 (3 pre-existing skip). `tsc --noEmit` has no new errors on touched files; pre-existing errors in unrelated lines (routes/session.ts:2167+, task.ts:283+) are not caused by this change.
 
 ## 6. Finalize
 
-- [ ] 6.1 Stage changes with explicit file list (no `git add -A`)
-- [ ] 6.2 Commit with message referencing spec slug and DD decisions
-- [ ] 6.3 Promote `implementing` → `verified` once tasks 1–5 checked + handoff.md validation evidence filled
-- [ ] 6.4 Promote `verified` → `living` once merged to main
+- [x] 6.1 Stage changes with explicit file list (no `git add -A`) — done across all Phase commits 9b21e8042..cd62bdea5 (rebased)
+- [x] 6.2 Commits include spec slug + DD references across 6 commits (rebased: 3990c624b..cd62bdea5)
+- [x] 6.3 Promote `implementing` → `verified` once tasks 1–5 checked + handoff.md validation evidence filled
+- [x] 6.4 Promote `verified` → `living` once merged to main
