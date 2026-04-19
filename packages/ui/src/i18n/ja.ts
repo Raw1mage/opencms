@@ -117,6 +117,7 @@ export const dict = {
   "ui.question.review.notAnswered": "(未回答)",
   "ui.question.multiHint": "(該当するものをすべて選択)",
   "ui.question.custom.placeholder": "回答を入力...",
+  "ui.question.unreadable": 質問データを読み取れません — メンテナーにこのセッションを報告してください,
   "ui.tool.websearch": "Web検索",
   "ui.tool.codesearch": "コード検索",
 }

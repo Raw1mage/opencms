@@ -3,6 +3,10 @@ import { BusEvent } from "@/bus/bus-event"
 import { Identifier } from "@/id/id"
 import { Instance } from "@/project/instance"
 import { Log } from "@/util/log"
+import {
+  normalizeQuestionInput,
+  normalizeSingleQuestion,
+} from "@opencode-ai/sdk/v2"
 import z from "zod"
 
 export namespace Question {
@@ -59,47 +63,12 @@ export namespace Question {
       .describe("User answers in order of questions (each answer is an array of selected labels)"),
   })
 
-  export function normalizeSingle(raw: unknown): unknown {
-    if (!raw || typeof raw !== "object") return raw
-    const q = { ...(raw as Record<string, unknown>) }
-    if (typeof q.question === "string" && typeof q.header !== "string") {
-      q.header = q.question.slice(0, 30)
-    }
-    if (Array.isArray(q.options)) {
-      q.options = q.options.map((opt) => {
-        if (typeof opt === "string") return { label: opt, description: opt }
-        if (opt && typeof opt === "object") {
-          const o = opt as Record<string, unknown>
-          const label = typeof o.label === "string" ? o.label : typeof o.value === "string" ? o.value : undefined
-          const description =
-            typeof o.description === "string"
-              ? o.description
-              : typeof o.detail === "string"
-                ? o.detail
-                : typeof o.explanation === "string"
-                  ? o.explanation
-                  : typeof label === "string"
-                    ? label
-                    : undefined
-          if (label !== undefined) return { ...o, label, description: description ?? label }
-        }
-        return opt
-      })
-    }
-    return q
-  }
-
-  export function normalize(raw: unknown): unknown {
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw
-    const obj = { ...(raw as Record<string, unknown>) }
-    if (!Array.isArray(obj.questions) && typeof obj.question === "string") {
-      return { questions: [normalizeSingle(obj)] }
-    }
-    if (Array.isArray(obj.questions)) {
-      obj.questions = obj.questions.map(normalizeSingle)
-    }
-    return obj
-  }
+  // Single source of truth lives in @opencode-ai/sdk/v2 so webapp and TUI
+  // can defensively normalize legacy raw state.input without duplicating
+  // the coercion logic. Server-side calls re-export for ergonomic
+  // Question.normalize / Question.normalizeSingle access.
+  export const normalize = normalizeQuestionInput
+  export const normalizeSingle = normalizeSingleQuestion
   export type Reply = z.infer<typeof Reply>
 
   export const Event = {

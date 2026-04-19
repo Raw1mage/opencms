@@ -118,6 +118,7 @@ export const dict = {
   "ui.question.review.notAnswered": "(não respondida)",
   "ui.question.multiHint": "(selecione todas que se aplicam)",
   "ui.question.custom.placeholder": "Digite sua resposta...",
+  "ui.question.unreadable": Question data unreadable — please report this session to the maintainer.,
   "ui.tool.websearch": "Pesquisa na Web",
   "ui.tool.codesearch": "Pesquisa de Código",
 }
