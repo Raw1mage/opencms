@@ -1,0 +1,175 @@
+[
+  {
+    "id": "TV1",
+    "requirementRef": "Requirement: Question.ask honors stream AbortSignal — Scenario: stream aborts while question pending",
+    "description": "pending question is auto-rejected when its bound AbortSignal fires",
+    "input": {
+      "sessionID": "ses_testA",
+      "questions": [
+        {
+          "question": "Pick one?",
+          "header": "Pick",
+          "options": [
+            { "label": "A", "description": "first" },
+            { "label": "B", "description": "second" }
+          ],
+          "multiple": false,
+          "custom": true
+        }
+      ],
+      "tool": { "messageID": "msg_test", "callID": "call_test" },
+      "abortAfterMs": 50,
+      "abortReason": "rate-limit-fallback"
+    },
+    "expected": {
+      "pendingEntryAfterAbort": false,
+      "eventSequence": [
+        { "type": "question.asked", "sessionID": "ses_testA" },
+        { "type": "question.rejected", "sessionID": "ses_testA" }
+      ],
+      "promiseOutcome": "rejected",
+      "rejectionInstanceOf": "Question.RejectedError",
+      "logContains": "reason=rate-limit-fallback"
+    },
+    "notes": "core fix target — Requirement A primary scenario"
+  },
+  {
+    "id": "TV2",
+    "requirementRef": "Requirement: Question.ask honors stream AbortSignal — Scenario: manual reply still wins against late abort",
+    "description": "reply resolves first; abort arrives after and is a no-op",
+    "input": {
+      "sequence": [
+        { "op": "ask", "delay": 0 },
+        { "op": "reply", "delay": 10, "answers": [["A"]] },
+        { "op": "abort", "delay": 30, "reason": "rate-limit-fallback" }
+      ]
+    },
+    "expected": {
+      "pendingEntryAfterSequence": false,
+      "eventSequence": [
+        { "type": "question.asked" },
+        { "type": "question.replied" }
+      ],
+      "abortHandlerNoop": true,
+      "promiseOutcome": "resolved"
+    },
+    "notes": "abort handler must idempotently skip when pending[id] is absent"
+  },
+  {
+    "id": "TV3",
+    "requirementRef": "Requirement: Question.ask honors stream AbortSignal — Scenario: signal already aborted at ask time",
+    "description": "pre-aborted signal short-circuits without publishing question.asked",
+    "input": {
+      "signalAbortedBeforeAsk": true,
+      "abortReason": "manual-stop"
+    },
+    "expected": {
+      "eventSequence": [
+        { "type": "question.rejected" }
+      ],
+      "noQuestionAsked": true,
+      "promiseOutcome": "rejected",
+      "rejectionInstanceOf": "Question.RejectedError"
+    },
+    "notes": "prevents ghost dialog flash on pre-aborted stream"
+  },
+  {
+    "id": "TV4",
+    "requirementRef": "Requirement: QuestionDock cache key survives AI re-ask — Scenario: AI re-asks identical question after abort",
+    "description": "identical questions on same session hit cache even with different request.id",
+    "input": {
+      "sessionID": "ses_testB",
+      "firstQuestion": {
+        "id": "q_first",
+        "questions": [
+          { "question": "Confirm?", "header": "OK", "options": [{ "label": "Yes", "description": "" }] }
+        ]
+      },
+      "userInputs": { "tab": 0, "custom": ["my typed draft"], "answers": [] },
+      "secondQuestion": {
+        "id": "q_second",
+        "questions": [
+          { "question": "Confirm?", "header": "OK", "options": [{ "label": "Yes", "description": "" }] }
+        ]
+      }
+    },
+    "expected": {
+      "secondDockInitialStore": {
+        "tab": 0,
+        "custom": ["my typed draft"],
+        "answers": []
+      },
+      "cacheKeyFormat": "^ses_testB:[a-f0-9]{40}$"
+    },
+    "notes": "Requirement B primary — content-hash cache key enables re-ask restore"
+  },
+  {
+    "id": "TV5",
+    "requirementRef": "Requirement: QuestionDock cache key survives AI re-ask — Scenario: different question does not leak into cache",
+    "description": "a different question content does not get previous input auto-filled",
+    "input": {
+      "sessionID": "ses_testB",
+      "firstQuestion": { "questions": [{ "question": "A?", "header": "A", "options": [] }] },
+      "userInputs": { "tab": 0, "custom": ["draft-for-A"], "answers": [] },
+      "secondQuestion": { "questions": [{ "question": "B?", "header": "B", "options": [] }] }
+    },
+    "expected": {
+      "secondDockInitialStore": { "tab": 0, "custom": [], "answers": [] }
+    },
+    "notes": "ensures hash collision boundary is enforced"
+  },
+  {
+    "id": "TV6",
+    "requirementRef": "Requirement: QuestionDock cache key survives AI re-ask — Scenario: cache is per-session",
+    "description": "same questions on different sessionID do not cross-contaminate",
+    "input": {
+      "sessionAInput": { "sessionID": "ses_A", "custom": ["secret"] },
+      "sessionBLookup": { "sessionID": "ses_B", "sameQuestions": true }
+    },
+    "expected": {
+      "sessionBInitialStore": { "tab": 0, "custom": [], "answers": [] }
+    },
+    "notes": "sessionID prefix prevents leak"
+  },
+  {
+    "id": "TV7",
+    "requirementRef": "Requirement: prompt-runtime cancel carries reason — Scenario: manual user stop",
+    "description": "Stop button path logs reason=manual-stop",
+    "input": {
+      "httpCall": "POST /session/ses_test/abort"
+    },
+    "expected": {
+      "cancelCalledWith": { "sessionID": "ses_test", "reason": "manual-stop" },
+      "abortControllerReason": "manual-stop",
+      "logContains": "\"reason\":\"manual-stop\""
+    },
+    "notes": "baseline happy-path for cancel telemetry"
+  },
+  {
+    "id": "TV8",
+    "requirementRef": "Requirement: prompt-runtime cancel carries reason — Scenario: rate-limit fallback rotation",
+    "description": "processor rotation abort carries rate-limit-fallback reason down to Question abort handler",
+    "input": {
+      "triggerRateLimitOnPendingQuestion": true
+    },
+    "expected": {
+      "cancelCalledWith": { "reason": "rate-limit-fallback" },
+      "questionAbortHandlerLog": "reason=rate-limit-fallback",
+      "questionRejectedEventPublished": true
+    },
+    "notes": "end-to-end: abort reason flows from processor → controller → Question handler"
+  },
+  {
+    "id": "TV9",
+    "requirementRef": "Requirement: prompt-runtime cancel carries reason — Scenario: reason enum boundary",
+    "description": "TypeScript blocks free-form reason strings at compile time",
+    "input": {
+      "codeSnippet": "SessionPrompt.cancel('ses_x', 'random-label')"
+    },
+    "expected": {
+      "tscFails": true,
+      "tscError": "Type '\"random-label\"' is not assignable to type 'CancelReason'"
+    },
+    "notes": "compile-time contract safety"
+  }
+]

@@ -1,0 +1,48 @@
+[
+  {
+    "id": "P1",
+    "title": "Happy path — ask then reply",
+    "actors": ["user", "webapp", "daemon", "llm"],
+    "messages": [
+      { "id": "MSG1", "from": "llm", "to": "daemon", "componentRef": "CP2", "label": "tool_call question(...)" },
+      { "id": "MSG2", "from": "daemon", "to": "daemon", "componentRef": "CP1", "label": "Question.ask(input, ctx.abort) → pending[id]" },
+      { "id": "MSG3", "from": "daemon", "to": "webapp", "componentRef": "CP1", "label": "Bus: question.asked" },
+      { "id": "MSG4", "from": "webapp", "to": "webapp", "componentRef": "CP7", "label": "mount QuestionDock; cache lookup by sessionID+hash" },
+      { "id": "MSG5", "from": "user", "to": "webapp", "componentRef": "CP7", "label": "answer + Submit" },
+      { "id": "MSG6", "from": "webapp", "to": "daemon", "componentRef": "CP5", "label": "POST /question.reply" },
+      { "id": "MSG7", "from": "daemon", "to": "daemon", "componentRef": "CP1", "label": "Question.reply → resolve promise + Bus: question.replied + delete pending" },
+      { "id": "MSG8", "from": "daemon", "to": "llm", "componentRef": "CP2", "label": "tool_result { answers }" }
+    ]
+  },
+  {
+    "id": "P2",
+    "title": "Stream abort while question pending (target bug)",
+    "actors": ["user", "webapp", "daemon", "llm"],
+    "messages": [
+      { "id": "MSG10", "from": "llm", "to": "daemon", "componentRef": "CP2", "label": "tool_call question(...)" },
+      { "id": "MSG11", "from": "daemon", "to": "daemon", "componentRef": "CP1", "label": "Question.ask(input, ctx.abort)" },
+      { "id": "MSG12", "from": "daemon", "to": "webapp", "componentRef": "CP1", "label": "Bus: question.asked" },
+      { "id": "MSG13", "from": "user", "to": "webapp", "componentRef": "CP7", "label": "typing custom answer..." },
+      { "id": "MSG14", "from": "daemon", "to": "daemon", "componentRef": "CP6", "label": "rate-limit → fallback rotation; controller.abort('rate-limit-fallback')" },
+      { "id": "MSG15", "from": "daemon", "to": "daemon", "componentRef": "CP1", "label": "abort handler: delete pending + Bus: question.rejected + reject RejectedError (reason='rate-limit-fallback')" },
+      { "id": "MSG16", "from": "daemon", "to": "webapp", "componentRef": "CP8", "label": "Bus: question.rejected → sync.data.question[sid] splice" },
+      { "id": "MSG17", "from": "webapp", "to": "webapp", "componentRef": "CP7", "label": "QuestionDock.onCleanup → cache[sessionID+hash] = store snapshot (replied=false)" },
+      { "id": "MSG18", "from": "daemon", "to": "llm", "componentRef": "CP6", "label": "re-stream with fallback model; LLM sees errored tool part → re-calls question tool (new id, same content)" },
+      { "id": "MSG19", "from": "daemon", "to": "webapp", "componentRef": "CP1", "label": "Bus: question.asked (new id, same hash)" },
+      { "id": "MSG20", "from": "webapp", "to": "webapp", "componentRef": "CP7", "label": "mount QuestionDock; cache lookup by sessionID+hash → HIT → restore tab/answers/custom" },
+      { "id": "MSG21", "from": "user", "to": "webapp", "componentRef": "CP7", "label": "sees previous draft; finishes and Submits" }
+    ]
+  },
+  {
+    "id": "P3",
+    "title": "Manual user stop",
+    "actors": ["user", "webapp", "daemon"],
+    "messages": [
+      { "id": "MSG30", "from": "user", "to": "webapp", "componentRef": "CP7", "label": "click Stop button" },
+      { "id": "MSG31", "from": "webapp", "to": "daemon", "componentRef": "CP5", "label": "POST /session/:id/abort" },
+      { "id": "MSG32", "from": "daemon", "to": "daemon", "componentRef": "CP4", "label": "SessionPrompt.cancel(sessionID, 'manual-stop')" },
+      { "id": "MSG33", "from": "daemon", "to": "daemon", "componentRef": "CP3", "label": "controller.abort('manual-stop') + log caller stack top" },
+      { "id": "MSG34", "from": "daemon", "to": "daemon", "componentRef": "CP1", "label": "Question abort handler (if any pending) → delete + publish rejected" }
+    ]
+  }
+]
