@@ -119,15 +119,21 @@ export type CancelReason =
 | 檔案 | 角色 | 本次變動 |
 |---|---|---|
 | [packages/opencode/src/question/index.ts](../../packages/opencode/src/question/index.ts) | Question state machine | `ask()` 新增 abort 參數，處理 abort handler |
+| [packages/opencode/src/question/index.test.ts](../../packages/opencode/src/question/index.test.ts) | Phase 1 unit tests | 6 test cases covering TV1/TV2/TV3 + idempotency |
 | [packages/opencode/src/tool/question.ts](../../packages/opencode/src/tool/question.ts) | 把 ctx.abort 傳給 Question.ask | 一行 call-site patch |
-| [packages/opencode/src/session/prompt-runtime.ts](../../packages/opencode/src/session/prompt-runtime.ts) | AbortController 建立與釋放 | `cancel(reason)` + `abort(reason)` + log |
-| [packages/opencode/src/session/prompt.ts](../../packages/opencode/src/session/prompt.ts) | `SessionPrompt.cancel` wrapper | 增加 reason 轉傳 |
-| [packages/opencode/src/server/routes/session.ts](../../packages/opencode/src/server/routes/session.ts) | `/session/:id/abort` → `SessionPrompt.cancel` | 帶入 `"manual-stop"` |
-| [packages/opencode/src/session/processor.ts](../../packages/opencode/src/session/processor.ts) | rate-limit fallback rotation 呼叫 abort | 帶入 `"rate-limit-fallback"` |
-| [packages/opencode/src/session/monitor.ts](../../packages/opencode/src/session/monitor.ts) | watchdog trigger（若有 cancel 呼叫） | 帶入 `"monitor-watchdog"` |
-| [packages/app/src/components/question-dock.tsx](../../packages/app/src/components/question-dock.tsx) | Webapp QuestionDock cache | cache key 改 sessionID + hash |
-| [specs/architecture.md](../architecture.md) | 新增「Question abort lifecycle」一段 | SSOT |
-| `docs/events/event_2026-04-19_question-abort-fix.md` | 事件紀錄 | 新檔 |
+| [packages/opencode/src/session/prompt-runtime.ts](../../packages/opencode/src/session/prompt-runtime.ts) | AbortController 建立與釋放 | `CancelReason` union + `cancel(reason)` + `abort(reason)` + log |
+| [packages/opencode/src/session/prompt.ts](../../packages/opencode/src/session/prompt.ts) | `SessionPrompt.cancel` wrapper | 增加 reason 轉傳；stopReason 保留 `manual_interrupt` |
+| [packages/opencode/src/server/routes/session.ts](../../packages/opencode/src/server/routes/session.ts) | `/session/:id/abort` + `/session/abort-all` | 帶入 `"manual-stop"` |
+| [packages/opencode/src/cli/cmd/session.ts](../../packages/opencode/src/cli/cmd/session.ts) | SIGTERM/SIGINT cleanup + worker cancel msg | 帶入 `"manual-stop"`（survey 補進） |
+| [packages/opencode/src/tool/task.ts](../../packages/opencode/src/tool/task.ts) | subagent parent-abort cascade (2 sites) | 帶入 `"parent-abort"`（survey 補進；同步追加 enum 值） |
+| [packages/opencode/src/server/killswitch/service.ts](../../packages/opencode/src/server/killswitch/service.ts) | emergency cancel / pause / forceKill | 帶入 `"killswitch"`（survey 補進） |
+| ~~[packages/opencode/src/session/processor.ts](../../packages/opencode/src/session/processor.ts)~~ | rate-limit fallback rotation | **不需改**：processor rotation 用 `continue` 不呼叫 cancel（tasks.md 2.6.3 已標 cancelled） |
+| ~~[packages/opencode/src/session/monitor.ts](../../packages/opencode/src/session/monitor.ts)~~ | session monitor | **不需改**：monitor 今日未呼叫 cancel（tasks.md 2.6.6 已標 cancelled） |
+| [packages/app/src/components/question-dock.tsx](../../packages/app/src/components/question-dock.tsx) | Webapp QuestionDock | cache key 改 sessionID + hash |
+| [packages/app/src/components/question-cache-key.ts](../../packages/app/src/components/question-cache-key.ts) | canonicalJson + fnv1a32 + questionCacheKey | 新檔（Phase 3 抽出） |
+| [packages/app/src/components/question-cache-key.test.ts](../../packages/app/src/components/question-cache-key.test.ts) | Phase 3 unit tests | 13 test cases covering TV4/TV5/TV6 + serializer + hash |
+| [specs/architecture.md](../architecture.md) | 新增「Question Tool Abort Lifecycle」段 | SSOT (Phase 4 已落地) |
+| [docs/events/event_2026-04-19_question-abort-fix.md](../../docs/events/event_2026-04-19_question-abort-fix.md) | 事件紀錄 | 新檔（Phase 1/2/3 summary） |
 
 ## Out-of-scope Files（明確不動）
 

@@ -44,10 +44,10 @@
 
 ## 4. Docs & SSOT Sync
 
-- [ ] 4.1 Append `## Question Tool Abort Lifecycle` section to `specs/architecture.md`
-- [ ] 4.2 Write `docs/events/event_2026-04-19_question-abort-fix.md` recording: bug chain, fix map (A/B/C), DD-1..DD-5 references
-- [ ] 4.3 Update `AGENTS.md` Enablement Registry? → NO (no new tool/capability exposed to LLM)
-- [ ] 4.4 Run `bun run ~/projects/skills/plan-builder/scripts/plan-sync.ts specs/question-tool-abort-fix/` and log clean result
+- [x] 4.1 Append `## Question Tool Abort Lifecycle` section to `specs/architecture.md`
+- [x] 4.2 Event log `docs/events/event_2026-04-19_question-abort-fix.md` kept current through Phase 1/2/3 (bug chain + DD-1..DD-5 + phase summaries)
+- [x] 4.3 Update `AGENTS.md` Enablement Registry → skipped (no new LLM-exposed capability)
+- [x] 4.4 Updated `design.md` Critical Files to include Phase-2 survey-discovered call sites (cli/cmd/session.ts, tool/task.ts, server/killswitch/service.ts) and marked processor.ts/monitor.ts explicitly as "not changed"
 
 ## 5. E2E Validation
 

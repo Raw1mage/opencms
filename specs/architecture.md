@@ -687,3 +687,63 @@ restart to apply changes (same model as `opencode.cfg`).
 - The forwarded-to-per-user-daemon path
   (`UserDaemonManager.routeSessionReadEnabled`) is intentionally **not**
   cached on the gateway side; the per-user daemon owns its own cache.
+
+---
+
+## Question Tool Abort Lifecycle
+
+Runtime SSOT for the `question` tool / `Question.ask` state machine. Added 2026-04-19 alongside [specs/question-tool-abort-fix/](question-tool-abort-fix/).
+
+### Overview
+
+`Question.ask` is the only blocking tool in the runtime — its `execute` function awaits human input indefinitely. Every other tool either completes in milliseconds or streams delta back to the LLM. Because this tool voluntarily yields control to a human, its lifecycle must be bound to the surrounding stream's `AbortSignal`; otherwise a stream teardown leaves a phantom `pending[id]` entry that:
+
+1. keeps the dialog visible to the user after the stream is already gone
+2. lets the user submit an answer that the LLM side no longer consumes
+3. causes the AI to re-ask the same question on stream restart — generating the "answer → abort → re-ask" loop
+
+### State machine
+
+States: **Idle → Pending → { Replied | Rejected(manual) | Aborted(stream) } → Idle**
+
+Transitions:
+
+| From | To | Trigger |
+|---|---|---|
+| Idle | Pending | `Question.ask({ …, abort })` registers `pending[id]`, publishes `question.asked` (unless `abort.aborted` at entry) |
+| Pending | Replied | HTTP `/question.reply` → `Question.reply` deletes pending, calls `dispose()`, publishes `question.replied`, resolves promise |
+| Pending | Rejected | HTTP `/question.reject` → `Question.reject` deletes pending, calls `dispose()`, publishes `question.rejected`, rejects with `RejectedError` |
+| Pending | Aborted | `abort` signal fires → `onAbort` listener deletes pending, publishes `question.rejected` (same event as manual reject), rejects with `RejectedError("aborted: <reason>")` |
+| Pending+Replied | Replied | late `abort` fires after `reply` — `onAbort` finds no `pending[id]` → no-op (idempotent) |
+
+### Cancel reason propagation
+
+`prompt-runtime.cancel(sessionID, reason: CancelReason)` → `controller.abort(reason)` → `AbortSignal.reason` visible to downstream `Question.ask` abort handler via `signal.reason`. `CancelReason` enum (see `packages/opencode/src/session/prompt-runtime.ts`):
+
+- `manual-stop` — user pressed Stop in UI, CLI SIGINT/SIGTERM, ACP `session.abort`
+- `rate-limit-fallback` — reserved (processor rotation currently uses `continue`, not `cancel`; would be used if future logic explicitly cancels the old stream)
+- `monitor-watchdog` — reserved for future session monitor integration
+- `instance-dispose` — Instance state cleanup (daemon restart / user switch)
+- `replace` — `prompt-runtime.start({ replace: true })` tearing down the prior AbortController
+- `session-switch` — reserved for explicit session-switching paths
+- `killswitch` — emergency `KillSwitchService.forceKill` / cancel / pause
+- `parent-abort` — subagent cascade: parent session's abort triggers child session cancel via `tool/task.ts`
+- `unknown` — default when no meaningful reason is available (should not occur from internal callers; TypeScript enforces the closed set)
+
+### Observability
+
+- `log.info("cancel", { sessionID, reason, caller })` in `session.prompt-runtime` — `caller` is the first non-framework stack frame of whoever invoked `cancel`
+- `log.info("aborted", { id, sessionID, reason })` in `question` — fired by the abort listener when a pending question is torn down by stream abort
+- `log.info("aborted-pre-ask", …)` — pre-aborted signal at `Question.ask` entry (no `question.asked` published)
+- Grep patterns for incident investigation:
+  - `grep '"reason":"rate-limit-fallback"'` — count aborts attributed to rotation
+  - `grep 'aborted-pre-ask'` — stream already dead when tool was invoked
+
+### Webapp cache
+
+`QuestionDock` (`packages/app/src/components/question-dock.tsx`) caches user input (tab, answers, typed custom text) under `${sessionID}:${fnv1a32(canonicalJson(questions))}` (see `question-cache-key.ts`):
+
+- sessionID prefix isolates cross-session state
+- content hash lets AI re-asks of the same question (new `request.id`) restore the user's draft automatically
+- FNV-1a sync chosen over async SHA-1 to avoid a createStore race where the user's fresh keystrokes would be overwritten when async hash resolves (see DD-2 v2 in `specs/question-tool-abort-fix/design.md`)
+- Cache entry is written on `onCleanup` (only when `replied=false`) and cleared on `reply` / `reject` success

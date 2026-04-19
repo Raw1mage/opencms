@@ -78,6 +78,17 @@
         "packages/opencode/src/tool/task.ts"
       ],
       "commit": "207f4ce61e8c57976cb3dccc280aaedefacedee1"
+    },
+    {
+      "at": "2026-04-19T04:25:44.217Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/app/src/components/question-dock.tsx",
+      "result": "warned",
+      "drift": [
+        "packages/app/src/components/question-dock.tsx"
+      ],
+      "commit": "7b972bb1c0a9da6149857815a8173b2451a250c2"
     }
   ]
 }
