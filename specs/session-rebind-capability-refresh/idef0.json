@@ -1,0 +1,233 @@
+{
+  "diagram_title": "session-rebind-capability-refresh — Rebind Event → Capability Layer Refresh Pipeline",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Manage Rebind Epoch",
+      "description": "維護 per-session 整數 epoch counter；提供 bumpEpoch API；強制 rate limit（5/sec/session）；bump 時清除同 session 能力層 cache 並發 session.rebind 事件。",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Refresh Capability Layer",
+      "description": "讀磁碟上的 AGENTS.md（global + project）、driver prompt、mandatory skills 內容、enablement.json；填入 (sessionID, epoch)-keyed cache；發 capability_layer.refreshed 事件；失敗時保留前一個 epoch 的 cache 不覆寫。",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Assemble Session Prompt",
+      "description": "runLoop 每輪呼叫：取當前 epoch → 從 cache 取能力層（cache miss 觸發 A2 reinject）→ 套 rebind checkpoint / SharedContext 對話層壓縮 → 組 system[] → 送 LLM。契約：能力層取得順序**必須**早於 checkpoint apply。",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Accept Explicit Refresh Trigger",
+      "description": "暴露兩個 rebind 入口：`/reload` slash command（使用者手動）、`refresh_capability_layer` tool call（AI 主動，per-turn 3 次 rate limit）。兩者共用 A1 的 bumpEpoch API。",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Accept UI Session Resume Signal",
+      "description": "新 HTTP endpoint `POST /session/:id/resume`；驗證來源（同 uid Unix socket origin）；呼叫 A1 bumpEpoch + A2 reinject，整個過程不打 LLM（silent init round）；發 SSE event 給 UI 重繪 dashboard。",
+      "decomposition": null
+    },
+    {
+      "id": "A6",
+      "title": "Record Observability Events",
+      "description": "所有 rebind 事件透過 RuntimeEventService 發佈：session.rebind（成功 bump）、capability_layer.refreshed（reinject 完成）、session.rebind_storm（rate limit 超過）、capability_layer.refresh_failed（reinject 例外）、tool.refresh_loop_suspected（per-turn 超限）。",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A4:input",
+      "label": "User slash `/reload` text / AI tool invocation args",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A5:input",
+      "label": "POST /session/:id/resume from UI",
+      "type": "input"
+    },
+    {
+      "id": "AR3",
+      "source": "EXTERNAL",
+      "target": "A3:input",
+      "label": "User message / provider switch signal / autonomous trigger",
+      "type": "input"
+    },
+    {
+      "id": "AR4",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "Rate-limit policy (5 bumps/sec/session)",
+      "type": "control"
+    },
+    {
+      "id": "AR5",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "Rebind Trigger enum (daemon_start|session_resume|provider_switch|slash_reload|tool_call)",
+      "type": "control"
+    },
+    {
+      "id": "AR6",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "Capability Layer catalog (agents_md / driver / skill_content / enablement)",
+      "type": "control"
+    },
+    {
+      "id": "AR7",
+      "source": "EXTERNAL",
+      "target": "A3:control",
+      "label": "Refresh-order contract: capability-layer BEFORE checkpoint apply",
+      "type": "control"
+    },
+    {
+      "id": "AR8",
+      "source": "EXTERNAL",
+      "target": "A4:control",
+      "label": "per-turn tool rate limit (3x); origin-only-user for slash command",
+      "type": "control"
+    },
+    {
+      "id": "AR9",
+      "source": "EXTERNAL",
+      "target": "A5:control",
+      "label": "Unix socket origin whitelist",
+      "type": "control"
+    },
+    {
+      "id": "AR10",
+      "source": "A4:output",
+      "target": "A1:input",
+      "label": "bumpEpoch(trigger=slash_reload|tool_call)",
+      "type": "output"
+    },
+    {
+      "id": "AR11",
+      "source": "A5:output",
+      "target": "A1:input",
+      "label": "bumpEpoch(trigger=session_resume)",
+      "type": "output"
+    },
+    {
+      "id": "AR12",
+      "source": "A3:output",
+      "target": "A1:input",
+      "label": "bumpEpoch(trigger=daemon_start | provider_switch) from runLoop pre-loop",
+      "type": "output"
+    },
+    {
+      "id": "AR13",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "New epoch + cache-cleared signal (triggers reinject)",
+      "type": "output"
+    },
+    {
+      "id": "AR14",
+      "source": "A1:output",
+      "target": "A6:input",
+      "label": "session.rebind event payload (trigger, prev→curr epoch)",
+      "type": "output"
+    },
+    {
+      "id": "AR15",
+      "source": "A1:output",
+      "target": "A6:input",
+      "label": "session.rebind_storm anomaly (when rate-limited)",
+      "type": "output"
+    },
+    {
+      "id": "AR16",
+      "source": "A2:output",
+      "target": "A3:input",
+      "label": "Cached capability layer at (sessionID, epoch)",
+      "type": "output"
+    },
+    {
+      "id": "AR17",
+      "source": "A2:output",
+      "target": "A6:input",
+      "label": "capability_layer.refreshed event (layers, pinnedSkills)",
+      "type": "output"
+    },
+    {
+      "id": "AR18",
+      "source": "A2:output",
+      "target": "A6:input",
+      "label": "capability_layer.refresh_failed anomaly (on reinject exception)",
+      "type": "output"
+    },
+    {
+      "id": "AR19",
+      "source": "A3:output",
+      "target": "EXTERNAL",
+      "label": "Assembled system[] + messages → LLM call",
+      "type": "output"
+    },
+    {
+      "id": "AR20",
+      "source": "A5:output",
+      "target": "A6:input",
+      "label": "Silent init round ack (no LLM called)",
+      "type": "output"
+    },
+    {
+      "id": "AR21",
+      "source": "A6:output",
+      "target": "EXTERNAL",
+      "label": "SSE push to UI dashboard (capability_layer.refreshed stream)",
+      "type": "output"
+    },
+    {
+      "id": "AR22",
+      "source": "EXTERNAL",
+      "target": "A1:mechanism",
+      "label": "RebindEpoch module (in-memory Map<sessionID, epoch>)",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR23",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "label": "CapabilityLayer module + File I/O + SkillLayerRegistry",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR24",
+      "source": "EXTERNAL",
+      "target": "A3:mechanism",
+      "label": "SessionPrompt.runLoop + skill-layer-seam renderer",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR25",
+      "source": "EXTERNAL",
+      "target": "A4:mechanism",
+      "label": "SlashCommand dispatcher + Tool registry",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR26",
+      "source": "EXTERNAL",
+      "target": "A5:mechanism",
+      "label": "HTTP server route handler + daemon Unix socket",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR27",
+      "source": "EXTERNAL",
+      "target": "A6:mechanism",
+      "label": "RuntimeEventService + Bus + SSE stream",
+      "type": "mechanism"
+    }
+  ]
+}

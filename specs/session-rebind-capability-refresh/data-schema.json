@@ -1,0 +1,373 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "session-rebind-capability-refresh — Data Contracts",
+  "description": "Type contracts for RebindEpoch module, CapabilityLayer module, tool/command I/O, and observability events.",
+  "definitions": {
+    "SessionID": {
+      "type": "string",
+      "pattern": "^ses_",
+      "description": "Session identifier (ULID-based)"
+    },
+    "Epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Per-session rebind epoch counter. 0 = uninitialized; first use bumps to 1."
+    },
+    "RebindTrigger": {
+      "type": "string",
+      "enum": ["daemon_start", "session_resume", "provider_switch", "slash_reload", "tool_call", "file_mtime"],
+      "description": "Classification of what caused a rebind event. file_mtime reserved for Phase 2."
+    },
+    "CapabilityLayerName": {
+      "type": "string",
+      "enum": ["agents_md", "driver", "skill_content", "enablement"],
+      "description": "Discrete layer identifier used in refreshed-event payloads."
+    },
+    "BumpEpochInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sessionID": { "$ref": "#/definitions/SessionID" },
+        "trigger": { "$ref": "#/definitions/RebindTrigger" },
+        "reason": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Optional free-form explanation (shown in logs/events). Required for tool_call trigger."
+        }
+      },
+      "required": ["sessionID", "trigger"]
+    },
+    "BumpEpochOutcome": {
+      "type": "object",
+      "description": "Return shape of bumpEpoch — including rate-limited rejection",
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["bumped", "rate_limited"]
+        },
+        "previousEpoch": { "$ref": "#/definitions/Epoch" },
+        "currentEpoch": { "$ref": "#/definitions/Epoch" },
+        "rateLimitReason": {
+          "type": ["string", "null"],
+          "description": "Present when status=rate_limited. Explains which limit was hit."
+        }
+      },
+      "required": ["status", "previousEpoch", "currentEpoch"]
+    },
+    "CapabilityLayerCacheEntry": {
+      "type": "object",
+      "description": "Single per-session, per-epoch cached capability layer blob",
+      "additionalProperties": false,
+      "properties": {
+        "sessionID": { "$ref": "#/definitions/SessionID" },
+        "epoch": { "$ref": "#/definitions/Epoch" },
+        "createdAt": { "type": "number", "description": "Unix ms timestamp when this entry filled" },
+        "layers": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "agents_md": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "text": { "type": "string" },
+                "sources": { "type": "array", "items": { "type": "string" } }
+              },
+              "required": ["text", "sources"]
+            },
+            "driver": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "text": { "type": "string" },
+                "providerId": { "type": "string" },
+                "modelID": { "type": "string" }
+              },
+              "required": ["text", "providerId"]
+            },
+            "skill_content": {
+              "type": "object",
+              "description": "Consolidated skill-layer-seam rendering + pinned skill list",
+              "additionalProperties": false,
+              "properties": {
+                "pinnedSkills": { "type": "array", "items": { "type": "string" } },
+                "renderedText": { "type": "string" }
+              },
+              "required": ["pinnedSkills", "renderedText"]
+            },
+            "enablement": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "text": { "type": "string" },
+                "version": { "type": "string" }
+              },
+              "required": ["text"]
+            }
+          },
+          "required": ["agents_md", "skill_content"]
+        }
+      },
+      "required": ["sessionID", "epoch", "createdAt", "layers"]
+    },
+    "ReinjectOutcome": {
+      "type": "object",
+      "description": "Result of CapabilityLayer.reinject",
+      "additionalProperties": false,
+      "properties": {
+        "sessionID": { "$ref": "#/definitions/SessionID" },
+        "epoch": { "$ref": "#/definitions/Epoch" },
+        "layers": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/CapabilityLayerName" }
+        },
+        "pinnedSkills": { "type": "array", "items": { "type": "string" } },
+        "missingSkills": { "type": "array", "items": { "type": "string" } },
+        "failures": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "layer": { "$ref": "#/definitions/CapabilityLayerName" },
+              "error": { "type": "string" }
+            },
+            "required": ["layer", "error"]
+          }
+        }
+      },
+      "required": ["sessionID", "epoch", "layers", "pinnedSkills"]
+    },
+    "RefreshCapabilityLayerToolInput": {
+      "type": "object",
+      "description": "Args accepted by the refresh_capability_layer tool",
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "Mandatory explanation — why the AI chose to refresh"
+        }
+      },
+      "required": ["reason"]
+    },
+    "RefreshCapabilityLayerToolOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["refreshed", "rate_limited_per_turn", "rate_limited_session"]
+        },
+        "previousEpoch": { "$ref": "#/definitions/Epoch" },
+        "currentEpoch": { "$ref": "#/definitions/Epoch" },
+        "refreshedSkills": { "type": "array", "items": { "type": "string" } },
+        "message": { "type": "string" }
+      },
+      "required": ["status", "previousEpoch", "currentEpoch", "message"]
+    },
+    "ReloadCommandOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": { "type": "string", "enum": ["ok", "no_session", "rate_limited"] },
+        "sessionID": { "type": ["string", "null"] },
+        "previousEpoch": { "$ref": "#/definitions/Epoch" },
+        "currentEpoch": { "$ref": "#/definitions/Epoch" },
+        "message": { "type": "string" }
+      },
+      "required": ["status", "message"]
+    },
+    "SessionResumeSignalInput": {
+      "type": "object",
+      "description": "Body for POST /session/:id/resume",
+      "additionalProperties": false,
+      "properties": {
+        "clientID": {
+          "type": "string",
+          "description": "Optional UI client tag for observability (e.g. 'tui', 'web')."
+        }
+      }
+    },
+    "SessionResumeSignalOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["ok", "forbidden_origin", "rate_limited"]
+        },
+        "sessionID": { "$ref": "#/definitions/SessionID" },
+        "epoch": { "$ref": "#/definitions/Epoch" }
+      },
+      "required": ["status", "sessionID", "epoch"]
+    },
+    "SessionRebindEvent": {
+      "type": "object",
+      "description": "Emitted for every successful bumpEpoch",
+      "additionalProperties": false,
+      "properties": {
+        "sessionID": { "$ref": "#/definitions/SessionID" },
+        "level": { "const": "info" },
+        "domain": { "const": "workflow" },
+        "eventType": { "const": "session.rebind" },
+        "anomalyFlags": { "type": "array", "maxItems": 0 },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "trigger": { "$ref": "#/definitions/RebindTrigger" },
+            "previousEpoch": { "$ref": "#/definitions/Epoch" },
+            "currentEpoch": { "$ref": "#/definitions/Epoch" },
+            "reason": { "type": ["string", "null"] }
+          },
+          "required": ["trigger", "previousEpoch", "currentEpoch"]
+        }
+      },
+      "required": ["sessionID", "level", "domain", "eventType", "anomalyFlags", "payload"]
+    },
+    "CapabilityLayerRefreshedEvent": {
+      "type": "object",
+      "description": "Emitted after CapabilityLayer.reinject succeeds",
+      "additionalProperties": false,
+      "properties": {
+        "sessionID": { "$ref": "#/definitions/SessionID" },
+        "level": { "const": "info" },
+        "domain": { "const": "workflow" },
+        "eventType": { "const": "capability_layer.refreshed" },
+        "anomalyFlags": { "type": "array", "maxItems": 0 },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "epoch": { "$ref": "#/definitions/Epoch" },
+            "layers": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/CapabilityLayerName" },
+              "minItems": 1
+            },
+            "pinnedSkills": { "type": "array", "items": { "type": "string" } },
+            "missingSkills": { "type": "array", "items": { "type": "string" } }
+          },
+          "required": ["epoch", "layers", "pinnedSkills"]
+        }
+      },
+      "required": ["sessionID", "level", "domain", "eventType", "anomalyFlags", "payload"]
+    },
+    "SessionRebindStormEvent": {
+      "type": "object",
+      "description": "Anomaly emitted when bumpEpoch rate limit is exceeded",
+      "additionalProperties": false,
+      "properties": {
+        "sessionID": { "$ref": "#/definitions/SessionID" },
+        "level": { "const": "warn" },
+        "domain": { "const": "anomaly" },
+        "eventType": { "const": "session.rebind_storm" },
+        "anomalyFlags": {
+          "type": "array",
+          "items": { "const": "rebind_storm" },
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "trigger": { "$ref": "#/definitions/RebindTrigger" },
+            "windowMs": { "type": "integer" },
+            "maxPerWindow": { "type": "integer" },
+            "observedCount": { "type": "integer" }
+          },
+          "required": ["trigger", "windowMs", "maxPerWindow", "observedCount"]
+        }
+      },
+      "required": ["sessionID", "level", "domain", "eventType", "anomalyFlags", "payload"]
+    },
+    "CapabilityLayerRefreshFailedEvent": {
+      "type": "object",
+      "description": "Emitted when reinject throws; previous cache retained per R3",
+      "additionalProperties": false,
+      "properties": {
+        "sessionID": { "$ref": "#/definitions/SessionID" },
+        "level": { "const": "error" },
+        "domain": { "const": "anomaly" },
+        "eventType": { "const": "capability_layer.refresh_failed" },
+        "anomalyFlags": {
+          "type": "array",
+          "items": { "const": "capability_layer_refresh_failed" },
+          "minItems": 1
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "epoch": { "$ref": "#/definitions/Epoch" },
+            "failingLayer": { "$ref": "#/definitions/CapabilityLayerName" },
+            "error": { "type": "string" },
+            "keptPreviousCache": { "type": "boolean" }
+          },
+          "required": ["failingLayer", "error", "keptPreviousCache"]
+        }
+      },
+      "required": ["sessionID", "level", "domain", "eventType", "anomalyFlags", "payload"]
+    },
+    "RefreshLoopSuspectedEvent": {
+      "type": "object",
+      "description": "Emitted when refresh_capability_layer tool exceeds per-turn limit",
+      "additionalProperties": false,
+      "properties": {
+        "sessionID": { "$ref": "#/definitions/SessionID" },
+        "level": { "const": "warn" },
+        "domain": { "const": "anomaly" },
+        "eventType": { "const": "tool.refresh_loop_suspected" },
+        "anomalyFlags": {
+          "type": "array",
+          "items": { "const": "refresh_loop_suspected" },
+          "minItems": 1
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "turnCount": { "type": "integer" },
+            "perTurnLimit": { "type": "integer" }
+          },
+          "required": ["turnCount", "perTurnLimit"]
+        }
+      },
+      "required": ["sessionID", "level", "domain", "eventType", "anomalyFlags", "payload"]
+    },
+    "RebindEpochStateSnapshot": {
+      "type": "object",
+      "description": "Optional: testing/telemetry view of the in-memory epoch map",
+      "additionalProperties": false,
+      "properties": {
+        "asOf": { "type": "number" },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sessionID": { "$ref": "#/definitions/SessionID" },
+              "epoch": { "$ref": "#/definitions/Epoch" },
+              "lastBumpAt": { "type": "number" },
+              "lastTrigger": { "$ref": "#/definitions/RebindTrigger" }
+            },
+            "required": ["sessionID", "epoch", "lastBumpAt", "lastTrigger"]
+          }
+        }
+      },
+      "required": ["asOf", "entries"]
+    }
+  },
+  "type": "object",
+  "properties": {
+    "_note": {
+      "type": "string",
+      "const": "All consumer contracts live in #/definitions. This wrapper exists so the file parses as a JSON Schema document."
+    }
+  }
+}

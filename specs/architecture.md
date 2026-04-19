@@ -835,6 +835,88 @@ Dashboard "已載技能" panel should show pinned badges + source label for mand
 
 See `specs/mandatory-skills-preload/design.md` DD-8/DD-10 and `docs/events/event_20260419_mandatory_skills_preload.md` for full decision trace.
 
+---
+
+## Capability Layer vs Conversation Layer (Session Rebind Epoch)
+
+Introduced by `specs/session-rebind-capability-refresh/` (2026-04-20). Extends and refines the Mandatory Skills Preload Pipeline above.
+
+### Layer boundary
+
+Session prompts live at two distinct layers; each has independent lifecycle rules.
+
+| Layer | Content | Lifecycle | Checkpoint-safe? |
+|---|---|---|---|
+| **Capability** | system prompt, driver prompt, AGENTS.md (global + project), coding.txt sentinel, skill content (pinned via `SkillLayerRegistry`), enablement.json | **Never frozen**. Refreshed on rebind events; between events, served from per-(sessionID, epoch) in-memory cache. | ❌ must not be captured by checkpoint/SharedContext |
+| **Conversation** | user messages, assistant responses, tool results, task progress, `SharedContext` snapshot, rebind checkpoint messages | Accumulates. Compressible via existing `SessionCompaction` / `SharedContext`. | ✅ checkpoint/shared-context owns compression |
+
+Conversation-layer state is safe to freeze because it records "what happened". Capability-layer state must re-read authoritative sources because it describes "what the agent can do right now" — AGENTS.md / SKILL.md / enablement.json can change between rebinds.
+
+### Rebind events (sole invalidation triggers)
+
+Five canonical triggers bump a session's `RebindEpoch`; each bumps the epoch by 1 and emits a `session.rebind` RuntimeEvent. No other code path may invalidate the capability-layer cache.
+
+| Trigger | Source | Example |
+|---|---|---|
+| `daemon_start` | Lazy on first `runLoop` iteration per session | Fresh daemon process; session first used |
+| `session_resume` | `POST /session/:id/resume` from UI | User re-opens an idle session in UI |
+| `provider_switch` | Pre-loop detection in `prompt.ts:~969` | Model/account switch within a session |
+| `slash_reload` | `/reload` slash command | User manually refreshes |
+| `tool_call` | `refresh_capability_layer` tool (AI-initiated) | AI detects stale capability layer |
+
+### Cache contract
+
+- Cache key = `(sessionID, epoch)`. Per-session isolation (DD-1); no global epoch.
+- Max 2 entries retained per session (`MAX_ENTRIES_PER_SESSION=2`) — `current + previous` for R3 fallback semantics (DD-3 amended).
+- **No time-based TTL**: `InstructionPrompt.systemCache` legacy 10s TTL was replaced with epoch-based invalidation. Cache stays valid indefinitely until next rebind.
+- **Reinject failure retains previous cache** — loud-warn via `capability_layer.refresh_failed` anomaly event + `get()` falls back to previous epoch's entry. Session never crashes due to stale AGENTS.md / missing skill.
+
+### Refresh order contract (DD-4)
+
+When both events co-occur (e.g. provider switch), the pipeline **always** refreshes capability layer before applying conversation-layer compression:
+
+```
+bumpEpoch(sessionID, trigger)   ← invalidates capability cache
+  ↓
+CapabilityLayer.reinject(sessionID, newEpoch)   ← reads fresh AGENTS.md + driver + skills
+  ↓
+[optional] SessionCompaction.compactWithSharedContext(...)   ← rebuilds messages for new provider
+  ↓
+runLoop builds system[] from (fresh capability + compacted messages)
+```
+
+New providers / models see the current capability layer in their very first LLM call, not a version cached from the previous provider's startup.
+
+### Silent init round (DD-5)
+
+UI `POST /session/:id/resume` triggers a bump + reinject without invoking the LLM, writing message history, or triggering autonomous continuation. Cost-free. If the session is `busy`/`retry` at signal receipt, the daemon skips silent reinject (the in-flight `runLoop` will cache-miss on its next iteration and self-heal) — no lock, no preempt.
+
+### Rate limits
+
+- **Session-level**: `RebindEpoch.bumpEpoch` sliding window = 5 bumps per 1000ms/session (DD-11). Exceeding emits `session.rebind_storm` anomaly; bump rejected.
+- **Tool-level**: `refresh_capability_layer` tool = 3 invocations per `(sessionID, messageID)` (DD-6). Exceeding emits `tool.refresh_loop_suspected` anomaly; tool returns rate-limited status without bumping epoch.
+
+### Components
+
+- `packages/opencode/src/session/rebind-epoch.ts` — RebindEpoch namespace (state + rate limit + event emit)
+- `packages/opencode/src/session/capability-layer.ts` — per-(sessionID, epoch) cache + R3 fallback lookup
+- `packages/opencode/src/session/capability-layer-loader.ts` — production loader (reads AGENTS.md + pins skills via `MandatorySkills.loadAndPinAll`)
+- `packages/opencode/src/session/instruction.ts` — `InstructionPrompt.system(sessionID?)` now epoch-keyed
+- `packages/opencode/src/session/prompt.ts` — `runLoop` wires `ensureCapabilityLoaderRegistered` + `CapabilityLayer.get` + daemon_start lazy bump + provider_switch bump
+- `packages/opencode/src/tool/refresh-capability-layer.ts` — AI-initiated tool
+- `packages/opencode/src/command/index.ts` (`Command.reloadHandler`) — user-initiated slash command
+- `packages/opencode/src/server/routes/session.ts` — `POST /:sessionID/resume` endpoint
+
+### Observability events
+
+- `session.rebind` (info/workflow) — every successful `bumpEpoch`
+- `capability_layer.refreshed` (info/workflow) — `reinject` succeeded
+- `session.rebind_storm` (warn/anomaly) — session rate limit exceeded
+- `capability_layer.refresh_failed` (error/anomaly) — reinject threw; previous cache retained
+- `tool.refresh_loop_suspected` (warn/anomaly) — per-turn tool limit exceeded
+
+See `specs/session-rebind-capability-refresh/design.md` (15 DDs) for the full decision trace.
+
 ## Tool Framework Contract
 
 ### Tool.define: execute() receives parsed args

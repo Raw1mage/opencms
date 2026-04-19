@@ -1,0 +1,110 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "Idle — epoch uninitialized (0), no capability-layer cache for session",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["rebind_trigger_received"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Validate rate limit (≤5 bumps/sec/session)",
+    "LinkInputType": ["convergence_or", "convergence_or"],
+    "LinkInputNumber": [0, 5],
+    "LinkOutputNumber": [2, 7],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["rate_ok", "rate_exceeded"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Bump epoch (N → N+1), clear capability-layer cache for session, emit session.rebind event",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3],
+    "LinkOutputType": "track",
+    "Condition": ["epoch_bumped_cache_cleared"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Reinject capability layers (read AGENTS.md + driver + skill content + enablement, fill cache at new epoch)",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4, 8],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["reinject_success", "reinject_failure"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A6",
+    "StepType": "normal",
+    "StepAction": "Emit capability_layer.refreshed event (epoch, layers, pinnedSkills) → SSE to UI dashboard",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["event_emitted"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Active — session uses cached capability layer for LLM rounds (cache hit), no disk I/O per round",
+    "LinkInputType": ["convergence_or", "convergence_or", "convergence_or"],
+    "LinkInputNumber": [4, 7, 8],
+    "LinkOutputNumber": [1, 6],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["next_rebind_trigger_received", "session_ended"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Terminal — session closed, epoch + cache entries GC'd with session teardown",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [],
+    "LinkOutputType": "track",
+    "Condition": ["terminal"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A6",
+    "StepType": "normal",
+    "StepAction": "Emit session.rebind_storm anomaly (anomalyFlags=[rebind_storm]); reject bump; keep existing epoch + cache",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["anomaly_recorded_resume_active"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 8,
+    "ModuleRef": "A6",
+    "StepType": "normal",
+    "StepAction": "Emit capability_layer.refresh_failed anomaly; retain previous epoch's cache (do not overwrite with partial reinject)",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["failure_recorded_prev_cache_kept"],
+    "SubGrafcet": []
+  }
+]

@@ -1,0 +1,154 @@
+[
+  {
+    "diagram_title": "Daemon startup — first session use bumps epoch to 1",
+    "scenario": "Fresh daemon, first message arrives on a session; lazy-bump from 0 to 1 triggers full capability layer reinject",
+    "moduleRef": "A1",
+    "participants": [
+      { "id": "P1", "name": "User", "type": "actor", "componentRef": "C8" },
+      { "id": "P2", "name": "SessionPrompt.runLoop", "type": "component", "componentRef": "C8" },
+      { "id": "P3", "name": "RebindEpoch", "type": "component", "componentRef": "C1" },
+      { "id": "P4", "name": "CapabilityLayer", "type": "component", "componentRef": "C4" },
+      { "id": "P5", "name": "RuntimeEventService", "type": "component", "componentRef": "C14" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "send message to session S", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P3", "label": "current(S) → 0 (uninitialized)", "type": "sync", "order": 2 },
+      { "id": "MSG3", "from": "P2", "to": "P3", "label": "bumpEpoch(S, trigger=daemon_start)", "type": "sync", "order": 3 },
+      { "id": "MSG4", "from": "P3", "to": "P3", "label": "epoch 0 → 1, clear cache for S", "type": "sync", "order": 4 },
+      { "id": "MSG5", "from": "P3", "to": "P5", "label": "append session.rebind {trigger: daemon_start, 0→1}", "type": "async", "order": 5 },
+      { "id": "MSG6", "from": "P2", "to": "P4", "label": "get(S, epoch=1) → cache miss", "type": "sync", "order": 6 },
+      { "id": "MSG7", "from": "P4", "to": "P4", "label": "reinject: read AGENTS.md + driver + skills + enablement", "type": "sync", "order": 7 },
+      { "id": "MSG8", "from": "P4", "to": "P5", "label": "append capability_layer.refreshed {epoch: 1, layers, pinnedSkills}", "type": "async", "order": 8 },
+      { "id": "MSG9", "from": "P4", "to": "P2", "label": "return layer strings", "type": "return", "order": 9 },
+      { "id": "MSG10", "from": "P2", "to": "P1", "label": "LLM response delivered", "type": "return", "order": 10 }
+    ],
+    "fragments": []
+  },
+  {
+    "diagram_title": "UI session resume — silent init round, no LLM call",
+    "scenario": "User clicks on existing session in UI; frontend emits resume signal; daemon bumps epoch and reinjects capability layer; dashboard updates without any LLM invocation",
+    "moduleRef": "A5",
+    "participants": [
+      { "id": "P1", "name": "UI / Frontend", "type": "system", "componentRef": "SYS2" },
+      { "id": "P2", "name": "POST /session/:id/resume", "type": "component", "componentRef": "C12" },
+      { "id": "P3", "name": "RebindEpoch", "type": "component", "componentRef": "C1" },
+      { "id": "P4", "name": "CapabilityLayer", "type": "component", "componentRef": "C4" },
+      { "id": "P5", "name": "SkillLayerRegistry", "type": "system", "componentRef": "SYS4" },
+      { "id": "P6", "name": "RuntimeEventService → SSE", "type": "component", "componentRef": "C14" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "POST /session/S/resume (Unix socket origin)", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P2", "label": "validate origin: same uid Unix socket → OK", "type": "sync", "order": 2 },
+      { "id": "MSG3", "from": "P2", "to": "P3", "label": "bumpEpoch(S, trigger=session_resume)", "type": "sync", "order": 3 },
+      { "id": "MSG4", "from": "P3", "to": "P3", "label": "epoch N → N+1, clear cache", "type": "sync", "order": 4 },
+      { "id": "MSG5", "from": "P3", "to": "P6", "label": "append session.rebind {trigger: session_resume}", "type": "async", "order": 5 },
+      { "id": "MSG6", "from": "P2", "to": "P4", "label": "reinject(S) — silent, no LLM", "type": "sync", "order": 6 },
+      { "id": "MSG7", "from": "P4", "to": "P5", "label": "pin plan-builder (+ other mandatory skills)", "type": "sync", "order": 7 },
+      { "id": "MSG8", "from": "P4", "to": "P6", "label": "append capability_layer.refreshed", "type": "async", "order": 8 },
+      { "id": "MSG9", "from": "P6", "to": "P1", "label": "SSE: capability_layer.refreshed event", "type": "async", "order": 9 },
+      { "id": "MSG10", "from": "P2", "to": "P1", "label": "HTTP 200 {epoch: N+1}", "type": "return", "order": 10 },
+      { "id": "MSG11", "from": "P1", "to": "P1", "label": "dashboard refresh: 已載技能 shows pinned skills", "type": "sync", "order": 11 }
+    ],
+    "fragments": [
+      { "id": "FRAG1", "type": "alt", "label": "Origin mismatch → 403 + anomaly", "messageRefs": ["MSG2"] }
+    ]
+  },
+  {
+    "diagram_title": "Provider switch — capability layer refresh BEFORE checkpoint apply",
+    "scenario": "User switches model/account from anthropic to codex; pre-loop detection bumps epoch, refreshes capability layer, then compacts messages with new provider; order contract ensures new LLM sees fresh capability layer",
+    "moduleRef": "A3",
+    "participants": [
+      { "id": "P1", "name": "User action", "type": "actor", "componentRef": "C8" },
+      { "id": "P2", "name": "SessionPrompt.runLoop", "type": "component", "componentRef": "C8" },
+      { "id": "P3", "name": "Provider-switch detection", "type": "component", "componentRef": "C9" },
+      { "id": "P4", "name": "RebindEpoch", "type": "component", "componentRef": "C1" },
+      { "id": "P5", "name": "CapabilityLayer", "type": "component", "componentRef": "C4" },
+      { "id": "P6", "name": "SessionCompaction (checkpoint)", "type": "component", "componentRef": "C8" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "incomingModel = codex (prev: anthropic)", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P3", "label": "detect: prevProvider !== nextProvider", "type": "sync", "order": 2 },
+      { "id": "MSG3", "from": "P3", "to": "P4", "label": "bumpEpoch(S, trigger=provider_switch)", "type": "sync", "order": 3 },
+      { "id": "MSG4", "from": "P4", "to": "P4", "label": "clear cache, epoch++", "type": "sync", "order": 4 },
+      { "id": "MSG5", "from": "P3", "to": "P5", "label": "reinject(S)", "type": "sync", "order": 5 },
+      { "id": "MSG6", "from": "P5", "to": "P5", "label": "read fresh AGENTS.md + codex driver prompt + skills", "type": "sync", "order": 6 },
+      { "id": "MSG7", "from": "P3", "to": "P6", "label": "compactWithSharedContext(sessionID, model=codex)", "type": "sync", "order": 7 },
+      { "id": "MSG8", "from": "P6", "to": "P3", "label": "messages compacted", "type": "return", "order": 8 },
+      { "id": "MSG9", "from": "P3", "to": "P2", "label": "continue runLoop", "type": "return", "order": 9 },
+      { "id": "MSG10", "from": "P2", "to": "P2", "label": "build system[] with fresh capability layer + compacted msgs", "type": "sync", "order": 10 }
+    ],
+    "fragments": [
+      { "id": "FRAG1", "type": "par", "label": "Order guarantee: MSG5-6 MUST finish before MSG7", "messageRefs": ["MSG5", "MSG6", "MSG7"] }
+    ]
+  },
+  {
+    "diagram_title": "Slash command /reload — user manual refresh",
+    "scenario": "User types /reload in TUI; command handler bumps epoch; no LLM call; UI gets refresh event",
+    "moduleRef": "A4",
+    "participants": [
+      { "id": "P1", "name": "User", "type": "actor", "componentRef": "C10" },
+      { "id": "P2", "name": "/reload handler", "type": "component", "componentRef": "C10" },
+      { "id": "P3", "name": "RebindEpoch", "type": "component", "componentRef": "C1" },
+      { "id": "P4", "name": "CapabilityLayer", "type": "component", "componentRef": "C4" },
+      { "id": "P5", "name": "RuntimeEventService → SSE", "type": "component", "componentRef": "C14" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "/reload in current session", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P3", "label": "bumpEpoch(S, trigger=slash_reload)", "type": "sync", "order": 2 },
+      { "id": "MSG3", "from": "P3", "to": "P3", "label": "clear cache, epoch N → N+1", "type": "sync", "order": 3 },
+      { "id": "MSG4", "from": "P3", "to": "P5", "label": "append session.rebind {trigger: slash_reload}", "type": "async", "order": 4 },
+      { "id": "MSG5", "from": "P2", "to": "P4", "label": "reinject(S)", "type": "sync", "order": 5 },
+      { "id": "MSG6", "from": "P4", "to": "P5", "label": "append capability_layer.refreshed", "type": "async", "order": 6 },
+      { "id": "MSG7", "from": "P5", "to": "P1", "label": "UI toast: Capability layer refreshed (N → N+1)", "type": "async", "order": 7 },
+      { "id": "MSG8", "from": "P2", "to": "P1", "label": "ack: reload complete", "type": "return", "order": 8 }
+    ],
+    "fragments": [
+      { "id": "FRAG1", "type": "alt", "label": "no active session → error", "messageRefs": ["MSG1"] }
+    ]
+  },
+  {
+    "diagram_title": "AI tool call refresh_capability_layer — mid-turn AI-initiated refresh",
+    "scenario": "AI detects it is missing a skill; invokes refresh_capability_layer tool; same turn can consume new capability layer; per-turn rate limit enforced",
+    "moduleRef": "A4",
+    "participants": [
+      { "id": "P1", "name": "AI assistant", "type": "actor", "componentRef": "C11" },
+      { "id": "P2", "name": "refresh_capability_layer tool", "type": "component", "componentRef": "C11" },
+      { "id": "P3", "name": "per-turn counter", "type": "component", "componentRef": "C11" },
+      { "id": "P4", "name": "RebindEpoch", "type": "component", "componentRef": "C1" },
+      { "id": "P5", "name": "CapabilityLayer", "type": "component", "componentRef": "C4" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "invoke({reason: 'missing skill X'})", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P3", "label": "check per-turn count (≤ 3)", "type": "sync", "order": 2 },
+      { "id": "MSG3", "from": "P3", "to": "P2", "label": "ok (count = 1)", "type": "return", "order": 3 },
+      { "id": "MSG4", "from": "P2", "to": "P4", "label": "bumpEpoch(S, trigger=tool_call, reason)", "type": "sync", "order": 4 },
+      { "id": "MSG5", "from": "P4", "to": "P2", "label": "epoch N → N+1", "type": "return", "order": 5 },
+      { "id": "MSG6", "from": "P2", "to": "P5", "label": "reinject(S)", "type": "sync", "order": 6 },
+      { "id": "MSG7", "from": "P5", "to": "P2", "label": "{pinnedSkills: [...], layers: [...]}", "type": "return", "order": 7 },
+      { "id": "MSG8", "from": "P2", "to": "P1", "label": "return {previousEpoch: N, currentEpoch: N+1, refreshedSkills}", "type": "return", "order": 8 }
+    ],
+    "fragments": [
+      { "id": "FRAG1", "type": "alt", "label": "per-turn count > 3 → reject + anomaly refresh_loop_suspected", "messageRefs": ["MSG2", "MSG3"] }
+    ]
+  },
+  {
+    "diagram_title": "Rebind storm — rate limit triggers anomaly",
+    "scenario": "UI misbehavior or tool loop causes > 5 bumpEpoch calls within 1 second; 6th call rejected + anomaly emitted",
+    "moduleRef": "A1",
+    "participants": [
+      { "id": "P1", "name": "Offending caller", "type": "actor", "componentRef": "C1" },
+      { "id": "P2", "name": "RebindEpoch.bumpEpoch", "type": "component", "componentRef": "C1" },
+      { "id": "P3", "name": "Rate-limit guard", "type": "component", "componentRef": "C3" },
+      { "id": "P4", "name": "RuntimeEventService", "type": "component", "componentRef": "C14" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "bumpEpoch(S) × 5 within 1s", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P3", "label": "record each in sliding window", "type": "sync", "order": 2 },
+      { "id": "MSG3", "from": "P1", "to": "P2", "label": "6th bumpEpoch(S) within window", "type": "sync", "order": 3 },
+      { "id": "MSG4", "from": "P2", "to": "P3", "label": "window count = 6 > 5", "type": "sync", "order": 4 },
+      { "id": "MSG5", "from": "P3", "to": "P4", "label": "append session.rebind_storm {anomalyFlags: [rebind_storm]}", "type": "async", "order": 5 },
+      { "id": "MSG6", "from": "P2", "to": "P1", "label": "throw RebindRateLimitError / return {rejected: true}", "type": "return", "order": 6 }
+    ],
+    "fragments": []
+  }
+]

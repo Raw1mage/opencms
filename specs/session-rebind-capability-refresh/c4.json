@@ -1,0 +1,241 @@
+{
+  "diagram_title": "session-rebind-capability-refresh — C4 Component Diagram",
+  "diagram_level": "component",
+  "systems": [
+    {
+      "id": "SYS1",
+      "name": "opencode Session Runtime",
+      "description": "Daemon runtime handling per-session prompt assembly, tool dispatch, and LLM calls",
+      "external": false
+    },
+    {
+      "id": "SYS2",
+      "name": "UI / Frontend",
+      "description": "TUI, web dashboard; emits session-switch signals and subscribes to capability_layer.refreshed events",
+      "external": true
+    },
+    {
+      "id": "SYS3",
+      "name": "File System",
+      "description": "AGENTS.md (global + project), SKILL.md files, enablement.json on disk",
+      "external": true
+    },
+    {
+      "id": "SYS4",
+      "name": "SkillLayerRegistry",
+      "description": "In-memory per-session skill state store (existing, minor integration only)",
+      "external": false
+    },
+    {
+      "id": "SYS5",
+      "name": "RuntimeEventService",
+      "description": "Append-only workflow/anomaly event log consumed by dashboard + telemetry",
+      "external": false
+    }
+  ],
+  "containers": [
+    {
+      "id": "CT1",
+      "name": "Rebind Epoch Core",
+      "description": "New module — per-session rebind epoch map, bumpEpoch API, rate limit guard, event emission",
+      "technology": "TypeScript (in-memory Map)",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT2",
+      "name": "Capability Layer Module",
+      "description": "New module — orchestrates refresh of AGENTS.md / driver / skill content / enablement; epoch-keyed cache",
+      "technology": "TypeScript",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT3",
+      "name": "Prompt Assembly",
+      "description": "runLoop that builds system[] per LLM call; consumes CT1 epoch + CT2 cached layers",
+      "technology": "TypeScript",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT4",
+      "name": "Slash Command System",
+      "description": "Existing command dispatcher; extended with /reload handler",
+      "technology": "TypeScript",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT5",
+      "name": "Tool System",
+      "description": "Existing tool registry; extended with refresh_capability_layer tool",
+      "technology": "TypeScript",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT6",
+      "name": "Server Routes",
+      "description": "HTTP / SSE routes; extended with POST /session/:id/resume endpoint",
+      "technology": "TypeScript + HTTP",
+      "systemRef": "SYS1"
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "name": "RebindEpoch.bumpEpoch",
+      "description": "Core API: bump session epoch, enforce rate limit, emit session.rebind event, clear capability-layer cache",
+      "technology": "TypeScript function",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/opencode/src/session/rebind-epoch.ts"
+    },
+    {
+      "id": "C2",
+      "name": "RebindEpoch.current",
+      "description": "Read current epoch for a sessionID (returns 0 if uninitialized)",
+      "technology": "TypeScript function",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/opencode/src/session/rebind-epoch.ts"
+    },
+    {
+      "id": "C3",
+      "name": "RebindEpoch rate-limit guard",
+      "description": "Sliding window counter; reject if > 5 bumps/second/session; emit anomaly on reject",
+      "technology": "TypeScript internal",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/opencode/src/session/rebind-epoch.ts"
+    },
+    {
+      "id": "C4",
+      "name": "CapabilityLayer.reinject",
+      "description": "Read AGENTS.md + driver + skill content + enablement, fill cache at current epoch, emit capability_layer.refreshed",
+      "technology": "TypeScript function",
+      "containerRef": "CT2",
+      "moduleRef": "A2",
+      "filePath": "packages/opencode/src/session/capability-layer.ts"
+    },
+    {
+      "id": "C5",
+      "name": "CapabilityLayer.get",
+      "description": "Lookup cache by (sessionID, epoch); cache-miss triggers reinject; returns layer strings",
+      "technology": "TypeScript function",
+      "containerRef": "CT2",
+      "moduleRef": "A2",
+      "filePath": "packages/opencode/src/session/capability-layer.ts"
+    },
+    {
+      "id": "C6",
+      "name": "InstructionPrompt.system (modified)",
+      "description": "AGENTS.md reader; cache changed from 10s TTL to epoch-based invalidation",
+      "technology": "TypeScript function",
+      "containerRef": "CT2",
+      "moduleRef": "A2",
+      "filePath": "packages/opencode/src/session/instruction.ts"
+    },
+    {
+      "id": "C7",
+      "name": "MandatorySkills.preload (integrated)",
+      "description": "Existing skill preload, now called from CapabilityLayer.reinject",
+      "technology": "TypeScript function",
+      "containerRef": "CT2",
+      "moduleRef": "A2",
+      "filePath": "packages/opencode/src/session/mandatory-skills.ts"
+    },
+    {
+      "id": "C8",
+      "name": "SessionPrompt.runLoop (modified)",
+      "description": "Per-LLM round: get current epoch, retrieve cached capability layer, checkpoint apply, dispatch LLM",
+      "technology": "TypeScript function",
+      "containerRef": "CT3",
+      "moduleRef": "A3",
+      "filePath": "packages/opencode/src/session/prompt.ts"
+    },
+    {
+      "id": "C9",
+      "name": "Provider-switch detection (modified)",
+      "description": "Pre-loop switch detection; calls bumpEpoch(provider_switch) before compactWithSharedContext",
+      "technology": "TypeScript block",
+      "containerRef": "CT3",
+      "moduleRef": "A3",
+      "filePath": "packages/opencode/src/session/prompt.ts"
+    },
+    {
+      "id": "C10",
+      "name": "/reload command handler",
+      "description": "Slash command: bumpEpoch(slash_reload); returns user-facing ack; no LLM call",
+      "technology": "TypeScript function",
+      "containerRef": "CT4",
+      "moduleRef": "A4",
+      "filePath": "packages/opencode/src/command/reload.ts"
+    },
+    {
+      "id": "C11",
+      "name": "refresh_capability_layer tool",
+      "description": "AI-invokable tool: per-turn rate limit (3x), bumpEpoch(tool_call) with reason",
+      "technology": "TypeScript Tool.define",
+      "containerRef": "CT5",
+      "moduleRef": "A4",
+      "filePath": "packages/opencode/src/tool/refresh-capability-layer.ts"
+    },
+    {
+      "id": "C12",
+      "name": "POST /session/:id/resume endpoint",
+      "description": "Server route: validate origin, bumpEpoch(session_resume), trigger silent init round",
+      "technology": "HTTP handler",
+      "containerRef": "CT6",
+      "moduleRef": "A5",
+      "filePath": "packages/opencode/src/server/routes/session.ts"
+    },
+    {
+      "id": "C13",
+      "name": "Daemon bootstrap bumpEpoch",
+      "description": "On first-use-per-daemon, lazy bump from 0→1 with trigger=daemon_start",
+      "technology": "TypeScript lazy init",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/opencode/src/session/rebind-epoch.ts"
+    },
+    {
+      "id": "C14",
+      "name": "RuntimeEventService.append",
+      "description": "Existing event sink; receives session.rebind / capability_layer.refreshed / storm / fail events",
+      "technology": "TypeScript function",
+      "containerRef": "CT1",
+      "moduleRef": "A6",
+      "filePath": "packages/opencode/src/system/runtime-event-service.ts"
+    },
+    {
+      "id": "C15",
+      "name": "skill-layer-seam renderer",
+      "description": "Existing: renders SkillLayerRegistry entries into system prompt text blocks",
+      "technology": "TypeScript function",
+      "containerRef": "CT3",
+      "moduleRef": "A3",
+      "filePath": "packages/opencode/src/session/skill-layer-seam.ts"
+    }
+  ],
+  "relationships": [
+    { "from": "C8", "to": "C2", "label": "get current epoch for sessionID" },
+    { "from": "C8", "to": "C5", "label": "get cached capability layer at epoch" },
+    { "from": "C8", "to": "C15", "label": "render skill-layer into system[]" },
+    { "from": "C9", "to": "C1", "label": "bumpEpoch(provider_switch) before compactWithSharedContext" },
+    { "from": "C10", "to": "C1", "label": "bumpEpoch(slash_reload)" },
+    { "from": "C11", "to": "C1", "label": "bumpEpoch(tool_call, reason)" },
+    { "from": "C12", "to": "C1", "label": "bumpEpoch(session_resume)" },
+    { "from": "C12", "to": "C4", "label": "trigger silent reinject" },
+    { "from": "C13", "to": "C1", "label": "bumpEpoch(daemon_start) on first session touch" },
+    { "from": "C1", "to": "C3", "label": "consult rate-limit guard" },
+    { "from": "C1", "to": "C14", "label": "emit session.rebind event" },
+    { "from": "C1", "to": "C5", "label": "clear capability-layer cache on bump" },
+    { "from": "C3", "to": "C14", "label": "emit session.rebind_storm on reject" },
+    { "from": "C4", "to": "C6", "label": "read AGENTS.md" },
+    { "from": "C4", "to": "C7", "label": "preload + pin mandatory skills" },
+    { "from": "C4", "to": "SYS3", "label": "read enablement.json, coding.txt, driver prompt files" },
+    { "from": "C4", "to": "SYS4", "label": "pin/unpin via SkillLayerRegistry" },
+    { "from": "C4", "to": "C14", "label": "emit capability_layer.refreshed event" },
+    { "from": "C5", "to": "C4", "label": "delegate on cache miss" },
+    { "from": "SYS2", "to": "C12", "label": "POST /session/:id/resume on session switch" },
+    { "from": "C14", "to": "SYS2", "label": "SSE push to UI dashboard" },
+    { "from": "C11", "to": "C14", "label": "emit anomaly if per-turn limit exceeded" }
+  ]
+}

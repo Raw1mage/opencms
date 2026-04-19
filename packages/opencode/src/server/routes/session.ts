@@ -13,6 +13,8 @@ import { SessionStatus } from "@/session/status"
 import { SessionSummary } from "@/session/summary"
 import { SessionMonitor } from "@/session/monitor"
 import { SkillLayerRegistry } from "@/session/skill-layer-registry"
+import { RebindEpoch, RebindTrigger } from "@/session/rebind-epoch"
+import { CapabilityLayer } from "@/session/capability-layer"
 import { getSessionMessageDiff, getSessionOwnedDirtyDiff } from "@/project/workspace"
 import { Todo } from "../../session/todo"
 import { extractChecklistItems } from "@/session/tasks-checklist"
@@ -111,6 +113,38 @@ const SkillLayerActionResponseSchema = z.object({
   ok: z.boolean(),
   entries: SkillLayerInfoSchema.array(),
 })
+
+const SessionResumeRequestSchema = z
+  .object({
+    clientID: z
+      .string()
+      .optional()
+      .meta({ description: "Optional UI client tag (e.g. 'tui', 'web') for observability" }),
+  })
+  .meta({ ref: "SessionResumeRequest" })
+
+const SessionResumeResponseSchema = z
+  .object({
+    status: z.enum(["ok", "rate_limited", "busy_skipped"]).meta({
+      description:
+        "ok = epoch bumped + (maybe) reinjected; rate_limited = bump rejected; busy_skipped = session was busy so silent reinject was skipped (DD-5)",
+    }),
+    sessionID: z.string(),
+    previousEpoch: z.number().int().min(0),
+    currentEpoch: z.number().int().min(0),
+    trigger: z.literal("session_resume"),
+    rateLimitReason: z.string().nullable().optional(),
+    reinject: z
+      .object({
+        layers: z.array(z.string()),
+        pinnedSkills: z.array(z.string()),
+        missingSkills: z.array(z.string()),
+        failures: z.array(z.object({ layer: z.string(), error: z.string() })),
+      })
+      .nullable()
+      .optional(),
+  })
+  .meta({ ref: "SessionResumeResponse" })
 
 const log = Log.create({ service: "server" })
 const SESSION_ROUTE_DEBUG_ENABLED = false
@@ -620,6 +654,106 @@ export const SessionRoutes = lazy(() =>
         return c.json({
           ok: true,
           entries: SkillLayerRegistry.list(params.sessionID),
+        })
+      },
+    )
+    .post(
+      "/:sessionID/resume",
+      describeRoute({
+        summary: "Signal a session resume (capability-layer silent refresh)",
+        description:
+          "UI calls this when the user switches to an existing session. The daemon bumps the session's rebind epoch (trigger=session_resume) and, if the session is not busy, performs a silent CapabilityLayer.reinject — no LLM call, no message history write, no cost. Subscribers to the session's SSE stream receive session.rebind + capability_layer.refreshed events so dashboards refresh naturally.",
+        operationId: "session.resume",
+        responses: {
+          200: {
+            description: "Resume signal accepted (may be ok / rate_limited / busy_skipped)",
+            content: {
+              "application/json": {
+                schema: resolver(SessionResumeResponseSchema),
+              },
+            },
+          },
+          ...errors(400, 404),
+        },
+      }),
+      validator(
+        "param",
+        z.object({
+          sessionID: z.string().meta({ description: "Session ID to resume" }),
+        }),
+      ),
+      validator("json", SessionResumeRequestSchema.optional()),
+      async (c) => {
+        const sessionID = c.req.valid("param").sessionID
+        const body = (c.req.valid("json") as z.infer<typeof SessionResumeRequestSchema> | undefined) ?? {}
+        // Validate session exists (throws 404 on miss via error middleware)
+        await Session.get(sessionID)
+
+        const previousEpoch = RebindEpoch.current(sessionID)
+        const bump = await RebindEpoch.bumpEpoch({
+          sessionID,
+          trigger: "session_resume",
+          reason: body.clientID ? `resume from ${body.clientID}` : "resume",
+        })
+        if (bump.status === "rate_limited") {
+          log.warn("[session-route] resume rate limit", { sessionID, rateLimitReason: bump.rateLimitReason })
+          return c.json({
+            status: "rate_limited" as const,
+            sessionID,
+            previousEpoch,
+            currentEpoch: bump.currentEpoch,
+            trigger: "session_resume" as const,
+            rateLimitReason: bump.rateLimitReason,
+            reinject: null,
+          })
+        }
+
+        // DD-5: if the session is currently busy (runLoop running / retrying) we
+        // skip silent reinject — the ongoing runLoop will naturally cache-miss on
+        // the new epoch at its next capability-layer lookup. No lock, no preempt.
+        const status = SessionStatus.get(sessionID)
+        if (status.type === "busy" || status.type === "retry") {
+          log.info("[session-route] resume signal — session busy, skipping silent refresh", {
+            sessionID,
+            sessionStatus: status.type,
+            previousEpoch,
+            currentEpoch: bump.currentEpoch,
+          })
+          return c.json({
+            status: "busy_skipped" as const,
+            sessionID,
+            previousEpoch,
+            currentEpoch: bump.currentEpoch,
+            trigger: "session_resume" as const,
+            rateLimitReason: null,
+            reinject: null,
+          })
+        }
+
+        // Silent reinject — no LLM, no message history, no cost.
+        const reinject = await CapabilityLayer.reinject(sessionID, bump.currentEpoch)
+        log.info("[session-route] resume signal processed", {
+          sessionID,
+          clientID: body.clientID ?? null,
+          previousEpoch,
+          currentEpoch: bump.currentEpoch,
+          pinnedSkills: reinject.pinnedSkills,
+          missingSkills: reinject.missingSkills,
+          failures: reinject.failures.length,
+        })
+        return c.json({
+          status: "ok" as const,
+          sessionID,
+          previousEpoch,
+          currentEpoch: bump.currentEpoch,
+          trigger: "session_resume" as const,
+          rateLimitReason: null,
+          reinject: {
+            layers: reinject.layers,
+            pinnedSkills: reinject.pinnedSkills,
+            missingSkills: reinject.missingSkills,
+            failures: reinject.failures,
+          },
         })
       },
     )

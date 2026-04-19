@@ -1,0 +1,348 @@
+[
+  {
+    "id": "TV1",
+    "requirementRef": "Rebind Event 列舉 — daemon startup bumps epoch 0→1",
+    "description": "Fresh daemon, session未初始化; 第一次 runLoop 觸發 lazy daemon_start bump",
+    "input": {
+      "initialEpochState": {},
+      "sessionID": "ses_tv1"
+    },
+    "expected": {
+      "afterRunLoopFirstIteration": {
+        "epoch": 1,
+        "lastTrigger": "daemon_start"
+      },
+      "event": {
+        "eventType": "session.rebind",
+        "payload": { "trigger": "daemon_start", "previousEpoch": 0, "currentEpoch": 1 }
+      }
+    },
+    "notes": "Idempotent: 第二輪 runLoop 不會重複 bump"
+  },
+  {
+    "id": "TV2",
+    "requirementRef": "Capability Layer Cache 契約 — 同 epoch 多輪重用",
+    "description": "session 在同一 epoch 連續 5 輪 LLM 對話，AGENTS.md 只讀一次",
+    "input": {
+      "sessionID": "ses_tv2",
+      "epoch": 3,
+      "rounds": 5
+    },
+    "expected": {
+      "agentsMdReadCount": 1,
+      "cacheHitCount": 4,
+      "cacheMissCount": 1
+    },
+    "notes": "第一輪 cache miss 填入，後續 4 輪 cache hit"
+  },
+  {
+    "id": "TV3",
+    "requirementRef": "Capability Layer Cache 契約 — epoch bump 使 cache 失效",
+    "description": "cache 已填入 epoch=3；/reload 觸發 bump 到 epoch=4；下一輪讀檔",
+    "input": {
+      "sessionID": "ses_tv3",
+      "initialEpoch": 3,
+      "cacheAtEpoch3": true,
+      "action": "bumpEpoch(slash_reload)"
+    },
+    "expected": {
+      "afterBump": {
+        "epoch": 4,
+        "cacheAtEpoch3Cleared": true,
+        "cacheAtEpoch4Empty": true
+      },
+      "nextRoundBehavior": {
+        "agentsMdRead": true,
+        "cacheAtEpoch4Populated": true
+      }
+    }
+  },
+  {
+    "id": "TV4",
+    "requirementRef": "Capability Layer Cache 契約 — 禁止時間基失效",
+    "description": "Cache 填入 15 秒前，epoch 未變；下輪必須命中 cache 不重讀",
+    "input": {
+      "sessionID": "ses_tv4",
+      "epoch": 2,
+      "cacheCreatedAt": "now - 15000ms"
+    },
+    "expected": {
+      "nextRoundBehavior": {
+        "cacheHit": true,
+        "agentsMdRead": false
+      }
+    },
+    "notes": "此測試確認 DD-2 的 10s TTL 已被移除；只有 epoch 才是失效 key"
+  },
+  {
+    "id": "TV5",
+    "requirementRef": "刷新順序契約 — provider switch",
+    "description": "偵測 provider 從 anthropic 切到 codex；必須先 bump + reinject，才 compactWithSharedContext",
+    "input": {
+      "sessionID": "ses_tv5",
+      "previousProvider": "anthropic",
+      "incomingProvider": "codex",
+      "currentEpoch": 2
+    },
+    "expected": {
+      "callOrder": [
+        "RebindEpoch.bumpEpoch(trigger=provider_switch)",
+        "CapabilityLayer.reinject",
+        "SessionCompaction.compactWithSharedContext"
+      ],
+      "afterSwitch": {
+        "epoch": 3,
+        "capabilityLayerFresh": true,
+        "messagesCompacted": true
+      }
+    }
+  },
+  {
+    "id": "TV6",
+    "requirementRef": "Slash Command `/reload` — basic",
+    "description": "使用者在 active session 送 /reload；bump + silent reinject，無 LLM",
+    "input": {
+      "sessionID": "ses_tv6",
+      "previousEpoch": 5,
+      "command": "/reload"
+    },
+    "expected": {
+      "response": {
+        "status": "ok",
+        "previousEpoch": 5,
+        "currentEpoch": 6,
+        "message": "Capability layer refreshed (5 → 6)"
+      },
+      "events": [
+        { "eventType": "session.rebind", "payload": { "trigger": "slash_reload" } },
+        { "eventType": "capability_layer.refreshed", "payload": { "epoch": 6 } }
+      ],
+      "llmCallCount": 0,
+      "messagesWritten": 0
+    }
+  },
+  {
+    "id": "TV7",
+    "requirementRef": "Slash Command `/reload` — 無 session 拒絕",
+    "description": "CLI 無 active session 情況下執行 /reload",
+    "input": {
+      "context": "no-active-session",
+      "command": "/reload"
+    },
+    "expected": {
+      "response": {
+        "status": "no_session",
+        "message": "no active session to reload"
+      },
+      "events": []
+    }
+  },
+  {
+    "id": "TV8",
+    "requirementRef": "Tool Call `refresh_capability_layer` — basic",
+    "description": "AI 呼叫 tool with reason；tool 返回 bump 結果",
+    "input": {
+      "sessionID": "ses_tv8",
+      "previousEpoch": 10,
+      "toolCall": { "reason": "need updated skill list" }
+    },
+    "expected": {
+      "toolOutput": {
+        "status": "refreshed",
+        "previousEpoch": 10,
+        "currentEpoch": 11
+      },
+      "event": {
+        "eventType": "session.rebind",
+        "payload": { "trigger": "tool_call", "reason": "need updated skill list" }
+      }
+    }
+  },
+  {
+    "id": "TV9",
+    "requirementRef": "Tool Call `refresh_capability_layer` — per-turn rate limit",
+    "description": "AI 在同一 assistant turn 內 4 次呼叫該 tool",
+    "input": {
+      "sessionID": "ses_tv9",
+      "toolCallsInTurn": 4
+    },
+    "expected": {
+      "callResults": [
+        { "callIndex": 1, "status": "refreshed" },
+        { "callIndex": 2, "status": "refreshed" },
+        { "callIndex": 3, "status": "refreshed" },
+        { "callIndex": 4, "status": "rate_limited_per_turn" }
+      ],
+      "anomalyEvent": {
+        "eventType": "tool.refresh_loop_suspected",
+        "anomalyFlags": ["refresh_loop_suspected"],
+        "payload": { "turnCount": 4, "perTurnLimit": 3 }
+      }
+    }
+  },
+  {
+    "id": "TV10",
+    "requirementRef": "UI Session-resume Silent Refresh — happy path",
+    "description": "UI 發 POST /session/:id/resume，session idle，daemon silent reinject",
+    "input": {
+      "sessionID": "ses_tv10",
+      "previousEpoch": 7,
+      "sessionStatus": "idle",
+      "origin": "unix:/run/user/1000/opencode/daemon.sock"
+    },
+    "expected": {
+      "httpResponse": {
+        "status": 200,
+        "body": { "status": "ok", "sessionID": "ses_tv10", "epoch": 8 }
+      },
+      "sideEffects": {
+        "bumpEpoch": true,
+        "silentReinject": true,
+        "llmCallCount": 0,
+        "sseEventsPushed": [
+          { "eventType": "session.rebind" },
+          { "eventType": "capability_layer.refreshed" }
+        ]
+      }
+    }
+  },
+  {
+    "id": "TV11",
+    "requirementRef": "UI Session-resume — forbidden origin",
+    "description": "從非 Unix socket origin (偽造 HTTP) 發 resume signal",
+    "input": {
+      "sessionID": "ses_tv11",
+      "origin": "http://external-host/",
+      "previousEpoch": 7
+    },
+    "expected": {
+      "httpResponse": {
+        "status": 403,
+        "body": { "status": "forbidden_origin" }
+      },
+      "sideEffects": {
+        "bumpEpoch": false,
+        "anomalyEvent": { "eventType": "session.resume_forbidden_origin" }
+      }
+    }
+  },
+  {
+    "id": "TV12",
+    "requirementRef": "UI Session-resume — session busy skip",
+    "description": "收到 resume signal 時 session 正在 busy；skip silent init",
+    "input": {
+      "sessionID": "ses_tv12",
+      "sessionStatus": "busy",
+      "previousEpoch": 7
+    },
+    "expected": {
+      "httpResponse": {
+        "status": 200,
+        "body": { "status": "ok", "epoch": 7 }
+      },
+      "sideEffects": {
+        "bumpEpoch": false,
+        "silentReinject": false,
+        "infoLog": "session busy, skipping silent refresh (runLoop will self-heal)"
+      }
+    },
+    "notes": "DD-5 簡化：busy 跳過，不 lock 不 queue"
+  },
+  {
+    "id": "TV13",
+    "requirementRef": "Rate limit — rebind storm",
+    "description": "1 秒內 6 次 bumpEpoch call；第 6 次 rejected + anomaly",
+    "input": {
+      "sessionID": "ses_tv13",
+      "bumpSequence": [
+        { "at": 0, "trigger": "slash_reload" },
+        { "at": 100, "trigger": "slash_reload" },
+        { "at": 200, "trigger": "slash_reload" },
+        { "at": 300, "trigger": "slash_reload" },
+        { "at": 400, "trigger": "slash_reload" },
+        { "at": 500, "trigger": "slash_reload" }
+      ]
+    },
+    "expected": {
+      "bumpResults": [
+        { "order": 1, "status": "bumped" },
+        { "order": 2, "status": "bumped" },
+        { "order": 3, "status": "bumped" },
+        { "order": 4, "status": "bumped" },
+        { "order": 5, "status": "bumped" },
+        { "order": 6, "status": "rate_limited" }
+      ],
+      "finalEpoch": 5,
+      "anomalyEvent": {
+        "eventType": "session.rebind_storm",
+        "anomalyFlags": ["rebind_storm"],
+        "payload": { "windowMs": 1000, "maxPerWindow": 5, "observedCount": 6 }
+      }
+    }
+  },
+  {
+    "id": "TV14",
+    "requirementRef": "R3 Mitigation — reinject 失敗保留前 cache",
+    "description": "reinject 讀 AGENTS.md 時檔案權限錯誤；保留前 epoch 的 cache",
+    "input": {
+      "sessionID": "ses_tv14",
+      "currentEpoch": 5,
+      "cacheAtEpoch5": { "agentsMdText": "stable content" },
+      "bumpTrigger": "slash_reload",
+      "reinjectFailure": { "layer": "agents_md", "error": "EACCES" }
+    },
+    "expected": {
+      "afterBumpAndFailedReinject": {
+        "epoch": 6,
+        "cacheAtEpoch6": null,
+        "cacheAtEpoch5Retained": true
+      },
+      "anomalyEvent": {
+        "eventType": "capability_layer.refresh_failed",
+        "payload": { "failingLayer": "agents_md", "keptPreviousCache": true }
+      },
+      "subsequentRunLoopBehavior": {
+        "usesCacheAtEpoch5AsFallback": true,
+        "logWarn": "capability_layer.refresh_failed at epoch 6, falling back to epoch 5 cache"
+      }
+    },
+    "notes": "此行為實作細節：若 epoch=6 cache 建立失敗，runLoop 讀 epoch 時若發現 cache 空，fallback 到前一個成功 epoch 的 cache；以 degradation 模式繼續（但 loud warn）"
+  },
+  {
+    "id": "TV15",
+    "requirementRef": "DD-13 Subagent 獨立",
+    "description": "Parent session /reload，subagent session epoch 不受影響",
+    "input": {
+      "parentSessionID": "ses_parent_tv15",
+      "subagentSessionID": "ses_subagent_tv15",
+      "parentEpoch": 4,
+      "subagentEpoch": 2,
+      "parentAction": "/reload"
+    },
+    "expected": {
+      "afterParentReload": {
+        "parentEpoch": 5,
+        "subagentEpoch": 2
+      },
+      "subagentCacheIntact": true
+    }
+  },
+  {
+    "id": "TV16",
+    "requirementRef": "DD-15 forwarder pattern",
+    "description": "既有 mandatory-skills runLoop hook 改呼叫 CapabilityLayer.get",
+    "input": {
+      "sessionID": "ses_tv16",
+      "epoch": 3,
+      "cacheAtEpoch3": { "pinnedSkills": ["plan-builder"] }
+    },
+    "expected": {
+      "hookBehavior": {
+        "callsCapabilityLayer.get": true,
+        "skillLayerRegistryPinCalls": 0,
+        "diskReads": 0
+      }
+    },
+    "notes": "Cache hit path; 若 cache miss 則 hook 透過 CapabilityLayer.reinject 間接呼到 SkillLayerRegistry.pin"
+  }
+]
