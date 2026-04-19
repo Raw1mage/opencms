@@ -1,0 +1,178 @@
+{
+  "diagram_title": "mandatory-skills-preload — Runtime Preload And Pin Pipeline",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Resolve Mandatory List",
+      "description": "根據目前 agent 識別（Main vs coding subagent）讀入對應宣告檔（AGENTS.md global + project 或 coding.txt），抽取 sentinel 區塊並去重合併為 skill name list。",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Load Skill Markdown",
+      "description": "對 list 內每個 skill name 解析其 SKILL.md 磁碟路徑並讀取內容；若檔案不存在則走 loud-warn fallback（log + anomaly event）而不中斷主流程。",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Register And Pin Skill",
+      "description": "成功讀取 SKILL.md 的條目 → 呼叫 SkillLayerRegistry.recordLoaded 建立條目、SkillLayerRegistry.pin 鎖定為 sticky 不被 idle-decay。",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Reconcile Pinned List",
+      "description": "每輪結尾比對 newList 與目前 registry 已 pinned 項目；對於已從 list 移除者呼叫 unpin、發 skill.mandatory_unpinned 事件；對於新增者確保在 A3 處理。",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Inject Skill Layer Seam",
+      "description": "透過既有 skill-layer-seam 機制將 registry 中 active+full 的 skill 內容渲染為 <skill_layer> 標籤文本塊，放進 system[] 陣列供 LLM 每輪讀取。",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "AGENTS.md / coding.txt text",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "Sentinel Syntax Convention (<!-- opencode:mandatory-skills -->)",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "Agent Identity (main | coding subagent)",
+      "type": "control"
+    },
+    {
+      "id": "AR4",
+      "source": "EXTERNAL",
+      "target": "A1:mechanism",
+      "label": "parseMandatorySkills + resolveMandatoryList",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR5",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "Deduped Skill Name List",
+      "type": "output"
+    },
+    {
+      "id": "AR6",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "Skill Library Search Paths (~/.claude/skills, templates/skills)",
+      "type": "control"
+    },
+    {
+      "id": "AR7",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "label": "Bun File I/O",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR8",
+      "source": "A2:output",
+      "target": "A3:input",
+      "label": "Skill Content + Path",
+      "type": "output"
+    },
+    {
+      "id": "AR9",
+      "source": "A2:output",
+      "target": "EXTERNAL",
+      "label": "Missing Skill Warning Log + Anomaly Event (skill.mandatory_missing)",
+      "type": "output"
+    },
+    {
+      "id": "AR10",
+      "source": "EXTERNAL",
+      "target": "A3:control",
+      "label": "keepRules Classification (mandatory:agents_md | mandatory:coding_txt)",
+      "type": "control"
+    },
+    {
+      "id": "AR11",
+      "source": "EXTERNAL",
+      "target": "A3:mechanism",
+      "label": "SkillLayerRegistry (recordLoaded + pin)",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR12",
+      "source": "A3:output",
+      "target": "A4:input",
+      "label": "Newly Pinned Entries",
+      "type": "output"
+    },
+    {
+      "id": "AR13",
+      "source": "A3:output",
+      "target": "EXTERNAL",
+      "label": "Preloaded Event (skill.mandatory_preloaded)",
+      "type": "output"
+    },
+    {
+      "id": "AR14",
+      "source": "A1:output",
+      "target": "A4:input",
+      "label": "Current Round Mandatory List",
+      "type": "output"
+    },
+    {
+      "id": "AR15",
+      "source": "EXTERNAL",
+      "target": "A4:mechanism",
+      "label": "SkillLayerRegistry.unpin (NEW API)",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR16",
+      "source": "A4:output",
+      "target": "EXTERNAL",
+      "label": "Unpinned Event (skill.mandatory_unpinned)",
+      "type": "output"
+    },
+    {
+      "id": "AR17",
+      "source": "A3:output",
+      "target": "A5:input",
+      "label": "Sticky Registry Entries",
+      "type": "input"
+    },
+    {
+      "id": "AR18",
+      "source": "EXTERNAL",
+      "target": "A5:mechanism",
+      "label": "skill-layer-seam renderer",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR19",
+      "source": "EXTERNAL",
+      "target": "A5:control",
+      "label": "system[] Assembly Order (prompt.ts)",
+      "type": "control"
+    },
+    {
+      "id": "AR20",
+      "source": "A5:output",
+      "target": "EXTERNAL",
+      "label": "Enriched system[] Prompt Array (to LLM)",
+      "type": "output"
+    }
+  ]
+}

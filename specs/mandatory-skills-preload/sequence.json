@@ -1,0 +1,125 @@
+[
+  {
+    "diagram_title": "Main Agent first round — mandatory preload",
+    "scenario": "New Main Agent session's first prompt round; runtime parses AGENTS.md sentinel, preloads + pins skills, assembles system[]",
+    "moduleRef": "A5",
+    "participants": [
+      { "id": "P1", "name": "SessionPrompt.runLoop", "type": "component", "componentRef": "C7" },
+      { "id": "P2", "name": "InstructionPrompt.system", "type": "component", "componentRef": "C2" },
+      { "id": "P3", "name": "resolveMandatoryList", "type": "component", "componentRef": "C4" },
+      { "id": "P4", "name": "parseMandatorySkills", "type": "component", "componentRef": "C3" },
+      { "id": "P5", "name": "preloadMandatorySkills", "type": "component", "componentRef": "C5" },
+      { "id": "P6", "name": "Skill Library FS", "type": "system", "componentRef": "SYS3" },
+      { "id": "P7", "name": "SkillLayerRegistry", "type": "container", "componentRef": "CT4" },
+      { "id": "P8", "name": "skill-layer-seam", "type": "component", "componentRef": "C12" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "load AGENTS.md contents (cache or disk)", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P1", "label": "instructionText[]", "type": "return", "order": 2 },
+      { "id": "MSG3", "from": "P1", "to": "P3", "label": "resolveMandatoryList({agent, sessionID})", "type": "sync", "order": 3 },
+      { "id": "MSG4", "from": "P3", "to": "P4", "label": "parse each AGENTS.md text", "type": "sync", "order": 4 },
+      { "id": "MSG5", "from": "P4", "to": "P3", "label": "skillNames[] per file", "type": "return", "order": 5 },
+      { "id": "MSG6", "from": "P3", "to": "P1", "label": "deduped list [plan-builder]", "type": "return", "order": 6 },
+      { "id": "MSG7", "from": "P1", "to": "P5", "label": "preloadMandatorySkills(sessionID, list)", "type": "sync", "order": 7 },
+      { "id": "MSG8", "from": "P5", "to": "P6", "label": "read plan-builder/SKILL.md", "type": "sync", "order": 8 },
+      { "id": "MSG9", "from": "P6", "to": "P5", "label": "SKILL.md content", "type": "return", "order": 9 },
+      { "id": "MSG10", "from": "P5", "to": "P7", "label": "recordLoaded(sessionID, 'plan-builder', {content, purpose, keepRules})", "type": "sync", "order": 10 },
+      { "id": "MSG11", "from": "P5", "to": "P7", "label": "pin(sessionID, 'plan-builder')", "type": "sync", "order": 11 },
+      { "id": "MSG12", "from": "P5", "to": "P1", "label": "preload complete", "type": "return", "order": 12 },
+      { "id": "MSG13", "from": "P1", "to": "P8", "label": "compose skill-layer text from registry", "type": "sync", "order": 13 },
+      { "id": "MSG14", "from": "P8", "to": "P1", "label": "<skill_layer name='plan-builder' state='full'>...</skill_layer>", "type": "return", "order": 14 },
+      { "id": "MSG15", "from": "P1", "to": "P1", "label": "assemble system[] = [preloaded, env, instructions, skill-layer, ...]", "type": "sync", "order": 15 }
+    ],
+    "fragments": [
+      { "id": "FRAG1", "type": "opt", "label": "skill file missing → loud warn + anomaly event + skip", "messageRefs": ["MSG8", "MSG9"] }
+    ]
+  },
+  {
+    "diagram_title": "Skill file missing — loud-fallback path",
+    "scenario": "Mandatory list names a skill whose SKILL.md does not exist on disk; runtime warns, emits anomaly event, continues without that skill",
+    "moduleRef": "A3",
+    "participants": [
+      { "id": "P1", "name": "preloadMandatorySkills", "type": "component", "componentRef": "C5" },
+      { "id": "P2", "name": "Skill Library FS", "type": "system", "componentRef": "SYS3" },
+      { "id": "P3", "name": "Log", "type": "component", "componentRef": "C13" },
+      { "id": "P4", "name": "RuntimeEventService", "type": "component", "componentRef": "C13" },
+      { "id": "P5", "name": "SkillLayerRegistry", "type": "container", "componentRef": "CT4" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "resolve path for skill 'foo'", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P1", "label": "ENOENT", "type": "return", "order": 2 },
+      { "id": "MSG3", "from": "P1", "to": "P3", "label": "log.warn('[mandatory-skills] skill file missing', {skill, paths, source})", "type": "async", "order": 3 },
+      { "id": "MSG4", "from": "P1", "to": "P4", "label": "append({eventType:'skill.mandatory_missing', anomalyFlags:['mandatory_skill_missing']})", "type": "async", "order": 4 },
+      { "id": "MSG5", "from": "P1", "to": "P5", "label": "(no-op; do NOT recordLoaded or pin)", "type": "sync", "order": 5 },
+      { "id": "MSG6", "from": "P1", "to": "P1", "label": "continue with next skill in list", "type": "sync", "order": 6 }
+    ],
+    "fragments": []
+  },
+  {
+    "diagram_title": "Coding subagent preload",
+    "scenario": "Main Agent dispatches coding subagent; subagent runLoop parses its own coding.txt sentinel, preloads code-thinker",
+    "moduleRef": "A5",
+    "participants": [
+      { "id": "P1", "name": "Subagent runLoop", "type": "component", "componentRef": "C7" },
+      { "id": "P2", "name": "resolveMandatoryList", "type": "component", "componentRef": "C4" },
+      { "id": "P3", "name": "coding.txt FS", "type": "system", "componentRef": "SYS2" },
+      { "id": "P4", "name": "parseMandatorySkills", "type": "component", "componentRef": "C3" },
+      { "id": "P5", "name": "preloadMandatorySkills", "type": "component", "componentRef": "C5" },
+      { "id": "P6", "name": "SkillLayerRegistry", "type": "container", "componentRef": "CT4" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "resolveMandatoryList({agent: {name:'coding'}, sessionID})", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P3", "label": "read coding.txt", "type": "sync", "order": 2 },
+      { "id": "MSG3", "from": "P3", "to": "P2", "label": "coding.txt content", "type": "return", "order": 3 },
+      { "id": "MSG4", "from": "P2", "to": "P4", "label": "parseMandatorySkills(codingTxt)", "type": "sync", "order": 4 },
+      { "id": "MSG5", "from": "P4", "to": "P2", "label": "['code-thinker']", "type": "return", "order": 5 },
+      { "id": "MSG6", "from": "P2", "to": "P1", "label": "['code-thinker']", "type": "return", "order": 6 },
+      { "id": "MSG7", "from": "P1", "to": "P5", "label": "preloadMandatorySkills(sessionID, ['code-thinker'])", "type": "sync", "order": 7 },
+      { "id": "MSG8", "from": "P5", "to": "P6", "label": "recordLoaded + pin 'code-thinker'", "type": "sync", "order": 8 },
+      { "id": "MSG9", "from": "P5", "to": "P1", "label": "done", "type": "return", "order": 9 }
+    ],
+    "fragments": [
+      { "id": "FRAG1", "type": "alt", "label": "Subagent agent.name !== 'coding' → skip coding.txt path entirely", "messageRefs": ["MSG1"] }
+    ]
+  },
+  {
+    "diagram_title": "Mandatory list diff — unpin on removal",
+    "scenario": "User edits AGENTS.md to remove a previously-pinned skill; next round runtime detects diff and unpins it so normal idle-decay applies",
+    "moduleRef": "A4",
+    "participants": [
+      { "id": "P1", "name": "SessionPrompt.runLoop", "type": "component", "componentRef": "C7" },
+      { "id": "P2", "name": "resolveMandatoryList", "type": "component", "componentRef": "C4" },
+      { "id": "P3", "name": "reconcileMandatoryList", "type": "component", "componentRef": "C6" },
+      { "id": "P4", "name": "SkillLayerRegistry", "type": "container", "componentRef": "CT4" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "resolveMandatoryList()", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P1", "label": "new list (does NOT include 'old-skill')", "type": "return", "order": 2 },
+      { "id": "MSG3", "from": "P1", "to": "P3", "label": "reconcile(currentPinned, newList)", "type": "sync", "order": 3 },
+      { "id": "MSG4", "from": "P3", "to": "P4", "label": "list pinned entries", "type": "sync", "order": 4 },
+      { "id": "MSG5", "from": "P4", "to": "P3", "label": "['plan-builder', 'old-skill']", "type": "return", "order": 5 },
+      { "id": "MSG6", "from": "P3", "to": "P4", "label": "unpin('old-skill')", "type": "sync", "order": 6 },
+      { "id": "MSG7", "from": "P3", "to": "P1", "label": "reconciled", "type": "return", "order": 7 }
+    ],
+    "fragments": []
+  },
+  {
+    "diagram_title": "Idle decay tick — pinned skills skip",
+    "scenario": "applyIdleDecay runs per round; pinned entries remain sticky regardless of idleMs",
+    "moduleRef": "A6",
+    "participants": [
+      { "id": "P1", "name": "SessionPrompt.runLoop", "type": "component", "componentRef": "C7" },
+      { "id": "P2", "name": "SkillLayerRegistry.applyIdleDecay", "type": "component", "componentRef": "C11" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "applyIdleDecay({now, latestUserText, billingMode})", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P2", "label": "iterate entries", "type": "sync", "order": 2 },
+      { "id": "MSG3", "from": "P2", "to": "P2", "label": "entry.pinned===true → keep sticky, continue", "type": "sync", "order": 3 },
+      { "id": "MSG4", "from": "P2", "to": "P2", "label": "non-pinned: apply idle rules (summarize/unload)", "type": "sync", "order": 4 },
+      { "id": "MSG5", "from": "P2", "to": "P1", "label": "list of entries with updated states", "type": "return", "order": 5 }
+    ],
+    "fragments": [
+      { "id": "FRAG1", "type": "loop", "label": "for each entry in registry", "messageRefs": ["MSG3", "MSG4"] }
+    ]
+  }
+]

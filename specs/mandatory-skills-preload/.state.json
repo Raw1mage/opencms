@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "state": "implementing",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-04-19T15:21:52.841Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-04-19T15:42:26.585Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "spec/design/c4/sequence/data-schema/idef0/grafcet drafted per locked decisions"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-04-19T15:47:22.361Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "tasks+handoff+test-vectors+errors+observability drafted; headings normalized"
+    },
+    {
+      "at": "2026-04-19T15:55:41.160Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/session/processor.ts, packages/opencode/src/tool/question.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/session/processor.ts",
+        "packages/opencode/src/tool/question.ts"
+      ],
+      "commit": "19d05dfc0a25f0fbdd00dca493d203c9698513ee"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-04-19T15:55:41.638Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "phase 1 preflight complete: XDG backup + admission gate + beta branch"
+    },
+    {
+      "at": "2026-04-19T16:04:02.934Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "19d05dfc0a25f0fbdd00dca493d203c9698513ee"
+    },
+    {
+      "at": "2026-04-19T16:07:13.186Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "19d05dfc0a25f0fbdd00dca493d203c9698513ee"
+    },
+    {
+      "at": "2026-04-19T16:30:59.388Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "19d05dfc0a25f0fbdd00dca493d203c9698513ee"
+    }
+  ]
+}

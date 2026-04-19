@@ -1,0 +1,200 @@
+{
+  "diagram_title": "mandatory-skills-preload — C4 Component Diagram",
+  "diagram_level": "component",
+  "systems": [
+    {
+      "id": "SYS1",
+      "name": "opencode Session Runtime",
+      "description": "Main session loop that builds system prompt every round, dispatches LLM calls, and manages skill layer state",
+      "external": false
+    },
+    {
+      "id": "SYS2",
+      "name": "AGENTS.md + coding.txt",
+      "description": "User-controlled declaration files: ~/.config/opencode/AGENTS.md, <repo>/AGENTS.md, packages/opencode/src/agent/prompt/coding.txt",
+      "external": true
+    },
+    {
+      "id": "SYS3",
+      "name": "Skill Library",
+      "description": "Bundled + user-installed skills under ~/.claude/skills/ (or templates/skills/ during dev)",
+      "external": true
+    },
+    {
+      "id": "SYS4",
+      "name": "SkillLayerRegistry",
+      "description": "In-memory per-session skill state tracker; handles recordLoaded / pin / unpin / applyIdleDecay",
+      "external": false
+    },
+    {
+      "id": "SYS5",
+      "name": "RuntimeEventService",
+      "description": "Append-only anomaly + workflow event log, consumed by dashboard",
+      "external": false
+    }
+  ],
+  "containers": [
+    {
+      "id": "CT1",
+      "name": "Instruction Layer",
+      "description": "AGENTS.md loading + path resolution",
+      "technology": "TypeScript",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT2",
+      "name": "Mandatory Skills Layer",
+      "description": "New module — parses sentinel blocks, preloads + pins skills",
+      "technology": "TypeScript",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT3",
+      "name": "Prompt Assembly",
+      "description": "Session loop that constructs system[] array per round",
+      "technology": "TypeScript",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT4",
+      "name": "Skill Layer Registry",
+      "description": "Per-session skill state machine",
+      "technology": "TypeScript (in-memory Map)",
+      "systemRef": "SYS4"
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "name": "InstructionPrompt.systemPaths",
+      "description": "Resolves AGENTS.md file paths (global + project + config-declared)",
+      "technology": "TypeScript function",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/opencode/src/session/instruction.ts"
+    },
+    {
+      "id": "C2",
+      "name": "InstructionPrompt.system",
+      "description": "Loads AGENTS.md contents; 10s TTL cache; returns instruction text[]",
+      "technology": "TypeScript function",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/opencode/src/session/instruction.ts"
+    },
+    {
+      "id": "C3",
+      "name": "parseMandatorySkills",
+      "description": "Pure function: scans text for <!-- opencode:mandatory-skills --> blocks, returns skill name array",
+      "technology": "TypeScript pure function",
+      "containerRef": "CT2",
+      "moduleRef": "A2",
+      "filePath": "packages/opencode/src/session/mandatory-skills.ts"
+    },
+    {
+      "id": "C4",
+      "name": "resolveMandatoryList",
+      "description": "Orchestrates parse across AGENTS.md (main) or coding.txt (coding subagent); dedup with project priority",
+      "technology": "TypeScript function",
+      "containerRef": "CT2",
+      "moduleRef": "A2",
+      "filePath": "packages/opencode/src/session/mandatory-skills.ts"
+    },
+    {
+      "id": "C5",
+      "name": "preloadMandatorySkills",
+      "description": "For each skill: load SKILL.md, recordLoaded + pin; handle missing-file fallback (warn + event)",
+      "technology": "TypeScript function",
+      "containerRef": "CT2",
+      "moduleRef": "A3",
+      "filePath": "packages/opencode/src/session/mandatory-skills.ts"
+    },
+    {
+      "id": "C6",
+      "name": "reconcileMandatoryList",
+      "description": "Diff current pinned skills vs new list; unpin removed entries",
+      "technology": "TypeScript function",
+      "containerRef": "CT2",
+      "moduleRef": "A4",
+      "filePath": "packages/opencode/src/session/mandatory-skills.ts"
+    },
+    {
+      "id": "C7",
+      "name": "SessionPrompt runLoop",
+      "description": "Session loop; builds system[] per round, including skill-layer content",
+      "technology": "TypeScript function",
+      "containerRef": "CT3",
+      "moduleRef": "A5",
+      "filePath": "packages/opencode/src/session/prompt.ts"
+    },
+    {
+      "id": "C8",
+      "name": "SkillLayerRegistry.recordLoaded",
+      "description": "Insert/update skill entry; set runtimeState=active|sticky",
+      "technology": "TypeScript function",
+      "containerRef": "CT4",
+      "moduleRef": "A6",
+      "filePath": "packages/opencode/src/session/skill-layer-registry.ts"
+    },
+    {
+      "id": "C9",
+      "name": "SkillLayerRegistry.pin",
+      "description": "Mark entry pinned=true + runtimeState=sticky + desiredState=full",
+      "technology": "TypeScript function",
+      "containerRef": "CT4",
+      "moduleRef": "A6",
+      "filePath": "packages/opencode/src/session/skill-layer-registry.ts"
+    },
+    {
+      "id": "C10",
+      "name": "SkillLayerRegistry.unpin",
+      "description": "NEW — Mark entry pinned=false; allow future idle-decay; keep runtime state as active",
+      "technology": "TypeScript function",
+      "containerRef": "CT4",
+      "moduleRef": "A6",
+      "filePath": "packages/opencode/src/session/skill-layer-registry.ts"
+    },
+    {
+      "id": "C11",
+      "name": "SkillLayerRegistry.applyIdleDecay",
+      "description": "Per-round tick; downgrade idle entries; skip pinned",
+      "technology": "TypeScript function",
+      "containerRef": "CT4",
+      "moduleRef": "A6",
+      "filePath": "packages/opencode/src/session/skill-layer-registry.ts"
+    },
+    {
+      "id": "C12",
+      "name": "skill-layer-seam",
+      "description": "Composes skill content into system prompt text with <skill_layer> tags",
+      "technology": "TypeScript function",
+      "containerRef": "CT3",
+      "moduleRef": "A5",
+      "filePath": "packages/opencode/src/session/skill-layer-seam.ts"
+    },
+    {
+      "id": "C13",
+      "name": "RuntimeEventService.append",
+      "description": "Records workflow / anomaly events for dashboard consumption",
+      "technology": "TypeScript function",
+      "containerRef": "CT1",
+      "moduleRef": "A3",
+      "filePath": "packages/opencode/src/system/runtime-event-service.ts"
+    }
+  ],
+  "relationships": [
+    { "from": "C7", "to": "C2", "label": "every round: get instruction text + paths" },
+    { "from": "C7", "to": "C4", "label": "every round: resolve mandatory list" },
+    { "from": "C4", "to": "C1", "label": "Main agent: get AGENTS.md paths" },
+    { "from": "C4", "to": "C3", "label": "parse each text file for sentinel block" },
+    { "from": "C7", "to": "C5", "label": "preload mandatory skills" },
+    { "from": "C5", "to": "SYS3", "label": "read SKILL.md content (file I/O)" },
+    { "from": "C5", "to": "C8", "label": "on success: recordLoaded" },
+    { "from": "C5", "to": "C9", "label": "on success: pin" },
+    { "from": "C5", "to": "C13", "label": "on missing: append skill.mandatory_missing event" },
+    { "from": "C7", "to": "C6", "label": "every round end: reconcile pinned vs list" },
+    { "from": "C6", "to": "C10", "label": "removed skills: unpin" },
+    { "from": "C7", "to": "C11", "label": "every round: applyIdleDecay (skips pinned)" },
+    { "from": "C7", "to": "C12", "label": "compose system[] from skill layer + instruction" }
+  ]
+}

@@ -1,0 +1,197 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "mandatory-skills-preload — Data Contracts",
+  "description": "Type contracts for parser I/O, preload side-effects, and registry extensions introduced by mandatory-skills-preload.",
+  "definitions": {
+    "SkillName": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]*[a-z0-9]$",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Skill identifier; matches Claude Code skill naming (lowercase kebab / snake)."
+    },
+    "MandatorySource": {
+      "type": "string",
+      "enum": ["agents_md_global", "agents_md_project", "coding_txt"],
+      "description": "Which declaration file sourced a mandatory skill entry."
+    },
+    "MandatoryKeepRule": {
+      "type": "string",
+      "enum": ["mandatory:agents_md", "mandatory:coding_txt"],
+      "description": "keepRules tag used on SkillLayerEntry to signal mandatory origin. Reserved for human-grepping; not used for relevance logic."
+    },
+    "MandatorySentinelBlock": {
+      "type": "object",
+      "description": "Parsed representation of one <!-- opencode:mandatory-skills --> block.",
+      "additionalProperties": false,
+      "properties": {
+        "skills": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/SkillName" }
+        },
+        "sourceFile": { "type": "string", "description": "Absolute path the block was parsed from." },
+        "startLine": { "type": "integer", "minimum": 1 },
+        "endLine": { "type": "integer", "minimum": 1 }
+      },
+      "required": ["skills", "sourceFile"]
+    },
+    "ResolveInput": {
+      "type": "object",
+      "description": "Argument to MandatorySkills.resolve.",
+      "additionalProperties": false,
+      "properties": {
+        "sessionID": { "type": "string" },
+        "agent": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": { "type": "string" }
+          },
+          "required": ["name"]
+        },
+        "isSubagent": { "type": "boolean" }
+      },
+      "required": ["sessionID", "agent", "isSubagent"]
+    },
+    "ResolveResult": {
+      "type": "object",
+      "description": "Output of MandatorySkills.resolve — deduped ordered list plus provenance.",
+      "additionalProperties": false,
+      "properties": {
+        "list": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/SkillName" },
+          "description": "Skill names to preload + pin, project-priority then global, deduped."
+        },
+        "bySkill": {
+          "type": "object",
+          "description": "Map from skill name to its sources (can be multiple if declared in both global + project).",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/MandatorySource" }
+          }
+        }
+      },
+      "required": ["list", "bySkill"]
+    },
+    "PreloadOutcome": {
+      "type": "object",
+      "description": "Per-skill result of preloadMandatorySkills.",
+      "additionalProperties": false,
+      "properties": {
+        "skill": { "$ref": "#/definitions/SkillName" },
+        "source": { "$ref": "#/definitions/MandatorySource" },
+        "status": {
+          "type": "string",
+          "enum": ["preloaded", "already_pinned", "missing", "error"]
+        },
+        "skillMdPath": { "type": ["string", "null"] },
+        "searchedPaths": { "type": "array", "items": { "type": "string" } },
+        "error": { "type": ["string", "null"] }
+      },
+      "required": ["skill", "source", "status"]
+    },
+    "SkillLayerEntryExtensions": {
+      "type": "object",
+      "description": "Fields already present on SkillLayerEntry that mandatory-skills-preload relies on. Not introducing new schema keys; documenting expected shape.",
+      "properties": {
+        "runtimeState": {
+          "type": "string",
+          "enum": ["active", "idle", "sticky", "summarized", "unloaded"]
+        },
+        "desiredState": { "type": "string", "enum": ["full", "summary", "absent"] },
+        "pinned": { "type": "boolean" },
+        "keepRules": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Should include at least one #/definitions/MandatoryKeepRule value when entry is pinned via mandatory preload."
+        }
+      },
+      "required": ["runtimeState", "desiredState", "pinned"]
+    },
+    "MandatoryMissingEvent": {
+      "type": "object",
+      "description": "Shape of the anomaly event appended when a mandatory skill's SKILL.md is missing on disk.",
+      "additionalProperties": false,
+      "properties": {
+        "sessionID": { "type": "string" },
+        "level": { "const": "warn" },
+        "domain": { "const": "anomaly" },
+        "eventType": { "const": "skill.mandatory_missing" },
+        "anomalyFlags": {
+          "type": "array",
+          "items": { "const": "mandatory_skill_missing" },
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "skill": { "$ref": "#/definitions/SkillName" },
+            "source": { "$ref": "#/definitions/MandatorySource" },
+            "searchedPaths": { "type": "array", "items": { "type": "string" } }
+          },
+          "required": ["skill", "source", "searchedPaths"]
+        }
+      },
+      "required": ["sessionID", "level", "domain", "eventType", "anomalyFlags", "payload"]
+    },
+    "MandatoryPreloadedEvent": {
+      "type": "object",
+      "description": "Shape of the workflow event appended when a mandatory skill is freshly preloaded + pinned.",
+      "additionalProperties": false,
+      "properties": {
+        "sessionID": { "type": "string" },
+        "level": { "const": "info" },
+        "domain": { "const": "workflow" },
+        "eventType": { "const": "skill.mandatory_preloaded" },
+        "anomalyFlags": { "type": "array", "maxItems": 0 },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "skill": { "$ref": "#/definitions/SkillName" },
+            "source": { "$ref": "#/definitions/MandatorySource" },
+            "skillMdPath": { "type": "string" }
+          },
+          "required": ["skill", "source", "skillMdPath"]
+        }
+      },
+      "required": ["sessionID", "level", "domain", "eventType", "anomalyFlags", "payload"]
+    },
+    "MandatoryUnpinnedEvent": {
+      "type": "object",
+      "description": "Shape of the event appended when a previously-pinned mandatory skill is dropped from the list.",
+      "additionalProperties": false,
+      "properties": {
+        "sessionID": { "type": "string" },
+        "level": { "const": "info" },
+        "domain": { "const": "workflow" },
+        "eventType": { "const": "skill.mandatory_unpinned" },
+        "anomalyFlags": { "type": "array", "maxItems": 0 },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "skill": { "$ref": "#/definitions/SkillName" },
+            "reason": {
+              "type": "string",
+              "enum": ["removed_from_list", "source_file_deleted"]
+            }
+          },
+          "required": ["skill", "reason"]
+        }
+      },
+      "required": ["sessionID", "level", "domain", "eventType", "anomalyFlags", "payload"]
+    }
+  },
+  "type": "object",
+  "description": "Top-level is just a container for the definitions above; consumers import via $ref.",
+  "properties": {
+    "_note": {
+      "type": "string",
+      "const": "All consumer contracts live in #/definitions. This wrapper exists so the file parses as a JSON Schema document."
+    }
+  }
+}

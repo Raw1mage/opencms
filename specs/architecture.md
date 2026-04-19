@@ -753,3 +753,84 @@ Transitions:
 - content hash lets AI re-asks of the same question (new `request.id`) restore the user's draft automatically
 - FNV-1a sync chosen over async SHA-1 to avoid a createStore race where the user's fresh keystrokes would be overwritten when async hash resolves (see DD-2 v2 in `specs/question-tool-abort-fix/design.md`)
 - Cache entry is written on `onCleanup` (only when `replied=false`) and cleared on `reply` / `reject` success
+
+---
+
+## Mandatory Skills Preload Pipeline
+
+Introduced by `specs/mandatory-skills-preload/` (2026-04-19, state=implementing as of 2026-04-20). Purpose: guarantee "must-be-present-every-round" skills are in system prompt without relying on AI to call the `skill()` tool, and without being subject to the 10-min summarize / 30-min unload idle-decay in `SkillLayerRegistry`.
+
+### Data flow
+
+```
+session prompt.ts runLoop (every round, Main + coding subagent)
+  ├── InstructionPrompt.system() → AGENTS.md text[] (existing, 10s TTL cache)
+  ├── MandatorySkills.resolveMandatoryList({ sessionID, agent, isSubagent })
+  │     ├── Main agent  → global + project AGENTS.md, parse <!-- opencode:mandatory-skills --> sentinel blocks
+  │     └── coding sub  → coding.txt sentinel block only
+  │     → dedup with project-priority order → skillName[]
+  ├── MandatorySkills.reconcileMandatoryList({ sessionID, desired })
+  │     └── for each previously-pinned mandatory entry not in desired → unpin + emit skill.mandatory_unpinned
+  ├── MandatorySkills.preloadMandatorySkills({ sessionID, list, bySkill })
+  │     ├── for each name: Skill.get(name)
+  │     ├── found     → SkillLayerRegistry.recordLoaded + .pin, emit skill.mandatory_preloaded
+  │     └── missing   → log.warn + emit skill.mandatory_missing anomaly event; skip (do NOT throw)
+  └── processor.process → llm.ts → SkillLayerRegistry.listForInjection → skill-layer-seam renders <skill_layer> tags into system[]
+```
+
+Key properties:
+
+- **Skill content bypasses AI self-discipline**: runtime injects content before `processor.process()`, so AI never needs to call `skill()` for mandatory skills.
+- **Not subject to idle-decay**: `pinned=true` short-circuits `applyIdleDecay` (line [175-196 of skill-layer-registry.ts](../packages/opencode/src/session/skill-layer-registry.ts#L175-L196)).
+- **Diff-based pin reconciliation**: removing a skill from AGENTS.md sentinel auto-unpins it next round.
+- **Loud fallback**: missing SKILL.md file → warn + anomaly event, session remains operational.
+
+### Sentinel block syntax
+
+```markdown
+<!-- opencode:mandatory-skills -->
+- plan-builder
+<!-- /opencode:mandatory-skills -->
+```
+
+- HTML comment invisible in AI's markdown read.
+- Inline `#` stripped (bullets like `- plan-builder    # required` normalize to `plan-builder`).
+- Empty bullets skipped; multi-block merge + dedup (first-occurrence order wins).
+- Malformed blocks (unclosed / nested opener) → warn + treat body as one block, continue.
+
+### Source authorities
+
+| Audience | Source file | Lives in | Notes |
+|---|---|---|---|
+| Main agent | `<repo-root>/AGENTS.md` | docsWriteRepo | project-priority in merge |
+| Main agent | `~/.config/opencode/AGENTS.md` | user XDG | secondary in merge |
+| coding subagent | `packages/opencode/src/agent/prompt/coding.txt` | runtime code | sole source for subagent path |
+| any subagent except coding | — | — | `resolveMandatoryList` returns [] |
+
+### Observability
+
+Runtime events appended to `RuntimeEventService`:
+
+- `skill.mandatory_preloaded` — info/workflow, when a skill is freshly pinned
+- `skill.mandatory_missing` — warn/anomaly, anomalyFlags=[mandatory_skill_missing]
+- `skill.mandatory_read_error` — warn/anomaly, anomalyFlags=[mandatory_skill_read_error]
+- `skill.mandatory_unpinned` — info/workflow, when user removes skill from AGENTS.md
+
+Dashboard "已載技能" panel should show pinned badges + source label for mandatory entries.
+
+### Current mandatory lists
+
+- **Main agent** (via project + global AGENTS.md): `plan-builder`
+- **coding subagent** (via coding.txt sentinel): `code-thinker`
+
+### Related retirement — agent-workflow
+
+`agent-workflow` skill retired on 2026-04-20 as part of this pipeline's rollout:
+
+- Its §5 Syslog-style Debug Contract → merged into `code-thinker/SKILL.md` §3 as single source of truth.
+- Its §0 core principles / §6 Narration / §7 Interrupt-safe Replanning / §8 WAITING_APPROVAL format / §10 Ops digest → merged into opencode repo AGENTS.md under "Autonomous Agent 核心紀律" (runtime-injected every round per 第三條).
+- Its §1-§5 spec-driven execution content was already covered by `plan-builder` SKILL.md §16 Execution Contract.
+- `templates/AGENTS.md`, `templates/system_prompt.md`, `templates/global_constitution.md`, `packages/opencode/src/agent/prompt/coding.txt`, and `enablement.json` references all cleaned up.
+- Skills submodule commit `9103663` removes `agent-workflow/SKILL.md` and rewrites `code-thinker/SKILL.md`.
+
+See `specs/mandatory-skills-preload/design.md` DD-8/DD-10 and `docs/events/event_20260419_mandatory_skills_preload.md` for full decision trace.

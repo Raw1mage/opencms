@@ -1,0 +1,273 @@
+[
+  {
+    "id": "TV1",
+    "requirementRef": "Requirement: Mandatory-skills sentinel 解析 — Scenario: AGENTS.md 內含合法 sentinel 區塊",
+    "description": "happy path parse — single block, two skills, clean names",
+    "input": {
+      "text": "# Project\n\n<!-- opencode:mandatory-skills -->\n- plan-builder\n- code-thinker\n<!-- /opencode:mandatory-skills -->\n\nrest of file"
+    },
+    "expected": {
+      "skills": ["plan-builder", "code-thinker"]
+    },
+    "notes": "Order preserved; each name trimmed."
+  },
+  {
+    "id": "TV2",
+    "requirementRef": "Requirement: Mandatory-skills sentinel 解析 — Scenario: 沒有 sentinel 區塊",
+    "description": "file without sentinel — returns empty list, no throw",
+    "input": {
+      "text": "# AGENTS.md\n\nNo mandatory-skills block here."
+    },
+    "expected": {
+      "skills": []
+    },
+    "notes": "Must NOT throw."
+  },
+  {
+    "id": "TV3",
+    "requirementRef": "Requirement: Mandatory-skills sentinel 解析 — Scenario: 區塊內 bullet 有註解或空白",
+    "description": "bullet normalization — trim whitespace, strip inline # comment, skip empty bullet",
+    "input": {
+      "text": "<!-- opencode:mandatory-skills -->\n- plan-builder    # 必要\n-  code-thinker \n- \n<!-- /opencode:mandatory-skills -->"
+    },
+    "expected": {
+      "skills": ["plan-builder", "code-thinker"]
+    },
+    "notes": "Empty bullet and `# ...` suffix ignored."
+  },
+  {
+    "id": "TV4",
+    "requirementRef": "Requirement: Mandatory-skills sentinel 解析 — Scenario: 同一檔案內出現多組 sentinel 區塊",
+    "description": "multi-block merge + dedup",
+    "input": {
+      "text": "<!-- opencode:mandatory-skills -->\n- plan-builder\n<!-- /opencode:mandatory-skills -->\n\n...\n\n<!-- opencode:mandatory-skills -->\n- code-thinker\n- plan-builder\n<!-- /opencode:mandatory-skills -->"
+    },
+    "expected": {
+      "skills": ["plan-builder", "code-thinker"]
+    },
+    "notes": "plan-builder appears in both blocks; deduped; order = first occurrence."
+  },
+  {
+    "id": "TV5",
+    "requirementRef": "Requirement: Global + Project AGENTS.md 合併去重 — Scenario: 兩份檔都存在且各有 skill",
+    "description": "project-priority dedup across two files",
+    "input": {
+      "global": "<!-- opencode:mandatory-skills -->\n- A\n- B\n<!-- /opencode:mandatory-skills -->",
+      "project": "<!-- opencode:mandatory-skills -->\n- B\n- C\n<!-- /opencode:mandatory-skills -->"
+    },
+    "expected": {
+      "skills": ["B", "C", "A"],
+      "bySkill": {
+        "B": ["agents_md_project", "agents_md_global"],
+        "C": ["agents_md_project"],
+        "A": ["agents_md_global"]
+      }
+    },
+    "notes": "Project order first, then project-only new, then global-only tail."
+  },
+  {
+    "id": "TV6",
+    "requirementRef": "Requirement: Global + Project AGENTS.md 合併去重 — Scenario: global 缺失、只有 project",
+    "description": "global file missing — project-only list",
+    "input": {
+      "global": null,
+      "project": "<!-- opencode:mandatory-skills -->\n- plan-builder\n<!-- /opencode:mandatory-skills -->"
+    },
+    "expected": {
+      "skills": ["plan-builder"]
+    },
+    "notes": "No throw when global AGENTS.md does not exist."
+  },
+  {
+    "id": "TV7",
+    "requirementRef": "Requirement: Coding subagent 獨立 preload path — Scenario: coding.txt 含 sentinel 區塊",
+    "description": "coding subagent list sourced from coding.txt only",
+    "input": {
+      "agent": { "name": "coding" },
+      "isSubagent": true,
+      "codingTxt": "Role: subagent\n\n<!-- opencode:mandatory-skills -->\n- code-thinker\n<!-- /opencode:mandatory-skills -->\n..."
+    },
+    "expected": {
+      "list": ["code-thinker"],
+      "bySkill": {
+        "code-thinker": ["coding_txt"]
+      }
+    },
+    "notes": "Main-agent AGENTS.md path NOT consulted for coding subagent."
+  },
+  {
+    "id": "TV8",
+    "requirementRef": "Requirement: Coding subagent 獨立 preload path — Scenario: 非 coding subagent 不吃 coding.txt 清單",
+    "description": "non-coding subagent — no preload path activated",
+    "input": {
+      "agent": { "name": "plan-builder" },
+      "isSubagent": true,
+      "codingTxt": "<!-- opencode:mandatory-skills -->\n- code-thinker\n<!-- /opencode:mandatory-skills -->"
+    },
+    "expected": {
+      "list": []
+    },
+    "notes": "resolveMandatoryList returns [] for non-coding subagents; coding.txt is NOT consulted."
+  },
+  {
+    "id": "TV9",
+    "requirementRef": "Requirement: Skill 檔缺失 fallback — Scenario: 一個 skill 檔缺失",
+    "description": "missing skill — warn + event + skip; others load normally",
+    "input": {
+      "list": ["plan-builder", "nonexistent-skill"],
+      "fileSystem": {
+        "~/.claude/skills/plan-builder/SKILL.md": "plan-builder content",
+        "~/.claude/skills/nonexistent-skill/SKILL.md": null
+      }
+    },
+    "expected": {
+      "outcomes": [
+        { "skill": "plan-builder", "status": "preloaded" },
+        { "skill": "nonexistent-skill", "status": "missing" }
+      ],
+      "events": [
+        { "eventType": "skill.mandatory_preloaded", "payload": { "skill": "plan-builder" } },
+        { "eventType": "skill.mandatory_missing", "payload": { "skill": "nonexistent-skill", "source": "agents_md_project" } }
+      ],
+      "registry": {
+        "plan-builder": { "pinned": true, "runtimeState": "sticky" }
+      }
+    },
+    "notes": "Session does NOT crash; plan-builder still pinned; nonexistent-skill absent from registry."
+  },
+  {
+    "id": "TV10",
+    "requirementRef": "Requirement: Skill content 以 pinned 狀態進入 system 陣列 — Scenario: 第一輪 session 的 preload",
+    "description": "first-round preload registers + pins skill and content enters system[]",
+    "input": {
+      "sessionID": "ses_abc",
+      "list": ["plan-builder"]
+    },
+    "expected": {
+      "registry": {
+        "plan-builder": {
+          "pinned": true,
+          "runtimeState": "sticky",
+          "desiredState": "full",
+          "keepRules": ["mandatory:agents_md"]
+        }
+      },
+      "systemArrayContains": "<skill_layer name=\"plan-builder\" state=\"full\""
+    },
+    "notes": "skill-layer-seam wraps the content in the canonical tag."
+  },
+  {
+    "id": "TV11",
+    "requirementRef": "Requirement: Skill content 以 pinned 狀態進入 system 陣列 — Scenario: 後續輪次避免重複載入",
+    "description": "idempotent preload — round N > 1 does not rewrite content or reset loadedAt",
+    "input": {
+      "sessionID": "ses_abc",
+      "priorEntry": {
+        "name": "plan-builder",
+        "pinned": true,
+        "loadedAt": 1000000000000,
+        "content": "...",
+        "runtimeState": "sticky"
+      },
+      "list": ["plan-builder"]
+    },
+    "expected": {
+      "registry": {
+        "plan-builder": {
+          "loadedAt": 1000000000000,
+          "pinned": true,
+          "runtimeState": "sticky"
+        }
+      },
+      "sideEffects": {
+        "skillMdReads": 0,
+        "recordLoadedCalls": 0
+      }
+    },
+    "notes": "No disk I/O on subsequent rounds when content already cached + pinned."
+  },
+  {
+    "id": "TV12",
+    "requirementRef": "Requirement: Pinned skill 不得被 idle-decay — Scenario: session 閒置 35 分鐘後",
+    "description": "applyIdleDecay does not demote pinned entries past IDLE_UNLOAD_MS",
+    "input": {
+      "entry": {
+        "name": "plan-builder",
+        "pinned": true,
+        "lastUsedAt": 0,
+        "runtimeState": "sticky",
+        "desiredState": "full"
+      },
+      "now": 2100000,
+      "billingMode": "token"
+    },
+    "expected": {
+      "runtimeState": "sticky",
+      "desiredState": "full",
+      "pinned": true,
+      "lastReason": "session_pinned_keep_full"
+    },
+    "notes": "IDLE_UNLOAD_MS = 30min (1800000ms), idle = 35min (2100000ms), but pinned short-circuits."
+  },
+  {
+    "id": "TV13",
+    "requirementRef": "Requirement: Pinned skill 不得被 idle-decay — Scenario: mandatory list 被移除後的 unpin",
+    "description": "reconcile call drops skill from list — unpin + event",
+    "input": {
+      "sessionID": "ses_abc",
+      "currentPinned": ["plan-builder"],
+      "newList": []
+    },
+    "expected": {
+      "registryAfter": {
+        "plan-builder": { "pinned": false, "runtimeState": "active" }
+      },
+      "events": [
+        {
+          "eventType": "skill.mandatory_unpinned",
+          "payload": { "skill": "plan-builder", "reason": "removed_from_list" }
+        }
+      ]
+    },
+    "notes": "Entry stays in registry; now subject to normal idle-decay."
+  },
+  {
+    "id": "TV14",
+    "requirementRef": "Requirement: agent-workflow 退役與引用清理 — Scenario: 舊 session 殘留 agent-workflow 呼叫",
+    "description": "skill tool handles not-found gracefully after retirement",
+    "input": {
+      "toolCall": { "name": "skill", "arguments": { "name": "agent-workflow" } },
+      "skillLibrary": ["plan-builder", "code-thinker", "beta-workflow"]
+    },
+    "expected": {
+      "toolResult": {
+        "error": "skill not found: agent-workflow",
+        "hint": "has the skill been retired? See docs/events/event_*_agent-workflow_retirement.md"
+      },
+      "sessionState": "running"
+    },
+    "notes": "Not a crash; informative error."
+  },
+  {
+    "id": "TV15",
+    "requirementRef": "Requirement: Cache 相容性 — Scenario: AGENTS.md 修改後",
+    "description": "cache invalidation on AGENTS.md mtime change",
+    "input": {
+      "round1": {
+        "mtime": 1000,
+        "text": "<!-- opencode:mandatory-skills -->\n- plan-builder\n<!-- /opencode:mandatory-skills -->"
+      },
+      "round2": {
+        "mtime": 2000,
+        "text": "<!-- opencode:mandatory-skills -->\n- plan-builder\n- code-thinker\n<!-- /opencode:mandatory-skills -->"
+      }
+    },
+    "expected": {
+      "round1List": ["plan-builder"],
+      "round2List": ["plan-builder", "code-thinker"],
+      "cacheHits": { "round1": false, "round2": false },
+      "parserRuns": { "round1": 1, "round2": 1 }
+    },
+    "notes": "mtime bump triggers cache miss; parser re-runs in round 2."
+  }
+]
