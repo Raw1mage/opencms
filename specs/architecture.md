@@ -528,6 +528,7 @@ Space {
 1. Parent continuation must receive child completion evidence derived from child transcript output; `SharedContext` is no longer the sole return channel.
 2. `SharedContext.mergeFrom(parent ← child)` remains in place so child files/actions/discoveries become available for later parent compaction and observability.
 3. The V1 `snapshotDiff(childSessionID, injectedSharedContextVersion)` differential relay path is no longer the authority for V2 completion handoff.
+4. Child completion must not auto-complete the parent linked todo inside `task` tool runtime. On successful child return, the control plane may clear `waitingOn: subagent`, but the parent orchestrator remains the only authority that can mark the current step completed after it actually consumes `<child_session_output>` and decides the next todo transition.
 
 **Validation Evidence (2026-03-27)**:
 
@@ -570,6 +571,7 @@ Space {
 - The transcript-local `SubagentActivityCard` remains a detail surface, but it is no longer sufficient as the only operator-visible child-activity surface once continuous orchestration is active.
 - Child/subsession views must not render a large observation-only prompt fallback block at the bottom dock; observation-only is expressed by the absence of conversational input plus explicit navigation back to the parent control surface.
 - Continuation cleanup order is authoritative: when `TaskWorkerEvent.Done/Failed` arrives, the parent continuation path clears `active-child` before persistence / resume work proceeds, so the parent control plane does not keep advertising a stale wait state.
+- Weak client network / SSE staleness may temporarily make Web appear as if the AI or backend is hung, but that is a presentation-layer symptom amplifier. Runtime stop/continue authority remains backend-owned and must not silently depend on frontend connectivity quality.
 
 **Dispatch 規則**:
 

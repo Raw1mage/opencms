@@ -1,0 +1,62 @@
+[
+  {
+    "step": "S0",
+    "label": "Connected",
+    "transitions": [
+      {
+        "to": "S1",
+        "condition": "event stream error, reconnect, or stale detection occurs"
+      }
+    ]
+  },
+  {
+    "step": "S1",
+    "label": "Degraded transport detected",
+    "transitions": [
+      {
+        "to": "S2",
+        "condition": "authority becomes uncertain"
+      }
+    ]
+  },
+  {
+    "step": "S2",
+    "label": "Freeze stale-sensitive UI state",
+    "transitions": [
+      {
+        "to": "S3",
+        "condition": "reload, reconnect, resume, or online recovery starts"
+      }
+    ]
+  },
+  {
+    "step": "S3",
+    "label": "Fetch authoritative snapshots",
+    "transitions": [
+      {
+        "to": "S4",
+        "condition": "snapshot response received"
+      }
+    ]
+  },
+  {
+    "step": "S4",
+    "label": "Reconcile footer and counters from authority",
+    "transitions": [
+      {
+        "to": "S5",
+        "condition": "UI reconciliation completed successfully"
+      }
+    ]
+  },
+  {
+    "step": "S5",
+    "label": "Restore safe input",
+    "transitions": [
+      {
+        "to": "S0",
+        "condition": "stream healthy and authority confirmed"
+      }
+    ]
+  }
+]

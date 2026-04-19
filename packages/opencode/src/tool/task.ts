@@ -293,6 +293,7 @@ export async function recoverOrphanTasks() {
       for await (const msg of MessageV2.stream(entry.parentSessionID)) {
         if (msg.info.id !== entry.parentMessageID) continue
         for (const part of msg.parts) {
+          if (part.type !== "tool") continue
           if (part.callID !== toolCallID) continue
           if (part.state.status !== "running") continue
 
@@ -310,7 +311,7 @@ export async function recoverOrphanTasks() {
             state: {
               ...part.state,
               status: "error",
-              output: "daemon restarted while task was in-flight",
+              error: "daemon restarted while task was in-flight",
               time: {
                 ...part.state.time,
                 end: Date.now(),
@@ -1352,6 +1353,7 @@ async function dispatchToWorker(input: {
   onPhase?: (phase: string, data?: Record<string, unknown>) => void
 }) {
   beacon.hit("worker.dispatch")
+  const log = Log.create({ service: "task.worker" })
   let worker: TaskWorker | undefined
   let requestID: string | undefined
   const onAbort = () => {
@@ -2295,7 +2297,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           await Todo.reconcileProgress({
             sessionID: ctx.sessionID,
             linkedTodoID: linkedTodo.id,
-            taskStatus: workerOk ? "completed" : "error",
+            taskStatus: workerOk ? "returned" : "error",
           }).catch(() => undefined)
         }
 

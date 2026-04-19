@@ -412,6 +412,22 @@ export namespace SessionPrompt {
     }
   }
 
+  export function resolveTerminalContinuationStopState(
+    decision: Extract<Awaited<ReturnType<typeof decideAutonomousContinuation>>, { continue: false }>,
+  ) {
+    if (decision.reason === "todo_complete") {
+      return {
+        state: "completed" as const,
+        stopReason: "todo_complete" as const,
+      }
+    }
+
+    return {
+      state: "waiting_user" as const,
+      stopReason: decision.reason,
+    }
+  }
+
   export function buildSmartRunnerQuestion(input: { questionText?: string }) {
     const questionText = input.questionText?.trim()
     if (!questionText) return undefined
@@ -1769,14 +1785,13 @@ export namespace SessionPrompt {
           continue
         }
         // Stop. Persist workflow state by reason.
-        if (decision.reason === "todo_complete") {
-          await Session.setWorkflowState({
-            sessionID,
-            state: "completed",
-            stopReason: "todo_complete",
-            lastRunAt: Date.now(),
-          })
-        }
+        const stopState = resolveTerminalContinuationStopState(decision)
+        await Session.setWorkflowState({
+          sessionID,
+          state: stopState.state,
+          stopReason: stopState.stopReason,
+          lastRunAt: Date.now(),
+        })
         debugCheckpoint("prompt", "loop:continuation_stopped", {
           sessionID,
           step,

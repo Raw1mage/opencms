@@ -307,13 +307,20 @@ export namespace Todo {
   export async function reconcileProgress(input: {
     sessionID: string
     linkedTodoID?: string
-    taskStatus: "completed" | "error"
+    taskStatus: "returned" | "completed" | "error"
   }) {
     const current = await get(input.sessionID)
     if (!current.length) return current
     const todos = enrichAll(
       current.map((todo) => {
         if (input.linkedTodoID && todo.id === input.linkedTodoID) {
+          if (input.taskStatus === "returned") {
+            return {
+              ...todo,
+              status: todo.status === "pending" ? "in_progress" : todo.status,
+              action: todo.action?.waitingOn === "subagent" ? { ...todo.action, waitingOn: undefined } : todo.action,
+            }
+          }
           if (input.taskStatus === "completed") {
             return {
               ...todo,

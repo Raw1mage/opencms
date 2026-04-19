@@ -132,6 +132,48 @@ describe("Session todo action metadata", () => {
     ])
   })
 
+  it("keeps linked todo in progress when subagent returns to parent for review", async () => {
+    const sessionID = "session_todo_reconcile_returned"
+    await Todo.update({
+      sessionID,
+      todos: [
+        {
+          id: "a",
+          content: "delegate API audit",
+          status: "in_progress",
+          priority: "high",
+          action: { kind: "delegate", canDelegate: true, waitingOn: "subagent" },
+        },
+        {
+          id: "b",
+          content: "implement fixes",
+          status: "pending",
+          priority: "high",
+          action: { kind: "implement", dependsOn: ["a"] },
+        },
+      ],
+    })
+
+    await Todo.reconcileProgress({ sessionID, linkedTodoID: "a", taskStatus: "returned" })
+
+    await expect(Todo.get(sessionID)).resolves.toEqual([
+      {
+        id: "a",
+        content: "delegate API audit",
+        status: "in_progress",
+        priority: "high",
+        action: { kind: "delegate", canDelegate: true },
+      },
+      {
+        id: "b",
+        content: "implement fixes",
+        status: "pending",
+        priority: "high",
+        action: { kind: "implement", dependsOn: ["a"] },
+      },
+    ])
+  })
+
   it("can promote a host-adopted replan target into the next in-progress todo", () => {
     const result = Todo.applyHostAdoptedReplan(
       [

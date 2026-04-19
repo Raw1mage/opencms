@@ -1,0 +1,17 @@
+{
+  "connectionState": {
+    "enum": [
+      "connected",
+      "reconnecting",
+      "degraded",
+      "resyncing",
+      "blocked"
+    ]
+  },
+  "counterSemantics": {
+    "enum": [
+      "running_duration",
+      "stale_since"
+    ]
+  }
+}

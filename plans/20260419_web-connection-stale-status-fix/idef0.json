@@ -1,0 +1,56 @@
+{
+  "diagram_title": "Recover authoritative web runtime status under weak network",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "name": "Detect degraded transport",
+      "inputs": [
+        "event stream state"
+      ],
+      "controls": [
+        "connection state machine"
+      ],
+      "outputs": [
+        "degraded/reconnecting UI state"
+      ],
+      "mechanisms": [
+        "global-sdk"
+      ]
+    },
+    {
+      "id": "A2",
+      "name": "Rehydrate authoritative runtime state",
+      "inputs": [
+        "session snapshot",
+        "active-child snapshot"
+      ],
+      "controls": [
+        "authority reconciliation rules"
+      ],
+      "outputs": [
+        "cleared or restored footer/counter state"
+      ],
+      "mechanisms": [
+        "global-sync reducer",
+        "session monitor helper"
+      ]
+    },
+    {
+      "id": "A3",
+      "name": "Guard prompt input during degraded authority",
+      "inputs": [
+        "connection state"
+      ],
+      "controls": [
+        "input blocking policy"
+      ],
+      "outputs": [
+        "safe interactive state"
+      ],
+      "mechanisms": [
+        "prompt input UI"
+      ]
+    }
+  ]
+}

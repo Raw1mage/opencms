@@ -1,0 +1,32 @@
+[
+  {
+    "name": "reconnect authority recovery",
+    "actors": [
+      "frontend",
+      "event-stream",
+      "server-authority"
+    ],
+    "steps": [
+      {
+        "from": "event-stream",
+        "to": "frontend",
+        "message": "transport degraded"
+      },
+      {
+        "from": "frontend",
+        "to": "server-authority",
+        "message": "fetch session + active-child snapshot"
+      },
+      {
+        "from": "server-authority",
+        "to": "frontend",
+        "message": "authoritative runtime state"
+      },
+      {
+        "from": "frontend",
+        "to": "frontend",
+        "message": "clear stale footer/counter and restore UI"
+      }
+    ]
+  }
+]

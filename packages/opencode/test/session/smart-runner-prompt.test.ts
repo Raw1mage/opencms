@@ -68,6 +68,20 @@ describe("session.smart-runner-prompt", () => {
     )
   })
 
+  test("maps todo_complete terminal stop to completed workflow state", () => {
+    expect(SessionPrompt.resolveTerminalContinuationStopState({ continue: false, reason: "todo_complete" })).toEqual({
+      state: "completed",
+      stopReason: "todo_complete",
+    })
+  })
+
+  test("maps not_armed terminal stop back to waiting_user workflow state", () => {
+    expect(SessionPrompt.resolveTerminalContinuationStopState({ continue: false, reason: "not_armed" })).toEqual({
+      state: "waiting_user",
+      stopReason: "not_armed",
+    })
+  })
+
   test("orchestrates ask-user rejection into waiting_user workflow state", async () => {
     const question = SessionPrompt.buildSmartRunnerQuestion({
       questionText: "Should we continue with the current product behavior?",
