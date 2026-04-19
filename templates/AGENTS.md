@@ -37,6 +37,7 @@
   - 記錄全 repo 長期框架知識：模組邊界、資料流、狀態機、runtime flows、核心目錄樹、debug/observability map。
 - `docs/events/event_<YYYYMMDD>_<topic>.md`
   - 記錄每次任務的需求、範圍、對話重點摘要、debug checkpoints、決策、驗證與 architecture sync。
+  - **每個 repo 各自維護自己的 `docs/events/`**；此慣例不是 opencode 專屬，凡進入任一 repo 工作都適用，變更留痕寫在當前 repo 的 `docs/events/`。跨 repo 引用時一律使用絕對路徑。
 - 所有複雜 debug / 開發任務，應優先先讀 `specs/architecture.md` 與相關 `docs/events/`，再進入原始碼偵查。
 
 ### 全域 Debug / Syslog 契約（Mandatory）
