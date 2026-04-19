@@ -31,6 +31,7 @@ import {
   QuestionRequest,
   QuestionAnswer,
   QuestionInfo,
+  normalizeQuestionInput,
 } from "@opencode-ai/sdk/v2"
 import { createStore } from "solid-js/store"
 import { useData } from "../context"
@@ -1657,13 +1658,24 @@ ToolRegistry.register({
   name: "question",
   render(props) {
     const i18n = useI18n()
-    const questions = createMemo(() => (props.input.questions ?? []) as QuestionInfo[])
+    // Defensive normalize handles legacy sessions where tool part
+    // state.input was persisted raw (before DD-3 landed). New sessions
+    // store canonical shape and round-trip unchanged.
+    const questions = createMemo<QuestionInfo[]>(() => {
+      const normalized = normalizeQuestionInput(props.input) as
+        | { questions?: unknown[] }
+        | null
+        | undefined
+      const list = Array.isArray(normalized?.questions) ? normalized.questions : []
+      return list as QuestionInfo[]
+    })
     const answers = createMemo(() => (props.metadata.answers ?? []) as QuestionAnswer[])
     const completed = createMemo(() => answers().length > 0)
+    const unreadable = createMemo(() => questions().length === 0)
 
     const subtitle = createMemo(() => {
       const count = questions().length
-      if (count === 0) return ""
+      if (count === 0) return i18n.t("ui.question.unreadable") || "unreadable"
       if (completed()) return i18n.t("ui.question.subtitle.answered", { count })
       return `${count} ${i18n.t(count > 1 ? "ui.common.question.other" : "ui.common.question.one")}`
     })
@@ -1671,14 +1683,20 @@ ToolRegistry.register({
     return (
       <BasicTool
         {...props}
-        defaultOpen={completed()}
+        defaultOpen={completed() || unreadable()}
         icon="bubble-5"
         trigger={{
           title: i18n.t("ui.tool.questions"),
           subtitle: subtitle(),
         }}
       >
-        <Show when={completed()}>
+        <Show when={unreadable()}>
+          <div data-slot="question-error" role="alert">
+            {i18n.t("ui.question.unreadable") ||
+              "Question data unreadable — please report this session to the maintainer."}
+          </div>
+        </Show>
+        <Show when={!unreadable() && completed()}>
           <div data-component="question-answers">
             <For each={questions()}>
               {(q, i) => {

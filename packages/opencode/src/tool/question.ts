@@ -3,48 +3,6 @@ import { Tool } from "./tool"
 import { Question } from "../question"
 import DESCRIPTION from "./question.txt"
 
-function normalizeSingleQuestion(raw: unknown): unknown {
-  if (!raw || typeof raw !== "object") return raw
-  const q = { ...(raw as Record<string, unknown>) }
-  if (typeof q.question === "string" && typeof q.header !== "string") {
-    q.header = q.question.slice(0, 30)
-  }
-  if (Array.isArray(q.options)) {
-    q.options = q.options.map((opt) => {
-      if (typeof opt === "string") return { label: opt, description: opt }
-      if (opt && typeof opt === "object") {
-        const o = opt as Record<string, unknown>
-        const label = typeof o.label === "string" ? o.label : typeof o.value === "string" ? o.value : undefined
-        const description =
-          typeof o.description === "string"
-            ? o.description
-            : typeof o.detail === "string"
-              ? o.detail
-              : typeof o.explanation === "string"
-                ? o.explanation
-                : typeof label === "string"
-                  ? label
-                  : undefined
-        if (label !== undefined) return { ...o, label, description: description ?? label }
-      }
-      return opt
-    })
-  }
-  return q
-}
-
-function normalizeQuestionInput(raw: unknown): unknown {
-  if (!raw || typeof raw !== "object") return raw
-  const obj = { ...(raw as Record<string, unknown>) }
-  if (!Array.isArray(obj.questions) && typeof obj.question === "string") {
-    return { questions: [normalizeSingleQuestion(obj)] }
-  }
-  if (Array.isArray(obj.questions)) {
-    obj.questions = obj.questions.map(normalizeSingleQuestion)
-  }
-  return obj
-}
-
 const SCHEMA_HINT = [
   "[schema-miss:question] Retry with exactly this shape:",
   "```json",
@@ -67,7 +25,7 @@ const SCHEMA_HINT = [
 export const QuestionTool = Tool.define("question", {
   description: DESCRIPTION,
   parameters: z.preprocess(
-    normalizeQuestionInput,
+    Question.normalize,
     z.object({
       questions: z.array(Question.Info.omit({ custom: true })).describe("Questions to ask"),
     }),

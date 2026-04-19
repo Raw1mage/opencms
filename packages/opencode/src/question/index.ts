@@ -3,6 +3,10 @@ import { BusEvent } from "@/bus/bus-event"
 import { Identifier } from "@/id/id"
 import { Instance } from "@/project/instance"
 import { Log } from "@/util/log"
+import {
+  normalizeQuestionInput,
+  normalizeSingleQuestion,
+} from "@opencode-ai/sdk/v2"
 import z from "zod"
 
 export namespace Question {
@@ -58,6 +62,13 @@ export namespace Question {
       .array(Answer)
       .describe("User answers in order of questions (each answer is an array of selected labels)"),
   })
+
+  // Single source of truth lives in @opencode-ai/sdk/v2 so webapp and TUI
+  // can defensively normalize legacy raw state.input without duplicating
+  // the coercion logic. Server-side calls re-export for ergonomic
+  // Question.normalize / Question.normalizeSingle access.
+  export const normalize = normalizeQuestionInput
+  export const normalizeSingle = normalizeSingleQuestion
   export type Reply = z.infer<typeof Reply>
 
   export const Event = {

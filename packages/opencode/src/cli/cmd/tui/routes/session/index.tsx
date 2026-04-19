@@ -30,6 +30,7 @@ import {
 } from "@opentui/core"
 import { Prompt, type PromptRef } from "@tui/component/prompt"
 import type { AssistantMessage, Part, ToolPart, UserMessage, TextPart, ReasoningPart } from "@opencode-ai/sdk/v2"
+import { normalizeQuestionInput } from "@opencode-ai/sdk/v2"
 import { useLocal } from "@tui/context/local"
 import { Locale } from "@/util/locale"
 import type { Tool } from "@/tool/tool"
@@ -2368,7 +2369,18 @@ function TodoWrite(props: ToolProps<typeof TodoWriteTool>) {
 
 function Question(props: ToolProps<typeof QuestionTool>) {
   const { theme } = useTheme()
-  const count = createMemo(() => props.input.questions?.length ?? 0)
+  // Defensive normalize: legacy sessions persisted raw state.input; new
+  // sessions persist canonical shape (DD-3). Round-trips unchanged either way.
+  const questions = createMemo<Array<{ question?: string }>>(() => {
+    const normalized = normalizeQuestionInput(props.input) as
+      | { questions?: unknown[] }
+      | null
+      | undefined
+    const list = Array.isArray(normalized?.questions) ? normalized.questions : []
+    return list as Array<{ question?: string }>
+  })
+  const count = createMemo(() => questions().length)
+  const unreadable = createMemo(() => count() === 0 && !!props.input)
 
   function format(answer?: string[]) {
     if (!answer?.length) return "(no answer)"
@@ -2377,10 +2389,17 @@ function Question(props: ToolProps<typeof QuestionTool>) {
 
   return (
     <Switch>
+      <Match when={unreadable()}>
+        <BlockTool title="# Questions" part={props.part}>
+          <text fg={theme.text}>
+            Question data unreadable — please report this session to the maintainer.
+          </text>
+        </BlockTool>
+      </Match>
       <Match when={props.metadata.answers}>
         <BlockTool title="# Questions" part={props.part}>
           <box gap={1}>
-            <For each={props.input.questions ?? []}>
+            <For each={questions()}>
               {(q, i) => (
                 <box flexDirection="column">
                   <text fg={theme.textMuted}>{q.question}</text>

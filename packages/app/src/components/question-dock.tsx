@@ -3,7 +3,8 @@ import { createStore } from "solid-js/store"
 import { Button } from "@opencode-ai/ui/button"
 import { Icon } from "@opencode-ai/ui/icon"
 import { showToast } from "@opencode-ai/ui/toast"
-import type { QuestionAnswer, QuestionRequest } from "@opencode-ai/sdk/v2"
+import type { QuestionAnswer, QuestionInfo, QuestionRequest } from "@opencode-ai/sdk/v2"
+import { normalizeQuestionInput } from "@opencode-ai/sdk/v2"
 import { useLanguage } from "@/context/language"
 import { useSDK } from "@/context/sdk"
 import { questionCacheKey } from "./question-cache-key"
@@ -17,7 +18,17 @@ export const QuestionDock: Component<{ request: QuestionRequest }> = (props) => 
   const sdk = useSDK()
   const language = useLanguage()
 
-  const questions = createMemo(() => props.request.questions)
+  // Defensive normalize: handles legacy raw state.input (options as string[]
+  // or missing header) and noncompliant Bus payloads. Canonical inputs
+  // round-trip unchanged. See specs/question-tool-input-normalization/.
+  const questions = createMemo<QuestionInfo[]>(() => {
+    const normalized = normalizeQuestionInput(props.request) as
+      | { questions?: unknown[] }
+      | null
+      | undefined
+    const list = Array.isArray(normalized?.questions) ? normalized.questions : []
+    return list as QuestionInfo[]
+  })
   const single = createMemo(() => questions().length === 1 && questions()[0]?.multiple !== true)
   const cacheKey = createMemo(() => questionCacheKey(props.request))
   const cached = cache.get(cacheKey())
@@ -159,12 +170,18 @@ export const QuestionDock: Component<{ request: QuestionRequest }> = (props) => 
 
   return (
     <div data-component="question-prompt">
+      <Show when={questions().length === 0}>
+        <div data-slot="question-error" role="alert">
+          {language.t("ui.question.unreadable") || "Question data unreadable — please report this session to the maintainer."}
+        </div>
+      </Show>
       <Show when={!single()}>
         <div data-slot="question-tabs">
           <For each={questions()}>
             {(q, index) => {
               const active = () => index() === store.tab
               const answered = () => (store.answers[index()]?.length ?? 0) > 0
+              const tabLabel = () => q.header || (typeof q.question === "string" ? q.question.slice(0, 30) : "?")
               return (
                 <button
                   data-slot="question-tab"
@@ -173,7 +190,7 @@ export const QuestionDock: Component<{ request: QuestionRequest }> = (props) => 
                   disabled={store.sending}
                   onClick={() => selectTab(index())}
                 >
-                  {q.header}
+                  {tabLabel()}
                 </button>
               )
             }}
@@ -198,7 +215,9 @@ export const QuestionDock: Component<{ request: QuestionRequest }> = (props) => 
           <div data-slot="question-options">
             <For each={options()}>
               {(opt, i) => {
-                const picked = () => store.answers[store.tab]?.includes(opt.label) ?? false
+                const label = () => opt.label || (typeof opt === "string" ? opt : "?")
+                const description = () => opt.description || label()
+                const picked = () => store.answers[store.tab]?.includes(label()) ?? false
                 return (
                   <button
                     data-slot="question-option"
@@ -206,9 +225,9 @@ export const QuestionDock: Component<{ request: QuestionRequest }> = (props) => 
                     disabled={store.sending}
                     onClick={() => selectOption(i())}
                   >
-                    <span data-slot="option-label">{opt.label}</span>
-                    <Show when={opt.description}>
-                      <span data-slot="option-description">{opt.description}</span>
+                    <span data-slot="option-label">{label()}</span>
+                    <Show when={description() && description() !== label()}>
+                      <span data-slot="option-description">{description()}</span>
                     </Show>
                     <Show when={picked()}>
                       <Icon name="check-small" size="normal" />

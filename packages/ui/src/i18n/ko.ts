@@ -118,6 +118,7 @@ export const dict = {
   "ui.question.review.notAnswered": "(답변되지 않음)",
   "ui.question.multiHint": "(해당하는 항목 모두 선택)",
   "ui.question.custom.placeholder": "답변 입력...",
+  "ui.question.unreadable": 질문 데이터를 읽을 수 없습니다 — 이 세션을 유지관리자에게 보고하세요,
   "ui.tool.websearch": "웹 검색",
   "ui.tool.codesearch": "코드 검색",
 }

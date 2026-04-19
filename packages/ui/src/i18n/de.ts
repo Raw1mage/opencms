@@ -121,6 +121,7 @@ export const dict = {
   "ui.question.review.notAnswered": "(nicht beantwortet)",
   "ui.question.multiHint": "(alle zutreffenden auswählen)",
   "ui.question.custom.placeholder": "Geben Sie Ihre Antwort ein...",
+  "ui.question.unreadable": Question data unreadable — please report this session to the maintainer.,
   "ui.tool.websearch": "Websuche",
   "ui.tool.codesearch": "Codesuche",
 } satisfies Partial<Record<Keys, string>>

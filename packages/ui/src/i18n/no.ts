@@ -121,6 +121,7 @@ export const dict: Record<Keys, string> = {
   "ui.question.review.notAnswered": "(ikke besvart)",
   "ui.question.multiHint": "(velg alle som gjelder)",
   "ui.question.custom.placeholder": "Skriv svaret ditt...",
+  "ui.question.unreadable": Question data unreadable — please report this session to the maintainer.,
   "ui.tool.websearch": "Nettsøk",
   "ui.tool.codesearch": "Kodesøk",
 }
