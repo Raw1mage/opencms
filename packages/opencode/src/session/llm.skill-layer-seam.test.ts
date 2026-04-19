@@ -25,7 +25,7 @@ describe("LLM skill layer registry seam", () => {
         lastReason: "relevance_keep_full",
       },
       {
-        name: "agent-workflow",
+        name: "example-summarized-skill",
         content: "ignored when summary",
         purpose: "workflow",
         keepRules: ["retain:workflow"],
@@ -36,7 +36,7 @@ describe("LLM skill layer registry seam", () => {
         pinned: false,
         lastReason: "idle_summarize",
         residue: {
-          skillName: "agent-workflow",
+          skillName: "example-summarized-skill",
           purpose: "workflow",
           keepRules: ["retain:workflow"],
           lastReason: "idle_summarize",
@@ -48,7 +48,7 @@ describe("LLM skill layer registry seam", () => {
 
     expect(result.policy).toBe("registry_seam_loaded:2:full=1:summary=1")
     expect(result.text).toContain('<skill_layer name="planner" state="full"')
-    expect(result.text).toContain('<skill_layer_summary name="agent-workflow" state="summary"')
+    expect(result.text).toContain('<skill_layer_summary name="example-summarized-skill" state="summary"')
   })
 
   it("keeps absent entries out of prompt text", () => {

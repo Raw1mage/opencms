@@ -73,6 +73,11 @@ import {
   shouldInterruptAutonomousRun,
 } from "./workflow-runner"
 import { resolveDialogTriggerPolicy } from "./dialog-trigger"
+import {
+  resolveMandatoryList,
+  preloadMandatorySkills,
+  reconcileMandatoryList,
+} from "./mandatory-skills"
 
 globalThis.AI_SDK_LOG_WARNINGS = false
 
@@ -1640,6 +1645,37 @@ export namespace SessionPrompt {
         agentMode: agent.mode,
         instructionCount: instructionPrompts.length,
       })
+
+      // ── Mandatory skills preload (AGENTS.md 第三條 + DD-1..DD-10) ──
+      // Every round: parse sentinel blocks from authoritative sources, reconcile
+      // registry pins (drop removed), then preload + pin new entries. The
+      // skill-layer-seam in llm.ts will inject their content into system[]
+      // automatically via SkillLayerRegistry.listForInjection.
+      //
+      // Main agent path → global + project AGENTS.md (parentID === undefined).
+      // Coding subagent path → coding.txt only (parentID set && agent.name === "coding").
+      // Other subagents → no-op (resolveMandatoryList returns empty list).
+      try {
+        const mandatory = await resolveMandatoryList({
+          sessionID,
+          agent: { name: agent.name },
+          isSubagent: !!session.parentID,
+        })
+        await reconcileMandatoryList({ sessionID, desired: mandatory.list })
+        if (mandatory.list.length > 0) {
+          await preloadMandatorySkills({
+            sessionID,
+            list: mandatory.list,
+            bySkill: mandatory.bySkill,
+          })
+        }
+      } catch (err) {
+        // Loud warn — AGENTS.md 第一條 prohibits silent fallback.
+        log.warn("mandatory skills preload failed (non-fatal, continuing prompt assembly)", {
+          sessionID,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      }
 
       const result = await processor.process({
         user: lastUser,

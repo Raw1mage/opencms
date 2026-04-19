@@ -5,12 +5,55 @@
 
 ## 1. 核心啟動 (Bootstrap Protocol)
 
-**啟動後只需載入最小必要底盤：**
+Main Agent 啟動時 runtime 會自動 preload + pin 下方 **Mandatory Skills** 區塊內的 skills，不需要 AI 自律呼叫 `skill()` 工具。其餘 skills（如 `model-selector`、`mcp-finder`、`skill-finder`、`software-architect`）均為 **on-demand**，識別到對應情境時才載入。
 
-1.  **載入工作流**：`skill(name="agent-workflow")`
-    - _目的_：獲取 plan-builder-first + delegation-first 的 autorunner 工作流契約。
+### Mandatory Skills（runtime-preloaded）
 
-其餘 skills（如 `model-selector`、`mcp-finder`、`skill-finder`、`software-architect`）均為 **on-demand**，不應在 bootstrap 預設加載。
+<!-- opencode:mandatory-skills -->
+- plan-builder
+<!-- /opencode:mandatory-skills -->
+
+- 區塊由 `packages/opencode/src/session/mandatory-skills.ts` 每輪解析，對每個 skill 呼叫 `SkillLayerRegistry.recordLoaded` + `.pin`，內容由 skill-layer-seam 注入 system prompt；不受 10min summarize / 30min unload 影響。
+- 若某 skill 的 `SKILL.md` 在本機找不到，runtime 會 `log.warn` + 發 `skill.mandatory_missing` anomaly event 但不中斷 session；AI 仍可用 `skill()` 工具手動載入作為 fallback。
+- coding subagent 有獨立的 sentinel 位於 `packages/opencode/src/agent/prompt/coding.txt`。
+
+### 自主 Continuation 契約（Main Agent）
+
+plan-builder 進入 `implementing` 狀態時，runloop 靠「todolist 殘留」持續推進。你必須在 **結束 turn 之前** 判斷：
+
+- **若**（spec state = implementing）AND（tasks.md 還有 `- [ ]` / `- [~]`）AND（沒有 `- [!]` blocked / `- [?]` decision）→ `todowrite` append 下一項 pending 驅動 runloop 繼續
+- **否則**（tasks 耗盡 / blocked / 等待決定 / 使用者 interrupt / 非 plan-builder 管理的工作）→ 直接結束 turn，runloop 自然停下
+
+runloop 刻意不懂 spec 狀態也不讀 tasks.md——這條紀律**完全靠 AI 自律**執行。
+
+### Autonomous Agent 核心紀律（原 agent-workflow 併入）
+
+2026-04-20 把原本住在 `agent-workflow` skill 的 autonomous 通用紀律搬進本檔。
+
+**八項核心原則**：
+
+1. Autonomy 依賴計畫，不依賴靈感
+2. 計畫不必完美但必須可執行（goal / todo / dependsOn / stop gates）
+3. todo 是 mode-aware runtime contract（詳見 plan-builder §16.2）
+4. 一律對話中可觀測（進展 / 阻塞 / replan 必須讓使用者理解）
+5. 可持續執行 ≠ 可靜默亂跑——遇 approval / decision / blocker 必停
+6. Debug system-first（Syslog checkpoint schema 見 `code-thinker` §3）
+7. Single-thread by default（最常用的委派只有 `explore` 與 `coding`；觸發條件由 driver description 自宣告）
+8. Narration ≠ Pause；Completion = Silent（執行中必 narrate，收尾後靜默停止，不需 wrap-up）
+
+**Narration 五類**（執行中可觀測）：Kickoff / Subagent milestone / Pause / Complete / Replanning。
+
+**Stop 回報格式**（需 approval、decision、blocker 時結束 turn 前固定輸出）：
+
+```
+Paused: <原因>
+Need:
+  - <使用者批准 / 決策 / 外部資訊>
+Next after reply:
+  - <恢復後的第一步>
+```
+
+**Interrupt-safe Replanning**：使用者插話 → (1) 承認中斷；(2) 重評估 todo（保留 / 取消 / 延後 / 新增）；(3) 重排 `dependsOn`；(4) 宣告下一步。不要整份丟掉舊計畫。
 
 ## 語言回應規範
 
@@ -19,8 +62,8 @@
 
 ### 開發任務預設工作流（Mandatory Trigger）
 
-- 只要使用者提出**非瑣碎開發需求**（例如 implement / build / fix / refactor / debug / write tests / continue plan / make it autonomous），Main Agent **必須**以 `skill(name="agent-workflow")` 作為預設 workflow。
-- `agent-workflow` 在此不只是通用 SOP，而是 autonomous-ready contract。進入 EXECUTION 前，必須先建立最小可執行計畫骨架：
+- 只要使用者提出**非瑣碎開發需求**（例如 implement / build / fix / refactor / debug / write tests / continue plan / make it autonomous），Main Agent **必須**先透過 `plan-builder` skill（已被上方 Mandatory Skills 自動 preload）走完 spec lifecycle 的 `proposed → designed → planned`，再進入 `implementing`。
+- 進入 EXECUTION 前必須建立最小可執行骨架：
   - `goal`
   - structured todos（優先使用 `todowrite` + `action` metadata）
   - `dependsOn`
@@ -29,7 +72,7 @@
 - 若上述骨架尚未成立，**不得**宣稱可安全 autonomous 持續執行；必須先補 plan，再進入 execution。
 - 在 planning / clarification 階段，凡屬於**有明確選項的選擇題**（例如 milestone、scope、approval posture、validation target、delegation strategy），**預設必須使用 MCP `question`** 呈現，而不是用自由文字把選項混在 prose 內；只有在使用者需要先用長篇背景補充脈絡時，才先 freeform 再用 `question` 收斂決策。
 - 若任務變更模組邊界、資料流、狀態機、debug checkpoints 或沉澱了重要 root cause，Main Agent **必須**自行載入 `doc-coauthoring` + `miatdiagram` skills 並直接更新框架文件。文件工作不委派 subagent。
-- 其他技能（如 `code-thinker`, `webapp-testing`, `doc-coauthoring`）屬於按需加值裝備；`agent-workflow` 是所有非瑣碎開發任務的唯一預設底盤。
+- 其他技能（如 `code-thinker`, `webapp-testing`, `doc-coauthoring`）屬於按需加值裝備；`plan-builder`（透過 Mandatory Skills preload）是所有非瑣碎開發任務的預設底盤。
 
 ### 核心文件責任分工（Hard-coded）
 
@@ -47,8 +90,8 @@
   - 系統層次
   - component boundaries
   - 資料 / 狀態 / config 傳遞路徑
-- 所有 debug 任務都必須遵守 `agent-workflow` 與 `code-thinker` 共用的 syslog-style debug contract。
-- 具體 checkpoint schema、instrumentation plan 與 component-boundary 規則，以對應 skill 為單一真實來源。
+- 所有 debug 任務都必須遵守 `code-thinker` 的 syslog-style debug contract（2026-04-20 從已退役的 `agent-workflow` 併入 code-thinker SKILL.md）。
+- 具體 checkpoint schema、instrumentation plan 與 component-boundary 規則，以 `code-thinker` skill 為單一真實來源。
 - 沒有 checkpoint evidence，不得宣稱已找到 root cause。
 
 ### Enablement Registry（能力總表）
@@ -150,7 +193,7 @@
    - 至少包含：`需求`、`範圍(IN/OUT)`、`任務清單`。
 
 2. **實作過程必有標準化 debug checkpoints**
-   - 一律遵守 `agent-workflow` / `code-thinker` 共享的 checkpoint schema。
+   - 一律遵守 `code-thinker` 的 checkpoint schema（原 agent-workflow 共享內容已於 2026-04-20 併入 code-thinker）。
    - 內容必須可追溯（指令、證據、checkpoint 訊號、決策依據）。
 
 3. **完成宣告門檻**

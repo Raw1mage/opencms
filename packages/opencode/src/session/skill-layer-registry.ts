@@ -234,6 +234,10 @@ export namespace SkillLayerRegistry {
     return Array.from(registry.get(sessionID)?.values() ?? []).sort((a, b) => a.name.localeCompare(b.name))
   }
 
+  export function peek(sessionID: string, name: string): SkillLayerEntry | undefined {
+    return registry.get(sessionID)?.get(name)
+  }
+
   export function clear(sessionID: string) {
     registry.delete(sessionID)
   }
