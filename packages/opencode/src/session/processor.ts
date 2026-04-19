@@ -10,6 +10,7 @@ import { BusEvent } from "@/bus/bus-event"
 import { SessionRetry } from "./retry"
 import { SessionStatus } from "./status"
 import { Plugin } from "@/plugin"
+import { ToolRegistry } from "@/tool/registry"
 import type { Provider } from "@/provider/provider"
 import { LLM } from "./llm"
 import { Config } from "@/config/config"
@@ -839,11 +840,43 @@ export namespace SessionProcessor {
                       messageID: match.messageID,
                       sessionID: match.sessionID,
                     })
+                    // DD-3: completed tool parts persist the schema-normalized shape so
+                    // UI renderers and session replay see coerced values (e.g. question
+                    // tool's z.preprocess wrapping flat inputs into {questions:[...]}).
+                    // registry-miss or parse failure falls back to raw (observable via
+                    // debug log); downstream UIs still have defensive normalize.
+                    const rawInput = value.input ?? match.state.input
+                    let normalizedInput = rawInput
+                    try {
+                      const schema = await ToolRegistry.getParameters(match.tool)
+                      if (schema) {
+                        const parsed = schema.safeParse(rawInput)
+                        if (parsed.success) {
+                          normalizedInput = parsed.data
+                        } else {
+                          log.debug("tool-result: normalize parse failed, keeping raw", {
+                            tool: match.tool,
+                            callID: value.toolCallId,
+                          })
+                        }
+                      } else {
+                        log.debug("tool-result: registry lookup miss, state.input kept raw", {
+                          tool: match.tool,
+                          callID: value.toolCallId,
+                        })
+                      }
+                    } catch (err) {
+                      log.debug("tool-result: normalize threw, keeping raw", {
+                        tool: match.tool,
+                        callID: value.toolCallId,
+                        error: err instanceof Error ? err.message : String(err),
+                      })
+                    }
                     await Session.updatePart({
                       ...match,
                       state: {
                         status: "completed",
-                        input: value.input ?? match.state.input,
+                        input: normalizedInput,
                         output: value.output.output,
                         metadata: value.output.metadata,
                         title: value.output.title,
@@ -896,6 +929,11 @@ export namespace SessionProcessor {
                   const match = toolcalls[value.toolCallId]
                   if (match && match.state.status === "running") {
                     const errorMsg = String(value.error)
+                    // DD-3: tool-error keeps raw input as forensic evidence — the shape
+                    // that failed validation is what we need to debug schema drift. Do
+                    // not normalize here even if we could; UI will defensive-normalize
+                    // on display if renderable.
+                    //
                     // Retryable tool errors: the LLM can self-correct on its next turn.
                     // Show these as "completed" so the UI doesn't render scary red boxes
                     // for what is actually a normal explore-and-adapt workflow.

@@ -160,6 +160,19 @@ export namespace ToolRegistry {
     return all().then((x) => x.map((t) => t.id))
   }
 
+  const parametersCache = new Map<string, z.ZodType>()
+
+  export async function getParameters(id: string): Promise<z.ZodType | undefined> {
+    const cached = parametersCache.get(id)
+    if (cached) return cached
+    const tools = await all()
+    const tool = tools.find((t) => t.id === id)
+    if (!tool) return undefined
+    const info = await tool.init()
+    parametersCache.set(id, info.parameters)
+    return info.parameters
+  }
+
   export async function tools(
     model: {
       providerId: string
