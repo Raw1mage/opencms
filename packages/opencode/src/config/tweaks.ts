@@ -31,9 +31,29 @@ export namespace Tweaks {
     burst: number
   }
 
+  /**
+   * Tunables for the frontend-session-lazyload feature.
+   * See specs/frontend-session-lazyload/data-schema.json#TweaksConfigKeys
+   * and specs/frontend-session-lazyload/design.md DD-3/DD-7/DD-8.
+   * Flag defaults OFF — client behavior is byte-equivalent to pre-plan main
+   * until operator opts in (INV-2).
+   */
+  export interface FrontendLazyloadConfig {
+    flag: 0 | 1
+    partInlineCapKb: number
+    tailWindowKb: number
+    foldPreviewLines: number
+    initialPageSizeSmall: "all" | number
+    initialPageSizeMedium: number
+    initialPageSizeLarge: number
+    sessionSizeThresholdKb: number
+    sessionSizeThresholdParts: number
+  }
+
   export interface Effective {
     sessionCache: SessionCacheConfig
     rateLimit: RateLimitConfig
+    frontendLazyload: FrontendLazyloadConfig
     source: { path: string; present: boolean }
   }
 
@@ -47,6 +67,18 @@ export namespace Tweaks {
     enabled: true,
     qpsPerUserPerPath: 10,
     burst: 20,
+  }
+
+  const FRONTEND_LAZYLOAD_DEFAULTS: FrontendLazyloadConfig = {
+    flag: 0,
+    partInlineCapKb: 64,
+    tailWindowKb: 64,
+    foldPreviewLines: 20,
+    initialPageSizeSmall: "all",
+    initialPageSizeMedium: 100,
+    initialPageSizeLarge: 50,
+    sessionSizeThresholdKb: 512,
+    sessionSizeThresholdParts: 80,
   }
 
   function path(): string {
@@ -112,7 +144,44 @@ export namespace Tweaks {
     "ratelimit_enabled",
     "ratelimit_qps_per_user_per_path",
     "ratelimit_burst",
+    "frontend_session_lazyload",
+    "part_inline_cap_kb",
+    "tail_window_kb",
+    "fold_preview_lines",
+    "initial_page_size_small",
+    "initial_page_size_medium",
+    "initial_page_size_large",
+    "session_size_threshold_kb",
+    "session_size_threshold_parts",
   ])
+
+  function parseFlag01(raw: string, key: string): 0 | 1 | undefined {
+    const normalized = raw.trim().toLowerCase()
+    if (normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on") return 1
+    if (normalized === "0" || normalized === "false" || normalized === "no" || normalized === "off") return 0
+    log.warn("tweaks.cfg invalid flag for " + key + " (expected 0/1)", { raw })
+    return undefined
+  }
+
+  function parseIntRange(raw: string, key: string, min: number, max: number): number | undefined {
+    const value = Number.parseInt(raw.trim(), 10)
+    if (!Number.isFinite(value) || Number.isNaN(value)) {
+      log.warn("tweaks.cfg invalid integer for " + key, { raw })
+      return undefined
+    }
+    if (value < min || value > max) {
+      log.warn("tweaks.cfg value out of range for " + key, { raw, value, min, max })
+      return undefined
+    }
+    return value
+  }
+
+  function parseInitialPageSizeSmall(raw: string): "all" | number | undefined {
+    const normalized = raw.trim().toLowerCase()
+    if (normalized === "all") return "all"
+    const value = parseIntRange(raw, "initial_page_size_small", 10, 1000)
+    return value
+  }
 
   async function readRaw(): Promise<{ body?: string; present: boolean }> {
     const file = Bun.file(path())
@@ -130,11 +199,16 @@ export namespace Tweaks {
     if (!present) {
       log.info("tweaks.cfg not found; using defaults", {
         path: cfgPath,
-        defaults: { sessionCache: SESSION_CACHE_DEFAULTS, rateLimit: RATE_LIMIT_DEFAULTS },
+        defaults: {
+          sessionCache: SESSION_CACHE_DEFAULTS,
+          rateLimit: RATE_LIMIT_DEFAULTS,
+          frontendLazyload: FRONTEND_LAZYLOAD_DEFAULTS,
+        },
       })
       return {
         sessionCache: { ...SESSION_CACHE_DEFAULTS },
         rateLimit: { ...RATE_LIMIT_DEFAULTS },
+        frontendLazyload: { ...FRONTEND_LAZYLOAD_DEFAULTS },
         source: { path: cfgPath, present: false },
       }
     }
@@ -185,10 +259,71 @@ export namespace Tweaks {
       if (v !== undefined) rateLimit.burst = v
     }
 
-    log.info("tweaks.cfg loaded", { path: cfgPath, effective: { sessionCache, rateLimit } })
+    const frontendLazyload: FrontendLazyloadConfig = { ...FRONTEND_LAZYLOAD_DEFAULTS }
+
+    const flagRaw = parsed.get("frontend_session_lazyload")
+    if (flagRaw !== undefined) {
+      const v = parseFlag01(flagRaw, "frontend_session_lazyload")
+      if (v !== undefined) frontendLazyload.flag = v
+    }
+    const capRaw = parsed.get("part_inline_cap_kb")
+    if (capRaw !== undefined) {
+      const v = parseIntRange(capRaw, "part_inline_cap_kb", 4, 4096)
+      if (v !== undefined) frontendLazyload.partInlineCapKb = v
+    }
+    const tailRaw = parsed.get("tail_window_kb")
+    if (tailRaw !== undefined) {
+      const v = parseIntRange(tailRaw, "tail_window_kb", 4, 4096)
+      if (v !== undefined) frontendLazyload.tailWindowKb = v
+    }
+    const foldRaw = parsed.get("fold_preview_lines")
+    if (foldRaw !== undefined) {
+      const v = parseIntRange(foldRaw, "fold_preview_lines", 1, 200)
+      if (v !== undefined) frontendLazyload.foldPreviewLines = v
+    }
+    const pageSmallRaw = parsed.get("initial_page_size_small")
+    if (pageSmallRaw !== undefined) {
+      const v = parseInitialPageSizeSmall(pageSmallRaw)
+      if (v !== undefined) frontendLazyload.initialPageSizeSmall = v
+    }
+    const pageMediumRaw = parsed.get("initial_page_size_medium")
+    if (pageMediumRaw !== undefined) {
+      const v = parseIntRange(pageMediumRaw, "initial_page_size_medium", 10, 1000)
+      if (v !== undefined) frontendLazyload.initialPageSizeMedium = v
+    }
+    const pageLargeRaw = parsed.get("initial_page_size_large")
+    if (pageLargeRaw !== undefined) {
+      const v = parseIntRange(pageLargeRaw, "initial_page_size_large", 10, 1000)
+      if (v !== undefined) frontendLazyload.initialPageSizeLarge = v
+    }
+    const thresholdKbRaw = parsed.get("session_size_threshold_kb")
+    if (thresholdKbRaw !== undefined) {
+      const v = parseIntRange(thresholdKbRaw, "session_size_threshold_kb", 64, 1048576)
+      if (v !== undefined) frontendLazyload.sessionSizeThresholdKb = v
+    }
+    const thresholdPartsRaw = parsed.get("session_size_threshold_parts")
+    if (thresholdPartsRaw !== undefined) {
+      const v = parseIntRange(thresholdPartsRaw, "session_size_threshold_parts", 10, 100000)
+      if (v !== undefined) frontendLazyload.sessionSizeThresholdParts = v
+    }
+
+    // INV-7: tail_window_kb MUST NOT exceed part_inline_cap_kb.
+    if (frontendLazyload.tailWindowKb > frontendLazyload.partInlineCapKb) {
+      log.warn("tweaks.cfg tail_window_kb exceeds part_inline_cap_kb, clamping to cap (INV-7)", {
+        tailWindowKb: frontendLazyload.tailWindowKb,
+        partInlineCapKb: frontendLazyload.partInlineCapKb,
+      })
+      frontendLazyload.tailWindowKb = frontendLazyload.partInlineCapKb
+    }
+
+    log.info("tweaks.cfg loaded", {
+      path: cfgPath,
+      effective: { sessionCache, rateLimit, frontendLazyload },
+    })
     return {
       sessionCache,
       rateLimit,
+      frontendLazyload,
       source: { path: cfgPath, present: true },
     }
   }
@@ -205,6 +340,10 @@ export namespace Tweaks {
 
   export async function rateLimit(): Promise<RateLimitConfig> {
     return (await effective()).rateLimit
+  }
+
+  export async function frontendLazyload(): Promise<FrontendLazyloadConfig> {
+    return (await effective()).frontendLazyload
   }
 
   export async function loadEffective(): Promise<Effective> {

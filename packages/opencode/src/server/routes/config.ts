@@ -2,6 +2,7 @@ import { Hono } from "hono"
 import { describeRoute, validator, resolver } from "hono-openapi"
 import z from "zod"
 import { Config } from "../../config/config"
+import { Tweaks } from "../../config/tweaks"
 import { Provider } from "../../provider/provider"
 import { mapValues } from "remeda"
 import { errors } from "../error"
@@ -128,5 +129,50 @@ export const ConfigRoutes = lazy(() =>
           default: mapValues(providers, (item) => Provider.sort(Object.values(item.models))[0].id),
         })
       },
+    )
+    .get(
+      "/tweaks/frontend",
+      describeRoute({
+        summary: "Get frontend tweaks",
+        description:
+          "Return the frontend-facing subset of /etc/opencode/tweaks.cfg so the webapp does not have to read the file itself. See specs/frontend-session-lazyload/ DD-3, DD-7, DD-8.",
+        operationId: "config.tweaks.frontend",
+        responses: {
+          200: {
+            description: "Frontend tweaks",
+            content: {
+              "application/json": {
+                schema: resolver(FrontendTweaksResponse),
+              },
+            },
+          },
+        },
+      }),
+      async (c) => {
+        const cfg = await Tweaks.frontendLazyload()
+        return c.json({
+          frontend_session_lazyload: cfg.flag,
+          part_inline_cap_kb: cfg.partInlineCapKb,
+          tail_window_kb: cfg.tailWindowKb,
+          fold_preview_lines: cfg.foldPreviewLines,
+          initial_page_size_small: cfg.initialPageSizeSmall,
+          initial_page_size_medium: cfg.initialPageSizeMedium,
+          initial_page_size_large: cfg.initialPageSizeLarge,
+          session_size_threshold_kb: cfg.sessionSizeThresholdKb,
+          session_size_threshold_parts: cfg.sessionSizeThresholdParts,
+        } satisfies z.infer<typeof FrontendTweaksResponse>)
+      },
     ),
 )
+
+const FrontendTweaksResponse = z.object({
+  frontend_session_lazyload: z.union([z.literal(0), z.literal(1)]),
+  part_inline_cap_kb: z.number().int().min(4).max(4096),
+  tail_window_kb: z.number().int().min(4).max(4096),
+  fold_preview_lines: z.number().int().min(1).max(200),
+  initial_page_size_small: z.union([z.literal("all"), z.number().int().min(10).max(1000)]),
+  initial_page_size_medium: z.number().int().min(10).max(1000),
+  initial_page_size_large: z.number().int().min(10).max(1000),
+  session_size_threshold_kb: z.number().int().min(64),
+  session_size_threshold_parts: z.number().int().min(10),
+})
