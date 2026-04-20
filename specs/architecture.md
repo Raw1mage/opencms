@@ -971,3 +971,35 @@ See `specs/question-tool-input-normalization/` for the full RCA, design (DD-1…
 **Feature flag rollout**: `ui_session_freshness_enabled=0` (default) → `classifyFidelity` early-returns `"fresh"`, so every memo renders baseline (byte-equivalent to pre-plan `2fa1b0b2d~1`). Operators opt in by flipping the flag in `/etc/opencode/tweaks.cfg` and restarting the daemon. Retirement trigger is acceptance-based (not time-based): once R1–R6 pass with flag=1, a follow-up `amend` removes the flag and dead code.
 
 See `specs/session-ui-freshness/` for the full lifecycle, design decisions DD-1 through DD-8, error catalogue, and observability contract.
+
+## Daemon Lifecycle Authority
+
+安全自重啟契約（spec: `specs/safe-daemon-restart/`）。
+
+**唯一權威**: Gateway（`/usr/local/bin/opencode-gateway`，source `daemon/opencode-gateway.c`）是 per-user bun daemon 的唯一 lifecycle owner。Daemon 不 fork 自己、不 exec 兄弟、不呼叫 `webctl.sh` 做 spawn/kill。
+
+**合法 restart 路徑**:
+
+1. AI（或 UI 設定頁的 Restart Web 按鈕）呼叫 `system-manager:restart_self` tool（或直接 POST `/api/v2/global/web/restart`）。
+2. Daemon endpoint 在 gateway-daemon 模式下 spawn `webctl.sh restart [--force-gateway]`。
+3. `webctl.sh` smart-detect dirty 層（stamp 比對）並只 rebuild 變動部分（daemon bundle / frontend bundle / gateway C binary）；install 到系統路徑。
+4. Webctl 成功 → daemon `process.exit(0)` → gateway 的 SIGCHLD handler 回 `state=DEAD` → 下一個 HTTP 請求觸發 `ensure_daemon_running` 乾淨 spawn。
+5. Webctl 失敗（任何層 exit ≠ 0）→ daemon 不自殺，回 5xx + errorLogPath；系統維持舊版本可用。
+6. `--force-gateway` → webctl `systemctl restart opencode-gateway`；systemd respawn 新 binary；期間所有 per-user daemon 斷線 3-5s（**使用者會感受到**）。
+
+**自癒（phase 1 of safe-daemon-restart）**:
+
+- `ensure_socket_parent_dir()`: spawn 前 `mkdir -p /run/user/<uid>/opencode/` + chown + chmod 0700。tmpfs 清掉也會自動重建。
+- `detect_lock_holder_pid()`: 讀 `~/<user>/.config/opencode/daemon.lock`（JSON pid 檔，非 kernel flock），驗 `/proc/<pid>` st_uid 比對。
+- `cleanup_orphan_daemon()`: SIGTERM → 1000ms poll → SIGKILL → 500ms reap。`waitpid(pid, NULL, WNOHANG)` 在 poll loop 內防殭屍。
+- `ensure_daemon_running()` adopt 失敗後**先清 orphan 再 spawn**，解 2026-04-20 `waitpid ECHILD loop` 問題。
+
+**Bash tool denylist**（`packages/opencode/src/tool/bash.ts` `DAEMON_SPAWN_DENYLIST`）: 擋 `webctl.sh (dev-start|dev-refresh|restart|...)`, `bun serve --unix-socket`, `opencode serve`, `kill $(pgrep opencode)`, `systemctl restart opencode-gateway`。違規丟 `FORBIDDEN_DAEMON_SPAWN`，log `denylist-block rule=...`。
+
+**Invariants**:
+- 每個 uid 最多一隻活的 bun daemon（gateway.lock JSON file + `kill(pid, 0)` liveness）
+- Daemon pid 一定在 gateway `DaemonInfo.pid` 裡；否則視為 orphan
+- Socket file 存在 ⇔ daemon alive & listening
+- JWT uid 必須 = 目標 daemon uid
+
+違反任一 invariant = P0 bug。

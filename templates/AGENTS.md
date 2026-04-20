@@ -284,6 +284,19 @@ Next after reply:
   - 用預設值、第一個可用項、插入順序第一筆、global active account、cross-provider rescue 等方式偷偷續跑
   - 在沒有 request-level evidence 前，以 fallback 當作「先讓系統能跑」的修補
 - 預設策略應為：**fail fast、顯式報錯、保留證據、要求決策**，而不是自動 fallback。
+
+11. **Daemon Lifecycle Authority（AI 自殺式重啟禁令）**
+
+- **AI 禁止自行 spawn / kill / restart opencode daemon 或 gateway 行程。** 唯一合法的自重啟路徑是 `system-manager:restart_self` tool（內部 POST `/api/v2/global/web/restart`，由 gateway + `webctl.sh` 負責 rebuild+install+restart orchestration）。
+- **Bash tool 的 denylist 會擋以下指令**（違規丟 `FORBIDDEN_DAEMON_SPAWN`）：
+  - `webctl.sh dev-start` / `dev-refresh` / `restart` / `web-restart` / `web-refresh` / `reload`
+  - `bun ... serve --unix-socket ...`
+  - `opencode serve` / `opencode web`
+  - 針對 daemon pid 的 `kill`（`cat daemon.lock` / `pgrep opencode` 取得 pid）
+  - `systemctl restart opencode-gateway`
+- **Why**：2026-04-20 事件，AI 用 Bash 跑 `webctl.sh dev-start` 留下 orphan daemon 霸佔 gateway lock，使用者被反覆踢回登入頁。詳見 `docs/events/event_2026-04-20_daemon-orphan.md`。
+- **需要改 code 後生效？** 呼叫 `restart_self`；webctl.sh smart-detect dirty 層（daemon / frontend / gateway）並只 rebuild 變動部分。`targets: ["gateway"]` 會附 `--force-gateway` 讓 systemd respawn gateway 本體（期間所有使用者斷線 3-5s）。
+- **rebuild 失敗？** endpoint 回 5xx 帶 `errorLogPath`；系統維持舊版本可用。讀 log、修正、再呼叫。**絕不**嘗試繞過 denylist 走 Bash。
 - 若現有程式已存在 fallback，新的任務預設應優先評估：
   1.  是否能刪除
   2.  是否能改成 explicit decision gate

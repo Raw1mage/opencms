@@ -25,6 +25,38 @@ const DEFAULT_TIMEOUT = Flag.OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS || 2 
 
 export const log = Log.create({ service: "bash-tool" })
 
+/* Daemon-spawn denylist — see specs/safe-daemon-restart RESTART-002.
+ * Each rule has a regex and a human-readable name for logging. Matches are
+ * applied to the raw command string before shell parsing. Design choice
+ * (DD-5): fast regex prefilter, not a full AST walk — defence-in-depth,
+ * not a security boundary; the hard gate is AGENTS.md + code review. */
+const DAEMON_SPAWN_DENYLIST: Array<{ rule: string; pattern: RegExp }> = [
+  { rule: "webctl-restart-family", pattern: /\bwebctl\.sh\s+(dev-start|dev-refresh|dev-stop|restart|web-restart|web-refresh|reload)\b/ },
+  { rule: "bun-serve-unix-socket", pattern: /\bbun\b[^\n;|&]*\bserve\b[^\n;|&]*--unix-socket\b/ },
+  { rule: "opencode-serve-or-web", pattern: /\b(?:opencode|\.\/opencode)\s+(?:serve|web)\b/ },
+  { rule: "direct-daemon-signal", pattern: /\bkill\s+(?:-(?:TERM|KILL|9|15|HUP|INT)\s+)?\$?\(\s*(?:cat\s+[^)]*daemon\.lock|pgrep[^)]*opencode[^)]*)\s*\)/ },
+  { rule: "systemctl-gateway", pattern: /\bsystemctl\s+\w+\s+opencode-gateway\b/ },
+]
+
+function hashArgv(command: string): string {
+  // 32-bit FNV-1a — avoid crypto dependency for a log-only identifier.
+  let h = 0x811c9dc5
+  for (let i = 0; i < command.length; i++) {
+    h ^= command.charCodeAt(i)
+    h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0
+  }
+  return h.toString(16).padStart(8, "0")
+}
+
+export function matchDaemonSpawnDenylist(command: string): { rule: string; argvHash: string } | null {
+  for (const entry of DAEMON_SPAWN_DENYLIST) {
+    if (entry.pattern.test(command)) {
+      return { rule: entry.rule, argvHash: hashArgv(command) }
+    }
+  }
+  return null
+}
+
 const resolveWasm = (asset: string) => {
   if (asset.startsWith("file://")) return fileURLToPath(asset)
   if (asset.startsWith("/") || /^[a-z]:/i.test(asset)) return asset
@@ -87,6 +119,22 @@ export const BashTool = Tool.define("bash", async () => {
         ),
     }),
     async execute(params, ctx) {
+      // safe-daemon-restart RESTART-002: block daemon-spawning commands.
+      // AI must use the `restart_self` MCP tool instead — that path
+      // delegates to gateway + webctl.sh with proper lifecycle authority.
+      // See specs/safe-daemon-restart/ for the full rule set.
+      const denylistMatch = matchDaemonSpawnDenylist(params.command)
+      if (denylistMatch) {
+        log.warn("denylist-block rule=" + denylistMatch.rule, {
+          rule: denylistMatch.rule,
+          argvHash: denylistMatch.argvHash,
+        })
+        throw new Error(
+          `FORBIDDEN_DAEMON_SPAWN: this command matches the daemon-spawn denylist (rule: ${denylistMatch.rule}). ` +
+            `AI must not spawn, kill, or restart the opencode daemon or gateway directly. ` +
+            `Use the system-manager restart_self tool — it calls the sanctioned /api/v2/global/web/restart endpoint which handles rebuild + restart via webctl.sh.`,
+        )
+      }
       const cwd = params.workdir || Instance.directory
       if (params.timeout !== undefined && params.timeout < 0) {
         throw new Error(`Invalid timeout value: ${params.timeout}. Timeout must be a positive number.`)
