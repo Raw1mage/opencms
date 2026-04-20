@@ -397,23 +397,14 @@ function App() {
     ),
   )
 
-  // POST /session/:id/resume on session navigation so the daemon refreshes
-  // the capability layer (AGENTS.md + mandatory skills) for the reopened
-  // session. Fire-and-forget; busy sessions return busy_skipped harmlessly.
-  let lastResumedSessionID: string | undefined
-  createEffect(() => {
-    if (route.data.type !== "session") return
-    const sessionID = route.data.sessionID
-    if (!sessionID || sessionID === lastResumedSessionID) return
-    lastResumedSessionID = sessionID
-    void sdk
-      .fetch(`${sdk.url}/api/v2/session/${sessionID}/resume`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ clientID: "tui" }),
-      })
-      .catch(() => {})
-  })
+  // INVARIANT: client session-open is a pure client-side resubscribe. It must
+  // NOT mutate daemon state. Previously this effect auto-POSTed /resume on
+  // session navigation, which bumped the rebind epoch and triggered a
+  // CapabilityLayer reinject on the daemon — disturbing concurrent clients and
+  // in-flight runloops. The web client already removed its symmetric call
+  // (commit 278bc82dd); removing it here enforces the contract everywhere.
+  // Capability-layer refresh is still available via the /reload slash command
+  // or the refresh_capability_layer tool — both are explicit user intents.
 
   // Update terminal window title based on current route and session
   createEffect(() => {
