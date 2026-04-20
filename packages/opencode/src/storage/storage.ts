@@ -532,6 +532,50 @@ export namespace Storage {
     }
   }
 
+  /**
+   * Cheap filesystem scan producing session-level size hints without
+   * deserializing any part JSON. Used by the meta endpoint introduced in
+   * specs/frontend-session-lazyload/ to let the webapp decide whether to
+   * auto-redirect into a session before fetching its messages.
+   */
+  export async function sessionStats(sessionID: string): Promise<{
+    messageCount: number
+    partCount: number
+    totalBytes: number
+    lastUpdated: number
+  } | undefined> {
+    const sessionDir = await sessionDirectory(sessionID)
+    if (!sessionDir) return undefined
+    const messagesRoot = path.join(sessionDir, "messages")
+    const messageEntries = await fs.readdir(messagesRoot, { withFileTypes: true }).catch(() => [] as any[])
+    let messageCount = 0
+    let partCount = 0
+    let totalBytes = 0
+    let lastUpdated = 0
+    const infoStat = await fs.stat(path.join(sessionDir, "info.json")).catch(() => undefined)
+    if (infoStat && infoStat.mtimeMs > lastUpdated) lastUpdated = infoStat.mtimeMs
+    for (const entry of messageEntries) {
+      if (!entry.isDirectory()) continue
+      const messageDir = path.join(messagesRoot, entry.name)
+      const messageInfo = path.join(messageDir, "info.json")
+      const mStat = await fs.stat(messageInfo).catch(() => undefined)
+      if (!mStat) continue
+      messageCount += 1
+      if (mStat.mtimeMs > lastUpdated) lastUpdated = mStat.mtimeMs
+      const partsDir = path.join(messageDir, "parts")
+      const partEntries = await fs.readdir(partsDir, { withFileTypes: true }).catch(() => [] as any[])
+      for (const p of partEntries) {
+        if (!p.isFile() || !p.name.endsWith(".json")) continue
+        const pStat = await fs.stat(path.join(partsDir, p.name)).catch(() => undefined)
+        if (!pStat) continue
+        partCount += 1
+        totalBytes += pStat.size
+        if (pStat.mtimeMs > lastUpdated) lastUpdated = pStat.mtimeMs
+      }
+    }
+    return { messageCount, partCount, totalBytes, lastUpdated }
+  }
+
   const state = lazy(async () => {
     const dir = path.join(Global.Path.data, "storage")
     const migration = await Bun.file(path.join(dir, "migration"))

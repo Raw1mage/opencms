@@ -9,6 +9,7 @@ import { sendSessionReloadDebugBeacon } from "@/utils/debug-beacon"
 import type { Message, Part } from "@opencode-ai/sdk/v2/client"
 import type { State } from "./global-sync/types"
 import { buildMonitorEntries, buildSessionTelemetryFromProjector } from "@/pages/session/monitor-helper"
+import { frontendTweaks } from "./frontend-tweaks"
 
 function sortParts(parts: Part[]) {
   return parts.filter((part) => !!part?.id).sort((a, b) => cmp(a.id, b.id))
@@ -165,7 +166,44 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       limit: {} as Record<string, number>,
       complete: {} as Record<string, boolean>,
       loading: {} as Record<string, boolean>,
+      partCount: {} as Record<string, number>, // populated from /session/:id/meta when lazyload flag=1
     })
+
+    /**
+     * specs/frontend-session-lazyload R6: when flag=1, pick initial message
+     * page size based on server-reported partCount (tweaks.initial_page_size_*).
+     * When flag=0, returns the legacy constant to preserve INV-2 baseline.
+     */
+    const pageSizeFor = (partCount: number): number | "all" => {
+      const cfg = frontendTweaks()
+      if (cfg.frontend_session_lazyload !== 1) return messagePageSize
+      if (partCount <= 50) return cfg.initial_page_size_small
+      if (partCount <= 200) return cfg.initial_page_size_medium
+      return cfg.initial_page_size_large
+    }
+
+    /**
+     * Fetch /session/:id/meta via raw sdk.fetch. Once the SDK is regenerated
+     * this can migrate to sdk.client.session.meta(). Failure returns null so
+     * the caller can fall back to legacy sizing (INV-6 is enforced at the
+     * openRootSession seam, not here — sync() already ran, so we just use
+     * the legacy page size).
+     */
+    const fetchSessionMeta = async (
+      directory: string,
+      sessionID: string,
+    ): Promise<{ partCount: number; totalBytes: number } | null> => {
+      try {
+        const response = await sdk.fetch(
+          `${sdk.url}/api/v2/session/${encodeURIComponent(sessionID)}/meta?directory=${encodeURIComponent(directory)}`,
+        )
+        if (!response.ok) return null
+        const body = (await response.json()) as { partCount: number; totalBytes: number }
+        return { partCount: body.partCount, totalBytes: body.totalBytes }
+      } catch {
+        return null
+      }
+    }
 
     const getSession = (sessionID: string) => {
       const store = currentStore()
@@ -340,7 +378,25 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           })
           if (!force && hasSession && hasMessages && hydrated) return
           const count = store.message[sessionID]?.length ?? 0
-          const limit = hydrated ? (meta.limit[key] ?? messagePageSize) : limitFor(count)
+
+          // specs/frontend-session-lazyload R6: first-time hydration with
+          // flag=1 fetches /meta to pick a tighter initial page size. Flag=0
+          // takes the legacy limitFor() path unchanged (INV-2).
+          let limit: number
+          if (hydrated) {
+            limit = meta.limit[key] ?? messagePageSize
+          } else if (frontendTweaks().frontend_session_lazyload === 1) {
+            const metaInfo = await fetchSessionMeta(directory, sessionID)
+            if (metaInfo) {
+              setMeta("partCount", key, metaInfo.partCount)
+              const bucket = pageSizeFor(metaInfo.partCount)
+              limit = bucket === "all" ? Math.max(messagePageSize, metaInfo.partCount + 1) : bucket
+            } else {
+              limit = limitFor(count)
+            }
+          } else {
+            limit = limitFor(count)
+          }
 
           const sessionReq =
             hasSession && !force
@@ -502,7 +558,18 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
             const key = keyFor(sdk.directory, sessionID)
             return meta.loading[key] ?? false
           },
-          async loadMore(sessionID: string, count = messagePageSize) {
+          async loadMore(sessionID: string, count?: number) {
+            // specs/frontend-session-lazyload: loadMore respects tweaks so
+            // scroll-spy increments stay aligned with the initial page size
+            // bucket. Explicit count param (e.g. user clicking "Load Earlier")
+            // still overrides.
+            if (count === undefined) {
+              const cfg = frontendTweaks()
+              count =
+                cfg.frontend_session_lazyload === 1
+                  ? cfg.initial_page_size_large
+                  : messagePageSize
+            }
             const directory = sdk.directory
             const client = sdk.client
             const [, setStore] = globalSync.child(directory)

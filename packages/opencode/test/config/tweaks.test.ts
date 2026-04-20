@@ -124,4 +124,89 @@ describe("Tweaks.loadEffective", () => {
     expect(sc.ttlSec).toBe(30)
     expect(rl.burst).toBe(11)
   })
+
+  // --- frontend-session-lazyload keys ---
+
+  test("frontend lazyload defaults when tweaks.cfg missing", async () => {
+    delete process.env[ENV_KEY]
+    process.env[ENV_KEY] = join(tmpDir, "nonexistent.cfg")
+    const fl = await Tweaks.frontendLazyload()
+    expect(fl.flag).toBe(0)
+    expect(fl.partInlineCapKb).toBe(64)
+    expect(fl.tailWindowKb).toBe(64)
+    expect(fl.foldPreviewLines).toBe(20)
+    expect(fl.initialPageSizeSmall).toBe("all")
+    expect(fl.initialPageSizeMedium).toBe(100)
+    expect(fl.initialPageSizeLarge).toBe(50)
+    expect(fl.sessionSizeThresholdKb).toBe(512)
+    expect(fl.sessionSizeThresholdParts).toBe(80)
+  })
+
+  test("frontend lazyload parses flag=1 and custom thresholds", async () => {
+    pointToFile(
+      [
+        "frontend_session_lazyload=1",
+        "part_inline_cap_kb=128",
+        "tail_window_kb=32",
+        "fold_preview_lines=10",
+        "initial_page_size_small=25",
+        "initial_page_size_medium=75",
+        "initial_page_size_large=30",
+        "session_size_threshold_kb=1024",
+        "session_size_threshold_parts=50",
+      ].join("\n"),
+    )
+    const fl = await Tweaks.frontendLazyload()
+    expect(fl.flag).toBe(1)
+    expect(fl.partInlineCapKb).toBe(128)
+    expect(fl.tailWindowKb).toBe(32)
+    expect(fl.foldPreviewLines).toBe(10)
+    expect(fl.initialPageSizeSmall).toBe(25)
+    expect(fl.initialPageSizeMedium).toBe(75)
+    expect(fl.initialPageSizeLarge).toBe(30)
+    expect(fl.sessionSizeThresholdKb).toBe(1024)
+    expect(fl.sessionSizeThresholdParts).toBe(50)
+  })
+
+  test("invalid flag falls back to default (not silent)", async () => {
+    pointToFile("frontend_session_lazyload=maybe\n")
+    const fl = await Tweaks.frontendLazyload()
+    expect(fl.flag).toBe(0) // default
+  })
+
+  test("INV-7: tail_window_kb > part_inline_cap_kb is clamped to cap", async () => {
+    pointToFile(
+      [
+        "part_inline_cap_kb=64",
+        "tail_window_kb=256", // exceeds cap; should be clamped to 64
+      ].join("\n"),
+    )
+    const fl = await Tweaks.frontendLazyload()
+    expect(fl.partInlineCapKb).toBe(64)
+    expect(fl.tailWindowKb).toBe(64) // clamped, not the invalid 256
+  })
+
+  test("part_inline_cap_kb out of range (too small) falls back to default", async () => {
+    pointToFile("part_inline_cap_kb=2\n")
+    const fl = await Tweaks.frontendLazyload()
+    expect(fl.partInlineCapKb).toBe(64) // default, since 2 < min(4)
+  })
+
+  test("initial_page_size_small accepts 'all' keyword", async () => {
+    pointToFile("initial_page_size_small=all\n")
+    const fl = await Tweaks.frontendLazyload()
+    expect(fl.initialPageSizeSmall).toBe("all")
+  })
+
+  test("initial_page_size_small accepts integer", async () => {
+    pointToFile("initial_page_size_small=25\n")
+    const fl = await Tweaks.frontendLazyload()
+    expect(fl.initialPageSizeSmall).toBe(25)
+  })
+
+  test("initial_page_size_small invalid string falls back to default", async () => {
+    pointToFile("initial_page_size_small=garbage\n")
+    const fl = await Tweaks.frontendLazyload()
+    expect(fl.initialPageSizeSmall).toBe("all") // default
+  })
 })

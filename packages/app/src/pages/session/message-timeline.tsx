@@ -14,6 +14,48 @@ import { useSDK } from "@/context/sdk"
 import type { SessionWorkflowChip } from "@/pages/session/helpers"
 import { sendSessionReloadDebugBeacon } from "@/utils/debug-beacon"
 
+/**
+ * specs/frontend-session-lazyload R5: top-of-list sentinel. When `active`
+ * (usually = historyMore && !historyLoading && userScrolled), an
+ * IntersectionObserver watches this 1px div. On intersection it calls onEnter
+ * and unobserves itself; re-arms automatically on the next mount cycle
+ * (active toggling off+on unmounts+remounts the component).
+ *
+ * rootMargin of 400px gives the loader a ~2–3 viewport head start so the
+ * spinner is already visible by the time the user reaches the top.
+ */
+function ScrollSpySentinel(props: { active: boolean; onEnter: () => void }): JSX.Element {
+  let el: HTMLDivElement | undefined
+  createEffect(() => {
+    if (!props.active) return
+    if (!el) return
+    if (typeof IntersectionObserver === "undefined") return // SSR / test env
+    let fired = false
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting && !fired) {
+            fired = true
+            props.onEnter()
+            observer.disconnect()
+          }
+        }
+      },
+      { rootMargin: "400px 0px 0px 0px" },
+    )
+    observer.observe(el)
+    onCleanup(() => observer.disconnect())
+  })
+  return (
+    <div
+      ref={el}
+      data-component="scroll-spy-sentinel"
+      style="height: 1px; width: 100%;"
+      aria-hidden="true"
+    />
+  )
+}
+
 const boundaryTarget = (root: HTMLElement, target: EventTarget | null) => {
   const current = target instanceof Element ? target : undefined
   const nested = current?.closest("[data-scrollable]")
@@ -327,6 +369,14 @@ export function MessageTimeline(props: {
                 </div>
               </Show>
               <Show when={props.historyMore}>
+                {/* specs/frontend-session-lazyload R5: scroll-spy sentinel
+                    that auto-calls onLoadEarlier when user scrolls near the
+                    top. Gated by userScrolled() so follow-bottom mode does
+                    not trigger accidental loads (INV-5 / DD-6). */}
+                <ScrollSpySentinel
+                  active={props.historyMore && !props.historyLoading && props.userScrolled()}
+                  onEnter={props.onLoadEarlier}
+                />
                 <div class="w-full flex justify-center">
                   <Button
                     variant="ghost"
