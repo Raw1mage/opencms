@@ -117,7 +117,7 @@ export const dict = {
   "ui.question.review.notAnswered": "(ikke besvaret)",
   "ui.question.multiHint": "(vælg alle der gælder)",
   "ui.question.custom.placeholder": "Skriv dit svar...",
-  "ui.question.unreadable": Question data unreadable — please report this session to the maintainer.,
+  "ui.question.unreadable": "Question data unreadable — please report this session to the maintainer.",
   "ui.tool.websearch": "Websøgning",
   "ui.tool.codesearch": "Kodesøgning",
 }

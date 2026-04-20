@@ -21,7 +21,6 @@ import { useSessionResumeSync } from "./use-session-resume-sync"
 import { decode64 } from "@/utils/base64"
 import { SessionTelemetryCards } from "./session-telemetry-cards"
 import { useGlobalSync } from "@/context/global-sync"
-import { useGlobalSDK } from "@/context/global-sdk"
 import { resolveTelemetryAccountLabel, useSessionTelemetryHydration } from "./session-telemetry-ui"
 
 export default function SessionToolPageRoute() {
@@ -32,7 +31,6 @@ export default function SessionToolPageRoute() {
   const [searchParams, setSearchParams] = useSearchParams<{ file?: string }>()
   const sync = useSync()
   const globalSync = useGlobalSync()
-  const globalSDK = useGlobalSDK()
   const sdk = useSDK()
   const file = useFile()
   let fileTreeScrollEl: HTMLDivElement | undefined
@@ -302,19 +300,10 @@ export default function SessionToolPageRoute() {
                       {(() => {
                         const processCards = () =>
                           buildProcessCards((monitorEntries() ?? []) as EnrichedMonitorEntry[], params.id)
-                        const connectionState = () => globalSDK.connectionStatus()
-                        const statusUnavailableMessage = () => {
-                          const status = connectionState()
-                          if (status === "blocked") return "Runtime status is blocked until authentication succeeds."
-                          if (status === "degraded") return "Runtime status may be stale while the connection is degraded."
-                          if (status === "resyncing") return "Revalidating runtime status from the server…"
-                          if (status === "reconnecting") return "Waiting for the live event stream to recover…"
-                          return "No active tasks."
-                        }
                         return (
                           <Show
-                            when={connectionState() === "connected" && processCards().length > 0}
-                            fallback={<div class="text-12-regular text-text-weak">{statusUnavailableMessage()}</div>}
+                            when={processCards().length > 0}
+                            fallback={<div class="text-12-regular text-text-weak">No active tasks.</div>}
                           >
                             <For each={processCards()}>
                               {(card) => {
@@ -347,14 +336,14 @@ export default function SessionToolPageRoute() {
                                         : card.status === "pending"
                                           ? "Pending"
                                           : ""
-                                const updatedAgo = () =>
-                                  card.updatedAgo == null
+                                const elapsed = () =>
+                                  card.elapsed == null
                                     ? ""
-                                    : card.updatedAgo < 60
-                                      ? `${card.updatedAgo}s`
-                                      : Math.floor(card.updatedAgo / 60) < 60
-                                        ? `${Math.floor(card.updatedAgo / 60)}m`
-                                        : `${Math.floor(Math.floor(card.updatedAgo / 60) / 60)}h${Math.floor(card.updatedAgo / 60) % 60}m`
+                                    : card.elapsed < 60
+                                      ? `${card.elapsed}s`
+                                      : Math.floor(card.elapsed / 60) < 60
+                                        ? `${Math.floor(card.elapsed / 60)}m`
+                                        : `${Math.floor(Math.floor(card.elapsed / 60) / 60)}h${Math.floor(card.elapsed / 60) % 60}m`
                                 return (
                                   <div
                                     class="rounded-md border bg-background-base px-3 py-2 flex flex-col gap-1"
@@ -397,7 +386,7 @@ export default function SessionToolPageRoute() {
                                     </Show>
                                     <div class="text-11-regular text-text-weak break-words">
                                       {statusLabel()}
-                                      {updatedAgo() ? ` · updated ${updatedAgo()} ago` : ""}
+                                      {elapsed() ? ` · ${elapsed()}` : ""}
                                       {card.model ? ` · ${card.model.modelID}` : ""}
                                       {` · ${card.requests} reqs · ${card.totalTokens.toLocaleString()} tok`}
                                     </div>

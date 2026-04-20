@@ -58,6 +58,132 @@ import { IconButton } from "./icon-button"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
 import { isScrollDebugEnabled, pushScrollDebug } from "../hooks/scroll-debug"
 
+// specs/frontend-session-lazyload/ — Part fold + streaming tail banner.
+// Defaults mirror data-schema.json TweaksConfigKeys; runtime values overridden
+// via PartFoldConfigContext when the webapp supplies them. UI defaults are
+// "safe enough" so a stale context doesn't disable the cap entirely.
+const PART_FOLD_DEFAULTS = {
+  partInlineCapBytes: 64 * 1024,
+  foldPreviewLines: 20,
+  tailWindowKb: 64,
+} as const
+
+/**
+ * Detect a message as still streaming: assistant messages carry an undefined
+ * `time.completed` until the stream finishes (see session-turn.tsx:305).
+ */
+function isMessageStreaming(message: MessageType | undefined): boolean {
+  if (!message) return false
+  if ((message as AssistantMessage).role !== "assistant") return false
+  const t = (message as AssistantMessage).time as { completed?: number | undefined } | undefined
+  return typeof t?.completed !== "number"
+}
+
+/**
+ * Render a (possibly long) text part body with fold + streaming tail banner.
+ * Rules (see specs/frontend-session-lazyload/spec.md R2 + R3):
+ *   - truncatedPrefix > 0 && streaming  → banner "streaming 中，暫顯示最後 N KB" + current text (tail already)
+ *   - truncatedPrefix > 0 && completed  → collapsed preview + expand (click triggers refetch)
+ *   - length > cap && completed         → collapsed preview + in-place expand (full text already in store)
+ *   - otherwise                          → full text
+ */
+function FoldableMarkdown(props: {
+  text: string
+  cacheKey: string
+  message: MessageType
+  truncatedPrefix?: number
+  cfg?: typeof PART_FOLD_DEFAULTS
+  onRefetch?: () => void
+}): JSX.Element {
+  const cfg = () => props.cfg ?? PART_FOLD_DEFAULTS
+  const streaming = () => isMessageStreaming(props.message)
+  const truncated = () => (props.truncatedPrefix ?? 0) > 0
+  const overCap = () => props.text.length > cfg().partInlineCapBytes
+  const [expanded, setExpanded] = createSignal(false)
+  const [refetching, setRefetching] = createSignal(false)
+
+  const previewText = () => {
+    const lines = props.text.split("\n")
+    if (lines.length <= cfg().foldPreviewLines) return props.text
+    return lines.slice(0, cfg().foldPreviewLines).join("\n") + "\n…"
+  }
+
+  const handleExpand = async () => {
+    if (truncated() && !streaming() && props.onRefetch) {
+      setRefetching(true)
+      try {
+        await props.onRefetch()
+      } finally {
+        setRefetching(false)
+      }
+    }
+    setExpanded(true)
+  }
+
+  // Which of the four render modes is active. Exactly one must be true for
+  // every possible combination of (streaming, truncated, overCap, expanded),
+  // otherwise the component silently renders nothing and the whole message
+  // disappears.
+  const mode = (): "streaming-tail" | "folded" | "expanded" | "full" => {
+    if (streaming() && truncated()) return "streaming-tail"
+    if (!streaming() && (truncated() || overCap()) && !expanded()) return "folded"
+    if (!streaming() && (truncated() || overCap()) && expanded()) return "expanded"
+    // Everything else — including "streaming && !truncated" — renders the
+    // full text as the baseline markdown.
+    return "full"
+  }
+
+  return (
+    <Switch>
+      <Match when={mode() === "streaming-tail"}>
+        <div
+          data-component="lazyload-streaming-banner"
+          role="status"
+          aria-live="polite"
+          style="font-size: 0.75rem; opacity: 0.7; margin-bottom: 0.5rem;"
+        >
+          streaming 中，暫顯示最後 {cfg().tailWindowKb} KB（截斷前段 {Math.round((props.truncatedPrefix ?? 0) / 1024)} KB）
+        </div>
+        <Markdown text={props.text} cacheKey={props.cacheKey + ":tail"} />
+      </Match>
+
+      <Match when={mode() === "folded"}>
+        <div data-component="lazyload-fold">
+          <Markdown text={previewText()} cacheKey={props.cacheKey + ":preview"} />
+          <Button
+            data-component="lazyload-expand"
+            onClick={handleExpand}
+            disabled={refetching()}
+            style="margin-top: 0.5rem;"
+          >
+            <Show
+              when={!refetching()}
+              fallback={<>載入完整內容…</>}
+            >
+              展開全文（{Math.round((truncated() ? (props.truncatedPrefix ?? 0) + props.text.length : props.text.length) / 1024)} KB）
+            </Show>
+          </Button>
+        </div>
+      </Match>
+
+      <Match when={mode() === "expanded"}>
+        <Markdown text={props.text} cacheKey={props.cacheKey + ":full"} />
+        <Button
+          data-component="lazyload-collapse"
+          onClick={() => setExpanded(false)}
+          style="margin-top: 0.5rem;"
+        >
+          收合
+        </Button>
+      </Match>
+
+      <Match when={mode() === "full"}>
+        <Markdown text={props.text} cacheKey={props.cacheKey} />
+      </Match>
+    </Switch>
+  )
+}
+
 interface Diagnostic {
   range: {
     start: { line: number; character: number }
@@ -967,6 +1093,7 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
   const displayText = () => (part.text ?? "").trim()
   const throttledText = createThrottledValue(displayText)
   const [copied, setCopied] = createSignal(false)
+  const truncatedPrefix = () => (part as unknown as { truncatedPrefix?: number }).truncatedPrefix ?? 0
 
   const handleCopy = async () => {
     const content = displayText()
@@ -976,11 +1103,26 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const handleRefetch = async () => {
+    // Completed part whose content was truncated during streaming. Ask the
+    // session sync callback (wired by the webapp) to refetch the full history;
+    // store replaces the part via reconcile, dropping truncatedPrefix.
+    const sync = data.syncSession
+    if (!sync) return
+    await sync(props.message.sessionID)
+  }
+
   return (
     <Show when={throttledText()}>
       <div data-component="text-part">
         <div data-slot="text-part-body">
-          <Markdown text={throttledText()} cacheKey={part.id} />
+          <FoldableMarkdown
+            text={throttledText()}
+            cacheKey={part.id}
+            message={props.message}
+            truncatedPrefix={truncatedPrefix()}
+            onRefetch={handleRefetch}
+          />
         </div>
       </div>
     </Show>
@@ -988,14 +1130,28 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
 }
 
 PART_MAPPING["reasoning"] = function ReasoningPartDisplay(props) {
+  const data = useData()
   const part = props.part as ReasoningPart
   const text = () => part.text.trim()
   const throttledText = createThrottledValue(text)
+  const truncatedPrefix = () => (part as unknown as { truncatedPrefix?: number }).truncatedPrefix ?? 0
+
+  const handleRefetch = async () => {
+    const sync = data.syncSession
+    if (!sync) return
+    await sync(props.message.sessionID)
+  }
 
   return (
     <Show when={throttledText()}>
       <div data-component="reasoning-part">
-        <Markdown text={throttledText()} cacheKey={part.id} />
+        <FoldableMarkdown
+          text={throttledText()}
+          cacheKey={part.id}
+          message={props.message}
+          truncatedPrefix={truncatedPrefix()}
+          onRefetch={handleRefetch}
+        />
       </div>
     </Show>
   )

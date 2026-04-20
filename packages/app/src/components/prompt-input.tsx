@@ -244,16 +244,6 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       },
   )
   const working = createMemo(() => props.forceWorking || status()?.type !== "idle")
-  const connectionState = createMemo(() => globalSDK.connectionStatus())
-  const authorityBlocked = createMemo(() => connectionState() !== "connected")
-  const authorityMessage = createMemo(() => {
-    const state = connectionState()
-    if (state === "blocked") return "Authentication is required before prompt input can resume."
-    if (state === "degraded") return "Live status may be stale. Prompt input is blocked until the server is revalidated."
-    if (state === "resyncing") return "Revalidating session status from the server…"
-    if (state === "reconnecting") return "Waiting for the live event stream to recover…"
-    return undefined
-  })
   const [quotaRefresh, setQuotaRefresh] = createSignal(0)
   const [lastQuotaRefreshMarker, setLastQuotaRefreshMarker] = createSignal("")
   const [lastQuotaRefreshAt, setLastQuotaRefreshAt] = createSignal(0)
@@ -840,12 +830,6 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   })
 
   createEffect(() => {
-    if (!authorityBlocked()) return
-    closePopover()
-    setComposing(false)
-  })
-
-  createEffect(() => {
     if (!isFocused()) closePopover()
   })
 
@@ -1335,17 +1319,6 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     readClipboardImage: platform.readClipboardImage,
   })
 
-  createEffect(() => {
-    const sessionID = params.id
-    const state = connectionState()
-    if (!sessionID || state !== "connected") return
-    void sync.session.sync(sessionID, { force: true })
-    void sdk.client.session.status().then((result) => {
-      const next = result.data?.[sessionID]
-      if (next) sync.set("session_status", sessionID, next)
-    }).catch(() => {})
-  })
-
   const { abort, handleSubmit } = createPromptSubmit({
     info,
     imageAttachments,
@@ -1454,12 +1427,6 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
 
     const ctrl = event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey
 
-    if (authorityBlocked()) {
-      event.preventDefault()
-      event.stopPropagation()
-      return
-    }
-
     if (store.popover) {
       if (event.key === "Tab") {
         selectPopoverActive()
@@ -1537,14 +1504,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
         t={(key) => language.t(key as Parameters<typeof language.t>[0])}
       />
       <form
-        onSubmit={(event) => {
-          if (authorityBlocked() && !working()) {
-            event.preventDefault()
-            event.stopPropagation()
-            return
-          }
-          handleSubmit(event)
-        }}
+        onSubmit={handleSubmit}
         classList={{
           "group/prompt-input": true,
           "bg-surface-raised-stronger-non-alpha shadow-xs-border relative": true,
@@ -1588,8 +1548,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
             role="textbox"
             aria-multiline="true"
             aria-label={placeholder()}
-            contenteditable={authorityBlocked() ? "false" : "true"}
-            aria-disabled={authorityBlocked()}
+            contenteditable="true"
             autocapitalize="off"
             autocorrect="off"
             spellcheck={false}
@@ -1615,7 +1574,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
             <button
               type="button"
               class="absolute top-2.5 right-2.5 p-0.5 rounded hover:bg-fill-quaternary transition-colors"
-              disabled={voiceButtonDisabled() || authorityBlocked()}
+              disabled={voiceButtonDisabled()}
               onClick={() => {
                 if (voiceActive()) {
                   stopVoice()
@@ -1670,7 +1629,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                       "font-weight": "600",
                       "background-color": "var(--surface-success-base)",
                     }}
-                    disabled={!params.id || authorityBlocked()}
+                    disabled={!params.id}
                     aria-label="自動代理（常駐開啟）"
                   >
                     <span class="text-12-regular px-1">{providerLabel()}</span>
@@ -1685,7 +1644,6 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                   <Button
                     variant="ghost"
                     class="min-w-0 max-w-[240px]"
-                    disabled={authorityBlocked()}
                     onClick={() => dialog.show(() => <DialogSelectModel />)}
                   >
                     <Show when={local.model.current(params.id)?.provider?.id}>
@@ -1725,13 +1683,6 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                 {promptMeta()}
               </span>
             </Show>
-            <Show when={store.mode === "normal" && authorityMessage()}>
-              {(message) => (
-                <span class="text-12-regular text-warning whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
-                  {message()}
-                </span>
-              )}
-            </Show>
             <Show when={store.mode === "normal" && voiceBusy()}>
               <span class="text-12-regular text-text-weak whitespace-nowrap overflow-hidden text-ellipsis min-w-0 flex items-center gap-1">
                 <Icon
@@ -1768,7 +1719,6 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                     type="button"
                     variant="ghost"
                     class="size-6 px-1"
-                    disabled={authorityBlocked()}
                     onClick={() => fileInputRef.click()}
                     aria-label={language.t("prompt.action.attachFile")}
                   >
@@ -1779,7 +1729,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
             </div>
             <IconButton
               type="submit"
-              disabled={authorityBlocked() ? !working() : (!prompt.dirty() && !working() && commentCount() === 0)}
+              disabled={!prompt.dirty() && !working() && commentCount() === 0}
               icon={working() ? "stop" : "arrow-up"}
               variant="primary"
               class="h-6 w-4.5"

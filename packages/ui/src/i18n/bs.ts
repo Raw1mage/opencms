@@ -122,7 +122,7 @@ export const dict = {
   "ui.question.review.notAnswered": "(nije odgovoreno)",
   "ui.question.multiHint": "(odaberi sve što važi)",
   "ui.question.custom.placeholder": "Unesi svoj odgovor...",
-  "ui.question.unreadable": Question data unreadable — please report this session to the maintainer.,
+  "ui.question.unreadable": "Question data unreadable — please report this session to the maintainer.",
   "ui.tool.websearch": "Pretraga weba",
   "ui.tool.codesearch": "Pretraga koda",
 } satisfies Partial<Record<Keys, string>>

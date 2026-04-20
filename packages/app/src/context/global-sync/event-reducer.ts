@@ -15,6 +15,7 @@ import { LLM_HISTORY_CAP } from "./types"
 import { trimSessions } from "./session-trim"
 import { buildSessionTelemetryFromProjector } from "@/pages/session/monitor-helper"
 import type { SessionMonitorInfo } from "@opencode-ai/sdk/v2/client"
+import { frontendTweaks } from "../frontend-tweaks"
 
 // Non-reactive dedup map for delta events.
 // SolidJS batch() defers setStore updates, so within a single flush the reactive
@@ -22,6 +23,53 @@ import type { SessionMonitorInfo } from "@opencode-ai/sdk/v2/client"
 // the same delta in the same batch all pass the reactive guard and append twice.
 // This plain Map updates synchronously, surviving batch boundaries.
 const _appliedTextLength = new Map<string, number>()
+
+// --- specs/frontend-session-lazyload/ : rebuild heuristic + tail-window ---
+// Prefix-match length used to decide whether a non-delta incoming Part looks
+// like an AI-SDK rebuild (whole text resent, prefix unchanged) vs a true
+// replacement. See design.md DD-5 and invariants.md INV-3/INV-4.
+const REBUILD_PREFIX_MATCH = 1024
+
+function tailWindowBytes(cfg: { frontend_session_lazyload: 0 | 1; tail_window_kb: number }): number {
+  return cfg.tail_window_kb * 1024
+}
+
+function isTextPartType(part: Part): part is Part & { type: "text" | "reasoning"; text: string } {
+  return "type" in part && (part.type === "text" || part.type === "reasoning") && "text" in part
+}
+
+/**
+ * Detect whether `incoming` (a non-delta updated Part) is actually an AI-SDK
+ * full-text rebuild of the same underlying content we already have locally.
+ * Returns "append" when the first REBUILD_PREFIX_MATCH chars match existing.text;
+ * returns "replace" otherwise. Uses substring compare (O(1024)), not full scan,
+ * per DD-5.
+ */
+function classifyNonDeltaUpdate(existingText: string, incomingText: string): "append" | "replace" {
+  if (incomingText.length <= existingText.length) return "replace" // shrink or same — true replace
+  const compareLen = Math.min(REBUILD_PREFIX_MATCH, existingText.length)
+  if (compareLen === 0) return "replace"
+  const a = existingText.slice(0, compareLen)
+  const b = incomingText.slice(0, compareLen)
+  return a === b ? "append" : "replace"
+}
+
+/**
+ * Apply streaming tail-window: if `text` exceeds tailBytes, keep only the last
+ * tailBytes chars. Returns the truncated text and the number of prefix bytes
+ * dropped; both callers update the store accordingly. No-op when feature flag
+ * is off (flag=0) per INV-2.
+ */
+function applyTailWindow(
+  text: string,
+  cfg: { frontend_session_lazyload: 0 | 1; tail_window_kb: number },
+): { text: string; truncatedPrefix: number } {
+  if (cfg.frontend_session_lazyload === 0) return { text, truncatedPrefix: 0 }
+  const tailBytes = tailWindowBytes(cfg)
+  if (text.length <= tailBytes) return { text, truncatedPrefix: 0 }
+  const truncatedPrefix = text.length - tailBytes
+  return { text: text.slice(truncatedPrefix), truncatedPrefix }
+}
 
 function pushLlmHistory(draft: State, entry: LlmHistoryEntry) {
   if (!draft.llm_history) draft.llm_history = []
@@ -273,6 +321,7 @@ export function applyDirectoryEvent(input: {
       const part = props.part
       const delta = props.delta
       const parts = input.store.part[part.messageID]
+      const tweaksCfg = frontendTweaks()
 
       // Delta-aware streaming: when delta is present and part.text is stripped,
       // append delta to the existing stored part instead of replacing it wholesale.
@@ -294,8 +343,17 @@ export function applyDirectoryEvent(input: {
             }
             // Fast path: append delta to existing text without replacing the whole part
             const hasText = "text" in part && typeof (part as any).text === "string"
-            const newText = hasText ? (part as any).text : existing.text + delta
-            input.setStore("part", part.messageID, result.index, "text" as any, newText)
+            const rawText = hasText ? (part as any).text : existing.text + delta
+            // specs/frontend-session-lazyload §5.2 — tail-window truncation.
+            const existingTruncated = (existing as any).truncatedPrefix as number | undefined
+            const { text: windowedText, truncatedPrefix: newTruncated } = applyTailWindow(rawText, tweaksCfg)
+            input.setStore("part", part.messageID, result.index, "text" as any, windowedText)
+            const effectiveTruncated = (existingTruncated ?? 0) + newTruncated
+            if (effectiveTruncated > 0) {
+              input.setStore("part", part.messageID, result.index, "truncatedPrefix" as any, effectiveTruncated)
+            } else if (existingTruncated !== undefined) {
+              input.setStore("part", part.messageID, result.index, "truncatedPrefix" as any, 0)
+            }
             // Update metadata if present
             if ("metadata" in part && part.metadata) {
               input.setStore("part", part.messageID, result.index, "metadata" as any, part.metadata)
@@ -306,6 +364,43 @@ export function applyDirectoryEvent(input: {
         // Part not found yet — fall through to insertion with reconstructed text
         if (!("text" in part) || typeof (part as any).text !== "string") {
           (part as any).text = delta
+        }
+      }
+
+      // specs/frontend-session-lazyload §5.1 — non-delta rebuild detection.
+      // AI SDK sometimes resends the full text on each update instead of a
+      // delta. If the new incoming text is longer than what we have AND the
+      // prefix matches, treat it as append to avoid a full reconcile storm.
+      if (!delta && parts && isTextPartType(part)) {
+        const result = Binary.search(parts, part.id, (p) => p.id)
+        if (result.found) {
+          const existing = parts[result.index]
+          if (isTextPartType(existing)) {
+            const decision = classifyNonDeltaUpdate(existing.text, part.text)
+            if (decision === "append") {
+              const { text: windowedText, truncatedPrefix: newTruncated } = applyTailWindow(part.text, tweaksCfg)
+              input.setStore("part", part.messageID, result.index, "text" as any, windowedText)
+              if (newTruncated > 0) {
+                input.setStore("part", part.messageID, result.index, "truncatedPrefix" as any, newTruncated)
+              }
+              if ("metadata" in part && part.metadata) {
+                input.setStore("part", part.messageID, result.index, "metadata" as any, part.metadata)
+              }
+              break
+            }
+            // decision === "replace" — fall through to the normal reconcile.
+          }
+        }
+      }
+
+      // Pre-insert tail-window: any text/reasoning part heading into a
+      // non-delta insert or replace path gets windowed if it exceeds cap.
+      // This covers the first-arrival-of-a-huge-part case.
+      if (isTextPartType(part)) {
+        const windowed = applyTailWindow(part.text, tweaksCfg)
+        if (windowed.truncatedPrefix > 0) {
+          ;(part as any).text = windowed.text
+          ;(part as any).truncatedPrefix = windowed.truncatedPrefix
         }
       }
 

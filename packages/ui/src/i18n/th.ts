@@ -118,7 +118,7 @@ export const dict = {
   "ui.question.review.notAnswered": "(ไม่ได้ตอบ)",
   "ui.question.multiHint": "(เลือกทั้งหมดที่ใช้)",
   "ui.question.custom.placeholder": "พิมพ์คำตอบของคุณ...",
-  "ui.question.unreadable": Question data unreadable — please report this session to the maintainer.,
+  "ui.question.unreadable": "Question data unreadable — please report this session to the maintainer.",
   "ui.tool.websearch": "ค้นหาเว็บ",
   "ui.tool.codesearch": "ค้นหาโค้ด",
 }

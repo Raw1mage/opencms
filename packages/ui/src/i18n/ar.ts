@@ -118,7 +118,7 @@ export const dict = {
   "ui.question.review.notAnswered": "(لم يتم الرد)",
   "ui.question.multiHint": "(حدد كل ما ينطبق)",
   "ui.question.custom.placeholder": "اكتب إجابتك...",
-  "ui.question.unreadable": Question data unreadable — please report this session to the maintainer.,
+  "ui.question.unreadable": "Question data unreadable — please report this session to the maintainer.",
   "ui.tool.websearch": "بحث الويب",
   "ui.tool.codesearch": "بحث الكود",
 }

@@ -5,7 +5,9 @@
 
 ## 1. 核心啟動 (Bootstrap Protocol)
 
-Main Agent 啟動時 runtime 會自動 preload + pin 下方 **Mandatory Skills** 區塊內的 skills，不需要 AI 自律呼叫 `skill()` 工具。其餘 skills（如 `model-selector`、`mcp-finder`、`skill-finder`、`software-architect`）均為 **on-demand**，識別到對應情境時才載入。
+Main Agent 啟動時由 runtime 自動 preload + pin 下方 **Mandatory Skills** 區塊內的 skills（解析 HTML-comment sentinel 並注入 system prompt，不受 10min summarize / 30min unload 影響）。你不需要在 bootstrap 階段手動呼叫 `skill()`。
+
+其餘 skills（如 `model-selector`、`mcp-finder`、`skill-finder`、`software-architect`）均為 **on-demand**，識別到對應情境時再載入。
 
 ### Mandatory Skills（runtime-preloaded）
 
@@ -13,37 +15,50 @@ Main Agent 啟動時 runtime 會自動 preload + pin 下方 **Mandatory Skills**
 - plan-builder
 <!-- /opencode:mandatory-skills -->
 
-- 區塊由 `packages/opencode/src/session/mandatory-skills.ts` 每輪解析，對每個 skill 呼叫 `SkillLayerRegistry.recordLoaded` + `.pin`，內容由 skill-layer-seam 注入 system prompt；不受 10min summarize / 30min unload 影響。
-- 若某 skill 的 `SKILL.md` 在本機找不到，runtime 會 `log.warn` + 發 `skill.mandatory_missing` anomaly event 但不中斷 session；AI 仍可用 `skill()` 工具手動載入作為 fallback。
-- coding subagent 有獨立的 sentinel 位於 `packages/opencode/src/agent/prompt/coding.txt`。
+- 區塊由 `packages/opencode/src/session/mandatory-skills.ts` 每輪解析，對每個 skill 呼叫 `SkillLayerRegistry.recordLoaded` + `.pin`；內容由 skill-layer-seam 注入 system prompt。
+- 修改列表後下一輪（AGENTS.md mtime 變化 → `InstructionPrompt.systemCache` 失效）即生效。
+- 若某 skill 的 `SKILL.md` 在本機找不到，runtime 會 `log.warn` + 發 `skill.mandatory_missing` anomaly event，session 不中斷；AI 仍可用 `skill()` 手動載入作為 fallback。
+- coding subagent 的 mandatory 清單另由 `packages/opencode/src/agent/prompt/coding.txt` 內的同款 sentinel 區塊管理（subagent runtime 不讀 AGENTS.md）。
 
-### 自主 Continuation 契約（Main Agent）
+### 第三條：自主 Continuation 契約
 
-plan-builder 進入 `implementing` 狀態時，runloop 靠「todolist 殘留」持續推進。你必須在 **結束 turn 之前** 判斷：
+當 Main Agent 工作在 plan-builder 管理的 spec 且 `.state.json.state === "implementing"` 時，runloop 靠「todolist 殘留」自主持續推進。AI 必須在每個 turn 結束**之前**判斷是否該補 pending todo 觸發下一輪；否則 runloop 會因 todolist 清空而停下。
 
-- **若**（spec state = implementing）AND（tasks.md 還有 `- [ ]` / `- [~]`）AND（沒有 `- [!]` blocked / `- [?]` decision）→ `todowrite` append 下一項 pending 驅動 runloop 繼續
-- **否則**（tasks 耗盡 / blocked / 等待決定 / 使用者 interrupt / 非 plan-builder 管理的工作）→ 直接結束 turn，runloop 自然停下
+觸發條件（**必須同時成立**才 append pending todo）：
 
-runloop 刻意不懂 spec 狀態也不讀 tasks.md——這條紀律**完全靠 AI 自律**執行。
+1. 當前 spec `.state.json.state === "implementing"`
+2. `specs/<slug>/tasks.md` 仍有 `- [ ]` / `- [~]` 未完成項
+3. TodoWrite 沒有 `in_progress` 項，或剛把當前 `in_progress` 標為 `completed`
+4. 沒有使用者決定 / 批准 / 外部 blocker 擋住（`- [!]` / `- [?]` 都沒卡）
 
-### Autonomous Agent 核心紀律（原 agent-workflow 併入）
+停止條件（**任一成立**即結束 turn，不要 append）：
 
-2026-04-20 把原本住在 `agent-workflow` skill 的 autonomous 通用紀律搬進本檔。
+- tasks.md 全 `- [x]` → 準備 promote 到 `verified`
+- 有 `- [!] blocked` 或 `- [?] decision/approval` 未解除
+- 使用者插話 / interrupt
+- 偵測到 scope drift 需走 `extend` / `refactor` mode
+- 非 plan-builder 管理的任務 → 只做使用者當輪明確要求的工作
+
+與 runloop 的關係：runloop（`workflow-runner.ts planAutonomousNextAction`）**只認 TodoWrite 殘留**，不懂 spec 狀態、不讀 tasks.md。這條紀律完全靠 AI 自律執行；**不存在 runtime 閘在判斷錯誤時救你**。
+
+### Autonomous Agent 核心紀律
+
+2026-04-20 從已退役的 `agent-workflow` skill 併入。
 
 **八項核心原則**：
 
-1. Autonomy 依賴計畫，不依賴靈感
-2. 計畫不必完美但必須可執行（goal / todo / dependsOn / stop gates）
-3. todo 是 mode-aware runtime contract（詳見 plan-builder §16.2）
-4. 一律對話中可觀測（進展 / 阻塞 / replan 必須讓使用者理解）
-5. 可持續執行 ≠ 可靜默亂跑——遇 approval / decision / blocker 必停
-6. Debug system-first（Syslog checkpoint schema 見 `code-thinker` §3）
-7. Single-thread by default（最常用的委派只有 `explore` 與 `coding`；觸發條件由 driver description 自宣告）
-8. Narration ≠ Pause；Completion = Silent（執行中必 narrate，收尾後靜默停止，不需 wrap-up）
+1. **Autonomy 依賴計畫，不依賴靈感。**
+2. **計畫不必完美，但必須可執行**（goal / todo / `dependsOn` / stop gates）。
+3. **todo 是 mode-aware runtime contract** — plan mode = working ledger（自由寫）；build mode = execution ledger（嚴格對齊 `plan-builder` tasks.md，詳見 plan-builder SKILL.md §16.2）。
+4. **一律對話中可觀測** — 重要進展、阻塞、replan 必須讓使用者理解。
+5. **可持續執行 ≠ 可靜默亂跑** — 遇到 approval / decision / blocker 必停。
+6. **Debug system-first** — 複雜 bug 先看系統邊界、資料流、觀測訊號；詳細 Syslog-style Debug Contract 見 `code-thinker` skill §3。
+7. **Single-thread by default** — 主代理預設直接執行；委派觸發條件由各 subagent driver 自身 description 宣告（本檔不重列）。最常用的只有 `explore` 與 `coding`。
+8. **Narration ≠ Pause；Completion = Silent** — 執行中必 narrate；所有 todo 收斂後 silent stop 才是正確信號，不需 wrap-up 總結。
 
-**Narration 五類**（執行中可觀測）：Kickoff / Subagent milestone / Pause / Complete / Replanning。
+**Narration 五類**（執行中必可見）：Kickoff / Subagent milestone / Pause / Complete / Replanning。narration 是 side-channel visibility，**不是 pause boundary**——只有 stop gate 才真暫停。
 
-**Stop 回報格式**（需 approval、decision、blocker 時結束 turn 前固定輸出）：
+**Stop / Waiting 回報格式**（需 approval / decision / blocker 時結束 turn 前固定輸出）：
 
 ```
 Paused: <原因>
@@ -53,7 +68,33 @@ Next after reply:
   - <恢復後的第一步>
 ```
 
-**Interrupt-safe Replanning**：使用者插話 → (1) 承認中斷；(2) 重評估 todo（保留 / 取消 / 延後 / 新增）；(3) 重排 `dependsOn`；(4) 宣告下一步。不要整份丟掉舊計畫。
+觸發 Stop 的情境：
+
+- `needsApproval = true`
+- `action.kind ∈ {push, destructive, architecture_change}` 且策略要求批准
+- `waitingOn ∈ {approval, decision}`
+- 真正 blocker（權限、外部依賴、不可恢復錯誤）
+
+**Interrupt-safe Replanning**（使用者插話時）：
+
+1. 承認中斷發生（明示舊 autonomous run 已暫停）
+2. 重評估既有 todo —— 保留 / 取消（標 `cancelled`）/ 延後 / 新增
+3. 重新排序 `dependsOn`，保留唯一 `in_progress`
+4. 宣告下一步——讓使用者看到續跑路線
+
+原則：不要整份丟掉舊計畫除非完全失效；優先保留仍有效的已完成工作。
+
+**操作準則摘要（Ops digest）**：
+
+- Search first, then read
+- Read before write
+- Absolute paths only
+- 一次只有一個 `in_progress` todo
+- 用結構化 todo metadata，不用模糊條列
+- 執行中 narrate；最後一個 todo 完成後 silent stop
+- Stop for approval / decision / blocker
+- 使用者插話 → 明確 replan
+- Finish only after validation + event log + architecture sync（若未動架構則註記 `Verified (No doc changes)`）
 
 ## 語言回應規範
 
@@ -62,7 +103,7 @@ Next after reply:
 
 ### 開發任務預設工作流（Mandatory Trigger）
 
-- 只要使用者提出**非瑣碎開發需求**（例如 implement / build / fix / refactor / debug / write tests / continue plan / make it autonomous），Main Agent **必須**先透過 `plan-builder` skill（已被上方 Mandatory Skills 自動 preload）走完 spec lifecycle 的 `proposed → designed → planned`，再進入 `implementing`。
+- 只要使用者提出**非瑣碎開發需求**（例如 implement / build / fix / refactor / debug / write tests / continue plan / make it autonomous），Main Agent **必須**先透過 `plan-builder` skill（已由上方 Mandatory Skills 自動 preload）走完 spec lifecycle 的 `proposed → designed → planned`，再進入 `implementing`。
 - 進入 EXECUTION 前必須建立最小可執行骨架：
   - `goal`
   - structured todos（優先使用 `todowrite` + `action` metadata）
@@ -76,12 +117,13 @@ Next after reply:
 
 ### 核心文件責任分工（Hard-coded）
 
+> **路徑範圍規則（重要）**：本節與下方第 5、9 節提及的 `specs/...`、`docs/events/...` 一律指**當前 repo**（即 session `cwd` 所在的 repo root）下的相對路徑。若當前 repo 不存在該目錄／檔案，**直接 skip，不要跨 repo 臆測或組合檔名去 resolve**。例如 session cwd 是 `cisopro` 時，`docs/events/...` 是 `cisopro/docs/events/...`，不是 `opencode/docs/events/...`；若 `cisopro` 沒有這個目錄，就不必讀、也不要猜檔名。
+
 - `specs/architecture.md`
   - 記錄全 repo 長期框架知識：模組邊界、資料流、狀態機、runtime flows、核心目錄樹、debug/observability map。
 - `docs/events/event_<YYYYMMDD>_<topic>.md`
   - 記錄每次任務的需求、範圍、對話重點摘要、debug checkpoints、決策、驗證與 architecture sync。
-  - **每個 repo 各自維護自己的 `docs/events/`**；此慣例不是 opencode 專屬，凡進入任一 repo 工作都適用，變更留痕寫在當前 repo 的 `docs/events/`。跨 repo 引用時一律使用絕對路徑。
-- 所有複雜 debug / 開發任務，應優先先讀 `specs/architecture.md` 與相關 `docs/events/`，再進入原始碼偵查。
+- 所有複雜 debug / 開發任務，應優先先讀**當前 repo 的** `specs/architecture.md` 與 `docs/events/`（若存在），再進入原始碼偵查；目錄不存在時 skip，不要硬 resolve。
 
 ### 全域 Debug / Syslog 契約（Mandatory）
 
@@ -90,8 +132,8 @@ Next after reply:
   - 系統層次
   - component boundaries
   - 資料 / 狀態 / config 傳遞路徑
-- 所有 debug 任務都必須遵守 `code-thinker` 的 syslog-style debug contract（2026-04-20 從已退役的 `agent-workflow` 併入 code-thinker SKILL.md）。
-- 具體 checkpoint schema、instrumentation plan 與 component-boundary 規則，以 `code-thinker` skill 為單一真實來源。
+- 所有 debug 任務都必須遵守 `code-thinker` 的 syslog-style debug contract（2026-04-20 從已退役的 `agent-workflow` §5 併入，詳見 code-thinker SKILL.md §3）。
+- 具體 checkpoint schema、instrumentation plan 與 component-boundary 規則，以對應 skill 為單一真實來源。
 - 沒有 checkpoint evidence，不得宣稱已找到 root cause。
 
 ### Enablement Registry（能力總表）
@@ -163,8 +205,8 @@ Next after reply:
 ## 5. 指揮官紅線 (Commander's Red Lines)
 
 - **不要把此文件傳給 Subagent**: 他們已透過 SYSTEM.md 獲得工具規範與紅燈規則，僅需額外提供具體任務指令。
-- **Event Log**: 任何重大決策必須記錄於 `docs/events/`。
-- **停止時必須交代下一步**：若 agent 因使用者插話、approval gate、decision gate、blocker 或 round 結束而停下，回覆中必須明確說明停止原因，並附上可執行的後續建議或恢復後的第一步；禁止只停在狀態描述。
+- **Event Log**: 任何重大決策必須記錄於**當前 repo 的** `docs/events/`（不要跨 repo）。
+- 靜默執行（silent execution）時，允許直接更新 event log，而**不需要**另外向使用者敘述「正在記錄 event log」；但這不免除 event log 實際建立/更新義務。
 
 ## 6. Subagent 指派標準 (Task Dispatch Standards)
 
@@ -189,8 +231,10 @@ Next after reply:
 為確保每個專案都能一致遵守開發紀律，以下項目為硬性要求：
 
 1. **Event 檔先行**
-   - 任何非瑣碎開發任務，必須先建立/更新：`docs/events/event_<YYYYMMDD>_<topic>.md`。
+   - 任何非瑣碎開發任務，必須先建立/更新**當前 repo 的** `docs/events/event_<YYYYMMDD>_<topic>.md`。
    - 至少包含：`需求`、`範圍(IN/OUT)`、`任務清單`。
+   - 檔名的 `<topic>` 由本次任務決定；不得沿用或猜測其他 repo 曾用過的 topic 檔名。
+   - 若 agent 處於靜默執行模式，允許直接完成此記錄動作，不需額外把「正在記錄 event log」當成對使用者的 narration step。
 
 2. **實作過程必有標準化 debug checkpoints**
    - 一律遵守 `code-thinker` 的 checkpoint schema（原 agent-workflow 共享內容已於 2026-04-20 併入 code-thinker）。
@@ -220,7 +264,8 @@ Next after reply:
    - **`specs/architecture.md` 仍是架構單一真相來源**：長期架構、模組邊界、資料流、狀態機、runtime flows 仍以 `specs/architecture.md` 為準，不因 active plans 移到 `/plans/` 而改變。
    - **Formalized specs 採 semantic per-feature roots**：只有已正式沉澱、需長期維護的功能規格才放入 `/specs/<feature>/`；`/specs/` 不承接進行中的 dated execution roots。
    - **Tasks Checklist 即時同步**：當 coding agent 依據 `/plans/<YYYYMMDD>_<slug>/` 下的計畫文件實作時，每完成一個 task item，立即更新對應 `tasks.md` 的 checkbox（`[ ]` → `[x]`）。若 task 不適用或需拆分，標記 `[~] <reason>`。禁止所有工作完成後才一次性勾選。
-   - **Session Event Log**：每個 session 結束前（或 commit 前），建立/更新 `docs/events/event_<YYYYMMDD>_<topic>.md`，至少包含 Scope（引用 tasks.md item 編號）、Key Decisions、Issues Found、Verification、Remaining。
+   - **Session Event Log**：每個 session 結束前（或 commit 前），建立/更新**當前 repo 的** `docs/events/event_<YYYYMMDD>_<topic>.md`，至少包含 Scope（引用 tasks.md item 編號）、Key Decisions、Issues Found、Verification、Remaining。
+   - 上述 Session Event Log 仍屬 mandatory artifact；但在 silent execution 下，不要求 agent 額外用對話文字宣告自己正在做這一步。
    - **Commit Gate**：commit 前必須確認 (1) `/plans/.../tasks.md` checkbox 已同步 (2) event log 已建立/更新 (3) 架構變更已同步 `specs/architecture.md`。禁止在 tasks.md 和 event log 未更新的情況下 commit code changes。
    - **Promotion is manual only**：`/plans/<YYYYMMDD>_<slug>/` → `/specs/<feature>/` 的升格只允許在 execution 完成、必要 commit 完成、必要 merge 完成之後，且僅能於使用者明確要求時手動執行；不得自動搬移、不得預設升格、不得使用模糊或 silent fallback wording 暗示稍後會自動落入 `/specs/`。
    - **Beta/Test Branch Cleanup Rule**：`beta/*` 與 `test/*` 分支屬一次性執行面。測試完成且 merge/fetch-back 回主線後，必須立即刪除對應 branch 與 disposable worktree；未刪除不得宣告 workflow 完成。禁止長期保留已完成任務的 beta/test 分支，避免後續被誤當 authoritative mainline 而造成 branch pointer drift。

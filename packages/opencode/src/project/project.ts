@@ -294,10 +294,30 @@ export namespace Project {
   export async function list() {
     const keys = await Storage.list(["project"])
     const projects = await Promise.all(keys.map((x) => Storage.read<Info>(x)))
-    return projects.map((project) => ({
-      ...project,
-      sandboxes: project.sandboxes?.filter((x) => existsSync(x)),
-    }))
+    // Filter out projects whose worktree no longer exists on disk.
+    // Tests (and user rm -rf on old repos) accumulate dead project records
+    // that otherwise inflate this list unboundedly, bloating /api/v2/project
+    // and the webapp's per-project reactive setup to the point of browser OOM.
+    // Project records for "global" are always kept even without a filesystem
+    // worktree since that's a virtual / implicit project.
+    let dropped = 0
+    const result = projects
+      .filter((project) => {
+        if (!project) return false
+        if (project.id === "global") return true
+        if (!project.worktree) return true
+        if (existsSync(project.worktree)) return true
+        dropped += 1
+        return false
+      })
+      .map((project) => ({
+        ...project,
+        sandboxes: project.sandboxes?.filter((x) => existsSync(x)),
+      }))
+    if (dropped > 0) {
+      log.warn("Project.list filtered dead worktrees", { dropped, remaining: result.length })
+    }
+    return result
   }
 
   export const update = fn(

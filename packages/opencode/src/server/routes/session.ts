@@ -27,6 +27,7 @@ import { lazy } from "../../util/lazy"
 import { RequestUser } from "@/runtime/request-user"
 import { UserDaemonManager } from "../user-daemon"
 import { SessionCache } from "../session-cache"
+import { Storage } from "@/storage/storage"
 import { debugCheckpoint } from "@/util/debug"
 import {
   clearPendingContinuation,
@@ -37,6 +38,18 @@ import {
 } from "@/session/workflow-runner"
 import { KillSwitchService } from "../killswitch/service"
 import { Provider } from "../../provider/provider"
+
+/**
+ * Response shape for GET /session/:id/meta.
+ * See specs/frontend-session-lazyload/data-schema.json#SessionMetaResponse.
+ */
+const SessionMetaResponse = z.object({
+  partCount: z.number().int().min(0).meta({ description: "Total part files on disk for this session" }),
+  totalBytes: z.number().int().min(0).meta({ description: "Sum of part file sizes in bytes" }),
+  lastUpdated: z.string().meta({ description: "ISO-8601 timestamp of most recent part/message/session write" }),
+  etag: z.string().meta({ description: "Weak ETag; shares version counter with session:{id} and messages:{id}:{limit}" }),
+  messageCount: z.number().int().min(0).optional().meta({ description: "Message count; optional hint for initial page size decision" }),
+})
 
 const AutonomousWorkflowHealthSchema = z.object({
   state: z.enum(["idle", "running", "waiting_user", "blocked", "completed"]),
@@ -433,6 +446,65 @@ export const SessionRoutes = lazy(() =>
         })
         c.header("ETag", SessionCache.currentEtag(sessionID))
         return c.json(session)
+      },
+    )
+    .get(
+      "/:sessionID/meta",
+      describeRoute({
+        summary: "Get session metadata",
+        description:
+          "Cheap size hint for a session: partCount / totalBytes / lastUpdated, without deserializing any part body. Used by the webapp to decide auto-redirect vs show sessions list. See specs/frontend-session-lazyload/ R1.",
+        tags: ["Session"],
+        operationId: "session.meta",
+        responses: {
+          200: {
+            description: "Session metadata",
+            content: {
+              "application/json": {
+                schema: resolver(SessionMetaResponse),
+              },
+            },
+          },
+          304: { description: "Not modified" },
+          ...errors(400, 404),
+        },
+      }),
+      validator(
+        "param",
+        z.object({
+          sessionID: Session.get.schema,
+        }),
+      ),
+      async (c) => {
+        const sessionID = c.req.valid("param").sessionID
+        // Conditional GET short-circuit — INV-1: meta ETag shares per-session
+        // version counter with session:<id> and messages:<id>:<N>, so any
+        // write to the session (via bus invalidation) bumps meta too.
+        const etag = SessionCache.currentEtag(sessionID)
+        const ifNoneMatch = c.req.header("if-none-match")
+        if (SessionCache.isEtagMatch(sessionID, ifNoneMatch)) {
+          c.header("ETag", etag)
+          return c.body(null, 304)
+        }
+
+        const { data } = await SessionCache.get(SessionCache.metaKey(sessionID), sessionID, async () => {
+          const stats = await Storage.sessionStats(sessionID)
+          if (!stats) {
+            throw new Storage.NotFoundError({ message: `Session not found: ${sessionID}` })
+          }
+          return {
+            data: {
+              messageCount: stats.messageCount,
+              partCount: stats.partCount,
+              totalBytes: stats.totalBytes,
+              lastUpdated: new Date(stats.lastUpdated).toISOString(),
+              etag: SessionCache.currentEtag(sessionID),
+            } satisfies z.infer<typeof SessionMetaResponse>,
+            version: SessionCache.getVersion(sessionID),
+          }
+        })
+        c.header("ETag", SessionCache.currentEtag(sessionID))
+        return c.json(data)
       },
     )
     .get(

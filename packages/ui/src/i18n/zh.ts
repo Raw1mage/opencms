@@ -122,7 +122,7 @@ export const dict = {
   "ui.question.review.notAnswered": "(未回答)",
   "ui.question.multiHint": "(可多选)",
   "ui.question.custom.placeholder": "输入你的答案...",
-  "ui.question.unreadable": 问题数据无法解读 — 请回报此 session 给维护者,
+  "ui.question.unreadable": "问题数据无法解读 — 请回报此 session 给维护者",
   "ui.tool.websearch": "网络搜索",
   "ui.tool.codesearch": "代码搜索",
 } satisfies Partial<Record<Keys, string>>

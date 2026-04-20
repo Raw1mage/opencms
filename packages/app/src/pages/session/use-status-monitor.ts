@@ -3,7 +3,6 @@ import { createEffect, onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
 import type { useSDK } from "@/context/sdk"
 import type { useSync } from "@/context/sync"
-import { useGlobalSDK } from "@/context/global-sdk"
 
 const ACTIVE_FALLBACK_MS = 15_000
 const IDLE_FALLBACK_MS = 90_000
@@ -30,7 +29,6 @@ export function useStatusMonitor(input: {
   sdk: ReturnType<typeof useSDK>
   sync: ReturnType<typeof useSync>
 }) {
-  const globalSDK = useGlobalSDK()
   const [monitor, setMonitor] = createStore({
     items: [] as SessionMonitorInfo[],
     loading: false,
@@ -159,17 +157,6 @@ export function useStatusMonitor(input: {
       requestRefresh(0, true)
     }
     document.addEventListener("visibilitychange", onVisibility)
-
-    let lastConnectionStatus = globalSDK.connectionStatus()
-    createEffect(() => {
-      const status = globalSDK.connectionStatus()
-      const previous = lastConnectionStatus
-      lastConnectionStatus = status
-      if (status === previous) return
-      if (status === "connected" && previous !== "connected") {
-        requestRefresh(0, true)
-      }
-    })
 
     void refresh(true)
 

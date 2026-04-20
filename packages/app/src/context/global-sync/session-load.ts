@@ -1,11 +1,15 @@
 import type { RootLoadArgs } from "./types"
 
 export async function loadRootSessionsWithFallback(input: RootLoadArgs) {
+  // Root-only load: only top-level sessions come from the server here.
+  // Subsessions (children) are lazy-loaded on demand when the user expands
+  // a tree, NOT fetched up front — otherwise 20 projects × hundreds of
+  // subsessions each reliably OOMs the tab at bootstrap. See regression
+  // introduced in c32b9612b which removed `roots: true`; restored here.
+  // Fallback path also keeps `roots: true` AND `limit` so we never
+  // accidentally load the entire 2000+ session corpus.
   try {
-    // Load ALL sessions (roots + children) so the UI can build the full
-    // session tree after page reload / new tab.  The UI-side trimSessions()
-    // already separates roots from children and applies its own limits.
-    const result = await input.list({ directory: input.directory, limit: input.limit })
+    const result = await input.list({ directory: input.directory, roots: true, limit: input.limit })
     return {
       data: result.data,
       limit: input.limit,
@@ -13,7 +17,7 @@ export async function loadRootSessionsWithFallback(input: RootLoadArgs) {
     } as const
   } catch {
     input.onFallback()
-    const result = await input.list({ directory: input.directory })
+    const result = await input.list({ directory: input.directory, roots: true, limit: input.limit })
     return {
       data: result.data,
       limit: input.limit,
