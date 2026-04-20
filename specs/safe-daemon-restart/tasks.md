@@ -38,10 +38,10 @@ Scope **simplified**: no new endpoint needed — tool just POSTs the existing `/
 
 ## 5. Policy + docs
 
-- [ ] 5.1 Add to `AGENTS.md` (top-level rules section): 「AI 禁止自行 spawn / kill / restart daemon 行程；restart 必須透過 `restart_self` tool，否則違規」
-- [ ] 5.2 Add section to `specs/architecture.md`: "Daemon Lifecycle Authority" — gateway is the sole owner; daemon never forks/execs another daemon; AI never invokes daemon-spawning commands
-- [ ] 5.3 Write `docs/events/event_2026-04-20_daemon-orphan.md` capturing the incident RCA, fix summary, and link to this spec package
-- [ ] 5.4 Update `templates/AGENTS.md` to mirror the new rule (release sync per §Release 前檢查清單)
+- [x] 5.1 `AGENTS.md`: added "Daemon Lifecycle Authority" section after XDG backup rule
+- [x] 5.2 `specs/architecture.md`: appended "Daemon Lifecycle Authority" section
+- [x] 5.3 `docs/events/event_2026-04-20_daemon-orphan.md`: full RCA + timeline + fix summary
+- [x] 5.4 `templates/AGENTS.md`: new rule 11 mirrors project AGENTS.md
 
 ## 6. Acceptance validation
 
