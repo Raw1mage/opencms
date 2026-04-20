@@ -158,6 +158,16 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
       setReconnectVersion((value) => value + 1)
     }
 
+    // Counts successful SSE stream opens for this provider instance. The
+    // FIRST open is the initial load; subsequent opens mean the stream had
+    // dropped (daemon restart, network hiccup, Cloudflare keepalive) and
+    // auto-reconnected. On every non-first open we broadcast a window event
+    // so useSessionResumeSync / other listeners can force-refetch their data.
+    // Without this signal, clients miss events fired while the stream was
+    // disconnected and the UI silently goes stale until the next
+    // visibilitychange / pageshow / online.
+    let streamOpenCount = 0
+
     createEffect(() => {
       reconnectVersion()
       const streamAbort = new AbortController()
@@ -194,6 +204,14 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
                 })
               },
             })
+            streamOpenCount += 1
+            if (streamOpenCount > 1 && typeof window !== "undefined") {
+              console.info("[global-sdk] event stream reconnected — dispatching resync signal", {
+                url: server.url,
+                openCount: streamOpenCount,
+              })
+              window.dispatchEvent(new CustomEvent("opencode:sse_reconnect"))
+            }
             let yielded = Date.now()
             for await (const event of events.stream) {
               backoff = RECONNECT_DELAY_MS

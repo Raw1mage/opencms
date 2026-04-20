@@ -470,9 +470,29 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       return true
     }
 
+    // Telemetry context — logged on send start, success, and failure so a
+    // "sent but no reply" incident can be classified as:
+    //   (a) fetch never fired       → no `[submit] send start` log
+    //   (b) fetch threw/timed out   → `[submit] send failed` in catch
+    //   (c) server accepted but no reply → start + ok but no assistant msg
+    // Correlates with the daemon-side `prompt_async inbound` log by sessionID.
+    const telemetryCtx = {
+      sessionID: session.id,
+      messageID,
+      agent,
+      providerId: model.providerId,
+      modelID: model.modelID,
+      accountId: model.accountId,
+      variant,
+      partCount: requestParts.length,
+      sameDirectory: sessionDirectory === projectDirectory,
+    }
+    const sendStartedAt = Date.now()
+
     const send = async () => {
       const ok = await waitForWorktree()
       if (!ok) return
+      console.info("[submit] send start", telemetryCtx)
       await client.session.promptAsync({
         sessionID: session.id,
         agent,
@@ -482,6 +502,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
         variant,
         autonomous: true, // always-on
       })
+      console.info("[submit] send ok", { ...telemetryCtx, elapsedMs: Date.now() - sendStartedAt })
     }
 
     void send().catch((err) => {
@@ -489,6 +510,11 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       if (sessionDirectory === projectDirectory) {
         sync.set("session_status", session.id, { type: "idle" })
       }
+      console.warn("[submit] send failed", {
+        ...telemetryCtx,
+        elapsedMs: Date.now() - sendStartedAt,
+        error: err instanceof Error ? { name: err.name, message: err.message } : String(err),
+      })
       showToast({
         title: language.t("prompt.toast.promptSendFailed.title"),
         description: errorMessage(err),

@@ -51,14 +51,23 @@ export function useSessionResumeSync(input: {
     }
     const onPageShow = () => resume("pageshow")
     const onOnline = () => resume("online")
+    // Daemon-restart / SSE-drop recovery: global-sdk dispatches this custom
+    // event whenever its event stream reopens after the first successful
+    // open. Without this, events fired while the stream was disconnected
+    // (e.g. new messages produced during a daemon restart or a proxy
+    // keepalive drop) are lost and the UI silently stays stale until the
+    // user triggers visibility/pageshow/online naturally.
+    const onSseReconnect = () => resume("online")
 
     document.addEventListener("visibilitychange", onVisibility)
     window.addEventListener("pageshow", onPageShow)
     window.addEventListener("online", onOnline)
+    window.addEventListener("opencode:sse_reconnect", onSseReconnect)
     onCleanup(() => {
       document.removeEventListener("visibilitychange", onVisibility)
       window.removeEventListener("pageshow", onPageShow)
       window.removeEventListener("online", onOnline)
+      window.removeEventListener("opencode:sse_reconnect", onSseReconnect)
     })
   })
 }

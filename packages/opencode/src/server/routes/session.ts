@@ -2126,6 +2126,21 @@ export const SessionRoutes = lazy(() =>
         const sessionID = c.req.valid("param").sessionID
         const body = c.req.valid("json")
         const username = RequestUser.username()
+        // Inbound telemetry — lets us distinguish "POST never reached daemon"
+        // (this line absent) from "POST reached daemon but runloop didn't fire"
+        // (this line present, no subsequent session.prompt activity). Keep the
+        // payload small and non-sensitive — no parts text, no credentials.
+        log.info("prompt_async inbound", {
+          sessionID,
+          username: username ?? null,
+          providerId: body.model?.providerId ?? null,
+          modelID: body.model?.modelID ?? null,
+          accountId: body.model?.accountId ?? null,
+          agent: body.agent ?? null,
+          variant: body.variant ?? null,
+          partCount: Array.isArray(body.parts) ? body.parts.length : 0,
+          autonomous: body.autonomous ?? null,
+        })
         if (username && UserDaemonManager.routeSessionMutationEnabled()) {
           const response = await UserDaemonManager.callSessionPromptAsync<boolean>(username, sessionID, body)
           if (response.ok) return stream(c, async () => {})
