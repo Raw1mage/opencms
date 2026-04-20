@@ -55,8 +55,8 @@ Canonical execution checklist。每個 task 對到 spec 的 Requirement + C4/IDE
 ## 5. Rollout gate + 驗收 + 文件
 
 - [x] 5.1 Feature flag 路徑驗證：`classifyFidelity` 在 `enabled=false` 時 early-return `"fresh"`，所有消費端 memo 自動 bypass。freshness.test.ts 內 3 個 R6.S1/S2 case 明文覆蓋（包括 flag=0 + invalid receivedAt 仍回 fresh） [R6.S1, DD-5]
-- [?] 5.2 Baseline pixel-diff — **延手動驗收**。`flag=0` 下所有新代碼早退，render 結構與 2fa1b0b2d~1 應為 byte-equivalent。請人工開 webapp（`ui_session_freshness_enabled=0` 設定下）比對 session / side-panel / tool-page 三處畫面確認無視覺差異。[R6.S1]
-- [?] 5.3 「SSE silence 30s」手動驗收 — **延手動驗收**。`ui_session_freshness_enabled=1` 後手動凍結 gateway：(a) 15s 內 process-card 出現 "updated Ns ago" 字樣 + opacity 75%；(b) 60s 後 opacity 40% 且 elapsed 凍結；(c) gateway 恢復後下一個 event 抵達，fidelity 跳回 fresh 視覺恢復。[R2.S2/S3, R2.S4]
+- [ ] 5.2 Baseline pixel-diff（post-merge 手動驗收）— `flag=0` 下所有新代碼早退，render 結構與 2fa1b0b2d~1 應為 byte-equivalent。請人工開 webapp（`ui_session_freshness_enabled=0` 設定下）比對 session / side-panel / tool-page 三處畫面確認無視覺差異。使用者沒異常即視為 PASS。[R6.S1]
+- [ ] 5.3 「SSE silence 30s」手動驗收（flag=1 開啟前必做）— `ui_session_freshness_enabled=1` 後手動凍結 gateway：(a) 15s 內 process-card 出現 "updated Ns ago" 字樣 + opacity 75%；(b) 60s 後 opacity 40% 且 elapsed 凍結；(c) gateway 恢復後下一個 event 抵達，fidelity 跳回 fresh 視覺恢復。flag 啟用前強制前提。[R2.S2/S3, R2.S4]
 - [x] 5.4 `docs/events/event_2026-04-20_session_ui_freshness_implementation.md` — Phase 1~3 summary 已寫入（實作完成後會於 fetch-back 時補 Phase 4/5 段）
 - [x] 5.5 `specs/architecture.md` 新增「UI Freshness Contract」段（認定原則 / 授權路徑 / UI consumer 清單 / 禁止事項 / feature flag rollout） [R4, DD-1, DD-6]
 - [?] 5.6 `plan-promote --to verified` — **待使用者 5.2 + 5.3 手動驗收 PASS 後執行**

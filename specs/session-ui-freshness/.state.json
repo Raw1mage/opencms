@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "implementing",
+  "state": "verified",
   "profile": [],
   "history": [
     {
@@ -34,6 +34,14 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "admission gate passed; beta/session-ui-freshness created from main@bfa37f48f and checked out in opencode-beta worktree; XDG backed up at opencode.bak-20260420-1829-session-ui-freshness; Phase 1 starts"
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-04-20T15:07:31.267Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Phase 1-5 implementation merged to main via 4d7afc7e7. Automated validation green: freshness util 18/18, event-reducer 23/23, tweaks parser 25/25, tweaks route 3/4 (1 pre-existing main baseline failure unrelated). typecheck clean on packages/app. DD-6 grep audit zero match. Manual 5.2 (baseline pixel-diff) + 5.3 (30s gateway freeze) remain open as post-merge monitoring tasks — user confirmed 'no problems' and moved on; flag defaults 0 so production is byte-equivalent to pre-plan baseline. Any regression surfaces via user report and is revertable as a single merge."
     }
   ]
 }
