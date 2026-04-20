@@ -199,15 +199,67 @@ const quotaCache = new Map<string, { quota: OpenAIQuota | null; timestamp: numbe
 export const OPENAI_QUOTA_DISPLAY_TTL_MS = 60_000
 const CACHE_TTL_MS = OPENAI_QUOTA_DISPLAY_TTL_MS
 
-function writeQuotaCache(id: string, quota: OpenAIQuota | null, timestamp: number) {
+function isQuotaExhausted(quota: OpenAIQuota | null | undefined): boolean {
+  if (!quota) return false
+  if (quota.weeklyRemaining <= 0) return true
+  if (quota.hasHourlyWindow !== false && quota.hourlyRemaining <= 0) return true
+  return false
+}
+
+function writeQuotaCache(id: string, quota: OpenAIQuota | null, timestamp: number, providerId?: string) {
+  const previous = quotaCache.get(id)
   if (quota === null) {
-    const previous = quotaCache.get(id)
     if (previous?.quota) {
       quotaCache.set(id, { quota: previous.quota, timestamp })
       return
     }
   }
   quotaCache.set(id, { quota, timestamp })
+
+  // Proactive rotation trigger: when cockpit quota transitions healthy → exhausted,
+  // mark the account as rate-limited immediately so the next pre-flight short-circuits
+  // to rotation instead of burning a 429 request. @rate-limit-judge.ts owns the
+  // corresponding post-error path; this is the pre-error twin.
+  if (providerId && quota && !isQuotaExhausted(previous?.quota) && isQuotaExhausted(quota)) {
+    notifyQuotaExhausted(providerId, id, quota).catch(() => {})
+  }
+}
+
+async function notifyQuotaExhausted(providerId: string, accountId: string, quota: OpenAIQuota): Promise<void> {
+  try {
+    const [{ getRateLimitTracker, calculateBackoffMs }, { Bus }, { RateLimitEvent }] = await Promise.all([
+      import("../rotation"),
+      import("../../bus"),
+      import("../rate-limit-judge"),
+    ])
+    const tracker = getRateLimitTracker()
+    if (tracker.isRateLimited(accountId, providerId)) return
+    const backoffMs = calculateBackoffMs("QUOTA_EXHAUSTED", 0, undefined, 0)
+    tracker.markRateLimited(accountId, providerId, "QUOTA_EXHAUSTED", backoffMs)
+    log.info("cockpit quota exhausted — proactively marked rate-limited", {
+      providerId,
+      accountId,
+      hourlyRemaining: quota.hourlyRemaining,
+      weeklyRemaining: quota.weeklyRemaining,
+      backoffMs,
+    })
+    Bus.publish(RateLimitEvent.Detected, {
+      providerId,
+      accountId,
+      modelId: "",
+      reason: "QUOTA_EXHAUSTED",
+      backoffMs,
+      source: "cockpit",
+      dailyFailures: 0,
+      timestamp: Date.now(),
+    }).catch(() => {})
+  } catch (e) {
+    log.warn("failed to broadcast proactive quota exhaustion", {
+      providerId,
+      accountId,
+      error: String(e),
+    })
+  }
 }
 
 // ============================================================================
@@ -217,11 +269,11 @@ function writeQuotaCache(id: string, quota: OpenAIQuota | null, timestamp: numbe
 const refreshingOpenAI = new Set<string>()
 const refreshingPromises = new Map<string, Promise<void>>()
 
-function ensureOpenAIQuotaRefresh(id: string, info: Account.Info) {
+function ensureOpenAIQuotaRefresh(id: string, info: Account.Info, providerId: string) {
   if (info.type !== "subscription") return
   if (refreshingOpenAI.has(id)) return
 
-  const refreshPromise = refreshOpenAIAccountQuota(id, info)
+  const refreshPromise = refreshOpenAIAccountQuota(id, info, providerId)
     .catch(() => {
       // refreshOpenAIAccountQuota already writes cache and logs
     })
@@ -246,13 +298,14 @@ export async function getOpenAIQuotas(): Promise<Record<string, OpenAIQuota | nu
   try {
     const openaiAccounts = await Account.list("openai")
     const codexAccounts = await Account.list("codex").catch(() => ({}))
-    const accounts = { ...openaiAccounts, ...codexAccounts }
+    const entries: Array<[string, Account.Info, string]> = [
+      ...Object.entries(openaiAccounts).map(([id, info]) => [id, info, "openai"] as [string, Account.Info, string]),
+      ...Object.entries(codexAccounts).map(([id, info]) => [id, info, "codex"] as [string, Account.Info, string]),
+    ]
     const results: Record<string, OpenAIQuota | null> = {}
     const now = Date.now()
 
-    const entries = Object.entries(accounts)
-
-    for (const [id, info] of entries) {
+    for (const [id, info, providerId] of entries) {
       if (info.type !== "subscription") continue
 
       const cached = quotaCache.get(id)
@@ -265,7 +318,7 @@ export async function getOpenAIQuotas(): Promise<Record<string, OpenAIQuota | nu
         results[id] = null
       }
 
-      if (isStale) ensureOpenAIQuotaRefresh(id, info)
+      if (isStale) ensureOpenAIQuotaRefresh(id, info, providerId)
     }
 
     return results
@@ -287,6 +340,7 @@ export async function getOpenAIQuota(
 
   const openaiAcct = await Account.list("openai")
   const codexAcct = await Account.list("codex").catch(() => ({}))
+  const providerId = accountId in openaiAcct ? "openai" : "codex"
   const accounts = { ...openaiAcct, ...codexAcct }
   const info = accounts[accountId]
   if (!info || info.type !== "subscription") return null
@@ -295,7 +349,7 @@ export async function getOpenAIQuota(
   if (inflight) {
     await inflight.catch(() => {})
   } else {
-    const promise = refreshOpenAIAccountQuota(accountId, info)
+    const promise = refreshOpenAIAccountQuota(accountId, info, providerId)
       .catch(() => {})
       .finally(() => {
         refreshingOpenAI.delete(accountId)
@@ -325,8 +379,9 @@ export async function getOpenAIQuotaForDisplay(accountId: string): Promise<OpenA
     if (isStale) {
       const oa = await Account.list("openai")
       const ca = await Account.list("codex").catch(() => ({}))
+      const providerId = accountId in oa ? "openai" : "codex"
       const info = { ...oa, ...ca }[accountId]
-      if (info?.type === "subscription") ensureOpenAIQuotaRefresh(accountId, info)
+      if (info?.type === "subscription") ensureOpenAIQuotaRefresh(accountId, info, providerId)
     }
     return cached.quota
   }
@@ -334,7 +389,7 @@ export async function getOpenAIQuotaForDisplay(accountId: string): Promise<OpenA
   return getOpenAIQuota(accountId, { waitFresh: true })
 }
 
-async function refreshOpenAIAccountQuota(id: string, info: Account.Info): Promise<void> {
+async function refreshOpenAIAccountQuota(id: string, info: Account.Info, providerId: string): Promise<void> {
   if (info.type !== "subscription") return
   const now = Date.now()
 
@@ -384,7 +439,7 @@ async function refreshOpenAIAccountQuota(id: string, info: Account.Info): Promis
     const weeklyRemaining = normalized.weeklyRemaining ?? normalized.hourlyRemaining ?? 100
 
     const quota = { hourlyRemaining, weeklyRemaining, hasHourlyWindow: normalized.hasHourlyWindow }
-    writeQuotaCache(id, quota, now)
+    writeQuotaCache(id, quota, now, providerId)
   } catch (e) {
     log.warn("Error fetching OpenAI usage", { id, error: String(e) })
     writeQuotaCache(id, null, now)
