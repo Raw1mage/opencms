@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "planned",
+  "state": "living",
   "profile": [],
   "history": [
     {
@@ -26,6 +26,30 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "tasks.md/handoff.md/test-vectors/errors/observability drafted; ready for build"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-04-20T17:56:16.278Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "safe-daemon-restart advancing to implementing"
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-04-20T17:56:16.698Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "safe-daemon-restart advancing to verified"
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-04-20T17:56:17.127Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "safe-daemon-restart advancing to living"
     }
   ]
 }
