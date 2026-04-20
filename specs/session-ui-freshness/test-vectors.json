@@ -1,0 +1,270 @@
+[
+  {
+    "id": "TV-01",
+    "scenarioRef": "R1.S1",
+    "description": "session.status event updates existing entry's receivedAt while server payload fields update normally",
+    "given": {
+      "store.session_status.sid_abc": {
+        "state": "running",
+        "updatedAt": 1745000000000,
+        "receivedAt": 1745000010000
+      },
+      "wallClock": 1745000025000
+    },
+    "when": {
+      "action": "reducer handles event",
+      "event": {
+        "type": "session.status",
+        "sid": "sid_abc",
+        "payload": { "state": "waiting-permission", "updatedAt": 1745000024000 }
+      }
+    },
+    "then": {
+      "store.session_status.sid_abc": {
+        "state": "waiting-permission",
+        "updatedAt": 1745000024000,
+        "receivedAt": 1745000025000
+      }
+    }
+  },
+  {
+    "id": "TV-02",
+    "scenarioRef": "R1.S2",
+    "description": "first event for a sid creates entry with receivedAt stamped at wall-clock",
+    "given": {
+      "store.active_child.sid_xyz": null,
+      "wallClock": 1745000100000
+    },
+    "when": {
+      "action": "reducer handles event",
+      "event": {
+        "type": "session.active-child.updated",
+        "sid": "sid_xyz",
+        "payload": { "childSessionId": "child_001", "agent": "coder", "startedAt": 1745000099500 }
+      }
+    },
+    "then": {
+      "store.active_child.sid_xyz": {
+        "childSessionId": "child_001",
+        "agent": "coder",
+        "startedAt": 1745000099500,
+        "receivedAt": 1745000100000
+      }
+    }
+  },
+  {
+    "id": "TV-03",
+    "scenarioRef": "R1.S3",
+    "description": "server updatedAt (Ts) and client receivedAt (Tc) are independent; neither overwrites the other",
+    "given": {
+      "store.session_monitor.sid_mon.entry_1": null,
+      "wallClock": 1745000200000
+    },
+    "when": {
+      "action": "reducer handles event",
+      "event": {
+        "type": "monitor.started",
+        "sid": "sid_mon",
+        "entryId": "entry_1",
+        "payload": { "kind": "tool", "status": "running", "startedAt": 1745000195000, "updatedAt": 1745000199000 }
+      }
+    },
+    "then": {
+      "store.session_monitor.sid_mon.entry_1.updatedAt": 1745000199000,
+      "store.session_monitor.sid_mon.entry_1.receivedAt": 1745000200000,
+      "invariant": "updatedAt !== receivedAt && both persisted"
+    }
+  },
+  {
+    "id": "TV-04",
+    "scenarioRef": "R2.S1",
+    "description": "fresh render: (now - receivedAt) < soft_threshold",
+    "given": {
+      "entry.receivedAt": 1745001000000,
+      "freshnessNow": 1745001005000,
+      "tweaks": { "ui_session_freshness_enabled": 1, "ui_freshness_threshold_sec": 15, "ui_freshness_hard_timeout_sec": 60 }
+    },
+    "when": {
+      "action": "classifyFidelity(receivedAt, now, soft, hard)"
+    },
+    "then": {
+      "fidelity": "fresh",
+      "renderHint": "no stale badge; elapsed tick continues"
+    }
+  },
+  {
+    "id": "TV-05",
+    "scenarioRef": "R2.S2",
+    "description": "stale hint: soft_threshold <= (now - receivedAt) < hard_threshold",
+    "given": {
+      "entry.receivedAt": 1745001000000,
+      "freshnessNow": 1745001020000,
+      "tweaks": { "ui_session_freshness_enabled": 1, "ui_freshness_threshold_sec": 15, "ui_freshness_hard_timeout_sec": 60 }
+    },
+    "when": {
+      "action": "classifyFidelity(receivedAt, now, soft, hard)"
+    },
+    "then": {
+      "fidelity": "stale",
+      "renderHint": "show 'updated 20s ago' badge; content still rendered"
+    }
+  },
+  {
+    "id": "TV-06",
+    "scenarioRef": "R2.S3",
+    "description": "hard-stale degradation: (now - receivedAt) >= hard_threshold",
+    "given": {
+      "entry.receivedAt": 1745001000000,
+      "freshnessNow": 1745001075000,
+      "tweaks": { "ui_session_freshness_enabled": 1, "ui_freshness_threshold_sec": 15, "ui_freshness_hard_timeout_sec": 60 }
+    },
+    "when": {
+      "action": "classifyFidelity(receivedAt, now, soft, hard)"
+    },
+    "then": {
+      "fidelity": "hard-stale",
+      "renderHint": "card grayed or collapsed; elapsed timer frozen"
+    }
+  },
+  {
+    "id": "TV-07",
+    "scenarioRef": "R2.S4",
+    "description": "freshnessNow tick forces memo recompute; entry crossing soft boundary re-renders",
+    "given": {
+      "entry.receivedAt": 1745002000000,
+      "freshnessNow": 1745002014000,
+      "previousFidelity": "fresh",
+      "tweaks": { "ui_session_freshness_enabled": 1, "ui_freshness_threshold_sec": 15, "ui_freshness_hard_timeout_sec": 60 }
+    },
+    "when": {
+      "action": "useFreshnessClock ticks +1s -> freshnessNow = 1745002015000",
+      "followed_by": "classifyFidelity(receivedAt, now, soft, hard)"
+    },
+    "then": {
+      "fidelity": "stale",
+      "invariant": "fidelity changed from 'fresh' -> 'stale' at exactly soft boundary"
+    }
+  },
+  {
+    "id": "TV-08",
+    "scenarioRef": "R5.S1",
+    "description": "undefined receivedAt forces hard-stale, no silent fresh fallback",
+    "given": {
+      "entry.receivedAt": null,
+      "freshnessNow": 1745003000000,
+      "tweaks": { "ui_session_freshness_enabled": 1, "ui_freshness_threshold_sec": 15, "ui_freshness_hard_timeout_sec": 60 }
+    },
+    "when": {
+      "action": "classifyFidelity(receivedAt, now, soft, hard)"
+    },
+    "then": {
+      "fidelity": "hard-stale",
+      "invariant": "DD-4 enforced: missing receivedAt treated as 0 (instant-stale)"
+    }
+  },
+  {
+    "id": "TV-09",
+    "scenarioRef": "R5.S2",
+    "description": "NaN/Infinity receivedAt forces hard-stale + rate-limited console.warn",
+    "given": {
+      "entry.receivedAt": "NaN",
+      "freshnessNow": 1745003100000,
+      "tweaks": { "ui_session_freshness_enabled": 1, "ui_freshness_threshold_sec": 15, "ui_freshness_hard_timeout_sec": 60 }
+    },
+    "when": {
+      "action": "classifyFidelity(receivedAt, now, soft, hard)"
+    },
+    "then": {
+      "fidelity": "hard-stale",
+      "sideEffect": "console.warn called exactly once per entry id per 60s window with message matching /invalid receivedAt/",
+      "invariant": "DD-4 enforced"
+    }
+  },
+  {
+    "id": "TV-10",
+    "scenarioRef": "R6.S1",
+    "description": "feature flag=0 bypasses freshness classification; UI always renders as fresh",
+    "given": {
+      "entry.receivedAt": 1745004000000,
+      "freshnessNow": 1745004120000,
+      "tweaks": { "ui_session_freshness_enabled": 0, "ui_freshness_threshold_sec": 15, "ui_freshness_hard_timeout_sec": 60 }
+    },
+    "when": {
+      "action": "classifyFidelity(receivedAt, now, soft, hard)"
+    },
+    "then": {
+      "fidelity": "fresh",
+      "invariant": "flag=0 -> early return; render byte-equivalent to 2fa1b0b2d~1 baseline"
+    }
+  },
+  {
+    "id": "TV-11",
+    "scenarioRef": "R6.S2",
+    "description": "feature flag=1 activates full freshness classification pipeline",
+    "given": {
+      "entry.receivedAt": 1745004500000,
+      "freshnessNow": 1745004520000,
+      "tweaks": { "ui_session_freshness_enabled": 1, "ui_freshness_threshold_sec": 15, "ui_freshness_hard_timeout_sec": 60 }
+    },
+    "when": {
+      "action": "classifyFidelity(receivedAt, now, soft, hard)"
+    },
+    "then": {
+      "fidelity": "stale",
+      "invariant": "flag=1 -> full R2/R5 behavior active"
+    }
+  },
+  {
+    "id": "TV-12",
+    "scenarioRef": "R3.S1",
+    "description": "PromptInput send is not blocked when SSE is disconnected (REST path independent)",
+    "given": {
+      "sseState": "disconnected",
+      "pendingPermission": false,
+      "pendingQuestion": false,
+      "inputText": "hello"
+    },
+    "when": {
+      "action": "user pressed Enter in PromptInput"
+    },
+    "then": {
+      "effect": "sdk.session.prompt(sid, 'hello') called",
+      "renderState": "input cleared after resolve",
+      "invariant": "no reference to connectionStatus / authorityBlocked / connectionState in the code path"
+    }
+  },
+  {
+    "id": "TV-13",
+    "scenarioRef": "R3.S2",
+    "description": "PromptInput still blocks on permission/question pending (unrelated to SSE)",
+    "given": {
+      "sseState": "connected",
+      "pendingPermission": true,
+      "inputText": "hello"
+    },
+    "when": {
+      "action": "user pressed Enter in PromptInput"
+    },
+    "then": {
+      "effect": "send suppressed; permission-pending UI visible",
+      "invariant": "block reason identifies permission/question, not connection"
+    }
+  },
+  {
+    "id": "TV-14",
+    "scenarioRef": "R4.S1",
+    "description": "grep audit: no residual connectionStatus / authorityBlocked / connectionState identifiers in client source",
+    "given": {
+      "searchRoots": ["packages/app/src/"],
+      "pattern": "connectionStatus|authorityBlocked|connectionState",
+      "excludePatterns": ["**/docs/**", "**/*.md"]
+    },
+    "when": {
+      "action": "ripgrep with pattern"
+    },
+    "then": {
+      "matchCount": 0,
+      "invariant": "DD-6 enforced at source level"
+    }
+  }
+]

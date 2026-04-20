@@ -1,0 +1,140 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "specs/session-ui-freshness/data-schema.json",
+  "title": "session-ui-freshness client-side data contracts",
+  "description": "TypeScript-equivalent contracts for store entries and tweak config keys introduced by session-ui-freshness. Server event payloads are NOT modified by this plan; this schema covers only client-side extensions (DD-1 inline receivedAt) and tweak additions (DD-3, DD-5).",
+  "$comment": "All timestamps in ms since Unix epoch unless stated otherwise.",
+  "definitions": {
+    "ClientStampMeta": {
+      "type": "object",
+      "description": "Inline client-side metadata appended to store entries (DD-1). Not part of server payload.",
+      "properties": {
+        "receivedAt": {
+          "type": "number",
+          "description": "Wall-clock time (ms since epoch, client Date.now()) when the reducer wrote this entry. Missing / NaN / Infinity / negative values MUST be treated as 0 (instant-stale, DD-4).",
+          "minimum": 0
+        }
+      },
+      "required": ["receivedAt"],
+      "additionalProperties": true
+    },
+    "ServerSessionStatus": {
+      "type": "object",
+      "description": "Shape maintained by the server. This plan does not modify it; included here only as the base of StoreSessionStatusEntry.",
+      "properties": {
+        "state": { "type": "string", "description": "e.g. 'idle', 'running', 'waiting-permission', 'error'" },
+        "updatedAt": { "type": "number", "description": "Server-side timestamp if emitted" }
+      },
+      "additionalProperties": true
+    },
+    "StoreSessionStatusEntry": {
+      "description": "Client store entry for State.session_status[sid]. Intersection of ServerSessionStatus and ClientStampMeta (DD-1 inline, DD-8 no wrapper / no meta sub-object).",
+      "allOf": [
+        { "$ref": "#/definitions/ServerSessionStatus" },
+        { "$ref": "#/definitions/ClientStampMeta" }
+      ]
+    },
+    "ServerActiveChild": {
+      "type": "object",
+      "description": "Server shape for active subagent child. This plan does not modify it.",
+      "properties": {
+        "childSessionId": { "type": "string" },
+        "agent": { "type": "string" },
+        "startedAt": { "type": "number" }
+      },
+      "additionalProperties": true
+    },
+    "StoreActiveChildEntry": {
+      "description": "Client store entry for State.active_child[sid].",
+      "allOf": [
+        { "$ref": "#/definitions/ServerActiveChild" },
+        { "$ref": "#/definitions/ClientStampMeta" }
+      ]
+    },
+    "ServerMonitorEntry": {
+      "type": "object",
+      "description": "Server shape for a session_monitor entry. This plan does not modify it.",
+      "properties": {
+        "kind": { "type": "string" },
+        "status": { "type": "string" },
+        "startedAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "additionalProperties": true
+    },
+    "StoreMonitorEntry": {
+      "description": "Client store entry for State.session_monitor[sid][entryId].",
+      "allOf": [
+        { "$ref": "#/definitions/ServerMonitorEntry" },
+        { "$ref": "#/definitions/ClientStampMeta" }
+      ]
+    },
+    "ProcessCard": {
+      "type": "object",
+      "description": "UI-layer view object derived from a StoreMonitorEntry. DD-7: `elapsed` semantics clarified to 'ms since last daemon confirmation' — i.e. now - receivedAt.",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "kind": { "type": "string" },
+        "status": { "type": "string" },
+        "startedAt": { "type": "number" },
+        "receivedAt": { "type": "number", "description": "Copied from source StoreMonitorEntry; drives freshness calculation" },
+        "elapsed": {
+          "type": "number",
+          "description": "Derived: Math.max(0, now - receivedAt). Semantics changed from 'now - startedAt' (DD-7). Field name unchanged to avoid churning call sites."
+        },
+        "fidelity": {
+          "type": "string",
+          "enum": ["fresh", "stale", "hard-stale"],
+          "description": "Classification at render time based on (now - receivedAt) vs tweak thresholds. Missing/invalid receivedAt forces 'hard-stale' (DD-4)."
+        }
+      },
+      "required": ["id", "receivedAt", "elapsed", "fidelity"],
+      "additionalProperties": true
+    },
+    "TweaksFrontendResponse": {
+      "type": "object",
+      "description": "Response shape for GET /config/tweaks/frontend (DD-3). This schema lists the keys added by this plan; other keys from prior plans remain untouched.",
+      "properties": {
+        "ui_session_freshness_enabled": {
+          "type": "integer",
+          "enum": [0, 1],
+          "default": 0,
+          "description": "Feature flag (DD-5). 0 = bypass freshness UI (baseline render). 1 = freshness-aware UI."
+        },
+        "ui_freshness_threshold_sec": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3600,
+          "default": 15,
+          "description": "Soft threshold (R2). Entries older than this show 'updated Ns ago' hint."
+        },
+        "ui_freshness_hard_timeout_sec": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400,
+          "default": 60,
+          "description": "Hard threshold (R2). Entries older than this are gray-out / collapse / hide per component."
+        }
+      },
+      "required": [
+        "ui_session_freshness_enabled",
+        "ui_freshness_threshold_sec",
+        "ui_freshness_hard_timeout_sec"
+      ],
+      "additionalProperties": true
+    },
+    "FreshnessClockSignal": {
+      "type": "object",
+      "description": "Return shape of useFreshnessClock() helper (DD-2). Exposes a Solid accessor signal that ticks every 1s.",
+      "properties": {
+        "freshnessNow": {
+          "type": "object",
+          "description": "Solid Accessor<number>; reading invokes subscription. Value is current Date.now() refreshed every 1000ms.",
+          "additionalProperties": true
+        }
+      },
+      "required": ["freshnessNow"]
+    }
+  }
+}

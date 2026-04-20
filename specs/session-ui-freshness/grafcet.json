@@ -1,0 +1,53 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "Store has no entry for this sid; reducer waiting for first session-scoped SSE event. Once the first event arrives, reducer creates the entry with receivedAt = Date.now() and transitions to Fresh.",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["event_arrived"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Entry exists; fidelity = fresh. Any further session-scoped event for this sid continuously refreshes receivedAt = Date.now() via reducer (step-internal side effect, no transition). UI memo renders normally without stale hint.",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["freshnessNow - receivedAt >= ui_freshness_threshold_sec * 1000"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Entry exists but soft threshold exceeded; fidelity = stale. UI memo renders 'updated N ago' badge while still showing content. Either an event arrival rolls back to Fresh, or the hard threshold advances to HardStale.",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [1, 3],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "event_arrived",
+      "freshnessNow - receivedAt >= ui_freshness_hard_timeout_sec * 1000"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Hard threshold exceeded; fidelity = hard-stale. UI memo degrades render: card grayed / collapsed / elapsed timer frozen. Only an event arrival returns to Fresh.",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["event_arrived"],
+    "SubGrafcet": []
+  }
+]

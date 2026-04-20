@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "state": "planned",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-04-20T09:50:43.637Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-04-20T10:19:07.347Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "spec.md (R1-R6, 12 scenarios with colon-suffix heading form) + design.md (DD-1~DD-8, Goals/Non-Goals, Risks/Trade-offs headings) + data-schema.json + idef0.json (A0 with A1-A5) + grafcet.json (4-step per-entry freshness machine) + c4.json (systems array, 2 containers, 13 components) + sequence.json (P1-P5 as root array); DD-6 and flag-retirement confirmed by user 2026-04-20"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-04-20T10:27:34.012Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "tasks.md (5 phases, 33 tasks with §16.2 state notation + traceability matrix) + handoff.md (execution contract, required reads, stop gates, post-merge) + test-vectors.json (14 concrete test vectors covering R1.S1-3, R2.S1-4, R3.S1-2, R4.S1, R5.S1-2, R6.S1-2) + errors.md (6 codes including CONNECTION_STATUS_RESIDUAL hard guard) + observability.md (events/metrics/logs/alerts + audit script)"
+    }
+  ]
+}

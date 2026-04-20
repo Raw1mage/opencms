@@ -1,0 +1,169 @@
+{
+  "diagram_title": "session-ui-freshness C4 (containers + components)",
+  "diagram_level": "container+component",
+  "systems": [
+    {
+      "id": "S1",
+      "name": "opencode webapp",
+      "description": "Browser SPA + opencode daemon. This spec touches the client reactive store + a small set of UI pages + two tweak config keys on the daemon side."
+    }
+  ],
+  "containers": [
+    {
+      "id": "C1",
+      "name": "webapp-client",
+      "moduleRef": "A1 A2 A3 A4 A5",
+      "technology": "Solid.js SPA (packages/app)",
+      "description": "Browser-side reactive store + UI components. All new logic for session-ui-freshness lives here (inline receivedAt, useFreshnessClock, freshness-aware memos, feature-flag gating)."
+    },
+    {
+      "id": "C2",
+      "name": "opencode-daemon",
+      "moduleRef": "A5",
+      "technology": "Bun / Hono backend (packages/opencode)",
+      "description": "Serves SSE events (unchanged by this plan) + REST config endpoints (adds 3 tweak keys to /config/tweaks/frontend)."
+    }
+  ],
+  "components": [
+    {
+      "id": "C1.1",
+      "container": "C1",
+      "name": "EventReducer",
+      "moduleRef": "A1",
+      "file": "packages/app/src/context/global-sync/event-reducer.ts",
+      "description": "Handles inbound SSE events. On every session-scoped event, sets the relevant store entry's receivedAt = Date.now() inline (DD-1).",
+      "changed": true
+    },
+    {
+      "id": "C1.2",
+      "container": "C1",
+      "name": "Store",
+      "moduleRef": "A1",
+      "file": "packages/app/src/context/global-sync/types.ts",
+      "description": "State shape. This plan extends StoreSessionStatusEntry, StoreActiveChildEntry, StoreMonitorEntry with inline receivedAt: number (DD-1, DD-8).",
+      "changed": true
+    },
+    {
+      "id": "C1.3",
+      "container": "C1",
+      "name": "UseFreshnessClock",
+      "moduleRef": "A2",
+      "file": "packages/app/src/hooks/use-freshness-clock.ts",
+      "description": "New helper. Owns a single 1-second setInterval + shared Solid signal freshnessNow (DD-2). All freshness-aware memos subscribe.",
+      "changed": true,
+      "new": true
+    },
+    {
+      "id": "C1.4",
+      "container": "C1",
+      "name": "FrontendTweaks",
+      "moduleRef": "A5",
+      "file": "packages/app/src/context/frontend-tweaks.ts",
+      "description": "Bootstrap fetches GET /config/tweaks/frontend and exposes ui_session_freshness_enabled / ui_freshness_threshold_sec / ui_freshness_hard_timeout_sec as Solid signals (DD-3, DD-5).",
+      "changed": true
+    },
+    {
+      "id": "C1.5",
+      "container": "C1",
+      "name": "SessionPage",
+      "moduleRef": "A3 A4",
+      "file": "packages/app/src/pages/session.tsx",
+      "description": "activeChildDock memo reads receivedAt + freshnessNow + thresholds, classifies fidelity, renders with hint/collapse.",
+      "changed": true
+    },
+    {
+      "id": "C1.6",
+      "container": "C1",
+      "name": "SessionSidePanel",
+      "moduleRef": "A3 A4",
+      "file": "packages/app/src/pages/session/session-side-panel.tsx",
+      "description": "Process-card render consumes fidelity; hard-stale collapses / grays card.",
+      "changed": true
+    },
+    {
+      "id": "C1.7",
+      "container": "C1",
+      "name": "ToolPage",
+      "moduleRef": "A3 A4",
+      "file": "packages/app/src/pages/session/tool-page.tsx",
+      "description": "Process-list freshness handling; elapsed timer stops at hard-stale (DD-7).",
+      "changed": true
+    },
+    {
+      "id": "C1.8",
+      "container": "C1",
+      "name": "MonitorHelper",
+      "moduleRef": "A3",
+      "file": "packages/app/src/pages/session/monitor-helper.ts",
+      "description": "ProcessCard factory: copies receivedAt from source entry; computes elapsed = max(0, now - receivedAt) per DD-7.",
+      "changed": true
+    },
+    {
+      "id": "C1.9",
+      "container": "C1",
+      "name": "PromptInput",
+      "moduleRef": "A4",
+      "file": "packages/app/src/components/prompt-input.tsx",
+      "description": "Removes authorityBlocked / connectionState memos (DD-6). Send is REST-only and never blocked by SSE state. Permission/question pending block paths unchanged.",
+      "changed": true
+    },
+    {
+      "id": "C1.10",
+      "container": "C1",
+      "name": "GlobalSDK",
+      "moduleRef": "A4",
+      "file": "packages/app/src/context/global-sdk.tsx",
+      "description": "connectionStatus signal + GlobalConnectionStatus type fully removed (DD-6). SSE EventSource auto-reconnect remains unchanged at browser layer.",
+      "changed": true
+    },
+    {
+      "id": "C2.1",
+      "container": "C2",
+      "name": "TweaksConfig",
+      "moduleRef": "A5",
+      "file": "packages/opencode/src/config/tweaks.ts",
+      "description": "Parser + defaults for the 3 new keys. Range-clamped (DD-3).",
+      "changed": true
+    },
+    {
+      "id": "C2.2",
+      "container": "C2",
+      "name": "TweaksRoute",
+      "moduleRef": "A5",
+      "file": "packages/opencode/src/server/routes/config.ts",
+      "description": "GET /config/tweaks/frontend response shape adds 3 fields per data-schema.json TweaksFrontendResponse.",
+      "changed": true
+    },
+    {
+      "id": "C2.3",
+      "container": "C2",
+      "name": "TweaksTemplate",
+      "moduleRef": "A5",
+      "file": "templates/system/tweaks.cfg",
+      "description": "Default-shipped tweaks.cfg with documentation for the 3 new keys.",
+      "changed": true
+    }
+  ],
+  "relationships": [
+    { "from": "C1.1", "to": "C1.2", "label": "writes entries with inline receivedAt", "type": "mutation" },
+    { "from": "C1.3", "to": "C1.5", "label": "freshnessNow signal subscribed by activeChildDock memo", "type": "read" },
+    { "from": "C1.3", "to": "C1.6", "label": "freshnessNow signal subscribed by process-card memos", "type": "read" },
+    { "from": "C1.3", "to": "C1.7", "label": "freshnessNow signal subscribed by process-list memos", "type": "read" },
+    { "from": "C1.2", "to": "C1.5", "label": "store read (active_child / session_status)", "type": "read" },
+    { "from": "C1.2", "to": "C1.6", "label": "store read (session_monitor)", "type": "read" },
+    { "from": "C1.2", "to": "C1.7", "label": "store read (session_monitor)", "type": "read" },
+    { "from": "C1.4", "to": "C1.5", "label": "threshold + flag signals read by memo", "type": "read" },
+    { "from": "C1.4", "to": "C1.6", "label": "threshold + flag signals read by memo", "type": "read" },
+    { "from": "C1.4", "to": "C1.7", "label": "threshold + flag signals read by memo", "type": "read" },
+    { "from": "C1.4", "to": "C2.2", "label": "GET /config/tweaks/frontend at bootstrap", "type": "http" },
+    { "from": "C2.2", "to": "C2.1", "label": "reads parsed config + defaults", "type": "read" },
+    { "from": "C2.1", "to": "C2.3", "label": "loads defaults + overrides from /etc/opencode/tweaks.cfg", "type": "read" },
+    { "from": "C1.8", "to": "C1.2", "label": "constructs ProcessCard from monitor entries; copies receivedAt", "type": "read" },
+    { "from": "C1.9", "to": "C1.10", "label": "NO connectionStatus read (removed by DD-6)", "type": "removed" }
+  ],
+  "notes": [
+    "Containers C1 and C2 are the only ones in scope. Gateway / database / external providers are out of scope.",
+    "The SSE transport (between C2 and C1) is not modelled here because this plan does not change it. The only contract between them that this plan touches is the additive tweak keys returned by GET /config/tweaks/frontend.",
+    "`removed` relationship type denotes an explicit cut during this plan (DD-6). Acceptance Scenario 4.1 verifies no residual imports."
+  ]
+}

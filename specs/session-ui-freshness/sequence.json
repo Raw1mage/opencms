@@ -1,0 +1,117 @@
+[
+  {
+    "id": "P1",
+    "name": "Session event arrives and UI renders fresh",
+    "requirementRef": "R1, R2",
+    "participants": [
+      { "id": "SSE", "label": "SSE EventSource (browser)" },
+      { "id": "ER", "label": "EventReducer", "componentRef": "C1.1" },
+      { "id": "ST", "label": "Store", "componentRef": "C1.2" },
+      { "id": "UF", "label": "useFreshnessClock", "componentRef": "C1.3" },
+      { "id": "MM", "label": "Freshness memo (per entry)", "componentRef": "C1.5" },
+      { "id": "UI", "label": "DOM" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "SSE", "to": "ER", "label": "session.status event payload" },
+      { "id": "MSG2", "from": "ER", "to": "ST", "label": "write StoreSessionStatusEntry with inline receivedAt = Date.now()" },
+      { "id": "MSG3", "from": "ST", "to": "MM", "label": "Solid signal change: entry updated" },
+      { "id": "MSG4", "from": "UF", "to": "MM", "label": "freshnessNow tick (every 1s, may already be stale)" },
+      { "id": "MSG5", "from": "MM", "to": "MM", "label": "compute fidelity = (freshnessNow - receivedAt) < soft_threshold ? 'fresh' : ..." },
+      { "id": "MSG6", "from": "MM", "to": "UI", "label": "render normally, no stale hint" }
+    ],
+    "notes": [
+      "Flag=1 path. Flag=0 skips MSG5 classification and UI always renders as fresh (baseline)."
+    ]
+  },
+  {
+    "id": "P2",
+    "name": "Freshness clock tick drives stale degradation without new event",
+    "requirementRef": "R2",
+    "participants": [
+      { "id": "UF", "label": "useFreshnessClock", "componentRef": "C1.3" },
+      { "id": "MM", "label": "Freshness memo", "componentRef": "C1.5" },
+      { "id": "ST", "label": "Store (read-only here)", "componentRef": "C1.2" },
+      { "id": "FT", "label": "FrontendTweaks signals", "componentRef": "C1.4" },
+      { "id": "UI", "label": "DOM" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "UF", "to": "MM", "label": "freshnessNow = T (1s later)" },
+      { "id": "MSG2", "from": "ST", "to": "MM", "label": "entry.receivedAt read" },
+      { "id": "MSG3", "from": "FT", "to": "MM", "label": "soft_threshold_sec=15, hard_timeout_sec=60" },
+      { "id": "MSG4", "from": "MM", "to": "MM", "label": "T - receivedAt >= 15000 -> fidelity = 'stale'" },
+      { "id": "MSG5", "from": "MM", "to": "UI", "label": "render 'updated Ns ago' badge (content still visible)" }
+    ],
+    "notes": [
+      "Represents GRAFCET S1 -> S2 transition. Further tick after hard threshold triggers MSG4 with 'hard-stale' -> card grayed / collapsed."
+    ]
+  },
+  {
+    "id": "P3",
+    "name": "User sends prompt while SSE is disconnected",
+    "requirementRef": "R3",
+    "participants": [
+      { "id": "USR", "label": "User" },
+      { "id": "PI", "label": "PromptInput", "componentRef": "C1.9" },
+      { "id": "SDK", "label": "GlobalSDK (REST)", "componentRef": "C1.10" },
+      { "id": "SRV", "label": "opencode-daemon (REST endpoint)", "componentRef": "C2" },
+      { "id": "SSE", "label": "SSE EventSource" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "SSE", "to": "SSE", "label": "(disconnected, EventSource auto-reconnecting in background)" },
+      { "id": "MSG2", "from": "USR", "to": "PI", "label": "keydown Enter on prompt" },
+      { "id": "MSG3", "from": "PI", "to": "PI", "label": "check pending permission/question -> none -> proceed (DD-6: no SSE state check)" },
+      { "id": "MSG4", "from": "PI", "to": "SDK", "label": "sdk.session.prompt(sid, text)" },
+      { "id": "MSG5", "from": "SDK", "to": "SRV", "label": "POST /session/:id/message" },
+      { "id": "MSG6", "from": "SRV", "to": "SDK", "label": "200 OK (queued)" },
+      { "id": "MSG7", "from": "SDK", "to": "PI", "label": "resolved -> reset input state" }
+    ],
+    "notes": [
+      "No reference to connectionStatus anywhere in this path. SSE reconnection happens independently and asynchronously; when it succeeds, subsequent events repopulate the store."
+    ]
+  },
+  {
+    "id": "P4",
+    "name": "Feature flag OFF — freshness logic bypassed",
+    "requirementRef": "R6",
+    "participants": [
+      { "id": "BOOT", "label": "Client bootstrap" },
+      { "id": "FT", "label": "FrontendTweaks", "componentRef": "C1.4" },
+      { "id": "SRV", "label": "opencode-daemon", "componentRef": "C2" },
+      { "id": "ER", "label": "EventReducer", "componentRef": "C1.1" },
+      { "id": "MM", "label": "Freshness memo", "componentRef": "C1.5" },
+      { "id": "UI", "label": "DOM" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "BOOT", "to": "FT", "label": "ensureFrontendTweaksLoaded()" },
+      { "id": "MSG2", "from": "FT", "to": "SRV", "label": "GET /config/tweaks/frontend" },
+      { "id": "MSG3", "from": "SRV", "to": "FT", "label": "{ ui_session_freshness_enabled: 0, ... }" },
+      { "id": "MSG4", "from": "ER", "to": "ER", "label": "reducer still writes receivedAt on events (cost negligible)" },
+      { "id": "MSG5", "from": "MM", "to": "MM", "label": "flag=0 -> early return with fidelity='fresh' (bypass classification)" },
+      { "id": "MSG6", "from": "MM", "to": "UI", "label": "render baseline (pixel-equivalent to 2fa1b0b2d~1)" }
+    ],
+    "notes": [
+      "Acceptance: flag=0 render matches pre-plan baseline byte-for-byte. Flag=1 enables Scenario 1-3 paths."
+    ]
+  },
+  {
+    "id": "P5",
+    "name": "Invalid receivedAt forces hard-stale (no silent fallback)",
+    "requirementRef": "R5",
+    "participants": [
+      { "id": "ST", "label": "Store (corrupted entry)", "componentRef": "C1.2" },
+      { "id": "MM", "label": "Freshness memo", "componentRef": "C1.5" },
+      { "id": "LOG", "label": "console.warn (rate-limited)" },
+      { "id": "UI", "label": "DOM" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "ST", "to": "MM", "label": "entry.receivedAt = NaN (hypothetical corruption)" },
+      { "id": "MSG2", "from": "MM", "to": "MM", "label": "isFinite(receivedAt) && receivedAt >= 0 -> false" },
+      { "id": "MSG3", "from": "MM", "to": "LOG", "label": "console.warn('invalid receivedAt, treating as 0 (hard-stale)')" },
+      { "id": "MSG4", "from": "MM", "to": "MM", "label": "fidelity = 'hard-stale'" },
+      { "id": "MSG5", "from": "MM", "to": "UI", "label": "render degraded (DD-4: never silently treat as fresh)" }
+    ],
+    "notes": [
+      "Rate-limit console.warn to at most 1/minute per entry id to avoid log flooding if many entries are corrupted."
+    ]
+  }
+]
