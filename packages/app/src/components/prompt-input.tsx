@@ -320,7 +320,11 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     // this the main quota-load effect would still hit the 60 s peekQuotaHint
     // TTL and the ?fresh=1 path on the backend.
     if (model && providerKey && params.id) {
-      const accountId = local.model.selection(params.id)?.accountID
+      // SSOT-first: if the session has a pinned accountId, use it so the quota
+      // cache key matches what submit.ts actually sends. Otherwise PC and
+      // mobile compute different cache keys for the same session and diverge.
+      const accountId =
+        sync.session.get(params.id)?.execution?.accountId ?? local.model.selection(params.id)?.accountID
       invalidateQuotaHint({
         baseURL: globalSDK.url,
         providerId: providerKey,
@@ -354,7 +358,8 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     let disposed = false
     const tick = () => {
       if (disposed) return
-      const accountId = local.model.selection(sessionID)?.accountID
+      // SSOT-first — see note on the completion-hook effect above.
+      const accountId = sync.session.get(sessionID)?.execution?.accountId ?? local.model.selection(sessionID)?.accountID
       invalidateQuotaHint({
         baseURL: globalSDK.url,
         providerId: providerKey,
@@ -436,9 +441,19 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       accountFamilies: globalSync.data.account_families,
       formatCooldown: (minutes) => language.t("settings.models.recommendations.cooldown", { minutes }),
     })
-    const selected = params.id
-      ? sync.session.get(params.id)?.execution?.accountId
-      : local.model.selection(params.id)?.accountID
+    // For existing sessions the account label MUST come from session.execution
+    // (SSOT). Falling back to `rows.find(row => row.active)` (client-local
+    // active account) produces the notorious cross-client divergence: mobile
+    // and PC display different accounts for the same session, which in turn
+    // misleads users into sending with the wrong identity and pushes the
+    // session into a "no reply" death loop. If SSOT is missing we show "--"
+    // so the inconsistency is visible rather than silently fabricated.
+    if (params.id) {
+      const ssotAccountId = sync.session.get(params.id)?.execution?.accountId
+      if (!ssotAccountId) return "--"
+      return rows.find((row) => row.id === ssotAccountId)?.label ?? "--"
+    }
+    const selected = local.model.selection(params.id)?.accountID
     return (
       rows.find((row) => row.id === selected)?.label ?? rows.find((row) => row.active)?.label ?? rows[0]?.label ?? "--"
     )
@@ -472,7 +487,10 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
 
     const providerId = effectiveProviderKey() ?? model.provider.id
     const modelID = model.id
-    const accountId = local.model.selection(params.id)?.accountID
+    // SSOT-first — align quota cache key with what submit.ts actually sends.
+    const accountId =
+      (params.id ? sync.session.get(params.id)?.execution?.accountId : undefined) ??
+      local.model.selection(params.id)?.accountID
 
     // Detect account switch → invalidate cache & force fresh from backend
     const accountSwitched = accountId !== prevQuotaAccountId

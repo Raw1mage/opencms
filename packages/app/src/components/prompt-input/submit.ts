@@ -261,13 +261,25 @@ export function createPromptSubmit(input: PromptSubmitInput) {
 
     input.onSubmit?.()
 
-    const model = {
-      modelID: currentModel.id,
-      providerId: currentModel.provider.id,
-      accountId: params.id
-        ? sync.session.get(params.id)?.execution?.accountId
-        : local.model.selection?.(params.id)?.accountID,
-    }
+    // SSOT: when the session already has a pinned execution identity, ALL three
+    // fields (providerId / modelID / accountId) must come from it together.
+    // Mixing server-side SSOT for accountId with client-local for providerId/modelID
+    // produces invalid combinations the server can't resolve — the session then
+    // enters a "message sent but no reply" death loop because each client is
+    // submitting a different triple against the same session.
+    // Only new sessions (no params.id) fall back to local selection.
+    const sessionExec = params.id ? sync.session.get(params.id)?.execution : undefined
+    const model = sessionExec
+      ? {
+          modelID: sessionExec.modelID,
+          providerId: sessionExec.providerId,
+          accountId: sessionExec.accountId,
+        }
+      : {
+          modelID: currentModel.id,
+          providerId: currentModel.provider.id,
+          accountId: local.model.selection?.(params.id)?.accountID,
+        }
     const agent = currentAgent.name
     const variant = local.model.variant.current(params.id)
 
