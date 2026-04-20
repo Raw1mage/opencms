@@ -141,6 +141,13 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
     }
 
     let streamErrorLogged = false
+    // Timestamp of the last received SSE event (wall-clock ms). 0 = never yet.
+    // Used by submit.ts to detect silently-dead SSE before sending a prompt:
+    // if the stream is stale (no heartbeat or event within N seconds), force
+    // a reconnect before the POST so the reply's inbound path is alive.
+    // Server writes `server.heartbeat` every 30s, so a gap > ~30s with nothing
+    // means the downstream proxy has dropped the stream (NAT/idle timeout).
+    let lastEventAt = 0
     const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
     const shouldConnectEventStream = () => {
       if (!webAuth.enabled()) return true
@@ -205,6 +212,7 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
               },
             })
             streamOpenCount += 1
+            lastEventAt = Date.now()
             if (streamOpenCount > 1 && typeof window !== "undefined") {
               console.info("[global-sdk] event stream reconnected — dispatching resync signal", {
                 url: server.url,
@@ -214,6 +222,7 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
             }
             let yielded = Date.now()
             for await (const event of events.stream) {
+              lastEventAt = Date.now()
               backoff = RECONNECT_DELAY_MS
               streamErrorLogged = false
               const directory = normalizeDirectoryKey(event.directory ?? "global")
@@ -293,6 +302,21 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
       throwOnError: true,
     })
 
-    return { url: server.url, client: sdk, event: emitter, fetch: fetchWithAuth }
+    return {
+      url: server.url,
+      client: sdk,
+      event: emitter,
+      fetch: fetchWithAuth,
+      // SSE liveness probe for callers (e.g. prompt submit) that want to
+      // verify the inbound channel is fresh before doing something that
+      // expects a server reply. Returns 0 if the stream has never produced
+      // an event for this session; otherwise the wall-clock ms of the last
+      // one.
+      lastEventAt: () => lastEventAt,
+      // Trigger a fresh SSE connection. Safe to call at any time — the
+      // existing stream is aborted, a new HTTP GET /global/event is made.
+      // Same mechanism as the auto-reconnect loop, just user-initiated.
+      forceSseReconnect: (reason: string) => reconnect(reason),
+    }
   },
 })

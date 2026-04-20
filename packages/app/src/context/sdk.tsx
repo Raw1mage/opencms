@@ -53,6 +53,12 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
       get url() {
         return globalSDK.url
       },
+      // SSE liveness + manual reconnect — forwarded from globalSDK so submit
+      // path can verify the inbound channel is alive before a prompt POST
+      // (prevents the "send OK but reply never arrives" silent failure when
+      // an idle SSE has been NAT-dropped upstream).
+      lastEventAt: globalSDK.lastEventAt,
+      forceSseReconnect: globalSDK.forceSseReconnect,
     }
   },
 })

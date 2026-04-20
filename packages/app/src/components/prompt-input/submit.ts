@@ -489,6 +489,28 @@ export function createPromptSubmit(input: PromptSubmitInput) {
     }
     const sendStartedAt = Date.now()
 
+    // SSE liveness check before POST.
+    // Server writes `server.heartbeat` every 30s; a gap > 30s means the
+    // inbound channel has almost certainly been NAT-dropped by an
+    // intermediate proxy (Synology nginx / Cloudflare / cellular). If we
+    // POST over a fresh connection but the SSE that carries the reply is
+    // dead, the user sees a silent "sent but no reply" failure. Force an
+    // SSE reconnect BEFORE the POST so the reply has a live channel to
+    // travel back on.
+    // lastEventAt === 0 means "never received any event" — treat as fresh
+    // (page just loaded, initial connect in progress) and skip the check.
+    const STALE_SSE_THRESHOLD_MS = 30_000
+    const nowBeforeSend = Date.now()
+    const lastSseAt = sdk.lastEventAt?.() ?? 0
+    if (lastSseAt > 0 && nowBeforeSend - lastSseAt > STALE_SSE_THRESHOLD_MS) {
+      console.info("[submit] SSE stale — forcing reconnect before send", {
+        sessionID: session.id,
+        lastEventAgoMs: nowBeforeSend - lastSseAt,
+        thresholdMs: STALE_SSE_THRESHOLD_MS,
+      })
+      sdk.forceSseReconnect?.("stale-sse-before-send")
+    }
+
     const send = async () => {
       const ok = await waitForWorktree()
       if (!ok) return
