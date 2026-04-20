@@ -150,6 +150,7 @@ export const ConfigRoutes = lazy(() =>
       }),
       async (c) => {
         const cfg = await Tweaks.frontendLazyload()
+        const uiCfg = await Tweaks.sessionUiFreshness()
         return c.json({
           frontend_session_lazyload: cfg.flag,
           part_inline_cap_kb: cfg.partInlineCapKb,
@@ -160,6 +161,10 @@ export const ConfigRoutes = lazy(() =>
           initial_page_size_large: cfg.initialPageSizeLarge,
           session_size_threshold_kb: cfg.sessionSizeThresholdKb,
           session_size_threshold_parts: cfg.sessionSizeThresholdParts,
+          // session-ui-freshness DD-3 / DD-5
+          ui_session_freshness_enabled: uiCfg.flag,
+          ui_freshness_threshold_sec: uiCfg.softThresholdSec,
+          ui_freshness_hard_timeout_sec: uiCfg.hardTimeoutSec,
         } satisfies z.infer<typeof FrontendTweaksResponse>)
       },
     ),
@@ -175,4 +180,8 @@ const FrontendTweaksResponse = z.object({
   initial_page_size_large: z.number().int().min(10).max(1000),
   session_size_threshold_kb: z.number().int().min(64),
   session_size_threshold_parts: z.number().int().min(10),
+  // session-ui-freshness DD-3 / DD-5
+  ui_session_freshness_enabled: z.union([z.literal(0), z.literal(1)]),
+  ui_freshness_threshold_sec: z.number().int().min(1).max(3600),
+  ui_freshness_hard_timeout_sec: z.number().int().min(1).max(86400),
 })

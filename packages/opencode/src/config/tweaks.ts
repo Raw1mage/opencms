@@ -50,10 +50,24 @@ export namespace Tweaks {
     sessionSizeThresholdParts: number
   }
 
+  /**
+   * Tunables for the session-ui-freshness feature.
+   * See specs/session-ui-freshness/data-schema.json#TweaksFrontendResponse
+   * and specs/session-ui-freshness/design.md DD-3 / DD-5.
+   * Flag defaults OFF — client UI is byte-equivalent to pre-plan baseline
+   * until operator opts in.
+   */
+  export interface SessionUiFreshnessConfig {
+    flag: 0 | 1
+    softThresholdSec: number
+    hardTimeoutSec: number
+  }
+
   export interface Effective {
     sessionCache: SessionCacheConfig
     rateLimit: RateLimitConfig
     frontendLazyload: FrontendLazyloadConfig
+    sessionUiFreshness: SessionUiFreshnessConfig
     source: { path: string; present: boolean }
   }
 
@@ -79,6 +93,12 @@ export namespace Tweaks {
     initialPageSizeLarge: 50,
     sessionSizeThresholdKb: 512,
     sessionSizeThresholdParts: 80,
+  }
+
+  const SESSION_UI_FRESHNESS_DEFAULTS: SessionUiFreshnessConfig = {
+    flag: 0,
+    softThresholdSec: 15,
+    hardTimeoutSec: 60,
   }
 
   function path(): string {
@@ -153,6 +173,9 @@ export namespace Tweaks {
     "initial_page_size_large",
     "session_size_threshold_kb",
     "session_size_threshold_parts",
+    "ui_session_freshness_enabled",
+    "ui_freshness_threshold_sec",
+    "ui_freshness_hard_timeout_sec",
   ])
 
   function parseFlag01(raw: string, key: string): 0 | 1 | undefined {
@@ -203,12 +226,14 @@ export namespace Tweaks {
           sessionCache: SESSION_CACHE_DEFAULTS,
           rateLimit: RATE_LIMIT_DEFAULTS,
           frontendLazyload: FRONTEND_LAZYLOAD_DEFAULTS,
+          sessionUiFreshness: SESSION_UI_FRESHNESS_DEFAULTS,
         },
       })
       return {
         sessionCache: { ...SESSION_CACHE_DEFAULTS },
         rateLimit: { ...RATE_LIMIT_DEFAULTS },
         frontendLazyload: { ...FRONTEND_LAZYLOAD_DEFAULTS },
+        sessionUiFreshness: { ...SESSION_UI_FRESHNESS_DEFAULTS },
         source: { path: cfgPath, present: false },
       }
     }
@@ -316,14 +341,44 @@ export namespace Tweaks {
       frontendLazyload.tailWindowKb = frontendLazyload.partInlineCapKb
     }
 
+    const sessionUiFreshness: SessionUiFreshnessConfig = { ...SESSION_UI_FRESHNESS_DEFAULTS }
+
+    const uiFlagRaw = parsed.get("ui_session_freshness_enabled")
+    if (uiFlagRaw !== undefined) {
+      const v = parseFlag01(uiFlagRaw, "ui_session_freshness_enabled")
+      if (v !== undefined) sessionUiFreshness.flag = v
+    }
+    const softRaw = parsed.get("ui_freshness_threshold_sec")
+    if (softRaw !== undefined) {
+      const v = parseIntRange(softRaw, "ui_freshness_threshold_sec", 1, 3600)
+      if (v !== undefined) sessionUiFreshness.softThresholdSec = v
+    }
+    const hardRaw = parsed.get("ui_freshness_hard_timeout_sec")
+    if (hardRaw !== undefined) {
+      const v = parseIntRange(hardRaw, "ui_freshness_hard_timeout_sec", 1, 86400)
+      if (v !== undefined) sessionUiFreshness.hardTimeoutSec = v
+    }
+    // soft must be strictly less than hard; otherwise clamp soft to hard-1.
+    if (sessionUiFreshness.softThresholdSec >= sessionUiFreshness.hardTimeoutSec) {
+      log.warn(
+        "tweaks.cfg ui_freshness_threshold_sec must be < ui_freshness_hard_timeout_sec, clamping",
+        {
+          softThresholdSec: sessionUiFreshness.softThresholdSec,
+          hardTimeoutSec: sessionUiFreshness.hardTimeoutSec,
+        },
+      )
+      sessionUiFreshness.softThresholdSec = Math.max(1, sessionUiFreshness.hardTimeoutSec - 1)
+    }
+
     log.info("tweaks.cfg loaded", {
       path: cfgPath,
-      effective: { sessionCache, rateLimit, frontendLazyload },
+      effective: { sessionCache, rateLimit, frontendLazyload, sessionUiFreshness },
     })
     return {
       sessionCache,
       rateLimit,
       frontendLazyload,
+      sessionUiFreshness,
       source: { path: cfgPath, present: true },
     }
   }
@@ -344,6 +399,10 @@ export namespace Tweaks {
 
   export async function frontendLazyload(): Promise<FrontendLazyloadConfig> {
     return (await effective()).frontendLazyload
+  }
+
+  export async function sessionUiFreshness(): Promise<SessionUiFreshnessConfig> {
+    return (await effective()).sessionUiFreshness
   }
 
   export async function loadEffective(): Promise<Effective> {

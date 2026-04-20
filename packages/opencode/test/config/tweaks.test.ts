@@ -209,4 +209,80 @@ describe("Tweaks.loadEffective", () => {
     const fl = await Tweaks.frontendLazyload()
     expect(fl.initialPageSizeSmall).toBe("all") // default
   })
+
+  // session-ui-freshness Phase 2 task 2.6
+  test("session-ui-freshness defaults when tweaks.cfg missing", async () => {
+    pointToMissing()
+    const ui = await Tweaks.sessionUiFreshness()
+    expect(ui).toEqual({ flag: 0, softThresholdSec: 15, hardTimeoutSec: 60 })
+  })
+
+  test("session-ui-freshness parses flag=1 and custom thresholds", async () => {
+    pointToFile(
+      [
+        "ui_session_freshness_enabled=1",
+        "ui_freshness_threshold_sec=30",
+        "ui_freshness_hard_timeout_sec=120",
+      ].join("\n") + "\n",
+    )
+    const ui = await Tweaks.sessionUiFreshness()
+    expect(ui).toEqual({ flag: 1, softThresholdSec: 30, hardTimeoutSec: 120 })
+  })
+
+  test("session-ui-freshness invalid flag falls back to default 0 (not silent)", async () => {
+    pointToFile("ui_session_freshness_enabled=maybe\n")
+    const ui = await Tweaks.sessionUiFreshness()
+    expect(ui.flag).toBe(0)
+  })
+
+  test("session-ui-freshness soft threshold out of range falls back to default", async () => {
+    pointToFile("ui_freshness_threshold_sec=0\n") // min is 1
+    const ui = await Tweaks.sessionUiFreshness()
+    expect(ui.softThresholdSec).toBe(15)
+  })
+
+  test("session-ui-freshness hard threshold out of range falls back to default", async () => {
+    pointToFile("ui_freshness_hard_timeout_sec=999999\n") // max is 86400
+    const ui = await Tweaks.sessionUiFreshness()
+    expect(ui.hardTimeoutSec).toBe(60)
+  })
+
+  test("session-ui-freshness soft >= hard triggers clamp (soft = hard - 1)", async () => {
+    pointToFile(
+      [
+        "ui_freshness_threshold_sec=90",
+        "ui_freshness_hard_timeout_sec=60",
+      ].join("\n") + "\n",
+    )
+    const ui = await Tweaks.sessionUiFreshness()
+    expect(ui.hardTimeoutSec).toBe(60)
+    expect(ui.softThresholdSec).toBe(59)
+  })
+
+  test("session-ui-freshness soft == hard also triggers clamp", async () => {
+    pointToFile(
+      [
+        "ui_freshness_threshold_sec=60",
+        "ui_freshness_hard_timeout_sec=60",
+      ].join("\n") + "\n",
+    )
+    const ui = await Tweaks.sessionUiFreshness()
+    expect(ui.softThresholdSec).toBe(59)
+  })
+
+  test("session-ui-freshness keys coexist with frontend_lazyload keys", async () => {
+    pointToFile(
+      [
+        "frontend_session_lazyload=1",
+        "ui_session_freshness_enabled=1",
+        "ui_freshness_threshold_sec=10",
+      ].join("\n") + "\n",
+    )
+    const fl = await Tweaks.frontendLazyload()
+    const ui = await Tweaks.sessionUiFreshness()
+    expect(fl.flag).toBe(1)
+    expect(ui.flag).toBe(1)
+    expect(ui.softThresholdSec).toBe(10)
+    expect(ui.hardTimeoutSec).toBe(60) // default for the untouched key
+  })
 })

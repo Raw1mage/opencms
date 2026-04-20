@@ -55,3 +55,30 @@ XDG backup: `~/.config/opencode.bak-20260420-1829-session-ui-freshness/`
     在此 event log 紀錄。Phase 2 開始改成每 task 完成即跑。
 - **Remaining**: 進 Phase 2（`useFreshnessClock` helper + `frontend-tweaks` 三個新 signal
   + server-side tweaks.ts / config route / templates/system/tweaks.cfg + 兩個 test 檔）。
+
+---
+
+## Phase 2 — Freshness clock + tweak 配線
+
+- **Done tasks**: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7
+- **Key decisions**:
+  - **useFreshnessClock 採 module-level singleton**（DD-2）：首次 import 觸發 `setInterval(1000)`；重複 import 共用同一 signal。Test helper 額外 export `__stopFreshnessClockForTest` 與 `__setFreshnessNowForTest`（由 `__` 前綴標示僅測試用）。SSR guard 判斷 `typeof setInterval === "function"`。Dev console helper 掛到 `window.__opencodeDebug.freshnessNow`（vite `import.meta.env.DEV` 時才生效）。
+  - **Server-side freshness 命名**：config key 走 `ui_session_freshness_enabled` / `ui_freshness_threshold_sec` / `ui_freshness_hard_timeout_sec`（與 proposal / spec / data-schema 一致）；內部 struct field 用 `flag` / `softThresholdSec` / `hardTimeoutSec`（呼應既有 `frontendLazyload.flag` 命名）。
+  - **Soft >= Hard 的防呆**：若使用者把兩個值設反（soft >= hard），parser clamp 成 `soft = hard - 1`（不是 bail out 到 default），理由：硬閾值是「使用者真的在乎的天花板」，比預設值更能代表意圖；只修不合理的 soft 即可。`log.warn` 留痕。
+  - **Response zod schema 範圍 (1..3600 / 1..86400)** 與 parser 範圍對齊，serialize/deserialize 雙向保護。
+- **Validation**:
+  - `bun test packages/opencode/test/config/tweaks.test.ts` → **25 pass / 0 fail**（原 17 + 新增 8 個）
+  - `bun test packages/opencode/test/server/frontend-tweaks-route.test.ts` → **4 pass / 0 fail**（原 2 + 新增 2）
+  - `bun --silent x tsc --noEmit -p packages/opencode/tsconfig.json` → **clean**
+  - `bun --silent x tsc --noEmit -p packages/app/tsconfig.json` → **clean**
+- **Files changed**:
+  - `packages/app/src/hooks/use-freshness-clock.ts` — 新檔
+  - `packages/app/src/context/frontend-tweaks.ts` — FrontendTweaks interface + defaults 加三欄；`uiFreshnessEnabled` / `uiFreshnessThresholdSec` / `uiFreshnessHardTimeoutSec` 三個 accessor
+  - `packages/opencode/src/config/tweaks.ts` — `SessionUiFreshnessConfig` + defaults + parser + KNOWN_KEYS + `Effective` 欄位 + `Tweaks.sessionUiFreshness()` getter
+  - `packages/opencode/src/server/routes/config.ts` — route reads `Tweaks.sessionUiFreshness()`；response 含 3 新欄；zod schema 更新
+  - `templates/system/tweaks.cfg` — 新區段 + 3 key 註解 + 預設值
+  - `packages/opencode/test/config/tweaks.test.ts` — 8 個新 test case
+  - `packages/opencode/test/server/frontend-tweaks-route.test.ts` — 2 個新 test case
+  - `specs/session-ui-freshness/tasks.md` — 2.1 ~ 2.7 標 `- [x]`
+- **Drift**: 無。
+- **Remaining**: 進 Phase 3（UI 消費 freshness）。先寫 `classifyFidelity` 共用 util（task 3.5），再做 3.1 / 3.2 / 3.3 / 3.4 的 memo 接線。

@@ -24,6 +24,10 @@ export interface FrontendTweaks {
   initial_page_size_large: number
   session_size_threshold_kb: number
   session_size_threshold_parts: number
+  // session-ui-freshness DD-3 / DD-5 (see specs/session-ui-freshness/data-schema.json#TweaksFrontendResponse)
+  ui_session_freshness_enabled: 0 | 1
+  ui_freshness_threshold_sec: number
+  ui_freshness_hard_timeout_sec: number
 }
 
 export const FRONTEND_TWEAKS_DEFAULTS: FrontendTweaks = {
@@ -36,6 +40,9 @@ export const FRONTEND_TWEAKS_DEFAULTS: FrontendTweaks = {
   initial_page_size_large: 50,
   session_size_threshold_kb: 512,
   session_size_threshold_parts: 80,
+  ui_session_freshness_enabled: 0,
+  ui_freshness_threshold_sec: 15,
+  ui_freshness_hard_timeout_sec: 60,
 }
 
 const [tweaks, setTweaks] = createSignal<FrontendTweaks>(FRONTEND_TWEAKS_DEFAULTS)
@@ -49,6 +56,21 @@ export function frontendTweaks(): FrontendTweaks {
 
 export function frontendTweaksLoaded(): boolean {
   return loaded()
+}
+
+// session-ui-freshness accessors (DD-3, DD-5). Consumers read via these
+// typed helpers instead of destructuring frontendTweaks() so the freshness
+// keys stay findable if FrontendTweaks gains unrelated fields later.
+export function uiFreshnessEnabled(): boolean {
+  return tweaks().ui_session_freshness_enabled === 1
+}
+
+export function uiFreshnessThresholdSec(): number {
+  return tweaks().ui_freshness_threshold_sec
+}
+
+export function uiFreshnessHardTimeoutSec(): number {
+  return tweaks().ui_freshness_hard_timeout_sec
 }
 
 export function resetFrontendTweaksForTesting(): void {

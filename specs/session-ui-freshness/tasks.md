@@ -26,13 +26,13 @@ Canonical execution checklist。每個 task 對到 spec 的 Requirement + C4/IDE
 
 ## 2. useFreshnessClock helper + FrontendTweaks signals
 
-- [ ] 2.1 新檔 `packages/app/src/hooks/use-freshness-clock.ts` — 單一 `setInterval(1000)` + shared Solid signal `freshnessNow`（module-level singleton，非 per-caller） [R2.S4, DD-2, CMP C1.3]
-- [ ] 2.2 `packages/app/src/context/frontend-tweaks.ts` 暴露三個新 signal：`uiFreshnessEnabled()`、`uiFreshnessThresholdSec()`、`uiFreshnessHardTimeoutSec()`；fetch fail 時走預設值 (0, 15, 60) [R6, DD-3, DD-5, CMP C1.4]
-- [ ] 2.3 `packages/opencode/src/config/tweaks.ts` 新增三個 key parser + 預設值 + INV clamp（range 1..3600 soft / 1..86400 hard；flag 限 0/1） [DD-3, DD-5, CMP C2.1]
-- [ ] 2.4 `packages/opencode/src/server/routes/config.ts` — `GET /config/tweaks/frontend` response 加三欄位（遵守 `data-schema.json#TweaksFrontendResponse`） [CMP C2.2]
-- [ ] 2.5 `templates/system/tweaks.cfg` 加三個 key 的註解 + 預設值（註解帶 `ui_freshness_*` 前綴說明） [CMP C2.3]
-- [ ] 2.6 新 test `packages/opencode/test/config/tweaks-freshness.test.ts` — defaults / overrides / invalid range clamp 至少 5 個 assertion
-- [ ] 2.7 新 test `packages/opencode/test/server/frontend-tweaks-freshness-route.test.ts` — verify response shape 含三欄位
+- [x] 2.1 新檔 `packages/app/src/hooks/use-freshness-clock.ts` — 單一 `setInterval(1000)` + module-level Solid signal `freshnessNow`；附 dev console helper + test stop/inject helpers [R2.S4, DD-2, CMP C1.3]
+- [x] 2.2 `frontend-tweaks.ts` 暴露 `uiFreshnessEnabled()` / `uiFreshnessThresholdSec()` / `uiFreshnessHardTimeoutSec()`；FrontendTweaks interface 加三欄 + defaults 加三值 [R6, DD-3, DD-5, CMP C1.4]
+- [x] 2.3 `packages/opencode/src/config/tweaks.ts` 新增 `SessionUiFreshnessConfig` + defaults + parser；soft >= hard 的 clamp（soft = hard - 1） [DD-3, DD-5, CMP C2.1]
+- [x] 2.4 `server/routes/config.ts` 回應 + zod schema 加三欄（route reads from `Tweaks.sessionUiFreshness()`） [CMP C2.2]
+- [x] 2.5 `templates/system/tweaks.cfg` 加新區段 + 3 key 註解 + 預設值 [CMP C2.3]
+- [x] 2.6 擴充 `packages/opencode/test/config/tweaks.test.ts` — 新 8 個 freshness 測試（defaults / flag / soft range / hard range / soft>=hard clamp / soft==hard clamp / coexist）。25 pass / 0 fail
+- [x] 2.7 擴充 `packages/opencode/test/server/frontend-tweaks-route.test.ts` — 新 2 個 freshness 測試（defaults in response / overrides surface）。4 pass / 0 fail
 
 ## 3. UI freshness consumption
 

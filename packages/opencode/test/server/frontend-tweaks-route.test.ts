@@ -87,4 +87,45 @@ describe("GET /config/tweaks/frontend", () => {
       },
     })
   })
+
+  // session-ui-freshness Phase 2 task 2.7
+  test("session-ui-freshness defaults appear in response when tweaks.cfg missing", async () => {
+    process.env[TWEAKS_ENV] = path.join(tmpDir, "nonexistent.cfg")
+    await Instance.provide({
+      directory: projectRoot,
+      fn: async () => {
+        const app = Server.App()
+        const response = await app.request(`/config/tweaks/frontend`)
+        if (Flag.OPENCODE_SERVER_PASSWORD) return
+        expect(response.status).toBe(200)
+        const body = (await response.json()) as Record<string, unknown>
+        expect(body["ui_session_freshness_enabled"]).toBe(0)
+        expect(body["ui_freshness_threshold_sec"]).toBe(15)
+        expect(body["ui_freshness_hard_timeout_sec"]).toBe(60)
+      },
+    })
+  })
+
+  test("session-ui-freshness overrides surface through the endpoint", async () => {
+    writeTweaks(
+      [
+        "ui_session_freshness_enabled=1",
+        "ui_freshness_threshold_sec=20",
+        "ui_freshness_hard_timeout_sec=90",
+      ].join("\n"),
+    )
+    await Instance.provide({
+      directory: projectRoot,
+      fn: async () => {
+        const app = Server.App()
+        const response = await app.request(`/config/tweaks/frontend`)
+        if (Flag.OPENCODE_SERVER_PASSWORD) return
+        expect(response.status).toBe(200)
+        const body = (await response.json()) as Record<string, unknown>
+        expect(body["ui_session_freshness_enabled"]).toBe(1)
+        expect(body["ui_freshness_threshold_sec"]).toBe(20)
+        expect(body["ui_freshness_hard_timeout_sec"]).toBe(90)
+      },
+    })
+  })
 })
