@@ -18,11 +18,11 @@ Canonical execution checklist。每個 task 對到 spec 的 Requirement + C4/IDE
 
 ## 1. Data-schema + reducer 打底（Phase 1 + Phase 2）
 
-- [ ] 1.1 `packages/app/src/context/global-sync/types.ts` 擴充 `StoreSessionStatusEntry` / `StoreActiveChildEntry` / `StoreMonitorEntry`，加 inline `receivedAt: number`（intersection type `ServerPayload & ClientStampMeta`） [R1, DD-1, DD-8, CMP C1.2]
-- [ ] 1.2 `packages/app/src/context/global-sync/event-reducer.ts` — `session.status` / `session.active-child.updated` / `monitor.*` / 任何 session-scoped event handler 寫入時同步 `receivedAt = Date.now()` [R1.S1, R1.S2, R1.S3, DD-1, CMP C1.1]
-- [ ] 1.3 `packages/app/src/context/global-sync/child-store.ts` 等初始化路徑：新建 entry 時 `receivedAt` 預設 `0`（讓 R5 instant-stale 自動啟動） [R5, DD-4, CMP C1.2]
-- [ ] 1.4 新 test `packages/app/test/event-reducer-freshness.test.ts`（或併入既有 `event-reducer.test.ts`）— 覆蓋 R1.S1 / R1.S2 / R1.S3，確認 `receivedAt` 被寫入且 server `updatedAt` 不被覆蓋 [R1]
-- [ ] 1.5 phase summary 寫入 `docs/events/event_2026-04-21_session_ui_freshness_implementation.md`（建檔）
+- [x] 1.1 `packages/app/src/context/global-sync/types.ts` 擴充 `StoreSessionStatusEntry` + `StoreActiveChildEntry`，加 inline `receivedAt: number`（intersection `ServerPayload & ClientStampMeta`）。**Scope 修正 2026-04-20**：原 proposal 列的 `State.session_monitor` 不存在——監看資料實際位於 `useStatusMonitor` hook，留待 Phase 3 task 3.4 連同 `ProcessCard` 一併處理。Typecheck 曝光 5 個需補戳點（bootstrap.ts:260, event-reducer.ts:243, event-reducer.test.ts:223/270/651）由 1.2-1.4 覆蓋。 [R1, DD-1, DD-8, CMP C1.2]
+- [x] 1.2 `event-reducer.ts` — `session.status` + `session.active-child.updated` 兩個 handler 寫入時戳 `receivedAt = Date.now()`；`monitor.*` 路徑 scope 修正延至 Phase 3.4 處理（監看資料不在 State 裡） [R1.S1, R1.S2, R1.S3, DD-1, CMP C1.1]
+- [x] 1.3 初始化路徑：`child-store.ts` 用 `{}` 空 map 初始化（無 entry 即無 `receivedAt` 負擔）；`bootstrap.ts` 的 bulk `session.status()` call 改用 per-entry stamp `receivedAt = now`（**not 0**；`receivedAt=0` 是為「entry 存在但時間戳缺失」保留的 instant-stale 語義，正常 bulk 載入要當 fresh） [R5, DD-4, CMP C1.2]
+- [x] 1.4 新 test 併入 `event-reducer.test.ts` — 覆蓋 R1.S1 / R1.S2 / R1.S3；確認 `receivedAt` 被寫入、server-side 額外 timestamp 不被覆蓋；順手修 3 個既有 fixture。23 pass / 0 fail，typecheck clean [R1]
+- [x] 1.5 phase summary 寫入 `docs/events/event_2026-04-20_session_ui_freshness_implementation.md`（建檔；日期用實際開工日而非 handoff placeholder）
 
 ## 2. useFreshnessClock helper + FrontendTweaks signals
 

@@ -10,7 +10,14 @@ import type {
   SessionStatus,
   Todo,
 } from "@opencode-ai/sdk/v2/client"
-import type { LlmErrorEntry, LlmHistoryEntry, State, VcsCache } from "./types"
+import type {
+  LlmErrorEntry,
+  LlmHistoryEntry,
+  State,
+  StoreActiveChildEntry,
+  StoreSessionStatusEntry,
+  VcsCache,
+} from "./types"
 import { LLM_HISTORY_CAP } from "./types"
 import { trimSessions } from "./session-trim"
 import { buildSessionTelemetryFromProjector } from "@/pages/session/monitor-helper"
@@ -240,17 +247,21 @@ export function applyDirectoryEvent(input: {
     }
     case "session.status": {
       const props = event.properties as { sessionID: string; status: SessionStatus }
-      input.setStore("session_status", props.sessionID, reconcile(props.status))
+      // session-ui-freshness R1.S1 / DD-1: stamp client receivedAt on every arrival.
+      const entry: StoreSessionStatusEntry = { ...props.status, receivedAt: Date.now() }
+      input.setStore("session_status", props.sessionID, reconcile(entry))
       break
     }
     case "session.active-child.updated": {
       const props = event.properties as {
         parentSessionID: string
-        activeChild: State["active_child"][string] | null
+        activeChild: Omit<StoreActiveChildEntry, "receivedAt"> | null
       }
       input.setStore(
         produce((draft) => {
-          if (props.activeChild) draft.active_child[props.parentSessionID] = props.activeChild
+          // session-ui-freshness R1.S2 / DD-1: stamp client receivedAt (inline DD-8).
+          if (props.activeChild)
+            draft.active_child[props.parentSessionID] = { ...props.activeChild, receivedAt: Date.now() }
           else delete draft.active_child[props.parentSessionID]
         }),
       )

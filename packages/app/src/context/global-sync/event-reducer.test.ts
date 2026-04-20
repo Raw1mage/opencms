@@ -220,7 +220,7 @@ describe("applyDirectoryEvent", () => {
         todo: { ses_1: [] },
         permission: { ses_1: [] },
         question: { ses_1: [] },
-        session_status: { ses_1: { type: "busy" } },
+        session_status: { ses_1: { type: "busy", receivedAt: Date.now() } },
       }),
     )
 
@@ -267,7 +267,7 @@ describe("applyDirectoryEvent", () => {
           todo: { [item.info.id]: [] },
           permission: { [item.info.id]: [] },
           question: { [item.info.id]: [] },
-          session_status: { [item.info.id]: { type: "busy" } },
+          session_status: { [item.info.id]: { type: "busy", receivedAt: Date.now() } },
         }),
       )
 
@@ -656,6 +656,7 @@ describe("applyDirectoryEvent", () => {
             title: "delegate API audit",
             agent: "coding",
             status: "running",
+            receivedAt: Date.now(),
           },
         },
       }),
@@ -877,3 +878,111 @@ describe("frontend-session-lazyload: rebuild heuristic + tail-window", () => {
     }
   })
 })
+
+describe("session-ui-freshness: client receivedAt stamping (Phase 1)", () => {
+  test("R1.S1 — session.status event updates receivedAt monotonically on existing entry", () => {
+    const T0 = Date.now() - 60_000
+    const [store, setStore] = createStore(
+      baseState({
+        session_status: { ses_1: { type: "busy", receivedAt: T0 } },
+      }),
+    )
+
+    const before = performance.now()
+    applyDirectoryEvent({
+      event: {
+        type: "session.status",
+        properties: { sessionID: "ses_1", status: { type: "idle" } },
+      },
+      store,
+      setStore,
+      push() {},
+      directory: "/tmp",
+      loadLsp() {},
+      loadMcp() {},
+    })
+    const after = performance.now()
+
+    const entry = store.session_status.ses_1
+    expect(entry).toBeDefined()
+    expect(entry?.type).toBe("idle")
+    expect(entry?.receivedAt).toBeGreaterThan(T0)
+    // receivedAt should be roughly now (bounded by the wall-clock window of this test body)
+    expect(entry!.receivedAt).toBeGreaterThanOrEqual(Date.now() - 10_000)
+    // sanity: stamp happened within the event handler, not before
+    expect(after - before).toBeGreaterThanOrEqual(0)
+  })
+
+  test("R1.S2 — first session.active-child.updated stamps receivedAt on newly created entry", () => {
+    const [store, setStore] = createStore(baseState({ active_child: {} }))
+
+    const T = Date.now()
+    applyDirectoryEvent({
+      event: {
+        type: "session.active-child.updated",
+        properties: {
+          parentSessionID: "ses_parent",
+          activeChild: {
+            sessionID: "ses_child",
+            parentMessageID: "msg_1",
+            toolCallID: "call_1",
+            workerID: "worker-1",
+            title: "delegate",
+            agent: "coding",
+            status: "running",
+          },
+        },
+      },
+      store,
+      setStore,
+      push() {},
+      directory: "/tmp",
+      loadLsp() {},
+      loadMcp() {},
+    })
+
+    const entry = store.active_child.ses_parent
+    expect(entry).toBeDefined()
+    expect(entry?.sessionID).toBe("ses_child")
+    expect(entry?.receivedAt).toBeGreaterThanOrEqual(T - 10)
+    expect(entry?.receivedAt).toBeLessThanOrEqual(Date.now() + 10)
+  })
+
+  test("R1.S3 — server updatedAt (if any) and client receivedAt are independent; neither overwrites the other", () => {
+    // SessionStatus payload does not currently carry updatedAt, but if future server payloads add a
+    // `timestamp`-like field, the reducer must not overwrite or copy it into receivedAt.
+    const [store, setStore] = createStore(baseState({ session_status: {} }))
+
+    const Tc = Date.now()
+    applyDirectoryEvent({
+      event: {
+        type: "session.status",
+        properties: {
+          sessionID: "ses_1",
+          // emulate a server payload carrying an extra server-side timestamp; reducer passes it through
+          status: { type: "busy", updatedAt: 1_700_000_000_000 } as any,
+        },
+      },
+      store,
+      setStore,
+      push() {},
+      directory: "/tmp",
+      loadLsp() {},
+      loadMcp() {},
+    })
+
+    const entry = store.session_status.ses_1 as unknown as {
+      type: string
+      updatedAt?: number
+      receivedAt: number
+    }
+    expect(entry.type).toBe("busy")
+    // server updatedAt passes through untouched
+    expect(entry.updatedAt).toBe(1_700_000_000_000)
+    // client receivedAt is independent and close to now
+    expect(entry.receivedAt).toBeGreaterThanOrEqual(Tc - 10)
+    expect(entry.receivedAt).toBeLessThanOrEqual(Date.now() + 10)
+    expect(entry.receivedAt).not.toBe(entry.updatedAt)
+  })
+})
+

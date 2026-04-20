@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "planned",
+  "state": "implementing",
   "profile": [],
   "history": [
     {
@@ -26,6 +26,14 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "tasks.md (5 phases, 33 tasks with §16.2 state notation + traceability matrix) + handoff.md (execution contract, required reads, stop gates, post-merge) + test-vectors.json (14 concrete test vectors covering R1.S1-3, R2.S1-4, R3.S1-2, R4.S1, R5.S1-2, R6.S1-2) + errors.md (6 codes including CONNECTION_STATUS_RESIDUAL hard guard) + observability.md (events/metrics/logs/alerts + audit script)"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-04-20T10:31:20.831Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "admission gate passed; beta/session-ui-freshness created from main@bfa37f48f and checked out in opencode-beta worktree; XDG backed up at opencode.bak-20260420-1829-session-ui-freshness; Phase 1 starts"
     }
   ]
 }

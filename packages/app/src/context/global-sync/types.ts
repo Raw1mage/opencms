@@ -32,6 +32,31 @@ export type ProjectMeta = {
   }
 }
 
+// session-ui-freshness DD-1 / DD-8: inline client metadata for session-scoped entries.
+// Missing / NaN / Infinity / negative receivedAt must be treated as 0 by consumers (DD-4).
+export type ClientStampMeta = {
+  receivedAt: number
+}
+
+export type StoreSessionStatusEntry = SessionStatus & ClientStampMeta
+
+export type StoreActiveChildEntry = ClientStampMeta & {
+  sessionID: string
+  parentMessageID: string
+  toolCallID: string
+  workerID: string
+  title: string
+  agent: string
+  status: "running" | "handoff"
+  dispatchedAt?: number
+  todo?: {
+    id: string
+    content: string
+    status: string
+    action?: Todo["action"]
+  }
+}
+
 export type State = {
   status: "loading" | "partial" | "complete"
   agent: Agent[]
@@ -67,25 +92,10 @@ export type State = {
   session: Session[]
   sessionTotal: number
   session_status: {
-    [sessionID: string]: SessionStatus
+    [sessionID: string]: StoreSessionStatusEntry
   }
   active_child: {
-    [sessionID: string]: {
-      sessionID: string
-      parentMessageID: string
-      toolCallID: string
-      workerID: string
-      title: string
-      agent: string
-      status: "running" | "handoff"
-      dispatchedAt?: number
-      todo?: {
-        id: string
-        content: string
-        status: string
-        action?: Todo["action"]
-      }
-    }
+    [sessionID: string]: StoreActiveChildEntry
   }
   session_telemetry: {
     [sessionID: string]: SessionTelemetry

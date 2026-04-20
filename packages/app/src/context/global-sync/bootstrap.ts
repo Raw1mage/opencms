@@ -14,7 +14,7 @@ import { retry } from "@opencode-ai/util/retry"
 import { getFilename } from "@opencode-ai/util/path"
 import { showToast } from "@opencode-ai/ui/toast"
 import { cmp, normalizeProviderList } from "./utils"
-import type { State, VcsCache } from "./types"
+import type { State, StoreSessionStatusEntry, VcsCache } from "./types"
 import { formatServerError } from "@/utils/server-errors"
 
 const SILENT_SENTINEL = "__OPENCODE_SILENT_UNAUTHORIZED__"
@@ -257,7 +257,13 @@ export async function bootstrapDirectory(input: {
     fetchWorkspaceCurrent({ baseUrl: input.baseUrl, fetch: input.fetch, directory: input.directory }).then((x) => {
       if (x) input.setStore("workspace", x)
     }),
-    input.sdk.session.status().then((x) => input.setStore("session_status", x.data!)),
+    input.sdk.session.status().then((x) => {
+      // session-ui-freshness R1 / DD-1: stamp receivedAt on every entry of bulk bootstrap response.
+      const now = Date.now()
+      const stamped: Record<string, StoreSessionStatusEntry> = {}
+      for (const [sid, status] of Object.entries(x.data!)) stamped[sid] = { ...status, receivedAt: now }
+      input.setStore("session_status", stamped)
+    }),
     input.loadSessions(input.directory),
     input.sdk.mcp.status().then((x) => input.setStore("mcp", x.data!)),
     input.sdk.lsp.status().then((x) => input.setStore("lsp", x.data!)),
