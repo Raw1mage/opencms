@@ -49,4 +49,4 @@ Scope **simplified**: no new endpoint needed — tool just POSTs the existing `/
 - [x] 6.2 Live verification: killed daemon + rm runtime dir + curl → gateway log showed `orphan-detected uid=1000 holderPid=945205` → `orphan-cleanup result=exited waitedMs=50` → `runtime-dir-created path=/run/user/1000/opencode uid=1000 mode=0700` → fresh spawn succeeded, curl 200
 - [x] 6.3 Same run covered `rm -rf /run/user/1000/opencode/`; `runtime-dir-created` log line confirms auto-rebuild with correct mode (0700) + owner (uid 1000)
 - [x] 6.4 Evidence recorded in handoff.md Execution Evidence section
-- [ ] 6.5 Promote state verified → living after fetch-back merge to main
+- [x] 6.5 Merged to main at `9ee4ebd28`; state promoted planned → implementing → verified → living at `5be994ed5`; beta + test branches deleted
