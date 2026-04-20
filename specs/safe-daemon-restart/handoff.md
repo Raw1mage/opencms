@@ -52,10 +52,32 @@ Before the build agent starts:
 
 ## Execution Evidence
 
-(Fill during `verified` state promotion.)
+Captured 2026-04-21 during test-branch acceptance.
 
-- Commit SHAs:
-- Gateway rebuild evidence:
-- TV-1..TV-7 outputs:
-- Manual verification screencaps / log excerpts:
-- Final state transition timestamp:
+**Commits (test/safe-daemon-restart = main + 6):**
+- `80a03a0d8` phase 1 — gateway runtime-dir guarantee + orphan cleanup (C)
+- `7590acc3c` revise — webctl integration
+- `16dddb770` phase 2+3 — /web/restart gateway-daemon + MCP restart_self
+- `062715d1d` phase 4+5 — bash denylist + AGENTS/architecture/incident doc
+- `0f2a66f67` tasks.md phase 5 close
+- `a17d963bb` Merge beta into test
+
+**Gateway rebuild:** `cd daemon && make clean && make` → 102064 bytes, 0 errors. `sudo install -m 4755 -o root daemon/opencode-gateway /usr/local/bin/`. `sudo systemctl restart opencode-gateway` → active.
+
+**TV-1** (endpoint reachable): `curl POST /api/v2/global/web/restart` (no cookie) → 401 `{"error":"unauthorized"}`. Full positive path requires logged-in browser (UI Settings → Restart Web); covered by existing UI flow.
+
+**TV-2** (SIGKILL escalation): `daemon/test-orphan-cleanup.c` `test_cleanup_escalates_to_sigkill` — child installs `signal(SIGTERM, SIG_IGN)` + `pause()`, cleanup SIGTERMs then escalates SIGKILL after 1000ms, child gone within 500ms. Pass.
+
+**TV-3 / TV-4** (denylist): `bun test packages/opencode/src/tool/bash-denylist.test.ts` — 14/14 pass, 16 expect calls. Blocks webctl.sh restart-family, bun serve --unix-socket, opencode serve, indirect kill, systemctl restart opencode-gateway. Allows git/ls/bun-build/plain-kill passthrough.
+
+**TV-5 + TV-6 + TV-7** (live end-to-end):
+```
+Apr 21 01:45:42 [WARN ] orphan-detected uid=1000 holderPid=945205 username=pkcs12 — cleaning up before spawn
+Apr 21 01:45:42 [INFO ] orphan-cleanup uid=1000 holderPid=945205 result=exited waitedMs=50 username=pkcs12
+Apr 21 01:45:42 [INFO ] runtime-dir-created path=/run/user/1000/opencode uid=1000 mode=0700
+Apr 21 01:45:42 [INFO ] spawning daemon for pkcs12 (uid 1000) socket='/run/user/1000/opencode/daemon.sock'
+Apr 21 01:45:42 [INFO ] forked daemon child for pkcs12: pid=945805
+```
+Setup: killed prior daemon, `sudo rm -rf /run/user/1000/opencode/`, `curl /api/v2/global/health` → status 200. User session continuous; no JWT clear, no login redirect. Contrast with 2026-04-20 failure mode which looped `waitpid ECHILD` until JWT cleared.
+
+**Final state transition timestamp:** pending user approval for test → main finalize.

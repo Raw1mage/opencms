@@ -45,8 +45,8 @@ Scope **simplified**: no new endpoint needed — tool just POSTs the existing `/
 
 ## 6. Acceptance validation
 
-- [ ] 6.1 Run TV-1 through TV-7 end-to-end on a beta worktree; capture outputs
-- [ ] 6.2 Manual verification: artificially create orphan (spawn bun daemon out-of-band), trigger request, confirm gateway log shows orphan-cleanup path, user not redirected to login
-- [ ] 6.3 Manual verification: `sudo rm -rf /run/user/1000/opencode/` then access site; confirm auto-recreate + normal operation
-- [ ] 6.4 Record validation evidence in `handoff.md` under Execution Evidence section
-- [ ] 6.5 Promote state verified → living after fetch-back to main
+- [x] 6.1 TV-1 (endpoint reachable, 401 auth gate), TV-2 (SIGKILL escalation, C unit test), TV-3/TV-4 (denylist, 14 bun unit tests), TV-5+TV-6+TV-7 (live end-to-end on test branch 2026-04-21 01:45): orphan-detected + orphan-cleanup + runtime-dir-created all fired in real gateway log; user not redirected to login
+- [x] 6.2 Live verification: killed daemon + rm runtime dir + curl → gateway log showed `orphan-detected uid=1000 holderPid=945205` → `orphan-cleanup result=exited waitedMs=50` → `runtime-dir-created path=/run/user/1000/opencode uid=1000 mode=0700` → fresh spawn succeeded, curl 200
+- [x] 6.3 Same run covered `rm -rf /run/user/1000/opencode/`; `runtime-dir-created` log line confirms auto-rebuild with correct mode (0700) + owner (uid 1000)
+- [x] 6.4 Evidence recorded in handoff.md Execution Evidence section
+- [ ] 6.5 Promote state verified → living after fetch-back merge to main
