@@ -12,22 +12,22 @@
 
 Scope **revised 2026-04-21**: `/api/v2/global/web/restart` already exists (`packages/opencode/src/server/routes/global.ts`) and handles legacy-mode with webctl.sh rebuild. Gateway-daemon mode currently just self-terminates without rebuild. This phase closes that gap.
 
-- [ ] 2.1 In `packages/opencode/src/server/routes/global.ts` line ~511-533 (gateway-daemon branch): before the self-terminate setTimeout, call `webctl.sh restart --graceful` via `Bun.spawn` (same pattern as legacy branch line ~535-595)
-- [ ] 2.2 On webctl exit != 0: do NOT self-terminate; return 5xx with error log path + hint (mirrors legacy error path); preserves "rebuild failed → system stays on old version" invariant
-- [ ] 2.3 Accept optional `targets?: ("daemon"|"frontend"|"gateway")[]` body parameter; when `gateway` is requested, append `--force-gateway` to the webctl call
-- [ ] 2.4 Ensure webctl is NOT re-entered if already-running (webctl has its own lock file at `RESTART_LOCK_FILE`); if busy, return 409 Conflict
-- [ ] 2.5 Emit structured logs: `web-restart mode=gateway-daemon txid=... targets=... webctlExit=...`
-- [ ] 2.6 Integration smoke test: call endpoint, assert webctl invoked (log check) + daemon exits + gateway respawn succeeds
+- [x] 2.1 In `packages/opencode/src/server/routes/global.ts` line ~511-533 (gateway-daemon branch): before the self-terminate setTimeout, call `webctl.sh restart --graceful` via `Bun.spawn` (same pattern as legacy branch line ~535-595)
+- [x] 2.2 On webctl exit != 0: do NOT self-terminate; return 5xx with error log path + hint (mirrors legacy error path); preserves "rebuild failed → system stays on old version" invariant
+- [x] 2.3 Accept optional `targets?: ("daemon"|"frontend"|"gateway")[]` body parameter; when `gateway` is requested, append `--force-gateway` to the webctl call
+- [x] 2.4 Webctl lock busy (stderr matches `/already in progress/`) → return 409 `RESTART_LOCK_BUSY`
+- [x] 2.5 Structured logs at 3 checkpoints: `invoking webctl` (INFO), `webctl failed` (ERROR), `webctl ok, scheduling self-terminate` (INFO) — all include txid, targets, webctlExit
+- [>] 2.6 Integration smoke test — **deferred to Phase 6 TV-1**: full end-to-end needs running daemon + gateway + webctl; covered in manual verification phase with other acceptance vectors
 
 ## 3. system-manager MCP restart_self tool (TypeScript)
 
 Scope **simplified**: no new endpoint needed — tool just POSTs the existing `/web/restart`.
 
-- [ ] 3.1 Add `restart_self` tool to `packages/mcp/system-manager/src/index.ts` tools array; description makes it clear this triggers rebuild+restart and should be used after code changes or for recovery
-- [ ] 3.2 Tool handler: POST `/api/v2/global/web/restart` on localhost (reuse `globalSDK` equivalent or raw fetch with session JWT); optional `targets` passthrough
-- [ ] 3.3 Return `{restartScheduled: true, mode, txid}` to AI; on non-2xx return error with log path so AI can read + report
-- [ ] 3.4 No local-spawn fallback — if endpoint unreachable, fail loud (AGENTS.md rule 1)
-- [ ] 3.5 Unit test: mock endpoint, assert tool forwards JWT + targets; assert non-2xx surfaced as error
+- [x] 3.1 Added `restart_self` tool schema to tools array (line ~571) with `targets?` and `reason?` + explicit description warning about `--force-gateway` disconnect
+- [x] 3.2 Handler at end of dispatch: uses `serverFetch` via unix socket (same pattern as `remove_mcp_app`); forwards targets + reason
+- [x] 3.3 Success → text describing mode + txid + reconnect expectation; error → preserves `code`, `hint`, `errorLogPath` from endpoint
+- [x] 3.4 No fallback — endpoint error surfaced as isError text; no retry, no spawn
+- [>] 3.5 Unit test — **deferred to Phase 6 TV-1 / TV-2**: end-to-end via real daemon gives stronger signal than mock
 
 ## 4. system-manager execute_command denylist (TypeScript)
 

@@ -480,7 +480,7 @@ export const GlobalRoutes = lazy(() =>
       describeRoute({
         summary: "Restart web runtime",
         description:
-          "Schedule a controlled web runtime restart. Intended for authenticated operators; clients should wait for health recovery and then reload.",
+          "Schedule a controlled web runtime restart. Intended for authenticated operators; clients should wait for health recovery and then reload. Optional `targets` body selects which layers to rebuild (daemon/frontend/gateway); when omitted, webctl.sh auto-detects dirty layers and skips unchanged ones.",
         operationId: "global.web.restart",
         responses: {
           200: {
@@ -502,20 +502,101 @@ export const GlobalRoutes = lazy(() =>
               },
             },
           },
+          409: { description: "Another restart is already in progress" },
           ...errors(500),
         },
       }),
+      validator(
+        "json",
+        z
+          .object({
+            targets: z.array(z.enum(["daemon", "frontend", "gateway"])).optional(),
+            reason: z.string().max(500).optional(),
+          })
+          .partial()
+          .optional(),
+      ),
       async (c) => {
         const runtimeMode = resolveRestartRuntimeMode()
+        const body = (c.req.valid("json" as never) as { targets?: Array<"daemon" | "frontend" | "gateway">; reason?: string } | undefined) ?? {}
+        const targets = body.targets ?? []
+        const wantsGateway = targets.includes("gateway")
 
-        // Gateway daemon mode: self-terminate, gateway will respawn on next request
+        // Gateway daemon mode: run webctl rebuild+install first (smart-skip
+        // per-layer), then self-terminate so gateway respawns the new binary.
+        // safe-daemon-restart RESTART-001 v2.
         if (isGatewayDaemon()) {
-          log.info("restart requested in gateway-daemon mode — scheduling self-termination")
+          const webctlPath = resolveWebctlPath()
+          const txid = `web-${Date.now()}-${process.pid}`
+          const runtimeTmp = process.env.XDG_RUNTIME_DIR || "/tmp"
+          const errorLogPath = path.join(runtimeTmp, `opencode-web-restart-${txid}.error.log`)
 
-          // Respond first, then exit after a brief delay so the response reaches the client
+          const exists = await Bun.file(webctlPath).exists()
+          if (!exists) {
+            log.error("web-restart mode=gateway-daemon rejected: webctl missing", { webctlPath })
+            return c.json({ code: "WEBCTL_MISSING", message: `web control script not found: ${webctlPath}` }, 500)
+          }
+
+          const cmd = [webctlPath, "restart", "--graceful"]
+          if (wantsGateway) cmd.push("--force-gateway")
+
+          log.info("web-restart mode=gateway-daemon invoking webctl", {
+            txid,
+            webctlPath,
+            targets,
+            wantsGateway,
+            reason: body.reason,
+          })
+
+          const proc = Bun.spawn({
+            cmd,
+            stdout: "ignore",
+            stderr: "pipe",
+            stdin: "ignore",
+            env: {
+              ...process.env,
+              OPENCODE_RESTART_TXID: txid,
+              OPENCODE_RESTART_ERROR_LOG_FILE: errorLogPath,
+            },
+          })
+          const stderrPromise = proc.stderr ? new Response(proc.stderr).text() : Promise.resolve("")
+          const webctlExit = await proc.exited
+          const stderr = (await stderrPromise).trim()
+
+          if (webctlExit !== 0) {
+            // Busy lock → 409. Other failures → 500.
+            const isBusy = /already\s+in\s+progress/i.test(stderr)
+            log.error("web-restart mode=gateway-daemon webctl failed", {
+              webctlPath,
+              webctlExit,
+              txid,
+              errorLogPath,
+              isBusy,
+              stderrHead: stderr.slice(0, 400),
+            })
+            return c.json(
+              {
+                code: isBusy ? "RESTART_LOCK_BUSY" : "WEB_RESTART_FAILED",
+                message: stderr || `webctl restart failed (exit ${webctlExit})`,
+                webctlExit,
+                txid,
+                errorLogPath,
+                webctlPath,
+                hint: "Current runtime is gateway-daemon mode; webctl rebuilds changed layers. See the error log for full output. System kept on previous version.",
+              },
+              isBusy ? 409 : 500,
+            )
+          }
+
+          log.info("web-restart mode=gateway-daemon webctl ok, scheduling self-terminate", {
+            txid,
+            webctlExit,
+          })
+
+          // Respond first, then exit so the response reaches the client.
           setTimeout(async () => {
             const { Daemon } = await import("@/server/daemon")
-            log.info("gateway-daemon self-terminating for restart")
+            log.info("gateway-daemon self-terminating for restart", { txid })
             await Daemon.removeDiscovery().catch(() => {})
             process.exit(0)
           }, 300)

@@ -568,6 +568,27 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["id"],
         },
       },
+      {
+        name: "restart_self",
+        description:
+          "Request a controlled rebuild+restart of the web runtime via the existing /api/v2/global/web/restart endpoint. Use this AFTER you have modified source code (bun daemon source, frontend, or the C gateway) and need the changes to take effect — NOT for routine stuck-state recovery. Webctl.sh smart-detects which layers are dirty and only rebuilds those. If nothing changed, the call is effectively a no-op restart. On failure the system stays on the previous version (daemon is not killed). Do NOT attempt to run `webctl.sh` directly via execute_command — that path is denied; this tool is the only sanctioned path.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            targets: {
+              type: "array",
+              items: { type: "string", enum: ["daemon", "frontend", "gateway"] },
+              description:
+                "Optional layer hint. Omit to let webctl auto-detect. Include 'gateway' ONLY when the C gateway binary changed (daemon/opencode-gateway.c) — this adds --force-gateway and causes a systemd respawn of the gateway itself, briefly disconnecting all users.",
+            },
+            reason: {
+              type: "string",
+              description: "Short human-readable reason (stored in gateway log and restart event log). Example: 'applied auth middleware rewrite'.",
+              maxLength: 500,
+            },
+          },
+        },
+      },
     ],
   }
 })
@@ -1328,6 +1349,56 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: "text", text: `MCP App '${id}' removed successfully.` }] }
       } catch (e: any) {
         return { content: [{ type: "text", text: `Remove error: ${e.message}` }], isError: true }
+      }
+    }
+
+    if (name === "restart_self") {
+      // Thin shim over POST /api/v2/global/web/restart.  The daemon endpoint
+      // handles the actual rebuild+restart orchestration via webctl.sh.
+      // This tool exists so AI has a sanctioned path (vs. running webctl.sh
+      // directly, which execute_command will deny).
+      const { targets, reason } = args as {
+        targets?: Array<"daemon" | "frontend" | "gateway">
+        reason?: string
+      }
+      const baseUrl = await getServerApiBaseUrl()
+      const body: Record<string, unknown> = {}
+      if (targets && targets.length > 0) body.targets = targets
+      if (reason) body.reason = reason
+      const res = await serverFetch(`${baseUrl}/global/web/restart`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      })
+      const payload = (await res.json().catch(() => ({}))) as Record<string, unknown>
+      if (!res.ok) {
+        const msg =
+          typeof payload.message === "string"
+            ? payload.message
+            : typeof payload.code === "string"
+              ? payload.code
+              : `HTTP ${res.status}`
+        const logPath = typeof payload.errorLogPath === "string" ? `\nError log: ${payload.errorLogPath}` : ""
+        const hint = typeof payload.hint === "string" ? `\nHint: ${payload.hint}` : ""
+        return {
+          content: [
+            {
+              type: "text",
+              text: `restart_self failed (${res.status}): ${msg}${hint}${logPath}`,
+            },
+          ],
+          isError: true,
+        }
+      }
+      const mode = typeof payload.runtimeMode === "string" ? payload.runtimeMode : "unknown"
+      const txid = typeof payload.txid === "string" ? payload.txid : "(no txid)"
+      return {
+        content: [
+          {
+            type: "text",
+            text: `restart_self scheduled (mode=${mode}, txid=${txid}). The daemon will self-terminate after webctl finishes; the gateway will respawn a fresh daemon on the next request. Expect a brief window of 503/reconnect.`,
+          },
+        ],
       }
     }
 
