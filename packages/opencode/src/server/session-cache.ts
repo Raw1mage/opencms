@@ -16,9 +16,11 @@ const log = Log.create({ service: "session-cache" })
  *
  * Keys:
  *   - session:<sessionID>
+ *   - session:<sessionID>:meta
  *   - messages:<sessionID>:<limit>
  *
- * Invariants (see specs/session-poll-cache/invariants.md):
+ * Invariants (see specs/session-poll-cache/invariants.md,
+ * specs/frontend-session-lazyload/invariants.md INV-1):
  *   I-1 No entry is served past its TTL.
  *   I-2 Bus bridge coverage ensures worker writes invalidate daemon cache.
  *   I-3 Subscription failure is loud (log.warn, subscriptionAlive=false).
@@ -85,16 +87,29 @@ export namespace SessionCache {
   }
 
   /**
+   * Canonical cache key for the session metadata endpoint (partCount / totalBytes / lastUpdated).
+   * Shares the per-session version counter with session:<id> and messages:<id>:<limit>,
+   * so INV-1 (meta/session/messages ETag sync) holds.
+   */
+  export function metaKey(sessionID: string): string {
+    return `session:${sessionID}:meta`
+  }
+
+  /**
    * Extract the sessionID prefix from a cache key.
-   * session:<id>         → <id>
-   * messages:<id>:<limit>  → <id>
+   * session:<id>              → <id>
+   * session:<id>:meta         → <id>
+   * messages:<id>:<limit>     → <id>
    */
   function sessionIdOf(key: string): string | undefined {
     const idx = key.indexOf(":")
     if (idx < 0) return undefined
     const namespace = key.slice(0, idx)
     const rest = key.slice(idx + 1)
-    if (namespace === "session") return rest
+    if (namespace === "session") {
+      const colon = rest.indexOf(":")
+      return colon < 0 ? rest : rest.slice(0, colon)
+    }
     if (namespace === "messages") {
       const colon = rest.lastIndexOf(":")
       return colon < 0 ? rest : rest.slice(0, colon)
@@ -194,10 +209,11 @@ export namespace SessionCache {
 
   export function invalidate(sessionID: string, triggeringEventType: string): number {
     let dropped = 0
-    const prefix1 = `session:${sessionID}`
-    const prefix2 = `messages:${sessionID}:`
+    const sessionExact = `session:${sessionID}`
+    const sessionSub = `session:${sessionID}:`
+    const messagesPrefix = `messages:${sessionID}:`
     for (const key of Array.from(entries.keys())) {
-      if (key === prefix1 || key.startsWith(prefix2)) {
+      if (key === sessionExact || key.startsWith(sessionSub) || key.startsWith(messagesPrefix)) {
         entries.delete(key)
         dropped += 1
       }
