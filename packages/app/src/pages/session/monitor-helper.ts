@@ -53,7 +53,7 @@ export type ProcessCard = {
   status: "active" | "waiting" | "pending" | "error" | "idle"
   agent?: string
   model?: { providerId: string; modelID: string }
-  updatedAgo?: number
+  elapsed?: number
   requests: number
   totalTokens: number
   activeTool?: string
@@ -574,7 +574,7 @@ export function buildProcessCards(entries: EnrichedMonitorEntry[], mainSessionID
       status: bestStatus,
       agent: primary.agent,
       model,
-      updatedAgo: latestUpdate ? Math.floor((now - latestUpdate) / 1000) : undefined,
+      elapsed: latestUpdate ? Math.floor((now - latestUpdate) / 1000) : undefined,
       requests,
       totalTokens,
       activeTool,
@@ -591,7 +591,7 @@ export function buildProcessCards(entries: EnrichedMonitorEntry[], mainSessionID
     const sa = statusOrder[a.status] ?? 9
     const sb = statusOrder[b.status] ?? 9
     if (sa !== sb) return sa - sb
-    return (a.updatedAgo ?? 0) - (b.updatedAgo ?? 0)
+    return (a.elapsed ?? 0) - (b.elapsed ?? 0)
   })
 
   return cards

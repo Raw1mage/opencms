@@ -6,8 +6,6 @@ import { usePlatform } from "./platform"
 import { useServer } from "./server"
 import { useWebAuth } from "./web-auth"
 
-export type GlobalConnectionStatus = "connected" | "reconnecting" | "degraded" | "resyncing" | "blocked"
-
 function normalizeDirectoryKey(value: string) {
   if (!value || value === "global") return "global"
   const normalized = value.replaceAll("\\", "/")
@@ -78,7 +76,6 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
       [key: string]: Event
     }>()
     const [reconnectVersion, setReconnectVersion] = createSignal(0)
-    const [connectionStatus, setConnectionStatus] = createSignal<GlobalConnectionStatus>("connected")
 
     type Queued = { directory: string; payload: Event }
     const FLUSH_FRAME_MS = 16
@@ -144,7 +141,6 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
     }
 
     let streamErrorLogged = false
-    let streamEstablished = false
     const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
     const shouldConnectEventStream = () => {
       if (!webAuth.enabled()) return true
@@ -158,26 +154,8 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
     const reconnect = (reason: string) => {
       if (abort.signal.aborted) return
       streamErrorLogged = false
-      setConnectionStatus((value) => (value === "resyncing" ? value : "resyncing"))
       console.info("[global-sdk] reconnecting event stream", { reason, url: server.url })
       setReconnectVersion((value) => value + 1)
-    }
-    const setDegraded = () => {
-      if (abort.signal.aborted) return
-      setConnectionStatus((value) => (value === "degraded" ? value : "degraded"))
-    }
-    const setBlocked = () => {
-      if (abort.signal.aborted) return
-      setConnectionStatus((value) => (value === "blocked" ? value : "blocked"))
-    }
-    const setReconnecting = () => {
-      if (abort.signal.aborted) return
-      setConnectionStatus((value) => (value === "reconnecting" ? value : "reconnecting"))
-    }
-    const setConnected = () => {
-      if (abort.signal.aborted) return
-      streamEstablished = true
-      setConnectionStatus((value) => (value === "connected" ? value : "connected"))
     }
 
     createEffect(() => {
@@ -196,13 +174,8 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
         while (!signal.aborted) {
           if (!shouldConnectEventStream()) {
             streamErrorLogged = false
-            setBlocked()
             await wait(RECONNECT_DELAY_MS)
             continue
-          }
-
-          if (connectionStatus() !== "resyncing" && (streamEstablished || connectionStatus() !== "connected")) {
-            setReconnecting()
           }
 
           try {
@@ -214,7 +187,6 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
                 if (isUnauthorized(error) && webAuth.enabled() && !webAuth.authenticated()) return
                 if (streamErrorLogged) return
                 streamErrorLogged = true
-                setDegraded()
                 console.error("[global-sdk] event stream error", {
                   url: server.url,
                   fetch: eventFetch ? "platform" : "webview",
@@ -222,12 +194,10 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
                 })
               },
             })
-            setConnected()
             let yielded = Date.now()
             for await (const event of events.stream) {
               backoff = RECONNECT_DELAY_MS
               streamErrorLogged = false
-              setConnected()
               const directory = normalizeDirectoryKey(event.directory ?? "global")
               const payload = event.payload
               const k = key(directory, payload)
@@ -250,22 +220,17 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
               yielded = Date.now()
               await wait(0)
             }
-            if (!signal.aborted && streamEstablished) {
-              setDegraded()
-            }
           } catch (error) {
             if (signal.aborted) return
             if (error instanceof Error && error.name === "AbortError") return
             if ((error as DOMException)?.name === "AbortError") return
 
             if (isUnauthorized(error) && webAuth.enabled() && !webAuth.authenticated()) {
-              setBlocked()
               await wait(RECONNECT_DELAY_MS)
               continue
             }
             if (!streamErrorLogged) {
               streamErrorLogged = true
-              setDegraded()
               console.error("[global-sdk] event stream failed", {
                 url: server.url,
                 fetch: eventFetch ? "platform" : "webview",
@@ -310,6 +275,6 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
       throwOnError: true,
     })
 
-    return { url: server.url, client: sdk, event: emitter, fetch: fetchWithAuth, connectionStatus }
+    return { url: server.url, client: sdk, event: emitter, fetch: fetchWithAuth }
   },
 })

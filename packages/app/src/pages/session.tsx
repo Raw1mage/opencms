@@ -38,7 +38,6 @@ import { sendSessionReloadDebugBeacon } from "@/utils/debug-beacon"
 import { ConstrainDragYAxis, getDraggableId } from "@/utils/solid-dnd"
 import { usePermission } from "@/context/permission"
 import { showToast } from "@opencode-ai/ui/toast"
-import { useGlobalSDK } from "@/context/global-sdk"
 import { SessionHeader, SessionContextTab, SortableTab, FileVisual, NewSessionView } from "@/components/session"
 import { navMark, navParams } from "@/utils/perf"
 import { same } from "@/utils/same"
@@ -117,7 +116,6 @@ export default function Page() {
   const prompt = usePrompt()
   const comments = useComments()
   const permission = usePermission()
-  const globalSDK = useGlobalSDK()
 
   const permRequest = createMemo(() => {
     return sessionPermissionRequest(sync.data.session, sync.data.permission, params.id)
@@ -128,7 +126,6 @@ export default function Page() {
   })
 
   const blocked = createMemo(() => !!permRequest() || !!questionRequest())
-  const connectionAuthorityReady = createMemo(() => globalSDK.connectionStatus() === "connected")
 
   const [ui, setUi] = createStore({
     responding: false,
@@ -169,33 +166,6 @@ export default function Page() {
   const tabs = createMemo(() => layout.tabs(sessionKey))
   const view = createMemo(() => layout.view(sessionKey))
   let initialHydratedSessionID: string | undefined
-
-  // Trigger daemon capability-layer refresh on session open. Backend returns
-  // busy_skipped harmlessly when mid-turn. On success, dispatch a window
-  // event so the skills panel in the side bar can refetch its state.
-  createEffect(
-    on(
-      () => params.id,
-      (id) => {
-        if (!id) return
-        void sdk
-          .fetch(`${sdk.url}/api/v2/session/${id}/resume`, {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ clientID: "web" }),
-          })
-          .then((res) => {
-            if (!res.ok) return
-            window.dispatchEvent(
-              new CustomEvent("opencode:capability_refreshed", {
-                detail: { sessionID: id },
-              }),
-            )
-          })
-          .catch(() => {})
-      },
-    ),
-  )
 
   createEffect(
     on(
@@ -952,19 +922,7 @@ export default function Page() {
   })
   const hasActiveChild = createMemo(() => !!activeChild())
   const sessionBusy = createMemo(() => status().type !== "idle" || hasActiveChild())
-  createEffect(() => {
-    const sessionID = authoritativeParentSessionID()
-    if (!sessionID) return
-    if (connectionAuthorityReady()) return
-    sync.set(
-      produce((draft) => {
-        delete draft.active_child[sessionID]
-      }),
-    )
-  })
-
   const activeChildDock = createMemo(() => {
-    if (!connectionAuthorityReady()) return undefined
     const child = activeChild()
     if (!child) return undefined
     const childMessages = sync.data.message[child.sessionID] ?? []

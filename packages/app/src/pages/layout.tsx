@@ -324,59 +324,6 @@ export default function Layout(props: ParentProps) {
     setLocale(next)
   }
 
-  const useConnectionStatusToast = () =>
-    onMount(() => {
-      let toastId: number | undefined
-
-      createEffect(() => {
-        const status = globalSDK.connectionStatus()
-        if (status === "connected") {
-          if (toastId !== undefined) {
-            toaster.dismiss(toastId)
-            toastId = undefined
-          }
-          return
-        }
-
-        if (toastId !== undefined) {
-          toaster.dismiss(toastId)
-        }
-
-        const copy =
-          status === "blocked"
-            ? {
-                title: "Connection blocked",
-                description: "Authentication is required before live runtime status can resume. Prompt input is temporarily blocked.",
-              }
-            : status === "degraded"
-              ? {
-                  title: "Connection degraded",
-                  description: "Live runtime status may be stale. Prompt input is temporarily blocked until revalidation succeeds.",
-                }
-              : status === "resyncing"
-                ? {
-                    title: "Resyncing…",
-                    description: "Refreshing authoritative session status after reconnect. Prompt input is temporarily blocked.",
-                  }
-                : {
-                    title: "Reconnecting…",
-                    description: "Waiting for the live event stream to recover. Prompt input is temporarily blocked.",
-                  }
-
-        toastId = showToast({
-          persistent: true,
-          title: copy.title,
-          description: copy.description,
-        })
-      })
-
-      onCleanup(() => {
-        if (toastId !== undefined) {
-          toaster.dismiss(toastId)
-        }
-      })
-    })
-
   const useSDKNotificationToasts = () =>
     onMount(() => {
       const toastBySession = new Map<string, number>()
@@ -485,7 +432,6 @@ export default function Layout(props: ParentProps) {
       })
     })
 
-  useConnectionStatusToast()
   useSDKNotificationToasts()
 
   function scrollToSession(sessionId: string, sessionKey: string) {
