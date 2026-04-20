@@ -80,6 +80,10 @@ interface StreamState {
   hasFunctionCall: boolean
   /** ID of the currently-open text part (null = no dangling text) */
   openTextId: string | null
+  /** Accumulated function_call arguments per output_index (recovery buffer) */
+  toolArgBuffer: Map<number, string>
+  /** call_ids for which tool-call has been emitted — guards duplicate emission */
+  emittedToolCalls: Set<string>
 }
 
 interface ResponseUsageCapture {
@@ -106,6 +110,8 @@ export function mapResponseStream(
     reasoningIdCounter: 0,
     hasFunctionCall: false,
     openTextId: null,
+    toolArgBuffer: new Map(),
+    emittedToolCalls: new Set(),
   }
 
   let resolveResponseId: (id: string | undefined) => void
@@ -132,6 +138,29 @@ export function mapResponseStream(
           controller.enqueue({ type: "text-end", id: state.openTextId } as LanguageModelV2StreamPart)
           state.openTextId = null
         }
+
+        // Flush dangling function_call parts (§4.7: tool-call synthesis on truncation).
+        // If WS ended before .arguments.done / .output_item.done, the tool part would be
+        // stranded in "pending" and later swept to "Tool execution aborted". Synthesize
+        // tool-input-end + tool-call from the delta buffer so downstream code gets a
+        // terminal state — even if the accumulated arguments JSON is partial (the tool
+        // executor's parse error is a more honest failure than a silent abort).
+        for (const [outputIdx, buffered] of state.toolArgBuffer) {
+          const tracked = state.outputItems.get(outputIdx)
+          if (!tracked || tracked.type !== "function_call" || !tracked.callId) continue
+          if (state.emittedToolCalls.has(tracked.callId)) continue
+          state.hasFunctionCall = true
+          controller.enqueue({ type: "tool-input-end", id: tracked.callId } as LanguageModelV2StreamPart)
+          controller.enqueue({
+            type: "tool-call",
+            toolCallId: tracked.callId,
+            toolName: tracked.name ?? "unknown",
+            input: buffered && buffered.length > 0 ? buffered : "{}",
+            providerMetadata: tracked.id ? { openai: { itemId: tracked.id } } : undefined,
+          } as LanguageModelV2StreamPart)
+          state.emittedToolCalls.add(tracked.callId)
+        }
+        state.toolArgBuffer.clear()
 
         // Determine finish reason: function_call present → "tool-calls" (§4.6)
         const finishReason: LanguageModelV2FinishReason =
@@ -201,11 +230,21 @@ function mapEvent(event: ResponseStreamEvent, state: StreamState): LanguageModel
           id,
           toolName: item.name ?? "unknown",
         } as LanguageModelV2StreamPart)
-        // If arguments are already complete in the added event (non-streaming tool call),
-        // emit them immediately as delta + end
+        // Non-streaming path: arguments already complete in the added event.
+        // Emit delta + end + tool-call (the last was previously missing and caused
+        // pending tool parts to be swept to "Tool execution aborted" when codex
+        // short-circuited output_item.done — see sse.ts §4.7 truncation fix).
         if (item.arguments && item.arguments !== "{}") {
           parts.push({ type: "tool-input-delta", id, delta: item.arguments } as LanguageModelV2StreamPart)
           parts.push({ type: "tool-input-end", id } as LanguageModelV2StreamPart)
+          parts.push({
+            type: "tool-call",
+            toolCallId: id,
+            toolName: item.name ?? "unknown",
+            input: item.arguments,
+            providerMetadata: item.id ? { openai: { itemId: item.id } } : undefined,
+          } as LanguageModelV2StreamPart)
+          state.emittedToolCalls.add(id)
         }
       }
       break
@@ -236,6 +275,10 @@ function mapEvent(event: ResponseStreamEvent, state: StreamState): LanguageModel
       const trackedItem = state.outputItems.get(outputIdx)
       const callId = trackedItem?.callId ?? (event as any).call_id ?? `tool_${outputIdx}`
       parts.push({ type: "tool-input-delta", id: callId, delta } as LanguageModelV2StreamPart)
+      // Buffer for truncation recovery: if stream ends before .arguments.done /
+      // .output_item.done, the flush path can synthesize tool-call from this.
+      const prev = state.toolArgBuffer.get(outputIdx) ?? ""
+      state.toolArgBuffer.set(outputIdx, prev + (delta ?? ""))
       break
     }
 
@@ -244,6 +287,26 @@ function mapEvent(event: ResponseStreamEvent, state: StreamState): LanguageModel
       const trackedItem2 = state.outputItems.get(outputIdx)
       const callId = trackedItem2?.callId ?? (event as any).call_id ?? `tool_${outputIdx}`
       parts.push({ type: "tool-input-end", id: callId } as LanguageModelV2StreamPart)
+      // Primary tool-call emission site: .arguments.done carries the full, final
+      // `arguments` string. Emitting here (instead of waiting for .output_item.done)
+      // closes the window where WS truncation between the two events left the tool
+      // part stranded in "pending" → later swept to "Tool execution aborted".
+      if (!state.emittedToolCalls.has(callId)) {
+        const finalArgs =
+          (event as any).arguments as string | undefined ??
+          state.toolArgBuffer.get(outputIdx) ??
+          "{}"
+        state.hasFunctionCall = true
+        parts.push({
+          type: "tool-call",
+          toolCallId: callId,
+          toolName: trackedItem2?.name ?? "unknown",
+          input: finalArgs,
+          providerMetadata: trackedItem2?.id ? { openai: { itemId: trackedItem2.id } } : undefined,
+        } as LanguageModelV2StreamPart)
+        state.emittedToolCalls.add(callId)
+      }
+      state.toolArgBuffer.delete(outputIdx)
       break
     }
 
@@ -270,9 +333,13 @@ function mapEvent(event: ResponseStreamEvent, state: StreamState): LanguageModel
       const doneItem = (event as any).item as { type: string; call_id?: string; name?: string; arguments?: string; id?: string }
       if (doneItem?.type === "function_call" && doneItem.call_id) {
         state.hasFunctionCall = true
-        // Emit tool-input-end + tool-call with FINAL arguments from done event.
-        // Streaming deltas may be obfuscated (delta="{}"), but output_item.done
-        // contains the real, complete arguments.
+        // Idempotent: if .arguments.done (or non-streaming output_item.added)
+        // already emitted tool-call for this call_id, skip re-emission.
+        // output_item.done is a secondary / fallback path that still fires tool-input-end
+        // in case .arguments.done didn't fire at all (e.g., non-streaming shape).
+        if (state.emittedToolCalls.has(doneItem.call_id)) {
+          break
+        }
         parts.push({ type: "tool-input-end", id: doneItem.call_id } as LanguageModelV2StreamPart)
         parts.push({
           type: "tool-call",
@@ -281,6 +348,7 @@ function mapEvent(event: ResponseStreamEvent, state: StreamState): LanguageModel
           input: doneItem.arguments ?? "{}",
           providerMetadata: doneItem.id ? { openai: { itemId: doneItem.id } } : undefined,
         } as LanguageModelV2StreamPart)
+        state.emittedToolCalls.add(doneItem.call_id)
       }
       break
     }

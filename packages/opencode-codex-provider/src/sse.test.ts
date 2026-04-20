@@ -165,6 +165,91 @@ describe("sse mapResponseStream", () => {
     expect(toolCall.toolCallId).toBe("call_1")
   })
 
+  test("tool-call emitted from .arguments.done when .output_item.done never arrives (WS truncation)", async () => {
+    // Reproduces the "apply_patch Tool execution aborted" bug:
+    // .arguments.done carries the full arguments; .output_item.done is truncated.
+    const parts = await collectParts([
+      { type: "response.created", response: { id: "resp_trunc" } } as any,
+      {
+        type: "response.output_item.added",
+        output_index: 0,
+        item: { type: "function_call", id: "fc_trunc", call_id: "call_trunc", name: "apply_patch" },
+      } as any,
+      { type: "response.function_call_arguments.delta", output_index: 0, delta: '{"path":' } as any,
+      { type: "response.function_call_arguments.delta", output_index: 0, delta: '"/tmp/a"}' } as any,
+      {
+        type: "response.function_call_arguments.done",
+        output_index: 0,
+        call_id: "call_trunc",
+        arguments: '{"path":"/tmp/a"}',
+      } as any,
+      // NO response.output_item.done — stream truncates here
+      {
+        type: "response.completed",
+        response: { id: "resp_trunc", status: "completed", usage: { input_tokens: 10, output_tokens: 20 } },
+      } as any,
+    ])
+
+    const toolCalls = parts.filter((p: any) => p.type === "tool-call")
+    expect(toolCalls.length).toBe(1)
+    expect(toolCalls[0].toolName).toBe("apply_patch")
+    expect(toolCalls[0].input).toBe('{"path":"/tmp/a"}')
+    expect(toolCalls[0].toolCallId).toBe("call_trunc")
+  })
+
+  test("tool-call emitted once when both .arguments.done and .output_item.done fire (idempotency)", async () => {
+    const parts = await collectParts([
+      { type: "response.created", response: { id: "resp_both" } } as any,
+      {
+        type: "response.output_item.added",
+        output_index: 0,
+        item: { type: "function_call", id: "fc_both", call_id: "call_both", name: "read_file" },
+      } as any,
+      { type: "response.function_call_arguments.delta", output_index: 0, delta: '{"path":"/x"}' } as any,
+      {
+        type: "response.function_call_arguments.done",
+        output_index: 0,
+        call_id: "call_both",
+        arguments: '{"path":"/x"}',
+      } as any,
+      {
+        type: "response.output_item.done",
+        output_index: 0,
+        item: { type: "function_call", id: "fc_both", call_id: "call_both", name: "read_file", arguments: '{"path":"/x"}' },
+      } as any,
+      {
+        type: "response.completed",
+        response: { id: "resp_both", status: "completed", usage: { input_tokens: 10, output_tokens: 20 } },
+      } as any,
+    ])
+
+    const toolCalls = parts.filter((p: any) => p.type === "tool-call")
+    expect(toolCalls.length).toBe(1)
+    expect(toolCalls[0].input).toBe('{"path":"/x"}')
+  })
+
+  test("tool-call synthesized from delta buffer when stream flushes without .arguments.done", async () => {
+    // Deepest truncation: WS closes after some deltas, before .arguments.done fires.
+    // Synthesis from toolArgBuffer is a last resort — downstream will surface the
+    // (possibly partial) JSON as a tool-exec error rather than a silent abort.
+    const parts = await collectParts([
+      { type: "response.created", response: { id: "resp_deep" } } as any,
+      {
+        type: "response.output_item.added",
+        output_index: 0,
+        item: { type: "function_call", id: "fc_deep", call_id: "call_deep", name: "apply_patch" },
+      } as any,
+      { type: "response.function_call_arguments.delta", output_index: 0, delta: '{"patch":"' } as any,
+      { type: "response.function_call_arguments.delta", output_index: 0, delta: 'partial' } as any,
+      // Stream ends here — no .arguments.done, no .output_item.done, no .completed
+    ])
+
+    const toolCalls = parts.filter((p: any) => p.type === "tool-call")
+    expect(toolCalls.length).toBe(1)
+    expect(toolCalls[0].toolCallId).toBe("call_deep")
+    expect(toolCalls[0].input).toBe('{"patch":"partial')
+  })
+
   test("usage captured correctly", async () => {
     const parts = await collectParts([
       { type: "response.created", response: { id: "resp_7" } } as any,
