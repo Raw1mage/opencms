@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "safe-daemon-restart data contracts",
+  "definitions": {
+    "RestartSelfRequest": {
+      "type": "object",
+      "properties": {
+        "reason": {"type": "string", "description": "human-readable reason AI provides", "maxLength": 500}
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "RestartSelfResponse": {
+      "type": "object",
+      "properties": {
+        "accepted": {"type": "boolean", "const": true},
+        "eventId": {"type": "string", "format": "uuid"},
+        "targetPid": {"type": "integer", "minimum": 1},
+        "scheduledAt": {"type": "string", "format": "date-time"},
+        "estimatedDowntimeMs": {"type": "integer", "minimum": 0, "maximum": 5000}
+      },
+      "required": ["accepted", "eventId", "targetPid", "scheduledAt"],
+      "additionalProperties": false
+    },
+    "DaemonInfo": {
+      "type": "object",
+      "description": "gateway-side state, mirrors DaemonInfo struct in C",
+      "properties": {
+        "username": {"type": "string"},
+        "uid": {"type": "integer"},
+        "gid": {"type": "integer"},
+        "state": {"type": "string", "enum": ["NONE", "STARTING", "READY", "RESTARTING", "DEAD"]},
+        "pid": {"type": "integer"},
+        "socket_path": {"type": "string", "pattern": "^/run/user/[0-9]+/opencode/daemon\\.sock$"}
+      },
+      "required": ["username", "uid", "state", "socket_path"]
+    },
+    "OrphanCleanupEvent": {
+      "type": "object",
+      "properties": {
+        "kind": {"type": "string", "const": "orphan-cleanup"},
+        "uid": {"type": "integer"},
+        "holderPid": {"type": "integer"},
+        "lockPath": {"type": "string"},
+        "termSignalResult": {"type": "string", "enum": ["exited", "timeout-killed"]},
+        "at": {"type": "string", "format": "date-time"}
+      },
+      "required": ["kind", "uid", "holderPid", "at"]
+    }
+  }
+}

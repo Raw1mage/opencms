@@ -1,0 +1,74 @@
+{
+  "diagram_title": "Safe Daemon Restart",
+  "node_reference": "A0",
+  "root": {
+    "id": "A0",
+    "name": "Manage per-user daemon lifecycle safely",
+    "inputs": ["user request", "AI restart intent"],
+    "outputs": ["running daemon", "observability events"],
+    "controls": ["gateway auth (JWT)", "AGENTS.md policy", "denylist"],
+    "mechanisms": ["gateway C process", "bun daemon", "system-manager MCP"]
+  },
+  "activities": [
+    {
+      "id": "A1",
+      "parent": "A0",
+      "name": "Accept AI restart request",
+      "inputs": ["restart_self tool call"],
+      "outputs": ["HTTP POST /restart-self", "eventId"],
+      "controls": ["JWT", "session ownership check"],
+      "mechanisms": ["system-manager MCP"],
+      "traceTo": "RESTART-001"
+    },
+    {
+      "id": "A2",
+      "parent": "A0",
+      "name": "Execute graceful restart",
+      "inputs": ["restart request"],
+      "outputs": ["old daemon terminated", "socket unlinked", "DaemonInfo reset"],
+      "controls": ["2s SIGTERM budget"],
+      "mechanisms": ["gateway signal handler"],
+      "traceTo": "RESTART-001"
+    },
+    {
+      "id": "A3",
+      "parent": "A0",
+      "name": "Detect & cleanup orphan",
+      "inputs": ["spawn failure (flock contention)"],
+      "outputs": ["orphan pid killed", "lock released"],
+      "controls": ["flock holder must belong to target uid"],
+      "mechanisms": ["fcntl F_OFD_GETLK", "ss fallback"],
+      "traceTo": "RESTART-003"
+    },
+    {
+      "id": "A4",
+      "parent": "A0",
+      "name": "Guarantee runtime directory",
+      "inputs": ["socket_path to be bound"],
+      "outputs": ["/run/user/<uid>/opencode/ owned 0700 uid:gid"],
+      "controls": ["must run as root pre-fork"],
+      "mechanisms": ["mkdir + chown + chmod"],
+      "traceTo": "RESTART-004"
+    },
+    {
+      "id": "A5",
+      "parent": "A0",
+      "name": "Spawn fresh daemon",
+      "inputs": ["clean DaemonInfo", "runtime dir"],
+      "outputs": ["daemon pid", "bound socket"],
+      "controls": ["gateway.lock"],
+      "mechanisms": ["fork + setuid + exec bun"],
+      "traceTo": "RESTART-001 + RESTART-003"
+    },
+    {
+      "id": "A6",
+      "parent": "A0",
+      "name": "Block illegal daemon-spawning commands",
+      "inputs": ["execute_command input"],
+      "outputs": ["allowed execution OR denial"],
+      "controls": ["denylist regex"],
+      "mechanisms": ["system-manager tool handler"],
+      "traceTo": "RESTART-002"
+    }
+  ]
+}

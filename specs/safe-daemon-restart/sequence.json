@@ -1,0 +1,43 @@
+[
+  {
+    "id": "P1",
+    "name": "Happy path restart_self",
+    "participants": ["C5", "C4", "C2", "C3"],
+    "messages": [
+      {"id": "MSG1", "from": "C5", "to": "C4", "label": "tool call restart_self()", "componentRef": "C4"},
+      {"id": "MSG2", "from": "C4", "to": "C2", "label": "POST /api/v2/global/restart-self (JWT)"},
+      {"id": "MSG3", "from": "C2", "to": "C4", "label": "202 Accepted {eventId}"},
+      {"id": "MSG4", "from": "C4", "to": "C5", "label": "tool result {restartScheduled, eventId}"},
+      {"id": "MSG5", "from": "C2", "to": "C3", "label": "SIGTERM", "async": true},
+      {"id": "MSG6", "from": "C3", "to": "C3", "label": "graceful shutdown (<=2s)"},
+      {"id": "MSG7", "from": "C2", "to": "C2", "label": "waitpid + unlink(socket) + DaemonInfo=NONE"},
+      {"id": "MSG8", "from": "C1", "to": "C2", "label": "next HTTP request"},
+      {"id": "MSG9", "from": "C2", "to": "C3", "label": "mkdir -p socket-dir + fork+setuid+exec bun"},
+      {"id": "MSG10", "from": "C3", "to": "C2", "label": "ready on unix socket"}
+    ]
+  },
+  {
+    "id": "P2",
+    "name": "Orphan cleanup path",
+    "participants": ["C1", "C2", "Orphan:C3"],
+    "messages": [
+      {"id": "MSG1", "from": "C1", "to": "C2", "label": "HTTP request"},
+      {"id": "MSG2", "from": "C2", "to": "C2", "label": "ensure_daemon_running: state=NONE"},
+      {"id": "MSG3", "from": "C2", "to": "C2", "label": "try_adopt_from_discovery → fail"},
+      {"id": "MSG4", "from": "C2", "to": "C2", "label": "fcntl(F_OFD_GETLK) on gateway.lock → pid=Orphan"},
+      {"id": "MSG5", "from": "C2", "to": "Orphan:C3", "label": "SIGTERM"},
+      {"id": "MSG6", "from": "C2", "to": "Orphan:C3", "label": "SIGKILL (if waitpid 1s timeout)"},
+      {"id": "MSG7", "from": "C2", "to": "C2", "label": "unlink(socket), mkdir-p parent, spawn fresh"}
+    ]
+  },
+  {
+    "id": "P3",
+    "name": "Denylist blocks self-restart via bash",
+    "participants": ["C5", "C4"],
+    "messages": [
+      {"id": "MSG1", "from": "C5", "to": "C4", "label": "execute_command('webctl.sh dev-start')"},
+      {"id": "MSG2", "from": "C4", "to": "C4", "label": "match denylist regex → deny"},
+      {"id": "MSG3", "from": "C4", "to": "C5", "label": "error: 'forbidden — use restart_self tool'"}
+    ]
+  }
+]

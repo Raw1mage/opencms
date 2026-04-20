@@ -1,0 +1,25 @@
+{
+  "systems": [
+    {"id": "S1", "name": "opencode", "description": "Per-user AI coding platform with C gateway + bun per-user daemon"}
+  ],
+  "containers": [
+    {"id": "CN1", "system": "S1", "name": "Gateway", "tech": "C (epoll, setuid-fork)", "moduleRef": "daemon/opencode-gateway.c"},
+    {"id": "CN2", "system": "S1", "name": "PerUserDaemon", "tech": "bun / TypeScript", "moduleRef": "packages/opencode/src/server/server.ts"},
+    {"id": "CN3", "system": "S1", "name": "Browser SPA", "tech": "React + SSE"}
+  ],
+  "components": [
+    {"id": "C1", "container": "CN3", "name": "Browser", "description": "User browser with TheSmartAI SPA + SSE"},
+    {"id": "C2", "container": "CN1", "name": "Gateway Core", "description": "Root C daemon on port 1080, controls per-user daemon lifecycle", "moduleRef": "daemon/opencode-gateway.c"},
+    {"id": "C3", "container": "CN2", "name": "PerUserDaemon", "description": "bun process per logged-in user", "moduleRef": "packages/opencode/src/server/server.ts"},
+    {"id": "C4", "container": "CN2", "name": "SystemManagerMCP", "description": "MCP server providing session/model/restart control to AI", "moduleRef": "packages/mcp/system-manager/src/index.ts"},
+    {"id": "C5", "container": "CN2", "name": "AIAgent", "description": "LLM agent running inside the daemon session runtime"}
+  ],
+  "relationships": [
+    {"from": "C1", "to": "C2", "label": "HTTPS + SSE", "protocol": "https/1.1"},
+    {"from": "C2", "to": "C3", "label": "Unix socket proxy", "protocol": "unix:daemon.sock"},
+    {"from": "C3", "to": "C4", "label": "MCP stdio", "protocol": "mcp"},
+    {"from": "C5", "to": "C4", "label": "tool calls"},
+    {"from": "C4", "to": "C2", "label": "POST /api/v2/global/restart-self", "protocol": "https/1.1", "note": "NEW — restart authority"},
+    {"from": "C2", "to": "C3", "label": "SIGTERM / SIGKILL / flock-check", "protocol": "signal+fcntl", "note": "NEW — orphan cleanup"}
+  ]
+}

@@ -1,0 +1,79 @@
+[
+  {
+    "id": "TV-1",
+    "requirement": "RESTART-001",
+    "name": "Happy path restart_self returns 202",
+    "input": {
+      "http": {"method": "POST", "path": "/api/v2/global/restart-self", "jwt": "valid-pkcs12-jwt", "body": {"reason": "config reload"}}
+    },
+    "expected": {
+      "http": {"status": 202},
+      "body_shape": {"accepted": true, "eventId": "<uuid>", "targetPid": "<int>"},
+      "side_effects": [
+        "old daemon pid receives SIGTERM within 100ms",
+        "new daemon spawned with pid != old pid within 5s",
+        "log contains 'restart-self' and 'eventId'"
+      ]
+    }
+  },
+  {
+    "id": "TV-2",
+    "requirement": "RESTART-001",
+    "name": "Restart_self on hung daemon escalates to SIGKILL",
+    "input": {"simulated": "daemon ignores SIGTERM (trap SIGTERM + sleep 10)"},
+    "expected": {
+      "timeline": ["T+0ms SIGTERM sent", "T+2000ms SIGKILL sent", "T<3000ms daemon gone"],
+      "log_contains": "forced-kill"
+    }
+  },
+  {
+    "id": "TV-3",
+    "requirement": "RESTART-002",
+    "name": "execute_command denies webctl.sh dev-start",
+    "input": {"tool": "execute_command", "args": {"command": "webctl.sh dev-start"}},
+    "expected": {"error": {"code": "FORBIDDEN_DAEMON_SPAWN", "message_contains": "restart_self"}}
+  },
+  {
+    "id": "TV-4",
+    "requirement": "RESTART-002",
+    "name": "execute_command denies bun serve --unix-socket",
+    "input": {"tool": "execute_command", "args": {"command": "bun run index.ts serve --unix-socket /run/user/1000/opencode/daemon.sock"}},
+    "expected": {"error": {"code": "FORBIDDEN_DAEMON_SPAWN"}}
+  },
+  {
+    "id": "TV-5",
+    "requirement": "RESTART-003",
+    "name": "Orphan daemon holding flock is cleaned up",
+    "input": {
+      "setup": [
+        "manually spawn bun daemon (background), let it grab flock and bind socket",
+        "restart gateway (forgets about orphan)",
+        "unlink socket file",
+        "send new HTTP request as pkcs12"
+      ]
+    },
+    "expected": {
+      "log_sequence": ["adopt failed", "orphan-cleanup pid=<orphan-pid>", "SIGTERM", "spawning daemon"],
+      "final_state": "new daemon up, user NOT redirected to login"
+    }
+  },
+  {
+    "id": "TV-6",
+    "requirement": "RESTART-004",
+    "name": "rm -rf socket parent dir then request → auto-recreate",
+    "input": {"setup": "rm -rf /run/user/1000/opencode/", "trigger": "HTTP request"},
+    "expected": {
+      "fs_state": {"path": "/run/user/1000/opencode/", "mode": "0700", "owner_uid": 1000},
+      "daemon": "ready within 5s"
+    }
+  },
+  {
+    "id": "TV-7",
+    "requirement": "RESTART-005",
+    "name": "Restart emits grep-able log keywords",
+    "input": {"action": "call restart_self"},
+    "expected": {
+      "log_contains_all": ["restart-self", "eventId=", "targetPid=", "runtime-dir-created OR runtime-dir-present"]
+    }
+  }
+]

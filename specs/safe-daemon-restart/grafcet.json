@@ -1,0 +1,29 @@
+[
+  {
+    "title": "Daemon lifecycle state machine (gateway view)",
+    "steps": [
+      {"id": "S0", "name": "NONE", "initial": true, "actions": []},
+      {"id": "S1", "name": "STARTING", "actions": ["mkdir-p runtime dir", "fork+setuid", "exec bun"]},
+      {"id": "S2", "name": "READY", "actions": ["serve HTTP/SSE", "proxy to daemon"]},
+      {"id": "S3", "name": "RESTARTING", "actions": ["SIGTERM", "waitpid(2s)"]},
+      {"id": "S4", "name": "FORCE_KILL", "actions": ["SIGKILL", "waitpid"]},
+      {"id": "S5", "name": "ORPHAN_DETECTED", "actions": ["fcntl F_OFD_GETLK", "identify holder pid"]},
+      {"id": "S6", "name": "ORPHAN_CLEANUP", "actions": ["SIGTERM holder", "waitpid(1s)", "SIGKILL if needed"]},
+      {"id": "S7", "name": "DEAD", "actions": ["unlink(socket)", "DaemonInfo reset"]}
+    ],
+    "transitions": [
+      {"from": "S0", "to": "S1", "condition": "incoming request OR restart_self"},
+      {"from": "S1", "to": "S2", "condition": "socket connect succeeds"},
+      {"from": "S1", "to": "S5", "condition": "spawn fails AND flock contended"},
+      {"from": "S2", "to": "S3", "condition": "POST /restart-self received"},
+      {"from": "S2", "to": "S7", "condition": "SIGCHLD: unexpected exit"},
+      {"from": "S3", "to": "S7", "condition": "waitpid success within 2s"},
+      {"from": "S3", "to": "S4", "condition": "waitpid timeout"},
+      {"from": "S4", "to": "S7", "condition": "waitpid success"},
+      {"from": "S5", "to": "S6", "condition": "holder pid identified AND uid matches"},
+      {"from": "S5", "to": "S7", "condition": "no holder found (stale)"},
+      {"from": "S6", "to": "S7", "condition": "holder terminated"},
+      {"from": "S7", "to": "S1", "condition": "next request arrives"}
+    ]
+  }
+]
