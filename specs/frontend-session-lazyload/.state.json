@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "implementing",
+  "state": "verified",
   "profile": [],
   "history": [
     {
@@ -45,6 +45,15 @@
         "packages/opencode/src/tool/task.ts"
       ],
       "commit": "96dd10f89a5ed9e99d4c60639ad8cd0731d0ffad"
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-04-20T09:30:47.530Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Phases 1 (server meta + tweaks), 3 (part tail-window + fold UI) and 4 (scroll-spy + meta-driven page size) merged to main via merge 490783777. Phase 2 (escape hatch UI) intentionally skipped — Phase 3 tail-window already bounds streaming OOM. Real-world browser validation pending; regressions revertable via single merge revert.",
+      "commit": "490783777"
     }
   ]
 }
