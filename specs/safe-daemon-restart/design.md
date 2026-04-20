@@ -31,8 +31,11 @@ Gateway（C 程式，`/usr/local/bin/opencode-gateway`）以 root 執行，per-u
   理由：daemon 自己處理會踩斷腳；gateway 是 lifecycle authority。
 - **DD-2** Restart 流程為 **SIGTERM → 2s waitpid → SIGKILL → unlink(socket) → clear DaemonInfo**。
   理由：2s 對 bun daemon graceful shutdown 足夠；過長會拖使用者。
-- **DD-3** Orphan cleanup 用 **flock holder 偵測**（`fcntl(F_OFD_GETLK)` on the lock file），而非 process-scan，因為 flock 是既有單例保證機制。
-  Fallback：若 lockfile 不存在，掃 `ss -xlp` 找持有 socket path 的 pid。
+- ~~**DD-3** Orphan cleanup 用 **flock holder 偵測**（`fcntl(F_OFD_GETLK)` on the lock file），而非 process-scan，因為 flock 是既有單例保證機制。
+  Fallback：若 lockfile 不存在，掃 `ss -xlp` 找持有 socket path 的 pid。~~ (v1, SUPERSEDED 2026-04-21 by DD-3b)
+- **DD-3b** Orphan cleanup 用 **PID-file 讀取**（2026-04-21, amended from DD-3）。Codebase 的 "gateway lock" 是 `~/.config/opencode/daemon.lock` 的 JSON file（`{pid, acquiredAtMs}`）+ `process.kill(pid, 0)` liveness，不是 kernel `flock()`。正確偵測：讀 JSON → 取 pid → 驗 `/proc/<pid>` st_uid == target_uid → 返回 pid。
+  理由：`fcntl(F_OFD_GETLK)` 會永遠回「沒人鎖」；實作時才發現。
+  安全性：`/proc/<pid>` uid 檢查擋 pid 回收 + 跨 uid 攻擊面。
 - **DD-4** Runtime-dir 保證執行在 **gateway 側（root）**，fork 前以 `mkdir -p` + `chown` 到目標 uid，避免 child setuid 後無權建立。
   理由：`/run/user/<uid>/` 是 0700 owned by uid，root 也需先建再移交。
 - **DD-5** `execute_command` 的 denylist 用 **regex prefix match + argv 檢查**，而非純字串 contains。

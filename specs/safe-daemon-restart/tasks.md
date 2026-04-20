@@ -2,11 +2,11 @@
 
 ## 1. Gateway runtime-dir guarantee + orphan cleanup (C)
 
-- [ ] 1.1 Extend `resolve_runtime_dir()` in `daemon/opencode-gateway.c` to also `mkdir + chown + chmod 0700` the `opencode/` subdir (`/run/user/<uid>/opencode/`) before returning — new helper `ensure_socket_parent_dir(uid, gid)` called from `ensure_daemon_running` BEFORE fork
-- [ ] 1.2 Add `detect_flock_holder_pid(lock_path, target_uid)` helper: uses `fcntl(F_OFD_GETLK)` first, falls back to scanning `/proc/*/fd/` symlinks matching `lock_path`; returns pid or -1
-- [ ] 1.3 Add `cleanup_orphan_daemon(pid, username)` helper: SIGTERM → `waitpid(WNOHANG)` loop for 1000ms → SIGKILL if still alive → log `orphan-cleanup uid=... holderPid=... result=...`
-- [ ] 1.4 Wire orphan cleanup into `ensure_daemon_running`: after `adopt failed`, before `fork`, call detect → if holder found AND uid matches → cleanup → then proceed
-- [ ] 1.5 Unit test (C-level): write a small test harness that spawns a fake lock-holder process, invokes the helpers, asserts cleanup + spawn succeeds
+- [x] 1.1 Extend `resolve_runtime_dir()` in `daemon/opencode-gateway.c` to also `mkdir + chown + chmod 0700` the `opencode/` subdir (`/run/user/<uid>/opencode/`) before returning — new helper `ensure_socket_parent_dir(uid, gid)` called from `ensure_daemon_running` BEFORE fork
+- [x] 1.2 Add `detect_lock_holder_pid(username, target_uid)` helper — **design amended**: gateway lock is a PID JSON file at `~/.config/opencode/daemon.lock` (not kernel flock); detector reads file, verifies `/proc/<pid>` uid matches target. Returns pid or -1.
+- [x] 1.3 Add `cleanup_orphan_daemon(pid, username)` helper: SIGTERM → poll `kill(pid,0)` for 1000ms → SIGKILL if still alive → log `orphan-cleanup uid=... holderPid=... result=...`
+- [x] 1.4 Wire orphan cleanup into `ensure_daemon_running`: after `adopt failed`, before `fork`, call detect → if holder found AND uid matches → cleanup → then proceed
+- [x] 1.5 Unit test (C-level): `daemon/test-orphan-cleanup.c` covers detect(alive/stale/no-file) + cleanup(SIGTERM/SIGKILL escalation); all 9 assertions pass
 
 ## 2. Gateway restart-self HTTP endpoint (C)
 

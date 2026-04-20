@@ -772,6 +772,226 @@ static void resolve_runtime_dir(uid_t uid, char *out, size_t outlen) {
     snprintf(out, outlen, "%s", candidate);
 }
 
+/*
+ * Ensures the socket parent directory `<runtime_dir>/opencode/` exists with
+ * owner=uid:gid and mode 0700. Called from ensure_daemon_running BEFORE fork,
+ * so it runs in root context (can create under 0700 /run/user/<uid>/).
+ *
+ * The directory may disappear between daemon runs (tmpfs cleanup, WSL2
+ * restart, manual rm). Per spec safe-daemon-restart RESTART-004, recreation
+ * is the gateway's responsibility — never a silent failure mode.
+ *
+ * Returns 0 on success, -1 on failure (and logs). Failure is fatal for the
+ * spawn attempt; caller should NOT proceed to fork.
+ */
+static int ensure_socket_parent_dir(uid_t uid, gid_t gid, const char *socket_path) {
+    char dir[256];
+    strncpy(dir, socket_path, sizeof(dir) - 1);
+    dir[sizeof(dir) - 1] = '\0';
+    char *slash = strrchr(dir, '/');
+    if (!slash || slash == dir) {
+        LOGE("ensure_socket_parent_dir: invalid socket_path '%s'", socket_path);
+        return -1;
+    }
+    *slash = '\0';
+
+    struct stat st;
+    if (stat(dir, &st) == 0) {
+        if (!S_ISDIR(st.st_mode)) {
+            LOGE("runtime-dir exists but not a directory: %s", dir);
+            return -1;
+        }
+        /* Exists — best-effort fix ownership/mode if drifted */
+        int needs_chown = (st.st_uid != uid || st.st_gid != gid);
+        int needs_chmod = ((st.st_mode & 07777) != 0700);
+        if (needs_chown && chown(dir, uid, gid) != 0) {
+            LOGW("runtime-dir chown %s uid=%u gid=%u failed: %s", dir, uid, gid, strerror(errno));
+        }
+        if (needs_chmod && chmod(dir, 0700) != 0) {
+            LOGW("runtime-dir chmod 0700 %s failed: %s", dir, strerror(errno));
+        }
+        LOGI("runtime-dir-present path=%s uid=%u", dir, uid);
+        return 0;
+    }
+
+    if (errno != ENOENT) {
+        LOGE("runtime-dir stat(%s) failed: %s", dir, strerror(errno));
+        return -1;
+    }
+
+    /* Parent /run/user/<uid>/ may itself be missing — resolve_runtime_dir
+     * would normally handle that, but we're called AFTER socket_path has
+     * been baked. Try mkdir of parent-of-parent too. */
+    if (mkdir(dir, 0700) != 0 && errno != EEXIST) {
+        if (errno == ENOENT) {
+            /* Parent path missing — build it up. */
+            char parent[256];
+            strncpy(parent, dir, sizeof(parent) - 1);
+            parent[sizeof(parent) - 1] = '\0';
+            char *pslash = strrchr(parent, '/');
+            if (pslash && pslash != parent) {
+                *pslash = '\0';
+                if (mkdir(parent, 0700) == 0) {
+                    if (chown(parent, uid, gid) != 0) { /* best-effort */ }
+                    if (chmod(parent, 0700) != 0) { /* best-effort */ }
+                }
+            }
+            if (mkdir(dir, 0700) != 0 && errno != EEXIST) {
+                LOGE("runtime-dir mkdir %s failed: %s", dir, strerror(errno));
+                return -1;
+            }
+        } else {
+            LOGE("runtime-dir mkdir %s failed: %s", dir, strerror(errno));
+            return -1;
+        }
+    }
+    if (chown(dir, uid, gid) != 0) {
+        LOGW("runtime-dir chown %s uid=%u gid=%u failed: %s", dir, uid, gid, strerror(errno));
+    }
+    if (chmod(dir, 0700) != 0) {
+        LOGW("runtime-dir chmod 0700 %s failed: %s", dir, strerror(errno));
+    }
+    LOGI("runtime-dir-created path=%s uid=%u mode=0700", dir, uid);
+    return 0;
+}
+
+/*
+ * Reads the per-user daemon gateway lock file and returns the pid of the
+ * process holding it, or -1 if no valid holder.
+ *
+ * Lock format (NOT kernel flock): JSON file at
+ *   <user-home>/.config/opencode/daemon.lock
+ * containing {"pid": N, "acquiredAtMs": ...}. The bun daemon writes this on
+ * startup and refuses to start if an entry with a live pid is present
+ * (packages/opencode/src/daemon/gateway-lock.ts).
+ *
+ * For safety, we additionally verify that /proc/<pid> is owned by
+ * target_uid — rejecting cross-user stale entries.
+ *
+ * Returns pid > 1 on success, -1 otherwise (no file / malformed / dead /
+ * uid mismatch). Called from ensure_daemon_running after adopt fails, to
+ * identify orphan daemons the gateway does not track.
+ */
+static pid_t detect_lock_holder_pid(const char *username, uid_t target_uid) {
+    struct passwd *pw = getpwnam(username);
+    if (!pw) return -1;
+
+    char lock_path[512];
+    snprintf(lock_path, sizeof(lock_path), "%s/.config/opencode/daemon.lock", pw->pw_dir);
+
+    int fd = open(lock_path, O_RDONLY);
+    if (fd < 0) return -1;
+    char buf[512];
+    ssize_t n = read(fd, buf, sizeof(buf) - 1);
+    close(fd);
+    if (n <= 0) return -1;
+    buf[n] = '\0';
+
+    const char *p = strstr(buf, "\"pid\"");
+    if (!p) return -1;
+    p = strchr(p, ':');
+    if (!p) return -1;
+    p++;
+    while (*p == ' ' || *p == '\t' || *p == '\n') p++;
+    long pid_l = strtol(p, NULL, 10);
+    if (pid_l <= 1 || pid_l > INT_MAX) return -1;
+    pid_t pid = (pid_t)pid_l;
+
+    if (kill(pid, 0) != 0) {
+        /* stale entry — process already gone */
+        return -1;
+    }
+
+    char proc_path[64];
+    snprintf(proc_path, sizeof(proc_path), "/proc/%d", (int)pid);
+    struct stat pst;
+    if (stat(proc_path, &pst) != 0) return -1;
+    if (pst.st_uid != target_uid) {
+        LOGW("lock-holder pid=%d has uid=%u, expected uid=%u (ignoring)",
+             (int)pid, pst.st_uid, target_uid);
+        return -1;
+    }
+    return pid;
+}
+
+/*
+ * Terminates an orphan daemon process: SIGTERM, poll for exit up to
+ * timeout_ms, then SIGKILL if still alive. Because the orphan is not our
+ * child (was not fork()ed by gateway), we cannot waitpid() on it — we poll
+ * `kill(pid, 0)` instead.
+ *
+ * Returns 0 if the process is gone (by TERM or KILL), -1 on error
+ * (e.g. target pid belongs to unexpected uid, or permission denied).
+ *
+ * Caller is expected to also unlink(socket_path) AFTER this returns, to
+ * fully reset gateway-visible state.
+ */
+static int cleanup_orphan_daemon(pid_t pid, const char *username, uid_t target_uid) {
+    /* Defence-in-depth: re-check the /proc/<pid> owner — never signal a
+     * pid we don't own to target_uid. detect_lock_holder_pid already
+     * checked, but pids recycle. */
+    char proc_path[64];
+    snprintf(proc_path, sizeof(proc_path), "/proc/%d", (int)pid);
+    struct stat pst;
+    if (stat(proc_path, &pst) != 0) {
+        /* already gone */
+        LOGI("orphan-cleanup uid=%u holderPid=%d result=already-gone", target_uid, (int)pid);
+        return 0;
+    }
+    if (pst.st_uid != target_uid) {
+        LOGE("orphan-cleanup refused: pid=%d uid=%u != target_uid=%u",
+             (int)pid, pst.st_uid, target_uid);
+        return -1;
+    }
+
+    if (kill(pid, SIGTERM) != 0) {
+        if (errno == ESRCH) {
+            LOGI("orphan-cleanup uid=%u holderPid=%d result=already-gone", target_uid, (int)pid);
+            return 0;
+        }
+        LOGE("orphan-cleanup SIGTERM pid=%d failed: %s", (int)pid, strerror(errno));
+        return -1;
+    }
+
+    /* Poll up to 1000ms in 50ms increments. */
+    const int total_ms = 1000;
+    const int step_ms = 50;
+    for (int waited = 0; waited < total_ms; waited += step_ms) {
+        struct timespec ts = { .tv_sec = 0, .tv_nsec = step_ms * 1000000L };
+        nanosleep(&ts, NULL);
+        /* Opportunistically reap if the orphan happens to be our child;
+         * harmless ECHILD if it isn't. Prevents polling a zombie forever. */
+        (void)waitpid(pid, NULL, WNOHANG);
+        if (kill(pid, 0) != 0) {
+            LOGI("orphan-cleanup uid=%u holderPid=%d result=exited waitedMs=%d username=%s",
+                 target_uid, (int)pid, waited + step_ms, username);
+            return 0;
+        }
+    }
+
+    /* Still alive after timeout — escalate. */
+    LOGW("orphan-cleanup uid=%u holderPid=%d escalating to SIGKILL after %dms",
+         target_uid, (int)pid, total_ms);
+    if (kill(pid, SIGKILL) != 0 && errno != ESRCH) {
+        LOGE("orphan-cleanup SIGKILL pid=%d failed: %s", (int)pid, strerror(errno));
+        return -1;
+    }
+    /* Give kernel a moment to reap. */
+    for (int waited = 0; waited < 500; waited += step_ms) {
+        struct timespec ts = { .tv_sec = 0, .tv_nsec = step_ms * 1000000L };
+        nanosleep(&ts, NULL);
+        (void)waitpid(pid, NULL, WNOHANG);
+        if (kill(pid, 0) != 0) {
+            LOGW("orphan-cleanup uid=%u holderPid=%d result=timeout-killed",
+                 target_uid, (int)pid);
+            return 0;
+        }
+    }
+    LOGE("orphan-cleanup uid=%u holderPid=%d result=zombie (SIGKILL sent, still visible)",
+         target_uid, (int)pid);
+    return -1;
+}
+
 /* ─── JWT (HMAC-SHA256) ─────────────────────────────────────────── */
 static void b64url_encode(const uint8_t *in, size_t inlen, char *out, size_t *outlen) {
     static const char tbl[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -1507,6 +1727,33 @@ static int ensure_daemon_running(DaemonInfo *d) {
         LOGI("trying adopt from discovery for '%s'...", d->username);
         if (try_adopt_from_discovery(d)) { LOGI("adopted!"); return 1; }
         LOGI("adopt failed, will spawn new daemon");
+
+        /* RESTART-003: orphan detection & cleanup. If a bun daemon is
+         * holding the gateway lock file but the gateway's DaemonInfo is
+         * NONE/DEAD (i.e. it wasn't fork()ed by us), kill it before
+         * spawning. Without this, the new child exits immediately with
+         * "failed to acquire gateway lock" and the user gets a JWT-clear
+         * login redirect. */
+        pid_t orphan = detect_lock_holder_pid(d->username, d->uid);
+        if (orphan > 0) {
+            LOGW("orphan-detected uid=%u holderPid=%d username=%s — cleaning up before spawn",
+                 d->uid, (int)orphan, d->username);
+            if (cleanup_orphan_daemon(orphan, d->username, d->uid) != 0) {
+                LOGE("ensure_daemon_running: orphan cleanup failed for %s (pid=%d); "
+                     "spawn will likely fail too", d->username, (int)orphan);
+                /* Proceed anyway — caller retries and this branch repeats.
+                 * Do NOT return 0 here: the next attempt may find the
+                 * stuck process has finally exited. */
+            }
+        }
+
+        /* RESTART-004: ensure socket parent dir exists (owner=uid, 0700)
+         * before binding. tmpfs cleanup or manual rm can remove it between
+         * daemon runs; recreating it here removes a silent failure mode. */
+        if (ensure_socket_parent_dir(d->uid, d->gid, d->socket_path) != 0) {
+            LOGE("ensure_daemon_running: cannot prepare runtime dir for %s; aborting spawn", d->username);
+            return 0;
+        }
 
         unlink(d->socket_path);
         LOGI("spawning daemon for %s (uid %u) socket='%s'", d->username, d->uid, d->socket_path);
