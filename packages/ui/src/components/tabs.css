@@ -515,6 +515,14 @@
         background-color: var(--background-base);
         border-right: 1px solid var(--border-weak-base);
 
+        /* Mobile: hide sidebar entirely; content takes full width and
+         * defaults to the first tab (general). Sub-tabs like shortcuts
+         * are not reachable on mobile, which is intentional — the
+         * keybinding editor has no mobile UX. */
+        @media (max-width: 47.99rem) {
+          display: none;
+        }
+
         &::after {
           display: none;
         }
