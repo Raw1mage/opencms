@@ -1,8 +1,12 @@
-import { describe, expect, test } from "bun:test"
+import { afterEach, describe, expect, test } from "bun:test"
 import type { Message, Part, PermissionRequest, Project, QuestionRequest, Session } from "@opencode-ai/sdk/v2/client"
 import { createStore } from "solid-js/store"
 import type { State } from "./types"
 import { applyDirectoryEvent, applyGlobalEvent } from "./event-reducer"
+import {
+  resetFrontendTweaksForTesting,
+  setFrontendTweaksForTesting,
+} from "../frontend-tweaks"
 
 const rootSession = (input: { id: string; parentID?: string; archived?: number }) =>
   ({
@@ -674,5 +678,202 @@ describe("applyDirectoryEvent", () => {
     })
 
     expect(store.active_child.ses_parent).toBeUndefined()
+  })
+})
+
+describe("frontend-session-lazyload: rebuild heuristic + tail-window", () => {
+  afterEach(() => {
+    resetFrontendTweaksForTesting()
+  })
+
+  test("§5.1 non-delta rebuild with prefix match → append (no full reconcile)", () => {
+    setFrontendTweaksForTesting({ frontend_session_lazyload: 1 })
+    const sessionID = "ses_r1"
+    const messageID = "msg_r1"
+    const partID = "prt_r1"
+    const existing = { id: partID, sessionID, messageID, type: "text", text: "PREFIX-same-content-0123456789" } as Part
+    const [store, setStore] = createStore(
+      baseState({
+        part: { [messageID]: [existing] },
+      }),
+    )
+
+    const rebuiltText = existing.type === "text" ? existing.text + "NEW-APPENDED" : ""
+    applyDirectoryEvent({
+      event: {
+        type: "message.part.updated",
+        properties: {
+          part: { id: partID, sessionID, messageID, type: "text", text: rebuiltText } as Part,
+        },
+      },
+      store,
+      setStore,
+      push() {},
+      directory: "/tmp",
+      loadLsp() {},
+      loadMcp() {},
+    })
+
+    const updated = store.part[messageID]?.[0]
+    expect(updated?.type).toBe("text")
+    if (updated?.type === "text") expect(updated.text).toBe(rebuiltText)
+  })
+
+  test("§5.1 non-delta shrink → falls through to replace (not append)", () => {
+    setFrontendTweaksForTesting({ frontend_session_lazyload: 1 })
+    const sessionID = "ses_r2"
+    const messageID = "msg_r2"
+    const partID = "prt_r2"
+    const [store, setStore] = createStore(
+      baseState({
+        part: { [messageID]: [{ id: partID, sessionID, messageID, type: "text", text: "A".repeat(2000) } as Part] },
+      }),
+    )
+
+    applyDirectoryEvent({
+      event: {
+        type: "message.part.updated",
+        properties: {
+          part: { id: partID, sessionID, messageID, type: "text", text: "short" } as Part,
+        },
+      },
+      store,
+      setStore,
+      push() {},
+      directory: "/tmp",
+      loadLsp() {},
+      loadMcp() {},
+    })
+
+    const updated = store.part[messageID]?.[0]
+    if (updated?.type === "text") expect(updated.text).toBe("short")
+  })
+
+  test("§5.1 rebuild with prefix mismatch → replace", () => {
+    setFrontendTweaksForTesting({ frontend_session_lazyload: 1 })
+    const sessionID = "ses_r3"
+    const messageID = "msg_r3"
+    const partID = "prt_r3"
+    const [store, setStore] = createStore(
+      baseState({
+        part: { [messageID]: [{ id: partID, sessionID, messageID, type: "text", text: "alpha-content-original" } as Part] },
+      }),
+    )
+
+    applyDirectoryEvent({
+      event: {
+        type: "message.part.updated",
+        properties: {
+          part: { id: partID, sessionID, messageID, type: "text", text: "OMEGA-entirely-different-and-longer-text" } as Part,
+        },
+      },
+      store,
+      setStore,
+      push() {},
+      directory: "/tmp",
+      loadLsp() {},
+      loadMcp() {},
+    })
+
+    const updated = store.part[messageID]?.[0]
+    if (updated?.type === "text") expect(updated.text).toBe("OMEGA-entirely-different-and-longer-text")
+  })
+
+  test("§5.2 streaming tail-window truncates on insertion path when flag=1", () => {
+    setFrontendTweaksForTesting({ frontend_session_lazyload: 1, tail_window_kb: 4 }) // tiny window for testing
+    const sessionID = "ses_t1"
+    const messageID = "msg_t1"
+    const partID = "prt_t1"
+    const [store, setStore] = createStore(baseState({}))
+
+    const hugeText = "X".repeat(16 * 1024) // 16KB, exceeds 4KB window
+    applyDirectoryEvent({
+      event: {
+        type: "message.part.updated",
+        properties: {
+          part: { id: partID, sessionID, messageID, type: "text", text: hugeText } as Part,
+        },
+      },
+      store,
+      setStore,
+      push() {},
+      directory: "/tmp",
+      loadLsp() {},
+      loadMcp() {},
+    })
+
+    const updated = store.part[messageID]?.[0]
+    if (updated?.type === "text") {
+      expect(updated.text.length).toBe(4 * 1024)
+      expect((updated as unknown as { truncatedPrefix?: number }).truncatedPrefix).toBe(12 * 1024)
+    }
+  })
+
+  test("§5.2 flag=0 disables tail-window (INV-2 baseline behaviour)", () => {
+    setFrontendTweaksForTesting({ frontend_session_lazyload: 0, tail_window_kb: 4 })
+    const sessionID = "ses_t2"
+    const messageID = "msg_t2"
+    const partID = "prt_t2"
+    const [store, setStore] = createStore(baseState({}))
+
+    const hugeText = "Y".repeat(16 * 1024)
+    applyDirectoryEvent({
+      event: {
+        type: "message.part.updated",
+        properties: {
+          part: { id: partID, sessionID, messageID, type: "text", text: hugeText } as Part,
+        },
+      },
+      store,
+      setStore,
+      push() {},
+      directory: "/tmp",
+      loadLsp() {},
+      loadMcp() {},
+    })
+
+    const updated = store.part[messageID]?.[0]
+    if (updated?.type === "text") {
+      // Full text kept when flag=0; no truncatedPrefix attached.
+      expect(updated.text.length).toBe(16 * 1024)
+      expect((updated as unknown as { truncatedPrefix?: number }).truncatedPrefix).toBeUndefined()
+    }
+  })
+
+  test("§5.2 tail-window truncates on delta append path when flag=1", () => {
+    setFrontendTweaksForTesting({ frontend_session_lazyload: 1, tail_window_kb: 4 })
+    const sessionID = "ses_t3"
+    const messageID = "msg_t3"
+    const partID = "prt_t3"
+    const initialText = "Z".repeat(3 * 1024)
+    const [store, setStore] = createStore(
+      baseState({
+        part: { [messageID]: [{ id: partID, sessionID, messageID, type: "text", text: initialText } as Part] },
+      }),
+    )
+
+    const bigDelta = "W".repeat(5 * 1024) // 3KB existing + 5KB delta = 8KB, exceeds 4KB window
+    applyDirectoryEvent({
+      event: {
+        type: "message.part.updated",
+        properties: {
+          part: { id: partID, sessionID, messageID, type: "text" } as Part, // stripped per delta-aware pipeline
+          delta: bigDelta,
+          textLength: initialText.length + bigDelta.length,
+        },
+      },
+      store,
+      setStore,
+      push() {},
+      directory: "/tmp",
+      loadLsp() {},
+      loadMcp() {},
+    })
+
+    const updated = store.part[messageID]?.[0]
+    if (updated?.type === "text") {
+      expect(updated.text.length).toBe(4 * 1024)
+      expect((updated as unknown as { truncatedPrefix?: number }).truncatedPrefix).toBeGreaterThan(0)
+    }
   })
 })
