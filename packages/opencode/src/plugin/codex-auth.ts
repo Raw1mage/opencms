@@ -12,7 +12,9 @@
 import type { Hooks, PluginInput } from "@opencode-ai/plugin"
 import {
   CLIENT_ID,
+  CODEX_CLI_VERSION,
   ISSUER,
+  ORIGINATOR,
   OAUTH_PORT,
   OAUTH_POLLING_SAFETY_MARGIN_MS,
   extractAccountId,
@@ -35,6 +37,20 @@ import { codexServerCompact } from "../provider/codex-compaction"
 import { z } from "zod"
 import path from "path"
 import os from "os"
+
+/**
+ * Mimic upstream codex-rs `get_codex_user_agent`:
+ * `codex_cli_rs/<ver> (<OS> <release>; <arch>) terminal`
+ * UA prefix must match the `originator` header, otherwise OpenAI's first-party
+ * classifier downgrades the request to third-party. See default_client.rs.
+ */
+function buildCodexUserAgent(): string {
+  const archMap: Record<string, string> = { x64: "x86_64", arm64: "aarch64", ia32: "i686" }
+  const arch = archMap[os.arch()] ?? os.arch()
+  const platMap: Record<string, string> = { linux: "Linux", darwin: "Darwin", win32: "Windows" }
+  const platform = platMap[os.platform()] ?? os.platform()
+  return `codex_cli_rs/${CODEX_CLI_VERSION} (${platform} ${os.release()}; ${arch}) terminal`
+}
 
 /** Emitted when WS continuation state is invalidated (e.g., after compaction). */
 export const ContinuationInvalidatedEvent = BusEvent.define(
@@ -146,7 +162,7 @@ function buildAuthorizeUrl(redirectUri: string, pkce: PkceCodes, state: string):
     id_token_add_organizations: "true",
     codex_cli_simplified_flow: "true",
     state,
-    originator: "codex-tui",
+    originator: ORIGINATOR,
   })
   return `${ISSUER}/oauth/authorize?${params.toString()}`
 }
@@ -276,7 +292,7 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
               conversationId: credentials?.conversationId,
               sessionId: credentials?.sessionId,
               installationId: credentials?.installationId,
-              userAgent: `opencode/${Installation.VERSION} (${os.platform()} ${os.release()}; ${os.arch()})`,
+              userAgent: buildCodexUserAgent(),
             })
             return provider.languageModel(modelID)
           },

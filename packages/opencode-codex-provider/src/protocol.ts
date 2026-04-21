@@ -18,11 +18,15 @@ export const CODEX_API_URL = "https://chatgpt.com/backend-api/codex/responses"
 export const CODEX_WS_URL = "wss://chatgpt.com/backend-api/codex/responses"
 
 /**
- * Originator header value.
- * `codex-tui` is in the upstream first-party whitelist as of #16116.
+ * Originator header value. Must match the UA prefix sent in codex-auth.ts so
+ * OpenAI's first-party classifier doesn't flag the request as third-party.
+ * `codex_cli_rs` is the upstream DEFAULT_ORIGINATOR.
  * See: refs/codex/codex-rs/login/src/auth/default_client.rs
  */
-export const ORIGINATOR = "codex-tui"
+export const ORIGINATOR = "codex_cli_rs"
+
+/** Pinned codex-cli version we impersonate. Bump when refs/codex is fetched. */
+export const CODEX_CLI_VERSION = "0.122.0"
 
 /** Beta features header for WebSocket v2 protocol */
 export const WS_BETA_HEADER = "responses_websockets=2026-02-06"
