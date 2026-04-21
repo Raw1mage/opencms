@@ -571,7 +571,28 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "restart_self",
         description:
-          "Request a controlled rebuild+restart of the web runtime via the existing /api/v2/global/web/restart endpoint. Use this AFTER you have modified source code (bun daemon source, frontend, or the C gateway) and need the changes to take effect — NOT for routine stuck-state recovery. Webctl.sh smart-detects which layers are dirty and only rebuilds those. If nothing changed, the call is effectively a no-op restart. On failure the system stays on the previous version (daemon is not killed). Do NOT attempt to run `webctl.sh` directly via execute_command — that path is denied; this tool is the only sanctioned path.",
+          "[META TOOL — RESTARTS OPENCODE ITSELF, NOT THE USER'S PROJECT] " +
+          "Request a controlled rebuild+restart of the opencode AI runtime you " +
+          "are currently running on (the bun daemon under ~/projects/opencode, " +
+          "the opencode web frontend, or the C gateway). " +
+          "ONLY use this when you have just modified the opencode source repo " +
+          "itself and need those changes live. " +
+          "DO NOT use this to restart any of the following, even if the user's " +
+          "project is ALSO a web application: " +
+          "Flask/Django/Node/etc servers under /home/pkcs12/projects/<anything> " +
+          "other than /home/pkcs12/projects/opencode; the user's docker compose " +
+          "stacks; systemd services owned by the user's project; nginx; " +
+          "anything launched by the user's own webctl / make / start scripts. " +
+          "If the user's project needs its own server restarted, read its " +
+          "README or ask the user — this tool cannot do it. Running this tool " +
+          "on the wrong assumption WILL kill the AI runtime the user is " +
+          "talking to, forcing a reconnect cycle for every client. " +
+          "On legitimate use (opencode source just changed): webctl.sh " +
+          "smart-detects which layers are dirty and only rebuilds those; if " +
+          "nothing changed the call is a no-op. On failure the system stays on " +
+          "the previous version (daemon is not killed). Do NOT attempt to run " +
+          "`webctl.sh` directly via execute_command — that path is denied; " +
+          "this tool is the only sanctioned path.",
         inputSchema: {
           type: "object",
           properties: {
