@@ -1052,8 +1052,12 @@ do_install() {
                 echo "Usage: ./webctl.sh install [--prod|--dev] [install.sh options]"
                 echo ""
                 echo "Modes:"
-                echo "  --prod   Production bootstrap (default). Adds --system-init automatically."
-                echo "  --dev    Development bootstrap. Does not add --system-init."
+                echo "  --prod   Production bootstrap (default)."
+                echo "  --dev    Development bootstrap."
+                echo ""
+                echo "Both modes deploy system-layer artifacts (/etc/opencode, systemd units,"
+                echo "gateway binary). System-layer must always match the source repo so that"
+                echo "gateway + webctl.sh never diverge from the dev tree."
                 echo ""
                 echo "Pass-through options: --with-desktop --skip-system --yes/-y --service-name"
                 echo "Examples:"
@@ -1073,11 +1077,7 @@ do_install() {
     done
 
     log_info "Running bootstrap installer via ${installer} (mode=${mode})"
-    if [ "${mode}" = "prod" ]; then
-        bash "${installer}" --system-init "${install_args[@]}"
-    else
-        bash "${installer}" "${install_args[@]}"
-    fi
+    bash "${installer}" --system-init "${install_args[@]}"
 }
 
 # Kill whatever is currently occupying WEB_PORT (by PID file or port scan)
