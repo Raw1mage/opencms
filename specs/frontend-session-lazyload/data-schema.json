@@ -46,7 +46,10 @@
         "initial_page_size_medium",
         "initial_page_size_large",
         "session_size_threshold_kb",
-        "session_size_threshold_parts"
+        "session_size_threshold_parts",
+        "sse_reconnect_replay_max_events",
+        "sse_reconnect_replay_max_age_sec",
+        "session_messages_default_tail"
       ],
       "properties": {
         "frontend_session_lazyload": {
@@ -106,6 +109,79 @@
           "minimum": 10,
           "default": 80,
           "description": "首頁 auto-redirect 的 part 數門檻；超過則走 /sessions"
+        },
+        "sse_reconnect_replay_max_events": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 1000,
+          "default": 100,
+          "description": "(R8, ADDED 2026-04-22) SSE reconnect handshake 最多 replay 的事件數；超過則裁到 tail N 筆並發 sync.required"
+        },
+        "sse_reconnect_replay_max_age_sec": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 600,
+          "default": 60,
+          "description": "(R8, ADDED 2026-04-22) SSE reconnect handshake replay 的時間窗口秒數；超過此齡的事件跳過，缺口以 sync.required 告知"
+        },
+        "session_messages_default_tail": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 200,
+          "default": 30,
+          "description": "(R9, ADDED 2026-04-22) 無 beforeMessageID 的 GET /:id/message 預設回 tail N 則；前端 cold open 首屏大小"
+        }
+      }
+    },
+    "SessionMessagesQuery": {
+      "type": "object",
+      "description": "(R9, ADDED 2026-04-22) GET /session/:id/message query params",
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "本頁筆數。無 beforeMessageID 時 default = session_messages_default_tail，有 beforeMessageID 時 default 同值"
+        },
+        "beforeMessageID": {
+          "type": "string",
+          "description": "cursor：回比此 messageID 更舊（time.created 更早）的 limit 筆；無此參數回最新 tail"
+        },
+        "since": {
+          "type": "string",
+          "format": "date-time",
+          "description": "既有 incremental tail fetch 參數；本 revise 不動其語意但要求 CMS proxy 完整透傳"
+        }
+      }
+    },
+    "SSEReplayHandshakeResult": {
+      "type": "object",
+      "description": "(R8, ADDED 2026-04-22) sseGetBoundedSince 純函式回傳",
+      "required": ["events", "droppedCount", "droppedBoundary"],
+      "properties": {
+        "events": {
+          "type": "array",
+          "description": "要 writeSSE 送出的事件列表（已裁切）",
+          "items": {
+            "type": "object",
+            "required": ["id", "event", "receivedAt"],
+            "properties": {
+              "id": { "type": "integer" },
+              "event": {},
+              "receivedAt": { "type": "integer", "description": "wall-clock ms" }
+            }
+          }
+        },
+        "droppedCount": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "被裁掉的事件數"
+        },
+        "droppedBoundary": {
+          "type": ["string", "null"],
+          "enum": ["count", "age", null],
+          "description": "由哪個窗口觸發裁切：count 數量上限 / age 時間上限 / null 無裁切"
         }
       }
     },
@@ -147,7 +223,11 @@
             "lazyload.streaming.tail",
             "lazyload.rebuild.detected",
             "lazyload.rebuild.mismatch",
-            "lazyload.flag.state"
+            "lazyload.flag.state",
+            "sse.replay.handshake",
+            "sse.replay.sync_required",
+            "messages.cursor.fetch",
+            "messages.cursor.exhausted"
           ]
         },
         "at": { "type": "string", "format": "date-time" },

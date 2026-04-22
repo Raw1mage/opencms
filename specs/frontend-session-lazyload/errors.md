@@ -18,6 +18,10 @@
 - LAZYLOAD_FLAG_UNAVAILABLE — cannot read frontend_session_lazyload flag
 - LAZYLOAD_EXPAND_FETCH_ERROR — re-fetch full part on user expand failed
 - LAZYLOAD_SESSION_NOT_FOUND — meta endpoint 404 for unknown sessionID
+- SSE_REPLAY_LASTID_STALE — client 的 lastId 已超出 ring buffer，server 回 sync.required (R8, ADDED 2026-04-22)
+- SSE_REPLAY_WINDOW_EXCEEDED — client 的 lastId 在 buffer 內但超過 max_events / max_age 窗口，裁切後發 sync.required (R8)
+- MESSAGES_CURSOR_NOT_FOUND — `beforeMessageID` 指向不存在的 messageID (R9, ADDED 2026-04-22)
+- MESSAGES_CURSOR_INVALID — `beforeMessageID` 格式錯誤（非 `msg_*` prefix）(R9)
 
 ### Details
 
@@ -35,12 +39,17 @@
 | `LAZYLOAD_FLAG_UNAVAILABLE` | `無法讀取 frontend_session_lazyload 設定` | tweaks.cfg 檔案不存在或無讀權限 | webapp-spa / server | 視為 `frontend_session_lazyload=0`（安全預設），但必須 warn 且記入 observability |
 | `LAZYLOAD_EXPAND_FETCH_ERROR` | `展開 part 失敗：<error>` | R3.S2 後使用者點展開，重新 fetch 完整 part 時失敗 | webapp-spa (CMP6) | 顯示錯誤 + 允許重試；保留 tail 顯示 |
 | `LAZYLOAD_SESSION_NOT_FOUND` | (server 404) | meta 端點對不存在 sessionID 的查詢 | server (CMP8) | 回 404；webapp 視為 `LAZYLOAD_META_HTTP_ERROR` 處理 |
+| `SSE_REPLAY_LASTID_STALE` | (info)：`[SSE-REPLAY] lastId=X returned=0 dropped=all boundary=count` | client 發 Last-Event-ID=X 但 ring buffer 最舊 id > X+1 | server (global.ts handshake) | 發一筆 `sync.required`；client 收到後走 HTTP full resync |
+| `SSE_REPLAY_WINDOW_EXCEEDED` | (info)：`[SSE-REPLAY] lastId=X returned=N dropped=M boundary={count\|age}` | buffer 有 X 以後事件但超過 max_events 或 max_age_sec | server (global.ts handshake) | 回裁切後 tail + 前置 `sync.required`；client 做全量再同步 |
+| `MESSAGES_CURSOR_NOT_FOUND` | (server 404) | 呼叫帶 `beforeMessageID=unknown` | server (session.ts) | 回 404 + error body `{code: "MESSAGES_CURSOR_NOT_FOUND"}`；前端顯示「無法載入更早訊息，請重新整理」 |
+| `MESSAGES_CURSOR_INVALID` | (server 400) | `beforeMessageID` 格式錯（非 `msg_*`） | server (session.ts) | 回 400；前端視為程式 bug（log error，不顯示給使用者） |
 
 ## 錯誤分級
 
 - **Error (使用者可見)**：`LAZYLOAD_META_*`、`LAZYLOAD_LOADMORE_ERROR`、`LAZYLOAD_EXPAND_FETCH_ERROR` — 必須 UI 顯示（toast / banner）。
 - **Warn (console only)**：`LAZYLOAD_TWEAKS_*`、`LAZYLOAD_SCROLL_SPY_CONFLICT`、`LAZYLOAD_FLAG_UNAVAILABLE` — 每類每 session 最多 warn 一次。
-- **Info (telemetry only)**：`LAZYLOAD_REBUILD_MISMATCH`、`LAZYLOAD_TAIL_WINDOW_TRIGGERED` — 推到 observability，不干擾 UI。
+- **Info (telemetry only)**：`LAZYLOAD_REBUILD_MISMATCH`、`LAZYLOAD_TAIL_WINDOW_TRIGGERED`、`SSE_REPLAY_LASTID_STALE`、`SSE_REPLAY_WINDOW_EXCEEDED` — 推到 observability，不干擾 UI。
+- **Error (server-visible)**：`MESSAGES_CURSOR_NOT_FOUND`（404）、`MESSAGES_CURSOR_INVALID`（400）— 透過 HTTP status + error body 回 client。
 
 ## 無聲 fallback 禁令覆核
 
@@ -50,3 +59,5 @@
 - tweaks.cfg 讀不到 `frontend_session_lazyload` → 預設 `1`（應預設 `0` + warn）。
 - scroll-spy loadMore 失敗 → 自動重試無限次。
 - cap 設定缺失 → 把 cap 設成 `Infinity`（應該用 default + warn）。
+- SSE reconnect 發現 buffer 不夠 → 「盡量送」把 ring buffer 全部 dump 出去（應該遵守 bounded replay + sync.required）。
+- `beforeMessageID` 指向不存在的 id → 回空 page 假裝成功（應該 404 + error code）。

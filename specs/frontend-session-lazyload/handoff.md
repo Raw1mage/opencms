@@ -14,7 +14,7 @@
 
 - [proposal.md](proposal.md) — 整體目標、既有機制盤點、G1–G7 決策
 - [spec.md](spec.md) — R1–R7 七組 Requirement（GIVEN/WHEN/THEN 等同驗收）
-- [design.md](design.md) — DD-1 ~ DD-10 決策依據、R-1 ~ R-5 風險、Critical Files
+- [design.md](design.md) — DD-1 ~ DD-15 決策依據、R-1 ~ R-10 風險、Critical Files
 - [c4.json](c4.json) — 11 個 component 與相依
 - [data-schema.json](data-schema.json) — tweaks.cfg keys / meta response shape / telemetry event
 - `AGENTS.md` 第一條（禁止靜默 fallback）
@@ -32,6 +32,9 @@
 - **G-5** flag=0 路徑在 regression test 中出現任何行為差異 → 停。代表 §7.1 「byte-by-byte 等價」未達成。
 - **G-6** load test 觀察到 flag=1 比 flag=0 記憶體高 → 停。代表 plan 方向錯誤（原本要降記憶體），需重新設計。
 - **G-7** 需要改 SSE event schema → 停。超出本 plan scope（見 Non-Goals）。
+- **G-8** (R8) `sse_reconnect_replay_sync_required_rate` load test > 10% → 停。代表預設 `max_events=100` 或 `max_age_sec=60` 對典型 reconnect 模式過嚴，需重新校準窗口大小（不能改成「拿掉 bounded」這種回退）。
+- **G-9** (R9) 發現現有 codebase 有匯出/備份類消費者依賴 `GET /:id/message` 回「整包所有 messages」→ 停。R-9 預留的 `fullHistory=1` escape hatch 需要 formally 加進 API 契約，不能沉默破壞。
+- **G-10** (R9) CMS proxy 整合測試發現 `beforeMessageID` 被某層吃掉 → 停。這是 INV-10 破壞，必須先修 proxy 層才能繼續 R9 後續 task。
 
 ## Execution-Ready Checklist
 
@@ -54,7 +57,10 @@
 
 ## Post-Merge
 
-- Verified 條件：§1–§6 所有 tasks 完成 + load test 通過 + flag on/off 兩條路徑 regression 皆 green。
+- Verified 條件：**R1 + R2 + §1–§6** 所有 tasks 完成 + load test 通過 + flag on/off 兩條路徑 regression 皆 green。特別要求：
+  - R1 整合測試：ring buffer 塞 1000 events、reconnect、驗證 `writeSSE` 次數 ≤ max_events+1，且 `[SSE-REPLAY]` log 正確
+  - R2 整合測試：direct-daemon vs CMS-routed 對同 `beforeMessageID` query 產生 byte-identical daemon log
+  - R1+R2 生產觀測：revise 前的 `ses_24b2d916dffeaKQcN79znevt1b` 類情境（gateway 收 7× POST / daemon 收 0×）必須能復現為「gateway 收 N× / daemon 收 N×」
 - Promote `verified`：`plan-promote.ts --to verified`，附驗證證據連結。
 - Living：合併到 main 後 promote `verified → living`，`specs/architecture.md` 同步更新完成。
 - Flag 預設切換與移除屬於後續 `amend` mode（在 living 狀態下進行）。

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "verified",
+  "state": "planned",
   "profile": [],
   "history": [
     {
@@ -54,6 +54,30 @@
       "mode": "promote",
       "reason": "Phases 1 (server meta + tweaks), 3 (part tail-window + fold UI) and 4 (scroll-spy + meta-driven page size) merged to main via merge 490783777. Phase 2 (escape hatch UI) intentionally skipped — Phase 3 tail-window already bounds streaming OOM. Real-world browser validation pending; regressions revertable via single merge revert.",
       "commit": "490783777"
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-04-22T12:53:54.468Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "merge 490783777 landed on main 2026-04-20; promote verified → living before revise opens G1+G2 scope"
+    },
+    {
+      "from": "living",
+      "to": "designed",
+      "at": "2026-04-22T12:54:00.462Z",
+      "by": "pkcs12",
+      "mode": "revise",
+      "reason": "G1 bounded SSE reconnect replay + G2 session.messages cursor pagination. Root cause for mobile + PC comms loss identified 2026-04-22: daemon event-loop starved by (a) SSE handshake replaying full 1000-event ring buffer sequentially via await stream.writeSSE, and (b) session.messages full-hydrate on open with no cursor — CMS gateway also drops the already-existing since param. Phase 2 was originally skipped; revise reopens design to add reconnect-side bounded replay + true cursor-based older-history pagination with CMS proxy passthrough. Evidence: ses_24b2d916dffeaKQcN79znevt1b 19:31-19:35 gateway saw 7x POST prompt_async, daemon saw 0x inbound — splice backpressure from event-loop starvation, not network."
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-04-22T13:05:43.095Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "R8 (SSE bounded replay) + R9 (messages cursor) tasks drafted (R1.1–R1.6, R2.1–R2.8), test vectors TV-R8-S1..S5 + TV-R9-S1..S6 added, errors + invariants + observability updated. Ready to enter implementing; execution order R1 → R2 → §1..§6 → §7."
     }
   ]
 }

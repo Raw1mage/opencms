@@ -103,3 +103,45 @@
 - `CMP11 TweaksLoader` 讀值時若 `tail_window_kb > part_inline_cap_kb` 發 `LAZYLOAD_TWEAKS_INVALID_VALUE` 並把 `tail_window_kb = part_inline_cap_kb`。
 
 **Detect**：unit test 覆蓋四種門檻組合（只超 parts / 只超 kb / 兩者皆超 / 皆未超），以及 `tail_window_kb` 異常情境。
+
+---
+
+## INV-8 · SSE handshake bounded replay (R8, ADDED 2026-04-22)
+
+**Statement**：任何 SSE reconnect 握手，`await stream.writeSSE` 的實際執行次數 **必須 ≤ `sse_reconnect_replay_max_events + 1`**（+1 是 `sync.required` 或 `server.connected`）。無論 ring buffer 多大、client `lastId` 多舊、事件多新，這個上限都不得突破。
+
+**Why**：這是打掉 daemon event-loop 飢餓的核心契約。若握手可以突破上限，單一 reconnect 會把 event loop 鎖死數百毫秒，其他 HTTP / splice proxy 全部等，正是 2026-04-22 RCA 觀測到的主因。
+
+**Enforced at**：
+- `global.ts` handshake 路徑中唯一的 `writeSSE` 迴圈必須用 `sseGetBoundedSince` 而非 `sseGetSince`。
+- Code review hard check：搜尋 `for (const entry of missed)` pattern 必須對照 `droppedBoundary` 處理。
+
+**Detect**：test-vectors `TV-R8-S5`；整合測試：buffer 塞 10000 events、reconnect、assert `writeSSE` calls ≤ 101。
+
+---
+
+## INV-9 · session.messages tail-first default (R9, ADDED 2026-04-22)
+
+**Statement**：`GET /session/:id/message` 無 `beforeMessageID` 時必回「最新 N 則」tail，絕不回「所有 messages」；N 由 `session_messages_default_tail` 控制（預設 30），client 送的 `limit` 可覆寫 N 但不改 tail-from-newest 語義。分頁走 `beforeMessageID` cursor append，**嚴禁** 把 limit 放大重抓舊頁。
+
+**Why**：Session 規模無上限，若 default 回全部，cold open 會跟沒 cursor 一樣觸發全量 hydration → daemon event-loop 飢餓 → splice proxy drop HTTP body。tail-first default 確保任何 cold open 的網路 payload 都被窗口化。
+
+**Enforced at**：
+- `session.ts` `GET /:sessionID/message` handler 分支決策：`beforeMessageID ?? default-tail`。
+- `sync.tsx` `history.loadMore()` 必須呼 `beforeMessageID=<oldest_known>`，**禁止** `currentLimit + count` 整包重抓。
+
+**Detect**：test-vectors `TV-R9-S1 / S2 / S5 / S6`；grep codebase 禁止 `messagePageSize + count` 這類 pattern 再出現。
+
+---
+
+## INV-10 · CMS/user-daemon proxy cursor passthrough (DD-12 extension)
+
+**Statement**：任何 client → gateway → user-daemon 的 `/message` 呼叫，以下參數必須 **完整透傳**：`limit`、`since`（既有）、`beforeMessageID`（新增，R9）。任何一層遺失都屬契約破壞。
+
+**Why**：2026-04-22 RCA 顯示既有 `since` 已在 CMS proxy 路徑被丟掉；本 revise 新增 `beforeMessageID` 若重蹈覆轍，整個 R9 形同沒做（mobile/CMS 路徑自動退化）。
+
+**Enforced at**：
+- `packages/opencode/src/server/user-daemon/manager.ts` `callSessionMessages` 必須顯式傳入全部參數。
+- 整合測試：direct-daemon call vs CMS-routed call 對同一 query 必須產生 byte-identical 的 daemon log `beforeMessageID=...`。
+
+**Detect**：test-vectors `TV-R9-S4`；errors.md `SSE_REPLAY_LASTID_STALE` 鄰近的測試若看到 CMS 路徑 404 率異常偏高即為此 invariant 破壞。

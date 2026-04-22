@@ -229,5 +229,176 @@
       "partCap": "disabled",
       "behaviorEqualsMainBaseline": true
     }
+  },
+  {
+    "id": "TV-R8-S1",
+    "requirementRef": "R8.S1",
+    "description": "窗口內事件全送，不發 sync.required",
+    "input": {
+      "lastEventId": 100,
+      "bufferIdsRange": [101, 120],
+      "bufferAgesSec": "all < 60",
+      "tweaks": { "sse_reconnect_replay_max_events": 100, "sse_reconnect_replay_max_age_sec": 60 }
+    },
+    "expected": {
+      "writeSSECount": 20,
+      "syncRequiredSent": false,
+      "log": "[SSE-REPLAY] lastId=100 returned=20 dropped=0 boundary=none"
+    }
+  },
+  {
+    "id": "TV-R8-S2",
+    "requirementRef": "R8.S2",
+    "description": "超過 max_events 裁切到 tail 100 + sync.required",
+    "input": {
+      "lastEventId": 100,
+      "bufferIdsRange": [101, 600],
+      "tweaks": { "sse_reconnect_replay_max_events": 100, "sse_reconnect_replay_max_age_sec": 60 }
+    },
+    "expected": {
+      "writeSSECount": 101,
+      "syncRequiredSentFirst": true,
+      "replayedIds": [501, "...", 600],
+      "log": "[SSE-REPLAY] lastId=100 returned=100 dropped=400 boundary=count"
+    }
+  },
+  {
+    "id": "TV-R8-S3",
+    "requirementRef": "R8.S3",
+    "description": "超過 max_age_sec 裁切到 fresh 的 + sync.required",
+    "input": {
+      "lastEventId": 100,
+      "bufferEvents": [
+        { "id": 101, "ageSec": 120 },
+        { "id": 102, "ageSec": 119 },
+        { "id": 128, "ageSec": 59 },
+        { "id": 129, "ageSec": 20 },
+        { "id": 130, "ageSec": 5 }
+      ],
+      "tweaks": { "sse_reconnect_replay_max_events": 100, "sse_reconnect_replay_max_age_sec": 60 }
+    },
+    "expected": {
+      "writeSSECount": 4,
+      "syncRequiredSentFirst": true,
+      "replayedIds": [128, 129, 130],
+      "log": "[SSE-REPLAY] lastId=100 returned=3 dropped=2 boundary=age"
+    }
+  },
+  {
+    "id": "TV-R8-S4",
+    "requirementRef": "R8.S4",
+    "description": "lastId 早已被 ring buffer shift 掉",
+    "input": {
+      "lastEventId": 5,
+      "bufferIdsRange": [200, 300]
+    },
+    "expected": {
+      "sseGetSinceReturnsNull": true,
+      "syncRequiredSent": true,
+      "writeSSECount": 1,
+      "log": "[SSE-REPLAY] lastId=5 returned=0 dropped=all boundary=count"
+    }
+  },
+  {
+    "id": "TV-R8-S5",
+    "requirementRef": "R8.S5",
+    "description": "任何 reconnect 情境下 writeSSE 次數 ≤ max_events + 1",
+    "input": {
+      "lastEventId": 0,
+      "bufferIdsRange": [1, 10000],
+      "tweaks": { "sse_reconnect_replay_max_events": 100 }
+    },
+    "expected": {
+      "writeSSECountMax": 101
+    }
+  },
+  {
+    "id": "TV-R9-S1",
+    "requirementRef": "R9.S1",
+    "description": "無 cursor 呼叫 → 回最新 tail",
+    "input": {
+      "sessionID": "ses_test",
+      "query": {},
+      "tweaks": { "session_messages_default_tail": 30 },
+      "sessionMessageCount": 500
+    },
+    "expected": {
+      "returnedCount": 30,
+      "orderedDesc": true,
+      "oldestReturned": "M471",
+      "newestReturned": "M500",
+      "log": "[MESSAGES-CURSOR] sessionID=ses_test before=null limit=30 returned=30"
+    }
+  },
+  {
+    "id": "TV-R9-S2",
+    "requirementRef": "R9.S2",
+    "description": "給 cursor → 回比它舊的",
+    "input": {
+      "sessionID": "ses_test",
+      "query": { "beforeMessageID": "M471", "limit": 30 },
+      "sessionMessageCount": 500
+    },
+    "expected": {
+      "returnedCount": 30,
+      "returnedIds": ["M441", "...", "M470"],
+      "log": "[MESSAGES-CURSOR] sessionID=ses_test before=M471 limit=30 returned=30"
+    }
+  },
+  {
+    "id": "TV-R9-S3",
+    "requirementRef": "R9.S3",
+    "description": "cursor 已在最早 → 回空 page",
+    "input": {
+      "sessionID": "ses_test",
+      "query": { "beforeMessageID": "M1" },
+      "sessionMessageCount": 500
+    },
+    "expected": {
+      "returnedCount": 0,
+      "frontendHistoryComplete": true
+    }
+  },
+  {
+    "id": "TV-R9-S4",
+    "requirementRef": "R9.S4",
+    "description": "CMS → user-daemon proxy 完整透傳 beforeMessageID",
+    "input": {
+      "gatewayIncoming": "GET /api/v2/session/ses_test/message?beforeMessageID=M30&limit=30",
+      "path": "via-cms-user-daemon"
+    },
+    "expected": {
+      "daemonReceivedQuery": { "beforeMessageID": "M30", "limit": 30 },
+      "daemonLogContains": "beforeMessageID=M30"
+    }
+  },
+  {
+    "id": "TV-R9-S5",
+    "requirementRef": "R9.S5",
+    "description": "舊 client 只送 limit → 等同 tail",
+    "input": {
+      "sessionID": "ses_test",
+      "query": { "limit": 100 },
+      "sessionMessageCount": 500
+    },
+    "expected": {
+      "returnedCount": 100,
+      "equivalentTo": "tail limit=100"
+    }
+  },
+  {
+    "id": "TV-R9-S6",
+    "requirementRef": "R9.S6",
+    "description": "前端 loadMore 觸發 cursor append",
+    "input": {
+      "storeBefore": { "messages[ses_test]": ["M471", "...", "M500"] },
+      "action": "history.loadMore(ses_test)"
+    },
+    "expected": {
+      "requestSent": "GET /session/ses_test/message?beforeMessageID=M471&limit=30",
+      "storeAfter": { "messages[ses_test]": ["M441", "...", "M500"] },
+      "appendedToFront": true,
+      "historyCompleteStillFalse": true
+    }
   }
 ]

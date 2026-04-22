@@ -49,6 +49,26 @@ Canonical execution checklist。每個 task 對到 spec 的 Requirement + C4/IDE
 - [ ] 6.4 保留既有「Load Earlier」按鈕作 fallback（R5.S3）
 - [ ] 6.5 `packages/app/test/scroll-spy.test.ts`（若有 Solid 測試基礎）— 覆蓋觸發 / loading 期不重複 / complete 後停用
 
+## R1. SSE reconnect bounded replay (G9, ADDED 2026-04-22 revise)
+
+- [x] R1.1 `packages/opencode/src/server/routes/global.ts` — `_sseBuffer` entry 加 `receivedAt: number`；`ssePush` 補 `receivedAt: Date.now()`
+- [x] R1.2 新增 `sseGetBoundedSince(lastId, maxEvents, maxAgeMs, now)` 純函式 + 單元測試；回 `{ events, droppedCount, droppedBoundary: "count" | "age" | null }`
+- [x] R1.3 `global.ts` handshake 改用 `sseGetBoundedSince`；若 `droppedCount > 0` 或 `sseGetSince` 回 null → 先發 `sync.required` 再送事件
+- [x] R1.4 新增 tweaks keys：`sse_reconnect_replay_max_events` (預設 100)、`sse_reconnect_replay_max_age_sec` (預設 60)；走 `/config/tweaks/frontend` + fallback
+- [x] R1.5 Telemetry：`[SSE-REPLAY] lastId=X returned=N dropped=M boundary={count|age|none}` 每次 handshake 印一行
+- [x] R1.6 整合測試：mock 塞滿 1000 events → 模擬 reconnect → 驗證實際 writeSSE 次數 ≤ max_events + 1 (sync.required)
+
+## R2. session.messages cursor pagination (G10, ADDED 2026-04-22 revise)
+
+- [x] R2.1 `packages/opencode/src/server/routes/session.ts` — `GET /:sessionID/message` schema 加 optional `beforeMessageID`；handler 分兩路：有 cursor → 回比它舊的 N 筆 / 沒 cursor → 回 tail N 筆；`session_messages_default_tail` 從 tweaks 讀（預設 30）
+- [x] R2.2 SessionCache key 擴充為 `messages:{id}:{beforeMessageID ?? "tail"}:{limit}`；invalidation 規則同現有 message bus event
+- [x] R2.3 `packages/opencode/src/server/user-daemon/manager.ts` — `callSessionMessages` 完整透傳 `beforeMessageID` + `since` + `limit`；確認 CMS proxy path 不丟失
+- [x] R2.4 `packages/app/src/context/sync.tsx` — `history.loadMore()` 改為讀目前 oldest `messageID` → GET `beforeMessageID=<oldest>`，回來的 messages **append 到現有 store**（不是整包 replace）
+- [x] R2.5 `sync.tsx` meta 追蹤：`history.complete` 條件改為「server 回 < limit 或空 page」；移除 `currentLimit + count` 重抓邏輯
+- [x] R2.6 `tweaks.cfg` 加 `session_messages_default_tail=30`；fallback 落在 [config/tweaks.ts](packages/opencode/src/config/tweaks.ts)
+- [x] R2.7 Telemetry：`[MESSAGES-CURSOR] sessionID=X before=Y limit=N returned=M` 每次 fetch 印
+- [x] R2.8 向後相容驗證：沒送 `beforeMessageID` 的舊 client 行為須等同「回最新 limit 筆」
+
 ## 7. Feature flag rollout + 驗收
 
 - [ ] 7.1 所有 §3–§6 程式碼用 `flag === 1` 守護；flag=0 時行為必須與主線現狀 byte-by-byte 等價（除了新端點存在但不被呼叫）
@@ -67,6 +87,10 @@ Phase 1 = §1 + §2（server 基礎，不影響既有行為）
 Phase 2 = §3（hotfix，flag on 即可救急）
 Phase 3 = §4 + §5（part 層保護，解 OOM 核心）
 Phase 4 = §6（scroll-spy + 動態 page size）
+Phase R1 = §R1（SSE bounded replay — 獨立於 Phase 1-4，可先做：唯一解握手飢餓）
+Phase R2 = §R2（messages cursor — 解開 session 登入卡住；需在 Phase 2 tail-first attach 之前或並行）
 Phase 5 = §7（rollout）
+
+**建議 revise 後的執行順序**：R1 → R2 → 其餘 1-4 → 5。R1+R2 拿掉根因，之後的 render-side lazyload 才有意義。
 
 §1–§6 內可並行做但不跨 phase。每個 phase 完成後執行 `bun run ~/projects/skills/plan-builder/scripts/plan-sync.ts specs/frontend-session-lazyload/`，依 drift 決定下一步（plan-builder §16.3）。
