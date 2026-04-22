@@ -118,25 +118,6 @@ export namespace Tweaks {
     cancelOnCapTrip: boolean
   }
 
-  /**
-   * Task (subagent) watchdog tuning. Added 2026-04-23 after diagnosing a
-   * recurring hang where the worker process stays alive mid tool-call,
-   * emits no further bridge events, and the three existing proc-scan
-   * defenses (disk terminal / proc state / CPU-IO silence) all miss —
-   * only a daemon restart recovered it. See
-   * memory/project_subagent_hang_pattern.md.
-   *
-   * - bridgeSilenceMs: if the subagent worker has emitted at least one
-   *   bridge event and then goes silent (no further events) for this
-   *   long while its proc is still alive, assume the runloop is stuck
-   *   awaiting something that will never arrive (hung tool call,
-   *   pending permission with no UI, etc.) and force-resolve from
-   *   disk. 0 disables the dimension.
-   */
-  export interface TaskWatchdogConfig {
-    bridgeSilenceMs: number
-  }
-
   export interface Effective {
     sessionCache: SessionCacheConfig
     rateLimit: RateLimitConfig
@@ -145,7 +126,6 @@ export namespace Tweaks {
     codexRotation: CodexRotationConfig
     sseReplay: SseReplayConfig
     partPersistence: PartPersistenceConfig
-    taskWatchdog: TaskWatchdogConfig
     source: { path: string; present: boolean }
   }
 
@@ -198,16 +178,6 @@ export namespace Tweaks {
     // looping, not that the user is working hard.
     maxPartBytes: 8 * 1024 * 1024,
     cancelOnCapTrip: false,
-  }
-
-  const TASK_WATCHDOG_DEFAULTS: TaskWatchdogConfig = {
-    // 120 s. A legitimate long reasoning block or slow tool call can
-    // take >60s without bridge events (especially shell commands on
-    // large trees), so the D dimension must be looser than B3's 60s
-    // CPU-silence threshold. 2 minutes is comfortably past any normal
-    // pause but still bounds recovery to a few minutes instead of
-    // "only a daemon restart fixes it".
-    bridgeSilenceMs: 120_000,
   }
 
   function path(): string {
@@ -292,7 +262,6 @@ export namespace Tweaks {
     "part_persist_debounce_ms",
     "part_max_bytes",
     "part_cancel_on_cap_trip",
-    "task_bridge_silence_ms",
   ])
 
   function parseFlag01(raw: string, key: string): 0 | 1 | undefined {
@@ -347,7 +316,6 @@ export namespace Tweaks {
           codexRotation: CODEX_ROTATION_DEFAULTS,
           sseReplay: SSE_REPLAY_DEFAULTS,
           partPersistence: PART_PERSISTENCE_DEFAULTS,
-          taskWatchdog: TASK_WATCHDOG_DEFAULTS,
         },
       })
       return {
@@ -358,7 +326,6 @@ export namespace Tweaks {
         codexRotation: { ...CODEX_ROTATION_DEFAULTS },
         sseReplay: { ...SSE_REPLAY_DEFAULTS },
         partPersistence: { ...PART_PERSISTENCE_DEFAULTS },
-        taskWatchdog: { ...TASK_WATCHDOG_DEFAULTS },
         source: { path: cfgPath, present: false },
       }
     }
@@ -524,13 +491,6 @@ export namespace Tweaks {
       if (v !== undefined) partPersistence.cancelOnCapTrip = v
     }
 
-    const taskWatchdog: TaskWatchdogConfig = { ...TASK_WATCHDOG_DEFAULTS }
-    const bridgeSilenceRaw = parsed.get("task_bridge_silence_ms")
-    if (bridgeSilenceRaw !== undefined) {
-      const v = parseIntRange(bridgeSilenceRaw, "task_bridge_silence_ms", 0, 3_600_000)
-      if (v !== undefined) taskWatchdog.bridgeSilenceMs = v
-    }
-
     const sseReplay: SseReplayConfig = { ...SSE_REPLAY_DEFAULTS }
 
     const sseMaxEventsRaw = parsed.get("sse_reconnect_replay_max_events")
@@ -546,7 +506,7 @@ export namespace Tweaks {
 
     log.info("tweaks.cfg loaded", {
       path: cfgPath,
-      effective: { sessionCache, rateLimit, frontendLazyload, sessionUiFreshness, codexRotation, sseReplay, partPersistence, taskWatchdog },
+      effective: { sessionCache, rateLimit, frontendLazyload, sessionUiFreshness, codexRotation, sseReplay, partPersistence },
     })
     return {
       sessionCache,
@@ -556,7 +516,6 @@ export namespace Tweaks {
       codexRotation,
       sseReplay,
       partPersistence,
-      taskWatchdog,
       source: { path: cfgPath, present: true },
     }
   }
@@ -603,14 +562,6 @@ export namespace Tweaks {
    */
   export function partPersistenceSync(): PartPersistenceConfig {
     return _effective?.partPersistence ?? PART_PERSISTENCE_DEFAULTS
-  }
-
-  export async function taskWatchdog(): Promise<TaskWatchdogConfig> {
-    return (await effective()).taskWatchdog
-  }
-
-  export function taskWatchdogSync(): TaskWatchdogConfig {
-    return _effective?.taskWatchdog ?? TASK_WATCHDOG_DEFAULTS
   }
 
   export async function loadEffective(): Promise<Effective> {

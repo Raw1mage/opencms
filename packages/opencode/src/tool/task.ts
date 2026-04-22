@@ -11,7 +11,6 @@ import { SessionPrompt } from "../session/prompt"
 import { iife } from "@/util/iife"
 import { defer } from "@/util/defer"
 import { Config } from "../config/config"
-import { Tweaks } from "../config/tweaks"
 import { PermissionNext } from "@/permission/next"
 import { Provider } from "../provider/provider"
 import { LLM } from "../session/llm"
@@ -2072,10 +2071,6 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         // the same poll cycle.
         const DISK_GRACE_MS = 5_000
         const TERMINAL_FINISHES = ["stop", "error", "length", "canceled"]
-        // D-dimension (bridge silence). 0 disables. See
-        // memory/project_subagent_hang_pattern.md for why A/B/C missed
-        // this class of hang.
-        const BRIDGE_SILENCE_MS = Tweaks.taskWatchdogSync().bridgeSilenceMs
 
         type ProcSample = {
           state: string // R/S/D/Z/T/X from /proc/<pid>/stat
@@ -2145,7 +2140,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
 
         let watchdogTimer: ReturnType<typeof setInterval> | undefined
         const watchdogCompletion = new Promise<{
-          resolution: "worker_dead" | "disk_terminal" | "silent_kill" | "bridge_silent"
+          resolution: "worker_dead" | "disk_terminal" | "silent_kill"
           ok: boolean
           finish: string
           wchan?: string
@@ -2251,75 +2246,6 @@ export const TaskTool = Tool.define("task", async (ctx) => {
                     finish: "no_progress_timeout",
                     wchan: lastWchan,
                   })
-                  return
-                }
-              }
-
-              // D. Bridge silence: LLM runloop stopped emitting any bridge
-              //    event (part update, tool transition, etc.) even though
-              //    the proc still has CPU/IO ticks. Covers the class of
-              //    hang where a tool call blocks indefinitely (e.g. shell
-              //    command waiting on a network I/O, permission prompt
-              //    with no UI on the parent, question never answered).
-              //    A/B/C all miss this: finish is non-terminal, proc isn't
-              //    dead, proc still has background activity. This dimension
-              //    looks at semantic progress — if the child's runloop
-              //    hasn't produced a bridge event in the configured
-              //    window AND we've seen at least one event already (so
-              //    we're past dispatch warmup), resolve from disk and let
-              //    downstream code surface whatever partial output exists.
-              if (BRIDGE_SILENCE_MS > 0) {
-                const lastEventAt = worker.current?.lastEventAt
-                const eventCount = worker.current?.eventCount ?? 0
-                if (lastEventAt !== undefined && eventCount > 0) {
-                  const bridgeSilentMs = now - lastEventAt
-                  if (bridgeSilentMs >= BRIDGE_SILENCE_MS) {
-                    // Diagnose what's pending so the log tells us why.
-                    let pendingTool: string | undefined
-                    try {
-                      const { messages: childMsgs } = await MessageV2.filterCompacted(
-                        MessageV2.stream(session.id),
-                      )
-                      const lastAssistant = childMsgs.findLast((m) => m.info.role === "assistant")
-                      if (lastAssistant) {
-                        for (const part of lastAssistant.parts) {
-                          if (part.type !== "tool") continue
-                          const st = (part as any).state?.status
-                          if (st === "running" || st === "pending") {
-                            pendingTool = (part as any).tool
-                            break
-                          }
-                        }
-                      }
-                    } catch {
-                      // diagnostic read failed — proceed anyway
-                    }
-                    Log.create({ service: "task" }).warn(
-                      "proc-watchdog: bridge silent past threshold — resolving from disk",
-                      {
-                        childSessionID: session.id,
-                        workerID: assignedWorkerID,
-                        bridgeSilentMs,
-                        eventCount,
-                        pendingTool: pendingTool ?? "(none)",
-                        wchan: lastWchan ?? "(unknown)",
-                      },
-                    )
-                    // ok=true: the child may have produced useful partial
-                    // output before going silent. Downstream (line ~2312)
-                    // extracts the last-3 assistant texts as child output
-                    // for the parent LLM. The "bridge_silent" resolution
-                    // is also logged + surfaced via watchdogResolution so
-                    // operators can distinguish clean completions from
-                    // this salvage path.
-                    resolveWD({
-                      resolution: "bridge_silent",
-                      ok: true,
-                      finish: "bridge_silent",
-                      wchan: lastWchan,
-                    })
-                    return
-                  }
                 }
               }
             } catch {
@@ -2331,7 +2257,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         let workerOk = true
         let workerError: string | undefined
         let completionSource: "worker" | "watchdog" = "worker"
-        let watchdogResolution: "worker_dead" | "disk_terminal" | "silent_kill" | "bridge_silent" | undefined
+        let watchdogResolution: "worker_dead" | "disk_terminal" | "silent_kill" | undefined
         try {
           const outcome = await Promise.race([
             run.done.then(() => ({ kind: "worker" as const })),
