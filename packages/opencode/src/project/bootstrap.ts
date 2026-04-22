@@ -64,13 +64,17 @@ export async function InstanceBootstrap() {
 
   // Orphan task recovery: check the running-task registry from the previous daemon instance.
   // Only recovers the specific tasks that were in-flight — O(running tasks), not O(all sessions).
-  try {
-    const { recoverOrphanTasks } = await import("../tool/task")
-    await recoverOrphanTasks()
-  } catch (err) {
-    Log.Default.warn("orphan task recovery failed", {
-      error: err instanceof Error ? err.message : String(err),
-    })
+  // Skip inside subagent worker processes — they share the same registry as their parent
+  // daemon, and would otherwise mis-recover their own live task entry as an orphan.
+  if (!process.env.OPENCODE_TASK_EVENT_BRIDGE) {
+    try {
+      const { recoverOrphanTasks } = await import("../tool/task")
+      await recoverOrphanTasks()
+    } catch (err) {
+      Log.Default.warn("orphan task recovery failed", {
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
   }
 
   debugCheckpoint("bootstrap", "ready", { directory: Instance.directory })
