@@ -1490,6 +1490,11 @@ do_restart() {
             --force)
                 FORCE_REBUILD=1
                 ;;
+            --graceful)
+                # Accepted for callers (e.g. restart_self) that pass the
+                # explicit flag. Graceful smart-skip is already the default
+                # behavior, so this is a no-op marker.
+                ;;
             *)
                 log_warn "Unknown restart option: $1"
                 ;;
@@ -1501,16 +1506,26 @@ do_restart() {
 
     log_info "Restarting (rebuild + reinstall + respawn; smart-skip via content fingerprint)..."
 
-    # 1. Reload. do_reload goes through _frontend_needs_build /
-    #    _binary_needs_build (both content-fingerprint based now) so every
-    #    layer — frontend build, binary build, binary install, frontend
-    #    deploy, MCP recompile, daemon kill — is attempted and skipped per
-    #    layer only when content truly hasn't changed. --force here means
-    #    "also ignore the content stamps", rarely needed.
-    if [ "${FORCE_REBUILD}" -eq 1 ]; then
-        do_reload --force
+    # 1. Reload. Only meaningful when running from a source checkout; the
+    #    installed copy at /etc/opencode cannot rebuild anything and must
+    #    skip straight to the service restart step.
+    if [ "${IS_SOURCE_REPO:-0}" -eq 1 ]; then
+        if [ "${FORCE_REBUILD}" -eq 1 ]; then
+            do_reload --force
+        else
+            do_reload
+        fi
     else
-        do_reload
+        # Installed mode: no source to rebuild. We still need to kick the
+        # per-user daemons so they respawn with the latest installed binary
+        # — but the currently-serving daemon is the one handling this very
+        # restart request. Killing it synchronously causes the HTTP response
+        # to die mid-flight and the frontend receives gateway's fallback
+        # HTML. Detach the kick so this call can return cleanly first.
+        log_info "Installed mode (non-source); skipping rebuild, scheduling detached daemon kick"
+        nohup bash -c "sleep 1; '${PROJECT_ROOT}/webctl.sh' daemon-killall >/dev/null 2>&1" \
+            >/dev/null 2>&1 < /dev/null &
+        disown || true
     fi
 
     # 2. Detect whether gateway needs restart
