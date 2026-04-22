@@ -443,6 +443,10 @@ export const dict = {
   "toast.model.none.title": "No model selected",
   "toast.model.none.description": "Connect a provider to summarize this session",
 
+  "toast.session.compact.loading": "Compacting session…",
+  "toast.session.compact.success": "Compaction complete",
+  "toast.session.compact.error": "Compaction failed: {{reason}}",
+
   "toast.file.loadFailed.title": "Failed to load file",
   "toast.file.listFailed.title": "Failed to list files",
 

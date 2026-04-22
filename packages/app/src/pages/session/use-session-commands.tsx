@@ -15,7 +15,7 @@ import { DialogSelectFile } from "@/components/dialog-select-file"
 import { DialogSelectModel } from "@/components/dialog-select-model"
 import { DialogSelectMcp } from "@/components/dialog-select-mcp"
 import { DialogFork } from "@/components/dialog-fork"
-import { showToast } from "@opencode-ai/ui/toast"
+import { showPromiseToast, showToast } from "@opencode-ai/ui/toast"
 import { findLast } from "@opencode-ai/util/array"
 import { extractPromptFromParts } from "@/utils/prompt"
 import { UserMessage } from "@opencode-ai/sdk/v2"
@@ -373,11 +373,21 @@ export const useSessionCommands = (input: SessionCommandContext) => {
           })
           return
         }
-        await input.sdk.client.session.summarize({
-          sessionID,
-          modelID: model.id,
-          providerId: model.provider.id,
-        })
+        showPromiseToast(
+          input.sdk.client.session.summarize({
+            sessionID,
+            modelID: model.id,
+            providerId: model.provider.id,
+          }),
+          {
+            loading: input.language.t("toast.session.compact.loading"),
+            success: () => input.language.t("toast.session.compact.success"),
+            error: (err) =>
+              input.language.t("toast.session.compact.error", {
+                reason: err instanceof Error ? err.message : String(err),
+              }),
+          },
+        )
       },
     }),
     sessionCommand({
