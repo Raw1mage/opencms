@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "planned",
+  "state": "living",
   "profile": [],
   "history": [
     {
@@ -78,6 +78,30 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "R8 (SSE bounded replay) + R9 (messages cursor) tasks drafted (R1.1–R1.6, R2.1–R2.8), test vectors TV-R8-S1..S5 + TV-R9-S1..S6 added, errors + invariants + observability updated. Ready to enter implementing; execution order R1 → R2 → §1..§6 → §7."
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-04-22T14:26:45.860Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "R1 + R2 merged to main @ 8a4e2df4b via test branch fetch-back; mobile wireless validation confirmed 1:1 POST delivery + MESSAGES-CURSOR + SSE-REPLAY active"
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-04-22T14:26:55.597Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "R1 + R2 all tasks checked; 53/53 unit tests pass; mobile wireless smoke test 20+ MESSAGES-CURSOR events + scroll-up cursor append + POST 1:1 (gateway 2 / daemon 2) validated on merge commit 8a4e2df4b"
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-04-22T14:26:56.082Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "merged to main @ 8a4e2df4b — production daemon running R1+R2 code observed serving requests correctly"
     }
   ]
 }
