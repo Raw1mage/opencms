@@ -17,6 +17,7 @@ import { MessageV2 } from "./message-v2"
 import { Instance } from "../project/instance"
 import { Project } from "../project/project"
 import { SessionPrompt } from "./prompt"
+import { Tweaks } from "../config/tweaks"
 import { fn } from "@/util/fn"
 import { Command } from "../command"
 import { Snapshot } from "@/snapshot"
@@ -921,10 +922,94 @@ export namespace Session {
   // Instrumentation: track cumulative part sizes for delta effectiveness measurement
   const _deltaMetrics = { updates: 0, totalPartBytes: 0, totalDeltaBytes: 0 }
 
+  // --- Streaming part persistence guards (hotfix 2026-04-23) ------------------
+  //
+  // Root cause: every text/reasoning delta used to call Storage.write() which
+  // JSON.stringify-s the entire growing part and overwrites the on-disk file.
+  // A 3.7 MB part × 13,600 deltas = ~50 GB of cumulative stringify + disk
+  // writes on a single reasoning-loop runaway, which starved the event loop
+  // and made the daemon look hung.
+  //
+  // A. Debounce: during streaming we coalesce delta writes into one flush
+  //    every `partPersistence.debounceMs`. Non-delta updates (text-end,
+  //    tool transitions, completion) flush immediately so at-rest state
+  //    is always consistent once streaming ends.
+  // C. Hard cap: if the growing part text exceeds `partPersistence.maxPartBytes`
+  //    we truncate it with a marker, seal the part so further deltas are
+  //    ignored, flush, and abort the session with reason="runaway-guard".
+  type _PendingPartWrite = {
+    key: string[]
+    content: any
+    timer: ReturnType<typeof setTimeout>
+  }
+  const _pendingPartWrites = new Map<string, _PendingPartWrite>()
+  const _sealedParts = new Set<string>()
+
+  async function _flushPartWrite(keyStr: string): Promise<void> {
+    const entry = _pendingPartWrites.get(keyStr)
+    if (!entry) return
+    clearTimeout(entry.timer)
+    _pendingPartWrites.delete(keyStr)
+    await Storage.write(entry.key, entry.content)
+  }
+
+  function _schedulePartWrite(keyStr: string, key: string[], content: any, debounceMs: number) {
+    const existing = _pendingPartWrites.get(keyStr)
+    if (existing) {
+      existing.key = key
+      existing.content = content
+      return
+    }
+    const timer = setTimeout(() => {
+      const e = _pendingPartWrites.get(keyStr)
+      if (!e) return
+      _pendingPartWrites.delete(keyStr)
+      Storage.write(e.key, e.content).catch((err) =>
+        log.warn("debounced part write failed", {
+          keyStr,
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      )
+    }, debounceMs)
+    _pendingPartWrites.set(keyStr, { key, content, timer })
+  }
+
   export const updatePart = fn(UpdatePartInput, async (input) => {
     const part = "delta" in input ? input.part : input
     const delta = "delta" in input ? input.delta : undefined
-    await Storage.write(["part", part.messageID, part.id], part)
+    const storeKey = ["part", part.messageID, part.id]
+    const keyStr = `${part.messageID}/${part.id}`
+
+    // Runaway guard: once a part is sealed, drop further streaming deltas
+    // so the upstream caller's accumulating buffer stops growing in memory
+    // too. Non-delta updates (e.g. text-end) still flow through so the
+    // upstream finalisation path terminates cleanly.
+    if (_sealedParts.has(keyStr) && delta) return part
+
+    const tweak = Tweaks.partPersistenceSync()
+    let runawayTripped = false
+    if (
+      delta &&
+      "text" in part &&
+      typeof part.text === "string" &&
+      part.text.length > tweak.maxPartBytes
+    ) {
+      const truncated =
+        part.text.slice(0, tweak.maxPartBytes) +
+        `\n\n[…truncated by runaway-guard: part exceeded ${tweak.maxPartBytes} bytes]`
+      ;(part as any).text = truncated
+      _sealedParts.add(keyStr)
+      runawayTripped = true
+    }
+
+    // Persistence: debounce streaming deltas; flush+write synchronously
+    // for non-delta updates or when the runaway guard just tripped.
+    if (delta && "text" in part && typeof part.text === "string" && !runawayTripped) {
+      _schedulePartWrite(keyStr, storeKey, part, tweak.debounceMs)
+    } else {
+      await _flushPartWrite(keyStr)
+      await Storage.write(storeKey, part)
+    }
 
     // [DELTA-PART] instrumentation: measure full-part vs delta cost per chunk
     if ("text" in part && typeof part.text === "string") {
@@ -964,6 +1049,23 @@ export namespace Session {
         delta,
       })
     }
+
+    if (runawayTripped) {
+      console.error(
+        `[RUNAWAY-GUARD] sealed part sessionID=${part.sessionID} partId=${part.id} capBytes=${tweak.maxPartBytes} cancelSession=${tweak.cancelOnCapTrip}`,
+      )
+      if (tweak.cancelOnCapTrip) {
+        try {
+          SessionPrompt.cancel(part.sessionID, "runaway-guard")
+        } catch (err) {
+          log.warn("runaway-guard cancel failed", {
+            sessionID: part.sessionID,
+            error: err instanceof Error ? err.message : String(err),
+          })
+        }
+      }
+    }
+
     return part
   })
 

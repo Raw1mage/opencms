@@ -21,6 +21,7 @@ export type CancelReason =
   | "session-switch"
   | "killswitch"
   | "parent-abort"
+  | "runaway-guard"
   | "unknown"
 
 type RuntimeEntry = {

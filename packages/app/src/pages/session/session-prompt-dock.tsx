@@ -76,48 +76,55 @@ export function SessionPromptDock(props: {
               const f = child().fidelity
               return f === "hard-stale" ? 0.4 : f === "stale" ? 0.75 : 1
             }
+            const targetHref = () =>
+              props.isChildSession ? (props.parentSessionHref ?? child().href) : child().href
+            const navLabel = props.isChildSession ? "Return to parent session" : "Open session"
             return (
             <div
               class="mb-3 pointer-events-auto rounded-md border border-border-base/60 bg-background-base/90 px-3 py-2"
               style={{ opacity: dockOpacity() }}
             >
               <div class="flex items-center gap-2 min-w-0">
-                <Icon name="task" size="small" class="shrink-0 text-text-weak" />
-                <div class="min-w-0 flex-1 overflow-hidden">
-                  <div class="flex items-center gap-2 min-w-0 overflow-hidden text-12-regular text-text-strong whitespace-nowrap">
-                    <span class="shrink-0">{child().agent}</span>
-                    <span class="truncate min-w-0">{child().title}</span>
-                    <span class="truncate min-w-0 text-text-weak">{child().step}</span>
-                    <Show when={activeChildElapsed() && child().fidelity !== "hard-stale"}>
-                      {(elapsed) => <span class="shrink-0 text-text-weak tabular-nums">{elapsed()}</span>}
-                    </Show>
-                    <Show when={child().fidelity === "stale" || child().fidelity === "hard-stale"}>
-                      <span class="shrink-0 text-text-weak italic">stale</span>
-                    </Show>
-                  </div>
-                </div>
                 <a
-                  href={props.isChildSession ? (props.parentSessionHref ?? child().href) : child().href}
-                  class="inline-flex shrink-0 items-center text-text-weak hover:text-text-strong"
-                  aria-label={props.isChildSession ? "Return to parent session" : "Open session"}
+                  href={targetHref()}
+                  class="flex items-center gap-2 min-w-0 flex-1 overflow-hidden cursor-pointer rounded-sm hover:bg-background-stronger/40 focus-visible:bg-background-stronger/40 focus-visible:outline-none -mx-1 px-1 py-0.5"
+                  aria-label={navLabel}
+                  title={navLabel}
                   onClick={(event) => {
                     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
                       return
                     }
                     event.preventDefault()
                     event.stopPropagation()
-                    props.onOpenChildSession(
-                      props.isChildSession ? (props.parentSessionHref ?? child().href) : child().href,
-                    )
+                    props.onOpenChildSession(targetHref())
                   }}
                 >
-                  <Icon name="square-arrow-top-right" size="small" />
+                  <Icon name="task" size="small" class="shrink-0 text-text-weak" />
+                  <div class="min-w-0 flex-1 overflow-hidden">
+                    <div class="flex items-center gap-2 min-w-0 overflow-hidden text-12-regular text-text-strong whitespace-nowrap">
+                      <span class="shrink-0">{child().agent}</span>
+                      <span class="truncate min-w-0">{child().title}</span>
+                      <span class="truncate min-w-0 text-text-weak">{child().step}</span>
+                      <Show when={activeChildElapsed() && child().fidelity !== "hard-stale"}>
+                        {(elapsed) => <span class="shrink-0 text-text-weak tabular-nums">{elapsed()}</span>}
+                      </Show>
+                      <Show when={child().fidelity === "stale" || child().fidelity === "hard-stale"}>
+                        <span class="shrink-0 text-text-weak italic">stale</span>
+                      </Show>
+                    </div>
+                  </div>
+                  <Icon
+                    name="square-arrow-top-right"
+                    size="small"
+                    class="shrink-0 text-text-weak"
+                  />
                 </a>
                 <Button
                   variant="ghost"
                   size="small"
                   disabled={aborting()}
-                  onClick={() => {
+                  onClick={(event: MouseEvent) => {
+                    event.stopPropagation()
                     if (aborting()) return
                     setAborting(true)
                     void props.onAbortActiveChild().finally(() => setAborting(false))

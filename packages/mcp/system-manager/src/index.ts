@@ -466,7 +466,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "manage_session",
         description:
-          "Manage opencode sessions for non-switching operations (fork, summarize, undo, redo, create, list, search). Use switch_session / rename_session / switch_model / switch_account / switch_provider for session-based control actions. If a user asks in natural language to switch session/provider/account/model or rename a session, prefer those dedicated tools over manage_session.",
+          "Manage opencode sessions for non-switching operations (fork, summarize, undo, redo, create, list, search). Use switch_session / rename_session / switch_model / switch_account / switch_provider for session-based control actions. If a user asks in natural language to switch session/provider/account/model or rename a session, prefer those dedicated tools over manage_session.\n\nFor operation='create' you may pass sessionID as a handover source: the new session will inherit the source's directory and model, and (unless handoverAutoPrompt=false) will be auto-seeded with a prompt telling the new session to read the source's eventlog / checkpoint / SharedContext and continue. Pass handover for extra free-form context appended after the canned instruction.",
         inputSchema: {
           type: "object",
           properties: {
@@ -474,10 +474,30 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "string",
               enum: ["fork", "summarize", "undo", "redo", "create", "list", "search"],
             },
-            sessionID: { type: "string" },
+            sessionID: {
+              type: "string",
+              description:
+                "Target session ID. For operation='create' this is the handover SOURCE session (optional) whose directory + execution model the new session inherits.",
+            },
             messageID: { type: "string", description: "Message ID to fork from" },
             query: { type: "string", description: "Search keyword for session titles (used with 'search' operation)" },
             limit: { type: "number", description: "Max results for search (default 10)" },
+            title: { type: "string", description: "Title for the new session (operation='create')" },
+            handover: {
+              type: "string",
+              description:
+                "Free-form extra context appended after the canned handover instruction when operation='create' and sessionID is supplied.",
+            },
+            handoverAutoPrompt: {
+              type: "boolean",
+              description:
+                "When operation='create' and sessionID is supplied, auto-fire a seed prompt on the new session. Default true.",
+            },
+            directory: {
+              type: "string",
+              description:
+                "Override working directory for operation='create'. If omitted, inherits from sessionID's directory or falls back to the caller's project.",
+            },
           },
           required: ["operation"],
         },
@@ -944,6 +964,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         messageID,
         query,
         limit: searchLimit,
+        handover,
+        handoverAutoPrompt,
+        directory: directoryOverride,
       } = args as {
         operation: string
         sessionID?: string
@@ -951,6 +974,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         messageID?: string
         query?: string
         limit?: number
+        handover?: string
+        handoverAutoPrompt?: boolean
+        directory?: string
       }
 
       if (operation === "search") {
@@ -1010,45 +1036,124 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       if (operation === "create") {
-        const baseUrl = await getServerApiBaseUrl()
-        const headers = await getServerRequestHeaders("POST")
-        headers.set("content-type", "application/json")
-        const rawCreate = await serverFetch(`${baseUrl}/session`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ title: title ?? "New Session" }),
-        }).catch(() => undefined)
-
-        if (rawCreate?.ok) {
-          const created = await rawCreate.json().catch(() => undefined as any)
-          const createdID = created?.id
-          if (createdID) {
-            let kv: any = {}
-            try {
-              kv = JSON.parse(await fs.readFile(KV_PATH, "utf-8"))
-            } catch (e) {}
-            kv.ui_trigger = "session.list.refresh"
-            await fs.writeFile(KV_PATH, JSON.stringify(kv, null, 2))
-            const dir = created.directory ?? ""
-            const dirBase64 = Buffer.from(dir).toString("base64")
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: `Created new session: ${createdID}\nTitle: ${created.title ?? "(untitled)"}\nURL: /${dirBase64}/session/${createdID}`,
-                },
-              ],
-            }
+        // Resolve source session (if any) to inherit directory + execution.
+        let sourceInfo: any | undefined
+        if (sessionID) {
+          try {
+            sourceInfo = JSON.parse(
+              await fs.readFile(path.join(STORAGE_BASE, "session", sessionID, "info.json"), "utf-8"),
+            )
+          } catch (err) {
+            throw new Error(
+              `Handover source session ${sessionID} not found: ${err instanceof Error ? err.message : String(err)}`,
+            )
           }
         }
 
-        let kv: any = {}
+        // Pick target directory.
+        // Priority: explicit directory arg > source session's directory > server default.
+        // The key fix (2026-04-23): the previous implementation sent no
+        // directory at all, so the server fell back to $HOME and the new
+        // session was indexed under the wrong project — invisible in the
+        // web session list of whatever project the user was viewing.
+        const targetDirectory = directoryOverride ?? sourceInfo?.directory ?? undefined
+
+        const baseUrl = await getServerApiBaseUrl()
+        const headers = await getServerRequestHeaders("POST")
+        headers.set("content-type", "application/json")
+        if (targetDirectory) headers.set("x-opencode-directory", targetDirectory)
+
+        const rawCreate = await serverFetch(`${baseUrl}/session`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ title: title ?? (sessionID ? `Handover from ${sessionID}` : "New Session") }),
+        }).catch((err) => {
+          throw new Error(`POST /session failed: ${err instanceof Error ? err.message : String(err)}`)
+        })
+
+        if (!rawCreate?.ok) {
+          const text = rawCreate ? await rawCreate.text().catch(() => "") : ""
+          throw new Error(`POST /session returned HTTP ${rawCreate?.status ?? "n/a"}: ${text.slice(0, 400)}`)
+        }
+
+        const created = (await rawCreate.json().catch(() => undefined)) as any
+        const createdID = created?.id
+        if (!createdID) throw new Error("POST /session returned no session id")
+
+        const dir = created.directory ?? targetDirectory ?? ""
+        const dirBase64 = Buffer.from(dir).toString("base64")
+        const url = `/${dirBase64}/session/${createdID}`
+
+        // Handover auto-seed: if a source session was supplied, fire a
+        // canned prompt telling the new session to catch up from the
+        // source's transcript + runtime state, then append any free-form
+        // `handover` text the caller added. The model is inherited from
+        // source's `execution` record so we don't have to guess.
+        let autoPromptResult: "fired" | "skipped" | "failed:no-model" | "failed:http" | undefined
+        const wantsAutoPrompt = Boolean(sessionID) && handoverAutoPrompt !== false
+        if (wantsAutoPrompt) {
+          const exec = sourceInfo?.execution
+          const model = exec?.providerId && exec?.modelID
+            ? { providerId: exec.providerId, modelID: exec.modelID, accountId: exec.accountId }
+            : undefined
+          if (!model) {
+            autoPromptResult = "failed:no-model"
+          } else {
+            const extra = handover?.trim() ? `\n\n${handover.trim()}` : ""
+            const seedText =
+              `請先讀取 session ${sessionID} 的 eventlog、checkpoint 與 SharedContext，` +
+              `熟悉該會話目前的進度、已做過的決定、pending todo，再接手繼續工作。${extra}`
+            const promptHeaders = await getServerRequestHeaders("POST")
+            promptHeaders.set("content-type", "application/json")
+            if (targetDirectory) promptHeaders.set("x-opencode-directory", targetDirectory)
+            const rawPrompt = await serverFetch(
+              `${baseUrl}/session/${encodeURIComponent(createdID)}/prompt_async`,
+              {
+                method: "POST",
+                headers: promptHeaders,
+                body: JSON.stringify({
+                  model,
+                  parts: [{ type: "text", text: seedText }],
+                }),
+              },
+            ).catch(() => undefined)
+            autoPromptResult = rawPrompt?.ok ? "fired" : "failed:http"
+          }
+        } else if (sessionID) {
+          autoPromptResult = "skipped"
+        }
+
+        // Keep the TUI hint in place so TUI users still get a list refresh.
+        // Web frontend already listens to the session.created bus event
+        // emitted by Session.create and will pick up the new row on its own.
         try {
-          kv = JSON.parse(await fs.readFile(KV_PATH, "utf-8"))
-        } catch (e) {}
-        kv.ui_trigger = "session.new"
-        await fs.writeFile(KV_PATH, JSON.stringify(kv, null, 2))
-        return { content: [{ type: "text", text: "Creating new session UI..." }] }
+          let kv: any = {}
+          try {
+            kv = JSON.parse(await fs.readFile(KV_PATH, "utf-8"))
+          } catch {}
+          kv.ui_trigger = "session.list.refresh"
+          await fs.writeFile(KV_PATH, JSON.stringify(kv, null, 2))
+        } catch {}
+
+        // Lead with a clickable markdown link so web chat renders it as a
+        // single blue button the user can tap to jump over. Auto-navigation
+        // via bus event is a separate feature; until that lands, this is
+        // the one-click handover path.
+        const displayTitle = created.title ?? "(untitled)"
+        const lines = [
+          `👉 **[Open new session: ${displayTitle}](${url})**`,
+          "",
+          `Session ID: \`${createdID}\``,
+          `Directory: ${dir || "(server default)"}`,
+        ]
+        if (sessionID) lines.push(`Handover source: \`${sessionID}\``)
+        if (autoPromptResult) lines.push(`Auto-seed prompt: ${autoPromptResult}`)
+        if (autoPromptResult === "failed:no-model") {
+          lines.push(
+            "Note: source session has no recorded execution model; open the new session and send the first message manually.",
+          )
+        }
+        return { content: [{ type: "text", text: lines.join("\n") }] }
       }
 
       if (!sessionID) throw new Error("sessionID is required for this operation")

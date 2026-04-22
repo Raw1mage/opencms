@@ -92,6 +92,32 @@ export namespace Tweaks {
     maxAgeSec: number
   }
 
+  /**
+   * Streaming part persistence guards. Added 2026-04-23 after codex
+   * reasoning-loop wrote ~50 GB of cumulative stringify+disk on a single
+   * part (3.7 MB × 13,600 deltas, each delta overwrote the whole file).
+   *
+   * - debounceMs: during streaming (delta updates), coalesce disk writes
+   *   into one flush every N ms. Non-delta updates (text-end, completion)
+   *   flush immediately. Crash window = debounceMs worth of streaming
+   *   content; acceptable because the TUI already has the live stream.
+   * - maxPartBytes: soft cap per part text/reasoning body. When exceeded
+   *   we truncate with a marker and drop subsequent deltas for that part,
+   *   but the session keeps running (user decides whether to intervene).
+   *   Default sized for ~500 pages of plain text — any legitimate single
+   *   part is well below this; hitting it is almost always a model loop.
+   * - cancelOnCapTrip: if true, also cancel the session's current prompt
+   *   with reason="runaway-guard" when the cap is hit. Defaults off so
+   *   legitimate long outputs aren't guillotined on an edge case; flip on
+   *   for unattended / batch workloads where runaway cost matters more
+   *   than losing the turn.
+   */
+  export interface PartPersistenceConfig {
+    debounceMs: number
+    maxPartBytes: number
+    cancelOnCapTrip: boolean
+  }
+
   export interface Effective {
     sessionCache: SessionCacheConfig
     rateLimit: RateLimitConfig
@@ -99,6 +125,7 @@ export namespace Tweaks {
     sessionUiFreshness: SessionUiFreshnessConfig
     codexRotation: CodexRotationConfig
     sseReplay: SseReplayConfig
+    partPersistence: PartPersistenceConfig
     source: { path: string; present: boolean }
   }
 
@@ -140,6 +167,17 @@ export namespace Tweaks {
   const SSE_REPLAY_DEFAULTS: SseReplayConfig = {
     maxEvents: 100,
     maxAgeSec: 60,
+  }
+
+  const PART_PERSISTENCE_DEFAULTS: PartPersistenceConfig = {
+    debounceMs: 500,
+    // 8 MB ≈ 500 pages of plain text. Normal answers are tens of KB;
+    // even extremely long legitimate dumps (full-file outputs, big
+    // markdown reports) rarely exceed 1 MB. 8 MB is a "no human writes
+    // that much in one part" ceiling — tripping it means the model is
+    // looping, not that the user is working hard.
+    maxPartBytes: 8 * 1024 * 1024,
+    cancelOnCapTrip: false,
   }
 
   function path(): string {
@@ -221,6 +259,9 @@ export namespace Tweaks {
     "sse_reconnect_replay_max_events",
     "sse_reconnect_replay_max_age_sec",
     "session_messages_default_tail",
+    "part_persist_debounce_ms",
+    "part_max_bytes",
+    "part_cancel_on_cap_trip",
   ])
 
   function parseFlag01(raw: string, key: string): 0 | 1 | undefined {
@@ -274,6 +315,7 @@ export namespace Tweaks {
           sessionUiFreshness: SESSION_UI_FRESHNESS_DEFAULTS,
           codexRotation: CODEX_ROTATION_DEFAULTS,
           sseReplay: SSE_REPLAY_DEFAULTS,
+          partPersistence: PART_PERSISTENCE_DEFAULTS,
         },
       })
       return {
@@ -283,6 +325,7 @@ export namespace Tweaks {
         sessionUiFreshness: { ...SESSION_UI_FRESHNESS_DEFAULTS },
         codexRotation: { ...CODEX_ROTATION_DEFAULTS },
         sseReplay: { ...SSE_REPLAY_DEFAULTS },
+        partPersistence: { ...PART_PERSISTENCE_DEFAULTS },
         source: { path: cfgPath, present: false },
       }
     }
@@ -431,6 +474,23 @@ export namespace Tweaks {
       if (v !== undefined) codexRotation.lowQuotaThresholdPercent = v
     }
 
+    const partPersistence: PartPersistenceConfig = { ...PART_PERSISTENCE_DEFAULTS }
+    const debounceRaw = parsed.get("part_persist_debounce_ms")
+    if (debounceRaw !== undefined) {
+      const v = parseIntRange(debounceRaw, "part_persist_debounce_ms", 0, 10_000)
+      if (v !== undefined) partPersistence.debounceMs = v
+    }
+    const maxBytesRaw = parsed.get("part_max_bytes")
+    if (maxBytesRaw !== undefined) {
+      const v = parseIntRange(maxBytesRaw, "part_max_bytes", 64 * 1024, 64 * 1024 * 1024)
+      if (v !== undefined) partPersistence.maxPartBytes = v
+    }
+    const cancelOnTripRaw = parsed.get("part_cancel_on_cap_trip")
+    if (cancelOnTripRaw !== undefined) {
+      const v = parseBool(cancelOnTripRaw, "part_cancel_on_cap_trip")
+      if (v !== undefined) partPersistence.cancelOnCapTrip = v
+    }
+
     const sseReplay: SseReplayConfig = { ...SSE_REPLAY_DEFAULTS }
 
     const sseMaxEventsRaw = parsed.get("sse_reconnect_replay_max_events")
@@ -446,7 +506,7 @@ export namespace Tweaks {
 
     log.info("tweaks.cfg loaded", {
       path: cfgPath,
-      effective: { sessionCache, rateLimit, frontendLazyload, sessionUiFreshness, codexRotation, sseReplay },
+      effective: { sessionCache, rateLimit, frontendLazyload, sessionUiFreshness, codexRotation, sseReplay, partPersistence },
     })
     return {
       sessionCache,
@@ -455,6 +515,7 @@ export namespace Tweaks {
       sessionUiFreshness,
       codexRotation,
       sseReplay,
+      partPersistence,
       source: { path: cfgPath, present: true },
     }
   }
@@ -487,6 +548,20 @@ export namespace Tweaks {
 
   export async function sseReplay(): Promise<SseReplayConfig> {
     return (await effective()).sseReplay
+  }
+
+  export async function partPersistence(): Promise<PartPersistenceConfig> {
+    return (await effective()).partPersistence
+  }
+
+  /**
+   * Synchronous accessor for hot paths (e.g. updatePart). Returns defaults
+   * until loadEffective() completes; after that returns the loaded values.
+   * Reading from an async source on every delta would defeat the whole
+   * point of debouncing.
+   */
+  export function partPersistenceSync(): PartPersistenceConfig {
+    return _effective?.partPersistence ?? PART_PERSISTENCE_DEFAULTS
   }
 
   export async function loadEffective(): Promise<Effective> {
