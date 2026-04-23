@@ -50,6 +50,14 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "main-as-SSOT revision applied; Phase 1-3 cancelled, Phase 4-8 retargeted to main's simplified gate. DD-11 added, R1/R2/R3b/R6 dropped. Ready to build on new-Phase-1 (trigger phrase matcher)."
+    },
+    {
+      "at": "2026-04-23T20:02:31.009Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "723dcb902461cafb7a961b7f210034d266cc9bf4"
     }
   ]
 }

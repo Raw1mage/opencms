@@ -50,9 +50,9 @@ From here on in this file, sections 1/2/3 remain as `[-]` strike-through history
 
 ## 4. tweaks.cfg + trigger phrase matcher  (**new Phase 1** under revised scope)
 
-- [ ] 4.1 Extend `TweaksConfig` reader to parse `autorun.trigger_phrases` (array&lt;string&gt;) with seed defaults per DD-8. ~~`autorun.demote_on_disarm`~~ (dropped — no R6 to demote)
-- [ ] 4.2 Implement arm-intent-detector at user-message ingest (in `packages/opencode/src/session/prompt.ts` or a sibling `autorun/detector.ts`) — whole-phrase case-insensitive match across full message text
-- [ ] 4.3 On match, flip `workflow.autonomous.enabled = true` via `Session.updateAutonomous({enabled: true})` and enqueue a continuation round for the last user message. ~~(R1+R2 live validation, `AutorunArmed` with `reason: "verbal:<matched>"`, `autorun.arm_refused` Bus event)~~ dropped — main has no arm refusal path; precondition failure is unreachable because every session has `workflow.autonomous`
+- [x] 4.1 Extend `TweaksConfig` reader to parse `autorun.trigger_phrases` (array&lt;string&gt;) with seed defaults per DD-8. ~~`autorun.demote_on_disarm`~~ (dropped — no R6 to demote). **Landed on beta/autonomous-opt-in-main-ssot 723dcb902** — also added `autorun.disarm_phrases` for Phase 5 detection. 25 existing tweaks tests still pass.
+- [x] 4.2 Implement arm-intent-detector at user-message ingest — new `packages/opencode/src/session/autorun/detector.ts` (pure-logic: `detectAutorunIntent` + `extractUserText`). Whole-phrase case-insensitive match.
+- [x] 4.3 On match, flip `workflow.autonomous.enabled` via `Session.updateAutonomous({enabled})`. ~~Enqueue a continuation round~~ **not needed** — detector fires inside `SessionPrompt.prompt()` before `runLoop`, so the user's arm-phrase message IS the round-of-record; post-round continuation picks up the new flag. Both `arm` and `disarm` intents handled (disarm flips to false, natural quiescence). Idempotent: re-arm with same state is a no-op log.
 - [ ] 4.4 Seed default phrase list in `templates/opencode.cfg`. Seed set (CJK + EN): `接著跑`, `自動跑`, `開 autonomous`, `autorun`, `keep going`, `continue autonomously` (tune via observation)
 - [ ] 4.5 Tests for phrase match (positive, negative, case, multilingual, embedded-in-sentence), and for the enable-flip idempotency path
 
