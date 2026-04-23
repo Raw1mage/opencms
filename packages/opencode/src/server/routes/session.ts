@@ -1884,6 +1884,46 @@ export const SessionRoutes = lazy(() =>
         return c.json(message)
       },
     )
+    .get(
+      "/:sessionID/message/:messageID/part/:partID",
+      describeRoute({
+        summary: "Get message part (full, uncapped)",
+        description:
+          "Retrieve a single part of a message in full, bypassing any client-side truncation. Used by FoldableMarkdown expand to fetch the full content of a part that was truncated at the wire/store layer without re-fetching the whole session.",
+        operationId: "session.message.part",
+        responses: {
+          200: {
+            description: "Part",
+            content: {
+              "application/json": {
+                schema: resolver(z.object({ part: MessageV2.Part })),
+              },
+            },
+          },
+          ...errors(400, 404),
+        },
+      }),
+      validator(
+        "param",
+        z.object({
+          sessionID: z.string().meta({ description: "Session ID" }),
+          messageID: z.string().meta({ description: "Message ID" }),
+          partID: z.string().meta({ description: "Part ID" }),
+        }),
+      ),
+      async (c) => {
+        const params = c.req.valid("param")
+        const message = await MessageV2.get({
+          sessionID: params.sessionID,
+          messageID: params.messageID,
+        })
+        const part = message?.parts?.find((p: { id: string }) => p.id === params.partID)
+        if (!part) {
+          return c.json({ code: "PART_NOT_FOUND", message: "part not found" }, 404)
+        }
+        return c.json({ part })
+      },
+    )
     .delete(
       "/:sessionID/message/:messageID",
       describeRoute({
