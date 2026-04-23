@@ -56,11 +56,21 @@ export namespace Share {
       await sync("session/message/" + evt.properties.info.sessionID + "/" + evt.properties.info.id, evt.properties.info)
     })
     Bus.subscribe(MessageV2.Event.PartUpdated, async (evt) => {
-      // Delta-aware: if text was stripped, read full part from Storage
+      // Delta-aware: if text was stripped, read full part from Storage.
+      // TOCTOU: the part can be deleted (debounce flush, runaway-guard,
+      // sibling-worker write) between the event firing and our read.
+      // ENOENT here is benign — the delta we already have is enough;
+      // catching prevents an unhandled rejection storm (see
+      // message-v2.ts parts() helper for the same pattern).
       let partData = evt.properties.part
       if (evt.properties.delta && "type" in partData && (partData.type === "text" || partData.type === "reasoning") && !("text" in partData && (partData as any).text)) {
-        const full = await Storage.read(["part", partData.messageID, partData.id])
-        if (full) partData = full as typeof partData
+        try {
+          const full = await Storage.read(["part", partData.messageID, partData.id])
+          if (full) partData = full as typeof partData
+        } catch (e) {
+          if (!(e instanceof Storage.NotFoundError)) throw e
+          // Part vanished mid-flight — proceed with the delta we have
+        }
       }
       await sync(
         "session/part/" +
