@@ -49,7 +49,7 @@ export const FRONTEND_TWEAKS_DEFAULTS: FrontendTweaks = {
   ui_session_freshness_enabled: 0,
   ui_freshness_threshold_sec: 15,
   ui_freshness_hard_timeout_sec: 60,
-  session_tail_mobile: 30,
+  session_tail_mobile: 20,
   session_tail_desktop: 100,
   session_store_cap_mobile: 100,
   session_store_cap_desktop: 200,
