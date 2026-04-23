@@ -65,10 +65,10 @@ From here on in this file, sections 1/2/3 remain as `[-]` strike-through history
 
 ## 6. Todolist refill  (**new Phase 3** under revised scope)
 
-- [ ] 6.1 Implement `autorun/refill.ts` — reads the session's `tasks.md` (located via ~~bound spec~~ the session's `directory` + a conventional path, or skipped if none found) and finds next `## N.` section with unchecked items, calls TodoWrite to materialize them
-- [ ] 6.2 Integrate refill path into `planAutonomousNextAction` `todo_complete` branch: when armed and todolist drained, try refill before returning `{stop, todo_complete}`
-- [ ] 6.3 On refill-empty (plan fully drained or no tasks.md found), flip `workflow.autonomous.enabled = false` with `stopReason: "plan_drained"`, runner returns stop
-- [ ] 6.4 Tests for refill (next phase detection, empty→completed path, malformed tasks.md handled, no-tasks.md-found path)
+- [x] 6.1 Implement `autorun/refill.ts` — `parseTasks` + `findRefillCandidate` + `phaseToTodoSeed` + `attemptRefill`. Active spec discovered by scanning `Instance.directory/specs/*/.state.json` for `state==="implementing"`. Ambiguity (zero or multiple matches) declines with `no_spec_found` / `multiple_specs_found`.
+- [x] 6.2 Integrated at `decideAutonomousContinuation` (not `planAutonomousNextAction` — `planAutonomousNextAction` is pure). When armed + `todo_complete`, `attemptRefill` fires; if materialized, re-evaluates with fresh todos so the runloop continues naturally.
+- [x] 6.3 Refill-empty path flips `workflow.autonomous.enabled = false` via `Session.updateAutonomous` and sets `stopReason: "plan_drained"` via `Session.setWorkflowState`. Log carries the refill decline reason (`no_spec_found` / `multiple_specs_found` / `no_pending_phase` / `tasks_unparseable`).
+- [x] 6.4 Tests — 12 pure-logic tests covering parseTasks (mixed states, revision heading ignored, empty, whitespace tolerance, escaped content), findRefillCandidate (lowest-N wins, cancelled-only skipped, all-done null, empty null), phaseToTodoSeed (pending-only emission, id uniqueness, empty seed). 26 workflow-runner tests still pass.
 
 ## 7. Cleanup + docs  (**new Phase 4** under revised scope)
 
