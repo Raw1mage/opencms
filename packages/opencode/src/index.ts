@@ -37,21 +37,29 @@ import { ProcessSupervisor } from "./process/supervisor"
 import { registerDebugWriter } from "./bus/subscribers/debug-writer"
 import { registerTelemetryRuntimePersistence } from "./bus/subscribers/telemetry-runtime"
 import { registerTaskWorkerContinuationSubscriber } from "./bus/subscribers/task-worker-continuation"
+import { registerPendingNoticeAppenderSubscriber } from "./bus/subscribers/pending-notice-appender"
 import { SessionCache } from "./server/session-cache"
 import { RateLimit } from "./server/rate-limit"
 
 registerDebugWriter()
 registerTelemetryRuntimePersistence()
 registerTaskWorkerContinuationSubscriber()
+registerPendingNoticeAppenderSubscriber()
 SessionCache.registerInvalidationSubscriber()
 void RateLimit.logStartup()
 debugCheckpoint("app", "start", { args: process.argv.slice(2) })
 
 process.on("unhandledRejection", (e) => {
   const msg = e instanceof Error ? e.stack || e.message : String(e)
-  debugCheckpoint("error", "unhandledRejection", { error: msg })
+  // NamedError carries its real payload in `.data` (Zod-shaped); the bare
+  // `.message` is just the class tag (e.g. "NotFoundError"). Without dumping
+  // `.data` here, every rejection looks identical in the log and the actual
+  // resource path / context is lost.
+  const data = (e as any)?.data
+  debugCheckpoint("error", "unhandledRejection", { error: msg, data })
   Log.Default.error("rejection", {
     e: e instanceof Error ? e.message : e,
+    data,
   })
 })
 

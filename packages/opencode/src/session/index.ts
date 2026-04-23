@@ -257,6 +257,11 @@ export namespace Session {
       stats: Stats.optional(),
       execution: ExecutionIdentity.optional(),
       workflow: WorkflowInfo.optional(),
+      // responsive-orchestrator R2: wake-only notice queue. Subscriber
+      // (pending-notice-appender) appends here; prompt assemble drains
+      // by rendering each notice into a one-line system-prompt addendum
+      // then atomically removing consumed entries.
+      pendingSubagentNotices: MessageV2.PendingSubagentNotice.array().optional(),
     })
     .meta({
       ref: "Session",

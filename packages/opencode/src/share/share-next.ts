@@ -49,11 +49,17 @@ export namespace ShareNext {
       }
     })
     Bus.subscribe(MessageV2.Event.PartUpdated, async (evt) => {
-      // Delta-aware: if text was stripped from the event, read full part from Storage
+      // Delta-aware: if text was stripped from the event, read full part from Storage.
+      // TOCTOU: part can be deleted between event-fire and read.
+      // ENOENT is benign — keep the delta we already have.
       let partData = evt.properties.part
       if (evt.properties.delta && "type" in partData && (partData.type === "text" || partData.type === "reasoning") && !("text" in partData && (partData as any).text)) {
-        const full = await Storage.read(["part", partData.messageID, partData.id])
-        if (full) partData = full as typeof partData
+        try {
+          const full = await Storage.read(["part", partData.messageID, partData.id])
+          if (full) partData = full as typeof partData
+        } catch (e) {
+          if (!(e instanceof Storage.NotFoundError)) throw e
+        }
       }
       await sync(partData.sessionID, [
         {

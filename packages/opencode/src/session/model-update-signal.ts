@@ -20,13 +20,17 @@ const pending = new Map<
   }
 >()
 
-const MODEL_UPDATE_TIMEOUT_MS = 30_000
+const DEFAULT_MODEL_UPDATE_TIMEOUT_MS = 30_000
 
 /**
  * Wait for the parent process to push a model update for this session.
- * Rejects after 30 s timeout — the caller should fail fast.
+ * Rejects after `timeoutMs` (default 30 s) — the caller should fail fast.
+ *
+ * responsive-orchestrator R3: caller passes
+ * `Tweaks.subagent().escalationWaitMs` so the timeout is user-tunable
+ * via /etc/opencode/tweaks.cfg without recompiling.
  */
-export function wait(sessionID: string): Promise<ModelUpdatePayload> {
+export function wait(sessionID: string, timeoutMs: number = DEFAULT_MODEL_UPDATE_TIMEOUT_MS): Promise<ModelUpdatePayload> {
   // If there is already a pending wait for this session, reject the old one
   // so we don't leak promises.
   const existing = pending.get(sessionID)
@@ -51,8 +55,8 @@ export function wait(sessionID: string): Promise<ModelUpdatePayload> {
       process.stderr.write(
         `[rot-rca] signal wait-timeout session=${sessionID} elapsedMs=${Date.now() - __rotRcaWaitRegisterTs}\n`,
       )
-      reject(new Error(`ModelUpdateSignal timeout (${MODEL_UPDATE_TIMEOUT_MS}ms) for session ${sessionID}`))
-    }, MODEL_UPDATE_TIMEOUT_MS)
+      reject(new Error(`ModelUpdateSignal timeout (${timeoutMs}ms) for session ${sessionID}`))
+    }, timeoutMs)
     // Don't hold the process alive just for this timer.
     if (typeof timer.unref === "function") timer.unref()
 

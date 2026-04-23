@@ -181,6 +181,44 @@ export const TaskWorkerEvent = {
 }
 
 /**
+ * responsive-orchestrator: emitted by the parent-side background watcher
+ * when a subagent reaches terminal state. Subscriber appends a
+ * PendingSubagentNotice to the parent session's info.json so the
+ * orchestrator (main agent) sees it on its next prompt assemble.
+ *
+ * This is the substrate that lets the orchestrator stay responsive
+ * during subagent execution (R1) and learn of subagent completion
+ * even when IPC is severed (R5).
+ */
+export const TaskCompletedEvent = BusEvent.define(
+  "task.completed",
+  z.object({
+    jobId: z.string(),
+    parentSessionID: Identifier.schema("session"),
+    childSessionID: Identifier.schema("session"),
+    status: z.enum(["success", "error", "canceled", "rate_limited", "quota_low", "worker_dead", "silent_kill"]),
+    finish: z.string(),
+    elapsedMs: z.number().int().nonnegative(),
+    errorDetail: z
+      .object({
+        message: z.string().optional(),
+        code: z.string().optional(),
+        resetsInSeconds: z.number().int().optional(),
+      })
+      .optional(),
+    rotateHint: z
+      .object({
+        exhaustedAccountId: z.string(),
+        exhaustedAt: z.string().optional(),
+        remainingPercent: z.number().optional(),
+        directive: z.literal("rotate-before-redispatch"),
+      })
+      .optional(),
+    cancelReason: z.string().optional(),
+  }),
+)
+
+/**
  * Bridged from worker → parent when a child session hits a rate limit
  * and needs the parent to decide the new model.
  */
@@ -672,6 +710,53 @@ function extractEventSessionID(event: any): string | undefined {
 }
 
 const workers: TaskWorker[] = []
+
+/**
+ * responsive-orchestrator R4 — public helper for the cancel_task tool.
+ * Looks up a running subagent by jobId (currently the dispatch toolCallID)
+ * and signals cancellation. Returns the result classification.
+ *
+ * Does NOT wait for the worker to actually exit — the abort signal triggers
+ * the worker to write `finish: "canceled"` to disk, which the existing
+ * watchdog A path picks up and delivers as a PendingSubagentNotice via
+ * the same Bus event flow as natural completion (DD-6 single authority).
+ */
+export type CancelByJobIdResult = "cancelled" | "not_found" | "already_terminal"
+
+export function cancelByJobId(jobId: string, reason?: string): CancelByJobIdResult {
+  const worker = workers.find((w) => w.current?.toolCallID === jobId)
+  if (!worker || !worker.current) return "not_found"
+  if (!worker.busy) return "already_terminal"
+  try {
+    // Send abort signal via stdin command — worker stdin handler converts
+    // this to an internal AbortSignal that the runloop honors and writes
+    // a `canceled` finish for.
+    const childSessionID = worker.current.sessionID
+    Log.create({ service: "task" }).info("cancel_task: signaling abort to worker", {
+      workerID: worker.id,
+      jobId,
+      childSessionID,
+      reason: reason?.slice(0, 200),
+    })
+    const stdin = worker.proc.stdin
+    if (!stdin || typeof stdin === "number") {
+      Log.create({ service: "task" }).warn("cancel_task: worker stdin not writable", {
+        workerID: worker.id,
+        jobId,
+      })
+      return "not_found"
+    }
+    stdin.write(JSON.stringify({ type: "cancel", sessionID: childSessionID, reason }) + "\n")
+    return "cancelled"
+  } catch (e) {
+    Log.create({ service: "task" }).warn("cancel_task: failed to write cancel command", {
+      workerID: worker.id,
+      jobId,
+      error: e instanceof Error ? e.message : String(e),
+    })
+    return "not_found"
+  }
+}
 let workerSeq = 0
 let standbySpawn: Promise<void> | undefined
 
@@ -2070,7 +2155,18 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         // signal wins the race with the disk read when both arrive within
         // the same poll cycle.
         const DISK_GRACE_MS = 5_000
-        const TERMINAL_FINISHES = ["stop", "error", "length", "canceled"]
+        // Subagent-written disk-terminal finishes the watchdog A path treats
+        // as "task is done, deliver result to parent". Includes:
+        //   - AI SDK natural reasons: stop, error, length
+        //   - opencode IPC cancel: canceled
+        //   - responsive-orchestrator additions:
+        //       rate_limited (R3) — bounded escalation wait expired
+        //       quota_low    (R6) — proactive wrap-up triggered
+        // Watchdog B/C synthesize their own finish values (worker_exited /
+        // no_progress_timeout) outside this set; they do not need to appear
+        // here because they are produced from /proc + silence detection,
+        // not read from disk.
+        const TERMINAL_FINISHES = ["stop", "error", "length", "canceled", "rate_limited", "quota_low"]
 
         type ProcSample = {
           state: string // R/S/D/Z/T/X from /proc/<pid>/stat
@@ -2149,14 +2245,21 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           let silentSinceMs: number | null = null
           watchdogTimer = setInterval(async () => {
             try {
-              const worker = assignedWorkerID ? workers.find((w) => w.id === assignedWorkerID) : undefined
-              if (!worker) return // worker not yet assigned; skip this tick
+              // Gate only on dispatch, not on worker presence: the exit
+              // handler may have removed the worker from the registry on
+              // stdout EOF while the child process is still alive and
+              // about to write its terminal finish to disk. Skipping the
+              // tick in that window would silently disable A/B/C until
+              // an IPC `done` that never arrives.
+              if (!assignedWorkerID) return
+              const worker = workers.find((w) => w.id === assignedWorkerID)
 
               // Touch supervisor so monitor UI knows we're polling.
               if (ctx.callID) ProcessSupervisor.touch(ctx.callID)
 
               // A. Disk terminal finish past 5s grace — child self-reported
-              //    completion. Always honored regardless of proc signals.
+              //    completion. Always honored regardless of proc signals,
+              //    and independent of worker registry membership.
               try {
                 const { messages: childMsgs } = await MessageV2.filterCompacted(MessageV2.stream(session.id))
                 const lastAssistant = childMsgs.findLast((m) => m.info.role === "assistant")
@@ -2170,6 +2273,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
                         workerID: assignedWorkerID,
                         finish: info.finish,
                         elapsedMs: Date.now() - completedAt,
+                        workerEvicted: !worker,
                       })
                       resolveWD({
                         resolution: "disk_terminal",
@@ -2183,6 +2287,11 @@ export const TaskTool = Tool.define("task", async (ctx) => {
               } catch {
                 // disk read failed — keep going, try again next tick
               }
+
+              // B/C require the live worker handle to read /proc and
+              // proc.exitCode. If the worker was already evicted, we lean
+              // entirely on A above; nothing more to do this tick.
+              if (!worker) return
 
               // B. Proc scan: process state + activity signals.
               const proc = worker.proc
@@ -2254,116 +2363,252 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           }, WATCHDOG_INTERVAL_MS)
         })
 
-        let workerOk = true
-        let workerError: string | undefined
-        let completionSource: "worker" | "watchdog" = "worker"
-        let watchdogResolution: "worker_dead" | "disk_terminal" | "silent_kill" | undefined
-        try {
-          const outcome = await Promise.race([
-            run.done.then(() => ({ kind: "worker" as const })),
-            watchdogCompletion.then((d) => ({ kind: "watchdog" as const, ...d })),
-          ])
-          if (outcome.kind === "worker") {
-            completionSource = "worker"
-            mark("worker_done_resolved")
-          } else {
-            completionSource = "watchdog"
-            watchdogResolution = outcome.resolution
-            workerOk = outcome.ok
-            if (!outcome.ok) workerError = `child session finished with: ${outcome.finish}`
-            mark("worker_done_watchdog_fallback", { resolution: outcome.resolution, ok: outcome.ok })
-          }
-        } catch (err) {
-          workerOk = false
-          workerError = err instanceof Error ? err.message : String(err)
-          mark("worker_done_rejected", { error: workerError })
-        } finally {
-          if (watchdogTimer) clearInterval(watchdogTimer)
-          await SessionActiveChild.set(ctx.sessionID, null).catch(() => undefined)
-        }
-        // Kill worker on disk_terminal (bridge stuck) or silent_kill (truly hung).
-        // worker_dead path has an already-exited process; nothing to kill.
-        if (completionSource === "watchdog" && watchdogResolution !== "worker_dead") {
-          const worker = assignedWorkerID ? workers.find((w) => w.id === assignedWorkerID) : undefined
-          if (worker) {
-            Log.create({ service: "task" }).warn("proc-watchdog: killing worker", {
-              childSessionID: session.id,
-              workerID: assignedWorkerID,
-              resolution: watchdogResolution,
-            })
-            try {
-              worker.proc.kill()
-            } catch {
-              /* already dead */
-            }
-          }
-        }
-
-        // Reconcile linked todo
-        if (linkedTodo?.id) {
-          await Todo.reconcileProgress({
-            sessionID: ctx.sessionID,
-            linkedTodoID: linkedTodo.id,
-            taskStatus: workerOk ? "returned" : "error",
-          }).catch(() => undefined)
-        }
-
-        // Extract child session output so parent LLM has the actual results
-        let childOutput = ""
-        if (workerOk) {
+        // ════════════════════════════════════════════════════════════
+        // responsive-orchestrator Phase 9 — STUB-RETURN FLIP (R1)
+        //
+        // Detach the watchdog-race + post-completion work onto a
+        // background promise. The tool returns a `dispatched` stub
+        // immediately so:
+        //   1. The current LLM tool_use/tool_result pair closes within
+        //      one turn (provider hard requirement; DD-1).
+        //   2. The parent assistant turn ends naturally and the session
+        //      goes idle — main agent stays responsive while subagent
+        //      runs (the whole point of this spec).
+        //
+        // Subagent results reach main agent later via the
+        // disk-terminal → task.completed → pending-notice-appender →
+        // system-prompt addendum pipeline (Phases 1-8).
+        // ════════════════════════════════════════════════════════════
+        const detachedJobId = ctx.callID ?? `job_${session.id}`
+        const detachedStartedAt = startedAt
+        void (async () => {
+          let workerOk = true
+          let workerError: string | undefined
+          let completionSource: "worker" | "watchdog" = "worker"
+          let watchdogResolution: "worker_dead" | "disk_terminal" | "silent_kill" | undefined
           try {
-            const { messages: childMsgs } = await MessageV2.filterCompacted(MessageV2.stream(session.id))
-            const assistantTexts: string[] = []
-            for (const msg of childMsgs) {
-              if (msg.info.role !== "assistant") continue
-              for (const part of msg.parts) {
-                if (part.type === "text" && part.text?.trim()) {
-                  assistantTexts.push(part.text.trim())
-                }
+            const outcome = await Promise.race([
+              run.done.then(() => ({ kind: "worker" as const })),
+              watchdogCompletion.then((d) => ({ kind: "watchdog" as const, ...d })),
+            ])
+            if (outcome.kind === "worker") {
+              completionSource = "worker"
+              mark("worker_done_resolved")
+            } else {
+              completionSource = "watchdog"
+              watchdogResolution = outcome.resolution
+              workerOk = outcome.ok
+              if (!outcome.ok) workerError = `child session finished with: ${outcome.finish}`
+              mark("worker_done_watchdog_fallback", { resolution: outcome.resolution, ok: outcome.ok })
+            }
+          } catch (err) {
+            workerOk = false
+            workerError = err instanceof Error ? err.message : String(err)
+            mark("worker_done_rejected", { error: workerError })
+          } finally {
+            if (watchdogTimer) clearInterval(watchdogTimer)
+            await SessionActiveChild.set(ctx.sessionID, null).catch(() => undefined)
+          }
+            // Kill worker on disk_terminal (bridge stuck) or silent_kill (truly hung).
+            // worker_dead path has an already-exited process; nothing to kill.
+            if (completionSource === "watchdog" && watchdogResolution !== "worker_dead") {
+            const worker = assignedWorkerID ? workers.find((w) => w.id === assignedWorkerID) : undefined
+            if (worker) {
+              Log.create({ service: "task" }).warn("proc-watchdog: killing worker", {
+                childSessionID: session.id,
+                workerID: assignedWorkerID,
+                resolution: watchdogResolution,
+              })
+              try {
+                worker.proc.kill()
+              } catch {
+                /* already dead */
               }
             }
-            if (assistantTexts.length > 0) {
-              const recent = assistantTexts.slice(-3)
-              childOutput = `\n\n<child_session_output session="${session.id}">\n${recent.join("\n\n---\n\n")}\n</child_session_output>`
-            }
-          } catch {
-            // Non-fatal: parent continues without child output detail
           }
 
-          // Fallback: if message history empty (e.g. compaction), use SharedContext
-          if (!childOutput) {
+          // Reconcile linked todo
+          if (linkedTodo?.id) {
+            await Todo.reconcileProgress({
+              sessionID: ctx.sessionID,
+              linkedTodoID: linkedTodo.id,
+              taskStatus: workerOk ? "returned" : "error",
+            }).catch(() => undefined)
+          }
+
+          // Extract child session output so parent LLM has the actual results
+          let childOutput = ""
+          if (workerOk) {
             try {
-              const childCtx = await SharedContext.get(session.id)
-              if (childCtx) {
-                const parts: string[] = []
-                if (childCtx.currentState) parts.push(`State: ${childCtx.currentState}`)
-                if (childCtx.actions.length > 0)
-                  parts.push(`Actions:\n${childCtx.actions.map((a: any) => `- ${a.summary}`).join("\n")}`)
-                if (childCtx.discoveries.length > 0)
-                  parts.push(`Discoveries:\n${childCtx.discoveries.map((d: any) => `- ${d}`).join("\n")}`)
-                if (childCtx.files.length > 0)
-                  parts.push(`Files touched: ${childCtx.files.map((f: any) => f.path).join(", ")}`)
-                if (parts.length > 0) {
-                  childOutput = `\n\n<child_session_output session="${session.id}" source="shared_context">\n${parts.join("\n\n")}\n</child_session_output>`
+              const { messages: childMsgs } = await MessageV2.filterCompacted(MessageV2.stream(session.id))
+              const assistantTexts: string[] = []
+              for (const msg of childMsgs) {
+                if (msg.info.role !== "assistant") continue
+                for (const part of msg.parts) {
+                  if (part.type === "text" && part.text?.trim()) {
+                    assistantTexts.push(part.text.trim())
+                  }
+                }
+              }
+              if (assistantTexts.length > 0) {
+                const recent = assistantTexts.slice(-3)
+                childOutput = `\n\n<child_session_output session="${session.id}">\n${recent.join("\n\n---\n\n")}\n</child_session_output>`
+              }
+            } catch {
+              // Non-fatal: parent continues without child output detail
+            }
+
+            // Fallback: if message history empty (e.g. compaction), use SharedContext
+            if (!childOutput) {
+              try {
+                const childCtx = await SharedContext.get(session.id)
+                if (childCtx) {
+                  const parts: string[] = []
+                  if (childCtx.currentState) parts.push(`State: ${childCtx.currentState}`)
+                  if (childCtx.actions.length > 0)
+                    parts.push(`Actions:\n${childCtx.actions.map((a: any) => `- ${a.summary}`).join("\n")}`)
+                  if (childCtx.discoveries.length > 0)
+                    parts.push(`Discoveries:\n${childCtx.discoveries.map((d: any) => `- ${d}`).join("\n")}`)
+                  if (childCtx.files.length > 0)
+                    parts.push(`Files touched: ${childCtx.files.map((f: any) => f.path).join(", ")}`)
+                  if (parts.length > 0) {
+                    childOutput = `\n\n<child_session_output session="${session.id}" source="shared_context">\n${parts.join("\n\n")}\n</child_session_output>`
+                  }
+                }
+              } catch {
+                // Non-fatal
+              }
+            }
+          }
+
+          mark("finished", { ok: workerOk, error: workerError })
+
+          // responsive-orchestrator R2: emit task.completed so the
+          // pending-notice-appender subscriber (Phase 4) appends a
+          // PendingSubagentNotice to parent session info. This is
+          // additive alongside the synchronous return — once prompt
+          // assembly (Phase 5) consumes notices and the stub-return flip
+          // lands (Phase 9), this becomes the primary delivery path.
+          try {
+            const notifyStatus: "success" | "error" | "canceled" | "rate_limited" | "quota_low" | "worker_dead" | "silent_kill" = (() => {
+              if (watchdogResolution === "worker_dead") return "worker_dead"
+              if (watchdogResolution === "silent_kill") return "silent_kill"
+              // Map child session's last finish to user-facing status.
+              // Prefer reading the actual finish from the child session for
+              // accurate rate_limited / quota_low classification.
+              const lastFinish = (() => {
+                try {
+                  // We can't await here in a pure expression — fall through;
+                  // watchdogResolution already covers the async-unknown cases.
+                  return undefined as string | undefined
+                } catch {
+                  return undefined
+                }
+              })()
+              if (lastFinish === "rate_limited") return "rate_limited"
+              if (lastFinish === "quota_low") return "quota_low"
+              if (lastFinish === "canceled") return "canceled"
+              return workerOk ? "success" : "error"
+            })()
+
+            // Read child's actual last finish from disk (authoritative)
+            let finishForEvent = workerOk ? "stop" : "error"
+            let errorDetailForEvent: { message?: string; resetsInSeconds?: number } | undefined
+            let rotateHintForEvent:
+              | { exhaustedAccountId: string; exhaustedAt?: string; remainingPercent?: number; directive: "rotate-before-redispatch" }
+              | undefined
+            try {
+              const { messages: childMsgs } = await MessageV2.filterCompacted(MessageV2.stream(session.id))
+              const lastAssistant = childMsgs.findLast((m) => m.info.role === "assistant")
+              if (lastAssistant) {
+                const info = lastAssistant.info as MessageV2.Assistant
+                if (info.finish) finishForEvent = info.finish
+                if (info.finish === "rate_limited") {
+                  // Parse errorDetail from the stored error message (the 429 body)
+                  const errMsg = (info.error as any)?.data?.message ?? (info.error as any)?.message ?? ""
+                  const resetsMatch = /"resets_in_seconds"\s*:\s*(\d+)/.exec(errMsg)
+                  errorDetailForEvent = {
+                    message: typeof errMsg === "string" ? errMsg.slice(0, 500) : undefined,
+                    resetsInSeconds: resetsMatch ? Number(resetsMatch[1]) : undefined,
+                  }
+                }
+                if (info.finish === "quota_low") {
+                  const hint = (info as any).rotateHint
+                  if (hint && typeof hint === "object") {
+                    rotateHintForEvent = {
+                      exhaustedAccountId: String(hint.exhaustedAccountId ?? "unknown"),
+                      exhaustedAt: typeof hint.exhaustedAt === "string" ? hint.exhaustedAt : undefined,
+                      remainingPercent:
+                        typeof hint.remainingPercent === "number" ? hint.remainingPercent : undefined,
+                      directive: "rotate-before-redispatch",
+                    }
+                  }
                 }
               }
             } catch {
-              // Non-fatal
+              // Non-fatal — event still emitted with defaults
             }
+
+            // Resolve actual status using finishForEvent when watchdog didn't already classify
+            let resolvedStatus = notifyStatus
+            if (
+              resolvedStatus !== "worker_dead" &&
+              resolvedStatus !== "silent_kill" &&
+              resolvedStatus !== "canceled"
+            ) {
+              if (finishForEvent === "rate_limited") resolvedStatus = "rate_limited"
+              else if (finishForEvent === "quota_low") resolvedStatus = "quota_low"
+              else if (finishForEvent === "canceled") resolvedStatus = "canceled"
+              else resolvedStatus = workerOk ? "success" : "error"
+            }
+
+            await Bus.publish(TaskCompletedEvent, {
+              jobId: ctx.callID ?? `job_${session.id}`,
+              parentSessionID: ctx.sessionID,
+              childSessionID: session.id,
+              status: resolvedStatus,
+              finish: finishForEvent,
+              elapsedMs: Date.now() - startedAt,
+              errorDetail: errorDetailForEvent,
+              rotateHint: rotateHintForEvent,
+            })
+          } catch (pubErr) {
+            Log.create({ service: "task" }).warn("task.completed event publish failed", {
+              childSessionID: session.id,
+              error: pubErr instanceof Error ? pubErr.message : String(pubErr),
+            })
           }
-        }
+        })().catch((bgErr) => {
+          // Last-resort: detached background watcher should never throw
+          // (every nested block has its own try/catch), but if something
+          // escapes, log it — do not crash the daemon.
+          Log.create({ service: "task" }).error("background watcher unhandled error", {
+            childSessionID: session.id,
+            jobId: detachedJobId,
+            error: bgErr instanceof Error ? bgErr.message : String(bgErr),
+          })
+        })
 
-        mark("finished", { ok: workerOk, error: workerError })
-
+        // Phase 9 stub return — actual orchestrator-responsiveness payoff.
+        // LLM gets tool_result paired with tool_use within this turn (so
+        // assistant message can close), and the session releases its busy
+        // lock immediately. Real subagent result arrives later as a
+        // system-prompt addendum on a subsequent turn (Phases 4-5).
         return {
           title: params.description,
-          output: workerOk
-            ? `Subagent session ${session.id} completed successfully.${childOutput}`
-            : `Subagent session ${session.id} failed: ${workerError ?? "unknown error"}`,
+          output:
+            `Subagent ${session.id} dispatched (jobId=${detachedJobId}).` +
+            ` Running in background. The result will arrive on a subsequent turn` +
+            ` as a one-line system-prompt addendum starting with` +
+            ` \`[subagent ${session.id} finished status=…\`. You may continue with` +
+            ` other work or respond to the user immediately; do not wait for the` +
+            ` subagent in this turn. To stop it, call cancel_task with this jobId.`,
           metadata: {
             dispatched: true,
             subSessionID: session.id,
             linkedTodoID: linkedTodo?.id,
+            jobId: detachedJobId,
+            status: "dispatched",
           },
         }
       } catch (error: unknown) {

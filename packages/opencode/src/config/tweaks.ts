@@ -118,6 +118,22 @@ export namespace Tweaks {
     cancelOnCapTrip: boolean
   }
 
+  /**
+   * responsive-orchestrator R3 / R6 — bounded escalation wait and
+   * proactive quota-low red line for subagent runloop self-protection.
+   * - escalationWaitMs: how long subagent waits for parent's
+   *   ModelUpdateSignal after a 429 escalation before giving up and
+   *   writing a rate_limited terminal finish.
+   * - quotaLowRedLinePercent: post-turn quota threshold; when remaining
+   *   ≤ this percent, subagent triggers proactive wrap-up
+   *   (one summary turn then quota_low terminal finish). Set to 0 to
+   *   disable the proactive path entirely.
+   */
+  export interface SubagentConfig {
+    escalationWaitMs: number
+    quotaLowRedLinePercent: number
+  }
+
   export interface Effective {
     sessionCache: SessionCacheConfig
     rateLimit: RateLimitConfig
@@ -126,6 +142,7 @@ export namespace Tweaks {
     codexRotation: CodexRotationConfig
     sseReplay: SseReplayConfig
     partPersistence: PartPersistenceConfig
+    subagent: SubagentConfig
     source: { path: string; present: boolean }
   }
 
@@ -167,6 +184,11 @@ export namespace Tweaks {
   const SSE_REPLAY_DEFAULTS: SseReplayConfig = {
     maxEvents: 100,
     maxAgeSec: 60,
+  }
+
+  const SUBAGENT_DEFAULTS: SubagentConfig = {
+    escalationWaitMs: 30_000,
+    quotaLowRedLinePercent: 5,
   }
 
   const PART_PERSISTENCE_DEFAULTS: PartPersistenceConfig = {
@@ -262,6 +284,8 @@ export namespace Tweaks {
     "part_persist_debounce_ms",
     "part_max_bytes",
     "part_cancel_on_cap_trip",
+    "subagent_escalation_wait_ms",
+    "subagent_quota_low_red_line_percent",
   ])
 
   function parseFlag01(raw: string, key: string): 0 | 1 | undefined {
@@ -316,6 +340,7 @@ export namespace Tweaks {
           codexRotation: CODEX_ROTATION_DEFAULTS,
           sseReplay: SSE_REPLAY_DEFAULTS,
           partPersistence: PART_PERSISTENCE_DEFAULTS,
+          subagent: SUBAGENT_DEFAULTS,
         },
       })
       return {
@@ -326,6 +351,7 @@ export namespace Tweaks {
         codexRotation: { ...CODEX_ROTATION_DEFAULTS },
         sseReplay: { ...SSE_REPLAY_DEFAULTS },
         partPersistence: { ...PART_PERSISTENCE_DEFAULTS },
+        subagent: { ...SUBAGENT_DEFAULTS },
         source: { path: cfgPath, present: false },
       }
     }
@@ -491,6 +517,18 @@ export namespace Tweaks {
       if (v !== undefined) partPersistence.cancelOnCapTrip = v
     }
 
+    const subagent: SubagentConfig = { ...SUBAGENT_DEFAULTS }
+    const escalationWaitRaw = parsed.get("subagent_escalation_wait_ms")
+    if (escalationWaitRaw !== undefined) {
+      const v = parseIntRange(escalationWaitRaw, "subagent_escalation_wait_ms", 5_000, 300_000)
+      if (v !== undefined) subagent.escalationWaitMs = v
+    }
+    const quotaRedLineRaw = parsed.get("subagent_quota_low_red_line_percent")
+    if (quotaRedLineRaw !== undefined) {
+      const v = parseIntRange(quotaRedLineRaw, "subagent_quota_low_red_line_percent", 0, 50)
+      if (v !== undefined) subagent.quotaLowRedLinePercent = v
+    }
+
     const sseReplay: SseReplayConfig = { ...SSE_REPLAY_DEFAULTS }
 
     const sseMaxEventsRaw = parsed.get("sse_reconnect_replay_max_events")
@@ -506,7 +544,7 @@ export namespace Tweaks {
 
     log.info("tweaks.cfg loaded", {
       path: cfgPath,
-      effective: { sessionCache, rateLimit, frontendLazyload, sessionUiFreshness, codexRotation, sseReplay, partPersistence },
+      effective: { sessionCache, rateLimit, frontendLazyload, sessionUiFreshness, codexRotation, sseReplay, partPersistence, subagent },
     })
     return {
       sessionCache,
@@ -516,6 +554,7 @@ export namespace Tweaks {
       codexRotation,
       sseReplay,
       partPersistence,
+      subagent,
       source: { path: cfgPath, present: true },
     }
   }
@@ -552,6 +591,10 @@ export namespace Tweaks {
 
   export async function partPersistence(): Promise<PartPersistenceConfig> {
     return (await effective()).partPersistence
+  }
+
+  export async function subagent(): Promise<SubagentConfig> {
+    return (await effective()).subagent
   }
 
   /**

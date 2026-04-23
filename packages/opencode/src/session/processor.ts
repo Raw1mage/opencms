@@ -243,6 +243,17 @@ export namespace SessionProcessor {
     let blocked = false
     let attempt = 0
     let needsCompaction = false
+    // R6: subagent proactive quota-low wrap-up state.
+    // - quotaLowExitRequested: post-turn check has detected remaining quota
+    //   ≤ subagent_quota_low_red_line_percent. Set once; sticky until exit.
+    // - wrapUpTurnDispatched: top-of-loop check has injected the wrap-up
+    //   system directive and started the final turn. After that turn
+    //   completes, post-turn handler writes finish:quota_low and breaks.
+    // - quotaLowSnapshot: account + remainingPercent captured at detection
+    //   time, used to populate PendingSubagentNotice.rotateHint.
+    let quotaLowExitRequested = false
+    let wrapUpTurnDispatched = false
+    let quotaLowSnapshot: { accountId?: string; remainingPercent?: number } | undefined
     // Track fallback attempts to prevent infinite loops
     const triedVectors = new Set<string>()
     let fallbackAttempts = 0
@@ -300,6 +311,49 @@ export namespace SessionProcessor {
 
         while (true) {
           if (input.abort.aborted) break
+
+          // R6: proactive quota-low wrap-up state machine
+          if (quotaLowExitRequested && !wrapUpTurnDispatched) {
+            // First time seeing the flag — inject wrap-up directive into
+            // system prompt for THIS round, then let the loop run normally.
+            // The model gets one final turn to summarize.
+            streamInput.system = [
+              ...streamInput.system,
+              "[QUOTA-LOW] The account assigned to this subagent is nearly exhausted. " +
+                "This is your FINAL turn. Provide a concise summary of what you have " +
+                "accomplished so far and what work remains. Do NOT call any further tools. " +
+                "The orchestrator (parent agent) will receive your summary and decide whether " +
+                "to redispatch on a different account.",
+            ]
+            wrapUpTurnDispatched = true
+            debugCheckpoint("syslog.subagent", "quota_low wrap-up turn dispatched (R6)", {
+              sessionID: input.sessionID,
+              accountId: quotaLowSnapshot?.accountId,
+              remainingPercent: quotaLowSnapshot?.remainingPercent,
+            })
+          } else if (quotaLowExitRequested && wrapUpTurnDispatched) {
+            // Wrap-up turn already completed (we are now in the iteration
+            // AFTER it). The post-turn handler from that iteration set
+            // input.assistantMessage to the wrap-up summary. Write the
+            // disk-terminal quota_low finish + rotateHint metadata, persist,
+            // and break — parent's watchdog A delivers the notice.
+            input.assistantMessage.finish = "quota_low"
+            const accountIdForHint =
+              quotaLowSnapshot?.accountId ?? streamInput.accountId ?? input.accountId
+            ;(input.assistantMessage as any).rotateHint = {
+              exhaustedAccountId: `${streamInput.model.providerId}:${accountIdForHint ?? "unknown"}`,
+              exhaustedAt: new Date().toISOString(),
+              remainingPercent: quotaLowSnapshot?.remainingPercent,
+              directive: "rotate-before-redispatch",
+            }
+            await Session.updateMessage(input.assistantMessage)
+            debugCheckpoint("syslog.subagent", "quota_low disk-terminal written (R6)", {
+              sessionID: input.sessionID,
+              accountId: accountIdForHint,
+            })
+            SessionStatus.set(input.sessionID, { type: "idle" })
+            break
+          }
 
           // Stream idle watchdog removed 2026-04-18. Parent-side proc-scan
           // watchdog (task.ts) is now the single authority for subagent
@@ -493,9 +547,10 @@ export namespace SessionProcessor {
                       error: `Pre-flight rate limited: ${streamInput.model.providerId}/${streamInput.model.id}`,
                       triedVectors: Array.from(triedVectors),
                     })
-                    // Wait for parent to push a new model
+                    // Wait for parent to push a new model (R3: bounded by tweaks)
                     try {
-                      const newModel = await ModelUpdateSignal.wait(input.sessionID)
+                      const { escalationWaitMs } = await Tweaks.subagent()
+                      const newModel = await ModelUpdateSignal.wait(input.sessionID, escalationWaitMs)
                       debugCheckpoint("syslog.rotation", "child session received model update from parent", {
                         sessionID: input.sessionID,
                         newModel,
@@ -522,16 +577,20 @@ export namespace SessionProcessor {
                       // Continue the loop with the new model
                       continue
                     } catch (timeoutErr) {
-                      debugCheckpoint("syslog.rotation", "child session model update timeout — fail fast", {
+                      debugCheckpoint("syslog.rotation", "child session model update timeout — disk-terminal rate_limited (R3)", {
                         sessionID: input.sessionID,
                         error: timeoutErr instanceof Error ? timeoutErr.message : String(timeoutErr),
                       })
                       const rateLimitError = new Error(
                         `Rate limited: ${streamInput.model.providerId}/${streamInput.model.id}. Model update from parent timed out.`,
                       )
+                      input.assistantMessage.finish = "rate_limited"
                       input.assistantMessage.error = MessageV2.fromError(rateLimitError, {
                         providerId: streamInput.model.providerId,
                       })
+                      // R3: persist disk-terminal so parent's watchdog A
+                      // can read finish and emit task.completed event.
+                      await Session.updateMessage(input.assistantMessage)
                       Bus.publish(Session.Event.Error, {
                         sessionID: input.assistantMessage.sessionID,
                         error: input.assistantMessage.error,
@@ -1248,6 +1307,49 @@ export namespace SessionProcessor {
                       streamInput.accountId ?? input.accountId,
                       lowQuotaThresholdPercent,
                     )
+                    // R6: subagent proactive wrap-up — separate threshold,
+                    // tighter than rotation default. Only applies to child
+                    // sessions and only when knob > 0.
+                    if (isChildSession && !quotaLowExitRequested) {
+                      const { quotaLowRedLinePercent } = await Tweaks.subagent()
+                      if (quotaLowRedLinePercent > 0) {
+                        const accountId = streamInput.accountId ?? input.accountId
+                        if (
+                          accountId &&
+                          (input.model.providerId === "codex" || input.model.providerId === "openai")
+                        ) {
+                          try {
+                            const { getOpenAIQuota } = await import("@/account/quota/openai")
+                            const quota = await getOpenAIQuota(accountId, { waitFresh: false })
+                            if (
+                              quota &&
+                              quota.hasHourlyWindow !== false &&
+                              quota.hourlyRemaining < quotaLowRedLinePercent
+                            ) {
+                              quotaLowExitRequested = true
+                              quotaLowSnapshot = {
+                                accountId,
+                                remainingPercent: quota.hourlyRemaining,
+                              }
+                              debugCheckpoint(
+                                "syslog.subagent",
+                                "quota_low red line tripped — subagent will wrap up next turn (R6)",
+                                {
+                                  sessionID: input.sessionID,
+                                  accountId,
+                                  hourlyRemaining: quota.hourlyRemaining,
+                                  redLine: quotaLowRedLinePercent,
+                                },
+                              )
+                            }
+                          } catch (qe) {
+                            log.warn("R6 subagent quota probe failed", {
+                              error: String(qe),
+                            })
+                          }
+                        }
+                      }
+                    }
                   } catch (e) {
                     log.warn("post-turn codex quota check failed", {
                       error: String(e),
@@ -1353,10 +1455,11 @@ export namespace SessionProcessor {
                   triedCount: triedVectors.size,
                   publishElapsedMs: Date.now() - __rotRcaPublishStart,
                 })
-                // Wait for parent to push a new model
+                // Wait for parent to push a new model (R3: bounded by tweaks)
                 const __rotRcaWaitStart = Date.now()
                 try {
-                  const newModel = await ModelUpdateSignal.wait(input.sessionID)
+                  const { escalationWaitMs } = await Tweaks.subagent()
+                  const newModel = await ModelUpdateSignal.wait(input.sessionID, escalationWaitMs)
                   debugCheckpoint("syslog.rotation", "[rot-rca] child wait-resolved", {
                     sessionID: input.sessionID,
                     waitElapsedMs: Date.now() - __rotRcaWaitStart,
@@ -1387,12 +1490,17 @@ export namespace SessionProcessor {
                   triedVectors.clear()
                   continue
                 } catch (timeoutErr) {
-                  debugCheckpoint("syslog.rotation", "[rot-rca] child wait-timeout", {
+                  debugCheckpoint("syslog.rotation", "[rot-rca] child wait-timeout — disk-terminal rate_limited (R3)", {
                     sessionID: input.sessionID,
                     waitElapsedMs: Date.now() - __rotRcaWaitStart,
                     error: timeoutErr instanceof Error ? timeoutErr.message : String(timeoutErr),
                   })
+                  input.assistantMessage.finish = "rate_limited"
                   input.assistantMessage.error = MessageV2.fromError(e, { providerId: input.model.providerId })
+                  // R3: persist disk-terminal so parent's watchdog A can deliver.
+                  // The original 429 error `e` carries resets_in_seconds in its
+                  // message body — watchdog/subscriber parses it for errorDetail.
+                  await Session.updateMessage(input.assistantMessage)
                   Bus.publish(Session.Event.Error, {
                     sessionID: input.assistantMessage.sessionID,
                     error: input.assistantMessage.error,
