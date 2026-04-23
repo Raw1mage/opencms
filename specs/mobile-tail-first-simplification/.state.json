@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "planned",
+  "state": "living",
   "profile": [],
   "history": [
     {
@@ -26,6 +26,30 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "tasks (9 phases, ~45 items) + handoff + errors + observability + test-vectors drafted"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-04-23T19:45:17.301Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "implementation started on beta branch"
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-04-23T19:45:17.797Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "all 10 phases implemented + mobile smoke passed + merged to main c7f0ddb8b"
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-04-23T19:45:18.295Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "merged to main c7f0ddb8b; -550 LOC net continuity removal; mobile stable"
     }
   ]
 }
