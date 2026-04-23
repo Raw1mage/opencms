@@ -912,7 +912,8 @@ export namespace MessageV2 {
           flushRemoteRefs &&
           (replayDebug.textItemIds > 0 || replayDebug.reasoningItemIds > 0 || replayDebug.toolItemIds > 0)
         ) {
-          debugCheckpoint("message-v2", "assistant replay metadata flushed", {
+          // [log-volume] per-message replay checkpoint disabled — ~5.5% of debug.log bytes.
+          if (false) debugCheckpoint("message-v2", "assistant replay metadata flushed", {
             messageID: msg.info.id,
             sessionID: msg.info.sessionID,
             providerId: msg.info.providerId,
@@ -963,8 +964,17 @@ export namespace MessageV2 {
   export const parts = fn(Identifier.schema("message"), async (messageID) => {
     const result = [] as MessageV2.Part[]
     for (const item of await Storage.list(["part", messageID])) {
-      const read = await Storage.read<MessageV2.Part>(item)
-      result.push(read)
+      // TOCTOU: a part listed by Storage.list can be deleted before we
+      // read it (debounce flush, part-cap trip, snapshot prune, sibling
+      // worker write). Treat ENOENT as "skip" rather than letting
+      // NotFoundError propagate as an unhandled rejection.
+      try {
+        const read = await Storage.read<MessageV2.Part>(item)
+        result.push(read)
+      } catch (e) {
+        if (e instanceof Storage.NotFoundError) continue
+        throw e
+      }
     }
     result.sort((a, b) => (a.id > b.id ? 1 : -1))
     return result

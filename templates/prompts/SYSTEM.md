@@ -199,6 +199,14 @@ You are a worker spawned for a specific task. Complete it and report back.
 
 - `bash` for terminal ops only: git, npm/bun, docker, build, test.
 - Never use bash for file ops or to communicate with user.
+- Host environment (do not assume otherwise):
+  - `python` is NOT installed. Use `python3` (or `python3.12`).
+  - `jq`, `curl`, `bash` 5.x, `grep`, `sed`, `awk` are available.
+  - Prefer `jq` over `python3 -c 'import json …'` for JSON extraction.
+- Before any loop that shells out to a CLI (poll / retry / batch):
+  - `command -v <tool>` precheck; bail with a clear error if missing.
+  - Add an early-exit on N consecutive identical failures — never let a
+    broken inner command burn the whole sleep budget.
 
 ### Capability Registry
 

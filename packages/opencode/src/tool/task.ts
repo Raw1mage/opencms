@@ -2239,14 +2239,21 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           let silentSinceMs: number | null = null
           watchdogTimer = setInterval(async () => {
             try {
-              const worker = assignedWorkerID ? workers.find((w) => w.id === assignedWorkerID) : undefined
-              if (!worker) return // worker not yet assigned; skip this tick
+              // Gate only on dispatch, not on worker presence: the exit
+              // handler may have removed the worker from the registry on
+              // stdout EOF while the child process is still alive and
+              // about to write its terminal finish to disk. Skipping the
+              // tick in that window would silently disable A/B/C until
+              // an IPC `done` that never arrives.
+              if (!assignedWorkerID) return
+              const worker = workers.find((w) => w.id === assignedWorkerID)
 
               // Touch supervisor so monitor UI knows we're polling.
               if (ctx.callID) ProcessSupervisor.touch(ctx.callID)
 
               // A. Disk terminal finish past 5s grace — child self-reported
-              //    completion. Always honored regardless of proc signals.
+              //    completion. Always honored regardless of proc signals,
+              //    and independent of worker registry membership.
               try {
                 const { messages: childMsgs } = await MessageV2.filterCompacted(MessageV2.stream(session.id))
                 const lastAssistant = childMsgs.findLast((m) => m.info.role === "assistant")
@@ -2260,6 +2267,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
                         workerID: assignedWorkerID,
                         finish: info.finish,
                         elapsedMs: Date.now() - completedAt,
+                        workerEvicted: !worker,
                       })
                       resolveWD({
                         resolution: "disk_terminal",
@@ -2273,6 +2281,11 @@ export const TaskTool = Tool.define("task", async (ctx) => {
               } catch {
                 // disk read failed — keep going, try again next tick
               }
+
+              // B/C require the live worker handle to read /proc and
+              // proc.exitCode. If the worker was already evicted, we lean
+              // entirely on A above; nothing more to do this tick.
+              if (!worker) return
 
               // B. Proc scan: process state + activity signals.
               const proc = worker.proc
