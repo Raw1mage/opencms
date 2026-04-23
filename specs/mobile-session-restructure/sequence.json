@@ -1,0 +1,73 @@
+[
+  {
+    "id": "P1",
+    "name": "Turn end — slim diff generated and persisted",
+    "componentRefs": ["CMP1", "C2", "CMP2", "CMP3"],
+    "messages": [
+      { "id": "MSG1", "from": "CMP1", "to": "C2", "label": "git diff --numstat <prev>..<curr>" },
+      { "id": "MSG2", "from": "C2", "to": "CMP1", "label": "additions/deletions/status per file" },
+      { "id": "MSG3", "from": "CMP1", "to": "CMP1", "label": "build FileDiff[] (metadata only)" },
+      { "id": "MSG4", "from": "CMP1", "to": "CMP2", "label": "Storage.update(user message info.json) with slim summary.diffs[]" },
+      { "id": "MSG5", "from": "CMP2", "to": "CMP3", "label": "bus.message.updated fired (slim payload)" }
+    ]
+  },
+  {
+    "id": "P2",
+    "name": "Mobile / desktop session open — metadata-only render",
+    "componentRefs": ["CMP6", "CMP3", "CMP2"],
+    "messages": [
+      { "id": "MSG1", "from": "CMP6", "to": "CMP3", "label": "GET /api/session/<id>/messages (limit=30)" },
+      { "id": "MSG2", "from": "CMP3", "to": "CMP2", "label": "read tail 30 message records (slim)" },
+      { "id": "MSG3", "from": "CMP3", "to": "CMP6", "label": "30 slim records (~KB each), no file bodies" },
+      { "id": "MSG4", "from": "CMP6", "to": "CMP6", "label": "render one row per changed file (path, +A/-D, status); no expand" }
+    ]
+  },
+  {
+    "id": "P3",
+    "name": "Owned-diff check reads git directly",
+    "componentRefs": ["CMP4", "CMP2", "C2"],
+    "messages": [
+      { "id": "MSG1", "from": "CMP4", "to": "CMP2", "label": "read user message info.json (slim)" },
+      { "id": "MSG2", "from": "CMP4", "to": "C2", "label": "git show <snapshotCommit>:<file> per changed file" },
+      { "id": "MSG3", "from": "C2", "to": "CMP4", "label": "file body" },
+      { "id": "MSG4", "from": "CMP4", "to": "CMP4", "label": "compare + apply ownership rules (unchanged semantics)" }
+    ]
+  },
+  {
+    "id": "P4",
+    "name": "Owned-diff — git failure surfaces explicitly",
+    "componentRefs": ["CMP4", "C2"],
+    "messages": [
+      { "id": "MSG1", "from": "CMP4", "to": "C2", "label": "git show <bad-ref>:<file>" },
+      { "id": "MSG2", "from": "C2", "to": "CMP4", "label": "exit 128 / fatal: bad revision" },
+      { "id": "MSG3", "from": "CMP4", "to": "CMP4", "label": "throw explicit GitUnavailableError; caller must handle" }
+    ]
+  },
+  {
+    "id": "P5",
+    "name": "Migration — operator runs one-shot strip",
+    "componentRefs": ["CMP5", "CMP2"],
+    "messages": [
+      { "id": "MSG1", "from": "CMP5", "to": "CMP5", "label": "operator: bun run migrate-strip-diffs.ts" },
+      { "id": "MSG2", "from": "CMP5", "to": "CMP2", "label": "readdir(storage/session/)" },
+      { "id": "MSG3", "from": "CMP5", "to": "CMP5", "label": "per session: check .diff-migration-v1.done — skip if present" },
+      { "id": "MSG4", "from": "CMP5", "to": "CMP2", "label": "read each messages/*/info.json" },
+      { "id": "MSG5", "from": "CMP5", "to": "CMP5", "label": "strip diff.before / diff.after from summary.diffs entries" },
+      { "id": "MSG6", "from": "CMP5", "to": "CMP2", "label": "atomic write: info.json.tmp → rename info.json" },
+      { "id": "MSG7", "from": "CMP5", "to": "CMP2", "label": "write .diff-migration-v1.done with audit payload" },
+      { "id": "MSG8", "from": "CMP5", "to": "CMP5", "label": "log session summary (bytes reclaimed)" }
+    ]
+  },
+  {
+    "id": "P6",
+    "name": "Migration resumed after interruption",
+    "componentRefs": ["CMP5", "CMP2"],
+    "messages": [
+      { "id": "MSG1", "from": "CMP5", "to": "CMP2", "label": "re-run: readdir session/" },
+      { "id": "MSG2", "from": "CMP5", "to": "CMP5", "label": "per session: check marker" },
+      { "id": "MSG3", "from": "CMP5", "to": "CMP5", "label": "if marker present → skip (idempotent)" },
+      { "id": "MSG4", "from": "CMP5", "to": "CMP2", "label": "if absent → re-process (atomic writes mean partial state is safe)" },
+      { "id": "MSG5", "from": "CMP5", "to": "CMP5", "label": "final summary: N sessions skipped, M reprocessed" }
+    ]
+  }
+]

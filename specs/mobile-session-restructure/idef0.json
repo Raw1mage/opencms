@@ -1,0 +1,59 @@
+{
+  "diagram_title": "Mobile Session Restructure — Functional Decomposition (simplified, no diff viewer)",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Generate slim file-diff at end of turn",
+      "description": "Workflow runner queries git for additions/deletions/status per file. Never reads file bodies into buffers. Writes slim FileDiff[] to user message summary.diffs.",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Persist slim message record",
+      "description": "Existing Storage.write path writes the message info.json. Because the in-memory shape has no before/after fields, the disk representation is automatically slim.",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Serve session reads (slim payload)",
+      "description": "HTTP message routes, SSE bus.message.updated, share export all return the slim shape unchanged from disk. Clients render metadata-only views. No diff viewer path exists server-side.",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Server-side owned-diff via git",
+      "description": "Workspace owned-diff check calls git directly (git show against the message snapshot commit) when it needs to compare file content with worktree state. No shared helper; inline call.",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Migrate historical sessions (one-shot)",
+      "description": "Maintenance script walks session/ directory, rewrites each message info.json to slim shape (strip before/after), writes per-session marker. Atomic per-file (temp + rename). Idempotent (marker skips).",
+      "decomposition": null
+    },
+    {
+      "id": "A6",
+      "title": "UI renders metadata rows only",
+      "description": "Desktop review tab, shared SessionReview component, enterprise share page — all render one row per changed file: path, additions, deletions, status. No expand button, no diff content fetch.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "Turn boundary (end of assistant response)", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A1:control", "label": "Schema definition: FileDiff has no before/after", "type": "control" },
+    { "id": "AR3", "source": "EXTERNAL", "target": "A1:mechanism", "label": "git diff --numstat + snapshot commit graph (existing)", "type": "mechanism" },
+    { "id": "AR4", "source": "A1:output", "target": "A2:input", "label": "FileDiff[] (slim)", "type": "input" },
+    { "id": "AR5", "source": "EXTERNAL", "target": "A2:mechanism", "label": "Storage.write (existing)", "type": "mechanism" },
+    { "id": "AR6", "source": "A2:output", "target": "A3:input", "label": "Persisted message record", "type": "input" },
+    { "id": "AR7", "source": "A3:output", "target": "A6:input", "label": "Slim payloads (HTTP + SSE + share)", "type": "input" },
+    { "id": "AR8", "source": "A6:output", "target": "EXTERNAL", "label": "Metadata rows rendered to user", "type": "output" },
+    { "id": "AR9", "source": "A2:output", "target": "A4:input", "label": "Slim record (owned-diff reader)", "type": "input" },
+    { "id": "AR10", "source": "EXTERNAL", "target": "A4:mechanism", "label": "git show against snapshot commit", "type": "mechanism" },
+    { "id": "AR11", "source": "A4:output", "target": "EXTERNAL", "label": "Owned-diff result (same semantics as before)", "type": "output" },
+    { "id": "AR12", "source": "EXTERNAL", "target": "A5:input", "label": "Operator invocation: migrate-strip-diffs.ts", "type": "input" },
+    { "id": "AR13", "source": "EXTERNAL", "target": "A5:control", "label": "Per-session migration marker (idempotency)", "type": "control" },
+    { "id": "AR14", "source": "EXTERNAL", "target": "A5:mechanism", "label": "Filesystem walk + atomic rename + structured logger", "type": "mechanism" },
+    { "id": "AR15", "source": "A5:output", "target": "EXTERNAL", "label": "Slimmed session records + audit log", "type": "output" }
+  ]
+}

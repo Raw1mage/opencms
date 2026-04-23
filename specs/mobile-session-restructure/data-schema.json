@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://opencode.local/specs/mobile-session-restructure/data-schema.json",
+  "title": "mobile-session-restructure data contracts",
+  "description": "Slim file-diff shape. No on-demand endpoint; no diff viewer; no reconstruction in code. Power users who need actual diffs read git directly.",
+  "type": "object",
+  "definitions": {
+    "FileDiff": {
+      "type": "object",
+      "description": "The only persisted and transmitted file-diff shape. No before/after bodies are stored or transmitted anywhere in the daemon.",
+      "required": ["file", "additions", "deletions"],
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "string",
+          "description": "Repo-relative file path with forward slashes."
+        },
+        "additions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "deletions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "status": {
+          "type": "string",
+          "enum": ["added", "deleted", "modified"]
+        }
+      }
+    },
+    "MigrationMarker": {
+      "type": "object",
+      "description": "Contents of <session>/.diff-migration-v1.done; presence alone is sufficient but content carries audit info.",
+      "required": ["version", "migratedAt", "messagesTouched", "bytesReclaimed"],
+      "properties": {
+        "version": { "const": 1 },
+        "migratedAt": { "type": "string", "format": "date-time" },
+        "messagesTouched": { "type": "integer", "minimum": 0 },
+        "bytesReclaimed": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "MigrationScriptOptions": {
+      "type": "object",
+      "description": "CLI flags for the migration script.",
+      "additionalProperties": false,
+      "properties": {
+        "dryRun": {
+          "type": "boolean",
+          "default": false,
+          "description": "Report intended changes without writing."
+        },
+        "session": {
+          "type": "string",
+          "description": "Limit run to one session ID for validation."
+        },
+        "verbose": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    }
+  },
+  "properties": {
+    "FileDiff": { "$ref": "#/definitions/FileDiff" },
+    "MigrationMarker": { "$ref": "#/definitions/MigrationMarker" },
+    "MigrationScriptOptions": { "$ref": "#/definitions/MigrationScriptOptions" }
+  }
+}

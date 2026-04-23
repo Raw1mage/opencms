@@ -1,0 +1,142 @@
+[
+  {
+    "id": "TV1",
+    "requirementRef": "R1 — slim schema",
+    "description": "Freshly generated FileDiff entries have no before/after fields",
+    "input": {
+      "turn_edits": ["packages/opencode/src/foo.ts"],
+      "diff_generator_run": true
+    },
+    "expected": {
+      "persisted_entry_keys_subset": ["file", "additions", "deletions", "status"],
+      "persisted_entry_keys_absent": ["before", "after"],
+      "type_compile_error_on_accessing_before_or_after": true
+    }
+  },
+  {
+    "id": "TV2",
+    "requirementRef": "R2 — wire payload",
+    "description": "Message fetch returns metadata-only diffs",
+    "input": {
+      "session_with_one_user_message_touching_1MB_file": true,
+      "tool_call": "GET /api/session/<sid>/messages"
+    },
+    "expected": {
+      "response_bytes_per_message_diff_entry_under": 500,
+      "response_bytes_total_under": 10240,
+      "no_before_or_after_fields_in_response": true
+    }
+  },
+  {
+    "id": "TV3",
+    "requirementRef": "R3 — no diff viewer",
+    "description": "Review tab render produces zero network requests for diff contents",
+    "input": {
+      "ui_action": "open_review_tab"
+    },
+    "expected": {
+      "metadata_rows_rendered": "one per changed file",
+      "expand_buttons_present": false,
+      "http_requests_to_diff_endpoints": 0
+    }
+  },
+  {
+    "id": "TV4",
+    "requirementRef": "R4 — owned-diff via git",
+    "description": "Workspace owned-diff check reads file content from git and matches pre-migration output",
+    "input": {
+      "fixture_session_pre_migration_recorded_output": "<baseline>",
+      "post_migration_run_same_session": true
+    },
+    "expected": {
+      "outputs_byte_equal": true,
+      "git_show_invocations_observed": "≥ 1 per changed file"
+    }
+  },
+  {
+    "id": "TV5",
+    "requirementRef": "R4 — git failure surfaces",
+    "description": "When git invocation fails, owned-diff throws explicit error",
+    "input": {
+      "simulate": "remove snapshot commit from repo",
+      "owned_diff_check_run": true
+    },
+    "expected": {
+      "error_thrown_name": "OWNED_DIFF_GIT_UNAVAILABLE",
+      "no_silent_skip": true,
+      "caller_receives_structured_error": true
+    }
+  },
+  {
+    "id": "TV6",
+    "requirementRef": "R5 — migration atomic + idempotent",
+    "description": "Migration run then re-run",
+    "input": {
+      "run_1": "full script",
+      "run_2": "full script immediately after"
+    },
+    "expected": {
+      "run_1_rewrites_gt_0": true,
+      "run_1_marker_written_per_session": true,
+      "run_2_rewrites": 0,
+      "run_2_all_sessions_reported_skipped": true,
+      "disk_size_stable_between_runs": true
+    }
+  },
+  {
+    "id": "TV7",
+    "requirementRef": "R5 — malformed info.json",
+    "description": "Malformed message info.json handled gracefully",
+    "input": {
+      "planted_malformed_info": "packages/opencode/src/test/fixtures/bad-session/messages/msg_X/info.json",
+      "migration_run": true
+    },
+    "expected": {
+      "warning_logged_for_path": true,
+      "session_marker_NOT_written": true,
+      "other_sessions_completed_normally": true,
+      "rerun_after_fix_processes_session": true
+    }
+  },
+  {
+    "id": "TV8",
+    "requirementRef": "R5 — interrupted migration",
+    "description": "Kill script mid-run; restart; verify resumption",
+    "input": {
+      "sigkill_after_processing_N_of_M_sessions": "N=2, M=5"
+    },
+    "expected": {
+      "sessions_with_marker_after_kill": 2,
+      "sessions_without_marker_after_kill": 3,
+      "restart_script_rewrites": "3 sessions",
+      "restart_script_skips": "2 sessions"
+    }
+  },
+  {
+    "id": "TV9",
+    "requirementRef": "R6 — disk reclamation on this machine",
+    "description": "Post-migration disk size target",
+    "input": {
+      "pre_migration_du_session_dir": "6.2 GB",
+      "migration_completes_fully": true
+    },
+    "expected": {
+      "post_migration_du_session_dir_upper_bound": "1 GB",
+      "reduction_percent_lower_bound": 80
+    }
+  },
+  {
+    "id": "TV10",
+    "requirementRef": "R6 — mobile session entry",
+    "description": "Mobile session open time",
+    "input": {
+      "session": "previously-problematic 51 MB",
+      "client": "mobile browser",
+      "network": "4G typical"
+    },
+    "expected": {
+      "first_paint_tail_messages_under_ms": 2000,
+      "white_flash_on_subsequent_inputs": false
+    }
+  }
+]

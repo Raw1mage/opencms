@@ -1,0 +1,112 @@
+{
+  "title": "Mobile Session Restructure — C4 Model (simplified)",
+  "scope": "Slim file-diff storage + wire; diff viewer feature removed; owned-diff via direct git",
+  "systems": [
+    {
+      "id": "S1",
+      "name": "OpenCode Daemon",
+      "description": "Per-user persistent process; hosts session storage, HTTP routes, SSE stream, git snapshot repo."
+    },
+    {
+      "id": "S2",
+      "name": "Web / Mobile Client",
+      "description": "Browser-based client reading sessions. Renders metadata-only rows per changed file. No diff viewer.",
+      "external": true
+    },
+    {
+      "id": "S3",
+      "name": "Enterprise Share Page",
+      "description": "Public share consumer. Metadata-only rows; no diff viewer.",
+      "external": true
+    }
+  ],
+  "containers": [
+    {
+      "id": "C1",
+      "systemRef": "S1",
+      "name": "Main Daemon Process",
+      "description": "Owns storage, routes, git snapshot repo."
+    },
+    {
+      "id": "C2",
+      "systemRef": "S1",
+      "name": "Git Snapshot Repo",
+      "description": "Per-user shadow repo where each turn writes a commit. Source of truth for file contents history. Accessible to power users via git CLI when they really want to inspect what the AI did."
+    },
+    {
+      "id": "C3",
+      "systemRef": "S1",
+      "name": "Maintenance CLI",
+      "description": "bun-invoked scripts for one-shot operations (migration)."
+    }
+  ],
+  "components": [
+    {
+      "id": "CMP1",
+      "containerRef": "C1",
+      "name": "DiffGenerator",
+      "moduleRef": "A1",
+      "description": "End-of-turn code that produces FileDiff[] entries. Metadata-only output; queries git numstat.",
+      "files": ["packages/opencode/src/session/workflow-runner.ts", "packages/opencode/src/snapshot/index.ts"]
+    },
+    {
+      "id": "CMP2",
+      "containerRef": "C1",
+      "name": "MessageStore",
+      "moduleRef": "A2",
+      "description": "Existing Storage.update path. No code change needed; shape is automatically slim.",
+      "files": ["packages/opencode/src/storage/storage.ts"]
+    },
+    {
+      "id": "CMP3",
+      "containerRef": "C1",
+      "name": "SessionReadRoutes",
+      "moduleRef": "A3",
+      "description": "Existing HTTP + SSE surfaces. Return slim payloads because persisted shape is slim. No new on-demand route.",
+      "files": ["packages/opencode/src/server/routes/session.ts"]
+    },
+    {
+      "id": "CMP4",
+      "containerRef": "C1",
+      "name": "OwnedDiffChecker",
+      "moduleRef": "A4",
+      "description": "Workspace integrity check. Calls git directly against message snapshot commits.",
+      "files": ["packages/opencode/src/project/workspace/owned-diff.ts"]
+    },
+    {
+      "id": "CMP5",
+      "containerRef": "C3",
+      "name": "MigrationScript",
+      "moduleRef": "A5",
+      "description": "NEW one-shot: walks session dir, rewrites message info.json records to slim, writes per-session marker.",
+      "files": ["packages/opencode/src/cli/cmd/maintenance/migrate-strip-diffs.ts"]
+    },
+    {
+      "id": "CMP6",
+      "containerRef": "S2",
+      "name": "FrontendSessionReview",
+      "moduleRef": "A6",
+      "description": "Review tab + shared SessionReview component. Simplified: renders summary rows only. Expand panes deleted.",
+      "files": ["packages/app/src/pages/session/review-tab.tsx", "packages/ui/src/components/session-review.tsx"]
+    },
+    {
+      "id": "CMP7",
+      "containerRef": "S3",
+      "name": "EnterpriseSharePage",
+      "moduleRef": "A6",
+      "description": "Public share page simplified; metadata rows only.",
+      "files": ["packages/enterprise/src/routes/share/[shareID].tsx"]
+    }
+  ],
+  "relationships": [
+    { "from": "CMP1", "to": "C2", "label": "git diff --numstat per file", "protocol": "subprocess" },
+    { "from": "CMP1", "to": "CMP2", "label": "writes slim FileDiff[] to user message summary", "protocol": "in-process" },
+    { "from": "CMP3", "to": "CMP2", "label": "reads persisted record for list/fetch/stream", "protocol": "in-process" },
+    { "from": "S2", "to": "CMP3", "label": "GET /api/session/<id>/messages + SSE subscribe", "protocol": "HTTP + SSE" },
+    { "from": "CMP4", "to": "CMP2", "label": "reads slim records for owned-diff check", "protocol": "in-process" },
+    { "from": "CMP4", "to": "C2", "label": "git show <ref>:<file> when needed", "protocol": "subprocess" },
+    { "from": "CMP5", "to": "CMP2", "label": "rewrite each info.json in place (atomic)", "protocol": "filesystem" },
+    { "from": "S2", "to": "CMP6", "label": "renders slim payload as metadata rows", "protocol": "in-browser" },
+    { "from": "S3", "to": "CMP7", "label": "renders slim payload as metadata rows", "protocol": "in-browser" }
+  ]
+}
