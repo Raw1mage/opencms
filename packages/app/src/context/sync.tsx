@@ -159,6 +159,18 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
     }
     const absolute = (path: string) => (currentStore().path.directory + "/" + path).replace("//", "/")
     const messagePageSize = 400
+
+    // Mobile detection for tail-size decisions. Viewport-width first (matches
+    // the md: breakpoint the UI uses elsewhere), UA as fallback for SSR/
+    // pre-layout runs. Safe default = mobile (smaller tail is strictly safer
+    // for memory).
+    const isMobile = (): boolean => {
+      if (typeof window === "undefined") return true
+      const w = window.innerWidth || document.documentElement?.clientWidth || 0
+      if (w > 0) return w < 768
+      const ua = typeof navigator !== "undefined" ? navigator.userAgent : ""
+      return /iPhone|iPad|iPod|Android|Mobile/i.test(ua)
+    }
     const inflight = new Map<string, Promise<void>>()
     const inflightDiff = new Map<string, Promise<void>>()
     const inflightTodo = new Map<string, Promise<void>>()
@@ -299,101 +311,21 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         })
     }
 
-    // Incremental tail fetch — used by force-resync when we already have
-    // messages hydrated. Instead of re-downloading the whole session (which
-    // races an in-flight streaming reply and can wipe partial parts), ask
-    // the server for just the messages created since shortly before our
-    // newest known message, then merge them into the existing store.
-    const INCREMENTAL_SINCE_MARGIN_MS = 1000
-    const loadMessagesIncremental = async (input: {
-      directory: string
-      client: typeof sdk.client
-      setStore: Setter
-      store: Store<State>
-      sessionID: string
-    }) => {
-      const existing = input.store.message[input.sessionID] ?? []
-      if (existing.length === 0) return // caller should use loadMessages for cold start
-      // Use the newest known message's created time as the cursor, minus a
-      // small margin so any message written during that boundary second is
-      // included. The server returns messages with time.created >= since.
-      let newest = 0
-      for (const msg of existing) {
-        const t = msg?.time?.created
-        if (typeof t === "number" && t > newest) newest = t
-      }
-      if (newest === 0) return // nothing to anchor against — let caller decide
-      const since = newest - INCREMENTAL_SINCE_MARGIN_MS
-      sendSessionReloadDebugBeacon({
-        sdk,
-        event: "loadMessagesIncremental:start",
-        sessionID: input.sessionID,
-        payload: { directory: input.directory, since },
-      })
-      try {
-        const url = new URL(`${sdk.url}/api/v2/session/${input.sessionID}/message`)
-        url.searchParams.set("directory", input.directory)
-        url.searchParams.set("since", String(since))
-        const res = await retry(() => sdk.fetch(url.toString()))
-        if (!res.ok) throw new Error(`incremental fetch ${res.status}`)
-        const raw = (await res.json()) as Array<{ info: Message; parts: Part[] }>
-        const incoming = raw.filter((x) => !!x?.info?.id)
-        sendSessionReloadDebugBeacon({
-          sdk,
-          event: "loadMessagesIncremental:success",
-          sessionID: input.sessionID,
-          payload: { directory: input.directory, since, incomingCount: incoming.length },
-        })
-        if (incoming.length === 0) return
-        batch(() => {
-          input.setStore(
-            "message",
-            input.sessionID,
-            produce((draft: Message[]) => {
-              for (const item of incoming) {
-                const msg = item.info
-                const idx = draft.findIndex((m) => m?.id === msg.id)
-                if (idx >= 0) draft[idx] = msg
-                else draft.push(msg)
-              }
-              draft.sort((a, b) => cmp(a?.id ?? "", b?.id ?? ""))
-            }),
-          )
-          for (const item of incoming) {
-            input.setStore("part", item.info.id, reconcile(sortParts(item.parts), { key: "id" }))
-          }
-        })
-      } catch (error) {
-        sendSessionReloadDebugBeacon({
-          sdk,
-          event: "loadMessagesIncremental:error",
-          sessionID: input.sessionID,
-          payload: {
-            directory: input.directory,
-            error: error instanceof Error ? error.message : String(error),
-          },
-        })
-        throw error
-      }
-    }
-
-    // R9 (frontend-session-lazyload revise 2026-04-22): cursor-based older
-    // history pagination. Replaces the previous "grow `limit` and refetch
-    // the whole prefix" hack with a true append. Uses direct fetch so we
-    // can send the `beforeMessageID` query param without waiting for an
-    // SDK regen cycle (mirrors the `loadMessagesIncremental` pattern).
+    // Cursor-based older-history append. User scroll-up triggers this via
+    // session.history.more(). Uses direct fetch so we can send the `before`
+    // query param; append-only (never touches existing messages).
     const loadOlderMessages = async (input: {
       directory: string
       client: typeof sdk.client
       setStore: Setter
       store: Store<State>
       sessionID: string
-      beforeMessageID: string
+      before: string
       limit: number
     }): Promise<{ appended: number }> => {
       const url = new URL(`${sdk.url}/api/v2/session/${input.sessionID}/message`)
       url.searchParams.set("directory", input.directory)
-      url.searchParams.set("beforeMessageID", input.beforeMessageID)
+      url.searchParams.set("before", input.before)
       url.searchParams.set("limit", String(input.limit))
       const res = await retry(() => sdk.fetch(url.toString()))
       if (!res.ok) throw new Error(`loadOlder fetch ${res.status}`)
@@ -423,6 +355,22 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       return { appended: incoming.length }
     }
 
+    // Scoped part rebuild — replaces one part in place, clearing truncatedPrefix.
+    // Used by FoldableMarkdown expand via data.expandPart (mobile-tail-first DD-6).
+    const patchPart = (messageID: string, fullPart: { id: string }) => {
+      const directory = sdk.directory
+      const [, setStore] = globalSync.child(directory)
+      setStore(
+        "part",
+        messageID,
+        produce((draft: Part[]) => {
+          const idx = draft.findIndex((p) => p?.id === fullPart.id)
+          if (idx >= 0) draft[idx] = fullPart as Part
+          else draft.push(fullPart as Part)
+        }),
+      )
+    }
+
     return {
       get data() {
         return currentStore()
@@ -436,6 +384,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       get ready() {
         return currentStore().status !== "loading"
       },
+      patchPart,
       get project() {
         const store = currentStore()
         const match = Binary.search(globalSync.data.project, store.project, (p) => p.id)
@@ -476,149 +425,53 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
             parts: input.parts,
           })
         },
-        async sync(sessionID: string, options?: { force?: boolean }) {
+        async sync(sessionID: string) {
+          // specs/mobile-tail-first-simplification: one initial-load path.
+          // If hydrated, skip (live updates arrive via SSE). Otherwise fetch
+          // tail-first with platform-specific size; no force, no incremental,
+          // no resume — missed events during SSE drops are recovered only by
+          // the user scrolling up or leaving+re-entering the route.
           const directory = sdk.directory
           const client = sdk.client
           const [store, setStore] = globalSync.child(directory)
           const key = keyFor(directory, sessionID)
-          const forceInput = !!options?.force
           const hasSession = (() => {
             const match = Binary.search(store.session, sessionID, (s) => s.id)
             return match.found
           })()
           const hasMessages = store.message[sessionID] !== undefined
           const hydrated = meta.limit[key] !== undefined
-          // mobile-hotfix (2026-04-24): use-session-resume-sync dispatches
-          // force:true on every visibility change / pageshow / online /
-          // SSE reconnect. On mobile Safari these events fire rapidly
-          // (address bar toggle, foreground/background). Each one was
-          // retriggering loadMessages full-tail download + re-render,
-          // stacking up until the browser killed the tab with "unable to
-          // open this page". While the session is already hydrated we
-          // keep force-mode only for metadata freshness and let the
-          // incremental message path handle the rest — never the full
-          // tail refetch that was crashing the tab.
-          const force = forceInput && !(hasSession && hasMessages && hydrated)
-          sendSessionReloadDebugBeacon({
-            sdk,
-            event: "session.sync:start",
-            sessionID,
-            payload: {
-              directory,
-              force,
-              hasSession,
-              hasMessages,
-              hydrated,
-            },
-          })
-          if (!force && hasSession && hasMessages && hydrated) return
-          const count = store.message[sessionID]?.length ?? 0
+          if (hasSession && hasMessages && hydrated) return
 
-          // specs/frontend-session-lazyload R6: first-time hydration with
-          // flag=1 fetches /meta to pick a tighter initial page size. Flag=0
-          // takes the legacy limitFor() path unchanged (INV-2).
-          let limit: number
-          if (hydrated) {
-            limit = meta.limit[key] ?? messagePageSize
-          } else if (frontendTweaks().frontend_session_lazyload === 1) {
-            const metaInfo = await fetchSessionMeta(directory, sessionID)
-            if (metaInfo) {
-              setMeta("partCount", key, metaInfo.partCount)
-              const bucket = pageSizeFor(metaInfo.partCount)
-              limit = bucket === "all" ? Math.max(messagePageSize, metaInfo.partCount + 1) : bucket
-            } else {
-              limit = limitFor(count)
-            }
-          } else {
-            limit = limitFor(count)
-          }
+          // Tail size: platform-aware with tweak fallback.
+          const tweaks = frontendTweaks()
+          const limit = isMobile()
+            ? tweaks.session_tail_mobile
+            : tweaks.session_tail_desktop
 
-          const sessionReq =
-            hasSession && !force
-              ? Promise.resolve()
-              : retry(() => client.session.get({ directory, sessionID })).then((session) => {
-                  const data = session.data
-                  sendSessionReloadDebugBeacon({
-                    sdk,
-                    event: "session.sync:get",
-                    sessionID,
-                    payload: {
-                      directory,
-                      found: !!data,
-                      resolvedDirectory: data?.directory,
-                    },
-                  })
-                  if (!data) return
-                  setStore(
-                    "session",
-                    produce((draft) => {
-                      const match = Binary.search(draft, sessionID, (s) => s.id)
-                      if (match.found) {
-                        draft[match.index] = data
-                        return
-                      }
-                      draft.splice(match.index, 0, data)
-                    }),
-                  )
-                })
-
-          // Incremental resync: when force-refreshing a session we already
-          // have hydrated, fetch only new messages (tail) instead of
-          // re-downloading the whole history. Full loadMessages races
-          // against in-flight streaming replies — the point-in-time GET
-          // snapshot can predate the still-being-written assistant message
-          // and reconcile-wipe its partial parts from the store. The
-          // incremental path merges new messages only, leaving the streaming
-          // one untouched so SSE deltas keep flowing into it.
-          const canUseIncremental = force && hasSession && hasMessages && hydrated
-          const messagesReq = canUseIncremental
-            ? loadMessagesIncremental({
-                directory,
-                client,
-                setStore,
-                store,
-                sessionID,
-              }).catch(() => {
-                // Incremental fetch failed — fall back to full refetch so
-                // the user doesn't end up with a missed reply just because
-                // the incremental endpoint hiccuped.
-                return loadMessages({ directory, client, setStore, sessionID, limit })
+          const sessionReq = hasSession
+            ? Promise.resolve()
+            : retry(() => client.session.get({ directory, sessionID })).then((session) => {
+                const data = session.data
+                if (!data) return
+                setStore(
+                  "session",
+                  produce((draft) => {
+                    const match = Binary.search(draft, sessionID, (s) => s.id)
+                    if (match.found) {
+                      draft[match.index] = data
+                      return
+                    }
+                    draft.splice(match.index, 0, data)
+                  }),
+                )
               })
-            : hasMessages && hydrated && !force
-              ? Promise.resolve()
-              : loadMessages({
-                  directory,
-                  client,
-                  setStore,
-                  sessionID,
-                  limit,
-                })
 
-          return runInflight(inflight, key, () =>
-            Promise.all([sessionReq, messagesReq])
-              .then(() => {
-                sendSessionReloadDebugBeacon({
-                  sdk,
-                  event: "session.sync:done",
-                  sessionID,
-                  payload: {
-                    directory,
-                  },
-                })
-              })
-              .catch((error) => {
-                sendSessionReloadDebugBeacon({
-                  sdk,
-                  event: "session.sync:error",
-                  sessionID,
-                  payload: {
-                    directory,
-                    error: error instanceof Error ? error.message : String(error),
-                  },
-                })
-                throw error
-              }),
-          )
+          const messagesReq = hasMessages && hydrated
+            ? Promise.resolve()
+            : loadMessages({ directory, client, setStore, sessionID, limit })
+
+          return runInflight(inflight, key, () => Promise.all([sessionReq, messagesReq]).then(() => void 0))
         },
         async diff(sessionID: string, options?: { force?: boolean; messageID?: string }) {
           const directory = sdk.directory
@@ -755,7 +608,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
                 setStore,
                 store,
                 sessionID,
-                beforeMessageID: oldest,
+                before: oldest,
                 limit: count,
               })
               // R9: `complete` is now driven by the server returning an
