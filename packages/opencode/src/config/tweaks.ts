@@ -48,10 +48,8 @@ export namespace Tweaks {
     initialPageSizeLarge: number
     sessionSizeThresholdKb: number
     sessionSizeThresholdParts: number
-    // R9 (frontend-session-lazyload revise 2026-04-22): default page size
-    // for `GET /:sessionID/message` when the client sends neither `limit`
-    // nor `beforeMessageID`. Makes "tail first" the server-side default
-    // for cold opens, so a long session doesn't full-hydrate on first
+    // Default `limit` for GET /:sessionID/message when the client omits it.
+    // Bounds cold-open payload so long sessions don't full-hydrate on first
     // paint.
     sessionMessagesDefaultTail: number
   }
@@ -78,18 +76,6 @@ export namespace Tweaks {
    */
   export interface CodexRotationConfig {
     lowQuotaThresholdPercent: number
-  }
-
-  /**
-   * R8 (specs/frontend-session-lazyload revise 2026-04-22):
-   * bounded SSE reconnect replay window. Defaults sized so a typical
-   * short-flap reconnect replays ≤100 recent events (was: full 1000-event
-   * ring buffer sequentially — the root cause of daemon event-loop
-   * starvation observed 2026-04-22).
-   */
-  export interface SseReplayConfig {
-    maxEvents: number
-    maxAgeSec: number
   }
 
   /**
@@ -140,7 +126,6 @@ export namespace Tweaks {
     frontendLazyload: FrontendLazyloadConfig
     sessionUiFreshness: SessionUiFreshnessConfig
     codexRotation: CodexRotationConfig
-    sseReplay: SseReplayConfig
     partPersistence: PartPersistenceConfig
     subagent: SubagentConfig
     source: { path: string; present: boolean }
@@ -179,11 +164,6 @@ export namespace Tweaks {
 
   const CODEX_ROTATION_DEFAULTS: CodexRotationConfig = {
     lowQuotaThresholdPercent: 10,
-  }
-
-  const SSE_REPLAY_DEFAULTS: SseReplayConfig = {
-    maxEvents: 100,
-    maxAgeSec: 60,
   }
 
   const SUBAGENT_DEFAULTS: SubagentConfig = {
@@ -278,8 +258,6 @@ export namespace Tweaks {
     "ui_freshness_threshold_sec",
     "ui_freshness_hard_timeout_sec",
     "codex_rotation_low_quota_percent",
-    "sse_reconnect_replay_max_events",
-    "sse_reconnect_replay_max_age_sec",
     "session_messages_default_tail",
     "part_persist_debounce_ms",
     "part_max_bytes",
@@ -338,7 +316,6 @@ export namespace Tweaks {
           frontendLazyload: FRONTEND_LAZYLOAD_DEFAULTS,
           sessionUiFreshness: SESSION_UI_FRESHNESS_DEFAULTS,
           codexRotation: CODEX_ROTATION_DEFAULTS,
-          sseReplay: SSE_REPLAY_DEFAULTS,
           partPersistence: PART_PERSISTENCE_DEFAULTS,
           subagent: SUBAGENT_DEFAULTS,
         },
@@ -349,7 +326,6 @@ export namespace Tweaks {
         frontendLazyload: { ...FRONTEND_LAZYLOAD_DEFAULTS },
         sessionUiFreshness: { ...SESSION_UI_FRESHNESS_DEFAULTS },
         codexRotation: { ...CODEX_ROTATION_DEFAULTS },
-        sseReplay: { ...SSE_REPLAY_DEFAULTS },
         partPersistence: { ...PART_PERSISTENCE_DEFAULTS },
         subagent: { ...SUBAGENT_DEFAULTS },
         source: { path: cfgPath, present: false },
@@ -529,22 +505,9 @@ export namespace Tweaks {
       if (v !== undefined) subagent.quotaLowRedLinePercent = v
     }
 
-    const sseReplay: SseReplayConfig = { ...SSE_REPLAY_DEFAULTS }
-
-    const sseMaxEventsRaw = parsed.get("sse_reconnect_replay_max_events")
-    if (sseMaxEventsRaw !== undefined) {
-      const v = parseIntRange(sseMaxEventsRaw, "sse_reconnect_replay_max_events", 10, 1000)
-      if (v !== undefined) sseReplay.maxEvents = v
-    }
-    const sseMaxAgeRaw = parsed.get("sse_reconnect_replay_max_age_sec")
-    if (sseMaxAgeRaw !== undefined) {
-      const v = parseIntRange(sseMaxAgeRaw, "sse_reconnect_replay_max_age_sec", 5, 600)
-      if (v !== undefined) sseReplay.maxAgeSec = v
-    }
-
     log.info("tweaks.cfg loaded", {
       path: cfgPath,
-      effective: { sessionCache, rateLimit, frontendLazyload, sessionUiFreshness, codexRotation, sseReplay, partPersistence, subagent },
+      effective: { sessionCache, rateLimit, frontendLazyload, sessionUiFreshness, codexRotation, partPersistence, subagent },
     })
     return {
       sessionCache,
@@ -552,7 +515,6 @@ export namespace Tweaks {
       frontendLazyload,
       sessionUiFreshness,
       codexRotation,
-      sseReplay,
       partPersistence,
       subagent,
       source: { path: cfgPath, present: true },
@@ -583,10 +545,6 @@ export namespace Tweaks {
 
   export async function codexRotation(): Promise<CodexRotationConfig> {
     return (await effective()).codexRotation
-  }
-
-  export async function sseReplay(): Promise<SseReplayConfig> {
-    return (await effective()).sseReplay
   }
 
   export async function partPersistence(): Promise<PartPersistenceConfig> {

@@ -1745,21 +1745,13 @@ export const SessionRoutes = lazy(() =>
       validator(
         "query",
         z.object({
+          // Tail size. Required in canonical usage; when omitted falls back
+          // to `session_messages_default_tail` so older callers still work
+          // without spraying an unbounded response.
           limit: z.coerce.number().optional(),
-          // Wall-clock ms — incremental tail fetch. Only return messages
-          // whose time.created >= since. Designed for SSE-reconnect resync
-          // so a client coming back from a long outage can catch up on new
-          // messages without re-downloading the whole history. When set, we
-          // skip SessionCache and ETag/304 (the response is a targeted tail,
-          // not the full session snapshot the cache layer represents).
-          since: z.coerce.number().optional(),
-          // R9 (specs/frontend-session-lazyload revise 2026-04-22): cursor
-          // for older-history append. When set, return messages strictly
-          // older than this id. Combined with a small default `limit`
-          // (`session_messages_default_tail`) this makes "tail first,
-          // older on scroll" the default server protocol — cold open no
-          // longer full-hydrates a 1000-message session.
-          beforeMessageID: z.string().optional(),
+          // Cursor for older-history append. When set, return `limit`
+          // messages strictly older than this id, chronological.
+          before: z.string().optional(),
         }),
       ),
       async (c) => {
@@ -1769,15 +1761,13 @@ export const SessionRoutes = lazy(() =>
         log.debug("session.messages request", {
           sessionID,
           limit: query.limit,
-          since: query.since,
-          beforeMessageID: query.beforeMessageID,
+          before: query.before,
           username: username ?? "local",
         })
         sessionRouteDebug("session.messages request", {
           sessionID,
           limit: query.limit,
-          since: query.since,
-          beforeMessageID: query.beforeMessageID,
+          before: query.before,
           username: username ?? "local",
         })
         if (username && UserDaemonManager.routeSessionReadEnabled()) {
@@ -1786,8 +1776,7 @@ export const SessionRoutes = lazy(() =>
             sessionID,
             {
               limit: query.limit,
-              since: query.since,
-              beforeMessageID: query.beforeMessageID,
+              before: query.before,
             },
           )
           if (response.ok && Array.isArray(response.data)) return c.json(response.data)
@@ -1799,56 +1788,22 @@ export const SessionRoutes = lazy(() =>
             503,
           )
         }
-        // Incremental path — bypass cache + ETag; return just the tail.
-        if (query.since !== undefined) {
-          const tail = await Session.messages({
-            sessionID,
-            limit: query.limit,
-            since: query.since,
-            beforeMessageID: query.beforeMessageID,
-          })
-          sessionRouteDebug("session.messages incremental response", {
-            sessionID,
-            count: tail.length,
-            since: query.since,
-            limit: query.limit,
-          })
-          log.debug("session.messages incremental response", {
-            sessionID,
-            count: tail.length,
-            since: query.since,
-            limit: query.limit,
-          })
-          // No ETag header here — the response is a derived slice, not the
-          // full session snapshot the session-level version counter tracks.
-          return c.json(tail)
-        }
 
-        // R9: server-side tail-first default. When the client sent neither
-        // `limit` nor `beforeMessageID`, fall back to the tweak-controlled
-        // tail size so cold open bounds its payload. Old callers that
-        // pass an explicit `limit` keep previous behaviour. Cursor path
-        // always uses the caller's limit or the same default.
         const lazyloadCfg = await Tweaks.frontendLazyload()
         const defaultTail = lazyloadCfg.sessionMessagesDefaultTail
         const effectiveLimit = query.limit ?? defaultTail
 
-        // Cursor (beforeMessageID) short-circuits ETag/304 — response is a
-        // derived slice keyed on a specific position, not the full session
-        // snapshot the session-level version counter tracks.
-        if (query.beforeMessageID !== undefined) {
+        // Cursor path — derived slice, no ETag/cache.
+        if (query.before !== undefined) {
           const page = await Session.messages({
             sessionID,
             limit: effectiveLimit,
-            beforeMessageID: query.beforeMessageID,
+            before: query.before,
           })
-          console.error(
-            `[MESSAGES-CURSOR] sessionID=${sessionID} before=${query.beforeMessageID} limit=${effectiveLimit} returned=${page.length}`,
-          )
           return c.json(page)
         }
 
-        // Conditional GET short-circuit for tail listing. See R-2.
+        // Tail path — ETag-cached.
         const etag = SessionCache.currentEtag(sessionID)
         const ifNoneMatch = c.req.header("if-none-match")
         if (SessionCache.isEtagMatch(sessionID, ifNoneMatch)) {
@@ -1856,17 +1811,11 @@ export const SessionRoutes = lazy(() =>
           return c.body(null, 304)
         }
 
-        // R9: cache key incorporates the `before` position so cursor pages
-        // never collide with the cold-open tail cache. Cold open (no
-        // cursor) keys on "tail".
         const cacheKey = `messages:${sessionID}:tail:${effectiveLimit}`
         const { data: messages } = await SessionCache.get(cacheKey, sessionID, async () => {
           const data = await Session.messages({ sessionID, limit: effectiveLimit })
           return { data, version: SessionCache.getVersion(sessionID) }
         })
-        console.error(
-          `[MESSAGES-CURSOR] sessionID=${sessionID} before=null limit=${effectiveLimit} returned=${messages.length}`,
-        )
         sessionRouteDebug("session.messages response", {
           sessionID,
           count: messages.length,

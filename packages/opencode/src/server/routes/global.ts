@@ -51,136 +51,16 @@ function applyProxyFriendlySSEHeaders(c: { header: (name: string, value: string)
 
 export const GlobalDisposedEvent = BusEvent.define("global.disposed", z.object({}))
 
-// @event_20260319_daemonization Phase ζ — SSE Event ID + Catch-up ring buffer
-// R8 (specs/frontend-session-lazyload revise 2026-04-22): entries carry
-// receivedAt to support bounded replay age window.
-const SSE_BUFFER_MAX = 1000
+// SSE is live-only: no ring buffer, no Last-Event-ID resume, no bounded
+// replay. Missed events during drops are lost — clients recover by
+// re-entering the route (tail-first hydrate). Counter is retained only to
+// stamp outgoing frames with a monotonic id for debug correlation.
 let _sseCounter = 0
 let _sseConnectionCount = 0
-
-export interface SseBufferEntry {
-  id: number
-  event: unknown
-  receivedAt: number
-}
-
-const _sseBuffer: SseBufferEntry[] = []
 
 function sseNextId(): number {
   return ++_sseCounter
 }
-
-function ssePush(event: unknown): number {
-  const id = sseNextId()
-  _sseBuffer.push({ id, event, receivedAt: Date.now() })
-  if (_sseBuffer.length > SSE_BUFFER_MAX) _sseBuffer.shift()
-  return id
-}
-
-/**
- * Returns events since `lastId`, or null if lastId is older than our buffer.
- * null → client must do full sync.
- */
-function sseGetSince(lastId: number): SseBufferEntry[] | null {
-  if (_sseBuffer.length === 0) return []
-  const oldest = _sseBuffer[0].id
-  if (lastId < oldest - 1) return null // buffer overflow, full resync needed
-  return _sseBuffer.filter((e) => e.id > lastId)
-}
-
-/**
- * R8 bounded replay. Wraps `sseGetSince` and clips the result by two
- * windows:
- *   - maxEvents: keep only the tail N entries
- *   - maxAgeMs:  drop entries older than now-maxAgeMs
- *
- * Returns a decision tuple the handshake uses to decide whether to
- * prefix a `sync.required` synthesising event before replaying the
- * retained tail.
- *
- * `events === null` means the ring buffer has shifted past `lastId`;
- * callers MUST send a `sync.required` event and then no replay.
- *
- * Pure — does not mutate the buffer — so it's unit-testable.
- */
-export type ReplayWindowResult = {
-  events: SseBufferEntry[] | null
-  droppedCount: number
-  droppedBoundary: "count" | "age" | null
-}
-
-/**
- * Pure window-clipping helper split out for unit testing. Takes the
- * already-filtered (lastId+1.. latest) entries and applies age + count
- * windows. Returns null events if caller signals buffer-overflow.
- */
-export function clipReplayWindow(
-  raw: SseBufferEntry[] | null,
-  maxEvents: number,
-  maxAgeMs: number,
-  now: number,
-): ReplayWindowResult {
-  if (raw === null) {
-    return { events: null, droppedCount: -1, droppedBoundary: "count" }
-  }
-  if (raw.length === 0) {
-    return { events: [], droppedCount: 0, droppedBoundary: null }
-  }
-
-  // Age window first — drop entries older than cutoff, then count window
-  // clips the remaining tail. Order matters for the boundary label:
-  // count overrides age when both fire (count is stricter in practice).
-  const ageCutoff = now - maxAgeMs
-  const freshByAge = raw.filter((e) => e.receivedAt >= ageCutoff)
-  const ageDropped = raw.length - freshByAge.length
-
-  let finalEvents = freshByAge
-  let countDropped = 0
-  if (freshByAge.length > maxEvents) {
-    countDropped = freshByAge.length - maxEvents
-    finalEvents = freshByAge.slice(freshByAge.length - maxEvents)
-  }
-
-  const droppedCount = ageDropped + countDropped
-  let droppedBoundary: "count" | "age" | null = null
-  if (countDropped > 0) droppedBoundary = "count"
-  else if (ageDropped > 0) droppedBoundary = "age"
-
-  return { events: finalEvents, droppedCount, droppedBoundary }
-}
-
-export function sseGetBoundedSince(
-  lastId: number,
-  maxEvents: number,
-  maxAgeMs: number,
-  now: number,
-): ReplayWindowResult {
-  return clipReplayWindow(sseGetSince(lastId), maxEvents, maxAgeMs, now)
-}
-
-/**
- * R8 handshake plan: turn a `ReplayWindowResult` into the exact sequence
- * of SSE frames the handshake emits. Extracted so both the handshake and
- * the integration test can consume the same decision logic.
- *
- * Contract: for any input, `plan.eventsToSend.length + (plan.prefixSyncRequired ? 1 : 0)`
- * is the total number of `await stream.writeSSE` calls the handshake makes,
- * and this is bounded by `maxEvents + 1`.
- */
-export function buildHandshakeReplayPlan(windowResult: ReplayWindowResult): {
-  prefixSyncRequired: boolean
-  eventsToSend: SseBufferEntry[]
-} {
-  if (windowResult.events === null) {
-    return { prefixSyncRequired: true, eventsToSend: [] }
-  }
-  return {
-    prefixSyncRequired: windowResult.droppedCount > 0,
-    eventsToSend: windowResult.events,
-  }
-}
-
-const SyncRequiredEvent = BusEvent.define("sync.required", z.object({}))
 
 export const GlobalRoutes = lazy(() =>
   new Hono()
@@ -417,63 +297,19 @@ export const GlobalRoutes = lazy(() =>
         log.info("global event connected")
         applyProxyFriendlySSEHeaders(c)
 
-        // @event_20260319_daemonization Phase ζ.4 — parse Last-Event-ID for catch-up
-        const lastEventIdHeader = c.req.header("last-event-id") ?? c.req.header("Last-Event-ID")
-        const lastEventId = lastEventIdHeader ? parseInt(lastEventIdHeader, 10) : undefined
-
-        // R8 (specs/frontend-session-lazyload revise 2026-04-22): bounded
-        // replay. Fetch tweaks ONCE before entering streamSSE so the window
-        // parameters are fixed for this handshake; avoids the handshake
-        // itself racing with a config reload.
-        const sseReplayCfg = await Tweaks.sseReplay()
-
         return streamSSE(c, async (stream) => {
-          // ζ.5 + R8: replay missed events under bounded windows or request full sync
-          if (lastEventId !== undefined && !isNaN(lastEventId)) {
-            const windowResult = sseGetBoundedSince(
-              lastEventId,
-              sseReplayCfg.maxEvents,
-              sseReplayCfg.maxAgeSec * 1000,
-              Date.now(),
-            )
-            const plan = buildHandshakeReplayPlan(windowResult)
+          const connectedId = sseNextId()
+          await stream.writeSSE({
+            id: String(connectedId),
+            data: JSON.stringify({
+              payload: { type: "server.connected", properties: {} },
+            }),
+          })
 
-            if (plan.prefixSyncRequired) {
-              const id = sseNextId()
-              await stream.writeSSE({
-                id: String(id),
-                data: JSON.stringify({ payload: { type: SyncRequiredEvent.type, properties: {} } }),
-              })
-            }
-            for (const entry of plan.eventsToSend) {
-              await stream.writeSSE({
-                id: String(entry.id),
-                data: JSON.stringify(entry.event),
-              })
-            }
-
-            const bufferOverflow = windowResult.events === null
-            console.error(
-              `[SSE-REPLAY] lastId=${lastEventId} returned=${plan.eventsToSend.length} dropped=${
-                bufferOverflow ? "all" : windowResult.droppedCount
-              } boundary=${windowResult.droppedBoundary ?? "none"}`,
-            )
-          } else {
-            // ζ.5c: no Last-Event-ID — send connected event
-            const connId = sseNextId()
-            await stream.writeSSE({
-              id: String(connId),
-              data: JSON.stringify({
-                payload: { type: "server.connected", properties: {} },
-              }),
-            })
-          }
-
-          // Instrumentation: track SSE payload sizes for delta effectiveness
           const _sseMetrics = { partUpdates: 0, totalBytes: 0 }
 
           async function handler(event: unknown) {
-            const id = ssePush(event)
+            const id = sseNextId()
             const data = JSON.stringify(event)
 
             // [DELTA-SSE] instrumentation: measure message.part.updated event sizes
@@ -800,35 +636,6 @@ export const GlobalRoutes = lazy(() =>
           fallbackReloadAfterMs,
           recoveryDeadlineMs,
         })
-      },
-    )
-    .post(
-      "/debug/reload-beacon",
-      describeRoute({
-        summary: "Client reload-cause beacon (mobile diagnostic)",
-        description:
-          "Client frontend posts this just before doing a location.reload() so we can see the trigger path in daemon debug.log. No schema enforcement — beacon is best-effort and may arrive with any shape.",
-        operationId: "global.debug.reloadBeacon",
-        responses: {
-          204: { description: "recorded" },
-        },
-      }),
-      async (c) => {
-        try {
-          const body = await c.req.json()
-          Log.create({ service: "frontend.reload" }).warn("client-side reload beacon", {
-            cause: body?.cause,
-            detail: typeof body?.detail === "string" ? body.detail.slice(0, 400) : body?.detail,
-            href: body?.href,
-            ua: body?.ua,
-            at: body?.at,
-          })
-        } catch (e) {
-          Log.create({ service: "frontend.reload" }).warn("reload beacon parse failed", {
-            error: e instanceof Error ? e.message : String(e),
-          })
-        }
-        return c.body(null, 204)
       },
     )
     .post(
