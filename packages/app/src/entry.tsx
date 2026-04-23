@@ -104,7 +104,32 @@ const installDynamicImportRecovery = () => {
     return /Failed to fetch dynamically imported module/i.test(message)
   }
 
-  const recover = () => {
+  // mobile reload diagnostic (2026-04-24): beacon the trigger path so we
+  // can see in daemon log what causes the client-side reload loop. Fires
+  // BEFORE the reload so the server captures the event even if the page
+  // unmount kills subsequent sends.
+  const beaconReloadCause = (cause: string, detail: unknown) => {
+    try {
+      const payload = {
+        cause,
+        detail: typeof detail === "string" ? detail.slice(0, 400) : (() => {
+          try { return JSON.stringify(detail).slice(0, 400) } catch { return String(detail).slice(0, 400) }
+        })(),
+        href: window.location.href.slice(0, 200),
+        ua: navigator.userAgent.slice(0, 200),
+        at: new Date().toISOString(),
+      }
+      // sendBeacon survives page unload
+      const body = JSON.stringify(payload)
+      const blob = new Blob([body], { type: "application/json" })
+      navigator.sendBeacon?.("/api/v2/global/debug/reload-beacon", blob)
+    } catch {
+      // diagnostic best-effort; never block reload
+    }
+  }
+
+  const recover = (cause: string, detail: unknown) => {
+    beaconReloadCause(cause, detail)
     const now = Date.now()
     const last = Number(localStorage.getItem(DYNAMIC_IMPORT_RETRY_KEY) ?? "0")
     // Prevent infinite hard-reload loop on persistent outage
@@ -113,14 +138,14 @@ const installDynamicImportRecovery = () => {
     window.location.reload()
   }
 
-  window.addEventListener("vite:preloadError", () => {
-    recover()
+  window.addEventListener("vite:preloadError", (event) => {
+    recover("vite:preloadError", (event as any)?.payload ?? (event as any)?.target?.src ?? "unknown")
   })
 
   window.addEventListener("unhandledrejection", (event) => {
     if (!shouldRecover(event.reason)) return
     event.preventDefault()
-    recover()
+    recover("unhandledrejection", event.reason)
   })
 }
 

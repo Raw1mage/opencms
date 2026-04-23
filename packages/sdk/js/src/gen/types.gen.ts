@@ -38,10 +38,9 @@ export type EventLspUpdated = {
 
 export type FileDiff = {
   file: string
-  before: string
-  after: string
   additions: number
   deletions: number
+  status?: "added" | "deleted" | "modified"
 }
 
 export type UserMessage = {

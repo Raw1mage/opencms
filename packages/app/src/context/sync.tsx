@@ -481,13 +481,24 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           const client = sdk.client
           const [store, setStore] = globalSync.child(directory)
           const key = keyFor(directory, sessionID)
-          const force = !!options?.force
+          const forceInput = !!options?.force
           const hasSession = (() => {
             const match = Binary.search(store.session, sessionID, (s) => s.id)
             return match.found
           })()
           const hasMessages = store.message[sessionID] !== undefined
           const hydrated = meta.limit[key] !== undefined
+          // mobile-hotfix (2026-04-24): use-session-resume-sync dispatches
+          // force:true on every visibility change / pageshow / online /
+          // SSE reconnect. On mobile Safari these events fire rapidly
+          // (address bar toggle, foreground/background). Each one was
+          // retriggering loadMessages full-tail download + re-render,
+          // stacking up until the browser killed the tab with "unable to
+          // open this page". While the session is already hydrated we
+          // keep force-mode only for metadata freshness and let the
+          // incremental message path handle the rest — never the full
+          // tail refetch that was crashing the tab.
+          const force = forceInput && !(hasSession && hasMessages && hydrated)
           sendSessionReloadDebugBeacon({
             sdk,
             event: "session.sync:start",
