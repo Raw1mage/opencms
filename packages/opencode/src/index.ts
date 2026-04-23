@@ -32,6 +32,7 @@ import { PrCommand } from "./cli/cmd/pr"
 import { SessionCommand } from "./cli/cmd/session"
 import { AdminCommand } from "./cli/cmd/admin"
 import { KillSwitchCommand } from "./cli/cmd/killswitch"
+import { MigrateStripDiffsCommand } from "./cli/cmd/maintenance/migrate-strip-diffs"
 import { debugCheckpoint } from "./util/debug"
 import { ProcessSupervisor } from "./process/supervisor"
 import { registerDebugWriter } from "./bus/subscribers/debug-writer"
@@ -139,6 +140,7 @@ const cli = yargs(hideBin(process.argv))
   .command(SessionCommand)
   .command(AdminCommand)
   .command(KillSwitchCommand)
+  .command(MigrateStripDiffsCommand)
   .fail((msg, err) => {
     if (
       msg?.startsWith("Unknown argument") ||

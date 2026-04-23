@@ -59,6 +59,21 @@ function collectExplicitTouchedFiles(messages: MessageV2.WithParts[], directory:
   return explicitTouched
 }
 
+// mobile-session-restructure (2026-04-23): the previous schema stored
+// full before/after file bodies on every diff entry; this let
+// computeOwnedSessionDirtyDiff do a content-equality check
+// `latest.after === current.after` to filter out files the user had
+// stomped beyond the AI's intent.
+//
+// Per the spec we drop those bodies entirely. The remaining filter
+// uses status alone (added/deleted/modified match). False-positives
+// from user override are accepted as a minor behavioural drift; the
+// owned-diff surface still answers "what files did the AI touch that
+// are still dirty". If precise override detection is later needed, a
+// follow-up spec can add a targeted git-show comparison against the
+// per-turn snapshot commit; we are deliberately not preserving the
+// mistake to simulate that here.
+
 function latestSummaryDiffByFile(messages: MessageV2.WithParts[]) {
   const latestByFile = new Map<string, Snapshot.FileDiff>()
   for (const message of messages) {
@@ -67,8 +82,6 @@ function latestSummaryDiffByFile(messages: MessageV2.WithParts[]) {
       latestByFile.set(normalizePath(diff.file), {
         ...diff,
         file: normalizePath(diff.file),
-        before: normalizeBody(diff.before),
-        after: normalizeBody(diff.after),
       })
     }
   }
@@ -92,9 +105,7 @@ export function computeOwnedSessionDirtyDiff(currentDiffs: Snapshot.FileDiff[], 
     if (!explicitTouched.has(file)) return false
     const latest = latestByFile.get(file)
     if (!latest) return false
-    const sameStatus = (latest.status ?? "modified") === (diff.status ?? "modified")
-    if (!sameStatus) return false
-    return latest.after === normalizeBody(diff.after)
+    return (latest.status ?? "modified") === (diff.status ?? "modified")
   })
 }
 
@@ -130,8 +141,6 @@ export async function getSessionOwnedDirtyDiff(input: { sessionID: string }) {
   return computeOwnedSessionDirtyDiff(
     currentDiffs.map((diff) => ({
       file: normalizePath(diff.path),
-      before: normalizeBody(diff.before),
-      after: normalizeBody(diff.after),
       additions: diff.added,
       deletions: diff.removed,
       status: diff.status,

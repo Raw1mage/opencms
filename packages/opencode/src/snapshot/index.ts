@@ -188,11 +188,15 @@ export namespace Snapshot {
     return result.text().trim()
   }
 
+  // mobile-session-restructure (2026-04-23): before/after removed.
+  // The git snapshot repo is the authoritative source of file
+  // content history; duplicating bodies here was pure waste
+  // (~90% of session storage). Power users who want to see old-
+  // vs-new content run git directly against the snapshot repo.
+  // See /specs/mobile-session-restructure/.
   export const FileDiff = z
     .object({
       file: z.string(),
-      before: z.string(),
-      after: z.string(),
       additions: z.number(),
       deletions: z.number(),
       status: z.enum(["added", "deleted", "modified"]).optional(),
@@ -221,6 +225,9 @@ export namespace Snapshot {
       status.set(file, kind)
     }
 
+    // mobile-session-restructure: numstat alone gives everything
+    // the metadata-only schema needs. We no longer `git show` file
+    // bodies here — that was the source of the ~5.5 GB duplication.
     for await (const line of $`git ${gitCompatFlags} -c core.quotepath=false --git-dir ${git} --work-tree ${Instance.worktree} diff --no-ext-diff --no-renames --numstat ${from} ${to} -- .`
       .quiet()
       .cwd(Instance.directory)
@@ -229,24 +236,10 @@ export namespace Snapshot {
       if (!line) continue
       const [additions, deletions, file] = line.split("\t")
       const isBinaryFile = additions === "-" && deletions === "-"
-      const before = isBinaryFile
-        ? ""
-        : await $`git ${gitCompatFlags} --git-dir ${git} --work-tree ${Instance.worktree} show ${from}:${file}`
-            .quiet()
-            .nothrow()
-            .text()
-      const after = isBinaryFile
-        ? ""
-        : await $`git ${gitCompatFlags} --git-dir ${git} --work-tree ${Instance.worktree} show ${to}:${file}`
-            .quiet()
-            .nothrow()
-            .text()
       const added = isBinaryFile ? 0 : parseInt(additions)
       const deleted = isBinaryFile ? 0 : parseInt(deletions)
       result.push({
         file,
-        before,
-        after,
         additions: Number.isFinite(added) ? added : 0,
         deletions: Number.isFinite(deleted) ? deleted : 0,
         status: status.get(file) ?? "modified",
