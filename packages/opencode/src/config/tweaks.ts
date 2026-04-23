@@ -52,6 +52,15 @@ export namespace Tweaks {
     // Bounds cold-open payload so long sessions don't full-hydrate on first
     // paint.
     sessionMessagesDefaultTail: number
+    // mobile-tail-first-simplification DD-1 / DD-4. Platform-specific
+    // tail-first limits + client store caps. The server exposes these
+    // via /config/tweaks/frontend so the client picks the right value
+    // for its platform at runtime.
+    sessionTailMobile: number
+    sessionTailDesktop: number
+    sessionStoreCapMobile: number
+    sessionStoreCapDesktop: number
+    sessionPartCapBytes: number
   }
 
   /**
@@ -154,6 +163,11 @@ export namespace Tweaks {
     sessionSizeThresholdKb: 512,
     sessionSizeThresholdParts: 80,
     sessionMessagesDefaultTail: 30,
+    sessionTailMobile: 30,
+    sessionTailDesktop: 200,
+    sessionStoreCapMobile: 200,
+    sessionStoreCapDesktop: 500,
+    sessionPartCapBytes: 512_000,
   }
 
   const SESSION_UI_FRESHNESS_DEFAULTS: SessionUiFreshnessConfig = {
@@ -259,6 +273,11 @@ export namespace Tweaks {
     "ui_freshness_hard_timeout_sec",
     "codex_rotation_low_quota_percent",
     "session_messages_default_tail",
+    "session_tail_mobile",
+    "session_tail_desktop",
+    "session_store_cap_mobile",
+    "session_store_cap_desktop",
+    "session_part_cap_bytes",
     "part_persist_debounce_ms",
     "part_max_bytes",
     "part_cancel_on_cap_trip",
@@ -429,6 +448,46 @@ export namespace Tweaks {
     if (defaultTailRaw !== undefined) {
       const v = parseIntRange(defaultTailRaw, "session_messages_default_tail", 5, 200)
       if (v !== undefined) frontendLazyload.sessionMessagesDefaultTail = v
+    }
+    const tailMobileRaw = parsed.get("session_tail_mobile")
+    if (tailMobileRaw !== undefined) {
+      const v = parseIntRange(tailMobileRaw, "session_tail_mobile", 5, 500)
+      if (v !== undefined) frontendLazyload.sessionTailMobile = v
+    }
+    const tailDesktopRaw = parsed.get("session_tail_desktop")
+    if (tailDesktopRaw !== undefined) {
+      const v = parseIntRange(tailDesktopRaw, "session_tail_desktop", 5, 2000)
+      if (v !== undefined) frontendLazyload.sessionTailDesktop = v
+    }
+    const capMobileRaw = parsed.get("session_store_cap_mobile")
+    if (capMobileRaw !== undefined) {
+      const v = parseIntRange(capMobileRaw, "session_store_cap_mobile", 30, 2000)
+      if (v !== undefined) frontendLazyload.sessionStoreCapMobile = v
+    }
+    const capDesktopRaw = parsed.get("session_store_cap_desktop")
+    if (capDesktopRaw !== undefined) {
+      const v = parseIntRange(capDesktopRaw, "session_store_cap_desktop", 50, 5000)
+      if (v !== undefined) frontendLazyload.sessionStoreCapDesktop = v
+    }
+    const partCapRaw = parsed.get("session_part_cap_bytes")
+    if (partCapRaw !== undefined) {
+      const v = parseIntRange(partCapRaw, "session_part_cap_bytes", 16_000, 16_000_000)
+      if (v !== undefined) frontendLazyload.sessionPartCapBytes = v
+    }
+    // mobile-tail-first-simplification invariant: tail <= cap for each platform.
+    if (frontendLazyload.sessionTailMobile > frontendLazyload.sessionStoreCapMobile) {
+      log.warn("session_tail_mobile exceeds session_store_cap_mobile, clamping tail to cap", {
+        tail: frontendLazyload.sessionTailMobile,
+        cap: frontendLazyload.sessionStoreCapMobile,
+      })
+      frontendLazyload.sessionTailMobile = frontendLazyload.sessionStoreCapMobile
+    }
+    if (frontendLazyload.sessionTailDesktop > frontendLazyload.sessionStoreCapDesktop) {
+      log.warn("session_tail_desktop exceeds session_store_cap_desktop, clamping tail to cap", {
+        tail: frontendLazyload.sessionTailDesktop,
+        cap: frontendLazyload.sessionStoreCapDesktop,
+      })
+      frontendLazyload.sessionTailDesktop = frontendLazyload.sessionStoreCapDesktop
     }
 
     // INV-7: tail_window_kb MUST NOT exceed part_inline_cap_kb.
