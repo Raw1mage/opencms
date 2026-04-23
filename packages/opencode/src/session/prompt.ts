@@ -111,7 +111,7 @@ function renderNoticeAddendum(n: MessageV2.PendingSubagentNotice): string {
     }
     tail.push(`directive=${n.rotateHint.directive}`)
   }
-  if (n.status === "cancelled" && n.cancelReason) {
+  if (n.status === "canceled" && n.cancelReason) {
     tail.push(`reason=${JSON.stringify(n.cancelReason)}`)
   }
   const tailStr = tail.length > 0 ? " " + tail.join(" ") : ""
