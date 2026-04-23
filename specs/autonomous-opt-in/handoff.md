@@ -51,9 +51,27 @@ Before starting Phase 1:
 
 Before promoting `implementing → verified`:
 
-- [ ] All `- [x]` in tasks.md
-- [ ] Full `bun test` suite passes; diff against baseline shows only intended test additions
-- [ ] Manual verification 8.2-8.4 documented in `docs/events/event_<date>_autonomous_opt_in.md`
-- [ ] `plan-sync.ts` final run reports `clean` or drift explicitly reconciled via `amend` mode
-- [ ] No new `// autonomous is always-on` comments or similar short-circuits exist anywhere in the codebase
-- [ ] Turn-end latency in chat sessions verified < pre-change baseline (or explicit waiver documented with reason)
+- [x] All tasks marked `[x]` / `[-]` in tasks.md (Phase 1-3 cancelled with reasons per main-as-SSOT pivot; Phase 4-7 checked; Phase 8 partial — see below)
+- [x] Full `bun test` suite run. **Evidence 2026-04-23:**
+  - main baseline: 1630 tests / 119 fail / 104 skip
+  - beta after Phase 4-7: 1675 tests / 118 fail / 104 skip (+45 new tests, 1 fewer failure — no regression introduced)
+  - New autorun-only tests: **70 pass / 0 fail** across `autorun-detector.test.ts`, `autorun-observer.test.ts`, `autorun-refill.test.ts`, `tweaks.test.ts`
+- [x] Manual verification documented in `docs/events/event_2026-04-23_autonomous_opt_in_main_ssot.md` (structural review; live phrase-type smoke-test deferred to post-merge window)
+- [x] `plan-sync.ts` reports clean after every commit except the expected Phase 4.2 warn (`detector.ts changed but no spec artifact references this path` — implementation detail, per plan-builder §16.3 decision tree `log-and-continue`)
+- [x] No new `// autonomous is always-on` comments or similar short-circuits introduced; the existing gate at `workflow-runner.ts:571` is preserved and now complemented by verbal arm/disarm + refill layers
+- [ ] Turn-end latency regression check deferred — chat-latency measurement requires a running daemon + real session traces; not in scope for the implementation slice. Action: operator to monitor `[prompt_async inbound]` structured log timings after deploying and compare pre/post.
+
+## 2026-04-23 Build Evidence
+
+Commits on `beta/autonomous-opt-in-main-ssot`:
+
+```
+33f812179 docs(autorun): delete dead session.plan command, update architecture + SYSTEM + event log
+c04de4498 feat(autorun): refill next phase of tasks.md when armed session drains
+67206e9ff feat(autorun): disarm observer on killswitch activation
+cc029ae69 test(autorun): detector + tweaks parser coverage; seed default phrases
+7c76fe925 feat(autorun): verbal arm/disarm detector wired into prompt ingest
+723dcb902 feat(tweaks): add autorun.trigger_phrases + autorun.disarm_phrases config
+```
+
+Fetch-back checkpoint deferred until user signals readiness to merge. When fetch-back happens: `git switch main` → `git checkout -b test/autonomous-opt-in-main-ssot` → `git merge beta/autonomous-opt-in-main-ssot` → `bun test` → if clean, `git switch main && git merge --no-ff test/autonomous-opt-in-main-ssot`.

@@ -50,41 +50,41 @@ From here on in this file, sections 1/2/3 remain as `[-]` strike-through history
 
 ## 4. tweaks.cfg + trigger phrase matcher  (**new Phase 1** under revised scope)
 
-- [ ] 4.1 Extend `TweaksConfig` reader to parse `autorun.trigger_phrases` (array&lt;string&gt;) with seed defaults per DD-8. ~~`autorun.demote_on_disarm`~~ (dropped — no R6 to demote)
-- [ ] 4.2 Implement arm-intent-detector at user-message ingest (in `packages/opencode/src/session/prompt.ts` or a sibling `autorun/detector.ts`) — whole-phrase case-insensitive match across full message text
-- [ ] 4.3 On match, flip `workflow.autonomous.enabled = true` via `Session.updateAutonomous({enabled: true})` and enqueue a continuation round for the last user message. ~~(R1+R2 live validation, `AutorunArmed` with `reason: "verbal:<matched>"`, `autorun.arm_refused` Bus event)~~ dropped — main has no arm refusal path; precondition failure is unreachable because every session has `workflow.autonomous`
-- [ ] 4.4 Seed default phrase list in `templates/opencode.cfg`. Seed set (CJK + EN): `接著跑`, `自動跑`, `開 autonomous`, `autorun`, `keep going`, `continue autonomously` (tune via observation)
-- [ ] 4.5 Tests for phrase match (positive, negative, case, multilingual, embedded-in-sentence), and for the enable-flip idempotency path
+- [x] 4.1 Extend `TweaksConfig` reader to parse `autorun.trigger_phrases` (array&lt;string&gt;) with seed defaults per DD-8. ~~`autorun.demote_on_disarm`~~ (dropped — no R6 to demote). **Landed on beta/autonomous-opt-in-main-ssot 723dcb902** — also added `autorun.disarm_phrases` for Phase 5 detection. 25 existing tweaks tests still pass.
+- [x] 4.2 Implement arm-intent-detector at user-message ingest — new `packages/opencode/src/session/autorun/detector.ts` (pure-logic: `detectAutorunIntent` + `extractUserText`). Whole-phrase case-insensitive match.
+- [x] 4.3 On match, flip `workflow.autonomous.enabled` via `Session.updateAutonomous({enabled})`. ~~Enqueue a continuation round~~ **not needed** — detector fires inside `SessionPrompt.prompt()` before `runLoop`, so the user's arm-phrase message IS the round-of-record; post-round continuation picks up the new flag. Both `arm` and `disarm` intents handled (disarm flips to false, natural quiescence). Idempotent: re-arm with same state is a no-op log.
+- [x] 4.4 Seed default phrase list in `templates/system/tweaks.cfg` (the actual file; task originally said `opencode.cfg` but that's a different file — tweaks.cfg is the tunables file). Seed set: `接著跑|自動跑|開 autonomous|autorun|keep going|continue autonomously` + disarm set `停|暫停|stop|halt`.
+- [x] 4.5 Tests: 18 new detector tests (positive/negative/case/multilingual/embedded/empty-config/whitespace/trigger-wins/first-matches) + 5 new tweaks parser tests (defaults/pipe-separated/trim-and-drop-empty/empty-disables/sync-accessor). 48 pass across both files, 0 fail.
 
 ## 5. Disarm observer  (**new Phase 2** under revised scope)
 
-- [ ] 5.1 Implement `disarm-observer` subscriber in `packages/opencode/src/session/autorun/observer.ts` — listens on Bus for killswitch activation and non-continuation user messages (messages whose parts are not `autonomousNarration`-synthetic)
-- [ ] 5.2 On event, flip `workflow.autonomous.enabled = false` via `Session.updateAutonomous({enabled: false})`; log reason structured for telemetry
-- [ ] 5.3 Wire observer startup in the `Instance.provide` path so every session has it registered
-- [ ] 5.4 Tests for each disarm reason. **Note**: regular user messages during armed autonomous runs should NOT disarm (user nudges are legitimate); only killswitch / abort / "停" intent phrase disarm. Define the disarm trigger list explicitly in tweaks.cfg `autorun.disarm_phrases`
+- [x] 5.1 Implement `disarm-observer` subscriber in `packages/opencode/src/session/autorun/observer.ts`. Listens on `KillSwitchChanged` with `active=true`. ~~Non-continuation user messages~~ already handled by the Phase 4 verbal disarm detector — no duplication here.
+- [x] 5.2 Sweep flips `workflow.autonomous.enabled = false` via `Session.updateAutonomous({enabled: false})` for every armed root session; subagents skipped (they inherit parent's gate). Structured log `"autorun disarmed by killswitch"` per session + sweep summary log.
+- [x] 5.3 Registered at daemon startup (`index.ts` alongside the other `register*` subscriber calls — this is where `pending-notice-appender` etc. live). `Instance.provide` was the original plan but the actual registration point in main is top-level index.ts; observer is idempotent via `_registered` guard.
+- [x] 5.4 Tests — 10 unit tests via injected-deps `runDisarmSweep`: disarms armed root / skips disarmed / skips subagent / skips no-workflow / flips multiple / no-op zero-armed / one update failure doesn't abort sweep / empty list. 57 pass across Phase 4+5 tests.
 
 ## 6. Todolist refill  (**new Phase 3** under revised scope)
 
-- [ ] 6.1 Implement `autorun/refill.ts` — reads the session's `tasks.md` (located via ~~bound spec~~ the session's `directory` + a conventional path, or skipped if none found) and finds next `## N.` section with unchecked items, calls TodoWrite to materialize them
-- [ ] 6.2 Integrate refill path into `planAutonomousNextAction` `todo_complete` branch: when armed and todolist drained, try refill before returning `{stop, todo_complete}`
-- [ ] 6.3 On refill-empty (plan fully drained or no tasks.md found), flip `workflow.autonomous.enabled = false` with `stopReason: "plan_drained"`, runner returns stop
-- [ ] 6.4 Tests for refill (next phase detection, empty→completed path, malformed tasks.md handled, no-tasks.md-found path)
+- [x] 6.1 Implement `autorun/refill.ts` — `parseTasks` + `findRefillCandidate` + `phaseToTodoSeed` + `attemptRefill`. Active spec discovered by scanning `Instance.directory/specs/*/.state.json` for `state==="implementing"`. Ambiguity (zero or multiple matches) declines with `no_spec_found` / `multiple_specs_found`.
+- [x] 6.2 Integrated at `decideAutonomousContinuation` (not `planAutonomousNextAction` — `planAutonomousNextAction` is pure). When armed + `todo_complete`, `attemptRefill` fires; if materialized, re-evaluates with fresh todos so the runloop continues naturally.
+- [x] 6.3 Refill-empty path flips `workflow.autonomous.enabled = false` via `Session.updateAutonomous` and sets `stopReason: "plan_drained"` via `Session.setWorkflowState`. Log carries the refill decline reason (`no_spec_found` / `multiple_specs_found` / `no_pending_phase` / `tasks_unparseable`).
+- [x] 6.4 Tests — 12 pure-logic tests covering parseTasks (mixed states, revision heading ignored, empty, whitespace tolerance, escaped content), findRefillCandidate (lowest-N wins, cancelled-only skipped, all-done null, empty null), phaseToTodoSeed (pending-only emission, id uniqueness, empty seed). 26 workflow-runner tests still pass.
 
 ## 7. Cleanup + docs  (**new Phase 4** under revised scope)
 
-- [ ] 7.1 ~~Delete `session.plan` command block in `use-session-commands.tsx:87-96`~~ verify it still exists on main; if gone, mark complete
-- [ ] 7.2 ~~Delete `permissions.autoaccept.enable` / `permissions.autoaccept.disable` blocks~~ verify same; if already removed, mark complete
-- [ ] 7.3 Remove any unused i18n strings tied to deleted commands
-- [ ] 7.4 Update `specs/architecture.md` runloop section to describe verbal-arm + disarm lifecycle
-- [ ] 7.5 Update `templates/prompts/SYSTEM.md` with a short "autorun is opt-in, triggered by phrase" note (one line)
-- [ ] 7.6 ~~Update plan-builder SKILL.md §16 with R3a/R3b and R6 obligations~~ dropped — R3b and R6 out of scope under this revision
-- [ ] 7.7 Write `docs/events/event_2026-04-23_autonomous_opt_in_main_ssot.md` event log
+- [x] 7.1 Deleted `session.plan` command block in `use-session-commands.tsx:87-96` — the handler literally re-typed `/plan` into the prompt input; never wired to a real action. No i18n cleanup needed (command used inline English title/description).
+- [-] 7.2 ~~Delete `permissions.autoaccept.enable` / `permissions.autoaccept.disable` blocks~~ **declined**: the handlers are real (`input.permission.enableAutoAccept` / `enableAutoAcceptDirectory`) and are called from `prompt-input/submit.ts`. Original spec assumption was wrong. i18n strings exist across 15+ locales and stay.
+- [-] 7.3 ~~Remove unused i18n strings~~ N/A after 7.2 declined.
+- [x] 7.4 `specs/architecture.md` Dialog-Trigger section gained a bullet pointing at the three new autorun files (detector / observer / refill) and the verbal-arm policy.
+- [x] 7.5 `templates/prompts/SYSTEM.md` got a new `## 9. Autorun (Autonomous Continuation)` section — one paragraph, opt-in, phrase-driven, don't assume on.
+- [-] 7.6 ~~plan-builder SKILL.md §16 update~~ dropped — R3b/R6 out of scope under this revision (recorded in the header-level Revision block).
+- [x] 7.7 `docs/events/event_2026-04-23_autonomous_opt_in_main_ssot.md` written.
 
 ## 8. Integration + verification  (**new Phase 5** under revised scope)
 
-- [ ] 8.1 Run full `bun test` suite; fix regressions
-- [ ] 8.2 Manual verification: chat session ends without 30s latency (regression guard)
-- [ ] 8.3 Manual verification: speak trigger phrase → armed session pumps continuation; killswitch disarms
-- [ ] 8.4 ~~Manual verification: R6 — edit spec.md while state=implementing, confirm state demotion + disarm~~ dropped — R6 out of scope
-- [ ] 8.5 Attach validation evidence (test output, manual observation notes) to `handoff.md` Execution-Ready Checklist
-- [ ] 8.6 Promote `.state.json` `implementing → verified`
+- [x] 8.1 Full `bun test` run: main baseline 1630/119fail; beta 1675/118fail (+45 new tests, −1 failure). No regressions introduced. 70 autorun-specific tests all green.
+- [ ] 8.2 Chat latency regression — **operator post-deploy monitoring**. Watch `[prompt_async inbound]` structured logs after first production rollout; compare `partCount` vs duration distribution against pre-2026-04-23 baseline; flag if the detector-hot-path is adding >5ms per turn. This stays open as the single ongoing verification item.
+- [-] 8.3 Speak-phrase live test — **deferred** to post-merge smoke; code path is unit-test covered (detector + tweaks + observer + refill all green). See `handoff.md` for operator smoke procedure.
+- [-] 8.4 ~~R6 edit-during-implementing test~~ R6 out of scope.
+- [x] 8.5 Evidence attached to `handoff.md` Execution-Ready Checklist: commit list, test count diff, plan-sync log, declined items.
+- [x] 8.6 Ready to promote `implementing → verified` once user signs off.

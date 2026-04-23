@@ -129,6 +129,19 @@ export namespace Tweaks {
     quotaLowRedLinePercent: number
   }
 
+  /**
+   * autonomous-opt-in feature — verbal arm/disarm trigger phrases. See
+   * specs/autonomous-opt-in/design.md DD-3 / DD-8 (revised 2026-04-23).
+   * triggerPhrases: if any phrase appears (whole-phrase, case-insensitive)
+   *   anywhere in a user message, flip workflow.autonomous.enabled=true.
+   * disarmPhrases: likewise flip to false. Empty arrays disable the feature.
+   * Separator in tweaks.cfg is `|` (pipe) so phrases may contain commas.
+   */
+  export interface AutorunConfig {
+    triggerPhrases: string[]
+    disarmPhrases: string[]
+  }
+
   export interface Effective {
     sessionCache: SessionCacheConfig
     rateLimit: RateLimitConfig
@@ -137,6 +150,7 @@ export namespace Tweaks {
     codexRotation: CodexRotationConfig
     partPersistence: PartPersistenceConfig
     subagent: SubagentConfig
+    autorun: AutorunConfig
     source: { path: string; present: boolean }
   }
 
@@ -183,6 +197,11 @@ export namespace Tweaks {
   const SUBAGENT_DEFAULTS: SubagentConfig = {
     escalationWaitMs: 30_000,
     quotaLowRedLinePercent: 5,
+  }
+
+  const AUTORUN_DEFAULTS: AutorunConfig = {
+    triggerPhrases: ["接著跑", "自動跑", "開 autonomous", "autorun", "keep going", "continue autonomously"],
+    disarmPhrases: ["停", "暫停", "stop", "halt"],
   }
 
   const PART_PERSISTENCE_DEFAULTS: PartPersistenceConfig = {
@@ -283,6 +302,8 @@ export namespace Tweaks {
     "part_cancel_on_cap_trip",
     "subagent_escalation_wait_ms",
     "subagent_quota_low_red_line_percent",
+    "autorun_trigger_phrases",
+    "autorun_disarm_phrases",
   ])
 
   function parseFlag01(raw: string, key: string): 0 | 1 | undefined {
@@ -304,6 +325,20 @@ export namespace Tweaks {
       return undefined
     }
     return value
+  }
+
+  /**
+   * Parse a pipe-separated phrase list. Empty raw or all-blank → empty array.
+   * Whitespace is trimmed per phrase. Empty phrases (from e.g. "a||b") are
+   * dropped silently. Pipe was chosen as separator so phrases may contain
+   * commas; phrases with literal pipes are not supported.
+   */
+  function parsePhraseList(raw: string, _key: string): string[] {
+    const parts = raw
+      .split("|")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
+    return parts
   }
 
   function parseInitialPageSizeSmall(raw: string): "all" | number | undefined {
@@ -337,6 +372,7 @@ export namespace Tweaks {
           codexRotation: CODEX_ROTATION_DEFAULTS,
           partPersistence: PART_PERSISTENCE_DEFAULTS,
           subagent: SUBAGENT_DEFAULTS,
+          autorun: AUTORUN_DEFAULTS,
         },
       })
       return {
@@ -347,6 +383,7 @@ export namespace Tweaks {
         codexRotation: { ...CODEX_ROTATION_DEFAULTS },
         partPersistence: { ...PART_PERSISTENCE_DEFAULTS },
         subagent: { ...SUBAGENT_DEFAULTS },
+        autorun: { triggerPhrases: [...AUTORUN_DEFAULTS.triggerPhrases], disarmPhrases: [...AUTORUN_DEFAULTS.disarmPhrases] },
         source: { path: cfgPath, present: false },
       }
     }
@@ -564,9 +601,22 @@ export namespace Tweaks {
       if (v !== undefined) subagent.quotaLowRedLinePercent = v
     }
 
+    const autorun: AutorunConfig = {
+      triggerPhrases: [...AUTORUN_DEFAULTS.triggerPhrases],
+      disarmPhrases: [...AUTORUN_DEFAULTS.disarmPhrases],
+    }
+    const triggerRaw = parsed.get("autorun_trigger_phrases")
+    if (triggerRaw !== undefined) {
+      autorun.triggerPhrases = parsePhraseList(triggerRaw, "autorun_trigger_phrases")
+    }
+    const disarmRaw = parsed.get("autorun_disarm_phrases")
+    if (disarmRaw !== undefined) {
+      autorun.disarmPhrases = parsePhraseList(disarmRaw, "autorun_disarm_phrases")
+    }
+
     log.info("tweaks.cfg loaded", {
       path: cfgPath,
-      effective: { sessionCache, rateLimit, frontendLazyload, sessionUiFreshness, codexRotation, partPersistence, subagent },
+      effective: { sessionCache, rateLimit, frontendLazyload, sessionUiFreshness, codexRotation, partPersistence, subagent, autorun },
     })
     return {
       sessionCache,
@@ -576,6 +626,7 @@ export namespace Tweaks {
       codexRotation,
       partPersistence,
       subagent,
+      autorun,
       source: { path: cfgPath, present: true },
     }
   }
@@ -614,6 +665,10 @@ export namespace Tweaks {
     return (await effective()).subagent
   }
 
+  export async function autorun(): Promise<AutorunConfig> {
+    return (await effective()).autorun
+  }
+
   /**
    * Synchronous accessor for hot paths (e.g. updatePart). Returns defaults
    * until loadEffective() completes; after that returns the loaded values.
@@ -622,6 +677,15 @@ export namespace Tweaks {
    */
   export function partPersistenceSync(): PartPersistenceConfig {
     return _effective?.partPersistence ?? PART_PERSISTENCE_DEFAULTS
+  }
+
+  /**
+   * Synchronous accessor for the user-message ingest hot path. Returns
+   * defaults until loadEffective() completes; after that returns the loaded
+   * values. Matches the partPersistenceSync rationale.
+   */
+  export function autorunSync(): AutorunConfig {
+    return _effective?.autorun ?? AUTORUN_DEFAULTS
   }
 
   export async function loadEffective(): Promise<Effective> {

@@ -227,7 +227,11 @@ You are a worker spawned for a specific task. Complete it and report back.
 3. Subagent context budget: goal + constraints + paths only, not full files.
 4. Delta-only reporting: no restating established context.
 
-## 9. Conflict Resolution
+## 9. Autorun (Autonomous Continuation)
+
+Autorun is **opt-in**, driven by verbal triggers. It stays off by default; a user message containing a configured trigger phrase (e.g. `接著跑`, `autorun`, `keep going`) flips it on, a disarm phrase (`停`, `stop`) or operator killswitch flips it off. Do not assume autorun is on — check session workflow state before reasoning about continuation behaviour.
+
+## 10. Conflict Resolution
 
 - This SYSTEM.md > AGENTS.md > Driver prompts > Skills.
 - AGENTS.md provides project-specific strategy (not operational rules).

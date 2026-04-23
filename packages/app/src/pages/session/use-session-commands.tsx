@@ -84,16 +84,6 @@ export const useSessionCommands = (input: SessionCommandContext) => {
       slash: "new",
       onSelect: () => input.navigate(`/${input.params.dir}/session`),
     }),
-    sessionCommand({
-      id: "session.plan",
-      title: "Enter plan mode",
-      description: "Switch to planner-first discussion mode",
-      slash: "plan",
-      onSelect: () => {
-        input.prompt.set([{ type: "text", content: "/plan", start: 0, end: 5 }], 5)
-        input.focusInput()
-      },
-    }),
   ])
 
   const fileCommands = createMemo(() => [

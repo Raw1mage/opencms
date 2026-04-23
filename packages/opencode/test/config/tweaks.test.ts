@@ -285,4 +285,49 @@ describe("Tweaks.loadEffective", () => {
     expect(ui.softThresholdSec).toBe(10)
     expect(ui.hardTimeoutSec).toBe(60) // default for the untouched key
   })
+
+  // autonomous-opt-in Phase 4.5 — autorun phrase parsing
+  test("autorun defaults when tweaks.cfg missing", async () => {
+    pointToMissing()
+    const a = await Tweaks.autorun()
+    expect(a.triggerPhrases).toContain("autorun")
+    expect(a.triggerPhrases).toContain("接著跑")
+    expect(a.disarmPhrases).toContain("stop")
+    expect(a.disarmPhrases).toContain("停")
+  })
+
+  test("autorun parses pipe-separated trigger + disarm phrases", async () => {
+    pointToFile(
+      [
+        "autorun_trigger_phrases=go|resume|繼續",
+        "autorun_disarm_phrases=halt|暫停",
+      ].join("\n") + "\n",
+    )
+    const a = await Tweaks.autorun()
+    expect(a.triggerPhrases).toEqual(["go", "resume", "繼續"])
+    expect(a.disarmPhrases).toEqual(["halt", "暫停"])
+  })
+
+  test("autorun trims whitespace per phrase and drops empty slots", async () => {
+    pointToFile("autorun_trigger_phrases= go |  | resume \n")
+    const a = await Tweaks.autorun()
+    expect(a.triggerPhrases).toEqual(["go", "resume"])
+  })
+
+  test("autorun empty value yields empty array (explicit disable)", async () => {
+    pointToFile("autorun_trigger_phrases=\n")
+    const a = await Tweaks.autorun()
+    expect(a.triggerPhrases).toEqual([])
+    // disarm untouched → defaults still present
+    expect(a.disarmPhrases.length).toBeGreaterThan(0)
+  })
+
+  test("autorunSync returns defaults before loadEffective, real values after", async () => {
+    pointToFile("autorun_trigger_phrases=onlyme\n")
+    const beforeLoad = Tweaks.autorunSync()
+    expect(beforeLoad.triggerPhrases).toContain("autorun") // defaults
+    await Tweaks.loadEffective()
+    const afterLoad = Tweaks.autorunSync()
+    expect(afterLoad.triggerPhrases).toEqual(["onlyme"])
+  })
 })

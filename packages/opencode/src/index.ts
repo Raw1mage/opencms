@@ -39,6 +39,7 @@ import { registerDebugWriter } from "./bus/subscribers/debug-writer"
 import { registerTelemetryRuntimePersistence } from "./bus/subscribers/telemetry-runtime"
 import { registerTaskWorkerContinuationSubscriber } from "./bus/subscribers/task-worker-continuation"
 import { registerPendingNoticeAppenderSubscriber } from "./bus/subscribers/pending-notice-appender"
+import { registerAutorunDisarmObserver } from "./session/autorun/observer"
 import { SessionCache } from "./server/session-cache"
 import { RateLimit } from "./server/rate-limit"
 
@@ -46,6 +47,7 @@ registerDebugWriter()
 registerTelemetryRuntimePersistence()
 registerTaskWorkerContinuationSubscriber()
 registerPendingNoticeAppenderSubscriber()
+registerAutorunDisarmObserver()
 SessionCache.registerInvalidationSubscriber()
 void RateLimit.logStartup()
 debugCheckpoint("app", "start", { args: process.argv.slice(2) })

@@ -74,6 +74,8 @@ import {
   shouldInterruptAutonomousRun,
 } from "./workflow-runner"
 import { resolveDialogTriggerPolicy } from "./dialog-trigger"
+import { detectAutorunIntent, extractUserText } from "./autorun/detector"
+import { Tweaks } from "@/config/tweaks"
 import { RebindEpoch } from "./rebind-epoch"
 import { CapabilityLayer } from "./capability-layer"
 import { registerProductionCapabilityLoader } from "./capability-layer-loader"
@@ -359,6 +361,45 @@ export namespace SessionPrompt {
 
     const message = await createUserMessage(input, session)
     await Session.touch(input.sessionID)
+
+    // specs/autonomous-opt-in/ Phase 4 (new Phase 1) — verbal arm/disarm
+    // Inspect the incoming user text for configured trigger / disarm phrases
+    // (loaded from /etc/opencode/tweaks.cfg under autorun_*_phrases). A match
+    // flips workflow.autonomous.enabled; the normal runLoop → continuation
+    // path picks up the new flag state without extra enqueue. Silent no-op
+    // when no phrase present — zero behavior change for users who never use
+    // the feature.
+    try {
+      const autorunCfg = Tweaks.autorunSync()
+      const userText = extractUserText(input.parts as ReadonlyArray<{ type: string; text?: string; synthetic?: boolean }>)
+      const intent = detectAutorunIntent(userText, autorunCfg)
+      if (intent) {
+        const enable = intent.kind === "arm"
+        const current = (await Session.get(input.sessionID)).workflow?.autonomous.enabled
+        if (current !== enable) {
+          await Session.updateAutonomous({ sessionID: input.sessionID, policy: { enabled: enable } })
+          log.info("autorun " + intent.kind + " via verbal trigger", {
+            sessionID: input.sessionID,
+            phrase: intent.phrase,
+            previous: current,
+            next: enable,
+          })
+        } else {
+          log.info("autorun " + intent.kind + " phrase detected but state unchanged", {
+            sessionID: input.sessionID,
+            phrase: intent.phrase,
+            enabled: current,
+          })
+        }
+      }
+    } catch (err) {
+      // Detector/config is best-effort — a failure here must never block
+      // the user's actual prompt. Log and continue.
+      log.warn("autorun intent detection failed", {
+        sessionID: input.sessionID,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
 
     // this is backwards compatibility for allowing `tools` to be specified when
     // prompting
