@@ -165,6 +165,12 @@ export const ConfigRoutes = lazy(() =>
           ui_session_freshness_enabled: uiCfg.flag,
           ui_freshness_threshold_sec: uiCfg.softThresholdSec,
           ui_freshness_hard_timeout_sec: uiCfg.hardTimeoutSec,
+          // mobile-tail-first-simplification DD-1 / DD-4
+          session_tail_mobile: cfg.sessionTailMobile,
+          session_tail_desktop: cfg.sessionTailDesktop,
+          session_store_cap_mobile: cfg.sessionStoreCapMobile,
+          session_store_cap_desktop: cfg.sessionStoreCapDesktop,
+          session_part_cap_bytes: cfg.sessionPartCapBytes,
         } satisfies z.infer<typeof FrontendTweaksResponse>)
       },
     ),
@@ -184,4 +190,10 @@ const FrontendTweaksResponse = z.object({
   ui_session_freshness_enabled: z.union([z.literal(0), z.literal(1)]),
   ui_freshness_threshold_sec: z.number().int().min(1).max(3600),
   ui_freshness_hard_timeout_sec: z.number().int().min(1).max(86400),
+  // mobile-tail-first-simplification DD-1 / DD-4
+  session_tail_mobile: z.number().int().min(5).max(500),
+  session_tail_desktop: z.number().int().min(5).max(2000),
+  session_store_cap_mobile: z.number().int().min(30).max(2000),
+  session_store_cap_desktop: z.number().int().min(50).max(5000),
+  session_part_cap_bytes: z.number().int().min(16_000).max(16_000_000),
 })

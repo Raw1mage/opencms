@@ -1,0 +1,78 @@
+[
+  {
+    "id": "P1",
+    "title": "Gate trip: 5H below threshold, subagent canceled, parent gets structured result",
+    "actors": ["subagent-llm", "runloop-hook", "probe", "cache", "cancel-dispatcher", "summary-gen", "task-tool", "parent-llm"],
+    "messages": [
+      { "id": "MSG1", "from": "subagent-llm", "to": "runloop-hook", "componentRef": "C11", "label": "tool-call round completed; about to dispatch next provider request" },
+      { "id": "MSG2", "from": "runloop-hook", "to": "runloop-hook", "componentRef": "C14", "label": "read session.source = 'task-tool' → gate applies" },
+      { "id": "MSG3", "from": "runloop-hook", "to": "probe", "componentRef": "C3", "label": "probe('codex', 'acc_42')" },
+      { "id": "MSG4", "from": "probe", "to": "cache", "componentRef": "C7", "label": "read['codex:acc_42']" },
+      { "id": "MSG5", "from": "cache", "to": "probe", "componentRef": "C4", "label": "{fiveHour: 97, weekly: 60}  // 5H remaining = 3%" },
+      { "id": "MSG6", "from": "probe", "to": "runloop-hook", "componentRef": "C11", "label": "UsagePayload" },
+      { "id": "MSG7", "from": "runloop-hook", "to": "runloop-hook", "componentRef": "C11", "label": "min(3, 40) = 3 < 5 → trip, triggerWindow='5h'" },
+      { "id": "MSG8", "from": "runloop-hook", "to": "cancel-dispatcher", "componentRef": "C12", "label": "cancel(subagent, reason='quota-gate-trip')" },
+      { "id": "MSG9", "from": "cancel-dispatcher", "to": "subagent-llm", "componentRef": "C12", "label": "runloop terminated, no more LLM requests" },
+      { "id": "MSG10", "from": "cancel-dispatcher", "to": "summary-gen", "componentRef": "C13", "label": "generate(subagent session messages + SharedContext)" },
+      { "id": "MSG11", "from": "summary-gen", "to": "task-tool", "componentRef": "C10", "label": "StructuredSummary {reason, completedToolCalls[], readFiles[], editedFiles[], lastMessages[], pendingWork[]}" },
+      { "id": "MSG12", "from": "task-tool", "to": "parent-llm", "componentRef": "C10", "label": "tool_result {tripped:true, reason:'quota-gate-trip', triggerWindow:'5h', remainingPercent:3, summary, sharedContext}" }
+    ],
+    "requirementRefs": ["Requirement: Runtime quota gate 在 subagent tool-call 邊界強制檢查", "Requirement: Structured summary 由 runtime 自動生成", "Requirement: Handover 沿正常 task-tool-result 路徑"]
+  },
+  {
+    "id": "P2",
+    "title": "Normal: threshold OK, subagent continues",
+    "actors": ["subagent-llm", "runloop-hook", "probe", "cache"],
+    "messages": [
+      { "id": "MSG1", "from": "subagent-llm", "to": "runloop-hook", "componentRef": "C11", "label": "tool-call round completed" },
+      { "id": "MSG2", "from": "runloop-hook", "to": "probe", "componentRef": "C3", "label": "probe('codex', 'acc_42')" },
+      { "id": "MSG3", "from": "probe", "to": "cache", "componentRef": "C7", "label": "read['codex:acc_42']" },
+      { "id": "MSG4", "from": "cache", "to": "probe", "componentRef": "C4", "label": "{fiveHour: 58, weekly: 22}" },
+      { "id": "MSG5", "from": "probe", "to": "runloop-hook", "componentRef": "C11", "label": "UsagePayload" },
+      { "id": "MSG6", "from": "runloop-hook", "to": "runloop-hook", "componentRef": "C11", "label": "min(42, 78) = 42 >= 5 → allow" },
+      { "id": "MSG7", "from": "runloop-hook", "to": "subagent-llm", "componentRef": "C11", "label": "next provider request dispatched" }
+    ],
+    "requirementRefs": ["Scenario: 門檻內，subagent 正常執行"]
+  },
+  {
+    "id": "P3",
+    "title": "Probe unavailable — let subagent proceed with WARN log",
+    "actors": ["subagent-llm", "runloop-hook", "probe", "log"],
+    "messages": [
+      { "id": "MSG1", "from": "subagent-llm", "to": "runloop-hook", "componentRef": "C11", "label": "tool-call round completed" },
+      { "id": "MSG2", "from": "runloop-hook", "to": "probe", "componentRef": "C3", "label": "probe(providerWithoutImpl, accountId)" },
+      { "id": "MSG3", "from": "probe", "to": "runloop-hook", "componentRef": "C11", "label": "{supported:false, reason:'provider does not expose usage endpoint'}" },
+      { "id": "MSG4", "from": "runloop-hook", "to": "log", "componentRef": "C11", "label": "WARN [quota-gate] cannot probe, letting subagent proceed" },
+      { "id": "MSG5", "from": "runloop-hook", "to": "subagent-llm", "componentRef": "C11", "label": "next provider request dispatched" }
+    ],
+    "requirementRefs": ["Scenario: Quota 查不到時採「寧縱勿誤殺」"]
+  },
+  {
+    "id": "P4",
+    "title": "Root session is NOT gated (negative case)",
+    "actors": ["root-llm", "runloop-hook"],
+    "messages": [
+      { "id": "MSG1", "from": "root-llm", "to": "runloop-hook", "componentRef": "C11", "label": "tool-call round completed" },
+      { "id": "MSG2", "from": "runloop-hook", "to": "runloop-hook", "componentRef": "C14", "label": "read session.source = null / 'user-initiated' → gate skipped" },
+      { "id": "MSG3", "from": "runloop-hook", "to": "root-llm", "componentRef": "C11", "label": "next provider request dispatched (even if quota low)" }
+    ],
+    "requirementRefs": ["Scenario: Root session 不被攔"]
+  },
+  {
+    "id": "P5",
+    "title": "Observation tool — subagent self-check (supporting path)",
+    "actors": ["llm", "bridge", "tool", "session-info", "registry", "codex-probe", "cache"],
+    "messages": [
+      { "id": "MSG1", "from": "llm", "to": "bridge", "componentRef": "C1", "label": "callTool(get_my_current_usage, {})" },
+      { "id": "MSG2", "from": "bridge", "to": "tool", "componentRef": "C5", "label": "callTool with injected {sessionID}" },
+      { "id": "MSG3", "from": "tool", "to": "session-info", "componentRef": "C8", "label": "readFile(session/info.json)" },
+      { "id": "MSG4", "from": "session-info", "to": "tool", "componentRef": "C5", "label": "{execution: {providerId, accountId}}" },
+      { "id": "MSG5", "from": "tool", "to": "registry", "componentRef": "C3", "label": "probe(providerId, accountId)" },
+      { "id": "MSG6", "from": "registry", "to": "codex-probe", "componentRef": "C4", "label": "probe(accountId)" },
+      { "id": "MSG7", "from": "codex-probe", "to": "cache", "componentRef": "C7", "label": "read cache (shared with gate)" },
+      { "id": "MSG8", "from": "codex-probe", "to": "tool", "componentRef": "C5", "label": "UsagePayload" },
+      { "id": "MSG9", "from": "tool", "to": "llm", "componentRef": "C5", "label": "{supported:true, provider, family, accountId, usage, cachedAt, ageSeconds}" }
+    ],
+    "requirementRefs": ["Requirement: 支援線 — 觀測 tools 保留 v1 的行為"]
+  }
+]

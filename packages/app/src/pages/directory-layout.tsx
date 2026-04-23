@@ -51,6 +51,17 @@ function DirectoryDataProvider(props: ParentProps<{ directory: string }>) {
       onNavigateToSession={(sessionID: string) => navigate(`/${params.dir}/session/${sessionID}`)}
       onSessionHref={(sessionID: string) => `/${params.dir}/session/${sessionID}`}
       onSyncSession={(sessionID: string) => sync.session.sync(sessionID)}
+      onExpandPart={async (input: { sessionID: string; messageID: string; partID: string }) => {
+        // Scoped fetch for one part (mobile-tail-first-simplification DD-6).
+        // Replaces the old syncSession() full-session refetch.
+        const url = `${sdk.url}/api/v2/session/${encodeURIComponent(input.sessionID)}/message/${encodeURIComponent(input.messageID)}/part/${encodeURIComponent(input.partID)}?directory=${encodeURIComponent(props.directory)}`
+        const response = await sdk.fetch(url)
+        if (!response.ok) return
+        const body = (await response.json()) as { part?: unknown }
+        const fullPart = body?.part as { id: string } | undefined
+        if (!fullPart?.id) return
+        sync.patchPart(input.messageID, fullPart)
+      }}
     >
       <LocalProvider>{props.children}</LocalProvider>
     </DataProvider>

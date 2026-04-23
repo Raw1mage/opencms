@@ -1,0 +1,208 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "subagent-quota-safety-gate data contracts",
+  "$defs": {
+    "UsagePayload": {
+      "type": "object",
+      "required": ["fiveHourPercent", "weeklyPercent", "nextResetAt"],
+      "properties": {
+        "fiveHourPercent": { "type": "number", "minimum": 0, "maximum": 100 },
+        "weeklyPercent": { "type": "number", "minimum": 0, "maximum": 100 },
+        "nextResetAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "CachedMeta": {
+      "type": "object",
+      "required": ["cachedAt", "ageSeconds"],
+      "properties": {
+        "cachedAt": { "type": "string", "format": "date-time" },
+        "ageSeconds": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "TriggerWindow": { "enum": ["5h", "weekly"] },
+    "StructuredSummary": {
+      "type": "object",
+      "required": ["reason", "triggerWindow", "remainingPercent", "completedToolCalls", "readFiles", "editedFiles", "lastMessages", "pendingWork"],
+      "properties": {
+        "reason": { "const": "quota-gate-trip" },
+        "triggerWindow": { "$ref": "#/$defs/TriggerWindow" },
+        "remainingPercent": { "type": "number", "minimum": 0, "maximum": 100 },
+        "completedToolCalls": {
+          "type": "array",
+          "maxItems": 21,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": ["name", "argsSummary", "success"],
+                "properties": {
+                  "name": { "type": "string" },
+                  "argsSummary": { "type": "string" },
+                  "success": { "type": "boolean" }
+                }
+              },
+              {
+                "type": "object",
+                "required": ["earlierCount"],
+                "properties": { "earlierCount": { "type": "integer" } }
+              }
+            ]
+          }
+        },
+        "readFiles": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "editedFiles": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "lastMessages": { "type": "array", "maxItems": 3, "items": { "type": "string" } },
+        "pendingWork": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["content", "status"],
+            "properties": {
+              "content": { "type": "string" },
+              "status": { "enum": ["pending", "in_progress"] }
+            }
+          }
+        }
+      }
+    },
+    "TaskToolResult": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["tripped", "finalText"],
+          "properties": {
+            "tripped": { "const": false },
+            "finalText": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["tripped", "reason", "triggerWindow", "remainingPercent", "summary", "sharedContext"],
+          "properties": {
+            "tripped": { "const": true },
+            "reason": { "const": "quota-gate-trip" },
+            "triggerWindow": { "$ref": "#/$defs/TriggerWindow" },
+            "remainingPercent": { "type": "number" },
+            "summary": { "$ref": "#/$defs/StructuredSummary" },
+            "sharedContext": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "SupportedQuotaResponse": {
+      "type": "object",
+      "required": ["supported", "provider", "family", "accountId", "usage", "cachedAt", "ageSeconds"],
+      "properties": {
+        "supported": { "const": true },
+        "provider": { "type": "string" },
+        "family": { "type": "string" },
+        "accountId": { "type": "string" },
+        "usage": { "$ref": "#/$defs/UsagePayload" },
+        "cachedAt": { "$ref": "#/$defs/CachedMeta/properties/cachedAt" },
+        "ageSeconds": { "$ref": "#/$defs/CachedMeta/properties/ageSeconds" }
+      },
+      "additionalProperties": false
+    },
+    "UnsupportedQuotaResponse": {
+      "type": "object",
+      "required": ["supported", "reason"],
+      "properties": {
+        "supported": { "const": false },
+        "provider": { "type": "string" },
+        "family": { "type": "string" },
+        "reason": {
+          "enum": [
+            "provider does not expose usage endpoint",
+            "no pinned execution identity for this session",
+            "session not found",
+            "bridge did not inject sessionID",
+            "probe failed / cache empty"
+          ]
+        }
+      }
+    }
+  },
+  "definitions_top": {
+    "gate_hook_inputs": {
+      "type": "object",
+      "required": ["session", "providerId", "accountId"],
+      "properties": {
+        "session": { "type": "object", "description": "Session.Info; must include source and parentSessionID" },
+        "providerId": { "type": "string" },
+        "accountId": { "type": "string" }
+      }
+    },
+    "gate_decision": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["trip"],
+          "properties": {
+            "trip": { "const": false },
+            "reason": { "enum": ["threshold-ok", "not-subagent", "gate-disabled", "probe-unavailable"] }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["trip", "triggerWindow", "remainingPercent"],
+          "properties": {
+            "trip": { "const": true },
+            "triggerWindow": { "$ref": "#/$defs/TriggerWindow" },
+            "remainingPercent": { "type": "number" }
+          }
+        }
+      ]
+    },
+    "session_info_additions": {
+      "source": {
+        "type": ["string", "null"],
+        "enum": ["task-tool", "mcp-handover", "user-initiated", null]
+      },
+      "parentSessionID": { "type": ["string", "null"] }
+    },
+    "tweaks_cfg_additions": {
+      "subagent.quota_gate_enabled": { "type": "boolean", "default": true },
+      "subagent.quota_gate_threshold_percent": { "type": "number", "default": 5 },
+      "quota.cache_ttl_seconds": { "type": "integer", "default": 60 },
+      "quota.trip_summary.last_message_max_chars": { "type": "integer", "default": 500 },
+      "quota.trip_summary.max_tool_calls": { "type": "integer", "default": 20 }
+    },
+    "quota_cache_file": {
+      "description": "~/.config/opencode/quota-cache.json — keyed by '{providerCanonical}:{accountId}'",
+      "type": "object",
+      "patternProperties": {
+        "^[a-z0-9-]+:.+$": {
+          "type": "object",
+          "required": ["fiveHourPercent", "weeklyPercent", "nextResetAt", "cachedAt"],
+          "properties": {
+            "fiveHourPercent": { "type": "number" },
+            "weeklyPercent": { "type": "number" },
+            "nextResetAt": { "type": "string", "format": "date-time" },
+            "cachedAt": { "type": "string", "format": "date-time" }
+          }
+        }
+      }
+    },
+    "get_my_current_usage": {
+      "input": { "type": "object", "properties": { "sessionID": { "type": "string" } }, "additionalProperties": false },
+      "output": {
+        "oneOf": [
+          { "$ref": "#/$defs/SupportedQuotaResponse" },
+          { "$ref": "#/$defs/UnsupportedQuotaResponse" }
+        ]
+      }
+    },
+    "get_system_status_extension": {
+      "input_additions": {
+        "sessionID": { "type": "string" }
+      },
+      "output_per_family_additions": {
+        "currentInflightAccount": { "type": ["string", "null"] }
+      },
+      "output_per_account_usage_additions": {
+        "cachedAt": { "$ref": "#/$defs/CachedMeta/properties/cachedAt" },
+        "ageSeconds": { "$ref": "#/$defs/CachedMeta/properties/ageSeconds" }
+      }
+    }
+  }
+}

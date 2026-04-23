@@ -744,15 +744,8 @@ export namespace UserDaemonManager {
   }
 
   /**
-   * R9 (specs/frontend-session-lazyload revise 2026-04-22): CMS/user-daemon
-   * proxy must **fully pass through** the cursor pagination parameters —
-   * `limit`, `since`, AND `beforeMessageID` — otherwise the CMS path
-   * silently degrades to full-history fetch again (exactly the 2026-04-22
-   * regression this spec is fixing). INV-10.
-   *
-   * Accepts either a legacy `number` (old callers that only know `limit`)
-   * or a structured opts object (new callers that need `beforeMessageID`
-   * / `since`).
+   * CMS/user-daemon proxy for the tail-first messages contract. Accepts
+   * `limit` (tail size) and `before` (cursor for older-history pagination).
    */
   export async function callSessionMessages<T>(
     username: string,
@@ -761,8 +754,7 @@ export namespace UserDaemonManager {
       | number
       | {
           limit?: number
-          since?: number
-          beforeMessageID?: string
+          before?: string
         },
   ) {
     observe(username)
@@ -779,12 +771,10 @@ export namespace UserDaemonManager {
         error: { code: "DAEMON_NOT_OBSERVED", message: "daemon not observed" },
       } satisfies DaemonCallResult<T>
 
-    const normalised =
-      typeof opts === "number" ? { limit: opts } : opts ?? {}
+    const normalised = typeof opts === "number" ? { limit: opts } : opts ?? {}
     const params = new URLSearchParams()
     if (normalised.limit !== undefined) params.set("limit", String(normalised.limit))
-    if (normalised.since !== undefined) params.set("since", String(normalised.since))
-    if (normalised.beforeMessageID !== undefined) params.set("beforeMessageID", normalised.beforeMessageID)
+    if (normalised.before !== undefined) params.set("before", normalised.before)
     const qs = params.toString() ? `?${params.toString()}` : ""
     return callJSON<T>({ entry, method: "GET", path: `/session/${encodeURIComponent(sessionID)}/message${qs}` })
   }

@@ -1,0 +1,92 @@
+[
+  {
+    "id": "S0",
+    "label": "Subagent spawned",
+    "description": "Task tool 建完 subsession，標 source='task-tool'",
+    "actions": ["session.info.source = 'task-tool'"],
+    "transitions": [
+      { "to": "S1", "condition": "runloop starts", "refs": ["A1", "A2"] }
+    ]
+  },
+  {
+    "id": "S1",
+    "label": "Running tool-call round",
+    "description": "Subagent 發 request → tool_use → tool_result",
+    "actions": ["normal runloop"],
+    "transitions": [
+      { "to": "S2", "condition": "tool-call round completed, about to dispatch next request", "refs": ["A2", "A3"] },
+      { "to": "S_DONE", "condition": "subagent finished normally (no more work)", "refs": [] }
+    ]
+  },
+  {
+    "id": "S2",
+    "label": "Gate: check applicability",
+    "description": "is task-tool subagent? gate enabled?",
+    "actions": ["read session.source", "read tweaks.cfg"],
+    "transitions": [
+      { "to": "S1", "condition": "not task-tool subagent OR gate disabled (log would-have-trip if disabled)", "refs": ["A3"] },
+      { "to": "S3", "condition": "task-tool subagent AND gate enabled", "refs": ["A3"] }
+    ]
+  },
+  {
+    "id": "S3",
+    "label": "Gate: probe quota",
+    "description": "Call AccountQuotaProbe registry for pinned accountId",
+    "actions": ["probe(provider, accountId)"],
+    "transitions": [
+      { "to": "S4", "condition": "probe OK with UsagePayload", "refs": ["A4"] },
+      { "to": "S1", "condition": "probe unavailable / failed → WARN log, let subagent proceed (DD-14)", "refs": ["A4"] }
+    ]
+  },
+  {
+    "id": "S4",
+    "label": "Gate: evaluate threshold",
+    "description": "min(5H, weekly) < threshold?",
+    "actions": ["compute remainingPercent", "pick triggerWindow"],
+    "transitions": [
+      { "to": "S1", "condition": "remainingPercent >= threshold", "refs": ["A3"] },
+      { "to": "S5", "condition": "remainingPercent < threshold → trip", "refs": ["A3", "A5"] }
+    ]
+  },
+  {
+    "id": "S5",
+    "label": "Cancel with quota-gate-trip",
+    "description": "runtime cancel(session, 'quota-gate-trip')",
+    "actions": ["CancelReason = 'quota-gate-trip'", "bus: session.canceled"],
+    "transitions": [
+      { "to": "S6", "condition": "cancel propagated", "refs": ["A5", "A6"] }
+    ]
+  },
+  {
+    "id": "S6",
+    "label": "Generate structured summary",
+    "description": "mechanical scan of messages + SharedContext + TodoWrite state",
+    "actions": ["scan completedToolCalls (max 20)", "extract readFiles/editedFiles", "snapshot lastMessages × 3", "capture pendingWork"],
+    "transitions": [
+      { "to": "S7", "condition": "summary composed", "refs": ["A6", "A7"] }
+    ]
+  },
+  {
+    "id": "S7",
+    "label": "Return TaskResult to parent",
+    "description": "Task tool result = {tripped:true, reason, triggerWindow, remainingPercent, summary, sharedContext}",
+    "actions": ["compose TaskResult", "resolve parent's task tool await"],
+    "transitions": [
+      { "to": "S_TRIPPED", "condition": "result delivered to parent", "refs": ["A7"] }
+    ]
+  },
+  {
+    "id": "S_DONE",
+    "label": "Normal termination",
+    "description": "subagent finished without trip",
+    "actions": [],
+    "transitions": []
+  },
+  {
+    "id": "S_TRIPPED",
+    "label": "Gate-tripped termination",
+    "description": "parent received structured trip result; parent LLM decides next step",
+    "actions": [],
+    "transitions": []
+  }
+]

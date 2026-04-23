@@ -1104,12 +1104,16 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
   }
 
   const handleRefetch = async () => {
-    // Completed part whose content was truncated during streaming. Ask the
-    // session sync callback (wired by the webapp) to refetch the full history;
-    // store replaces the part via reconcile, dropping truncatedPrefix.
-    const sync = data.syncSession
-    if (!sync) return
-    await sync(props.message.sessionID)
+    // mobile-tail-first-simplification DD-6: scoped part fetch only. No
+    // whole-session refetch — previously this called syncSession() which
+    // redownloaded the entire history to recover one truncated part.
+    const expand = data.expandPart
+    if (!expand) return
+    await expand({
+      sessionID: props.message.sessionID,
+      messageID: props.message.id,
+      partID: part.id,
+    })
   }
 
   return (
@@ -1137,9 +1141,13 @@ PART_MAPPING["reasoning"] = function ReasoningPartDisplay(props) {
   const truncatedPrefix = () => (part as unknown as { truncatedPrefix?: number }).truncatedPrefix ?? 0
 
   const handleRefetch = async () => {
-    const sync = data.syncSession
-    if (!sync) return
-    await sync(props.message.sessionID)
+    const expand = data.expandPart
+    if (!expand) return
+    await expand({
+      sessionID: props.message.sessionID,
+      messageID: props.message.id,
+      partID: part.id,
+    })
   }
 
   return (

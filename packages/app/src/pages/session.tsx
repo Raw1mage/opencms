@@ -56,7 +56,6 @@ import {
   getSessionWorkflowChips,
   getTabReorderIndex,
 } from "@/pages/session/helpers"
-import { useSessionResumeSync } from "@/pages/session/use-session-resume-sync"
 import { createScrollSpy } from "@/pages/session/scroll-spy"
 import { createFileTabListSync } from "@/pages/session/file-tab-scroll"
 import { FileTabContent } from "@/pages/session/file-tabs"
@@ -386,7 +385,7 @@ export default function Page() {
             messagesReady: ready,
           },
         })
-        void sync.session.sync(id, { force: true })
+        void sync.session.sync(id)
       },
     ),
   )
@@ -870,8 +869,6 @@ export default function Page() {
 
   const hasScrollGesture = () => Date.now() - ui.scrollGesture < scrollGestureWindowMs
 
-  useSessionResumeSync({ enabled: () => true, sessionID: () => params.id, sync })
-
   createEffect(() => {
     if (!view().terminal.opened()) {
       setUi("autoCreated", false)
@@ -980,10 +977,6 @@ export default function Page() {
     const child = activeChild()
     if (!child) return
     void sync.session.sync(child.sessionID)
-    const timer = setInterval(() => {
-      void sync.session.sync(child.sessionID, { force: true })
-    }, 3000)
-    onCleanup(() => clearInterval(timer))
   })
 
   // mobilePromptHeightLock effect removed: overflow-anchor: none on contentRef

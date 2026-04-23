@@ -328,8 +328,19 @@ function mapEvent(event: ResponseStreamEvent, state: StreamState): LanguageModel
     }
 
     case "response.reasoning_summary_text.done": {
-      const id = `reasoning_${state.reasoningIdCounter}`
-      parts.push({ type: "reasoning-end", id } as LanguageModelV2StreamPart)
+      // Mirror text-end guard (§ response.output_text.done): only emit
+      // reasoning-end if reasoning-start was actually emitted on THIS stream.
+      // After a WS reset (account rotation / previous_response_not_found),
+      // the new stream's state is fresh — if the first reasoning event we
+      // see is .done (because .delta fired on the dropped WS), emitting an
+      // unmatched reasoning-end trips AI SDK's assembler with
+      // "reasoning part reasoning_X not found".
+      const trackedKey = -1000 - state.reasoningIdCounter
+      if (state.outputItems.has(trackedKey)) {
+        const id = `reasoning_${state.reasoningIdCounter}`
+        parts.push({ type: "reasoning-end", id } as LanguageModelV2StreamPart)
+        state.outputItems.delete(trackedKey)
+      }
       state.reasoningIdCounter++
       break
     }

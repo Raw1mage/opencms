@@ -1,0 +1,135 @@
+{
+  "diagram_title": "Subagent quota safety gate — C4 level 3 (component)",
+  "level": "component",
+  "systems": [
+    { "id": "opencode", "label": "opencode daemon", "description": "主系統" }
+  ],
+  "containers": [
+    { "id": "daemon", "system": "opencode", "label": "opencode-serve daemon", "technology": "bun/TypeScript" },
+    { "id": "mcp-sysmgr", "system": "opencode", "label": "system-manager MCP server", "technology": "bun stdio child" },
+    { "id": "xdg-state", "system": "opencode", "label": "XDG state/config", "technology": "JSON files on disk" }
+  ],
+  "components": [
+    {
+      "id": "C10",
+      "container": "daemon",
+      "label": "Task tool — subagent spawner",
+      "description": "Spawn subsession; 標 source='task-tool'、parentSessionID；trip 發生時組 TaskResult",
+      "moduleRef": "packages/opencode/src/tool/task.ts",
+      "idef0Traces": ["A1", "A7"]
+    },
+    {
+      "id": "C11",
+      "container": "daemon",
+      "label": "Subagent runloop pre-dispatch hook",
+      "description": "每輪 tool-call 完成、下一次 provider request 前呼叫；判 task-tool subagent、gate 啟用、呼 probe、決定 trip",
+      "moduleRef": "packages/opencode/src/session/prompt.ts or processor.ts (new hook)",
+      "idef0Traces": ["A3"]
+    },
+    {
+      "id": "C12",
+      "container": "daemon",
+      "label": "CancelReason + cancel dispatcher",
+      "description": "新增 quota-gate-trip reason；修 prompt.ts:390-403 manual_interrupt override bug",
+      "moduleRef": "packages/opencode/src/session/prompt-runtime.ts + prompt.ts",
+      "idef0Traces": ["A5"]
+    },
+    {
+      "id": "C13",
+      "container": "daemon",
+      "label": "Quota trip summary generator",
+      "description": "純函式；輸入 subagent messages + SharedContext，輸出 StructuredSummary",
+      "moduleRef": "packages/opencode/src/session/quota-trip-summary.ts (new)",
+      "idef0Traces": ["A6"]
+    },
+    {
+      "id": "C14",
+      "container": "daemon",
+      "label": "Session.Info with source/parentSessionID",
+      "description": "Schema 擴充；判斷 'is this a task-tool subagent' 的依據",
+      "moduleRef": "packages/opencode/src/session/index.ts",
+      "idef0Traces": ["A1", "A3"]
+    },
+    {
+      "id": "C3",
+      "container": "daemon",
+      "label": "AccountQuotaProbe registry",
+      "description": "Provider → probe 介面分派；gate 與觀測 tool 共用",
+      "moduleRef": "packages/opencode/src/account/quota-probe.ts (new)",
+      "idef0Traces": ["A4"]
+    },
+    {
+      "id": "C4",
+      "container": "daemon",
+      "label": "Codex quota probe",
+      "description": "包裝 getCodexUsage + quota-cache.json TTL",
+      "moduleRef": "packages/opencode/src/account/quota-probe-codex.ts (new)",
+      "idef0Traces": ["A4"]
+    },
+    {
+      "id": "C5",
+      "container": "mcp-sysmgr",
+      "label": "get_my_current_usage tool",
+      "description": "觀測 tool；sessionID 由 bridge 注入",
+      "moduleRef": "packages/mcp/system-manager/src/index.ts (new handler)",
+      "idef0Traces": ["A8"]
+    },
+    {
+      "id": "C6",
+      "container": "mcp-sysmgr",
+      "label": "get_system_status (extended)",
+      "description": "既有 tool；新增 sessionID optional + currentInflightAccount + cachedAt/ageSeconds",
+      "moduleRef": "packages/mcp/system-manager/src/index.ts:683-775",
+      "idef0Traces": ["A8"]
+    },
+    {
+      "id": "C1",
+      "container": "daemon",
+      "label": "MCP bridge dynamicTool wrapper",
+      "description": "注入 sessionID 給 system-manager 的 quota tool",
+      "moduleRef": "packages/opencode/src/mcp/index.ts:142-158",
+      "idef0Traces": ["A8"]
+    },
+    {
+      "id": "C7",
+      "container": "xdg-state",
+      "label": "quota-cache.json",
+      "description": "共用 cache；gate + 觀測 tool 都讀寫",
+      "moduleRef": "~/.config/opencode/quota-cache.json (new)",
+      "idef0Traces": ["A4"]
+    },
+    {
+      "id": "C8",
+      "container": "xdg-state",
+      "label": "session info.json",
+      "description": "含 execution.accountId + source + parentSessionID",
+      "moduleRef": "~/.local/share/opencode/storage/session/{id}/info.json",
+      "idef0Traces": ["A1", "A3"]
+    },
+    {
+      "id": "C15",
+      "container": "xdg-state",
+      "label": "tweaks.cfg",
+      "description": "subagent.quota_gate_enabled, threshold, cache_ttl, summary limits",
+      "moduleRef": "/etc/opencode/tweaks.cfg",
+      "idef0Traces": ["A3"]
+    }
+  ],
+  "relationships": [
+    { "from": "C10", "to": "C14", "kind": "writes", "description": "spawn 時標 source / parentSessionID" },
+    { "from": "C11", "to": "C14", "kind": "reads", "description": "判 is subagent" },
+    { "from": "C11", "to": "C15", "kind": "reads", "description": "gate enabled + threshold" },
+    { "from": "C11", "to": "C3", "kind": "calls", "description": "registry.get(providerId).probe(accountId)" },
+    { "from": "C3", "to": "C4", "kind": "dispatches", "description": "provider = codex" },
+    { "from": "C4", "to": "C7", "kind": "reads-writes", "description": "cache check + refresh" },
+    { "from": "C4", "to": "external:openai", "kind": "fetches", "description": "when cache stale" },
+    { "from": "C11", "to": "C12", "kind": "triggers", "description": "gate trip → cancel(quota-gate-trip)" },
+    { "from": "C12", "to": "C13", "kind": "triggers", "description": "cancel completes → summary generator runs" },
+    { "from": "C13", "to": "C10", "kind": "produces-input", "description": "StructuredSummary → task result composer" },
+    { "from": "C1", "to": "C5", "kind": "calls", "description": "injected sessionID → tool" },
+    { "from": "C5", "to": "C8", "kind": "reads", "description": "session.execution.accountId" },
+    { "from": "C5", "to": "C3", "kind": "calls", "description": "shared probe registry" },
+    { "from": "C6", "to": "C8", "kind": "reads", "description": "per-family currentInflightAccount" },
+    { "from": "C6", "to": "C3", "kind": "calls", "description": "shared probe registry" }
+  ]
+}

@@ -25,7 +25,6 @@ import { StatusTodoList } from "./status-todo-list"
 import { useStatusMonitor } from "./use-status-monitor"
 import { useStatusTodoSync } from "./use-status-todo-sync"
 import { useAutonomousHealthSync } from "./use-autonomous-health-sync"
-import { useSessionResumeSync } from "./use-session-resume-sync"
 import { decode64 } from "@/utils/base64"
 import { SessionTelemetryCards } from "./session-telemetry-cards"
 import { useGlobalSync } from "@/context/global-sync"
@@ -78,7 +77,6 @@ export default function SessionToolPageRoute() {
     return sync.data.todo[id]
   })
 
-  useSessionResumeSync({ enabled: () => true, sessionID: () => params.id, sync })
   useStatusTodoSync({ enabled: () => tool() === "status", sessionID: () => params.id, sdk, sync })
 
   const monitor = useStatusMonitor({ enabled: () => tool() === "status", sessionID: () => params.id, sdk, sync })

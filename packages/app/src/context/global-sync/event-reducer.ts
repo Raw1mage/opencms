@@ -23,6 +23,29 @@ import { trimSessions } from "./session-trim"
 import { buildSessionTelemetryFromProjector } from "@/pages/session/monitor-helper"
 import type { SessionMonitorInfo } from "@opencode-ai/sdk/v2/client"
 import { frontendTweaks } from "../frontend-tweaks"
+import { computeGlobalEvictions, isMessageLive, platformStoreCap } from "@/utils/store-cap"
+
+// Module-level live-streaming tracker. An assistant messageID stays in this
+// set while time.completed is absent; removed on the final message.updated
+// that stamps completion. Eviction skips IDs in this set.
+const _liveStreamingIds = new Set<string>()
+
+export function evictGlobalIfOverCap(store: Store<State>, setStore: SetStoreFunction<State>) {
+  const cap = platformStoreCap()
+  const decisions = computeGlobalEvictions(store.message, cap, _liveStreamingIds)
+  if (decisions.length === 0) return
+  setStore(
+    produce((draft) => {
+      for (const { sessionID, messageID } of decisions) {
+        const list = draft.message[sessionID]
+        if (!list) continue
+        const idx = list.findIndex((m) => m?.id === messageID)
+        if (idx >= 0) list.splice(idx, 1)
+        delete draft.part[messageID]
+      }
+    }),
+  )
+}
 
 // Non-reactive dedup map for delta events.
 // SolidJS batch() defers setStore updates, so within a single flush the reactive
@@ -318,14 +341,22 @@ export function applyDirectoryEvent(input: {
     }
     case "message.updated": {
       const info = (event.properties as { info: Message }).info
+      // Phase 10: live-streaming tracker. Add when streaming, remove when done.
+      if (isMessageLive(info)) _liveStreamingIds.add(info.id)
+      else _liveStreamingIds.delete(info.id)
+
       const messages = input.store.message[info.sessionID]
       if (!messages) {
         input.setStore("message", info.sessionID, [info])
+        evictGlobalIfOverCap(input.store, input.setStore)
         break
       }
       const result = Binary.search(messages, info.id, (m) => m.id)
       if (result.found) {
         input.setStore("message", info.sessionID, result.index, reconcile(info))
+        // Update-in-place doesn't grow the store, but completing a streaming
+        // message makes it newly LRU-eligible, so we still sweep.
+        evictGlobalIfOverCap(input.store, input.setStore)
         break
       }
       input.setStore(
@@ -335,10 +366,12 @@ export function applyDirectoryEvent(input: {
           draft.splice(result.index, 0, info)
         }),
       )
+      evictGlobalIfOverCap(input.store, input.setStore)
       break
     }
     case "message.removed": {
       const props = event.properties as { sessionID: string; messageID: string }
+      _liveStreamingIds.delete(props.messageID)
       input.setStore(
         produce((draft) => {
           const messages = draft.message[props.sessionID]
