@@ -803,6 +803,35 @@ export const GlobalRoutes = lazy(() =>
       },
     )
     .post(
+      "/debug/reload-beacon",
+      describeRoute({
+        summary: "Client reload-cause beacon (mobile diagnostic)",
+        description:
+          "Client frontend posts this just before doing a location.reload() so we can see the trigger path in daemon debug.log. No schema enforcement — beacon is best-effort and may arrive with any shape.",
+        operationId: "global.debug.reloadBeacon",
+        responses: {
+          204: { description: "recorded" },
+        },
+      }),
+      async (c) => {
+        try {
+          const body = await c.req.json()
+          Log.create({ service: "frontend.reload" }).warn("client-side reload beacon", {
+            cause: body?.cause,
+            detail: typeof body?.detail === "string" ? body.detail.slice(0, 400) : body?.detail,
+            href: body?.href,
+            ua: body?.ua,
+            at: body?.at,
+          })
+        } catch (e) {
+          Log.create({ service: "frontend.reload" }).warn("reload beacon parse failed", {
+            error: e instanceof Error ? e.message : String(e),
+          })
+        }
+        return c.body(null, 204)
+      },
+    )
+    .post(
       "/dispose",
       describeRoute({
         summary: "Dispose instance",
