@@ -240,15 +240,33 @@ export function createAutoScroll(options: AutoScrollOptions) {
     options.onUserInteracted?.()
   }
 
+  /**
+   * Returns true only when the nested [data-scrollable] element actually
+   * has vertical overflow — i.e. it can really consume a vertical scroll
+   * gesture. Regions with the attribute but currently-fitting content
+   * must NOT suppress root-level scroll handling, otherwise mobile
+   * history-lazyload sentinel never arms (2026-04-24 fix).
+   */
+  const nestedConsumesVerticalScroll = (nested: Element): boolean => {
+    if (!(nested instanceof HTMLElement)) return false
+    if (nested.scrollHeight <= nested.clientHeight + 1) return false
+    const style = window.getComputedStyle(nested)
+    const overflowY = style.overflowY
+    return overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay"
+  }
+
   const handleWheel = (e: WheelEvent) => {
     if (e.deltaY >= 0) return
     // If the user is scrolling within a nested scrollable region (tool output,
-    // code block, etc), don't treat it as leaving the "follow bottom" mode.
-    // Those regions opt in via `data-scrollable`.
+    // code block, etc) AND that region actually has vertical overflow to
+    // consume the scroll, don't treat it as leaving the "follow bottom"
+    // mode. For regions that carry [data-scrollable] but whose current
+    // content fits (no overflow), the gesture must bubble to root so
+    // mobile/desktop history-lazyload is not starved.
     const el = scroll
     const target = e.target instanceof Element ? e.target : undefined
     const nested = target?.closest("[data-scrollable]")
-    if (el && nested && nested !== el) return
+    if (el && nested && nested !== el && nestedConsumesVerticalScroll(nested)) return
     stop()
   }
 
@@ -271,7 +289,11 @@ export function createAutoScroll(options: AutoScrollOptions) {
       const el = scroll
       const target = e.target instanceof Element ? e.target : undefined
       const nested = target?.closest("[data-scrollable]")
-      if (el && nested && nested !== el) return
+      // Only suppress if the nested region can actually consume this
+      // vertical scroll. Regions with [data-scrollable] but no current
+      // overflow (short content) must let the gesture reach root, or
+      // mobile history-lazyload never arms — user sees tail 30 only.
+      if (el && nested && nested !== el && nestedConsumesVerticalScroll(nested)) return
       touchActive = false
       stop()
     }
