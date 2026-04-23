@@ -83,6 +83,49 @@ import { registerProductionCapabilityLoader } from "./capability-layer-loader"
 // session the loader is asked to serve. prompt.ts is a natural bootstrap
 // location because every LLM round flows through this module.
 let _capabilityLoaderRegistered = false
+/**
+ * responsive-orchestrator DD-3 / DD-3.1 — render one PendingSubagentNotice
+ * into a one-line system-prompt addendum. Main agent consumes this string
+ * as part of its system message on the next turn; the user never sees it.
+ *
+ * Format design (keep LLM-friendly, human-parseable, stable wording):
+ *   [subagent <childSessionID> finished status=<status> elapsed=<seconds>s<extras>]
+ *
+ * extras:
+ *   rate_limited → errorDetail.resetsInSeconds
+ *   quota_low    → rotateHint.exhaustedAccountId + remainingPercent
+ *                  + explicit "rotate before next dispatch" instruction
+ *   cancelled    → cancelReason (echo)
+ */
+function renderNoticeAddendum(n: MessageV2.PendingSubagentNotice): string {
+  const elapsedSec = Math.round(n.elapsedMs / 1000)
+  const base = `[subagent ${n.childSessionID} finished status=${n.status} finish=${n.finish} elapsed=${elapsedSec}s`
+  const tail: string[] = []
+  if (n.status === "rate_limited" && n.errorDetail?.resetsInSeconds) {
+    tail.push(`resets_in_seconds=${n.errorDetail.resetsInSeconds}`)
+  }
+  if (n.status === "quota_low" && n.rotateHint) {
+    tail.push(`exhaustedAccount=${n.rotateHint.exhaustedAccountId}`)
+    if (typeof n.rotateHint.remainingPercent === "number") {
+      tail.push(`remainingPercent=${n.rotateHint.remainingPercent}`)
+    }
+    tail.push(`directive=${n.rotateHint.directive}`)
+  }
+  if (n.status === "cancelled" && n.cancelReason) {
+    tail.push(`reason=${JSON.stringify(n.cancelReason)}`)
+  }
+  const tailStr = tail.length > 0 ? " " + tail.join(" ") : ""
+  const hint =
+    n.status === "quota_low"
+      ? " Switch to a different account before any further dispatch; read the child session for the wrap-up summary."
+      : n.status === "rate_limited"
+        ? " The account is rate-limited; pick a different account or wait for reset before redispatching."
+        : n.status === "worker_dead" || n.status === "silent_kill"
+          ? " The subagent did not complete cleanly; read the child session for any partial progress before deciding recovery."
+          : ""
+  return `${base}${tailStr}]${hint}`
+}
+
 function ensureCapabilityLoaderRegistered() {
   if (_capabilityLoaderRegistered) return
   _capabilityLoaderRegistered = true
@@ -1746,6 +1789,28 @@ export namespace SessionPrompt {
         })
       }
 
+      // responsive-orchestrator R2/R6 DD-3: drain pendingSubagentNotices.
+      // Each notice becomes a one-line system-prompt addendum so main agent
+      // sees subagent results on its very next turn without polluting the
+      // visible chat log. Drain is atomic: notices are removed from the
+      // session info in the same Session.update pass so they never render
+      // twice.
+      const pendingNotices = session.pendingSubagentNotices ?? []
+      const noticeAddenda: string[] = []
+      if (pendingNotices.length > 0) {
+        for (const n of pendingNotices) {
+          noticeAddenda.push(renderNoticeAddendum(n))
+        }
+        await Session.update(sessionID, (draft) => {
+          // Remove only the notices we consumed — new arrivals between read
+          // and write survive.
+          const consumed = new Set(pendingNotices.map((n) => n.jobId))
+          draft.pendingSubagentNotices = (draft.pendingSubagentNotices ?? []).filter(
+            (n) => !consumed.has(n.jobId),
+          )
+        }).catch(() => undefined)
+      }
+
       const result = await processor.process({
         user: lastUser,
         agent,
@@ -1760,6 +1825,7 @@ export namespace SessionPrompt {
           ...(session.parentID ? [] : instructionPrompts),
           ...(lazyCatalogPrompt ? [lazyCatalogPrompt] : []),
           ...(format.type === "json_schema" ? [STRUCTURED_OUTPUT_SYSTEM_PROMPT] : []),
+          ...noticeAddenda,
         ],
         messages: SessionCompaction.sanitizeOrphanedToolCalls([
           // Context Sharing v2: prepend parent messages as stable prefix for child sessions.
