@@ -181,6 +181,44 @@ export const TaskWorkerEvent = {
 }
 
 /**
+ * responsive-orchestrator: emitted by the parent-side background watcher
+ * when a subagent reaches terminal state. Subscriber appends a
+ * PendingSubagentNotice to the parent session's info.json so the
+ * orchestrator (main agent) sees it on its next prompt assemble.
+ *
+ * This is the substrate that lets the orchestrator stay responsive
+ * during subagent execution (R1) and learn of subagent completion
+ * even when IPC is severed (R5).
+ */
+export const TaskCompletedEvent = BusEvent.define(
+  "task.completed",
+  z.object({
+    jobId: z.string(),
+    parentSessionID: Identifier.schema("session"),
+    childSessionID: Identifier.schema("session"),
+    status: z.enum(["success", "error", "canceled", "rate_limited", "quota_low", "worker_dead", "silent_kill"]),
+    finish: z.string(),
+    elapsedMs: z.number().int().nonnegative(),
+    errorDetail: z
+      .object({
+        message: z.string().optional(),
+        code: z.string().optional(),
+        resetsInSeconds: z.number().int().optional(),
+      })
+      .optional(),
+    rotateHint: z
+      .object({
+        exhaustedAccountId: z.string(),
+        exhaustedAt: z.string().optional(),
+        remainingPercent: z.number().optional(),
+        directive: z.literal("rotate-before-redispatch"),
+      })
+      .optional(),
+    cancelReason: z.string().optional(),
+  }),
+)
+
+/**
  * Bridged from worker → parent when a child session hits a rate limit
  * and needs the parent to decide the new model.
  */
@@ -672,6 +710,47 @@ function extractEventSessionID(event: any): string | undefined {
 }
 
 const workers: TaskWorker[] = []
+
+/**
+ * responsive-orchestrator R4 — public helper for the cancel_task tool.
+ * Looks up a running subagent by jobId (currently the dispatch toolCallID)
+ * and signals cancellation. Returns the result classification.
+ *
+ * Does NOT wait for the worker to actually exit — the abort signal triggers
+ * the worker to write `finish: "canceled"` to disk, which the existing
+ * watchdog A path picks up and delivers as a PendingSubagentNotice via
+ * the same Bus event flow as natural completion (DD-6 single authority).
+ */
+export type CancelByJobIdResult = "cancelled" | "not_found" | "already_terminal"
+
+export function cancelByJobId(jobId: string, reason?: string): CancelByJobIdResult {
+  const worker = workers.find((w) => w.current?.toolCallID === jobId)
+  if (!worker || !worker.current) return "not_found"
+  if (!worker.busy) return "already_terminal"
+  try {
+    // Send abort signal via stdin command — worker stdin handler converts
+    // this to an internal AbortSignal that the runloop honors and writes
+    // a `canceled` finish for.
+    const childSessionID = worker.current.sessionID
+    Log.create({ service: "task" }).info("cancel_task: signaling abort to worker", {
+      workerID: worker.id,
+      jobId,
+      childSessionID,
+      reason: reason?.slice(0, 200),
+    })
+    worker.proc.stdin?.write?.(
+      JSON.stringify({ type: "cancel", sessionID: childSessionID, reason }) + "\n",
+    )
+    return "cancelled"
+  } catch (e) {
+    Log.create({ service: "task" }).warn("cancel_task: failed to write cancel command", {
+      workerID: worker.id,
+      jobId,
+      error: e instanceof Error ? e.message : String(e),
+    })
+    return "not_found"
+  }
+}
 let workerSeq = 0
 let standbySpawn: Promise<void> | undefined
 
@@ -2070,7 +2149,18 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         // signal wins the race with the disk read when both arrive within
         // the same poll cycle.
         const DISK_GRACE_MS = 5_000
-        const TERMINAL_FINISHES = ["stop", "error", "length", "canceled"]
+        // Subagent-written disk-terminal finishes the watchdog A path treats
+        // as "task is done, deliver result to parent". Includes:
+        //   - AI SDK natural reasons: stop, error, length
+        //   - opencode IPC cancel: canceled
+        //   - responsive-orchestrator additions:
+        //       rate_limited (R3) — bounded escalation wait expired
+        //       quota_low    (R6) — proactive wrap-up triggered
+        // Watchdog B/C synthesize their own finish values (worker_exited /
+        // no_progress_timeout) outside this set; they do not need to appear
+        // here because they are produced from /proc + silence detection,
+        // not read from disk.
+        const TERMINAL_FINISHES = ["stop", "error", "length", "canceled", "rate_limited", "quota_low"]
 
         type ProcSample = {
           state: string // R/S/D/Z/T/X from /proc/<pid>/stat
@@ -2355,6 +2445,102 @@ export const TaskTool = Tool.define("task", async (ctx) => {
 
         mark("finished", { ok: workerOk, error: workerError })
 
+        // responsive-orchestrator R2: emit task.completed so the
+        // pending-notice-appender subscriber (Phase 4) appends a
+        // PendingSubagentNotice to parent session info. This is
+        // additive alongside the synchronous return — once prompt
+        // assembly (Phase 5) consumes notices and the stub-return flip
+        // lands (Phase 9), this becomes the primary delivery path.
+        try {
+          const notifyStatus: "success" | "error" | "canceled" | "rate_limited" | "quota_low" | "worker_dead" | "silent_kill" = (() => {
+            if (watchdogResolution === "worker_dead") return "worker_dead"
+            if (watchdogResolution === "silent_kill") return "silent_kill"
+            // Map child session's last finish to user-facing status.
+            // Prefer reading the actual finish from the child session for
+            // accurate rate_limited / quota_low classification.
+            const lastFinish = (() => {
+              try {
+                // We can't await here in a pure expression — fall through;
+                // watchdogResolution already covers the async-unknown cases.
+                return undefined as string | undefined
+              } catch {
+                return undefined
+              }
+            })()
+            if (lastFinish === "rate_limited") return "rate_limited"
+            if (lastFinish === "quota_low") return "quota_low"
+            if (lastFinish === "canceled") return "canceled"
+            return workerOk ? "success" : "error"
+          })()
+
+          // Read child's actual last finish from disk (authoritative)
+          let finishForEvent = workerOk ? "stop" : "error"
+          let errorDetailForEvent: { message?: string; resetsInSeconds?: number } | undefined
+          let rotateHintForEvent:
+            | { exhaustedAccountId: string; exhaustedAt?: string; remainingPercent?: number; directive: "rotate-before-redispatch" }
+            | undefined
+          try {
+            const { messages: childMsgs } = await MessageV2.filterCompacted(MessageV2.stream(session.id))
+            const lastAssistant = childMsgs.findLast((m) => m.info.role === "assistant")
+            if (lastAssistant) {
+              const info = lastAssistant.info as MessageV2.Assistant
+              if (info.finish) finishForEvent = info.finish
+              if (info.finish === "rate_limited") {
+                // Parse errorDetail from the stored error message (the 429 body)
+                const errMsg = (info.error as any)?.data?.message ?? (info.error as any)?.message ?? ""
+                const resetsMatch = /"resets_in_seconds"\s*:\s*(\d+)/.exec(errMsg)
+                errorDetailForEvent = {
+                  message: typeof errMsg === "string" ? errMsg.slice(0, 500) : undefined,
+                  resetsInSeconds: resetsMatch ? Number(resetsMatch[1]) : undefined,
+                }
+              }
+              if (info.finish === "quota_low") {
+                const hint = (info as any).rotateHint
+                if (hint && typeof hint === "object") {
+                  rotateHintForEvent = {
+                    exhaustedAccountId: String(hint.exhaustedAccountId ?? "unknown"),
+                    exhaustedAt: typeof hint.exhaustedAt === "string" ? hint.exhaustedAt : undefined,
+                    remainingPercent:
+                      typeof hint.remainingPercent === "number" ? hint.remainingPercent : undefined,
+                    directive: "rotate-before-redispatch",
+                  }
+                }
+              }
+            }
+          } catch {
+            // Non-fatal — event still emitted with defaults
+          }
+
+          // Resolve actual status using finishForEvent when watchdog didn't already classify
+          let resolvedStatus = notifyStatus
+          if (
+            resolvedStatus !== "worker_dead" &&
+            resolvedStatus !== "silent_kill" &&
+            resolvedStatus !== "canceled"
+          ) {
+            if (finishForEvent === "rate_limited") resolvedStatus = "rate_limited"
+            else if (finishForEvent === "quota_low") resolvedStatus = "quota_low"
+            else if (finishForEvent === "canceled") resolvedStatus = "canceled"
+            else resolvedStatus = workerOk ? "success" : "error"
+          }
+
+          await Bus.publish(TaskCompletedEvent, {
+            jobId: ctx.callID ?? `job_${session.id}`,
+            parentSessionID: ctx.sessionID,
+            childSessionID: session.id,
+            status: resolvedStatus,
+            finish: finishForEvent,
+            elapsedMs: Date.now() - startedAt,
+            errorDetail: errorDetailForEvent,
+            rotateHint: rotateHintForEvent,
+          })
+        } catch (pubErr) {
+          Log.create({ service: "task" }).warn("task.completed event publish failed", {
+            childSessionID: session.id,
+            error: pubErr instanceof Error ? pubErr.message : String(pubErr),
+          })
+        }
+
         return {
           title: params.description,
           output: workerOk
@@ -2364,6 +2550,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
             dispatched: true,
             subSessionID: session.id,
             linkedTodoID: linkedTodo?.id,
+            jobId: ctx.callID ?? `job_${session.id}`,
           },
         }
       } catch (error: unknown) {

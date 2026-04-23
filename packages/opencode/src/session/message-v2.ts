@@ -592,6 +592,40 @@ export namespace MessageV2 {
   })
   export type Info = z.infer<typeof Info>
 
+  // responsive-orchestrator R2/R3/R6/R7: wake-only notice the background
+  // task watcher appends to parent session info.json#pendingSubagentNotices
+  // when a subagent reaches terminal state. Rendered as a one-line
+  // system-prompt addendum on the next prompt assemble, then removed.
+  // Source-of-truth schema lives at
+  // /specs/responsive-orchestrator/data-schema.json#PendingSubagentNotice.
+  export const PendingSubagentNotice = z
+    .object({
+      jobId: z.string(),
+      childSessionID: Identifier.schema("session"),
+      status: z.enum(["success", "error", "canceled", "rate_limited", "quota_low", "worker_dead", "silent_kill"]),
+      finish: z.enum(["stop", "error", "length", "canceled", "rate_limited", "quota_low", "worker_exited", "no_progress_timeout"]),
+      elapsedMs: z.number().int().nonnegative(),
+      at: z.string(),
+      errorDetail: z
+        .object({
+          message: z.string().optional(),
+          code: z.string().optional(),
+          resetsInSeconds: z.number().int().optional(),
+        })
+        .optional(),
+      rotateHint: z
+        .object({
+          exhaustedAccountId: z.string(),
+          exhaustedAt: z.string().optional(),
+          remainingPercent: z.number().min(0).max(100).optional(),
+          directive: z.literal("rotate-before-redispatch"),
+        })
+        .optional(),
+      cancelReason: z.string().max(500).optional(),
+    })
+    .meta({ ref: "PendingSubagentNotice" })
+  export type PendingSubagentNotice = z.infer<typeof PendingSubagentNotice>
+
   export const Event = {
     Updated: BusEvent.define(
       "message.updated",

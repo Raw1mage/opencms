@@ -296,7 +296,7 @@ async function getCodexUsage(info: any, accountId: string, familyId: string) {
   }
 }
 
-const server = new Server({ name: "opencode-system-manager", version: "1.1.0" }, { capabilities: { tools: {} } })
+const server = new Server({ name: "opencode-system-manager", version: "1.2.0" }, { capabilities: { tools: {} } })
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
@@ -548,6 +548,48 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             level: { type: "string", enum: ["0", "1", "2", "3"], description: "Log level: 0=off, 1=quiet, 2=normal, 3=verbose (required for 'set' action)" },
           },
           required: ["action"],
+        },
+      },
+      // ── responsive-orchestrator R7: subagent introspection ──────────
+      {
+        name: "list_subagents",
+        description:
+          "List active and recently-finished subagents (children dispatched via the `task` tool). Use this when you need to know which subagents are still running, what jobIds they have, or what their latest status is. Pass `parentSessionID` to scope to one parent session, or omit to list across all sessions. Returns an array of {jobId, childSessionID, parentSessionID, status, dispatchedAt, lastActivityAt, elapsedMs, agent, description, finish?}.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            parentSessionID: {
+              type: "string",
+              description: "Optional. If provided, only subagents under this parent are returned.",
+            },
+            includeFinished: {
+              type: "boolean",
+              default: true,
+              description: "When false, only running subagents are returned.",
+            },
+          },
+        },
+      },
+      {
+        name: "read_subsession",
+        description:
+          "Read the messages of a child subagent's session. Use this when a PendingSubagentNotice in your system prompt indicates a subagent finished and you need its actual output (summary, tool results, reasoning). Pass `sinceMessageID` for incremental reads. Returns {sessionID, messages[], hasMore} on success, or {error: 'session_not_found'|'session_not_accessible', sessionID} on failure (never throws).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            sessionID: { type: "string", description: "Child session ID (from a PendingSubagentNotice or list_subagents result)." },
+            sinceMessageID: {
+              type: "string",
+              description: "Optional cursor — return only messages with ID > this value. Use for incremental polling.",
+            },
+            limit: {
+              type: "integer",
+              minimum: 1,
+              maximum: 200,
+              default: 50,
+            },
+          },
+          required: ["sessionID"],
         },
       },
       // ── MCP App Store tools (Layer 3: Conversational Provisioning) ───
@@ -1308,6 +1350,124 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       await fs.writeFile(KV_PATH, JSON.stringify(kv, null, 2))
       return { content: [{ type: "text", text: `Triggered ${operation} UI...` }] }
+    }
+
+    if (name === "list_subagents") {
+      const { parentSessionID, includeFinished = true } = (args ?? {}) as {
+        parentSessionID?: string
+        includeFinished?: boolean
+      }
+      const sessionsDir = path.join(STORAGE_BASE, "session")
+      const result: any[] = []
+      try {
+        const entries = await fs.readdir(sessionsDir).catch(() => [] as string[])
+        for (const sid of entries) {
+          if (!sid.startsWith("ses_")) continue
+          const infoPath = path.join(sessionsDir, sid, "info.json")
+          if (!(await pathExists(infoPath))) continue
+          let info: any
+          try {
+            info = JSON.parse(await fs.readFile(infoPath, "utf-8"))
+          } catch {
+            continue
+          }
+          // Subagent = session with parentID
+          if (!info.parentID) continue
+          if (parentSessionID && info.parentID !== parentSessionID) continue
+
+          // Determine status from last assistant message finish field
+          let status: "dispatched" | "running" | "finished" = "dispatched"
+          let finish: string | undefined
+          let lastActivityAt: string | undefined
+          let elapsedMs = 0
+          try {
+            const messages = await readNestedSessionMessages(sid)
+            const lastAssistant = [...messages].reverse().find((m) => m.info.role === "assistant")
+            if (lastAssistant?.info.finish) {
+              status = "finished"
+              finish = String(lastAssistant.info.finish)
+            } else if (messages.length > 0) {
+              status = "running"
+            }
+            const allCompleted = messages
+              .map((m) => m.info?.time?.completed ?? m.info?.time?.created)
+              .filter((t) => typeof t === "number")
+            if (allCompleted.length > 0) {
+              const latest = Math.max(...allCompleted)
+              lastActivityAt = new Date(latest).toISOString()
+              elapsedMs = Math.max(0, Date.now() - (info.time?.created ?? latest))
+            }
+          } catch {
+            // session has no messages yet — still dispatched
+          }
+          if (!includeFinished && status === "finished") continue
+          result.push({
+            jobId: `job_${sid}`,
+            childSessionID: sid,
+            parentSessionID: info.parentID,
+            status,
+            finish,
+            dispatchedAt: info.time?.created ? new Date(info.time.created).toISOString() : undefined,
+            lastActivityAt,
+            elapsedMs,
+            agent: info.agent ?? undefined,
+            description: info.title ?? undefined,
+          })
+        }
+      } catch (e) {
+        return { content: [{ type: "text", text: JSON.stringify({ error: String(e) }) }] }
+      }
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] }
+    }
+
+    if (name === "read_subsession") {
+      const { sessionID, sinceMessageID, limit = 50 } = (args ?? {}) as {
+        sessionID: string
+        sinceMessageID?: string
+        limit?: number
+      }
+      if (!sessionID || typeof sessionID !== "string") {
+        return {
+          content: [{ type: "text", text: JSON.stringify({ error: "session_not_found", sessionID }) }],
+        }
+      }
+      const infoPath = path.join(STORAGE_BASE, "session", sessionID, "info.json")
+      if (!(await pathExists(infoPath))) {
+        return {
+          content: [{ type: "text", text: JSON.stringify({ error: "session_not_found", sessionID }) }],
+        }
+      }
+      try {
+        const messages = await readNestedSessionMessages(sessionID)
+        // Sort chronologically by created time
+        messages.sort(
+          (a, b) => (a.info?.time?.created ?? 0) - (b.info?.time?.created ?? 0),
+        )
+        let filtered = messages
+        if (sinceMessageID) {
+          const idx = messages.findIndex((m) => m.info?.id === sinceMessageID)
+          if (idx >= 0) filtered = messages.slice(idx + 1)
+        }
+        const hasMore = filtered.length > limit
+        const sliced = filtered.slice(0, limit)
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ sessionID, messages: sliced, hasMore }, null, 2),
+            },
+          ],
+        }
+      } catch (e) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ error: "session_not_accessible", sessionID, detail: String(e) }),
+            },
+          ],
+        }
+      }
     }
 
     if (name === "export_transcript") {
