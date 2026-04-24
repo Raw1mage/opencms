@@ -22,6 +22,7 @@
   2. 驗證方式：先在 beta worktree 隔離驗證，確認有效後再 fetch-back 回 main。
   3. 成功指標資料來源：OpenAI 官網後台（只能手動查看），沒有自動化統計；驗收時需人工對照 before/after。
   4. Phase 4 範圍鎖定「只補 `x-client-request-id` + `Accept: text/event-stream`」，不擴充到其他 conditional header。
+- 2026-04-24（驗收門檻收緊）：使用者澄清真正目標是 **100% first-party / 0% third-party**，不是「接近 0%」或「< 1%」。任何殘留的第三方判定都視為未達標 — Phase 2+4 由「後續結構性清理」升格為「幾乎必做」；若四 phase 完成後仍有殘留，需另開 follow-up spec（TLS/JA3 或 Cloudflare cookie 層）。
 
 ## Effective Requirement Description
 
@@ -61,9 +62,12 @@
 
 ## Success Criteria
 
-- **主指標**：驗證期內 OpenAI 官網後台顯示的第三方判定比例從基線 ~7% 降至接近 0%（人工查看；至少在 beta 驗證期連續兩次觀察皆符合）。
-- **驗證流程**：變更先落在 beta worktree / branch，跑至少一輪真實對話負載，手動比對後台 before/after；確認有效後再 fetch-back 回 main。
+- **主指標**：驗證期內 OpenAI 官網後台顯示 **100% first-party / 0% third-party**（零容忍）。任何殘留的第三方判定（即便 < 1%）都視為未達標。基線為 ~7% → 目標 0%。
+- **驗證流程**：變更先落在 beta worktree / branch，跑多輪真實對話負載，手動比對後台 before/after；連續兩次觀察皆 = 0% 才算通過；確認有效後再 fetch-back 回 main。
 - **回歸基準**：既有 WS / HTTP 成功路徑（目前 ~93% 被視為 first-party）不因本次變更而下降。
+- **階段性分界**：
+  - 若 Phase 1+3 soak 後仍 > 0% → 不 finalize；繼續 Phase 2+4
+  - 若 Phase 1+3+2+4 全部完成後仍 > 0% → 另開 follow-up spec 處理 TLS/JA3 / Cloudflare cookie 層。本 spec 維持 `implementing` 直到達標或 user 明示 archive
 
 ## Constraints
 
@@ -95,7 +99,7 @@
 
 ## Impact
 
-- **使用者端**：預期 OpenAI 第三方判定比例由 ~7% 降至 < 1%；對應降低配額降級、限流、請求中斷機率。
+- **使用者端**：預期 OpenAI 第三方判定比例由 ~7% 降至 0%；對應消除配額降級、限流、請求中斷觸發機率（不只降低）。
 - **Plugin 維護者**：WS / HTTP 兩條路徑 header 來源統一，後續新增欄位只需改一處；減少雙路徑漂移風險。
 - **Upstream drift**：Phase 3 完成後，`refs/codex` 與 `CODEX_CLI_VERSION` 對齊；建議納入日後例行 upstream 同步 cadence。
 - **測試**：新增 WS header 測試；既有 HTTP header 測試需 regression check 確認大小寫與新欄位。

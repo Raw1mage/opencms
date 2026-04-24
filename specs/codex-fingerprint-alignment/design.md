@@ -58,7 +58,7 @@ upstream `refs/codex`（目前 `d0eff70383`，落後 268 commits）對應的 fir
 
 - **R1** — Phase 1 補 UA 後，OpenAI 後端仍把請求判為第三方。
   - 機率：中；影響：中（意味 fingerprint 不只這兩點）。
-  - 緩解：Phase 3（版本對齊）+ Phase 4（補 x-client-request-id / Accept）三條線疊加；若四 phase 都做完仍 > 1%，再評估 TLS/JA3 層。
+  - 緩解：Phase 3（版本對齊）+ Phase 4（補 x-client-request-id / Accept）三條線疊加；**驗收零容忍 = 100% first-party**，任何殘留都要 Phase 2+4 繼續；四 phase 都做完仍 > 0% 再另開 spec 評估 TLS/JA3 / Cloudflare cookie 層。
   - 偵測：beta 驗證期人工查看後台比例。
 
 - **R2** — `rust-v0.125.0-alpha.1` 引入與本 plugin 既有實作不相容的改動（例如新的 body 欄位）。

@@ -100,9 +100,11 @@ HTTP transport 需顯式送出 upstream 有、但本 plugin 原本缺的兩個 h
    - 在 beta worktree 啟動 daemon，以 codex OAuth 帳號發起一組典型對話（含 tool use、長 context）。
    - daemon log 應出現 `[CODEX-WS] REQ` / `[CODEX-HTTP] REQ` 紀錄，且抓出的 outbound header 組合對齊本 spec。
 
-4. **Success metric（人工）**
-   - Phase 1+3 完成、fetch-back 前，在 OpenAI 官網後台（人工查看）觀察第三方判定比例；若連續兩次觀察 < 1%，視為 Phase 1+3 成功。
-   - Phase 2+4 為結構性改善，不以 first-party 比例作為單獨驗收條件；以 acceptance 1+2+3 通過即可。
+4. **Success metric（人工；零容忍）**
+   - 在 OpenAI 官網後台（人工查看）觀察第三方判定比例；**連續兩次觀察皆 = 0%** 才視為通過。
+   - Phase 1+3 後殘留 > 0% → 不 finalize，繼續 Phase 2+4。
+   - Phase 1+3+2+4 全做完仍 > 0% → 另開 follow-up spec 處理 TLS/JA3 / Cloudflare cookie 層。
+   - Phase 2+4 仍保留 acceptance 1+2+3（單元/建置/整合測試）作為回歸檢查；first-party 比例是本 spec 的 gating metric。
 
 5. **Regression check**
    - 既有 WS HTTP fallback 切換行為不變。

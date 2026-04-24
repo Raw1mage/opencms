@@ -41,9 +41,9 @@
 - [ ] 3.2 **operator 手動查看 OpenAI 官網後台**：第一次觀察第三方判定比例
 - [ ] 3.3 間隔後再跑一輪負載
 - [ ] 3.4 **operator 手動查看 OpenAI 官網後台**：第二次觀察第三方判定比例
-- [ ] 3.5 驗收判定：
-  - 連續兩次 < 1% → 通過，進 3.6
-  - ≥ 1% → **stop**，回 Phase 3 盤點（可能觸發 revise mode 或擴大範圍）
+- [ ] 3.5 驗收判定（零容忍）：
+  - 連續兩次 **= 0%** → 通過，進 3.6
+  - > 0% → **stop**，先完成 Phase 2+4 再二次 soak；Phase 1+3+2+4 全做完仍 > 0% 則另開 follow-up spec 處理 TLS/JA3 / Cloudflare cookie 層
 - [ ] 3.6 fetch-back Phase 1+3 的變更回 `main`
 - [ ] 3.7 在 main 的 `docs/events/event_<YYYYMMDD>_codex_fingerprint_merged.md` 留一則完成紀錄
 

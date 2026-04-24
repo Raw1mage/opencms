@@ -51,14 +51,15 @@
   3. 若真的是輸出改了 → 回退到 Phase 2 的最小變動，先保 HTTP path 行為等價。
 - **Responsible layer**：packages/opencode-codex-provider。
 
-### E-FP-006 — Beta soak 後第三方判定比例仍 ≥ 1%
+### E-FP-006 — Beta soak 後第三方判定比例仍 > 0%（零容忍）
 
-- **Trigger**：Phase 1+3 fetch-back 前驗收未達標。
-- **User-visible**：sprint 延長。
+- **Trigger**：Phase 1+3 fetch-back 前驗收未達標。驗收門檻 = 100% first-party，任何殘留都算未達標。
+- **User-visible**：finalize 延後；繼續 Phase 2+4。
 - **Recovery**：
   1. 在 beta 抓 daemon log 實際發送的 header 集合，比對 `data-schema.json`。
   2. 檢查是否漏 header（session_id / x-codex-window-id）或格式不對（UA 版本）。
-  3. 若所有欄位皆對齊仍未達標 → 可能是 TLS/JA3 層；stop 本 spec，另開 spec。
+  3. 若 Phase 1+3 header 皆對齊仍 > 0% → **先完成 Phase 2+4**（統一 buildHeaders + x-client-request-id + Accept），二次 soak。
+  4. Phase 1+3+2+4 全做完仍 > 0% → 另開 follow-up spec 處理 TLS/JA3 / Cloudflare cookie 層。
 - **Responsible layer**：執行計畫 / acceptance。
 
 ### E-FP-007 — XDG 備份缺失
