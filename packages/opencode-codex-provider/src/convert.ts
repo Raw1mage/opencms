@@ -81,15 +81,23 @@ export function convertPrompt(prompt: LanguageModelV2Prompt): {
             output = raw
           } else if (
             typeof raw === "object" &&
-            (raw as any).type === "text" &&
+            ((raw as any).type === "text" || (raw as any).type === "error-text") &&
             typeof (raw as any).value === "string"
           ) {
             // LMv2 string envelope from message-v2.ts toModelOutput:
-            //   { type: "text", value: "<string>" }
+            //   { type: "text" | "error-text", value: "<string>" }
             // Send the string as-is so Codex's function_call_output stores
             // plain text, not nested JSON. (Was the cause of post-compaction
             // assistant turns echoing the envelope back as message text.)
             output = (raw as any).value
+          } else if (
+            typeof raw === "object" &&
+            ((raw as any).type === "json" || (raw as any).type === "error-json")
+          ) {
+            // LMv2 json envelope: caller asked for JSON-shaped output, so
+            // serialising the value is the contract — but only the value,
+            // not the {type, value} envelope.
+            output = JSON.stringify((raw as any).value ?? "")
           } else if (
             typeof raw === "object" &&
             (raw as any).type === "content" &&

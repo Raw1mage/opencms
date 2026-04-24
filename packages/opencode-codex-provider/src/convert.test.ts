@@ -190,6 +190,40 @@ describe("convertPrompt — golden format verification", () => {
     expect(item.output).toBe("[skip] Error: apply_patch failed")
   })
 
+  test("tool result LMv2 error-text envelope → unwrapped string", () => {
+    const prompt: LanguageModelV2Prompt = [
+      {
+        role: "tool",
+        content: [
+          {
+            type: "tool-result",
+            toolCallId: "call_err_text",
+            result: { type: "error-text", value: "tool crashed: ENOENT" },
+          } as any,
+        ],
+      },
+    ]
+    const { input } = convertPrompt(prompt)
+    expect((input[0] as any).output).toBe("tool crashed: ENOENT")
+  })
+
+  test("tool result LMv2 json envelope → JSON.stringify of value only", () => {
+    const prompt: LanguageModelV2Prompt = [
+      {
+        role: "tool",
+        content: [
+          {
+            type: "tool-result",
+            toolCallId: "call_json",
+            result: { type: "json", value: { ok: true, count: 3 } },
+          } as any,
+        ],
+      },
+    ]
+    const { input } = convertPrompt(prompt)
+    expect((input[0] as any).output).toBe('{"ok":true,"count":3}')
+  })
+
   test("tool result LMv2 content envelope → unwrapped input_text array", () => {
     const prompt: LanguageModelV2Prompt = [
       {
