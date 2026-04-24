@@ -1,0 +1,149 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "codex-fingerprint-alignment data contracts",
+  "description": "Header + body 欄位對齊 upstream refs/codex rust-v0.125.0-alpha.1。僅列出本 spec 直接修改或新增的欄位；未列出的欄位（body tools, reasoning, text 等）維持既有行為。",
+  "$defs": {
+    "CodexOutboundHeaders": {
+      "type": "object",
+      "description": "Codex 出站請求的 header 集合。WS 與 HTTP 共用大多數欄位；差異欄位以條件標示。",
+      "required": [
+        "authorization",
+        "originator",
+        "User-Agent"
+      ],
+      "properties": {
+        "authorization": {
+          "type": "string",
+          "pattern": "^Bearer .+",
+          "description": "OAuth access token"
+        },
+        "originator": {
+          "type": "string",
+          "const": "codex_cli_rs",
+          "description": "Upstream 固定值；UA prefix 必須等同此值"
+        },
+        "User-Agent": {
+          "type": "string",
+          "pattern": "^codex_cli_rs/[0-9]+\\.[0-9]+\\.[0-9]+ \\(.+\\) terminal$",
+          "description": "格式：codex_cli_rs/<ver> (<OS> <release>; <arch>) terminal。由 buildCodexUserAgent() 產生，WS 與 HTTP 必送。"
+        },
+        "ChatGPT-Account-Id": {
+          "type": "string",
+          "description": "TitleCase。Upstream client.rs 原文；不可用 lowercase chatgpt-account-id。",
+          "x-required-when": "credentials.accountId 存在"
+        },
+        "session_id": {
+          "type": "string",
+          "description": "Session 相關性關聯 id（通常 = conversationId）"
+        },
+        "x-client-request-id": {
+          "type": "string",
+          "description": "Phase 4 新增。值 = conversationId。",
+          "x-required-when": "Phase 4 完成後恆送"
+        },
+        "x-codex-turn-state": {
+          "type": "string",
+          "description": "上一次 response 的 sticky routing token"
+        },
+        "x-codex-window-id": {
+          "type": "string",
+          "pattern": "^.+:[0-9]+$",
+          "description": "conversationId:generation"
+        },
+        "x-codex-parent-thread-id": {
+          "type": "string",
+          "description": "subagent 模式下的父 thread id"
+        },
+        "x-openai-subagent": {
+          "type": "string",
+          "description": "subagent lineage label"
+        },
+        "content-type": {
+          "type": "string",
+          "const": "application/json",
+          "description": "HTTP 路徑必送；WS 路徑不需要（首訊息不是 HTTP body）"
+        },
+        "Accept": {
+          "type": "string",
+          "const": "text/event-stream",
+          "description": "Phase 4 新增。HTTP 路徑必送；WS 不受此欄位控制"
+        },
+        "OpenAI-Beta": {
+          "type": "string",
+          "pattern": "^responses_websockets=[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "description": "僅 WS 升級時送"
+        }
+      },
+      "additionalProperties": true
+    },
+    "TransportMode": {
+      "type": "string",
+      "enum": ["ws", "http-sse"],
+      "description": "兩條出站路徑"
+    },
+    "BuildHeadersInput": {
+      "type": "object",
+      "description": "buildHeaders() 的輸入契約（Phase 2 擴充後）",
+      "required": ["accessToken", "userAgent"],
+      "properties": {
+        "accessToken": { "type": "string" },
+        "accountId": { "type": "string" },
+        "turnState": { "type": "string" },
+        "window": {
+          "type": "object",
+          "required": ["conversationId", "generation"],
+          "properties": {
+            "conversationId": { "type": "string" },
+            "generation": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "parentThreadId": { "type": "string" },
+        "subagentLabel": { "type": "string" },
+        "installationId": { "type": "string" },
+        "sessionId": { "type": "string" },
+        "userAgent": {
+          "type": "string",
+          "description": "Phase 2 起此欄位改為必填；WS 路徑原本可省略，重構後統一由此傳入"
+        },
+        "conversationId": {
+          "type": "string",
+          "description": "Phase 4 新增；作為 x-client-request-id 的值"
+        },
+        "isWebSocket": {
+          "type": "boolean",
+          "default": false,
+          "description": "true 時輸出 WS header 集合（加 OpenAI-Beta、省 Content-Type / Accept）"
+        }
+      }
+    },
+    "SubmoduleVersion": {
+      "type": "object",
+      "description": "refs/codex submodule 同步狀態",
+      "required": ["tag", "commitShortSha", "cliVersion"],
+      "properties": {
+        "tag": {
+          "type": "string",
+          "const": "rust-v0.125.0-alpha.1",
+          "description": "固定鎖定此 tag"
+        },
+        "commitShortSha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{7,40}$"
+        },
+        "cliVersion": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "對應 CODEX_CLI_VERSION 常數值；若 workspace.package.version = 0.0.0 則使用 tag 語意版本 0.125.0-alpha.1"
+        }
+      }
+    }
+  },
+  "type": "object",
+  "description": "本 spec 涉及的資料契約集合（詳見 $defs）",
+  "properties": {
+    "outboundHeaders": { "$ref": "#/$defs/CodexOutboundHeaders" },
+    "buildHeadersInput": { "$ref": "#/$defs/BuildHeadersInput" },
+    "submoduleVersion": { "$ref": "#/$defs/SubmoduleVersion" },
+    "transportMode": { "$ref": "#/$defs/TransportMode" }
+  }
+}

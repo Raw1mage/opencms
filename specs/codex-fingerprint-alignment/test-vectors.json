@@ -1,0 +1,147 @@
+[
+  {
+    "id": "TV-P1-WS-UA",
+    "phase": 1,
+    "requirement": "WS upgrade 請求帶有 User-Agent",
+    "description": "透過 WS 連線時，buildHeaders 產出（或 inline 輸出）必含 User-Agent 且格式正確",
+    "input": {
+      "accessToken": "test-token",
+      "accountId": "acc-123",
+      "platform": "linux",
+      "arch": "x64",
+      "osRelease": "5.15.0",
+      "codexCliVersion": "0.125.0-alpha.1",
+      "isWebSocket": true
+    },
+    "expected": {
+      "headerKeys": ["authorization", "originator", "User-Agent", "ChatGPT-Account-Id", "OpenAI-Beta"],
+      "User-Agent": "codex_cli_rs/0.125.0-alpha.1 (Linux 5.15.0; x86_64) terminal",
+      "ChatGPT-Account-Id": "acc-123",
+      "originator": "codex_cli_rs"
+    }
+  },
+  {
+    "id": "TV-P1-WS-TITLECASE",
+    "phase": 1,
+    "requirement": "ChatGPT-Account-Id header 使用 TitleCase",
+    "description": "WS header 物件的 key 必須是 TitleCase，不可出現 lowercase",
+    "input": {
+      "accessToken": "t",
+      "accountId": "acc-xyz",
+      "isWebSocket": true
+    },
+    "expected": {
+      "mustContainKey": "ChatGPT-Account-Id",
+      "mustNotContainKey": "chatgpt-account-id"
+    }
+  },
+  {
+    "id": "TV-P1-HTTP-REGRESSION",
+    "phase": 1,
+    "requirement": "HTTP path 不回歸",
+    "description": "HTTP buildHeaders 維持既有行為（Phase 1 不動 HTTP 輸出）",
+    "input": {
+      "accessToken": "t",
+      "accountId": "acc-xyz",
+      "userAgent": "codex_cli_rs/0.125.0-alpha.1 (Linux 5.15.0; x86_64) terminal",
+      "isWebSocket": false
+    },
+    "expected": {
+      "headerKeys": ["authorization", "content-type", "originator", "ChatGPT-Account-Id", "User-Agent"],
+      "ChatGPT-Account-Id": "acc-xyz"
+    }
+  },
+  {
+    "id": "TV-P3-SUBMODULE-TAG",
+    "phase": 3,
+    "requirement": "refs/codex submodule 鎖定至 rust-v0.125.0-alpha.1 tag",
+    "description": "submodule HEAD 精確對應 tag commit",
+    "input": {
+      "command": "git -C refs/codex describe --tags --exact-match HEAD"
+    },
+    "expected": {
+      "stdout": "rust-v0.125.0-alpha.1",
+      "exitCode": 0
+    }
+  },
+  {
+    "id": "TV-P3-CLI-VERSION",
+    "phase": 3,
+    "requirement": "CODEX_CLI_VERSION 對齊",
+    "description": "protocol.ts 常數值更新",
+    "input": {
+      "file": "packages/opencode-codex-provider/src/protocol.ts",
+      "pattern": "export const CODEX_CLI_VERSION ="
+    },
+    "expected": {
+      "value": "0.125.0-alpha.1"
+    }
+  },
+  {
+    "id": "TV-P2-UNIFIED-BUILDER",
+    "phase": 2,
+    "requirement": "WS + HTTP 共用單一 header builder 入口",
+    "description": "transport-ws.ts 不再有 inline `headers[X] = Y` 建構；WS header 集合等於 buildHeaders({isWebSocket:true}) 的輸出",
+    "input": {
+      "transportMode": "ws",
+      "builderInput": {
+        "accessToken": "t",
+        "accountId": "acc-1",
+        "userAgent": "codex_cli_rs/0.125.0-alpha.1 (Linux 5.15.0; x86_64) terminal",
+        "turnState": "ts-abc",
+        "window": { "conversationId": "conv-1", "generation": 0 },
+        "isWebSocket": true
+      }
+    },
+    "expected": {
+      "headerKeys": ["authorization", "originator", "User-Agent", "ChatGPT-Account-Id", "x-codex-turn-state", "x-codex-window-id", "OpenAI-Beta"],
+      "mustNotContainKey": "content-type"
+    }
+  },
+  {
+    "id": "TV-P4-CLIENT-REQUEST-ID",
+    "phase": 4,
+    "requirement": "補齊 x-client-request-id",
+    "description": "傳入 conversationId 後 header 必含 x-client-request-id，值等於 conversationId；WS + HTTP 皆如此",
+    "input": {
+      "builderInput": {
+        "accessToken": "t",
+        "accountId": "acc",
+        "userAgent": "codex_cli_rs/0.125.0-alpha.1 (Linux 5.15.0; x86_64) terminal",
+        "conversationId": "conv-42",
+        "isWebSocket": false
+      }
+    },
+    "expected": {
+      "x-client-request-id": "conv-42"
+    }
+  },
+  {
+    "id": "TV-P4-ACCEPT-SSE",
+    "phase": 4,
+    "requirement": "HTTP 顯式 Accept: text/event-stream",
+    "description": "HTTP buildHeaders 輸出必含 Accept，WS 不含",
+    "input": {
+      "httpInput": { "isWebSocket": false, "accessToken": "t", "userAgent": "ua", "conversationId": "c" },
+      "wsInput": { "isWebSocket": true, "accessToken": "t", "userAgent": "ua", "conversationId": "c" }
+    },
+    "expected": {
+      "httpAccept": "text/event-stream",
+      "wsHasAcceptKey": false
+    }
+  },
+  {
+    "id": "TV-ACCEPT-METRIC",
+    "phase": 3,
+    "requirement": "Success metric — OpenAI 後台第三方判定比例",
+    "description": "Beta soak 驗收：連續兩次 < 1%。資料來源為人工觀察，不在 unit test 範圍；此向量用於 acceptance log 模板",
+    "input": {
+      "observationRound": 1,
+      "source": "OpenAI 官網後台（人工查看）"
+    },
+    "expected": {
+      "thirdPartyRatePercent_lt": 1.0,
+      "consecutiveObservationsRequired": 2
+    }
+  }
+]

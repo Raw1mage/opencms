@@ -1,0 +1,89 @@
+{
+  "diagram_title": "codex-fingerprint-alignment — functional decomposition",
+  "node_reference": "A0",
+  "parent_reference": null,
+  "standard": "IEEE 1320.1-1998 / FIPS 183 (IDEF0)",
+  "activities": [
+    {
+      "id": "A1",
+      "label": "Emit codex outbound request with first-party fingerprint",
+      "description": "組合一組出站請求，讓 OpenAI first-party classifier 辨識為 first-party codex CLI。此為 A0 的頂層功能。",
+      "inputs": ["session.prompt", "credentials", "conversation state"],
+      "outputs": ["HTTPS / WSS request with correct headers + body"],
+      "controls": ["DD-1..DD-8", "upstream rust-v0.125.0-alpha.1 spec"],
+      "mechanisms": ["C1 buildHeaders", "C2 transport-ws", "C3 provider http", "C4 CODEX_CLI_VERSION", "C5 buildCodexUserAgent"]
+    },
+    {
+      "id": "A2",
+      "label": "Attach User-Agent + TitleCase account-id to WS upgrade",
+      "description": "Phase 1 目標：在 WS 升級 header inline 補 UA 與 TitleCase ChatGPT-Account-Id。",
+      "inputs": ["accessToken", "accountId", "WS URL"],
+      "outputs": ["WS upgrade headers 含 UA + TitleCase account-id"],
+      "controls": ["DD-1 先 inline 再重構", "DD-2 TitleCase"],
+      "mechanisms": ["C2 transport-ws.ts (inline 補)", "C5 buildCodexUserAgent"]
+    },
+    {
+      "id": "A3",
+      "label": "Emit HTTP SSE request (既有路徑，不回歸)",
+      "description": "既有已走 buildHeaders 的 HTTP 路徑維持功能。",
+      "inputs": ["buildHeaders 輸入"],
+      "outputs": ["HTTP POST with existing fingerprint"],
+      "controls": ["既有 provider.ts 實作"],
+      "mechanisms": ["C1", "C3"]
+    },
+    {
+      "id": "A4",
+      "label": "Unify header construction through buildHeaders()",
+      "description": "Phase 2：WS 也改呼叫 buildHeaders({isWebSocket:true})。",
+      "inputs": ["BuildHeadersInput with isWebSocket flag"],
+      "outputs": ["統一 header 集合；transport-specific 欄位經 flag 分支產生"],
+      "controls": ["DD-5 isWebSocket 分支策略"],
+      "mechanisms": ["C1 擴充", "C2 改為呼叫 C1"]
+    },
+    {
+      "id": "A5",
+      "label": "Subprocess: first WS message body assembly (本 spec 不動)",
+      "description": "首訊息 JSON body 組裝維持現狀；與 codex-prompt-rebuild-incremental 未來 spec 銜接點。",
+      "inputs": ["ResponsesApiRequest body"],
+      "outputs": ["WS send JSON 首訊息"],
+      "controls": ["現行實作"],
+      "mechanisms": ["C2 transport-ws 的 body 組裝區塊（非 header 區塊）"]
+    },
+    {
+      "id": "A6",
+      "label": "Add x-client-request-id + Accept to HTTP",
+      "description": "Phase 4：HTTP buildHeaders 新增兩個欄位。",
+      "inputs": ["conversationId", "isWebSocket=false"],
+      "outputs": ["headers 含 x-client-request-id + Accept:text/event-stream"],
+      "controls": ["DD-6 x-client-request-id = conversationId"],
+      "mechanisms": ["C1 擴充", "C3 呼叫站加參數"]
+    },
+    {
+      "id": "A7",
+      "label": "Extend BuildHeadersInput with conversationId + isWebSocket",
+      "description": "Phase 2 / Phase 4 共同擴充：介面欄位新增。",
+      "inputs": ["既有 BuildHeadersOptions"],
+      "outputs": ["擴充後介面 + impl"],
+      "controls": ["data-schema.json BuildHeadersInput"],
+      "mechanisms": ["C1 headers.ts"]
+    },
+    {
+      "id": "A8",
+      "label": "Sync refs/codex to rust-v0.125.0-alpha.1 and update CODEX_CLI_VERSION",
+      "description": "Phase 3：submodule checkout tag + 常數更新 + upstream diff 盤點。",
+      "inputs": ["current submodule @ d0eff70383", "upstream tag rust-v0.125.0-alpha.1"],
+      "outputs": ["refs/codex @ rust-v0.125.0-alpha.1", "protocol.ts CODEX_CLI_VERSION 更新"],
+      "controls": ["DD-3 鎖 tag", "DD-4 版本取用規則", "AGENTS.md 外部 plugin 管理"],
+      "mechanisms": ["git submodule", "C4 protocol.ts", "C6 refs/codex"]
+    },
+    {
+      "id": "A9",
+      "label": "Verify via beta worktree + OpenAI 官網後台人工查看",
+      "description": "Acceptance：beta 驗證 → 第三方判定比例 < 1% → fetch-back。",
+      "inputs": ["deployed change", "真實對話負載"],
+      "outputs": ["驗證通過 / 未通過決策"],
+      "controls": ["DD-7 beta 驗證 + fetch-back", "Success Criteria"],
+      "mechanisms": ["beta-workflow skill", "OpenAI 官網後台（手動）", "C7 classifier（外部）"]
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+[
+    {
+      "id": "P1",
+      "title": "Phase 1 後：WS transport 升級請求帶齊 fingerprint",
+      "participants": [
+        { "id": "runloop", "label": "session runloop", "componentRef": "packages/opencode/src/session/prompt.ts" },
+        { "id": "provider", "label": "CodexProvider.doStream", "componentRef": "C3" },
+        { "id": "ws", "label": "transport-ws.ts connectWs", "componentRef": "C2" },
+        { "id": "uaFn", "label": "buildCodexUserAgent()", "componentRef": "C5" },
+        { "id": "openai", "label": "OpenAI responses (WSS)", "componentRef": "C8" },
+        { "id": "classifier", "label": "first-party classifier", "componentRef": "C7" }
+      ],
+      "messages": [
+        { "id": "MSG1", "from": "runloop", "to": "provider", "label": "generate(prompt, tools)" },
+        { "id": "MSG2", "from": "provider", "to": "ws", "label": "tryWsTransport(body, accessToken, accountId, turnState)" },
+        { "id": "MSG3", "from": "ws", "to": "uaFn", "label": "buildCodexUserAgent() [Phase 1 新依賴]" },
+        { "id": "MSG4", "from": "uaFn", "to": "ws", "label": "returns: 'codex_cli_rs/<ver> (<OS>; <arch>) terminal'" },
+        { "id": "MSG5", "from": "ws", "to": "openai", "label": "WS upgrade headers = {Authorization, originator, User-Agent, ChatGPT-Account-Id, x-codex-turn-state?, OpenAI-Beta}" },
+        { "id": "MSG6", "from": "openai", "to": "classifier", "label": "inbound request fingerprint check" },
+        { "id": "MSG7", "from": "classifier", "to": "openai", "label": "classification = first-party (期望)" },
+        { "id": "MSG8", "from": "openai", "to": "ws", "label": "101 Switching Protocols" },
+        { "id": "MSG9", "from": "ws", "to": "openai", "label": "首訊息 JSON (body)" }
+      ]
+    },
+    {
+      "id": "P2",
+      "title": "Phase 2 後：WS + HTTP 共用 buildHeaders() 單一入口",
+      "participants": [
+        { "id": "provider", "label": "CodexProvider.doStream", "componentRef": "C3" },
+        { "id": "ws", "label": "transport-ws.ts", "componentRef": "C2" },
+        { "id": "headers", "label": "buildHeaders()", "componentRef": "C1" },
+        { "id": "uaFn", "label": "buildCodexUserAgent()", "componentRef": "C5" }
+      ],
+      "messages": [
+        { "id": "MSG1", "from": "ws", "to": "headers", "label": "buildHeaders({accessToken, accountId, window, userAgent, isWebSocket:true})" },
+        { "id": "MSG2", "from": "headers", "to": "ws", "label": "returns: {Authorization, originator, User-Agent, ChatGPT-Account-Id, x-codex-window-id, OpenAI-Beta}" },
+        { "id": "MSG3", "from": "provider", "to": "headers", "label": "buildHeaders({..., isWebSocket:false})" },
+        { "id": "MSG4", "from": "headers", "to": "provider", "label": "returns: {..., Content-Type, Accept}" }
+      ]
+    },
+    {
+      "id": "P3",
+      "title": "Phase 3：upstream submodule 同步流程",
+      "participants": [
+        { "id": "dev", "label": "developer / build agent", "componentRef": "out-of-band" },
+        { "id": "git", "label": "git", "componentRef": "out-of-band" },
+        { "id": "submodule", "label": "refs/codex", "componentRef": "C6" },
+        { "id": "constant", "label": "CODEX_CLI_VERSION", "componentRef": "C4" },
+        { "id": "test", "label": "bun test", "componentRef": "out-of-band" }
+      ],
+      "messages": [
+        { "id": "MSG1", "from": "dev", "to": "git", "label": "git -C refs/codex fetch --tags" },
+        { "id": "MSG2", "from": "git", "to": "submodule", "label": "git checkout rust-v0.125.0-alpha.1" },
+        { "id": "MSG3", "from": "dev", "to": "submodule", "label": "git log rust-v0.122.0..rust-v0.125.0-alpha.1 -- client.rs default_client.rs" },
+        { "id": "MSG4", "from": "submodule", "to": "dev", "label": "diff 盤點：新增 header？新增 body 欄位？" },
+        { "id": "MSG5", "from": "dev", "to": "constant", "label": "CODEX_CLI_VERSION = '0.125.0-alpha.1'（或 workspace.package.version）" },
+        { "id": "MSG6", "from": "dev", "to": "test", "label": "bun test packages/opencode-codex-provider" },
+        { "id": "MSG7", "from": "test", "to": "dev", "label": "全綠 → 主 repo commit submodule pointer + 常數變更" }
+      ]
+    },
+    {
+      "id": "P4",
+      "title": "Phase 4 後：HTTP POST 帶齊 x-client-request-id + Accept",
+      "participants": [
+        { "id": "provider", "label": "CodexProvider.doStream (HTTP fallback)", "componentRef": "C3" },
+        { "id": "headers", "label": "buildHeaders()", "componentRef": "C1" },
+        { "id": "openai", "label": "OpenAI responses (HTTPS)", "componentRef": "C8" },
+        { "id": "classifier", "label": "first-party classifier", "componentRef": "C7" }
+      ],
+      "messages": [
+        { "id": "MSG1", "from": "provider", "to": "headers", "label": "buildHeaders({..., conversationId, isWebSocket:false})" },
+        { "id": "MSG2", "from": "headers", "to": "provider", "label": "returns includes: 'x-client-request-id': conversationId, 'Accept': 'text/event-stream'" },
+        { "id": "MSG3", "from": "provider", "to": "openai", "label": "POST /backend-api/codex/responses headers={...}" },
+        { "id": "MSG4", "from": "openai", "to": "classifier", "label": "fingerprint check" },
+        { "id": "MSG5", "from": "classifier", "to": "openai", "label": "first-party" },
+        { "id": "MSG6", "from": "openai", "to": "provider", "label": "200 + text/event-stream body" }
+      ]
+    },
+    {
+      "id": "P5",
+      "title": "驗收：beta worktree 驗證 + fetch-back 主流程",
+      "participants": [
+        { "id": "dev", "label": "developer", "componentRef": "out-of-band" },
+        { "id": "beta", "label": "opencode-beta worktree", "componentRef": "out-of-band" },
+        { "id": "oa-ui", "label": "OpenAI 官網後台", "componentRef": "out-of-band" },
+        { "id": "main", "label": "main repo", "componentRef": "out-of-band" }
+      ],
+      "messages": [
+        { "id": "MSG1", "from": "dev", "to": "beta", "label": "在 beta worktree 落 Phase 1+3 變更，啟動 daemon" },
+        { "id": "MSG2", "from": "beta", "to": "oa-ui", "label": "跑真實對話負載（WS + HTTP 路徑）" },
+        { "id": "MSG3", "from": "dev", "to": "oa-ui", "label": "人工查看第三方判定比例（基線 ~7%）" },
+        { "id": "MSG4", "from": "oa-ui", "to": "dev", "label": "連續兩次觀察 < 1% → 通過" },
+        { "id": "MSG5", "from": "dev", "to": "main", "label": "fetch-back 回 main；documented in docs/events/" }
+      ]
+    }
+]

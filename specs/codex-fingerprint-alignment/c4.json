@@ -1,0 +1,94 @@
+{
+  "diagram_title": "codex-fingerprint-alignment — C4 level 3 (component)",
+  "level": "component",
+  "systems": [
+    { "id": "opencode", "label": "opencode daemon", "description": "本機 AI agent runtime" },
+    { "id": "openai", "label": "OpenAI ChatGPT Codex backend", "description": "外部；first-party classifier + responses endpoint 寄宿處" }
+  ],
+  "containers": [
+    { "id": "codex-provider", "system": "opencode", "label": "opencode-codex-provider package", "technology": "TypeScript (bun)" },
+    { "id": "codex-auth-plugin", "system": "opencode", "label": "codex-auth plugin", "technology": "TypeScript" },
+    { "id": "refs-codex", "system": "opencode", "label": "refs/codex submodule", "technology": "Rust upstream (reference only)" },
+    { "id": "openai-classifier", "system": "openai", "label": "first-party request classifier", "technology": "OpenAI internal" },
+    { "id": "openai-responses", "system": "openai", "label": "codex responses endpoint", "technology": "HTTPS/WSS" }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "container": "codex-provider",
+      "label": "buildHeaders() header builder",
+      "description": "Phase 2 後成為 WS + HTTP 共用唯一入口；接受 isWebSocket flag 分支",
+      "moduleRef": "packages/opencode-codex-provider/src/headers.ts",
+      "idef0Traces": ["A1", "A4", "A7"]
+    },
+    {
+      "id": "C2",
+      "container": "codex-provider",
+      "label": "WS transport (transport-ws.ts)",
+      "description": "Phase 1 先 inline 補 UA + TitleCase；Phase 2 改呼叫 buildHeaders()",
+      "moduleRef": "packages/opencode-codex-provider/src/transport-ws.ts",
+      "idef0Traces": ["A2", "A5"]
+    },
+    {
+      "id": "C3",
+      "container": "codex-provider",
+      "label": "HTTP SSE transport (provider.ts fallback)",
+      "description": "既有走 buildHeaders() 路徑；Phase 4 經由 buildHeaders 新增 x-client-request-id + Accept",
+      "moduleRef": "packages/opencode-codex-provider/src/provider.ts",
+      "idef0Traces": ["A3", "A6"]
+    },
+    {
+      "id": "C4",
+      "container": "codex-provider",
+      "label": "CODEX_CLI_VERSION constant",
+      "description": "Phase 3 更新為 rust-v0.125.0-alpha.1 對應版號",
+      "moduleRef": "packages/opencode-codex-provider/src/protocol.ts",
+      "idef0Traces": ["A8"]
+    },
+    {
+      "id": "C5",
+      "container": "codex-auth-plugin",
+      "label": "buildCodexUserAgent()",
+      "description": "UA 字串組裝；格式與 originator 對齊。不直接修改，但 Phase 1 新依賴點",
+      "moduleRef": "packages/opencode/src/plugin/codex-auth.ts",
+      "idef0Traces": ["A1"]
+    },
+    {
+      "id": "C6",
+      "container": "refs-codex",
+      "label": "upstream header + UA reference",
+      "description": "對照規格來源；submodule pointer 鎖 rust-v0.125.0-alpha.1",
+      "moduleRef": "refs/codex/codex-rs/core/src/client.rs; refs/codex/codex-rs/login/src/auth/default_client.rs",
+      "idef0Traces": ["A8"]
+    },
+    {
+      "id": "C7",
+      "container": "openai-classifier",
+      "label": "first-party vs third-party classifier",
+      "description": "依 UA + originator + account-id + 版本等組合判定請求來源",
+      "moduleRef": "external (OpenAI internal)",
+      "idef0Traces": ["A9"]
+    },
+    {
+      "id": "C8",
+      "container": "openai-responses",
+      "label": "chatgpt.com/backend-api/codex/responses",
+      "description": "HTTP POST + WebSocket 兩種接入方式",
+      "moduleRef": "external (OpenAI internal)",
+      "idef0Traces": ["A9"]
+    }
+  ],
+  "relationships": [
+    { "from": "C2", "to": "C1", "label": "Phase 2 後呼叫 buildHeaders({isWebSocket:true})", "technology": "in-process" },
+    { "from": "C3", "to": "C1", "label": "既有呼叫 buildHeaders()；Phase 4 新增欄位經此入口", "technology": "in-process" },
+    { "from": "C2", "to": "C5", "label": "讀取 buildCodexUserAgent() 輸出作為 UA", "technology": "in-process (Phase 1 起)" },
+    { "from": "C3", "to": "C5", "label": "讀取 UA（已存在）", "technology": "in-process" },
+    { "from": "C1", "to": "C4", "label": "間接依賴 CODEX_CLI_VERSION（透過 buildCodexUserAgent）", "technology": "import" },
+    { "from": "C5", "to": "C4", "label": "UA 字串嵌入 CODEX_CLI_VERSION", "technology": "import" },
+    { "from": "C4", "to": "C6", "label": "版本值需對齊 upstream tag（人工確認）", "technology": "documentation" },
+    { "from": "C2", "to": "C8", "label": "WSS 升級 + 首訊息 JSON", "technology": "WebSocket" },
+    { "from": "C3", "to": "C8", "label": "HTTP POST + SSE", "technology": "HTTPS" },
+    { "from": "C8", "to": "C7", "label": "每個 inbound request 經過 classifier", "technology": "internal" },
+    { "from": "C7", "to": "C7", "label": "human operator 透過 OpenAI 官網後台手動查看比例（out-of-band）", "technology": "web UI" }
+  ]
+}
