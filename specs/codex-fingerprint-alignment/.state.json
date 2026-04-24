@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "planned",
+  "state": "implementing",
   "profile": [],
   "history": [
     {
@@ -26,6 +26,14 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "tasks.md + handoff.md + test-vectors.json + errors.md + observability.md drafted"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-04-24T12:15:27.184Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Phase 1 started: XDG backup done, beta worktree + branch created"
     }
   ]
 }

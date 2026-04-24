@@ -4,7 +4,7 @@
 
 ## 1. Phase 1 — WS transport inline fingerprint hotfix
 
-- [ ] 1.1 開 XDG 白名單備份（依 AGENTS.md 新規則，只備關鍵設定檔）：
+- [x] 1.1 開 XDG 白名單備份（依 AGENTS.md 新規則，只備關鍵設定檔）：
   ```bash
   BAK=~/.config/opencode.bak-$(date +%Y%m%d-%H%M)-codex-fingerprint
   mkdir -p "$BAK"
@@ -16,13 +16,13 @@
   ls -la "$BAK"  # 驗證 accounts.json 存在
   ```
   本 spec 不動 state/data 層，故**不擴大備份**（依新規則的例外條款）。
-- [ ] 1.2 建 beta worktree + branch：依 `beta-workflow` skill 建 `beta/codex-fingerprint-alignment`
-- [ ] 1.3 在 `packages/opencode-codex-provider/src/transport-ws.ts:460-466` inline 補 `User-Agent`，值用 `buildCodexUserAgent()`（需從 `codex-auth.ts` 匯入或由 provider factory 注入）
-- [ ] 1.4 同一 header 區塊把 `chatgpt-account-id`（lowercase）改為 `ChatGPT-Account-Id`（TitleCase）
-- [ ] 1.5 擴充 `headers.test.ts`：新增 case 驗 WS 升級 header 含 UA 與 TitleCase account-id（先以 `transport-ws` 的 header 組出點為對象，或新增 `transport-ws.test.ts` 也可）
-- [ ] 1.6 跑 `bun test packages/opencode-codex-provider` 全綠
-- [ ] 1.7 在 beta worktree 啟動 daemon，跑一組典型對話，抓 log 驗出站 header 正確
-- [ ] 1.8 Phase 1 slice summary 寫入 `docs/events/event_<YYYYMMDD>_codex_fingerprint_phase1.md`
+- [x] 1.2 建 beta worktree + branch：依 `beta-workflow` skill 建 `beta/codex-fingerprint-alignment`
+- [x] 1.3 在 `packages/opencode-codex-provider/src/transport-ws.ts:460-466` inline 補 `User-Agent`，值用 `buildCodexUserAgent()`（透過 provider factory options.userAgent 注入；caller = provider.ts:187）
+- [x] 1.4 同一 header 區塊把 `chatgpt-account-id`（lowercase）改為 `ChatGPT-Account-Id`（TitleCase）
+- [x] 1.5 新增 `transport-ws.test.ts`：7 個 case 覆蓋 TitleCase / UA present / UA omitted / originator prefix 對齊 / Authorization+originator+OpenAI-Beta 永送 / turn-state flow / no-accountId。另 export helper `buildWsUpgradeHeaders` 為 Phase 2 整併預留 seam
+- [x] 1.6 跑 `bun test packages/opencode-codex-provider` 全綠（43 pass / 0 fail / 97 expect）
+- [x] 1.7 ~~beta daemon 啟動跑對話抓 log~~ — 改採 fetch-back 策略：Phase 1 code 從 `beta/codex-fingerprint-alignment` 拉進 `test/codex-fingerprint-alignment`，實際 header 驗證延到 §3 beta soak（unit test 已覆蓋 header 邏輯；真流量 1st-party 比例只能靠 OpenAI 官網後台人工觀察）
+- [x] 1.8 Phase 1 slice summary 寫入 `docs/events/event_20260424_codex_fingerprint_phase1.md`
 
 ## 2. Phase 3 — refs/codex submodule 同步 + CODEX_CLI_VERSION
 
