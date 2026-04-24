@@ -265,6 +265,15 @@ function wsRequest(input: {
             const mapped = mapError(errorEvent)
             const errorMsg = mapped?.message || errorEvent.error?.message || "Unknown WS error"
             const errorCode = errorEvent.error?.code || ""
+            // [CODEX-409-PROBE] log any error event; high-volume but temporary
+            console.error("[CODEX-409-PROBE] WS error frame", JSON.stringify({
+              sessionId,
+              rawData: data.slice(0, 2000),
+              errorMsg,
+              errorCode,
+              errorType: errorEvent.error?.type,
+              frameCount,
+            }))
             const isPrevRespNotFound = errorCode.includes("previous_response") ||
               errorMsg.includes("Previous response") || errorMsg.includes("not found")
 

@@ -238,7 +238,24 @@ class CodexLanguageModel implements LanguageModelV2 {
       const ct = response.headers.get("content-type") ?? ""
       if (ct.includes("application/json") || !ct.includes("text/event-stream")) {
         const errorBody = await response.text()
-        throw new Error(`Codex API error (${response.status}): ${errorBody.slice(0, 200)}`)
+        // [CODEX-409-PROBE] verbose logging to trace "Tool use unavailable: 409 Conflict" origin.
+        // Remove after bug root-cause lands.
+        if (response.status === 409 || /already running|tool.call|conflict/i.test(errorBody)) {
+          const hdrs: Record<string, string> = {}
+          response.headers.forEach((v, k) => { hdrs[k] = v })
+          console.error("[CODEX-409-PROBE] HTTP non-ok response", JSON.stringify({
+            status: response.status,
+            statusText: response.statusText,
+            url,
+            sessionId: wsSessionId,
+            conversationId: this.window.conversationId,
+            contentType: ct,
+            responseHeaders: hdrs,
+            bodyFull: errorBody,
+            requestBody: body,
+          }, null, 2))
+        }
+        throw new Error(`Codex API error (${response.status}): ${errorBody.slice(0, 500)}`)
       }
     }
 
