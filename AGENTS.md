@@ -6,17 +6,34 @@
 
 ## XDG Config 備份規則（opencode-specific）
 
-**每次 plan 開跑前（或 beta-workflow admission 通過後、第一個程式碼編輯/測試指令前），必須完整備份 XDG config 目錄**。
+**每次 plan 開跑前（或 beta-workflow admission 通過後、第一個程式碼編輯/測試指令前），必須備份 XDG 下的關鍵設定檔**。**只備份關鍵設定檔，不備份整個目錄** — 流水帳（log、checkpoint、snapshot、history、cache、node_modules、lock 檔、runtime state）會把備份撐到 GB 級、還原時也無意義。
 
-- **備份範圍**：`~/.config/opencode/` 整個目錄（至少 `accounts.json`、`opencode.json`、`managed-apps.json`、`gauth.json`、`mcp.json`），以及 `~/.local/state/opencode/`、`~/.local/share/opencode/` 若該 plan 會觸及 state/data 層。
-- **備份位置**：`~/.config/opencode.bak-<YYYYMMDD-HHMM>-<plan-slug>/`（timestamp + plan slug，方便事後追溯是哪個 plan 留下的快照）。
+- **備份範圍（白名單；只備這些檔，存在才備）**：
+  - `~/.config/opencode/accounts.json` **（必備；歷史事故即來自此檔被抹）**
+  - `~/.config/opencode/opencode.json`
+  - `~/.config/opencode/managed-apps.json`
+  - `~/.config/opencode/gauth.json`
+  - `~/.config/opencode/mcp.json`
+  - `~/.config/opencode/mcp-auth.json`
+  - `~/.config/opencode/openai-codex-accounts.json`
+  - `~/.config/opencode/models.json`
+  - `~/.config/opencode/providers.json`
+  - `~/.config/opencode/AGENTS.md`（global 規範本身）
+  - `~/.local/share/opencode/accounts.json`（legacy 路徑，若存在）
+- **明確不備份**（流水帳；備了只是浪費）：
+  - `~/.config/opencode/node_modules/`、`bun.lock`、`package.json`（reproducible）
+  - `~/.config/opencode/daemon.lock`、`usage-stats.json`、`AGENTS.md.bak*`、`*.bak*`（舊快照）
+  - `~/.local/state/opencode/` 整個（`rebind-checkpoint-*`、`frecency.jsonl`、`prompt-history.jsonl`、`kv.json`、`rotation-state.json`、`log-level`、`ignored-models.json`、`model.json`、`__tasks__/`、`cyclebin/`）
+  - `~/.local/share/opencode/` 下的 `log/`、`snapshot/`、`storage/`、`node_modules/`、`opencode.db`、`running-tasks.json`、`bun.lock`
+- **備份位置**：`~/.config/opencode.bak-<YYYYMMDD-HHMM>-<plan-slug>/`（保留目錄形式以維持相對路徑，但裡頭只放白名單檔案）。時戳 + plan slug 方便事後追溯。
+- **例外觸發擴大備份**：若該 plan 明確會動 state/data 層（例如改 `rotation-state.json` 結構、migration script 重寫 storage），才把對應目錄整個納入本次備份，並在 proposal.md / design.md 註明原因。預設不擴大。
 - **還原政策**：**備份 ≠ 還原目標**。使用者在 AI 工作期間也會主動更新 XDG（新增帳號、改 config 等），AI **絕不可**自行用舊備份覆蓋現行 XDG。
-  - plan 結束（無論 success / abort）後，**列出備份目錄位置**給使用者，並明確說「這是 plan 起跑前的快照，僅供需要時手動還原」。
+  - plan 結束（無論 success / abort）後，**列出備份目錄位置**給使用者，並明確說「這是 plan 起跑前的白名單快照，僅供需要時手動還原」。
   - **只有在使用者明確要求「還原」時才執行 restore**；否則留著備份直到使用者說可以刪。
   - 除非使用者指示，不得主動 `cp` / `rsync` / `mv` 備份回 `~/.config/opencode/`。
-- **Why**：beta 與 main 在同一 uid 下共用 `~/.config/opencode/`；任何 test / migration / `Account.normalizeIdentities` 路徑都可能透過 `Global.Path.user` 直寫真實檔案。2026-04-18 codex-rotation-hotfix 的測試跑過 `family-normalization.test.ts`，把 14 個 family 壓成 1 個，永久失去 5 個 codex 帳號 token（log 不記 refreshToken，rsync NAS 自 3/3 壞掉）。
+- **Why**：beta 與 main 在同一 uid 下共用 `~/.config/opencode/`；任何 test / migration / `Account.normalizeIdentities` 路徑都可能透過 `Global.Path.user` 直寫真實檔案。2026-04-18 codex-rotation-hotfix 的測試跑過 `family-normalization.test.ts`，把 14 個 family 壓成 1 個，永久失去 5 個 codex 帳號 token（log 不記 refreshToken，rsync NAS 自 3/3 壞掉）。白名單只保留**不可重建**的認證 / 設定，流水帳被測試污染沒差、可再生。
 - **唯一例外**：純 read-only inspection（`git log` / `grep` / `cat`）不動任何 state，可略過；但只要進入 plan 實作階段就**不可跳過**。
-- **違規判定**：沒有 `opencode.bak-*` 快照存在的狀態下跑 `bun test` / `bun run ...` / 重啟 daemon，視為違規。
+- **違規判定**：沒有 `opencode.bak-*-<plan-slug>/accounts.json` 存在的狀態下跑 `bun test` / `bun run ...` / 重啟 daemon，視為違規。
 
 > 本規則 opencode-specific：因為 opencode 的測試會直接修改本機 `~/.config/opencode/`，其他專案一般不會有這風險。
 
