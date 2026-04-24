@@ -25,8 +25,8 @@ export const CODEX_WS_URL = "wss://chatgpt.com/backend-api/codex/responses"
  */
 export const ORIGINATOR = "codex_cli_rs"
 
-/** Pinned codex-cli version we impersonate. Bump when refs/codex is fetched. */
-export const CODEX_CLI_VERSION = "0.122.0"
+/** Pinned codex-cli version we impersonate. Aligned with refs/codex tag. */
+export const CODEX_CLI_VERSION = "0.125.0-alpha.1"
 
 /** Beta features header for WebSocket v2 protocol */
 export const WS_BETA_HEADER = "responses_websockets=2026-02-06"
