@@ -1001,6 +1001,22 @@ async function resolveWorkspaceIdForSession(session: Pick<Session.Info, "directo
 async function executeResumeInLane(sessionID: string, workspaceId: string | undefined, item: ResumeCandidate) {
   const doResume = async () => {
     try {
+      const ksState = await KillSwitchService.getState().catch(() => undefined)
+      if (ksState?.active) {
+        log.info("resume aborted by killswitch", { sessionID })
+        await clearPendingContinuation(sessionID).catch(() => undefined)
+        await Session.setWorkflowState({
+          sessionID,
+          state: "blocked",
+          stopReason: "kill_switch_active",
+          lastRunAt: Date.now(),
+        }).catch(() => undefined)
+        await Session.updateWorkflowSupervisor({
+          sessionID,
+          clear: ["leaseOwner", "leaseExpiresAt", "retryAt"],
+        }).catch(() => undefined)
+        return
+      }
       const { SessionPrompt } = await import("./prompt")
       await SessionPrompt.loop(sessionID)
       await Session.updateWorkflowSupervisor({
