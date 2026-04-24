@@ -168,6 +168,21 @@ const OPENAI_CORRECTION: ProviderCorrection<ModelShape> = {
       cost: { input: 1.25, output: 10 },
       options: {},
     },
+    "gpt-5.5": {
+      id: "gpt-5.5",
+      name: "GPT-5.5",
+      family: "gpt-5.5",
+      release_date: "2026-04-24",
+      last_updated: "2026-04-24",
+      attachment: false,
+      reasoning: true,
+      temperature: false,
+      tool_call: true,
+      modalities: { input: ["text"], output: ["text"] },
+      limit: { context: 400000, output: 128000 },
+      cost: { input: 1.25, output: 10 },
+      options: {},
+    },
   },
 }
 

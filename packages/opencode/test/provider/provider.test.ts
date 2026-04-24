@@ -343,6 +343,36 @@ test("getModel returns model for valid provider/model", async () => {
   })
 })
 
+test("getModel resolves curated openai gpt-5.5 model", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(
+        path.join(dir, "opencode.json"),
+        JSON.stringify({
+          $schema: "https://opencode.ai/config.json",
+          provider: {
+            openai: {
+              options: {
+                apiKey: "test-api-key",
+              },
+            },
+          },
+        }),
+      )
+    },
+  })
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const model = await Provider.getModel("openai", "gpt-5.5")
+      expect(model).toBeDefined()
+      expect(model.providerId).toBe("openai")
+      expect(model.id).toBe("gpt-5.5")
+      expect(model.api.id).toBe("gpt-5.5")
+    },
+  })
+})
+
 test("getModel throws ModelNotFoundError for invalid model", async () => {
   await using tmp = await tmpdir({
     init: async (dir) => {
@@ -808,7 +838,6 @@ test("disabled_providers prevents loading even with env var", async () => {
     },
   })
 })
-
 
 test("whitelist and blacklist can be combined", async () => {
   await using tmp = await tmpdir({
