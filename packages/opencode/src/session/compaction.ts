@@ -827,6 +827,12 @@ When constructing the summary, try to stick to this template:
   }) {
     log.info("compacting with shared context", { sessionID: input.sessionID })
 
+    // Announce compaction start immediately so the UI toast fires at the
+    // beginning of the 30s+ snapshot-and-save window. Mirrors process() which
+    // already publishes this at its entry; the shared-context priority path
+    // used to bypass it entirely and the toast only showed on Compacted.
+    Bus.publish(Event.CompactionStarted, { sessionID: input.sessionID, mode: "plugin" })
+
     const msgs = await Session.messages({ sessionID: input.sessionID })
     const parentID = msgs.at(-1)?.info.id
     if (!parentID) return
