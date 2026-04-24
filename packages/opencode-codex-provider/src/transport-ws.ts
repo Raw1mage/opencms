@@ -7,8 +7,9 @@
  *
  * Extracted from plugin/codex-websocket.ts.
  */
-import { WS_CONNECT_TIMEOUT_MS, WS_IDLE_TIMEOUT_MS, WS_FIRST_FRAME_TIMEOUT_MS, WS_BETA_HEADER, ORIGINATOR } from "./protocol.js"
+import { WS_CONNECT_TIMEOUT_MS, WS_IDLE_TIMEOUT_MS, WS_FIRST_FRAME_TIMEOUT_MS } from "./protocol.js"
 import { getContinuation, updateContinuation, invalidateContinuation, clearContinuation } from "./continuation.js"
+import { buildHeaders } from "./headers.js"
 import type { ResponseStreamEvent, ResponseCreateWsRequest } from "./types.js"
 
 // ---------------------------------------------------------------------------
@@ -127,31 +128,6 @@ function mapError(event: WrappedErrorEvent): Error | null {
 // ---------------------------------------------------------------------------
 // § 3  WS connection
 // ---------------------------------------------------------------------------
-
-/**
- * Build the WS upgrade header set. Phase 1 of codex-fingerprint-alignment:
- * extracted for testability. Must match upstream codex-rs first-party
- * fingerprint — UA prefix is tied to `originator` per codex-auth.ts:42-45,
- * and ChatGPT-Account-Id stays TitleCase to mirror refs/codex
- * core/src/client.rs. Phase 2 will merge this into the shared
- * `buildHeaders({ isWebSocket: true })` entry point.
- */
-export function buildWsUpgradeHeaders(input: {
-  accessToken: string
-  accountId?: string
-  turnState?: string
-  userAgent?: string
-}): Record<string, string> {
-  const headers: Record<string, string> = {
-    "Authorization": `Bearer ${input.accessToken}`,
-    "originator": ORIGINATOR,
-    "OpenAI-Beta": WS_BETA_HEADER,
-  }
-  if (input.userAgent) headers["User-Agent"] = input.userAgent
-  if (input.accountId) headers["ChatGPT-Account-Id"] = input.accountId
-  if (input.turnState) headers["x-codex-turn-state"] = input.turnState
-  return headers
-}
 
 function connectWs(url: string, headers: Record<string, string>): Promise<WebSocket | null> {
   return new Promise((resolve) => {
@@ -408,6 +384,7 @@ export interface WsTransportInput {
   body: Record<string, unknown>
   wsUrl: string
   userAgent?: string
+  conversationId?: string
 }
 
 /**
@@ -482,11 +459,13 @@ export async function tryWsTransport(input: WsTransportInput): Promise<ReadableS
     invalidateContinuation(sessionId)
   }
 
-  const headers = buildWsUpgradeHeaders({
+  const headers = buildHeaders({
     accessToken,
     accountId,
     turnState: input.turnState,
     userAgent: input.userAgent,
+    conversationId: input.conversationId,
+    isWebSocket: true,
   })
 
   const ws = await connectWs(wsUrl, headers)

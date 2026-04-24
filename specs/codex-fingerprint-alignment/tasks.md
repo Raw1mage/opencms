@@ -49,23 +49,23 @@
 
 ## 4. Phase 2 — 統一 header builder 入口
 
-- [ ] 4.1 擴充 `packages/opencode-codex-provider/src/headers.ts` 的 `BuildHeadersOptions`：加 `isWebSocket?: boolean`，`userAgent` 改為強烈建議（Phase 4 可再加 `conversationId`）
-- [ ] 4.2 修改 `buildHeaders()` 實作：依 `isWebSocket` 分支（WS 加 `OpenAI-Beta`、略 `Content-Type`；HTTP 加 `Content-Type`，Phase 4 再加 `Accept`）
-- [ ] 4.3 修改 `transport-ws.ts` 連線前的 header 組裝：刪 inline 組裝，改呼叫 `buildHeaders({ ..., isWebSocket: true, userAgent: this.options.userAgent })`
-- [ ] 4.4 新增 `packages/opencode-codex-provider/src/transport-ws.test.ts`：快照 WS header 集合（只做結構性斷言：欄位存在 + 值格式，不做 byte-by-byte 比對）
-- [ ] 4.5 既有 `headers.test.ts`、`provider.test.ts` 不能回歸
-- [ ] 4.6 `bun test packages/opencode-codex-provider` 全綠
-- [ ] 4.7 beta worktree regression：重啟 daemon，跑對話驗證 WS/HTTP 路徑仍正常
+- [x] 4.1 擴充 `packages/opencode-codex-provider/src/headers.ts` 的 `BuildHeadersOptions`：加 `isWebSocket?: boolean`，`userAgent` 改為強烈建議（Phase 4 可再加 `conversationId`）
+- [x] 4.2 修改 `buildHeaders()` 實作：依 `isWebSocket` 分支（WS 加 `OpenAI-Beta`、略 `Content-Type`；HTTP 加 `Content-Type`，Phase 4 再加 `Accept`）
+- [x] 4.3 修改 `transport-ws.ts` 連線前的 header 組裝：刪 inline 組裝，改呼叫 `buildHeaders({ ..., isWebSocket: true, userAgent: this.options.userAgent })`
+- [x] 4.4 新增 `packages/opencode-codex-provider/src/transport-ws.test.ts`：快照 WS header 集合（只做結構性斷言：欄位存在 + 值格式，不做 byte-by-byte 比對）
+- [x] 4.5 既有 `headers.test.ts`、`provider.test.ts` 不能回歸
+- [x] 4.6 `bun test packages/opencode-codex-provider` 全綠
+- [ ] 4.7 beta worktree regression：重啟 daemon，跑對話驗證 WS/HTTP 路徑仍正常（併入 §3 soak 一起驗）
 
 ## 5. Phase 4 — x-client-request-id + Accept
 
-- [ ] 5.1 擴充 `BuildHeadersOptions`：加 `conversationId?: string`
-- [ ] 5.2 `buildHeaders()`：若 `conversationId` 存在，加 header `x-client-request-id = conversationId`（WS + HTTP 皆加）
-- [ ] 5.3 `buildHeaders()`：當 `isWebSocket=false` 時加 `Accept: text/event-stream`
-- [ ] 5.4 `provider.ts` 呼叫站（HTTP fallback）傳入 `conversationId`（從 `this.window.conversationId`）
-- [ ] 5.5 `transport-ws.ts`（Phase 2 後的呼叫站）同步傳入 `conversationId`
-- [ ] 5.6 擴充 `headers.test.ts` 覆蓋新欄位
-- [ ] 5.7 `bun test packages/opencode-codex-provider` 全綠
+- [x] 5.1 擴充 `BuildHeadersOptions`：加 `conversationId?: string`
+- [x] 5.2 `buildHeaders()`：若 `conversationId` 存在，加 header `x-client-request-id = conversationId`（WS + HTTP 皆加）
+- [x] 5.3 `buildHeaders()`：當 `isWebSocket=false` 時加 `Accept: text/event-stream`
+- [x] 5.4 `provider.ts` 呼叫站（HTTP fallback）傳入 `conversationId`（從 `this.window.conversationId`）
+- [x] 5.5 `transport-ws.ts`（Phase 2 後的呼叫站）同步傳入 `conversationId`
+- [x] 5.6 擴充 `headers.test.ts` 覆蓋新欄位
+- [x] 5.7 `bun test packages/opencode-codex-provider` 全綠
 - [ ] 5.8 beta 二次 soak（視需要；非必要）
 - [ ] 5.9 fetch-back Phase 2+4 回 `main`
 - [ ] 5.10 slice summary + final event log 寫入 `docs/events/`
