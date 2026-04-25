@@ -285,35 +285,49 @@ export function SessionTurn(
       const index = messageIndex()
       if (index < 0) return emptyAssistant
 
-      // The original implementation walked from index+1 forward and broke
-      // on the next user, assuming the array (ULID-sorted by id) always
-      // placed an assistant AFTER its parent user. But the daemon
+      // Two-direction scan, anchored on physical time rather than array
+      // position.
+      //
+      // Background: the array is ULID-sorted by message id, but the daemon
       // pre-allocates the assistant placeholder id BEFORE committing the
-      // user message id (so first-token streaming can start immediately),
-      // and when both ids land in the same millisecond the random ULID
-      // tail decides ordering — yielding asst.id < user.id. The empirical
-      // measurement on a real session showed:
-      //   - 35% of pairs were inverted
-      //   - 86% of <1s pairs were inverted (autonomous / cache-hit replies)
-      //   - 100% of inversions were at array distance = 1 (asst sits in
-      //     the slot immediately before its parent user)
-      // So a single look-back of 1 slot recovers every inversion case
-      // observed in practice, plus the forward scan still handles the
-      // normal case + autonomous multi-step assistants. Cost: O(2) for a
-      // simple Q&A turn, O(N) for an N-step autonomous turn — vs O(M) of
-      // a full-array scan over the whole session.
+      // user message id (so first-token streaming can start immediately).
+      // When both ids land in the same millisecond the random ULID tail
+      // decides ordering — yielding asst.id < user.id even though
+      // asst.time.created > user.time.created. Empirically these inverted
+      // assistants always sit in the slots immediately before their parent
+      // user, but a single multi-step autonomous turn could in principle
+      // produce more than one inverted entry, so we keep collecting until
+      // we cross into real history.
+      //
+      // Look-back rule:
+      //   keep going while time.created >= user.time.created
+      //   collect items with role=assistant && parentID=user.id
+      //   stop when we see a message strictly older than user (real past)
+      //
+      // Forward scan rule (unchanged from the original logic):
+      //   walk index+1 forward, break on the next user, collect assistants
+      //   with matching parentID.
+      //
+      // Cost: O(K_back + K_fwd) where K_back = inverted count (≈0 normal,
+      // 1 in observed inversion case) and K_fwd = autonomous step count.
+      // Almost always under 10 ops per turn.
       const result: AssistantMessage[] = []
+      const myTime = msg.time?.created ?? 0
 
-      // Look-back 1: rescue the inverted-id case
-      if (index > 0) {
-        const prev = messages[index - 1]
+      // Backward scan: collect inverted (id-before-user but time-after-user) assistants
+      for (let i = index - 1; i >= 0; i--) {
+        const item = messages[i]
+        if (!item) continue
+        const itemTime = (item as { time?: { created?: number } }).time?.created ?? 0
+        // Crossed into real history (item created strictly before user) → stop.
+        if (itemTime < myTime) break
         if (
-          prev &&
-          prev.role === "assistant" &&
-          prev.parentID === msg.id &&
-          (prev as AssistantMessage).summary !== true
+          item.role === "assistant" &&
+          item.parentID === msg.id &&
+          (item as AssistantMessage).summary !== true
         ) {
-          result.push(prev as AssistantMessage)
+          // unshift keeps chronological order: oldest inverted-step first
+          result.unshift(item as AssistantMessage)
         }
       }
 
