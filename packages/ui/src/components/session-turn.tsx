@@ -285,19 +285,34 @@ export function SessionTurn(
       const index = messageIndex()
       if (index < 0) return emptyAssistant
 
+      // Bug fix: previously this loop walked `messages` from index+1 forward,
+      // breaking on the next user-role message. That assumed assistant
+      // messages always sort AFTER their parent user message in the array.
+      // But the array is ULID-sorted by message id, and the assistant's
+      // placeholder id is sometimes generated BEFORE the user message id is
+      // committed (depending on runloop timing) — so the assistant ends up
+      // sorted BEFORE its parent user. The forward-scan then sees the next
+      // user immediately and breaks, leaving result=[] → AssistantParts
+      // never renders → user sees "no reply" even though the reply is in
+      // the store with finish=stop and full text content.
+      //
+      // Correct rule: an assistant message belongs to this turn iff its
+      // parentID matches msg.id, regardless of where it sorts in the array.
+      // Scan the whole array, collect by parent match, then sort by id so
+      // multi-step (autonomous mode) assistants render in stable order.
       const result: AssistantMessage[] = []
-      for (let i = index + 1; i < messages.length; i++) {
+      for (let i = 0; i < messages.length; i++) {
         const item = messages[i]
         if (!item) continue
-        if (item.role === "user") break
-        if (item.role === "assistant" && item.parentID === msg.id) {
-          // Hide auto-compaction assistant messages from the UI.
-          // They remain in storage so the AI sees the summary on next turn;
-          // a toast surfaces progress so the user isn't startled by the freeze.
-          if ((item as AssistantMessage).summary === true) continue
-          result.push(item as AssistantMessage)
-        }
+        if (item.role !== "assistant") continue
+        if (item.parentID !== msg.id) continue
+        // Hide auto-compaction assistant messages from the UI.
+        // They remain in storage so the AI sees the summary on next turn;
+        // a toast surfaces progress so the user isn't startled by the freeze.
+        if ((item as AssistantMessage).summary === true) continue
+        result.push(item as AssistantMessage)
       }
+      result.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
       return result
     },
     emptyAssistant,
