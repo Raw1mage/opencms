@@ -65,7 +65,25 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
 	const [pathInput, setPathInput] = createSignal(startDirectory());
 	const [errorText, setErrorText] = createSignal("");
 	const [navigating, setNavigating] = createSignal(false);
-	const [picked, setPicked] = createSignal<string[]>([]);
+
+	const recent = createMemo(() => {
+		return sync.data.project
+			.slice()
+			.sort(
+				(a, b) =>
+					(b.time.updated ?? b.time.created) -
+					(a.time.updated ?? a.time.created),
+			)
+			.slice(0, 5);
+	});
+
+	const displayProjectPath = (worktree: string) => {
+		const h = home();
+		if (!h) return worktree;
+		if (worktree === h) return "~";
+		if (worktree.startsWith(h + "/")) return `~${worktree.slice(h.length)}`;
+		return worktree;
+	};
 
 	const listDirectory = async (absoluteDirectory: string) => {
 		const target = trimTrailing(absoluteDirectory);
@@ -111,11 +129,6 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
 	};
 
 	const confirmTarget = async () => {
-		if (props.multiple && picked().length) {
-			confirm();
-			return;
-		}
-
 		const target = resolveTarget();
 		setErrorText("");
 		const ok = await listDirectory(target)
@@ -131,22 +144,10 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
 		dialog.close();
 	};
 
-	const addCurrent = () => {
-		const dir = currentDir();
-		setPicked((prev) => (prev.includes(dir) ? prev : [...prev, dir]));
-	};
-
-	const removePicked = (dir: string) => {
-		setPicked((prev) => prev.filter((x) => x !== dir));
-	};
-
-	const confirm = () => {
-		if (props.multiple) {
-			const selected = picked().length ? picked() : [currentDir()];
-			props.onSelect(selected);
-		} else {
-			props.onSelect(currentDir());
-		}
+	const selectProject = (worktree: string) => {
+		const target = trimTrailing(worktree);
+		if (props.multiple) props.onSelect([target]);
+		else props.onSelect(target);
 		dialog.close();
 	};
 
@@ -225,28 +226,25 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
 					)}
 				</Show>
 
-				<Show when={props.multiple}>
-					<div class="flex items-start gap-2 flex-col sm:flex-row shrink-0 bg-surface-base p-2 rounded border border-border-base">
-						<Button
-							type="button"
-							variant="secondary"
-							size="small"
-							onClick={addCurrent}
-							class="shrink-0"
-						>
-							Add current
-						</Button>
+				<Show when={recent().length > 0}>
+					<div class="flex items-center gap-2 shrink-0 bg-surface-base p-2 rounded border border-border-base">
+						<span class="text-12-regular text-text-weak shrink-0">Recent</span>
 						<div class="flex flex-wrap gap-1 items-center">
-							<For each={picked()}>
-								{(dir) => (
+							<For each={recent()}>
+								{(project) => (
 									<button
 										type="button"
 										class="px-2 py-1 rounded bg-surface-raised-base hover:bg-surface-raised-hover text-12-regular flex items-center gap-1 transition-colors"
-										onClick={() => removePicked(dir)}
-										title={`Remove ${dir}`}
+										onClick={() => selectProject(project.worktree)}
+										title={project.worktree}
 									>
-										<span class="truncate max-w-[200px]">{dir}</span>
-										<span class="text-text-weak hover:text-text-strong font-bold">×</span>
+										<FileIcon
+											node={{ path: project.worktree, type: "directory" }}
+											class="size-3.5 shrink-0"
+										/>
+										<span class="truncate max-w-[200px]">
+											{project.name ?? displayProjectPath(project.worktree)}
+										</span>
 									</button>
 								)}
 							</For>
@@ -256,7 +254,7 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
 
 				<div class="flex items-center justify-between gap-2 shrink-0 pt-2 border-t border-border-base mt-1">
 					<div class="text-12-regular text-text-weak truncate flex-1">
-						{props.multiple ? `${picked().length} selected` : 'Press enter in path field to navigate'}
+						Press enter in path field to navigate
 					</div>
 					<div class="flex items-center gap-2 shrink-0">
 						<Button type="button" variant="ghost" onClick={() => dialog.close()}>
