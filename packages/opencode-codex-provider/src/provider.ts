@@ -191,6 +191,8 @@ class CodexLanguageModel implements LanguageModelV2 {
       turnState: this.turnState,
       body: body as unknown as Record<string, unknown>,
       wsUrl: CODEX_WS_URL,
+      userAgent: this.options.userAgent,
+      conversationId: this.window.conversationId,
     })
 
     if (wsEvents) {
@@ -218,6 +220,7 @@ class CodexLanguageModel implements LanguageModelV2 {
       installationId: this.options.installationId,
       sessionId: wsSessionId,
       userAgent: this.options.userAgent,
+      conversationId: this.window.conversationId,
     })
 
     const url = this.options.baseURL ?? CODEX_API_URL

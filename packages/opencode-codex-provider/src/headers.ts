@@ -26,13 +26,23 @@ export interface BuildHeadersOptions {
   userAgent?: string
   /** Whether this is a WebSocket upgrade request */
   isWebSocket?: boolean
+  /** Conversation id used as x-client-request-id (upstream codex-rs behavior) */
+  conversationId?: string
 }
 
 export function buildHeaders(options: BuildHeadersOptions): Record<string, string> {
   const headers: Record<string, string> = {
     "authorization": `Bearer ${options.accessToken}`,
-    "content-type": "application/json",
     "originator": ORIGINATOR,
+  }
+
+  // HTTP path carries a JSON body; WS upgrade doesn't (first WS frame is JSON
+  // but that's body, not header). Accept is set only on HTTP SSE to mirror
+  // upstream .header("accept", "text/event-stream"); WS upgrade Accept is
+  // governed by the WS library.
+  if (!options.isWebSocket) {
+    headers["content-type"] = "application/json"
+    headers["Accept"] = "text/event-stream"
   }
 
   if (options.accountId) {
@@ -41,6 +51,10 @@ export function buildHeaders(options: BuildHeadersOptions): Record<string, strin
 
   if (options.turnState) {
     headers["x-codex-turn-state"] = options.turnState
+  }
+
+  if (options.conversationId) {
+    headers["x-client-request-id"] = options.conversationId
   }
 
   // Context-window lineage (§6 of whitepaper; upstream codex-rs 9e19004bc2).

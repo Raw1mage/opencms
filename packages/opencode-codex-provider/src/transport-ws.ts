@@ -7,8 +7,9 @@
  *
  * Extracted from plugin/codex-websocket.ts.
  */
-import { WS_CONNECT_TIMEOUT_MS, WS_IDLE_TIMEOUT_MS, WS_FIRST_FRAME_TIMEOUT_MS, WS_BETA_HEADER, ORIGINATOR } from "./protocol.js"
+import { WS_CONNECT_TIMEOUT_MS, WS_IDLE_TIMEOUT_MS, WS_FIRST_FRAME_TIMEOUT_MS } from "./protocol.js"
 import { getContinuation, updateContinuation, invalidateContinuation, clearContinuation } from "./continuation.js"
+import { buildHeaders } from "./headers.js"
 import type { ResponseStreamEvent, ResponseCreateWsRequest } from "./types.js"
 
 // ---------------------------------------------------------------------------
@@ -382,6 +383,8 @@ export interface WsTransportInput {
   turnState?: string
   body: Record<string, unknown>
   wsUrl: string
+  userAgent?: string
+  conversationId?: string
 }
 
 /**
@@ -456,14 +459,14 @@ export async function tryWsTransport(input: WsTransportInput): Promise<ReadableS
     invalidateContinuation(sessionId)
   }
 
-  // Fresh connection
-  const headers: Record<string, string> = {
-    "Authorization": `Bearer ${accessToken}`,
-    "originator": ORIGINATOR,
-    "OpenAI-Beta": WS_BETA_HEADER,
-  }
-  if (accountId) headers["chatgpt-account-id"] = accountId
-  if (input.turnState) headers["x-codex-turn-state"] = input.turnState
+  const headers = buildHeaders({
+    accessToken,
+    accountId,
+    turnState: input.turnState,
+    userAgent: input.userAgent,
+    conversationId: input.conversationId,
+    isWebSocket: true,
+  })
 
   const ws = await connectWs(wsUrl, headers)
   if (ws) {

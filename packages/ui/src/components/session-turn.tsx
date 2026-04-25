@@ -285,7 +285,53 @@ export function SessionTurn(
       const index = messageIndex()
       if (index < 0) return emptyAssistant
 
+      // Two-direction scan, anchored on physical time rather than array
+      // position.
+      //
+      // Background: the array is ULID-sorted by message id, but the daemon
+      // pre-allocates the assistant placeholder id BEFORE committing the
+      // user message id (so first-token streaming can start immediately).
+      // When both ids land in the same millisecond the random ULID tail
+      // decides ordering — yielding asst.id < user.id even though
+      // asst.time.created > user.time.created. Empirically these inverted
+      // assistants always sit in the slots immediately before their parent
+      // user, but a single multi-step autonomous turn could in principle
+      // produce more than one inverted entry, so we keep collecting until
+      // we cross into real history.
+      //
+      // Look-back rule:
+      //   keep going while time.created >= user.time.created
+      //   collect items with role=assistant && parentID=user.id
+      //   stop when we see a message strictly older than user (real past)
+      //
+      // Forward scan rule (unchanged from the original logic):
+      //   walk index+1 forward, break on the next user, collect assistants
+      //   with matching parentID.
+      //
+      // Cost: O(K_back + K_fwd) where K_back = inverted count (≈0 normal,
+      // 1 in observed inversion case) and K_fwd = autonomous step count.
+      // Almost always under 10 ops per turn.
       const result: AssistantMessage[] = []
+      const myTime = msg.time?.created ?? 0
+
+      // Backward scan: collect inverted (id-before-user but time-after-user) assistants
+      for (let i = index - 1; i >= 0; i--) {
+        const item = messages[i]
+        if (!item) continue
+        const itemTime = (item as { time?: { created?: number } }).time?.created ?? 0
+        // Crossed into real history (item created strictly before user) → stop.
+        if (itemTime < myTime) break
+        if (
+          item.role === "assistant" &&
+          item.parentID === msg.id &&
+          (item as AssistantMessage).summary !== true
+        ) {
+          // unshift keeps chronological order: oldest inverted-step first
+          result.unshift(item as AssistantMessage)
+        }
+      }
+
+      // Forward scan: standard sequence (and autonomous multi-step)
       for (let i = index + 1; i < messages.length; i++) {
         const item = messages[i]
         if (!item) continue
@@ -298,6 +344,7 @@ export function SessionTurn(
           result.push(item as AssistantMessage)
         }
       }
+
       return result
     },
     emptyAssistant,
