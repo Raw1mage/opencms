@@ -1509,7 +1509,7 @@ export namespace SessionPrompt {
 
       // Continuation rebind compaction: server rejected previous_response_id,
       // use pre-built checkpoint to compact instead of resending full history.
-      if (lastFinished && lastFinished.summary !== true && SessionCompaction.consumeRebindCompaction(sessionID)) {
+      if (lastFinished && lastFinished.summary !== true && SessionCompaction.consumeRebindCompaction(sessionID, step)) {
         log.info("rebind compaction triggered after continuation invalidation", { sessionID })
         debugCheckpoint("prompt", "loop:rebind_compaction_triggered", {
           sessionID,
@@ -1529,11 +1529,17 @@ export namespace SessionPrompt {
               boundaryId: checkpoint?.lastMessageId,
               snapshotChars: snap.length,
             })
+            // auto:false — rebind path is a maintenance compaction triggered by
+            // continuation-invalidation (e.g. mid-stream account switch). Do NOT
+            // inject a synthetic "Continue" user message; the runloop continues
+            // naturally if the prior assistant finished with tool-calls. Setting
+            // auto:true here turned a single rotation into an infinite
+            // rebind→Continue→rotation loop (event_2026-04-27_runloop_rebind_loop).
             await SessionCompaction.compactWithSharedContext({
               sessionID,
               snapshot: snap,
               model,
-              auto: true,
+              auto: false,
             })
             continue
           }
@@ -1716,7 +1722,7 @@ export namespace SessionPrompt {
           },
           modelID: activeModel.id,
           providerId: activeModel.providerId,
-          accountId: lastUser.model.accountId,
+          accountId: effectiveAccountId,
           time: {
             created: Date.now(),
           },
@@ -1724,7 +1730,7 @@ export namespace SessionPrompt {
         })) as MessageV2.Assistant,
         sessionID: sessionID,
         model: activeModel,
-        accountId: lastUser.model.accountId,
+        accountId: effectiveAccountId,
         abort,
       })
       // Check if user explicitly invoked an agent via @ in this turn

@@ -51,13 +51,39 @@ export namespace SessionCompaction {
   // full-context rebind cost.
   const _pendingRebindCompaction = new Set<string>()
 
+  // Default cooldown for rebind compaction (rounds). Mirrors the by-request
+  // cooldown used by isOverflow/shouldCacheAwareCompact. Without this gate, a
+  // misfiring continuation-invalidation signal can re-trigger rebind compaction
+  // every round (event_2026-04-27_runloop_rebind_loop).
+  const REBIND_COOLDOWN_ROUNDS = 4
+
   export function markRebindCompaction(sessionID: string) {
     _pendingRebindCompaction.add(sessionID)
     log.warn("continuation invalidated, compaction scheduled for next round", { sessionID })
   }
 
-  export function consumeRebindCompaction(sessionID: string): boolean {
-    return _pendingRebindCompaction.delete(sessionID)
+  /**
+   * Returns true if the pending rebind flag is set AND we're past the
+   * per-session compaction cooldown. Caller should treat a true return as
+   * "go ahead and compact now"; the flag is consumed only on success. If
+   * cooldown blocks the consume, the flag stays pending so a later round
+   * (post-cooldown) can still honor it.
+   */
+  export function consumeRebindCompaction(sessionID: string, currentRound?: number): boolean {
+    if (!_pendingRebindCompaction.has(sessionID)) return false
+    if (currentRound !== undefined) {
+      const state = cooldownState.get(sessionID)
+      if (state && currentRound - state.lastCompactionRound < REBIND_COOLDOWN_ROUNDS) {
+        log.info("rebind compaction skipped (cooldown)", {
+          sessionID,
+          roundsSince: currentRound - state.lastCompactionRound,
+          cooldownRounds: REBIND_COOLDOWN_ROUNDS,
+        })
+        return false
+      }
+    }
+    _pendingRebindCompaction.delete(sessionID)
+    return true
   }
 
   // ── Rebind Checkpoint ──

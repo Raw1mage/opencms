@@ -348,4 +348,31 @@ describe("SessionCompaction cooldown guard", () => {
 
     await expect(fs.access(stalePath)).rejects.toBeDefined()
   })
+
+  // event_2026-04-27_runloop_rebind_loop — guard against the regression where
+  // continuation-invalidation could re-fire rebind compaction every round,
+  // creating an infinite synthetic-Continue loop.
+  it("rebind compaction respects cooldown when fired repeatedly", () => {
+    const sid = "ses_rebind_cooldown_test"
+    SessionCompaction.markRebindCompaction(sid)
+    SessionCompaction.recordCompaction(sid, 10)
+    // Same round as the recorded compaction → still inside cooldown.
+    expect(SessionCompaction.consumeRebindCompaction(sid, 10)).toBe(false)
+    // 3 rounds later still inside the 4-round cooldown.
+    expect(SessionCompaction.consumeRebindCompaction(sid, 13)).toBe(false)
+    // 4 rounds later → cooldown cleared, flag is consumed.
+    expect(SessionCompaction.consumeRebindCompaction(sid, 14)).toBe(true)
+    // Flag was one-shot — second consume returns false even past cooldown.
+    expect(SessionCompaction.consumeRebindCompaction(sid, 100)).toBe(false)
+  })
+
+  it("rebind compaction without currentRound bypasses cooldown (legacy path)", () => {
+    const sid = "ses_rebind_legacy_test"
+    SessionCompaction.markRebindCompaction(sid)
+    SessionCompaction.recordCompaction(sid, 10)
+    // No currentRound provided → cooldown gate skipped, behaves like the
+    // pre-fix one-shot consume.
+    expect(SessionCompaction.consumeRebindCompaction(sid)).toBe(true)
+    expect(SessionCompaction.consumeRebindCompaction(sid)).toBe(false)
+  })
 })
