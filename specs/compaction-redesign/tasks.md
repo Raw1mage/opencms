@@ -49,12 +49,12 @@ reviewable and rolls back cleanly without the next.
 
 ## 6. Runloop state-driven evaluation
 
-- [ ] 6.1 Implement `deriveObservedCondition(session)` in `prompt.ts` per design.md pseudocode
-- [ ] 6.2 Replace existing rebind branch (`prompt.ts:1512`) with call to `SessionCompaction.run({observed: "rebind", ...})` — only when deriveObservedCondition returns "rebind"
-- [ ] 6.3 Replace existing overflow / cache-aware branch (`prompt.ts:1585`) with call to `run({observed: "overflow"|"cache-aware"})`
-- [ ] 6.4 Replace existing compaction-request task branch (`prompt.ts:1492`) with call to `run({observed: "manual"})` — keep `Memory.requestCompaction()` writing the request part
-- [ ] 6.5 Verify only one `run()` call per runloop iteration max (otherwise the matrix collapse is incomplete)
-- [ ] 6.6 Unit test: state-driven evaluation emits correct Observed across 7 scenario fixtures (matches sequence.json S1..S7)
+- [x] 6.1 Implement `deriveObservedCondition(session)` in `prompt.ts` per design.md pseudocode
+- [~] 6.2 Wire NEW path before legacy rebind branch (transitional bridge, fall-through to legacy when run returns "stop"); legacy branch is removed in phase 7 after llm-agent extraction
+- [~] 6.3 Wire NEW path before legacy overflow / cache-aware branch (same bridge pattern)
+- [~] 6.4 Wire NEW path before legacy compaction-request task branch (same bridge pattern). `Memory.requestCompaction` retained.
+- [x] 6.5 Verify single `run()` call per iteration: deriveObservedCondition is invoked once and only one `observed` value is returned. Cooldown gate inside run() prevents same-iteration double-fire.
+- [x] 6.6 Unit test: deriveObservedCondition fixtures (14 cases) cover null / manual / provider-switched / rebind / overflow / cache-aware / parentID-skip / cooldown-skip / priority ordering. findMostRecentAnchor (3 cases).
 
 ## 7. Remove flag-based plumbing
 

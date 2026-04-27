@@ -222,6 +222,103 @@ export function captureTurnSummaryOnExit(input: {
 }
 
 /**
+ * compaction-redesign phase 6 — state-driven runloop evaluator (DD-1).
+ *
+ * Each runloop iteration calls this to decide whether SessionCompaction.run
+ * should fire and what `observed` value to pass. Reads only **observable
+ * session state** — no flags, no signals, no remembered intent from prior
+ * iterations. State staleness is impossible because each call recomputes
+ * from current Memory + session.execution + message-stream tail.
+ *
+ * Priority order (mirrors design.md pseudocode):
+ *   1. Cooldown — if blocked, return null (no compaction this round)
+ *   2. Manual — unprocessed compaction-request part in tail
+ *   3. Provider switch — pinned providerId differs from last anchor's
+ *   4. Rebind — pinned accountId differs from last anchor's (same provider)
+ *   5. Overflow — lastFinished tokens exceed model budget
+ *   6. Cache-aware — lastFinished tokens cross cache-prefix threshold
+ *   7. Idle — turn boundary with capacity to compact opportunistically (deferred)
+ *   null otherwise
+ *
+ * The "subagent / cron / parent" exclusion mirrors the pre-existing
+ * legacy guards in the runloop: this function returns null when
+ * `session.parentID` is set so subagent sessions don't self-compact.
+ */
+export async function deriveObservedCondition(input: {
+  sessionID: string
+  step: number
+  msgs: MessageV2.WithParts[]
+  lastFinished: MessageV2.Assistant | undefined
+  pinnedProviderId: string
+  pinnedAccountId: string | undefined
+  hasUnprocessedCompactionRequest: boolean
+  parentID: string | undefined
+  isOverflow: () => Promise<boolean>
+  isCacheAware: () => Promise<boolean>
+}): Promise<SessionCompaction.Observed | null> {
+  // Subagent sessions don't self-compact (legacy invariant preserved)
+  if (input.parentID) return null
+
+  // Cooldown gate. SessionCompaction.run() also checks this and short-circuits;
+  // but checking here lets us return null cleanly without going through run().
+  if (await SessionCompaction.Cooldown.shouldThrottle(input.sessionID, input.step)) {
+    return null
+  }
+
+  // Highest priority: explicit user request via compaction-request part
+  if (input.hasUnprocessedCompactionRequest) return "manual"
+
+  // Identity drift since last anchor
+  const lastAnchor = findMostRecentAnchor(input.msgs)
+  if (lastAnchor) {
+    if (lastAnchor.providerId && lastAnchor.providerId !== input.pinnedProviderId) {
+      return "provider-switched"
+    }
+    if (
+      lastAnchor.accountId &&
+      input.pinnedAccountId &&
+      lastAnchor.accountId !== input.pinnedAccountId
+    ) {
+      return "rebind"
+    }
+  }
+
+  // Token-pressure conditions (from the existing isOverflow / cache-aware
+  // helpers; we accept them as injected predicates so this function stays
+  // pure-ish and testable).
+  if (input.lastFinished) {
+    if (await input.isOverflow()) return "overflow"
+    if (await input.isCacheAware()) return "cache-aware"
+  }
+
+  return null
+}
+
+/**
+ * Find the most recent compaction anchor in the message stream. The anchor
+ * is an assistant message with `summary: true` (compactWithSharedContext
+ * writes it). Carries providerId / modelID / accountId for state-driven
+ * rebind detection (INV-7: anchor identity reflects time-of-write).
+ */
+export function findMostRecentAnchor(
+  msgs: MessageV2.WithParts[],
+): { providerId: string; modelID: string; accountId: string | undefined; messageId: string } | null {
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const info = msgs[i].info
+    if (info.role === "assistant" && (info as MessageV2.Assistant).summary === true) {
+      const a = info as MessageV2.Assistant
+      return {
+        providerId: a.providerId,
+        modelID: a.modelID,
+        accountId: a.accountId,
+        messageId: a.id,
+      }
+    }
+  }
+  return null
+}
+
+/**
  * Extract the AI's natural turn-end self-summary from an assistant message's
  * parts. Concatenates all `text` parts in document order (handles assistants
  * that produced multiple text parts interleaved with reasoning / tool calls).
@@ -1563,6 +1660,80 @@ export namespace SessionPrompt {
 
         continue
       }
+
+      // ── compaction-redesign phase 6 — state-driven evaluation ─────────
+      // DD-1: each runloop iteration re-evaluates whether compaction is
+      // warranted from current observable state. No flags persisted across
+      // iterations. If deriveObservedCondition returns non-null, we route
+      // through the new SessionCompaction.run entry point. If run returns
+      // "continue", the iteration's compaction work is done; skip the
+      // legacy branches below. If "stop", fall through to legacy (currently
+      // needed for the LLM-agent path until phase 6+ extracts it).
+      //
+      // Transitional flag drain: the legacy pendingRebindCompaction flag is
+      // also consumed here so the legacy `consumeRebindCompaction` branch
+      // below can't fire a second compaction in a later iteration after the
+      // new path already wrote the anchor for the same condition. Phase 7
+      // deletes the flag entirely.
+      SessionCompaction.consumeRebindCompaction(sessionID)
+      const observed = await deriveObservedCondition({
+        sessionID,
+        step,
+        msgs,
+        lastFinished,
+        pinnedProviderId: effectiveProviderId,
+        pinnedAccountId: effectiveAccountId ?? undefined,
+        hasUnprocessedCompactionRequest: task?.type === "compaction-request",
+        parentID: session.parentID,
+        isOverflow: () =>
+          lastFinished
+            ? SessionCompaction.isOverflow({
+                tokens: lastFinished.tokens,
+                model,
+                sessionID,
+                currentRound: step,
+              })
+            : Promise.resolve(false),
+        isCacheAware: () =>
+          lastFinished
+            ? SessionCompaction.shouldCacheAwareCompact({
+                tokens: lastFinished.tokens,
+                model,
+                sessionID,
+                currentRound: step,
+              })
+            : Promise.resolve(false),
+      })
+
+      if (observed) {
+        debugCheckpoint("prompt", "loop:state_driven_compaction", {
+          sessionID,
+          step,
+          observed,
+        })
+        const result = await SessionCompaction.run({
+          sessionID,
+          observed,
+          step,
+          intent: task?.type === "compaction-request" && task.auto === false ? "default" : "default",
+        })
+        if (result === "continue") {
+          // New path handled it. Skip legacy branches.
+          continue
+        }
+        // result === "stop": run() exhausted its chain (e.g. observed=manual
+        // with empty Memory and no codex plugin → llm-agent stub returns
+        // false). Fall through to legacy branches below; they still have
+        // working LLM-agent path via SessionCompaction.process. Phase 6+
+        // extracts that into tryLlmAgent and removes this fallback.
+        debugCheckpoint("prompt", "loop:state_driven_compaction_fell_through", {
+          sessionID,
+          step,
+          observed,
+        })
+      }
+
+      // ── legacy compaction branches (kept for fallback during transition) ──
 
       // pending compaction
       if (task?.type === "compaction-request") {

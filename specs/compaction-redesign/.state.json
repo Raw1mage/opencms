@@ -86,6 +86,17 @@
         "packages/opencode/src/session/compaction-run.test.ts"
       ],
       "commit": "e070350d72e6a8b0d74ca517631e863c1171c9a3"
+    },
+    {
+      "at": "2026-04-27T20:36:49.286Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/session/compaction-run.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/session/compaction-run.test.ts"
+      ],
+      "commit": "32366e98f6a822c1cbaf0c5a4797fe5f0f4f8497"
     }
   ]
 }
