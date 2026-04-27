@@ -289,6 +289,135 @@ export namespace Memory {
     await write(sessionID, mem)
   }
 
+  // ── Render (DD-5: two independent functions) ────────────────
+
+  /**
+   * Compact provider-agnostic plain text for the next LLM call.
+   *
+   * Format priorities (in order):
+   *   1. Token economy — concatenate TurnSummary.text without per-turn
+   *      headers; consumer doesn't need to know boundaries to use the
+   *      content as context.
+   *   2. Provider-agnostic — never embeds tool-call format, model IDs,
+   *      account IDs, or other provider-specific metadata. Plain prose +
+   *      bullet lists only. This is what makes the format safe across
+   *      provider switch (R-5).
+   *   3. Auxiliary metadata only when narrative empty — if turnSummaries
+   *      is empty, fall back to a minimal description of fileIndex
+   *      (touched files) + actionLog so the next LLM call has at least
+   *      something. Once narrative accumulates, this fallback is unused.
+   *
+   * Returns empty string if Memory has nothing useful — caller must
+   * decide what to do (typically: skip this kind, fall through chain).
+   */
+  export async function renderForLLM(sessionID: string): Promise<string> {
+    const mem = await read(sessionID)
+    return renderForLLMSync(mem)
+  }
+
+  /** Pure render from an already-loaded SessionMemory (testable, side-effect-free). */
+  export function renderForLLMSync(mem: SessionMemory): string {
+    if (mem.turnSummaries.length > 0) {
+      return mem.turnSummaries.map((t) => t.text.trim()).filter(Boolean).join("\n\n")
+    }
+
+    // No narrative — render auxiliary metadata as a minimal fallback.
+    if (mem.fileIndex.length === 0 && mem.actionLog.length === 0) return ""
+
+    const lines: string[] = []
+    if (mem.fileIndex.length > 0) {
+      lines.push("Files touched in this session:")
+      for (const f of mem.fileIndex) {
+        const meta = [f.lines ? `${f.lines} lines` : null, f.operation].filter(Boolean).join(", ")
+        const suffix = f.summary ? ` — ${f.summary}` : ""
+        lines.push(`- ${f.path} (${meta})${suffix}`)
+      }
+    }
+    if (mem.actionLog.length > 0) {
+      if (lines.length > 0) lines.push("")
+      lines.push("Recent actions:")
+      for (const a of mem.actionLog) lines.push(`- ${a.summary}`)
+    }
+    return lines.join("\n")
+  }
+
+  /**
+   * Timeline format for human consumption (UI session-list preview, debug
+   * dumps, /compact confirmation toast).
+   *
+   * Format priorities (in order):
+   *   1. Scannability — every turn boundary is explicit (`## Turn N`),
+   *      timestamps rendered, file/action chronology visible.
+   *   2. Density-balanced — readable in a sidebar / preview pane without
+   *      requiring scroll for the common case (≤ 8 turns).
+   *   3. Independent of LLM render — different consumers, different
+   *      optimization targets (DD-5).
+   */
+  export async function renderForHuman(sessionID: string): Promise<string> {
+    const mem = await read(sessionID)
+    return renderForHumanSync(mem)
+  }
+
+  /** Pure render from an already-loaded SessionMemory (testable, side-effect-free). */
+  export function renderForHumanSync(mem: SessionMemory): string {
+    const lines: string[] = []
+    lines.push(`# Session ${mem.sessionID}`)
+    lines.push(`_version ${mem.version}, updated ${formatIsoFromMs(mem.updatedAt)}_`)
+    lines.push("")
+
+    if (mem.turnSummaries.length > 0) {
+      for (const t of mem.turnSummaries) {
+        lines.push(`## Turn ${t.turnIndex} — ${formatIsoFromMs(t.endedAt)}`)
+        if (t.modelID && t.modelID !== "legacy") {
+          lines.push(`_model ${t.providerId}/${t.modelID}_`)
+        }
+        lines.push("")
+        lines.push(t.text.trim())
+        lines.push("")
+      }
+    } else {
+      lines.push("_(no turn summaries captured yet)_")
+      lines.push("")
+    }
+
+    if (mem.fileIndex.length > 0) {
+      lines.push("## Files touched")
+      lines.push("")
+      for (const f of mem.fileIndex) {
+        const meta = [f.lines ? `${f.lines} lines` : null, f.operation].filter(Boolean).join(", ")
+        const suffix = f.summary ? ` — ${f.summary}` : ""
+        lines.push(`- ${f.path} (${meta})${suffix}`)
+      }
+      lines.push("")
+    }
+
+    if (mem.actionLog.length > 0) {
+      lines.push("## Action log")
+      lines.push("")
+      for (const a of mem.actionLog) {
+        lines.push(`- turn ${a.turn}: ${a.summary}`)
+      }
+      lines.push("")
+    }
+
+    if (mem.lastCompactedAt) {
+      lines.push(
+        `_last compacted: round ${mem.lastCompactedAt.round} at ${formatIsoFromMs(mem.lastCompactedAt.timestamp)}_`,
+      )
+    }
+
+    return lines.join("\n")
+  }
+
+  function formatIsoFromMs(ms: number): string {
+    if (!ms || !Number.isFinite(ms)) return "?"
+    try {
+      return new Date(ms).toISOString()
+    } catch {
+      return String(ms)
+    }
+  }
+
   // ── Mark compacted (Cooldown source-of-truth, DD-7) ─────────
 
   /**

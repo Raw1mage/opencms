@@ -15,10 +15,10 @@ reviewable and rolls back cleanly without the next.
 
 ## 2. Memory render functions
 
-- [ ] 2.1 Implement `Memory.renderForLLM(sid)`: compact provider-agnostic plain text from turnSummaries + auxiliary metadata
-- [ ] 2.2 Implement `Memory.renderForHuman(sid)`: timeline form with turn boundaries, decisions, file/action chronology
-- [ ] 2.3 Unit test: both render functions on a populated SessionMemory produce syntactically distinct strings (R-8 acceptance)
-- [ ] 2.4 Unit test: renderForLLM stays under 30% of typical model context (sanity check on default budget)
+- [x] 2.1 Implement `Memory.renderForLLM(sid)`: compact provider-agnostic plain text from turnSummaries + auxiliary metadata
+- [x] 2.2 Implement `Memory.renderForHuman(sid)`: timeline form with turn boundaries, decisions, file/action chronology
+- [x] 2.3 Unit test: both render functions on a populated SessionMemory produce syntactically distinct strings (R-8 acceptance)
+- [x] 2.4 Unit test: renderForLLM stays under 30% of typical model context (sanity check on default budget)
 
 ## 3. TurnSummary capture at runloop exit
 

@@ -256,6 +256,212 @@ describe("Memory", () => {
     expect(stored?.lastCompactedAt?.timestamp).toBeGreaterThan(0)
   })
 
+  // ── Render: LLM form ──────────────────────────────────────
+
+  it("renderForLLMSync returns empty string for empty Memory", () => {
+    const mem: Memory.SessionMemory = {
+      sessionID: "ses_render_empty",
+      version: 0,
+      updatedAt: 1,
+      turnSummaries: [],
+      fileIndex: [],
+      actionLog: [],
+      lastCompactedAt: null,
+      rawTailBudget: 5,
+    }
+    expect(Memory.renderForLLMSync(mem)).toBe("")
+  })
+
+  it("renderForLLMSync concatenates turn texts without per-turn headers", () => {
+    const mem: Memory.SessionMemory = {
+      sessionID: "ses_render_llm",
+      version: 2,
+      updatedAt: 1700000000000,
+      turnSummaries: [
+        {
+          turnIndex: 0,
+          userMessageId: "msg_u1",
+          endedAt: 1700000000000,
+          text: "Edited foo.ts to fix the auth bug; tests green.",
+          modelID: "gpt-5.5",
+          providerId: "codex",
+        },
+        {
+          turnIndex: 1,
+          userMessageId: "msg_u2",
+          endedAt: 1700000060000,
+          text: "Ran the migration; verified no rows lost.",
+          modelID: "gpt-5.5",
+          providerId: "codex",
+        },
+      ],
+      fileIndex: [],
+      actionLog: [],
+      lastCompactedAt: null,
+      rawTailBudget: 5,
+    }
+    const out = Memory.renderForLLMSync(mem)
+    expect(out).toContain("Edited foo.ts")
+    expect(out).toContain("Ran the migration")
+    // Provider-agnostic: no model IDs, no turn headers
+    expect(out).not.toContain("gpt-5.5")
+    expect(out).not.toContain("codex")
+    expect(out).not.toContain("Turn ")
+  })
+
+  it("renderForLLMSync falls back to fileIndex+actionLog when turnSummaries empty", () => {
+    const mem: Memory.SessionMemory = {
+      sessionID: "ses_render_fallback",
+      version: 1,
+      updatedAt: 1,
+      turnSummaries: [],
+      fileIndex: [{ path: "/src/a.ts", operation: "edit", updatedAt: 1 }],
+      actionLog: [{ tool: "bash", summary: "Bash: git status...", turn: 1, addedAt: 1 }],
+      lastCompactedAt: null,
+      rawTailBudget: 5,
+    }
+    const out = Memory.renderForLLMSync(mem)
+    expect(out).toContain("/src/a.ts")
+    expect(out).toContain("Bash: git status")
+  })
+
+  it("renderForLLMSync stays under 30% of typical model context (R-2 budget)", () => {
+    // Synthesize a realistic sized memory: 20 turns × ~500 chars each
+    const turnSummaries: Memory.TurnSummary[] = []
+    for (let i = 0; i < 20; i++) {
+      turnSummaries.push({
+        turnIndex: i,
+        userMessageId: `msg_u${i}`,
+        endedAt: 1700000000000 + i * 60_000,
+        text:
+          `Turn ${i} narrative: did some work on the codebase, identified an issue ` +
+          `in the auth flow, applied a targeted fix, ran the test suite, all green. ` +
+          `Found that the rotation logic interacts poorly with the cooldown threshold ` +
+          `and patched it. About 500 chars to simulate a realistic AI self-summary.`,
+        modelID: "gpt-5.5",
+        providerId: "codex",
+      })
+    }
+    const mem: Memory.SessionMemory = {
+      sessionID: "ses_render_budget",
+      version: 20,
+      updatedAt: 1700000000000,
+      turnSummaries,
+      fileIndex: [],
+      actionLog: [],
+      lastCompactedAt: null,
+      rawTailBudget: 5,
+    }
+
+    const out = Memory.renderForLLMSync(mem)
+    const tokenEstimate = Math.ceil(out.length / 4) // ~4 chars per token heuristic
+
+    // Typical model context (gpt-5.5 = 272K). 30% budget = 81600 tokens.
+    const typicalContextLimit = 272_000
+    const budget = Math.floor(typicalContextLimit * 0.3)
+    expect(tokenEstimate).toBeLessThanOrEqual(budget)
+  })
+
+  // ── Render: Human form ────────────────────────────────────
+
+  it("renderForHumanSync produces timeline format with turn headers", () => {
+    const mem: Memory.SessionMemory = {
+      sessionID: "ses_render_human",
+      version: 2,
+      updatedAt: 1700000060000,
+      turnSummaries: [
+        {
+          turnIndex: 0,
+          userMessageId: "msg_u1",
+          endedAt: 1700000000000,
+          text: "edited foo.ts",
+          modelID: "gpt-5.5",
+          providerId: "codex",
+        },
+        {
+          turnIndex: 1,
+          userMessageId: "msg_u2",
+          endedAt: 1700000060000,
+          text: "ran tests",
+          modelID: "gpt-5.5",
+          providerId: "codex",
+        },
+      ],
+      fileIndex: [{ path: "/src/foo.ts", operation: "edit", updatedAt: 1 }],
+      actionLog: [{ tool: "bash", summary: "Bash: bun test", turn: 1, addedAt: 1 }],
+      lastCompactedAt: { round: 3, timestamp: 1700000120000 },
+      rawTailBudget: 5,
+    }
+    const out = Memory.renderForHumanSync(mem)
+
+    expect(out).toContain("# Session ses_render_human")
+    expect(out).toContain("## Turn 0")
+    expect(out).toContain("## Turn 1")
+    expect(out).toContain("edited foo.ts")
+    expect(out).toContain("ran tests")
+    expect(out).toContain("## Files touched")
+    expect(out).toContain("/src/foo.ts")
+    expect(out).toContain("## Action log")
+    expect(out).toContain("Bash: bun test")
+    expect(out).toContain("last compacted: round 3")
+    // Human form does include model identity for UI debug
+    expect(out).toContain("codex/gpt-5.5")
+  })
+
+  it("renderForHumanSync handles empty memory gracefully", () => {
+    const mem: Memory.SessionMemory = {
+      sessionID: "ses_render_human_empty",
+      version: 0,
+      updatedAt: 1,
+      turnSummaries: [],
+      fileIndex: [],
+      actionLog: [],
+      lastCompactedAt: null,
+      rawTailBudget: 5,
+    }
+    const out = Memory.renderForHumanSync(mem)
+    expect(out).toContain("# Session ses_render_human_empty")
+    expect(out).toContain("(no turn summaries captured yet)")
+  })
+
+  it("renderForLLMSync and renderForHumanSync produce distinct strings (R-8 acceptance)", () => {
+    const mem: Memory.SessionMemory = {
+      sessionID: "ses_render_distinct",
+      version: 1,
+      updatedAt: 1700000000000,
+      turnSummaries: [
+        {
+          turnIndex: 0,
+          userMessageId: "msg_u1",
+          endedAt: 1700000000000,
+          text: "did stuff",
+          modelID: "gpt-5.5",
+          providerId: "codex",
+        },
+      ],
+      fileIndex: [{ path: "/a.ts", operation: "edit", updatedAt: 1 }],
+      actionLog: [],
+      lastCompactedAt: null,
+      rawTailBudget: 5,
+    }
+
+    const llm = Memory.renderForLLMSync(mem)
+    const human = Memory.renderForHumanSync(mem)
+
+    // Both contain the narrative
+    expect(llm).toContain("did stuff")
+    expect(human).toContain("did stuff")
+
+    // But they are different strings
+    expect(llm).not.toBe(human)
+    // LLM form has no markdown headers; human form does
+    expect(llm).not.toContain("## Turn")
+    expect(human).toContain("## Turn 0")
+    // Human form has section markers LLM form doesn't
+    expect(human).toContain("# Session")
+    expect(llm).not.toContain("# Session")
+  })
+
   it("read normalizes shape for forward compatibility (missing newer fields)", async () => {
     const sid = "ses_memory_normalize_test"
     ;(Storage as any).read = mock(async () => ({
