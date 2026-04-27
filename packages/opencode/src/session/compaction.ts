@@ -51,45 +51,16 @@ setTimeout(() => {
 export namespace SessionCompaction {
   const log = Log.create({ service: "session.compaction" })
 
-  // Per-session flag: set when server rejects previous_response_id.
-  // Next round's pre-flight check should force compaction to minimize
-  // full-context rebind cost.
-  const _pendingRebindCompaction = new Set<string>()
+  // Phase 7: pendingRebindCompaction Set, markRebindCompaction, and
+  // consumeRebindCompaction deleted. Continuation-invalidated signal is now
+  // state-driven via session.execution.continuationInvalidatedAt (DD-11);
+  // rebind detection happens via deriveObservedCondition's accountId / providerId
+  // comparison against the most recent Anchor's identity.
 
-  // Default cooldown for rebind compaction (rounds). Mirrors the by-request
-  // cooldown used by isOverflow/shouldCacheAwareCompact. Without this gate, a
-  // misfiring continuation-invalidation signal can re-trigger rebind compaction
-  // every round (event_2026-04-27_runloop_rebind_loop).
+  // Default cooldown for compaction (rounds). Used by isOverflow and
+  // shouldCacheAwareCompact to throttle repeated triggers. Source-of-truth
+  // is Memory.lastCompactedAt per DD-7 — no separate cooldownState Map.
   const REBIND_COOLDOWN_ROUNDS = 4
-
-  export function markRebindCompaction(sessionID: string) {
-    _pendingRebindCompaction.add(sessionID)
-    log.warn("continuation invalidated, compaction scheduled for next round", { sessionID })
-  }
-
-  /**
-   * Returns true if the pending rebind flag is set AND we're past the
-   * per-session compaction cooldown. Caller should treat a true return as
-   * "go ahead and compact now"; the flag is consumed only on success. If
-   * cooldown blocks the consume, the flag stays pending so a later round
-   * (post-cooldown) can still honor it.
-   */
-  export function consumeRebindCompaction(sessionID: string, currentRound?: number): boolean {
-    if (!_pendingRebindCompaction.has(sessionID)) return false
-    if (currentRound !== undefined) {
-      const state = cooldownState.get(sessionID)
-      if (state && currentRound - state.lastCompactionRound < REBIND_COOLDOWN_ROUNDS) {
-        log.info("rebind compaction skipped (cooldown)", {
-          sessionID,
-          roundsSince: currentRound - state.lastCompactionRound,
-          cooldownRounds: REBIND_COOLDOWN_ROUNDS,
-        })
-        return false
-      }
-    }
-    _pendingRebindCompaction.delete(sessionID)
-    return true
-  }
 
   // ── Rebind Checkpoint ──
   // Quietly snapshots compacted context to disk for restart recovery.
@@ -398,15 +369,24 @@ export namespace SessionCompaction {
     return contextLimit >= 16000
   }
 
-  // Per-session cooldown tracking to prevent compaction oscillation
-  const cooldownState = new Map<string, { lastCompactionRound: number }>()
-
-  export function recordCompaction(sessionID: string, round: number) {
-    cooldownState.set(sessionID, { lastCompactionRound: round })
+  // Phase 7 / DD-7: cooldown state-of-truth lives in Memory.lastCompactedAt.
+  // recordCompaction delegates to Memory.markCompacted for backward compat
+  // until phase 9's deprecation shim layer removes it entirely.
+  export async function recordCompaction(sessionID: string, round: number) {
+    await Memory.markCompacted(sessionID, { round }).catch(() => {})
   }
 
-  export function getCooldownState(sessionID: string) {
-    return cooldownState.get(sessionID)
+  /**
+   * Look up the cached cooldown state for a session. Reads Memory directly
+   * (no separate Map per DD-7). Returns undefined when no compaction has
+   * been recorded yet for this session.
+   */
+  export async function getCooldownState(
+    sessionID: string,
+  ): Promise<{ lastCompactionRound: number } | undefined> {
+    const mem = await Memory.read(sessionID).catch(() => undefined)
+    if (!mem?.lastCompactedAt) return undefined
+    return { lastCompactionRound: mem.lastCompactedAt.round }
   }
 
   export async function inspectBudget(input: { tokens: MessageV2.Assistant["tokens"]; model: Provider.Model }) {
@@ -484,7 +464,7 @@ export namespace SessionCompaction {
 
     // Cooldown check: skip compaction if too soon after last one
     if (input.sessionID && input.currentRound !== undefined) {
-      const state = cooldownState.get(input.sessionID)
+      const state = await getCooldownState(input.sessionID)
       if (state) {
         const roundsSince = input.currentRound - state.lastCompactionRound
         if (roundsSince < budget.cooldownRounds) {
@@ -531,7 +511,7 @@ export namespace SessionCompaction {
 
     // Respect cooldown
     if (input.sessionID && input.currentRound !== undefined) {
-      const state = cooldownState.get(input.sessionID)
+      const state = await getCooldownState(input.sessionID)
       if (state) {
         const roundsSince = input.currentRound - state.lastCompactionRound
         if (roundsSince < budget.cooldownRounds) {

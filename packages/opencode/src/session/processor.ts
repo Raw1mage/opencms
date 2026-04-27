@@ -388,7 +388,7 @@ export namespace SessionProcessor {
                   () => false,
                 )
                 if (!exists) {
-                  l.warn("session pinned to stale account, falling back to active", {
+                  log.warn("session pinned to stale account, falling back to active", {
                     sessionID: input.sessionID,
                     staleAccountId: sessionExecution,
                     provider: family,
@@ -725,13 +725,12 @@ export namespace SessionProcessor {
                   accountId: input.assistantMessage.accountId,
                 },
               })
-              // Account switched mid-stream — drop a rebind anchor for next round.
-              // Why: without this, autonomous loops that thrash accounts grow the
-              // local message tail indefinitely (auto-compaction sees lastFinished
-              // tokens of the failed/empty rotation attempt, never trips). Treating
-              // account-switch as a context-reset peer of provider-switch lets the
-              // next round's rebind compaction path snapshot+truncate properly.
-              SessionCompaction.markRebindCompaction(input.sessionID)
+              // Account switched mid-stream — pin updated on session.execution.
+              // Phase 7 / DD-1: no longer call markRebindCompaction. The next
+              // runloop iteration's deriveObservedCondition compares the new
+              // pinned identity to the most recent Anchor's identity and
+              // returns "rebind" / "provider-switched" state-drivenly, then
+              // SessionCompaction.run handles it. State-only signal; no flag.
               logSessionAccountAudit({
                 requestPhase: "assistant-persist",
                 sessionID: input.sessionID,

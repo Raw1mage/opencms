@@ -140,6 +140,14 @@
         "packages/opencode/src/session/prompt.observed-condition.test.ts"
       ],
       "commit": "a6c53ac08f81bf3497d588156ae5bf5ba53a75d2"
+    },
+    {
+      "at": "2026-04-27T21:18:52.158Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "c90f7a640da2dacb5e83e1984d019d1aa5eda2bf"
     }
   ]
 }

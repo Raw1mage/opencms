@@ -78,11 +78,12 @@ reviewable and rolls back cleanly without the next.
 - [x] 7b.5 `run({observed: "manual"})` empty-Memory path: tryLlmAgent provides the LLM-agent fallback. Verified via test pass — existing `compaction-run.test.ts` test "memory empty + paid kinds unimplemented (phase 4): chain exhausts" no longer applies because llm-agent is no longer a stub. The test currently still passes because the mocks don't supply Session.messages — tryLlmAgent fails the "no messages" guard. End-to-end "/compact on empty Memory writes anchor via LLM agent" remains a phase-11 manual-smoke check.
 - [x] 7b.6 Existing `compaction.test.ts` 9 cases all pass. Combined 77 tests pass across 6 phase 1-7b files.
 
-- [!] 7.1 Delete `pendingRebindCompaction` Set, `markRebindCompaction`, `consumeRebindCompaction` from `compaction.ts` — BLOCKED on DD-11 (state-driven continuation-invalidated signal design)
-- [!] 7.2 Delete `markRebindCompaction` call at `processor.ts:734` — depends on 7.1
-- [!] 7.3 Delete `cooldownState` Map; rewrite `recordCompaction` as deprecated shim → `Memory.markCompacted` — BLOCKED on extracting tryLlmAgent so legacy callers can be removed
-- [!] 7.4 Code grep verification — depends on 7.1-7.3
-- [x] 7.5 Unit test: 2026-04-27 infinite-loop scenario produces exactly one rebind Anchor (S4 acceptance) — 3 cases in `compaction.regression-2026-04-27.test.ts`: INV-3 no-Continue, INV-2 single-anchor-with-cooldown, structural INJECT_CONTINUE table-frozen defense
+- [x] 7.1 Deleted `pendingRebindCompaction` Set, `markRebindCompaction`, `consumeRebindCompaction` from compaction.ts (DD-11 cleared the blocker by moving continuation-invalidated to session.execution).
+- [x] 7.2 Deleted `markRebindCompaction` call at `processor.ts:734`. Pin update via `Session.pinExecutionIdentity` retained. Drive-by fix: `l.warn` typo at line 391 corrected to `log.warn`.
+- [x] 7.3 Deleted three legacy compaction branches from prompt.ts (compaction-request task processing / continuation-rebind / overflow). New state-driven path is the only compaction caller now.
+- [x] 7.4 Deleted `cooldownState` Map. `recordCompaction` becomes a thin async shim that delegates to `Memory.markCompacted`; `getCooldownState` reads from `Memory.lastCompactedAt`. `isOverflow` and `shouldCacheAwareCompact` rewired through the async getter.
+- [x] 7.5 Code grep clean: zero non-comment references to deleted symbols.
+- [x] 7.6 Tests migrated: legacy `compaction.test.ts` cooldown tests rewritten with `stubMemoryCooldown` helper. Two old "rebind compaction respects cooldown" + "rebind compaction without currentRound bypasses cooldown" tests removed (deleted with the API). Regression coverage moved to `compaction.regression-2026-04-27.test.ts` which exercises the same defenses on the new state-driven path. 75 tests pass across 6 phase 1-7 files.
 
 ## 8. Anchor unification (DD-8)
 

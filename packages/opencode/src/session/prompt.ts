@@ -1301,7 +1301,7 @@ export namespace SessionPrompt {
           const snap =
             (await SharedContext.snapshot(sessionID)) ??
             (await SessionCompaction.loadRebindCheckpoint(sessionID))?.snapshot
-          SessionCompaction.recordCompaction(sessionID, 1)
+          await Memory.markCompacted(sessionID, { round: 1 }).catch(() => {})
           await SessionCompaction.compactWithSharedContext({
             sessionID,
             snapshot:
@@ -1682,21 +1682,15 @@ export namespace SessionPrompt {
         continue
       }
 
-      // ── compaction-redesign phase 6 — state-driven evaluation ─────────
-      // DD-1: each runloop iteration re-evaluates whether compaction is
-      // warranted from current observable state. No flags persisted across
-      // iterations. If deriveObservedCondition returns non-null, we route
-      // through the new SessionCompaction.run entry point. If run returns
-      // "continue", the iteration's compaction work is done; skip the
-      // legacy branches below. If "stop", fall through to legacy (currently
-      // needed for the LLM-agent path until phase 6+ extracts it).
-      //
-      // Transitional flag drain: the legacy pendingRebindCompaction flag is
-      // also consumed here so the legacy `consumeRebindCompaction` branch
-      // below can't fire a second compaction in a later iteration after the
-      // new path already wrote the anchor for the same condition. Phase 7
-      // deletes the flag entirely.
-      SessionCompaction.consumeRebindCompaction(sessionID)
+      // ── compaction-redesign — state-driven evaluation (DD-1) ──────────
+      // Each runloop iteration re-evaluates whether compaction is warranted
+      // from current observable state (Memory cooldown, pinned identity vs
+      // most recent Anchor's identity, lastFinished tokens, message-stream
+      // tail, session.execution.continuationInvalidatedAt). No flags
+      // persisted across iterations. If deriveObservedCondition returns
+      // non-null, route through SessionCompaction.run; on "continue" skip
+      // the rest of this iteration's body, on "stop" carry on without
+      // compacting this round.
       const sessionExecForCompaction = (await Session.get(sessionID).catch(() => undefined))?.execution
       const observed = await deriveObservedCondition({
         sessionID,
@@ -1739,102 +1733,40 @@ export namespace SessionPrompt {
           observed,
           step,
           intent: task?.type === "compaction-request" && task.auto === false ? "default" : "default",
+          abort,
         })
         if (result === "continue") {
-          // New path handled it. Skip legacy branches.
           continue
         }
-        // result === "stop": run() exhausted its chain (e.g. observed=manual
-        // with empty Memory and no codex plugin → llm-agent stub returns
-        // false). Fall through to legacy branches below; they still have
-        // working LLM-agent path via SessionCompaction.process. Phase 6+
-        // extracts that into tryLlmAgent and removes this fallback.
-        debugCheckpoint("prompt", "loop:state_driven_compaction_fell_through", {
+        // result === "stop": chain exhausted (rare — only when llm-agent
+        // itself fails, e.g. canSummarize=false on a tiny model). Carry on
+        // to the next iteration without compacting; future iterations
+        // re-evaluate.
+        debugCheckpoint("prompt", "loop:state_driven_compaction_chain_exhausted", {
           sessionID,
           step,
           observed,
         })
       }
 
-      // ── legacy compaction branches (kept for fallback during transition) ──
-
-      // pending compaction
-      if (task?.type === "compaction-request") {
-        const result = await SessionCompaction.process({
-          messages: msgs,
-          parentID: lastUser.id,
-          abort,
-          sessionID,
-          auto: task.auto,
-        })
-        // Record cooldown so the rebind path can't immediately fire a second
-        // compaction after this one. Without this, manual /compact (which
-        // routes through compaction-request) leaves cooldownState empty —
-        // so any rotation that happens during process() will schedule a
-        // rebind compaction on the very next iteration. Overflow and rebind
-        // paths already record; this one was the gap (event_2026-04-27).
-        if (result !== "stop") {
-          SessionCompaction.recordCompaction(sessionID, step)
-        }
-        debugCheckpoint("prompt", "loop:compaction_done", {
-          sessionID,
-          step,
-          result,
-          auto: task.auto,
-        })
-        if (result === "stop") break
-        continue
-      }
-
-      // Continuation rebind compaction: server rejected previous_response_id,
-      // use pre-built checkpoint to compact instead of resending full history.
-      if (lastFinished && lastFinished.summary !== true && SessionCompaction.consumeRebindCompaction(sessionID, step)) {
-        log.info("rebind compaction triggered after continuation invalidation", { sessionID })
-        debugCheckpoint("prompt", "loop:rebind_compaction_triggered", {
-          sessionID,
-          step,
-          source: "continuation_invalidation",
-        })
-        SessionCompaction.recordCompaction(sessionID, step)
-        if (!session.parentID) {
-          // Priority: use pre-built checkpoint (saved during normal operation)
-          const checkpoint = await SessionCompaction.loadRebindCheckpoint(sessionID)
-          const snap = checkpoint?.snapshot || (await SharedContext.snapshot(sessionID))
-          if (snap) {
-            debugCheckpoint("prompt", "loop:rebind_compaction_snapshot_selected", {
-              sessionID,
-              step,
-              source: checkpoint ? "checkpoint" : "shared-context",
-              boundaryId: checkpoint?.lastMessageId,
-              snapshotChars: snap.length,
-            })
-            // auto:false — rebind path is a maintenance compaction triggered by
-            // continuation-invalidation (e.g. mid-stream account switch). Do NOT
-            // inject a synthetic "Continue" user message; the runloop continues
-            // naturally if the prior assistant finished with tool-calls. Setting
-            // auto:true here turned a single rotation into an infinite
-            // rebind→Continue→rotation loop (event_2026-04-27_runloop_rebind_loop).
-            await SessionCompaction.compactWithSharedContext({
-              sessionID,
-              snapshot: snap,
-              model,
-              auto: false,
-            })
-            continue
-          }
-        }
-      }
+      // ── Phase 7: legacy compaction branches deleted ──
+      // Previous behaviour was a transitional bridge (phase 6) where new
+      // state-driven path was tried first and legacy was the fallback. With
+      // phase 7b's tryLlmAgent in place, the new chain handles every case
+      // the legacy branches did. The branches are gone; if run() returns
+      // "stop", the runloop simply continues without compacting this round.
+      // Next iteration re-evaluates from observable state.
 
       // Rebind checkpoint: quietly snapshot context for restart recovery.
-      // Does NOT compact the live message chain (that would break cache).
-      // Only produces a checkpoint file that rebind uses if restart happens.
+      // Kept here (not part of compaction kind chain): produces a disk
+      // checkpoint file used at startup recovery, not a live anchor.
+      // Phase 8 (DD-8) will collapse this into the unified Memory artifact.
       if (
         lastFinished &&
         lastFinished.summary !== true &&
         !session.parentID &&
         SessionCompaction.shouldRebindBudgetCompact({ tokens: lastFinished.tokens, sessionID, currentRound: step })
       ) {
-        // Fire-and-forget: snapshot in background, don't block the conversation
         debugCheckpoint("prompt", "loop:rebind_checkpoint_save_scheduled", {
           sessionID,
           step,
@@ -1845,80 +1777,6 @@ export namespace SessionPrompt {
           lastMessageId: msgs.at(-1)?.info.id,
           currentRound: step,
         }).catch(() => {})
-      }
-
-      // context overflow OR cache-aware compaction
-      const overflowTriggered =
-        lastFinished &&
-        lastFinished.summary !== true &&
-        (await SessionCompaction.isOverflow({ tokens: lastFinished.tokens, model, sessionID, currentRound: step }))
-      const cacheAwareTriggered =
-        lastFinished &&
-        lastFinished.summary !== true &&
-        (await SessionCompaction.shouldCacheAwareCompact({
-          tokens: lastFinished.tokens,
-          model,
-          sessionID,
-          currentRound: step,
-        }))
-      if (overflowTriggered || cacheAwareTriggered) {
-        debugCheckpoint("prompt", "loop:compaction_triggered", {
-          sessionID,
-          step,
-          overflowTriggered,
-          cacheAwareTriggered,
-        })
-        SessionCompaction.recordCompaction(sessionID, step)
-        // Priority path: use shared context snapshot as summary (no LLM call)
-        if (!session.parentID) {
-          const overflowConfig = await Config.get()
-          if (overflowConfig.compaction?.sharedContext !== false) {
-            const snap = await SharedContext.snapshot(sessionID)
-            // Snapshot must fit within ~30% of the target model's context to
-            // leave room for system prompt + new conversation. Without this
-            // check, switching from a large-context model to a small one
-            // produces a snapshot that is itself bigger than the new model's
-            // context window, making conversation impossible.
-            const snapTokenEstimate = snap ? Math.ceil(snap.length / 4) : 0
-            const snapBudget = Math.floor((model.limit.context || 0) * 0.3)
-            if (snap && snapTokenEstimate <= snapBudget) {
-              debugCheckpoint("prompt", "loop:compaction_snapshot_selected", {
-                sessionID,
-                step,
-                source: "shared-context",
-                snapshotChars: snap.length,
-                snapTokenEstimate,
-                snapBudget,
-              })
-              await SessionCompaction.compactWithSharedContext({
-                sessionID,
-                snapshot: snap,
-                model,
-                auto: true,
-              })
-              continue
-            }
-            if (snap) {
-              debugCheckpoint("prompt", "loop:compaction_snapshot_too_large", {
-                sessionID,
-                step,
-                snapTokenEstimate,
-                snapBudget,
-                modelContext: model.limit.context,
-              })
-              // Fall through to LLM compaction which truncates properly
-            }
-          }
-        }
-        // Fallback: LLM compaction agent
-        await SessionCompaction.create({
-          sessionID,
-          agent: lastUser.agent,
-          model: lastUser.model,
-          format: lastUser.format,
-          auto: true,
-        })
-        continue
       }
 
       // normal processing

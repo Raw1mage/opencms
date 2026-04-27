@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, mock } from "bun:test"
 import { SessionCompaction } from "./compaction"
+import { Memory } from "./memory"
 import { Config } from "@/config/config"
 import { SharedContext } from "./shared-context"
 import { Global } from "@/global"
@@ -9,13 +10,36 @@ import path from "path"
 
 const originalConfigGet = Config.get
 const originalSharedContextSnapshot = SharedContext.snapshot
+const originalMemoryRead = Memory.read
+const originalMemoryMarkCompacted = Memory.markCompacted
 const originalGlobalPathState = Global.Path.state
 
 afterEach(() => {
   ;(Config as any).get = originalConfigGet
   ;(SharedContext as any).snapshot = originalSharedContextSnapshot
+  ;(Memory as any).read = originalMemoryRead
+  ;(Memory as any).markCompacted = originalMemoryMarkCompacted
   Global.Path.state = originalGlobalPathState
 })
+
+/**
+ * Phase 7 helper: stub Memory so the in-test cooldown lookup is
+ * synchronous-ish (still returns a Promise but resolves immediately).
+ * Mirrors the legacy cooldownState Map's per-test setup pattern.
+ */
+function stubMemoryCooldown(sessionID: string, lastRound: number) {
+  ;(Memory as any).read = mock(async () => ({
+    sessionID,
+    version: 1,
+    updatedAt: 1,
+    turnSummaries: [],
+    fileIndex: [],
+    actionLog: [],
+    lastCompactedAt: { round: lastRound, timestamp: 1 },
+    rawTailBudget: 5,
+  }))
+  ;(Memory as any).markCompacted = mock(async () => {})
+}
 
 describe("SessionCompaction cooldown guard", () => {
   it("suppresses repeated overflow compaction within cooldown rounds for high-prefix sessions", async () => {
@@ -49,7 +73,7 @@ describe("SessionCompaction cooldown guard", () => {
     }
 
     const sessionID = `ses_compaction_cooldown_${Date.now()}`
-    SessionCompaction.recordCompaction(sessionID, 1)
+    stubMemoryCooldown(sessionID, 1)
 
     await expect(
       SessionCompaction.isOverflow({
@@ -101,7 +125,7 @@ describe("SessionCompaction cooldown guard", () => {
     }
 
     const sessionID = `ses_compaction_emergency_${Date.now()}`
-    SessionCompaction.recordCompaction(sessionID, 10)
+    stubMemoryCooldown(sessionID, 10)
 
     await expect(
       SessionCompaction.isOverflow({
@@ -349,30 +373,10 @@ describe("SessionCompaction cooldown guard", () => {
     await expect(fs.access(stalePath)).rejects.toBeDefined()
   })
 
-  // event_2026-04-27_runloop_rebind_loop — guard against the regression where
-  // continuation-invalidation could re-fire rebind compaction every round,
-  // creating an infinite synthetic-Continue loop.
-  it("rebind compaction respects cooldown when fired repeatedly", () => {
-    const sid = "ses_rebind_cooldown_test"
-    SessionCompaction.markRebindCompaction(sid)
-    SessionCompaction.recordCompaction(sid, 10)
-    // Same round as the recorded compaction → still inside cooldown.
-    expect(SessionCompaction.consumeRebindCompaction(sid, 10)).toBe(false)
-    // 3 rounds later still inside the 4-round cooldown.
-    expect(SessionCompaction.consumeRebindCompaction(sid, 13)).toBe(false)
-    // 4 rounds later → cooldown cleared, flag is consumed.
-    expect(SessionCompaction.consumeRebindCompaction(sid, 14)).toBe(true)
-    // Flag was one-shot — second consume returns false even past cooldown.
-    expect(SessionCompaction.consumeRebindCompaction(sid, 100)).toBe(false)
-  })
-
-  it("rebind compaction without currentRound bypasses cooldown (legacy path)", () => {
-    const sid = "ses_rebind_legacy_test"
-    SessionCompaction.markRebindCompaction(sid)
-    SessionCompaction.recordCompaction(sid, 10)
-    // No currentRound provided → cooldown gate skipped, behaves like the
-    // pre-fix one-shot consume.
-    expect(SessionCompaction.consumeRebindCompaction(sid)).toBe(true)
-    expect(SessionCompaction.consumeRebindCompaction(sid)).toBe(false)
-  })
+  // event_2026-04-27_runloop_rebind_loop regression coverage migrated
+  // to compaction.regression-2026-04-27.test.ts after phase 7 deleted
+  // markRebindCompaction / consumeRebindCompaction. The new tests use
+  // run({observed: "rebind"}) which exercises the same defenses
+  // (INV-3 no-Continue, INV-2 single-anchor-with-cooldown) on the new
+  // state-driven path.
 })
