@@ -589,94 +589,29 @@ export namespace SessionCompaction {
     }
   }
 
+  /**
+   * @deprecated Phase 7 deleted the only caller (`prompt.ts` legacy
+   * compaction-request branch). Kept as a shim that delegates to the new
+   * single entry point so any pre-phase-7 caller still compiles. Phase 9
+   * (next release) removes it. Emits `log.warn` so missed callers surface
+   * in CI.
+   */
   export async function process(input: {
     parentID: string
     messages: MessageV2.WithParts[]
     sessionID: string
     abort: AbortSignal
     auto: boolean
-  }) {
-    const userMessage = input.messages.findLast((m) => m.info.id === input.parentID)!.info as MessageV2.User
-
-    // Announce compaction start immediately so the UI can show a toast even
-    // during the slow plugin round-trip (Codex /responses/compact can take
-    // 30s+). The Compacted event at the tail still fires on completion.
-    Bus.publish(Event.CompactionStarted, { sessionID: input.sessionID, mode: "plugin" })
-
-    // --- Priority 0: shared-context snapshot (zero API cost) ---------------
-    // The in-memory scratchpad already holds the canonical state we'd be
-    // summarizing. Use it before burning quota on a server-side or LLM round
-    // trip. Mirrors the budget check in the overflow path
-    // (prompt.ts:1594-1633): snapshot must fit within 30% of the user's
-    // active model context window so the next round still has room to run.
-    // Why this matters: a manual /compact that goes straight to plugin
-    // compaction can itself trip the codex 5h burst limit, triggering a
-    // mid-stream rotation, which schedules a rebind compaction on top —
-    // two compactions back to back. The cheap path avoids the trigger.
-    const snapshotModel = await Provider.getModel(
-      userMessage.model.providerId,
-      userMessage.model.modelID,
-    ).catch(() => undefined)
-    if (snapshotModel) {
-      const snap = await SharedContext.snapshot(input.sessionID)
-      if (snap) {
-        const snapTokenEstimate = Math.ceil(snap.length / 4)
-        const snapBudget = Math.floor((snapshotModel.limit?.context || 0) * 0.3)
-        if (snapBudget > 0 && snapTokenEstimate <= snapBudget) {
-          log.info("compaction: shared-context snapshot accepted (priority 0, no API call)", {
-            sessionID: input.sessionID,
-            snapshotChars: snap.length,
-            snapTokenEstimate,
-            snapBudget,
-          })
-          await compactWithSharedContext({
-            sessionID: input.sessionID,
-            snapshot: snap,
-            model: snapshotModel,
-            auto: input.auto,
-          })
-          return "continue"
-        }
-        log.info("compaction: snapshot too large, falling through to plugin/LLM", {
-          sessionID: input.sessionID,
-          snapTokenEstimate,
-          snapBudget,
-        })
-      }
-    }
-
-    // --- Priority 1: plugin-provided server compaction (e.g. Codex /responses/compact) ---
-    const serverResult = await tryPluginCompaction(input, userMessage)
-    if (serverResult) return serverResult
-
-    // Plugin path bailed — fall through to LLM agent. Phase 7b: this body
-    // delegates to runLlmCompactionAgent so the same code drives both the
-    // legacy `process()` and the new `tryLlmAgent` executor.
-    const summaryText = await runLlmCompactionAgent({
+  }): Promise<"continue" | "stop"> {
+    log.warn("SessionCompaction.process is deprecated; use SessionCompaction.run", {
       sessionID: input.sessionID,
-      parentID: input.parentID,
-      userMessage,
-      messages: input.messages,
-      abort: input.abort,
-      auto: input.auto,
-    }).catch((err) => {
-      log.warn("LLM compaction agent threw", {
-        sessionID: input.sessionID,
-        error: err instanceof Error ? err.message : String(err),
-      })
-      return null
     })
-    if (!summaryText) return "stop"
-
-    if (input.auto) {
-      // Legacy process() injected Continue inline; phase 7b keeps the
-      // existing behaviour for legacy callers (compaction-request branch
-      // in prompt.ts). Once that branch is deleted in phase 7, this block
-      // dies along with `process()` itself.
-      await injectContinueAfterAnchor(input.sessionID, "manual")
-    }
-
-    return "continue"
+    return run({
+      sessionID: input.sessionID,
+      observed: input.auto ? "overflow" : "manual",
+      step: 0,
+      abort: input.abort,
+    })
   }
 
   /**
@@ -891,140 +826,10 @@ export namespace SessionCompaction {
     return { messages: truncated, truncated: true, safeCharBudget }
   }
 
-  /**
-   * Try plugin-provided server compaction via session.compact hook.
-   *
-   * If a plugin (e.g. codex-provider) handles compaction server-side,
-   * it returns compactedItems + summary. Core uses those as the canonical
-   * next context window. If no plugin handles it, returns null → LLM fallback.
-   */
-  async function tryPluginCompaction(
-    input: {
-      parentID: string
-      messages: MessageV2.WithParts[]
-      sessionID: string
-      abort: AbortSignal
-      auto: boolean
-    },
-    userMessage: MessageV2.User,
-  ): Promise<"continue" | "stop" | null> {
-    try {
-      // Build generic conversation items from messages (provider-agnostic serialization)
-      const conversationItems: unknown[] = []
-      for (const msg of input.messages) {
-        if (msg.info.role === "user") {
-          const textParts = msg.parts.filter((p) => p.type === "text")
-          if (textParts.length > 0) {
-            conversationItems.push({
-              type: "message",
-              role: "user",
-              content: textParts.map((p) => ({
-                type: "input_text",
-                text: (p as any).text ?? "",
-              })),
-            })
-          }
-        } else if (msg.info.role === "assistant") {
-          const textParts = msg.parts.filter((p) => p.type === "text")
-          if (textParts.length > 0) {
-            conversationItems.push({
-              type: "message",
-              role: "assistant",
-              content: textParts.map((p) => ({
-                type: "output_text",
-                text: (p as any).text ?? "",
-              })),
-            })
-          }
-          for (const p of msg.parts) {
-            if (p.type === "tool" && p.state.status === "completed") {
-              conversationItems.push({
-                type: "function_call",
-                call_id: (p as any).toolCallId ?? p.id,
-                name: p.tool,
-                arguments:
-                  typeof (p as any).input === "string" ? (p as any).input : JSON.stringify((p as any).input ?? {}),
-              })
-              const stateOutput = p.state.output
-              if (stateOutput != null && typeof stateOutput !== "string") {
-                // Fail-loud per AGENTS.md "no silent fallback": JSON.stringify
-                // of a structured tool output is what poisoned Codex memory in
-                // the gpt-5.5 envelope incident. Tool authors must store
-                // string output; if a tool ever changes shape, surface it
-                // here instead of silently sending JSON to the compactor.
-                throw new Error(
-                  `tryPluginCompaction: tool ${p.tool} state.output is non-string ` +
-                    `(${typeof stateOutput}); add an explicit unwrap before sending to plugin compact.`,
-                )
-              }
-              conversationItems.push({
-                type: "function_call_output",
-                call_id: (p as any).toolCallId ?? p.id,
-                output: stateOutput ?? "",
-              })
-            }
-          }
-        }
-      }
-
-      if (conversationItems.length === 0) return null
-
-      const agent = await Agent.get(userMessage.agent ?? "default")
-      const instructions = (agent.prompt ?? "").slice(0, 50000)
-
-      // Ask plugins if they can handle compaction server-side
-      const hookResult = await Plugin.trigger(
-        "session.compact",
-        {
-          sessionID: input.sessionID,
-          model: {
-            providerId: userMessage.model.providerId,
-            modelID: userMessage.model.modelID,
-            accountId: userMessage.model.accountId,
-          },
-          conversationItems,
-          instructions,
-        },
-        { compactedItems: null as unknown[] | null, summary: null as string | null },
-      )
-
-      const compactedItems = hookResult.compactedItems
-      if (!compactedItems) return null
-
-      // Plugin provided server-compacted items — use as canonical context window
-      const summaryText = hookResult.summary || "[Server-compacted conversation history]"
-      const model = await Provider.getModel(userMessage.model.providerId, userMessage.model.modelID)
-
-      await compactWithSharedContext({
-        sessionID: input.sessionID,
-        snapshot: summaryText,
-        model,
-        auto: input.auto,
-      })
-
-      log.info("plugin server compaction complete", {
-        sessionID: input.sessionID,
-        providerId: userMessage.model.providerId,
-        outputItems: compactedItems.length,
-      })
-
-      const lastMsgId = input.messages.at(-1)?.info.id
-      if (lastMsgId) {
-        void saveCheckpointAfterCompaction({
-          sessionID: input.sessionID,
-          source: `${userMessage.model.providerId}-server`,
-          summary: summaryText,
-          lastMessageId: lastMsgId,
-          opaqueItems: compactedItems,
-        })
-      }
-
-      return "continue"
-    } catch (err) {
-      log.warn("plugin server compaction failed, falling back to LLM agent", { error: String(err) })
-      return null
-    }
-  }
+  // Phase 7: tryPluginCompaction deleted. The plugin session.compact hook
+  // is now invoked by tryLowCostServer (kind 4 of the new chain). The
+  // conversation-items builder (`buildConversationItemsForPlugin`) lives
+  // alongside that executor.
 
   export const create = fn(
     z.object({

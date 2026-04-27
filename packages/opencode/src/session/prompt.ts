@@ -252,6 +252,12 @@ export async function deriveObservedCondition(input: {
   pinnedProviderId: string
   pinnedAccountId: string | undefined
   hasUnprocessedCompactionRequest: boolean
+  /**
+   * `auto` field on the unprocessed compaction-request part. true =
+   * system-initiated (overflow-equivalent, allows synthetic Continue);
+   * false = user-initiated /compact. undefined when no part exists.
+   */
+  compactionRequestAuto: boolean | undefined
   parentID: string | undefined
   /** DD-11: epoch ms set by codex Bus listener when previous_response_id was rejected. */
   continuationInvalidatedAt: number | undefined
@@ -269,7 +275,11 @@ export async function deriveObservedCondition(input: {
   // even if some upstream code accidentally appends a compaction-request
   // part. All other observed values are evaluated identically.
   const isSubagent = !!input.parentID
-  if (input.hasUnprocessedCompactionRequest && !isSubagent) return "manual"
+  if (input.hasUnprocessedCompactionRequest && !isSubagent) {
+    // compaction-request with auto:true is system-initiated (overflow-equivalent
+    // — caller wants synthetic Continue injection); auto:false is user-initiated.
+    return input.compactionRequestAuto === true ? "overflow" : "manual"
+  }
 
   // DD-11: continuation-invalidated takes priority over identity drift.
   // The signal is fresh iff the timestamp is newer than the most recent
@@ -1700,6 +1710,7 @@ export namespace SessionPrompt {
         pinnedProviderId: effectiveProviderId,
         pinnedAccountId: effectiveAccountId ?? undefined,
         hasUnprocessedCompactionRequest: task?.type === "compaction-request",
+        compactionRequestAuto: task?.type === "compaction-request" ? task.auto : undefined,
         parentID: session.parentID,
         continuationInvalidatedAt: sessionExecForCompaction?.continuationInvalidatedAt,
         isOverflow: () =>

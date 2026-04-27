@@ -125,6 +125,7 @@ describe("deriveObservedCondition (DD-1 state-driven)", () => {
       pinnedProviderId: "codex",
       pinnedAccountId: "acc-A",
       hasUnprocessedCompactionRequest: false,
+      compactionRequestAuto: undefined,
       parentID: undefined,
       continuationInvalidatedAt: undefined,
       isOverflow: async () => false,
