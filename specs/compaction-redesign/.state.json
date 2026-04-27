@@ -167,6 +167,17 @@
         "packages/opencode/src/session/prompt.observed-condition.test.ts"
       ],
       "commit": "ca313a9d3edd9e8b45b8edd8d9dfef41a8428941"
+    },
+    {
+      "at": "2026-04-27T21:38:41.391Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/session/compaction-run.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/session/compaction-run.test.ts"
+      ],
+      "commit": "c5cac386b82f939baff01e8ca084a2f78b0edba2"
     }
   ]
 }

@@ -103,10 +103,10 @@ reviewable and rolls back cleanly without the next.
 
 ## 10. UI consumption of renderForHuman
 
-- [ ] 10.1 Identify UI session-list preview code path (in `packages/app/`)
-- [ ] 10.2 Replace existing snapshot fetch with `Memory.renderForHuman`
-- [ ] 10.3 Manual smoke: session list preview shows timeline-format text instead of XML-ish snapshot
-- [ ] 10.4 Add `/compact --rich` flag to API route; smoke-test it skips kinds 1-3 (DD-10)
+- [x] 10.1 Reviewed `packages/app/` for existing session-list previews that consume snapshot/checkpoint text. **None exist.** No frontend currently fetches the legacy SharedContext.snapshot or rebind-checkpoint disk file. Phase 10 instead introduces a server-side endpoint that any future UI can adopt.
+- [x] 10.2 New endpoint `GET /session/:id/memory?form=human|llm` returns the SessionMemory rendered via `renderForLLMSync` or `renderForHumanSync`. Response includes counts (turnSummariesCount / fileIndexCount / actionLogCount) + `lastCompactedAt` so a UI sidebar can show meta without a second round-trip. Default form is `human`.
+- [~] 10.3 Manual smoke deferred to phase 11 acceptance gate (needs running daemon + curl).
+- [x] 10.4 `/session/:id/summarize` accepts `rich: boolean` in the body. When true, routes through `SessionCompaction.run({observed: "manual", intent: "rich"})` per DD-10 — kind chain skips narrative/schema/replay-tail/low-cost-server and goes straight to `llm-agent`. Existing `auto` flag retained for backward compat (default behavior unchanged).
 
 ## 11. Validation + final cutover
 

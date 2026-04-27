@@ -8,6 +8,7 @@ import { Session } from "../../session"
 import { MessageV2 } from "../../session/message-v2"
 import { SessionPrompt } from "../../session/prompt"
 import { SessionCompaction } from "../../session/compaction"
+import { Memory } from "../../session/memory"
 import { SessionRevert } from "../../session/revert"
 import { SessionStatus } from "@/session/status"
 import { SessionSummary } from "@/session/summary"
@@ -1647,6 +1648,69 @@ export const SessionRoutes = lazy(() =>
         return c.json(session)
       },
     )
+    .get(
+      "/:sessionID/memory",
+      describeRoute({
+        summary: "Get session memory render",
+        description:
+          "Returns the session's compaction memory rendered for either LLM consumption (compact, provider-agnostic) or human consumption (timeline format). Per compaction-redesign DD-5: two independent render functions from the same SessionMemory artifact.",
+        operationId: "session.memory",
+        responses: {
+          200: {
+            description: "Rendered memory text",
+            content: {
+              "application/json": {
+                schema: resolver(
+                  z.object({
+                    sessionID: z.string(),
+                    form: z.enum(["llm", "human"]),
+                    text: z.string(),
+                    version: z.number(),
+                    updatedAt: z.number(),
+                    turnSummariesCount: z.number(),
+                    fileIndexCount: z.number(),
+                    actionLogCount: z.number(),
+                    lastCompactedAt: z
+                      .object({ round: z.number(), timestamp: z.number() })
+                      .nullable(),
+                  }),
+                ),
+              },
+            },
+          },
+          ...errors(400, 404),
+        },
+      }),
+      validator(
+        "param",
+        z.object({
+          sessionID: z.string().meta({ description: "Session ID" }),
+        }),
+      ),
+      validator(
+        "query",
+        z.object({
+          form: z.enum(["llm", "human"]).optional().default("human"),
+        }),
+      ),
+      async (c) => {
+        const sessionID = c.req.valid("param").sessionID
+        const { form } = c.req.valid("query")
+        const mem = await Memory.read(sessionID)
+        const text = form === "llm" ? Memory.renderForLLMSync(mem) : Memory.renderForHumanSync(mem)
+        return c.json({
+          sessionID,
+          form,
+          text,
+          version: mem.version,
+          updatedAt: mem.updatedAt,
+          turnSummariesCount: mem.turnSummaries.length,
+          fileIndexCount: mem.fileIndex.length,
+          actionLogCount: mem.actionLog.length,
+          lastCompactedAt: mem.lastCompactedAt,
+        })
+      },
+    )
     .post(
       "/:sessionID/summarize",
       describeRoute({
@@ -1677,6 +1741,13 @@ export const SessionRoutes = lazy(() =>
           providerId: z.string(),
           modelID: z.string(),
           auto: z.boolean().optional().default(false),
+          /**
+           * compaction-redesign DD-10: when true, /compact skips kinds 1-3
+           * (free narrative, schema, replay-tail) and goes straight to the
+           * LLM-agent kind. For sessions where the user wants a full
+           * custom-prompt summary regardless of cost.
+           */
+          rich: z.boolean().optional().default(false),
         }),
       ),
       async (c) => {
@@ -1696,6 +1767,20 @@ export const SessionRoutes = lazy(() =>
         }
         const session = await Session.get(sessionID)
         await SessionRevert.cleanup(session)
+        if (body.rich) {
+          // DD-10: --rich routes through the new state-driven entry with
+          // intent="rich" so the kind chain skips free kinds and goes
+          // straight to llm-agent. Anchor + Continue injection (when
+          // applicable) follow the same INJECT_CONTINUE table as any
+          // other observed value.
+          await SessionCompaction.run({
+            sessionID,
+            observed: "manual",
+            step: 0,
+            intent: "rich",
+          })
+          return c.json(true)
+        }
         const msgs = await Session.messages({ sessionID })
         let currentAgent = await Agent.defaultAgent()
         for (let i = msgs.length - 1; i >= 0; i--) {
