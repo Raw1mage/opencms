@@ -19,6 +19,7 @@ import { Config } from "@/config/config"
 import { ProviderTransform } from "@/provider/transform"
 import { SessionPrompt } from "./prompt"
 import { SharedContext } from "./shared-context"
+import { Memory } from "./memory"
 import { ContinuationInvalidatedEvent } from "../plugin/codex-auth"
 
 const SessionDeletedEvent = BusEvent.define(
@@ -30,9 +31,13 @@ const SessionDeletedEvent = BusEvent.define(
   }),
 )
 
-// Subscribe to continuation invalidation: schedule compaction for next round
+// Subscribe to continuation invalidation. compaction-redesign DD-11:
+// state-driven signal — write timestamp onto session.execution; the
+// runloop's deriveObservedCondition compares against the most recent
+// Anchor's time.created and fires run({observed: "continuation-invalidated"})
+// when it sees a fresh signal. Implicit cooldown via anchor-recency.
 Bus.subscribe(ContinuationInvalidatedEvent, (evt) => {
-  SessionCompaction.markRebindCompaction(evt.properties.sessionId)
+  void Session.markContinuationInvalidated(evt.properties.sessionId).catch(() => {})
 })
 
 Bus.subscribe(SessionDeletedEvent, (evt) => {
@@ -46,45 +51,16 @@ setTimeout(() => {
 export namespace SessionCompaction {
   const log = Log.create({ service: "session.compaction" })
 
-  // Per-session flag: set when server rejects previous_response_id.
-  // Next round's pre-flight check should force compaction to minimize
-  // full-context rebind cost.
-  const _pendingRebindCompaction = new Set<string>()
+  // Phase 7: pendingRebindCompaction Set, markRebindCompaction, and
+  // consumeRebindCompaction deleted. Continuation-invalidated signal is now
+  // state-driven via session.execution.continuationInvalidatedAt (DD-11);
+  // rebind detection happens via deriveObservedCondition's accountId / providerId
+  // comparison against the most recent Anchor's identity.
 
-  // Default cooldown for rebind compaction (rounds). Mirrors the by-request
-  // cooldown used by isOverflow/shouldCacheAwareCompact. Without this gate, a
-  // misfiring continuation-invalidation signal can re-trigger rebind compaction
-  // every round (event_2026-04-27_runloop_rebind_loop).
+  // Default cooldown for compaction (rounds). Used by isOverflow and
+  // shouldCacheAwareCompact to throttle repeated triggers. Source-of-truth
+  // is Memory.lastCompactedAt per DD-7 — no separate cooldownState Map.
   const REBIND_COOLDOWN_ROUNDS = 4
-
-  export function markRebindCompaction(sessionID: string) {
-    _pendingRebindCompaction.add(sessionID)
-    log.warn("continuation invalidated, compaction scheduled for next round", { sessionID })
-  }
-
-  /**
-   * Returns true if the pending rebind flag is set AND we're past the
-   * per-session compaction cooldown. Caller should treat a true return as
-   * "go ahead and compact now"; the flag is consumed only on success. If
-   * cooldown blocks the consume, the flag stays pending so a later round
-   * (post-cooldown) can still honor it.
-   */
-  export function consumeRebindCompaction(sessionID: string, currentRound?: number): boolean {
-    if (!_pendingRebindCompaction.has(sessionID)) return false
-    if (currentRound !== undefined) {
-      const state = cooldownState.get(sessionID)
-      if (state && currentRound - state.lastCompactionRound < REBIND_COOLDOWN_ROUNDS) {
-        log.info("rebind compaction skipped (cooldown)", {
-          sessionID,
-          roundsSince: currentRound - state.lastCompactionRound,
-          cooldownRounds: REBIND_COOLDOWN_ROUNDS,
-        })
-        return false
-      }
-    }
-    _pendingRebindCompaction.delete(sessionID)
-    return true
-  }
 
   // ── Rebind Checkpoint ──
   // Quietly snapshots compacted context to disk for restart recovery.
@@ -101,7 +77,15 @@ export namespace SessionCompaction {
     timestamp: number
     source: string
     snapshot: string
-    lastMessageId: string
+    /**
+     * Phase 8 / DD-8: anchor unification. New writes omit `lastMessageId`;
+     * recovery scans the message stream for the most recent `summary: true`
+     * assistant message and uses its id as the boundary. Legacy checkpoints
+     * (pre-phase-8) carry the field; readers fall back to it when no anchor
+     * is present in the stream (e.g. when restart-restore happens before
+     * the first runloop iteration captures a fresh anchor).
+     */
+    lastMessageId?: string
     opaqueItems?: unknown[]
   }
 
@@ -128,12 +112,13 @@ export namespace SessionCompaction {
 
   export async function saveRebindCheckpoint(input: {
     sessionID: string
+    /** @deprecated phase 8 (DD-8): no longer required. Recovery scans the message stream for the most recent summary anchor. */
     lastMessageId?: string
     currentRound: number
   }) {
     try {
       const snap = await SharedContext.snapshot(input.sessionID)
-      if (!snap || !input.lastMessageId) return
+      if (!snap) return
 
       _lastCheckpointRound.set(input.sessionID, input.currentRound)
 
@@ -151,12 +136,18 @@ export namespace SessionCompaction {
   /**
    * Unified checkpoint save — called by BOTH A (codex-server) and B (LLM) compaction paths.
    * Non-blocking when called as fire-and-forget.
+   *
+   * Phase 8 (DD-8): `lastMessageId` is now optional. New writes can omit it
+   * (the message stream itself carries the anchor — `summary: true` assistant
+   * message). Field is retained on the on-disk schema so legacy checkpoints
+   * still load and so out-of-process consumers that depended on the field
+   * see no change in shape.
    */
   export async function saveCheckpointAfterCompaction(input: {
     sessionID: string
     source: string
     summary: string
-    lastMessageId: string
+    lastMessageId?: string
     opaqueItems?: unknown[]
   }) {
     try {
@@ -220,6 +211,43 @@ export namespace SessionCompaction {
     }
   }
 
+  /**
+   * Find the boundary index for rebind recovery (DD-8 anchor unification).
+   *
+   * Priority:
+   *   1. Most recent `summary: true` assistant message in the stream — the
+   *      canonical Anchor. Boundary = that message's index (we keep the
+   *      anchor itself; rebind treats it as the synthetic summary head).
+   *   2. Legacy fallback: checkpoint's `lastMessageId` field (if set).
+   *      Pre-phase-8 checkpoints carry it; boundary = the message with
+   *      that id, and we slice AFTER it.
+   *
+   * Returns -1 when no boundary can be found.
+   */
+  function findRebindBoundaryIndex(
+    messages: MessageV2.WithParts[],
+    checkpointLastMessageId: string | undefined,
+  ): { index: number; sliceFrom: number } {
+    // Anchor lookup — canonical post-DD-8 path.
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const info = messages[i].info
+      if (info.role === "assistant" && (info as MessageV2.Assistant).summary === true) {
+        // Boundary IS the anchor. Slice from index + 1 to keep the anchor
+        // out of the post-boundary set; the synthetic summary built below
+        // replaces it conceptually.
+        return { index: i, sliceFrom: i + 1 }
+      }
+    }
+    // Legacy fallback — checkpoint carries lastMessageId from pre-phase-8.
+    if (checkpointLastMessageId) {
+      const idx = messages.findIndex((message) => message.info.id === checkpointLastMessageId)
+      if (idx !== -1) {
+        return { index: idx, sliceFrom: idx + 1 }
+      }
+    }
+    return { index: -1, sliceFrom: -1 }
+  }
+
   export function applyRebindCheckpoint(input: {
     sessionID: string
     checkpoint: RebindCheckpoint
@@ -228,10 +256,10 @@ export namespace SessionCompaction {
   }):
     | { applied: false; reason: "boundary_missing" | "unsafe_boundary" | "no_post_boundary" }
     | { applied: true; messages: MessageV2.WithParts[] } {
-    const boundaryIndex = input.messages.findIndex((message) => message.info.id === input.checkpoint.lastMessageId)
-    if (boundaryIndex === -1) return { applied: false, reason: "boundary_missing" }
+    const { sliceFrom } = findRebindBoundaryIndex(input.messages, input.checkpoint.lastMessageId)
+    if (sliceFrom === -1) return { applied: false, reason: "boundary_missing" }
 
-    const postBoundary = input.messages.slice(boundaryIndex + 1)
+    const postBoundary = input.messages.slice(sliceFrom)
     if (postBoundary.length === 0) return { applied: false, reason: "no_post_boundary" }
 
     const firstPost = postBoundary[0]
@@ -241,12 +269,17 @@ export namespace SessionCompaction {
     if (unsafeBoundary) return { applied: false, reason: "unsafe_boundary" }
 
     const summaryMessageID = Identifier.ascending("message")
+    // Use the boundary message's id as parentID when available (anchor scan
+    // returns the actual anchor's index; legacy fallback also yields a real
+    // message id). For absolute defensive cases, fall back to checkpoint.lastMessageId.
+    const boundaryIndex = sliceFrom > 0 ? sliceFrom - 1 : 0
+    const parentID = input.messages[boundaryIndex]?.info.id ?? input.checkpoint.lastMessageId ?? ""
     const syntheticSummary: MessageV2.WithParts = {
       info: {
         id: summaryMessageID,
         sessionID: input.sessionID,
         role: "assistant",
-        parentID: input.checkpoint.lastMessageId,
+        parentID,
         mode: "rebind",
         agent: "rebind-checkpoint",
         modelID: input.model.id,
@@ -393,15 +426,32 @@ export namespace SessionCompaction {
     return contextLimit >= 16000
   }
 
-  // Per-session cooldown tracking to prevent compaction oscillation
-  const cooldownState = new Map<string, { lastCompactionRound: number }>()
-
-  export function recordCompaction(sessionID: string, round: number) {
-    cooldownState.set(sessionID, { lastCompactionRound: round })
+  /**
+   * @deprecated Phase 7 / DD-7: cooldown state-of-truth lives in
+   * `Memory.lastCompactedAt`. This shim writes through to
+   * `Memory.markCompacted` for any pre-phase-7 caller still importing
+   * the symbol. Phase 12 (next release) removes it. Emits `log.warn` so
+   * any forgotten caller surfaces in CI logs.
+   */
+  export async function recordCompaction(sessionID: string, round: number) {
+    log.warn("SessionCompaction.recordCompaction is deprecated; use Memory.markCompacted", {
+      sessionID,
+      round,
+    })
+    await Memory.markCompacted(sessionID, { round }).catch(() => {})
   }
 
-  export function getCooldownState(sessionID: string) {
-    return cooldownState.get(sessionID)
+  /**
+   * Look up the cached cooldown state for a session. Reads Memory directly
+   * (no separate Map per DD-7). Returns undefined when no compaction has
+   * been recorded yet for this session.
+   */
+  export async function getCooldownState(
+    sessionID: string,
+  ): Promise<{ lastCompactionRound: number } | undefined> {
+    const mem = await Memory.read(sessionID).catch(() => undefined)
+    if (!mem?.lastCompactedAt) return undefined
+    return { lastCompactionRound: mem.lastCompactedAt.round }
   }
 
   export async function inspectBudget(input: { tokens: MessageV2.Assistant["tokens"]; model: Provider.Model }) {
@@ -479,7 +529,7 @@ export namespace SessionCompaction {
 
     // Cooldown check: skip compaction if too soon after last one
     if (input.sessionID && input.currentRound !== undefined) {
-      const state = cooldownState.get(input.sessionID)
+      const state = await getCooldownState(input.sessionID)
       if (state) {
         const roundsSince = input.currentRound - state.lastCompactionRound
         if (roundsSince < budget.cooldownRounds) {
@@ -526,7 +576,7 @@ export namespace SessionCompaction {
 
     // Respect cooldown
     if (input.sessionID && input.currentRound !== undefined) {
-      const state = cooldownState.get(input.sessionID)
+      const state = await getCooldownState(input.sessionID)
       if (state) {
         const roundsSince = input.currentRound - state.lastCompactionRound
         if (roundsSince < budget.cooldownRounds) {
@@ -604,249 +654,29 @@ export namespace SessionCompaction {
     }
   }
 
+  /**
+   * @deprecated Phase 7 deleted the only caller (`prompt.ts` legacy
+   * compaction-request branch). Kept as a shim that delegates to the new
+   * single entry point so any pre-phase-7 caller still compiles. Phase 9
+   * (next release) removes it. Emits `log.warn` so missed callers surface
+   * in CI.
+   */
   export async function process(input: {
     parentID: string
     messages: MessageV2.WithParts[]
     sessionID: string
     abort: AbortSignal
     auto: boolean
-  }) {
-    const userMessage = input.messages.findLast((m) => m.info.id === input.parentID)!.info as MessageV2.User
-
-    // Announce compaction start immediately so the UI can show a toast even
-    // during the slow plugin round-trip (Codex /responses/compact can take
-    // 30s+). The Compacted event at the tail still fires on completion.
-    Bus.publish(Event.CompactionStarted, { sessionID: input.sessionID, mode: "plugin" })
-
-    // --- Priority 0: shared-context snapshot (zero API cost) ---------------
-    // The in-memory scratchpad already holds the canonical state we'd be
-    // summarizing. Use it before burning quota on a server-side or LLM round
-    // trip. Mirrors the budget check in the overflow path
-    // (prompt.ts:1594-1633): snapshot must fit within 30% of the user's
-    // active model context window so the next round still has room to run.
-    // Why this matters: a manual /compact that goes straight to plugin
-    // compaction can itself trip the codex 5h burst limit, triggering a
-    // mid-stream rotation, which schedules a rebind compaction on top —
-    // two compactions back to back. The cheap path avoids the trigger.
-    const snapshotModel = await Provider.getModel(
-      userMessage.model.providerId,
-      userMessage.model.modelID,
-    ).catch(() => undefined)
-    if (snapshotModel) {
-      const snap = await SharedContext.snapshot(input.sessionID)
-      if (snap) {
-        const snapTokenEstimate = Math.ceil(snap.length / 4)
-        const snapBudget = Math.floor((snapshotModel.limit?.context || 0) * 0.3)
-        if (snapBudget > 0 && snapTokenEstimate <= snapBudget) {
-          log.info("compaction: shared-context snapshot accepted (priority 0, no API call)", {
-            sessionID: input.sessionID,
-            snapshotChars: snap.length,
-            snapTokenEstimate,
-            snapBudget,
-          })
-          await compactWithSharedContext({
-            sessionID: input.sessionID,
-            snapshot: snap,
-            model: snapshotModel,
-            auto: input.auto,
-          })
-          return "continue"
-        }
-        log.info("compaction: snapshot too large, falling through to plugin/LLM", {
-          sessionID: input.sessionID,
-          snapTokenEstimate,
-          snapBudget,
-        })
-      }
-    }
-
-    // --- Priority 1: plugin-provided server compaction (e.g. Codex /responses/compact) ---
-    const serverResult = await tryPluginCompaction(input, userMessage)
-    if (serverResult) return serverResult
-
-    // Plugin path bailed — we're falling through to LLM compaction.
-    Bus.publish(Event.CompactionStarted, { sessionID: input.sessionID, mode: "llm" })
-
-    // --- LEAGCY RESTORATION: Always trigger true Summary for others (like Gemini) ---
-    const agent = await Agent.get("compaction")
-    log.info("triggering TRUE Summary Compaction (Legacy Agent)", { sessionID: input.sessionID })
-    const model = agent.model
-      ? await Provider.getModel(agent.model.providerId, agent.model.modelID)
-      : await Provider.getModel(userMessage.model.providerId, userMessage.model.modelID)
-
-    // T5.2: Skip B (LLM compaction) if model cannot meaningfully summarize
-    if (!canSummarize(model)) {
-      log.warn("skipping LLM compaction: model context too small for meaningful summary (D fallback)", {
-        sessionID: input.sessionID,
-        modelID: model.id,
-        contextLimit: model.limit?.context,
-      })
-      return "stop"
-    }
-    const agentModel = agent.model as { accountId?: string } | undefined
-    // Read session's pinned execution identity so compaction inherits the
-    // account the user was actually using, not the global-active fallback.
-    // Without this, compaction resolves to global-active and then the
-    // processor pins that account onto the session — silently overwriting
-    // the user's chosen account.
-    const session = await Session.get(input.sessionID)
-    const accountId = agentModel?.accountId ?? userMessage.model.accountId ?? session?.execution?.accountId
-    const msg = (await Session.updateMessage({
-      id: Identifier.ascending("message"),
-      role: "assistant",
-      parentID: input.parentID,
+  }): Promise<"continue" | "stop"> {
+    log.warn("SessionCompaction.process is deprecated; use SessionCompaction.run", {
       sessionID: input.sessionID,
-      mode: "compaction",
-      agent: "compaction",
-      variant: userMessage.variant,
-      summary: true,
-      path: {
-        cwd: Instance.directory,
-        root: Instance.worktree,
-      },
-      cost: 0,
-      tokens: {
-        output: 0,
-        input: 0,
-        reasoning: 0,
-        cache: { read: 0, write: 0 },
-      },
-      modelID: model.id,
-      providerId: model.providerId,
-      accountId,
-      time: {
-        created: Date.now(),
-      },
-    })) as MessageV2.Assistant
-    const processor = SessionProcessor.create({
-      assistantMessage: msg,
+    })
+    return run({
       sessionID: input.sessionID,
-      model,
-      accountId,
+      observed: input.auto ? "overflow" : "manual",
+      step: 0,
       abort: input.abort,
     })
-    // Allow plugins to inject context or replace compaction prompt
-    const compacting = await Plugin.trigger(
-      "experimental.session.compacting",
-      { sessionID: input.sessionID },
-      { context: [], prompt: undefined },
-    )
-    const history = truncateModelMessagesForSmallContext({
-      messages: input.messages,
-      model,
-      sessionID: input.sessionID,
-    })
-    const defaultPrompt = `Provide a detailed prompt for continuing our conversation above.
-Focus on information that would be helpful for continuing the conversation, including what we did, what we're doing, which files we're working on, and what we're going to do next.
-The summary that you construct will be used so that another agent can read it and continue the work.
-
-When constructing the summary, try to stick to this template:
----
-## Goal
-
-[What goal(s) is the user trying to accomplish?]
-
-## Instructions
-
-- [What important instructions did the user give you that are relevant]
-- [If there is a plan or spec, include information about it so next agent can continue using it]
-
-## Discoveries
-
-[What notable things were learned during this conversation that would be useful for the next agent to know when continuing the work]
-
-## Accomplished
-
-[What work has been completed, what work is still in progress, and what work is left?]
-
-## Relevant files / directories
-
-[Construct a structured list of relevant files that have been read, edited, or created that pertain to the task at hand. If all the files in a directory are relevant, include the path to the directory.]
----`
-
-    const promptText = compacting.prompt ?? [defaultPrompt, ...compacting.context].join("\n\n")
-    const result = await processor.process({
-      user: userMessage,
-      agent,
-      abort: input.abort,
-      sessionID: input.sessionID,
-      tools: {},
-      system: [],
-      messages: sanitizeOrphanedToolCalls([
-        ...history.messages,
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: promptText,
-            },
-          ],
-        },
-      ]),
-      model,
-    })
-
-    if (result === "continue" && input.auto) {
-      const continueMsg = await Session.updateMessage({
-        id: Identifier.ascending("message"),
-        role: "user",
-        sessionID: input.sessionID,
-        time: {
-          created: Date.now(),
-        },
-        agent: userMessage.agent,
-        model: userMessage.model,
-        format: userMessage.format,
-        variant: userMessage.variant,
-      })
-      await Session.updatePart({
-        id: Identifier.ascending("part"),
-        messageID: continueMsg.id,
-        sessionID: input.sessionID,
-        type: "text",
-        synthetic: true,
-        text: "Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.",
-        time: {
-          start: Date.now(),
-          end: Date.now(),
-        },
-      })
-    }
-    if (processor.message.error) return "stop"
-
-    // Write the compaction boundary anchor on the summary assistant message.
-    // filterCompacted() uses this as the authoritative truncation point.
-    // (Previously, create()'s "compaction-request" trigger marker was mistakenly
-    // used as the boundary, but that caused premature truncation before the
-    // summary was written.)
-    await Session.updatePart({
-      id: Identifier.ascending("part"),
-      messageID: processor.message.id,
-      sessionID: input.sessionID,
-      type: "compaction",
-      auto: input.auto,
-    })
-
-    Bus.publish(Event.Compacted, { sessionID: input.sessionID })
-
-    // T3.3: Save checkpoint after B (LLM) compaction
-    const summaryMsg = (await Session.messages({ sessionID: input.sessionID }))
-      .findLast((m) => m.info.id === processor.message.id)
-    const summaryText = summaryMsg?.parts
-      .filter((p) => p.type === "text")
-      .map((p) => (p as any).text ?? "")
-      .join("\n")
-    if (summaryText) {
-      void saveCheckpointAfterCompaction({
-        sessionID: input.sessionID,
-        source: "llm",
-        summary: summaryText,
-        lastMessageId: input.parentID,
-      })
-    }
-
-    return "continue"
   }
 
   /**
@@ -1061,140 +891,10 @@ When constructing the summary, try to stick to this template:
     return { messages: truncated, truncated: true, safeCharBudget }
   }
 
-  /**
-   * Try plugin-provided server compaction via session.compact hook.
-   *
-   * If a plugin (e.g. codex-provider) handles compaction server-side,
-   * it returns compactedItems + summary. Core uses those as the canonical
-   * next context window. If no plugin handles it, returns null → LLM fallback.
-   */
-  async function tryPluginCompaction(
-    input: {
-      parentID: string
-      messages: MessageV2.WithParts[]
-      sessionID: string
-      abort: AbortSignal
-      auto: boolean
-    },
-    userMessage: MessageV2.User,
-  ): Promise<"continue" | "stop" | null> {
-    try {
-      // Build generic conversation items from messages (provider-agnostic serialization)
-      const conversationItems: unknown[] = []
-      for (const msg of input.messages) {
-        if (msg.info.role === "user") {
-          const textParts = msg.parts.filter((p) => p.type === "text")
-          if (textParts.length > 0) {
-            conversationItems.push({
-              type: "message",
-              role: "user",
-              content: textParts.map((p) => ({
-                type: "input_text",
-                text: (p as any).text ?? "",
-              })),
-            })
-          }
-        } else if (msg.info.role === "assistant") {
-          const textParts = msg.parts.filter((p) => p.type === "text")
-          if (textParts.length > 0) {
-            conversationItems.push({
-              type: "message",
-              role: "assistant",
-              content: textParts.map((p) => ({
-                type: "output_text",
-                text: (p as any).text ?? "",
-              })),
-            })
-          }
-          for (const p of msg.parts) {
-            if (p.type === "tool" && p.state.status === "completed") {
-              conversationItems.push({
-                type: "function_call",
-                call_id: (p as any).toolCallId ?? p.id,
-                name: p.tool,
-                arguments:
-                  typeof (p as any).input === "string" ? (p as any).input : JSON.stringify((p as any).input ?? {}),
-              })
-              const stateOutput = p.state.output
-              if (stateOutput != null && typeof stateOutput !== "string") {
-                // Fail-loud per AGENTS.md "no silent fallback": JSON.stringify
-                // of a structured tool output is what poisoned Codex memory in
-                // the gpt-5.5 envelope incident. Tool authors must store
-                // string output; if a tool ever changes shape, surface it
-                // here instead of silently sending JSON to the compactor.
-                throw new Error(
-                  `tryPluginCompaction: tool ${p.tool} state.output is non-string ` +
-                    `(${typeof stateOutput}); add an explicit unwrap before sending to plugin compact.`,
-                )
-              }
-              conversationItems.push({
-                type: "function_call_output",
-                call_id: (p as any).toolCallId ?? p.id,
-                output: stateOutput ?? "",
-              })
-            }
-          }
-        }
-      }
-
-      if (conversationItems.length === 0) return null
-
-      const agent = await Agent.get(userMessage.agent ?? "default")
-      const instructions = (agent.prompt ?? "").slice(0, 50000)
-
-      // Ask plugins if they can handle compaction server-side
-      const hookResult = await Plugin.trigger(
-        "session.compact",
-        {
-          sessionID: input.sessionID,
-          model: {
-            providerId: userMessage.model.providerId,
-            modelID: userMessage.model.modelID,
-            accountId: userMessage.model.accountId,
-          },
-          conversationItems,
-          instructions,
-        },
-        { compactedItems: null as unknown[] | null, summary: null as string | null },
-      )
-
-      const compactedItems = hookResult.compactedItems
-      if (!compactedItems) return null
-
-      // Plugin provided server-compacted items — use as canonical context window
-      const summaryText = hookResult.summary || "[Server-compacted conversation history]"
-      const model = await Provider.getModel(userMessage.model.providerId, userMessage.model.modelID)
-
-      await compactWithSharedContext({
-        sessionID: input.sessionID,
-        snapshot: summaryText,
-        model,
-        auto: input.auto,
-      })
-
-      log.info("plugin server compaction complete", {
-        sessionID: input.sessionID,
-        providerId: userMessage.model.providerId,
-        outputItems: compactedItems.length,
-      })
-
-      const lastMsgId = input.messages.at(-1)?.info.id
-      if (lastMsgId) {
-        void saveCheckpointAfterCompaction({
-          sessionID: input.sessionID,
-          source: `${userMessage.model.providerId}-server`,
-          summary: summaryText,
-          lastMessageId: lastMsgId,
-          opaqueItems: compactedItems,
-        })
-      }
-
-      return "continue"
-    } catch (err) {
-      log.warn("plugin server compaction failed, falling back to LLM agent", { error: String(err) })
-      return null
-    }
-  }
+  // Phase 7: tryPluginCompaction deleted. The plugin session.compact hook
+  // is now invoked by tryLowCostServer (kind 4 of the new chain). The
+  // conversation-items builder (`buildConversationItemsForPlugin`) lives
+  // alongside that executor.
 
   export const create = fn(
     z.object({
@@ -1229,4 +929,676 @@ When constructing the summary, try to stick to this template:
       })
     },
   )
+
+  // ── compaction-redesign phase 4 — single entry point + tables ────────
+  // See specs/compaction-redesign/{spec.md, design.md, data-schema.json}.
+  // DD-9: SessionCompaction.run is the single entry point for every
+  // compaction execution. Triggers are observed conditions (not signals).
+  // Kind selection is a data table walk, not branching code.
+
+  export type Observed =
+    | "overflow"
+    | "cache-aware"
+    | "rebind"
+    | "continuation-invalidated"
+    | "provider-switched"
+    | "manual"
+    | "idle"
+
+  export type KindName = "narrative" | "schema" | "replay-tail" | "low-cost-server" | "llm-agent"
+
+  export type RunInput = {
+    sessionID: string
+    observed: Observed
+    step: number
+    intent?: "default" | "rich"
+    /**
+     * Abort signal for the kind chain, threaded through to executors that
+     * make API calls (low-cost-server, llm-agent). Optional: when omitted,
+     * a fresh AbortController is used internally so the legacy callers
+     * that don't supply one still work.
+     */
+    abort?: AbortSignal
+  }
+
+  export type RunResult = "continue" | "stop"
+
+  /**
+   * Cost-monotonic kind chains per observed condition.
+   * - free narrative + schema + replay-tail: kinds 1-3
+   * - low-cost-server: codex/openai /responses/compact (kind 4)
+   * - llm-agent: full LLM round (kind 5)
+   *
+   * `rebind` / `continuation-invalidated` chains stop at kind 3 — these
+   * triggers are maintenance, not enrichment, so the runloop should not
+   * burn quota on them. `provider-switched` stops at kind 2 because raw
+   * tail (3) and codex format (4) carry provider-specific tool format.
+   * `manual` skips schema (no narrative preserved → defeats user intent)
+   * and goes free → low-cost → expensive.
+   */
+  const KIND_CHAIN: Readonly<Record<Observed, ReadonlyArray<KindName>>> = Object.freeze({
+    "overflow": Object.freeze(["narrative", "schema", "replay-tail", "low-cost-server", "llm-agent"] as const),
+    "cache-aware": Object.freeze(["narrative", "schema", "replay-tail", "low-cost-server", "llm-agent"] as const),
+    "idle": Object.freeze(["narrative", "schema", "replay-tail"] as const),
+    "rebind": Object.freeze(["narrative", "schema", "replay-tail"] as const),
+    "continuation-invalidated": Object.freeze(["narrative", "schema", "replay-tail"] as const),
+    "provider-switched": Object.freeze(["narrative", "schema"] as const),
+    "manual": Object.freeze(["narrative", "low-cost-server", "llm-agent"] as const),
+  })
+
+  /**
+   * Whether a synthetic "Continue if you have next steps..." user message
+   * is appended after the anchor. Only system-driven token-pressure triggers
+   * permit it. Per R-6, rebind / continuation-invalidated / provider-switched
+   * never inject Continue — that gate's the 2026-04-27 infinite loop bug
+   * structurally extinct.
+   */
+  const INJECT_CONTINUE: Readonly<Record<Observed, boolean>> = Object.freeze({
+    "overflow": true,
+    "cache-aware": true,
+    "idle": true,
+    "rebind": false,
+    "continuation-invalidated": false,
+    "provider-switched": false,
+    "manual": false,
+  })
+
+  /**
+   * Cooldown helper. DD-7: Memory.lastCompactedAt is the source-of-truth;
+   * the legacy in-memory `cooldownState` Map is removed in phase 7.
+   */
+  export namespace Cooldown {
+    /** Default rebind cooldown window (rounds). Mirrors REBIND_COOLDOWN_ROUNDS. */
+    export const DEFAULT_THRESHOLD = REBIND_COOLDOWN_ROUNDS
+
+    export async function shouldThrottle(
+      sessionID: string,
+      currentRound: number,
+      threshold = DEFAULT_THRESHOLD,
+    ): Promise<boolean> {
+      const mem = await Memory.read(sessionID)
+      if (!mem.lastCompactedAt) return false
+      return currentRound - mem.lastCompactedAt.round < threshold
+    }
+  }
+
+  /**
+   * Result of attempting a single kind in the chain.
+   *
+   * `anchorWritten`: when true, the executor already wrote the anchor message
+   * itself (used by `tryLlmAgent`, where the LLM round needs an already-
+   * persisted assistant message to write parts into). run() detects this and
+   * skips the _writeAnchor call. For all other kinds, leave it false/absent
+   * and run() handles the anchor write through `compactWithSharedContext`.
+   */
+  type KindAttempt =
+    | { ok: false; reason: string }
+    | { ok: true; summaryText: string; kind: KindName; anchorWritten?: boolean }
+
+  async function tryNarrative(input: RunInput, model: Provider.Model | undefined): Promise<KindAttempt> {
+    const mem = await Memory.read(input.sessionID)
+    const text = Memory.renderForLLMSync(mem)
+    if (!text) return { ok: false, reason: "memory empty" }
+    const tokenEstimate = Math.ceil(text.length / 4)
+    const contextLimit = model?.limit?.context || 0
+    const budget = Math.floor(contextLimit * 0.3)
+    if (budget > 0 && tokenEstimate > budget) {
+      return { ok: false, reason: `over budget (${tokenEstimate} > ${budget})` }
+    }
+    return { ok: true, summaryText: text, kind: "narrative" }
+  }
+
+  /**
+   * Schema executor (kind 2). Falls back to legacy `SharedContext.snapshot`
+   * regex-extracted text when the narrative path was unavailable. Zero API
+   * cost. Used only when narrative empty (e.g. first turn of a session).
+   */
+  async function trySchema(input: RunInput, model: Provider.Model | undefined): Promise<KindAttempt> {
+    const snap = await SharedContext.snapshot(input.sessionID).catch(() => undefined)
+    if (!snap) return { ok: false, reason: "shared-context snapshot empty" }
+    const tokenEstimate = Math.ceil(snap.length / 4)
+    const contextLimit = model?.limit?.context || 0
+    const budget = Math.floor(contextLimit * 0.3)
+    if (budget > 0 && tokenEstimate > budget) {
+      return { ok: false, reason: `over budget (${tokenEstimate} > ${budget})` }
+    }
+    return { ok: true, summaryText: snap, kind: "schema" }
+  }
+
+  /**
+   * Replay-tail executor (kind 3). Serializes the last N raw rounds (user +
+   * assistant text, in chronological order) as plain text. N defaults to
+   * `Memory.rawTailBudget` (default 5). Zero API cost. Used when narrative +
+   * schema both empty AND raw tail still readable. Fallback for crash
+   * recovery per DD-2.
+   *
+   * NOT used for `provider-switched` because raw assistant text may carry
+   * provider-specific tool-call structure that the new provider can't read;
+   * the table excludes it for that observed value.
+   */
+  async function tryReplayTail(input: RunInput, model: Provider.Model | undefined): Promise<KindAttempt> {
+    const mem = await Memory.read(input.sessionID)
+    const budgetN = mem.rawTailBudget || 5
+    const msgs = await Session.messages({ sessionID: input.sessionID }).catch(() => undefined)
+    if (!msgs || msgs.length === 0) return { ok: false, reason: "no messages" }
+
+    // Take the trailing rounds. A "round" here is a user message followed by
+    // its assistant turn; we walk back from the tail collecting until we have
+    // budgetN messages (close enough; consumer just needs context).
+    const tail = msgs.slice(Math.max(0, msgs.length - budgetN * 2))
+    const lines: string[] = []
+    for (const m of tail) {
+      const role = m.info.role
+      if (role !== "user" && role !== "assistant") continue
+      const text = m.parts
+        .filter((p: any) => p.type === "text")
+        .map((p: any) => (p as any).text ?? "")
+        .join("\n")
+        .trim()
+      if (!text) continue
+      lines.push(`${role === "user" ? "User" : "Assistant"}: ${text}`)
+    }
+    if (lines.length === 0) return { ok: false, reason: "tail has no text content" }
+
+    const text = lines.join("\n\n")
+    const tokenEstimate = Math.ceil(text.length / 4)
+    const contextLimit = model?.limit?.context || 0
+    const budget = Math.floor(contextLimit * 0.3)
+    if (budget > 0 && tokenEstimate > budget) {
+      return { ok: false, reason: `over budget (${tokenEstimate} > ${budget})` }
+    }
+    return { ok: true, summaryText: text, kind: "replay-tail" }
+  }
+
+  /**
+   * Low-cost-server executor (kind 4). Triggers the `session.compact` plugin
+   * hook. Today only the codex / openai plugin handles it (via
+   * `/responses/compact`). Counts toward 5h burst quota but cheaper than a
+   * full LLM round (kind 5).
+   *
+   * Returns the plugin's summary text without writing the anchor — anchor
+   * write is the run() function's responsibility per DD-9. The legacy
+   * `tryPluginCompaction` (still used by `process()`) writes its own anchor;
+   * this is the de-coupled version for the new run() entry point.
+   */
+  async function tryLowCostServer(input: RunInput, model: Provider.Model | undefined): Promise<KindAttempt> {
+    if (!model) return { ok: false, reason: "no resolvable model" }
+    const msgs = await Session.messages({ sessionID: input.sessionID }).catch(() => undefined)
+    if (!msgs || msgs.length === 0) return { ok: false, reason: "no messages" }
+    const userMessage = msgs.findLast((m) => m.info.role === "user")?.info as MessageV2.User | undefined
+    if (!userMessage) return { ok: false, reason: "no user message" }
+
+    const conversationItems = buildConversationItemsForPlugin(msgs)
+    if (conversationItems.length === 0) return { ok: false, reason: "no items to send" }
+
+    const agent = await Agent.get(userMessage.agent ?? "default").catch(() => undefined)
+    const instructions = (agent?.prompt ?? "").slice(0, 50000)
+
+    let hookResult: { compactedItems: unknown[] | null; summary: string | null }
+    try {
+      hookResult = (await Plugin.trigger(
+        "session.compact",
+        {
+          sessionID: input.sessionID,
+          model: {
+            providerId: model.providerId,
+            modelID: model.id,
+            accountId: userMessage.model.accountId,
+          },
+          conversationItems,
+          instructions,
+        },
+        { compactedItems: null as unknown[] | null, summary: null as string | null },
+      )) as { compactedItems: unknown[] | null; summary: string | null }
+    } catch (err) {
+      return {
+        ok: false,
+        reason: `plugin session.compact threw: ${err instanceof Error ? err.message : String(err)}`,
+      }
+    }
+
+    if (!hookResult.compactedItems) return { ok: false, reason: "plugin did not handle" }
+    const summaryText = hookResult.summary || "[Server-compacted conversation history]"
+    return { ok: true, summaryText, kind: "low-cost-server" }
+  }
+
+  /**
+   * Build the plugin-conversation-items shape from session messages. Lifted
+   * from the legacy `tryPluginCompaction` body so the new low-cost-server
+   * executor can stay decoupled from the legacy path. Phase 9 collapses
+   * both call sites onto this single helper.
+   */
+  function buildConversationItemsForPlugin(msgs: MessageV2.WithParts[]): unknown[] {
+    const items: unknown[] = []
+    for (const msg of msgs) {
+      if (msg.info.role === "user") {
+        const textParts = msg.parts.filter((p) => p.type === "text")
+        if (textParts.length > 0) {
+          items.push({
+            type: "message",
+            role: "user",
+            content: textParts.map((p) => ({ type: "input_text", text: (p as any).text ?? "" })),
+          })
+        }
+      } else if (msg.info.role === "assistant") {
+        const textParts = msg.parts.filter((p) => p.type === "text")
+        if (textParts.length > 0) {
+          items.push({
+            type: "message",
+            role: "assistant",
+            content: textParts.map((p) => ({ type: "output_text", text: (p as any).text ?? "" })),
+          })
+        }
+        for (const p of msg.parts) {
+          if (p.type === "tool" && p.state.status === "completed") {
+            items.push({
+              type: "function_call",
+              call_id: (p as any).toolCallId ?? p.id,
+              name: p.tool,
+              arguments:
+                typeof (p as any).input === "string"
+                  ? (p as any).input
+                  : JSON.stringify((p as any).input ?? {}),
+            })
+            const stateOutput = p.state.output
+            if (stateOutput != null && typeof stateOutput !== "string") {
+              throw new Error(
+                `compaction.run low-cost-server: tool ${p.tool} state.output is non-string (${typeof stateOutput}); ` +
+                  `add an explicit unwrap before sending to plugin compact.`,
+              )
+            }
+            items.push({
+              type: "function_call_output",
+              call_id: (p as any).toolCallId ?? p.id,
+              output: stateOutput ?? "",
+            })
+          }
+        }
+      }
+    }
+    return items
+  }
+
+  /**
+   * LLM-agent executor (kind 5). Phase 7b extraction: drives a full LLM
+   * compaction round via SessionProcessor, returns the resulting summary
+   * text. The assistant summary message + compaction part (i.e. the
+   * Anchor) are written inline by this path because the LLM round
+   * requires an already-persisted message to write parts into. Returns
+   * with `anchorWritten: true` so run() skips the redundant _writeAnchor
+   * call.
+   *
+   * Final fallback in the cost-monotonic chain. Most expensive: a full
+   * LLM completion with the compaction agent's prompt template.
+   */
+  async function tryLlmAgent(input: RunInput, _model: Provider.Model | undefined): Promise<KindAttempt> {
+    const messages = await Session.messages({ sessionID: input.sessionID }).catch(() => undefined)
+    if (!messages || messages.length === 0) return { ok: false, reason: "no messages to compact" }
+    const userMessage = messages.findLast((m) => m.info.role === "user")?.info as MessageV2.User | undefined
+    if (!userMessage) return { ok: false, reason: "no user message" }
+    const parentID = messages.at(-1)?.info.id
+    if (!parentID) return { ok: false, reason: "empty stream" }
+
+    try {
+      const summaryText = await runLlmCompactionAgent({
+        sessionID: input.sessionID,
+        parentID,
+        userMessage,
+        messages,
+        abort: input.abort ?? new AbortController().signal,
+        // The auto flag controls Continue injection inside the legacy path,
+        // but with phase 7b run() owns Continue injection — so always pass
+        // false here. INJECT_CONTINUE[observed] in run() decides separately.
+        auto: false,
+      })
+      if (!summaryText) return { ok: false, reason: "llm-agent produced empty summary" }
+      return { ok: true, summaryText, kind: "llm-agent", anchorWritten: true }
+    } catch (err) {
+      return {
+        ok: false,
+        reason: `llm-agent threw: ${err instanceof Error ? err.message : String(err)}`,
+      }
+    }
+  }
+
+  /**
+   * Phase 7b: extracted LLM-round core from `process()`. Drives a full
+   * compaction LLM call via SessionProcessor and writes the resulting
+   * summary as an Anchor (assistant message with summary:true + compaction
+   * part). Returns the summary text. Reused by both `tryLlmAgent` and the
+   * legacy `process()` (which still owns Continue injection + checkpoint
+   * save during the transition).
+   */
+  async function runLlmCompactionAgent(input: {
+    sessionID: string
+    parentID: string
+    userMessage: MessageV2.User
+    messages: MessageV2.WithParts[]
+    abort: AbortSignal
+    auto: boolean
+  }): Promise<string | null> {
+    Bus.publish(Event.CompactionStarted, { sessionID: input.sessionID, mode: "llm" })
+
+    const agent = await Agent.get("compaction")
+    log.info("triggering TRUE Summary Compaction (LLM agent)", { sessionID: input.sessionID })
+    const model = agent.model
+      ? await Provider.getModel(agent.model.providerId, agent.model.modelID)
+      : await Provider.getModel(input.userMessage.model.providerId, input.userMessage.model.modelID)
+
+    if (!canSummarize(model)) {
+      log.warn("skipping LLM compaction: model context too small for meaningful summary", {
+        sessionID: input.sessionID,
+        modelID: model.id,
+        contextLimit: model.limit?.context,
+      })
+      return null
+    }
+
+    const agentModel = agent.model as { accountId?: string } | undefined
+    const session = await Session.get(input.sessionID)
+    const accountId =
+      agentModel?.accountId ?? input.userMessage.model.accountId ?? session?.execution?.accountId
+
+    const msg = (await Session.updateMessage({
+      id: Identifier.ascending("message"),
+      role: "assistant",
+      parentID: input.parentID,
+      sessionID: input.sessionID,
+      mode: "compaction",
+      agent: "compaction",
+      variant: input.userMessage.variant,
+      summary: true,
+      path: { cwd: Instance.directory, root: Instance.worktree },
+      cost: 0,
+      tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+      modelID: model.id,
+      providerId: model.providerId,
+      accountId,
+      time: { created: Date.now() },
+    })) as MessageV2.Assistant
+
+    const processor = SessionProcessor.create({
+      assistantMessage: msg,
+      sessionID: input.sessionID,
+      model,
+      accountId,
+      abort: input.abort,
+    })
+
+    const compacting = await Plugin.trigger(
+      "experimental.session.compacting",
+      { sessionID: input.sessionID },
+      { context: [], prompt: undefined },
+    )
+    const history = truncateModelMessagesForSmallContext({
+      messages: input.messages,
+      model,
+      sessionID: input.sessionID,
+    })
+    const defaultPrompt = `Provide a detailed prompt for continuing our conversation above.
+Focus on information that would be helpful for continuing the conversation, including what we did, what we're doing, which files we're working on, and what we're going to do next.
+The summary that you construct will be used so that another agent can read it and continue the work.
+
+When constructing the summary, try to stick to this template:
+---
+## Goal
+
+[What goal(s) is the user trying to accomplish?]
+
+## Instructions
+
+- [What important instructions did the user give you that are relevant]
+- [If there is a plan or spec, include information about it so next agent can continue using it]
+
+## Discoveries
+
+[What notable things were learned during this conversation that would be useful for the next agent to know when continuing the work]
+
+## Accomplished
+
+[What work has been completed, what work is still in progress, and what work is left?]
+
+## Relevant files / directories
+
+[Construct a structured list of relevant files that have been read, edited, or created that pertain to the task at hand. If all the files in a directory are relevant, include the path to the directory.]
+---`
+    const promptText = compacting.prompt ?? [defaultPrompt, ...compacting.context].join("\n\n")
+
+    const result = await processor.process({
+      user: input.userMessage,
+      agent,
+      abort: input.abort,
+      sessionID: input.sessionID,
+      tools: {},
+      system: [],
+      messages: sanitizeOrphanedToolCalls([
+        ...history.messages,
+        { role: "user", content: [{ type: "text", text: promptText }] },
+      ]),
+      model,
+    })
+
+    if (processor.message.error) return null
+    if (result !== "continue") return null
+
+    // Write the compaction boundary anchor on the summary assistant message.
+    await Session.updatePart({
+      id: Identifier.ascending("part"),
+      messageID: processor.message.id,
+      sessionID: input.sessionID,
+      type: "compaction",
+      auto: input.auto,
+    })
+
+    Bus.publish(Event.Compacted, { sessionID: input.sessionID })
+
+    // Read summary text out for the caller (and the checkpoint save below).
+    const summaryMsg = (await Session.messages({ sessionID: input.sessionID })).findLast(
+      (m) => m.info.id === processor.message.id,
+    )
+    const summaryText = summaryMsg?.parts
+      .filter((p) => p.type === "text")
+      .map((p) => (p as any).text ?? "")
+      .join("\n") ?? ""
+
+    if (summaryText) {
+      void saveCheckpointAfterCompaction({
+        sessionID: input.sessionID,
+        source: "llm",
+        summary: summaryText,
+        lastMessageId: input.parentID,
+      })
+    }
+
+    return summaryText
+  }
+
+  async function tryKind(kind: KindName, input: RunInput, model: Provider.Model | undefined): Promise<KindAttempt> {
+    switch (kind) {
+      case "narrative":
+        return tryNarrative(input, model)
+      case "schema":
+        return trySchema(input, model)
+      case "replay-tail":
+        return tryReplayTail(input, model)
+      case "low-cost-server":
+        return tryLowCostServer(input, model)
+      case "llm-agent":
+        return tryLlmAgent(input, model)
+    }
+  }
+
+  /**
+   * Resolve the active model for a session via session.execution pin (set by
+   * rotation3d / processor) or fall back to the most recent user-message
+   * model. Returns undefined if the session is unknown.
+   */
+  async function resolveActiveModel(sessionID: string): Promise<Provider.Model | undefined> {
+    const session = await Session.get(sessionID).catch(() => undefined)
+    const exec = session?.execution
+    const providerId = exec?.providerId
+    const modelID = exec?.modelID
+    if (!providerId || !modelID) return undefined
+    return Provider.getModel(providerId, modelID).catch(() => undefined)
+  }
+
+  /**
+   * Single entry point for every compaction execution.
+   *
+   * 1. Cooldown gate (DD-7): if Memory.lastCompactedAt < threshold rounds
+   *    ago, return "continue" without doing anything (caller's runloop
+   *    iteration proceeds to LLM call as normal).
+   * 2. Walk KIND_CHAIN[observed] in order. Each kind transition emits a
+   *    log.info per AGENTS.md rule 1.
+   * 3. First kind that returns ok: write Anchor (compactWithSharedContext),
+   *    optionally inject synthetic Continue per INJECT_CONTINUE[observed],
+   *    Memory.markCompacted, return "continue".
+   * 4. Chain exhausted: log warn, return "stop".
+   *
+   * intent="rich" (only meaningful for observed=manual) skips kinds 1-3
+   * and goes straight to llm-agent.
+   */
+  export async function run(input: RunInput): Promise<RunResult> {
+    const { sessionID, observed, step } = input
+    const intent = input.intent ?? "default"
+
+    if (await Cooldown.shouldThrottle(sessionID, step)) {
+      log.info("compaction.throttled", {
+        sessionID,
+        observed,
+        step,
+        threshold: Cooldown.DEFAULT_THRESHOLD,
+      })
+      return "continue"
+    }
+
+    log.info("compaction.started", { sessionID, observed, step, intent })
+
+    const baseChain = KIND_CHAIN[observed]
+    // Manual --rich: skip 1-3 (free) and 4 (low-cost-server), go straight to llm-agent.
+    const chain: ReadonlyArray<KindName> =
+      observed === "manual" && intent === "rich" ? (["llm-agent"] as const) : baseChain
+
+    const model = await resolveActiveModel(sessionID)
+
+    for (const kind of chain) {
+      const attempt = await tryKind(kind, input, model)
+      log.info("compaction.kind_attempted", {
+        sessionID,
+        observed,
+        kind,
+        succeeded: attempt.ok,
+        reason: attempt.ok ? undefined : attempt.reason,
+      })
+      if (attempt.ok) {
+        if (attempt.anchorWritten) {
+          // Executor already wrote the anchor (tryLlmAgent uses an inline
+          // SessionProcessor.process flow that requires a persisted message).
+          // Skip _writeAnchor; still inject Continue + markCompacted below.
+          if (INJECT_CONTINUE[observed]) {
+            await injectContinueAfterAnchor(sessionID, observed)
+          }
+        } else if (model) {
+          await _writeAnchor({
+            sessionID,
+            summaryText: attempt.summaryText,
+            model,
+            auto: INJECT_CONTINUE[observed],
+            kind: attempt.kind,
+          })
+        } else {
+          log.warn("compaction.run anchor write skipped: no resolvable model", { sessionID, observed })
+        }
+        await Memory.markCompacted(sessionID, { round: step }).catch((err) => {
+          log.warn("memory.mark_compacted_failed", {
+            sessionID,
+            error: err instanceof Error ? err.message : String(err),
+          })
+        })
+        log.info("compaction.completed", {
+          sessionID,
+          observed,
+          kind: attempt.kind,
+          step,
+        })
+        return "continue"
+      }
+    }
+
+    log.warn("compaction.chain_exhausted", { sessionID, observed, step })
+    return "stop"
+  }
+
+  /**
+   * Phase 7b: inject the synthetic Continue user message after a kind-5
+   * anchor write (where the executor wrote the anchor inline). Mirrors the
+   * Continue injection behaviour of `compactWithSharedContext(auto:true)`,
+   * factored out so run() controls Continue placement uniformly.
+   */
+  async function injectContinueAfterAnchor(sessionID: string, observed: Observed) {
+    const messages = await Session.messages({ sessionID }).catch(() => [])
+    const userMessage = messages.findLast((m) => m.info.role === "user")?.info as MessageV2.User | undefined
+    if (!userMessage) {
+      log.warn("compaction.run injectContinue: no user message found, skipping", { sessionID, observed })
+      return
+    }
+    const continueMsg = await Session.updateMessage({
+      id: Identifier.ascending("message"),
+      role: "user",
+      sessionID,
+      time: { created: Date.now() },
+      agent: userMessage.agent,
+      model: userMessage.model,
+      format: userMessage.format,
+      variant: userMessage.variant,
+    })
+    await Session.updatePart({
+      id: Identifier.ascending("part"),
+      messageID: continueMsg.id,
+      sessionID,
+      type: "text",
+      synthetic: true,
+      text: "Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.",
+      time: { start: Date.now(), end: Date.now() },
+    })
+  }
+
+  /**
+   * Anchor-write indirection. Production wraps compactWithSharedContext; tests
+   * can replace via `__test__.setAnchorWriter(fn)` to capture call arguments
+   * without standing up the full Session/Bus/Storage stack.
+   */
+  type WriteAnchorInput = {
+    sessionID: string
+    summaryText: string
+    model: Provider.Model
+    auto: boolean
+    kind: KindName
+  }
+  const defaultWriteAnchor = async (input: WriteAnchorInput) => {
+    await compactWithSharedContext({
+      sessionID: input.sessionID,
+      snapshot: input.summaryText,
+      model: input.model,
+      auto: input.auto,
+    })
+  }
+  let _writeAnchor: (input: WriteAnchorInput) => Promise<void> = defaultWriteAnchor
+
+  /**
+   * Test-only accessor. Exposes table literals + write-anchor injection so
+   * tests can assert structure / capture invocation arguments without
+   * re-defining tables or standing up the full Storage stack. Production
+   * callers must not depend on these — they are implementation detail.
+   */
+  export const __test__ = Object.freeze({
+    KIND_CHAIN,
+    INJECT_CONTINUE,
+    setAnchorWriter(fn: (input: WriteAnchorInput) => Promise<void>) {
+      _writeAnchor = fn
+    },
+    resetAnchorWriter() {
+      _writeAnchor = defaultWriteAnchor
+    },
+  })
 }

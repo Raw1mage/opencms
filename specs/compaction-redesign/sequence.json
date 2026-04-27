@@ -427,5 +427,51 @@
       }
     ],
     "outcome": "Mid-run interruption gracefully degrades to raw-tail recovery. No partial TurnSummary pollution; older context still survives via last completed Anchor."
+  },
+  {
+    "id": "S8",
+    "name": "Subagent rebind compaction (DD-12)",
+    "trigger": "Subagent's runloop iteration detects its pinned accountId differs from its own most-recent Anchor",
+    "preconditions": [
+      "Session is a subagent (parentID set)",
+      "Subagent's session.execution.accountId differs from subagent's lastAnchor.accountId (within same provider)",
+      "Subagent's Memory.turnSummaries non-empty (at least one captured turn)",
+      "Cooldown not active"
+    ],
+    "messages": [
+      {"id": "MSG1", "from": "subagent-runloop", "to": "C10 deriveObservedCondition", "description": "called with parentID set"},
+      {"id": "MSG2", "from": "C10", "to": "subagent-runloop", "description": "DD-12: parentID no longer auto-skips. Returns observed='rebind' because subagent's pinned identity differs from subagent's lastAnchor"},
+      {"id": "MSG3", "from": "subagent-runloop", "to": "C4 SessionCompaction.run", "description": "run({sessionID: subagent.id, observed: 'rebind', step})"},
+      {"id": "MSG4", "from": "C4", "to": "INJECT_CONTINUE", "description": "['rebind']=false → no Continue (R-6 applies identically to subagents)"},
+      {"id": "MSG5", "from": "C4", "to": "C5 NarrativeExecutor", "description": "first allowed kind for rebind"},
+      {"id": "MSG6", "from": "C5", "to": "C1 Memory", "description": "renderForLLM(subagent.id) — subagent's OWN turnSummaries"},
+      {"id": "MSG7", "from": "C5", "to": "C2 Anchor", "description": "writes Anchor on SUBAGENT's OWN message stream, not parent's"},
+      {"id": "MSG8", "from": "C4", "to": "C1 Memory", "description": "Memory.markCompacted(subagent.id, {round: step})"},
+      {"id": "MSG9", "from": "C4", "to": "subagent-runloop", "description": "returns 'continue'"}
+    ],
+    "outcome": "Exactly one rebind Anchor on subagent's stream per real subagent rotation. Parent stream unaffected. The 2026-04-27 bug class is structurally extinct on subagents too — INJECT_CONTINUE['rebind']=false applies regardless of who fires."
+  },
+  {
+    "id": "S9",
+    "name": "Continuation-invalidated state-driven signal (DD-11)",
+    "trigger": "Codex provider rejects previous_response_id mid-conversation",
+    "preconditions": [
+      "Codex Bus listener fires ContinuationInvalidatedEvent",
+      "Codex layer writes session.execution.continuationInvalidatedAt = Date.now()",
+      "Most recent Anchor's time.created < continuationInvalidatedAt"
+    ],
+    "messages": [
+      {"id": "MSG1", "from": "codex-provider", "to": "Bus", "description": "fires ContinuationInvalidatedEvent"},
+      {"id": "MSG2", "from": "compaction.ts:36 listener", "to": "Session.execution", "description": "writes continuationInvalidatedAt = now (DD-11 replaces legacy markRebindCompaction)"},
+      {"id": "MSG3", "from": "runloop next iteration", "to": "C10 deriveObservedCondition", "description": "reads session.execution + lastAnchor"},
+      {"id": "MSG4", "from": "C10", "to": "runloop", "description": "compares: continuationInvalidatedAt > lastAnchor.time.created → returns 'continuation-invalidated'"},
+      {"id": "MSG5", "from": "runloop", "to": "C4 run", "description": "run({observed: 'continuation-invalidated'})"},
+      {"id": "MSG6", "from": "C4", "to": "INJECT_CONTINUE", "description": "['continuation-invalidated']=false → no Continue"},
+      {"id": "MSG7", "from": "C4", "to": "C5 NarrativeExecutor", "description": "first kind in chain"},
+      {"id": "MSG8", "from": "C5", "to": "C2 Anchor", "description": "writes Anchor with new time.created (which becomes the new comparison baseline)"},
+      {"id": "MSG9", "from": "C4", "to": "runloop", "description": "returns 'continue'"},
+      {"id": "MSG10", "from": "subsequent iterations", "to": "C10", "description": "compares: continuationInvalidatedAt < lastAnchor.time.created → returns null (signal naturally stale, no flag-clear needed)"}
+    ],
+    "outcome": "State-driven cooldown via anchor-recency comparison. No flag, no clear step. Once anchor.time.created > continuationInvalidatedAt, the condition is dormant until codex fires the event again."
   }
 ]

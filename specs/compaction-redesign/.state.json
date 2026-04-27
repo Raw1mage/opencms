@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "planned",
+  "state": "verified",
   "profile": [],
   "history": [
     {
@@ -26,6 +26,174 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "tasks.md (12 phases), handoff.md, test-vectors.json (16 vectors), errors.md (7 codes), observability.md, invariants.md (9 INVs) drafted"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-04-27T20:08:46.971Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "beta-workflow admission gate passed; XDG skip approved; first phase 1 task starts now"
+    },
+    {
+      "at": "2026-04-27T20:12:12.123Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "1b8b8b77053b2a9ec70ea3b29289d51d81f755f7"
+    },
+    {
+      "at": "2026-04-27T20:15:48.350Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/session/memory.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/session/memory.test.ts"
+      ],
+      "commit": "61c9fdf440efa199497ca287a1e1097242466b57"
+    },
+    {
+      "at": "2026-04-27T20:19:53.178Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/session/memory.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/session/memory.test.ts"
+      ],
+      "commit": "e9ffe498a0dcade35a1c6361bb5e70055b2b7fe9"
+    },
+    {
+      "at": "2026-04-27T20:27:59.633Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/session/prompt.turn-summary-capture.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/session/prompt.turn-summary-capture.test.ts"
+      ],
+      "commit": "99a48cba6f4ffbdcf214b92c638314343f9f345e"
+    },
+    {
+      "at": "2026-04-27T20:31:34.979Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/session/compaction-run.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/session/compaction-run.test.ts"
+      ],
+      "commit": "e070350d72e6a8b0d74ca517631e863c1171c9a3"
+    },
+    {
+      "at": "2026-04-27T20:36:49.286Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/session/compaction-run.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/session/compaction-run.test.ts"
+      ],
+      "commit": "32366e98f6a822c1cbaf0c5a4797fe5f0f4f8497"
+    },
+    {
+      "at": "2026-04-27T20:43:08.888Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/session/prompt.observed-condition.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/session/prompt.observed-condition.test.ts"
+      ],
+      "commit": "4affb517421c69eb0ce41614d075a74007f29b12"
+    },
+    {
+      "at": "2026-04-27T21:00:56.303Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/session/compaction.regression-2026-04-27.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/session/compaction.regression-2026-04-27.test.ts"
+      ],
+      "commit": "28866cfacea321594f9d81fa031ea36219aecdd2"
+    },
+    {
+      "at": "2026-04-27T21:07:25.810Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "1bf92f73943220c4bbec3df2e37a62223766ee94"
+    },
+    {
+      "at": "2026-04-27T21:11:50.127Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/session/compaction-run.test.ts, packages/opencode/src/session/index.ts, packages/opencode/src/session/prompt.observed-condition.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/session/compaction-run.test.ts",
+        "packages/opencode/src/session/index.ts",
+        "packages/opencode/src/session/prompt.observed-condition.test.ts"
+      ],
+      "commit": "a6c53ac08f81bf3497d588156ae5bf5ba53a75d2"
+    },
+    {
+      "at": "2026-04-27T21:18:52.158Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "c90f7a640da2dacb5e83e1984d019d1aa5eda2bf"
+    },
+    {
+      "at": "2026-04-27T21:25:10.044Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "b13066c1fa20dc7469674e87b5b6d929bc398d34"
+    },
+    {
+      "at": "2026-04-27T21:33:16.466Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/session/prompt.observed-condition.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/session/prompt.observed-condition.test.ts"
+      ],
+      "commit": "ca313a9d3edd9e8b45b8edd8d9dfef41a8428941"
+    },
+    {
+      "at": "2026-04-27T21:38:41.391Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/session/compaction-run.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/session/compaction-run.test.ts"
+      ],
+      "commit": "c5cac386b82f939baff01e8ca084a2f78b0edba2"
+    },
+    {
+      "at": "2026-04-27T21:43:08.484Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "5c7cce1c7c66ea80868a89ead55ddfddeb1ceacf"
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-04-27T21:43:46.232Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "phases 1-10 implemented + tested; 77 tests pass; tsc clean; manual smoke (11.3/11.4) deferred to user post-rebuild"
     }
   ]
 }

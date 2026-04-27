@@ -117,6 +117,103 @@ Internally, `run` walks a kind-chain table indexed by `observed`. Each chain
 step is `(kind, conditions to attempt) → result`. Entries in the table are
 data, not branching code.
 
+### DD-11 — Continuation-invalidated state-driven signal (added 2026-04-27 mid-implementation)
+
+**Discovery context**: phase 7 (delete `pendingRebindCompaction` flag)
+revealed one legitimate caller still using it — the
+`ContinuationInvalidatedEvent` Bus subscription at `compaction.ts:36`,
+fired by codex provider when the server rejects `previous_response_id`.
+DD-1 demands flags go away; this signal needs a state-driven
+replacement.
+
+**Decision**: **Option A** — persist `continuationInvalidatedAt` (epoch
+ms) on `session.execution`. The codex Bus listener writes the timestamp;
+`deriveObservedCondition` returns `"continuation-invalidated"` when the
+timestamp is **newer than the most recent Anchor's `time.created`**.
+Once `run({observed: "continuation-invalidated"})` writes a new Anchor,
+the next iteration's comparison naturally goes stale and the condition
+no longer fires — cooldown becomes implicit through anchor-recency
+comparison, no separate flag-clear step.
+
+**Why Option A over Option B (synthetic message-stream part)**:
+- Keeps the message stream clean (no synthetic noise visible in UI /
+  audit views).
+- Reuses existing `session.execution` persistence (already durable
+  across daemon restart).
+- Option B would require introducing a new part type or repurposing
+  `compaction-request`, both entangling with message-stream schema work
+  scoped out of this plan.
+
+**Implications**:
+- `session.execution` schema gains `continuationInvalidatedAt: number |
+  null`.
+- Anchor messages must carry `time.created` reliably (already true via
+  current `compactWithSharedContext`).
+- `deriveObservedCondition` priority list gains "continuation-invalidated"
+  between "manual" and "provider-switched":
+  `manual > continuation-invalidated > provider-switched > rebind > overflow > cache-aware`.
+- The `compaction.ts:36` Bus listener changes from
+  `markRebindCompaction(sid)` to writing the timestamp on
+  session.execution.
+
+**Tests**:
+- `deriveObservedCondition` returns "continuation-invalidated" when
+  session.execution.continuationInvalidatedAt > lastAnchor.time.created.
+- After successful run, next iteration's deriveObservedCondition does
+  not return it again (anchor.time.created has advanced past the
+  timestamp).
+
+### DD-12 — Subagent compaction policy (added 2026-04-27 mid-implementation)
+
+**Discovery context**: user asked "what happens when subagent triggers
+compaction mid-work?" during phase 7 review. Phase 6's
+`if (input.parentID) return null` guard makes subagents skip the new
+state-driven path entirely; phase 6's transitional flag drain at the
+top of every iteration also silently swallows mid-rotation /
+continuation-invalidated signals on subagent sessions. Net effect:
+subagent rotation still updates session.execution pin, but never
+produces a fresh Anchor. The 2026-04-27 bug class is technically still
+representable on subagents.
+
+**Decision**: **Subagents use the same state-driven path as parents**
+for `rebind`, `continuation-invalidated`, `provider-switched`,
+`overflow`, `cache-aware`. Subagent compaction writes to the
+**subagent's own message stream**. The parentID-skip guard in
+`deriveObservedCondition` is **removed**. The only observed value
+subagents do NOT trigger is `"manual"` (subagents have no UI surface).
+
+**Rationale**:
+- The 2026-04-27 bug class affects subagents identically; structural
+  defenses must apply.
+- Writing to subagent's own stream preserves existing subagent
+  isolation (subagent has its own session, its own message stream).
+- Subagent inheritance of parent context via `Memory.read(parentID)`
+  remains a separate concern (already handled by phase 1's lazy
+  fallback).
+
+**Implications**:
+- Drop `if (input.parentID) return null` from `deriveObservedCondition`
+  (or narrow to `if (parentID && observed === "manual") return null`).
+- Drop the `if (!session.parentID)` guards inside legacy rebind /
+  overflow branches once they are deleted in phase 7+.
+- Subagent's `Memory` accumulates TurnSummary as already wired in phase
+  3; DD-12 gives it a reader path (state-driven new rebind → narrative
+  kind → renderForLLM).
+- sequence.json gains S8 (subagent compaction).
+
+**Risk**: subagent compaction during dispatch may interleave with
+parent-side cumulative escalation guards. Mitigation: subagent runloop
+is independent of parent's; compaction writes only to subagent's
+stream. Parent doesn't observe subagent Anchor changes directly. If a
+specific incident surfaces, narrow DD-12 to "subagent runs compaction
+in `auto:false` mode only" so synthetic Continue is never injected.
+
+**Tests**:
+- `deriveObservedCondition` returns "rebind" for a subagent session
+  when its pinned identity differs from its own most-recent anchor.
+- Subagent overflow → run({observed: "overflow"}) → narrative path →
+  subagent stream gains a summary; parent's stream unchanged.
+
 ### DD-10 — Manual /compact gains a `--rich` option
 
 Manual `/compact` defaults to narrative-first (free in most cases). A new

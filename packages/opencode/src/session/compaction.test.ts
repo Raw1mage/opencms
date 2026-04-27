@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, mock } from "bun:test"
 import { SessionCompaction } from "./compaction"
+import { Memory } from "./memory"
 import { Config } from "@/config/config"
 import { SharedContext } from "./shared-context"
 import { Global } from "@/global"
@@ -9,13 +10,36 @@ import path from "path"
 
 const originalConfigGet = Config.get
 const originalSharedContextSnapshot = SharedContext.snapshot
+const originalMemoryRead = Memory.read
+const originalMemoryMarkCompacted = Memory.markCompacted
 const originalGlobalPathState = Global.Path.state
 
 afterEach(() => {
   ;(Config as any).get = originalConfigGet
   ;(SharedContext as any).snapshot = originalSharedContextSnapshot
+  ;(Memory as any).read = originalMemoryRead
+  ;(Memory as any).markCompacted = originalMemoryMarkCompacted
   Global.Path.state = originalGlobalPathState
 })
+
+/**
+ * Phase 7 helper: stub Memory so the in-test cooldown lookup is
+ * synchronous-ish (still returns a Promise but resolves immediately).
+ * Mirrors the legacy cooldownState Map's per-test setup pattern.
+ */
+function stubMemoryCooldown(sessionID: string, lastRound: number) {
+  ;(Memory as any).read = mock(async () => ({
+    sessionID,
+    version: 1,
+    updatedAt: 1,
+    turnSummaries: [],
+    fileIndex: [],
+    actionLog: [],
+    lastCompactedAt: { round: lastRound, timestamp: 1 },
+    rawTailBudget: 5,
+  }))
+  ;(Memory as any).markCompacted = mock(async () => {})
+}
 
 describe("SessionCompaction cooldown guard", () => {
   it("suppresses repeated overflow compaction within cooldown rounds for high-prefix sessions", async () => {
@@ -49,7 +73,7 @@ describe("SessionCompaction cooldown guard", () => {
     }
 
     const sessionID = `ses_compaction_cooldown_${Date.now()}`
-    SessionCompaction.recordCompaction(sessionID, 1)
+    stubMemoryCooldown(sessionID, 1)
 
     await expect(
       SessionCompaction.isOverflow({
@@ -101,7 +125,7 @@ describe("SessionCompaction cooldown guard", () => {
     }
 
     const sessionID = `ses_compaction_emergency_${Date.now()}`
-    SessionCompaction.recordCompaction(sessionID, 10)
+    stubMemoryCooldown(sessionID, 10)
 
     await expect(
       SessionCompaction.isOverflow({
@@ -349,30 +373,111 @@ describe("SessionCompaction cooldown guard", () => {
     await expect(fs.access(stalePath)).rejects.toBeDefined()
   })
 
-  // event_2026-04-27_runloop_rebind_loop — guard against the regression where
-  // continuation-invalidation could re-fire rebind compaction every round,
-  // creating an infinite synthetic-Continue loop.
-  it("rebind compaction respects cooldown when fired repeatedly", () => {
-    const sid = "ses_rebind_cooldown_test"
-    SessionCompaction.markRebindCompaction(sid)
-    SessionCompaction.recordCompaction(sid, 10)
-    // Same round as the recorded compaction → still inside cooldown.
-    expect(SessionCompaction.consumeRebindCompaction(sid, 10)).toBe(false)
-    // 3 rounds later still inside the 4-round cooldown.
-    expect(SessionCompaction.consumeRebindCompaction(sid, 13)).toBe(false)
-    // 4 rounds later → cooldown cleared, flag is consumed.
-    expect(SessionCompaction.consumeRebindCompaction(sid, 14)).toBe(true)
-    // Flag was one-shot — second consume returns false even past cooldown.
-    expect(SessionCompaction.consumeRebindCompaction(sid, 100)).toBe(false)
+  // event_2026-04-27_runloop_rebind_loop regression coverage migrated
+  // to compaction.regression-2026-04-27.test.ts after phase 7 deleted
+  // markRebindCompaction / consumeRebindCompaction. The new tests use
+  // run({observed: "rebind"}) which exercises the same defenses
+  // (INV-3 no-Continue, INV-2 single-anchor-with-cooldown) on the new
+  // state-driven path.
+
+  // ── Phase 8 / DD-8: anchor unification ─────────────────────────────
+
+  it("phase 8: applyRebindCheckpoint locates boundary via summary anchor in stream", () => {
+    const model = { id: "gpt-5.4", providerId: "openai" } as any
+    // Stream contains a summary anchor at msg_a1 — that's the canonical
+    // boundary regardless of any lastMessageId in the checkpoint.
+    const messages = [
+      {
+        info: {
+          id: "msg_u1",
+          sessionID: "ses_p8_anchor",
+          role: "user",
+          agent: "default",
+          model: { providerId: "openai", modelID: "gpt-5.4" },
+          time: { created: 1 },
+        },
+        parts: [{ id: "p1", messageID: "msg_u1", sessionID: "ses_p8_anchor", type: "text", text: "earlier" }],
+      },
+      {
+        info: {
+          id: "msg_a1",
+          sessionID: "ses_p8_anchor",
+          role: "assistant",
+          parentID: "msg_u1",
+          mode: "compaction",
+          agent: "compaction",
+          modelID: "gpt-5.4",
+          providerId: "openai",
+          path: { cwd: "/tmp", root: "/tmp" },
+          cost: 0,
+          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          summary: true,
+          time: { created: 5, completed: 5 },
+        },
+        parts: [{ id: "p2", messageID: "msg_a1", sessionID: "ses_p8_anchor", type: "text", text: "<summary>" }],
+      },
+      {
+        info: {
+          id: "msg_u2",
+          sessionID: "ses_p8_anchor",
+          role: "user",
+          agent: "default",
+          model: { providerId: "openai", modelID: "gpt-5.4" },
+          time: { created: 6 },
+        },
+        parts: [{ id: "p3", messageID: "msg_u2", sessionID: "ses_p8_anchor", type: "text", text: "post-anchor user" }],
+      },
+    ] as any
+
+    const applied = SessionCompaction.applyRebindCheckpoint({
+      sessionID: "ses_p8_anchor",
+      checkpoint: {
+        sessionID: "ses_p8_anchor",
+        timestamp: 10,
+        snapshot: "checkpoint snapshot",
+        // No lastMessageId — phase 8 writes don't include it.
+      },
+      messages,
+      model,
+    })
+
+    expect(applied.applied).toBe(true)
+    if (!applied.applied) throw new Error("expected applied")
+    // Synthetic summary head + post-anchor user
+    expect(applied.messages).toHaveLength(2)
+    expect((applied.messages[0].info as any).summary).toBe(true)
+    expect((applied.messages[0].parts[0] as any).text).toContain("checkpoint snapshot")
+    expect(applied.messages[1].info.id).toBe("msg_u2")
   })
 
-  it("rebind compaction without currentRound bypasses cooldown (legacy path)", () => {
-    const sid = "ses_rebind_legacy_test"
-    SessionCompaction.markRebindCompaction(sid)
-    SessionCompaction.recordCompaction(sid, 10)
-    // No currentRound provided → cooldown gate skipped, behaves like the
-    // pre-fix one-shot consume.
-    expect(SessionCompaction.consumeRebindCompaction(sid)).toBe(true)
-    expect(SessionCompaction.consumeRebindCompaction(sid)).toBe(false)
+  it("phase 8: applyRebindCheckpoint with no anchor + no lastMessageId returns boundary_missing", () => {
+    const model = { id: "gpt-5.4", providerId: "openai" } as any
+    const messages = [
+      {
+        info: {
+          id: "msg_u1",
+          sessionID: "ses_p8_no_boundary",
+          role: "user",
+          agent: "default",
+          model: { providerId: "openai", modelID: "gpt-5.4" },
+          time: { created: 1 },
+        },
+        parts: [],
+      },
+    ] as any
+    const applied = SessionCompaction.applyRebindCheckpoint({
+      sessionID: "ses_p8_no_boundary",
+      checkpoint: {
+        sessionID: "ses_p8_no_boundary",
+        timestamp: 1,
+        snapshot: "x",
+        // no lastMessageId, no anchor
+      },
+      messages,
+      model,
+    })
+    expect(applied.applied).toBe(false)
+    if (applied.applied) throw new Error("expected not applied")
+    expect(applied.reason).toBe("boundary_missing")
   })
 })

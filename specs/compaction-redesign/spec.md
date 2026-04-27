@@ -210,22 +210,105 @@ returning compact provider-agnostic text for the next LLM call, and
 - **AND** changes to one render's output format do not affect the other
 - **AND** both functions read from the same underlying `Memory` data
 
-### Requirement: R-9 Deprecation shim window: 1 release
+### Requirement: R-9 Deprecation shim window: 1 release (actual surface revised at phase 9)
 
-The legacy API surface (`SharedContext.snapshot`, `saveRebindCheckpoint`,
-`loadRebindCheckpoint`, `SessionCompaction.process`, `compactWithSharedContext`,
-`markRebindCompaction`, `consumeRebindCompaction`, `recordCompaction`)
-**shall** be replaced by deprecation shims in this plan's release, then
-removed entirely in the next release.
+**Initial framing** (proposal): all of `SharedContext.snapshot`,
+`saveRebindCheckpoint`, `loadRebindCheckpoint`,
+`SessionCompaction.process`, `compactWithSharedContext`,
+`markRebindCompaction`, `consumeRebindCompaction`, `recordCompaction`
+**shall** be deprecation shims, removed next release.
 
-#### Scenario: legacy API call emits deprecation warning
+**Phase 9 realignment** (2026-04-27): the original list conflated
+internal-helper APIs (still actively used by the new path) with
+truly-dead public surface. Final scope:
 
-- **GIVEN** a caller invokes any legacy API listed above
+| API | Status |
+|---|---|
+| `markRebindCompaction` / `consumeRebindCompaction` | **Deleted** in phase 7 (no shim, removed entirely — flag plumbing replaced by `session.execution.continuationInvalidatedAt` per DD-11) |
+| `SessionCompaction.process` | **Deprecated shim** — delegates to `run({observed: input.auto ? "overflow" : "manual"})` + `log.warn`. Phase 12 deletes. |
+| `SessionCompaction.recordCompaction` | **Deprecated shim** — delegates to `Memory.markCompacted` + `log.warn`. Phase 12 deletes. |
+| `SessionCompaction.compactWithSharedContext` | **Kept (internal helper)** — production anchor-write path used by `_writeAnchor` + pre-loop identity-switch compaction. Not deprecated. |
+| `SharedContext.snapshot` | **Kept (executor source)** — `trySchema` reads it for the schema kind. Not deprecated. |
+| `saveRebindCheckpoint` / `loadRebindCheckpoint` | **Kept (rebind recovery)** — disk file still drives restart/rebind context restoration. `lastMessageId` made optional in phase 8 (DD-8). Not deprecated. |
+| `getCooldownState` | **Kept (cooldown read path)** — used by `isOverflow` / `shouldCacheAwareCompact`. Not deprecated. |
+
+#### Scenario: deprecated API call emits warning
+
+- **GIVEN** a caller invokes `SessionCompaction.process` or
+  `SessionCompaction.recordCompaction`
 - **WHEN** the call is made
-- **THEN** the shim delegates to the corresponding `Memory.*` /
-  `SessionCompaction.run` API
-- **AND** emits a `log.warn` with migration-target identifier in the
-  message body
+- **THEN** the shim delegates to the new equivalent and emits a
+  `log.warn` containing the migration-target identifier
+- **AND** the caller's behaviour is preserved (`process` returns
+  `"continue" | "stop"`, `recordCompaction` writes to
+  `Memory.markCompacted`)
+
+#### Scenario: kept-helper APIs do NOT emit deprecation warnings
+
+- **GIVEN** the new path's executors call `SharedContext.snapshot`,
+  `compactWithSharedContext`, `loadRebindCheckpoint`, etc., as part of
+  normal operation
+- **WHEN** these internal helpers are invoked
+- **THEN** no `log.warn` fires
+- **AND** the call site is documented as "internal helper, not
+  deprecated"
+
+### Requirement: R-10 Continuation-invalidated is state-driven, not flag-based (added 2026-04-27 v2)
+
+When the codex provider rejects `previous_response_id`, the recovery
+signal **shall** live in observable session state, not in a module-level
+in-memory flag. Specifically: the codex Bus listener writes
+`session.execution.continuationInvalidatedAt = Date.now()`. The runloop's
+`deriveObservedCondition` returns `"continuation-invalidated"` when this
+timestamp is newer than the most recent `Anchor`'s `time.created`.
+
+#### Scenario: continuation-invalidated fires after codex Bus event
+
+- **GIVEN** the codex provider has just fired `ContinuationInvalidatedEvent`
+  for `sessionID`
+- **AND** the Bus listener has written `session.execution.continuationInvalidatedAt = T`
+- **AND** the most recent `Anchor` has `time.created < T`
+- **WHEN** the next runloop iteration calls `deriveObservedCondition`
+- **THEN** the function returns `"continuation-invalidated"`
+- **AND** `run({observed: "continuation-invalidated"})` writes a fresh
+  Anchor with `time.created > T`
+
+#### Scenario: signal is naturally stale once anchor advances past it
+
+- **GIVEN** `run({observed: "continuation-invalidated"})` has just succeeded
+- **AND** the resulting Anchor's `time.created > continuationInvalidatedAt`
+- **WHEN** the iteration AFTER that one calls `deriveObservedCondition`
+- **THEN** the function returns `null` for the continuation-invalidated
+  branch (the signal is dormant; no flag-clear step is needed)
+
+### Requirement: R-11 Subagent sessions use the state-driven path identically (added 2026-04-27 v2)
+
+`deriveObservedCondition` **shall not** unconditionally skip subagent
+sessions (`session.parentID` set). Subagents trigger compaction via the
+same state-driven path as parents for `rebind`,
+`continuation-invalidated`, `provider-switched`, `overflow`,
+`cache-aware`. Compaction writes to the **subagent's own message
+stream**, not the parent's. The only `observed` value subagents do
+**not** trigger is `"manual"` (subagents have no UI surface).
+
+#### Scenario: subagent rebind writes anchor on subagent's own stream
+
+- **GIVEN** a subagent session whose `pinnedAccountId` differs from its
+  own most-recent `Anchor`'s `accountId`
+- **WHEN** the subagent's runloop iteration calls `deriveObservedCondition`
+- **THEN** the function returns `"rebind"` (parentID does not auto-skip)
+- **AND** `run({sessionID: subagent.id, observed: "rebind"})` writes the
+  anchor on the subagent's stream
+- **AND** the parent session's stream is unchanged
+
+#### Scenario: subagent does not trigger manual
+
+- **GIVEN** a subagent session with an unprocessed `compaction-request`
+  part in its tail (theoretically — subagents shouldn't normally have
+  these, but defence-in-depth)
+- **WHEN** `deriveObservedCondition` is called
+- **THEN** the function returns the next applicable observed value
+  (rebind / overflow / etc.) or `null` — never `"manual"`
 
 ## Acceptance Checks
 

@@ -214,6 +214,15 @@ export namespace Session {
     accountId: z.string().optional(),
     revision: z.number().int().nonnegative(),
     updatedAt: z.number(),
+    /**
+     * compaction-redesign DD-11: epoch ms when codex provider rejected
+     * `previous_response_id`. State-driven replacement for the legacy
+     * `pendingRebindCompaction` Set. `deriveObservedCondition` returns
+     * `"continuation-invalidated"` when this timestamp is newer than the
+     * most recent Anchor's `time.created`. Implicit cooldown via
+     * anchor-recency comparison; no flag-clear step.
+     */
+    continuationInvalidatedAt: z.number().optional(),
   })
   export type ExecutionIdentity = z.output<typeof ExecutionIdentity>
 
@@ -655,6 +664,29 @@ export namespace Session {
           current: draft.execution,
           model: input.model,
         })
+      },
+      { touch: false },
+    )
+  }
+
+  /**
+   * compaction-redesign DD-11: record the moment codex rejected
+   * `previous_response_id`. State-driven equivalent of legacy
+   * `markRebindCompaction`. The runloop's `deriveObservedCondition`
+   * compares this timestamp against the most recent Anchor's
+   * `time.created` to decide whether to fire `run({observed:
+   * "continuation-invalidated"})`.
+   */
+  export async function markContinuationInvalidated(sessionID: string) {
+    return update(
+      sessionID,
+      (draft) => {
+        if (draft.execution) {
+          draft.execution = {
+            ...draft.execution,
+            continuationInvalidatedAt: Date.now(),
+          }
+        }
       },
       { touch: false },
     )

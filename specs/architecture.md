@@ -141,6 +141,101 @@ Launched 2026-04-18 to supersede the legacy `planner` skill (see `docs/events/ev
 - Binding data, if added, must be separable from shared token storage and queryable by the gateway as an explicit lookup contract.
 - The binding registry is modeled as a global module deployed under `/etc/opencode/` (default path `/etc/opencode/google-bindings.json` with optional `OPENCODE_GOOGLE_BINDINGS_PATH` override); it is distinct from user-scoped OAuth token storage and is the gateway's authoritative lookup surface for Linux↔Google identity routing.
 
+## Compaction Subsystem
+
+The compaction subsystem reduces a session's effective message-stream
+size before the next LLM call. After the 2026-04-27 redesign
+(`specs/compaction-redesign/`) the public surface is **3 concepts**:
+
+- **Memory** (`packages/opencode/src/session/memory.ts`): per-session
+  artifact persisted at Storage key `session_memory/<sid>`. Primary
+  content is `turnSummaries[]` (AI's natural turn-end self-summary,
+  captured at runloop exit). Auxiliary: `fileIndex`, `actionLog`,
+  `lastCompactedAt` (cooldown source-of-truth per DD-7). Two render
+  functions: `renderForLLM(sid)` for next LLM call (compact,
+  provider-agnostic) and `renderForHuman(sid)` for UI preview.
+- **Anchor**: assistant message with `summary: true` plus a part of
+  type `compaction`. Lives in the session message stream.
+  `filterCompacted` truncates history at the most recent anchor.
+  Phase 8's DD-8 unification of the rebind-checkpoint disk file is
+  deferred (the legacy file is still readable for restart recovery).
+- **Cooldown**: `Memory.lastCompactedAt` (no separate Map). 4-round
+  default window. Read by `isOverflow`, `shouldCacheAwareCompact`,
+  `SessionCompaction.Cooldown.shouldThrottle`.
+
+### Single entry point
+
+```ts
+SessionCompaction.run({
+  sessionID, observed, step, intent?, abort?
+}): Promise<"continue" | "stop">
+```
+
+Triggers (`observed`) are observable conditions, not signals: the
+runloop's `deriveObservedCondition` reads pinned identity vs most
+recent Anchor identity, `session.execution.continuationInvalidatedAt`
+timestamp (DD-11), token budget, and message-stream tail. No flags
+persist across iterations (DD-1).
+
+### Cost-monotonic kind chain
+
+```
+trigger=overflow / cache-aware / idle:
+  narrative → schema → replay-tail → low-cost-server → llm-agent
+
+trigger=manual:
+  narrative → low-cost-server → llm-agent  (skips schema by design;
+                                            schema doesn't preserve reasoning)
+
+trigger=manual + intent=rich:
+  llm-agent only
+
+trigger=rebind / continuation-invalidated:
+  narrative → schema → replay-tail  (no paid kinds; maintenance only)
+
+trigger=provider-switched:
+  narrative → schema  (replay-tail / low-cost-server provider-specific format excluded)
+```
+
+`INJECT_CONTINUE` table is frozen: rebind / continuation-invalidated /
+provider-switched / manual all map to `false`. The 2026-04-27 infinite
+loop bug is structurally extinct — no code path takes one of those
+observed values and emits a synthetic Continue.
+
+### Subagent compaction (DD-12)
+
+Subagents use the same state-driven path as parents for rebind /
+continuation-invalidated / provider-switched / overflow / cache-aware.
+Compaction writes to the subagent's own message stream (not the
+parent's). The only `observed` value subagents do not trigger is
+`"manual"` (no UI surface).
+
+### Continuation-invalidated signal (DD-11)
+
+Codex `ContinuationInvalidatedEvent` (when server rejects
+`previous_response_id`) is recorded on
+`session.execution.continuationInvalidatedAt`. Next runloop iteration
+returns `"continuation-invalidated"` from `deriveObservedCondition`
+when this timestamp is newer than the most recent Anchor's
+`time.created`. State-driven cooldown via anchor-recency comparison —
+no flag-clear step.
+
+### Per-turn capture (DD-2)
+
+`captureTurnSummaryOnExit` runs at the runloop exit point
+(`prompt.ts`, finish ≠ tool-calls). Reads the assistant's final text,
+appends a `TurnSummary` to Memory. Mid-run interruptions do NOT
+capture partial summaries; rebind recovery uses the raw-tail
+fallback (last N rounds via `Memory.rawTailBudget`).
+
+### Plan reference
+
+Full design: `specs/compaction-redesign/` (proposal.md, spec.md,
+design.md, c4.json, sequence.json, idef0.json, grafcet.json,
+data-schema.json, tasks.md, handoff.md, errors.md, observability.md,
+invariants.md). Implementation history in
+`docs/events/event_20260427_compaction_redesign_phase{1..7}.md`.
+
 ## Key Modules
 
 - **`src/account`**: Disk persistence (`accounts.json`), ID generation, basic CRUD.
