@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "planned",
+  "state": "implementing",
   "profile": [],
   "history": [
     {
@@ -26,6 +26,44 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "tasks.md (12 phases), handoff.md, test-vectors.json (16 vectors), errors.md (7 codes), observability.md, invariants.md (9 INVs) drafted"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-04-27T20:08:46.971Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "beta-workflow admission gate passed; XDG skip approved; first phase 1 task starts now"
+    },
+    {
+      "at": "2026-04-27T20:12:12.123Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "1b8b8b77053b2a9ec70ea3b29289d51d81f755f7"
+    },
+    {
+      "at": "2026-04-27T20:15:48.350Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/session/memory.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/session/memory.test.ts"
+      ],
+      "commit": "61c9fdf440efa199497ca287a1e1097242466b57"
+    },
+    {
+      "at": "2026-04-27T20:19:53.178Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/session/memory.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/session/memory.test.ts"
+      ],
+      "commit": "e9ffe498a0dcade35a1c6361bb5e70055b2b7fe9"
     }
   ]
 }

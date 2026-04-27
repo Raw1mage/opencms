@@ -22,10 +22,10 @@ reviewable and rolls back cleanly without the next.
 
 ## 3. TurnSummary capture at runloop exit
 
-- [ ] 3.1 Add capture call at `prompt.ts:1230` (`exiting loop` site): read `lastAssistant` final text part, build TurnSummary
-- [ ] 3.2 Capture is fire-and-forget (`Memory.appendTurnSummary(...).catch(...)`); does not block runloop return
-- [ ] 3.3 Skip capture if `lastAssistant` is null or has no text part (e.g. error exit)
-- [ ] 3.4 Manual smoke: complete one user turn end-to-end; verify Memory.turnSummaries gains exactly one entry
+- [x] 3.1 Add capture call at `prompt.ts:1230` (`exiting loop` site): read `lastAssistant` final text part, build TurnSummary
+- [x] 3.2 Capture is fire-and-forget (`Memory.appendTurnSummary(...).catch(...)`); does not block runloop return
+- [x] 3.3 Skip capture if `lastAssistant` is null or has no text part (e.g. error exit)
+- [~] 3.4 Manual smoke deferred to phase 11 (acceptance): requires daemon restart to exercise; unit-tested via `prompt.turn-summary-capture.test.ts` instead
 
 ## 4. Single entry point `SessionCompaction.run`
 

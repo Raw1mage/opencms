@@ -10,6 +10,7 @@ import { Agent } from "../agent/agent"
 import { Provider } from "../provider/provider"
 import { SessionCompaction } from "./compaction"
 import { SharedContext } from "./shared-context"
+import { Memory } from "./memory"
 import { Config } from "@/config/config"
 import { Instance } from "../project/instance"
 import { Todo } from "./todo"
@@ -166,6 +167,74 @@ IMPORTANT:
 - This tool provides your final answer - no further actions are taken after calling it`
 
 const STRUCTURED_OUTPUT_SYSTEM_PROMPT = `IMPORTANT: The user has requested structured output. You MUST use the StructuredOutput tool to provide your final response. Do NOT respond with plain text - you MUST call the StructuredOutput tool with your answer formatted according to the schema.`
+
+/**
+ * compaction-redesign phase 3 — TurnSummary capture (DD-2).
+ *
+ * Called at runloop exit (the `exiting loop` site, finish ≠ tool-calls).
+ * Reads the last text part of `lastAssistant` and appends a TurnSummary
+ * to Memory. Fire-and-forget: errors are logged, never propagated to the
+ * runloop return path. INV-6 (durability before next boundary) is upheld
+ * because the Storage write completes before this function's promise
+ * resolves; callers that don't `await` rely on that promise still
+ * scheduling the persistence before subsequent work.
+ *
+ * Skips silently when:
+ *   - `lastAssistant` is missing
+ *   - the message has no text part
+ *   - the text is empty after trimming
+ */
+export function captureTurnSummaryOnExit(input: {
+  sessionID: string
+  lastAssistant: MessageV2.Assistant | undefined
+  lastUser: MessageV2.User
+  msgs: MessageV2.WithParts[]
+  step: number
+}): void {
+  const { sessionID, lastAssistant, lastUser, msgs, step } = input
+  if (!lastAssistant) return
+  const withParts = msgs.find((m) => m.info.id === lastAssistant.id)
+  if (!withParts) return
+  const summaryText = extractFinalAssistantText(withParts.parts)
+  if (!summaryText) return
+
+  const summary: Memory.TurnSummary = {
+    turnIndex: step,
+    userMessageId: lastUser.id,
+    assistantMessageId: lastAssistant.id,
+    endedAt: lastAssistant.time?.completed ?? Date.now(),
+    text: summaryText,
+    modelID: lastAssistant.modelID,
+    providerId: lastAssistant.providerId,
+    accountId: lastAssistant.accountId ?? null,
+    tokens: lastAssistant.tokens
+      ? { input: lastAssistant.tokens.input, output: lastAssistant.tokens.output }
+      : undefined,
+  }
+
+  Memory.appendTurnSummary(sessionID, summary).catch((err) => {
+    Log.create({ service: "session.prompt" }).warn("memory.turn_summary_append_failed", {
+      sessionID,
+      turnIndex: step,
+      error: err instanceof Error ? err.message : String(err),
+    })
+  })
+}
+
+/**
+ * Extract the AI's natural turn-end self-summary from an assistant message's
+ * parts. Concatenates all `text` parts in document order (handles assistants
+ * that produced multiple text parts interleaved with reasoning / tool calls).
+ * Returns empty string if no text content exists.
+ */
+export function extractFinalAssistantText(parts: MessageV2.Part[] | undefined): string {
+  if (!parts) return ""
+  return parts
+    .filter((p): p is MessageV2.TextPart => p.type === "text")
+    .map((p) => p.text ?? "")
+    .join("\n")
+    .trim()
+}
 
 export namespace SessionPrompt {
   const log = Log.create({ service: "session.prompt" })
@@ -1227,6 +1296,13 @@ export namespace SessionPrompt {
           }).toObject()
           await Session.updateMessage(lastAssistant)
         }
+        // ── compaction-redesign phase 3 — capture TurnSummary on runloop exit
+        // Per DD-2: only at the natural turn-end (finish ≠ tool-calls). Mid-run
+        // captures would record speculative-future text, not completed-work
+        // narrative. Fire-and-forget: do NOT block runloop return on the
+        // Storage write — INV-6 only requires durability before next
+        // boundary, not before this function returns.
+        captureTurnSummaryOnExit({ sessionID, lastAssistant, lastUser, msgs, step })
         log.info("exiting loop", { sessionID })
         break
       }
