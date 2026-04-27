@@ -58,11 +58,11 @@ reviewable and rolls back cleanly without the next.
 
 ## 7. Remove flag-based plumbing
 
-- [ ] 7.1 Delete `pendingRebindCompaction` Set, `markRebindCompaction`, `consumeRebindCompaction` from `compaction.ts`
-- [ ] 7.2 Delete `markRebindCompaction` call at `processor.ts:734` (mid-stream account switch); keep pin-update logic
-- [ ] 7.3 Delete `cooldownState` Map; rewrite `recordCompaction` as deprecated shim → `Memory.markCompacted`
-- [ ] 7.4 Code grep: confirm zero remaining callers of deleted symbols outside the deprecation shim layer
-- [ ] 7.5 Unit test: 2026-04-27 infinite-loop scenario (real account rotation) produces exactly one rebind Anchor (S4 acceptance)
+- [!] 7.1 Delete `pendingRebindCompaction` Set, `markRebindCompaction`, `consumeRebindCompaction` from `compaction.ts` — BLOCKED on DD-11 (state-driven continuation-invalidated signal design)
+- [!] 7.2 Delete `markRebindCompaction` call at `processor.ts:734` — depends on 7.1
+- [!] 7.3 Delete `cooldownState` Map; rewrite `recordCompaction` as deprecated shim → `Memory.markCompacted` — BLOCKED on extracting tryLlmAgent so legacy callers can be removed
+- [!] 7.4 Code grep verification — depends on 7.1-7.3
+- [x] 7.5 Unit test: 2026-04-27 infinite-loop scenario produces exactly one rebind Anchor (S4 acceptance) — 3 cases in `compaction.regression-2026-04-27.test.ts`: INV-3 no-Continue, INV-2 single-anchor-with-cooldown, structural INJECT_CONTINUE table-frozen defense
 
 ## 8. Anchor unification (DD-8)
 
