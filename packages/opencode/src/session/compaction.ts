@@ -669,186 +669,31 @@ export namespace SessionCompaction {
     const serverResult = await tryPluginCompaction(input, userMessage)
     if (serverResult) return serverResult
 
-    // Plugin path bailed — we're falling through to LLM compaction.
-    Bus.publish(Event.CompactionStarted, { sessionID: input.sessionID, mode: "llm" })
-
-    // --- LEAGCY RESTORATION: Always trigger true Summary for others (like Gemini) ---
-    const agent = await Agent.get("compaction")
-    log.info("triggering TRUE Summary Compaction (Legacy Agent)", { sessionID: input.sessionID })
-    const model = agent.model
-      ? await Provider.getModel(agent.model.providerId, agent.model.modelID)
-      : await Provider.getModel(userMessage.model.providerId, userMessage.model.modelID)
-
-    // T5.2: Skip B (LLM compaction) if model cannot meaningfully summarize
-    if (!canSummarize(model)) {
-      log.warn("skipping LLM compaction: model context too small for meaningful summary (D fallback)", {
-        sessionID: input.sessionID,
-        modelID: model.id,
-        contextLimit: model.limit?.context,
-      })
-      return "stop"
-    }
-    const agentModel = agent.model as { accountId?: string } | undefined
-    // Read session's pinned execution identity so compaction inherits the
-    // account the user was actually using, not the global-active fallback.
-    // Without this, compaction resolves to global-active and then the
-    // processor pins that account onto the session — silently overwriting
-    // the user's chosen account.
-    const session = await Session.get(input.sessionID)
-    const accountId = agentModel?.accountId ?? userMessage.model.accountId ?? session?.execution?.accountId
-    const msg = (await Session.updateMessage({
-      id: Identifier.ascending("message"),
-      role: "assistant",
+    // Plugin path bailed — fall through to LLM agent. Phase 7b: this body
+    // delegates to runLlmCompactionAgent so the same code drives both the
+    // legacy `process()` and the new `tryLlmAgent` executor.
+    const summaryText = await runLlmCompactionAgent({
+      sessionID: input.sessionID,
       parentID: input.parentID,
-      sessionID: input.sessionID,
-      mode: "compaction",
-      agent: "compaction",
-      variant: userMessage.variant,
-      summary: true,
-      path: {
-        cwd: Instance.directory,
-        root: Instance.worktree,
-      },
-      cost: 0,
-      tokens: {
-        output: 0,
-        input: 0,
-        reasoning: 0,
-        cache: { read: 0, write: 0 },
-      },
-      modelID: model.id,
-      providerId: model.providerId,
-      accountId,
-      time: {
-        created: Date.now(),
-      },
-    })) as MessageV2.Assistant
-    const processor = SessionProcessor.create({
-      assistantMessage: msg,
-      sessionID: input.sessionID,
-      model,
-      accountId,
-      abort: input.abort,
-    })
-    // Allow plugins to inject context or replace compaction prompt
-    const compacting = await Plugin.trigger(
-      "experimental.session.compacting",
-      { sessionID: input.sessionID },
-      { context: [], prompt: undefined },
-    )
-    const history = truncateModelMessagesForSmallContext({
+      userMessage,
       messages: input.messages,
-      model,
-      sessionID: input.sessionID,
-    })
-    const defaultPrompt = `Provide a detailed prompt for continuing our conversation above.
-Focus on information that would be helpful for continuing the conversation, including what we did, what we're doing, which files we're working on, and what we're going to do next.
-The summary that you construct will be used so that another agent can read it and continue the work.
-
-When constructing the summary, try to stick to this template:
----
-## Goal
-
-[What goal(s) is the user trying to accomplish?]
-
-## Instructions
-
-- [What important instructions did the user give you that are relevant]
-- [If there is a plan or spec, include information about it so next agent can continue using it]
-
-## Discoveries
-
-[What notable things were learned during this conversation that would be useful for the next agent to know when continuing the work]
-
-## Accomplished
-
-[What work has been completed, what work is still in progress, and what work is left?]
-
-## Relevant files / directories
-
-[Construct a structured list of relevant files that have been read, edited, or created that pertain to the task at hand. If all the files in a directory are relevant, include the path to the directory.]
----`
-
-    const promptText = compacting.prompt ?? [defaultPrompt, ...compacting.context].join("\n\n")
-    const result = await processor.process({
-      user: userMessage,
-      agent,
       abort: input.abort,
-      sessionID: input.sessionID,
-      tools: {},
-      system: [],
-      messages: sanitizeOrphanedToolCalls([
-        ...history.messages,
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: promptText,
-            },
-          ],
-        },
-      ]),
-      model,
-    })
-
-    if (result === "continue" && input.auto) {
-      const continueMsg = await Session.updateMessage({
-        id: Identifier.ascending("message"),
-        role: "user",
-        sessionID: input.sessionID,
-        time: {
-          created: Date.now(),
-        },
-        agent: userMessage.agent,
-        model: userMessage.model,
-        format: userMessage.format,
-        variant: userMessage.variant,
-      })
-      await Session.updatePart({
-        id: Identifier.ascending("part"),
-        messageID: continueMsg.id,
-        sessionID: input.sessionID,
-        type: "text",
-        synthetic: true,
-        text: "Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.",
-        time: {
-          start: Date.now(),
-          end: Date.now(),
-        },
-      })
-    }
-    if (processor.message.error) return "stop"
-
-    // Write the compaction boundary anchor on the summary assistant message.
-    // filterCompacted() uses this as the authoritative truncation point.
-    // (Previously, create()'s "compaction-request" trigger marker was mistakenly
-    // used as the boundary, but that caused premature truncation before the
-    // summary was written.)
-    await Session.updatePart({
-      id: Identifier.ascending("part"),
-      messageID: processor.message.id,
-      sessionID: input.sessionID,
-      type: "compaction",
       auto: input.auto,
-    })
-
-    Bus.publish(Event.Compacted, { sessionID: input.sessionID })
-
-    // T3.3: Save checkpoint after B (LLM) compaction
-    const summaryMsg = (await Session.messages({ sessionID: input.sessionID }))
-      .findLast((m) => m.info.id === processor.message.id)
-    const summaryText = summaryMsg?.parts
-      .filter((p) => p.type === "text")
-      .map((p) => (p as any).text ?? "")
-      .join("\n")
-    if (summaryText) {
-      void saveCheckpointAfterCompaction({
+    }).catch((err) => {
+      log.warn("LLM compaction agent threw", {
         sessionID: input.sessionID,
-        source: "llm",
-        summary: summaryText,
-        lastMessageId: input.parentID,
+        error: err instanceof Error ? err.message : String(err),
       })
+      return null
+    })
+    if (!summaryText) return "stop"
+
+    if (input.auto) {
+      // Legacy process() injected Continue inline; phase 7b keeps the
+      // existing behaviour for legacy callers (compaction-request branch
+      // in prompt.ts). Once that branch is deleted in phase 7, this block
+      // dies along with `process()` itself.
+      await injectContinueAfterAnchor(input.sessionID, "manual")
     }
 
     return "continue"
@@ -1257,6 +1102,13 @@ When constructing the summary, try to stick to this template:
     observed: Observed
     step: number
     intent?: "default" | "rich"
+    /**
+     * Abort signal for the kind chain, threaded through to executors that
+     * make API calls (low-cost-server, llm-agent). Optional: when omitted,
+     * a fresh AbortController is used internally so the legacy callers
+     * that don't supply one still work.
+     */
+    abort?: AbortSignal
   }
 
   export type RunResult = "continue" | "stop"
@@ -1320,10 +1172,18 @@ When constructing the summary, try to stick to this template:
     }
   }
 
-  /** Result of attempting a single kind in the chain. */
+  /**
+   * Result of attempting a single kind in the chain.
+   *
+   * `anchorWritten`: when true, the executor already wrote the anchor message
+   * itself (used by `tryLlmAgent`, where the LLM round needs an already-
+   * persisted assistant message to write parts into). run() detects this and
+   * skips the _writeAnchor call. For all other kinds, leave it false/absent
+   * and run() handles the anchor write through `compactWithSharedContext`.
+   */
   type KindAttempt =
     | { ok: false; reason: string }
-    | { ok: true; summaryText: string; kind: KindName }
+    | { ok: true; summaryText: string; kind: KindName; anchorWritten?: boolean }
 
   async function tryNarrative(input: RunInput, model: Provider.Model | undefined): Promise<KindAttempt> {
     const mem = await Memory.read(input.sessionID)
@@ -1510,17 +1370,197 @@ When constructing the summary, try to stick to this template:
   }
 
   /**
-   * LLM-agent executor (kind 5). Final fallback. Currently a stub that
-   * returns false: phase 6 wires the runloop, after which the legacy
-   * `process()` code path can be deleted and its LLM-round logic moved
-   * here. Until that refactor lands, callers that exhaust the chain
-   * fall through to caller's legacy path.
+   * LLM-agent executor (kind 5). Phase 7b extraction: drives a full LLM
+   * compaction round via SessionProcessor, returns the resulting summary
+   * text. The assistant summary message + compaction part (i.e. the
+   * Anchor) are written inline by this path because the LLM round
+   * requires an already-persisted message to write parts into. Returns
+   * with `anchorWritten: true` so run() skips the redundant _writeAnchor
+   * call.
    *
-   * TODO(phase 6+): extract LLM-round core from process(); call here;
-   * return summary text without writing anchor.
+   * Final fallback in the cost-monotonic chain. Most expensive: a full
+   * LLM completion with the compaction agent's prompt template.
    */
-  async function tryLlmAgent(_input: RunInput, _model: Provider.Model | undefined): Promise<KindAttempt> {
-    return { ok: false, reason: "kind=llm-agent not yet implemented (phase 6+ refactor)" }
+  async function tryLlmAgent(input: RunInput, _model: Provider.Model | undefined): Promise<KindAttempt> {
+    const messages = await Session.messages({ sessionID: input.sessionID }).catch(() => undefined)
+    if (!messages || messages.length === 0) return { ok: false, reason: "no messages to compact" }
+    const userMessage = messages.findLast((m) => m.info.role === "user")?.info as MessageV2.User | undefined
+    if (!userMessage) return { ok: false, reason: "no user message" }
+    const parentID = messages.at(-1)?.info.id
+    if (!parentID) return { ok: false, reason: "empty stream" }
+
+    try {
+      const summaryText = await runLlmCompactionAgent({
+        sessionID: input.sessionID,
+        parentID,
+        userMessage,
+        messages,
+        abort: input.abort ?? new AbortController().signal,
+        // The auto flag controls Continue injection inside the legacy path,
+        // but with phase 7b run() owns Continue injection — so always pass
+        // false here. INJECT_CONTINUE[observed] in run() decides separately.
+        auto: false,
+      })
+      if (!summaryText) return { ok: false, reason: "llm-agent produced empty summary" }
+      return { ok: true, summaryText, kind: "llm-agent", anchorWritten: true }
+    } catch (err) {
+      return {
+        ok: false,
+        reason: `llm-agent threw: ${err instanceof Error ? err.message : String(err)}`,
+      }
+    }
+  }
+
+  /**
+   * Phase 7b: extracted LLM-round core from `process()`. Drives a full
+   * compaction LLM call via SessionProcessor and writes the resulting
+   * summary as an Anchor (assistant message with summary:true + compaction
+   * part). Returns the summary text. Reused by both `tryLlmAgent` and the
+   * legacy `process()` (which still owns Continue injection + checkpoint
+   * save during the transition).
+   */
+  async function runLlmCompactionAgent(input: {
+    sessionID: string
+    parentID: string
+    userMessage: MessageV2.User
+    messages: MessageV2.WithParts[]
+    abort: AbortSignal
+    auto: boolean
+  }): Promise<string | null> {
+    Bus.publish(Event.CompactionStarted, { sessionID: input.sessionID, mode: "llm" })
+
+    const agent = await Agent.get("compaction")
+    log.info("triggering TRUE Summary Compaction (LLM agent)", { sessionID: input.sessionID })
+    const model = agent.model
+      ? await Provider.getModel(agent.model.providerId, agent.model.modelID)
+      : await Provider.getModel(input.userMessage.model.providerId, input.userMessage.model.modelID)
+
+    if (!canSummarize(model)) {
+      log.warn("skipping LLM compaction: model context too small for meaningful summary", {
+        sessionID: input.sessionID,
+        modelID: model.id,
+        contextLimit: model.limit?.context,
+      })
+      return null
+    }
+
+    const agentModel = agent.model as { accountId?: string } | undefined
+    const session = await Session.get(input.sessionID)
+    const accountId =
+      agentModel?.accountId ?? input.userMessage.model.accountId ?? session?.execution?.accountId
+
+    const msg = (await Session.updateMessage({
+      id: Identifier.ascending("message"),
+      role: "assistant",
+      parentID: input.parentID,
+      sessionID: input.sessionID,
+      mode: "compaction",
+      agent: "compaction",
+      variant: input.userMessage.variant,
+      summary: true,
+      path: { cwd: Instance.directory, root: Instance.worktree },
+      cost: 0,
+      tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+      modelID: model.id,
+      providerId: model.providerId,
+      accountId,
+      time: { created: Date.now() },
+    })) as MessageV2.Assistant
+
+    const processor = SessionProcessor.create({
+      assistantMessage: msg,
+      sessionID: input.sessionID,
+      model,
+      accountId,
+      abort: input.abort,
+    })
+
+    const compacting = await Plugin.trigger(
+      "experimental.session.compacting",
+      { sessionID: input.sessionID },
+      { context: [], prompt: undefined },
+    )
+    const history = truncateModelMessagesForSmallContext({
+      messages: input.messages,
+      model,
+      sessionID: input.sessionID,
+    })
+    const defaultPrompt = `Provide a detailed prompt for continuing our conversation above.
+Focus on information that would be helpful for continuing the conversation, including what we did, what we're doing, which files we're working on, and what we're going to do next.
+The summary that you construct will be used so that another agent can read it and continue the work.
+
+When constructing the summary, try to stick to this template:
+---
+## Goal
+
+[What goal(s) is the user trying to accomplish?]
+
+## Instructions
+
+- [What important instructions did the user give you that are relevant]
+- [If there is a plan or spec, include information about it so next agent can continue using it]
+
+## Discoveries
+
+[What notable things were learned during this conversation that would be useful for the next agent to know when continuing the work]
+
+## Accomplished
+
+[What work has been completed, what work is still in progress, and what work is left?]
+
+## Relevant files / directories
+
+[Construct a structured list of relevant files that have been read, edited, or created that pertain to the task at hand. If all the files in a directory are relevant, include the path to the directory.]
+---`
+    const promptText = compacting.prompt ?? [defaultPrompt, ...compacting.context].join("\n\n")
+
+    const result = await processor.process({
+      user: input.userMessage,
+      agent,
+      abort: input.abort,
+      sessionID: input.sessionID,
+      tools: {},
+      system: [],
+      messages: sanitizeOrphanedToolCalls([
+        ...history.messages,
+        { role: "user", content: [{ type: "text", text: promptText }] },
+      ]),
+      model,
+    })
+
+    if (processor.message.error) return null
+    if (result !== "continue") return null
+
+    // Write the compaction boundary anchor on the summary assistant message.
+    await Session.updatePart({
+      id: Identifier.ascending("part"),
+      messageID: processor.message.id,
+      sessionID: input.sessionID,
+      type: "compaction",
+      auto: input.auto,
+    })
+
+    Bus.publish(Event.Compacted, { sessionID: input.sessionID })
+
+    // Read summary text out for the caller (and the checkpoint save below).
+    const summaryMsg = (await Session.messages({ sessionID: input.sessionID })).findLast(
+      (m) => m.info.id === processor.message.id,
+    )
+    const summaryText = summaryMsg?.parts
+      .filter((p) => p.type === "text")
+      .map((p) => (p as any).text ?? "")
+      .join("\n") ?? ""
+
+    if (summaryText) {
+      void saveCheckpointAfterCompaction({
+        sessionID: input.sessionID,
+        source: "llm",
+        summary: summaryText,
+        lastMessageId: input.parentID,
+      })
+    }
+
+    return summaryText
   }
 
   async function tryKind(kind: KindName, input: RunInput, model: Provider.Model | undefined): Promise<KindAttempt> {
@@ -1601,7 +1641,14 @@ When constructing the summary, try to stick to this template:
         reason: attempt.ok ? undefined : attempt.reason,
       })
       if (attempt.ok) {
-        if (model) {
+        if (attempt.anchorWritten) {
+          // Executor already wrote the anchor (tryLlmAgent uses an inline
+          // SessionProcessor.process flow that requires a persisted message).
+          // Skip _writeAnchor; still inject Continue + markCompacted below.
+          if (INJECT_CONTINUE[observed]) {
+            await injectContinueAfterAnchor(sessionID, observed)
+          }
+        } else if (model) {
           await _writeAnchor({
             sessionID,
             summaryText: attempt.summaryText,
@@ -1630,6 +1677,40 @@ When constructing the summary, try to stick to this template:
 
     log.warn("compaction.chain_exhausted", { sessionID, observed, step })
     return "stop"
+  }
+
+  /**
+   * Phase 7b: inject the synthetic Continue user message after a kind-5
+   * anchor write (where the executor wrote the anchor inline). Mirrors the
+   * Continue injection behaviour of `compactWithSharedContext(auto:true)`,
+   * factored out so run() controls Continue placement uniformly.
+   */
+  async function injectContinueAfterAnchor(sessionID: string, observed: Observed) {
+    const messages = await Session.messages({ sessionID }).catch(() => [])
+    const userMessage = messages.findLast((m) => m.info.role === "user")?.info as MessageV2.User | undefined
+    if (!userMessage) {
+      log.warn("compaction.run injectContinue: no user message found, skipping", { sessionID, observed })
+      return
+    }
+    const continueMsg = await Session.updateMessage({
+      id: Identifier.ascending("message"),
+      role: "user",
+      sessionID,
+      time: { created: Date.now() },
+      agent: userMessage.agent,
+      model: userMessage.model,
+      format: userMessage.format,
+      variant: userMessage.variant,
+    })
+    await Session.updatePart({
+      id: Identifier.ascending("part"),
+      messageID: continueMsg.id,
+      sessionID,
+      type: "text",
+      synthetic: true,
+      text: "Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.",
+      time: { start: Date.now(), end: Date.now() },
+    })
   }
 
   /**

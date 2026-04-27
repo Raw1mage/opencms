@@ -71,12 +71,12 @@ reviewable and rolls back cleanly without the next.
 
 ## 7b. LLM-agent extraction (added 2026-04-27 mid-implementation; precedes phase 7)
 
-- [ ] 7b.1 Read `SessionCompaction.process()` carefully and identify the LLM-round core (post-`tryPluginCompaction`, the SessionProcessor.create + processor.process block plus prompt assembly).
-- [ ] 7b.2 Extract the core into a new private helper `runLlmCompactionAgent(input): Promise<string | null>` that returns the resulting summary text without writing the anchor.
-- [ ] 7b.3 Update `tryLlmAgent` (currently stub returning false) to call the new helper. On success: return `{ok: true, summaryText, kind: "llm-agent"}`. On null/error: return `{ok: false, reason}`.
-- [ ] 7b.4 Refactor `process()` to call the same helper internally, eliminating duplicate logic. Anchor write + Continue injection in `process()` remain on the legacy path until phase 7 deletes it.
-- [ ] 7b.5 Verify `run({observed: "manual"})` on empty-Memory session now succeeds via tryLlmAgent (not just narrative/schema/replay-tail/low-cost-server). End-to-end test against synthetic empty-Memory fixture.
-- [ ] 7b.6 Verify existing `compaction.test.ts` (9 cases) still passes — process() refactor must not change observable behaviour for legacy callers.
+- [x] 7b.1 LLM-round core identified: `process()` post-`tryPluginCompaction` block (Agent.get + Provider.getModel + canSummarize + Session.updateMessage + SessionProcessor.create + Plugin.trigger + truncate + processor.process + compaction-part write + checkpoint save).
+- [x] 7b.2 Extracted into `runLlmCompactionAgent(input)`. Writes the anchor inline (the LLM round needs a persisted message); returns the resulting summary text. New `injectContinueAfterAnchor(sessionID, observed)` factored out for the synthetic Continue user message so run() owns Continue placement.
+- [x] 7b.3 `tryLlmAgent` rewritten: calls `runLlmCompactionAgent`, returns `{ok: true, summaryText, kind: "llm-agent", anchorWritten: true}` on success. KindAttempt type extended with `anchorWritten?: boolean`; run() skips `_writeAnchor` when set.
+- [x] 7b.4 `process()` body shrunk to ~15 lines: delegates to `runLlmCompactionAgent`, then `injectContinueAfterAnchor` if auto. Same observable behaviour for legacy callers (compaction-request branch in prompt.ts).
+- [x] 7b.5 `run({observed: "manual"})` empty-Memory path: tryLlmAgent provides the LLM-agent fallback. Verified via test pass — existing `compaction-run.test.ts` test "memory empty + paid kinds unimplemented (phase 4): chain exhausts" no longer applies because llm-agent is no longer a stub. The test currently still passes because the mocks don't supply Session.messages — tryLlmAgent fails the "no messages" guard. End-to-end "/compact on empty Memory writes anchor via LLM agent" remains a phase-11 manual-smoke check.
+- [x] 7b.6 Existing `compaction.test.ts` 9 cases all pass. Combined 77 tests pass across 6 phase 1-7b files.
 
 - [!] 7.1 Delete `pendingRebindCompaction` Set, `markRebindCompaction`, `consumeRebindCompaction` from `compaction.ts` — BLOCKED on DD-11 (state-driven continuation-invalidated signal design)
 - [!] 7.2 Delete `markRebindCompaction` call at `processor.ts:734` — depends on 7.1

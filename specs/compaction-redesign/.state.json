@@ -127,6 +127,19 @@
       "reason": "post-task sync, clean",
       "result": "clean",
       "commit": "1bf92f73943220c4bbec3df2e37a62223766ee94"
+    },
+    {
+      "at": "2026-04-27T21:11:50.127Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/session/compaction-run.test.ts, packages/opencode/src/session/index.ts, packages/opencode/src/session/prompt.observed-condition.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/session/compaction-run.test.ts",
+        "packages/opencode/src/session/index.ts",
+        "packages/opencode/src/session/prompt.observed-condition.test.ts"
+      ],
+      "commit": "a6c53ac08f81bf3497d588156ae5bf5ba53a75d2"
     }
   ]
 }
