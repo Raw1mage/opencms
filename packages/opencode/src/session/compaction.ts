@@ -77,7 +77,15 @@ export namespace SessionCompaction {
     timestamp: number
     source: string
     snapshot: string
-    lastMessageId: string
+    /**
+     * Phase 8 / DD-8: anchor unification. New writes omit `lastMessageId`;
+     * recovery scans the message stream for the most recent `summary: true`
+     * assistant message and uses its id as the boundary. Legacy checkpoints
+     * (pre-phase-8) carry the field; readers fall back to it when no anchor
+     * is present in the stream (e.g. when restart-restore happens before
+     * the first runloop iteration captures a fresh anchor).
+     */
+    lastMessageId?: string
     opaqueItems?: unknown[]
   }
 
@@ -104,12 +112,13 @@ export namespace SessionCompaction {
 
   export async function saveRebindCheckpoint(input: {
     sessionID: string
+    /** @deprecated phase 8 (DD-8): no longer required. Recovery scans the message stream for the most recent summary anchor. */
     lastMessageId?: string
     currentRound: number
   }) {
     try {
       const snap = await SharedContext.snapshot(input.sessionID)
-      if (!snap || !input.lastMessageId) return
+      if (!snap) return
 
       _lastCheckpointRound.set(input.sessionID, input.currentRound)
 
@@ -127,12 +136,18 @@ export namespace SessionCompaction {
   /**
    * Unified checkpoint save — called by BOTH A (codex-server) and B (LLM) compaction paths.
    * Non-blocking when called as fire-and-forget.
+   *
+   * Phase 8 (DD-8): `lastMessageId` is now optional. New writes can omit it
+   * (the message stream itself carries the anchor — `summary: true` assistant
+   * message). Field is retained on the on-disk schema so legacy checkpoints
+   * still load and so out-of-process consumers that depended on the field
+   * see no change in shape.
    */
   export async function saveCheckpointAfterCompaction(input: {
     sessionID: string
     source: string
     summary: string
-    lastMessageId: string
+    lastMessageId?: string
     opaqueItems?: unknown[]
   }) {
     try {
@@ -196,6 +211,43 @@ export namespace SessionCompaction {
     }
   }
 
+  /**
+   * Find the boundary index for rebind recovery (DD-8 anchor unification).
+   *
+   * Priority:
+   *   1. Most recent `summary: true` assistant message in the stream — the
+   *      canonical Anchor. Boundary = that message's index (we keep the
+   *      anchor itself; rebind treats it as the synthetic summary head).
+   *   2. Legacy fallback: checkpoint's `lastMessageId` field (if set).
+   *      Pre-phase-8 checkpoints carry it; boundary = the message with
+   *      that id, and we slice AFTER it.
+   *
+   * Returns -1 when no boundary can be found.
+   */
+  function findRebindBoundaryIndex(
+    messages: MessageV2.WithParts[],
+    checkpointLastMessageId: string | undefined,
+  ): { index: number; sliceFrom: number } {
+    // Anchor lookup — canonical post-DD-8 path.
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const info = messages[i].info
+      if (info.role === "assistant" && (info as MessageV2.Assistant).summary === true) {
+        // Boundary IS the anchor. Slice from index + 1 to keep the anchor
+        // out of the post-boundary set; the synthetic summary built below
+        // replaces it conceptually.
+        return { index: i, sliceFrom: i + 1 }
+      }
+    }
+    // Legacy fallback — checkpoint carries lastMessageId from pre-phase-8.
+    if (checkpointLastMessageId) {
+      const idx = messages.findIndex((message) => message.info.id === checkpointLastMessageId)
+      if (idx !== -1) {
+        return { index: idx, sliceFrom: idx + 1 }
+      }
+    }
+    return { index: -1, sliceFrom: -1 }
+  }
+
   export function applyRebindCheckpoint(input: {
     sessionID: string
     checkpoint: RebindCheckpoint
@@ -204,10 +256,10 @@ export namespace SessionCompaction {
   }):
     | { applied: false; reason: "boundary_missing" | "unsafe_boundary" | "no_post_boundary" }
     | { applied: true; messages: MessageV2.WithParts[] } {
-    const boundaryIndex = input.messages.findIndex((message) => message.info.id === input.checkpoint.lastMessageId)
-    if (boundaryIndex === -1) return { applied: false, reason: "boundary_missing" }
+    const { sliceFrom } = findRebindBoundaryIndex(input.messages, input.checkpoint.lastMessageId)
+    if (sliceFrom === -1) return { applied: false, reason: "boundary_missing" }
 
-    const postBoundary = input.messages.slice(boundaryIndex + 1)
+    const postBoundary = input.messages.slice(sliceFrom)
     if (postBoundary.length === 0) return { applied: false, reason: "no_post_boundary" }
 
     const firstPost = postBoundary[0]
@@ -217,12 +269,17 @@ export namespace SessionCompaction {
     if (unsafeBoundary) return { applied: false, reason: "unsafe_boundary" }
 
     const summaryMessageID = Identifier.ascending("message")
+    // Use the boundary message's id as parentID when available (anchor scan
+    // returns the actual anchor's index; legacy fallback also yields a real
+    // message id). For absolute defensive cases, fall back to checkpoint.lastMessageId.
+    const boundaryIndex = sliceFrom > 0 ? sliceFrom - 1 : 0
+    const parentID = input.messages[boundaryIndex]?.info.id ?? input.checkpoint.lastMessageId ?? ""
     const syntheticSummary: MessageV2.WithParts = {
       info: {
         id: summaryMessageID,
         sessionID: input.sessionID,
         role: "assistant",
-        parentID: input.checkpoint.lastMessageId,
+        parentID,
         mode: "rebind",
         agent: "rebind-checkpoint",
         modelID: input.model.id,

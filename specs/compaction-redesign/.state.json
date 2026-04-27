@@ -156,6 +156,17 @@
       "reason": "post-task sync, clean",
       "result": "clean",
       "commit": "b13066c1fa20dc7469674e87b5b6d929bc398d34"
+    },
+    {
+      "at": "2026-04-27T21:33:16.466Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/session/prompt.observed-condition.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/session/prompt.observed-condition.test.ts"
+      ],
+      "commit": "ca313a9d3edd9e8b45b8edd8d9dfef41a8428941"
     }
   ]
 }

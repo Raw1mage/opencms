@@ -465,21 +465,30 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
   })
 
   it("phase 5 — replay-tail respects rawTailBudget for token estimation (over-budget falls through)", async () => {
-    // Synthesize 60 rounds of moderate text so replay-tail goes over 30% budget
-    // (60 × 5000 chars = 300K chars ≈ 75K tokens > 30% of fakeModel's 272K = 81K budget...
-    //  use longer text to be safely over)
-    const longText = "x".repeat(8000)
+    // Synthesize 20 rounds of moderate text — enough to exceed 30% of a SMALL
+    // model context. We use a tiny fake model context (8000 tokens → 30% =
+    // 2400 tokens budget; 20 × 2000 chars = 40000 chars ≈ 10K tokens, well
+    // over) so test stays fast and deterministic.
+    const longText = "x".repeat(2000)
     const longMsgs = []
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 20; i++) {
       longMsgs.push({
         info: { id: `msg_${i}`, role: i % 2 === 0 ? "user" : "assistant" },
         parts: [{ type: "text", text: longText }],
       })
     }
     setupCommonMocks(
-      { turnSummaries: [], rawTailBudget: 60 }, // budget tells executor to take all 60
+      { turnSummaries: [], rawTailBudget: 20 },
       "ses_run_replay_overbudget",
     )
+    // Override Provider.getModel to return a tiny-context model so replay-tail
+    // budget check fires deterministically without huge synthetic payloads.
+    ;(Provider as any).getModel = mock(async () => ({
+      id: "tiny-model",
+      providerId: "openai",
+      limit: { context: 8000, input: 8000, output: 1000 },
+      cost: { input: 1 },
+    }))
     ;(SharedContext as any).snapshot = mock(async () => undefined)
     ;(Session as any).messages = mock(async () => longMsgs)
     const writes: any[] = []

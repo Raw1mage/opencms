@@ -379,4 +379,105 @@ describe("SessionCompaction cooldown guard", () => {
   // run({observed: "rebind"}) which exercises the same defenses
   // (INV-3 no-Continue, INV-2 single-anchor-with-cooldown) on the new
   // state-driven path.
+
+  // ── Phase 8 / DD-8: anchor unification ─────────────────────────────
+
+  it("phase 8: applyRebindCheckpoint locates boundary via summary anchor in stream", () => {
+    const model = { id: "gpt-5.4", providerId: "openai" } as any
+    // Stream contains a summary anchor at msg_a1 — that's the canonical
+    // boundary regardless of any lastMessageId in the checkpoint.
+    const messages = [
+      {
+        info: {
+          id: "msg_u1",
+          sessionID: "ses_p8_anchor",
+          role: "user",
+          agent: "default",
+          model: { providerId: "openai", modelID: "gpt-5.4" },
+          time: { created: 1 },
+        },
+        parts: [{ id: "p1", messageID: "msg_u1", sessionID: "ses_p8_anchor", type: "text", text: "earlier" }],
+      },
+      {
+        info: {
+          id: "msg_a1",
+          sessionID: "ses_p8_anchor",
+          role: "assistant",
+          parentID: "msg_u1",
+          mode: "compaction",
+          agent: "compaction",
+          modelID: "gpt-5.4",
+          providerId: "openai",
+          path: { cwd: "/tmp", root: "/tmp" },
+          cost: 0,
+          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          summary: true,
+          time: { created: 5, completed: 5 },
+        },
+        parts: [{ id: "p2", messageID: "msg_a1", sessionID: "ses_p8_anchor", type: "text", text: "<summary>" }],
+      },
+      {
+        info: {
+          id: "msg_u2",
+          sessionID: "ses_p8_anchor",
+          role: "user",
+          agent: "default",
+          model: { providerId: "openai", modelID: "gpt-5.4" },
+          time: { created: 6 },
+        },
+        parts: [{ id: "p3", messageID: "msg_u2", sessionID: "ses_p8_anchor", type: "text", text: "post-anchor user" }],
+      },
+    ] as any
+
+    const applied = SessionCompaction.applyRebindCheckpoint({
+      sessionID: "ses_p8_anchor",
+      checkpoint: {
+        sessionID: "ses_p8_anchor",
+        timestamp: 10,
+        snapshot: "checkpoint snapshot",
+        // No lastMessageId — phase 8 writes don't include it.
+      },
+      messages,
+      model,
+    })
+
+    expect(applied.applied).toBe(true)
+    if (!applied.applied) throw new Error("expected applied")
+    // Synthetic summary head + post-anchor user
+    expect(applied.messages).toHaveLength(2)
+    expect((applied.messages[0].info as any).summary).toBe(true)
+    expect((applied.messages[0].parts[0] as any).text).toContain("checkpoint snapshot")
+    expect(applied.messages[1].info.id).toBe("msg_u2")
+  })
+
+  it("phase 8: applyRebindCheckpoint with no anchor + no lastMessageId returns boundary_missing", () => {
+    const model = { id: "gpt-5.4", providerId: "openai" } as any
+    const messages = [
+      {
+        info: {
+          id: "msg_u1",
+          sessionID: "ses_p8_no_boundary",
+          role: "user",
+          agent: "default",
+          model: { providerId: "openai", modelID: "gpt-5.4" },
+          time: { created: 1 },
+        },
+        parts: [],
+      },
+    ] as any
+    const applied = SessionCompaction.applyRebindCheckpoint({
+      sessionID: "ses_p8_no_boundary",
+      checkpoint: {
+        sessionID: "ses_p8_no_boundary",
+        timestamp: 1,
+        snapshot: "x",
+        // no lastMessageId, no anchor
+      },
+      messages,
+      model,
+    })
+    expect(applied.applied).toBe(false)
+    if (applied.applied) throw new Error("expected not applied")
+    expect(applied.reason).toBe("boundary_missing")
+  })
 })

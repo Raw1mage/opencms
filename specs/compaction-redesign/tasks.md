@@ -87,10 +87,10 @@ reviewable and rolls back cleanly without the next.
 
 ## 8. Anchor unification (DD-8)
 
-- [ ] 8.1 Drop `lastMessageId` from rebind-checkpoint write path; on-disk format becomes `{sessionID, snapshot, timestamp}`
-- [ ] 8.2 Update rebind-startup recovery to read most-recent compaction part from message stream (replaces lastMessageId lookup)
-- [ ] 8.3 Legacy checkpoints retain readable `lastMessageId` field; new code ignores it
-- [ ] 8.4 Manual smoke: kill daemon mid-session, restart, verify session resumes correctly using new anchor-only recovery path
+- [x] 8.1 `lastMessageId` is now optional on `RebindCheckpoint` and `saveCheckpointAfterCompaction`. New writes from prompt.ts:1786 omit it. Field retained on the schema so legacy checkpoints still parse.
+- [x] 8.2 `applyRebindCheckpoint` now uses a new `findRebindBoundaryIndex` helper: scans messages backward for the most recent `summary: true` assistant message; falls back to checkpoint's `lastMessageId` only when no anchor is in the stream.
+- [x] 8.3 Legacy backward-read works: existing 2 tests with `lastMessageId: "msg_2"` (and no summary anchor in their stream) still pass via the legacy fallback branch.
+- [~] 8.4 Manual smoke deferred to phase 11 (acceptance) — needs daemon restart in beta worktree. Unit tests cover both the anchor-scan path (new) and legacy-lastMessageId path (existing).
 
 ## 9. Deprecation shim layer
 

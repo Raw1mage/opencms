@@ -1783,9 +1783,10 @@ export namespace SessionPrompt {
           step,
           boundaryId: msgs.at(-1)?.info.id,
         })
+        // Phase 8 / DD-8: lastMessageId no longer required. Recovery scans
+        // the message stream for the most recent summary anchor.
         SessionCompaction.saveRebindCheckpoint({
           sessionID,
-          lastMessageId: msgs.at(-1)?.info.id,
           currentRound: step,
         }).catch(() => {})
       }
