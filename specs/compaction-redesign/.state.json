@@ -64,6 +64,17 @@
         "packages/opencode/src/session/memory.test.ts"
       ],
       "commit": "e9ffe498a0dcade35a1c6361bb5e70055b2b7fe9"
+    },
+    {
+      "at": "2026-04-27T20:27:59.633Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/session/prompt.turn-summary-capture.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/session/prompt.turn-summary-capture.test.ts"
+      ],
+      "commit": "99a48cba6f4ffbdcf214b92c638314343f9f345e"
     }
   ]
 }

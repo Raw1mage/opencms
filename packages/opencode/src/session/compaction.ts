@@ -19,6 +19,7 @@ import { Config } from "@/config/config"
 import { ProviderTransform } from "@/provider/transform"
 import { SessionPrompt } from "./prompt"
 import { SharedContext } from "./shared-context"
+import { Memory } from "./memory"
 import { ContinuationInvalidatedEvent } from "../plugin/codex-auth"
 
 const SessionDeletedEvent = BusEvent.define(
@@ -1229,4 +1230,257 @@ When constructing the summary, try to stick to this template:
       })
     },
   )
+
+  // ── compaction-redesign phase 4 — single entry point + tables ────────
+  // See specs/compaction-redesign/{spec.md, design.md, data-schema.json}.
+  // DD-9: SessionCompaction.run is the single entry point for every
+  // compaction execution. Triggers are observed conditions (not signals).
+  // Kind selection is a data table walk, not branching code.
+
+  export type Observed =
+    | "overflow"
+    | "cache-aware"
+    | "rebind"
+    | "continuation-invalidated"
+    | "provider-switched"
+    | "manual"
+    | "idle"
+
+  export type KindName = "narrative" | "schema" | "replay-tail" | "low-cost-server" | "llm-agent"
+
+  export type RunInput = {
+    sessionID: string
+    observed: Observed
+    step: number
+    intent?: "default" | "rich"
+  }
+
+  export type RunResult = "continue" | "stop"
+
+  /**
+   * Cost-monotonic kind chains per observed condition.
+   * - free narrative + schema + replay-tail: kinds 1-3
+   * - low-cost-server: codex/openai /responses/compact (kind 4)
+   * - llm-agent: full LLM round (kind 5)
+   *
+   * `rebind` / `continuation-invalidated` chains stop at kind 3 — these
+   * triggers are maintenance, not enrichment, so the runloop should not
+   * burn quota on them. `provider-switched` stops at kind 2 because raw
+   * tail (3) and codex format (4) carry provider-specific tool format.
+   * `manual` skips schema (no narrative preserved → defeats user intent)
+   * and goes free → low-cost → expensive.
+   */
+  const KIND_CHAIN: Readonly<Record<Observed, ReadonlyArray<KindName>>> = Object.freeze({
+    "overflow": Object.freeze(["narrative", "schema", "replay-tail", "low-cost-server", "llm-agent"] as const),
+    "cache-aware": Object.freeze(["narrative", "schema", "replay-tail", "low-cost-server", "llm-agent"] as const),
+    "idle": Object.freeze(["narrative", "schema", "replay-tail"] as const),
+    "rebind": Object.freeze(["narrative", "schema", "replay-tail"] as const),
+    "continuation-invalidated": Object.freeze(["narrative", "schema", "replay-tail"] as const),
+    "provider-switched": Object.freeze(["narrative", "schema"] as const),
+    "manual": Object.freeze(["narrative", "low-cost-server", "llm-agent"] as const),
+  })
+
+  /**
+   * Whether a synthetic "Continue if you have next steps..." user message
+   * is appended after the anchor. Only system-driven token-pressure triggers
+   * permit it. Per R-6, rebind / continuation-invalidated / provider-switched
+   * never inject Continue — that gate's the 2026-04-27 infinite loop bug
+   * structurally extinct.
+   */
+  const INJECT_CONTINUE: Readonly<Record<Observed, boolean>> = Object.freeze({
+    "overflow": true,
+    "cache-aware": true,
+    "idle": true,
+    "rebind": false,
+    "continuation-invalidated": false,
+    "provider-switched": false,
+    "manual": false,
+  })
+
+  /**
+   * Cooldown helper. DD-7: Memory.lastCompactedAt is the source-of-truth;
+   * the legacy in-memory `cooldownState` Map is removed in phase 7.
+   */
+  export namespace Cooldown {
+    /** Default rebind cooldown window (rounds). Mirrors REBIND_COOLDOWN_ROUNDS. */
+    export const DEFAULT_THRESHOLD = REBIND_COOLDOWN_ROUNDS
+
+    export async function shouldThrottle(
+      sessionID: string,
+      currentRound: number,
+      threshold = DEFAULT_THRESHOLD,
+    ): Promise<boolean> {
+      const mem = await Memory.read(sessionID)
+      if (!mem.lastCompactedAt) return false
+      return currentRound - mem.lastCompactedAt.round < threshold
+    }
+  }
+
+  /** Result of attempting a single kind in the chain. */
+  type KindAttempt =
+    | { ok: false; reason: string }
+    | { ok: true; summaryText: string; kind: KindName }
+
+  async function tryNarrative(input: RunInput, model: Provider.Model | undefined): Promise<KindAttempt> {
+    const mem = await Memory.read(input.sessionID)
+    const text = Memory.renderForLLMSync(mem)
+    if (!text) return { ok: false, reason: "memory empty" }
+    const tokenEstimate = Math.ceil(text.length / 4)
+    const contextLimit = model?.limit?.context || 0
+    const budget = Math.floor(contextLimit * 0.3)
+    if (budget > 0 && tokenEstimate > budget) {
+      return { ok: false, reason: `over budget (${tokenEstimate} > ${budget})` }
+    }
+    return { ok: true, summaryText: text, kind: "narrative" }
+  }
+
+  /** Phase 4 stub. Phase 5 fills in schema / replay-tail / low-cost-server / llm-agent. */
+  async function tryUnimplementedKind(kind: KindName): Promise<KindAttempt> {
+    return { ok: false, reason: `kind=${kind} not yet implemented (phase 5)` }
+  }
+
+  async function tryKind(kind: KindName, input: RunInput, model: Provider.Model | undefined): Promise<KindAttempt> {
+    switch (kind) {
+      case "narrative":
+        return tryNarrative(input, model)
+      case "schema":
+      case "replay-tail":
+      case "low-cost-server":
+      case "llm-agent":
+        return tryUnimplementedKind(kind)
+    }
+  }
+
+  /**
+   * Resolve the active model for a session via session.execution pin (set by
+   * rotation3d / processor) or fall back to the most recent user-message
+   * model. Returns undefined if the session is unknown.
+   */
+  async function resolveActiveModel(sessionID: string): Promise<Provider.Model | undefined> {
+    const session = await Session.get(sessionID).catch(() => undefined)
+    const exec = session?.execution
+    const providerId = exec?.providerId
+    const modelID = exec?.modelID
+    if (!providerId || !modelID) return undefined
+    return Provider.getModel(providerId, modelID).catch(() => undefined)
+  }
+
+  /**
+   * Single entry point for every compaction execution.
+   *
+   * 1. Cooldown gate (DD-7): if Memory.lastCompactedAt < threshold rounds
+   *    ago, return "continue" without doing anything (caller's runloop
+   *    iteration proceeds to LLM call as normal).
+   * 2. Walk KIND_CHAIN[observed] in order. Each kind transition emits a
+   *    log.info per AGENTS.md rule 1.
+   * 3. First kind that returns ok: write Anchor (compactWithSharedContext),
+   *    optionally inject synthetic Continue per INJECT_CONTINUE[observed],
+   *    Memory.markCompacted, return "continue".
+   * 4. Chain exhausted: log warn, return "stop".
+   *
+   * intent="rich" (only meaningful for observed=manual) skips kinds 1-3
+   * and goes straight to llm-agent.
+   */
+  export async function run(input: RunInput): Promise<RunResult> {
+    const { sessionID, observed, step } = input
+    const intent = input.intent ?? "default"
+
+    if (await Cooldown.shouldThrottle(sessionID, step)) {
+      log.info("compaction.throttled", {
+        sessionID,
+        observed,
+        step,
+        threshold: Cooldown.DEFAULT_THRESHOLD,
+      })
+      return "continue"
+    }
+
+    log.info("compaction.started", { sessionID, observed, step, intent })
+
+    const baseChain = KIND_CHAIN[observed]
+    // Manual --rich: skip 1-3 (free) and 4 (low-cost-server), go straight to llm-agent.
+    const chain: ReadonlyArray<KindName> =
+      observed === "manual" && intent === "rich" ? (["llm-agent"] as const) : baseChain
+
+    const model = await resolveActiveModel(sessionID)
+
+    for (const kind of chain) {
+      const attempt = await tryKind(kind, input, model)
+      log.info("compaction.kind_attempted", {
+        sessionID,
+        observed,
+        kind,
+        succeeded: attempt.ok,
+        reason: attempt.ok ? undefined : attempt.reason,
+      })
+      if (attempt.ok) {
+        if (model) {
+          await _writeAnchor({
+            sessionID,
+            summaryText: attempt.summaryText,
+            model,
+            auto: INJECT_CONTINUE[observed],
+            kind: attempt.kind,
+          })
+        } else {
+          log.warn("compaction.run anchor write skipped: no resolvable model", { sessionID, observed })
+        }
+        await Memory.markCompacted(sessionID, { round: step }).catch((err) => {
+          log.warn("memory.mark_compacted_failed", {
+            sessionID,
+            error: err instanceof Error ? err.message : String(err),
+          })
+        })
+        log.info("compaction.completed", {
+          sessionID,
+          observed,
+          kind: attempt.kind,
+          step,
+        })
+        return "continue"
+      }
+    }
+
+    log.warn("compaction.chain_exhausted", { sessionID, observed, step })
+    return "stop"
+  }
+
+  /**
+   * Anchor-write indirection. Production wraps compactWithSharedContext; tests
+   * can replace via `__test__.setAnchorWriter(fn)` to capture call arguments
+   * without standing up the full Session/Bus/Storage stack.
+   */
+  type WriteAnchorInput = {
+    sessionID: string
+    summaryText: string
+    model: Provider.Model
+    auto: boolean
+    kind: KindName
+  }
+  const defaultWriteAnchor = async (input: WriteAnchorInput) => {
+    await compactWithSharedContext({
+      sessionID: input.sessionID,
+      snapshot: input.summaryText,
+      model: input.model,
+      auto: input.auto,
+    })
+  }
+  let _writeAnchor: (input: WriteAnchorInput) => Promise<void> = defaultWriteAnchor
+
+  /**
+   * Test-only accessor. Exposes table literals + write-anchor injection so
+   * tests can assert structure / capture invocation arguments without
+   * re-defining tables or standing up the full Storage stack. Production
+   * callers must not depend on these — they are implementation detail.
+   */
+  export const __test__ = Object.freeze({
+    KIND_CHAIN,
+    INJECT_CONTINUE,
+    setAnchorWriter(fn: (input: WriteAnchorInput) => Promise<void>) {
+      _writeAnchor = fn
+    },
+    resetAnchorWriter() {
+      _writeAnchor = defaultWriteAnchor
+    },
+  })
 }

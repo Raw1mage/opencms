@@ -29,14 +29,14 @@ reviewable and rolls back cleanly without the next.
 
 ## 4. Single entry point `SessionCompaction.run`
 
-- [ ] 4.1 Define `RunInput` / `RunResult` types per data-schema.json
-- [ ] 4.2 Define `KIND_CHAIN: Record<Observed, KindStep[]>` table literal in `compaction.ts`
-- [ ] 4.3 Define `INJECT_CONTINUE: Record<Observed, boolean>` table literal
-- [ ] 4.4 Implement `Cooldown.shouldThrottle(sid, currentRound, threshold)` reading `Memory.lastCompactedAt`
-- [ ] 4.5 Implement `SessionCompaction.run(input)`: cooldown check → walk chain → write Anchor → mark compacted; emit `log.info` per AGENTS.md rule 1 on every kind transition
-- [ ] 4.6 Unit test: `run({observed: "rebind"})` never appends synthetic Continue (R-6 acceptance)
-- [ ] 4.7 Unit test: `run({observed: "manual"})` with non-empty Memory returns "continue" without API call (R-4 acceptance)
-- [ ] 4.8 Unit test: `run({observed: "provider-switched"})` rejects kinds 3-5 (R-5 acceptance)
+- [x] 4.1 Define `RunInput` / `RunResult` types per data-schema.json
+- [x] 4.2 Define `KIND_CHAIN: Record<Observed, KindStep[]>` table literal in `compaction.ts`
+- [x] 4.3 Define `INJECT_CONTINUE: Record<Observed, boolean>` table literal
+- [x] 4.4 Implement `Cooldown.shouldThrottle(sid, currentRound, threshold)` reading `Memory.lastCompactedAt`
+- [x] 4.5 Implement `SessionCompaction.run(input)`: cooldown check → walk chain → write Anchor → mark compacted; emit `log.info` per AGENTS.md rule 1 on every kind transition
+- [x] 4.6 Unit test: `run({observed: "rebind"})` never appends synthetic Continue (R-6 acceptance)
+- [x] 4.7 Unit test: `run({observed: "manual"})` with non-empty Memory returns "continue" without API call (R-4 acceptance)
+- [x] 4.8 Unit test: `run({observed: "provider-switched"})` rejects kinds 3-5 (R-5 acceptance)
 
 ## 5. Executor implementations
 
