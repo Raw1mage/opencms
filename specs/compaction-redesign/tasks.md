@@ -5,13 +5,13 @@ reviewable and rolls back cleanly without the next.
 
 ## 1. Memory module skeleton + Storage path
 
-- [ ] 1.1 Create `packages/opencode/src/session/memory.ts` with `Memory` namespace skeleton (no consumers yet)
-- [ ] 1.2 Define `SessionMemory`, `TurnSummary` types per `data-schema.json`
-- [ ] 1.3 Implement `Memory.read(sid)`: returns SessionMemory; falls back to legacy SharedContext + checkpoint per DD-3
-- [ ] 1.4 Implement `Memory.write(sid, mem)`: writes to `Storage` key `session_memory/<sid>`
-- [ ] 1.5 Implement `Memory.appendTurnSummary(sid, ts)`: append + bump version + persist
-- [ ] 1.6 Implement `Memory.markCompacted(sid, {round, timestamp})` for cooldown source-of-truth
-- [ ] 1.7 Unit test: read/write round-trip; legacy fallback projects SharedContext.Space → SessionMemory shape correctly
+- [x] 1.1 Create `packages/opencode/src/session/memory.ts` with `Memory` namespace skeleton (no consumers yet)
+- [x] 1.2 Define `SessionMemory`, `TurnSummary` types per `data-schema.json`
+- [x] 1.3 Implement `Memory.read(sid)`: returns SessionMemory; falls back to legacy SharedContext + checkpoint per DD-3
+- [x] 1.4 Implement `Memory.write(sid, mem)`: writes to `Storage` key `session_memory/<sid>`
+- [x] 1.5 Implement `Memory.appendTurnSummary(sid, ts)`: append + bump version + persist
+- [x] 1.6 Implement `Memory.markCompacted(sid, {round, timestamp})` for cooldown source-of-truth
+- [x] 1.7 Unit test: read/write round-trip; legacy fallback projects SharedContext.Space → SessionMemory shape correctly
 
 ## 2. Memory render functions
 
