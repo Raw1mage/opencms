@@ -40,11 +40,14 @@ The frontend is built with Solid.js and uses a bottom-up dependency model:
 ### Frontend File / Rich Content Surfaces
 
 - `packages/app/src/pages/session/components/message-content.tsx` is the assistant text entry point and routes assistant markdown through the session rich-content stack.
-- `packages/app/src/pages/session/file-tabs.tsx` is the file-tab authority surface; binary/image/SVG/markdown/text branches are resolved here before content is displayed.
+- `packages/app/src/pages/session/file-tabs.tsx` is the file-tab authority surface; binary/image/SVG/markdown/text branches are resolved here before content is displayed. SVG/image detection must tolerate both MIME and extension evidence because file APIs may return SVG as text or with MIME parameters.
 - `packages/app/src/pages/session.tsx` is also part of the file-tab control surface: file-open flows are expected to both append/open the tab and set the newly opened file tab active immediately so the visible file view matches the most recent file-list selection.
 - Markdown file preview is no longer conceptually equivalent to generic source rendering: `.md` tabs may render through a preview-oriented rich markdown surface while retaining a source-mode fallback.
 - Shared markdown rendering behavior for chat and markdown file preview is being centralized under session-page rich markdown helpers/components so safety/fallback policy stays consistent.
-- Existing SVG file-viewer behavior remains the authority for rich SVG inspection; markdown/chat flows should route to that safe viewer path rather than injecting arbitrary inline SVG.
+- Existing SVG file-viewer behavior remains the authority for rich SVG inspection; markdown/chat flows should route to that safe viewer path for full inspection rather than replacing it with arbitrary inline SVG injection.
+- `packages/mcp/system-manager/src/index.ts` exposes `display_inline_image` for user-requested inline image previews from explicit image file paths. This is a tool-result display surface, not a replacement for the file-tab authority; it only accepts image MIME types and keeps arbitrary rich document inspection on the file-viewer path. SVG tool results use the opencode-owned `--- SVG: <title> ---` envelope, and `packages/ui/src/components/message-part.tsx` routes any matching tool output to the shared SVG block preview renderer from `packages/ui/src/components/diagram-tool.tsx`.
+- Assistant response Markdown rendered by `packages/ui/src/components/session-turn.tsx` may receive an app-provided inline image adapter from `packages/app/src/pages/session/message-timeline.tsx`; clicking absolute local image links (`/path/to/file.{svg,png,jpg,jpeg,gif,webp}` or `file://...`) expands an image preview under the response using the existing file API and project-boundary checks.
+- Mobile/tool file browsing in `packages/app/src/pages/session/tool-page.tsx` has its own lightweight content surface; it must mirror image/SVG preview behavior for `image/*` MIME files instead of falling through to plain text rendering.
 
 ### Frontend Performance Rules
 

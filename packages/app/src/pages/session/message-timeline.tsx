@@ -11,6 +11,7 @@ import { DirtyCountBubble } from "@/components/dirty-count-bubble"
 import { shouldMarkBoundaryGesture, normalizeWheelDelta } from "@/pages/session/message-gesture"
 import { useSettings } from "@/context/settings"
 import { useSDK } from "@/context/sdk"
+import { useFile } from "@/context/file"
 import type { SessionWorkflowChip } from "@/pages/session/helpers"
 import { sendSessionReloadDebugBeacon } from "@/utils/debug-beacon"
 
@@ -144,6 +145,22 @@ export function MessageTimeline(props: {
 }) {
   const settings = useSettings()
   const sdk = useSDK()
+  const file = useFile()
+
+  const inlineImagePreview = (path: string) => {
+    const content = file.get(path)?.content
+    const error = file.get(path)?.error
+    if (!content) return error ? { error } : undefined
+    const mimeType = content.mimeType?.toLowerCase() ?? ""
+    const isSvg = path.toLowerCase().endsWith(".svg") || mimeType.startsWith("image/svg+xml")
+    if (!mimeType.startsWith("image/") && !isSvg) return { error: "File is not an image" }
+    if (isSvg) {
+      if (content.encoding === "base64") return { url: `data:image/svg+xml;base64,${content.content}` }
+      return { url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(content.content)}` }
+    }
+    if (content.encoding !== "base64") return { error: "Image content is not base64 encoded" }
+    return { url: `data:${content.mimeType};base64,${content.content}` }
+  }
 
   let touchGesture: number | undefined
 
@@ -432,6 +449,10 @@ export function MessageTimeline(props: {
                         showReasoningSummaries={settings.general.showReasoningSummaries()}
                         stepsExpanded={props.expanded[message.id] ?? false}
                         onStepsExpandedToggle={() => props.onToggleExpanded(message.id)}
+                        inlineImage={{
+                          load: (path) => file.load(path),
+                          preview: inlineImagePreview,
+                        }}
                         classes={{
                           root: "min-w-0 w-full relative",
                           content: "flex flex-col justify-between !overflow-visible",

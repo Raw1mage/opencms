@@ -42,7 +42,7 @@ import { useI18n } from "../context/i18n"
 import { BasicTool } from "./basic-tool"
 import { GenericTool } from "./basic-tool"
 import { ToolRegistry, getTool, registerTool, type ToolProps, type ToolComponent } from "./tool-registry"
-import "./diagram-tool" // side-effect: registers drawmiat tool renderers
+import { hasSvgBlockOutput, SvgBlockTool } from "./diagram-tool"
 import { Button } from "./button"
 import { Card } from "./card"
 import { Icon } from "./icon"
@@ -1011,7 +1011,7 @@ PART_MAPPING["tool"] = function ToolPartDisplay(props) {
     return partMetadata()
   }
 
-  const render = ToolRegistry.render(part.tool) ?? GenericTool
+  const render = createMemo(() => ToolRegistry.render(part.tool) ?? (hasSvgBlockOutput((part.state as any).output) ? SvgBlockTool : GenericTool))
 
   // Auto-open fileview only on live completion (not history replay)
   if (part.tool.endsWith("open_fileview") && part.state.status !== "completed") {
@@ -1052,7 +1052,7 @@ PART_MAPPING["tool"] = function ToolPartDisplay(props) {
         </Match>
         <Match when={true}>
           <Dynamic
-            component={render}
+            component={render()}
             input={input()}
             tool={part.tool}
             metadata={metadata()}

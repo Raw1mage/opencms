@@ -3,22 +3,22 @@ import { BasicTool } from "./basic-tool"
 import { ToolRegistry, type ToolProps } from "./tool-registry"
 import { Markdown } from "./markdown"
 
-interface DiagramArtifact {
+interface SvgBlockArtifact {
   name: string
   svg: string
 }
 
-interface ParsedDiagramOutput {
+interface ParsedSvgBlockOutput {
   summary: string
-  artifacts: DiagramArtifact[]
+  artifacts: SvgBlockArtifact[]
 }
 
 const SVG_BLOCK_RE = /^--- SVG: (.+?) ---$/
 
-function parseDiagramOutput(output: string): ParsedDiagramOutput {
+function parseSvgBlockOutput(output: string): ParsedSvgBlockOutput {
   const lines = output.split("\n")
   const summaryLines: string[] = []
-  const artifacts: DiagramArtifact[] = []
+  const artifacts: SvgBlockArtifact[] = []
   let currentName: string | null = null
   let currentSvgLines: string[] = []
 
@@ -48,6 +48,10 @@ function parseDiagramOutput(output: string): ParsedDiagramOutput {
   }
 }
 
+export function hasSvgBlockOutput(output?: string): boolean {
+  return output ? parseSvgBlockOutput(output).artifacts.length > 0 : false
+}
+
 function svgToDataUrl(svg: string): string {
   return "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svg.trim())))
 }
@@ -70,7 +74,7 @@ const btnClass =
   "px-2 py-1 text-11-medium text-text-dimmed hover:text-text-base hover:bg-surface-tertiary rounded transition-colors cursor-pointer"
 
 /** Inline SVG editor — drag/move elements, edit text, delete, download edited result */
-function DiagramEditor(props: { svg: string; filename: string; onDiscard: () => void }) {
+function SvgBlockEditor(props: { svg: string; filename: string; onDiscard: () => void }) {
   let containerRef: HTMLDivElement | undefined
   let selectedElement: SVGElement | null = null
   let initialTransform = { x: 0, y: 0 }
@@ -256,7 +260,7 @@ function DiagramEditor(props: { svg: string; filename: string; onDiscard: () => 
   )
 }
 
-function DiagramPreview(props: { artifact: DiagramArtifact; jsonPayload?: string }) {
+function SvgBlockPreview(props: { artifact: SvgBlockArtifact; jsonPayload?: string }) {
   const [expanded, setExpanded] = createSignal(false)
   const [editing, setEditing] = createSignal(false)
   const dataUrl = createMemo(() => svgToDataUrl(props.artifact.svg))
@@ -340,7 +344,7 @@ function DiagramPreview(props: { artifact: DiagramArtifact; jsonPayload?: string
             </div>
           }
         >
-          <DiagramEditor
+          <SvgBlockEditor
             svg={props.artifact.svg}
             filename={props.artifact.name}
             onDiscard={() => setEditing(false)}
@@ -353,51 +357,55 @@ function DiagramPreview(props: { artifact: DiagramArtifact; jsonPayload?: string
 
 // --- ToolRegistry registrations ---
 
-ToolRegistry.register({
-  name: "drawmiat_generate_diagram",
-  render(props: ToolProps) {
-    const parsed = createMemo(() => (props.output ? parseDiagramOutput(props.output) : null))
-    const diagramType = createMemo(() => props.input?.diagram_type ?? "diagram")
-    const hasArtifacts = createMemo(() => (parsed()?.artifacts.length ?? 0) > 0)
-    const statusLabel = createMemo(() => {
-      if (props.status === "running") return "rendering…"
-      if (!props.output) return ""
-      return parsed()?.summary.includes("ERROR") ? "error" : "ok"
-    })
+function renderSvgBlockTool(props: ToolProps, config: { title: string; subtitle: () => string; jsonPayload?: () => string | undefined }) {
+  const parsed = createMemo(() => (props.output ? parseSvgBlockOutput(props.output) : null))
+  const hasArtifacts = createMemo(() => (parsed()?.artifacts.length ?? 0) > 0)
+  const statusLabel = createMemo(() => {
+    if (props.status === "running") return "rendering…"
+    if (!props.output) return ""
+    return parsed()?.summary.includes("ERROR") ? "error" : "ok"
+  })
 
-    return (
-      <BasicTool
-        icon="mcp"
-        trigger={{
-          title: "generate_diagram",
-          subtitle: `${diagramType()}${statusLabel() ? " — " + statusLabel() : ""}`,
-        }}
-        defaultOpen={hasArtifacts()}
-        hideDetails={props.hideDetails}
-        forceOpen={props.forceOpen}
-        locked={props.locked}
-      >
-        <div data-component="diagram-tool-output" style={{ padding: "0.5rem 0.75rem" }}>
-          {/* Summary */}
-          <Show when={parsed()?.summary}>
-            {(summary) => (
-              <div data-component="tool-output" data-scrollable style={{ "margin-bottom": "0.5rem" }}>
-                <Markdown text={summary()} />
-              </div>
-            )}
-          </Show>
+  return (
+    <BasicTool
+      icon="mcp"
+      trigger={{
+        title: config.title,
+        subtitle: `${config.subtitle()}${statusLabel() ? " — " + statusLabel() : ""}`,
+      }}
+      defaultOpen={hasArtifacts()}
+      hideDetails={props.hideDetails}
+      forceOpen={props.forceOpen}
+      locked={props.locked}
+    >
+      <div data-component="diagram-tool-output" style={{ padding: "0.5rem 0.75rem" }}>
+        {/* Summary */}
+        <Show when={parsed()?.summary}>
+          {(summary) => (
+            <div data-component="tool-output" data-scrollable style={{ "margin-bottom": "0.5rem" }}>
+              <Markdown text={summary()} />
+            </div>
+          )}
+        </Show>
 
-          {/* SVG Previews */}
-          <Show when={hasArtifacts()}>
-            <For each={parsed()!.artifacts}>
-              {(artifact) => <DiagramPreview artifact={artifact} jsonPayload={props.input?.json_payload} />}
-            </For>
-          </Show>
-        </div>
-      </BasicTool>
-    )
-  },
-})
+        {/* SVG Previews */}
+        <Show when={hasArtifacts()}>
+          <For each={parsed()!.artifacts}>
+            {(artifact) => <SvgBlockPreview artifact={artifact} jsonPayload={config.jsonPayload?.()} />}
+          </For>
+        </Show>
+      </div>
+    </BasicTool>
+  )
+}
+
+export function SvgBlockTool(props: ToolProps) {
+  return renderSvgBlockTool(props, {
+    title: props.tool,
+    subtitle: () => String(props.input?.title ?? props.input?.path ?? props.input?.diagram_type ?? "svg"),
+    jsonPayload: () => (typeof props.input?.json_payload === "string" ? props.input.json_payload : undefined),
+  })
+}
 
 ToolRegistry.register({
   name: "drawmiat_validate_diagram",

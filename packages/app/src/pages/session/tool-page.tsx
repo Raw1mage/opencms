@@ -186,6 +186,19 @@ export default function SessionToolPageRoute() {
     if (content.encoding === "base64") return decode64(content.content) ?? ""
     return content.content
   })
+  const selectedFileImageUrl = createMemo(() => {
+    const selectedPath = selectedFile()?.toLowerCase() ?? ""
+    const content = selectedFileState()?.content
+    const mimeType = content?.mimeType?.toLowerCase() ?? ""
+    const isSvg = selectedPath.endsWith(".svg") || mimeType.startsWith("image/svg+xml")
+    if (!content || (!mimeType.startsWith("image/") && !isSvg)) return undefined
+    if (isSvg) {
+      if (content.encoding === "base64") return `data:image/svg+xml;base64,${content.content}`
+      return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(content.content)}`
+    }
+    if (content.encoding !== "base64") return undefined
+    return `data:${content.mimeType};base64,${content.content}`
+  })
 
   createEffect(() => {
     const path = selectedFile()
@@ -248,15 +261,23 @@ export default function SessionToolPageRoute() {
                       <div class="text-12-regular text-text-danger break-words">{selectedFileState()?.error}</div>
                     }
                   >
-                    <Show
-                      when={selectedFileState()?.content?.type !== "binary"}
-                      fallback={
-                        <div class="text-12-regular text-text-weak">{language.t("session.files.binaryContent")}</div>
-                      }
-                    >
-                      <pre class="whitespace-pre-wrap break-words rounded-md border border-border-weak-base bg-surface-panel px-3 py-3 text-12-regular text-text-base overflow-x-auto">
-                        {selectedFileContent() ?? ""}
-                      </pre>
+                    <Show when={selectedFileImageUrl()} fallback={
+                      <Show
+                        when={selectedFileState()?.content?.type !== "binary"}
+                        fallback={
+                          <div class="text-12-regular text-text-weak">{language.t("session.files.binaryContent")}</div>
+                        }
+                      >
+                        <pre class="whitespace-pre-wrap break-words rounded-md border border-border-weak-base bg-surface-panel px-3 py-3 text-12-regular text-text-base overflow-x-auto">
+                          {selectedFileContent() ?? ""}
+                        </pre>
+                      </Show>
+                    }>
+                      {(url) => (
+                        <div class="rounded-md border border-border-weak-base bg-surface-panel p-3">
+                          <img src={url()} alt={path()} class="max-h-[70vh] max-w-full rounded bg-white object-contain" />
+                        </div>
+                      )}
                     </Show>
                   </Show>
                 </Show>

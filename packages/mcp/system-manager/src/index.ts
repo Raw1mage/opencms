@@ -29,6 +29,15 @@ const OPENCODE_SERVER_CFG = process.env.OPENCODE_SERVER_CFG ?? "/etc/opencode/op
 const CODEX_ISSUER = "https://auth.openai.com"
 const CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
 const CODEX_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage"
+const INLINE_IMAGE_MIME_BY_EXT: Record<string, string> = {
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+}
+const INLINE_IMAGE_MAX_BYTES = 10 * 1024 * 1024
 
 async function pathExists(targetPath: string) {
   try {
@@ -37,6 +46,17 @@ async function pathExists(targetPath: string) {
   } catch {
     return false
   }
+}
+
+function inferInlineImageMimeType(targetPath: string, mediaType?: string) {
+  const inferred = INLINE_IMAGE_MIME_BY_EXT[path.extname(targetPath).toLowerCase()]
+  const explicit = mediaType?.trim().toLowerCase()
+  if (explicit && explicit !== inferred) return undefined
+  return inferred
+}
+
+function isSupportedInlineImageMimeType(mimeType: string | undefined) {
+  return !!mimeType && Object.values(INLINE_IMAGE_MIME_BY_EXT).includes(mimeType)
 }
 
 // Resolve the daemon unix socket path (same logic as server/daemon.ts)
@@ -459,6 +479,24 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             path: { type: "string", description: "Absolute path to the file to display" },
             title: { type: "string", description: "Optional display title for the tab" },
+          },
+          required: ["path"],
+        },
+      },
+      {
+        name: "display_inline_image",
+        description:
+          "Display an existing image directly in the conversation/tool result stream. Use this when the user wants an inline image preview rather than opening the side file viewer. Supports SVG, PNG, JPEG, GIF, and WebP. Requires an explicit image file path; do not use for arbitrary text or secret-bearing files.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            path: { type: "string", description: "Absolute path to the image file to display inline" },
+            mediaType: {
+              type: "string",
+              enum: Object.values(INLINE_IMAGE_MIME_BY_EXT),
+              description: "Optional MIME type override. If omitted, inferred from file extension.",
+            },
+            title: { type: "string", description: "Optional display title used in the inline preview heading" },
           },
           required: ["path"],
         },
@@ -980,6 +1018,46 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       kv.fileview_open = { path: targetPath, title: title ?? targetPath, ts: Date.now() }
       await fs.writeFile(KV_PATH, JSON.stringify(kv, null, 2))
       return { content: [{ type: "text", text: `File viewer opened: ${title ?? targetPath}` }] }
+    }
+
+    if (name === "display_inline_image") {
+      const { path: targetPath, mediaType, title } = args as { path: string; mediaType?: string; title?: string }
+      if (!path.isAbsolute(targetPath)) {
+        return { content: [{ type: "text", text: "display_inline_image requires an absolute image path" }], isError: true }
+      }
+
+      const mimeType = inferInlineImageMimeType(targetPath, mediaType)
+      if (!isSupportedInlineImageMimeType(mimeType)) {
+        return {
+          content: [{ type: "text", text: `Unsupported inline image type for ${targetPath}` }],
+          isError: true,
+        }
+      }
+
+      const stat = await fs.stat(targetPath)
+      if (!stat.isFile()) {
+        return { content: [{ type: "text", text: `Inline image path is not a file: ${targetPath}` }], isError: true }
+      }
+      if (stat.size > INLINE_IMAGE_MAX_BYTES) {
+        return {
+          content: [{ type: "text", text: `Inline image exceeds ${INLINE_IMAGE_MAX_BYTES} byte limit: ${targetPath}` }],
+          isError: true,
+        }
+      }
+
+      const displayTitle = title ?? path.basename(targetPath)
+      if (mimeType === "image/svg+xml") {
+        const svg = await fs.readFile(targetPath, "utf-8")
+        return { content: [{ type: "text", text: `--- SVG: ${displayTitle} ---\n${svg}` }] }
+      }
+
+      const image = await fs.readFile(targetPath)
+      return {
+        content: [
+          { type: "text", text: `Inline image: ${displayTitle}` },
+          { type: "image", data: image.toString("base64"), mimeType },
+        ],
+      }
     }
 
     if (name === "set_ui_config") {

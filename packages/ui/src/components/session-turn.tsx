@@ -27,6 +27,32 @@ import { createResizeObserver } from "@solid-primitives/resize-observer"
 
 type Translator = (key: UiI18nKey, params?: UiI18nParams) => string
 
+const inlineImageExtensions = new Set([".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp"])
+
+function inlineImagePathFromHref(href: string | null) {
+  if (!href) return
+  let candidate = href.trim()
+  if (!candidate) return
+  if (candidate.startsWith("file://")) {
+    try {
+      candidate = decodeURIComponent(new URL(candidate).pathname)
+    } catch {
+      return
+    }
+  }
+  if (!candidate.startsWith("/")) return
+  const pathOnly = candidate.split(/[?#]/, 1)[0]
+  const lower = pathOnly.toLowerCase()
+  for (const ext of inlineImageExtensions) {
+    if (lower.endsWith(ext)) return pathOnly
+  }
+}
+
+type InlineImagePreview = {
+  url?: string
+  error?: string
+}
+
 function record(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value)
 }
@@ -199,6 +225,10 @@ export function SessionTurn(
     stepsExpanded?: boolean
     onStepsExpandedToggle?: () => void
     onUserInteracted?: () => void
+    inlineImage?: {
+      load: (path: string) => void | Promise<void>
+      preview: (path: string) => InlineImagePreview | undefined
+    }
     classes?: {
       root?: string
       content?: string
@@ -576,6 +606,29 @@ export function SessionTurn(
   const [stickyRef, setStickyRef] = createSignal<HTMLDivElement | undefined>()
   const [stepsRef, setStepsRef] = createSignal<HTMLDivElement | undefined>()
   const [summaryRef, setSummaryRef] = createSignal<HTMLDivElement | undefined>()
+  const [expandedInlineImages, setExpandedInlineImages] = createSignal<string[]>([])
+
+  createEffect(() => {
+    const container = summaryRef()
+    const inlineImage = props.inlineImage
+    if (!container || !inlineImage) return
+
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      const anchor = target.closest("a")
+      if (!(anchor instanceof HTMLAnchorElement)) return
+      const imagePath = inlineImagePathFromHref(anchor.getAttribute("href"))
+      if (!imagePath) return
+
+      event.preventDefault()
+      setExpandedInlineImages((current) => (current.includes(imagePath) ? current : [...current, imagePath]))
+      void inlineImage.load(imagePath)
+    }
+
+    container.addEventListener("click", handleClick)
+    onCleanup(() => container.removeEventListener("click", handleClick))
+  })
 
   const emitSectionMetrics = (section: string, el?: HTMLElement) => {
     if (!isScrollDebugEnabled()) return
@@ -920,6 +973,36 @@ export function SessionTurn(
                               text={response() ?? ""}
                               cacheKey={responsePartId()}
                             />
+                            <Show when={expandedInlineImages().length > 0 && props.inlineImage}>
+                              <div class="mt-3 space-y-3">
+                                <For each={expandedInlineImages()}>
+                                  {(path) => {
+                                    const preview = createMemo(() => props.inlineImage?.preview(path))
+                                    return (
+                                      <div class="rounded border border-border-base bg-surface-secondary p-2">
+                                        <div class="mb-2 truncate text-11-regular text-text-weak">{path}</div>
+                                        <Show
+                                          when={preview()?.url}
+                                          fallback={
+                                            <div class="text-12-regular text-text-weak">
+                                              {preview()?.error ?? "Loading image..."}
+                                            </div>
+                                          }
+                                        >
+                                          {(url) => (
+                                            <img
+                                              src={url()}
+                                              alt={path}
+                                              class="max-h-[480px] max-w-full rounded bg-white object-contain"
+                                            />
+                                          )}
+                                        </Show>
+                                      </div>
+                                    )
+                                  }}
+                                </For>
+                              </div>
+                            </Show>
                           </div>
                         </div>
                       </div>

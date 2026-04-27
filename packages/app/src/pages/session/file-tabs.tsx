@@ -193,7 +193,7 @@ function MarkdownFileViewer(props: {
       const state = props.file.get(item.resolved)
       const content = state?.content
       if (!content) continue
-      if (content.mimeType !== "image/svg+xml") continue
+      if (!item.resolved.toLowerCase().endsWith(".svg") && !content.mimeType?.toLowerCase().startsWith("image/svg+xml")) continue
       if (content.encoding === "base64") {
         resolved[item.ref] = `data:image/svg+xml;base64,${content.content}`
         continue
@@ -268,11 +268,14 @@ export function FileTabContent(props: {
   const cacheKey = createMemo(() => sampledChecksum(contents()))
   const isImage = createMemo(() => {
     const c = state()?.content
-    return c?.encoding === "base64" && c?.mimeType?.startsWith("image/") && c?.mimeType !== "image/svg+xml"
+    const mimeType = c?.mimeType?.toLowerCase() ?? ""
+    return c?.encoding === "base64" && mimeType.startsWith("image/") && !mimeType.startsWith("image/svg+xml")
   })
   const isSvg = createMemo(() => {
+    const p = path()?.toLowerCase() ?? ""
     const c = state()?.content
-    return c?.mimeType === "image/svg+xml"
+    const mimeType = c?.mimeType?.toLowerCase() ?? ""
+    return p.endsWith(".svg") || mimeType.startsWith("image/svg+xml")
   })
   const isBinary = createMemo(() => state()?.content?.type === "binary")
   const isHtml = createMemo(() => path()?.endsWith(".html") || path()?.endsWith(".htm"))
