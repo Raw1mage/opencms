@@ -3,6 +3,7 @@ import * as fs from "fs"
 import * as path from "path"
 import { createInterface } from "readline"
 import { Tool } from "./tool"
+import { ToolBudget } from "./budget"
 import { LSP } from "../lsp"
 import { FileTime } from "../file/time"
 import DESCRIPTION from "./read.txt"
@@ -205,6 +206,34 @@ export const ReadTool = Tool.define("read", {
       output += `\n\n(End of file - total ${totalLines} lines)`
     }
     output += "\n</file>"
+
+    // Layer 2 (specs/tool-output-chunking/, DD-2): token-aware bound.
+    // Post-hoc check that's a no-op when natural output fits the budget
+    // (INV-8: byte-identical to pre-Layer-2 behaviour for natural-fit
+    // cases). Activates only when the existing line/byte caps weren't
+    // tight enough (small-context models, or unusually high-density text).
+    {
+      const budget = ToolBudget.resolve(ctx, "read")
+      const naturalTokens = ToolBudget.estimateTokens(output)
+      if (naturalTokens > budget.tokens) {
+        // Shrink content[] until output fits. Use binary-search style
+        // exponential backoff for speed on large overruns.
+        let kept = content.length
+        let candidate = output
+        while (kept > 0) {
+          const prefix = "<file>\n" + content.slice(0, kept).join("\n")
+          const newLastLine = offset + kept
+          candidate =
+            prefix +
+            `\n\n(Output bounded at ~${budget.tokens} tokens by Layer 2 ` +
+            `(${budget.source}). Use 'offset=${newLastLine}' to read beyond line ${newLastLine}.)\n</file>`
+          if (ToolBudget.estimateTokens(candidate) <= budget.tokens) break
+          kept = Math.max(0, Math.floor(kept * 0.85))
+        }
+        output = candidate
+        hasMoreLines = true
+      }
+    }
 
     if (path.basename(filepath) === "SKILL.md") {
       output +=
