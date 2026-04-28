@@ -1,5 +1,6 @@
 import z from "zod"
 import { Tool } from "./tool"
+import { ToolBudget } from "./budget"
 import TurndownService from "turndown"
 import DESCRIPTION from "./webfetch.txt"
 import { abortAfterAny } from "../util/abort"
@@ -112,51 +113,57 @@ export const WebFetchTool = Tool.define("webfetch", {
 
     const content = new TextDecoder().decode(arrayBuffer)
 
-    // Handle content based on requested format and actual content type
+    // Compute the format-specific body once, then apply Layer 2 bound.
+    let body: string
     switch (params.format) {
       case "markdown":
-        if (contentType.includes("text/html")) {
-          const markdown = convertHTMLToMarkdown(content)
-          return {
-            output: markdown,
-            title,
-            metadata: {},
-          }
-        }
-        return {
-          output: content,
-          title,
-          metadata: {},
-        }
-
+        body = contentType.includes("text/html") ? convertHTMLToMarkdown(content) : content
+        break
       case "text":
-        if (contentType.includes("text/html")) {
-          const text = await extractTextFromHTML(content)
-          return {
-            output: text,
-            title,
-            metadata: {},
-          }
-        }
-        return {
-          output: content,
-          title,
-          metadata: {},
-        }
-
+        body = contentType.includes("text/html") ? await extractTextFromHTML(content) : content
+        break
       case "html":
-        return {
-          output: content,
-          title,
-          metadata: {},
-        }
-
       default:
-        return {
-          output: content,
-          title,
-          metadata: {},
+        body = content
+        break
+    }
+
+    // Layer 2 (specs/tool-output-chunking/, DD-2): token-aware bound.
+    // The 5MB hard cap above is a memory/network safeguard; the per-tool
+    // token budget is what the model actually has room for. INV-8: when
+    // body fits the budget, returned output is byte-identical to
+    // pre-Layer-2 behaviour.
+    const budget = ToolBudget.resolve(ctx, "webfetch")
+    const bodyTokens = ToolBudget.estimateTokens(body)
+    let outputBody = body
+    let truncated = false
+    if (bodyTokens > budget.tokens) {
+      // Slice from the head; web pages typically front-load important
+      // content (titles, intro). Shrink in 15% steps until the bounded
+      // output (with its hint) fits.
+      const targetChars = Math.max(0, budget.tokens * 4)
+      let kept = Math.min(body.length, targetChars)
+      while (kept > 0) {
+        const head = body.slice(0, kept)
+        const hint =
+          `\n\n---\n[webfetch output bounded at ~${budget.tokens} tokens by Layer 2 ` +
+          `(${budget.source}); ${bodyTokens - ToolBudget.estimateTokens(head)} tokens omitted from tail. ` +
+          `If you need more, fetch the URL again with a Range header (e.g. via bash + curl), ` +
+          `or scrape only the section you need with grep/web tools.]`
+        const candidate = head + hint
+        if (ToolBudget.estimateTokens(candidate) <= budget.tokens) {
+          outputBody = candidate
+          truncated = true
+          break
         }
+        kept = Math.max(0, Math.floor(kept * 0.85))
+      }
+    }
+
+    return {
+      output: outputBody,
+      title,
+      metadata: truncated ? { truncated: true } : {},
     }
   },
 })
