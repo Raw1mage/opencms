@@ -135,7 +135,7 @@ export namespace SessionCompaction {
       "session.compaction.started",
       z.object({
         sessionID: z.string(),
-        mode: z.enum(["plugin", "llm"]),
+        mode: z.enum(["plugin", "llm", "hybrid_llm", "hybrid_llm_background"]),
       }),
     ),
   }
@@ -1172,12 +1172,31 @@ When constructing the summary, try to stick to this template:
    * at the FRONT when the flag is on; existing kinds remain reachable as
    * fallback if hybrid throws.
    */
+  /**
+   * Per-session in-flight registry. Prevents two concurrent hybrid_llm
+   * calls on the same session. When an entry exists, a background
+   * compaction is already running; subsequent KIND_CHAIN walks for that
+   * session skip the hybrid_llm kind and fall through to legacy kinds.
+   */
+  const hybridInFlight = new Map<string, Promise<unknown>>()
+
   async function tryHybridLlmKind(
     input: RunInput,
     model: Provider.Model | undefined,
   ): Promise<KindAttempt> {
     if (!model) return { ok: false, reason: "no model" }
     if (!canSummarize(model)) return { ok: false, reason: "model context too small" }
+
+    // Already-in-flight guard. A previous overflow trigger started a
+    // background hybrid_llm that hasn't finished yet. Skip — narrative
+    // (next in chain) will write a fast intermediate anchor; the
+    // in-flight hybrid_llm will replace it when done.
+    if (hybridInFlight.has(input.sessionID)) {
+      return {
+        ok: false,
+        reason: "hybrid_llm already in flight; falling through to fast kind",
+      }
+    }
 
     const messages = await Session.messages({ sessionID: input.sessionID }).catch(() => [] as MessageV2.WithParts[])
     const anchorMsg = await Memory.Hybrid.getAnchorMessage(input.sessionID, messages)
@@ -1235,26 +1254,122 @@ When constructing the summary, try to stick to this template:
     const ctx = model.limit?.context ?? 200_000
     const targetTokens = Math.max(5_000, Math.round(ctx * 0.30))
 
-    const event = await Hybrid.runHybridLlm(input.sessionID, {
+    // Sync vs background dispatch. Per the user's insight (2026-04-29):
+    //   compact{ context[n-1] } is conceptually about the PREVIOUS
+    //   round's context; the current round's prompt doesn't need to
+    //   wait for it. So Phase 1 hybrid_llm runs in BACKGROUND and the
+    //   chain walker falls through to a fast kind (narrative) for the
+    //   immediate anchor. When hybrid_llm finishes 30-60s later, its
+    //   higher-quality anchor replaces narrative's.
+    //
+    // Phase 2 (when pinned_zone is over cap) MUST be synchronous —
+    // current prompt literally cannot fit otherwise. Phase 2 is the
+    // fail-safe; in normal operation it never fires (pinned_zone empty
+    // until Phase 5 wires Layer 5 override surface).
+    const pinnedOverCap =
+      pinnedZone.length > 0 &&
+      pinnedZone.reduce((sum, p) => sum + p.metadata.tokens, 0) >
+        Math.round(ctx * Tweaks.compactionSync().pinnedZoneMaxTokensRatio)
+
+    if (pinnedOverCap) {
+      // Synchronous Phase 2 path — keep the existing await + result
+      // semantics. Caller (chain walker) blocks until the new anchor is
+      // written or E_OVERFLOW_UNRECOVERABLE is raised.
+      const event = await Hybrid.runHybridLlm(input.sessionID, {
+        abort: input.abort ?? new AbortController().signal,
+        priorAnchor,
+        journalUnpinned,
+        pinnedZone,
+        targetTokens,
+        voluntary: false,
+      })
+      if (event.result === "success") {
+        log.info("hybrid_llm Phase 2 (sync) compaction succeeded", {
+          sessionID: input.sessionID,
+          eventId: event.eventId,
+          phase: event.phase,
+          inputTokens: event.inputTokens,
+          outputTokens: event.outputTokens,
+          latencyMs: event.latencyMs,
+        })
+        return { ok: true, summaryText: "", kind: "hybrid_llm", anchorWritten: true }
+      }
+      return {
+        ok: false,
+        reason: `hybrid_llm Phase 2 ${event.result}: ${event.errorCode ?? "unknown"}`,
+      }
+    }
+
+    // Background dispatch (Phase 1, the common path). Fire-and-forget;
+    // register in the in-flight map; deregister on completion. The
+    // chain walker proceeds to legacy kinds; narrative will write a
+    // fast anchor that hybrid_llm later supersedes.
+    const promise = Hybrid.runHybridLlm(input.sessionID, {
       abort: input.abort ?? new AbortController().signal,
       priorAnchor,
       journalUnpinned,
-      pinnedZone: pinnedZone.length > 0 ? pinnedZone : undefined,
+      pinnedZone: undefined,
       targetTokens,
       voluntary: false,
+      busMode: "hybrid_llm_background",
     })
-
-    if (event.result === "success") {
-      // The anchor message has already been written by runLlmCompact's
-      // SessionProcessor pipeline; KIND_CHAIN doesn't need to write
-      // again. Signal anchorWritten=true.
-      log.info("hybrid_llm compaction succeeded", {
-        sessionID: input.sessionID,
-        eventId: event.eventId,
-        inputTokens: event.inputTokens,
-        outputTokens: event.outputTokens,
-        latencyMs: event.latencyMs,
+      .then((event) => {
+        if (event.result === "success") {
+          log.info("hybrid_llm background compaction succeeded", {
+            sessionID: input.sessionID,
+            eventId: event.eventId,
+            inputTokens: event.inputTokens,
+            outputTokens: event.outputTokens,
+            latencyMs: event.latencyMs,
+          })
+        } else {
+          log.warn("hybrid_llm background compaction did not complete", {
+            sessionID: input.sessionID,
+            eventId: event.eventId,
+            result: event.result,
+            errorCode: event.errorCode,
+          })
+        }
       })
+      .catch((err) => {
+        log.error("hybrid_llm background compaction threw", {
+          sessionID: input.sessionID,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      })
+      .finally(() => {
+        hybridInFlight.delete(input.sessionID)
+      })
+    hybridInFlight.set(input.sessionID, promise)
+
+    log.info("hybrid_llm background compaction started; falling through to fast kind", {
+      sessionID: input.sessionID,
+      journalRounds: journalUnpinned.length,
+      targetTokens,
+    })
+    // Return ok=false so the chain walker tries the next kind (narrative
+    // is fast and free; writes an immediate anchor). When the background
+    // hybrid_llm completes 30-60s later, it writes a SECOND anchor that
+    // supersedes narrative's (most-recent-wins via Memory.read).
+    return {
+      ok: false,
+      reason: "hybrid_llm dispatched in background; falling through for fast intermediate anchor",
+    }
+  }
+
+  /**
+   * Legacy entry point retained for backward compatibility / parity. Not
+   * called by tryHybridLlmKind any more; the new path uses Hybrid.runHybridLlm
+   * directly with busMode threading. Kept as exported helper in case
+   * any other caller (e.g. compact_now tool in Phase 4) wants direct
+   * access to the await-style result.
+   */
+  async function _legacyAwaitHybridResult(
+    sessionID: string,
+    args: Parameters<typeof Hybrid.runHybridLlm>[1],
+  ): Promise<KindAttempt> {
+    const event = await Hybrid.runHybridLlm(sessionID, args)
+    if (event.result === "success") {
       return { ok: true, summaryText: "", kind: "hybrid_llm", anchorWritten: true }
     }
 
@@ -1869,6 +1984,12 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         llmInputBudget: ctx.llmInputBudget,
         priorAnchorTokens: request.priorAnchor ? Math.ceil(request.priorAnchor.content.length / 4) : 0,
       })
+      // Visibility — UI shows "Compacting (chunk-and-merge)" badge.
+      // Note: caller (runLlmCompact) already published CompactionStarted
+      // when it entered single-pass mode; the dispatch to chunk-and-merge
+      // doesn't need a second publish — the UI is already in compacting
+      // state. We only publish Compacted at the end (one-to-one with the
+      // start event).
 
       // Estimate per-round token cost for chunk sizing. Average over the
       // journal so a few outlier-large rounds don't tank the chunk size.
@@ -2070,6 +2191,8 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         chunks: chunks.length,
         finalBodyTokens: Math.ceil(finalAnchorBody.length / 4),
       })
+      // Visibility — UI clears the "Compacting..." badge.
+      Bus.publish(Event.Compacted, { sessionID })
       return {
         ok: true,
         anchorBody: finalAnchorBody,
@@ -2111,9 +2234,14 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
     export async function runLlmCompact(
       sessionID: string,
       request: LLMCompactRequest,
-      opts: { abort: AbortSignal; stricterRetryReason?: ValidationFailure },
+      opts: { abort: AbortSignal; stricterRetryReason?: ValidationFailure; busMode?: "hybrid_llm" | "hybrid_llm_background" },
     ): Promise<LlmCompactResult> {
       const startedAt = Date.now()
+      // Phase 2 visibility (specs/tool-output-chunking/, fix for "全程靜默"):
+      // emit CompactionStarted so TUI / web UI can show "Compacting..." badge.
+      // Mode 'hybrid_llm_background' lets the UI render a non-blocking
+      // background indicator instead of a blocking spinner.
+      Bus.publish(Event.CompactionStarted, { sessionID, mode: opts.busMode ?? "hybrid_llm" })
       const messages = await Session.messages({ sessionID }).catch(() => undefined)
       if (!messages || messages.length === 0) {
         return { ok: false, reason: "no_response", detail: "empty stream", latencyMs: Date.now() - startedAt }
@@ -2266,6 +2394,10 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         }
       }
 
+      // Visibility — anchor written successfully. UI clears the
+      // "Compacting..." badge.
+      Bus.publish(Event.Compacted, { sessionID })
+
       return {
         ok: true,
         anchorBody,
@@ -2335,6 +2467,14 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         dropMarkers?: string[]
         targetTokens: number
         voluntary?: boolean
+        /**
+         * Bus event mode label (Phase 2 visibility fix). When this
+         * function runs synchronously in the chain walker (Phase 2 path
+         * with pinned_zone over cap), pass 'hybrid_llm'. When fired in
+         * background by tryHybridLlmKind, pass 'hybrid_llm_background'
+         * so the UI can render a non-blocking indicator.
+         */
+        busMode?: "hybrid_llm" | "hybrid_llm_background"
       },
     ): Promise<CompactionEvent> {
       const eventId = `cev_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
@@ -2349,7 +2489,7 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
       }
 
       // Attempt 1
-      const first = await runLlmCompact(sessionID, request, { abort: opts.abort })
+      const first = await runLlmCompact(sessionID, request, { abort: opts.abort, busMode: opts.busMode })
       if (first.ok) {
         return makeEvent({
           eventId,
@@ -2378,6 +2518,7 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         const second = await runLlmCompact(sessionID, request, {
           abort: opts.abort,
           stricterRetryReason: first.reason as ValidationFailure,
+          busMode: opts.busMode,
         })
         if (second.ok) {
           return makeEvent({
@@ -2420,7 +2561,7 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
           pinnedCount: opts.pinnedZone.length,
           phase2TargetTokens,
         })
-        const phase2 = await runLlmCompact(sessionID, phase2Request, { abort: opts.abort })
+        const phase2 = await runLlmCompact(sessionID, phase2Request, { abort: opts.abort, busMode: opts.busMode })
         if (phase2.ok) {
           // Pinned_zone is now absorbed into the new anchor. Caller is
           // responsible for clearing the live pinned_zone state (e.g.,
