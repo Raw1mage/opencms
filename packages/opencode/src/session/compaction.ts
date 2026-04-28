@@ -1320,19 +1320,21 @@ When constructing the summary, try to stick to this template:
     let chain: ReadonlyArray<KindName> =
       observed === "manual" && intent === "rich" ? (["llm-agent"] as const) : baseChain
 
-    // Phase 2 (specs/tool-output-chunking/): hybrid_llm is the primary
-    // kind for observed conditions that genuinely benefit from it —
-    // overflow / cache-aware / manual. Existing kinds remain reachable
-    // as fallback if hybrid_llm fails (the chain walker below tries
-    // each kind in order). Maintenance triggers (idle / rebind /
-    // continuation-invalidated / provider-switched) don't need a paid
-    // LLM call so their chains stay untouched.
+    // Phase 2 dual-path (specs/tool-output-chunking/): when the master
+    // flag is on, prepend hybrid_llm at the FRONT of the chain for
+    // observed conditions that genuinely benefit from it (overflow /
+    // cache-aware / manual). The existing kinds remain reachable as
+    // fallback if hybrid_llm fails. Other observed conditions (idle,
+    // rebind, continuation-invalidated, provider-switched) are
+    // maintenance triggers that don't need a paid LLM call — leave
+    // their chains untouched.
+    const hybridFlag = Tweaks.compactionSync().enableHybridLlm
     const hybridEligible: ReadonlySet<Observed> = new Set([
       "overflow",
       "cache-aware",
       "manual",
     ])
-    if (hybridEligible.has(observed) && !chain.includes("hybrid_llm")) {
+    if (hybridFlag && hybridEligible.has(observed) && !chain.includes("hybrid_llm")) {
       chain = ["hybrid_llm", ...chain]
     }
 
