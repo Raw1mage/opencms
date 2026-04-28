@@ -1526,13 +1526,58 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           const idx = messages.findIndex((m) => m.info?.id === sinceMessageID)
           if (idx >= 0) filtered = messages.slice(idx + 1)
         }
-        const hasMore = filtered.length > limit
-        const sliced = filtered.slice(0, limit)
+        const hasMoreByLimit = filtered.length > limit
+        let sliced = filtered.slice(0, limit)
+
+        // Layer 2 (specs/tool-output-chunking/, DD-2): token-aware bound.
+        // The MCP package can't import the opencode ToolBudget helper
+        // (cross-package), so we inline the same default formula:
+        // 50K-token absolute cap (matches tool_output_budget_absolute_cap
+        // default from tweaks.cfg). Reduce slice further if assembled
+        // JSON exceeds budget; hint references next sinceMessageID.
+        // INV-8: when limit-bounded slice fits, output is byte-identical
+        // to pre-Layer-2 behaviour.
+        const BUDGET_TOKENS = 50_000
+        const estimateTokens = (s: string) => Math.ceil(s.length / 4)
+        let layer2Truncated = false
+        let assembled = JSON.stringify({ sessionID, messages: sliced, hasMore: hasMoreByLimit }, null, 2)
+        if (estimateTokens(assembled) > BUDGET_TOKENS) {
+          let kept = sliced.length
+          while (kept > 0) {
+            const trial = sliced.slice(0, kept)
+            const lastID = trial[trial.length - 1]?.info?.id ?? sinceMessageID ?? null
+            const candidate = JSON.stringify(
+              {
+                sessionID,
+                messages: trial,
+                hasMore: true,
+                layer2_bounded: {
+                  reason: `assembled JSON exceeded ~${BUDGET_TOKENS} tokens`,
+                  returned: kept,
+                  requested: sliced.length,
+                  next_since_message_id: lastID,
+                  hint: "Call read_subsession again with sinceMessageID set to next_since_message_id to continue.",
+                },
+              },
+              null,
+              2,
+            )
+            if (estimateTokens(candidate) <= BUDGET_TOKENS) {
+              assembled = candidate
+              sliced = trial
+              layer2Truncated = true
+              break
+            }
+            kept = Math.max(0, Math.floor(kept * 0.85))
+          }
+        }
+        // hasMore stays true if either the limit cap or the Layer 2 bound trimmed
+        const _hasMore = hasMoreByLimit || layer2Truncated
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify({ sessionID, messages: sliced, hasMore }, null, 2),
+              text: assembled,
             },
           ],
         }
