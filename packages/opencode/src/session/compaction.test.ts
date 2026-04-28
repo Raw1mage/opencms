@@ -3,16 +3,13 @@ import { SessionCompaction } from "./compaction"
 import { Memory } from "./memory"
 import { Session } from "."
 import { Config } from "@/config/config"
-import { SharedContext } from "./shared-context"
 
 const originalConfigGet = Config.get
-const originalSharedContextSnapshot = SharedContext.snapshot
 const originalMemoryRead = Memory.read
 const originalMemoryMarkCompacted = Memory.markCompacted
 
 afterEach(() => {
   ;(Config as any).get = originalConfigGet
-  ;(SharedContext as any).snapshot = originalSharedContextSnapshot
   ;(Memory as any).read = originalMemoryRead
   ;(Memory as any).markCompacted = originalMemoryMarkCompacted
 })

@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, mock } from "bun:test"
 import { SessionCompaction } from "./compaction"
 import { Memory } from "./memory"
-import { SharedContext } from "./shared-context"
 import { Session } from "."
 import { Provider } from "@/provider/provider"
 import { Agent } from "@/agent/agent"
@@ -11,7 +10,6 @@ const originalMemoryRead = Memory.read
 const originalMemoryMarkCompacted = Memory.markCompacted
 const originalSessionGet = Session.get
 const originalSessionMessages = Session.messages
-const originalSharedSnapshot = SharedContext.snapshot
 const originalProviderGetModel = Provider.getModel
 const originalAgentGet = Agent.get
 const originalPluginTrigger = Plugin.trigger
@@ -21,7 +19,6 @@ afterEach(() => {
   ;(Memory as any).markCompacted = originalMemoryMarkCompacted
   ;(Session as any).get = originalSessionGet
   ;(Session as any).messages = originalSessionMessages
-  ;(SharedContext as any).snapshot = originalSharedSnapshot
   ;(Provider as any).getModel = originalProviderGetModel
   ;(Agent as any).get = originalAgentGet
   ;(Plugin as any).trigger = originalPluginTrigger
@@ -399,7 +396,6 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
 
   it("phase 5 — replay-tail executor succeeds when narrative empty + msg stream has text", async () => {
     setupCommonMocks({ turnSummaries: [] }, "ses_run_replay")
-    ;(SharedContext as any).snapshot = mock(async () => undefined)
     ;(Session as any).messages = mock(async () => [
       {
         info: { id: "msg_u1", role: "user" },
@@ -431,7 +427,6 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
   it("phase 5 — low-cost-server executor succeeds when plugin returns compactedItems", async () => {
     // narrative empty, schema empty, manual chain skips schema/replay-tail
     setupCommonMocks({ turnSummaries: [] }, "ses_run_lowcost")
-    ;(SharedContext as any).snapshot = mock(async () => undefined)
     ;(Session as any).messages = mock(async () => [
       {
         info: { id: "msg_u1", role: "user", agent: "default", model: { providerId: "codex", modelID: "gpt-5.5", accountId: "acc-A" } },
@@ -462,7 +457,6 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
 
   it("phase 5 — low-cost-server executor falls through when plugin returns null", async () => {
     setupCommonMocks({ turnSummaries: [] }, "ses_run_lowcost_null")
-    ;(SharedContext as any).snapshot = mock(async () => undefined)
     ;(Session as any).messages = mock(async () => [
       {
         info: { id: "msg_u1", role: "user", agent: "default", model: { providerId: "codex", modelID: "gpt-5.5" } },
@@ -512,7 +506,6 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
       limit: { context: 8000, input: 8000, output: 1000 },
       cost: { input: 1 },
     }))
-    ;(SharedContext as any).snapshot = mock(async () => undefined)
     ;(Session as any).messages = mock(async () => longMsgs)
     const writes: any[] = []
     SessionCompaction.__test__.setAnchorWriter(async (input) => {
@@ -563,7 +556,6 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
       limit: { context: 1_000_000, input: 1_000_000, output: 32_000 },
       cost: { input: 1 },
     }))
-    ;(SharedContext as any).snapshot = mock(async () => undefined)
     ;(Session as any).messages = mock(async () => [
       {
         info: { id: "msg_u1", role: "user", agent: "default", model: { providerId: "codex", modelID: "gpt-5.5" } },

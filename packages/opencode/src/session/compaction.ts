@@ -534,7 +534,13 @@ export namespace SessionCompaction {
   /**
    * Idle compaction: triggered at turn boundary when a completed task dispatch
    * is detected and context utilization exceeds the opportunistic threshold.
-   * Uses shared context snapshot as the summary instead of LLM compaction agent.
+   *
+   * Phase 13.3-full (REVISED 2026-04-28): routes through the unified `run()`
+   * entry point (DD-9) instead of calling `SharedContext.snapshot` directly.
+   * `KIND_CHAIN["idle"] = ["narrative", "replay-tail"]` covers the same
+   * "free, no-API" intent that the legacy snapshot path had — but reads from
+   * the messages stream + Memory journal instead of the regex-extracted
+   * SharedContext text. Single source of truth.
    */
   export async function idleCompaction(input: { sessionID: string; model: Provider.Model; config: Config.Info }) {
     const tokens = await getLastAssistantTokens(input.sessionID)
@@ -550,17 +556,10 @@ export namespace SessionCompaction {
 
     if (utilization < threshold) return
 
-    const snap = await SharedContext.snapshot(input.sessionID)
-    if (!snap) {
-      log.info("idle compaction skipped: empty snapshot")
-      return
-    }
-
-    await compactWithSharedContext({
+    await run({
       sessionID: input.sessionID,
-      snapshot: snap,
-      model: input.model,
-      auto: true,
+      observed: "idle",
+      step: 0,
     })
   }
 

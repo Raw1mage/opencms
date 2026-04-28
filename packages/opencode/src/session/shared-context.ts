@@ -436,120 +436,12 @@ export namespace SharedContext {
     return space
   }
 
-  // ── Snapshot ─────────────────────────────────────────────────
-
-  export async function snapshot(sid: string): Promise<string | undefined> {
-    const space = await get(sid)
-    if (!space || (space.files.length === 0 && space.actions.length === 0)) {
-      return undefined
-    }
-    return formatSnapshot(space)
-  }
-
-  /**
-   * Persist current snapshot to storage as abstract-template for provider-agnostic session reload.
-   * Fire-and-forget: silently returns if snapshot is empty.
-   */
-  export async function persistSnapshot(sessionID: string): Promise<void> {
-    try {
-      const snap = await snapshot(sessionID)
-      if (!snap) return
-      await Storage.write(["abstract_template", sessionID], { sessionID, snapshot: snap, updatedAt: Date.now() })
-    } catch (e) {
-      log.warn("persistSnapshot failed", { sessionID, error: String(e) })
-    }
-  }
-
-  /**
-   * Returns only the knowledge added after `sinceVersion`.
-   * Used by continuation handler to relay only what child learned beyond
-   * what parent already injected at dispatch time — avoids re-sending known info.
-   */
-  export async function snapshotDiff(sid: string, sinceVersion: number): Promise<string | undefined> {
-    const space = await get(sid)
-    if (!space || space.version <= sinceVersion) return undefined
-
-    // Filter to entries added after the injected snapshot
-    // Actions are append-only with addedAt timestamp; files use updatedAt
-    const cutoff = sinceVersion // version is incremented per turn, not per entry
-    // We don't store per-entry version, so use a proportion heuristic:
-    // keep entries whose addedAt is after the space's updatedAt at injection time.
-    // Since we don't store injection timestamp, fall back to slicing by index:
-    // actions are ordered chronologically, keep the last (total - sinceVersion) items.
-    const totalTurns = space.version
-    const newTurns = totalTurns - sinceVersion
-    if (newTurns <= 0) return undefined
-
-    const fraction = newTurns / Math.max(totalTurns, 1)
-    const newActions = space.actions.slice(Math.floor(space.actions.length * (1 - fraction)))
-    const newFiles = space.files.filter((f) => {
-      // Files edited/written during child execution (not just read before dispatch)
-      return f.operation === "edit" || f.operation === "write"
-    })
-
-    if (newActions.length === 0 && newFiles.length === 0 && !space.currentState) return undefined
-
-    const diffSpace: Space = {
-      ...space,
-      files: newFiles,
-      actions: newActions,
-      discoveries: space.discoveries.slice(Math.floor(space.discoveries.length * (1 - fraction))),
-    }
-    return formatSnapshot(diffSpace)
-  }
-
-  /**
-   * Format a Space as a readable snapshot string.
-   * Context Sharing v2: no longer used for subagent dispatch injection
-   * (child sessions now receive parent's full message history as prefix).
-   * Retained for compaction summaries and observability.
-   */
-  export function formatForInjection(space: Space): string | undefined {
-    if (space.files.length === 0 && space.actions.length === 0) return undefined
-    return formatSnapshot(space)
-  }
-
-  function formatSnapshot(space: Space): string {
-    const lines: string[] = []
-    lines.push(`<shared_context session="${space.sessionID}" version="${space.version}">`)
-
-    if (space.goal) {
-      lines.push(`## Goal`, space.goal, "")
-    }
-
-    if (space.files.length > 0) {
-      lines.push(`## Files`)
-      for (const f of space.files) {
-        const meta = [f.lines ? `${f.lines} lines` : null, f.operation].filter(Boolean).join(", ")
-        const suffix = f.summary ? ` — ${f.summary}` : ""
-        lines.push(`- ${f.path} (${meta})${suffix}`)
-      }
-      lines.push("")
-    }
-
-    if (space.discoveries.length > 0) {
-      lines.push(`## Discoveries`)
-      for (const d of space.discoveries) {
-        lines.push(`- ${d}`)
-      }
-      lines.push("")
-    }
-
-    if (space.actions.length > 0) {
-      lines.push(`## Actions Taken`)
-      for (const a of space.actions) {
-        lines.push(`- ${a.summary}`)
-      }
-      lines.push("")
-    }
-
-    if (space.currentState) {
-      lines.push(`## Current State`, space.currentState, "")
-    }
-
-    lines.push(`</shared_context>`)
-    return lines.join("\n")
-  }
+  // Phase 13.3-full: regex-extracted snapshot surface (snapshot,
+  // persistSnapshot, snapshotDiff, formatForInjection, formatSnapshot)
+  // removed. Compaction now reads from message-stream anchors and the
+  // Memory journal — single source of truth. SharedContext.Space remains
+  // as the file/action workspace used by subagents (updateFromTurn,
+  // mergeFrom, get).
 
   // ── Merge From Child Session ─────────────────────────────────
 

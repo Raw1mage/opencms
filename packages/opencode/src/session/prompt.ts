@@ -1257,47 +1257,13 @@ export namespace SessionPrompt {
         })
       }
 
-      // Priority 2: SharedContext snapshot (structured summary, no message history)
-      if (!parentMessagePrefix) {
-        const snap = await SharedContext.snapshot(session.parentID)
-        if (snap) {
-          parentMessagePrefix = [
-            {
-              info: {
-                id: Identifier.ascending("message"),
-                role: "assistant" as const,
-                sessionID: session.parentID,
-                time: { created: Date.now() },
-                summary: true,
-                tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
-                cost: 0,
-                modelID: "system",
-                providerId: "system",
-                agent: "system",
-                variant: "normal" as const,
-                path: { cwd: Instance.directory, root: Instance.worktree },
-              } as MessageV2.Assistant,
-              parts: [
-                {
-                  id: Identifier.ascending("part"),
-                  messageID: "",
-                  sessionID: session.parentID,
-                  type: "text" as const,
-                  text: `<parent_session_context source="shared_context">\n${snap}\n</parent_session_context>`,
-                } as MessageV2.TextPart,
-              ],
-            },
-          ]
-          parentContextSource = "shared_context"
-          log.info("context sharing: SharedContext snapshot used", {
-            sessionID,
-            parentID: session.parentID,
-            snapshotChars: snap.length,
-          })
-        }
-      }
+      // Phase 13.3-full: Priority 2 (SharedContext snapshot) deleted. The
+      // stream-anchor scan in Priority 1 already surfaces compacted summaries
+      // when they exist; if no anchor → fall straight through to recent
+      // history (Priority 2 below). Removing the regex-extracted text
+      // fallback keeps the messages stream as the single source of truth.
 
-      // Priority 3: last N rounds of parent history (bounded)
+      // Priority 2: last N rounds of parent history (bounded)
       if (!parentMessagePrefix) {
         const parentFiltered = await MessageV2.filterCompacted(MessageV2.stream(session.parentID))
         const allMsgs = parentFiltered.messages
@@ -1380,22 +1346,21 @@ export namespace SessionPrompt {
         if (model) {
           // Phase 13.2: resolution chain is now SharedContext (in-memory) →
           // most recent stream anchor's text → minimal stub. The disk-file
-          // checkpoint path is gone; the anchor message in the stream
-          // already carries the same content.
+          // Phase 13.3-full: pull snapshot text from the most recent anchor
+          // in the stream. SharedContext.snapshot regex extractor is gone;
+          // the anchor message itself IS the canonical compacted text.
           // LLM compaction is NOT safe because old provider's tool call
           // history is incompatible.
-          let snap = await SharedContext.snapshot(sessionID).catch(() => undefined)
-          if (!snap) {
-            const filtered = await MessageV2.filterCompacted(MessageV2.stream(sessionID))
-            const anchorIdx = findMostRecentAnchorIndex(filtered.messages)
-            if (anchorIdx !== -1) {
-              const anchor = filtered.messages[anchorIdx]
-              snap = anchor.parts
-                .filter((p): p is MessageV2.TextPart => p.type === "text")
-                .map((p) => p.text)
-                .join("\n")
-                .trim() || undefined
-            }
+          let snap: string | undefined
+          const filtered = await MessageV2.filterCompacted(MessageV2.stream(sessionID))
+          const anchorIdx = findMostRecentAnchorIndex(filtered.messages)
+          if (anchorIdx !== -1) {
+            const anchor = filtered.messages[anchorIdx]
+            snap = anchor.parts
+              .filter((p): p is MessageV2.TextPart => p.type === "text")
+              .map((p) => p.text)
+              .join("\n")
+              .trim() || undefined
           }
           await Memory.markCompacted(sessionID, { round: 1 }).catch(() => {})
           await SessionCompaction.compactWithSharedContext({
@@ -2282,7 +2247,11 @@ export namespace SessionPrompt {
               turnNumber: step,
             })
 
-            void SharedContext.persistSnapshot(sessionID)
+            // Phase 13.3-full: SharedContext.persistSnapshot removed. The
+            // legacy `abstract_template/<sid>` Storage write was a frozen
+            // copy of the regex-extracted snapshot — no consumers remain
+            // (compaction-redesign reads from message-stream anchors and
+            // Memory journal instead).
 
             if (!session.parentID) {
               const hasTaskDispatch = lastAssistantMsg.parts.some(
