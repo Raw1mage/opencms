@@ -1699,5 +1699,379 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
       lines.push("Produce the new anchor body now.")
       return lines.join("\n")
     }
+
+    // ─── runLlmCompact (Phase 2.6 single-pass core) ───────────────────
+
+    /**
+     * Result of a single LLM_compact attempt. Caller (runHybridLlm,
+     * Phase 2.9) decides retry / fallback / degradation based on this.
+     */
+    export type LlmCompactResult =
+      | { ok: true; anchorBody: string; anchorMessageId: string; latencyMs: number; provider: string; model: string }
+      | { ok: false; reason: ValidationFailure | "llm_threw" | "no_response" | "timeout"; detail?: string; latencyMs: number }
+
+    /**
+     * Single-pass LLM_compact. Builds the framing prompt + user payload
+     * from `request`, dispatches a compaction LLM round, validates the
+     * returned anchor body. NO retry logic — that lives one layer up in
+     * runHybridLlm.
+     *
+     * Mirrors runLlmCompactionAgent's session-mutation pattern: creates
+     * an assistant message stub (will become the anchor), runs the
+     * processor, reads the resulting text part. The caller (runHybridLlm)
+     * is responsible for writing the compaction part once validation
+     * passes — that way a failed validation does NOT leave a partial
+     * anchor in the stream.
+     *
+     * Phase 2.7 (chunk-and-merge) is a TODO — this function throws
+     * `chunk_and_merge_unimplemented` when the input exceeds the LLM's
+     * input budget. The graceful-degradation path in runHybridLlm
+     * catches and falls back.
+     */
+    export async function runLlmCompact(
+      sessionID: string,
+      request: LLMCompactRequest,
+      opts: { abort: AbortSignal; stricterRetryReason?: ValidationFailure },
+    ): Promise<LlmCompactResult> {
+      const startedAt = Date.now()
+      const messages = await Session.messages({ sessionID }).catch(() => undefined)
+      if (!messages || messages.length === 0) {
+        return { ok: false, reason: "no_response", detail: "empty stream", latencyMs: Date.now() - startedAt }
+      }
+      const userMessage = messages.findLast((m) => m.info.role === "user")?.info as MessageV2.User | undefined
+      if (!userMessage) {
+        return { ok: false, reason: "no_response", detail: "no user message", latencyMs: Date.now() - startedAt }
+      }
+      const parentID = messages.at(-1)?.info.id
+      if (!parentID) {
+        return { ok: false, reason: "no_response", detail: "no parent id", latencyMs: Date.now() - startedAt }
+      }
+
+      const agent = await Agent.get("compaction")
+      const agentModel = agent.model as { accountId?: string } | undefined
+      const session = await Session.get(sessionID)
+      const model = agent.model
+        ? await Provider.getModel(agent.model.providerId, agent.model.modelID)
+        : await Provider.getModel(userMessage.model.providerId, userMessage.model.modelID)
+      if (!canSummarize(model)) {
+        return {
+          ok: false,
+          reason: "no_response",
+          detail: `model ${model.id} context too small to compact`,
+          latencyMs: Date.now() - startedAt,
+        }
+      }
+
+      // Phase 2.7 TODO — when input exceeds LLM input budget, switch to
+      // chunk-and-merge mode. Until that lands, signal up to the caller
+      // so the graceful-degradation fallback can run instead of attempting
+      // a doomed call.
+      const inputTokens = inputTokenEstimate(request)
+      const llmInputBudget = (model.limit?.context ?? 200_000) - request.targetTokens - 4_000 // safety margin
+      if (inputTokens > llmInputBudget) {
+        return {
+          ok: false,
+          reason: "no_response",
+          detail: `chunk_and_merge_unimplemented: input ${inputTokens} > llm_budget ${llmInputBudget}`,
+          latencyMs: Date.now() - startedAt,
+        }
+      }
+
+      // Build the chat-completion payload. Framing template is the
+      // system message; user payload renders the request.
+      const framingRaw = await loadFramingTemplate()
+      const framing = applyFramingPlaceholders(framingRaw, {
+        targetTokens: request.targetTokens,
+        phase2Strict: request.framing.strict
+          ? "PHASE 2 STRICT MODE — emergency framing. Be ruthless: drop secondary detail. Hard ceiling at the listed target_tokens."
+          : "",
+      })
+      const stricterAddendum = opts.stricterRetryReason
+        ? "\n\nPREVIOUS ATTEMPT FAILED VALIDATION:\n- Reason: " +
+          stricterReasonText(opts.stricterRetryReason) +
+          "\nYou must comply with the OUTPUT SHAPE and TARGET SIZE rules exactly. Reduce detail; cut secondary content; halve the size if necessary. Begin with the header line and produce nothing else.\n"
+        : ""
+      const systemText = framing + stricterAddendum
+      const accountId =
+        agentModel?.accountId ?? userMessage.model.accountId ?? session?.execution?.accountId
+      const userText = buildUserPayload(request, {
+        generatedAt: new Date().toISOString(),
+        provider: model.providerId ?? userMessage.model.providerId,
+        model: model.id ?? userMessage.model.modelID,
+      })
+
+      // Stub assistant message in the stream — becomes the anchor when
+      // validation passes. If validation fails we still leave the message
+      // (it has the failed body) and the caller may either delete it or
+      // overwrite on retry. For simplicity in this initial cut we leave
+      // it; a follow-up will clean up failed-attempt anchors.
+      const stub = (await Session.updateMessage({
+        id: Identifier.ascending("message"),
+        role: "assistant",
+        parentID,
+        sessionID,
+        mode: "compaction",
+        agent: "compaction",
+        variant: userMessage.variant,
+        summary: true,
+        path: { cwd: Instance.directory, root: Instance.worktree },
+        cost: 0,
+        tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+        accountId,
+        time: { created: Date.now() },
+      })) as MessageV2.Assistant
+
+      const processor = SessionProcessor.create({
+        assistantMessage: stub,
+        sessionID,
+        model,
+        accountId,
+        abort: opts.abort,
+      })
+
+      try {
+        const result = await processor.process({
+          user: userMessage,
+          agent,
+          abort: opts.abort,
+          sessionID,
+          tools: {},
+          system: [systemText],
+          messages: sanitizeOrphanedToolCalls([
+            { role: "user", content: [{ type: "text", text: userText }] },
+          ]),
+          model,
+        })
+        if (processor.message.error || result !== "continue") {
+          return {
+            ok: false,
+            reason: "llm_threw",
+            detail: processor.message.error ? "processor reported error" : `result=${result}`,
+            latencyMs: Date.now() - startedAt,
+          }
+        }
+      } catch (err) {
+        return {
+          ok: false,
+          reason: "llm_threw",
+          detail: err instanceof Error ? err.message : String(err),
+          latencyMs: Date.now() - startedAt,
+        }
+      }
+
+      // Read assistant text out
+      const fresh = (await Session.messages({ sessionID })).findLast((m) => m.info.id === processor.message.id)
+      const anchorBody =
+        fresh?.parts
+          .filter((p) => p.type === "text")
+          .map((p) => (p as any).text ?? "")
+          .join("\n") ?? ""
+
+      const validation = validateAnchorBody(anchorBody, request)
+      if (!validation.ok) {
+        return {
+          ok: false,
+          reason: validation.reason ?? "header_missing",
+          detail: typeof validation.reason === "string" ? validation.reason : JSON.stringify(validation.reason),
+          latencyMs: Date.now() - startedAt,
+        }
+      }
+
+      return {
+        ok: true,
+        anchorBody,
+        anchorMessageId: processor.message.id,
+        latencyMs: Date.now() - startedAt,
+        provider: model.providerId ?? "",
+        model: model.id ?? "",
+      }
+    }
+
+    function applyFramingPlaceholders(
+      template: string,
+      vars: { targetTokens: number; phase2Strict: string },
+    ): string {
+      return template
+        .replaceAll("{{targetTokens}}", String(vars.targetTokens))
+        .replaceAll("{{phase2Strict}}", vars.phase2Strict)
+        .replaceAll("{{phase2TargetTokens}}", String(vars.targetTokens))
+    }
+
+    function stricterReasonText(reason: ValidationFailure): string {
+      if (typeof reason === "string") {
+        switch (reason) {
+          case "header_missing":
+            return "first line did not match [Context Anchor v1] header regex"
+          case "size_overflow":
+            return "output exceeded targetTokens * 1.10 ceiling"
+          case "sanity_smaller":
+            return "output was not smaller than input (likely a verbatim echo)"
+          default:
+            return reason
+        }
+      }
+      if (reason.kind === "forbidden_token") return `forbidden token present: ${reason.token}`
+      if (reason.kind === "drop_violated") return `dropped tool_call_id appeared verbatim: ${reason.toolCallId}`
+      return JSON.stringify(reason)
+    }
+
+    // ─── runHybridLlm (Phase 2.9 recovery wrapper, MINIMAL) ────────────
+
+    /**
+     * Top-level entry for the hybrid-llm compaction path. Wraps
+     * runLlmCompact with a minimal recovery ladder:
+     *
+     *   1. First attempt with normal framing.
+     *   2. Single retry with stricter framing (includes the
+     *      validation-failure reason as a prompt addendum).
+     *   3. (TODO Phase 2.9 follow-up): optional fallback provider.
+     *   4. Graceful degradation: keep prior anchor; do NOT write a new
+     *      one. The runloop continues; next overflow trigger will retry.
+     *
+     * Phase 2 absorb-pinned-zone path (DD-5/DD-9) and starvation
+     * handling (E_OVERFLOW_UNRECOVERABLE) are TODO Phase 2.10/2.11 — for
+     * now this function only fires Phase 1.
+     *
+     * Returns a CompactionEvent describing what happened. Callers emit
+     * the event into telemetry (Phase 2.13) and decide downstream
+     * actions.
+     */
+    export async function runHybridLlm(
+      sessionID: string,
+      opts: {
+        abort: AbortSignal
+        priorAnchor: Anchor | null
+        journalUnpinned: JournalEntry[]
+        pinnedZone?: PinnedZoneEntry[]
+        dropMarkers?: string[]
+        targetTokens: number
+        voluntary?: boolean
+      },
+    ): Promise<CompactionEvent> {
+      const eventId = Identifier.ascending("compaction-event")
+      const startedAt = Date.now()
+      const request: LLMCompactRequest = {
+        priorAnchor: opts.priorAnchor,
+        journalUnpinned: opts.journalUnpinned,
+        pinnedZone: opts.pinnedZone,
+        dropMarkers: opts.dropMarkers,
+        framing: { mode: "phase1", strict: false },
+        targetTokens: opts.targetTokens,
+      }
+
+      // Attempt 1
+      const first = await runLlmCompact(sessionID, request, { abort: opts.abort })
+      if (first.ok) {
+        return makeEvent({
+          eventId,
+          sessionID,
+          phase: 1,
+          internalMode: "single-pass",
+          inputTokens: inputTokenEstimate(request),
+          outputTokens: Math.ceil(first.anchorBody.length / 4),
+          pinnedCountIn: opts.pinnedZone?.length,
+          droppedCountIn: opts.dropMarkers?.length,
+          recallCountIn: 0,
+          voluntary: opts.voluntary,
+          latencyMs: Date.now() - startedAt,
+          result: "success",
+        })
+      }
+
+      // Attempt 2 — stricter framing if the failure was validation-shaped.
+      const isValidationShaped =
+        first.reason === "header_missing" ||
+        first.reason === "size_overflow" ||
+        first.reason === "sanity_smaller" ||
+        (typeof first.reason === "object" &&
+          (first.reason.kind === "forbidden_token" || first.reason.kind === "drop_violated"))
+      if (isValidationShaped) {
+        const second = await runLlmCompact(sessionID, request, {
+          abort: opts.abort,
+          stricterRetryReason: first.reason as ValidationFailure,
+        })
+        if (second.ok) {
+          return makeEvent({
+            eventId,
+            sessionID,
+            phase: 1,
+            internalMode: "single-pass",
+            inputTokens: inputTokenEstimate(request),
+            outputTokens: Math.ceil(second.anchorBody.length / 4),
+            pinnedCountIn: opts.pinnedZone?.length,
+            droppedCountIn: opts.dropMarkers?.length,
+            recallCountIn: 0,
+            voluntary: opts.voluntary,
+            latencyMs: Date.now() - startedAt,
+            result: "success",
+          })
+        }
+      }
+
+      // Graceful degradation. TODO Phase 2.9 follow-up: fallback provider.
+      // For now we report failed_then_fallback with no anchor written;
+      // runloop continues with the prior anchor in place.
+      log.warn("hybrid-llm compaction failed after retries; falling back to prior anchor", {
+        sessionID,
+        reason: first.reason,
+        detail: first.detail,
+      })
+      return makeEvent({
+        eventId,
+        sessionID,
+        phase: 1,
+        internalMode: "single-pass",
+        inputTokens: inputTokenEstimate(request),
+        outputTokens: 0,
+        pinnedCountIn: opts.pinnedZone?.length,
+        droppedCountIn: opts.dropMarkers?.length,
+        recallCountIn: 0,
+        voluntary: opts.voluntary,
+        latencyMs: Date.now() - startedAt,
+        result: "failed_then_fallback",
+        errorCode: classifyErrorCode(first.reason),
+      })
+    }
+
+    function classifyErrorCode(reason: LlmCompactResult & { ok: false } extends { reason: infer R } ? R : never): ErrorCode {
+      if (reason === "timeout") return "E_HYBRID_LLM_TIMEOUT"
+      if (reason === "llm_threw" || reason === "no_response") return "E_HYBRID_LLM_FAILED"
+      // header_missing / size_overflow / sanity_smaller / forbidden_token / drop_violated
+      return "E_HYBRID_LLM_MALFORMED"
+    }
+
+    function makeEvent(input: {
+      eventId: string
+      sessionID: string
+      phase: Phase
+      internalMode: InternalMode
+      inputTokens: number
+      outputTokens: number
+      pinnedCountIn?: number
+      droppedCountIn?: number
+      recallCountIn?: number
+      voluntary?: boolean
+      latencyMs: number
+      result: CompactionEvent["result"]
+      errorCode?: ErrorCode
+    }): CompactionEvent {
+      return {
+        eventId: input.eventId,
+        sessionId: input.sessionID,
+        kind: "hybrid_llm",
+        phase: input.phase,
+        internalMode: input.internalMode,
+        inputTokens: input.inputTokens,
+        outputTokens: input.outputTokens,
+        pinnedCountIn: input.pinnedCountIn,
+        droppedCountIn: input.droppedCountIn,
+        recallCountIn: input.recallCountIn,
+        voluntary: input.voluntary,
+        latencyMs: input.latencyMs,
+        result: input.result,
+        errorCode: input.errorCode,
+        emittedAt: new Date().toISOString(),
+      }
+    }
   }
 }
