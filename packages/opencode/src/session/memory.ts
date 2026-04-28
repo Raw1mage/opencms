@@ -361,4 +361,149 @@ export namespace Memory {
   // a derived view of the messages stream — there's nothing to persist
   // separately. Cooldown reads anchor message timestamps directly.
   void log
+
+  // ───────────────────────────────────────────────────────────────────
+  // Hybrid accessors — Phase 2 of context-management subsystem
+  // (specs/tool-output-chunking/, refactor 2026-04-29).
+  //
+  // These are additive selectors over the message stream that the
+  // hybrid-llm compaction path needs: get the most recent anchor, the
+  // unpinned journal since that anchor, the pinned-zone source
+  // tool_results, and recall a specific message from disk. Existing
+  // Memory.read / renderForLLM / etc. are unchanged.
+  //
+  // INV-10: single source of truth is the on-disk message stream. None
+  // of these accessors persist anything separately; they are pure views.
+  //
+  // Return types are raw MessageV2.WithParts so this file stays import-
+  // cycle-free with compaction.ts. Callers in compaction.ts convert into
+  // Hybrid.Anchor / Hybrid.JournalEntry / Hybrid.PinnedZoneEntry when
+  // building the LLM_compact request.
+  // ───────────────────────────────────────────────────────────────────
+  export namespace Hybrid {
+    /**
+     * Most recent assistant message with `summary === true`. This IS the
+     * anchor — schema unchanged from compaction-redesign DD-8 so legacy
+     * narrative anchors are forward-compatible (DD-10 migration).
+     *
+     * Returns null on cold-start (no anchor yet).
+     */
+    export async function getAnchorMessage(
+      sessionID: string,
+      messages?: MessageV2.WithParts[],
+    ): Promise<MessageV2.WithParts | null> {
+      const msgs = messages ?? (await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[]))
+      const idx = findMostRecentAnchorIndex(msgs)
+      return idx === -1 ? null : msgs[idx]
+    }
+
+    /**
+     * Journal slice = messages after the most recent anchor (or all of
+     * them on cold-start), with tool_results for tool_call ids in
+     * `dropMarkers` excluded. Adjacency invariant for tool_call /
+     * tool_result pairs is preserved: when a tool_result is dropped,
+     * its paired tool_call is also dropped to keep the stream
+     * provider-validatable.
+     *
+     * Phase 1 LLM_compact reads this; Phase 2 reads journalAll (no
+     * anchor cutoff). For Phase 2 callers, pass `includePreAnchor=true`.
+     */
+    export async function getJournalMessages(
+      sessionID: string,
+      opts?: {
+        messages?: MessageV2.WithParts[]
+        dropMarkers?: Set<string>
+        includePreAnchor?: boolean
+      },
+    ): Promise<MessageV2.WithParts[]> {
+      const msgs = opts?.messages ?? (await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[]))
+      const drop = opts?.dropMarkers ?? new Set<string>()
+      const startIdx =
+        opts?.includePreAnchor || findMostRecentAnchorIndex(msgs) === -1
+          ? 0
+          : findMostRecentAnchorIndex(msgs) + 1
+
+      const result: MessageV2.WithParts[] = []
+      for (let i = startIdx; i < msgs.length; i++) {
+        const m = msgs[i]
+        // Filter parts: drop the listed tool_call ids and their matched
+        // tool_result parts. We rebuild the parts array; if no parts
+        // remain meaningful, the message is still kept (could be a user
+        // message or assistant text without tools).
+        if (drop.size === 0) {
+          result.push(m)
+          continue
+        }
+        const filteredParts = m.parts.filter((p) => {
+          if (p.type === "tool") {
+            const tcid = (p as MessageV2.ToolPart).callID
+            if (tcid && drop.has(tcid)) return false
+          }
+          return true
+        })
+        if (filteredParts.length === m.parts.length) {
+          result.push(m)
+        } else {
+          result.push({ ...m, parts: filteredParts })
+        }
+      }
+      return result
+    }
+
+    /**
+     * Pinned-zone source list — the original tool_results referenced by
+     * `pin` markers in recent assistant message metadata. Returns the
+     * raw tool messages; the caller wraps each as a synthesised
+     * user-role envelope per DD-4 (closes G-1, INV-4).
+     *
+     * Stable order: pinned tool_results are returned in the order they
+     * first appeared in the stream (chronological), so prompt-build
+     * produces a deterministic pinned_zone shape inter-compaction.
+     */
+    export async function getPinnedToolMessages(
+      sessionID: string,
+      pinnedToolCallIds: ReadonlySet<string>,
+      messages?: MessageV2.WithParts[],
+    ): Promise<{ message: MessageV2.WithParts; toolPart: MessageV2.ToolPart }[]> {
+      if (pinnedToolCallIds.size === 0) return []
+      const msgs = messages ?? (await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[]))
+      const out: { message: MessageV2.WithParts; toolPart: MessageV2.ToolPart }[] = []
+      const seen = new Set<string>()
+      for (const m of msgs) {
+        for (const p of m.parts) {
+          if (p.type !== "tool") continue
+          const tp = p as MessageV2.ToolPart
+          if (!tp.callID || seen.has(tp.callID)) continue
+          if (pinnedToolCallIds.has(tp.callID)) {
+            out.push({ message: m, toolPart: tp })
+            seen.add(tp.callID)
+          }
+        }
+      }
+      return out
+    }
+
+    /**
+     * Recall a specific message from disk by id (DD-7, INV-9).
+     *
+     * Cross-session via the optional sessionID argument — the parent of
+     * a completed subagent (DD-8) recalls from the subagent's own
+     * stream. Returns null if the message does not exist on disk.
+     *
+     * Idempotency check is the caller's responsibility (typically the
+     * OverrideParser in prompt.ts checks whether the recalled content
+     * is already in journal as a "[Recalled from earlier]" wrapped
+     * entry before invoking this).
+     */
+    export async function recallMessage(
+      sessionID: string,
+      msgId: string,
+    ): Promise<MessageV2.WithParts | null> {
+      const msgs = await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[])
+      for (const m of msgs) {
+        if (m.info?.id === msgId) return m
+      }
+      return null
+    }
+  }
 }
