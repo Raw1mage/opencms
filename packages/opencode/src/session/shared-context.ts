@@ -512,7 +512,23 @@ export namespace SharedContext {
 
   // ── Helpers ─────────────────────────────────────────────────
 
+  // Phase 13.3 leftover: `serialize` is used internally by updateFromTurn /
+  // truncateSpaceToFit / mergeFrom for token-budget estimation. The original
+  // `formatSnapshot` (deleted in c84ecb309) was the public formatter; this
+  // private inline version replaces only the internal-estimation use.
   function serialize(space: Space): string {
-    return formatSnapshot(space)
+    const lines: string[] = []
+    if (space.goal) lines.push(`Goal: ${space.goal}`)
+    if (space.files.length > 0) {
+      for (const f of space.files) {
+        const meta = [f.lines ? `${f.lines}L` : null, f.operation].filter(Boolean).join(",")
+        const suffix = f.summary ? ` — ${f.summary}` : ""
+        lines.push(`- ${f.path} (${meta})${suffix}`)
+      }
+    }
+    if (space.discoveries.length > 0) lines.push(...space.discoveries.map((d) => `- ${d}`))
+    if (space.actions.length > 0) lines.push(...space.actions.map((a) => `- ${a.summary}`))
+    if (space.currentState) lines.push(`State: ${space.currentState}`)
+    return lines.join("\n")
   }
 }

@@ -1263,14 +1263,37 @@ export namespace SessionPrompt {
     // ── Pre-loop provider switch detection ──
     // Must run BEFORE the main loop to avoid the expensive filterCompacted scan
     // on a session whose entire history is incompatible with the new provider.
-    // Uses incomingModel from the caller — zero storage reads needed.
-    if (!session.parentID && session.execution?.providerId && options?.incomingModel) {
-      const prevProvider = session.execution.providerId
+    //
+    // Phase 13 hotfix (2026-04-28): compare incomingModel against the most
+    // recent ASSISTANT MESSAGE's identity — that's what the codex server
+    // actually has cached as `previous_response_id`. The previous comparison
+    // (against `session.execution.*`) produced false positives when TUI's
+    // `sanitizeModelIdentity` / `replacementAccountId` silently substituted
+    // an "available" account at the picker level (e.g. rotation3d marked the
+    // pinned account inactive temporarily). The pin would flip in
+    // session.execution but the codex server's cache key stayed bound to the
+    // ACTUAL account of the last LLM call — forcing a needless rebuild.
+    //
+    // No assistant messages → fresh session, nothing to invalidate, skip.
+    if (!session.parentID && options?.incomingModel) {
+      const lastAssistantIdentity = await (async () => {
+        const msgs = await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[])
+        for (let i = msgs.length - 1; i >= 0; i--) {
+          const info = msgs[i].info
+          if (info.role === "assistant" && (info as MessageV2.Assistant).finish) {
+            const a = info as MessageV2.Assistant
+            return { providerId: a.providerId, accountId: a.accountId }
+          }
+        }
+        return undefined
+      })()
+      const prevProvider = lastAssistantIdentity?.providerId
       const nextProvider = options.incomingModel.providerId
-      const prevAccount = session.execution.accountId
+      const prevAccount = lastAssistantIdentity?.accountId
       const nextAccount = options.incomingModel.accountId
-      const providerChanged = prevProvider !== nextProvider
-      const accountChanged = !providerChanged && prevAccount !== nextAccount && (prevAccount || nextAccount)
+      const providerChanged = !!prevProvider && prevProvider !== nextProvider
+      const accountChanged =
+        !providerChanged && !!prevProvider && prevAccount !== nextAccount && !!(prevAccount || nextAccount)
       if (providerChanged || accountChanged) {
         log.warn("identity switch detected (pre-loop), forcing context reinit", {
           sessionID,
