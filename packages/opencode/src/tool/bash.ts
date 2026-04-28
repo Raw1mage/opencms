@@ -16,6 +16,7 @@ import { Shell } from "@/shell/shell"
 
 import { BashArity } from "@/permission/arity"
 import { Truncate } from "./truncation"
+import { ToolBudget } from "./budget"
 import { Plugin } from "@/plugin"
 import { Env } from "@/env"
 import { RequestUser } from "@/runtime/request-user"
@@ -321,7 +322,17 @@ export const BashTool = Tool.define("bash", async () => {
       const isSearch = params.command.includes("grep") || params.command.includes("rg")
       const threshold = isSearch ? 2000 : 30000
 
-      if (output.length > threshold) {
+      // Layer 2 (specs/tool-output-chunking/, DD-2): token-aware bound
+      // using bashOverride knob (default 40K tokens ≈ 160K chars). The
+      // existing char threshold above is dominant in the typical case;
+      // the token check is a defensive lower bound for small-context-
+      // model edge cases. INV-8: the natural-fit branch returns output
+      // byte-identical to pre-Layer-2 behaviour.
+      const budget = ToolBudget.resolve(ctx, "bash")
+      const overChars = output.length > threshold
+      const overBudget = ToolBudget.estimateTokens(output) > budget.tokens
+
+      if (overChars || overBudget) {
         // For search commands, use maxLines: 0 to return only the hint
         const truncated = await Truncate.output(
           output,
@@ -329,7 +340,14 @@ export const BashTool = Tool.define("bash", async () => {
           ctx.extra?.agent,
           ctx.sessionID,
         )
-        const hint = `This output is redirected to ${truncated.truncated ? truncated.outputPath : "internal error"}`
+        const reason = overBudget
+          ? `Layer 2 budget (~${budget.tokens} tokens, ${budget.source}) exceeded`
+          : `output > ${threshold} chars`
+        const hint = truncated.truncated
+          ? `This output (${reason}) is redirected to ${truncated.outputPath}. ` +
+            `For long-running commands, redirect stdout to a file (e.g. '> /tmp/out.log') ` +
+            `then read the file in slices.`
+          : "This output is redirected to internal error"
 
         return {
           title: params.description,
