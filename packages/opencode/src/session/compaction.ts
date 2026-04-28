@@ -5,10 +5,7 @@ import { Identifier } from "../id/id"
 import { Instance } from "../project/instance"
 import { Provider } from "../provider/provider"
 import { MessageV2 } from "./message-v2"
-import { Global } from "../global"
 import z from "zod"
-import path from "path"
-import fs from "fs/promises"
 import { Token } from "../util/token"
 import { Log } from "../util/log"
 import { SessionProcessor } from "./processor"
@@ -22,15 +19,6 @@ import { SharedContext } from "./shared-context"
 import { Memory } from "./memory"
 import { ContinuationInvalidatedEvent } from "../plugin/codex-auth"
 
-const SessionDeletedEvent = BusEvent.define(
-  "session.deleted",
-  z.object({
-    info: z.object({
-      id: Identifier.schema("session"),
-    }),
-  }),
-)
-
 // Subscribe to continuation invalidation. compaction-redesign DD-11:
 // state-driven signal — write timestamp onto session.execution; the
 // runloop's deriveObservedCondition compares against the most recent
@@ -40,13 +28,9 @@ Bus.subscribe(ContinuationInvalidatedEvent, (evt) => {
   void Session.markContinuationInvalidated(evt.properties.sessionId).catch(() => {})
 })
 
-Bus.subscribe(SessionDeletedEvent, (evt) => {
-  void SessionCompaction.deleteRebindCheckpoint(evt.properties.info.id)
-})
-
-setTimeout(() => {
-  void SessionCompaction.pruneStaleCheckpoints()
-}, 5000)
+// Phase 13.2-B: SessionDeleted hook for deleteRebindCheckpoint and the
+// pruneStaleCheckpoints startup timer are gone — the disk-file checkpoint
+// surface no longer exists.
 
 export namespace SessionCompaction {
   const log = Log.create({ service: "session.compaction" })
@@ -57,250 +41,13 @@ export namespace SessionCompaction {
   // rebind detection happens via deriveObservedCondition's accountId / providerId
   // comparison against the most recent Anchor's identity.
 
-  // ── Rebind Checkpoint ──
-  // Quietly snapshots compacted context to disk for restart recovery.
-  // Does NOT touch the live message chain — cache stays intact.
-  // On rebind (restart + previous_response_not_found), the checkpoint
-  // is used as the input base instead of rebuilding from all messages.
-
-  const REBIND_BUDGET_TOKEN_THRESHOLD = 80_000
-  const REBIND_CHECKPOINT_MAX_AGE_MS = 24 * 60 * 60 * 1000
-  const _lastCheckpointRound = new Map<string, number>()
-
-  export interface RebindCheckpoint {
-    sessionID: string
-    timestamp: number
-    source: string
-    snapshot: string
-    /**
-     * Phase 8 / DD-8: anchor unification. New writes omit `lastMessageId`;
-     * recovery scans the message stream for the most recent `summary: true`
-     * assistant message and uses its id as the boundary. Legacy checkpoints
-     * (pre-phase-8) carry the field; readers fall back to it when no anchor
-     * is present in the stream (e.g. when restart-restore happens before
-     * the first runloop iteration captures a fresh anchor).
-     */
-    lastMessageId?: string
-    opaqueItems?: unknown[]
-  }
-
-  function getRebindCheckpointPath(sessionID: string) {
-    return path.join(Global.Path.state, `rebind-checkpoint-${sessionID}.json`)
-  }
-
-  export function shouldRebindBudgetCompact(input: {
-    tokens: MessageV2.Assistant["tokens"]
-    sessionID: string
-    currentRound: number
-  }): boolean {
-    const count =
-      input.tokens.total ||
-      input.tokens.input + input.tokens.output + input.tokens.cache.read + input.tokens.cache.write
-    if (count < REBIND_BUDGET_TOKEN_THRESHOLD) return false
-
-    // Cooldown: don't checkpoint every single round
-    const lastRound = _lastCheckpointRound.get(input.sessionID) ?? 0
-    if (input.currentRound - lastRound < 4) return false
-
-    return true
-  }
-
-  export async function saveRebindCheckpoint(input: {
-    sessionID: string
-    /** @deprecated phase 8 (DD-8): no longer required. Recovery scans the message stream for the most recent summary anchor. */
-    lastMessageId?: string
-    currentRound: number
-  }) {
-    try {
-      const snap = await SharedContext.snapshot(input.sessionID)
-      if (!snap) return
-
-      _lastCheckpointRound.set(input.sessionID, input.currentRound)
-
-      await saveCheckpointAfterCompaction({
-        sessionID: input.sessionID,
-        source: "llm",
-        summary: snap,
-        lastMessageId: input.lastMessageId,
-      })
-    } catch (e) {
-      log.warn("rebind checkpoint save failed", { sessionID: input.sessionID, error: String(e) })
-    }
-  }
-
-  /**
-   * Unified checkpoint save — called by BOTH A (codex-server) and B (LLM) compaction paths.
-   * Non-blocking when called as fire-and-forget.
-   *
-   * Phase 8 (DD-8): `lastMessageId` is now optional. New writes can omit it
-   * (the message stream itself carries the anchor — `summary: true` assistant
-   * message). Field is retained on the on-disk schema so legacy checkpoints
-   * still load and so out-of-process consumers that depended on the field
-   * see no change in shape.
-   */
-  export async function saveCheckpointAfterCompaction(input: {
-    sessionID: string
-    source: string
-    summary: string
-    lastMessageId?: string
-    opaqueItems?: unknown[]
-  }) {
-    try {
-      const checkpointPath = getRebindCheckpointPath(input.sessionID)
-      const checkpoint: RebindCheckpoint = {
-        sessionID: input.sessionID,
-        timestamp: Date.now(),
-        source: input.source,
-        snapshot: input.summary,
-        lastMessageId: input.lastMessageId,
-        opaqueItems: input.opaqueItems,
-      }
-      await fs.mkdir(path.dirname(checkpointPath), { recursive: true })
-      const tmpPath = `${checkpointPath}.tmp`
-      await fs.writeFile(tmpPath, JSON.stringify(checkpoint))
-      await fs.rename(tmpPath, checkpointPath)
-      log.info("checkpoint saved after compaction", {
-        sessionID: input.sessionID,
-        source: input.source,
-        bytes: input.summary.length,
-        lastMessageId: input.lastMessageId,
-        opaqueItemCount: input.opaqueItems?.length,
-      })
-    } catch (e) {
-      log.warn("checkpoint save after compaction failed", { sessionID: input.sessionID, error: String(e) })
-    }
-  }
-
-  export async function loadRebindCheckpoint(sessionID: string): Promise<RebindCheckpoint | null> {
-    try {
-      const checkpointPath = getRebindCheckpointPath(sessionID)
-      const content = await fs.readFile(checkpointPath, "utf-8")
-      const checkpoint = JSON.parse(content) as RebindCheckpoint
-      log.info("rebind checkpoint loaded", { sessionID, age: Date.now() - checkpoint.timestamp })
-      return checkpoint
-    } catch {
-      return null
-    }
-  }
-
-  export async function deleteRebindCheckpoint(sessionID: string) {
-    try {
-      await fs.unlink(getRebindCheckpointPath(sessionID))
-      log.info("rebind checkpoint deleted", { sessionID })
-    } catch {}
-  }
-
-  export async function pruneStaleCheckpoints(now = Date.now()) {
-    try {
-      const files = await fs.readdir(Global.Path.state)
-      for (const file of files) {
-        if (!file.startsWith("rebind-checkpoint-") || !file.endsWith(".json")) continue
-        const filePath = path.join(Global.Path.state, file)
-        const stat = await fs.stat(filePath)
-        if (now - stat.mtimeMs <= REBIND_CHECKPOINT_MAX_AGE_MS) continue
-        await fs.unlink(filePath)
-        log.info("pruned stale rebind checkpoint", { file, age: now - stat.mtimeMs })
-      }
-    } catch (e) {
-      log.warn("failed to prune stale checkpoints", { error: String(e) })
-    }
-  }
-
-  /**
-   * Find the boundary index for rebind recovery (DD-8 anchor unification).
-   *
-   * Priority:
-   *   1. Most recent `summary: true` assistant message in the stream — the
-   *      canonical Anchor. Boundary = that message's index (we keep the
-   *      anchor itself; rebind treats it as the synthetic summary head).
-   *   2. Legacy fallback: checkpoint's `lastMessageId` field (if set).
-   *      Pre-phase-8 checkpoints carry it; boundary = the message with
-   *      that id, and we slice AFTER it.
-   *
-   * Returns -1 when no boundary can be found.
-   */
-  function findRebindBoundaryIndex(
-    messages: MessageV2.WithParts[],
-    checkpointLastMessageId: string | undefined,
-  ): { index: number; sliceFrom: number } {
-    // Anchor lookup — canonical post-DD-8 path.
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const info = messages[i].info
-      if (info.role === "assistant" && (info as MessageV2.Assistant).summary === true) {
-        // Boundary IS the anchor. Slice from index + 1 to keep the anchor
-        // out of the post-boundary set; the synthetic summary built below
-        // replaces it conceptually.
-        return { index: i, sliceFrom: i + 1 }
-      }
-    }
-    // Legacy fallback — checkpoint carries lastMessageId from pre-phase-8.
-    if (checkpointLastMessageId) {
-      const idx = messages.findIndex((message) => message.info.id === checkpointLastMessageId)
-      if (idx !== -1) {
-        return { index: idx, sliceFrom: idx + 1 }
-      }
-    }
-    return { index: -1, sliceFrom: -1 }
-  }
-
-  export function applyRebindCheckpoint(input: {
-    sessionID: string
-    checkpoint: RebindCheckpoint
-    messages: MessageV2.WithParts[]
-    model: Provider.Model
-  }):
-    | { applied: false; reason: "boundary_missing" | "unsafe_boundary" | "no_post_boundary" }
-    | { applied: true; messages: MessageV2.WithParts[] } {
-    const { sliceFrom } = findRebindBoundaryIndex(input.messages, input.checkpoint.lastMessageId)
-    if (sliceFrom === -1) return { applied: false, reason: "boundary_missing" }
-
-    const postBoundary = input.messages.slice(sliceFrom)
-    if (postBoundary.length === 0) return { applied: false, reason: "no_post_boundary" }
-
-    const firstPost = postBoundary[0]
-    const unsafeBoundary =
-      firstPost.info.role === "assistant" &&
-      firstPost.parts.some((part) => part.type === "tool" && part.state.status !== "pending")
-    if (unsafeBoundary) return { applied: false, reason: "unsafe_boundary" }
-
-    const summaryMessageID = Identifier.ascending("message")
-    // Use the boundary message's id as parentID when available (anchor scan
-    // returns the actual anchor's index; legacy fallback also yields a real
-    // message id). For absolute defensive cases, fall back to checkpoint.lastMessageId.
-    const boundaryIndex = sliceFrom > 0 ? sliceFrom - 1 : 0
-    const parentID = input.messages[boundaryIndex]?.info.id ?? input.checkpoint.lastMessageId ?? ""
-    const syntheticSummary: MessageV2.WithParts = {
-      info: {
-        id: summaryMessageID,
-        sessionID: input.sessionID,
-        role: "assistant",
-        parentID,
-        mode: "rebind",
-        agent: "rebind-checkpoint",
-        modelID: input.model.id,
-        providerId: input.model.providerId,
-        accountId: undefined,
-        path: { cwd: Instance.directory, root: Instance.worktree },
-        summary: true,
-        cost: 0,
-        tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
-        finish: "stop",
-        time: { created: input.checkpoint.timestamp, completed: input.checkpoint.timestamp },
-      },
-      parts: [
-        {
-          id: Identifier.ascending("part"),
-          messageID: summaryMessageID,
-          sessionID: input.sessionID,
-          type: "text",
-          text: input.checkpoint.snapshot,
-          synthetic: true,
-        },
-      ],
-    }
-
-    return { applied: true, messages: [syntheticSummary, ...postBoundary] }
-  }
+  // Phase 13.2-B: RebindCheckpoint disk-file surface fully removed.
+  // Recovery is now single-source: scan the messages stream for the most
+  // recent anchor (`assistant.summary === true`) and slice from there.
+  // Implementation lives in prompt.ts (`applyStreamAnchorRebind` / Phase
+  // 13.2-A). Bus event handlers above (Session.deleted hook,
+  // pruneStaleCheckpoints timer) are gone; daemon-startup leaves residual
+  // disk files alone — user backups stay untouched, no auto-cleanup.
 
   /**
    * Sanitize orphaned tool calls/results in a ModelMessage array.
@@ -896,13 +643,8 @@ export namespace SessionCompaction {
 
     log.info("shared context compaction complete", { sessionID: input.sessionID })
 
-    // Persist checkpoint so rebind can restore from this compaction point
-    void saveCheckpointAfterCompaction({
-      sessionID: input.sessionID,
-      source: "shared-context",
-      summary: input.snapshot,
-      lastMessageId: parentID,
-    })
+    // Phase 13.2-B: disk-file checkpoint write removed. The anchor message
+    // written above IS the durable record; rebind reads it via stream scan.
 
     Bus.publish(Event.Compacted, { sessionID: input.sessionID })
 
@@ -1546,14 +1288,8 @@ When constructing the summary, try to stick to this template:
       .map((p) => (p as any).text ?? "")
       .join("\n") ?? ""
 
-    if (summaryText) {
-      void saveCheckpointAfterCompaction({
-        sessionID: input.sessionID,
-        source: "llm",
-        summary: summaryText,
-        lastMessageId: input.parentID,
-      })
-    }
+    // Phase 13.2-B: disk-file checkpoint write removed. The summary message
+    // written above is the persisted record.
 
     return summaryText
   }

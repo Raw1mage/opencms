@@ -4,23 +4,17 @@ import { Memory } from "./memory"
 import { Session } from "."
 import { Config } from "@/config/config"
 import { SharedContext } from "./shared-context"
-import { Global } from "@/global"
-import fs from "fs/promises"
-import os from "os"
-import path from "path"
 
 const originalConfigGet = Config.get
 const originalSharedContextSnapshot = SharedContext.snapshot
 const originalMemoryRead = Memory.read
 const originalMemoryMarkCompacted = Memory.markCompacted
-const originalGlobalPathState = Global.Path.state
 
 afterEach(() => {
   ;(Config as any).get = originalConfigGet
   ;(SharedContext as any).snapshot = originalSharedContextSnapshot
   ;(Memory as any).read = originalMemoryRead
   ;(Memory as any).markCompacted = originalMemoryMarkCompacted
-  Global.Path.state = originalGlobalPathState
 })
 
 /**
@@ -179,200 +173,20 @@ describe("SessionCompaction cooldown guard", () => {
     expect(result.messages.length).toBeGreaterThan(0)
   })
 
-  it("applies a safe rebind checkpoint only after a non-tool boundary", () => {
-    const model = {
-      id: "gpt-5.4",
-      providerId: "openai",
-    } as any
-
-    const messages = [
-      {
-        info: {
-          id: "msg_1",
-          sessionID: "ses_rebind",
-          role: "user",
-          agent: "default",
-          model: { providerId: "openai", modelID: "gpt-5.4" },
-          time: { created: 1 },
-        },
-        parts: [{ id: "part_1", messageID: "msg_1", sessionID: "ses_rebind", type: "text", text: "hello" }],
-      },
-      {
-        info: {
-          id: "msg_2",
-          sessionID: "ses_rebind",
-          role: "assistant",
-          parentID: "msg_1",
-          mode: "default",
-          agent: "default",
-          modelID: "gpt-5.4",
-          providerId: "openai",
-          path: { cwd: "/tmp", root: "/tmp" },
-          cost: 0,
-          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
-          time: { created: 2, completed: 2 },
-        },
-        parts: [{ id: "part_2", messageID: "msg_2", sessionID: "ses_rebind", type: "text", text: "answer" }],
-      },
-      {
-        info: {
-          id: "msg_3",
-          sessionID: "ses_rebind",
-          role: "user",
-          agent: "default",
-          model: { providerId: "openai", modelID: "gpt-5.4" },
-          time: { created: 3 },
-        },
-        parts: [{ id: "part_3", messageID: "msg_3", sessionID: "ses_rebind", type: "text", text: "continue" }],
-      },
-    ] as any
-
-    const applied = SessionCompaction.applyRebindCheckpoint({
-      sessionID: "ses_rebind",
-      checkpoint: {
-        sessionID: "ses_rebind",
-        timestamp: 10,
-        snapshot: "checkpoint summary",
-        lastMessageId: "msg_2",
-      },
-      messages,
-      model,
-    })
-
-    expect(applied.applied).toBe(true)
-    if (!applied.applied) throw new Error("expected checkpoint to apply")
-    expect(applied.messages[0].info.role).toBe("assistant")
-    expect((applied.messages[0].info as any).summary).toBe(true)
-    expect((applied.messages[0].parts[0] as any).text).toContain("checkpoint summary")
-    expect(applied.messages[1].info.id).toBe("msg_3")
-  })
-
-  it("rebuilds replay as checkpoint prefix plus raw tail steps", () => {
-    const model = {
-      id: "gpt-5.4",
-      providerId: "openai",
-    } as any
-
-    const messages = [
-      {
-        info: {
-          id: "msg_1",
-          sessionID: "ses_rebind_tail",
-          role: "user",
-          agent: "default",
-          model: { providerId: "openai", modelID: "gpt-5.4" },
-          time: { created: 1 },
-        },
-        parts: [{ id: "part_1", messageID: "msg_1", sessionID: "ses_rebind_tail", type: "text", text: "hello" }],
-      },
-      {
-        info: {
-          id: "msg_2",
-          sessionID: "ses_rebind_tail",
-          role: "assistant",
-          parentID: "msg_1",
-          mode: "default",
-          agent: "default",
-          modelID: "gpt-5.4",
-          providerId: "openai",
-          path: { cwd: "/tmp", root: "/tmp" },
-          cost: 0,
-          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
-          time: { created: 2, completed: 2 },
-        },
-        parts: [{ id: "part_2", messageID: "msg_2", sessionID: "ses_rebind_tail", type: "text", text: "answer" }],
-      },
-      {
-        info: {
-          id: "msg_3",
-          sessionID: "ses_rebind_tail",
-          role: "user",
-          agent: "default",
-          model: { providerId: "openai", modelID: "gpt-5.4" },
-          time: { created: 3 },
-        },
-        parts: [{ id: "part_3", messageID: "msg_3", sessionID: "ses_rebind_tail", type: "text", text: "tail user" }],
-      },
-      {
-        info: {
-          id: "msg_4",
-          sessionID: "ses_rebind_tail",
-          role: "assistant",
-          parentID: "msg_3",
-          mode: "default",
-          agent: "default",
-          modelID: "gpt-5.4",
-          providerId: "openai",
-          path: { cwd: "/tmp", root: "/tmp" },
-          cost: 0,
-          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
-          time: { created: 4, completed: 4 },
-        },
-        parts: [
-          { id: "part_4", messageID: "msg_4", sessionID: "ses_rebind_tail", type: "text", text: "tail assistant" },
-        ],
-      },
-    ] as any
-
-    const applied = SessionCompaction.applyRebindCheckpoint({
-      sessionID: "ses_rebind_tail",
-      checkpoint: {
-        sessionID: "ses_rebind_tail",
-        timestamp: 10,
-        snapshot: "checkpoint summary",
-        lastMessageId: "msg_2",
-      },
-      messages,
-      model,
-    })
-
-    expect(applied.applied).toBe(true)
-    if (!applied.applied) throw new Error("expected checkpoint to apply")
-    expect(applied.messages).toHaveLength(3)
-    expect(applied.messages[0].info.role).toBe("assistant")
-    expect((applied.messages[0].info as any).summary).toBe(true)
-    expect((applied.messages[0].parts[0] as any).text).toContain("checkpoint summary")
-    expect(applied.messages[1].info.id).toBe("msg_3")
-    expect(applied.messages[2].info.id).toBe("msg_4")
-  })
-
-  it("persists rebind checkpoint metadata including lastMessageId", async () => {
-    const tmpdir = await fs.mkdtemp(path.join(os.tmpdir(), "rebind-checkpoint-test-"))
-    Global.Path.state = tmpdir
-    ;(SharedContext as any).snapshot = mock(async () => "snapshot body")
-
-    await SessionCompaction.saveRebindCheckpoint({
-      sessionID: "ses_checkpoint",
-      lastMessageId: "msg_last",
-      currentRound: 4,
-    })
-
-    const checkpoint = await SessionCompaction.loadRebindCheckpoint("ses_checkpoint")
-    expect(checkpoint?.snapshot).toBe("snapshot body")
-    expect(checkpoint?.lastMessageId).toBe("msg_last")
-    expect(typeof checkpoint?.timestamp).toBe("number")
-  })
-
-  it("prunes stale rebind checkpoints", async () => {
-    const tmpdir = await fs.mkdtemp(path.join(os.tmpdir(), "rebind-checkpoint-prune-"))
-    Global.Path.state = tmpdir
-    const stalePath = path.join(tmpdir, "rebind-checkpoint-ses_stale.json")
-    await fs.writeFile(
-      stalePath,
-      JSON.stringify({
-        sessionID: "ses_stale",
-        timestamp: 1,
-        snapshot: "stale snapshot",
-        lastMessageId: "msg_old",
-      }),
-    )
-    const staleTime = new Date(Date.now() - 25 * 60 * 60 * 1000)
-    await fs.utimes(stalePath, staleTime, staleTime)
-
-    await SessionCompaction.pruneStaleCheckpoints()
-
-    await expect(fs.access(stalePath)).rejects.toBeDefined()
-  })
+  // Phase 13.2-B: rebind checkpoint disk-file tests deleted.
+  // - "applies a safe rebind checkpoint only after a non-tool boundary"
+  // - "rebuilds replay as checkpoint prefix plus raw tail steps"
+  // - "persists rebind checkpoint metadata including lastMessageId"
+  // - "prunes stale rebind checkpoints"
+  // - "phase 8: applyRebindCheckpoint locates boundary via summary anchor"
+  // - "phase 8: applyRebindCheckpoint with no anchor + no lastMessageId"
+  //
+  // The disk-file recovery surface no longer exists. Equivalent stream-anchor
+  // recovery behaviour (INV-2 single-anchor-on-rotation, INV-3 no-Continue,
+  // boundary safety on tool calls) is covered by:
+  // - compaction.regression-2026-04-27.test.ts (INV-2, INV-3)
+  // - compaction-run.test.ts (cooldown gate + anchor message handling)
+  // - prompt.applyStreamAnchorRebind.test.ts (boundary safety; added below)
 
   // event_2026-04-27_runloop_rebind_loop regression coverage migrated
   // to compaction.regression-2026-04-27.test.ts after phase 7 deleted
@@ -474,106 +288,9 @@ describe("SessionCompaction cooldown guard", () => {
     ).resolves.toBe(true)
   })
 
-  // ── Phase 8 / DD-8: anchor unification ─────────────────────────────
-
-  it("phase 8: applyRebindCheckpoint locates boundary via summary anchor in stream", () => {
-    const model = { id: "gpt-5.4", providerId: "openai" } as any
-    // Stream contains a summary anchor at msg_a1 — that's the canonical
-    // boundary regardless of any lastMessageId in the checkpoint.
-    const messages = [
-      {
-        info: {
-          id: "msg_u1",
-          sessionID: "ses_p8_anchor",
-          role: "user",
-          agent: "default",
-          model: { providerId: "openai", modelID: "gpt-5.4" },
-          time: { created: 1 },
-        },
-        parts: [{ id: "p1", messageID: "msg_u1", sessionID: "ses_p8_anchor", type: "text", text: "earlier" }],
-      },
-      {
-        info: {
-          id: "msg_a1",
-          sessionID: "ses_p8_anchor",
-          role: "assistant",
-          parentID: "msg_u1",
-          mode: "compaction",
-          agent: "compaction",
-          modelID: "gpt-5.4",
-          providerId: "openai",
-          path: { cwd: "/tmp", root: "/tmp" },
-          cost: 0,
-          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
-          summary: true,
-          time: { created: 5, completed: 5 },
-        },
-        parts: [{ id: "p2", messageID: "msg_a1", sessionID: "ses_p8_anchor", type: "text", text: "<summary>" }],
-      },
-      {
-        info: {
-          id: "msg_u2",
-          sessionID: "ses_p8_anchor",
-          role: "user",
-          agent: "default",
-          model: { providerId: "openai", modelID: "gpt-5.4" },
-          time: { created: 6 },
-        },
-        parts: [{ id: "p3", messageID: "msg_u2", sessionID: "ses_p8_anchor", type: "text", text: "post-anchor user" }],
-      },
-    ] as any
-
-    const applied = SessionCompaction.applyRebindCheckpoint({
-      sessionID: "ses_p8_anchor",
-      checkpoint: {
-        sessionID: "ses_p8_anchor",
-        timestamp: 10,
-        snapshot: "checkpoint snapshot",
-        // No lastMessageId — phase 8 writes don't include it.
-      },
-      messages,
-      model,
-    })
-
-    expect(applied.applied).toBe(true)
-    if (!applied.applied) throw new Error("expected applied")
-    // Synthetic summary head + post-anchor user
-    expect(applied.messages).toHaveLength(2)
-    expect((applied.messages[0].info as any).summary).toBe(true)
-    expect((applied.messages[0].parts[0] as any).text).toContain("checkpoint snapshot")
-    expect(applied.messages[1].info.id).toBe("msg_u2")
-  })
-
-  it("phase 8: applyRebindCheckpoint with no anchor + no lastMessageId returns boundary_missing", () => {
-    const model = { id: "gpt-5.4", providerId: "openai" } as any
-    const messages = [
-      {
-        info: {
-          id: "msg_u1",
-          sessionID: "ses_p8_no_boundary",
-          role: "user",
-          agent: "default",
-          model: { providerId: "openai", modelID: "gpt-5.4" },
-          time: { created: 1 },
-        },
-        parts: [],
-      },
-    ] as any
-    const applied = SessionCompaction.applyRebindCheckpoint({
-      sessionID: "ses_p8_no_boundary",
-      checkpoint: {
-        sessionID: "ses_p8_no_boundary",
-        timestamp: 1,
-        snapshot: "x",
-        // no lastMessageId, no anchor
-      },
-      messages,
-      model,
-    })
-    expect(applied.applied).toBe(false)
-    if (applied.applied) throw new Error("expected not applied")
-    expect(applied.reason).toBe("boundary_missing")
-  })
+  // Phase 8 anchor-scan tests deleted in Phase 13.2-B — `applyRebindCheckpoint`
+  // is gone. Equivalent stream-anchor recovery is exercised in
+  // prompt.applyStreamAnchorRebind.test.ts.
 
   // ── Phase 11+ : smart prune (utilization gate + TurnSummary safety) ────
 
