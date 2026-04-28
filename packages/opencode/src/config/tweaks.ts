@@ -162,6 +162,28 @@ export namespace Tweaks {
     bashOverride: number
   }
 
+  /**
+   * tool-output-chunking spec / context-management Layer 1 (DD-3, DD-5,
+   * DD-6, DD-9). Knobs governing the hybrid-llm compaction path.
+   * - llmTimeoutMs: hard ceiling per LLM_compact attempt; exceed → abort
+   *   + treat as failure (DD-6).
+   * - fallbackProvider: optional `provider:model` string; if set, after
+   *   the in-provider stricter retry exhausts, runtime tries one
+   *   compaction call against this fallback before graceful degradation.
+   *   Empty = skip the fallback step.
+   * - phase2MaxAnchorTokens: target size for Phase 2's stricter framing.
+   *   Default 5000 per DD-9; smaller forces ruthlessness.
+   * - pinnedZoneMaxTokensRatio: hard cap on pinned_zone size relative to
+   *   the active model's context window (DD-5). Over the cap → next
+   *   compaction is forced into Phase 2 absorbing pinned_zone.
+   */
+  export interface CompactionConfig {
+    llmTimeoutMs: number
+    fallbackProvider: string
+    phase2MaxAnchorTokens: number
+    pinnedZoneMaxTokensRatio: number
+  }
+
   export interface Effective {
     sessionCache: SessionCacheConfig
     rateLimit: RateLimitConfig
@@ -172,6 +194,7 @@ export namespace Tweaks {
     subagent: SubagentConfig
     autorun: AutorunConfig
     toolOutputBudget: ToolOutputBudgetConfig
+    compaction: CompactionConfig
     source: { path: string; present: boolean }
   }
 
@@ -231,6 +254,13 @@ export namespace Tweaks {
     minimumFloor: 8_000,
     taskOverride: 60_000,
     bashOverride: 40_000,
+  }
+
+  const COMPACTION_DEFAULTS: CompactionConfig = {
+    llmTimeoutMs: 30_000,
+    fallbackProvider: "",
+    phase2MaxAnchorTokens: 5_000,
+    pinnedZoneMaxTokensRatio: 0.30,
   }
 
   const PART_PERSISTENCE_DEFAULTS: PartPersistenceConfig = {
@@ -338,6 +368,10 @@ export namespace Tweaks {
     "tool_output_budget_minimum_floor",
     "tool_output_budget_task_override",
     "tool_output_budget_bash_override",
+    "compaction_llm_timeout_ms",
+    "compaction_fallback_provider",
+    "compaction_phase2_max_anchor_tokens",
+    "compaction_pinned_zone_max_tokens_ratio",
   ])
 
   function parseFlag01(raw: string, key: string): 0 | 1 | undefined {
@@ -408,6 +442,7 @@ export namespace Tweaks {
           subagent: SUBAGENT_DEFAULTS,
           autorun: AUTORUN_DEFAULTS,
           toolOutputBudget: TOOL_OUTPUT_BUDGET_DEFAULTS,
+          compaction: COMPACTION_DEFAULTS,
         },
       })
       return {
@@ -420,6 +455,7 @@ export namespace Tweaks {
         subagent: { ...SUBAGENT_DEFAULTS },
         autorun: { triggerPhrases: [...AUTORUN_DEFAULTS.triggerPhrases], disarmPhrases: [...AUTORUN_DEFAULTS.disarmPhrases] },
         toolOutputBudget: { ...TOOL_OUTPUT_BUDGET_DEFAULTS },
+        compaction: { ...COMPACTION_DEFAULTS },
         source: { path: cfgPath, present: false },
       }
     }
@@ -684,9 +720,37 @@ export namespace Tweaks {
       if (v !== undefined) toolOutputBudget.bashOverride = v
     }
 
+    const compaction: CompactionConfig = { ...COMPACTION_DEFAULTS }
+    const cmpTimeoutRaw = parsed.get("compaction_llm_timeout_ms")
+    if (cmpTimeoutRaw !== undefined) {
+      const v = parseIntRange(cmpTimeoutRaw, "compaction_llm_timeout_ms", 5_000, 300_000)
+      if (v !== undefined) compaction.llmTimeoutMs = v
+    }
+    const cmpFallbackRaw = parsed.get("compaction_fallback_provider")
+    if (cmpFallbackRaw !== undefined) {
+      compaction.fallbackProvider = cmpFallbackRaw.trim()
+    }
+    const cmpPhase2Raw = parsed.get("compaction_phase2_max_anchor_tokens")
+    if (cmpPhase2Raw !== undefined) {
+      const v = parseIntRange(cmpPhase2Raw, "compaction_phase2_max_anchor_tokens", 1_000, 50_000)
+      if (v !== undefined) compaction.phase2MaxAnchorTokens = v
+    }
+    const cmpPinRatioRaw = parsed.get("compaction_pinned_zone_max_tokens_ratio")
+    if (cmpPinRatioRaw !== undefined) {
+      const v = parseFloatPositive(cmpPinRatioRaw, "compaction_pinned_zone_max_tokens_ratio")
+      if (v !== undefined) {
+        if (v > 1) {
+          log.warn("tweaks.cfg compaction_pinned_zone_max_tokens_ratio > 1, clamping to 1", { raw: cmpPinRatioRaw, value: v })
+          compaction.pinnedZoneMaxTokensRatio = 1
+        } else {
+          compaction.pinnedZoneMaxTokensRatio = v
+        }
+      }
+    }
+
     log.info("tweaks.cfg loaded", {
       path: cfgPath,
-      effective: { sessionCache, rateLimit, frontendLazyload, sessionUiFreshness, codexRotation, partPersistence, subagent, autorun, toolOutputBudget },
+      effective: { sessionCache, rateLimit, frontendLazyload, sessionUiFreshness, codexRotation, partPersistence, subagent, autorun, toolOutputBudget, compaction },
     })
     return {
       sessionCache,
@@ -698,6 +762,7 @@ export namespace Tweaks {
       subagent,
       autorun,
       toolOutputBudget,
+      compaction,
       source: { path: cfgPath, present: true },
     }
   }
@@ -744,6 +809,10 @@ export namespace Tweaks {
     return (await effective()).toolOutputBudget
   }
 
+  export async function compaction(): Promise<CompactionConfig> {
+    return (await effective()).compaction
+  }
+
   /**
    * Synchronous accessor for hot paths (e.g. updatePart). Returns defaults
    * until loadEffective() completes; after that returns the loaded values.
@@ -771,6 +840,14 @@ export namespace Tweaks {
    */
   export function toolOutputBudgetSync(): ToolOutputBudgetConfig {
     return _effective?.toolOutputBudget ?? TOOL_OUTPUT_BUDGET_DEFAULTS
+  }
+
+  /**
+   * Synchronous accessor for the compaction hot path. Returns defaults
+   * until loadEffective() completes.
+   */
+  export function compactionSync(): CompactionConfig {
+    return _effective?.compaction ?? COMPACTION_DEFAULTS
   }
 
   export async function loadEffective(): Promise<Effective> {
