@@ -2219,7 +2219,8 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         chunks: chunks.length,
         finalBodyTokens: Math.ceil(finalAnchorBody.length / 4),
       })
-      Bus.publish(Event.Compacted, { sessionID })
+      // Note: Bus.publish(Compacted) handled by runLlmCompact wrapper's
+      // finally block — fires on every exit path including chunk-and-merge.
       return {
         ok: true,
         anchorBody: finalAnchorBody,
@@ -2268,10 +2269,29 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         busMode?: "hybrid_llm" | "hybrid_llm_background"
       },
     ): Promise<LlmCompactResult> {
-      const startedAt = Date.now()
       // Visibility — TUI / web shows "Compacting..." badge from this event.
       // Defaults to 'hybrid_llm' (foreground) unless caller specifies background.
       Bus.publish(Event.CompactionStarted, { sessionID, mode: opts.busMode ?? "hybrid_llm" })
+      try {
+        return await runLlmCompactInner(sessionID, request, opts)
+      } finally {
+        // Always dismiss the UI toast, even on failure / timeout.
+        // Subscribers that need success/failure discrimination should
+        // look at the LlmCompactResult.ok flag returned to the caller.
+        Bus.publish(Event.Compacted, { sessionID })
+      }
+    }
+
+    async function runLlmCompactInner(
+      sessionID: string,
+      request: LLMCompactRequest,
+      opts: {
+        abort: AbortSignal
+        stricterRetryReason?: ValidationFailure
+        busMode?: "hybrid_llm" | "hybrid_llm_background"
+      },
+    ): Promise<LlmCompactResult> {
+      const startedAt = Date.now()
       const messages = await Session.messages({ sessionID }).catch(() => undefined)
       if (!messages || messages.length === 0) {
         return { ok: false, reason: "no_response", detail: "empty stream", latencyMs: Date.now() - startedAt }
@@ -2288,9 +2308,18 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
       const agent = await Agent.get("compaction")
       const agentModel = agent.model as { accountId?: string } | undefined
       const session = await Session.get(sessionID)
+      // Prefer session.execution (the FRONTEND-CURRENT account) over the
+      // last user message's stored account. After rate-limit rotation,
+      // session.execution points to the new account but userMessage's
+      // stored account is whatever was active when the user sent that
+      // message (often the rotated-out, throttled one). Compaction
+      // should follow what the frontend is using NOW.
+      const exec = session?.execution
       const model = agent.model
         ? await Provider.getModel(agent.model.providerId, agent.model.modelID)
-        : await Provider.getModel(userMessage.model.providerId, userMessage.model.modelID)
+        : exec?.providerId && exec?.modelID
+          ? await Provider.getModel(exec.providerId, exec.modelID)
+          : await Provider.getModel(userMessage.model.providerId, userMessage.model.modelID)
       if (!canSummarize(model)) {
         return {
           ok: false,
@@ -2316,8 +2345,11 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
           "\nYou must comply with the OUTPUT SHAPE and TARGET SIZE rules exactly. Reduce detail; cut secondary content; halve the size if necessary. Begin with the header line and produce nothing else.\n"
         : ""
       const systemText = framing + stricterAddendum
+      // Account priority (mirrors model resolution above): the
+      // frontend-current account from session.execution wins. Falls
+      // back to compaction agent's account, then user message account.
       const accountId =
-        agentModel?.accountId ?? userMessage.model.accountId ?? session?.execution?.accountId
+        agentModel?.accountId ?? exec?.accountId ?? userMessage.model.accountId
 
       // Phase 2.7 chunk-and-merge: when single-pass input exceeds the
       // LLM's per-request budget, switch to sequential digest building.
@@ -2450,8 +2482,8 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         }
       }
 
-      // UI clears the badge.
-      Bus.publish(Event.Compacted, { sessionID })
+      // Note: Bus.publish(Compacted) handled by runLlmCompact wrapper's
+      // finally block — fires on every exit path (success/failure/timeout).
 
       return {
         ok: true,
