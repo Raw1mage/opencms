@@ -7,7 +7,6 @@ import { Agent } from "@/agent/agent"
 import { Plugin } from "@/plugin"
 
 const originalMemoryRead = Memory.read
-const originalMemoryMarkCompacted = Memory.markCompacted
 const originalSessionGet = Session.get
 const originalSessionMessages = Session.messages
 const originalProviderGetModel = Provider.getModel
@@ -16,7 +15,6 @@ const originalPluginTrigger = Plugin.trigger
 
 afterEach(() => {
   ;(Memory as any).read = originalMemoryRead
-  ;(Memory as any).markCompacted = originalMemoryMarkCompacted
   ;(Session as any).get = originalSessionGet
   ;(Session as any).messages = originalSessionMessages
   ;(Provider as any).getModel = originalProviderGetModel
@@ -47,7 +45,6 @@ function setupCommonMocks(memory: Partial<Memory.SessionMemory>, sid: string) {
     ...memory,
   }
   ;(Memory as any).read = mock(async () => mem)
-  ;(Memory as any).markCompacted = mock(async () => {})
   ;(Session as any).get = mock(async () => ({
     execution: { providerId: "codex", modelID: "gpt-5.5", accountId: "acc-A" },
   }))
@@ -585,8 +582,13 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
     expect(writes[0].kind).toBe("low-cost-server")
   })
 
-  it("calls Memory.markCompacted with the correct round on successful run", async () => {
-    let markedAt: { round: number } | undefined
+  it("writes anchor on successful run (anchor IS the cooldown signal — no separate Memory.markCompacted call)", async () => {
+    // Phase 13.1: Memory.markCompacted is gone. The anchor message written
+    // by `_writeAnchor` carries `time.created = now`, which Cooldown reads
+    // directly. This test verifies the anchor write is invoked with the
+    // expected shape; cooldown wiring is exercised in the dedicated
+    // Cooldown.shouldThrottle suite above.
+    const writes: any[] = []
     setupCommonMocks(
       {
         turnSummaries: [
@@ -602,17 +604,18 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
       },
       "ses_run_mark",
     )
-    ;(Memory as any).markCompacted = mock(async (_sid: string, at: { round: number }) => {
-      markedAt = at
+    SessionCompaction.__test__.setAnchorWriter(async (input) => {
+      writes.push(input)
     })
-    SessionCompaction.__test__.setAnchorWriter(async () => {})
 
-    await SessionCompaction.run({
+    const result = await SessionCompaction.run({
       sessionID: "ses_run_mark",
       observed: "overflow",
       step: 9,
     })
 
-    expect(markedAt?.round).toBe(9)
+    expect(result).toBe("continue")
+    expect(writes).toHaveLength(1)
+    expect(writes[0].kind).toBe("narrative")
   })
 })

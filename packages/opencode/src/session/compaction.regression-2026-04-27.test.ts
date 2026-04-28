@@ -43,14 +43,12 @@ import { Provider } from "@/provider/provider"
  */
 
 const originalMemoryRead = Memory.read
-const originalMemoryMarkCompacted = Memory.markCompacted
 const originalSessionGet = Session.get
 const originalSessionMessages = Session.messages
 const originalProviderGetModel = Provider.getModel
 
 afterEach(() => {
   ;(Memory as any).read = originalMemoryRead
-  ;(Memory as any).markCompacted = originalMemoryMarkCompacted
   ;(Session as any).get = originalSessionGet
   ;(Session as any).messages = originalSessionMessages
   ;(Provider as any).getModel = originalProviderGetModel
@@ -79,7 +77,6 @@ describe("regression: 2026-04-27 rebind-compaction infinite loop", () => {
       lastCompactedAt: null,
       rawTailBudget: 5,
     }))
-    ;(Memory as any).markCompacted = mock(async () => {})
     ;(Session as any).get = mock(async () => ({
       execution: { providerId: "codex", modelID: "gpt-5.5", accountId: "acc-yeatsraw" },
     }))
@@ -134,7 +131,6 @@ describe("regression: 2026-04-27 rebind-compaction infinite loop", () => {
       lastCompactedAt: null,
       rawTailBudget: 5,
     }))
-    ;(Memory as any).markCompacted = mock(async () => {})
     ;(Session as any).get = mock(async () => ({
       execution: { providerId: "codex", modelID: "gpt-5.5", accountId: "acc-A" },
     }))

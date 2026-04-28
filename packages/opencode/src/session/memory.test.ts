@@ -1,36 +1,64 @@
 import { afterEach, describe, expect, it, mock } from "bun:test"
 import { Memory } from "./memory"
 import { SharedContext } from "./shared-context"
-import { Storage } from "@/storage/storage"
-import { Global } from "@/global"
-import fs from "fs/promises"
-import os from "os"
-import path from "path"
+import { Session } from "."
 
 const originalSharedGet = SharedContext.get
-const originalStorageRead = Storage.read
-const originalStorageWrite = Storage.write
-const originalStatePath = Global.Path.state
+const originalSessionMessages = Session.messages
 
 afterEach(() => {
   ;(SharedContext as any).get = originalSharedGet
-  ;(Storage as any).read = originalStorageRead
-  ;(Storage as any).write = originalStorageWrite
-  Global.Path.state = originalStatePath
+  ;(Session as any).messages = originalSessionMessages
 })
 
+function userMsg(id: string, sid: string, text: string, time = 1) {
+  return {
+    info: {
+      id,
+      sessionID: sid,
+      role: "user",
+      agent: "default",
+      model: { providerId: "codex", modelID: "gpt-5.5" },
+      time: { created: time },
+    },
+    parts: [{ id: `p_${id}`, messageID: id, sessionID: sid, type: "text", text }],
+  } as any
+}
+
+function assistantMsg(
+  id: string,
+  sid: string,
+  text: string,
+  opts: { summary?: boolean; finish?: string; time?: number; modelID?: string; providerId?: string; accountId?: string } = {},
+) {
+  return {
+    info: {
+      id,
+      sessionID: sid,
+      role: "assistant",
+      mode: "default",
+      agent: "default",
+      modelID: opts.modelID ?? "gpt-5.5",
+      providerId: opts.providerId ?? "codex",
+      accountId: opts.accountId,
+      path: { cwd: "/tmp", root: "/tmp" },
+      cost: 0,
+      tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+      finish: opts.finish ?? "stop",
+      time: { created: opts.time ?? 1, completed: opts.time ?? 1 },
+      ...(opts.summary ? { summary: true } : {}),
+    },
+    parts: [{ id: `p_${id}`, messageID: id, sessionID: sid, type: "text", text }],
+  } as any
+}
+
 describe("Memory", () => {
-  it("read returns empty SessionMemory when no new path and no legacy data", async () => {
-    ;(Storage as any).read = mock(async () => undefined)
-    ;(Storage as any).write = mock(async () => {})
+  it("read returns empty SessionMemory when stream + SharedContext are both empty", async () => {
+    ;(Session as any).messages = mock(async () => [])
     ;(SharedContext as any).get = mock(async () => undefined)
-    Global.Path.state = await fs.mkdtemp(path.join(os.tmpdir(), "memory-empty-"))
 
-    const sid = "ses_memory_empty_test"
-    const mem = await Memory.read(sid)
-
-    expect(mem.sessionID).toBe(sid)
-    expect(mem.version).toBe(0)
+    const mem = await Memory.read("ses_empty")
+    expect(mem.sessionID).toBe("ses_empty")
     expect(mem.turnSummaries).toEqual([])
     expect(mem.fileIndex).toEqual([])
     expect(mem.actionLog).toEqual([])
@@ -38,291 +66,122 @@ describe("Memory", () => {
     expect(mem.rawTailBudget).toBe(5)
   })
 
-  it("read prefers new path when present", async () => {
-    const sid = "ses_memory_new_path_test"
-    const stored: Memory.SessionMemory = {
-      sessionID: sid,
-      version: 7,
-      updatedAt: 1700000000000,
-      turnSummaries: [
-        {
-          turnIndex: 0,
-          userMessageId: "msg_u1",
-          endedAt: 1700000000000,
-          text: "did stuff",
-          modelID: "gpt-5.5",
-          providerId: "codex",
-        },
-      ],
-      fileIndex: [],
-      actionLog: [],
-      lastCompactedAt: { round: 3, timestamp: 1700000000000 },
-      rawTailBudget: 5,
-    }
-    ;(Storage as any).read = mock(async () => stored)
-    ;(Storage as any).write = mock(async () => {})
-    ;(SharedContext as any).get = mock(async () => {
-      throw new Error("legacy SharedContext should not be touched when new path has data")
-    })
-
-    const mem = await Memory.read(sid)
-    expect(mem.version).toBe(7)
-    expect(mem.turnSummaries).toHaveLength(1)
-    expect(mem.turnSummaries[0].text).toBe("did stuff")
-    expect(mem.lastCompactedAt?.round).toBe(3)
-  })
-
-  it("read falls back to legacy SharedContext and projects shape correctly", async () => {
-    const sid = "ses_memory_legacy_shared_test"
-    ;(Storage as any).read = mock(async () => undefined)
-    let writtenPayload: Memory.SessionMemory | undefined
-    ;(Storage as any).write = mock(async (_key: string[], value: Memory.SessionMemory) => {
-      writtenPayload = value
-    })
-    ;(SharedContext as any).get = mock(async () => ({
-      sessionID: sid,
-      version: 4,
-      updatedAt: 1700000000000,
-      budget: 8192,
-      goal: "Build the auth flow",
-      files: [
-        { path: "/src/auth.ts", operation: "edit", lines: 200, updatedAt: 1700000000000 },
-        { path: "/src/auth.test.ts", operation: "read", updatedAt: 1700000000100 },
-      ],
-      discoveries: ["found token format issue"],
-      actions: [{ tool: "bash", summary: "Bash: bun test...", turn: 2, addedAt: 1700000000000 }],
-      currentState: "tests passing",
-    }))
-    Global.Path.state = await fs.mkdtemp(path.join(os.tmpdir(), "memory-legacy-shared-"))
-
-    const mem = await Memory.read(sid)
-
-    // fileIndex preserves legacy SharedContext.files shape
-    expect(mem.fileIndex).toHaveLength(2)
-    expect(mem.fileIndex[0].path).toBe("/src/auth.ts")
-    expect(mem.fileIndex[0].operation).toBe("edit")
-    expect(mem.fileIndex[0].lines).toBe(200)
-
-    // actionLog preserves SharedContext.actions
-    expect(mem.actionLog).toHaveLength(1)
-    expect(mem.actionLog[0].summary).toBe("Bash: bun test...")
-
-    // legacy goal/discoveries/currentState synthesized into one bridge TurnSummary
-    expect(mem.turnSummaries).toHaveLength(1)
-    expect(mem.turnSummaries[0].userMessageId).toBe("<legacy-bridge-shared-context>")
-    expect(mem.turnSummaries[0].text).toContain("Build the auth flow")
-    expect(mem.turnSummaries[0].text).toContain("found token format issue")
-    expect(mem.turnSummaries[0].text).toContain("tests passing")
-
-    // lazy migration write happened
-    expect(writtenPayload).toBeDefined()
-    expect(writtenPayload?.sessionID).toBe(sid)
-    expect(writtenPayload?.fileIndex).toHaveLength(2)
-  })
-
-  it("read falls back to legacy rebind-checkpoint disk file", async () => {
-    const sid = "ses_memory_legacy_checkpoint_test"
-    ;(Storage as any).read = mock(async () => undefined)
-    ;(Storage as any).write = mock(async () => {})
+  it("read derives turnSummaries from finished assistant messages in the stream", async () => {
+    const sid = "ses_derive"
+    ;(Session as any).messages = mock(async () => [
+      userMsg("u1", sid, "hi", 100),
+      assistantMsg("a1", sid, "did stuff", { time: 200 }),
+      userMsg("u2", sid, "more", 300),
+      assistantMsg("a2", sid, "did more", { time: 400 }),
+    ])
     ;(SharedContext as any).get = mock(async () => undefined)
 
-    const tmpdir = await fs.mkdtemp(path.join(os.tmpdir(), "memory-legacy-checkpoint-"))
-    Global.Path.state = tmpdir
-    await fs.writeFile(
-      path.join(tmpdir, `rebind-checkpoint-${sid}.json`),
-      JSON.stringify({
-        sessionID: sid,
-        timestamp: 1700000000000,
-        source: "shared-context",
-        snapshot: "<shared_context>...legacy snapshot text...</shared_context>",
-        lastMessageId: "msg_x",
-      }),
-    )
-
     const mem = await Memory.read(sid)
-
-    expect(mem.turnSummaries).toHaveLength(1)
-    expect(mem.turnSummaries[0].userMessageId).toBe("msg_x")
-    expect(mem.turnSummaries[0].text).toContain("legacy snapshot text")
-    expect(mem.turnSummaries[0].endedAt).toBe(1700000000000)
-  })
-
-  it("read merges both legacy sources when both present", async () => {
-    const sid = "ses_memory_legacy_both_test"
-    ;(Storage as any).read = mock(async () => undefined)
-    ;(Storage as any).write = mock(async () => {})
-    ;(SharedContext as any).get = mock(async () => ({
-      sessionID: sid,
-      version: 1,
-      updatedAt: 1700000000000,
-      budget: 8192,
-      goal: "from shared context",
-      files: [],
-      discoveries: [],
-      actions: [],
-      currentState: "",
-    }))
-
-    const tmpdir = await fs.mkdtemp(path.join(os.tmpdir(), "memory-legacy-both-"))
-    Global.Path.state = tmpdir
-    await fs.writeFile(
-      path.join(tmpdir, `rebind-checkpoint-${sid}.json`),
-      JSON.stringify({ sessionID: sid, snapshot: "from checkpoint", lastMessageId: "msg_y" }),
-    )
-
-    const mem = await Memory.read(sid)
-
     expect(mem.turnSummaries).toHaveLength(2)
-    expect(mem.turnSummaries[0].text).toContain("from shared context")
-    expect(mem.turnSummaries[1].text).toContain("from checkpoint")
+    expect(mem.turnSummaries[0].text).toBe("did stuff")
+    expect(mem.turnSummaries[0].userMessageId).toBe("u1")
+    expect(mem.turnSummaries[0].assistantMessageId).toBe("a1")
+    expect(mem.turnSummaries[0].turnIndex).toBe(0)
+    expect(mem.turnSummaries[1].text).toBe("did more")
+    expect(mem.turnSummaries[1].userMessageId).toBe("u2")
+    expect(mem.turnSummaries[1].turnIndex).toBe(1)
   })
 
-  it("write persists to the new Storage path with sessionID guard", async () => {
-    const sid = "ses_memory_write_test"
-    let writtenKey: string[] | undefined
-    let writtenValue: Memory.SessionMemory | undefined
-    ;(Storage as any).write = mock(async (key: string[], value: Memory.SessionMemory) => {
-      writtenKey = key
-      writtenValue = value
-    })
+  it("read slices from most recent anchor — pre-anchor turns become single rolled-up entry", async () => {
+    const sid = "ses_anchor"
+    ;(Session as any).messages = mock(async () => [
+      userMsg("u1", sid, "old goal", 100),
+      assistantMsg("a1", sid, "old reply", { time: 200 }),
+      userMsg("u2", sid, "more old", 300),
+      assistantMsg("anchor", sid, "<rolled-up summary text>", { summary: true, time: 400 }),
+      userMsg("u3", sid, "post-anchor", 500),
+      assistantMsg("a3", sid, "post reply", { time: 600 }),
+    ])
+    ;(SharedContext as any).get = mock(async () => undefined)
 
-    const mem: Memory.SessionMemory = {
+    const mem = await Memory.read(sid)
+    // First entry = the anchor's text (rolled-up summary of pre-anchor history)
+    expect(mem.turnSummaries[0].text).toContain("rolled-up summary")
+    expect(mem.turnSummaries[0].userMessageId).toBe("<prior-anchor>")
+    expect(mem.turnSummaries[0].assistantMessageId).toBe("anchor")
+    // Second entry = post-anchor finished assistant turn
+    expect(mem.turnSummaries[1].text).toBe("post reply")
+    expect(mem.turnSummaries[1].userMessageId).toBe("u3")
+    expect(mem.turnSummaries).toHaveLength(2)
+    // lastCompactedAt mirrors anchor time
+    expect(mem.lastCompactedAt?.timestamp).toBe(400)
+  })
+
+  it("read skips unfinished + narration assistant messages", async () => {
+    const sid = "ses_skip"
+    ;(Session as any).messages = mock(async () => [
+      userMsg("u1", sid, "x", 100),
+      // Unfinished — should be skipped
+      {
+        info: {
+          id: "a1",
+          sessionID: sid,
+          role: "assistant",
+          mode: "default",
+          agent: "default",
+          modelID: "gpt-5.5",
+          providerId: "codex",
+          path: { cwd: "/tmp", root: "/tmp" },
+          cost: 0,
+          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          // no finish
+          time: { created: 200 },
+        },
+        parts: [{ id: "p_a1", messageID: "a1", sessionID: sid, type: "text", text: "incomplete" }],
+      },
+      userMsg("u2", sid, "y", 300),
+      assistantMsg("a2", sid, "real summary", { time: 400 }),
+    ])
+    ;(SharedContext as any).get = mock(async () => undefined)
+
+    const mem = await Memory.read(sid)
+    expect(mem.turnSummaries).toHaveLength(1)
+    expect(mem.turnSummaries[0].text).toBe("real summary")
+  })
+
+  it("read accepts pre-loaded messages to skip stream load", async () => {
+    const sid = "ses_preload"
+    let streamCalls = 0
+    ;(Session as any).messages = mock(async () => {
+      streamCalls++
+      return []
+    })
+    ;(SharedContext as any).get = mock(async () => undefined)
+
+    const preloaded = [
+      userMsg("u1", sid, "x", 100),
+      assistantMsg("a1", sid, "did", { time: 200 }),
+    ]
+    const mem = await Memory.read(sid, preloaded)
+    expect(mem.turnSummaries).toHaveLength(1)
+    expect(streamCalls).toBe(0) // didn't call Session.messages
+  })
+
+  it("read picks up fileIndex + actionLog from SharedContext.Space", async () => {
+    const sid = "ses_aux"
+    ;(Session as any).messages = mock(async () => [])
+    ;(SharedContext as any).get = mock(async () => ({
       sessionID: sid,
       version: 1,
       updatedAt: 1,
-      turnSummaries: [],
-      fileIndex: [],
-      actionLog: [],
-      lastCompactedAt: null,
-      rawTailBudget: 5,
-    }
-    await Memory.write(sid, mem)
+      budget: 0,
+      goal: "",
+      files: [{ path: "/src/a.ts", operation: "edit", lines: 100, updatedAt: 1 }],
+      discoveries: [],
+      actions: [{ tool: "bash", summary: "git status", turn: 1, addedAt: 1 }],
+      currentState: "",
+    }))
 
-    expect(writtenKey).toEqual(["session_memory", sid])
-    expect(writtenValue?.sessionID).toBe(sid)
-
-    // sessionID mismatch must throw
-    await expect(Memory.write(sid, { ...mem, sessionID: "ses_other" })).rejects.toThrow(/mismatch/)
-  })
-
-  it("appendTurnSummary appends + bumps version + persists", async () => {
-    const sid = "ses_memory_append_test"
-    let stored: Memory.SessionMemory | undefined
-    ;(Storage as any).read = mock(async () => stored)
-    ;(Storage as any).write = mock(async (_k: string[], v: Memory.SessionMemory) => {
-      stored = v
-    })
-    ;(SharedContext as any).get = mock(async () => undefined)
-
-    const ts: Memory.TurnSummary = {
-      turnIndex: 999, // any value — overridden by appendTurnSummary
-      userMessageId: "msg_u1",
-      assistantMessageId: "msg_a1",
-      endedAt: 100,
-      text: "did stuff",
-      modelID: "gpt-5.5",
-      providerId: "codex",
-    }
-    await Memory.appendTurnSummary(sid, ts)
-
-    expect(stored).toBeDefined()
-    expect(stored?.turnSummaries).toHaveLength(1)
-    expect(stored?.turnSummaries[0].text).toBe("did stuff")
-    // turnIndex normalised to array position regardless of caller value
-    expect(stored?.turnSummaries[0].turnIndex).toBe(0)
-    expect(stored?.version).toBe(1)
-
-    // second append accumulates with auto-incremented turnIndex
-    const ts2: Memory.TurnSummary = {
-      ...ts,
-      turnIndex: 999,
-      userMessageId: "msg_u2",
-      assistantMessageId: "msg_a2",
-      text: "more",
-    }
-    await Memory.appendTurnSummary(sid, ts2)
-    expect(stored?.turnSummaries).toHaveLength(2)
-    expect(stored?.turnSummaries[1].turnIndex).toBe(1)
-    expect(stored?.version).toBe(2)
-  })
-
-  it("appendTurnSummary is idempotent on assistantMessageId (skips duplicate)", async () => {
-    const sid = "ses_memory_idempotent_test"
-    let stored: Memory.SessionMemory | undefined
-    ;(Storage as any).read = mock(async () => stored)
-    ;(Storage as any).write = mock(async (_k: string[], v: Memory.SessionMemory) => {
-      stored = v
-    })
-    ;(SharedContext as any).get = mock(async () => undefined)
-
-    const ts: Memory.TurnSummary = {
-      turnIndex: 0,
-      userMessageId: "msg_u1",
-      assistantMessageId: "msg_a1",
-      endedAt: 100,
-      text: "did stuff",
-      modelID: "gpt-5.5",
-      providerId: "codex",
-    }
-    await Memory.appendTurnSummary(sid, ts)
-    expect(stored?.turnSummaries).toHaveLength(1)
-    expect(stored?.version).toBe(1)
-
-    // Re-append the same assistantMessageId → no-op
-    await Memory.appendTurnSummary(sid, ts)
-    expect(stored?.turnSummaries).toHaveLength(1)
-    expect(stored?.version).toBe(1) // version unchanged
-
-    // Different assistantMessageId → goes through
-    await Memory.appendTurnSummary(sid, { ...ts, assistantMessageId: "msg_a2", text: "next" })
-    expect(stored?.turnSummaries).toHaveLength(2)
-    expect(stored?.version).toBe(2)
-  })
-
-  it("appendTurnSummary without assistantMessageId always appends (no dedup key)", async () => {
-    const sid = "ses_memory_noassistant_test"
-    let stored: Memory.SessionMemory | undefined
-    ;(Storage as any).read = mock(async () => stored)
-    ;(Storage as any).write = mock(async (_k: string[], v: Memory.SessionMemory) => {
-      stored = v
-    })
-    ;(SharedContext as any).get = mock(async () => undefined)
-
-    const tsNoAssistant: Memory.TurnSummary = {
-      turnIndex: 0,
-      userMessageId: "msg_u1",
-      // assistantMessageId intentionally omitted — defensive case
-      endedAt: 100,
-      text: "skeleton",
-      modelID: "gpt-5.5",
-      providerId: "codex",
-    }
-    await Memory.appendTurnSummary(sid, tsNoAssistant)
-    await Memory.appendTurnSummary(sid, tsNoAssistant)
-    // Two appends, no dedup key → both kept; turnIndex auto-incremented
-    expect(stored?.turnSummaries).toHaveLength(2)
-    expect(stored?.turnSummaries[0].turnIndex).toBe(0)
-    expect(stored?.turnSummaries[1].turnIndex).toBe(1)
-  })
-
-  it("markCompacted writes lastCompactedAt", async () => {
-    const sid = "ses_memory_mark_test"
-    let stored: Memory.SessionMemory | undefined
-    ;(Storage as any).read = mock(async () => stored)
-    ;(Storage as any).write = mock(async (_k: string[], v: Memory.SessionMemory) => {
-      stored = v
-    })
-    ;(SharedContext as any).get = mock(async () => undefined)
-
-    await Memory.markCompacted(sid, { round: 7, timestamp: 1700000000000 })
-    expect(stored?.lastCompactedAt).toEqual({ round: 7, timestamp: 1700000000000 })
-    expect(stored?.version).toBe(1)
-
-    // overwrite
-    await Memory.markCompacted(sid, { round: 11 })
-    expect(stored?.lastCompactedAt?.round).toBe(11)
-    expect(stored?.version).toBe(2)
-    expect(stored?.lastCompactedAt?.timestamp).toBeGreaterThan(0)
+    const mem = await Memory.read(sid)
+    expect(mem.fileIndex).toHaveLength(1)
+    expect(mem.fileIndex[0].path).toBe("/src/a.ts")
+    expect(mem.actionLog).toHaveLength(1)
+    expect(mem.actionLog[0].summary).toBe("git status")
   })
 
   // ── Render: LLM form ──────────────────────────────────────
@@ -372,7 +231,6 @@ describe("Memory", () => {
     const out = Memory.renderForLLMSync(mem)
     expect(out).toContain("Edited foo.ts")
     expect(out).toContain("Ran the migration")
-    // Provider-agnostic: no model IDs, no turn headers
     expect(out).not.toContain("gpt-5.5")
     expect(out).not.toContain("codex")
     expect(out).not.toContain("Turn ")
@@ -394,41 +252,33 @@ describe("Memory", () => {
     expect(out).toContain("Bash: git status")
   })
 
-  it("renderForLLMSync stays under 30% of typical model context (R-2 budget)", () => {
-    // Synthesize a realistic sized memory: 20 turns × ~500 chars each
+  it("renderForLLMSync caps at maxTokens, dropping oldest", () => {
     const turnSummaries: Memory.TurnSummary[] = []
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 10; i++) {
       turnSummaries.push({
         turnIndex: i,
-        userMessageId: `msg_u${i}`,
-        endedAt: 1700000000000 + i * 60_000,
-        text:
-          `Turn ${i} narrative: did some work on the codebase, identified an issue ` +
-          `in the auth flow, applied a targeted fix, ran the test suite, all green. ` +
-          `Found that the rotation logic interacts poorly with the cooldown threshold ` +
-          `and patched it. About 500 chars to simulate a realistic AI self-summary.`,
+        userMessageId: `u${i}`,
+        endedAt: i,
+        text: `turn ${i} text ` + "x".repeat(400),
         modelID: "gpt-5.5",
         providerId: "codex",
       })
     }
     const mem: Memory.SessionMemory = {
-      sessionID: "ses_render_budget",
-      version: 20,
-      updatedAt: 1700000000000,
+      sessionID: "s",
+      version: 1,
+      updatedAt: 1,
       turnSummaries,
       fileIndex: [],
       actionLog: [],
       lastCompactedAt: null,
       rawTailBudget: 5,
     }
-
-    const out = Memory.renderForLLMSync(mem)
-    const tokenEstimate = Math.ceil(out.length / 4) // ~4 chars per token heuristic
-
-    // Typical model context (gpt-5.5 = 272K). 30% budget = 81600 tokens.
-    const typicalContextLimit = 272_000
-    const budget = Math.floor(typicalContextLimit * 0.3)
-    expect(tokenEstimate).toBeLessThanOrEqual(budget)
+    // Cap = 200 tokens = 800 chars. Each turn ~ 412 chars. Should keep the
+    // newest 1 (the very last one).
+    const out = Memory.renderForLLMSync(mem, 200)
+    expect(out).toContain("turn 9")
+    expect(out).not.toContain("turn 0")
   })
 
   // ── Render: Human form ────────────────────────────────────
@@ -447,33 +297,21 @@ describe("Memory", () => {
           modelID: "gpt-5.5",
           providerId: "codex",
         },
-        {
-          turnIndex: 1,
-          userMessageId: "msg_u2",
-          endedAt: 1700000060000,
-          text: "ran tests",
-          modelID: "gpt-5.5",
-          providerId: "codex",
-        },
       ],
       fileIndex: [{ path: "/src/foo.ts", operation: "edit", updatedAt: 1 }],
       actionLog: [{ tool: "bash", summary: "Bash: bun test", turn: 1, addedAt: 1 }],
-      lastCompactedAt: { round: 3, timestamp: 1700000120000 },
+      lastCompactedAt: { round: 0, timestamp: 1700000120000 },
       rawTailBudget: 5,
     }
     const out = Memory.renderForHumanSync(mem)
-
     expect(out).toContain("# Session ses_render_human")
     expect(out).toContain("## Turn 0")
-    expect(out).toContain("## Turn 1")
     expect(out).toContain("edited foo.ts")
-    expect(out).toContain("ran tests")
     expect(out).toContain("## Files touched")
     expect(out).toContain("/src/foo.ts")
     expect(out).toContain("## Action log")
     expect(out).toContain("Bash: bun test")
-    expect(out).toContain("last compacted: round 3")
-    // Human form does include model identity for UI debug
+    expect(out).toContain("last compacted at")
     expect(out).toContain("codex/gpt-5.5")
   })
 
@@ -493,9 +331,9 @@ describe("Memory", () => {
     expect(out).toContain("(no turn summaries captured yet)")
   })
 
-  it("renderForLLMSync and renderForHumanSync produce distinct strings (R-8 acceptance)", () => {
+  it("renderForLLMSync and renderForHumanSync produce distinct strings (R-8)", () => {
     const mem: Memory.SessionMemory = {
-      sessionID: "ses_render_distinct",
+      sessionID: "ses_distinct",
       version: 1,
       updatedAt: 1700000000000,
       turnSummaries: [
@@ -513,38 +351,14 @@ describe("Memory", () => {
       lastCompactedAt: null,
       rawTailBudget: 5,
     }
-
     const llm = Memory.renderForLLMSync(mem)
     const human = Memory.renderForHumanSync(mem)
-
-    // Both contain the narrative
     expect(llm).toContain("did stuff")
     expect(human).toContain("did stuff")
-
-    // But they are different strings
     expect(llm).not.toBe(human)
-    // LLM form has no markdown headers; human form does
     expect(llm).not.toContain("## Turn")
     expect(human).toContain("## Turn 0")
-    // Human form has section markers LLM form doesn't
     expect(human).toContain("# Session")
     expect(llm).not.toContain("# Session")
-  })
-
-  it("read normalizes shape for forward compatibility (missing newer fields)", async () => {
-    const sid = "ses_memory_normalize_test"
-    ;(Storage as any).read = mock(async () => ({
-      sessionID: sid,
-      version: 3,
-      updatedAt: 1,
-      turnSummaries: [],
-      fileIndex: [],
-      actionLog: [],
-      // lastCompactedAt + rawTailBudget intentionally missing
-    }))
-
-    const mem = await Memory.read(sid)
-    expect(mem.lastCompactedAt).toBeNull()
-    expect(mem.rawTailBudget).toBe(5)
   })
 })

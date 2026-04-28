@@ -6,56 +6,27 @@ import { Config } from "@/config/config"
 
 const originalConfigGet = Config.get
 const originalMemoryRead = Memory.read
-const originalMemoryMarkCompacted = Memory.markCompacted
 
 afterEach(() => {
   ;(Config as any).get = originalConfigGet
   ;(Memory as any).read = originalMemoryRead
-  ;(Memory as any).markCompacted = originalMemoryMarkCompacted
 })
 
-/**
- * Phase 7 helper: stub Memory so the in-test cooldown lookup is
- * synchronous-ish (still returns a Promise but resolves immediately).
- * Mirrors the legacy cooldownState Map's per-test setup pattern.
- */
-function stubMemoryCooldown(sessionID: string, lastRound: number) {
-  ;(Memory as any).read = mock(async () => ({
-    sessionID,
-    version: 1,
-    updatedAt: 1,
-    turnSummaries: [],
-    fileIndex: [],
-    actionLog: [],
-    lastCompactedAt: { round: lastRound, timestamp: 1 },
-    rawTailBudget: 5,
-  }))
-  ;(Memory as any).markCompacted = mock(async () => {})
-}
+describe("SessionCompaction.isOverflow (token-pressure predicate)", () => {
+  // Phase 13.1: isOverflow's internal round-based cooldown was removed —
+  // cooldown is now decided once upstream via `Cooldown.shouldThrottle` (anchor
+  // recency, 30s window). isOverflow returns the raw token-comparison verdict.
 
-describe("SessionCompaction cooldown guard", () => {
-  it("suppresses repeated overflow compaction within cooldown rounds for high-prefix sessions", async () => {
+  it("triggers when tokens cross the usable budget (high context fill)", async () => {
     ;(Config as any).get = mock(async () => ({
-      compaction: {
-        auto: true,
-        cooldownRounds: 4,
-        reserved: 20_000,
-      },
+      compaction: { auto: true, reserved: 20_000 },
     }))
-
     const model = {
       id: "gpt-5.4",
       providerId: "openai",
-      limit: {
-        context: 272_000,
-        input: 272_000,
-        output: 32_000,
-      },
-      cost: {
-        input: 1,
-      },
+      limit: { context: 272_000, input: 272_000, output: 32_000 },
+      cost: { input: 1 },
     } as any
-
     const tokens = {
       input: 0,
       output: 0,
@@ -63,51 +34,26 @@ describe("SessionCompaction cooldown guard", () => {
       cache: { read: 0, write: 0 },
       total: 260_000,
     }
-
-    const sessionID = `ses_compaction_cooldown_${Date.now()}`
-    stubMemoryCooldown(sessionID, 1)
-
     await expect(
       SessionCompaction.isOverflow({
         tokens,
         model,
-        sessionID,
-        currentRound: 2,
-      }),
-    ).resolves.toBe(false)
-
-    await expect(
-      SessionCompaction.isOverflow({
-        tokens,
-        model,
-        sessionID,
+        sessionID: "ses_overflow_high",
         currentRound: 5,
       }),
     ).resolves.toBe(true)
   })
 
-  it("still triggers compaction at the emergency ceiling even during cooldown", async () => {
+  it("triggers at the emergency ceiling regardless of any prior compaction", async () => {
     ;(Config as any).get = mock(async () => ({
-      compaction: {
-        auto: true,
-        cooldownRounds: 4,
-        reserved: 20_000,
-      },
+      compaction: { auto: true, reserved: 20_000 },
     }))
-
     const model = {
       id: "gpt-5.4",
       providerId: "openai",
-      limit: {
-        context: 272_000,
-        input: 272_000,
-        output: 32_000,
-      },
-      cost: {
-        input: 1,
-      },
+      limit: { context: 272_000, input: 272_000, output: 32_000 },
+      cost: { input: 1 },
     } as any
-
     const tokens = {
       input: 0,
       output: 0,
@@ -115,15 +61,11 @@ describe("SessionCompaction cooldown guard", () => {
       cache: { read: 0, write: 0 },
       total: 270_500,
     }
-
-    const sessionID = `ses_compaction_emergency_${Date.now()}`
-    stubMemoryCooldown(sessionID, 10)
-
     await expect(
       SessionCompaction.isOverflow({
         tokens,
         model,
-        sessionID,
+        sessionID: "ses_overflow_emergency",
         currentRound: 11,
       }),
     ).resolves.toBe(true)

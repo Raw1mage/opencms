@@ -168,33 +168,10 @@ export namespace SessionCompaction {
     return contextLimit >= 16000
   }
 
-  /**
-   * @deprecated Phase 7 / DD-7: cooldown state-of-truth lives in
-   * `Memory.lastCompactedAt`. This shim writes through to
-   * `Memory.markCompacted` for any pre-phase-7 caller still importing
-   * the symbol. Phase 12 (next release) removes it. Emits `log.warn` so
-   * any forgotten caller surfaces in CI logs.
-   */
-  export async function recordCompaction(sessionID: string, round: number) {
-    log.warn("SessionCompaction.recordCompaction is deprecated; use Memory.markCompacted", {
-      sessionID,
-      round,
-    })
-    await Memory.markCompacted(sessionID, { round }).catch(() => {})
-  }
-
-  /**
-   * Look up the cached cooldown state for a session. Reads Memory directly
-   * (no separate Map per DD-7). Returns undefined when no compaction has
-   * been recorded yet for this session.
-   */
-  export async function getCooldownState(
-    sessionID: string,
-  ): Promise<{ lastCompactionRound: number } | undefined> {
-    const mem = await Memory.read(sessionID).catch(() => undefined)
-    if (!mem?.lastCompactedAt) return undefined
-    return { lastCompactionRound: mem.lastCompactedAt.round }
-  }
+  // Phase 13.1: recordCompaction / getCooldownState removed. Cooldown reads
+  // the most recent anchor message's `time.created` directly via
+  // `Cooldown.shouldThrottle` — there's no separate Memory.lastCompactedAt
+  // store to update or look up.
 
   export async function inspectBudget(input: { tokens: MessageV2.Assistant["tokens"]; model: Provider.Model }) {
     const config = await Config.get()
@@ -289,21 +266,10 @@ export namespace SessionCompaction {
       return true
     }
 
-    // Cooldown check: skip compaction if too soon after last one
-    if (input.sessionID && input.currentRound !== undefined) {
-      const state = await getCooldownState(input.sessionID)
-      if (state) {
-        const roundsSince = input.currentRound - state.lastCompactionRound
-        if (roundsSince < budget.cooldownRounds) {
-          log.info("compaction skipped (cooldown)", {
-            sessionID: input.sessionID,
-            roundsSince,
-            cooldownRounds: budget.cooldownRounds,
-          })
-          return false
-        }
-      }
-    }
+    // Phase 13.1: round-based cooldown removed. The single cooldown gate is
+    // `Cooldown.shouldThrottle(sessionID)` in `run()`, anchored on the most
+    // recent anchor message's `time.created` (30s window). isOverflow now
+    // returns the raw token-comparison verdict; cooldown is decided upstream.
 
     return true
   }
@@ -336,22 +302,8 @@ export namespace SessionCompaction {
     const cacheHitRate = totalInput > 0 ? cache.read / totalInput : 1
     if (cacheHitRate >= CACHE_AWARE_MAX_HIT_RATE) return false
 
-    // Respect cooldown
-    if (input.sessionID && input.currentRound !== undefined) {
-      const state = await getCooldownState(input.sessionID)
-      if (state) {
-        const roundsSince = input.currentRound - state.lastCompactionRound
-        if (roundsSince < budget.cooldownRounds) {
-          log.info("cache-aware compaction skipped (cooldown)", {
-            sessionID: input.sessionID,
-            cacheHitRate: (cacheHitRate * 100).toFixed(0) + "%",
-            utilization: (utilization * 100).toFixed(0) + "%",
-            roundsSince,
-          })
-          return false
-        }
-      }
-    }
+    // Phase 13.1: round-based cooldown removed (see isOverflow comment).
+    // Cooldown gate happens once in `run()` via `Cooldown.shouldThrottle`.
 
     log.warn("cache-aware compaction triggered", {
       sessionID: input.sessionID,
@@ -1330,7 +1282,7 @@ When constructing the summary, try to stick to this template:
    *    log.info per AGENTS.md rule 1.
    * 3. First kind that returns ok: write Anchor (compactWithSharedContext),
    *    optionally inject synthetic Continue per INJECT_CONTINUE[observed],
-   *    Memory.markCompacted, return "continue".
+   *    return "continue" (the anchor message itself is the cooldown signal).
    * 4. Chain exhausted: log warn, return "stop".
    *
    * intent="rich" (only meaningful for observed=manual) skips kinds 1-3
@@ -1406,12 +1358,9 @@ When constructing the summary, try to stick to this template:
         } else {
           log.warn("compaction.run anchor write skipped: no resolvable model", { sessionID, observed })
         }
-        await Memory.markCompacted(sessionID, { round: step }).catch((err) => {
-          log.warn("memory.mark_compacted_failed", {
-            sessionID,
-            error: err instanceof Error ? err.message : String(err),
-          })
-        })
+        // Phase 13.1: Memory.markCompacted call removed. The anchor message
+        // written above (with `summary: true` and `time.created = now`) IS
+        // the cooldown signal — Cooldown.shouldThrottle reads it directly.
         log.info("compaction.completed", {
           sessionID,
           observed,

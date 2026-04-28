@@ -169,58 +169,10 @@ IMPORTANT:
 
 const STRUCTURED_OUTPUT_SYSTEM_PROMPT = `IMPORTANT: The user has requested structured output. You MUST use the StructuredOutput tool to provide your final response. Do NOT respond with plain text - you MUST call the StructuredOutput tool with your answer formatted according to the schema.`
 
-/**
- * compaction-redesign phase 3 — TurnSummary capture (DD-2).
- *
- * Called at runloop exit (the `exiting loop` site, finish ≠ tool-calls).
- * Reads the last text part of `lastAssistant` and appends a TurnSummary
- * to Memory. Fire-and-forget: errors are logged, never propagated to the
- * runloop return path. INV-6 (durability before next boundary) is upheld
- * because the Storage write completes before this function's promise
- * resolves; callers that don't `await` rely on that promise still
- * scheduling the persistence before subsequent work.
- *
- * Skips silently when:
- *   - `lastAssistant` is missing
- *   - the message has no text part
- *   - the text is empty after trimming
- */
-export function captureTurnSummaryOnExit(input: {
-  sessionID: string
-  lastAssistant: MessageV2.Assistant | undefined
-  lastUser: MessageV2.User
-  msgs: MessageV2.WithParts[]
-  step: number
-}): void {
-  const { sessionID, lastAssistant, lastUser, msgs, step } = input
-  if (!lastAssistant) return
-  const withParts = msgs.find((m) => m.info.id === lastAssistant.id)
-  if (!withParts) return
-  const summaryText = extractFinalAssistantText(withParts.parts)
-  if (!summaryText) return
-
-  const summary: Memory.TurnSummary = {
-    turnIndex: step,
-    userMessageId: lastUser.id,
-    assistantMessageId: lastAssistant.id,
-    endedAt: lastAssistant.time?.completed ?? Date.now(),
-    text: summaryText,
-    modelID: lastAssistant.modelID,
-    providerId: lastAssistant.providerId,
-    accountId: lastAssistant.accountId ?? null,
-    tokens: lastAssistant.tokens
-      ? { input: lastAssistant.tokens.input, output: lastAssistant.tokens.output }
-      : undefined,
-  }
-
-  Memory.appendTurnSummary(sessionID, summary).catch((err) => {
-    Log.create({ service: "session.prompt" }).warn("memory.turn_summary_append_failed", {
-      sessionID,
-      turnIndex: step,
-      error: err instanceof Error ? err.message : String(err),
-    })
-  })
-}
+// Phase 13.1: captureTurnSummaryOnExit removed. TurnSummaries are no longer
+// persisted to a separate Memory file — they're derived at read time by
+// `Memory.read(sid)` walking the messages stream and extracting the last
+// text part of each finished assistant message. Single source of truth.
 
 /**
  * Estimate the token count of a reconstructed message stream (post-filter or
@@ -1362,7 +1314,8 @@ export namespace SessionPrompt {
               .join("\n")
               .trim() || undefined
           }
-          await Memory.markCompacted(sessionID, { round: 1 }).catch(() => {})
+          // Phase 13.1: Memory.markCompacted call removed (Memory.lastCompactedAt
+          // is derived from the most recent anchor's time.created, not stored).
           await SessionCompaction.compactWithSharedContext({
             sessionID,
             snapshot:
@@ -1475,13 +1428,9 @@ export namespace SessionPrompt {
           }).toObject()
           await Session.updateMessage(lastAssistant)
         }
-        // ── compaction-redesign phase 3 — capture TurnSummary on runloop exit
-        // Per DD-2: only at the natural turn-end (finish ≠ tool-calls). Mid-run
-        // captures would record speculative-future text, not completed-work
-        // narrative. Fire-and-forget: do NOT block runloop return on the
-        // Storage write — INV-6 only requires durability before next
-        // boundary, not before this function returns.
-        captureTurnSummaryOnExit({ sessionID, lastAssistant, lastUser, msgs, step })
+        // Phase 13.1: TurnSummary capture removed. Turn summaries are
+        // now derived at read time by `Memory.read(sid)` scanning the
+        // messages stream — no separate persistence needed.
         log.info("exiting loop", { sessionID })
         break
       }

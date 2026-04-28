@@ -1,34 +1,35 @@
-import { Storage } from "@/storage/storage"
 import { Log } from "@/util/log"
 import { SharedContext } from "./shared-context"
-import { Global } from "../global"
-import path from "path"
-import fs from "fs/promises"
+import { Session } from "."
+import { MessageV2 } from "./message-v2"
+import { isNarrationAssistantMessage } from "./narration"
 
 // ── Memory ────────────────────────────────────────────────────────────────────
-// Per-session memory artifact. Single Storage path: session_memory/<sessionID>.
-// Replaces SharedContext.Space and the disk-file rebind-checkpoint as the
-// canonical memory of "what happened in this session". See:
 //
-//   specs/compaction-redesign/spec.md           — R-1..R-9 behavioural contract
-//   specs/compaction-redesign/data-schema.json  — type schema
-//   specs/compaction-redesign/design.md         — DD-1..DD-10 design decisions
+// Phase 13.1 (REVISED 2026-04-28): Memory is a render-time derivation of the
+// messages stream. NO file IO, NO separate persistence — the messages stream
+// is the single source of truth (compaction-redesign DD-2 single-source-of-
+// truth). `Memory.read(sid)` walks the stream:
 //
-// Primary content: TurnSummary[] (AI's natural turn-end self-summary, captured
-// at runloop exit per DD-2). Auxiliary content: fileIndex/actionLog (legacy
-// SharedContext role retained as metadata, not as primary narrative).
+//   - Most recent anchor (`assistant.summary === true`) seeds the first
+//     "rolled-up" TurnSummary; everything before it is gone (replaced by
+//     the anchor's text).
+//   - Post-anchor turns: each finished assistant message contributes its
+//     last text part as a TurnSummary entry. Narration / unfinished /
+//     subagent narration are skipped.
+//   - Auxiliary fields (fileIndex, actionLog) come from SharedContext.Space
+//     — that's a separate file/action workspace, not part of the stream.
+//   - lastCompactedAt mirrors the most recent anchor's `time.created`. It's
+//     vestigial (Cooldown now reads anchor.time directly) but kept for the
+//     existing /session/:id/memory endpoint shape and downstream consumers.
 //
-// Render produces two independent forms (DD-5):
-//   renderForLLM  → compact provider-agnostic text for next LLM call
-//   renderForHuman → timeline form for UI / debug consumption
-//
-// Persistence uses a new path; reads fall back to legacy SharedContext +
-// rebind-checkpoint disk file if the new path is empty (DD-3).
+// Render functions (renderForLLMSync, renderForHumanSync) take an already-
+// loaded SessionMemory shape and stay pure / side-effect-free / testable.
 
 export namespace Memory {
   const log = Log.create({ service: "session.memory" })
 
-  // ── Data Model (mirrors data-schema.json) ──────────────────
+  // ── Data Model ─────────────────────────────────────────────
 
   export interface SessionMemory {
     sessionID: string
@@ -70,254 +71,142 @@ export namespace Memory {
 
   const RAW_TAIL_BUDGET_DEFAULT = 5
 
-  // ── Storage ─────────────────────────────────────────────────
-
-  function storageKey(sessionID: string): string[] {
-    return ["session_memory", sessionID]
-  }
-
-  function legacyCheckpointPath(sessionID: string): string {
-    return path.join(Global.Path.state, `rebind-checkpoint-${sessionID}.json`)
-  }
-
-  function createEmpty(sid: string): SessionMemory {
-    return {
-      sessionID: sid,
-      version: 0,
-      updatedAt: Date.now(),
-      turnSummaries: [],
-      fileIndex: [],
-      actionLog: [],
-      lastCompactedAt: null,
-      rawTailBudget: RAW_TAIL_BUDGET_DEFAULT,
-    }
-  }
-
-  // ── Read with legacy fallback (DD-3) ────────────────────────
+  // ── Read (stream-derived) ──────────────────────────────────
 
   /**
-   * Read SessionMemory for a session.
+   * Derive SessionMemory from the messages stream + SharedContext.Space
+   * (file/action workspace, separate from compaction text).
    *
-   * Strategy (DD-3):
-   *   1. Try the new Storage key `session_memory/<sid>`.
-   *   2. If empty, fall back: project legacy SharedContext.Space and the
-   *      rebind-checkpoint disk file into the new shape, write it once
-   *      (lazy migration), and return the projected memory.
-   *   3. If both legacies are empty, return a fresh empty SessionMemory.
-   *
-   * Per AGENTS.md rule 1, every fallback transition surfaces a log line.
+   * Caller may pass `messages` to skip the stream load — useful inside the
+   * runloop where the stream is already in hand.
    */
-  export async function read(sessionID: string): Promise<SessionMemory> {
-    const fromNew = await Storage.read<SessionMemory>(storageKey(sessionID)).catch(() => undefined)
-    if (fromNew) return normalizeShape(fromNew)
-
-    const legacyShared = await SharedContext.get(sessionID).catch(() => undefined)
-    const legacyCheckpoint = await readLegacyCheckpoint(sessionID)
-
-    if (!legacyShared && !legacyCheckpoint) {
-      return createEmpty(sessionID)
-    }
-
-    log.info("memory.legacy_fallback_read", {
-      sessionID,
-      legacySource:
-        legacyShared && legacyCheckpoint ? "both" : legacyShared ? "shared-context" : "checkpoint",
-    })
-
-    const projected = projectLegacy(sessionID, legacyShared, legacyCheckpoint)
-    // Lazy migration write so subsequent reads use the new path directly.
-    await Storage.write(storageKey(sessionID), projected).catch((err) => {
-      log.warn("memory.legacy_fallback_lazy_write_failed", {
-        sessionID,
-        error: String(err),
-      })
-    })
-    return projected
-  }
-
-  /**
-   * Normalize a SessionMemory shape that may be missing newer fields (forward
-   * compatibility: a session_memory blob written by an earlier daemon version
-   * may lack rawTailBudget or lastCompactedAt).
-   */
-  function normalizeShape(mem: Partial<SessionMemory> & { sessionID: string }): SessionMemory {
-    return {
-      sessionID: mem.sessionID,
-      version: mem.version ?? 0,
-      updatedAt: mem.updatedAt ?? Date.now(),
-      turnSummaries: mem.turnSummaries ?? [],
-      fileIndex: mem.fileIndex ?? [],
-      actionLog: mem.actionLog ?? [],
-      lastCompactedAt: mem.lastCompactedAt ?? null,
-      rawTailBudget: mem.rawTailBudget ?? RAW_TAIL_BUDGET_DEFAULT,
-    }
-  }
-
-  async function readLegacyCheckpoint(sessionID: string): Promise<
-    | { snapshot: string; lastMessageId?: string; timestamp?: number }
-    | undefined
-  > {
-    try {
-      const raw = await fs.readFile(legacyCheckpointPath(sessionID), "utf8")
-      const obj = JSON.parse(raw) as {
-        snapshot?: string
-        lastMessageId?: string
-        timestamp?: number
-      }
-      if (typeof obj.snapshot === "string" && obj.snapshot.length > 0) {
-        return {
-          snapshot: obj.snapshot,
-          lastMessageId: obj.lastMessageId,
-          timestamp: obj.timestamp,
-        }
-      }
-      return undefined
-    } catch {
-      return undefined
-    }
-  }
-
-  /**
-   * Project legacy artefacts into the new SessionMemory shape.
-   *
-   * - SharedContext.files / actions → fileIndex / actionLog (1:1 shape match).
-   * - SharedContext.goal / discoveries / currentState → synthesized into a
-   *   single legacy-bridge TurnSummary so the narrative content is preserved
-   *   for the LLM. This is best-effort; the regex-extracted shape doesn't
-   *   carry true narrative quality, but it is better than dropping it.
-   * - rebind-checkpoint snapshot (if newer than SharedContext) → synthesized
-   *   as a second legacy-bridge TurnSummary.
-   * - lastCompactedAt is left null: legacy state didn't carry per-round
-   *   compaction recency information aligned with the new Cooldown source.
-   */
-  function projectLegacy(
+  export async function read(
     sessionID: string,
-    legacyShared: SharedContext.Space | undefined,
-    legacyCheckpoint: { snapshot: string; lastMessageId?: string; timestamp?: number } | undefined,
-  ): SessionMemory {
-    const mem = createEmpty(sessionID)
+    messages?: MessageV2.WithParts[],
+  ): Promise<SessionMemory> {
+    const msgs = messages ?? (await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[]))
+    const anchorIdx = findMostRecentAnchorIndex(msgs)
 
-    if (legacyShared) {
-      mem.fileIndex = legacyShared.files.map((f) => ({
-        path: f.path,
-        operation: f.operation,
-        lines: f.lines ?? null,
-        summary: f.summary ?? null,
-        updatedAt: f.updatedAt,
-      }))
-      mem.actionLog = legacyShared.actions.map((a) => ({
-        tool: a.tool,
-        summary: a.summary,
-        turn: a.turn,
-        addedAt: a.addedAt,
-      }))
-      const sharedNarrative = synthesizeLegacySharedNarrative(legacyShared)
-      if (sharedNarrative) {
-        mem.turnSummaries.push({
+    const turnSummaries: TurnSummary[] = []
+
+    // Rolled-up first entry: the most recent anchor's text. Pre-anchor turns
+    // are gone (the anchor IS the compacted summary that replaced them).
+    if (anchorIdx !== -1) {
+      const anchor = msgs[anchorIdx]
+      const anchorText = textPartsJoined(anchor.parts)
+      if (anchorText) {
+        const info = anchor.info as MessageV2.Assistant
+        turnSummaries.push({
           turnIndex: 0,
-          userMessageId: "<legacy-bridge-shared-context>",
-          endedAt: legacyShared.updatedAt,
-          text: sharedNarrative,
-          modelID: "legacy",
-          providerId: "legacy",
+          userMessageId: "<prior-anchor>",
+          assistantMessageId: info.id,
+          endedAt: info.time?.completed ?? info.time?.created ?? 0,
+          text: anchorText,
+          modelID: info.modelID,
+          providerId: info.providerId,
+          accountId: info.accountId ?? null,
         })
       }
     }
 
-    if (legacyCheckpoint) {
-      mem.turnSummaries.push({
-        turnIndex: mem.turnSummaries.length,
-        userMessageId: legacyCheckpoint.lastMessageId ?? "<legacy-bridge-checkpoint>",
-        endedAt: legacyCheckpoint.timestamp ?? Date.now(),
-        text: legacyCheckpoint.snapshot,
-        modelID: "legacy",
-        providerId: "legacy",
+    // Post-anchor turns. Walk forward; each finished assistant message
+    // (excluding narration / anchors / subagent narration) contributes its
+    // last text part as a turn-summary entry.
+    const start = anchorIdx === -1 ? 0 : anchorIdx + 1
+    let prevUser: MessageV2.User | undefined
+    for (let i = start; i < msgs.length; i++) {
+      const m = msgs[i]
+      if (m.info.role === "user") {
+        prevUser = m.info as MessageV2.User
+        continue
+      }
+      if (m.info.role !== "assistant") continue
+      const info = m.info as MessageV2.Assistant
+      if (info.summary === true) continue
+      if (!info.finish) continue
+      if (isNarrationAssistantMessage(info, m.parts)) continue
+      const text = lastTextPartText(m.parts)
+      if (!text.trim()) continue
+      turnSummaries.push({
+        turnIndex: turnSummaries.length,
+        userMessageId: prevUser?.id ?? "",
+        assistantMessageId: info.id,
+        endedAt: info.time?.completed ?? info.time?.created ?? 0,
+        text,
+        modelID: info.modelID,
+        providerId: info.providerId,
+        accountId: info.accountId ?? null,
+        tokens:
+          info.tokens && (info.tokens.input || info.tokens.output)
+            ? { input: info.tokens.input, output: info.tokens.output }
+            : undefined,
       })
     }
 
-    mem.version = 1
-    mem.updatedAt = Date.now()
-    return mem
+    // Aux: file/action workspace from SharedContext.Space.
+    const space = await SharedContext.get(sessionID).catch(() => undefined)
+    const fileIndex: FileEntry[] = space
+      ? space.files.map((f) => ({
+          path: f.path,
+          operation: f.operation,
+          lines: f.lines ?? null,
+          summary: f.summary ?? null,
+          updatedAt: f.updatedAt,
+        }))
+      : []
+    const actionLog: ActionEntry[] = space
+      ? space.actions.map((a) => ({
+          tool: a.tool,
+          summary: a.summary,
+          turn: a.turn,
+          addedAt: a.addedAt,
+        }))
+      : []
+
+    const lastCompactedAt =
+      anchorIdx !== -1
+        ? { round: 0, timestamp: msgs[anchorIdx].info.time?.created ?? 0 }
+        : null
+
+    return {
+      sessionID,
+      version: 1,
+      updatedAt: Date.now(),
+      turnSummaries,
+      fileIndex,
+      actionLog,
+      lastCompactedAt,
+      rawTailBudget: RAW_TAIL_BUDGET_DEFAULT,
+    }
   }
 
-  function synthesizeLegacySharedNarrative(s: SharedContext.Space): string {
-    const lines: string[] = []
-    if (s.goal) lines.push(`Goal: ${s.goal}`)
-    if (s.discoveries.length > 0) {
-      lines.push("Discoveries:")
-      for (const d of s.discoveries) lines.push(`- ${d}`)
+  function findMostRecentAnchorIndex(msgs: MessageV2.WithParts[]): number {
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      const info = msgs[i].info
+      if (info.role === "assistant" && (info as MessageV2.Assistant).summary === true) {
+        return i
+      }
     }
-    if (s.currentState) lines.push(`Current state: ${s.currentState}`)
-    return lines.join("\n")
+    return -1
   }
 
-  // ── Write ───────────────────────────────────────────────────
-
-  /**
-   * Persist SessionMemory to Storage. Idempotent (per INV-5): write(read(x)) === x
-   * at the byte level provided x went through normalizeShape.
-   */
-  export async function write(sessionID: string, mem: SessionMemory): Promise<void> {
-    if (mem.sessionID !== sessionID) {
-      throw new Error(
-        `Memory.write: sessionID mismatch (arg=${sessionID}, mem.sessionID=${mem.sessionID})`,
-      )
-    }
-    await Storage.write(storageKey(sessionID), mem)
+  function textPartsJoined(parts: MessageV2.Part[]): string {
+    return parts
+      .filter((p): p is MessageV2.TextPart => p.type === "text")
+      .map((p) => p.text)
+      .join("\n")
+      .trim()
   }
 
-  // ── Append TurnSummary (called at runloop exit, DD-2) ───────
-
-  /**
-   * Append a new TurnSummary entry, bump version, and persist.
-   *
-   * Caller is the runloop exit handler at prompt.ts (the `exiting loop`
-   * site). Per INV-6, the append must be durable before the next runloop
-   * iteration (or daemon return) — implementation: Storage.write completes
-   * before this function resolves. Caller may still treat the call as
-   * fire-and-forget for UX latency, but we do not return early on partial
-   * persistence.
-   *
-   * Two normalisations applied centrally so callers don't have to think:
-   *
-   * 1. **turnIndex**: derived from the array position at append time
-   *    (`mem.turnSummaries.length` BEFORE push). Caller's `summary.turnIndex`
-   *    is overwritten. Reason: the runloop's `step` counter is 0 when
-   *    SessionPrompt.loop re-enters a finished session and immediately hits
-   *    the exit branch — `step` does not measure "which turn this is in
-   *    the session". Array position does, and matches the field's
-   *    documented meaning ("ordinal of this turn within the session").
-   *
-   * 2. **Idempotency on assistantMessageId**: if a TurnSummary with the
-   *    same `assistantMessageId` already exists, the append is a no-op.
-   *    Protects against the runloop re-entering an already-captured turn
-   *    (e.g. resume on a finished session followed by exit-branch fires
-   *    capture again with the same lastAssistant). Without this, Memory
-   *    would accumulate duplicate entries for the same turn.
-   */
-  export async function appendTurnSummary(
-    sessionID: string,
-    summary: TurnSummary,
-  ): Promise<void> {
-    const mem = await read(sessionID)
-    if (
-      summary.assistantMessageId &&
-      mem.turnSummaries.some((t) => t.assistantMessageId === summary.assistantMessageId)
-    ) {
-      // Already captured — skip silently.
-      return
+  function lastTextPartText(parts: MessageV2.Part[]): string {
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const p = parts[i]
+      if (p.type === "text") return (p as MessageV2.TextPart).text ?? ""
     }
-    const normalized: TurnSummary = {
-      ...summary,
-      turnIndex: mem.turnSummaries.length,
-    }
-    mem.turnSummaries.push(normalized)
-    mem.version += 1
-    mem.updatedAt = Date.now()
-    await write(sessionID, mem)
+    return ""
   }
 
-  // ── Render (DD-5: two independent functions) ────────────────
+  // ── Render (DD-5) ──────────────────────────────────────────
 
   /**
    * Compact provider-agnostic plain text for the next LLM call.
@@ -402,14 +291,6 @@ export namespace Memory {
   /**
    * Timeline format for human consumption (UI session-list preview, debug
    * dumps, /compact confirmation toast).
-   *
-   * Format priorities (in order):
-   *   1. Scannability — every turn boundary is explicit (`## Turn N`),
-   *      timestamps rendered, file/action chronology visible.
-   *   2. Density-balanced — readable in a sidebar / preview pane without
-   *      requiring scroll for the common case (≤ 8 turns).
-   *   3. Independent of LLM render — different consumers, different
-   *      optimization targets (DD-5).
    */
   export async function renderForHuman(sessionID: string): Promise<string> {
     const mem = await read(sessionID)
@@ -460,7 +341,7 @@ export namespace Memory {
 
     if (mem.lastCompactedAt) {
       lines.push(
-        `_last compacted: round ${mem.lastCompactedAt.round} at ${formatIsoFromMs(mem.lastCompactedAt.timestamp)}_`,
+        `_last compacted at ${formatIsoFromMs(mem.lastCompactedAt.timestamp)}_`,
       )
     }
 
@@ -476,24 +357,8 @@ export namespace Memory {
     }
   }
 
-  // ── Mark compacted (Cooldown source-of-truth, DD-7) ─────────
-
-  /**
-   * Update Memory.lastCompactedAt. Called by SessionCompaction.run on success.
-   * This is the canonical source for Cooldown.shouldThrottle (per DD-7); the
-   * separate cooldownState Map is removed in phase 7.
-   */
-  export async function markCompacted(
-    sessionID: string,
-    at: { round: number; timestamp?: number },
-  ): Promise<void> {
-    const mem = await read(sessionID)
-    mem.lastCompactedAt = {
-      round: at.round,
-      timestamp: at.timestamp ?? Date.now(),
-    }
-    mem.version += 1
-    mem.updatedAt = Date.now()
-    await write(sessionID, mem)
-  }
+  // Phase 13.1: write / appendTurnSummary / markCompacted removed. Memory is
+  // a derived view of the messages stream — there's nothing to persist
+  // separately. Cooldown reads anchor message timestamps directly.
+  void log
 }
