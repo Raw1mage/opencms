@@ -17,6 +17,7 @@ import { ProviderTransform } from "@/provider/transform"
 import { SessionPrompt } from "./prompt"
 import { SharedContext } from "./shared-context"
 import { Memory } from "./memory"
+import { Tweaks } from "../config/tweaks"
 import { ContinuationInvalidatedEvent } from "../plugin/codex-auth"
 
 // Subscribe to continuation invalidation. compaction-redesign DD-11:
@@ -639,7 +640,7 @@ export namespace SessionCompaction {
     | "manual"
     | "idle"
 
-  export type KindName = "narrative" | "replay-tail" | "low-cost-server" | "llm-agent"
+  export type KindName = "narrative" | "replay-tail" | "low-cost-server" | "llm-agent" | "hybrid_llm"
 
   export type RunInput = {
     sessionID: string
@@ -1151,6 +1152,120 @@ When constructing the summary, try to stick to this template:
         return tryLowCostServer(input, model)
       case "llm-agent":
         return tryLlmAgent(input, model)
+      case "hybrid_llm":
+        return tryHybridLlmKind(input, model)
+    }
+  }
+
+  /**
+   * Adapter: KIND_CHAIN entry → SessionCompaction.Hybrid.runHybridLlm.
+   *
+   * Pulls anchor / journal / pinned_zone / drop markers from
+   * Memory.Hybrid accessors, computes the targetTokens budget from the
+   * model's context window (DD-3: ~30% of context), invokes runHybridLlm,
+   * maps the resulting CompactionEvent into a KindAttempt for the
+   * existing KIND_CHAIN walker.
+   *
+   * Phase 2 dual-path strategy: only ever called when
+   * Tweaks.compactionSync().enableHybridLlm === true (the master flag).
+   * KIND_CHAIN's overflow / cache-aware / manual lists append "hybrid_llm"
+   * at the FRONT when the flag is on; existing kinds remain reachable as
+   * fallback if hybrid throws.
+   */
+  async function tryHybridLlmKind(
+    input: RunInput,
+    model: Provider.Model | undefined,
+  ): Promise<KindAttempt> {
+    if (!model) return { ok: false, reason: "no model" }
+    if (!canSummarize(model)) return { ok: false, reason: "model context too small" }
+
+    const messages = await Session.messages({ sessionID: input.sessionID }).catch(() => [] as MessageV2.WithParts[])
+    const anchorMsg = await Memory.Hybrid.getAnchorMessage(input.sessionID, messages)
+    const journalMsgs = await Memory.Hybrid.getJournalMessages(input.sessionID, { messages })
+
+    // Build Hybrid.Anchor from the on-disk anchor message (DD-10
+    // migration: any assistant + summary===true is an acceptable
+    // prior_anchor, even if produced by the legacy narrative kind).
+    const priorAnchor: Hybrid.Anchor | null = anchorMsg
+      ? {
+          role: "assistant",
+          summary: true,
+          content: anchorMsg.parts
+            .filter((p) => p.type === "text")
+            .map((p) => (p as any).text ?? "")
+            .join("\n"),
+          metadata: {
+            anchorVersion: 1,
+            generatedAt: new Date(anchorMsg.info?.time?.created ?? Date.now()).toISOString(),
+            generatedBy: {
+              provider: (anchorMsg.info as MessageV2.Assistant).providerId ?? "",
+              model: (anchorMsg.info as MessageV2.Assistant).modelID ?? "",
+              accountId: (anchorMsg.info as MessageV2.Assistant).accountId ?? "",
+            },
+            coversRounds: { earliest: 0, latest: 0 },
+            inputTokens: 0,
+            outputTokens: Math.ceil(
+              (anchorMsg.parts
+                .filter((p) => p.type === "text")
+                .map((p) => (p as any).text ?? "")
+                .join("\n").length) / 4,
+            ),
+            phase: 1,
+          },
+        }
+      : null
+
+    // Wrap journal messages as Hybrid.JournalEntry. Round index is just
+    // the message position post-anchor for now; finer round tracking is
+    // a future Phase 2 follow-up if needed.
+    const journalUnpinned: Hybrid.JournalEntry[] = journalMsgs.map((m, idx) => ({
+      roundIndex: idx,
+      messages: [m],
+    }))
+
+    // pinned_zone is empty until Phase 5 (Layer 5 override surface)
+    // wires the producer that parses pin markers from assistant
+    // metadata. Materialisation function (Hybrid.materialisePinnedZone)
+    // is in place ready for that wiring.
+    const pinnedZone: Hybrid.PinnedZoneEntry[] = []
+
+    // targetTokens per DD-3: ~30% of model context window. Floor at
+    // ToolBudget-style minimumFloor analogue (5000 tokens) to keep
+    // tiny-context models still useful.
+    const ctx = model.limit?.context ?? 200_000
+    const targetTokens = Math.max(5_000, Math.round(ctx * 0.30))
+
+    const event = await Hybrid.runHybridLlm(input.sessionID, {
+      abort: input.abort ?? new AbortController().signal,
+      priorAnchor,
+      journalUnpinned,
+      pinnedZone: pinnedZone.length > 0 ? pinnedZone : undefined,
+      targetTokens,
+      voluntary: false,
+    })
+
+    if (event.result === "success") {
+      // The anchor message has already been written by runLlmCompact's
+      // SessionProcessor pipeline; KIND_CHAIN doesn't need to write
+      // again. Signal anchorWritten=true.
+      log.info("hybrid_llm compaction succeeded", {
+        sessionID: input.sessionID,
+        eventId: event.eventId,
+        inputTokens: event.inputTokens,
+        outputTokens: event.outputTokens,
+        latencyMs: event.latencyMs,
+      })
+      return { ok: true, summaryText: "", kind: "hybrid_llm", anchorWritten: true }
+    }
+
+    // failed_then_fallback or unrecoverable → let the existing chain
+    // continue to the next kind (narrative / replay-tail / ...). The
+    // graceful-degradation ladder in runHybridLlm already kept the
+    // prior anchor in place; the next kind in the chain will try its
+    // own thing.
+    return {
+      ok: false,
+      reason: `hybrid_llm ${event.result}: ${event.errorCode ?? "unknown"}`,
     }
   }
 
@@ -1202,8 +1317,26 @@ When constructing the summary, try to stick to this template:
 
     const baseChain = KIND_CHAIN[observed]
     // Manual --rich: skip 1-3 (free) and 4 (low-cost-server), go straight to llm-agent.
-    const chain: ReadonlyArray<KindName> =
+    let chain: ReadonlyArray<KindName> =
       observed === "manual" && intent === "rich" ? (["llm-agent"] as const) : baseChain
+
+    // Phase 2 dual-path (specs/tool-output-chunking/): when the master
+    // flag is on, prepend hybrid_llm at the FRONT of the chain for
+    // observed conditions that genuinely benefit from it (overflow /
+    // cache-aware / manual). The existing kinds remain reachable as
+    // fallback if hybrid_llm fails. Other observed conditions (idle,
+    // rebind, continuation-invalidated, provider-switched) are
+    // maintenance triggers that don't need a paid LLM call — leave
+    // their chains untouched.
+    const hybridFlag = Tweaks.compactionSync().enableHybridLlm
+    const hybridEligible: ReadonlySet<Observed> = new Set([
+      "overflow",
+      "cache-aware",
+      "manual",
+    ])
+    if (hybridFlag && hybridEligible.has(observed) && !chain.includes("hybrid_llm")) {
+      chain = ["hybrid_llm", ...chain]
+    }
 
     const model = await resolveActiveModel(sessionID)
     const target = await resolveTargetPromptTokens()
@@ -2038,6 +2171,73 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
       if (reason === "llm_threw" || reason === "no_response") return "E_HYBRID_LLM_FAILED"
       // header_missing / size_overflow / sanity_smaller / forbidden_token / drop_violated
       return "E_HYBRID_LLM_MALFORMED"
+    }
+
+    // ─── Pinned envelope materialisation (Phase 2.14, DD-4 closes G-1) ──
+    //
+    // Pure function: wraps a pinned tool_result as a synthesised
+    // user-role message envelope. The original tool_call/tool_result
+    // pair stays untouched in journal (INV-4). The wrapped copy lives
+    // in pinned_zone and survives Phase 1 compaction verbatim.
+    //
+    // Invoked by prompt.ts pre-prompt-build when the flag is on and
+    // ContextMarkers.pin set is non-empty. The `pinnedToolCallIds`
+    // input source is populated by Phase 5 (Layer 5 override surface).
+    // Until Phase 5 wires the producer, this function lays dormant —
+    // empty input → empty output → identical prompt assembly as today.
+
+    /**
+     * Wrap one pinned tool message into a user-role envelope per DD-4.
+     * Pure function; no I/O.
+     */
+    export function wrapPinnedToolMessage(
+      toolPart: MessageV2.ToolPart,
+      sourceMessage: MessageV2.WithParts,
+      opts: { pinnedAt?: string; pinnedBy?: "ai" | "human" } = {},
+    ): PinnedZoneEntry {
+      const toolName = (toolPart as any).tool ?? "unknown"
+      const toolCallId = toolPart.callID
+      // Best-effort round index from the source message — fallback 0.
+      const roundIndex = (sourceMessage.info?.time?.created ?? 0) || 0
+      // Stringify the tool's verbatim result. We accept either the
+      // executed result (state.output) or the input args as fallback.
+      const verbatim =
+        ((toolPart as any).state?.output as string | undefined) ??
+        (() => {
+          try {
+            return JSON.stringify((toolPart as any).state?.input ?? {})
+          } catch {
+            return ""
+          }
+        })()
+      const content =
+        `[Pinned earlier output] tool '${toolName}' (round ${roundIndex}, tool_call_id=${toolCallId}) returned:\n` +
+        verbatim
+      return {
+        role: "user",
+        content,
+        metadata: {
+          pinSource: { toolCallId, toolName, roundIndex },
+          tokens: Math.ceil(content.length / 4),
+          pinnedAt: opts.pinnedAt ?? new Date().toISOString(),
+          pinnedBy: opts.pinnedBy ?? "ai",
+        },
+      }
+    }
+
+    /**
+     * Materialise pinned_zone from a list of (sourceMessage, toolPart)
+     * pairs as returned by Memory.Hybrid.getPinnedToolMessages(). Used
+     * by prompt.ts pre-prompt-build (when flag on) to assemble the
+     * pinned_zone slot of the 5-zone canonical prompt. Pure function.
+     */
+    export function materialisePinnedZone(
+      sources: { message: MessageV2.WithParts; toolPart: MessageV2.ToolPart }[],
+      opts: { pinnedBy?: "ai" | "human" } = {},
+    ): PinnedZoneEntry[] {
+      return sources.map((src) =>
+        wrapPinnedToolMessage(src.toolPart, src.message, { pinnedBy: opts.pinnedBy }),
+      )
     }
 
     function makeEvent(input: {
