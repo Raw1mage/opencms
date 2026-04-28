@@ -1,6 +1,7 @@
 import z from "zod"
 import path from "path"
 import { Tool } from "./tool"
+import { ToolBudget } from "./budget"
 import DESCRIPTION from "./glob.txt"
 import { Ripgrep } from "../file/ripgrep"
 import { Instance } from "../project/instance"
@@ -67,6 +68,31 @@ export const GlobTool = Tool.define("glob", {
         )
       }
     }
+    let body = output.join("\n")
+
+    // Layer 2 (specs/tool-output-chunking/, DD-2): token-aware bound.
+    // The path-list cap of `limit` (100 files) covers most cases; this
+    // post-hoc check activates only when individual paths are unusually
+    // long or the model's context window is small. INV-8: byte-identical
+    // for natural-fit cases.
+    const budget = ToolBudget.resolve(ctx, "glob")
+    if (ToolBudget.estimateTokens(body) > budget.tokens) {
+      let kept = files.length
+      while (kept > 0) {
+        const head = files.slice(0, kept).map((f) => f.path).join("\n")
+        const hint =
+          `\n\n(Results bounded at ~${budget.tokens} tokens by Layer 2 ` +
+          `(${budget.source}). Showing first ${kept} of ${files.length}+ paths. ` +
+          `Use a more specific path or pattern to narrow results.)`
+        const candidate = (kept === 0 ? "No files found" : head) + hint
+        if (ToolBudget.estimateTokens(candidate) <= budget.tokens) {
+          body = candidate
+          truncated = true
+          break
+        }
+        kept = Math.max(0, Math.floor(kept * 0.85))
+      }
+    }
 
     return {
       title: path.relative(Instance.worktree, search),
@@ -74,7 +100,7 @@ export const GlobTool = Tool.define("glob", {
         count: files.length,
         truncated,
       },
-      output: output.join("\n"),
+      output: body,
     }
   },
 })
