@@ -1508,5 +1508,196 @@ When constructing the summary, try to stick to this template:
       | "E_HYBRID_LLM_TIMEOUT"
       | "E_HYBRID_LLM_MALFORMED"
       | "E_OVERFLOW_UNRECOVERABLE"
+
+    // ─── Output validation (Phase 2.8) ────────────────────────────────
+    // Mirrors hybrid-llm-framing.md §"Output validation" (DD-6 sanity).
+
+    export type ValidationFailure =
+      | "header_missing"
+      | "size_overflow"
+      | "sanity_smaller"
+      | { kind: "forbidden_token"; token: string }
+      | { kind: "drop_violated"; toolCallId: string }
+
+    export interface ValidationResult {
+      ok: boolean
+      reason?: ValidationFailure
+    }
+
+    /**
+     * The first line of any anchor body MUST match this format. The
+     * timestamp / provider / model / round-range fields are placeholders;
+     * runtime validates only the structural shape, not the values.
+     */
+    const ANCHOR_HEADER_RE = /^\[Context Anchor v1\] generated at \S+ by \S+:\S+ covering rounds \[\d+\.\.\d+\]/
+
+    /**
+     * Tokens that MUST NOT appear anywhere in the anchor body. Per
+     * INV-5 — anchor must be portable across providers, so any
+     * provider-specific control sequence or thinking-channel marker is
+     * a contract violation.
+     */
+    const FORBIDDEN_TOKENS: readonly string[] = [
+      "<thinking>",
+      "</thinking>",
+      "<scratchpad>",
+      "</scratchpad>",
+      "<|im_start|>",
+      "<|im_end|>",
+      '"tool_calls":',
+      '"tool_use":',
+    ]
+
+    /**
+     * Validate an anchor body returned by LLM_compact against the
+     * contract in hybrid-llm-framing.md. Pure function, no side-effects.
+     */
+    export function validateAnchorBody(body: string, request: LLMCompactRequest): ValidationResult {
+      // 1. Header present
+      const firstLine = body.split("\n", 1)[0] ?? ""
+      if (!ANCHOR_HEADER_RE.test(firstLine)) {
+        return { ok: false, reason: "header_missing" }
+      }
+      // 2. Size <= targetTokens * 1.10 (10% slack for tokenizer drift)
+      const ceil = Math.ceil(request.targetTokens * 1.10)
+      const tokenEst = Math.ceil(body.length / 4)
+      if (tokenEst > ceil) {
+        return { ok: false, reason: "size_overflow" }
+      }
+      // 3. Strictly smaller than input
+      const inputTokens = inputTokenEstimate(request)
+      if (tokenEst >= inputTokens) {
+        return { ok: false, reason: "sanity_smaller" }
+      }
+      // 4. No forbidden tokens
+      for (const token of FORBIDDEN_TOKENS) {
+        if (body.includes(token)) {
+          return { ok: false, reason: { kind: "forbidden_token", token } }
+        }
+      }
+      // 5. Drop respected (if dropMarkers present, none of those ids appear)
+      if (request.dropMarkers && request.dropMarkers.length > 0) {
+        for (const id of request.dropMarkers) {
+          if (id && body.includes(id)) {
+            return { ok: false, reason: { kind: "drop_violated", toolCallId: id } }
+          }
+        }
+      }
+      return { ok: true }
+    }
+
+    /**
+     * Approximate input size (tokens) of an LLMCompactRequest. Used for
+     * sanity check (output must be smaller than input) and for choosing
+     * single-pass vs chunk-and-merge mode.
+     */
+    export function inputTokenEstimate(request: LLMCompactRequest): number {
+      const charCount =
+        (request.priorAnchor?.content.length ?? 0) +
+        request.journalUnpinned.reduce((sum, je) => {
+          // Rough estimate: each message ~200 chars on average is too low;
+          // serialise as JSON for a more honest count.
+          try {
+            return sum + JSON.stringify(je.messages).length
+          } catch {
+            return sum
+          }
+        }, 0) +
+        (request.pinnedZone?.reduce((sum, p) => sum + p.content.length, 0) ?? 0)
+      return Math.ceil(charCount / 4)
+    }
+
+    // ─── Framing prompt (lazy-loaded) ─────────────────────────────────
+
+    let _framingTemplate: string | null = null
+    /**
+     * Load the runtime framing prompt template from
+     * packages/opencode/src/session/prompt/hybrid-llm-framing.md (Phase
+     * 2.1 git-mv'd). Lazy + cached because compaction fires sparsely; no
+     * point keeping it resident for sessions that never compact.
+     */
+    export async function loadFramingTemplate(): Promise<string> {
+      if (_framingTemplate !== null) return _framingTemplate
+      const url = new URL("./prompt/hybrid-llm-framing.md", import.meta.url)
+      try {
+        const text = await Bun.file(url.pathname).text()
+        _framingTemplate = text
+        return text
+      } catch (err) {
+        log.warn("hybrid-llm-framing.md not loadable", {
+          path: url.pathname,
+          error: err instanceof Error ? err.message : String(err),
+        })
+        // Fallback to an inlined minimal prompt so production never wedges
+        // on a packaging error. The minimal prompt enforces the same
+        // contract; the real prompt is just richer.
+        _framingTemplate = INLINE_MINIMAL_FRAMING
+        return _framingTemplate
+      }
+    }
+
+    const INLINE_MINIMAL_FRAMING = `You are the Context Compactor.
+Output a single Markdown summary distilling PRIOR_ANCHOR + JOURNAL.
+First line MUST be: [Context Anchor v1] generated at <ISO-8601> by <provider>:<model> covering rounds [<earliest>..<latest>]
+Body: plain Markdown only. NO <thinking>, no provider tokens, no tool_call/tool_result JSON.
+Target size: at most {{targetTokens}} tokens.
+Honour DROP_MARKERS: do not mention dropped tool_call ids.
+{{phase2Strict}}`
+
+    /**
+     * Build the user-payload text for an LLMCompactRequest, populating
+     * the META block + PRIOR_ANCHOR + JOURNAL + (optional) PINNED_ZONE.
+     * Pure function; no side-effects.
+     */
+    export function buildUserPayload(
+      request: LLMCompactRequest,
+      meta: { generatedAt: string; provider: string; model: string },
+    ): string {
+      const earliest = request.journalUnpinned[0]
+        ? (request.journalUnpinned[0].roundIndex ?? 0)
+        : 0
+      const latest = request.journalUnpinned.length > 0
+        ? (request.journalUnpinned[request.journalUnpinned.length - 1].roundIndex ?? earliest)
+        : earliest
+      const lines: string[] = [
+        "META:",
+        `  generated_at: ${meta.generatedAt}`,
+        `  provider: ${meta.provider}`,
+        `  model: ${meta.model}`,
+        `  rounds_covered: [${earliest}..${latest}]`,
+        `  target_tokens: ${request.targetTokens}`,
+        `  phase: ${request.framing.mode === "phase2" ? 2 : 1}`,
+        "",
+        "PRIOR_ANCHOR:",
+        request.priorAnchor?.content ?? "(none — cold start)",
+        "",
+        `JOURNAL (rounds ${earliest}..${latest}):`,
+      ]
+      for (const je of request.journalUnpinned) {
+        lines.push(`--- round ${je.roundIndex} ---`)
+        try {
+          lines.push(JSON.stringify(je.messages, null, 2))
+        } catch {
+          lines.push("(unserialisable round)")
+        }
+      }
+      if (request.dropMarkers && request.dropMarkers.length > 0) {
+        lines.push("")
+        lines.push(`DROP_MARKERS: ${request.dropMarkers.join(", ")}`)
+      }
+      if (request.framing.mode === "phase2" && request.pinnedZone && request.pinnedZone.length > 0) {
+        lines.push("")
+        lines.push("PINNED_ZONE:")
+        for (const p of request.pinnedZone) {
+          lines.push(
+            `--- pinned: tool '${p.metadata.pinSource.toolName}' (round ${p.metadata.pinSource.roundIndex}, id=${p.metadata.pinSource.toolCallId}) ---`,
+          )
+          lines.push(p.content)
+        }
+      }
+      lines.push("")
+      lines.push("Produce the new anchor body now.")
+      return lines.join("\n")
+    }
   }
 }
