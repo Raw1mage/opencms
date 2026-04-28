@@ -1,5 +1,6 @@
 import z from "zod"
 import { Tool } from "./tool"
+import { ToolBudget } from "./budget"
 import { Ripgrep } from "../file/ripgrep"
 import { Truncate } from "./truncation"
 
@@ -163,11 +164,27 @@ export const GrepTool = Tool.define("grep", {
 
     // For grep, we want to be very aggressive about saving to file to keep UI clean
     // and context window efficient.
-    const threshold = 2000 // characters
-    if (fullOutput.length > threshold) {
+    // Layer 2 (specs/tool-output-chunking/, DD-2): the 2000-char threshold
+    // is the dominant gate (≈ 500 tokens, well under any reasonable
+    // outputBudget). The token-aware check here is a defensive lower
+    // bound for the rare case where ToolBudget.resolve returns a value
+    // smaller than the char threshold's token equivalent. INV-8: the
+    // "natural fit" branch returns fullOutput byte-identical to
+    // pre-Layer-2 behaviour.
+    const budget = ToolBudget.resolve(ctx, "grep")
+    const tokenizedSize = ToolBudget.estimateTokens(fullOutput)
+    const overChars = fullOutput.length > 2000
+    const overBudget = tokenizedSize > budget.tokens
+    if (overChars || overBudget) {
       // Use Truncate logic to save file but return a specialized minimalist hint
       const result = await Truncate.output(fullOutput, { maxLines: 0 }, ctx.extra?.agent, ctx.sessionID)
-      const hint = `This output is redirected to ${result.truncated ? result.outputPath : "internal error"}`
+      const reason = overBudget
+        ? `Layer 2 budget (~${budget.tokens} tokens, ${budget.source}) exceeded`
+        : "output > 2000 chars"
+      const hint = result.truncated
+        ? `This output (${reason}) is redirected to ${result.outputPath}. ` +
+          `Consider a more specific pattern or path to narrow results.`
+        : "This output is redirected to internal error"
 
       return {
         title: params.pattern,
