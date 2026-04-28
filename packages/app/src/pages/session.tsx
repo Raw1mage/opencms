@@ -607,6 +607,11 @@ export default function Page() {
   // so the user isn't left wondering during the slow plugin round-trip
   // (Codex /responses/compact can take 30s+). Backend publishes
   // session.compaction.started immediately and session.compacted on finish.
+  //
+  // mode='hybrid_llm_background' is non-blocking — runtime continues with
+  // the prior anchor while the LLM crunches a better one in background.
+  // Show a less alarming, auto-dismissing info toast for it instead of the
+  // persistent loading spinner that suggests the user is waiting.
   let compactionToastId: number | undefined
   const dismissCompactionToast = () => {
     if (compactionToastId !== undefined) {
@@ -615,15 +620,26 @@ export default function Page() {
     }
   }
   const stopCompactionListener = sdk.event.listen((e) => {
-    const event = e.details as { type: string; properties?: { sessionID?: string } }
+    const event = e.details as { type: string; properties?: { sessionID?: string; mode?: string } }
     if (!event.properties?.sessionID || event.properties.sessionID !== params.id) return
     if (event.type === "session.compaction.started") {
+      const isBackground = event.properties.mode === "hybrid_llm_background"
       dismissCompactionToast()
-      compactionToastId = showToast({
-        title: language.t("toast.session.compact.loading"),
-        variant: "loading",
-        persistent: true,
-      }) as unknown as number
+      if (isBackground) {
+        // Non-blocking: brief auto-dismiss default toast. User can keep typing.
+        compactionToastId = showToast({
+          title: language.t("toast.session.compact.background.loading"),
+          variant: "default",
+          duration: 4000,
+        }) as unknown as number
+      } else {
+        // Blocking foreground compaction (plugin/llm/sync hybrid).
+        compactionToastId = showToast({
+          title: language.t("toast.session.compact.loading"),
+          variant: "loading",
+          persistent: true,
+        }) as unknown as number
+      }
     } else if (event.type === "session.compacted") {
       dismissCompactionToast()
       showToast({

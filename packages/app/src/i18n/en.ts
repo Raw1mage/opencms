@@ -444,6 +444,7 @@ export const dict = {
   "toast.model.none.description": "Connect a provider to summarize this session",
 
   "toast.session.compact.loading": "Compacting session…",
+  "toast.session.compact.background.loading": "Polishing session summary in background…",
   "toast.session.compact.success": "Compaction complete",
   "toast.session.compact.error": "Compaction failed: {{reason}}",
 
