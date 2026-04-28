@@ -1343,4 +1343,170 @@ When constructing the summary, try to stick to this template:
       _writeAnchor = defaultWriteAnchor
     },
   })
+
+  // ───────────────────────────────────────────────────────────────────
+  // Hybrid sub-namespace — Phase 2 of context-management subsystem
+  // (specs/tool-output-chunking/, refactor 2026-04-29).
+  //
+  // ALL Hybrid.* types and functions are additive during the flag-gated
+  // dual-path rollout. The existing KIND_CHAIN above remains the active
+  // path while `compaction_enable_hybrid_llm=0`. When the flag flips on,
+  // hybrid_llm becomes the primary kind; the old kinds stay reachable
+  // as fallback. Only after telemetry proves correctness does Phase 2.12
+  // retire the old kinds.
+  //
+  // Type definitions mirror specs/tool-output-chunking/data-schema.json.
+  // ───────────────────────────────────────────────────────────────────
+  export namespace Hybrid {
+    /**
+     * Compaction phases. DD-3, DD-9. Phase 1 is the normal path; Phase 2
+     * is a fail-safe absorbing pinned_zone. There is no Phase 3 (INV-6).
+     */
+    export type Phase = 1 | 2
+
+    /**
+     * LLM_compact internal mode. DD-3 internal mode — the caller does
+     * not see this; it is a tactical input-size accommodation.
+     */
+    export type InternalMode = "single-pass" | "chunk-and-merge"
+
+    /**
+     * Source attribution for the budget value. Used in telemetry events
+     * and debug logs to explain why a particular budget number was used.
+     */
+    export type BudgetSource = "ctx" | "tweaks-default" | "tweaks-task-override" | "tweaks-bash-override"
+
+    /**
+     * Anchor envelope. The canonical compaction output. On-disk shape is
+     * still `assistant + summary === true` (compaction-redesign DD-8) so
+     * legacy narrative anchors are forward-compatible. The body content
+     * shape is provider-agnostic plain Markdown — see hybrid-llm-framing.md
+     * §"Output validation" and INV-5.
+     */
+    export interface Anchor {
+      role: "assistant"
+      summary: true
+      content: string
+      metadata: AnchorMetadata
+    }
+
+    export interface AnchorMetadata {
+      anchorVersion: 1
+      generatedAt: string // ISO-8601
+      generatedBy: { provider: string; model: string; accountId: string }
+      coversRounds: { earliest: number; latest: number }
+      inputTokens: number
+      outputTokens: number
+      phase: Phase
+      internalMode?: InternalMode
+    }
+
+    /**
+     * One round of raw conversation. Append-only inter-compaction (DD-1).
+     * tool_call and tool_result must remain adjacent within `messages`
+     * (provider validation requirement preserved by INV-4).
+     */
+    export interface JournalEntry {
+      roundIndex: number
+      // Native message-v2 messages — typed as unknown here to avoid a
+      // circular-import dance with message-v2.ts; consumers cast to
+      // MessageV2.WithParts when they need the structured shape.
+      messages: unknown[]
+    }
+
+    /**
+     * One pinned tool_result, materialised as a synthesised user-role
+     * message envelope per DD-4 (closes G-1). Lives in pinned_zone, not
+     * journal; the original tool_call/tool_result pair stays untouched
+     * in journal.
+     */
+    export interface PinnedZoneEntry {
+      role: "user"
+      content: string  // "[Pinned earlier output] tool '<name>' (round <K>, tool_call_id=<TID>) returned:\n<verbatim>"
+      metadata: {
+        pinSource: { toolCallId: string; toolName: string; roundIndex: number }
+        tokens: number
+        pinnedAt: string  // ISO-8601
+        pinnedBy: "ai" | "human"
+      }
+    }
+
+    /**
+     * AI/human override markers carried in assistant message metadata
+     * (`message.metadata.contextMarkers`). Parsed pre-prompt-build (DD-15).
+     */
+    export interface ContextMarkers {
+      pin?: string[]   // tool_call ids → materialise into pinned_zone next prompt-build
+      drop?: string[]  // tool_call ids → exclude from next compaction's LLM_compact input
+      recall?: { sessionId?: string; msgId: string }[]  // re-load original disk content into journal tail
+    }
+
+    /**
+     * Budget snapshot delivered to AI (R-5). Populated each prompt-build
+     * round when Layer 3 visibility ships (Phase 3). Defined here because
+     * the compaction subsystem produces these numbers.
+     */
+    export interface ContextStatus {
+      totalBudget: number
+      currentUsage: number
+      roomRemaining: number
+      anchorCoverageRounds: number
+      journalDepthRounds: number
+      pinnedZoneTokens?: number
+      pinnedZoneCap?: number
+    }
+
+    /**
+     * Input to LLM_compact. The runtime constructs this from session
+     * state and serialises it into the actual chat-completion messages
+     * (system + user) using the framing prompt template.
+     */
+    export interface LLMCompactRequest {
+      priorAnchor: Anchor | null  // null = cold-start
+      journalUnpinned: JournalEntry[]
+      pinnedZone?: PinnedZoneEntry[]  // Phase 2 only
+      dropMarkers?: string[]
+      framing: { mode: "phase1" | "phase2"; strict: boolean }
+      targetTokens: number
+    }
+
+    /**
+     * Telemetry record per compaction event (R-13). Synchronous emit
+     * before runloop continues (INV-7).
+     */
+    export interface CompactionEvent {
+      eventId: string
+      sessionId: string
+      kind: "hybrid_llm"
+      phase: Phase
+      internalMode: InternalMode
+      inputTokens: number
+      outputTokens: number
+      pinnedCountIn?: number
+      pinnedCountOut?: number
+      droppedCountIn?: number
+      recallCountIn?: number
+      voluntary?: boolean
+      latencyMs: number
+      costUsdEstimate?: number
+      result: "success" | "failed_then_fallback" | "unrecoverable"
+      errorCode?: ErrorCode | null
+      emittedAt: string
+    }
+
+    /**
+     * Error codes catalogued in specs/tool-output-chunking/errors.md.
+     * Recovery semantics:
+     * - FAILED / TIMEOUT / MALFORMED → graceful degradation per DD-6
+     *   (keep prior anchor + truncate journal from oldest); runloop
+     *   continues.
+     * - OVERFLOW_UNRECOVERABLE → bounded chain exhausted (no Phase 3,
+     *   INV-6); surfaced to user with remediation guidance.
+     */
+    export type ErrorCode =
+      | "E_HYBRID_LLM_FAILED"
+      | "E_HYBRID_LLM_TIMEOUT"
+      | "E_HYBRID_LLM_MALFORMED"
+      | "E_OVERFLOW_UNRECOVERABLE"
+  }
 }
