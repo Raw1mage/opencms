@@ -36,8 +36,8 @@ Goal: replace KIND_CHAIN with single `hybrid_llm` kind; implement Phase 1
 - [x] 2.1 Move `specs/tool-output-chunking/hybrid-llm-framing.md` → `packages/opencode/src/session/prompt/hybrid-llm-framing.md` (`git mv` to preserve history)
 - [x] 2.2 Add 3 compaction knobs to `tweaks.cfg`: `compaction.llmTimeoutMs=30000`, `compaction.fallbackProvider`, `compaction.phase2.maxAnchorTokens=5000`, `compaction.pinnedZone.maxTokensRatio=0.30` (DD-5, DD-6, DD-9)
 - [x] 2.3 Define `Anchor` / `JournalEntry` / `PinnedZoneEntry` / `ContextMarkers` / `LLMCompactRequest` / `CompactionEvent` types in `packages/opencode/src/session/memory.ts` matching `data-schema.json`
-- [ ] 2.4 Refactor `Memory` to expose first-class `anchor` / `journal` / `pinned_zone` accessors (read from on-disk message stream, INV-10)
-- [ ] 2.5 Implement `recallMessage(sessionId?, msgId)` in `memory.ts` with idempotency check (DD-7, INV-9)
+- [x] 2.4 Refactor `Memory` to expose first-class `anchor` / `journal` / `pinned_zone` accessors (read from on-disk message stream, INV-10)
+- [x] 2.5 Implement `recallMessage(sessionId?, msgId)` in `memory.ts` with idempotency check (DD-7, INV-9)
 - [ ] 2.6 Implement `LLM_compact` core in `compaction.ts` — single-pass mode, calls EXT-LLM with framing prompt, returns anchor body (DD-3)
 - [ ] 2.7 Implement `LLM_compact` chunk-and-merge mode (sequential digest accumulation when input > LLM input budget) (DD-3 internal mode)
 - [ ] 2.8 Implement output validators per `hybrid-llm-framing.md` §"Output validation" (header regex, size, strict-smaller, forbidden tokens, drop respected)
