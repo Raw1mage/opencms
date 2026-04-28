@@ -11,6 +11,7 @@ import { Provider } from "../provider/provider"
 import { SessionCompaction } from "./compaction"
 import { SharedContext } from "./shared-context"
 import { Memory } from "./memory"
+import { Token } from "../util/token"
 import { Config } from "@/config/config"
 import { Instance } from "../project/instance"
 import { Todo } from "./todo"
@@ -219,6 +220,44 @@ export function captureTurnSummaryOnExit(input: {
       error: err instanceof Error ? err.message : String(err),
     })
   })
+}
+
+/**
+ * Estimate the token count of a reconstructed message stream (post-filter or
+ * post-rebind). Walks every part and sums Token.estimate over text, tool
+ * input, tool output, and reasoning bodies.
+ *
+ * Why this exists: `lastFinished.tokens.total` reflects the PREVIOUS LLM
+ * call's input size — it's stale once `applyRebindCheckpoint` reshapes
+ * `msgs` into `[syntheticSummary, ...postBoundary]`. The state-driven
+ * compaction trigger needs to know "what's the UPCOMING prompt going to
+ * weigh?", which is a function of the current `msgs`, not the last
+ * round's input. This helper computes that estimate.
+ *
+ * Cheap to compute (string length / 4) and runs at most once per
+ * runloop iteration; not a hot path.
+ */
+function estimateMsgsTokenCount(msgs: MessageV2.WithParts[]): number {
+  let total = 0
+  for (const m of msgs) {
+    for (const p of m.parts) {
+      if (p.type === "text") {
+        total += Token.estimate((p as MessageV2.TextPart).text ?? "")
+      } else if (p.type === "reasoning") {
+        total += Token.estimate((p as any).text ?? "")
+      } else if (p.type === "tool" && p.state.status === "completed") {
+        const inp = (p.state as any).input
+        if (inp != null) {
+          total += Token.estimate(typeof inp === "string" ? inp : JSON.stringify(inp))
+        }
+        const out = (p.state as any).output
+        if (out != null) {
+          total += Token.estimate(typeof out === "string" ? out : JSON.stringify(out))
+        }
+      }
+    }
+  }
+  return total
 }
 
 /**
@@ -1501,6 +1540,22 @@ export namespace SessionPrompt {
               })
             } else {
               msgs = applied.messages
+              // Refresh lastFinished.tokens.input so the state-driven evaluator
+              // below sees the RECONSTRUCTED prompt size, not the pre-rebind
+              // assistant message's stale `tokens.input`. Without this, an
+              // already-massive resumed session reports the OLD turn's tokens
+              // and isOverflow misses, so compaction never re-fires on the
+              // resumed (still-overflowing) tail.
+              if (lastFinished) {
+                const reconstructedTokens = estimateMsgsTokenCount(msgs)
+                lastFinished = {
+                  ...lastFinished,
+                  tokens: {
+                    ...lastFinished.tokens,
+                    input: reconstructedTokens,
+                  },
+                }
+              }
               // Checkpoint is persistent — new compactions overwrite it, not consumed on read.
               debugCheckpoint("prompt", "loop:rebind_checkpoint_applied", {
                 sessionID,
@@ -1508,11 +1563,13 @@ export namespace SessionPrompt {
                 boundaryId: checkpoint.lastMessageId,
                 messageCount: msgs.length,
                 postBoundaryCount: postBoundary.length,
+                reconstructedTokens: lastFinished?.tokens?.input,
               })
               log.info("rebind checkpoint applied", {
                 sessionID,
                 boundaryId: checkpoint.lastMessageId,
                 messageCount: msgs.length,
+                reconstructedTokens: lastFinished?.tokens?.input,
               })
             }
           }

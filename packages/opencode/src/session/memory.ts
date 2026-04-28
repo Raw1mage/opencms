@@ -343,10 +343,40 @@ export namespace Memory {
     return renderForLLMSync(mem)
   }
 
-  /** Pure render from an already-loaded SessionMemory (testable, side-effect-free). */
-  export function renderForLLMSync(mem: SessionMemory): string {
+  /**
+   * Pure render from an already-loaded SessionMemory (testable, side-effect-free).
+   *
+   * `maxTokens` (optional): if set, caps output at this token estimate. Keeps
+   * NEWEST turnSummaries that fit; drops oldest when the budget is tight.
+   * Caller (compaction-redesign run() narrative kind) supplies this so the
+   * resulting Anchor never blows past the upcoming-prompt budget.
+   * Token estimate is `Math.ceil(text.length / 4)` (matches Token.estimate).
+   */
+  export function renderForLLMSync(mem: SessionMemory, maxTokens?: number): string {
     if (mem.turnSummaries.length > 0) {
-      return mem.turnSummaries.map((t) => t.text.trim()).filter(Boolean).join("\n\n")
+      const trimmed = mem.turnSummaries.map((t) => t.text.trim()).filter(Boolean)
+      if (typeof maxTokens !== "number" || maxTokens <= 0) {
+        return trimmed.join("\n\n")
+      }
+      // Keep newest-first: walk from the end, accumulate until budget exhausted.
+      const maxChars = maxTokens * 4
+      const kept: string[] = []
+      let used = 0
+      for (let i = trimmed.length - 1; i >= 0; i--) {
+        const candidate = trimmed[i]
+        const next = used + (used > 0 ? 2 : 0) + candidate.length // 2 chars for "\n\n" join
+        if (next > maxChars) {
+          if (kept.length === 0) {
+            // Single newest entry exceeds budget alone — truncate it from the END
+            // (preserve the start, which usually has the goal/headline).
+            return candidate.slice(0, maxChars)
+          }
+          break
+        }
+        kept.unshift(candidate)
+        used = next
+      }
+      return kept.join("\n\n")
     }
 
     // No narrative — render auxiliary metadata as a minimal fallback.

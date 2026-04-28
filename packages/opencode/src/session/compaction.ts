@@ -626,6 +626,30 @@ export namespace SessionCompaction {
   export const PRUNE_MINIMUM = 20_000
   export const PRUNE_PROTECT = 40_000
 
+  /**
+   * Default target token cap for post-compaction prompts (DD-? double-phase).
+   * Local kinds (narrative, replay-tail) trim themselves to this budget; if the
+   * resulting summary still exceeds it AND the chain has paid kinds remaining,
+   * `run()` escalates to the next kind. Override via config
+   * `compaction.targetPromptTokens`.
+   *
+   * 50K chosen as a hard ceiling well below typical 200K context — leaves
+   * headroom for system prompt + new user turn + tool outputs without
+   * blowing past the model's overflow threshold on the very next round.
+   */
+  export const DEFAULT_TARGET_PROMPT_TOKENS = 50_000
+
+  async function resolveTargetPromptTokens(): Promise<number> {
+    const cfg = await Config.get().catch(() => undefined)
+    const v = cfg?.compaction?.targetPromptTokens
+    return typeof v === "number" && v > 0 ? v : DEFAULT_TARGET_PROMPT_TOKENS
+  }
+
+  /** Local (zero-API-cost) kinds — these get the target-cap escalation path. */
+  function isLocalKind(k: KindName): boolean {
+    return k === "narrative" || k === "schema" || k === "replay-tail"
+  }
+
   const PRUNE_PROTECTED_TOOLS = ["skill"]
 
   /** Default context utilization gate: prune fires only when ≥ 80% of context. */
@@ -1141,19 +1165,24 @@ export namespace SessionCompaction {
    */
   type KindAttempt =
     | { ok: false; reason: string }
-    | { ok: true; summaryText: string; kind: KindName; anchorWritten?: boolean }
+    | { ok: true; summaryText: string; kind: KindName; anchorWritten?: boolean; truncated?: boolean }
 
   async function tryNarrative(input: RunInput, model: Provider.Model | undefined): Promise<KindAttempt> {
     const mem = await Memory.read(input.sessionID)
-    const text = Memory.renderForLLMSync(mem)
-    if (!text) return { ok: false, reason: "memory empty" }
-    const tokenEstimate = Math.ceil(text.length / 4)
+    const target = await resolveTargetPromptTokens()
     const contextLimit = model?.limit?.context || 0
-    const budget = Math.floor(contextLimit * 0.3)
-    if (budget > 0 && tokenEstimate > budget) {
-      return { ok: false, reason: `over budget (${tokenEstimate} > ${budget})` }
-    }
-    return { ok: true, summaryText: text, kind: "narrative" }
+    const modelBudget = Math.floor(contextLimit * 0.3)
+    const cap = modelBudget > 0 ? Math.min(modelBudget, target) : target
+    // Render uncapped first to detect whether the full content exceeds cap.
+    // If so, signal `truncated: true` so run() can decide whether to commit
+    // this lossy local result or escalate to a paid kind that can compress
+    // intelligently. Then re-render with the cap to get the actual payload.
+    const fullText = Memory.renderForLLMSync(mem)
+    if (!fullText) return { ok: false, reason: "memory empty" }
+    const fullEstimate = Math.ceil(fullText.length / 4)
+    const truncated = fullEstimate > cap
+    const text = truncated ? Memory.renderForLLMSync(mem, cap) : fullText
+    return { ok: true, summaryText: text, kind: "narrative", truncated }
   }
 
   /**
@@ -1208,14 +1237,37 @@ export namespace SessionCompaction {
     }
     if (lines.length === 0) return { ok: false, reason: "tail has no text content" }
 
-    const text = lines.join("\n\n")
-    const tokenEstimate = Math.ceil(text.length / 4)
+    let text = lines.join("\n\n")
+    const target = await resolveTargetPromptTokens()
     const contextLimit = model?.limit?.context || 0
-    const budget = Math.floor(contextLimit * 0.3)
-    if (budget > 0 && tokenEstimate > budget) {
-      return { ok: false, reason: `over budget (${tokenEstimate} > ${budget})` }
+    const modelBudget = Math.floor(contextLimit * 0.3)
+    const cap = modelBudget > 0 ? Math.min(modelBudget, target) : target
+    const maxChars = cap * 4
+    let truncated = false
+    if (text.length > maxChars) {
+      truncated = true
+      // Newest-first preservation: walk lines from the end, accumulate until
+      // budget exhausted, then keep that suffix. Drops the oldest rounds.
+      const kept: string[] = []
+      let used = 0
+      for (let i = lines.length - 1; i >= 0; i--) {
+        const candidate = lines[i]
+        const next = used + (used > 0 ? 2 : 0) + candidate.length
+        if (next > maxChars) {
+          if (kept.length === 0) {
+            // Single newest line exceeds cap — truncate from the END to
+            // preserve start (usually the user prompt or assistant headline).
+            kept.unshift(candidate.slice(0, maxChars))
+          }
+          break
+        }
+        kept.unshift(candidate)
+        used = next
+      }
+      text = kept.join("\n\n")
     }
-    return { ok: true, summaryText: text, kind: "replay-tail" }
+    if (!text) return { ok: false, reason: "tail truncated to empty" }
+    return { ok: true, summaryText: text, kind: "replay-tail", truncated }
   }
 
   /**
@@ -1588,8 +1640,11 @@ When constructing the summary, try to stick to this template:
       observed === "manual" && intent === "rich" ? (["llm-agent"] as const) : baseChain
 
     const model = await resolveActiveModel(sessionID)
+    const target = await resolveTargetPromptTokens()
+    const hasPaidKindLater = (idx: number) => chain.slice(idx + 1).some((k) => !isLocalKind(k))
 
-    for (const kind of chain) {
+    for (let i = 0; i < chain.length; i++) {
+      const kind = chain[i]
       const attempt = await tryKind(kind, input, model)
       log.info("compaction.kind_attempted", {
         sessionID,
@@ -1599,6 +1654,22 @@ When constructing the summary, try to stick to this template:
         reason: attempt.ok ? undefined : attempt.reason,
       })
       if (attempt.ok) {
+        // Double-phase escalation (DD-13): a LOCAL kind succeeded but had to
+        // drop content to fit the target cap (`truncated: true`). If a paid
+        // kind is available later in the chain, fall through and let it
+        // re-compress intelligently — the local result was lossy. If no paid
+        // kind remains, commit the truncated local result as best-effort.
+        if (!attempt.anchorWritten && isLocalKind(attempt.kind) && attempt.truncated && hasPaidKindLater(i)) {
+          const estimate = Math.ceil(attempt.summaryText.length / 4)
+          log.info("compaction.local_truncated_escalating", {
+            sessionID,
+            observed,
+            kind: attempt.kind,
+            estimate,
+            target,
+          })
+          continue
+        }
         if (attempt.anchorWritten) {
           // Executor already wrote the anchor (tryLlmAgent uses an inline
           // SessionProcessor.process flow that requires a persisted message).

@@ -1566,6 +1566,14 @@ export namespace Config {
             .describe(
               "Tool-output prune (GC) skips when context utilization is below this floor (default: 0.8). Lower values run prune more eagerly; higher values save the GC for high-pressure sessions.",
             ),
+          targetPromptTokens: z
+            .number()
+            .int()
+            .positive()
+            .optional()
+            .describe(
+              "Hard cap on the post-compaction prompt size. Local kinds (narrative / replay-tail) are capped at this budget. If a local kind succeeds but its summary still exceeds this target, run() escalates to the next paid kind in the chain (double-phase). Default: 50000.",
+            ),
         })
         .optional(),
       experimental: z

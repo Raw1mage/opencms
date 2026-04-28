@@ -489,11 +489,13 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
     expect(writes).toHaveLength(0)
   })
 
-  it("phase 5 — replay-tail respects rawTailBudget for token estimation (over-budget falls through)", async () => {
-    // Synthesize 20 rounds of moderate text — enough to exceed 30% of a SMALL
-    // model context. We use a tiny fake model context (8000 tokens → 30% =
-    // 2400 tokens budget; 20 × 2000 chars = 40000 chars ≈ 10K tokens, well
-    // over) so test stays fast and deterministic.
+  it("phase 5 — replay-tail truncates oversize tail to model/target cap (newest preserved)", async () => {
+    // Synthesize 20 rounds of moderate text — exceeds 30% of a SMALL model
+    // context. tiny model: 8000 ctx → 30% = 2400 tokens (9600 chars) cap.
+    // 20 × 2000 chars = 40000 chars ≈ 10K tokens. Cap = min(2400, 50000) = 2400.
+    // New behaviour (DD-13 double-phase): replay-tail self-trims newest-first
+    // instead of returning fail; estimate (~2400 tokens) is below target so no
+    // escalation, anchor is written with the truncated tail.
     const longText = "x".repeat(2000)
     const longMsgs = []
     for (let i = 0; i < 20; i++) {
@@ -504,10 +506,8 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
     }
     setupCommonMocks(
       { turnSummaries: [], rawTailBudget: 20 },
-      "ses_run_replay_overbudget",
+      "ses_run_replay_truncate",
     )
-    // Override Provider.getModel to return a tiny-context model so replay-tail
-    // budget check fires deterministically without huge synthetic payloads.
     ;(Provider as any).getModel = mock(async () => ({
       id: "tiny-model",
       providerId: "openai",
@@ -521,16 +521,78 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
       writes.push(input)
     })
 
-    // overflow chain: narrative (empty) → schema (empty) → replay-tail (over budget) →
-    // low-cost-server (no plugin mocked → fail) → llm-agent (stub) → stop
+    // Use `idle` chain (narrative → schema → replay-tail, no paid kinds).
+    // Even though replay-tail is truncated, no paid kind is available, so
+    // run() commits the truncated local result as best-effort.
     const result = await SessionCompaction.run({
-      sessionID: "ses_run_replay_overbudget",
-      observed: "overflow",
+      sessionID: "ses_run_replay_truncate",
+      observed: "idle",
       step: 1,
     })
 
-    expect(result).toBe("stop")
-    expect(writes).toHaveLength(0)
+    expect(result).toBe("continue")
+    expect(writes).toHaveLength(1)
+    expect(writes[0].kind).toBe("replay-tail")
+    // Truncated to ~9600 chars (2400 tokens × 4) plus minor join overhead.
+    expect(writes[0].summaryText.length).toBeLessThanOrEqual(9600 + 100)
+  })
+
+  it("phase 5 — local kind over target escalates to paid kind (double-phase)", async () => {
+    // Memory has narrative content well over the 50K-token target. tryNarrative
+    // succeeds (ok=true) but its summary > target. With a paid kind (low-cost-
+    // server) later in the chain, run() must NOT commit narrative; it must
+    // escalate.
+    const huge = "y".repeat(50_000 * 4 + 4_000) // > 50K tokens
+    setupCommonMocks(
+      {
+        turnSummaries: [
+          {
+            turnIndex: 0,
+            userMessageId: "msg_u1",
+            endedAt: 1,
+            text: huge,
+            modelID: "gpt-5.5",
+            providerId: "codex",
+          },
+        ],
+        rawTailBudget: 5,
+      },
+      "ses_run_double_phase",
+    )
+    ;(Provider as any).getModel = mock(async () => ({
+      id: "big-model",
+      providerId: "codex",
+      limit: { context: 1_000_000, input: 1_000_000, output: 32_000 },
+      cost: { input: 1 },
+    }))
+    ;(SharedContext as any).snapshot = mock(async () => undefined)
+    ;(Session as any).messages = mock(async () => [
+      {
+        info: { id: "msg_u1", role: "user", agent: "default", model: { providerId: "codex", modelID: "gpt-5.5" } },
+        parts: [{ type: "text", text: "go" }],
+      },
+    ])
+    ;(Agent as any).get = mock(async () => ({ prompt: "" }))
+    ;(Plugin as any).trigger = mock(async () => ({
+      compactedItems: [{ type: "text", text: "Server-compacted ok" }],
+      summary: "Server-compacted ok",
+    }))
+    const writes: any[] = []
+    SessionCompaction.__test__.setAnchorWriter(async (input) => {
+      writes.push(input)
+    })
+
+    // `manual` chain = narrative → low-cost-server → llm-agent. narrative is
+    // truncated and a paid kind (low-cost-server) is available next → escalate.
+    const result = await SessionCompaction.run({
+      sessionID: "ses_run_double_phase",
+      observed: "manual",
+      step: 2,
+    })
+
+    expect(result).toBe("continue")
+    expect(writes).toHaveLength(1)
+    expect(writes[0].kind).toBe("low-cost-server")
   })
 
   it("calls Memory.markCompacted with the correct round on successful run", async () => {
