@@ -17,7 +17,7 @@ Carried over from refactor-2026-04-29 prior designed-state spec.
 - [x] 1.4 Implement `outputBudget` computation helper in `tool/types.ts` (formula per DD-2; actual file: `packages/opencode/src/tool/budget.ts` namespace `ToolBudget`)
 - [x] 1.5 Bound `read.ts`: slice on line boundary from `offset`; trailing hint `[... truncated; call read again with offset=<N> ...]` (R-1, INV-8 byte-identity for natural-fit)
 - [x] 1.6 Bound `glob.ts`: cap match list; hint suggests narrower pattern
-- [ ] 1.7 Bound `grep.ts`: cap match list; hint suggests narrower pattern
+- [x] 1.7 Bound `grep.ts`: cap match list; hint suggests narrower pattern
 - [ ] 1.8 Bound `bash.ts`: cap stdout/stderr by line+token; hint suggests redirect-to-file; respect `tool.outputBudget.bashOverride`
 - [ ] 1.9 Bound `webfetch.ts`: cap response body by token; hint includes byte-range header example
 - [ ] 1.10 Bound `apply_patch.ts`: bound patch summary (not patch input); hint references batch-mode
