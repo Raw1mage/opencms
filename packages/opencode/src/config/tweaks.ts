@@ -178,6 +178,19 @@ export namespace Tweaks {
    *   compaction is forced into Phase 2 absorbing pinned_zone.
    */
   export interface CompactionConfig {
+    /**
+     * Master switch for the hybrid-llm compaction kind. Default false
+     * during Phase 2 rollout (flag-gated dual-path strategy): when off,
+     * runtime continues to use the existing narrative→replay-tail→
+     * low-cost-server→llm-agent chain. When on, hybrid_llm becomes the
+     * primary kind for overflow / cache-aware / manual triggers and the
+     * existing chain serves as fallback only.
+     *
+     * Flip to default true after telemetry proves correctness on opt-in
+     * sessions. Old kinds get retired (Phase 2.12) only after default
+     * flip, in a separate cleanup phase.
+     */
+    enableHybridLlm: boolean
     llmTimeoutMs: number
     fallbackProvider: string
     phase2MaxAnchorTokens: number
@@ -257,6 +270,7 @@ export namespace Tweaks {
   }
 
   const COMPACTION_DEFAULTS: CompactionConfig = {
+    enableHybridLlm: false,
     llmTimeoutMs: 30_000,
     fallbackProvider: "",
     phase2MaxAnchorTokens: 5_000,
@@ -368,6 +382,7 @@ export namespace Tweaks {
     "tool_output_budget_minimum_floor",
     "tool_output_budget_task_override",
     "tool_output_budget_bash_override",
+    "compaction_enable_hybrid_llm",
     "compaction_llm_timeout_ms",
     "compaction_fallback_provider",
     "compaction_phase2_max_anchor_tokens",
@@ -721,6 +736,11 @@ export namespace Tweaks {
     }
 
     const compaction: CompactionConfig = { ...COMPACTION_DEFAULTS }
+    const cmpEnableRaw = parsed.get("compaction_enable_hybrid_llm")
+    if (cmpEnableRaw !== undefined) {
+      const v = parseBool(cmpEnableRaw, "compaction_enable_hybrid_llm")
+      if (v !== undefined) compaction.enableHybridLlm = v
+    }
     const cmpTimeoutRaw = parsed.get("compaction_llm_timeout_ms")
     if (cmpTimeoutRaw !== undefined) {
       const v = parseIntRange(cmpTimeoutRaw, "compaction_llm_timeout_ms", 5_000, 300_000)
