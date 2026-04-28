@@ -144,24 +144,34 @@ Launched 2026-04-18 to supersede the legacy `planner` skill (see `docs/events/ev
 ## Compaction Subsystem
 
 The compaction subsystem reduces a session's effective message-stream
-size before the next LLM call. After the 2026-04-27 redesign
-(`specs/compaction-redesign/`) the public surface is **3 concepts**:
+size before the next LLM call. After the 2026-04-27 redesign + Phase
+13 single-source-of-truth consolidation (2026-04-28) the public
+surface collapses to **3 concepts, all derived from one source**:
 
-- **Memory** (`packages/opencode/src/session/memory.ts`): per-session
-  artifact persisted at Storage key `session_memory/<sid>`. Primary
-  content is `turnSummaries[]` (AI's natural turn-end self-summary,
-  captured at runloop exit). Auxiliary: `fileIndex`, `actionLog`,
-  `lastCompactedAt` (cooldown source-of-truth per DD-7). Two render
-  functions: `renderForLLM(sid)` for next LLM call (compact,
-  provider-agnostic) and `renderForHuman(sid)` for UI preview.
-- **Anchor**: assistant message with `summary: true` plus a part of
-  type `compaction`. Lives in the session message stream.
-  `filterCompacted` truncates history at the most recent anchor.
-  Phase 8's DD-8 unification of the rebind-checkpoint disk file is
-  deferred (the legacy file is still readable for restart recovery).
-- **Cooldown**: `Memory.lastCompactedAt` (no separate Map). 4-round
-  default window. Read by `isOverflow`, `shouldCacheAwareCompact`,
-  `SessionCompaction.Cooldown.shouldThrottle`.
+**Single source of truth: the messages stream.** Every compaction
+artefact is either written into the stream (anchors) or derived from
+it at read time. There are no separate persistence files for journal,
+rebind-checkpoint, or shared-context snapshot.
+
+- **Memory** (`packages/opencode/src/session/memory.ts`): a render-time
+  view of the messages stream. `Memory.read(sid)` walks finished
+  assistant messages and assembles a `SessionMemory` shape (rolled-up
+  prior anchor + post-anchor turn summaries). Auxiliary fields
+  (`fileIndex`, `actionLog`) come from `SharedContext.Space` (a
+  separate file/action workspace). Two render functions:
+  `renderForLLMSync(mem, maxTokens?)` for next-LLM-call compact text
+  with newest-first cap, and `renderForHumanSync(mem)` for UI preview.
+  No file IO.
+- **Anchor**: assistant message with `summary: true`. Written by
+  `compactWithSharedContext` (or `tryLlmAgent` inline). Lives in the
+  message stream as a regular member; `filterCompacted` truncates
+  history at the most recent one. Restart / rebind / account-rotation
+  all recover by scanning the stream for the most recent anchor and
+  slicing forward — `applyStreamAnchorRebind` in `prompt.ts`.
+- **Cooldown**: `SessionCompaction.Cooldown.shouldThrottle(sid)` reads
+  the most recent anchor message's `time.created`. 30-second window.
+  Single rule across within-runloop and cross-runloop boundaries — no
+  round counter, no separate persistence.
 
 ### Single entry point
 
@@ -174,33 +184,39 @@ SessionCompaction.run({
 Triggers (`observed`) are observable conditions, not signals: the
 runloop's `deriveObservedCondition` reads pinned identity vs most
 recent Anchor identity, `session.execution.continuationInvalidatedAt`
-timestamp (DD-11), token budget, and message-stream tail. No flags
-persist across iterations (DD-1).
+timestamp (DD-11), token budget (estimated from current `msgs`, not
+stale `lastFinished.tokens`), and message-stream tail. No flags persist
+across iterations (DD-1).
 
 ### Cost-monotonic kind chain
 
 ```
-trigger=overflow / cache-aware / idle:
-  narrative → schema → replay-tail → low-cost-server → llm-agent
+trigger=overflow / cache-aware:
+  narrative → replay-tail → low-cost-server → llm-agent
+
+trigger=idle / rebind / continuation-invalidated:
+  narrative → replay-tail  (no paid kinds; maintenance only)
+
+trigger=provider-switched:
+  narrative  (replay-tail excluded — raw tool-call format incompatible)
 
 trigger=manual:
-  narrative → low-cost-server → llm-agent  (skips schema by design;
-                                            schema doesn't preserve reasoning)
+  narrative → low-cost-server → llm-agent
 
 trigger=manual + intent=rich:
   llm-agent only
-
-trigger=rebind / continuation-invalidated:
-  narrative → schema → replay-tail  (no paid kinds; maintenance only)
-
-trigger=provider-switched:
-  narrative → schema  (replay-tail / low-cost-server provider-specific format excluded)
 ```
+
+`schema` kind (legacy `SharedContext.snapshot` regex extractor) was
+retired in Phase 13 — fresh sessions are supposed to be empty, not
+back-filled from regex extracts. Local kinds self-cap at
+`compaction.targetPromptTokens` (default 50K); if a local kind had to
+truncate AND a paid kind remains in the chain, run() escalates
+("double-phase" — see DD-13 in compaction-redesign spec).
 
 `INJECT_CONTINUE` table is frozen: rebind / continuation-invalidated /
 provider-switched / manual all map to `false`. The 2026-04-27 infinite
-loop bug is structurally extinct — no code path takes one of those
-observed values and emits a synthetic Continue.
+loop bug is structurally extinct.
 
 ### Subagent compaction (DD-12)
 
@@ -220,21 +236,35 @@ when this timestamp is newer than the most recent Anchor's
 `time.created`. State-driven cooldown via anchor-recency comparison —
 no flag-clear step.
 
-### Per-turn capture (DD-2)
+### Turn summaries (DD-2 — derive-time, not capture-time)
 
-`captureTurnSummaryOnExit` runs at the runloop exit point
-(`prompt.ts`, finish ≠ tool-calls). Reads the assistant's final text,
-appends a `TurnSummary` to Memory. Mid-run interruptions do NOT
-capture partial summaries; rebind recovery uses the raw-tail
-fallback (last N rounds via `Memory.rawTailBudget`).
+Turn summaries are derived at `Memory.read` time by walking the
+messages stream. Each finished assistant message (excluding narration,
+anchors, subagent narration) contributes its last text part as a turn
+summary. The `captureTurnSummaryOnExit` write path was removed in
+Phase 13 — there's nothing to "capture" because the stream already has
+the data.
+
+### Two-type overflow taxonomy (POST-PHASE-13)
+
+Phase 13 closes the **cumulative-history overflow** problem: as
+history grows, double-phase compaction compresses past turns with
+narrative → escalation if needed. A second class of overflow remains
+out of scope: **acute single-tool-output overflow** — a single tool
+returning text larger than the model's context (e.g.
+`system-manager_read_subsession` dumping a whole transcript). No
+compaction strategy can save a single chunk that's already too large.
+That class will be addressed by a follow-up plan covering tool
+self-chunking + chunked-digest protocol (round-aligned slice points,
+AI-collaborative digest of each chunk).
 
 ### Plan reference
 
 Full design: `specs/compaction-redesign/` (proposal.md, spec.md,
 design.md, c4.json, sequence.json, idef0.json, grafcet.json,
 data-schema.json, tasks.md, handoff.md, errors.md, observability.md,
-invariants.md). Implementation history in
-`docs/events/event_20260427_compaction_redesign_phase{1..7}.md`.
+invariants.md). Phase 13 is documented inline in tasks.md as Section 13.
+Implementation history in `docs/events/`.
 
 ## Key Modules
 
