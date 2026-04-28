@@ -432,6 +432,7 @@ export const dict = {
   "toast.model.none.title": "未选择模型",
   "toast.model.none.description": "请先连接提供商以总结此会话",
   "toast.session.compact.loading": "正在压缩会话…",
+  "toast.session.compact.background.loading": "背景优化摘要中…",
   "toast.session.compact.success": "压缩完成",
   "toast.session.compact.error": "压缩失败：{{reason}}",
   "toast.file.loadFailed.title": "加载文件失败",

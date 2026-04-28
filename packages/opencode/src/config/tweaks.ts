@@ -270,7 +270,7 @@ export namespace Tweaks {
   }
 
   const COMPACTION_DEFAULTS: CompactionConfig = {
-    enableHybridLlm: false,
+    enableHybridLlm: true,
     llmTimeoutMs: 30_000,
     fallbackProvider: "",
     phase2MaxAnchorTokens: 5_000,

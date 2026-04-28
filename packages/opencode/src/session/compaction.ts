@@ -135,7 +135,7 @@ export namespace SessionCompaction {
       "session.compaction.started",
       z.object({
         sessionID: z.string(),
-        mode: z.enum(["plugin", "llm"]),
+        mode: z.enum(["plugin", "llm", "hybrid_llm", "hybrid_llm_background"]),
       }),
     ),
   }
@@ -640,7 +640,10 @@ export namespace SessionCompaction {
     | "manual"
     | "idle"
 
-  export type KindName = "narrative" | "replay-tail" | "low-cost-server" | "llm-agent" | "hybrid_llm"
+  export type KindName = "narrative" | "replay-tail" | "low-cost-server" | "llm-agent"
+  // Note: hybrid_llm is intentionally NOT a KindName. It runs as a
+  // background post-step AFTER the chain commits an anchor. See
+  // run() success path + scheduleHybridEnrichment() below.
 
   export type RunInput = {
     sessionID: string
@@ -1152,8 +1155,6 @@ When constructing the summary, try to stick to this template:
         return tryLowCostServer(input, model)
       case "llm-agent":
         return tryLlmAgent(input, model)
-      case "hybrid_llm":
-        return tryHybridLlmKind(input, model)
     }
   }
 
@@ -1172,102 +1173,235 @@ When constructing the summary, try to stick to this template:
    * at the FRONT when the flag is on; existing kinds remain reachable as
    * fallback if hybrid throws.
    */
-  async function tryHybridLlmKind(
-    input: RunInput,
+  /**
+   * Per-session in-flight registry. Prevents two concurrent hybrid_llm
+   * enrichments on the same session. Cleared when the background
+   * promise settles.
+   */
+  const hybridEnrichInFlight = new Map<string, Promise<unknown>>()
+
+  /**
+   * Background enrichment dispatch. Called AFTER the legacy KIND_CHAIN
+   * has committed a fast intermediate anchor (typically narrative).
+   * The user's runloop has already unblocked. This fires-and-forgets a
+   * higher-quality LLM distillation that, when complete, writes a new
+   * anchor superseding the legacy one (Memory.read picks most recent).
+   *
+   * If the flag is off, in-flight, or anchor is already small, skip.
+   */
+  function scheduleHybridEnrichment(
+    sessionID: string,
+    observed: Observed,
     model: Provider.Model | undefined,
-  ): Promise<KindAttempt> {
-    if (!model) return { ok: false, reason: "no model" }
-    if (!canSummarize(model)) return { ok: false, reason: "model context too small" }
+  ): void {
+    if (!model) return
+    const tweaks = Tweaks.compactionSync()
+    if (!tweaks.enableHybridLlm) return
+    if (hybridEnrichInFlight.has(sessionID)) {
+      log.info("hybrid_llm enrichment skipped (already in flight)", { sessionID })
+      return
+    }
+    if (!new Set<Observed>(["overflow", "cache-aware", "manual"]).has(observed)) return
 
-    const messages = await Session.messages({ sessionID: input.sessionID }).catch(() => [] as MessageV2.WithParts[])
-    const anchorMsg = await Memory.Hybrid.getAnchorMessage(input.sessionID, messages)
-    const journalMsgs = await Memory.Hybrid.getJournalMessages(input.sessionID, { messages })
-
-    // Build Hybrid.Anchor from the on-disk anchor message (DD-10
-    // migration: any assistant + summary===true is an acceptable
-    // prior_anchor, even if produced by the legacy narrative kind).
-    const priorAnchor: Hybrid.Anchor | null = anchorMsg
-      ? {
+    const promise = (async () => {
+      try {
+        // STEP 1: capture the just-written narrative anchor (the chain's
+        // fast intermediate). We will UPDATE this message's text part
+        // when hybrid_llm finishes — same anchor position, upgraded
+        // content. This preserves any user messages added during the
+        // 30-60s background window (they stay post-anchor in journal).
+        const messagesPre = await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[])
+        const narrativeAnchorMsg = await Memory.Hybrid.getAnchorMessage(sessionID, messagesPre)
+        if (!narrativeAnchorMsg) {
+          log.warn("hybrid_llm enrichment: no anchor to enrich", { sessionID })
+          return
+        }
+        const narrativeAnchorId = narrativeAnchorMsg.info.id
+        const narrativeContent = narrativeAnchorMsg.parts
+          .filter((p) => p.type === "text")
+          .map((p) => (p as any).text ?? "")
+          .join("\n")
+        const narrativeTokens = Math.ceil(narrativeContent.length / 4)
+        if (narrativeTokens < 5_000) {
+          log.info("hybrid_llm enrichment skipped (anchor small)", {
+            sessionID,
+            anchorTokens: narrativeTokens,
+          })
+          return
+        }
+        const priorAnchor: Hybrid.Anchor = {
           role: "assistant",
           summary: true,
-          content: anchorMsg.parts
-            .filter((p) => p.type === "text")
-            .map((p) => (p as any).text ?? "")
-            .join("\n"),
+          content: narrativeContent,
           metadata: {
             anchorVersion: 1,
-            generatedAt: new Date(anchorMsg.info?.time?.created ?? Date.now()).toISOString(),
+            generatedAt: new Date(narrativeAnchorMsg.info?.time?.created ?? Date.now()).toISOString(),
             generatedBy: {
-              provider: (anchorMsg.info as MessageV2.Assistant).providerId ?? "",
-              model: (anchorMsg.info as MessageV2.Assistant).modelID ?? "",
-              accountId: (anchorMsg.info as MessageV2.Assistant).accountId ?? "",
+              provider: (narrativeAnchorMsg.info as MessageV2.Assistant).providerId ?? "",
+              model: (narrativeAnchorMsg.info as MessageV2.Assistant).modelID ?? "",
+              accountId: (narrativeAnchorMsg.info as MessageV2.Assistant).accountId ?? "",
             },
             coversRounds: { earliest: 0, latest: 0 },
             inputTokens: 0,
-            outputTokens: Math.ceil(
-              (anchorMsg.parts
-                .filter((p) => p.type === "text")
-                .map((p) => (p as any).text ?? "")
-                .join("\n").length) / 4,
-            ),
+            outputTokens: narrativeTokens,
             phase: 1,
           },
         }
-      : null
+        const ctx = model.limit?.context ?? 200_000
+        const targetTokens = Math.max(5_000, Math.round(ctx * 0.30))
 
-    // Wrap journal messages as Hybrid.JournalEntry. Round index is just
-    // the message position post-anchor for now; finer round tracking is
-    // a future Phase 2 follow-up if needed.
-    const journalUnpinned: Hybrid.JournalEntry[] = journalMsgs.map((m, idx) => ({
-      roundIndex: idx,
-      messages: [m],
-    }))
+        // STEP 2: run hybrid_llm in background. It creates its OWN stub
+        // anchor message (the SessionProcessor pattern requires a
+        // persisted message to stream into). On success, the stub
+        // contains the higher-quality body.
+        const event = await Hybrid.runHybridLlm(sessionID, {
+          abort: new AbortController().signal,
+          priorAnchor,
+          journalUnpinned: [],
+          targetTokens,
+          voluntary: false,
+          busMode: "hybrid_llm_background",
+        })
+        log.info("hybrid_llm enrichment finished", {
+          sessionID,
+          eventId: event.eventId,
+          result: event.result,
+          inputTokens: event.inputTokens,
+          outputTokens: event.outputTokens,
+          latencyMs: event.latencyMs,
+          errorCode: event.errorCode,
+        })
+        if (event.result !== "success") {
+          // hybrid_llm failed — narrative's anchor stays as the active
+          // version. Nothing more to do.
+          return
+        }
 
-    // pinned_zone is empty until Phase 5 (Layer 5 override surface)
-    // wires the producer that parses pin markers from assistant
-    // metadata. Materialisation function (Hybrid.materialisePinnedZone)
-    // is in place ready for that wiring.
-    const pinnedZone: Hybrid.PinnedZoneEntry[] = []
+        // STEP 3: read hybrid_llm's stub anchor body, then UPDATE the
+        // narrative anchor in place. Demote the stub anchor (set
+        // summary=false) so Memory.read no longer treats it as an
+        // active anchor candidate.
+        const messagesPost = await Session.messages({ sessionID }).catch(
+          () => [] as MessageV2.WithParts[],
+        )
+        // Find the stub: the most recent assistant+summary message.
+        const stubIdx = (() => {
+          for (let i = messagesPost.length - 1; i >= 0; i--) {
+            const m = messagesPost[i]
+            if (m.info?.role === "assistant" && (m.info as MessageV2.Assistant).summary === true) {
+              return i
+            }
+          }
+          return -1
+        })()
+        if (stubIdx === -1) {
+          log.warn("hybrid_llm enrichment: stub anchor not found post-LLM", { sessionID })
+          return
+        }
+        const stubMsg = messagesPost[stubIdx]
+        if (stubMsg.info.id === narrativeAnchorId) {
+          // No new stub was written (race / unexpected). Nothing to do.
+          log.info("hybrid_llm enrichment: stub === narrative anchor, no upgrade needed", {
+            sessionID,
+          })
+          return
+        }
+        // STALENESS CHECK: between the narrative anchor and the stub,
+        // has anyone else written another anchor? If yes, the narrative
+        // anchor is no longer the "previous" anchor relative to the
+        // stub — abandon the in-place update to avoid corrupting
+        // history. The stub stays as the new active anchor (which is
+        // reasonable: it was distilled from a snapshot taken at start,
+        // but the runtime will adapt on the next round).
+        const narrativeIdx = messagesPost.findIndex((m) => m.info?.id === narrativeAnchorId)
+        if (narrativeIdx === -1) {
+          log.warn("hybrid_llm enrichment: narrative anchor disappeared", { sessionID })
+          return
+        }
+        let interloperAnchorBetween = false
+        for (let i = narrativeIdx + 1; i < stubIdx; i++) {
+          const m = messagesPost[i]
+          if (m.info?.role === "assistant" && (m.info as MessageV2.Assistant).summary === true) {
+            interloperAnchorBetween = true
+            break
+          }
+        }
+        if (interloperAnchorBetween) {
+          log.info("hybrid_llm enrichment: another compaction happened mid-flight; leaving stub as active anchor", {
+            sessionID,
+            narrativeAnchorId,
+            stubId: stubMsg.info.id,
+          })
+          return
+        }
 
-    // targetTokens per DD-3: ~30% of model context window. Floor at
-    // ToolBudget-style minimumFloor analogue (5000 tokens) to keep
-    // tiny-context models still useful.
-    const ctx = model.limit?.context ?? 200_000
-    const targetTokens = Math.max(5_000, Math.round(ctx * 0.30))
+        // Read stub's body
+        const upgradedBody = stubMsg.parts
+          .filter((p) => p.type === "text")
+          .map((p) => (p as any).text ?? "")
+          .join("\n")
+        if (!upgradedBody.trim()) {
+          log.warn("hybrid_llm enrichment: stub anchor has no text body; leaving narrative anchor unchanged", {
+            sessionID,
+          })
+          return
+        }
 
-    const event = await Hybrid.runHybridLlm(input.sessionID, {
-      abort: input.abort ?? new AbortController().signal,
-      priorAnchor,
-      journalUnpinned,
-      pinnedZone: pinnedZone.length > 0 ? pinnedZone : undefined,
-      targetTokens,
-      voluntary: false,
+        // Update narrative anchor's text part(s) with the upgraded body.
+        // Strategy: find narrative's first text part; overwrite its text
+        // with the full upgraded body. If narrative had multiple text
+        // parts, the others are left as-is — they don't matter because
+        // Memory.read joins all text parts; the joined text will be
+        // upgradedBody + leftover. To get a clean result, we'd need to
+        // delete the leftover parts, but Storage doesn't support delete
+        // directly. In practice narrative writes a single text part.
+        const narrativeFresh = messagesPost[narrativeIdx]
+        const narrativeTextPart = narrativeFresh.parts.find((p) => p.type === "text")
+        if (!narrativeTextPart) {
+          log.warn("hybrid_llm enrichment: narrative anchor has no text part to update", { sessionID })
+          return
+        }
+        await Session.updatePart({
+          ...(narrativeTextPart as any),
+          text: upgradedBody,
+        })
+
+        // Demote the stub anchor: set summary=false so Memory.read no
+        // longer picks it. The stub remains in stream as a hidden
+        // compaction trace.
+        await Session.updateMessage({
+          ...(stubMsg.info as any),
+          summary: false,
+        })
+
+        log.info("hybrid_llm enrichment: upgraded narrative anchor in place", {
+          sessionID,
+          narrativeAnchorId,
+          stubId: stubMsg.info.id,
+          upgradedTokens: Math.ceil(upgradedBody.length / 4),
+          replacedTokens: narrativeTokens,
+        })
+      } catch (err) {
+        log.error("hybrid_llm enrichment threw", {
+          sessionID,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      } finally {
+        hybridEnrichInFlight.delete(sessionID)
+      }
+    })()
+    hybridEnrichInFlight.set(sessionID, promise)
+    log.info("hybrid_llm enrichment scheduled (background)", {
+      sessionID,
+      observed,
     })
-
-    if (event.result === "success") {
-      // The anchor message has already been written by runLlmCompact's
-      // SessionProcessor pipeline; KIND_CHAIN doesn't need to write
-      // again. Signal anchorWritten=true.
-      log.info("hybrid_llm compaction succeeded", {
-        sessionID: input.sessionID,
-        eventId: event.eventId,
-        inputTokens: event.inputTokens,
-        outputTokens: event.outputTokens,
-        latencyMs: event.latencyMs,
-      })
-      return { ok: true, summaryText: "", kind: "hybrid_llm", anchorWritten: true }
-    }
-
-    // failed_then_fallback or unrecoverable → let the existing chain
-    // continue to the next kind (narrative / replay-tail / ...). The
-    // graceful-degradation ladder in runHybridLlm already kept the
-    // prior anchor in place; the next kind in the chain will try its
-    // own thing.
-    return {
-      ok: false,
-      reason: `hybrid_llm ${event.result}: ${event.errorCode ?? "unknown"}`,
-    }
   }
+
+  // Note: tryHybridLlmKind was removed 2026-04-29 in the redesign that
+  // moved hybrid_llm out of KIND_CHAIN and into a background post-step
+  // (see scheduleHybridEnrichment above). Keeping this comment as a
+  // breadcrumb for git-blame archaeology — the function used to live
+  // here.
 
   /**
    * Resolve the active model for a session via session.execution pin (set by
@@ -1317,26 +1451,30 @@ When constructing the summary, try to stick to this template:
 
     const baseChain = KIND_CHAIN[observed]
     // Manual --rich: skip 1-3 (free) and 4 (low-cost-server), go straight to llm-agent.
-    let chain: ReadonlyArray<KindName> =
+    const chain: ReadonlyArray<KindName> =
       observed === "manual" && intent === "rich" ? (["llm-agent"] as const) : baseChain
 
-    // Phase 2 dual-path (specs/tool-output-chunking/): when the master
-    // flag is on, prepend hybrid_llm at the FRONT of the chain for
-    // observed conditions that genuinely benefit from it (overflow /
-    // cache-aware / manual). The existing kinds remain reachable as
-    // fallback if hybrid_llm fails. Other observed conditions (idle,
-    // rebind, continuation-invalidated, provider-switched) are
-    // maintenance triggers that don't need a paid LLM call — leave
-    // their chains untouched.
-    const hybridFlag = Tweaks.compactionSync().enableHybridLlm
-    const hybridEligible: ReadonlySet<Observed> = new Set([
+    // hybrid_llm post-step eligibility (specs/tool-output-chunking/
+    // refactored 2026-04-29 04:50: hybrid_llm is NOT in the chain.
+    // narrative remains chain head — fast, guaranteed anchor. After the
+    // chain commits a fast intermediate anchor, if the operator opted
+    // in via compaction_enable_hybrid_llm=1 AND no enrichment is
+    // already in flight for this session, schedule a background
+    // hybrid_llm distillation. Its higher-quality anchor supersedes
+    // the chain's via Memory.read's most-recent-wins selection.
+    //
+    // Why the post-step approach (not in-chain): synchronous hybrid_llm
+    // blocked the runloop 30-60s with no UI feedback (2026-04-29 first
+    // production test). Background fall-through-to-narrative also
+    // failed when narrative had insufficient turnSummaries. Putting
+    // hybrid_llm AFTER chain success means we always have an anchor
+    // before user is unblocked, regardless of whether hybrid_llm
+    // succeeds or times out.
+    const hybridEnrichmentEligible: ReadonlySet<Observed> = new Set([
       "overflow",
       "cache-aware",
       "manual",
     ])
-    if (hybridFlag && hybridEligible.has(observed) && !chain.includes("hybrid_llm")) {
-      chain = ["hybrid_llm", ...chain]
-    }
 
     const model = await resolveActiveModel(sessionID)
     const target = await resolveTargetPromptTokens()
@@ -1396,6 +1534,15 @@ When constructing the summary, try to stick to this template:
           kind: attempt.kind,
           step,
         })
+        // hybrid_llm post-step enrichment (Phase 2 redesigned 2026-04-29):
+        // user is already unblocked because the chain just wrote a fast
+        // intermediate anchor. If the operator opted in to hybrid_llm,
+        // fire a background distillation that supersedes the chain's
+        // anchor with a higher-quality one. Always non-blocking; failures
+        // are logged but don't affect the runloop or the user.
+        if (hybridEnrichmentEligible.has(observed)) {
+          scheduleHybridEnrichment(sessionID, observed, model)
+        }
         return "continue"
       }
     }
@@ -2072,6 +2219,7 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         chunks: chunks.length,
         finalBodyTokens: Math.ceil(finalAnchorBody.length / 4),
       })
+      Bus.publish(Event.Compacted, { sessionID })
       return {
         ok: true,
         anchorBody: finalAnchorBody,
@@ -2113,9 +2261,17 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
     export async function runLlmCompact(
       sessionID: string,
       request: LLMCompactRequest,
-      opts: { abort: AbortSignal; stricterRetryReason?: ValidationFailure },
+      opts: {
+        abort: AbortSignal
+        stricterRetryReason?: ValidationFailure
+        /** UI label for Bus.publish(CompactionStarted/Compacted). */
+        busMode?: "hybrid_llm" | "hybrid_llm_background"
+      },
     ): Promise<LlmCompactResult> {
       const startedAt = Date.now()
+      // Visibility — TUI / web shows "Compacting..." badge from this event.
+      // Defaults to 'hybrid_llm' (foreground) unless caller specifies background.
+      Bus.publish(Event.CompactionStarted, { sessionID, mode: opts.busMode ?? "hybrid_llm" })
       const messages = await Session.messages({ sessionID }).catch(() => undefined)
       if (!messages || messages.length === 0) {
         return { ok: false, reason: "no_response", detail: "empty stream", latencyMs: Date.now() - startedAt }
@@ -2212,19 +2368,26 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         time: { created: Date.now() },
       } as any)) as MessageV2.Assistant
 
+      // Wire timeout: combine caller's abort with a timeout-driven one
+      // so the LLM call gets aborted at compaction_llm_timeout_ms (DD-6).
+      const timeoutMs = Tweaks.compactionSync().llmTimeoutMs
+      const timeoutCtl = new AbortController()
+      const timeoutTimer = setTimeout(() => timeoutCtl.abort(), timeoutMs)
+      const combinedAbort = AbortSignal.any([opts.abort, timeoutCtl.signal])
+
       const processor = SessionProcessor.create({
         assistantMessage: stub,
         sessionID,
         model,
         accountId,
-        abort: opts.abort,
+        abort: combinedAbort,
       })
 
       try {
         const result = await processor.process({
           user: userMessage,
           agent,
-          abort: opts.abort,
+          abort: combinedAbort,
           sessionID,
           tools: {},
           system: [systemText],
@@ -2234,6 +2397,15 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
           model,
         })
         if (processor.message.error || result !== "continue") {
+          clearTimeout(timeoutTimer)
+          if (timeoutCtl.signal.aborted) {
+            return {
+              ok: false,
+              reason: "timeout",
+              detail: `LLM compaction exceeded ${timeoutMs}ms`,
+              latencyMs: Date.now() - startedAt,
+            }
+          }
           return {
             ok: false,
             reason: "llm_threw",
@@ -2242,6 +2414,15 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
           }
         }
       } catch (err) {
+        clearTimeout(timeoutTimer)
+        if (timeoutCtl.signal.aborted) {
+          return {
+            ok: false,
+            reason: "timeout",
+            detail: `LLM compaction exceeded ${timeoutMs}ms`,
+            latencyMs: Date.now() - startedAt,
+          }
+        }
         return {
           ok: false,
           reason: "llm_threw",
@@ -2249,6 +2430,7 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
           latencyMs: Date.now() - startedAt,
         }
       }
+      clearTimeout(timeoutTimer)
 
       // Read assistant text out
       const fresh = (await Session.messages({ sessionID })).findLast((m) => m.info.id === processor.message.id)
@@ -2267,6 +2449,9 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
           latencyMs: Date.now() - startedAt,
         }
       }
+
+      // UI clears the badge.
+      Bus.publish(Event.Compacted, { sessionID })
 
       return {
         ok: true,
@@ -2337,6 +2522,7 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         dropMarkers?: string[]
         targetTokens: number
         voluntary?: boolean
+        busMode?: "hybrid_llm" | "hybrid_llm_background"
       },
     ): Promise<CompactionEvent> {
       const eventId = `cev_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
@@ -2351,7 +2537,7 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
       }
 
       // Attempt 1
-      const first = await runLlmCompact(sessionID, request, { abort: opts.abort })
+      const first = await runLlmCompact(sessionID, request, { abort: opts.abort, busMode: opts.busMode })
       if (first.ok) {
         return makeEvent({
           eventId,
@@ -2380,6 +2566,7 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         const second = await runLlmCompact(sessionID, request, {
           abort: opts.abort,
           stricterRetryReason: first.reason as ValidationFailure,
+          busMode: opts.busMode,
         })
         if (second.ok) {
           return makeEvent({
@@ -2422,7 +2609,7 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
           pinnedCount: opts.pinnedZone.length,
           phase2TargetTokens,
         })
-        const phase2 = await runLlmCompact(sessionID, phase2Request, { abort: opts.abort })
+        const phase2 = await runLlmCompact(sessionID, phase2Request, { abort: opts.abort, busMode: opts.busMode })
         if (phase2.ok) {
           // Pinned_zone is now absorbed into the new anchor. Caller is
           // responsible for clearing the live pinned_zone state (e.g.,
