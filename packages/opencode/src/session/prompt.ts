@@ -2250,8 +2250,10 @@ export namespace SessionPrompt {
       }
     }
 
-    log.info("loop:pruning_compacting_and_returning", { sessionID })
-    SessionCompaction.prune({ sessionID })
+    log.info("loop:exit_returning", { sessionID })
+    // Phase 13 follow-up: tool-output prune retired (cache-hostile, only
+    // delayed compaction). The 90%-overflow gate inside the loop body
+    // handles all context management; loop exit is now pure return.
     for await (const item of MessageV2.stream(sessionID)) {
       if (item.info.role === "user") continue
       const queued = consumeCallbacks(sessionID)

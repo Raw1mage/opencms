@@ -245,6 +245,26 @@ summary. The `captureTurnSummaryOnExit` write path was removed in
 Phase 13 — there's nothing to "capture" because the stream already has
 the data.
 
+### Single-gate context management (Phase 13 follow-up, 2026-04-28)
+
+Tool-output prune was retired. Earlier design ran a "smart prune" at
+80% utilization that marked old tool outputs as `time.compacted` so
+`toModelMessages` would substitute them with a stub on the next prompt
+assembly. That mechanism was **cache-hostile**: each prune mutated
+mid-prompt bytes, breaking the codex prefix cache for every LLM call
+in the 80%→90% window — paying full input-token cost on every round
+just to delay the (cheap, ~1s) compaction event by ~10% utilization.
+Net effect was negative.
+
+The single context-management gate is now `run({observed: "overflow"})`
+firing at the configured `overflowThreshold` (default 90%). Narrative
+kind writes a fresh anchor; cache rebuilds from the new prefix. Config
+fields `compaction.prune` and `compaction.pruneUtilizationFloor` are
+deprecated (silently ignored). The `time.compacted` per-part flag and
+the `[Old tool result content cleared]` substitution in
+`toModelMessages` are kept so legacy sessions with already-marked parts
+still display correctly, but no code path produces new marks.
+
 ### Two-type overflow taxonomy (POST-PHASE-13)
 
 Phase 13 closes the **cumulative-history overflow** problem: as

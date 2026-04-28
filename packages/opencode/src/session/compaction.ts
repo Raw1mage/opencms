@@ -317,8 +317,14 @@ export namespace SessionCompaction {
     return true
   }
 
-  export const PRUNE_MINIMUM = 20_000
-  export const PRUNE_PROTECT = 40_000
+  // Phase 13 follow-up (2026-04-28): tool-output prune retired. The 80%
+  // utilization GC was cache-hostile (every prune mutates mid-prompt bytes
+  // → kills codex prefix-cache for 80%→90% window) and only delayed the
+  // 90% compaction by ~10% utilization. Net effect was negative: paid full
+  // input tokens between 80% and 90% to avoid one cheap compaction event.
+  // Single threshold now: compaction fires at the configured overflow
+  // threshold (default 90%), narrative kind writes a fresh anchor, cache
+  // rebuilds naturally from there.
 
   /**
    * Default target token cap for post-compaction prompts (DD-? double-phase).
@@ -344,119 +350,9 @@ export namespace SessionCompaction {
     return k === "narrative" || k === "replay-tail"
   }
 
-  const PRUNE_PROTECTED_TOOLS = ["skill"]
-
-  /** Default context utilization gate: prune fires only when ≥ 80% of context. */
-  const PRUNE_UTILIZATION_FLOOR = 0.8
-
-  /**
-   * Tool-output garbage collector. NOT semantic compaction (that's
-   * SessionCompaction.run). Erases old tool-result `output` strings so they
-   * stop counting against the next LLM call's prompt budget.
-   *
-   * Two safety rails on top of the legacy 40K-protect / 20K-minimum logic:
-   *
-   * 1. **Utilization floor (default 0.8)** — skip when context is under
-   *    80% full. Tool-output GC has no value at low utilization; running it
-   *    every loop exit just confuses observers and erases information that
-   *    isn't actually crowding the budget.
-   *
-   * 2. **TurnSummary safety** — only prune tool outputs from turns whose
-   *    `userMessageId` already has a captured `TurnSummary` in `Memory`.
-   *    The narrative summary is the semantic preservation; without it,
-   *    erasing tool outputs is destructive memory loss with no recovery
-   *    path. Combined with the legacy `turns < 2` guard, this means the
-   *    most-recent-2-turns and any in-progress / un-summarized turn are
-   *    both protected.
-   */
-  export async function prune(input: { sessionID: string }) {
-    const config = await Config.get()
-    if (config.compaction?.prune === false) return
-
-    // Gate 1: utilization floor.
-    const tokens = await getLastAssistantTokens(input.sessionID)
-    const model = await resolveActiveModel(input.sessionID)
-    const utilizationFloor = config.compaction?.pruneUtilizationFloor ?? PRUNE_UTILIZATION_FLOOR
-    if (tokens && model?.limit?.context) {
-      const count =
-        tokens.total ||
-        tokens.input + tokens.output + tokens.cache.read + tokens.cache.write
-      const utilization = count / model.limit.context
-      if (utilization < utilizationFloor) {
-        log.info("pruning skipped (utilization below floor)", {
-          sessionID: input.sessionID,
-          utilization: utilization.toFixed(3),
-          floor: utilizationFloor,
-        })
-        return
-      }
-    }
-
-    log.info("pruning")
-    const msgs = await Session.messages({ sessionID: input.sessionID })
-    if (msgs.length === 0) return
-
-    // Gate 2: build the set of "narratively-summarized" userMessageIds from
-    // Memory. Turns whose userMessageId is not in this set retain their tool
-    // outputs because there's no narrative preservation to fall back on.
-    const mem = await Memory.read(input.sessionID).catch(() => undefined)
-    const summarizedTurnIds = new Set(
-      (mem?.turnSummaries ?? []).map((t) => t.userMessageId).filter(Boolean),
-    )
-
-    // Forward pass: associate each assistant message with the user-turn it
-    // belongs to (most recent user message at or before its position).
-    const turnByMessage = new Map<string, string>()
-    let activeUserId: string | undefined
-    for (const m of msgs) {
-      if (m.info.role === "user") activeUserId = m.info.id
-      else if (activeUserId) turnByMessage.set(m.info.id, activeUserId)
-    }
-
-    let total = 0
-    let pruned = 0
-    const toPrune = []
-    let turns = 0
-
-    loop: for (let msgIndex = msgs.length - 1; msgIndex >= 0; msgIndex--) {
-      const msg = msgs[msgIndex]
-      if (msg.info.role === "user") turns++
-      if (turns < 2) continue
-      if (msg.info.role === "assistant" && msg.info.summary) break loop
-
-      // Smart-prune gate: skip turn-N's parts unless turn-N has a
-      // captured TurnSummary in Memory (i.e. AI's narrative summary
-      // preserves the meaning of those tool reads).
-      const turnId = turnByMessage.get(msg.info.id)
-      if (!turnId || !summarizedTurnIds.has(turnId)) continue
-
-      for (let partIndex = msg.parts.length - 1; partIndex >= 0; partIndex--) {
-        const part = msg.parts[partIndex]
-        if (part.type === "tool")
-          if (part.state.status === "completed") {
-            if (PRUNE_PROTECTED_TOOLS.includes(part.tool)) continue
-
-            if (part.state.time.compacted) break loop
-            const estimate = Token.estimate(part.state.output)
-            total += estimate
-            if (total > PRUNE_PROTECT) {
-              pruned += estimate
-              toPrune.push(part)
-            }
-          }
-      }
-    }
-    log.info("found", { pruned, total })
-    if (pruned > PRUNE_MINIMUM) {
-      for (const part of toPrune) {
-        if (part.state.status === "completed") {
-          part.state.time.compacted = Date.now()
-          await Session.updatePart(part)
-        }
-      }
-      log.info("pruned", { count: toPrune.length })
-    }
-  }
+  // Phase 13 follow-up: prune function deleted. See note above the
+  // DEFAULT_TARGET_PROMPT_TOKENS block. Single 90%-overflow gate via
+  // `run({observed: "overflow"})` is the only context-management path.
 
   /**
    * @deprecated Phase 7 deleted the only caller (`prompt.ts` legacy

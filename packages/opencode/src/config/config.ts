@@ -1509,7 +1509,12 @@ export namespace Config {
       compaction: z
         .object({
           auto: z.boolean().optional().describe("Enable automatic compaction when context is full (default: true)"),
-          prune: z.boolean().optional().describe("Enable pruning of old tool outputs (default: true)"),
+          prune: z
+            .boolean()
+            .optional()
+            .describe(
+              "@deprecated 2026-04-28: tool-output prune retired (cache-hostile). Setting this is silently ignored. Single compaction gate at overflowThreshold (default 90%) handles all context management.",
+            ),
           reserved: z
             .number()
             .int()
@@ -1564,7 +1569,7 @@ export namespace Config {
             .max(1)
             .optional()
             .describe(
-              "Tool-output prune (GC) skips when context utilization is below this floor (default: 0.8). Lower values run prune more eagerly; higher values save the GC for high-pressure sessions.",
+              "@deprecated 2026-04-28: prune retired (see `prune` field). Silently ignored.",
             ),
           targetPromptTokens: z
             .number()
