@@ -2,6 +2,7 @@ import z from "zod"
 import * as path from "path"
 import * as fs from "fs/promises"
 import { Tool } from "./tool"
+import { ToolBudget } from "./budget"
 import { Bus } from "../bus"
 import { FileWatcher } from "../file/watcher"
 import { Instance } from "../project/instance"
@@ -386,6 +387,22 @@ export const ApplyPatchTool = Tool.define("apply_patch", {
         }
       }
 
+      // Layer 2 (specs/tool-output-chunking/, DD-2): bound the patch
+      // summary + LSP errors. The MAX_DIAGNOSTICS_PER_FILE cap above
+      // (20 errors per file) makes oversize rare; this token check
+      // catches pathological cases (many files × many errors). INV-8:
+      // byte-identical when natural output fits.
+      const budget = ToolBudget.resolve(ctx, "apply_patch")
+      let outOut = output
+      if (ToolBudget.estimateTokens(outOut) > budget.tokens) {
+        const targetChars = budget.tokens * 4
+        const head = outOut.slice(0, Math.max(0, targetChars - 256))
+        outOut =
+          head +
+          `\n\n[apply_patch summary bounded at ~${budget.tokens} tokens by Layer 2 ` +
+          `(${budget.source}). LSP errors omitted from tail; inspect the listed files directly to see remaining diagnostics.]`
+      }
+
       return {
         title: output,
         metadata: {
@@ -394,7 +411,7 @@ export const ApplyPatchTool = Tool.define("apply_patch", {
           files,
           diagnostics,
         },
-        output,
+        output: outOut,
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
