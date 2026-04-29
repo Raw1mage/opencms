@@ -283,7 +283,13 @@ ON CONFLICT(id) DO UPDATE SET
   info_extra_json = excluded.info_extra_json
 `
 
-const SQL_LIST_MESSAGES = `SELECT * FROM messages ORDER BY id ASC`
+// Stream order MUST match LegacyStore — newest first (id DESC).
+// Downstream filterCompacted assumes DESC input and reverses to produce
+// ASC output; prompt.ts then walks backward to find latest user. If we
+// give ASC here, filterCompacted's reverse turns it into DESC, and the
+// walk lands on the OLDEST user — which silently breaks every multi-turn
+// session. (Diagnosed 2026-04-29 from cross-turn parent_id corruption.)
+const SQL_LIST_MESSAGES = `SELECT * FROM messages ORDER BY id DESC`
 const SQL_GET_MESSAGE = `SELECT * FROM messages WHERE id = $id`
 const SQL_LIST_PARTS = `SELECT * FROM parts WHERE message_id = $message_id ORDER BY sequence ASC, id ASC`
 const SQL_DELETE_MESSAGE = `DELETE FROM messages WHERE id = $id`

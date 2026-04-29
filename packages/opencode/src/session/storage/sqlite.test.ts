@@ -145,7 +145,11 @@ describe("SqliteStore CRUD", () => {
     expect((parts[1] as { text: string; id: string }).id).toBe(PID_A2)
   })
 
-  it("stream yields messages in ascending id order with their parts", async () => {
+  it("stream yields messages in DESCENDING id order (matches LegacyStore contract)", async () => {
+    // Contract: stream MUST be newest-first. Caller (filterCompacted)
+    // reverses to ASC and runloop walks backward expecting latest user
+    // at the END of the reversed array. Diagnosed 2026-04-29 — ASC ordering
+    // here breaks every multi-turn session (parent_id pinned to first user).
     const u = userMessage(SID, MID_A)
     const a = assistantMessage(SID, MID_B, MID_A)
     await SqliteStore.upsertMessage(u)
@@ -155,9 +159,9 @@ describe("SqliteStore CRUD", () => {
     const collected = []
     for await (const m of SqliteStore.stream(SID)) collected.push(m)
     expect(collected.length).toBe(2)
-    expect(collected[0].info.id).toBe(MID_A)
-    expect(collected[1].info.id).toBe(MID_B)
-    expect(collected[1].parts.length).toBe(1)
+    expect(collected[0].info.id).toBe(MID_B)
+    expect(collected[1].info.id).toBe(MID_A)
+    expect(collected[0].parts.length).toBe(1)
   })
 
   it("parts() throws without sessionID (DD-13 — no silent scan)", async () => {
