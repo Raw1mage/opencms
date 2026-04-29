@@ -1481,24 +1481,56 @@ export namespace SessionPrompt {
       if (isEmptyRound && lastAssistant) {
         emptyRoundCount = (emptyRoundCount ?? 0) + 1
 
-        // Subagent self-heal: give ONE retry on transient empty response
-        // before giving up. Most empty rounds on the codex backend are
-        // transient hiccups (phantom usage={}, finishReason=unknown);
-        // a parent agent gets a UI signal to retry manually, but a
-        // subagent has no human in the loop — silent break wastes work
-        // already done. Inject a synthetic prompt asking the subagent to
-        // either continue or wrap up with a summary, then continue the
-        // runloop. If the next round is also empty (emptyRoundCount=2),
-        // fail through to the existing break.
+        // Detect if the prompting user message was a synthetic runtime
+        // trigger (autonomous resume, task-summary continuation, our
+        // own self-heal nudge, autorun nudge). User rule (memory:
+        // feedback_silent_stop_continuation): "在 autonomous runloop
+        // continuation 觸發下，若判斷沒有繼續 loop 的需求，就完全
+        // 靜默停止 ... Silence 本身就是 runner 期待的 signal."
         //
-        // Main agent stays fail-fast as decided by the 2026-04-29 hotfix
-        // (the prior auto-? nudge polluted streams during codex overflow
-        // incidents). Subagents are the only carve-out.
-        if (!!session.parentID && emptyRoundCount === 1) {
-          log.info("subagent self-heal: empty round 1, injecting retry nudge", {
+        // For these synthetic triggers, an empty assistant response is
+        // INTENTIONAL compliance, not a failure. Don't nudge, don't
+        // red-flag — close the round as a clean stop and exit silently.
+        const lastUserParts = msgs.findLast((m) => m.info.id === lastUser.id)?.parts ?? []
+        const lastUserAllSynthetic =
+          lastUserParts.length > 0 &&
+          lastUserParts.every(
+            (p) => p.type !== "text" || (p as { synthetic?: boolean }).synthetic === true,
+          )
+        if (lastUserAllSynthetic) {
+          log.info("empty-response after synthetic trigger — natural silent stop", {
             sessionID,
             step,
-            parentID: session.parentID,
+            emptyRounds: emptyRoundCount,
+            isSubagent: !!session.parentID,
+          })
+          lastAssistant.finish = "stop"
+          await Session.updateMessage(lastAssistant)
+          break
+        }
+
+        // Self-heal on transient empty response.
+        //
+        // Most empty rounds on the codex backend are transient hiccups
+        // (phantom usage={}, finishReason=unknown). Both subagent and
+        // main agent should get one retry before giving up — a halt
+        // here loses in-progress work and forces a human into the loop
+        // even when the backend just blinked.
+        //
+        // The 2026-04-29 fail-fast hotfix that removed the auto-? nudge
+        // was about codex CONTEXT-OVERFLOW incidents producing endless
+        // pseudo-empty rounds; with the diag instrumentation in place
+        // we can spot that pattern via emptyRoundCount and break on the
+        // second hit, so a single retry remains safe.
+        //
+        // Parent applies the same retry-once policy as subagent — the
+        // user's expectation when they delegate a long-running plan is
+        // continuity, not a halt on every backend blink.
+        if (emptyRoundCount === 1) {
+          log.info("self-heal: empty round 1, injecting retry nudge", {
+            sessionID,
+            step,
+            isSubagent: !!session.parentID,
           })
           const nudgeUser: MessageV2.User = {
             id: Identifier.ascending("message"),
@@ -1525,12 +1557,26 @@ export namespace SessionPrompt {
           continue
         }
 
-        log.warn("breaking empty-response loop", { sessionID, emptyRounds: emptyRoundCount, step })
-        lastAssistant.error = new NamedError.Unknown({
-          message:
-            "Model returned an empty response. This may indicate a provider, account, or session context issue. Try sending a different message or starting a new session.",
-        }).toObject()
-        lastAssistant.finish = "error"
+        // emptyRoundCount >= 2: self-heal nudge already fired and the
+        // next round is still empty. Two interpretations:
+        //   (a) genuine codex overflow / chain corruption — runaway
+        //   (b) model truly has nothing more to say (tools succeeded
+        //       last round, this round is "natural stop" that codex
+        //       didn't tag with a terminal event)
+        //
+        // (b) is the dominant case empirically (per 2026-04-30 obs).
+        // Hard-erroring with a red toast on (b) is a bad UX: the
+        // assistant claims failure when the work is actually complete.
+        // Treat it as a clean stop — no error attached, finish=stop.
+        // The warn log remains so a sustained (a) case is still
+        // diagnosable from debug.log.
+        log.warn("empty-response loop closed as natural stop", {
+          sessionID,
+          emptyRounds: emptyRoundCount,
+          step,
+          isSubagent: !!session.parentID,
+        })
+        lastAssistant.finish = "stop"
         await Session.updateMessage(lastAssistant)
         break
       }
