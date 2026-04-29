@@ -82,6 +82,30 @@ export function assertNotBusy(sessionID: string) {
   if (match) throw new Session.BusyError(sessionID)
 }
 
+/**
+ * Whether a runloop is currently registered for this session. Used by
+ * shouldInterruptForIncomingPrompt and the subagent-busy-indicator
+ * subscriber to distinguish "runtime running" from "no runtime, but a
+ * subagent is attached" — both states report status=busy externally.
+ */
+export function isRuntimeRegistered(sessionID: string): boolean {
+  return !!state()[sessionID]
+}
+
+/**
+ * Cross-module hook so the runtime can ask "does this session have an
+ * active subagent right now?" without importing tool/task.ts directly
+ * (which would create a session ↔ tool/task module cycle).
+ *
+ * Registered once at process init from the layer that owns
+ * `SessionActiveChild` state. Defaults to "no child", so behavior
+ * pre-registration is the original idle-on-finish path.
+ */
+let activeChildChecker: (sessionID: string) => boolean = () => false
+export function registerActiveChildChecker(fn: typeof activeChildChecker) {
+  activeChildChecker = fn
+}
+
 export function start(sessionID: string, options?: { replace?: boolean }): RuntimeStart | undefined {
   const s = state()
   const current = s[sessionID]
@@ -191,7 +215,18 @@ export function finish(sessionID: string, runID: string) {
   }
   const waiters = match.slotWaiters
   delete s[sessionID]
-  SessionStatus.set(sessionID, { type: "idle" })
+  // If a subagent is still running on behalf of this session, keep the
+  // outward status as busy so the UI continues to render the clock and
+  // stop button. The subagent-busy-indicator subscriber will flip back
+  // to idle when SessionActiveChild clears (and no new runtime has
+  // taken over by then). Restores pre-Phase-9 visible-busy + interactive
+  // coexistence (responsive-orchestrator c32ba0dac dropped the visible
+  // signal but kept the interactivity).
+  if (activeChildChecker(sessionID)) {
+    log.info("finish: keeping status=busy (subagent still running)", { sessionID, runID })
+  } else {
+    SessionStatus.set(sessionID, { type: "idle" })
+  }
   log.info("finish", { sessionID, runID, releasedWaiters: waiters.length })
   // Release waiters AFTER the entry is deleted so their follow-up start()
   // call sees a clean slot.

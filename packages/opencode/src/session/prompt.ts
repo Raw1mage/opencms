@@ -49,6 +49,7 @@ import {
   enqueueCallback,
   consumeCallbacks,
   waitForSlot as waitForRuntimeSlot,
+  isRuntimeRegistered,
   type CancelReason,
 } from "./prompt-runtime"
 import { TuiEvent } from "@/cli/cmd/tui/event"
@@ -737,6 +738,11 @@ export namespace SessionPrompt {
   async function shouldInterruptForIncomingPrompt(sessionID: string) {
     const status = SessionStatus.get(sessionID)
     if (status.type !== "busy") return false
+    // status=busy can mean "runtime running" OR "no runtime, child running"
+    // (the post-Phase-9 dispatched-but-still-attached state). Only interrupt
+    // when there's an actual runtime to abort — otherwise let the new
+    // prompt start a fresh runloop normally.
+    if (!isRuntimeRegistered(sessionID)) return false
     const session = await Session.get(sessionID)
     const pending = await getPendingContinuation(sessionID)
     let lastUserSynthetic = false

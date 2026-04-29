@@ -39,6 +39,9 @@ import { registerDebugWriter } from "./bus/subscribers/debug-writer"
 import { registerTelemetryRuntimePersistence } from "./bus/subscribers/telemetry-runtime"
 import { registerTaskWorkerContinuationSubscriber } from "./bus/subscribers/task-worker-continuation"
 import { registerPendingNoticeAppenderSubscriber } from "./bus/subscribers/pending-notice-appender"
+import { registerSubagentBusyIndicatorSubscriber } from "./bus/subscribers/subagent-busy-indicator"
+import { registerActiveChildChecker } from "./session/prompt-runtime"
+import { SessionActiveChild } from "./tool/task"
 import { registerAutorunDisarmObserver } from "./session/autorun/observer"
 import { SessionCache } from "./server/session-cache"
 import { RateLimit } from "./server/rate-limit"
@@ -47,6 +50,8 @@ registerDebugWriter()
 registerTelemetryRuntimePersistence()
 registerTaskWorkerContinuationSubscriber()
 registerPendingNoticeAppenderSubscriber()
+registerSubagentBusyIndicatorSubscriber()
+registerActiveChildChecker((sessionID) => !!SessionActiveChild.get(sessionID))
 registerAutorunDisarmObserver()
 SessionCache.registerInvalidationSubscriber()
 void RateLimit.logStartup()
