@@ -14,7 +14,7 @@ import { LSP } from "../lsp"
 import { Snapshot } from "@/snapshot"
 import { fn } from "@/util/fn"
 import { Storage } from "@/storage/storage"
-import { LegacyStore } from "./storage/legacy"
+import { Router as StorageRouter } from "./storage/router"
 import { ProviderError } from "@/provider/error"
 import { ProviderTransform } from "@/provider/transform"
 import { STATUS_CODES } from "http"
@@ -952,16 +952,16 @@ export namespace MessageV2 {
     )
   }
 
-  // stream / parts / get delegate to LegacyStore (storage/legacy.ts) so the
-  // filesystem byte-path lives in one module and a SQLite sibling can plug
-  // in via the same Backend contract. Behavior unchanged. See
-  // /specs/session-storage-db, task 1.2.
+  // stream / parts / get delegate to StorageRouter (storage/router.ts).
+  // Router decides per-call whether SqliteStore or LegacyStore answers
+  // (DD-9 signature compatibility, dual-track per session). See
+  // /specs/session-storage-db, task 3.5.
   export const stream = fn(Identifier.schema("session"), async function* (sessionID) {
-    yield* LegacyStore.stream(sessionID)
+    yield* StorageRouter.stream(sessionID)
   })
 
   export const parts = fn(Identifier.schema("message"), async (messageID) => {
-    return LegacyStore.parts(messageID)
+    return StorageRouter.parts(messageID)
   })
 
   export const get = fn(
@@ -970,7 +970,7 @@ export namespace MessageV2 {
       messageID: Identifier.schema("message"),
     }),
     async (input): Promise<WithParts> => {
-      return LegacyStore.get(input)
+      return StorageRouter.get(input)
     },
   )
 
@@ -995,9 +995,38 @@ export namespace MessageV2 {
         completed.add((msg.info as any).parentID)
       }
 
-      // Token budget guard: stop scanning if we'd exceed 70% of context limit
+      // Token budget guard: stop scanning if we'd exceed 70% of context limit.
+      //
+      // DD-6 / INV-5: read the stored tokens_total from assistant message
+      // info directly (column on SQLite, info.tokens.total on the live
+      // shape) instead of re-stringifying the entire message + parts.
+      // This is the hot path that was multi-MB-per-round on long sessions.
+      // User messages don't carry tokens; estimate from text-part length
+      // (cheap — user inputs are normally small).
       if (tokenBudget != null) {
-        accumulatedTokens += JSON.stringify(msg).length / 4
+        let msgTokens: number
+        if (msg.info.role === "assistant") {
+          const t = (msg.info as MessageV2.Assistant).tokens
+          msgTokens =
+            t?.total ??
+            (t?.input ?? 0) +
+              (t?.output ?? 0) +
+              (t?.cache?.read ?? 0) +
+              (t?.cache?.write ?? 0)
+        } else {
+          // User message: small approximation by joining text parts only.
+          // Avoids stringifying tool-result payloads that may have been
+          // attached as parts but don't bear meaningful token cost from
+          // the prompt's perspective at this filter stage.
+          let userBytes = 0
+          for (const p of msg.parts) {
+            if (p.type === "text" && typeof (p as { text?: string }).text === "string") {
+              userBytes += (p as { text: string }).text.length
+            }
+          }
+          msgTokens = userBytes / 4
+        }
+        accumulatedTokens += msgTokens
         if (accumulatedTokens > tokenBudget) {
           stoppedByBudget = true
           break
@@ -1334,7 +1363,7 @@ export namespace MessageV2 {
   }
 
   export const updateMessage = fn(Info, async (info) => {
-    await LegacyStore.upsertMessage(info)
+    await StorageRouter.upsertMessage(info)
     Bus.publish(Event.Updated, { info })
   })
 
@@ -1343,7 +1372,7 @@ export namespace MessageV2 {
     async (input) => {
       const part = "part" in input ? input.part : input
       const delta = "delta" in input ? input.delta : undefined
-      await LegacyStore.upsertPart(part)
+      await StorageRouter.upsertPart(part)
       Bus.publish(Event.PartUpdated, { part, delta })
       return part
     },

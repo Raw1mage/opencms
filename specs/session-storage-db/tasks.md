@@ -23,12 +23,12 @@ Phased execution checklist. Each phase is a coherent slice that can be implement
 
 ## 3. Router — dual-track dispatcher
 
-- [ ] 3.1 Add `storage/router.ts` (`Router`) exporting the same surface as LegacyStore + SqliteStore; per-call format detection: `<sid>.db` exists → SqliteStore, else `<sid>/messages/` exists → LegacyStore, else create new SqliteStore
-- [ ] 3.2 Implement debris-resolution rule from spec.md § "Both formats present (post-crash debris)": if both `<sid>.db` AND `<sid>/messages/` exist AND `<sid>.db.tmp` does NOT exist → SqliteStore wins, schedule `<sid>/` for deletion at next idle
-- [ ] 3.3 Enforce DD-13 no-silent-fallback: any error from SqliteStore propagates; never re-attempt via LegacyStore
-- [ ] 3.4 Add `router.test.ts` covering format detection matrix (only-legacy / only-sqlite / both / neither / tmp-present), debris resolution, no-silent-fallback enforcement
-- [ ] 3.5 Update `Session.messages`, `Session.updateMessage`, `Session.updatePart`, `MessageV2.stream`, `MessageV2.parts`, `MessageV2.get`, `MessageV2.filterCompacted` to call Router (signature unchanged; DD-9)
-- [ ] 3.6 Make `MessageV2.filterCompacted` consume `tokens_total` directly from row data when available (DD-6); fall back to existing logic only for legacy-format sessions
+- [x] 3.1 Add `storage/router.ts` (`Router`) exporting the same surface as LegacyStore + SqliteStore; per-call format detection: `<sid>.db` exists → SqliteStore, else `<sid>/messages/` exists → LegacyStore, else create new SqliteStore
+- [x] 3.2 Implement debris-resolution rule from spec.md § "Both formats present (post-crash debris)": if both `<sid>.db` AND `<sid>/messages/` exist AND `<sid>.db.tmp` does NOT exist → SqliteStore wins, schedule `<sid>/` for deletion at next idle
+- [x] 3.3 Enforce DD-13 no-silent-fallback: any error from SqliteStore propagates; never re-attempt via LegacyStore
+- [x] 3.4 Add `router.test.ts` covering format detection matrix (only-legacy / only-sqlite / both / neither / tmp-present), debris resolution, no-silent-fallback enforcement
+- [x] 3.5 Update `Session.messages`, `Session.updateMessage`, `Session.updatePart`, `MessageV2.stream`, `MessageV2.parts`, `MessageV2.get`, `MessageV2.filterCompacted` to call Router (signature unchanged; DD-9)
+- [x] 3.6 Make `MessageV2.filterCompacted` consume `tokens_total` directly from row data when available (DD-6); fall back to existing logic only for legacy-format sessions
 
 ## 4. Hot path swap — new sessions use SqliteStore
 

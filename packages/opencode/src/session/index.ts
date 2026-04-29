@@ -15,11 +15,11 @@ import { Log } from "../util/log"
 import { debugCheckpoint } from "../util/debug"
 import { MessageV2 } from "./message-v2"
 import {
-  LegacyStore,
   readMessageInfo,
   removeMessageInfo,
   removePartFile,
 } from "./storage/legacy"
+import { Router as StorageRouter } from "./storage/router"
 import { Instance } from "../project/instance"
 import { Project } from "../project/project"
 import { SessionPrompt } from "./prompt"
@@ -859,7 +859,7 @@ export namespace Session {
         await remove(child.id)
       }
       await unshare(sessionID).catch(() => {})
-      await LegacyStore.deleteSession(sessionID)
+      await StorageRouter.deleteSession(sessionID)
       await Storage.remove(["session", ownerProjectID, sessionID])
       Bus.publish(Event.Deleted, {
         info: session,
@@ -871,7 +871,7 @@ export namespace Session {
 
   export const updateMessage = fn(MessageV2.Info, async (msg) => {
     const previous = await readMessageInfo(msg.sessionID, msg.id)
-    await LegacyStore.upsertMessage(msg)
+    await StorageRouter.upsertMessage(msg)
     if (hasMessageUsageDelta(previous, msg)) {
       await update(
         msg.sessionID,
@@ -972,7 +972,7 @@ export namespace Session {
     if (!entry) return
     clearTimeout(entry.timer)
     _pendingPartWrites.delete(keyStr)
-    await LegacyStore.upsertPart(entry.content as MessageV2.Part)
+    await StorageRouter.upsertPart(entry.content as MessageV2.Part)
   }
 
   function _schedulePartWrite(keyStr: string, key: string[], content: any, debounceMs: number) {
@@ -1030,7 +1030,7 @@ export namespace Session {
       _schedulePartWrite(keyStr, storeKey, part, tweak.debounceMs)
     } else {
       await _flushPartWrite(keyStr)
-      await LegacyStore.upsertPart(part)
+      await StorageRouter.upsertPart(part)
     }
 
     // [DELTA-PART] instrumentation: measure full-part vs delta cost per chunk
