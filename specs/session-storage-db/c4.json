@@ -1,0 +1,182 @@
+{
+  "$schema": "https://opencode.local/schemas/c4.schema.json",
+  "title": "session-storage-db C4 model",
+  "description": "Container + component view of the storage layer after migration. System-context view is unchanged from current opencode (daemon serves API to TUI/admin/CLI).",
+  "systems": [
+    {
+      "id": "S1",
+      "name": "opencode daemon",
+      "description": "Per-user background process serving session interactions. This spec touches only the session-storage subsystem inside it."
+    }
+  ],
+  "containers": [
+    {
+      "id": "C1",
+      "name": "session-storage",
+      "moduleRef": "packages/opencode/src/session/storage/",
+      "description": "Subsystem owning session persistence. Replaces the previous filesystem-walk implementation in message-v2.ts.",
+      "external": false
+    },
+    {
+      "id": "C2",
+      "name": "runloop",
+      "moduleRef": "packages/opencode/src/session/prompt.ts + processor.ts",
+      "description": "Session-level orchestrator. Calls into session-storage for every read and write of message / part state.",
+      "external": false
+    },
+    {
+      "id": "C3",
+      "name": "TUI / admin panel / CLI",
+      "moduleRef": "packages/app/, packages/opencode/src/cli/",
+      "description": "External readers issuing read-only queries via the storage interface.",
+      "external": false
+    },
+    {
+      "id": "C4",
+      "name": "filesystem",
+      "moduleRef": "<storage-root>/session/",
+      "description": "Underlying disk. Holds <sid>.db files plus surviving legacy <sid>/ directories during dual-track period.",
+      "external": true
+    }
+  ],
+  "components": [
+    {
+      "id": "K1",
+      "name": "Router",
+      "moduleRef": "packages/opencode/src/session/storage/router.ts",
+      "containerRef": "C1",
+      "description": "Per-call dispatcher. Detects whether <sid>.db or <sid>/ is the source of truth and routes to SqliteStore or LegacyStore. Implements DD-9 signature compatibility.",
+      "ideF0Ref": "A1"
+    },
+    {
+      "id": "K2",
+      "name": "SqliteStore",
+      "moduleRef": "packages/opencode/src/session/storage/sqlite.ts",
+      "containerRef": "C1",
+      "description": "SQLite-backed implementation. Owns connection pool, applies pragmas (DD-3), runs schema migrations (DR-5), implements CRUD for messages + parts + meta.",
+      "ideF0Ref": "A2"
+    },
+    {
+      "id": "K3",
+      "name": "LegacyStore",
+      "moduleRef": "packages/opencode/src/session/storage/legacy.ts",
+      "containerRef": "C1",
+      "description": "Existing filesystem-walk implementation extracted into its own module. Read-only after dreaming mode reaches the session.",
+      "ideF0Ref": "A3"
+    },
+    {
+      "id": "K4",
+      "name": "DreamingWorker",
+      "moduleRef": "packages/opencode/src/session/storage/dreaming.ts",
+      "containerRef": "C1",
+      "description": "Idle-time background migrator. Scans for legacy sessions, runs three-stage atomic migration (DD-7 / DR-4), publishes Bus events. Inhabits the same daemon process (DD-14).",
+      "ideF0Ref": "A4"
+    },
+    {
+      "id": "K5",
+      "name": "ConnectionPool",
+      "moduleRef": "packages/opencode/src/session/storage/pool.ts",
+      "containerRef": "C1",
+      "description": "Bounded LRU pool of SqliteStore handles keyed by sessionID (DD-10). Closes idle connections after CONNECTION_IDLE_MS.",
+      "ideF0Ref": "A2.2"
+    },
+    {
+      "id": "K6",
+      "name": "IntegrityChecker",
+      "moduleRef": "packages/opencode/src/session/storage/integrity.ts",
+      "containerRef": "C1",
+      "description": "Runs PRAGMA integrity_check on first open of a DB (DR-3). Caches result for the connection lifetime. Publishes session.storage.corrupted Bus event on failure.",
+      "ideF0Ref": "A2.1"
+    },
+    {
+      "id": "K7",
+      "name": "MigrationRunner",
+      "moduleRef": "packages/opencode/src/session/storage/migrations/",
+      "containerRef": "C1",
+      "description": "Schema version manager. Compares meta.schema_version vs runtime expected, runs migration SQL in transaction (DR-5). Each version has a forward + rollback test pair.",
+      "ideF0Ref": "A2.3"
+    },
+    {
+      "id": "K8",
+      "name": "InspectCLI",
+      "moduleRef": "packages/opencode/src/cli/cmd/session-inspect.ts",
+      "containerRef": "C1",
+      "description": "Debug CLI (DD-12). Subcommands list / show / check. Read-only access via SqliteStore + LegacyStore through Router.",
+      "ideF0Ref": "A5"
+    }
+  ],
+  "relationships": [
+    {
+      "from": "C2",
+      "to": "K1",
+      "description": "runloop calls Session.messages / updateMessage / updatePart through Router (DD-9 signature compat)",
+      "protocol": "in-process function call"
+    },
+    {
+      "from": "C3",
+      "to": "K1",
+      "description": "TUI / admin panel / CLI issue read-only calls through the same Router interface",
+      "protocol": "in-process function call (or HTTP → daemon → in-process)"
+    },
+    {
+      "from": "K1",
+      "to": "K2",
+      "description": "Router dispatches to SqliteStore when <sid>.db exists",
+      "protocol": "in-process function call"
+    },
+    {
+      "from": "K1",
+      "to": "K3",
+      "description": "Router dispatches to LegacyStore when only <sid>/ exists",
+      "protocol": "in-process function call"
+    },
+    {
+      "from": "K2",
+      "to": "K5",
+      "description": "SqliteStore acquires connection from ConnectionPool",
+      "protocol": "in-process function call"
+    },
+    {
+      "from": "K2",
+      "to": "K6",
+      "description": "SqliteStore runs IntegrityChecker on first open",
+      "protocol": "in-process function call"
+    },
+    {
+      "from": "K2",
+      "to": "K7",
+      "description": "SqliteStore runs MigrationRunner if schema_version mismatches",
+      "protocol": "in-process function call"
+    },
+    {
+      "from": "K4",
+      "to": "K3",
+      "description": "DreamingWorker reads all messages + parts from LegacyStore",
+      "protocol": "in-process function call"
+    },
+    {
+      "from": "K4",
+      "to": "K2",
+      "description": "DreamingWorker writes to a fresh SqliteStore at <sid>.db.tmp, then atomically renames",
+      "protocol": "in-process function call + POSIX rename(2)"
+    },
+    {
+      "from": "K2",
+      "to": "C4",
+      "description": "SqliteStore reads/writes the <sid>.db file",
+      "protocol": "filesystem (bun:sqlite)"
+    },
+    {
+      "from": "K3",
+      "to": "C4",
+      "description": "LegacyStore reads <sid>/messages/<mid>/{info.json, parts/*.json}",
+      "protocol": "filesystem"
+    },
+    {
+      "from": "K8",
+      "to": "K1",
+      "description": "session-inspect CLI calls Router for read-only access",
+      "protocol": "in-process function call"
+    }
+  ]
+}

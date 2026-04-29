@@ -1,0 +1,146 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://opencode.local/specs/session-storage-db/data-schema.json",
+  "title": "session-storage-db SQLite schema (v1)",
+  "description": "Per-session SQLite database schema. One file per session at <storage-root>/session/<sid>.db. Tables: messages, parts, meta. WAL journal mode + synchronous=NORMAL.",
+  "definitions": {
+    "Tables": {
+      "type": "object",
+      "required": ["messages", "parts", "meta"],
+      "properties": {
+        "messages": {
+          "$ref": "#/definitions/MessagesTable"
+        },
+        "parts": {
+          "$ref": "#/definitions/PartsTable"
+        },
+        "meta": {
+          "$ref": "#/definitions/MetaTable"
+        }
+      }
+    },
+    "MessagesTable": {
+      "type": "object",
+      "description": "One row per message. id is the canonical identifier (msg_xxxxxxx). Insertion order = id order (ascending).",
+      "properties": {
+        "ddl": {
+          "type": "string",
+          "const": "CREATE TABLE messages (id TEXT PRIMARY KEY NOT NULL, role TEXT NOT NULL CHECK (role IN ('user','assistant')), parent_id TEXT, time_created INTEGER NOT NULL, time_completed INTEGER, model_id TEXT, provider_id TEXT, account_id TEXT, mode TEXT, agent TEXT, finish TEXT, tokens_input INTEGER NOT NULL DEFAULT 0, tokens_output INTEGER NOT NULL DEFAULT 0, tokens_total INTEGER NOT NULL DEFAULT 0, tokens_cache_read INTEGER NOT NULL DEFAULT 0, tokens_cache_write INTEGER NOT NULL DEFAULT 0, tokens_reasoning INTEGER NOT NULL DEFAULT 0, cost REAL NOT NULL DEFAULT 0, summary INTEGER NOT NULL DEFAULT 0, error_json TEXT, info_extra_json TEXT NOT NULL DEFAULT '{}')"
+        },
+        "indexes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [
+            "CREATE INDEX idx_messages_parent ON messages(parent_id)",
+            "CREATE INDEX idx_messages_role_id ON messages(role, id)",
+            "CREATE INDEX idx_messages_summary ON messages(summary) WHERE summary = 1"
+          ]
+        },
+        "columns": {
+          "type": "object",
+          "properties": {
+            "id":              { "type": "string", "description": "msg_xxx primary key" },
+            "role":            { "type": "string", "enum": ["user","assistant"] },
+            "parent_id":       { "type": ["string","null"], "description": "for assistant messages, the user message id they reply to" },
+            "time_created":    { "type": "integer", "description": "epoch ms" },
+            "time_completed":  { "type": ["integer","null"], "description": "epoch ms; null while in-flight" },
+            "model_id":        { "type": ["string","null"] },
+            "provider_id":     { "type": ["string","null"] },
+            "account_id":      { "type": ["string","null"] },
+            "mode":            { "type": ["string","null"] },
+            "agent":           { "type": ["string","null"] },
+            "finish":          { "type": ["string","null"], "description": "stop|tool-calls|length|content-filter|error|other|unknown" },
+            "tokens_input":        { "type": "integer", "minimum": 0 },
+            "tokens_output":       { "type": "integer", "minimum": 0 },
+            "tokens_total":        { "type": "integer", "minimum": 0, "description": "DD-6: read directly by filterCompacted, replaces JSON.stringify estimation" },
+            "tokens_cache_read":   { "type": "integer", "minimum": 0 },
+            "tokens_cache_write":  { "type": "integer", "minimum": 0 },
+            "tokens_reasoning":    { "type": "integer", "minimum": 0 },
+            "cost":            { "type": "number", "minimum": 0 },
+            "summary":         { "type": "integer", "enum": [0, 1], "description": "1 = compaction anchor; matches MessageV2.Assistant.summary boolean" },
+            "error_json":      { "type": ["string","null"], "description": "serialized error object when finish='error'" },
+            "info_extra_json": { "type": "string", "description": "JSON-encoded fallback for fields that don't fit promoted columns; round-trips MessageV2.Info shape losslessly" }
+          }
+        }
+      }
+    },
+    "PartsTable": {
+      "type": "object",
+      "description": "One row per part. Sequence + id together preserve in-order render even if ids are non-monotonic across part types.",
+      "properties": {
+        "ddl": {
+          "type": "string",
+          "const": "CREATE TABLE parts (id TEXT PRIMARY KEY NOT NULL, message_id TEXT NOT NULL, sequence INTEGER NOT NULL, type TEXT NOT NULL, payload_json TEXT NOT NULL, FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE)"
+        },
+        "indexes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [
+            "CREATE INDEX idx_parts_message ON parts(message_id, sequence)",
+            "CREATE INDEX idx_parts_type ON parts(type)"
+          ]
+        },
+        "columns": {
+          "type": "object",
+          "properties": {
+            "id":            { "type": "string", "description": "prt_xxx primary key" },
+            "message_id":    { "type": "string", "description": "FK → messages.id" },
+            "sequence":      { "type": "integer", "minimum": 0, "description": "0-based render order within the message" },
+            "type":          { "type": "string", "enum": ["step-start","step-finish","text","reasoning","tool","file","patch","compaction","subtask","narration"] },
+            "payload_json":  { "type": "string", "description": "full part body as JSON; lossless round-trip of MessageV2.Part shape" }
+          }
+        }
+      }
+    },
+    "MetaTable": {
+      "type": "object",
+      "description": "Per-session key-value metadata. Schema version + migration history live here.",
+      "properties": {
+        "ddl": {
+          "type": "string",
+          "const": "CREATE TABLE meta (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)"
+        },
+        "wellKnownKeys": {
+          "type": "object",
+          "properties": {
+            "schema_version":       { "type": "string", "description": "integer as string; matches DD-7 / DR-5 user_version semantics" },
+            "session_id":           { "type": "string", "description": "redundant safety check; must equal filename minus .db" },
+            "migrated_from_legacy": { "type": "string", "description": "ISO-8601 timestamp when dreaming-mode migration completed; absent for fresh-born SQLite sessions" },
+            "legacy_message_count": { "type": "string", "description": "row count assertion captured at migration-time for DR-4 verification" }
+          }
+        }
+      }
+    }
+  },
+  "type": "object",
+  "required": ["schema_version", "tables", "pragmas"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Initial release. Bumped via DD-7 / DR-5 migration scripts."
+    },
+    "pragmas": {
+      "type": "object",
+      "description": "PRAGMAs applied at every connection open.",
+      "required": ["journal_mode", "synchronous", "foreign_keys"],
+      "properties": {
+        "journal_mode":  { "type": "string", "const": "WAL" },
+        "synchronous":   { "type": "string", "const": "NORMAL" },
+        "foreign_keys":  { "type": "string", "const": "ON" }
+      }
+    },
+    "tables": { "$ref": "#/definitions/Tables" },
+    "constraints": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": [
+        "messages.id format: matches /^msg_[a-zA-Z0-9]+$/ (Identifier.ascending('message'))",
+        "parts.id format: matches /^prt_[a-zA-Z0-9]+$/ (Identifier.ascending('part'))",
+        "messages.parent_id when present must be present in messages.id (FK enforced via app layer; not declared in DDL because role='user' messages may have no row referencing them yet at write time)",
+        "parts.sequence is unique per message_id (enforced by application layer; not by DDL to allow streaming append before final ordering)",
+        "tokens_total := tokens_input + tokens_output + tokens_cache_read + tokens_cache_write (or computed equivalently); enforced at write time"
+      ]
+    }
+  }
+}

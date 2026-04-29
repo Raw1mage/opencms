@@ -1,0 +1,98 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A3",
+    "StepType": "initial",
+    "StepAction": "Serve session reads from legacy directory layout (<sid>/messages/<mid>/...).",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["legacy_directory_present AND sqlite_db_absent"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Read all legacy messages and parts into memory while holding daemon idle.",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["idle_sweep_tick_fired AND no_active_writes_in_window AND not_yet_migrated"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Create <sid>.db.tmp; apply schema v1; insert all messages and parts inside a single transaction; commit.",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3],
+    "LinkOutputType": "track",
+    "Condition": ["legacy_read_complete"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A21",
+    "StepType": "normal",
+    "StepAction": "Run PRAGMA integrity_check on the tmp file and assert message row count equals legacy_message_count.",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4, 7],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["tmp_write_committed AND fsync_completed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Atomically rename <sid>.db.tmp to <sid>.db, then delete the legacy <sid>/ directory.",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["integrity_check_ok AND row_count_matches_legacy"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Serve session reads and writes from <sid>.db via SqliteStore + ConnectionPool. Writes are per-message transactions on WAL.",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["rename_atomic_done AND legacy_dir_deleted"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A21",
+    "StepType": "normal",
+    "StepAction": "Refuse to load the session and publish session.storage.corrupted Bus event. Daemon awaits user-driven recovery.",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [],
+    "LinkOutputType": "track",
+    "Condition": ["integrity_check_fails_on_open"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Delete <sid>.db.tmp (partial migration). Legacy <sid>/ remains the source of truth. Requeue the session for the next idle-sweep tick.",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["integrity_check_fails OR row_count_mismatch OR daemon_crashed_before_rename"],
+    "SubGrafcet": []
+  }
+]

@@ -1,0 +1,429 @@
+[
+  {
+    "id": "P1",
+    "name": "runloop reads message stream (SQLite session)",
+    "trigger": "runloop iteration: filterCompacted needs the message tail",
+    "messages": [
+      {
+        "id": "P1.MSG1",
+        "from": "C2",
+        "to": "K1",
+        "componentRef": "K1",
+        "action": "Session.messages(sessionID)"
+      },
+      {
+        "id": "P1.MSG2",
+        "from": "K1",
+        "to": "K2",
+        "componentRef": "K2",
+        "action": "router detects <sid>.db, dispatches to SqliteStore.list"
+      },
+      {
+        "id": "P1.MSG3",
+        "from": "K2",
+        "to": "K5",
+        "componentRef": "K5",
+        "action": "ConnectionPool.acquire(sessionID)"
+      },
+      {
+        "id": "P1.MSG4",
+        "from": "K5",
+        "to": "K2",
+        "componentRef": "K5",
+        "action": "returns warm connection (or opens new + runs IntegrityChecker on first time)"
+      },
+      {
+        "id": "P1.MSG5",
+        "from": "K2",
+        "to": "C4",
+        "componentRef": "K2",
+        "action": "SELECT id, role, time_created, finish, tokens_total FROM messages ORDER BY id"
+      },
+      {
+        "id": "P1.MSG6",
+        "from": "K2",
+        "to": "C4",
+        "componentRef": "K2",
+        "action": "SELECT id, message_id, sequence, type, payload_json FROM parts WHERE message_id IN (...) ORDER BY message_id, sequence"
+      },
+      {
+        "id": "P1.MSG7",
+        "from": "K2",
+        "to": "K1",
+        "componentRef": "K2",
+        "action": "returns reconstructed MessageV2.WithParts[]"
+      },
+      {
+        "id": "P1.MSG8",
+        "from": "K1",
+        "to": "C2",
+        "componentRef": "K1",
+        "action": "returns to runloop"
+      }
+    ],
+    "invariants": [
+      "exactly one SQL query per table (no per-message N+1)",
+      "tokens_total read from column, not estimated via JSON.stringify (DD-6)",
+      "no walk of <sid>/ filesystem"
+    ]
+  },
+  {
+    "id": "P2",
+    "name": "runloop appends a streaming part (active write)",
+    "trigger": "LLM stream emits a text-delta or tool-input-delta",
+    "messages": [
+      {
+        "id": "P2.MSG1",
+        "from": "C2",
+        "to": "K1",
+        "componentRef": "K1",
+        "action": "Session.updatePart({id, messageID, sessionID, type, ...payload})"
+      },
+      {
+        "id": "P2.MSG2",
+        "from": "K1",
+        "to": "K2",
+        "componentRef": "K2",
+        "action": "router dispatches to SqliteStore.upsertPart"
+      },
+      {
+        "id": "P2.MSG3",
+        "from": "K2",
+        "to": "K5",
+        "componentRef": "K5",
+        "action": "ConnectionPool.acquire(sessionID) (warm)"
+      },
+      {
+        "id": "P2.MSG4",
+        "from": "K2",
+        "to": "C4",
+        "componentRef": "K2",
+        "action": "BEGIN; INSERT OR REPLACE INTO parts (id,message_id,sequence,type,payload_json) VALUES (?,?,?,?,?); COMMIT"
+      },
+      {
+        "id": "P2.MSG5",
+        "from": "K2",
+        "to": "K1",
+        "componentRef": "K2",
+        "action": "returns success"
+      },
+      {
+        "id": "P2.MSG6",
+        "from": "K1",
+        "to": "C2",
+        "componentRef": "K1",
+        "action": "returns to runloop"
+      }
+    ],
+    "invariants": [
+      "transaction is per-call (DR-1 atomicity)",
+      "WAL ensures the write is durable on commit (DR-1 / DR-2)",
+      "concurrent reader (e.g. TUI tail) sees consistent snapshot from prior commit"
+    ]
+  },
+  {
+    "id": "P3",
+    "name": "concurrent reader (admin panel) tails a session under active write",
+    "trigger": "admin panel polls GET /api/v2/session/:id/message",
+    "messages": [
+      {
+        "id": "P3.MSG1",
+        "from": "C3",
+        "to": "K1",
+        "componentRef": "K1",
+        "action": "Session.messages(sessionID)"
+      },
+      {
+        "id": "P3.MSG2",
+        "from": "K1",
+        "to": "K2",
+        "componentRef": "K2",
+        "action": "router → SqliteStore.list (read-only)"
+      },
+      {
+        "id": "P3.MSG3",
+        "from": "K2",
+        "to": "C4",
+        "componentRef": "K2",
+        "action": "opens short-lived read-only connection (separate from runloop's writer pool entry)"
+      },
+      {
+        "id": "P3.MSG4",
+        "from": "K2",
+        "to": "C4",
+        "componentRef": "K2",
+        "action": "SELECT * with WAL snapshot at query begin time"
+      },
+      {
+        "id": "P3.MSG5",
+        "from": "K2",
+        "to": "K1",
+        "componentRef": "K2",
+        "action": "returns rows (does not block writer)"
+      }
+    ],
+    "invariants": [
+      "DD-4: WAL multi-reader does not stall writer (or vice versa)",
+      "reader sees a consistent snapshot from the moment its connection began the read"
+    ]
+  },
+  {
+    "id": "P4",
+    "name": "dreaming mode migrates a legacy session",
+    "trigger": "idle-sweep timer fires; daemon has been quiet for >= IDLE_THRESHOLD_MS",
+    "messages": [
+      {
+        "id": "P4.MSG1",
+        "from": "K4",
+        "to": "C4",
+        "componentRef": "K4",
+        "action": "scan storage root for <sid>/ directories without matching <sid>.db"
+      },
+      {
+        "id": "P4.MSG2",
+        "from": "K4",
+        "to": "K3",
+        "componentRef": "K3",
+        "action": "LegacyStore.list(sessionID) and parts(messageID) for full session read"
+      },
+      {
+        "id": "P4.MSG3",
+        "from": "K4",
+        "to": "C4",
+        "componentRef": "K4",
+        "action": "create <sid>.db.tmp; open SQLite handle; apply schema migrations to v1"
+      },
+      {
+        "id": "P4.MSG4",
+        "from": "K4",
+        "to": "C4",
+        "componentRef": "K4",
+        "action": "BEGIN; insert all messages + parts; INSERT INTO meta VALUES ('schema_version','1'),('migrated_from_legacy', now), ('legacy_message_count', N); COMMIT"
+      },
+      {
+        "id": "P4.MSG5",
+        "from": "K4",
+        "to": "K6",
+        "componentRef": "K6",
+        "action": "IntegrityChecker.run(<sid>.db.tmp) → expect 'ok' AND row count == legacy_message_count"
+      },
+      {
+        "id": "P4.MSG6",
+        "from": "K4",
+        "to": "C4",
+        "componentRef": "K4",
+        "action": "rename(<sid>.db.tmp, <sid>.db) (POSIX atomic)"
+      },
+      {
+        "id": "P4.MSG7",
+        "from": "K4",
+        "to": "C4",
+        "componentRef": "K4",
+        "action": "rm -rf <sid>/ (legacy directory deletion)"
+      },
+      {
+        "id": "P4.MSG8",
+        "from": "K4",
+        "to": "K1",
+        "componentRef": "K1",
+        "action": "publish Bus event session.storage.migrated"
+      }
+    ],
+    "invariants": [
+      "DR-4: any crash before MSG6 leaves legacy intact + tmp orphaned (cleanup on next start)",
+      "DR-4: any crash between MSG6 and MSG7 leaves both formats; router prefers SQLite (Spec § dual-track Both formats present)",
+      "exactly one session migrated per tick; never preempts active write"
+    ]
+  },
+  {
+    "id": "P5",
+    "name": "user opens legacy session before dreaming mode reaches it",
+    "trigger": "TUI / admin panel opens session whose <sid>/ is still legacy",
+    "messages": [
+      {
+        "id": "P5.MSG1",
+        "from": "C3",
+        "to": "K1",
+        "componentRef": "K1",
+        "action": "Session.messages(sessionID)"
+      },
+      {
+        "id": "P5.MSG2",
+        "from": "K1",
+        "to": "C4",
+        "componentRef": "K1",
+        "action": "stat: <sid>.db missing, <sid>/ present"
+      },
+      {
+        "id": "P5.MSG3",
+        "from": "K1",
+        "to": "K3",
+        "componentRef": "K3",
+        "action": "router dispatches to LegacyStore.list"
+      },
+      {
+        "id": "P5.MSG4",
+        "from": "K3",
+        "to": "C4",
+        "componentRef": "K3",
+        "action": "filesystem walk: list messages dir, read info.json + parts/*.json per message"
+      },
+      {
+        "id": "P5.MSG5",
+        "from": "K3",
+        "to": "K1",
+        "componentRef": "K3",
+        "action": "returns MessageV2.WithParts[] (slow path; same shape as SqliteStore output)"
+      }
+    ],
+    "invariants": [
+      "DD-8: dreaming mode does NOT preempt-migrate to avoid blocking the user",
+      "session continues to be served by LegacyStore until idle sweep reaches it"
+    ]
+  },
+  {
+    "id": "P6",
+    "name": "DR-3: SQLite corruption detected on open",
+    "trigger": "first open attempt of a corrupted <sid>.db",
+    "messages": [
+      {
+        "id": "P6.MSG1",
+        "from": "C2",
+        "to": "K1",
+        "componentRef": "K1",
+        "action": "Session.messages(sessionID) (any read)"
+      },
+      {
+        "id": "P6.MSG2",
+        "from": "K1",
+        "to": "K2",
+        "componentRef": "K2",
+        "action": "router → SqliteStore.open"
+      },
+      {
+        "id": "P6.MSG3",
+        "from": "K2",
+        "to": "K5",
+        "componentRef": "K5",
+        "action": "ConnectionPool.acquire (cache miss → real open)"
+      },
+      {
+        "id": "P6.MSG4",
+        "from": "K5",
+        "to": "K6",
+        "componentRef": "K6",
+        "action": "IntegrityChecker.run → result != 'ok'"
+      },
+      {
+        "id": "P6.MSG5",
+        "from": "K6",
+        "to": "K1",
+        "componentRef": "K1",
+        "action": "publish Bus event session.storage.corrupted (sessionID, integrity_check_output)"
+      },
+      {
+        "id": "P6.MSG6",
+        "from": "K2",
+        "to": "C2",
+        "componentRef": "K2",
+        "action": "throw StorageCorruptionError; daemon logs error; session refuses to load"
+      }
+    ],
+    "invariants": [
+      "DR-3: no auto-repair, no silent fallback to legacy (DD-13)",
+      "user-visible error path; manual recovery via session-inspect check + raw sqlite3"
+    ]
+  },
+  {
+    "id": "P7",
+    "name": "DR-5: schema migration on open with version bump",
+    "trigger": "daemon expects schema v2; existing DB has v1",
+    "messages": [
+      {
+        "id": "P7.MSG1",
+        "from": "K2",
+        "to": "C4",
+        "componentRef": "K2",
+        "action": "open <sid>.db; SELECT value FROM meta WHERE key='schema_version' → '1'"
+      },
+      {
+        "id": "P7.MSG2",
+        "from": "K2",
+        "to": "K7",
+        "componentRef": "K7",
+        "action": "MigrationRunner.runForward(from=1, to=2)"
+      },
+      {
+        "id": "P7.MSG3",
+        "from": "K7",
+        "to": "C4",
+        "componentRef": "K7",
+        "action": "BEGIN; (migration SQL); UPDATE meta SET value='2' WHERE key='schema_version'; COMMIT"
+      },
+      {
+        "id": "P7.MSG4",
+        "from": "K7",
+        "to": "K2",
+        "componentRef": "K7",
+        "action": "on success: open proceeds at v2"
+      },
+      {
+        "id": "P7.MSG5",
+        "from": "K7",
+        "to": "K1",
+        "componentRef": "K1",
+        "action": "on failure: ROLLBACK; mark connection read-only; publish Bus event session.storage.migration_failed"
+      }
+    ],
+    "invariants": [
+      "DR-5: failed migration leaves DB at v1 (no half-migrated state)",
+      "every shipped migration has unit test forward + rollback (R-5)"
+    ]
+  },
+  {
+    "id": "P8",
+    "name": "session-inspect CLI debug",
+    "trigger": "developer runs opencode session-inspect <sub> ...",
+    "messages": [
+      {
+        "id": "P8.MSG1",
+        "from": "C3",
+        "to": "K8",
+        "componentRef": "K8",
+        "action": "CLI invoked with subcommand list|show|check"
+      },
+      {
+        "id": "P8.MSG2",
+        "from": "K8",
+        "to": "K1",
+        "componentRef": "K1",
+        "action": "Router.list / .get (read-only)"
+      },
+      {
+        "id": "P8.MSG3",
+        "from": "K1",
+        "to": "K2",
+        "componentRef": "K2",
+        "action": "if <sid>.db: SqliteStore"
+      },
+      {
+        "id": "P8.MSG4",
+        "from": "K1",
+        "to": "K3",
+        "componentRef": "K3",
+        "action": "else if <sid>/: LegacyStore"
+      },
+      {
+        "id": "P8.MSG5",
+        "from": "K8",
+        "to": "C3",
+        "componentRef": "K8",
+        "action": "stdout JSON / table; exit code reflects integrity_check"
+      }
+    ],
+    "invariants": [
+      "read-only by design; v1 does NOT expose write commands",
+      "works in both formats during dual-track period"
+    ]
+  }
+]

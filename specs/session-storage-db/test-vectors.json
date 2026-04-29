@@ -1,0 +1,274 @@
+[
+  {
+    "id": "TV-1",
+    "requirement": "Session messages persist in a single SQLite file / Scenario: New session starts",
+    "given": {
+      "storage_root": "/tmp/test-session-storage",
+      "session_id": "ses_test_new_001",
+      "filesystem_state": "empty"
+    },
+    "when": {
+      "action": "Session.updateMessage / Session.updatePart for the first message"
+    },
+    "then": {
+      "filesystem_state_after": [
+        "/tmp/test-session-storage/session/ses_test_new_001.db exists",
+        "/tmp/test-session-storage/session/ses_test_new_001/ does NOT exist"
+      ],
+      "sqlite_state": {
+        "pragmas": { "journal_mode": "wal", "synchronous": "1" },
+        "tables_present": ["messages", "parts", "meta"],
+        "meta_schema_version": "1",
+        "messages_row_count": 1
+      }
+    }
+  },
+  {
+    "id": "TV-2",
+    "requirement": "DR-1 daemon killed mid-write",
+    "given": {
+      "session_id": "ses_test_dr1_002",
+      "messages_committed_before_kill": 5,
+      "in_flight_message_at_kill": { "id": "msg_xxxxx", "parts_committed": 0 }
+    },
+    "when": {
+      "action": "SIGKILL daemon between transactions; restart daemon; read session"
+    },
+    "then": {
+      "messages_visible": 5,
+      "in_flight_message_visible": false,
+      "sqlite_open_succeeds": true,
+      "integrity_check": "ok"
+    }
+  },
+  {
+    "id": "TV-3",
+    "requirement": "DR-3 corruption detected on open",
+    "given": {
+      "session_id": "ses_test_dr3_003",
+      "filesystem_state": "ses_test_dr3_003.db has a corrupted page injected at offset 4096"
+    },
+    "when": {
+      "action": "Daemon attempts to open the session for read"
+    },
+    "then": {
+      "integrity_check_result": "non-ok output",
+      "bus_event_published": {
+        "type": "session.storage.corrupted",
+        "payload_keys": ["sessionID", "integrity_check_output", "timestamp"]
+      },
+      "session_load_succeeds": false,
+      "error_thrown": "StorageCorruptionError",
+      "auto_repair_attempted": false
+    }
+  },
+  {
+    "id": "TV-4",
+    "requirement": "DR-4 dreaming mode crash mid-migrate",
+    "given": {
+      "session_id": "ses_test_dr4_004",
+      "legacy_directory_present": true,
+      "legacy_message_count": 12,
+      "tmp_db_present_at_crash": true,
+      "rename_completed_before_crash": false
+    },
+    "when": {
+      "action": "Daemon restart; DreamingWorker startup cleanup runs"
+    },
+    "then": {
+      "tmp_db_deleted": true,
+      "legacy_directory_intact": true,
+      "session_loadable_via": "LegacyStore",
+      "session_requeued_for_migration": true
+    }
+  },
+  {
+    "id": "TV-5",
+    "requirement": "DR-5 schema migration failure",
+    "given": {
+      "session_id": "ses_test_dr5_005",
+      "current_schema_version": 1,
+      "runtime_expected_version": 2,
+      "v2_migration_sql_will_throw": true
+    },
+    "when": {
+      "action": "Daemon opens the session"
+    },
+    "then": {
+      "schema_version_after": 1,
+      "transaction_rolled_back": true,
+      "connection_mode": "read-only",
+      "bus_event_published": {
+        "type": "session.storage.migration_failed",
+        "payload_keys": ["sessionID", "fromVersion", "toVersion", "error"]
+      }
+    }
+  },
+  {
+    "id": "TV-6",
+    "requirement": "filterCompacted no longer stringifies",
+    "given": {
+      "session_id": "ses_test_perf_006",
+      "message_count": 500,
+      "format": "sqlite"
+    },
+    "when": {
+      "action": "Run filterCompacted; measure JSON.stringify call count via instrumentation"
+    },
+    "then": {
+      "json_stringify_calls_inside_filterCompacted": 0,
+      "tokens_total_source": "messages.tokens_total column"
+    }
+  },
+  {
+    "id": "TV-7",
+    "requirement": "Dual-track reader is transparent / Scenario: Legacy session opened",
+    "given": {
+      "session_id": "ses_test_dual_007",
+      "format": "legacy",
+      "messages_in_legacy_dir": 8
+    },
+    "when": {
+      "action": "Caller invokes Session.messages(sessionID) via Router"
+    },
+    "then": {
+      "router_dispatch": "LegacyStore",
+      "messages_returned_count": 8,
+      "shape_matches_sqlite_path": "byte-equivalent modulo whitespace"
+    }
+  },
+  {
+    "id": "TV-8",
+    "requirement": "Dual-track reader / Scenario: Both formats present (post-crash debris)",
+    "given": {
+      "session_id": "ses_test_debris_008",
+      "filesystem_state": "<sid>.db exists, <sid>/messages/ exists, <sid>.db.tmp does NOT exist"
+    },
+    "when": {
+      "action": "Caller invokes Session.messages(sessionID) via Router"
+    },
+    "then": {
+      "router_dispatch": "SqliteStore",
+      "legacy_directory_scheduled_for_deletion": true,
+      "deletion_executes_at": "next idle tick"
+    }
+  },
+  {
+    "id": "TV-9",
+    "requirement": "Dreaming mode runs only when daemon is idle / Scenario: Idle sweep picks up a legacy session",
+    "given": {
+      "legacy_sessions_pending": 3,
+      "active_writes_in_last_5000ms": 0,
+      "idle_threshold_ms": 5000
+    },
+    "when": {
+      "action": "Idle-sweep tick fires"
+    },
+    "then": {
+      "sessions_migrated_in_this_tick": 1,
+      "selection_rule": "oldest-touched first",
+      "other_sessions_untouched": true
+    }
+  },
+  {
+    "id": "TV-10",
+    "requirement": "Dreaming mode / Scenario: User opens legacy session before dreaming mode reaches it",
+    "given": {
+      "session_id": "ses_test_preempt_010",
+      "format": "legacy"
+    },
+    "when": {
+      "action": "TUI opens session before dreaming sweep reaches it"
+    },
+    "then": {
+      "router_dispatch": "LegacyStore",
+      "preempt_migration_triggered": false,
+      "session_will_be_migrated_at": "next idle tick after user activity ends"
+    }
+  },
+  {
+    "id": "TV-11",
+    "requirement": "session-inspect debug CLI / list",
+    "given": {
+      "session_id": "ses_test_cli_011",
+      "messages_in_session": 3
+    },
+    "when": {
+      "action": "opencode session-inspect list ses_test_cli_011"
+    },
+    "then": {
+      "exit_code": 0,
+      "stdout_lines": 3,
+      "stdout_columns": ["id", "role", "time_created", "finish", "tokens_total"]
+    }
+  },
+  {
+    "id": "TV-12",
+    "requirement": "session-inspect debug CLI / check",
+    "given": {
+      "session_id": "ses_test_cli_012",
+      "db_state": "corrupted"
+    },
+    "when": {
+      "action": "opencode session-inspect check ses_test_cli_012"
+    },
+    "then": {
+      "exit_code_nonzero": true,
+      "stdout_contains": "non-ok integrity_check output verbatim"
+    }
+  },
+  {
+    "id": "TV-13",
+    "requirement": "Per-round runloop reads use indexed SQL, not filesystem walk / Scenario: Read full session message stream",
+    "given": {
+      "session_id": "ses_test_perf_013",
+      "message_count": 2253,
+      "format": "sqlite",
+      "average_parts_per_message": 4
+    },
+    "when": {
+      "action": "Session.messages(sessionID) called once"
+    },
+    "then": {
+      "sql_queries_issued": "exactly 2 (one against messages, one against parts WHERE message_id IN ...)",
+      "wall_time_ms_p99": "<= 100",
+      "wall_time_ratio_vs_legacy": "<= 0.30 (i.e. ≥ 70% reduction)"
+    }
+  },
+  {
+    "id": "TV-14",
+    "requirement": "DD-13 no silent fallback",
+    "given": {
+      "session_id": "ses_test_nsf_014",
+      "format": "sqlite",
+      "sqlite_throws_on_read": "simulated I/O error"
+    },
+    "when": {
+      "action": "Session.messages(sessionID) called via Router"
+    },
+    "then": {
+      "router_attempts_legacy_fallback": false,
+      "error_propagates_to_caller": true,
+      "log_emitted": "ERROR with sessionID + underlying SQLite error",
+      "bus_event_published": {
+        "type": "session.storage.read_failed",
+        "payload_keys": ["sessionID", "error"]
+      }
+    }
+  },
+  {
+    "id": "TV-15",
+    "requirement": "DD-3 WAL pragmas applied on every connection open",
+    "given": {
+      "session_id": "ses_test_pragmas_015"
+    },
+    "when": {
+      "action": "ConnectionPool.acquire(sessionID, 'rw') opens a fresh connection"
+    },
+    "then": {
+      "PRAGMA journal_mode": "wal",
+      "PRAGMA synchronous": "1 (NORMAL)",
+      "PRAGMA foreign_keys": "1 (ON)"
+    }
+  }
+]

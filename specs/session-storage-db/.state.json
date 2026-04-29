@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "state": "planned",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-04-29T07:30:50.664Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-04-29T08:34:05.606Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "spec.md / design.md / data-schema.json / c4.json / sequence.json / idef0.json / grafcet.json drafted; seven proposal-stage decisions captured as DD-1..DD-14"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-04-29T08:46:45.537Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "tasks.md (9 phases) + handoff.md + test-vectors.json (15 vectors) + errors.md + observability.md + invariants.md drafted; Execution-Ready checklist defined"
+    }
+  ]
+}
