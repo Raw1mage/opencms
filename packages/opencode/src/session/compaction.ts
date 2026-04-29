@@ -140,6 +140,39 @@ export namespace SessionCompaction {
     ),
   }
 
+  // Bridge: opencode-side Compacted event → codex-provider chain reset.
+  // After every successful compaction, clear codex's lastResponseId so
+  // the next request to /responses starts a fresh server-side chain.
+  // Without this, codex accumulates a hidden chain via
+  // previous_response_id that grows past model.contextLimit even when
+  // opencode's own observedTokens shows ample room — leading to
+  // "Codex WS: input exceeds context window" rejections that no amount
+  // of opencode-side compaction can fix.
+  //
+  // Dynamic import at fire time to avoid pulling codex-provider into
+  // compaction.ts's static import graph (provider-agnostic core stays
+  // provider-agnostic; the runtime bridge is the only coupling).
+  Bus.subscribe(Event.Compacted, async (evt) => {
+    try {
+      const { invalidateContinuation } = await import(
+        "@opencode-ai/codex-provider/continuation"
+      )
+      invalidateContinuation(evt.properties.sessionID)
+      Log.create({ service: "session.compaction" }).info(
+        "codex chain reset after compaction (lastResponseId cleared)",
+        { sessionID: evt.properties.sessionID },
+      )
+    } catch (err) {
+      Log.create({ service: "session.compaction" }).warn(
+        "codex chain reset failed (non-fatal)",
+        {
+          sessionID: evt.properties.sessionID,
+          error: err instanceof Error ? err.message : String(err),
+        },
+      )
+    }
+  })
+
   const COMPACTION_BUFFER = 20_000
   const DEFAULT_HEADROOM = 8_000
   const DEFAULT_COOLDOWN_ROUNDS = 8
