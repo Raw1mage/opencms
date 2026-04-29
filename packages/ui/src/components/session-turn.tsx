@@ -537,9 +537,15 @@ export function SessionTurn(
   const working = createMemo(() => status().type !== "idle" && isLastUserMessage())
   const active = createMemo(() => {
     const msg = message()
+    if (!msg) return false
     const parent = pendingUser()
-    if (!msg || !parent) return false
-    return parent.id === msg.id
+    if (parent && parent.id === msg.id) return true
+    // Post-Phase-9 fire-and-forget subagent: parent's assistant message is
+    // already finalized (no `pending` to anchor on) but a subagent is still
+    // running on this turn's behalf. Treat the last-user turn as active so
+    // the clock + status text keep showing while the child works.
+    if (isLastUserMessage() && data.store.active_child?.[props.sessionID]) return true
+    return false
   })
   const queued = createMemo(() => {
     const id = message()?.id

@@ -34,6 +34,13 @@ type Data = {
   part: {
     [messageID: string]: Part[]
   }
+  // Subagent attached to a parent session. Keyed by parent sessionID;
+  // session-turn uses presence (truthy) to decide when to keep the
+  // working/spinner state visible after the parent's runloop has
+  // already finalized its assistant message (post-Phase-9 fire-and-forget).
+  active_child?: {
+    [sessionID: string]: { sessionID?: string } | undefined
+  }
 }
 
 export type PermissionRespondFn = (input: {
