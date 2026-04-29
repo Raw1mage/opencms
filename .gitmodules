@@ -28,3 +28,6 @@
 [submodule "refs/guard22-opencode-multi-auth-codex"]
 	path = refs/guard22-opencode-multi-auth-codex
 	url = https://github.com/guard22/opencode-multi-auth-codex.git
+[submodule "refs/agentmemory"]
+	path = refs/agentmemory
+	url = https://github.com/rohitg00/agentmemory
