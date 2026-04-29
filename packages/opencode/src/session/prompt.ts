@@ -1485,7 +1485,7 @@ export namespace SessionPrompt {
       }
 
       // Hotfix 2026-04-29: tool-call planning loop detector. When the model
-      // calls the same tool with near-identical input across 3 consecutive
+      // calls the same tool with near-identical input across 2 consecutive
       // assistant turns, treat it as paralysis (the tool-result didn't help
       // it advance) and surface an error instead of letting runloop continue
       // forever. Symptom that motivated this: 116-round todowrite loop on a
@@ -1493,12 +1493,13 @@ export namespace SessionPrompt {
       // todo list with cosmetic edits.
       //
       // Signature: array of `<toolName>:<first-200-chars-of-input>` per tool
-      // call. Three consecutive completed assistant turns with identical
-      // signatures → hard stop. Single-tool-once-each is fine; only triple-
-      // repeat trips the brake.
+      // call. Two consecutive completed assistant turns with identical
+      // signatures → hard stop. Single-tool-once-each is fine; even one
+      // repeat trips the brake. (Tightened from 3 → 2 per user request:
+      // 3 felt too lenient when each loop costs an LLM call.)
       if (lastAssistant?.finish === "tool-calls" && lastAssistant.id > lastUser.id) {
         const recentAssistants: MessageV2.WithParts[] = []
-        for (let i = msgs.length - 1; i >= 0 && recentAssistants.length < 3; i--) {
+        for (let i = msgs.length - 1; i >= 0 && recentAssistants.length < 2; i--) {
           if (msgs[i].info.role === "assistant") {
             const a = msgs[i].info as MessageV2.Assistant
             if (a.finish === "tool-calls" && (a.tokens.input > 0 || a.tokens.output > 0)) {
@@ -1506,7 +1507,7 @@ export namespace SessionPrompt {
             }
           }
         }
-        if (recentAssistants.length === 3) {
+        if (recentAssistants.length === 2) {
           const sigs = recentAssistants.map((m) => {
             const tools = m.parts.filter((p) => p.type === "tool")
             return tools
@@ -1518,16 +1519,16 @@ export namespace SessionPrompt {
               })
               .join("|")
           })
-          if (sigs[0] && sigs[0] === sigs[1] && sigs[1] === sigs[2]) {
+          if (sigs[0] && sigs[0] === sigs[1]) {
             log.warn("breaking tool-call planning loop", {
               sessionID,
               step,
               signature: sigs[0].slice(0, 200),
-              consecutiveRepeats: 3,
+              consecutiveRepeats: 2,
             })
             lastAssistant.error = new NamedError.Unknown({
               message:
-                "Model is repeating the same tool call (3 consecutive identical turns). Stopping to prevent runaway. The model may be paralyzed planning instead of acting — try rephrasing your request, or send a corrective instruction.",
+                "Model is repeating the same tool call (2 consecutive identical turns). Stopping to prevent runaway. The model may be paralyzed planning instead of acting — try rephrasing your request, or send a corrective instruction.",
             }).toObject()
             lastAssistant.finish = "error"
             await Session.updateMessage(lastAssistant)
