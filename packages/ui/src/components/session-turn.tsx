@@ -910,11 +910,10 @@ export function SessionTurn(
                           shellToolDefaultOpen={props.shellToolDefaultOpen}
                           editToolDefaultOpen={props.editToolDefaultOpen}
                         />
-                        <Show when={error()}>
-                          <Card variant="error" class="error-card">
-                            {errorText()}
-                          </Card>
-                        </Show>
+                        {/* error card moved to a single render site at turn bottom (see below).
+                            previously this site rendered an error card unconditionally and the
+                            turn-bottom site rendered another one when !stepsExpanded — both
+                            appeared simultaneously when steps were collapsed, doubling the red. */}
                       </div>
                     </Show>
                     <Show when={!!retry() || (working() && active())}>
@@ -1007,7 +1006,7 @@ export function SessionTurn(
                         </div>
                       </div>
                     </Show>
-                    <Show when={error() && !props.stepsExpanded}>
+                    <Show when={error()}>
                       <Card variant="error" class="error-card">
                         {errorText()}
                       </Card>
