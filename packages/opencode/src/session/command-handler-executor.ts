@@ -89,13 +89,18 @@ export async function executeHandledCommand(input: {
 
   const result = await input.commandInfo.handler({ sessionID: input.sessionID })
 
+  // Title was previously stored as `metadata: { title }`, but TextPart
+  // metadata flows into AI SDK's providerMetadata on the next turn, which
+  // requires every value be a Record (not a bare string). The string
+  // title there breaks the entire session until it's discarded. Title
+  // wasn't actually rendered by any UI consumer anyway, so drop it here
+  // and (when worth surfacing) prefix the output text instead.
   const part = await Session.updatePart({
     id: Identifier.ascending("part"),
     messageID: assistantMsg.id,
     sessionID: input.sessionID,
     type: "text",
-    text: result.output,
-    metadata: result.title ? { title: result.title } : undefined,
+    text: result.title ? `**${result.title}**\n\n${result.output}` : result.output,
   })
 
   assistantMsg.time.completed = Date.now()

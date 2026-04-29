@@ -708,6 +708,27 @@ export namespace MessageV2 {
     return normalized
   }
 
+  /**
+   * Filter `part.metadata` down to entries safe to feed back as
+   * AI SDK `providerMetadata`. Provider metadata schema requires every
+   * top-level value to be a Record (object) — historical writers
+   * (command-handler-executor stored `{ title: "..." }`) violated this
+   * and broke whole sessions until manually wiped. Strip any value
+   * that isn't a plain object before forwarding.
+   */
+  function safeProviderMetadata(metadata: unknown): Record<string, any> | undefined {
+    if (!metadata || typeof metadata !== "object") return undefined
+    const out: Record<string, any> = {}
+    let kept = 0
+    for (const [k, v] of Object.entries(metadata as Record<string, unknown>)) {
+      if (v && typeof v === "object" && !Array.isArray(v)) {
+        out[k] = v as Record<string, unknown>
+        kept++
+      }
+    }
+    return kept > 0 ? out : undefined
+  }
+
   export function toModelMessages(input: WithParts[], model: Provider.Model): ModelMessage[] {
     const result: UIMessage[] = []
     const toolNames = new Set<string>()
@@ -840,7 +861,7 @@ export namespace MessageV2 {
                 assistantMessage.parts.push({
                   type: "text",
                   text: part.text,
-                  ...(flushRemoteRefs ? {} : { providerMetadata: part.metadata }),
+                  ...(flushRemoteRefs ? {} : { providerMetadata: safeProviderMetadata(part.metadata) }),
                 }))
           if (part.type === "tool") {
             replayDebug.toolParts++
@@ -863,7 +884,7 @@ export namespace MessageV2 {
                 toolCallId: part.callID,
                 input: normalizeToolCallInput(part.tool, part.state.input) ?? {},
                 output,
-                ...(flushRemoteRefs ? {} : { callProviderMetadata: part.metadata }),
+                ...(flushRemoteRefs ? {} : { callProviderMetadata: safeProviderMetadata(part.metadata) }),
               })
             }
             if (part.state.status === "error")
@@ -873,7 +894,7 @@ export namespace MessageV2 {
                 toolCallId: part.callID,
                 input: normalizeToolCallInput(part.tool, part.state.input) ?? {},
                 errorText: part.state.error ?? "[Unknown error]",
-                ...(flushRemoteRefs ? {} : { callProviderMetadata: part.metadata }),
+                ...(flushRemoteRefs ? {} : { callProviderMetadata: safeProviderMetadata(part.metadata) }),
               })
             // Handle pending/running tool calls to prevent dangling tool_use blocks
             // Anthropic/Claude APIs require every tool_use to have a corresponding tool_result
@@ -884,7 +905,7 @@ export namespace MessageV2 {
                 toolCallId: part.callID,
                 input: normalizeToolCallInput(part.tool, part.state.input) ?? {},
                 errorText: "[Tool execution was interrupted]",
-                ...(flushRemoteRefs ? {} : { callProviderMetadata: part.metadata }),
+                ...(flushRemoteRefs ? {} : { callProviderMetadata: safeProviderMetadata(part.metadata) }),
               })
           }
           if (part.type === "reasoning") {
@@ -893,7 +914,7 @@ export namespace MessageV2 {
             assistantMessage.parts.push({
               type: "reasoning",
               text: part.text,
-              ...(flushRemoteRefs ? {} : { providerMetadata: part.metadata }),
+              ...(flushRemoteRefs ? {} : { providerMetadata: safeProviderMetadata(part.metadata) }),
             })
           }
         }
