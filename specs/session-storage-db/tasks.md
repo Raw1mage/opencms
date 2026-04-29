@@ -11,10 +11,10 @@ Phased execution checklist. Each phase is a coherent slice that can be implement
 
 ## 2. SQLite store v1 — schema, pool, integrity, migration runner
 
-- [ ] 2.1 Add `storage/migrations/v1.ts` containing the DDL + indexes from `data-schema.json`; export `applyV1(db)` and `rollbackV1(db)` (rollback is a no-op for the initial schema but the unit-test pair contract starts here)
-- [ ] 2.2 Add `storage/pool.ts` (`ConnectionPool`): bounded LRU keyed by sessionID, `acquire(sessionID, mode: "rw" | "ro")`, `release()`, idle close after `CONNECTION_IDLE_MS` (default 60s), pool cap 32
-- [ ] 2.3 Add `storage/integrity.ts` (`IntegrityChecker`): runs `PRAGMA integrity_check`, caches per-connection result, publishes `session.storage.corrupted` Bus event on failure (event payload defined in `observability.md`)
-- [ ] 2.4 Add `storage/migration-runner.ts` (`MigrationRunner`): reads `meta.schema_version`, dispatches to `migrations/vN.ts`, wraps in transaction, ROLLBACK on error, publishes `session.storage.migration_failed` event
+- [x] 2.1 Add `storage/migrations/v1.ts` containing the DDL + indexes from `data-schema.json`; export `applyV1(db)` and `rollbackV1(db)` (rollback is a no-op for the initial schema but the unit-test pair contract starts here)
+- [x] 2.2 Add `storage/pool.ts` (`ConnectionPool`): bounded LRU keyed by sessionID, `acquire(sessionID, mode: "rw" | "ro")`, `release()`, idle close after `CONNECTION_IDLE_MS` (default 60s), pool cap 32
+- [x] 2.3 Add `storage/integrity.ts` (`IntegrityChecker`): runs `PRAGMA integrity_check`, caches per-connection result, publishes `session.storage.corrupted` Bus event on failure (event payload defined in `observability.md`)
+- [x] 2.4 Add `storage/migration-runner.ts` (`MigrationRunner`): reads `meta.schema_version`, dispatches to `migrations/vN.ts`, wraps in transaction, ROLLBACK on error, publishes `session.storage.migration_failed` event
 - [ ] 2.5 Add `storage/sqlite.ts` (`SqliteStore`) implementing the LegacyStore interface contract: `list(sessionID)`, `get(sessionID, messageID)`, `parts(messageID)`, `upsertMessage(...)`, `upsertPart(...)`, `deleteSession(sessionID)`; opens via Pool, runs IntegrityChecker on first acquire, runs MigrationRunner if schema_version mismatches
 - [ ] 2.6 Apply pragmas (`journal_mode=WAL`, `synchronous=NORMAL`, `foreign_keys=ON`) on every connection open
 - [ ] 2.7 Implement message info ↔ row encode/decode: promote `tokens.total` etc. to columns (DD-6); fall through `info_extra_json` for fields without a column
