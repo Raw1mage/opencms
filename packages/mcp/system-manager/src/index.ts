@@ -2,15 +2,17 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js"
 import { promises as fs, existsSync } from "fs"
-import { exec } from "child_process"
+import { exec, execFile } from "child_process"
 import { promisify } from "util"
 import os from "os"
 import path from "path"
-import { fileURLToPath } from "url"
+import { fileURLToPath, pathToFileURL } from "url"
+import { createHash } from "crypto"
 import { validateForkResult, validateForkSource } from "./system-manager-session"
 import { patchSessionExecutionViaApi, patchSessionViaApi } from "./system-manager-http"
 
 const execAsync = promisify(exec)
+const execFileAsync = promisify(execFile)
 
 const HOME = process.env.HOME ?? os.homedir()
 const XDG_CONFIG_HOME = process.env.XDG_CONFIG_HOME ?? path.join(HOME, ".config")
@@ -38,6 +40,16 @@ const INLINE_IMAGE_MIME_BY_EXT: Record<string, string> = {
   ".webp": "image/webp",
 }
 const INLINE_IMAGE_MAX_BYTES = 10 * 1024 * 1024
+const SOFFICE_CANDIDATES = [
+  process.env.SOFFICE?.trim(),
+  "soffice",
+  "libreoffice",
+  "/usr/bin/soffice",
+  "/usr/bin/libreoffice",
+  "/Applications/LibreOffice.app/Contents/MacOS/soffice",
+  "C:\\Program Files\\LibreOffice\\program\\soffice.exe",
+  "C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe",
+].filter((candidate): candidate is string => Boolean(candidate))
 
 async function pathExists(targetPath: string) {
   try {
@@ -57,6 +69,60 @@ function inferInlineImageMimeType(targetPath: string, mediaType?: string) {
 
 function isSupportedInlineImageMimeType(mimeType: string | undefined) {
   return !!mimeType && Object.values(INLINE_IMAGE_MIME_BY_EXT).includes(mimeType)
+}
+
+async function resolveSoffice() {
+  for (const candidate of SOFFICE_CANDIDATES) {
+    try {
+      await execFileAsync(candidate, ["--version"], { timeout: 5000 })
+      return candidate
+    } catch {}
+  }
+  throw new Error(
+    "LibreOffice not found. Install LibreOffice or set SOFFICE=/absolute/path/to/soffice to preview .docx files as selectable PDFs.",
+  )
+}
+
+async function docxPreviewPdf(targetPath: string) {
+  if (!path.isAbsolute(targetPath)) throw new Error("open_fileview requires an absolute path for .docx preview")
+  const ext = path.extname(targetPath).toLowerCase()
+  if (ext !== ".docx") return undefined
+
+  const stat = await fs.stat(targetPath)
+  if (!stat.isFile()) throw new Error(`DOCX preview path is not a file: ${targetPath}`)
+
+  const cacheKey = createHash("sha256")
+    .update(`${targetPath}\n${stat.size}\n${stat.mtimeMs}`)
+    .digest("hex")
+    .slice(0, 24)
+  const outDir = path.join(path.dirname(targetPath), ".opencode", "fileview-preview", "docx", cacheKey)
+  const outPdf = path.join(outDir, `${path.basename(targetPath, ext)}.pdf`)
+
+  if (existsSync(outPdf)) return outPdf
+
+  const soffice = await resolveSoffice()
+  await fs.mkdir(outDir, { recursive: true })
+  const profileDir = path.join(outDir, "lo-profile")
+  const profileUri = pathToFileURL(profileDir).href
+
+  await execFileAsync(
+    soffice,
+    [
+      "--headless",
+      `-env:UserInstallation=${profileUri}`,
+      "--convert-to",
+      "pdf",
+      "--outdir",
+      outDir,
+      targetPath,
+    ],
+    { timeout: 120000, maxBuffer: 1024 * 1024 * 8 },
+  )
+
+  if (!existsSync(outPdf)) {
+    throw new Error(`LibreOffice did not produce expected PDF preview: ${outPdf}`)
+  }
+  return outPdf
 }
 
 // Resolve the daemon unix socket path (same logic as server/daemon.ts)
@@ -473,7 +539,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "open_fileview",
-        description: "Open a file in the web UI file viewer tab. Use this to display rich content (HTML, markdown, SVG) to the user without reading it yourself. The file will open in a new tab in the file viewer panel.",
+        description: "Open a file in the web UI file viewer tab. Use this to display rich content (HTML, markdown, SVG, PDF) to the user without reading it yourself. DOCX files are converted to a cached PDF preview first so original page layout is preserved while text remains selectable. The file will open in a new tab in the file viewer panel.",
         inputSchema: {
           type: "object",
           properties: {
@@ -1010,14 +1076,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     if (name === "open_fileview") {
       const { path: targetPath, title } = args as { path: string; title?: string }
+      const previewPath = (await docxPreviewPdf(targetPath)) ?? targetPath
+      const displayTitle = title ?? (previewPath === targetPath ? targetPath : `${path.basename(targetPath)} (PDF preview)`)
       // Write to KV store — frontend watches for fileview_open changes
       let kv: any = {}
       try {
         kv = JSON.parse(await fs.readFile(KV_PATH, "utf-8"))
       } catch (e) {}
-      kv.fileview_open = { path: targetPath, title: title ?? targetPath, ts: Date.now() }
+      kv.fileview_open = { path: previewPath, title: displayTitle, ts: Date.now() }
       await fs.writeFile(KV_PATH, JSON.stringify(kv, null, 2))
-      return { content: [{ type: "text", text: `File viewer opened: ${title ?? targetPath}` }] }
+      return { content: [{ type: "text", text: `File viewer opened: ${displayTitle}` }] }
     }
 
     if (name === "display_inline_image") {
