@@ -88,3 +88,22 @@ export function invalidateContinuation(sessionId: string) {
     save()
   }
 }
+
+/**
+ * Invalidate the base session continuation and every per-account continuation
+ * shard (`${sessionId}:${accountId}`). Compaction/rebind changes the local
+ * context generation, so all Codex server-side response chains for that
+ * session become unsafe, not only the currently active account shard.
+ */
+export function invalidateContinuationFamily(sessionId: string) {
+  const store = load()
+  let changed = false
+  for (const key of Object.keys(store)) {
+    if (key === sessionId || key.startsWith(`${sessionId}:`)) {
+      delete store[key].lastResponseId
+      delete store[key].lastInputLength
+      changed = true
+    }
+  }
+  if (changed) save()
+}

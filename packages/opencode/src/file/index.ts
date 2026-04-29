@@ -753,6 +753,16 @@ export namespace File {
     const validated = await assertWithinProject(full)
 
     // Fast path: check extension before any filesystem operations
+    if (path.extname(file).toLowerCase() === ".pdf") {
+      const bunFile = Bun.file(full)
+      if (await bunFile.exists()) {
+        const buffer = await bunFile.arrayBuffer().catch(() => new ArrayBuffer(0))
+        const content = Buffer.from(buffer).toString("base64")
+        return { type: "text", content, mimeType: "application/pdf", encoding: "base64" }
+      }
+      return { type: "text", content: "" }
+    }
+
     if (isImageByExtension(file)) {
       const bunFile = Bun.file(full)
       if (await bunFile.exists()) {

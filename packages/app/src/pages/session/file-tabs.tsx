@@ -278,6 +278,10 @@ export function FileTabContent(props: {
     return p.endsWith(".svg") || mimeType.startsWith("image/svg+xml")
   })
   const isBinary = createMemo(() => state()?.content?.type === "binary")
+  const isPdf = createMemo(() => {
+    const c = state()?.content
+    return c?.encoding === "base64" && c.mimeType?.toLowerCase() === "application/pdf"
+  })
   const isHtml = createMemo(() => path()?.endsWith(".html") || path()?.endsWith(".htm"))
   const isMarkdown = createMemo(() => isMarkdownPath(path()))
   const svgContent = createMemo(() => {
@@ -317,6 +321,11 @@ export function FileTabContent(props: {
     if (!isImage()) return
     const c = state()?.content
     return `data:${c?.mimeType};base64,${c?.content}`
+  })
+  const pdfDataUrl = createMemo(() => {
+    if (!isPdf()) return
+    const c = state()?.content
+    return `data:application/pdf;base64,${c?.content}`
   })
   const selectedLines = createMemo(() => {
     const p = path()
@@ -739,6 +748,13 @@ export function FileTabContent(props: {
               class="w-full border-0"
               style={{ height: "calc(100vh - 120px)" }}
               title={path()?.split("/").pop() ?? "HTML"}
+            />
+          </Match>
+          <Match when={state()?.loaded && isPdf()}>
+            <iframe
+              src={pdfDataUrl()}
+              class="h-[calc(100vh-120px)] w-full border-0 bg-white"
+              title={path()?.split("/").pop() ?? "PDF"}
             />
           </Match>
           <Match when={state()?.loaded && isBinary()}>

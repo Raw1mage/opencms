@@ -163,10 +163,15 @@ export function mapResponseStream(
         state.toolArgBuffer.clear()
 
         // Determine finish reason: function_call present → "tool-calls" (§4.6)
+        // No terminal event (response.completed/incomplete/failed/error) ever
+        // arrived → state.finishReason is null. Use "unknown" not "other" so
+        // the runloop's empty-response guard (prompt.ts §empty-round) engages
+        // instead of silently exiting. See also: hotfix in prompt.ts that
+        // treats "other" identically as a defense-in-depth.
         const finishReason: LanguageModelV2FinishReason =
           state.finishReason === "stop" && state.hasFunctionCall
             ? "tool-calls"
-            : (state.finishReason ?? "other")
+            : (state.finishReason ?? "unknown")
 
         // Emit finish
         controller.enqueue({

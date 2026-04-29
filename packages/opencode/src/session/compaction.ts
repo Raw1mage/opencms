@@ -159,19 +159,17 @@ export namespace SessionCompaction {
   export async function publishCompactedAndResetChain(sessionID: string) {
     Bus.publish(Event.Compacted, { sessionID })
     try {
-      const { invalidateContinuation } = await import(
-        "@opencode-ai/codex-provider/continuation"
-      )
-      invalidateContinuation(sessionID)
+      const { invalidateContinuationFamily } = await import("@opencode-ai/codex-provider/continuation")
+      invalidateContinuationFamily(sessionID)
       Log.create({ service: "session.compaction" }).info(
-        "codex chain reset after compaction (lastResponseId cleared)",
+        "codex chain family reset after compaction (lastResponseId cleared)",
         { sessionID },
       )
     } catch (err) {
-      Log.create({ service: "session.compaction" }).warn(
-        "codex chain reset failed (non-fatal)",
-        { sessionID, error: err instanceof Error ? err.message : String(err) },
-      )
+      Log.create({ service: "session.compaction" }).warn("codex chain reset failed (non-fatal)", {
+        sessionID,
+        error: err instanceof Error ? err.message : String(err),
+      })
     }
   }
 
@@ -258,10 +256,7 @@ export namespace SessionCompaction {
     //         for codex/byToken billing where the legacy 80K headroom
     //         produced overly-aggressive ~70% triggers)
     const overflowThreshold = config.compaction?.overflowThreshold
-    const usable =
-      typeof overflowThreshold === "number"
-        ? Math.floor(context * overflowThreshold)
-        : reservedBasedUsable
+    const usable = typeof overflowThreshold === "number" ? Math.floor(context * overflowThreshold) : reservedBasedUsable
 
     // Emergency ceiling: hard limit that ignores cooldown
     const emergencyCeiling = input.model.limit.input
@@ -714,13 +709,13 @@ export namespace SessionCompaction {
    * Narrative empty → chain falls through to next kind naturally.
    */
   const KIND_CHAIN: Readonly<Record<Observed, ReadonlyArray<KindName>>> = Object.freeze({
-    "overflow": Object.freeze(["narrative", "replay-tail", "low-cost-server", "llm-agent"] as const),
+    overflow: Object.freeze(["narrative", "replay-tail", "low-cost-server", "llm-agent"] as const),
     "cache-aware": Object.freeze(["narrative", "replay-tail", "low-cost-server", "llm-agent"] as const),
-    "idle": Object.freeze(["narrative", "replay-tail"] as const),
-    "rebind": Object.freeze(["narrative", "replay-tail"] as const),
+    idle: Object.freeze(["narrative", "replay-tail"] as const),
+    rebind: Object.freeze(["narrative", "replay-tail"] as const),
     "continuation-invalidated": Object.freeze(["narrative", "replay-tail"] as const),
     "provider-switched": Object.freeze(["narrative"] as const),
-    "manual": Object.freeze(["narrative", "low-cost-server", "llm-agent"] as const),
+    manual: Object.freeze(["narrative", "low-cost-server", "llm-agent"] as const),
   })
 
   /**
@@ -731,13 +726,13 @@ export namespace SessionCompaction {
    * structurally extinct.
    */
   const INJECT_CONTINUE: Readonly<Record<Observed, boolean>> = Object.freeze({
-    "overflow": true,
+    overflow: true,
     "cache-aware": true,
-    "idle": true,
-    "rebind": false,
+    idle: true,
+    rebind: false,
     "continuation-invalidated": false,
     "provider-switched": false,
-    "manual": false,
+    manual: false,
   })
 
   /**
@@ -771,9 +766,7 @@ export namespace SessionCompaction {
       return Date.now() - anchorTime < COOLDOWN_MS
     }
 
-    function findMostRecentAnchorMessage(
-      messages: MessageV2.WithParts[],
-    ): MessageV2.WithParts | undefined {
+    function findMostRecentAnchorMessage(messages: MessageV2.WithParts[]): MessageV2.WithParts | undefined {
       for (let i = messages.length - 1; i >= 0; i--) {
         const m = messages[i]
         if (m.info.role === "assistant" && (m.info as MessageV2.Assistant).summary === true) {
@@ -969,9 +962,7 @@ export namespace SessionCompaction {
               call_id: (p as any).toolCallId ?? p.id,
               name: p.tool,
               arguments:
-                typeof (p as any).input === "string"
-                  ? (p as any).input
-                  : JSON.stringify((p as any).input ?? {}),
+                typeof (p as any).input === "string" ? (p as any).input : JSON.stringify((p as any).input ?? {}),
             })
             const stateOutput = p.state.output
             if (stateOutput != null && typeof stateOutput !== "string") {
@@ -1069,8 +1060,7 @@ export namespace SessionCompaction {
 
     const agentModel = agent.model as { accountId?: string } | undefined
     const session = await Session.get(input.sessionID)
-    const accountId =
-      agentModel?.accountId ?? input.userMessage.model.accountId ?? session?.execution?.accountId
+    const accountId = agentModel?.accountId ?? input.userMessage.model.accountId ?? session?.execution?.accountId
 
     const msg = (await Session.updateMessage({
       id: Identifier.ascending("message"),
@@ -1169,10 +1159,11 @@ When constructing the summary, try to stick to this template:
     const summaryMsg = (await Session.messages({ sessionID: input.sessionID })).findLast(
       (m) => m.info.id === processor.message.id,
     )
-    const summaryText = summaryMsg?.parts
-      .filter((p) => p.type === "text")
-      .map((p) => (p as any).text ?? "")
-      .join("\n") ?? ""
+    const summaryText =
+      summaryMsg?.parts
+        .filter((p) => p.type === "text")
+        .map((p) => (p as any).text ?? "")
+        .join("\n") ?? ""
 
     // Phase 13.2-B: disk-file checkpoint write removed. The summary message
     // written above is the persisted record.
@@ -1224,11 +1215,7 @@ When constructing the summary, try to stick to this template:
    *
    * If the flag is off, in-flight, or anchor is already small, skip.
    */
-  function scheduleHybridEnrichment(
-    sessionID: string,
-    observed: Observed,
-    model: Provider.Model | undefined,
-  ): void {
+  function scheduleHybridEnrichment(sessionID: string, observed: Observed, model: Provider.Model | undefined): void {
     if (!model) return
     const tweaks = Tweaks.compactionSync()
     if (!tweaks.enableHybridLlm) return
@@ -1283,7 +1270,7 @@ When constructing the summary, try to stick to this template:
           },
         }
         const ctx = model.limit?.context ?? 200_000
-        const targetTokens = Math.max(5_000, Math.round(ctx * 0.30))
+        const targetTokens = Math.max(5_000, Math.round(ctx * 0.3))
 
         // STEP 2: run hybrid_llm in background. It creates its OWN stub
         // anchor message (the SessionProcessor pattern requires a
@@ -1316,9 +1303,7 @@ When constructing the summary, try to stick to this template:
         // narrative anchor in place. Demote the stub anchor (set
         // summary=false) so Memory.read no longer treats it as an
         // active anchor candidate.
-        const messagesPost = await Session.messages({ sessionID }).catch(
-          () => [] as MessageV2.WithParts[],
-        )
+        const messagesPost = await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[])
         // Find the stub: the most recent assistant+summary message.
         const stubIdx = (() => {
           for (let i = messagesPost.length - 1; i >= 0; i--) {
@@ -1505,11 +1490,7 @@ When constructing the summary, try to stick to this template:
     // hybrid_llm AFTER chain success means we always have an anchor
     // before user is unblocked, regardless of whether hybrid_llm
     // succeeds or times out.
-    const hybridEnrichmentEligible: ReadonlySet<Observed> = new Set([
-      "overflow",
-      "cache-aware",
-      "manual",
-    ])
+    const hybridEnrichmentEligible: ReadonlySet<Observed> = new Set(["overflow", "cache-aware", "manual"])
 
     const model = await resolveActiveModel(sessionID)
     const target = await resolveTargetPromptTokens()
@@ -1737,11 +1718,11 @@ When constructing the summary, try to stick to this template:
      */
     export interface PinnedZoneEntry {
       role: "user"
-      content: string  // "[Pinned earlier output] tool '<name>' (round <K>, tool_call_id=<TID>) returned:\n<verbatim>"
+      content: string // "[Pinned earlier output] tool '<name>' (round <K>, tool_call_id=<TID>) returned:\n<verbatim>"
       metadata: {
         pinSource: { toolCallId: string; toolName: string; roundIndex: number }
         tokens: number
-        pinnedAt: string  // ISO-8601
+        pinnedAt: string // ISO-8601
         pinnedBy: "ai" | "human"
       }
     }
@@ -1751,9 +1732,9 @@ When constructing the summary, try to stick to this template:
      * (`message.metadata.contextMarkers`). Parsed pre-prompt-build (DD-15).
      */
     export interface ContextMarkers {
-      pin?: string[]   // tool_call ids → materialise into pinned_zone next prompt-build
-      drop?: string[]  // tool_call ids → exclude from next compaction's LLM_compact input
-      recall?: { sessionId?: string; msgId: string }[]  // re-load original disk content into journal tail
+      pin?: string[] // tool_call ids → materialise into pinned_zone next prompt-build
+      drop?: string[] // tool_call ids → exclude from next compaction's LLM_compact input
+      recall?: { sessionId?: string; msgId: string }[] // re-load original disk content into journal tail
     }
 
     /**
@@ -1777,9 +1758,9 @@ When constructing the summary, try to stick to this template:
      * (system + user) using the framing prompt template.
      */
     export interface LLMCompactRequest {
-      priorAnchor: Anchor | null  // null = cold-start
+      priorAnchor: Anchor | null // null = cold-start
       journalUnpinned: JournalEntry[]
-      pinnedZone?: PinnedZoneEntry[]  // Phase 2 only
+      pinnedZone?: PinnedZoneEntry[] // Phase 2 only
       dropMarkers?: string[]
       framing: { mode: "phase1" | "phase2"; strict: boolean }
       targetTokens: number
@@ -1874,7 +1855,7 @@ When constructing the summary, try to stick to this template:
         return { ok: false, reason: "header_missing" }
       }
       // 2. Size <= targetTokens * 1.10 (10% slack for tokenizer drift)
-      const ceil = Math.ceil(request.targetTokens * 1.10)
+      const ceil = Math.ceil(request.targetTokens * 1.1)
       const tokenEst = Math.ceil(body.length / 4)
       if (tokenEst > ceil) {
         return { ok: false, reason: "size_overflow" }
@@ -1968,12 +1949,11 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
       request: LLMCompactRequest,
       meta: { generatedAt: string; provider: string; model: string },
     ): string {
-      const earliest = request.journalUnpinned[0]
-        ? (request.journalUnpinned[0].roundIndex ?? 0)
-        : 0
-      const latest = request.journalUnpinned.length > 0
-        ? (request.journalUnpinned[request.journalUnpinned.length - 1].roundIndex ?? earliest)
-        : earliest
+      const earliest = request.journalUnpinned[0] ? (request.journalUnpinned[0].roundIndex ?? 0) : 0
+      const latest =
+        request.journalUnpinned.length > 0
+          ? (request.journalUnpinned[request.journalUnpinned.length - 1].roundIndex ?? earliest)
+          : earliest
       const lines: string[] = [
         "META:",
         `  generated_at: ${meta.generatedAt}`,
@@ -2062,8 +2042,14 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
               500,
               Math.ceil(
                 request.journalUnpinned.reduce((sum, je) => {
-                  try { return sum + JSON.stringify(je.messages).length } catch { return sum }
-                }, 0) / request.journalUnpinned.length / 4,
+                  try {
+                    return sum + JSON.stringify(je.messages).length
+                  } catch {
+                    return sum
+                  }
+                }, 0) /
+                  request.journalUnpinned.length /
+                  4,
               ),
             )
           : 500
@@ -2138,9 +2124,7 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
               sessionID,
               tools: {},
               system: [ctx.systemText],
-              messages: sanitizeOrphanedToolCalls([
-                { role: "user", content: [{ type: "text", text: userText }] },
-              ]),
+              messages: sanitizeOrphanedToolCalls([{ role: "user", content: [{ type: "text", text: userText }] }]),
               model: ctx.model,
             })
             if (processor.message.error || result !== "continue") {
@@ -2160,7 +2144,11 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
             }
           }
           const fresh = (await Session.messages({ sessionID })).findLast((m) => m.info.id === processor.message.id)
-          finalAnchorBody = fresh?.parts.filter((p) => p.type === "text").map((p) => (p as any).text ?? "").join("\n") ?? ""
+          finalAnchorBody =
+            fresh?.parts
+              .filter((p) => p.type === "text")
+              .map((p) => (p as any).text ?? "")
+              .join("\n") ?? ""
           finalMessageId = processor.message.id
         } else {
           // Intermediate chunk — call the LLM but DON'T persist the
@@ -2178,7 +2166,7 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
             mode: "compaction",
             agent: "compaction-chunk",
             variant: ctx.userMessage.variant,
-            summary: true,  // mark to keep prompt-build behaviour consistent
+            summary: true, // mark to keep prompt-build behaviour consistent
             path: { cwd: Instance.directory, root: Instance.worktree },
             cost: 0,
             tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
@@ -2202,9 +2190,7 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
               sessionID,
               tools: {},
               system: [ctx.systemText],
-              messages: sanitizeOrphanedToolCalls([
-                { role: "user", content: [{ type: "text", text: userText }] },
-              ]),
+              messages: sanitizeOrphanedToolCalls([{ role: "user", content: [{ type: "text", text: userText }] }]),
               model: ctx.model,
             })
           } catch (err) {
@@ -2216,7 +2202,11 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
             }
           }
           const fresh = (await Session.messages({ sessionID })).findLast((m) => m.info.id === processor.message.id)
-          const intermediateBody = fresh?.parts.filter((p) => p.type === "text").map((p) => (p as any).text ?? "").join("\n") ?? ""
+          const intermediateBody =
+            fresh?.parts
+              .filter((p) => p.type === "text")
+              .map((p) => (p as any).text ?? "")
+              .join("\n") ?? ""
           // Use intermediate as next iteration's priorAnchor.
           runningDigest = {
             role: "assistant",
@@ -2274,7 +2264,12 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
      */
     export type LlmCompactResult =
       | { ok: true; anchorBody: string; anchorMessageId: string; latencyMs: number; provider: string; model: string }
-      | { ok: false; reason: ValidationFailure | "llm_threw" | "no_response" | "timeout"; detail?: string; latencyMs: number }
+      | {
+          ok: false
+          reason: ValidationFailure | "llm_threw" | "no_response" | "timeout"
+          detail?: string
+          latencyMs: number
+        }
 
     /**
      * Single-pass LLM_compact. Builds the framing prompt + user payload
@@ -2328,6 +2323,20 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
       },
     ): Promise<LlmCompactResult> {
       const startedAt = Date.now()
+      // Reset codex's per-session chain BEFORE dispatching the compaction
+      // LLM call. If we wait for the finally block in runLlmCompact, this
+      // call inherits the previous turn's lastResponseId — and that chain
+      // is exactly what overflowed in the first place. Sending the
+      // compaction prompt atop a stale chain reproduces the same
+      // "exceeds context window" error a second time, which the user
+      // sees as the duplicate display. Idempotent: the finally block
+      // still fires, no harm in calling twice.
+      try {
+        const { invalidateContinuationFamily } = await import("@opencode-ai/codex-provider/continuation")
+        invalidateContinuationFamily(sessionID)
+      } catch {
+        // best-effort; non-codex providers don't expose this module
+      }
       const messages = await Session.messages({ sessionID }).catch(() => undefined)
       if (!messages || messages.length === 0) {
         return { ok: false, reason: "no_response", detail: "empty stream", latencyMs: Date.now() - startedAt }
@@ -2384,8 +2393,7 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
       // Account priority (mirrors model resolution above): the
       // frontend-current account from session.execution wins. Falls
       // back to compaction agent's account, then user message account.
-      const accountId =
-        agentModel?.accountId ?? exec?.accountId ?? userMessage.model.accountId
+      const accountId = agentModel?.accountId ?? exec?.accountId ?? userMessage.model.accountId
 
       // Phase 2.7 chunk-and-merge: when single-pass input exceeds the
       // LLM's per-request budget, switch to sequential digest building.
@@ -2459,9 +2467,7 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
           sessionID,
           tools: {},
           system: [systemText],
-          messages: sanitizeOrphanedToolCalls([
-            { role: "user", content: [{ type: "text", text: userText }] },
-          ]),
+          messages: sanitizeOrphanedToolCalls([{ role: "user", content: [{ type: "text", text: userText }] }]),
           model,
         })
         if (processor.message.error || result !== "continue") {
@@ -2531,10 +2537,7 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
       }
     }
 
-    function applyFramingPlaceholders(
-      template: string,
-      vars: { targetTokens: number; phase2Strict: string },
-    ): string {
+    function applyFramingPlaceholders(template: string, vars: { targetTokens: number; phase2Strict: string }): string {
       return template
         .replaceAll("{{targetTokens}}", String(vars.targetTokens))
         .replaceAll("{{phase2Strict}}", vars.phase2Strict)
@@ -2691,7 +2694,7 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
             inputTokens: inputTokenEstimate(phase2Request),
             outputTokens: Math.ceil(phase2.anchorBody.length / 4),
             pinnedCountIn: opts.pinnedZone.length,
-            pinnedCountOut: 0,  // absorbed
+            pinnedCountOut: 0, // absorbed
             droppedCountIn: opts.dropMarkers?.length,
             recallCountIn: 0,
             voluntary: opts.voluntary,
@@ -2717,7 +2720,7 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
           inputTokens: inputTokenEstimate(phase2Request),
           outputTokens: 0,
           pinnedCountIn: opts.pinnedZone.length,
-          pinnedCountOut: opts.pinnedZone.length,  // not absorbed
+          pinnedCountOut: opts.pinnedZone.length, // not absorbed
           droppedCountIn: opts.dropMarkers?.length,
           recallCountIn: 0,
           voluntary: opts.voluntary,
@@ -2752,7 +2755,9 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
       })
     }
 
-    function classifyErrorCode(reason: LlmCompactResult & { ok: false } extends { reason: infer R } ? R : never): ErrorCode {
+    function classifyErrorCode(
+      reason: LlmCompactResult & { ok: false } extends { reason: infer R } ? R : never,
+    ): ErrorCode {
       if (reason === "timeout") return "E_HYBRID_LLM_TIMEOUT"
       if (reason === "llm_threw" || reason === "no_response") return "E_HYBRID_LLM_FAILED"
       // header_missing / size_overflow / sanity_smaller / forbidden_token / drop_violated
@@ -2821,9 +2826,7 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
       sources: { message: MessageV2.WithParts; toolPart: MessageV2.ToolPart }[],
       opts: { pinnedBy?: "ai" | "human" } = {},
     ): PinnedZoneEntry[] {
-      return sources.map((src) =>
-        wrapPinnedToolMessage(src.toolPart, src.message, { pinnedBy: opts.pinnedBy }),
-      )
+      return sources.map((src) => wrapPinnedToolMessage(src.toolPart, src.message, { pinnedBy: opts.pinnedBy }))
     }
 
     function makeEvent(input: {

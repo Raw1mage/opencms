@@ -300,7 +300,7 @@
       "post": {
         "operationId": "global.web.restart",
         "summary": "Restart web runtime",
-        "description": "Schedule a controlled web runtime restart. Intended for authenticated operators; clients should wait for health recovery and then reload.",
+        "description": "Schedule a controlled web runtime restart. Intended for authenticated operators; clients should wait for health recovery and then reload. Optional `targets` body selects which layers to rebuild (daemon/frontend/gateway); when omitted, webctl.sh auto-detects dirty layers and skips unchanged ones.",
         "responses": {
           "200": {
             "description": "Restart accepted",
@@ -355,6 +355,36 @@
                     "fallbackReloadAfterMs",
                     "recoveryDeadlineMs"
                   ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another restart is already in progress"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "targets": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "daemon",
+                        "frontend",
+                        "gateway"
+                      ]
+                    }
+                  },
+                  "reason": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
                 }
               }
             }
@@ -455,6 +485,121 @@
                 "required": [
                   "level"
                 ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/server/cache/health": {
+      "get": {
+        "operationId": "server.cacheHealth",
+        "summary": "Get session cache and rate-limit health",
+        "description": "Returns cache entry count, hit/miss rate over the past 5 minutes, invalidation subscription liveness, and rate-limit usage. Used by operators and by AC-5 drills to detect silent degradation.",
+        "responses": {
+          "200": {
+            "description": "Health snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "entries": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "maxEntries": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "hitRate": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "missRate": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "invalidationCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "evictionCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "subscriptionAlive": {
+                      "type": "boolean"
+                    },
+                    "ttlSec": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "rateLimit": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "allowedCount": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "throttledCount": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "activeBuckets": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "enabled",
+                        "allowedCount",
+                        "throttledCount",
+                        "activeBuckets"
+                      ]
+                    },
+                    "source": {
+                      "type": "object",
+                      "properties": {
+                        "path": {
+                          "type": "string"
+                        },
+                        "present": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "path",
+                        "present"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "entries",
+                    "maxEntries",
+                    "hitRate",
+                    "missRate",
+                    "invalidationCount",
+                    "evictionCount",
+                    "subscriptionAlive",
+                    "ttlSec",
+                    "rateLimit",
+                    "source"
+                  ]
+                }
               }
             }
           }
@@ -3183,6 +3328,162 @@
         }
       }
     },
+    "/api/v2/config/tweaks/frontend": {
+      "get": {
+        "operationId": "config.tweaks.frontend",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Get frontend tweaks",
+        "description": "Return the frontend-facing subset of /etc/opencode/tweaks.cfg so the webapp does not have to read the file itself. See specs/frontend-session-lazyload/ DD-3, DD-7, DD-8.",
+        "responses": {
+          "200": {
+            "description": "Frontend tweaks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "frontend_session_lazyload": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "const": 0
+                        },
+                        {
+                          "type": "number",
+                          "const": 1
+                        }
+                      ]
+                    },
+                    "part_inline_cap_kb": {
+                      "type": "integer",
+                      "minimum": 4,
+                      "maximum": 4096
+                    },
+                    "tail_window_kb": {
+                      "type": "integer",
+                      "minimum": 4,
+                      "maximum": 4096
+                    },
+                    "fold_preview_lines": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 200
+                    },
+                    "initial_page_size_small": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "all"
+                        },
+                        {
+                          "type": "integer",
+                          "minimum": 10,
+                          "maximum": 1000
+                        }
+                      ]
+                    },
+                    "initial_page_size_medium": {
+                      "type": "integer",
+                      "minimum": 10,
+                      "maximum": 1000
+                    },
+                    "initial_page_size_large": {
+                      "type": "integer",
+                      "minimum": 10,
+                      "maximum": 1000
+                    },
+                    "session_size_threshold_kb": {
+                      "type": "integer",
+                      "minimum": 64,
+                      "maximum": 9007199254740991
+                    },
+                    "session_size_threshold_parts": {
+                      "type": "integer",
+                      "minimum": 10,
+                      "maximum": 9007199254740991
+                    },
+                    "ui_session_freshness_enabled": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "const": 0
+                        },
+                        {
+                          "type": "number",
+                          "const": 1
+                        }
+                      ]
+                    },
+                    "ui_freshness_threshold_sec": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 3600
+                    },
+                    "ui_freshness_hard_timeout_sec": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 86400
+                    },
+                    "session_tail_mobile": {
+                      "type": "integer",
+                      "minimum": 5,
+                      "maximum": 500
+                    },
+                    "session_tail_desktop": {
+                      "type": "integer",
+                      "minimum": 5,
+                      "maximum": 2000
+                    },
+                    "session_store_cap_mobile": {
+                      "type": "integer",
+                      "minimum": 30,
+                      "maximum": 2000
+                    },
+                    "session_store_cap_desktop": {
+                      "type": "integer",
+                      "minimum": 50,
+                      "maximum": 5000
+                    },
+                    "session_part_cap_bytes": {
+                      "type": "integer",
+                      "minimum": 16000,
+                      "maximum": 16000000
+                    }
+                  },
+                  "required": [
+                    "frontend_session_lazyload",
+                    "part_inline_cap_kb",
+                    "tail_window_kb",
+                    "fold_preview_lines",
+                    "initial_page_size_small",
+                    "initial_page_size_medium",
+                    "initial_page_size_large",
+                    "session_size_threshold_kb",
+                    "session_size_threshold_parts",
+                    "ui_session_freshness_enabled",
+                    "ui_freshness_threshold_sec",
+                    "ui_freshness_hard_timeout_sec",
+                    "session_tail_mobile",
+                    "session_tail_desktop",
+                    "session_store_cap_mobile",
+                    "session_store_cap_desktop",
+                    "session_part_cap_bytes"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/experimental/debug-beacon": {
       "post": {
         "operationId": "experimental.debug.beacon",
@@ -3251,6 +3552,72 @@
                 "required": [
                   "event"
                 ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/experimental/client-diag": {
+      "post": {
+        "operationId": "experimental.clientDiag",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Record a one-shot client diagnostic snapshot",
+        "description": "Always-on (not gated by OPENCODE_DEBUG_BEACON) endpoint for a mobile-friendly 'diag button' — the client collects its observable state (session message counts, last SSE event age, etc.) and POSTs it here. Server writes an info-level log line tagged [client-diag] so it can be retrieved by grep later during RCA. Intended for cases where the user cannot open browser DevTools (mobile).",
+        "responses": {
+          "200": {
+            "description": "Snapshot recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "serverReceivedAt": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "serverReceivedAt"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sessionID": {
+                    "type": "string"
+                  },
+                  "note": {
+                    "type": "string"
+                  },
+                  "snapshot": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  }
+                }
               }
             }
           }
@@ -4431,6 +4798,103 @@
         }
       }
     },
+    "/api/v2/session/{sessionID}/meta": {
+      "get": {
+        "operationId": "session.meta",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sessionID",
+            "schema": {
+              "type": "string",
+              "pattern": "^ses.*"
+            },
+            "required": true
+          }
+        ],
+        "summary": "Get session metadata",
+        "description": "Cheap size hint for a session: partCount / totalBytes / lastUpdated, without deserializing any part body. Used by the webapp to decide auto-redirect vs show sessions list. See specs/frontend-session-lazyload/ R1.",
+        "tags": [
+          "Session"
+        ],
+        "responses": {
+          "200": {
+            "description": "Session metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "partCount": {
+                      "description": "Total part files on disk for this session",
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "totalBytes": {
+                      "description": "Sum of part file sizes in bytes",
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "lastUpdated": {
+                      "description": "ISO-8601 timestamp of most recent part/message/session write",
+                      "type": "string"
+                    },
+                    "etag": {
+                      "description": "Weak ETag; shares version counter with session:{id} and messages:{id}:{limit}",
+                      "type": "string"
+                    },
+                    "messageCount": {
+                      "description": "Message count; optional hint for initial page size decision",
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "partCount",
+                    "totalBytes",
+                    "lastUpdated",
+                    "etag"
+                  ]
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified"
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/session/{sessionID}/children": {
       "get": {
         "operationId": "session.children",
@@ -4802,6 +5266,73 @@
                 "required": [
                   "action"
                 ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/session/{sessionID}/resume": {
+      "post": {
+        "operationId": "session.resume",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sessionID",
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "description": "Session ID to resume"
+          }
+        ],
+        "summary": "Signal a session resume (capability-layer silent refresh)",
+        "description": "UI calls this when the user switches to an existing session. The daemon bumps the session's rebind epoch (trigger=session_resume) and, if the session is not busy, performs a silent CapabilityLayer.reinject — no LLM call, no message history write, no cost. Subscribers to the session's SSE stream receive session.rebind + capability_layer.refreshed events so dashboards refresh naturally.",
+        "responses": {
+          "200": {
+            "description": "Resume signal accepted (may be ok / rate_limited / busy_skipped)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResumeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionResumeRequest"
               }
             }
           }
@@ -6023,6 +6554,138 @@
         }
       }
     },
+    "/api/v2/session/{sessionID}/memory": {
+      "get": {
+        "operationId": "session.memory",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sessionID",
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "description": "Session ID"
+          },
+          {
+            "in": "query",
+            "name": "form",
+            "schema": {
+              "default": "human",
+              "type": "string",
+              "enum": [
+                "llm",
+                "human"
+              ]
+            }
+          }
+        ],
+        "summary": "Get session memory render",
+        "description": "Returns the session's compaction memory rendered for either LLM consumption (compact, provider-agnostic) or human consumption (timeline format). Per compaction-redesign DD-5: two independent render functions from the same SessionMemory artifact.",
+        "responses": {
+          "200": {
+            "description": "Rendered memory text",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sessionID": {
+                      "type": "string"
+                    },
+                    "form": {
+                      "type": "string",
+                      "enum": [
+                        "llm",
+                        "human"
+                      ]
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "number"
+                    },
+                    "updatedAt": {
+                      "type": "number"
+                    },
+                    "turnSummariesCount": {
+                      "type": "number"
+                    },
+                    "fileIndexCount": {
+                      "type": "number"
+                    },
+                    "actionLogCount": {
+                      "type": "number"
+                    },
+                    "lastCompactedAt": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "round": {
+                              "type": "number"
+                            },
+                            "timestamp": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "round",
+                            "timestamp"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "sessionID",
+                    "form",
+                    "text",
+                    "version",
+                    "updatedAt",
+                    "turnSummariesCount",
+                    "fileIndexCount",
+                    "actionLogCount",
+                    "lastCompactedAt"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/session/{sessionID}/summarize": {
       "post": {
         "operationId": "session.summarize",
@@ -6094,6 +6757,10 @@
                   "auto": {
                     "default": false,
                     "type": "boolean"
+                  },
+                  "rich": {
+                    "default": false,
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -6131,6 +6798,13 @@
             "name": "limit",
             "schema": {
               "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "before",
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -6488,6 +7162,87 @@
       }
     },
     "/api/v2/session/{sessionID}/message/{messageID}/part/{partID}": {
+      "get": {
+        "operationId": "session.message.part",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sessionID",
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "description": "Session ID"
+          },
+          {
+            "in": "path",
+            "name": "messageID",
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "description": "Message ID"
+          },
+          {
+            "in": "path",
+            "name": "partID",
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "description": "Part ID"
+          }
+        ],
+        "summary": "Get message part (full, uncapped)",
+        "description": "Retrieve a single part of a message in full, bypassing any client-side truncation. Used by FoldableMarkdown expand to fetch the full content of a part that was truncated at the wire/store layer without re-fetching the whole session.",
+        "responses": {
+          "200": {
+            "description": "Part",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "part": {
+                      "$ref": "#/components/schemas/Part"
+                    }
+                  },
+                  "required": [
+                    "part"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          }
+        }
+      },
       "delete": {
         "operationId": "part.delete",
         "parameters": [
@@ -19162,7 +19917,7 @@
       "post": {
         "operationId": "global.web.restart",
         "summary": "Restart web runtime",
-        "description": "Schedule a controlled web runtime restart. Intended for authenticated operators; clients should wait for health recovery and then reload.",
+        "description": "Schedule a controlled web runtime restart. Intended for authenticated operators; clients should wait for health recovery and then reload. Optional `targets` body selects which layers to rebuild (daemon/frontend/gateway); when omitted, webctl.sh auto-detects dirty layers and skips unchanged ones.",
         "responses": {
           "200": {
             "description": "Restart accepted",
@@ -19217,6 +19972,36 @@
                     "fallbackReloadAfterMs",
                     "recoveryDeadlineMs"
                   ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another restart is already in progress"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "targets": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "daemon",
+                        "frontend",
+                        "gateway"
+                      ]
+                    }
+                  },
+                  "reason": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
                 }
               }
             }
@@ -19317,6 +20102,121 @@
                 "required": [
                   "level"
                 ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/server/cache/health": {
+      "get": {
+        "operationId": "server.cacheHealth",
+        "summary": "Get session cache and rate-limit health",
+        "description": "Returns cache entry count, hit/miss rate over the past 5 minutes, invalidation subscription liveness, and rate-limit usage. Used by operators and by AC-5 drills to detect silent degradation.",
+        "responses": {
+          "200": {
+            "description": "Health snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "entries": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "maxEntries": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "hitRate": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "missRate": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "invalidationCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "evictionCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "subscriptionAlive": {
+                      "type": "boolean"
+                    },
+                    "ttlSec": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "rateLimit": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "allowedCount": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "throttledCount": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "activeBuckets": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "enabled",
+                        "allowedCount",
+                        "throttledCount",
+                        "activeBuckets"
+                      ]
+                    },
+                    "source": {
+                      "type": "object",
+                      "properties": {
+                        "path": {
+                          "type": "string"
+                        },
+                        "present": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "path",
+                        "present"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "entries",
+                    "maxEntries",
+                    "hitRate",
+                    "missRate",
+                    "invalidationCount",
+                    "evictionCount",
+                    "subscriptionAlive",
+                    "ttlSec",
+                    "rateLimit",
+                    "source"
+                  ]
+                }
               }
             }
           }
@@ -22045,6 +22945,162 @@
         }
       }
     },
+    "/config/tweaks/frontend": {
+      "get": {
+        "operationId": "config.tweaks.frontend",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Get frontend tweaks",
+        "description": "Return the frontend-facing subset of /etc/opencode/tweaks.cfg so the webapp does not have to read the file itself. See specs/frontend-session-lazyload/ DD-3, DD-7, DD-8.",
+        "responses": {
+          "200": {
+            "description": "Frontend tweaks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "frontend_session_lazyload": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "const": 0
+                        },
+                        {
+                          "type": "number",
+                          "const": 1
+                        }
+                      ]
+                    },
+                    "part_inline_cap_kb": {
+                      "type": "integer",
+                      "minimum": 4,
+                      "maximum": 4096
+                    },
+                    "tail_window_kb": {
+                      "type": "integer",
+                      "minimum": 4,
+                      "maximum": 4096
+                    },
+                    "fold_preview_lines": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 200
+                    },
+                    "initial_page_size_small": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "all"
+                        },
+                        {
+                          "type": "integer",
+                          "minimum": 10,
+                          "maximum": 1000
+                        }
+                      ]
+                    },
+                    "initial_page_size_medium": {
+                      "type": "integer",
+                      "minimum": 10,
+                      "maximum": 1000
+                    },
+                    "initial_page_size_large": {
+                      "type": "integer",
+                      "minimum": 10,
+                      "maximum": 1000
+                    },
+                    "session_size_threshold_kb": {
+                      "type": "integer",
+                      "minimum": 64,
+                      "maximum": 9007199254740991
+                    },
+                    "session_size_threshold_parts": {
+                      "type": "integer",
+                      "minimum": 10,
+                      "maximum": 9007199254740991
+                    },
+                    "ui_session_freshness_enabled": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "const": 0
+                        },
+                        {
+                          "type": "number",
+                          "const": 1
+                        }
+                      ]
+                    },
+                    "ui_freshness_threshold_sec": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 3600
+                    },
+                    "ui_freshness_hard_timeout_sec": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 86400
+                    },
+                    "session_tail_mobile": {
+                      "type": "integer",
+                      "minimum": 5,
+                      "maximum": 500
+                    },
+                    "session_tail_desktop": {
+                      "type": "integer",
+                      "minimum": 5,
+                      "maximum": 2000
+                    },
+                    "session_store_cap_mobile": {
+                      "type": "integer",
+                      "minimum": 30,
+                      "maximum": 2000
+                    },
+                    "session_store_cap_desktop": {
+                      "type": "integer",
+                      "minimum": 50,
+                      "maximum": 5000
+                    },
+                    "session_part_cap_bytes": {
+                      "type": "integer",
+                      "minimum": 16000,
+                      "maximum": 16000000
+                    }
+                  },
+                  "required": [
+                    "frontend_session_lazyload",
+                    "part_inline_cap_kb",
+                    "tail_window_kb",
+                    "fold_preview_lines",
+                    "initial_page_size_small",
+                    "initial_page_size_medium",
+                    "initial_page_size_large",
+                    "session_size_threshold_kb",
+                    "session_size_threshold_parts",
+                    "ui_session_freshness_enabled",
+                    "ui_freshness_threshold_sec",
+                    "ui_freshness_hard_timeout_sec",
+                    "session_tail_mobile",
+                    "session_tail_desktop",
+                    "session_store_cap_mobile",
+                    "session_store_cap_desktop",
+                    "session_part_cap_bytes"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/experimental/debug-beacon": {
       "post": {
         "operationId": "experimental.debug.beacon",
@@ -22113,6 +23169,72 @@
                 "required": [
                   "event"
                 ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/experimental/client-diag": {
+      "post": {
+        "operationId": "experimental.clientDiag",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Record a one-shot client diagnostic snapshot",
+        "description": "Always-on (not gated by OPENCODE_DEBUG_BEACON) endpoint for a mobile-friendly 'diag button' — the client collects its observable state (session message counts, last SSE event age, etc.) and POSTs it here. Server writes an info-level log line tagged [client-diag] so it can be retrieved by grep later during RCA. Intended for cases where the user cannot open browser DevTools (mobile).",
+        "responses": {
+          "200": {
+            "description": "Snapshot recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "serverReceivedAt": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "serverReceivedAt"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sessionID": {
+                    "type": "string"
+                  },
+                  "note": {
+                    "type": "string"
+                  },
+                  "snapshot": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  }
+                }
               }
             }
           }
@@ -23293,6 +24415,103 @@
         }
       }
     },
+    "/session/{sessionID}/meta": {
+      "get": {
+        "operationId": "session.meta",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sessionID",
+            "schema": {
+              "type": "string",
+              "pattern": "^ses.*"
+            },
+            "required": true
+          }
+        ],
+        "summary": "Get session metadata",
+        "description": "Cheap size hint for a session: partCount / totalBytes / lastUpdated, without deserializing any part body. Used by the webapp to decide auto-redirect vs show sessions list. See specs/frontend-session-lazyload/ R1.",
+        "tags": [
+          "Session"
+        ],
+        "responses": {
+          "200": {
+            "description": "Session metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "partCount": {
+                      "description": "Total part files on disk for this session",
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "totalBytes": {
+                      "description": "Sum of part file sizes in bytes",
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "lastUpdated": {
+                      "description": "ISO-8601 timestamp of most recent part/message/session write",
+                      "type": "string"
+                    },
+                    "etag": {
+                      "description": "Weak ETag; shares version counter with session:{id} and messages:{id}:{limit}",
+                      "type": "string"
+                    },
+                    "messageCount": {
+                      "description": "Message count; optional hint for initial page size decision",
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "partCount",
+                    "totalBytes",
+                    "lastUpdated",
+                    "etag"
+                  ]
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified"
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/session/{sessionID}/children": {
       "get": {
         "operationId": "session.children",
@@ -23664,6 +24883,73 @@
                 "required": [
                   "action"
                 ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/session/{sessionID}/resume": {
+      "post": {
+        "operationId": "session.resume",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sessionID",
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "description": "Session ID to resume"
+          }
+        ],
+        "summary": "Signal a session resume (capability-layer silent refresh)",
+        "description": "UI calls this when the user switches to an existing session. The daemon bumps the session's rebind epoch (trigger=session_resume) and, if the session is not busy, performs a silent CapabilityLayer.reinject — no LLM call, no message history write, no cost. Subscribers to the session's SSE stream receive session.rebind + capability_layer.refreshed events so dashboards refresh naturally.",
+        "responses": {
+          "200": {
+            "description": "Resume signal accepted (may be ok / rate_limited / busy_skipped)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResumeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionResumeRequest"
               }
             }
           }
@@ -24885,6 +26171,138 @@
         }
       }
     },
+    "/session/{sessionID}/memory": {
+      "get": {
+        "operationId": "session.memory",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sessionID",
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "description": "Session ID"
+          },
+          {
+            "in": "query",
+            "name": "form",
+            "schema": {
+              "default": "human",
+              "type": "string",
+              "enum": [
+                "llm",
+                "human"
+              ]
+            }
+          }
+        ],
+        "summary": "Get session memory render",
+        "description": "Returns the session's compaction memory rendered for either LLM consumption (compact, provider-agnostic) or human consumption (timeline format). Per compaction-redesign DD-5: two independent render functions from the same SessionMemory artifact.",
+        "responses": {
+          "200": {
+            "description": "Rendered memory text",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sessionID": {
+                      "type": "string"
+                    },
+                    "form": {
+                      "type": "string",
+                      "enum": [
+                        "llm",
+                        "human"
+                      ]
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "number"
+                    },
+                    "updatedAt": {
+                      "type": "number"
+                    },
+                    "turnSummariesCount": {
+                      "type": "number"
+                    },
+                    "fileIndexCount": {
+                      "type": "number"
+                    },
+                    "actionLogCount": {
+                      "type": "number"
+                    },
+                    "lastCompactedAt": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "round": {
+                              "type": "number"
+                            },
+                            "timestamp": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "round",
+                            "timestamp"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "sessionID",
+                    "form",
+                    "text",
+                    "version",
+                    "updatedAt",
+                    "turnSummariesCount",
+                    "fileIndexCount",
+                    "actionLogCount",
+                    "lastCompactedAt"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/session/{sessionID}/summarize": {
       "post": {
         "operationId": "session.summarize",
@@ -24956,6 +26374,10 @@
                   "auto": {
                     "default": false,
                     "type": "boolean"
+                  },
+                  "rich": {
+                    "default": false,
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -24993,6 +26415,13 @@
             "name": "limit",
             "schema": {
               "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "before",
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -25350,6 +26779,87 @@
       }
     },
     "/session/{sessionID}/message/{messageID}/part/{partID}": {
+      "get": {
+        "operationId": "session.message.part",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sessionID",
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "description": "Session ID"
+          },
+          {
+            "in": "path",
+            "name": "messageID",
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "description": "Message ID"
+          },
+          {
+            "in": "path",
+            "name": "partID",
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "description": "Part ID"
+          }
+        ],
+        "summary": "Get message part (full, uncapped)",
+        "description": "Retrieve a single part of a message in full, bypassing any client-side truncation. Used by FoldableMarkdown expand to fetch the full content of a part that was truncated at the wire/store layer without re-fetching the whole session.",
+        "responses": {
+          "200": {
+            "description": "Part",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "part": {
+                      "$ref": "#/components/schemas/Part"
+                    }
+                  },
+                  "required": [
+                    "part"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          }
+        }
+      },
       "delete": {
         "operationId": "part.delete",
         "parameters": [
@@ -38195,12 +39705,6 @@
           "file": {
             "type": "string"
           },
-          "before": {
-            "type": "string"
-          },
-          "after": {
-            "type": "string"
-          },
           "additions": {
             "type": "number"
           },
@@ -38218,8 +39722,6 @@
         },
         "required": [
           "file",
-          "before",
-          "after",
           "additions",
           "deletions"
         ]
@@ -40046,6 +41548,684 @@
           "properties"
         ]
       },
+      "QuestionOption": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "description": "Display text (1-5 words, concise)",
+            "type": "string"
+          },
+          "description": {
+            "description": "Explanation of choice",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "description"
+        ]
+      },
+      "QuestionInfo": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "description": "Complete question",
+            "type": "string"
+          },
+          "header": {
+            "description": "Very short label (max 30 chars)",
+            "type": "string"
+          },
+          "options": {
+            "description": "Available choices",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionOption"
+            }
+          },
+          "multiple": {
+            "description": "Allow selecting multiple choices",
+            "type": "boolean"
+          },
+          "custom": {
+            "description": "Allow typing a custom answer (default: true)",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "question",
+          "header",
+          "options"
+        ]
+      },
+      "QuestionRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^que.*"
+          },
+          "sessionID": {
+            "type": "string",
+            "pattern": "^ses.*"
+          },
+          "questions": {
+            "description": "Questions to ask",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionInfo"
+            }
+          },
+          "tool": {
+            "type": "object",
+            "properties": {
+              "messageID": {
+                "type": "string"
+              },
+              "callID": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "messageID",
+              "callID"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "sessionID",
+          "questions"
+        ]
+      },
+      "Event.question.asked": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "question.asked"
+          },
+          "properties": {
+            "$ref": "#/components/schemas/QuestionRequest"
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "QuestionAnswer": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "Event.question.replied": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "question.replied"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "requestID": {
+                "type": "string"
+              },
+              "answers": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/QuestionAnswer"
+                }
+              }
+            },
+            "required": [
+              "sessionID",
+              "requestID",
+              "answers"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.question.rejected": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "question.rejected"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "requestID": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "requestID"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.file.edited": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "file.edited"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "file": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "file"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.file.watcher.updated": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "file.watcher.updated"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "file": {
+                "type": "string"
+              },
+              "event": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "add"
+                  },
+                  {
+                    "type": "string",
+                    "const": "change"
+                  },
+                  {
+                    "type": "string",
+                    "const": "unlink"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "file",
+              "event"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "PermissionAction": {
+        "type": "string",
+        "enum": [
+          "allow",
+          "deny",
+          "ask"
+        ]
+      },
+      "PermissionRule": {
+        "type": "object",
+        "properties": {
+          "permission": {
+            "type": "string"
+          },
+          "pattern": {
+            "type": "string"
+          },
+          "action": {
+            "$ref": "#/components/schemas/PermissionAction"
+          }
+        },
+        "required": [
+          "permission",
+          "pattern",
+          "action"
+        ]
+      },
+      "PermissionRuleset": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/PermissionRule"
+        }
+      },
+      "PendingSubagentNotice": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string"
+          },
+          "childSessionID": {
+            "type": "string",
+            "pattern": "^ses.*"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "success",
+              "error",
+              "canceled",
+              "rate_limited",
+              "quota_low",
+              "worker_dead",
+              "silent_kill"
+            ]
+          },
+          "finish": {
+            "type": "string",
+            "enum": [
+              "stop",
+              "error",
+              "length",
+              "canceled",
+              "rate_limited",
+              "quota_low",
+              "worker_exited",
+              "no_progress_timeout"
+            ]
+          },
+          "elapsedMs": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "at": {
+            "type": "string"
+          },
+          "errorDetail": {
+            "type": "object",
+            "properties": {
+              "message": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string"
+              },
+              "resetsInSeconds": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            }
+          },
+          "rotateHint": {
+            "type": "object",
+            "properties": {
+              "exhaustedAccountId": {
+                "type": "string"
+              },
+              "exhaustedAt": {
+                "type": "string"
+              },
+              "remainingPercent": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "directive": {
+                "type": "string",
+                "const": "rotate-before-redispatch"
+              }
+            },
+            "required": [
+              "exhaustedAccountId",
+              "directive"
+            ]
+          },
+          "cancelReason": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "jobId",
+          "childSessionID",
+          "status",
+          "finish",
+          "elapsedMs",
+          "at"
+        ]
+      },
+      "Session": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^ses.*"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "projectID": {
+            "type": "string"
+          },
+          "directory": {
+            "type": "string"
+          },
+          "parentID": {
+            "type": "string",
+            "pattern": "^ses.*"
+          },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "additions": {
+                "type": "number"
+              },
+              "deletions": {
+                "type": "number"
+              },
+              "files": {
+                "type": "number"
+              },
+              "diffs": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/FileDiff"
+                }
+              }
+            },
+            "required": [
+              "additions",
+              "deletions",
+              "files"
+            ]
+          },
+          "share": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "url"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "time": {
+            "type": "object",
+            "properties": {
+              "created": {
+                "type": "number"
+              },
+              "updated": {
+                "type": "number"
+              },
+              "compacting": {
+                "type": "number"
+              },
+              "archived": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "created",
+              "updated"
+            ]
+          },
+          "permission": {
+            "$ref": "#/components/schemas/PermissionRuleset"
+          },
+          "revert": {
+            "type": "object",
+            "properties": {
+              "messageID": {
+                "type": "string"
+              },
+              "partID": {
+                "type": "string"
+              },
+              "snapshot": {
+                "type": "string"
+              },
+              "diff": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "messageID"
+            ]
+          },
+          "stats": {
+            "type": "object",
+            "properties": {
+              "requestsTotal": {
+                "type": "number"
+              },
+              "totalTokens": {
+                "type": "number"
+              },
+              "tokens": {
+                "type": "object",
+                "properties": {
+                  "input": {
+                    "type": "number"
+                  },
+                  "output": {
+                    "type": "number"
+                  },
+                  "reasoning": {
+                    "type": "number"
+                  },
+                  "cache": {
+                    "type": "object",
+                    "properties": {
+                      "read": {
+                        "type": "number"
+                      },
+                      "write": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "read",
+                      "write"
+                    ]
+                  }
+                },
+                "required": [
+                  "input",
+                  "output",
+                  "reasoning",
+                  "cache"
+                ]
+              },
+              "lastUpdated": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "requestsTotal",
+              "totalTokens",
+              "tokens",
+              "lastUpdated"
+            ]
+          },
+          "execution": {
+            "type": "object",
+            "properties": {
+              "providerId": {
+                "type": "string"
+              },
+              "modelID": {
+                "type": "string"
+              },
+              "accountId": {
+                "type": "string"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "updatedAt": {
+                "type": "number"
+              },
+              "continuationInvalidatedAt": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "providerId",
+              "modelID",
+              "revision",
+              "updatedAt"
+            ]
+          },
+          "workflow": {
+            "type": "object",
+            "properties": {
+              "autonomous": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "maxContinuousRounds": {
+                    "type": "number"
+                  },
+                  "stopOnTestsFail": {
+                    "type": "boolean"
+                  },
+                  "requireApprovalFor": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "enabled"
+                ]
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "idle",
+                  "running",
+                  "waiting_user",
+                  "blocked",
+                  "completed"
+                ]
+              },
+              "stopReason": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "number"
+              },
+              "lastRunAt": {
+                "type": "number"
+              },
+              "supervisor": {
+                "type": "object",
+                "properties": {
+                  "leaseOwner": {
+                    "type": "string"
+                  },
+                  "leaseExpiresAt": {
+                    "type": "number"
+                  },
+                  "retryAt": {
+                    "type": "number"
+                  },
+                  "consecutiveResumeFailures": {
+                    "type": "number"
+                  },
+                  "lastResumeCategory": {
+                    "type": "string"
+                  },
+                  "lastResumeError": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "required": [
+              "autonomous",
+              "state",
+              "updatedAt"
+            ]
+          },
+          "pendingSubagentNotices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PendingSubagentNotice"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "projectID",
+          "directory",
+          "title",
+          "version",
+          "time"
+        ]
+      },
+      "Event.session.deleted": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "session.deleted"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "info": {
+                "$ref": "#/components/schemas/Session"
+              }
+            },
+            "required": [
+              "info"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
       "Event.tui.provider.refresh": {
         "type": "object",
         "properties": {
@@ -40338,532 +42518,6 @@
           "properties"
         ]
       },
-      "PermissionAction": {
-        "type": "string",
-        "enum": [
-          "allow",
-          "deny",
-          "ask"
-        ]
-      },
-      "PermissionRule": {
-        "type": "object",
-        "properties": {
-          "permission": {
-            "type": "string"
-          },
-          "pattern": {
-            "type": "string"
-          },
-          "action": {
-            "$ref": "#/components/schemas/PermissionAction"
-          }
-        },
-        "required": [
-          "permission",
-          "pattern",
-          "action"
-        ]
-      },
-      "PermissionRuleset": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/PermissionRule"
-        }
-      },
-      "Session": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^ses.*"
-          },
-          "slug": {
-            "type": "string"
-          },
-          "projectID": {
-            "type": "string"
-          },
-          "directory": {
-            "type": "string"
-          },
-          "parentID": {
-            "type": "string",
-            "pattern": "^ses.*"
-          },
-          "summary": {
-            "type": "object",
-            "properties": {
-              "additions": {
-                "type": "number"
-              },
-              "deletions": {
-                "type": "number"
-              },
-              "files": {
-                "type": "number"
-              },
-              "diffs": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/FileDiff"
-                }
-              }
-            },
-            "required": [
-              "additions",
-              "deletions",
-              "files"
-            ]
-          },
-          "share": {
-            "type": "object",
-            "properties": {
-              "url": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "url"
-            ]
-          },
-          "title": {
-            "type": "string"
-          },
-          "version": {
-            "type": "string"
-          },
-          "time": {
-            "type": "object",
-            "properties": {
-              "created": {
-                "type": "number"
-              },
-              "updated": {
-                "type": "number"
-              },
-              "compacting": {
-                "type": "number"
-              },
-              "archived": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "created",
-              "updated"
-            ]
-          },
-          "permission": {
-            "$ref": "#/components/schemas/PermissionRuleset"
-          },
-          "revert": {
-            "type": "object",
-            "properties": {
-              "messageID": {
-                "type": "string"
-              },
-              "partID": {
-                "type": "string"
-              },
-              "snapshot": {
-                "type": "string"
-              },
-              "diff": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "messageID"
-            ]
-          },
-          "stats": {
-            "type": "object",
-            "properties": {
-              "requestsTotal": {
-                "type": "number"
-              },
-              "totalTokens": {
-                "type": "number"
-              },
-              "tokens": {
-                "type": "object",
-                "properties": {
-                  "input": {
-                    "type": "number"
-                  },
-                  "output": {
-                    "type": "number"
-                  },
-                  "reasoning": {
-                    "type": "number"
-                  },
-                  "cache": {
-                    "type": "object",
-                    "properties": {
-                      "read": {
-                        "type": "number"
-                      },
-                      "write": {
-                        "type": "number"
-                      }
-                    },
-                    "required": [
-                      "read",
-                      "write"
-                    ]
-                  }
-                },
-                "required": [
-                  "input",
-                  "output",
-                  "reasoning",
-                  "cache"
-                ]
-              },
-              "lastUpdated": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "requestsTotal",
-              "totalTokens",
-              "tokens",
-              "lastUpdated"
-            ]
-          },
-          "planner": {
-            "type": "object",
-            "properties": {
-              "committedIntent": {
-                "type": "string",
-                "enum": [
-                  "plan_enter",
-                  "plan_exit"
-                ]
-              },
-              "updatedAt": {
-                "type": "number"
-              }
-            }
-          },
-          "execution": {
-            "type": "object",
-            "properties": {
-              "providerId": {
-                "type": "string"
-              },
-              "modelID": {
-                "type": "string"
-              },
-              "accountId": {
-                "type": "string"
-              },
-              "revision": {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 9007199254740991
-              },
-              "updatedAt": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "providerId",
-              "modelID",
-              "revision",
-              "updatedAt"
-            ]
-          },
-          "workflow": {
-            "type": "object",
-            "properties": {
-              "autonomous": {
-                "type": "object",
-                "properties": {
-                  "enabled": {
-                    "type": "boolean"
-                  },
-                  "maxContinuousRounds": {
-                    "type": "number"
-                  },
-                  "stopOnTestsFail": {
-                    "type": "boolean"
-                  },
-                  "requireApprovalFor": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  }
-                },
-                "required": [
-                  "enabled"
-                ]
-              },
-              "state": {
-                "type": "string",
-                "enum": [
-                  "idle",
-                  "running",
-                  "waiting_user",
-                  "blocked",
-                  "completed"
-                ]
-              },
-              "stopReason": {
-                "type": "string"
-              },
-              "updatedAt": {
-                "type": "number"
-              },
-              "lastRunAt": {
-                "type": "number"
-              },
-              "supervisor": {
-                "type": "object",
-                "properties": {
-                  "leaseOwner": {
-                    "type": "string"
-                  },
-                  "leaseExpiresAt": {
-                    "type": "number"
-                  },
-                  "retryAt": {
-                    "type": "number"
-                  },
-                  "consecutiveResumeFailures": {
-                    "type": "number"
-                  },
-                  "lastResumeCategory": {
-                    "type": "string"
-                  },
-                  "lastResumeError": {
-                    "type": "string"
-                  }
-                }
-              }
-            },
-            "required": [
-              "autonomous",
-              "state",
-              "updatedAt"
-            ]
-          },
-          "mission": {
-            "type": "object",
-            "properties": {
-              "source": {
-                "type": "string",
-                "const": "openspec_compiled_plan"
-              },
-              "contract": {
-                "type": "string",
-                "const": "implementation_spec"
-              },
-              "approvedAt": {
-                "type": "number"
-              },
-              "planPath": {
-                "type": "string"
-              },
-              "artifactPaths": {
-                "type": "object",
-                "properties": {
-                  "root": {
-                    "type": "string"
-                  },
-                  "implementationSpec": {
-                    "type": "string"
-                  },
-                  "proposal": {
-                    "type": "string"
-                  },
-                  "spec": {
-                    "type": "string"
-                  },
-                  "design": {
-                    "type": "string"
-                  },
-                  "tasks": {
-                    "type": "string"
-                  },
-                  "handoff": {
-                    "type": "string"
-                  },
-                  "idef0": {
-                    "type": "string"
-                  },
-                  "grafcet": {
-                    "type": "string"
-                  },
-                  "c4": {
-                    "type": "string"
-                  },
-                  "sequence": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "root",
-                  "implementationSpec",
-                  "proposal",
-                  "spec",
-                  "design",
-                  "tasks",
-                  "handoff"
-                ]
-              },
-              "artifactIntegrity": {
-                "type": "object",
-                "properties": {
-                  "implementationSpec": {
-                    "type": "string"
-                  },
-                  "tasks": {
-                    "type": "string"
-                  },
-                  "handoff": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "implementationSpec",
-                  "tasks",
-                  "handoff"
-                ]
-              },
-              "beta": {
-                "type": "object",
-                "properties": {
-                  "branchName": {
-                    "type": "string"
-                  },
-                  "baseBranch": {
-                    "type": "string"
-                  },
-                  "repoPath": {
-                    "type": "string"
-                  },
-                  "mainWorktreePath": {
-                    "type": "string"
-                  },
-                  "betaPath": {
-                    "type": "string"
-                  },
-                  "runtimePolicy": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "branchName",
-                  "baseBranch",
-                  "betaPath"
-                ]
-              },
-              "admission": {
-                "type": "object",
-                "properties": {
-                  "betaQuiz": {
-                    "type": "object",
-                    "properties": {
-                      "status": {
-                        "type": "string",
-                        "enum": [
-                          "pending",
-                          "passed",
-                          "failed"
-                        ]
-                      },
-                      "reflectionUsed": {
-                        "type": "boolean"
-                      },
-                      "passedAt": {
-                        "type": "number"
-                      },
-                      "mismatchCount": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 9007199254740991
-                      },
-                      "lastMismatches": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "field": {
-                              "type": "string"
-                            },
-                            "expected": {
-                              "type": "string"
-                            },
-                            "actual": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "field",
-                            "expected",
-                            "actual"
-                          ]
-                        }
-                      }
-                    },
-                    "required": [
-                      "status",
-                      "reflectionUsed"
-                    ]
-                  }
-                }
-              },
-              "executionReady": {
-                "type": "boolean"
-              }
-            },
-            "required": [
-              "source",
-              "contract",
-              "approvedAt",
-              "planPath",
-              "artifactPaths",
-              "executionReady"
-            ]
-          }
-        },
-        "required": [
-          "id",
-          "slug",
-          "projectID",
-          "directory",
-          "title",
-          "version",
-          "time"
-        ]
-      },
-      "Event.session.deleted": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "session.deleted"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "info": {
-                "$ref": "#/components/schemas/Session"
-              }
-            },
-            "required": [
-              "info"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
       "Event.llm.error": {
         "type": "object",
         "properties": {
@@ -41057,181 +42711,6 @@
           "properties"
         ]
       },
-      "QuestionOption": {
-        "type": "object",
-        "properties": {
-          "label": {
-            "description": "Display text (1-5 words, concise)",
-            "type": "string"
-          },
-          "description": {
-            "description": "Explanation of choice",
-            "type": "string"
-          }
-        },
-        "required": [
-          "label",
-          "description"
-        ]
-      },
-      "QuestionInfo": {
-        "type": "object",
-        "properties": {
-          "question": {
-            "description": "Complete question",
-            "type": "string"
-          },
-          "header": {
-            "description": "Very short label (max 30 chars)",
-            "type": "string"
-          },
-          "options": {
-            "description": "Available choices",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/QuestionOption"
-            }
-          },
-          "multiple": {
-            "description": "Allow selecting multiple choices",
-            "type": "boolean"
-          },
-          "custom": {
-            "description": "Allow typing a custom answer (default: true)",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "question",
-          "header",
-          "options"
-        ]
-      },
-      "QuestionRequest": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^que.*"
-          },
-          "sessionID": {
-            "type": "string",
-            "pattern": "^ses.*"
-          },
-          "questions": {
-            "description": "Questions to ask",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/QuestionInfo"
-            }
-          },
-          "tool": {
-            "type": "object",
-            "properties": {
-              "messageID": {
-                "type": "string"
-              },
-              "callID": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "messageID",
-              "callID"
-            ]
-          }
-        },
-        "required": [
-          "id",
-          "sessionID",
-          "questions"
-        ]
-      },
-      "Event.question.asked": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "question.asked"
-          },
-          "properties": {
-            "$ref": "#/components/schemas/QuestionRequest"
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "QuestionAnswer": {
-        "type": "array",
-        "items": {
-          "type": "string"
-        }
-      },
-      "Event.question.replied": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "question.replied"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "type": "string"
-              },
-              "requestID": {
-                "type": "string"
-              },
-              "answers": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/QuestionAnswer"
-                }
-              }
-            },
-            "required": [
-              "sessionID",
-              "requestID",
-              "answers"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.question.rejected": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "question.rejected"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "type": "string"
-              },
-              "requestID": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "sessionID",
-              "requestID"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
       "Todo": {
         "type": "object",
         "properties": {
@@ -41333,6 +42812,493 @@
             "required": [
               "sessionID",
               "todos"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.task.worker.assigned": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "task.worker.assigned"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "workerID": {
+                "type": "string"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses.*"
+              }
+            },
+            "required": [
+              "workerID",
+              "sessionID"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.task.worker.done": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "task.worker.done"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "workerID": {
+                "type": "string"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses.*"
+              },
+              "parentSessionID": {
+                "type": "string",
+                "pattern": "^ses.*"
+              },
+              "parentMessageID": {
+                "type": "string",
+                "pattern": "^msg.*"
+              },
+              "toolCallID": {
+                "type": "string"
+              },
+              "linkedTodoID": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "workerID",
+              "sessionID",
+              "parentSessionID",
+              "parentMessageID",
+              "toolCallID"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.task.worker.failed": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "task.worker.failed"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "workerID": {
+                "type": "string"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses.*"
+              },
+              "parentSessionID": {
+                "type": "string",
+                "pattern": "^ses.*"
+              },
+              "parentMessageID": {
+                "type": "string",
+                "pattern": "^msg.*"
+              },
+              "toolCallID": {
+                "type": "string"
+              },
+              "linkedTodoID": {
+                "type": "string"
+              },
+              "error": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "workerID",
+              "sessionID",
+              "parentSessionID",
+              "parentMessageID",
+              "toolCallID"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.task.worker.removed": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "task.worker.removed"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "workerID": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "workerID"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.task.worker.orphan_recovered": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "task.worker.orphan_recovered"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "parentSessionID": {
+                "type": "string"
+              },
+              "parentMessageID": {
+                "type": "string"
+              },
+              "toolCallID": {
+                "type": "string"
+              },
+              "partID": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "parentSessionID",
+              "parentMessageID",
+              "toolCallID",
+              "partID"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.task.completed": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "task.completed"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "jobId": {
+                "type": "string"
+              },
+              "parentSessionID": {
+                "type": "string",
+                "pattern": "^ses.*"
+              },
+              "childSessionID": {
+                "type": "string",
+                "pattern": "^ses.*"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "error",
+                  "canceled",
+                  "rate_limited",
+                  "quota_low",
+                  "worker_dead",
+                  "silent_kill"
+                ]
+              },
+              "finish": {
+                "type": "string"
+              },
+              "elapsedMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "errorDetail": {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "string"
+                  },
+                  "code": {
+                    "type": "string"
+                  },
+                  "resetsInSeconds": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                }
+              },
+              "rotateHint": {
+                "type": "object",
+                "properties": {
+                  "exhaustedAccountId": {
+                    "type": "string"
+                  },
+                  "exhaustedAt": {
+                    "type": "string"
+                  },
+                  "remainingPercent": {
+                    "type": "number"
+                  },
+                  "directive": {
+                    "type": "string",
+                    "const": "rotate-before-redispatch"
+                  }
+                },
+                "required": [
+                  "exhaustedAccountId",
+                  "directive"
+                ]
+              },
+              "cancelReason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "jobId",
+              "parentSessionID",
+              "childSessionID",
+              "status",
+              "finish",
+              "elapsedMs"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.task.rate_limit_escalation": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "task.rate_limit_escalation"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "currentModel": {
+                "type": "object",
+                "properties": {
+                  "providerId": {
+                    "type": "string"
+                  },
+                  "modelID": {
+                    "type": "string"
+                  },
+                  "accountId": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "providerId",
+                  "modelID"
+                ]
+              },
+              "error": {
+                "type": "string"
+              },
+              "triedVectors": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "sessionID",
+              "currentModel",
+              "error",
+              "triedVectors"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.session.active-child.updated": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "session.active-child.updated"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "parentSessionID": {
+                "type": "string",
+                "pattern": "^ses.*"
+              },
+              "activeChild": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "sessionID": {
+                        "type": "string",
+                        "pattern": "^ses.*"
+                      },
+                      "parentMessageID": {
+                        "type": "string",
+                        "pattern": "^msg.*"
+                      },
+                      "toolCallID": {
+                        "type": "string"
+                      },
+                      "workerID": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "agent": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "running",
+                          "handoff"
+                        ]
+                      },
+                      "dispatchedAt": {
+                        "type": "number"
+                      },
+                      "todo": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "content": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "action": {
+                            "description": "Structured planner metadata for autonomous session execution",
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "implement",
+                                  "delegate",
+                                  "wait",
+                                  "approval",
+                                  "decision",
+                                  "push",
+                                  "destructive",
+                                  "architecture_change"
+                                ]
+                              },
+                              "risk": {
+                                "type": "string",
+                                "enum": [
+                                  "low",
+                                  "medium",
+                                  "high"
+                                ]
+                              },
+                              "needsApproval": {
+                                "type": "boolean"
+                              },
+                              "canDelegate": {
+                                "type": "boolean"
+                              },
+                              "waitingOn": {
+                                "type": "string",
+                                "enum": [
+                                  "subagent",
+                                  "approval",
+                                  "decision",
+                                  "external"
+                                ]
+                              },
+                              "dependsOn": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "kind"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "content",
+                          "status"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "sessionID",
+                      "parentMessageID",
+                      "toolCallID",
+                      "workerID",
+                      "title",
+                      "agent",
+                      "status"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "parentSessionID",
+              "activeChild"
             ]
           }
         },
@@ -41505,60 +43471,6 @@
           "properties"
         ]
       },
-      "Event.task.rate_limit_escalation": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "task.rate_limit_escalation"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "type": "string"
-              },
-              "currentModel": {
-                "type": "object",
-                "properties": {
-                  "providerId": {
-                    "type": "string"
-                  },
-                  "modelID": {
-                    "type": "string"
-                  },
-                  "accountId": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "providerId",
-                  "modelID"
-                ]
-              },
-              "error": {
-                "type": "string"
-              },
-              "triedVectors": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
-            },
-            "required": [
-              "sessionID",
-              "currentModel",
-              "error",
-              "triedVectors"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
       "Event.session.compacted": {
         "type": "object",
         "properties": {
@@ -41575,6 +43487,40 @@
             },
             "required": [
               "sessionID"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.session.compaction.started": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "session.compaction.started"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "plugin",
+                  "llm",
+                  "hybrid_llm",
+                  "hybrid_llm_background"
+                ]
+              }
+            },
+            "required": [
+              "sessionID",
+              "mode"
             ]
           }
         },
@@ -42185,406 +44131,6 @@
               "sessionID",
               "arguments",
               "messageID"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.file.edited": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "file.edited"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "file": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "file"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.file.watcher.updated": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "file.watcher.updated"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "file": {
-                "type": "string"
-              },
-              "event": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                    "const": "add"
-                  },
-                  {
-                    "type": "string",
-                    "const": "change"
-                  },
-                  {
-                    "type": "string",
-                    "const": "unlink"
-                  }
-                ]
-              }
-            },
-            "required": [
-              "file",
-              "event"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.task.worker.assigned": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "task.worker.assigned"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "workerID": {
-                "type": "string"
-              },
-              "sessionID": {
-                "type": "string",
-                "pattern": "^ses.*"
-              }
-            },
-            "required": [
-              "workerID",
-              "sessionID"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.task.worker.done": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "task.worker.done"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "workerID": {
-                "type": "string"
-              },
-              "sessionID": {
-                "type": "string",
-                "pattern": "^ses.*"
-              },
-              "parentSessionID": {
-                "type": "string",
-                "pattern": "^ses.*"
-              },
-              "parentMessageID": {
-                "type": "string",
-                "pattern": "^msg.*"
-              },
-              "toolCallID": {
-                "type": "string"
-              },
-              "linkedTodoID": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "workerID",
-              "sessionID",
-              "parentSessionID",
-              "parentMessageID",
-              "toolCallID"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.task.worker.failed": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "task.worker.failed"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "workerID": {
-                "type": "string"
-              },
-              "sessionID": {
-                "type": "string",
-                "pattern": "^ses.*"
-              },
-              "parentSessionID": {
-                "type": "string",
-                "pattern": "^ses.*"
-              },
-              "parentMessageID": {
-                "type": "string",
-                "pattern": "^msg.*"
-              },
-              "toolCallID": {
-                "type": "string"
-              },
-              "linkedTodoID": {
-                "type": "string"
-              },
-              "error": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "workerID",
-              "sessionID",
-              "parentSessionID",
-              "parentMessageID",
-              "toolCallID"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.task.worker.removed": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "task.worker.removed"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "workerID": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "workerID"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.task.worker.orphan_recovered": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "task.worker.orphan_recovered"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "type": "string"
-              },
-              "parentSessionID": {
-                "type": "string"
-              },
-              "parentMessageID": {
-                "type": "string"
-              },
-              "toolCallID": {
-                "type": "string"
-              },
-              "partID": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "sessionID",
-              "parentSessionID",
-              "parentMessageID",
-              "toolCallID",
-              "partID"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.session.active-child.updated": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "session.active-child.updated"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "parentSessionID": {
-                "type": "string",
-                "pattern": "^ses.*"
-              },
-              "activeChild": {
-                "anyOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "sessionID": {
-                        "type": "string",
-                        "pattern": "^ses.*"
-                      },
-                      "parentMessageID": {
-                        "type": "string",
-                        "pattern": "^msg.*"
-                      },
-                      "toolCallID": {
-                        "type": "string"
-                      },
-                      "workerID": {
-                        "type": "string"
-                      },
-                      "title": {
-                        "type": "string"
-                      },
-                      "agent": {
-                        "type": "string"
-                      },
-                      "status": {
-                        "type": "string",
-                        "enum": [
-                          "running",
-                          "handoff"
-                        ]
-                      },
-                      "dispatchedAt": {
-                        "type": "number"
-                      },
-                      "todo": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "content": {
-                            "type": "string"
-                          },
-                          "status": {
-                            "type": "string"
-                          },
-                          "action": {
-                            "description": "Structured planner metadata for autonomous session execution",
-                            "type": "object",
-                            "properties": {
-                              "kind": {
-                                "type": "string",
-                                "enum": [
-                                  "implement",
-                                  "delegate",
-                                  "wait",
-                                  "approval",
-                                  "decision",
-                                  "push",
-                                  "destructive",
-                                  "architecture_change"
-                                ]
-                              },
-                              "risk": {
-                                "type": "string",
-                                "enum": [
-                                  "low",
-                                  "medium",
-                                  "high"
-                                ]
-                              },
-                              "needsApproval": {
-                                "type": "boolean"
-                              },
-                              "canDelegate": {
-                                "type": "boolean"
-                              },
-                              "waitingOn": {
-                                "type": "string",
-                                "enum": [
-                                  "subagent",
-                                  "approval",
-                                  "decision",
-                                  "external"
-                                ]
-                              },
-                              "dependsOn": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              }
-                            },
-                            "required": [
-                              "kind"
-                            ]
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "content",
-                          "status"
-                        ]
-                      }
-                    },
-                    "required": [
-                      "sessionID",
-                      "parentMessageID",
-                      "toolCallID",
-                      "workerID",
-                      "title",
-                      "agent",
-                      "status"
-                    ]
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              }
-            },
-            "required": [
-              "parentSessionID",
-              "activeChild"
             ]
           }
         },
@@ -44303,16 +45849,203 @@
           "properties"
         ]
       },
-      "Event.sync.required": {
+      "Event.session-cache.hit": {
         "type": "object",
         "properties": {
           "type": {
             "type": "string",
-            "const": "sync.required"
+            "const": "session-cache.hit"
           },
           "properties": {
             "type": "object",
-            "properties": {}
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "sessionID": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "key",
+              "sessionID"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.session-cache.miss": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "session-cache.miss"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "sessionID": {
+                "type": "string"
+              },
+              "durationMs": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "key",
+              "sessionID",
+              "durationMs"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.session-cache.invalidated": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "session-cache.invalidated"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "triggeringEventType": {
+                "type": "string"
+              },
+              "keysDropped": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "sessionID",
+              "triggeringEventType",
+              "keysDropped"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.session-cache.evicted": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "session-cache.evicted"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "sessionID": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "lru",
+                  "ttl"
+                ]
+              }
+            },
+            "required": [
+              "key",
+              "sessionID",
+              "reason"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.rate-limit.allowed": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "rate-limit.allowed"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "username": {
+                "type": "string"
+              },
+              "method": {
+                "type": "string"
+              },
+              "routePattern": {
+                "type": "string"
+              },
+              "tokensRemaining": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "username",
+              "method",
+              "routePattern",
+              "tokensRemaining"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.rate-limit.throttled": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "rate-limit.throttled"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "username": {
+                "type": "string"
+              },
+              "method": {
+                "type": "string"
+              },
+              "routePattern": {
+                "type": "string"
+              },
+              "retryAfterSec": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "username",
+              "method",
+              "routePattern",
+              "retryAfterSec"
+            ]
           }
         },
         "required": [
@@ -44389,6 +46122,24 @@
             "$ref": "#/components/schemas/Event.session.idle"
           },
           {
+            "$ref": "#/components/schemas/Event.question.asked"
+          },
+          {
+            "$ref": "#/components/schemas/Event.question.replied"
+          },
+          {
+            "$ref": "#/components/schemas/Event.question.rejected"
+          },
+          {
+            "$ref": "#/components/schemas/Event.file.edited"
+          },
+          {
+            "$ref": "#/components/schemas/Event.file.watcher.updated"
+          },
+          {
+            "$ref": "#/components/schemas/Event.session.deleted"
+          },
+          {
             "$ref": "#/components/schemas/Event.tui.provider.refresh"
           },
           {
@@ -44413,9 +46164,6 @@
             "$ref": "#/components/schemas/Event.ratelimit.auth_failed"
           },
           {
-            "$ref": "#/components/schemas/Event.session.deleted"
-          },
-          {
             "$ref": "#/components/schemas/Event.llm.error"
           },
           {
@@ -44425,46 +46173,7 @@
             "$ref": "#/components/schemas/Event.llm.prompt.telemetry"
           },
           {
-            "$ref": "#/components/schemas/Event.question.asked"
-          },
-          {
-            "$ref": "#/components/schemas/Event.question.replied"
-          },
-          {
-            "$ref": "#/components/schemas/Event.question.rejected"
-          },
-          {
             "$ref": "#/components/schemas/Event.todo.updated"
-          },
-          {
-            "$ref": "#/components/schemas/Event.session.round.telemetry"
-          },
-          {
-            "$ref": "#/components/schemas/Event.session.compaction.telemetry"
-          },
-          {
-            "$ref": "#/components/schemas/Event.task.rate_limit_escalation"
-          },
-          {
-            "$ref": "#/components/schemas/Event.session.compacted"
-          },
-          {
-            "$ref": "#/components/schemas/Event.managed_app.updated"
-          },
-          {
-            "$ref": "#/components/schemas/Event.mcp.tools.changed"
-          },
-          {
-            "$ref": "#/components/schemas/Event.mcp.browser.open.failed"
-          },
-          {
-            "$ref": "#/components/schemas/Event.command.executed"
-          },
-          {
-            "$ref": "#/components/schemas/Event.file.edited"
-          },
-          {
-            "$ref": "#/components/schemas/Event.file.watcher.updated"
           },
           {
             "$ref": "#/components/schemas/Event.task.worker.assigned"
@@ -44482,7 +46191,37 @@
             "$ref": "#/components/schemas/Event.task.worker.orphan_recovered"
           },
           {
+            "$ref": "#/components/schemas/Event.task.completed"
+          },
+          {
+            "$ref": "#/components/schemas/Event.task.rate_limit_escalation"
+          },
+          {
             "$ref": "#/components/schemas/Event.session.active-child.updated"
+          },
+          {
+            "$ref": "#/components/schemas/Event.session.round.telemetry"
+          },
+          {
+            "$ref": "#/components/schemas/Event.session.compaction.telemetry"
+          },
+          {
+            "$ref": "#/components/schemas/Event.session.compacted"
+          },
+          {
+            "$ref": "#/components/schemas/Event.session.compaction.started"
+          },
+          {
+            "$ref": "#/components/schemas/Event.managed_app.updated"
+          },
+          {
+            "$ref": "#/components/schemas/Event.mcp.tools.changed"
+          },
+          {
+            "$ref": "#/components/schemas/Event.mcp.browser.open.failed"
+          },
+          {
+            "$ref": "#/components/schemas/Event.command.executed"
           },
           {
             "$ref": "#/components/schemas/Event.session.created"
@@ -44536,7 +46275,22 @@
             "$ref": "#/components/schemas/Event.pty.deleted"
           },
           {
-            "$ref": "#/components/schemas/Event.sync.required"
+            "$ref": "#/components/schemas/Event.session-cache.hit"
+          },
+          {
+            "$ref": "#/components/schemas/Event.session-cache.miss"
+          },
+          {
+            "$ref": "#/components/schemas/Event.session-cache.invalidated"
+          },
+          {
+            "$ref": "#/components/schemas/Event.session-cache.evicted"
+          },
+          {
+            "$ref": "#/components/schemas/Event.rate-limit.allowed"
+          },
+          {
+            "$ref": "#/components/schemas/Event.rate-limit.throttled"
           }
         ]
       },
@@ -46099,7 +47853,7 @@
                 "type": "boolean"
               },
               "prune": {
-                "description": "Enable pruning of old tool outputs (default: true)",
+                "description": "@deprecated 2026-04-28: tool-output prune retired (cache-hostile). Setting this is silently ignored. Single compaction gate at overflowThreshold (default 90%) handles all context management.",
                 "type": "boolean"
               },
               "reserved": {
@@ -46135,6 +47889,24 @@
                 "type": "number",
                 "minimum": 0,
                 "maximum": 1
+              },
+              "overflowThreshold": {
+                "description": "When set, overrides the legacy reserved-based usable budget formula. Compaction fires when count >= context * threshold. Recommended: 0.9 to fire at 90% of context. Default: undefined (legacy reserved-based, ~70% for codex/byToken billing).",
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "pruneUtilizationFloor": {
+                "description": "@deprecated 2026-04-28: prune retired (see `prune` field). Silently ignored.",
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "targetPromptTokens": {
+                "description": "Hard cap on the post-compaction prompt size. Local kinds (narrative / replay-tail) are capped at this budget. If a local kind succeeds but its summary still exceeds this target, run() escalates to the next paid kind in the chain (double-phase). Default: 50000.",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
               }
             }
           },
@@ -47118,21 +48890,6 @@
               "lastUpdated"
             ]
           },
-          "planner": {
-            "type": "object",
-            "properties": {
-              "committedIntent": {
-                "type": "string",
-                "enum": [
-                  "plan_enter",
-                  "plan_exit"
-                ]
-              },
-              "updatedAt": {
-                "type": "number"
-              }
-            }
-          },
           "execution": {
             "type": "object",
             "properties": {
@@ -47151,6 +48908,9 @@
                 "maximum": 9007199254740991
               },
               "updatedAt": {
+                "type": "number"
+              },
+              "continuationInvalidatedAt": {
                 "type": "number"
               }
             },
@@ -47236,184 +48996,11 @@
               "updatedAt"
             ]
           },
-          "mission": {
-            "type": "object",
-            "properties": {
-              "source": {
-                "type": "string",
-                "const": "openspec_compiled_plan"
-              },
-              "contract": {
-                "type": "string",
-                "const": "implementation_spec"
-              },
-              "approvedAt": {
-                "type": "number"
-              },
-              "planPath": {
-                "type": "string"
-              },
-              "artifactPaths": {
-                "type": "object",
-                "properties": {
-                  "root": {
-                    "type": "string"
-                  },
-                  "implementationSpec": {
-                    "type": "string"
-                  },
-                  "proposal": {
-                    "type": "string"
-                  },
-                  "spec": {
-                    "type": "string"
-                  },
-                  "design": {
-                    "type": "string"
-                  },
-                  "tasks": {
-                    "type": "string"
-                  },
-                  "handoff": {
-                    "type": "string"
-                  },
-                  "idef0": {
-                    "type": "string"
-                  },
-                  "grafcet": {
-                    "type": "string"
-                  },
-                  "c4": {
-                    "type": "string"
-                  },
-                  "sequence": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "root",
-                  "implementationSpec",
-                  "proposal",
-                  "spec",
-                  "design",
-                  "tasks",
-                  "handoff"
-                ]
-              },
-              "artifactIntegrity": {
-                "type": "object",
-                "properties": {
-                  "implementationSpec": {
-                    "type": "string"
-                  },
-                  "tasks": {
-                    "type": "string"
-                  },
-                  "handoff": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "implementationSpec",
-                  "tasks",
-                  "handoff"
-                ]
-              },
-              "beta": {
-                "type": "object",
-                "properties": {
-                  "branchName": {
-                    "type": "string"
-                  },
-                  "baseBranch": {
-                    "type": "string"
-                  },
-                  "repoPath": {
-                    "type": "string"
-                  },
-                  "mainWorktreePath": {
-                    "type": "string"
-                  },
-                  "betaPath": {
-                    "type": "string"
-                  },
-                  "runtimePolicy": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "branchName",
-                  "baseBranch",
-                  "betaPath"
-                ]
-              },
-              "admission": {
-                "type": "object",
-                "properties": {
-                  "betaQuiz": {
-                    "type": "object",
-                    "properties": {
-                      "status": {
-                        "type": "string",
-                        "enum": [
-                          "pending",
-                          "passed",
-                          "failed"
-                        ]
-                      },
-                      "reflectionUsed": {
-                        "type": "boolean"
-                      },
-                      "passedAt": {
-                        "type": "number"
-                      },
-                      "mismatchCount": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 9007199254740991
-                      },
-                      "lastMismatches": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "field": {
-                              "type": "string"
-                            },
-                            "expected": {
-                              "type": "string"
-                            },
-                            "actual": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "field",
-                            "expected",
-                            "actual"
-                          ]
-                        }
-                      }
-                    },
-                    "required": [
-                      "status",
-                      "reflectionUsed"
-                    ]
-                  }
-                }
-              },
-              "executionReady": {
-                "type": "boolean"
-              }
-            },
-            "required": [
-              "source",
-              "contract",
-              "approvedAt",
-              "planPath",
-              "artifactPaths",
-              "executionReady"
-            ]
+          "pendingSubagentNotices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PendingSubagentNotice"
+            }
           },
           "project": {
             "anyOf": [
@@ -47690,6 +49277,117 @@
           "totalTokens",
           "updated"
         ]
+      },
+      "SessionResumeResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "description": "ok = epoch bumped + (maybe) reinjected; rate_limited = bump rejected; busy_skipped = session was busy so silent reinject was skipped (DD-5)",
+            "type": "string",
+            "enum": [
+              "ok",
+              "rate_limited",
+              "busy_skipped"
+            ]
+          },
+          "sessionID": {
+            "type": "string"
+          },
+          "previousEpoch": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "currentEpoch": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "trigger": {
+            "type": "string",
+            "const": "session_resume"
+          },
+          "rateLimitReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reinject": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "layers": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "pinnedSkills": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "missingSkills": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "failures": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "layer": {
+                          "type": "string"
+                        },
+                        "error": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "layer",
+                        "error"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "layers",
+                  "pinnedSkills",
+                  "missingSkills",
+                  "failures"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "sessionID",
+          "previousEpoch",
+          "currentEpoch",
+          "trigger"
+        ]
+      },
+      "SessionResumeRequest": {
+        "type": "object",
+        "properties": {
+          "clientID": {
+            "description": "Optional UI client tag (e.g. 'tui', 'web') for observability",
+            "type": "string"
+          }
+        }
       },
       "TextPartInput": {
         "type": "object",

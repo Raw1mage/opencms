@@ -22,6 +22,20 @@ import { UserMessage } from "@opencode-ai/sdk/v2"
 import { combineCommandSections } from "@/pages/session/helpers"
 import { canAddSelectionContext } from "@/pages/session/session-command-helpers"
 
+function formatToastError(err: unknown): string {
+  if (err instanceof Error) return err.message
+  if (err && typeof err === "object") {
+    const m = (err as { message?: unknown }).message
+    if (typeof m === "string" && m.length > 0) return m
+    try {
+      return JSON.stringify(err)
+    } catch {
+      return "[unserializable error]"
+    }
+  }
+  return String(err)
+}
+
 export type SessionCommandContext = {
   command: ReturnType<typeof useCommand>
   dialog: ReturnType<typeof useDialog>
@@ -374,7 +388,7 @@ export const useSessionCommands = (input: SessionCommandContext) => {
             success: () => input.language.t("toast.session.compact.success"),
             error: (err) =>
               input.language.t("toast.session.compact.error", {
-                reason: err instanceof Error ? err.message : String(err),
+                reason: formatToastError(err),
               }),
           },
         )

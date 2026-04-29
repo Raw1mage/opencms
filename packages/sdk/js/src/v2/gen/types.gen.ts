@@ -144,8 +144,6 @@ export type EventLspUpdated = {
 
 export type FileDiff = {
   file: string
-  before: string
-  after: string
   additions: number
   deletions: number
   status?: "added" | "deleted" | "modified"
@@ -671,6 +669,213 @@ export type EventSessionIdle = {
   }
 }
 
+export type QuestionOption = {
+  /**
+   * Display text (1-5 words, concise)
+   */
+  label: string
+  /**
+   * Explanation of choice
+   */
+  description: string
+}
+
+export type QuestionInfo = {
+  /**
+   * Complete question
+   */
+  question: string
+  /**
+   * Very short label (max 30 chars)
+   */
+  header: string
+  /**
+   * Available choices
+   */
+  options: Array<QuestionOption>
+  /**
+   * Allow selecting multiple choices
+   */
+  multiple?: boolean
+  /**
+   * Allow typing a custom answer (default: true)
+   */
+  custom?: boolean
+}
+
+export type QuestionRequest = {
+  id: string
+  sessionID: string
+  /**
+   * Questions to ask
+   */
+  questions: Array<QuestionInfo>
+  tool?: {
+    messageID: string
+    callID: string
+  }
+}
+
+export type EventQuestionAsked = {
+  type: "question.asked"
+  properties: QuestionRequest
+}
+
+export type QuestionAnswer = Array<string>
+
+export type EventQuestionReplied = {
+  type: "question.replied"
+  properties: {
+    sessionID: string
+    requestID: string
+    answers: Array<QuestionAnswer>
+  }
+}
+
+export type EventQuestionRejected = {
+  type: "question.rejected"
+  properties: {
+    sessionID: string
+    requestID: string
+  }
+}
+
+export type EventFileEdited = {
+  type: "file.edited"
+  properties: {
+    file: string
+  }
+}
+
+export type EventFileWatcherUpdated = {
+  type: "file.watcher.updated"
+  properties: {
+    file: string
+    event: "add" | "change" | "unlink"
+  }
+}
+
+export type PermissionAction = "allow" | "deny" | "ask"
+
+export type PermissionRule = {
+  permission: string
+  pattern: string
+  action: PermissionAction
+}
+
+export type PermissionRuleset = Array<PermissionRule>
+
+export type PendingSubagentNotice = {
+  jobId: string
+  childSessionID: string
+  status: "success" | "error" | "canceled" | "rate_limited" | "quota_low" | "worker_dead" | "silent_kill"
+  finish:
+    | "stop"
+    | "error"
+    | "length"
+    | "canceled"
+    | "rate_limited"
+    | "quota_low"
+    | "worker_exited"
+    | "no_progress_timeout"
+  elapsedMs: number
+  at: string
+  errorDetail?: {
+    message?: string
+    code?: string
+    resetsInSeconds?: number
+  }
+  rotateHint?: {
+    exhaustedAccountId: string
+    exhaustedAt?: string
+    remainingPercent?: number
+    directive: "rotate-before-redispatch"
+  }
+  cancelReason?: string
+}
+
+export type Session = {
+  id: string
+  slug: string
+  projectID: string
+  directory: string
+  parentID?: string
+  summary?: {
+    additions: number
+    deletions: number
+    files: number
+    diffs?: Array<FileDiff>
+  }
+  share?: {
+    url: string
+  }
+  title: string
+  version: string
+  time: {
+    created: number
+    updated: number
+    compacting?: number
+    archived?: number
+  }
+  permission?: PermissionRuleset
+  revert?: {
+    messageID: string
+    partID?: string
+    snapshot?: string
+    diff?: string
+  }
+  stats?: {
+    requestsTotal: number
+    totalTokens: number
+    tokens: {
+      input: number
+      output: number
+      reasoning: number
+      cache: {
+        read: number
+        write: number
+      }
+    }
+    lastUpdated: number
+  }
+  execution?: {
+    providerId: string
+    modelID: string
+    accountId?: string
+    revision: number
+    updatedAt: number
+    continuationInvalidatedAt?: number
+  }
+  workflow?: {
+    autonomous: {
+      enabled: boolean
+      maxContinuousRounds?: number
+      stopOnTestsFail?: boolean
+      requireApprovalFor?: Array<string>
+    }
+    state: "idle" | "running" | "waiting_user" | "blocked" | "completed"
+    stopReason?: string
+    updatedAt: number
+    lastRunAt?: number
+    supervisor?: {
+      leaseOwner?: string
+      leaseExpiresAt?: number
+      retryAt?: number
+      consecutiveResumeFailures?: number
+      lastResumeCategory?: string
+      lastResumeError?: string
+    }
+  }
+  pendingSubagentNotices?: Array<PendingSubagentNotice>
+}
+
+export type EventSessionDeleted = {
+  type: "session.deleted"
+  properties: {
+    info: Session
+  }
+}
+
 export type EventTuiProviderRefresh = {
   type: "tui.provider.refresh"
   properties: {
@@ -767,146 +972,6 @@ export type EventRatelimitAuthFailed = {
   }
 }
 
-export type PermissionAction = "allow" | "deny" | "ask"
-
-export type PermissionRule = {
-  permission: string
-  pattern: string
-  action: PermissionAction
-}
-
-export type PermissionRuleset = Array<PermissionRule>
-
-export type Session = {
-  id: string
-  slug: string
-  projectID: string
-  directory: string
-  parentID?: string
-  summary?: {
-    additions: number
-    deletions: number
-    files: number
-    diffs?: Array<FileDiff>
-  }
-  share?: {
-    url: string
-  }
-  title: string
-  version: string
-  time: {
-    created: number
-    updated: number
-    compacting?: number
-    archived?: number
-  }
-  permission?: PermissionRuleset
-  revert?: {
-    messageID: string
-    partID?: string
-    snapshot?: string
-    diff?: string
-  }
-  stats?: {
-    requestsTotal: number
-    totalTokens: number
-    tokens: {
-      input: number
-      output: number
-      reasoning: number
-      cache: {
-        read: number
-        write: number
-      }
-    }
-    lastUpdated: number
-  }
-  planner?: {
-    committedIntent?: "plan_enter" | "plan_exit"
-    updatedAt?: number
-  }
-  execution?: {
-    providerId: string
-    modelID: string
-    accountId?: string
-    revision: number
-    updatedAt: number
-  }
-  workflow?: {
-    autonomous: {
-      enabled: boolean
-      maxContinuousRounds?: number
-      stopOnTestsFail?: boolean
-      requireApprovalFor?: Array<string>
-    }
-    state: "idle" | "running" | "waiting_user" | "blocked" | "completed"
-    stopReason?: string
-    updatedAt: number
-    lastRunAt?: number
-    supervisor?: {
-      leaseOwner?: string
-      leaseExpiresAt?: number
-      retryAt?: number
-      consecutiveResumeFailures?: number
-      lastResumeCategory?: string
-      lastResumeError?: string
-    }
-  }
-  mission?: {
-    source: "openspec_compiled_plan"
-    contract: "implementation_spec"
-    approvedAt: number
-    planPath: string
-    artifactPaths: {
-      root: string
-      implementationSpec: string
-      proposal: string
-      spec: string
-      design: string
-      tasks: string
-      handoff: string
-      idef0?: string
-      grafcet?: string
-      c4?: string
-      sequence?: string
-    }
-    artifactIntegrity?: {
-      implementationSpec: string
-      tasks: string
-      handoff: string
-    }
-    beta?: {
-      branchName: string
-      baseBranch: string
-      repoPath?: string
-      mainWorktreePath?: string
-      betaPath: string
-      runtimePolicy?: string
-    }
-    admission?: {
-      betaQuiz?: {
-        status: "pending" | "passed" | "failed"
-        reflectionUsed: boolean
-        passedAt?: number
-        mismatchCount?: number
-        lastMismatches?: Array<{
-          field: string
-          expected: string
-          actual: string
-        }>
-      }
-    }
-    executionReady: boolean
-  }
-}
-
-export type EventSessionDeleted = {
-  type: "session.deleted"
-  properties: {
-    info: Session
-  }
-}
-
 export type EventLlmError = {
   type: "llm.error"
   properties: {
@@ -958,77 +1023,6 @@ export type EventLlmPromptTelemetry = {
   }
 }
 
-export type QuestionOption = {
-  /**
-   * Display text (1-5 words, concise)
-   */
-  label: string
-  /**
-   * Explanation of choice
-   */
-  description: string
-}
-
-export type QuestionInfo = {
-  /**
-   * Complete question
-   */
-  question: string
-  /**
-   * Very short label (max 30 chars)
-   */
-  header: string
-  /**
-   * Available choices
-   */
-  options: Array<QuestionOption>
-  /**
-   * Allow selecting multiple choices
-   */
-  multiple?: boolean
-  /**
-   * Allow typing a custom answer (default: true)
-   */
-  custom?: boolean
-}
-
-export type QuestionRequest = {
-  id: string
-  sessionID: string
-  /**
-   * Questions to ask
-   */
-  questions: Array<QuestionInfo>
-  tool?: {
-    messageID: string
-    callID: string
-  }
-}
-
-export type EventQuestionAsked = {
-  type: "question.asked"
-  properties: QuestionRequest
-}
-
-export type QuestionAnswer = Array<string>
-
-export type EventQuestionReplied = {
-  type: "question.replied"
-  properties: {
-    sessionID: string
-    requestID: string
-    answers: Array<QuestionAnswer>
-  }
-}
-
-export type EventQuestionRejected = {
-  type: "question.rejected"
-  properties: {
-    sessionID: string
-    requestID: string
-  }
-}
-
 export type Todo = {
   /**
    * Brief description of the task
@@ -1064,6 +1058,136 @@ export type EventTodoUpdated = {
   properties: {
     sessionID: string
     todos: Array<Todo>
+  }
+}
+
+export type EventTaskWorkerAssigned = {
+  type: "task.worker.assigned"
+  properties: {
+    workerID: string
+    sessionID: string
+  }
+}
+
+export type EventTaskWorkerDone = {
+  type: "task.worker.done"
+  properties: {
+    workerID: string
+    sessionID: string
+    parentSessionID: string
+    parentMessageID: string
+    toolCallID: string
+    linkedTodoID?: string
+  }
+}
+
+export type EventTaskWorkerFailed = {
+  type: "task.worker.failed"
+  properties: {
+    workerID: string
+    sessionID: string
+    parentSessionID: string
+    parentMessageID: string
+    toolCallID: string
+    linkedTodoID?: string
+    error?: string
+  }
+}
+
+export type EventTaskWorkerRemoved = {
+  type: "task.worker.removed"
+  properties: {
+    workerID: string
+  }
+}
+
+export type EventTaskWorkerOrphanRecovered = {
+  type: "task.worker.orphan_recovered"
+  properties: {
+    sessionID: string
+    parentSessionID: string
+    parentMessageID: string
+    toolCallID: string
+    partID: string
+  }
+}
+
+export type EventTaskCompleted = {
+  type: "task.completed"
+  properties: {
+    jobId: string
+    parentSessionID: string
+    childSessionID: string
+    status: "success" | "error" | "canceled" | "rate_limited" | "quota_low" | "worker_dead" | "silent_kill"
+    finish: string
+    elapsedMs: number
+    errorDetail?: {
+      message?: string
+      code?: string
+      resetsInSeconds?: number
+    }
+    rotateHint?: {
+      exhaustedAccountId: string
+      exhaustedAt?: string
+      remainingPercent?: number
+      directive: "rotate-before-redispatch"
+    }
+    cancelReason?: string
+  }
+}
+
+export type EventTaskRateLimitEscalation = {
+  type: "task.rate_limit_escalation"
+  properties: {
+    sessionID: string
+    currentModel: {
+      providerId: string
+      modelID: string
+      accountId?: string
+    }
+    error: string
+    triedVectors: Array<string>
+  }
+}
+
+export type EventSessionActiveChildUpdated = {
+  type: "session.active-child.updated"
+  properties: {
+    parentSessionID: string
+    activeChild: {
+      sessionID: string
+      parentMessageID: string
+      toolCallID: string
+      workerID: string
+      title: string
+      agent: string
+      status: "running" | "handoff"
+      dispatchedAt?: number
+      todo?: {
+        id: string
+        content: string
+        status: string
+        /**
+         * Structured planner metadata for autonomous session execution
+         */
+        action?: {
+          kind:
+            | "implement"
+            | "delegate"
+            | "wait"
+            | "approval"
+            | "decision"
+            | "push"
+            | "destructive"
+            | "architecture_change"
+          risk?: "low" | "medium" | "high"
+          needsApproval?: boolean
+          canDelegate?: boolean
+          waitingOn?: "subagent" | "approval" | "decision" | "external"
+          dependsOn?: Array<string>
+        }
+      }
+    } | null
   }
 }
 
@@ -1113,24 +1237,18 @@ export type EventSessionCompactionTelemetry = {
   }
 }
 
-export type EventTaskRateLimitEscalation = {
-  type: "task.rate_limit_escalation"
-  properties: {
-    sessionID: string
-    currentModel: {
-      providerId: string
-      modelID: string
-      accountId?: string
-    }
-    error: string
-    triedVectors: Array<string>
-  }
-}
-
 export type EventSessionCompacted = {
   type: "session.compacted"
   properties: {
     sessionID: string
+  }
+}
+
+export type EventSessionCompactionStarted = {
+  type: "session.compaction.started"
+  properties: {
+    sessionID: string
+    mode: "plugin" | "llm" | "hybrid_llm" | "hybrid_llm_background"
   }
 }
 
@@ -1258,113 +1376,6 @@ export type EventCommandExecuted = {
     sessionID: string
     arguments: string
     messageID: string
-  }
-}
-
-export type EventFileEdited = {
-  type: "file.edited"
-  properties: {
-    file: string
-  }
-}
-
-export type EventFileWatcherUpdated = {
-  type: "file.watcher.updated"
-  properties: {
-    file: string
-    event: "add" | "change" | "unlink"
-  }
-}
-
-export type EventTaskWorkerAssigned = {
-  type: "task.worker.assigned"
-  properties: {
-    workerID: string
-    sessionID: string
-  }
-}
-
-export type EventTaskWorkerDone = {
-  type: "task.worker.done"
-  properties: {
-    workerID: string
-    sessionID: string
-    parentSessionID: string
-    parentMessageID: string
-    toolCallID: string
-    linkedTodoID?: string
-  }
-}
-
-export type EventTaskWorkerFailed = {
-  type: "task.worker.failed"
-  properties: {
-    workerID: string
-    sessionID: string
-    parentSessionID: string
-    parentMessageID: string
-    toolCallID: string
-    linkedTodoID?: string
-    error?: string
-  }
-}
-
-export type EventTaskWorkerRemoved = {
-  type: "task.worker.removed"
-  properties: {
-    workerID: string
-  }
-}
-
-export type EventTaskWorkerOrphanRecovered = {
-  type: "task.worker.orphan_recovered"
-  properties: {
-    sessionID: string
-    parentSessionID: string
-    parentMessageID: string
-    toolCallID: string
-    partID: string
-  }
-}
-
-export type EventSessionActiveChildUpdated = {
-  type: "session.active-child.updated"
-  properties: {
-    parentSessionID: string
-    activeChild: {
-      sessionID: string
-      parentMessageID: string
-      toolCallID: string
-      workerID: string
-      title: string
-      agent: string
-      status: "running" | "handoff"
-      dispatchedAt?: number
-      todo?: {
-        id: string
-        content: string
-        status: string
-        /**
-         * Structured planner metadata for autonomous session execution
-         */
-        action?: {
-          kind:
-            | "implement"
-            | "delegate"
-            | "wait"
-            | "approval"
-            | "decision"
-            | "push"
-            | "destructive"
-            | "architecture_change"
-          risk?: "low" | "medium" | "high"
-          needsApproval?: boolean
-          canDelegate?: boolean
-          waitingOn?: "subagent" | "approval" | "decision" | "external"
-          dependsOn?: Array<string>
-        }
-      }
-    } | null
   }
 }
 
@@ -1726,10 +1737,58 @@ export type EventPtyDeleted = {
   }
 }
 
-export type EventSyncRequired = {
-  type: "sync.required"
+export type EventSessionCacheHit = {
+  type: "session-cache.hit"
   properties: {
-    [key: string]: unknown
+    key: string
+    sessionID: string
+  }
+}
+
+export type EventSessionCacheMiss = {
+  type: "session-cache.miss"
+  properties: {
+    key: string
+    sessionID: string
+    durationMs: number
+  }
+}
+
+export type EventSessionCacheInvalidated = {
+  type: "session-cache.invalidated"
+  properties: {
+    sessionID: string
+    triggeringEventType: string
+    keysDropped: number
+  }
+}
+
+export type EventSessionCacheEvicted = {
+  type: "session-cache.evicted"
+  properties: {
+    key: string
+    sessionID: string
+    reason: "lru" | "ttl"
+  }
+}
+
+export type EventRateLimitAllowed = {
+  type: "rate-limit.allowed"
+  properties: {
+    username: string
+    method: string
+    routePattern: string
+    tokensRemaining: number
+  }
+}
+
+export type EventRateLimitThrottled = {
+  type: "rate-limit.throttled"
+  properties: {
+    username: string
+    method: string
+    routePattern: string
+    retryAfterSec: number
   }
 }
 
@@ -1756,6 +1815,12 @@ export type Event =
   | EventPermissionReplied
   | EventSessionStatus
   | EventSessionIdle
+  | EventQuestionAsked
+  | EventQuestionReplied
+  | EventQuestionRejected
+  | EventFileEdited
+  | EventFileWatcherUpdated
+  | EventSessionDeleted
   | EventTuiProviderRefresh
   | EventTuiPromptAppend
   | EventTuiCommandExecute
@@ -1764,30 +1829,26 @@ export type Event =
   | EventRatelimitDetected
   | EventRatelimitCleared
   | EventRatelimitAuthFailed
-  | EventSessionDeleted
   | EventLlmError
   | EventRotationExecuted
   | EventLlmPromptTelemetry
-  | EventQuestionAsked
-  | EventQuestionReplied
-  | EventQuestionRejected
   | EventTodoUpdated
-  | EventSessionRoundTelemetry
-  | EventSessionCompactionTelemetry
-  | EventTaskRateLimitEscalation
-  | EventSessionCompacted
-  | EventManagedAppUpdated
-  | EventMcpToolsChanged
-  | EventMcpBrowserOpenFailed
-  | EventCommandExecuted
-  | EventFileEdited
-  | EventFileWatcherUpdated
   | EventTaskWorkerAssigned
   | EventTaskWorkerDone
   | EventTaskWorkerFailed
   | EventTaskWorkerRemoved
   | EventTaskWorkerOrphanRecovered
+  | EventTaskCompleted
+  | EventTaskRateLimitEscalation
   | EventSessionActiveChildUpdated
+  | EventSessionRoundTelemetry
+  | EventSessionCompactionTelemetry
+  | EventSessionCompacted
+  | EventSessionCompactionStarted
+  | EventManagedAppUpdated
+  | EventMcpToolsChanged
+  | EventMcpBrowserOpenFailed
+  | EventCommandExecuted
   | EventSessionCreated
   | EventSessionUpdated
   | EventSessionDiff
@@ -1805,7 +1866,12 @@ export type Event =
   | EventPtyUpdated
   | EventPtyExited
   | EventPtyDeleted
-  | EventSyncRequired
+  | EventSessionCacheHit
+  | EventSessionCacheMiss
+  | EventSessionCacheInvalidated
+  | EventSessionCacheEvicted
+  | EventRateLimitAllowed
+  | EventRateLimitThrottled
 
 export type GlobalEvent = {
   directory: string
@@ -2686,7 +2752,7 @@ export type Config = {
      */
     auto?: boolean
     /**
-     * Enable pruning of old tool outputs (default: true)
+     * @deprecated 2026-04-28: tool-output prune retired (cache-hostile). Setting this is silently ignored. Single compaction gate at overflowThreshold (default 90%) handles all context management.
      */
     prune?: boolean
     /**
@@ -2713,6 +2779,18 @@ export type Config = {
      * Context utilization threshold for idle compaction after task dispatch (default: 0.6). Set to 1.0 to disable.
      */
     opportunisticThreshold?: number
+    /**
+     * When set, overrides the legacy reserved-based usable budget formula. Compaction fires when count >= context * threshold. Recommended: 0.9 to fire at 90% of context. Default: undefined (legacy reserved-based, ~70% for codex/byToken billing).
+     */
+    overflowThreshold?: number
+    /**
+     * @deprecated 2026-04-28: prune retired (see `prune` field). Silently ignored.
+     */
+    pruneUtilizationFloor?: number
+    /**
+     * Hard cap on the post-compaction prompt size. Local kinds (narrative / replay-tail) are capped at this budget. If a local kind succeeds but its summary still exceeds this target, run() escalates to the next paid kind in the chain (double-phase). Default: 50000.
+     */
+    targetPromptTokens?: number
   }
   experimental?: {
     hook?: {
@@ -3040,16 +3118,13 @@ export type GlobalSession = {
     }
     lastUpdated: number
   }
-  planner?: {
-    committedIntent?: "plan_enter" | "plan_exit"
-    updatedAt?: number
-  }
   execution?: {
     providerId: string
     modelID: string
     accountId?: string
     revision: number
     updatedAt: number
+    continuationInvalidatedAt?: number
   }
   workflow?: {
     autonomous: {
@@ -3071,52 +3146,7 @@ export type GlobalSession = {
       lastResumeError?: string
     }
   }
-  mission?: {
-    source: "openspec_compiled_plan"
-    contract: "implementation_spec"
-    approvedAt: number
-    planPath: string
-    artifactPaths: {
-      root: string
-      implementationSpec: string
-      proposal: string
-      spec: string
-      design: string
-      tasks: string
-      handoff: string
-      idef0?: string
-      grafcet?: string
-      c4?: string
-      sequence?: string
-    }
-    artifactIntegrity?: {
-      implementationSpec: string
-      tasks: string
-      handoff: string
-    }
-    beta?: {
-      branchName: string
-      baseBranch: string
-      repoPath?: string
-      mainWorktreePath?: string
-      betaPath: string
-      runtimePolicy?: string
-    }
-    admission?: {
-      betaQuiz?: {
-        status: "pending" | "passed" | "failed"
-        reflectionUsed: boolean
-        passedAt?: number
-        mismatchCount?: number
-        lastMismatches?: Array<{
-          field: string
-          expected: string
-          actual: string
-        }>
-      }
-    }
-    executionReady: boolean
-  }
+  pendingSubagentNotices?: Array<PendingSubagentNotice>
   project: ProjectSummary | null
 }
 
@@ -3195,6 +3225,34 @@ export type SessionMonitorInfo = {
     }
   }
   updated: number
+}
+
+export type SessionResumeResponse = {
+  /**
+   * ok = epoch bumped + (maybe) reinjected; rate_limited = bump rejected; busy_skipped = session was busy so silent reinject was skipped (DD-5)
+   */
+  status: "ok" | "rate_limited" | "busy_skipped"
+  sessionID: string
+  previousEpoch: number
+  currentEpoch: number
+  trigger: "session_resume"
+  rateLimitReason?: string | null
+  reinject?: {
+    layers: Array<string>
+    pinnedSkills: Array<string>
+    missingSkills: Array<string>
+    failures: Array<{
+      layer: string
+      error: string
+    }>
+  } | null
+}
+
+export type SessionResumeRequest = {
+  /**
+   * Optional UI client tag (e.g. 'tui', 'web') for observability
+   */
+  clientID?: string
 }
 
 export type TextPartInput = {
@@ -3568,10 +3626,20 @@ export type GlobalConfigProviderDeleteResponse =
   GlobalConfigProviderDeleteResponses[keyof GlobalConfigProviderDeleteResponses]
 
 export type GlobalWebRestartData = {
-  body?: never
+  body: {
+    targets?: Array<"daemon" | "frontend" | "gateway">
+    reason?: string
+  }
   path?: never
   query?: never
   url: "/api/v2/global/web/restart"
+}
+
+export type GlobalWebRestartErrors = {
+  /**
+   * Another restart is already in progress
+   */
+  409: unknown
 }
 
 export type GlobalWebRestartResponses = {
@@ -3647,6 +3715,41 @@ export type GlobalLogLevelSetResponses = {
 }
 
 export type GlobalLogLevelSetResponse = GlobalLogLevelSetResponses[keyof GlobalLogLevelSetResponses]
+
+export type ServerCacheHealthData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v2/server/cache/health"
+}
+
+export type ServerCacheHealthResponses = {
+  /**
+   * Health snapshot
+   */
+  200: {
+    entries: number
+    maxEntries: number
+    hitRate: number
+    missRate: number
+    invalidationCount: number
+    evictionCount: number
+    subscriptionAlive: boolean
+    ttlSec: number
+    rateLimit: {
+      enabled: boolean
+      allowedCount: number
+      throttledCount: number
+      activeBuckets: number
+    }
+    source: {
+      path: string
+      present: boolean
+    }
+  }
+}
+
+export type ServerCacheHealthResponse = ServerCacheHealthResponses[keyof ServerCacheHealthResponses]
 
 export type AuthRemoveData = {
   body?: never
@@ -4597,6 +4700,42 @@ export type ConfigProvidersResponses = {
 
 export type ConfigProvidersResponse = ConfigProvidersResponses[keyof ConfigProvidersResponses]
 
+export type ConfigTweaksFrontendData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/config/tweaks/frontend"
+}
+
+export type ConfigTweaksFrontendResponses = {
+  /**
+   * Frontend tweaks
+   */
+  200: {
+    frontend_session_lazyload: 0 | 1
+    part_inline_cap_kb: number
+    tail_window_kb: number
+    fold_preview_lines: number
+    initial_page_size_small: "all" | number
+    initial_page_size_medium: number
+    initial_page_size_large: number
+    session_size_threshold_kb: number
+    session_size_threshold_parts: number
+    ui_session_freshness_enabled: 0 | 1
+    ui_freshness_threshold_sec: number
+    ui_freshness_hard_timeout_sec: number
+    session_tail_mobile: number
+    session_tail_desktop: number
+    session_store_cap_mobile: number
+    session_store_cap_desktop: number
+    session_part_cap_bytes: number
+  }
+}
+
+export type ConfigTweaksFrontendResponse = ConfigTweaksFrontendResponses[keyof ConfigTweaksFrontendResponses]
+
 export type ExperimentalDebugBeaconData = {
   body: {
     source?: string
@@ -4625,6 +4764,33 @@ export type ExperimentalDebugBeaconResponses = {
 }
 
 export type ExperimentalDebugBeaconResponse = ExperimentalDebugBeaconResponses[keyof ExperimentalDebugBeaconResponses]
+
+export type ExperimentalClientDiagData = {
+  body: {
+    sessionID?: string
+    note?: string
+    snapshot?: {
+      [key: string]: unknown
+    }
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/experimental/client-diag"
+}
+
+export type ExperimentalClientDiagResponses = {
+  /**
+   * Snapshot recorded
+   */
+  200: {
+    ok: true
+    serverReceivedAt: number
+  }
+}
+
+export type ExperimentalClientDiagResponse = ExperimentalClientDiagResponses[keyof ExperimentalClientDiagResponses]
 
 export type ExperimentalScrollCaptureLatestData = {
   body?: never
@@ -5224,6 +5390,60 @@ export type SessionUpdateResponses = {
 
 export type SessionUpdateResponse = SessionUpdateResponses[keyof SessionUpdateResponses]
 
+export type SessionMetaData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/session/{sessionID}/meta"
+}
+
+export type SessionMetaErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionMetaError = SessionMetaErrors[keyof SessionMetaErrors]
+
+export type SessionMetaResponses = {
+  /**
+   * Session metadata
+   */
+  200: {
+    /**
+     * Total part files on disk for this session
+     */
+    partCount: number
+    /**
+     * Sum of part file sizes in bytes
+     */
+    totalBytes: number
+    /**
+     * ISO-8601 timestamp of most recent part/message/session write
+     */
+    lastUpdated: string
+    /**
+     * Weak ETag; shares version counter with session:{id} and messages:{id}:{limit}
+     */
+    etag: string
+    /**
+     * Message count; optional hint for initial page size decision
+     */
+    messageCount?: number
+  }
+}
+
+export type SessionMetaResponse = SessionMetaResponses[keyof SessionMetaResponses]
+
 export type SessionChildrenData = {
   body?: never
   path: {
@@ -5389,6 +5609,42 @@ export type SessionSkillLayerActionResponses = {
 }
 
 export type SessionSkillLayerActionResponse = SessionSkillLayerActionResponses[keyof SessionSkillLayerActionResponses]
+
+export type SessionResumeData = {
+  body: SessionResumeRequest
+  path: {
+    /**
+     * Session ID to resume
+     */
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/session/{sessionID}/resume"
+}
+
+export type SessionResumeErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionResumeError = SessionResumeErrors[keyof SessionResumeErrors]
+
+export type SessionResumeResponses = {
+  /**
+   * Resume signal accepted (may be ok / rate_limited / busy_skipped)
+   */
+  200: SessionResumeResponse
+}
+
+export type SessionResumeResponse2 = SessionResumeResponses[keyof SessionResumeResponses]
 
 export type SessionAutonomousData = {
   body: {
@@ -5870,11 +6126,62 @@ export type SessionDiffResponses = {
 
 export type SessionDiffResponse = SessionDiffResponses[keyof SessionDiffResponses]
 
+export type SessionMemoryData = {
+  body?: never
+  path: {
+    /**
+     * Session ID
+     */
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    form?: "llm" | "human"
+  }
+  url: "/api/v2/session/{sessionID}/memory"
+}
+
+export type SessionMemoryErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionMemoryError = SessionMemoryErrors[keyof SessionMemoryErrors]
+
+export type SessionMemoryResponses = {
+  /**
+   * Rendered memory text
+   */
+  200: {
+    sessionID: string
+    form: "llm" | "human"
+    text: string
+    version: number
+    updatedAt: number
+    turnSummariesCount: number
+    fileIndexCount: number
+    actionLogCount: number
+    lastCompactedAt: {
+      round: number
+      timestamp: number
+    } | null
+  }
+}
+
+export type SessionMemoryResponse = SessionMemoryResponses[keyof SessionMemoryResponses]
+
 export type SessionSummarizeData = {
   body: {
     providerId: string
     modelID: string
     auto?: boolean
+    rich?: boolean
   }
   path: {
     /**
@@ -5921,6 +6228,7 @@ export type SessionMessagesData = {
   query?: {
     directory?: string
     limit?: number
+    before?: string
   }
   url: "/api/v2/session/{sessionID}/message"
 }
@@ -6135,6 +6443,52 @@ export type PartDeleteResponses = {
 }
 
 export type PartDeleteResponse = PartDeleteResponses[keyof PartDeleteResponses]
+
+export type SessionMessagePartData = {
+  body?: never
+  path: {
+    /**
+     * Session ID
+     */
+    sessionID: string
+    /**
+     * Message ID
+     */
+    messageID: string
+    /**
+     * Part ID
+     */
+    partID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/session/{sessionID}/message/{messageID}/part/{partID}"
+}
+
+export type SessionMessagePartErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionMessagePartError = SessionMessagePartErrors[keyof SessionMessagePartErrors]
+
+export type SessionMessagePartResponses = {
+  /**
+   * Part
+   */
+  200: {
+    part: Part
+  }
+}
+
+export type SessionMessagePartResponse = SessionMessagePartResponses[keyof SessionMessagePartResponses]
 
 export type PartUpdateData = {
   body: Part
@@ -10778,10 +11132,20 @@ export type GlobalConfigProviderDelete2Response =
   GlobalConfigProviderDelete2Responses[keyof GlobalConfigProviderDelete2Responses]
 
 export type GlobalWebRestart2Data = {
-  body?: never
+  body: {
+    targets?: Array<"daemon" | "frontend" | "gateway">
+    reason?: string
+  }
   path?: never
   query?: never
   url: "/global/web/restart"
+}
+
+export type GlobalWebRestart2Errors = {
+  /**
+   * Another restart is already in progress
+   */
+  409: unknown
 }
 
 export type GlobalWebRestart2Responses = {
@@ -10857,6 +11221,41 @@ export type GlobalLogLevelSet2Responses = {
 }
 
 export type GlobalLogLevelSet2Response = GlobalLogLevelSet2Responses[keyof GlobalLogLevelSet2Responses]
+
+export type ServerCacheHealth2Data = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/server/cache/health"
+}
+
+export type ServerCacheHealth2Responses = {
+  /**
+   * Health snapshot
+   */
+  200: {
+    entries: number
+    maxEntries: number
+    hitRate: number
+    missRate: number
+    invalidationCount: number
+    evictionCount: number
+    subscriptionAlive: boolean
+    ttlSec: number
+    rateLimit: {
+      enabled: boolean
+      allowedCount: number
+      throttledCount: number
+      activeBuckets: number
+    }
+    source: {
+      path: string
+      present: boolean
+    }
+  }
+}
+
+export type ServerCacheHealth2Response = ServerCacheHealth2Responses[keyof ServerCacheHealth2Responses]
 
 export type AuthRemove2Data = {
   body?: never
@@ -11807,6 +12206,42 @@ export type ConfigProviders2Responses = {
 
 export type ConfigProviders2Response = ConfigProviders2Responses[keyof ConfigProviders2Responses]
 
+export type ConfigTweaksFrontend2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/config/tweaks/frontend"
+}
+
+export type ConfigTweaksFrontend2Responses = {
+  /**
+   * Frontend tweaks
+   */
+  200: {
+    frontend_session_lazyload: 0 | 1
+    part_inline_cap_kb: number
+    tail_window_kb: number
+    fold_preview_lines: number
+    initial_page_size_small: "all" | number
+    initial_page_size_medium: number
+    initial_page_size_large: number
+    session_size_threshold_kb: number
+    session_size_threshold_parts: number
+    ui_session_freshness_enabled: 0 | 1
+    ui_freshness_threshold_sec: number
+    ui_freshness_hard_timeout_sec: number
+    session_tail_mobile: number
+    session_tail_desktop: number
+    session_store_cap_mobile: number
+    session_store_cap_desktop: number
+    session_part_cap_bytes: number
+  }
+}
+
+export type ConfigTweaksFrontend2Response = ConfigTweaksFrontend2Responses[keyof ConfigTweaksFrontend2Responses]
+
 export type ExperimentalDebugBeacon2Data = {
   body: {
     source?: string
@@ -11836,6 +12271,33 @@ export type ExperimentalDebugBeacon2Responses = {
 
 export type ExperimentalDebugBeacon2Response =
   ExperimentalDebugBeacon2Responses[keyof ExperimentalDebugBeacon2Responses]
+
+export type ExperimentalClientDiag2Data = {
+  body: {
+    sessionID?: string
+    note?: string
+    snapshot?: {
+      [key: string]: unknown
+    }
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/experimental/client-diag"
+}
+
+export type ExperimentalClientDiag2Responses = {
+  /**
+   * Snapshot recorded
+   */
+  200: {
+    ok: true
+    serverReceivedAt: number
+  }
+}
+
+export type ExperimentalClientDiag2Response = ExperimentalClientDiag2Responses[keyof ExperimentalClientDiag2Responses]
 
 export type ExperimentalScrollCaptureLatest2Data = {
   body?: never
@@ -12436,6 +12898,60 @@ export type SessionUpdate2Responses = {
 
 export type SessionUpdate2Response = SessionUpdate2Responses[keyof SessionUpdate2Responses]
 
+export type SessionMeta2Data = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/meta"
+}
+
+export type SessionMeta2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionMeta2Error = SessionMeta2Errors[keyof SessionMeta2Errors]
+
+export type SessionMeta2Responses = {
+  /**
+   * Session metadata
+   */
+  200: {
+    /**
+     * Total part files on disk for this session
+     */
+    partCount: number
+    /**
+     * Sum of part file sizes in bytes
+     */
+    totalBytes: number
+    /**
+     * ISO-8601 timestamp of most recent part/message/session write
+     */
+    lastUpdated: string
+    /**
+     * Weak ETag; shares version counter with session:{id} and messages:{id}:{limit}
+     */
+    etag: string
+    /**
+     * Message count; optional hint for initial page size decision
+     */
+    messageCount?: number
+  }
+}
+
+export type SessionMeta2Response = SessionMeta2Responses[keyof SessionMeta2Responses]
+
 export type SessionChildren2Data = {
   body?: never
   path: {
@@ -12602,6 +13118,42 @@ export type SessionSkillLayerAction2Responses = {
 
 export type SessionSkillLayerAction2Response =
   SessionSkillLayerAction2Responses[keyof SessionSkillLayerAction2Responses]
+
+export type SessionResume2Data = {
+  body: SessionResumeRequest
+  path: {
+    /**
+     * Session ID to resume
+     */
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/resume"
+}
+
+export type SessionResume2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionResume2Error = SessionResume2Errors[keyof SessionResume2Errors]
+
+export type SessionResume2Responses = {
+  /**
+   * Resume signal accepted (may be ok / rate_limited / busy_skipped)
+   */
+  200: SessionResumeResponse
+}
+
+export type SessionResume2Response = SessionResume2Responses[keyof SessionResume2Responses]
 
 export type SessionAutonomous2Data = {
   body: {
@@ -13084,11 +13636,62 @@ export type SessionDiff2Responses = {
 
 export type SessionDiff2Response = SessionDiff2Responses[keyof SessionDiff2Responses]
 
+export type SessionMemory2Data = {
+  body?: never
+  path: {
+    /**
+     * Session ID
+     */
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    form?: "llm" | "human"
+  }
+  url: "/session/{sessionID}/memory"
+}
+
+export type SessionMemory2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionMemory2Error = SessionMemory2Errors[keyof SessionMemory2Errors]
+
+export type SessionMemory2Responses = {
+  /**
+   * Rendered memory text
+   */
+  200: {
+    sessionID: string
+    form: "llm" | "human"
+    text: string
+    version: number
+    updatedAt: number
+    turnSummariesCount: number
+    fileIndexCount: number
+    actionLogCount: number
+    lastCompactedAt: {
+      round: number
+      timestamp: number
+    } | null
+  }
+}
+
+export type SessionMemory2Response = SessionMemory2Responses[keyof SessionMemory2Responses]
+
 export type SessionSummarize2Data = {
   body: {
     providerId: string
     modelID: string
     auto?: boolean
+    rich?: boolean
   }
   path: {
     /**
@@ -13135,6 +13738,7 @@ export type SessionMessages2Data = {
   query?: {
     directory?: string
     limit?: number
+    before?: string
   }
   url: "/session/{sessionID}/message"
 }
@@ -13349,6 +13953,52 @@ export type PartDelete2Responses = {
 }
 
 export type PartDelete2Response = PartDelete2Responses[keyof PartDelete2Responses]
+
+export type SessionMessagePart2Data = {
+  body?: never
+  path: {
+    /**
+     * Session ID
+     */
+    sessionID: string
+    /**
+     * Message ID
+     */
+    messageID: string
+    /**
+     * Part ID
+     */
+    partID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/message/{messageID}/part/{partID}"
+}
+
+export type SessionMessagePart2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionMessagePart2Error = SessionMessagePart2Errors[keyof SessionMessagePart2Errors]
+
+export type SessionMessagePart2Responses = {
+  /**
+   * Part
+   */
+  200: {
+    part: Part
+  }
+}
+
+export type SessionMessagePart2Response = SessionMessagePart2Responses[keyof SessionMessagePart2Responses]
 
 export type PartUpdate2Data = {
   body: Part

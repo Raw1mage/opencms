@@ -8,9 +8,14 @@
  * Extracted from plugin/codex-websocket.ts.
  */
 import { WS_CONNECT_TIMEOUT_MS, WS_IDLE_TIMEOUT_MS, WS_FIRST_FRAME_TIMEOUT_MS } from "./protocol.js"
-import { getContinuation, updateContinuation, invalidateContinuation, clearContinuation } from "./continuation.js"
+import {
+  getContinuation,
+  updateContinuation,
+  invalidateContinuation,
+  invalidateContinuationFamily,
+} from "./continuation.js"
 import { buildHeaders } from "./headers.js"
-import type { ResponseStreamEvent, ResponseCreateWsRequest } from "./types.js"
+import type { ResponseStreamEvent } from "./types.js"
 
 // ---------------------------------------------------------------------------
 // § 1  Session state (in-memory)
@@ -66,20 +71,24 @@ export function resetWsSession(sessionId: string) {
   const state = sessions.get(sessionId)
   if (state) {
     if (state.ws) {
-      try { state.ws.close() } catch {}
+      try {
+        state.ws.close()
+      } catch {}
       state.ws = null
     }
     state.status = "idle"
     state.lastResponseId = undefined
     state.lastInputLength = undefined
-    invalidateContinuation(sessionId)
+    invalidateContinuationFamily(sessionId)
   }
 }
 
 export function closeWsSession(sessionId: string) {
   const state = sessions.get(sessionId)
   if (state?.ws) {
-    try { state.ws.close() } catch {}
+    try {
+      state.ws.close()
+    } catch {}
     state.ws = null
     state.status = "idle"
   }
@@ -132,7 +141,9 @@ function mapError(event: WrappedErrorEvent): Error | null {
 function connectWs(url: string, headers: Record<string, string>): Promise<WebSocket | null> {
   return new Promise((resolve) => {
     const timeout = setTimeout(() => {
-      try { ws.close() } catch {}
+      try {
+        ws.close()
+      } catch {}
       resolve(null)
     }, WS_CONNECT_TIMEOUT_MS)
 
@@ -145,9 +156,18 @@ function connectWs(url: string, headers: Record<string, string>): Promise<WebSoc
       return
     }
 
-    ws.onopen = () => { clearTimeout(timeout); resolve(ws) }
-    ws.onerror = () => { clearTimeout(timeout); resolve(null) }
-    ws.onclose = () => { clearTimeout(timeout); resolve(null) }
+    ws.onopen = () => {
+      clearTimeout(timeout)
+      resolve(ws)
+    }
+    ws.onerror = () => {
+      clearTimeout(timeout)
+      resolve(null)
+    }
+    ws.onclose = () => {
+      clearTimeout(timeout)
+      resolve(null)
+    }
   })
 }
 
@@ -166,18 +186,38 @@ function wsRequest(input: {
   // Strip transport-specific fields
   const { stream: _s, background: _b, ...wsBody } = body
 
-  // Incremental delta: trim input if previous_response_id is set
+  // Incremental delta: trim input if previous_response_id is set.
+  //
+  // Strict mode: only honour the chain when the new input array has
+  // STRICTLY GROWN past lastInputLength. If length is equal or shorter
+  // (length-preserving content edits, retry-from-anchor, post-compaction
+  // shrink with stale lastInputLength, tool-output rechunking), the chain
+  // pointer cannot be trusted — sending the full array atop a stale
+  // previous_response_id makes the server append the entire array to its
+  // hidden state, which is the silent root of "Codex WS: exceeds context
+  // window" hits at low local context.
   const fullInputLength = Array.isArray(wsBody.input) ? wsBody.input.length : 0
+  let chainResetReason: string | null = null
   if (wsBody.previous_response_id && Array.isArray(wsBody.input)) {
     const lastLen = state.lastInputLength ?? 0
     if (lastLen > 0 && wsBody.input.length > lastLen) {
       wsBody.input = wsBody.input.slice(lastLen)
+    } else {
+      // Length did not strictly grow — chain is unreliable. Drop chain
+      // pointer and send full input stateless.
+      chainResetReason = `length_not_grown(prev=${lastLen},now=${wsBody.input.length})`
+      delete wsBody.previous_response_id
+      state.lastResponseId = undefined
+      state.lastInputLength = undefined
+      invalidateContinuationFamily(sessionId)
     }
   }
   state.lastInputLength = fullInputLength
   const deltaMode = !!wsBody.previous_response_id
   const trimmedInputLength = Array.isArray(wsBody.input) ? wsBody.input.length : 0
-  console.error(`[CODEX-WS] REQ session=${sessionId} delta=${deltaMode} inputItems=${trimmedInputLength} fullItems=${fullInputLength} hasPrevResp=${!!wsBody.previous_response_id}`)
+  console.error(
+    `[CODEX-WS] REQ session=${sessionId} delta=${deltaMode} inputItems=${trimmedInputLength} fullItems=${fullInputLength} hasPrevResp=${!!wsBody.previous_response_id}${chainResetReason ? ` chainResetReason=${chainResetReason}` : ""}`,
+  )
 
   return new ReadableStream<ResponseStreamEvent>({
     start(controller) {
@@ -208,20 +248,24 @@ function wsRequest(input: {
 
       function endStream() {
         cleanup()
-        try { controller.close() } catch {}
+        try {
+          controller.close()
+        } catch {}
         state.status = "open"
       }
 
       function endWithError(err: Error) {
         cleanup()
         state.status = "failed"
-        try { controller.error(err) } catch {}
+        try {
+          controller.error(err)
+        } catch {}
       }
 
       function doInvalidate(_reason: string) {
         state.lastResponseId = undefined
         state.lastInputLength = undefined
-        invalidateContinuation(sessionId)
+        invalidateContinuationFamily(sessionId)
       }
 
       ws.onmessage = (event: MessageEvent) => {
@@ -233,7 +277,16 @@ function wsRequest(input: {
         try {
           const parsed = JSON.parse(data)
           // Rate limits frame — keep-alive, don't forward
-          if (parsed.type === "codex.rate_limits") return
+          if (parsed.type === "codex.rate_limits") {
+            // CONTEXT-CEILING PROBE: don't silently drop. Log full payload
+            // — codex may carry plan / quota / context-window hints here.
+            try {
+              console.error(
+                `[CODEX-WS] RATE_LIMITS session=${sessionId} payload=${JSON.stringify(parsed).slice(0, 800)}`,
+              )
+            } catch {}
+            return
+          }
 
           // Error-first parsing
           const errorEvent = parseErrorEvent(data)
@@ -241,16 +294,36 @@ function wsRequest(input: {
             const mapped = mapError(errorEvent)
             const errorMsg = mapped?.message || errorEvent.error?.message || "Unknown WS error"
             const errorCode = errorEvent.error?.code || ""
-            const isPrevRespNotFound = errorCode.includes("previous_response") ||
-              errorMsg.includes("Previous response") || errorMsg.includes("not found")
+            const isPrevRespNotFound =
+              errorCode.includes("previous_response") ||
+              errorMsg.includes("Previous response") ||
+              errorMsg.includes("not found")
 
             if (isPrevRespNotFound) {
               doInvalidate("previous_response_not_found")
               state.continuationInvalidated = true
               cleanup()
               state.status = "failed"
-              try { controller.error(new Error("CONTINUATION_INVALIDATED")) } catch {}
+              try {
+                controller.error(new Error("CONTINUATION_INVALIDATED"))
+              } catch {}
               return
+            }
+
+            // CONTEXT-CEILING PROBE: when server says context_length_exceeded,
+            // dump full error body. Upstream typically embeds a "max=N tokens,
+            // provided=M" hint that gives us an upper bound on the real
+            // server-side context limit. Pair this with USAGE logs (success
+            // max = lower bound) to detect silent window shrinkage.
+            const isContextOverflow =
+              errorCode === "context_length_exceeded" || /exceeds the context window/i.test(errorMsg)
+            if (isContextOverflow) {
+              state.continuationInvalidated = true
+              try {
+                console.error(
+                  `[CODEX-WS] OVERFLOW session=${sessionId} model=${(wsBody as any).model ?? "?"} lastInputLength=${state.lastInputLength ?? 0} fullInputLength=${fullInputLength} hasPrevResp=${!!wsBody.previous_response_id} errorCode=${errorCode} errorMsg=${JSON.stringify(errorMsg).slice(0, 400)} fullEvent=${JSON.stringify(errorEvent).slice(0, 800)}`,
+                )
+              } catch {}
             }
 
             doInvalidate("ws_error")
@@ -272,6 +345,18 @@ function wsRequest(input: {
                 accountId: state.accountId,
               })
             }
+            // CONTEXT-CEILING PROBE: log server-reported usage. The highest
+            // input_tokens we ever see on a successful turn is the lower
+            // bound on the server's real context window. If this number
+            // suddenly drops, the server has silently shrunk the limit.
+            try {
+              const usage = parsed.response?.usage
+              if (usage) {
+                console.error(
+                  `[CODEX-WS] USAGE session=${sessionId} model=${(wsBody as any).model ?? "?"} input_tokens=${usage.input_tokens ?? "?"} output_tokens=${usage.output_tokens ?? "?"} total_tokens=${usage.total_tokens ?? "?"} reasoning_tokens=${usage.output_tokens_details?.reasoning_tokens ?? "?"} cached_tokens=${usage.input_tokens_details?.cached_tokens ?? "?"} hasPrevResp=${!!wsBody.previous_response_id}`,
+                )
+              }
+            } catch {}
             // Mark this process's view of the session as validated — a
             // full round-trip completed successfully. Subsequent requests
             // can now trust lastResponseId as continuation input.
@@ -329,12 +414,12 @@ async function probeFirstFrame(
 ): Promise<ReadableStream<ResponseStreamEvent> | null> {
   const reader = events.getReader()
 
-  const result = await Promise.race([
+  const result = (await Promise.race([
     reader.read(),
     new Promise<{ timeout: true }>((resolve) =>
-      setTimeout(() => resolve({ timeout: true }), WS_FIRST_FRAME_TIMEOUT_MS)
+      setTimeout(() => resolve({ timeout: true }), WS_FIRST_FRAME_TIMEOUT_MS),
     ),
-  ]) as any
+  ])) as any
 
   if (result.timeout) {
     reader.cancel()
@@ -342,7 +427,9 @@ async function probeFirstFrame(
     state.lastInputLength = undefined
     invalidateContinuation(sessionId)
     state.disableWebsockets = true
-    try { state.ws?.close() } catch {}
+    try {
+      state.ws?.close()
+    } catch {}
     state.ws = null
     state.status = "failed"
     return null
@@ -411,7 +498,7 @@ export async function tryWsTransport(input: WsTransportInput): Promise<ReadableS
     )
     state.lastResponseId = undefined
     state.lastInputLength = undefined
-    invalidateContinuation(sessionId)
+    invalidateContinuationFamily(sessionId)
     state.continuationFromDisk = false
   }
 
@@ -423,7 +510,10 @@ export async function tryWsTransport(input: WsTransportInput): Promise<ReadableS
       accountId: state.accountId,
     })
 
-    if (state.ws) try { state.ws.close() } catch {}
+    if (state.ws)
+      try {
+        state.ws.close()
+      } catch {}
     state.ws = null
     state.status = "idle"
     state.disableWebsockets = false

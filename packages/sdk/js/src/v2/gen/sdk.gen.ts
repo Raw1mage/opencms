@@ -72,6 +72,8 @@ import type {
   ConfigGetResponses,
   ConfigProviders2Responses,
   ConfigProvidersResponses,
+  ConfigTweaksFrontend2Responses,
+  ConfigTweaksFrontendResponses,
   ConfigUpdate2Errors,
   ConfigUpdate2Responses,
   ConfigUpdateErrors,
@@ -111,6 +113,8 @@ import type {
   EventTuiProviderRefresh,
   EventTuiSessionSelect,
   EventTuiToastShow,
+  ExperimentalClientDiag2Responses,
+  ExperimentalClientDiagResponses,
   ExperimentalDebugBeacon2Responses,
   ExperimentalDebugBeaconResponses,
   ExperimentalResourceList2Responses,
@@ -167,7 +171,9 @@ import type {
   GlobalLogLevelGetResponses,
   GlobalLogLevelSet2Responses,
   GlobalLogLevelSetResponses,
+  GlobalWebRestart2Errors,
   GlobalWebRestart2Responses,
+  GlobalWebRestartErrors,
   GlobalWebRestartResponses,
   GoogleBindingCallback2Errors,
   GoogleBindingCallback2Responses,
@@ -367,6 +373,8 @@ import type {
   RotationRecommendResponses,
   RotationStatus2Responses,
   RotationStatusResponses,
+  ServerCacheHealth2Responses,
+  ServerCacheHealthResponses,
   SessionAbort2Errors,
   SessionAbort2Responses,
   SessionAbortAll2Responses,
@@ -423,14 +431,26 @@ import type {
   SessionInitResponses,
   SessionList2Responses,
   SessionListResponses,
+  SessionMemory2Errors,
+  SessionMemory2Responses,
+  SessionMemoryErrors,
+  SessionMemoryResponses,
   SessionMessage2Errors,
   SessionMessage2Responses,
   SessionMessageErrors,
+  SessionMessagePart2Errors,
+  SessionMessagePart2Responses,
+  SessionMessagePartErrors,
+  SessionMessagePartResponses,
   SessionMessageResponses,
   SessionMessages2Errors,
   SessionMessages2Responses,
   SessionMessagesErrors,
   SessionMessagesResponses,
+  SessionMeta2Errors,
+  SessionMeta2Responses,
+  SessionMetaErrors,
+  SessionMetaResponses,
   SessionPrompt2Errors,
   SessionPrompt2Responses,
   SessionPromptAsync2Errors,
@@ -439,6 +459,11 @@ import type {
   SessionPromptAsyncResponses,
   SessionPromptErrors,
   SessionPromptResponses,
+  SessionResume2Errors,
+  SessionResume2Responses,
+  SessionResumeErrors,
+  SessionResumeRequest,
+  SessionResumeResponses,
   SessionRevert2Errors,
   SessionRevert2Responses,
   SessionRevertErrors,
@@ -902,24 +927,70 @@ export class Web extends HeyApiClient {
   /**
    * Restart web runtime
    *
-   * Schedule a controlled web runtime restart. Intended for authenticated operators; clients should wait for health recovery and then reload.
+   * Schedule a controlled web runtime restart. Intended for authenticated operators; clients should wait for health recovery and then reload. Optional `targets` body selects which layers to rebuild (daemon/frontend/gateway); when omitted, webctl.sh auto-detects dirty layers and skips unchanged ones.
    */
-  public restart<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
-    return (options?.client ?? this.client).post<GlobalWebRestartResponses, unknown, ThrowOnError>({
+  public restart<ThrowOnError extends boolean = false>(
+    parameters?: {
+      targets?: Array<"daemon" | "frontend" | "gateway">
+      reason?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "targets" },
+            { in: "body", key: "reason" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<GlobalWebRestartResponses, GlobalWebRestartErrors, ThrowOnError>({
       url: "/api/v2/global/web/restart",
       ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
     })
   }
 
   /**
    * Restart web runtime
    *
-   * Schedule a controlled web runtime restart. Intended for authenticated operators; clients should wait for health recovery and then reload.
+   * Schedule a controlled web runtime restart. Intended for authenticated operators; clients should wait for health recovery and then reload. Optional `targets` body selects which layers to rebuild (daemon/frontend/gateway); when omitted, webctl.sh auto-detects dirty layers and skips unchanged ones.
    */
-  public restart2<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
-    return (options?.client ?? this.client).post<GlobalWebRestart2Responses, unknown, ThrowOnError>({
+  public restart2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      targets?: Array<"daemon" | "frontend" | "gateway">
+      reason?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "targets" },
+            { in: "body", key: "reason" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<GlobalWebRestart2Responses, GlobalWebRestart2Errors, ThrowOnError>({
       url: "/global/web/restart",
       ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
     })
   }
 }
@@ -1089,6 +1160,32 @@ export class Global extends HeyApiClient {
   private _logLevel?: LogLevel
   get logLevel(): LogLevel {
     return (this._logLevel ??= new LogLevel({ client: this.client }))
+  }
+}
+
+export class Server extends HeyApiClient {
+  /**
+   * Get session cache and rate-limit health
+   *
+   * Returns cache entry count, hit/miss rate over the past 5 minutes, invalidation subscription liveness, and rate-limit usage. Used by operators and by AC-5 drills to detect silent degradation.
+   */
+  public cacheHealth<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<ServerCacheHealthResponses, unknown, ThrowOnError>({
+      url: "/api/v2/server/cache/health",
+      ...options,
+    })
+  }
+
+  /**
+   * Get session cache and rate-limit health
+   *
+   * Returns cache entry count, hit/miss rate over the past 5 minutes, invalidation subscription liveness, and rate-limit usage. Used by operators and by AC-5 drills to detect silent degradation.
+   */
+  public cacheHealth2<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<ServerCacheHealth2Responses, unknown, ThrowOnError>({
+      url: "/server/cache/health",
+      ...options,
+    })
   }
 }
 
@@ -2372,6 +2469,46 @@ export class Pty extends HeyApiClient {
   }
 }
 
+export class Tweaks extends HeyApiClient {
+  /**
+   * Get frontend tweaks
+   *
+   * Return the frontend-facing subset of /etc/opencode/tweaks.cfg so the webapp does not have to read the file itself. See specs/frontend-session-lazyload/ DD-3, DD-7, DD-8.
+   */
+  public frontend<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<ConfigTweaksFrontendResponses, unknown, ThrowOnError>({
+      url: "/api/v2/config/tweaks/frontend",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get frontend tweaks
+   *
+   * Return the frontend-facing subset of /etc/opencode/tweaks.cfg so the webapp does not have to read the file itself. See specs/frontend-session-lazyload/ DD-3, DD-7, DD-8.
+   */
+  public frontend2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<ConfigTweaksFrontend2Responses, unknown, ThrowOnError>({
+      url: "/config/tweaks/frontend",
+      ...options,
+      ...params,
+    })
+  }
+}
+
 export class Config2 extends HeyApiClient {
   /**
    * Get configuration
@@ -2517,6 +2654,11 @@ export class Config2 extends HeyApiClient {
       ...options,
       ...params,
     })
+  }
+
+  private _tweaks?: Tweaks
+  get tweaks(): Tweaks {
+    return (this._tweaks ??= new Tweaks({ client: this.client }))
   }
 }
 
@@ -2957,6 +3099,88 @@ export class Resource extends HeyApiClient {
 }
 
 export class Experimental extends HeyApiClient {
+  /**
+   * Record a one-shot client diagnostic snapshot
+   *
+   * Always-on (not gated by OPENCODE_DEBUG_BEACON) endpoint for a mobile-friendly 'diag button' — the client collects its observable state (session message counts, last SSE event age, etc.) and POSTs it here. Server writes an info-level log line tagged [client-diag] so it can be retrieved by grep later during RCA. Intended for cases where the user cannot open browser DevTools (mobile).
+   */
+  public clientDiag<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      sessionID?: string
+      note?: string
+      snapshot?: {
+        [key: string]: unknown
+      }
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "sessionID" },
+            { in: "body", key: "note" },
+            { in: "body", key: "snapshot" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<ExperimentalClientDiagResponses, unknown, ThrowOnError>({
+      url: "/api/v2/experimental/client-diag",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Record a one-shot client diagnostic snapshot
+   *
+   * Always-on (not gated by OPENCODE_DEBUG_BEACON) endpoint for a mobile-friendly 'diag button' — the client collects its observable state (session message counts, last SSE event age, etc.) and POSTs it here. Server writes an info-level log line tagged [client-diag] so it can be retrieved by grep later during RCA. Intended for cases where the user cannot open browser DevTools (mobile).
+   */
+  public clientDiag2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      sessionID?: string
+      note?: string
+      snapshot?: {
+        [key: string]: unknown
+      }
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "sessionID" },
+            { in: "body", key: "note" },
+            { in: "body", key: "snapshot" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<ExperimentalClientDiag2Responses, unknown, ThrowOnError>({
+      url: "/experimental/client-diag",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
   private _debug?: Debug
   get debug(): Debug {
     return (this._debug ??= new Debug({ client: this.client }))
@@ -3725,6 +3949,76 @@ export class Autonomous extends HeyApiClient {
   }
 }
 
+export class Message extends HeyApiClient {
+  /**
+   * Get message part (full, uncapped)
+   *
+   * Retrieve a single part of a message in full, bypassing any client-side truncation. Used by FoldableMarkdown expand to fetch the full content of a part that was truncated at the wire/store layer without re-fetching the whole session.
+   */
+  public part<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      messageID: string
+      partID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "path", key: "messageID" },
+            { in: "path", key: "partID" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<SessionMessagePartResponses, SessionMessagePartErrors, ThrowOnError>({
+      url: "/api/v2/session/{sessionID}/message/{messageID}/part/{partID}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get message part (full, uncapped)
+   *
+   * Retrieve a single part of a message in full, bypassing any client-side truncation. Used by FoldableMarkdown expand to fetch the full content of a part that was truncated at the wire/store layer without re-fetching the whole session.
+   */
+  public part2<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      messageID: string
+      partID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "path", key: "messageID" },
+            { in: "path", key: "partID" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<SessionMessagePart2Responses, SessionMessagePart2Errors, ThrowOnError>({
+      url: "/session/{sessionID}/message/{messageID}/part/{partID}",
+      ...options,
+      ...params,
+    })
+  }
+}
+
 export class Session2 extends HeyApiClient {
   /**
    * List sessions
@@ -3973,6 +4267,36 @@ export class Session2 extends HeyApiClient {
   }
 
   /**
+   * Get session metadata
+   *
+   * Cheap size hint for a session: partCount / totalBytes / lastUpdated, without deserializing any part body. Used by the webapp to decide auto-redirect vs show sessions list. See specs/frontend-session-lazyload/ R1.
+   */
+  public meta<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<SessionMetaResponses, SessionMetaErrors, ThrowOnError>({
+      url: "/api/v2/session/{sessionID}/meta",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
    * Get session children
    *
    * Retrieve all child sessions that were forked from the specified parent session.
@@ -4029,6 +4353,43 @@ export class Session2 extends HeyApiClient {
       url: "/api/v2/session/{sessionID}/todo",
       ...options,
       ...params,
+    })
+  }
+
+  /**
+   * Signal a session resume (capability-layer silent refresh)
+   *
+   * UI calls this when the user switches to an existing session. The daemon bumps the session's rebind epoch (trigger=session_resume) and, if the session is not busy, performs a silent CapabilityLayer.reinject — no LLM call, no message history write, no cost. Subscribers to the session's SSE stream receive session.rebind + capability_layer.refreshed events so dashboards refresh naturally.
+   */
+  public resume<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      sessionResumeRequest: SessionResumeRequest
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { key: "sessionResumeRequest", map: "body" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<SessionResumeResponses, SessionResumeErrors, ThrowOnError>({
+      url: "/api/v2/session/{sessionID}/resume",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
     })
   }
 
@@ -4291,6 +4652,38 @@ export class Session2 extends HeyApiClient {
   }
 
   /**
+   * Get session memory render
+   *
+   * Returns the session's compaction memory rendered for either LLM consumption (compact, provider-agnostic) or human consumption (timeline format). Per compaction-redesign DD-5: two independent render functions from the same SessionMemory artifact.
+   */
+  public memory<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      form?: "llm" | "human"
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "form" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<SessionMemoryResponses, SessionMemoryErrors, ThrowOnError>({
+      url: "/api/v2/session/{sessionID}/memory",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
    * Summarize session
    *
    * Generate a concise summary of the session using AI compaction to preserve key information.
@@ -4302,6 +4695,7 @@ export class Session2 extends HeyApiClient {
       providerId?: string
       modelID?: string
       auto?: boolean
+      rich?: boolean
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -4315,6 +4709,7 @@ export class Session2 extends HeyApiClient {
             { in: "body", key: "providerId" },
             { in: "body", key: "modelID" },
             { in: "body", key: "auto" },
+            { in: "body", key: "rich" },
           ],
         },
       ],
@@ -4341,6 +4736,7 @@ export class Session2 extends HeyApiClient {
       sessionID: string
       directory?: string
       limit?: number
+      before?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -4352,6 +4748,7 @@ export class Session2 extends HeyApiClient {
             { in: "path", key: "sessionID" },
             { in: "query", key: "directory" },
             { in: "query", key: "limit" },
+            { in: "query", key: "before" },
           ],
         },
       ],
@@ -5008,6 +5405,36 @@ export class Session2 extends HeyApiClient {
   }
 
   /**
+   * Get session metadata
+   *
+   * Cheap size hint for a session: partCount / totalBytes / lastUpdated, without deserializing any part body. Used by the webapp to decide auto-redirect vs show sessions list. See specs/frontend-session-lazyload/ R1.
+   */
+  public meta2<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<SessionMeta2Responses, SessionMeta2Errors, ThrowOnError>({
+      url: "/session/{sessionID}/meta",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
    * Get session children
    *
    * Retrieve all child sessions that were forked from the specified parent session.
@@ -5064,6 +5491,43 @@ export class Session2 extends HeyApiClient {
       url: "/session/{sessionID}/todo",
       ...options,
       ...params,
+    })
+  }
+
+  /**
+   * Signal a session resume (capability-layer silent refresh)
+   *
+   * UI calls this when the user switches to an existing session. The daemon bumps the session's rebind epoch (trigger=session_resume) and, if the session is not busy, performs a silent CapabilityLayer.reinject — no LLM call, no message history write, no cost. Subscribers to the session's SSE stream receive session.rebind + capability_layer.refreshed events so dashboards refresh naturally.
+   */
+  public resume2<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      sessionResumeRequest: SessionResumeRequest
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { key: "sessionResumeRequest", map: "body" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<SessionResume2Responses, SessionResume2Errors, ThrowOnError>({
+      url: "/session/{sessionID}/resume",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
     })
   }
 
@@ -5326,6 +5790,38 @@ export class Session2 extends HeyApiClient {
   }
 
   /**
+   * Get session memory render
+   *
+   * Returns the session's compaction memory rendered for either LLM consumption (compact, provider-agnostic) or human consumption (timeline format). Per compaction-redesign DD-5: two independent render functions from the same SessionMemory artifact.
+   */
+  public memory2<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      form?: "llm" | "human"
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "form" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<SessionMemory2Responses, SessionMemory2Errors, ThrowOnError>({
+      url: "/session/{sessionID}/memory",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
    * Summarize session
    *
    * Generate a concise summary of the session using AI compaction to preserve key information.
@@ -5337,6 +5833,7 @@ export class Session2 extends HeyApiClient {
       providerId?: string
       modelID?: string
       auto?: boolean
+      rich?: boolean
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -5350,6 +5847,7 @@ export class Session2 extends HeyApiClient {
             { in: "body", key: "providerId" },
             { in: "body", key: "modelID" },
             { in: "body", key: "auto" },
+            { in: "body", key: "rich" },
           ],
         },
       ],
@@ -5376,6 +5874,7 @@ export class Session2 extends HeyApiClient {
       sessionID: string
       directory?: string
       limit?: number
+      before?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -5387,6 +5886,7 @@ export class Session2 extends HeyApiClient {
             { in: "path", key: "sessionID" },
             { in: "query", key: "directory" },
             { in: "query", key: "limit" },
+            { in: "query", key: "before" },
           ],
         },
       ],
@@ -5806,6 +6306,11 @@ export class Session2 extends HeyApiClient {
   private _autonomous?: Autonomous
   get autonomous3(): Autonomous {
     return (this._autonomous ??= new Autonomous({ client: this.client }))
+  }
+
+  private _message?: Message
+  get message3(): Message {
+    return (this._message ??= new Message({ client: this.client }))
   }
 }
 
@@ -12371,6 +12876,11 @@ export class OpencodeClient extends HeyApiClient {
   private _global?: Global
   get global(): Global {
     return (this._global ??= new Global({ client: this.client }))
+  }
+
+  private _server?: Server
+  get server(): Server {
+    return (this._server ??= new Server({ client: this.client }))
   }
 
   private _auth?: Auth2

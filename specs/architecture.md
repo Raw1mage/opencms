@@ -40,7 +40,8 @@ The frontend is built with Solid.js and uses a bottom-up dependency model:
 ### Frontend File / Rich Content Surfaces
 
 - `packages/app/src/pages/session/components/message-content.tsx` is the assistant text entry point and routes assistant markdown through the session rich-content stack.
-- `packages/app/src/pages/session/file-tabs.tsx` is the file-tab authority surface; binary/image/SVG/markdown/text branches are resolved here before content is displayed. SVG/image detection must tolerate both MIME and extension evidence because file APIs may return SVG as text or with MIME parameters.
+- `packages/app/src/pages/session/file-tabs.tsx` is the file-tab authority surface; binary/image/SVG/PDF/markdown/text branches are resolved here before content is displayed. SVG/image detection must tolerate both MIME and extension evidence because file APIs may return SVG as text or with MIME parameters.
+- `packages/mcp/system-manager/src/index.ts` `open_fileview` may convert `.docx` inputs into cached PDF previews under the source document tree before emitting the `fileview_open` KV event; `packages/opencode/src/file/index.ts` serves `.pdf` as base64 `application/pdf`, and `file-tabs.tsx` renders it through the browser PDF viewer so page layout is preserved while text remains selectable.
 - `packages/app/src/pages/session.tsx` is also part of the file-tab control surface: file-open flows are expected to both append/open the tab and set the newly opened file tab active immediately so the visible file view matches the most recent file-list selection.
 - Markdown file preview is no longer conceptually equivalent to generic source rendering: `.md` tabs may render through a preview-oriented rich markdown surface while retaining a source-mode fallback.
 - Shared markdown rendering behavior for chat and markdown file preview is being centralized under session-page rich markdown helpers/components so safety/fallback policy stays consistent.
@@ -251,6 +252,15 @@ returns `"continuation-invalidated"` from `deriveObservedCondition`
 when this timestamp is newer than the most recent Anchor's
 `time.created`. State-driven cooldown via anchor-recency comparison —
 no flag-clear step.
+
+Hotfix (2026-04-29, Codex WS context overflow): compaction/rebind and
+same-provider account switches invalidate the **continuation family**
+(`sessionID` plus `sessionID:accountId` shards) rather than only the
+base session key. This prevents an old per-account `lastResponseId`
+from being restored after local messages have moved to a new anchor
+generation. Codex WS context-overflow errors also mark the in-memory
+continuation as invalidated before surfacing the provider error, so the
+next recovery path does not trust the stale server-side chain.
 
 ### Turn summaries (DD-2 — derive-time, not capture-time)
 
@@ -934,6 +944,7 @@ Key properties:
 
 ```markdown
 <!-- opencode:mandatory-skills -->
+
 - plan-builder
 <!-- /opencode:mandatory-skills -->
 ```
@@ -945,12 +956,12 @@ Key properties:
 
 ### Source authorities
 
-| Audience | Source file | Lives in | Notes |
-|---|---|---|---|
-| Main agent | `<repo-root>/AGENTS.md` | docsWriteRepo | project-priority in merge |
-| Main agent | `~/.config/opencode/AGENTS.md` | user XDG | secondary in merge |
-| coding subagent | `packages/opencode/src/agent/prompt/coding.txt` | runtime code | sole source for subagent path |
-| any subagent except coding | — | — | `resolveMandatoryList` returns [] |
+| Audience                   | Source file                                     | Lives in      | Notes                             |
+| -------------------------- | ----------------------------------------------- | ------------- | --------------------------------- |
+| Main agent                 | `<repo-root>/AGENTS.md`                         | docsWriteRepo | project-priority in merge         |
+| Main agent                 | `~/.config/opencode/AGENTS.md`                  | user XDG      | secondary in merge                |
+| coding subagent            | `packages/opencode/src/agent/prompt/coding.txt` | runtime code  | sole source for subagent path     |
+| any subagent except coding | —                                               | —             | `resolveMandatoryList` returns [] |
 
 ### Observability
 
@@ -990,10 +1001,10 @@ Introduced by `specs/session-rebind-capability-refresh/` (2026-04-20). Extends a
 
 Session prompts live at two distinct layers; each has independent lifecycle rules.
 
-| Layer | Content | Lifecycle | Checkpoint-safe? |
-|---|---|---|---|
-| **Capability** | system prompt, driver prompt, AGENTS.md (global + project), coding.txt sentinel, skill content (pinned via `SkillLayerRegistry`), enablement.json | **Never frozen**. Refreshed on rebind events; between events, served from per-(sessionID, epoch) in-memory cache. | ❌ must not be captured by checkpoint/SharedContext |
-| **Conversation** | user messages, assistant responses, tool results, task progress, `SharedContext` snapshot, rebind checkpoint messages | Accumulates. Compressible via existing `SessionCompaction` / `SharedContext`. | ✅ checkpoint/shared-context owns compression |
+| Layer            | Content                                                                                                                                           | Lifecycle                                                                                                         | Checkpoint-safe?                                    |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| **Capability**   | system prompt, driver prompt, AGENTS.md (global + project), coding.txt sentinel, skill content (pinned via `SkillLayerRegistry`), enablement.json | **Never frozen**. Refreshed on rebind events; between events, served from per-(sessionID, epoch) in-memory cache. | ❌ must not be captured by checkpoint/SharedContext |
+| **Conversation** | user messages, assistant responses, tool results, task progress, `SharedContext` snapshot, rebind checkpoint messages                             | Accumulates. Compressible via existing `SessionCompaction` / `SharedContext`.                                     | ✅ checkpoint/shared-context owns compression       |
 
 Conversation-layer state is safe to freeze because it records "what happened". Capability-layer state must re-read authoritative sources because it describes "what the agent can do right now" — AGENTS.md / SKILL.md / enablement.json can change between rebinds.
 
@@ -1001,13 +1012,13 @@ Conversation-layer state is safe to freeze because it records "what happened". C
 
 Five canonical triggers bump a session's `RebindEpoch`; each bumps the epoch by 1 and emits a `session.rebind` RuntimeEvent. No other code path may invalidate the capability-layer cache.
 
-| Trigger | Source | Example |
-|---|---|---|
-| `daemon_start` | Lazy on first `runLoop` iteration per session | Fresh daemon process; session first used |
-| `session_resume` | `POST /session/:id/resume` from UI | User re-opens an idle session in UI |
-| `provider_switch` | Pre-loop detection in `prompt.ts:~969` | Model/account switch within a session |
-| `slash_reload` | `/reload` slash command | User manually refreshes |
-| `tool_call` | `refresh_capability_layer` tool (AI-initiated) | AI detects stale capability layer |
+| Trigger           | Source                                         | Example                                  |
+| ----------------- | ---------------------------------------------- | ---------------------------------------- |
+| `daemon_start`    | Lazy on first `runLoop` iteration per session  | Fresh daemon process; session first used |
+| `session_resume`  | `POST /session/:id/resume` from UI             | User re-opens an idle session in UI      |
+| `provider_switch` | Pre-loop detection in `prompt.ts:~969`         | Model/account switch within a session    |
+| `slash_reload`    | `/reload` slash command                        | User manually refreshes                  |
+| `tool_call`       | `refresh_capability_layer` tool (AI-initiated) | AI detects stale capability layer        |
 
 ### Cache contract
 
@@ -1079,11 +1090,11 @@ Validation errors route through `formatValidationError` (if provided) → thrown
 
 The session processor (`session/processor.ts`) persists tool-call arguments on the tool part's `state.input` field:
 
-| Status | `state.input` content |
-|---|---|
-| `running` | Raw LLM args (short-lived; UI renderers must defensive-normalize) |
+| Status      | `state.input` content                                                                                                                        |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `running`   | Raw LLM args (short-lived; UI renderers must defensive-normalize)                                                                            |
 | `completed` | **Normalized** shape: `ToolRegistry.getParameters(toolName).safeParse(value.input).data` when available; raw if registry miss or parse fails |
-| `error` | Raw LLM args (forensic evidence — we need the exact shape that failed) |
+| `error`     | Raw LLM args (forensic evidence — we need the exact shape that failed)                                                                       |
 
 `ToolRegistry.getParameters(id)` caches each tool's parameters schema on first lookup (process-lifetime `Map`). Registry miss / parse failure is logged at `debug` level; state.input falls back to raw and downstream UIs still render via defensive normalize.
 
@@ -1098,17 +1109,20 @@ See `specs/question-tool-input-normalization/` for the full RCA, design (DD-1…
 **Principle**: session-scoped UI data freshness is tracked via client-side `receivedAt` timestamps, never via SSE connection state. Connection health is a transport concern; freshness is a data concern. The two must stay decoupled.
 
 **Authoritative path**:
+
 - Event reducer stamps `receivedAt = Date.now()` on every session-scoped write (`State.session_status`, `State.active_child`, monitor poll items) via intersection type `ClientStampMeta`. Inline field, not a wrapper (DD-1 / DD-8).
 - `packages/app/src/hooks/use-freshness-clock.ts` exposes `freshnessNow` — a single module-level Solid signal ticking once per second (DD-2). Every freshness-aware memo subscribes to the same signal.
 - `packages/app/src/utils/freshness.ts` exports `classifyFidelity(receivedAt, now, thresholds, enabled, opts)` as the **single source of truth** for classification. Three buckets: `fresh` / `stale` / `hard-stale`. Invalid `receivedAt` (undefined / NaN / Infinity / ≤0) forces `hard-stale` with optional warn callback (DD-4, AGENTS.md rule 1).
 - Thresholds + feature flag come from `/config/tweaks/frontend` via `frontend-tweaks.ts`: `ui_session_freshness_enabled` (0/1, default 0), `ui_freshness_threshold_sec` (default 15), `ui_freshness_hard_timeout_sec` (default 60). Daemon-side parser clamps ranges + enforces soft < hard.
 
 **UI consumers** (freshness-aware memos):
+
 - `pages/session.tsx` activeChildDock memo → `session-prompt-dock.tsx` applies opacity + "stale" hint
 - `pages/session/session-side-panel.tsx` process-card loop → opacity + "updated Ns ago" italic line, elapsed timer frozen on hard-stale
 - `pages/session/tool-page.tsx` process-list → same pattern
 
 **Forbidden**:
+
 - Any signal / memo / toast that surfaces SSE connection health to the UI layer. The 2026-04-20 RCA (I-4, `docs/events/event_2026-04-20_frontend_oom_rca.md`) documented the OOM cascade that this rule prevents.
 - Silent fallback to `fresh` when `receivedAt` is missing / invalid. Always `hard-stale` + rate-limited warn.
 - Multiple `setInterval` freshness tickers. The module-level singleton in `use-freshness-clock.ts` is the only valid driver.
@@ -1142,13 +1156,13 @@ See `specs/session-ui-freshness/` for the full lifecycle, design decisions DD-1 
 **Bash tool denylist**（`packages/opencode/src/tool/bash.ts` `DAEMON_SPAWN_DENYLIST`）: 擋 `webctl.sh (dev-start|dev-refresh|restart|...)`, `bun serve --unix-socket`, `opencode serve`, `kill $(pgrep opencode)`, `systemctl restart opencode-gateway`。違規丟 `FORBIDDEN_DAEMON_SPAWN`，log `denylist-block rule=...`。
 
 **Invariants**:
+
 - 每個 uid 最多一隻活的 bun daemon（gateway.lock JSON file + `kill(pid, 0)` liveness）
 - Daemon pid 一定在 gateway `DaemonInfo.pid` 裡；否則視為 orphan
 - Socket file 存在 ⇔ daemon alive & listening
 - JWT uid 必須 = 目標 daemon uid
 
 違反任一 invariant = P0 bug。
-
 
 ---
 

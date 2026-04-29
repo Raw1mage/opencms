@@ -284,17 +284,31 @@ export async function deriveObservedCondition(input: {
     return "continuation-invalidated"
   }
 
-  // Identity drift since last anchor
+  // Identity drift since last anchor.
+  //
+  // Provider switch — tool-call format & system prompt change → must compact.
+  //
+  // Account-only switch (same provider) — aligned with the pre-loop fix
+  // (commit f63e1138f, "account switch triggers chain reset only, not full
+  // compaction"): tool-call format unchanged, full conversation fidelity
+  // should be preserved. Only codex's server-side previous_response_id chain
+  // needs cutting. Fire-and-forget invalidateContinuationFamily (no-op for
+  // non-codex providers) and return null so the runloop proceeds without
+  // a destructive compaction round.
   if (lastAnchor) {
     if (lastAnchor.providerId && lastAnchor.providerId !== input.pinnedProviderId) {
       return "provider-switched"
     }
-    if (
-      lastAnchor.accountId &&
-      input.pinnedAccountId &&
-      lastAnchor.accountId !== input.pinnedAccountId
-    ) {
-      return "rebind"
+    if (lastAnchor.accountId && input.pinnedAccountId && lastAnchor.accountId !== input.pinnedAccountId) {
+      void (async () => {
+        try {
+          const { invalidateContinuationFamily } = await import("@opencode-ai/codex-provider/continuation")
+          invalidateContinuationFamily(input.sessionID)
+        } catch {
+          // best-effort; non-codex providers don't expose this module
+        }
+      })()
+      return null
     }
   }
 
@@ -315,9 +329,7 @@ export async function deriveObservedCondition(input: {
  * writes it). Carries providerId / modelID / accountId for state-driven
  * rebind detection (INV-7: anchor identity reflects time-of-write).
  */
-export function findMostRecentAnchor(
-  msgs: MessageV2.WithParts[],
-): {
+export function findMostRecentAnchor(msgs: MessageV2.WithParts[]): {
   providerId: string
   modelID: string
   accountId: string | undefined
@@ -602,7 +614,9 @@ export namespace SessionPrompt {
     // the feature.
     try {
       const autorunCfg = Tweaks.autorunSync()
-      const userText = extractUserText(input.parts as ReadonlyArray<{ type: string; text?: string; synthetic?: boolean }>)
+      const userText = extractUserText(
+        input.parts as ReadonlyArray<{ type: string; text?: string; synthetic?: boolean }>,
+      )
       const intent = detectAutorunIntent(userText, autorunCfg)
       if (intent) {
         const enable = intent.kind === "arm"
@@ -1328,11 +1342,12 @@ export namespace SessionPrompt {
           const anchorIdx = findMostRecentAnchorIndex(filtered.messages)
           if (anchorIdx !== -1) {
             const anchor = filtered.messages[anchorIdx]
-            snap = anchor.parts
-              .filter((p): p is MessageV2.TextPart => p.type === "text")
-              .map((p) => p.text)
-              .join("\n")
-              .trim() || undefined
+            snap =
+              anchor.parts
+                .filter((p): p is MessageV2.TextPart => p.type === "text")
+                .map((p) => p.text)
+                .join("\n")
+                .trim() || undefined
           }
           // Phase 13.1: Memory.markCompacted call removed (Memory.lastCompactedAt
           // is derived from the most recent anchor's time.created, not stored).
@@ -1366,9 +1381,9 @@ export namespace SessionPrompt {
           reason: `account ${prevAccount} → ${nextAccount}`,
         })
         try {
-          const { invalidateContinuation } = await import("@opencode-ai/codex-provider/continuation")
-          invalidateContinuation(sessionID)
-          log.info("account switch: codex chain reset (lastResponseId cleared)", { sessionID })
+          const { invalidateContinuationFamily } = await import("@opencode-ai/codex-provider/continuation")
+          invalidateContinuationFamily(sessionID)
+          log.info("account switch: codex chain family reset (lastResponseId cleared)", { sessionID })
         } catch (err) {
           log.warn("account switch: codex chain reset failed (non-fatal)", {
             sessionID,
@@ -1434,32 +1449,44 @@ export namespace SessionPrompt {
       if (!lastUser) throw new Error("No user message found in stream. This should never happen.")
       const format = lastUser.format ?? { type: "text" }
 
-      // Guard: detect empty-response loop (finish=unknown, 0 tokens).
-      // The model returned nothing — retrying won't help. Break after 3 consecutive empty rounds.
-      if (
-        lastAssistant?.finish === "unknown" &&
+      // Guard: detect empty-response loop (finish=unknown|other, 0 tokens).
+      // "other" comes from codex SSE/WS that closed without a terminal event,
+      // or response.incomplete with an unmapped reason. Same shape as
+      // "unknown": empty body, 0 tokens, no parts.
+      //
+      // Hotfix 2026-04-29: fail fast instead of injecting a synthetic "?".
+      // The nudge polluted the message stream and could add extra retries on
+      // Codex context-overflow incidents, making double-reporting harder to
+      // diagnose. A real recovery path must be explicit chain invalidation or
+      // compaction, not hidden user-message fabrication.
+      const isEmptyRound =
+        (lastAssistant?.finish === "unknown" || lastAssistant?.finish === "other") &&
         lastAssistant.tokens.input === 0 &&
         lastAssistant.tokens.output === 0 &&
-        lastUser.id < lastAssistant.id
-      ) {
-        emptyRoundCount = (emptyRoundCount ?? 0) + 1
-        if (emptyRoundCount >= 3) {
-          log.warn("breaking empty-response loop", { sessionID, emptyRounds: emptyRoundCount, step })
-          // Surface error to user instead of silent stop
-          lastAssistant.error = new NamedError.Unknown({
-            message: `Model returned empty responses ${emptyRoundCount} times consecutively. This may indicate an issue with the provider, account, or session context. Try sending a different message or starting a new session.`,
-          }).toObject()
-          lastAssistant.finish = "error"
-          await Session.updateMessage(lastAssistant)
-          break
-        }
-      } else {
+        lastAssistant.id > lastUser.id
+      // Counter is only reset on positive evidence (a completed turn that
+      // actually produced tokens). The injected synthetic nudge below will
+      // make lastUser.id > lastAssistant.id on the next iteration, so we
+      // can't use that ordering to gate the reset — otherwise the cap never
+      // accumulates and we'd nudge forever.
+      if (lastAssistant && (lastAssistant.tokens.input > 0 || lastAssistant.tokens.output > 0)) {
         emptyRoundCount = 0
+      }
+      if (isEmptyRound && lastAssistant) {
+        emptyRoundCount = (emptyRoundCount ?? 0) + 1
+        log.warn("breaking empty-response loop", { sessionID, emptyRounds: emptyRoundCount, step })
+        lastAssistant.error = new NamedError.Unknown({
+          message:
+            "Model returned an empty response. This may indicate a provider, account, or session context issue. Try sending a different message or starting a new session.",
+        }).toObject()
+        lastAssistant.finish = "error"
+        await Session.updateMessage(lastAssistant)
+        break
       }
 
       if (
         lastAssistant?.finish &&
-        !["tool-calls", "unknown"].includes(lastAssistant.finish) &&
+        !["tool-calls", "unknown", "other"].includes(lastAssistant.finish) &&
         lastUser.id < lastAssistant.id &&
         !hasSubagentCompletion
       ) {
@@ -1467,7 +1494,7 @@ export namespace SessionPrompt {
           format.type === "json_schema" &&
           lastAssistant.structured === undefined &&
           !lastAssistant.error &&
-          !["tool-calls", "unknown"].includes(lastAssistant.finish)
+          !["tool-calls", "unknown", "other"].includes(lastAssistant.finish)
         ) {
           lastAssistant.error = new MessageV2.StructuredOutputError({
             message: "Model did not produce structured output",
@@ -1754,10 +1781,7 @@ export namespace SessionPrompt {
       // signal.
       const sessionExecForCompaction = (await Session.get(sessionID).catch(() => undefined))?.execution
       const promptInputEstimate = estimateMsgsTokenCount(msgs)
-      const overflowInputTokens = Math.max(
-        promptInputEstimate,
-        lastFinished?.tokens?.input ?? 0,
-      )
+      const overflowInputTokens = Math.max(promptInputEstimate, lastFinished?.tokens?.input ?? 0)
       const overflowTokens = lastFinished
         ? { ...lastFinished.tokens, input: overflowInputTokens }
         : ({
@@ -2053,9 +2077,7 @@ export namespace SessionPrompt {
           // Remove only the notices we consumed — new arrivals between read
           // and write survive.
           const consumed = new Set(pendingNotices.map((n) => n.jobId))
-          draft.pendingSubagentNotices = (draft.pendingSubagentNotices ?? []).filter(
-            (n) => !consumed.has(n.jobId),
-          )
+          draft.pendingSubagentNotices = (draft.pendingSubagentNotices ?? []).filter((n) => !consumed.has(n.jobId))
         }).catch(() => undefined)
       }
 
@@ -2178,7 +2200,7 @@ export namespace SessionPrompt {
       //   • Root session: evaluate autonomous continuation. If there's a
       //     pending todo, enqueue a synthetic continuation and loop again.
       //     Otherwise persist the stop reason and break.
-      if (processor.message.finish && !["tool-calls", "unknown"].includes(processor.message.finish)) {
+      if (processor.message.finish && !["tool-calls", "unknown", "other"].includes(processor.message.finish)) {
         if (session.parentID) {
           log.info("loop: subagent terminal finish", {
             sessionID,
