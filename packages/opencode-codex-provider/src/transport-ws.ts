@@ -212,11 +212,34 @@ function wsRequest(input: {
       invalidateContinuationFamily(sessionId)
     }
   }
+  const priorLastInputLength = state.lastInputLength
   state.lastInputLength = fullInputLength
   const deltaMode = !!wsBody.previous_response_id
   const trimmedInputLength = Array.isArray(wsBody.input) ? wsBody.input.length : 0
+  // DIAG 2026-04-30: WS sync verification. Trace prevResp + length monotonicity
+  // and the actual delta items being sent. Goal: catch (a) chain stale/forking,
+  // (b) delta containing wrong slice, (c) compaction-after-shrink edge cases.
+  const prevRespPrefix =
+    typeof wsBody.previous_response_id === "string" ? (wsBody.previous_response_id as string).slice(0, 16) : "—"
+  const tail = Array.isArray(wsBody.input)
+    ? (wsBody.input as Array<{ role?: string; type?: string; content?: unknown }>)
+        .slice(-3)
+        .map((it) => {
+          const role = (it as { role?: string }).role ?? (it as { type?: string }).type ?? "?"
+          const c = (it as { content?: unknown }).content
+          const preview =
+            typeof c === "string"
+              ? c.slice(0, 60)
+              : Array.isArray(c)
+                ? JSON.stringify(c).slice(0, 60)
+                : c != null
+                  ? JSON.stringify(c).slice(0, 60)
+                  : ""
+          return `${role}:${preview}`
+        })
+    : []
   console.error(
-    `[CODEX-WS] REQ session=${sessionId} delta=${deltaMode} inputItems=${trimmedInputLength} fullItems=${fullInputLength} hasPrevResp=${!!wsBody.previous_response_id}${chainResetReason ? ` chainResetReason=${chainResetReason}` : ""}`,
+    `[CODEX-WS] REQ session=${sessionId} delta=${deltaMode} inputItems=${trimmedInputLength} fullItems=${fullInputLength} prevLen=${priorLastInputLength ?? "—"} prevResp=${prevRespPrefix} hasPrevResp=${!!wsBody.previous_response_id}${chainResetReason ? ` chainResetReason=${chainResetReason}` : ""} tail=${JSON.stringify(tail)}`,
   )
 
   return new ReadableStream<ResponseStreamEvent>({
@@ -338,12 +361,17 @@ function wsRequest(input: {
           if (parsed.type === "response.completed") {
             const responseId = parsed.response?.id
             if (responseId) {
+              const previousId = state.lastResponseId
               state.lastResponseId = responseId
               updateContinuation(sessionId, {
                 lastResponseId: responseId,
                 lastInputLength: state.lastInputLength,
                 accountId: state.accountId,
               })
+              // DIAG 2026-04-30: chain advancement. Verify monotonic move.
+              console.error(
+                `[CODEX-WS] CHAIN session=${sessionId} prev=${previousId ? previousId.slice(0, 16) : "—"} new=${responseId.slice(0, 16)} lastInputLength=${state.lastInputLength ?? "—"}`,
+              )
             }
             // CONTEXT-CEILING PROBE: log server-reported usage. The highest
             // input_tokens we ever see on a successful turn is the lower

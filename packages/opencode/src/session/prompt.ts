@@ -2140,6 +2140,28 @@ export namespace SessionPrompt {
         session,
       })
 
+      // DIAG 2026-04-30: pre-LLM-call msgs snapshot. Pairs with [CODEX-WS] REQ
+      // tail to verify the model is being fed monotone-growing chronological
+      // context. If msgs.length isn't growing turn-over-turn, or the tail
+      // doesn't include the most recent assistant attempt, the model can't
+      // see its own loop and just keeps re-trying.
+      log.info("diag.preLLM", {
+        sessionID,
+        step,
+        msgsLen: msgs.length,
+        tail: msgs.slice(-3).map((m) => {
+          const info = m.info as MessageV2.Info & { finish?: string }
+          const textPart = m.parts.find((p) => p.type === "text") as { text?: string } | undefined
+          return {
+            id: info.id,
+            role: info.role,
+            t: (info as { time?: { created?: number } }).time?.created,
+            finish: (info as { finish?: string }).finish ?? null,
+            preview: (textPart?.text ?? "").slice(0, 80),
+          }
+        }),
+      })
+
       const processor = SessionProcessor.create({
         assistantMessage: (await Session.updateMessage({
           id: Identifier.ascending("message"),
