@@ -35,6 +35,36 @@ export namespace Session {
   const log = Log.create({ service: "session" })
   const defaultDreamingWorker = new DreamingWorker()
 
+  /**
+   * Start the per-process DreamingWorker tick timer. Called at daemon
+   * boot; idempotent (the worker's start() guards re-entry). Tests do
+   * NOT call this — the worker stays dormant unless explicitly started,
+   * so test imports never spawn a real interval that would drift across
+   * the suite.
+   */
+  export function startDreamingWorker() {
+    defaultDreamingWorker.start()
+    log.info("dreaming.worker.started")
+  }
+
+  export function stopDreamingWorker() {
+    defaultDreamingWorker.stop()
+    log.info("dreaming.worker.stopped")
+  }
+
+  export async function dreamingStatus() {
+    const candidates = await DreamingWorker.scanLegacySessions().catch(() => [] as Array<{ sessionID: string }>)
+    const migrated = await DreamingWorker.countMigrated().catch(() => 0)
+    const inner = defaultDreamingWorker.getStatus()
+    return {
+      ...inner,
+      pending: candidates.length,
+      migrated,
+      // First few pending session IDs for quick eyeballing.
+      pendingPreview: candidates.slice(0, 5).map((c) => c.sessionID),
+    }
+  }
+
   export const Stats = z.object({
     requestsTotal: z.number(),
     totalTokens: z.number(),

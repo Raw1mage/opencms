@@ -333,6 +333,14 @@ export class DreamingWorker {
   private readonly idleThresholdMs: number
   private readonly now: () => number
   private readonly hooks: DreamingWorker.TestHooks | undefined
+  // Per-process telemetry — surfaces via /dream_status. Reset on daemon
+  // restart; not persisted to disk (the canonical state is the .db /
+  // legacy-dir filesystem layout itself).
+  private lastTickAt: number | undefined
+  private lastMigratedSessionID: string | undefined
+  private currentMigrationSessionID: string | undefined
+  private migrationsThisProcess = 0
+  private lastError: string | undefined
 
   constructor(options: DreamingWorkerOptions = {}) {
     const storageTweaks = Tweaks.sessionStorageSync()
@@ -356,6 +364,10 @@ export class DreamingWorker {
     }
   }
 
+  isRunning(): boolean {
+    return this.timer !== undefined
+  }
+
   stop(): void {
     if (!this.timer) return
     clearInterval(this.timer)
@@ -368,6 +380,7 @@ export class DreamingWorker {
 
   async tick(): Promise<{ migrated?: string; skipped: boolean }> {
     if (this.running) return { skipped: true }
+    this.lastTickAt = this.now()
     const idleForMs = this.now() - this.lastMessageWriteMs
     if (idleForMs < this.idleThresholdMs) {
       log.info("dreaming.skipped_active_writes", { active_writer_count: 1 })
@@ -383,10 +396,42 @@ export class DreamingWorker {
       const picked = candidates[0]?.sessionID
       log.info("dreaming.tick", { idle_for_ms: idleForMs, pending_count: candidates.length, picked_session_id: picked })
       if (!picked) return { skipped: true }
-      await this.migrateSession(picked)
+      this.currentMigrationSessionID = picked
+      try {
+        await this.migrateSession(picked)
+        this.lastMigratedSessionID = picked
+        this.migrationsThisProcess++
+        this.lastError = undefined
+      } catch (err) {
+        this.lastError = err instanceof Error ? err.message : String(err)
+        throw err
+      } finally {
+        this.currentMigrationSessionID = undefined
+      }
       return { migrated: picked, skipped: false }
     } finally {
       this.running = false
+    }
+  }
+
+  /**
+   * Snapshot of per-process telemetry. Surfaces via /dream_status. The
+   * canonical "how many done" answer is the count of `<sid>.db` files
+   * on disk — `migrationsThisProcess` is just what THIS process has
+   * advanced since boot.
+   */
+  getStatus() {
+    return {
+      running: this.timer !== undefined,
+      tickInFlight: this.running,
+      tickMs: this.tickMs,
+      idleThresholdMs: this.idleThresholdMs,
+      lastTickAt: this.lastTickAt,
+      lastMessageWriteMs: this.lastMessageWriteMs,
+      lastMigratedSessionID: this.lastMigratedSessionID,
+      currentMigrationSessionID: this.currentMigrationSessionID,
+      migrationsThisProcess: this.migrationsThisProcess,
+      lastError: this.lastError,
     }
   }
 
@@ -424,6 +469,20 @@ export class DreamingWorker {
     }
     out.sort((a, b) => a.touchedMs - b.touchedMs || a.sessionID.localeCompare(b.sessionID))
     return out
+  }
+
+  /**
+   * Count of migrated sessions (sibling `<sid>.db` files in the storage
+   * root). Cheap directory listing — no DB opens.
+   */
+  static async countMigrated(): Promise<number> {
+    const root = sessionRoot()
+    if (!(await exists(root))) return 0
+    let count = 0
+    for (const entry of await fsp.readdir(root, { withFileTypes: true })) {
+      if (entry.isFile() && entry.name.endsWith(".db") && !entry.name.endsWith(".db.tmp")) count++
+    }
+    return count
   }
 
   static async migrateSession(sessionID: string, options: { hooks?: DreamingWorker.TestHooks } = {}): Promise<void> {

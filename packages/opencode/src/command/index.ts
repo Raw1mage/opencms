@@ -75,6 +75,9 @@ export namespace Command {
     UPDATE_MODELS: "update_models",
     PLAN: "plan",
     RELOAD: "reload",
+    DREAM_ON: "dream_on",
+    DREAM_OFF: "dream_off",
+    DREAM_STATUS: "dream_status",
   } as const
 
   /** Exported for unit tests. Executes the /reload command's bump + reinject. */
@@ -173,6 +176,67 @@ export namespace Command {
         template: "",
         hints: [],
         handler: reloadHandler,
+      },
+      [Default.DREAM_ON]: {
+        name: Default.DREAM_ON,
+        description: "start the dreaming-mode worker (idle-time legacy → SQLite migration)",
+        source: "command",
+        template: "",
+        hints: [],
+        handler: async () => {
+          const { Session } = await import("../session")
+          Session.startDreamingWorker()
+          const status = await Session.dreamingStatus()
+          return {
+            output: `Dream mode ON — worker running=${status.running}, legacy sessions pending=${status.pending}`,
+            title: "Dream Mode — On",
+          }
+        },
+      },
+      [Default.DREAM_OFF]: {
+        name: Default.DREAM_OFF,
+        description: "stop the dreaming-mode worker (no further idle migrations until re-armed)",
+        source: "command",
+        template: "",
+        hints: [],
+        handler: async () => {
+          const { Session } = await import("../session")
+          Session.stopDreamingWorker()
+          const status = await Session.dreamingStatus()
+          return {
+            output: `Dream mode OFF — worker running=${status.running}, legacy sessions pending=${status.pending}`,
+            title: "Dream Mode — Off",
+          }
+        },
+      },
+      [Default.DREAM_STATUS]: {
+        name: Default.DREAM_STATUS,
+        description: "show dreaming-mode progress (migrated / pending / in-flight / last tick)",
+        source: "command",
+        template: "",
+        hints: [],
+        handler: async () => {
+          const { Session } = await import("../session")
+          const s = await Session.dreamingStatus()
+          const fmt = (ms?: number) => (ms ? new Date(ms).toISOString().replace("T", " ").slice(0, 19) + "Z" : "—")
+          const idleSec = s.lastMessageWriteMs ? Math.round((Date.now() - s.lastMessageWriteMs) / 1000) : "—"
+          const lines = [
+            `**worker**:        running=${s.running}, tickInFlight=${s.tickInFlight}`,
+            `**cadence**:       tick=${s.tickMs}ms, idle threshold=${s.idleThresholdMs}ms (current idle=${idleSec}s)`,
+            `**progress**:      已編成=${s.migrated}, 待編成=${s.pending} (此 process 已搬=${s.migrationsThisProcess})`,
+            `**in flight**:     ${s.currentMigrationSessionID ?? "(none — idle)"}`,
+            `**last migrated**: ${s.lastMigratedSessionID ?? "—"}`,
+            `**last tick**:     ${fmt(s.lastTickAt)}`,
+            ...(s.lastError ? [`**last error**:    ${s.lastError}`] : []),
+            ...(s.pendingPreview.length > 0
+              ? [`**next up**:       ${s.pendingPreview.join(", ")}${s.pending > s.pendingPreview.length ? ", ..." : ""}`]
+              : []),
+          ]
+          return {
+            output: lines.join("\n"),
+            title: "Dream Mode — Status",
+          }
+        },
       },
     }
 
