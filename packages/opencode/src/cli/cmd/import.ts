@@ -83,11 +83,12 @@ export const ImportCommand = cmd({
 
       await Storage.write(["session", exportData.info.id], exportData.info)
 
+      const { LegacyStore } = await import("../../session/storage/legacy")
       for (const msg of exportData.messages) {
-        await Storage.write(["message", exportData.info.id, msg.info.id], msg.info)
+        await LegacyStore.upsertMessage(msg.info)
 
         for (const part of msg.parts) {
-          await Storage.write(["part", msg.info.id, part.id], part)
+          await LegacyStore.upsertPart(part)
         }
       }
 

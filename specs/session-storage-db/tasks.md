@@ -4,39 +4,39 @@ Phased execution checklist. Each phase is a coherent slice that can be implement
 
 ## 1. Foundation — extract LegacyStore as a verbatim module
 
-- [ ] 1.1 Create `packages/opencode/src/session/storage/` directory; add `index.ts` exporting a placeholder `SessionStorage` namespace
-- [ ] 1.2 Move existing per-message / per-part filesystem logic from `message-v2.ts` (`stream`, `parts`, `get`) and `Session` (`updateMessage`, `updatePart`) into `storage/legacy.ts` as `LegacyStore`; preserve exact behavior; keep callers on the original API names via thin re-export
-- [ ] 1.3 Add `legacy.test.ts` covering current behavior on a synthetic session fixture: list, read, update, append part, delete; tests must pass against pre-extraction baseline
-- [ ] 1.4 Wire `Storage.list/read/write` for `["message", sid]` and `["part", mid]` paths through `LegacyStore` so the rest of the codebase is unchanged
+- [x] 1.1 Create `packages/opencode/src/session/storage/` directory; add `index.ts` exporting a placeholder `SessionStorage` namespace
+- [x] 1.2 Move existing per-message / per-part filesystem logic from `message-v2.ts` (`stream`, `parts`, `get`) and `Session` (`updateMessage`, `updatePart`) into `storage/legacy.ts` as `LegacyStore`; preserve exact behavior; keep callers on the original API names via thin re-export
+- [x] 1.3 Add `legacy.test.ts` covering current behavior on a synthetic session fixture: list, read, update, append part, delete; tests must pass against pre-extraction baseline
+- [x] 1.4 Wire `Storage.list/read/write` for `["message", sid]` and `["part", mid]` paths through `LegacyStore` so the rest of the codebase is unchanged
 
 ## 2. SQLite store v1 — schema, pool, integrity, migration runner
 
-- [ ] 2.1 Add `storage/migrations/v1.ts` containing the DDL + indexes from `data-schema.json`; export `applyV1(db)` and `rollbackV1(db)` (rollback is a no-op for the initial schema but the unit-test pair contract starts here)
-- [ ] 2.2 Add `storage/pool.ts` (`ConnectionPool`): bounded LRU keyed by sessionID, `acquire(sessionID, mode: "rw" | "ro")`, `release()`, idle close after `CONNECTION_IDLE_MS` (default 60s), pool cap 32
-- [ ] 2.3 Add `storage/integrity.ts` (`IntegrityChecker`): runs `PRAGMA integrity_check`, caches per-connection result, publishes `session.storage.corrupted` Bus event on failure (event payload defined in `observability.md`)
-- [ ] 2.4 Add `storage/migration-runner.ts` (`MigrationRunner`): reads `meta.schema_version`, dispatches to `migrations/vN.ts`, wraps in transaction, ROLLBACK on error, publishes `session.storage.migration_failed` event
-- [ ] 2.5 Add `storage/sqlite.ts` (`SqliteStore`) implementing the LegacyStore interface contract: `list(sessionID)`, `get(sessionID, messageID)`, `parts(messageID)`, `upsertMessage(...)`, `upsertPart(...)`, `deleteSession(sessionID)`; opens via Pool, runs IntegrityChecker on first acquire, runs MigrationRunner if schema_version mismatches
-- [ ] 2.6 Apply pragmas (`journal_mode=WAL`, `synchronous=NORMAL`, `foreign_keys=ON`) on every connection open
-- [ ] 2.7 Implement message info ↔ row encode/decode: promote `tokens.total` etc. to columns (DD-6); fall through `info_extra_json` for fields without a column
-- [ ] 2.8 Implement part payload ↔ row encode/decode: full part body to `payload_json`; preserve part `id` and message `sequence`
-- [ ] 2.9 Add `sqlite.test.ts` covering CRUD round-trips, schema_version handshake, integrity_check pass/fail, transaction atomicity (per-message commit), pool warm/cold acquire
+- [x] 2.1 Add `storage/migrations/v1.ts` containing the DDL + indexes from `data-schema.json`; export `applyV1(db)` and `rollbackV1(db)` (rollback is a no-op for the initial schema but the unit-test pair contract starts here)
+- [x] 2.2 Add `storage/pool.ts` (`ConnectionPool`): bounded LRU keyed by sessionID, `acquire(sessionID, mode: "rw" | "ro")`, `release()`, idle close after `CONNECTION_IDLE_MS` (default 60s), pool cap 32
+- [x] 2.3 Add `storage/integrity.ts` (`IntegrityChecker`): runs `PRAGMA integrity_check`, caches per-connection result, publishes `session.storage.corrupted` Bus event on failure (event payload defined in `observability.md`)
+- [x] 2.4 Add `storage/migration-runner.ts` (`MigrationRunner`): reads `meta.schema_version`, dispatches to `migrations/vN.ts`, wraps in transaction, ROLLBACK on error, publishes `session.storage.migration_failed` event
+- [x] 2.5 Add `storage/sqlite.ts` (`SqliteStore`) implementing the LegacyStore interface contract: `list(sessionID)`, `get(sessionID, messageID)`, `parts(messageID)`, `upsertMessage(...)`, `upsertPart(...)`, `deleteSession(sessionID)`; opens via Pool, runs IntegrityChecker on first acquire, runs MigrationRunner if schema_version mismatches
+- [x] 2.6 Apply pragmas (`journal_mode=WAL`, `synchronous=NORMAL`, `foreign_keys=ON`) on every connection open
+- [x] 2.7 Implement message info ↔ row encode/decode: promote `tokens.total` etc. to columns (DD-6); fall through `info_extra_json` for fields without a column
+- [x] 2.8 Implement part payload ↔ row encode/decode: full part body to `payload_json`; preserve part `id` and message `sequence`
+- [x] 2.9 Add `sqlite.test.ts` covering CRUD round-trips, schema_version handshake, integrity_check pass/fail, transaction atomicity (per-message commit), pool warm/cold acquire
 
 ## 3. Router — dual-track dispatcher
 
-- [ ] 3.1 Add `storage/router.ts` (`Router`) exporting the same surface as LegacyStore + SqliteStore; per-call format detection: `<sid>.db` exists → SqliteStore, else `<sid>/messages/` exists → LegacyStore, else create new SqliteStore
-- [ ] 3.2 Implement debris-resolution rule from spec.md § "Both formats present (post-crash debris)": if both `<sid>.db` AND `<sid>/messages/` exist AND `<sid>.db.tmp` does NOT exist → SqliteStore wins, schedule `<sid>/` for deletion at next idle
-- [ ] 3.3 Enforce DD-13 no-silent-fallback: any error from SqliteStore propagates; never re-attempt via LegacyStore
-- [ ] 3.4 Add `router.test.ts` covering format detection matrix (only-legacy / only-sqlite / both / neither / tmp-present), debris resolution, no-silent-fallback enforcement
-- [ ] 3.5 Update `Session.messages`, `Session.updateMessage`, `Session.updatePart`, `MessageV2.stream`, `MessageV2.parts`, `MessageV2.get`, `MessageV2.filterCompacted` to call Router (signature unchanged; DD-9)
-- [ ] 3.6 Make `MessageV2.filterCompacted` consume `tokens_total` directly from row data when available (DD-6); fall back to existing logic only for legacy-format sessions
+- [x] 3.1 Add `storage/router.ts` (`Router`) exporting the same surface as LegacyStore + SqliteStore; per-call format detection: `<sid>.db` exists → SqliteStore, else `<sid>/messages/` exists → LegacyStore, else create new SqliteStore
+- [x] 3.2 Implement debris-resolution rule from spec.md § "Both formats present (post-crash debris)": if both `<sid>.db` AND `<sid>/messages/` exist AND `<sid>.db.tmp` does NOT exist → SqliteStore wins, schedule `<sid>/` for deletion at next idle
+- [x] 3.3 Enforce DD-13 no-silent-fallback: any error from SqliteStore propagates; never re-attempt via LegacyStore
+- [x] 3.4 Add `router.test.ts` covering format detection matrix (only-legacy / only-sqlite / both / neither / tmp-present), debris resolution, no-silent-fallback enforcement
+- [x] 3.5 Update `Session.messages`, `Session.updateMessage`, `Session.updatePart`, `MessageV2.stream`, `MessageV2.parts`, `MessageV2.get`, `MessageV2.filterCompacted` to call Router (signature unchanged; DD-9)
+- [x] 3.6 Make `MessageV2.filterCompacted` consume `tokens_total` directly from row data when available (DD-6); fall back to existing logic only for legacy-format sessions
 
 ## 4. Hot path swap — new sessions use SqliteStore
 
-- [ ] 4.1 Default `Session.create` to allocate `<sid>.db` (not `<sid>/messages/`) for new sessions
-- [ ] 4.2 Adjust session lifecycle hooks (`Session.delete`, recycle-bin, export, stats) to recognize `.db` files alongside the legacy directory pattern
-- [ ] 4.3 Adjust `script/sync-config-back.sh` and any backup-side glob patterns to include `*.db` files
-- [ ] 4.4 Run end-to-end smoke test: create new session, send 5 messages, kill daemon, restart, verify all messages survive and finish-step transitions are intact
-- [ ] 4.5 Benchmark per-round runloop wall time on a synthetic 2000-message session: SQLite path vs LegacyStore path; record numbers in handoff.md validation evidence
+- [x] 4.1 Default `Session.create` to allocate `<sid>.db` (not `<sid>/messages/`) for new sessions — done implicitly by Phase 3 (Router routes fresh sessionIDs to SqliteStore which creates the .db on first write)
+- [x] 4.2 Adjust session lifecycle hooks (`Session.delete`, recycle-bin, export, stats) to recognize `.db` files alongside the legacy directory pattern — `Storage.sessionStats` now opens the .db for row counts when present, falls through to legacy walk only when .db absent. `Session.delete` already routes through `StorageRouter.deleteSession` which clears both formats. Recycle-bin / export do not need updates (they operate on whole `<sid>/` directory + sibling `<sid>.db` via filesystem-level recursive operations that already include the .db file)
+- [x] 4.3 Adjust `script/sync-config-back.sh` and any backup-side glob patterns to include `*.db` files — audit confirms no glob filtering exists; the rsync flow copies the entire `storage/session/` tree which already includes `.db` files as siblings
+- [ ] 4.4 Run end-to-end smoke test: create new session, send 5 messages, kill daemon, restart, verify all messages survive and finish-step transitions are intact — **GATE: requires user approval to rebuild + restart daemon against live `~/.local/share/opencode/`. AI cannot run unilaterally.**
+- [ ] 4.5 Benchmark per-round runloop wall time on a synthetic 2000-message session: SQLite path vs LegacyStore path; record numbers in handoff.md validation evidence — **GATE: requires user approval to generate synthetic data + run daemon under benchmark instrumentation.**
 
 ## 5. Dreaming mode — idle-time legacy migration
 

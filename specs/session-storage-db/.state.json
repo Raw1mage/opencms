@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "planned",
+  "state": "implementing",
   "profile": [],
   "history": [
     {
@@ -26,6 +26,42 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "tasks.md (9 phases) + handoff.md + test-vectors.json (15 vectors) + errors.md + observability.md + invariants.md drafted; Execution-Ready checklist defined"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-04-29T10:38:47.780Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "task 1.1 done: storage/index.ts namespace skeleton"
+    },
+    {
+      "at": "2026-04-29T10:38:51.812Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/app/src/i18n/en.ts, packages/app/src/i18n/zh.ts, packages/app/src/pages/session.tsx, packages/mcp/system-manager/src/index.ts, packages/opencode/src/config/tweaks.ts, packages/opencode/src/plugin/codex-auth.ts, packages/opencode/src/session/compaction.ts, packages/opencode/src/session/memory.ts, packages/opencode/src/tool/apply_patch.ts, packages/opencode/src/tool/bash.ts, packages/opencode/src/tool/budget.ts, packages/opencode/src/tool/glob.ts, packages/opencode/src/tool/grep.ts, packages/opencode/src/tool/read.ts, packages/opencode/src/tool/task.ts, packages/opencode/src/tool/tool.ts, packages/opencode/src/tool/webfetch.ts, packages/plugin/src/tool.ts",
+      "result": "warned",
+      "drift": [
+        "packages/app/src/i18n/en.ts",
+        "packages/app/src/i18n/zh.ts",
+        "packages/app/src/pages/session.tsx",
+        "packages/mcp/system-manager/src/index.ts",
+        "packages/opencode/src/config/tweaks.ts",
+        "packages/opencode/src/plugin/codex-auth.ts",
+        "packages/opencode/src/session/compaction.ts",
+        "packages/opencode/src/session/memory.ts",
+        "packages/opencode/src/tool/apply_patch.ts",
+        "packages/opencode/src/tool/bash.ts",
+        "packages/opencode/src/tool/budget.ts",
+        "packages/opencode/src/tool/glob.ts",
+        "packages/opencode/src/tool/grep.ts",
+        "packages/opencode/src/tool/read.ts",
+        "packages/opencode/src/tool/task.ts",
+        "packages/opencode/src/tool/tool.ts",
+        "packages/opencode/src/tool/webfetch.ts",
+        "packages/plugin/src/tool.ts"
+      ],
+      "commit": "f1c08f3c12844c182aacbbddd36c81ee8750363d"
     }
   ]
 }

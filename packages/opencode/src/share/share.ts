@@ -65,7 +65,8 @@ export namespace Share {
       let partData = evt.properties.part
       if (evt.properties.delta && "type" in partData && (partData.type === "text" || partData.type === "reasoning") && !("text" in partData && (partData as any).text)) {
         try {
-          const full = await Storage.read(["part", partData.messageID, partData.id])
+          const { readPartFile } = await import("../session/storage/legacy")
+          const full = await readPartFile(partData.messageID, partData.id)
           if (full) partData = full as typeof partData
         } catch (e) {
           if (!(e instanceof Storage.NotFoundError)) throw e

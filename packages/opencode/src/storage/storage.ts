@@ -546,14 +546,46 @@ export namespace Storage {
   } | undefined> {
     const sessionDir = await sessionDirectory(sessionID)
     if (!sessionDir) return undefined
-    const messagesRoot = path.join(sessionDir, "messages")
-    const messageEntries = await fs.readdir(messagesRoot, { withFileTypes: true }).catch(() => [] as any[])
     let messageCount = 0
     let partCount = 0
     let totalBytes = 0
     let lastUpdated = 0
     const infoStat = await fs.stat(path.join(sessionDir, "info.json")).catch(() => undefined)
     if (infoStat && infoStat.mtimeMs > lastUpdated) lastUpdated = infoStat.mtimeMs
+
+    // Phase 4 (session-storage-db task 4.2): if a SQLite session DB
+    // exists alongside the session's info.json directory, count its
+    // rows + use its mtime + size instead of walking the (possibly
+    // empty) legacy messages directory. This keeps the meta endpoint
+    // honest after a session is migrated to SQLite.
+    const dbPath = path.join(path.dirname(sessionDir), `${sessionID}.db`)
+    const dbStat = await fs.stat(dbPath).catch(() => undefined)
+    if (dbStat) {
+      try {
+        const { Database } = await import("bun:sqlite")
+        const db = new Database(dbPath, { readonly: true })
+        try {
+          const m = db.query<{ c: number }, []>("SELECT COUNT(*) as c FROM messages").get()
+          const p = db.query<{ c: number }, []>("SELECT COUNT(*) as c FROM parts").get()
+          messageCount = m?.c ?? 0
+          partCount = p?.c ?? 0
+        } finally {
+          db.close()
+        }
+        totalBytes = dbStat.size
+        if (dbStat.mtimeMs > lastUpdated) lastUpdated = dbStat.mtimeMs
+        return { messageCount, partCount, totalBytes, lastUpdated }
+      } catch {
+        // SQLite open / query failure → fall through to legacy walk so
+        // a corrupted .db on a hybrid session still surfaces stats from
+        // whatever directory remains. This is NOT a silent fallback for
+        // reads (DD-13); it's a metadata-only best-effort for the meta
+        // endpoint that admins use to triage problem sessions.
+      }
+    }
+
+    const messagesRoot = path.join(sessionDir, "messages")
+    const messageEntries = await fs.readdir(messagesRoot, { withFileTypes: true }).catch(() => [] as any[])
     for (const entry of messageEntries) {
       if (!entry.isDirectory()) continue
       const messageDir = path.join(messagesRoot, entry.name)

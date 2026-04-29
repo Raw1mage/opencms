@@ -14,6 +14,12 @@ import { Storage } from "../storage/storage"
 import { Log } from "../util/log"
 import { debugCheckpoint } from "../util/debug"
 import { MessageV2 } from "./message-v2"
+import {
+  readMessageInfo,
+  removeMessageInfo,
+  removePartFile,
+} from "./storage/legacy"
+import { Router as StorageRouter } from "./storage/router"
 import { Instance } from "../project/instance"
 import { Project } from "../project/project"
 import { SessionPrompt } from "./prompt"
@@ -853,12 +859,7 @@ export namespace Session {
         await remove(child.id)
       }
       await unshare(sessionID).catch(() => {})
-      for (const msg of await Storage.list(["message", sessionID])) {
-        for (const part of await Storage.list(["part", msg.at(-1)!])) {
-          await Storage.remove(part)
-        }
-        await Storage.remove(msg)
-      }
+      await StorageRouter.deleteSession(sessionID)
       await Storage.remove(["session", ownerProjectID, sessionID])
       Bus.publish(Event.Deleted, {
         info: session,
@@ -869,8 +870,8 @@ export namespace Session {
   })
 
   export const updateMessage = fn(MessageV2.Info, async (msg) => {
-    const previous = await Storage.read<MessageV2.Info>(["message", msg.sessionID, msg.id]).catch(() => undefined)
-    await Storage.write(["message", msg.sessionID, msg.id], msg)
+    const previous = await readMessageInfo(msg.sessionID, msg.id)
+    await StorageRouter.upsertMessage(msg)
     if (hasMessageUsageDelta(previous, msg)) {
       await update(
         msg.sessionID,
@@ -892,10 +893,8 @@ export namespace Session {
       messageID: Identifier.schema("message"),
     }),
     async (input) => {
-      const previous = await Storage.read<MessageV2.Info>(["message", input.sessionID, input.messageID]).catch(
-        () => undefined,
-      )
-      await Storage.remove(["message", input.sessionID, input.messageID])
+      const previous = await readMessageInfo(input.sessionID, input.messageID)
+      await removeMessageInfo(input.sessionID, input.messageID)
       if (hasMessageUsageDelta(previous, undefined)) {
         await update(
           input.sessionID,
@@ -920,7 +919,7 @@ export namespace Session {
       partID: Identifier.schema("part"),
     }),
     async (input) => {
-      await Storage.remove(["part", input.messageID, input.partID])
+      await removePartFile(input.messageID, input.partID)
       Bus.publish(MessageV2.Event.PartRemoved, {
         sessionID: input.sessionID,
         messageID: input.messageID,
@@ -973,7 +972,7 @@ export namespace Session {
     if (!entry) return
     clearTimeout(entry.timer)
     _pendingPartWrites.delete(keyStr)
-    await Storage.write(entry.key, entry.content)
+    await StorageRouter.upsertPart(entry.content as MessageV2.Part)
   }
 
   function _schedulePartWrite(keyStr: string, key: string[], content: any, debounceMs: number) {
@@ -1031,7 +1030,7 @@ export namespace Session {
       _schedulePartWrite(keyStr, storeKey, part, tweak.debounceMs)
     } else {
       await _flushPartWrite(keyStr)
-      await Storage.write(storeKey, part)
+      await StorageRouter.upsertPart(part)
     }
 
     // [DELTA-PART] instrumentation: measure full-part vs delta cost per chunk
