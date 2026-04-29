@@ -19,6 +19,7 @@ import { Session } from "@/session"
 import { MessageV2 } from "@/session/message-v2"
 import { Instance } from "@/project/instance"
 import { Log } from "@/util/log"
+import { enqueueAutonomousContinue } from "@/session/workflow-runner"
 
 const log = Log.create({ service: "task.notice" })
 
@@ -75,6 +76,58 @@ export function registerPendingNoticeAppenderSubscriber() {
           finish: p.finish,
           queueDepth: (parent.pendingSubagentNotices?.length ?? 0) + 1,
         })
+
+        // Auto-resume parent runloop so the notice gets drained into the
+        // system-prompt addendum on the next turn without waiting for the
+        // user to type something. Without this, a parent that fired off
+        // subagent work and went to sleep (autonomous=false, fire-and-forget
+        // task tool) would silently park the notice and the user would
+        // come back to a stalled session even though the child finished
+        // cleanly. The user explicitly invoked task tool — they expect
+        // a follow-up; treat subagent completion as the implicit trigger.
+        //
+        // Find the latest user message to thread agent/model/variant for
+        // arbitration. SqliteStore.stream yields id-DESC, so the first
+        // user we encounter while iterating is the latest one.
+        let latestUser: MessageV2.User | undefined
+        try {
+          for await (const m of MessageV2.stream(p.parentSessionID)) {
+            if (m.info.role === "user") {
+              latestUser = m.info as MessageV2.User
+              break
+            }
+          }
+        } catch (streamErr) {
+          log.warn("auto-resume: failed to read latest user from parent stream", {
+            jobId: p.jobId,
+            parentSessionID: p.parentSessionID,
+            error: streamErr instanceof Error ? streamErr.message : String(streamErr),
+          })
+        }
+        if (latestUser) {
+          try {
+            await enqueueAutonomousContinue({
+              sessionID: p.parentSessionID,
+              user: latestUser,
+              text: `Subagent ${p.childSessionID} finished (status=${p.status}). Drain pending notices and continue.`,
+            })
+            log.info("auto-resume: parent runloop enqueued after notice", {
+              jobId: p.jobId,
+              parentSessionID: p.parentSessionID,
+            })
+          } catch (resumeErr) {
+            log.warn("auto-resume: enqueueAutonomousContinue failed", {
+              jobId: p.jobId,
+              parentSessionID: p.parentSessionID,
+              error: resumeErr instanceof Error ? resumeErr.message : String(resumeErr),
+            })
+          }
+        } else {
+          log.warn("auto-resume: no user message found on parent; cannot enqueue", {
+            jobId: p.jobId,
+            parentSessionID: p.parentSessionID,
+          })
+        }
       } catch (e) {
         log.warn("pending-notice-appender failed", {
           jobId: p.jobId,
