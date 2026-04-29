@@ -1498,8 +1498,11 @@ export namespace SessionPrompt {
       // repeat trips the brake. (Tightened from 3 → 2 per user request:
       // 3 felt too lenient when each loop costs an LLM call.)
       if (lastAssistant?.finish === "tool-calls" && lastAssistant.id > lastUser.id) {
+        // Collect last 3 completed tool-call assistant turns. We need 3 to
+        // do similarity-pair check; tool-signature exact match still trips
+        // on 2 (cheaper, narrower).
         const recentAssistants: MessageV2.WithParts[] = []
-        for (let i = msgs.length - 1; i >= 0 && recentAssistants.length < 2; i--) {
+        for (let i = msgs.length - 1; i >= 0 && recentAssistants.length < 3; i--) {
           if (msgs[i].info.role === "assistant") {
             const a = msgs[i].info as MessageV2.Assistant
             if (a.finish === "tool-calls" && (a.tokens.input > 0 || a.tokens.output > 0)) {
@@ -1507,8 +1510,11 @@ export namespace SessionPrompt {
             }
           }
         }
-        if (recentAssistants.length === 2) {
-          const sigs = recentAssistants.map((m) => {
+
+        // Detector A — exact tool-call signature match across 2 consecutive
+        // turns. Catches the "rewriting the same todowrite 116 times" case.
+        if (recentAssistants.length >= 2) {
+          const sigs = recentAssistants.slice(0, 2).map((m) => {
             const tools = m.parts.filter((p) => p.type === "tool")
             return tools
               .map((p) => {
@@ -1520,7 +1526,7 @@ export namespace SessionPrompt {
               .join("|")
           })
           if (sigs[0] && sigs[0] === sigs[1]) {
-            log.warn("breaking tool-call planning loop", {
+            log.warn("breaking tool-call planning loop (signature)", {
               sessionID,
               step,
               signature: sigs[0].slice(0, 200),
@@ -1533,6 +1539,58 @@ export namespace SessionPrompt {
             lastAssistant.finish = "error"
             await Session.updateMessage(lastAssistant)
             break
+          }
+        }
+
+        // Detector B — narrative repetition. Catches the case where the
+        // model varies tool calls each turn but keeps restating the same
+        // future-tense intent (e.g. "我會 materialize Phase 5..." across
+        // 4 turns where each turn does a different small tool call but
+        // never advances). Diagnosed 2026-04-29 from Phase 5 hand-off
+        // session that ran 4+ turns of identical-meaning narration.
+        //
+        // Method: bigram Jaccard similarity between the leading text of
+        // each assistant turn. If 3 consecutive turns each share >0.5
+        // similarity with the next, treat as narrative loop and break.
+        if (recentAssistants.length === 3) {
+          const leadingText = (m: MessageV2.WithParts): string => {
+            const text = m.parts.find((p) => p.type === "text" && !(p as { synthetic?: boolean }).synthetic) as
+              | { text?: string }
+              | undefined
+            return (text?.text ?? "").toLowerCase().replace(/\s+/g, "").slice(0, 600)
+          }
+          const bigrams = (s: string): Set<string> => {
+            const out = new Set<string>()
+            for (let i = 0; i < s.length - 1; i++) out.add(s.slice(i, i + 2))
+            return out
+          }
+          const jaccard = (a: Set<string>, b: Set<string>): number => {
+            if (a.size === 0 || b.size === 0) return 0
+            let inter = 0
+            for (const x of a) if (b.has(x)) inter++
+            return inter / (a.size + b.size - inter)
+          }
+          const texts = recentAssistants.map(leadingText)
+          if (texts.every((t) => t.length >= 60)) {
+            const grams = texts.map(bigrams)
+            const j01 = jaccard(grams[0], grams[1])
+            const j12 = jaccard(grams[1], grams[2])
+            if (j01 > 0.5 && j12 > 0.5) {
+              log.warn("breaking narrative repetition loop", {
+                sessionID,
+                step,
+                similarity01: j01.toFixed(2),
+                similarity12: j12.toFixed(2),
+                samplePrefix: texts[0].slice(0, 120),
+              })
+              lastAssistant.error = new NamedError.Unknown({
+                message:
+                  "Model is restating the same intent across 3 consecutive turns without advancing (different tool calls but same narrative). Stopping to prevent runaway. Try giving a direct execution instruction instead of a planning prompt.",
+              }).toObject()
+              lastAssistant.finish = "error"
+              await Session.updateMessage(lastAssistant)
+              break
+            }
           }
         }
       }
