@@ -15,11 +15,11 @@ Phased execution checklist. Each phase is a coherent slice that can be implement
 - [x] 2.2 Add `storage/pool.ts` (`ConnectionPool`): bounded LRU keyed by sessionID, `acquire(sessionID, mode: "rw" | "ro")`, `release()`, idle close after `CONNECTION_IDLE_MS` (default 60s), pool cap 32
 - [x] 2.3 Add `storage/integrity.ts` (`IntegrityChecker`): runs `PRAGMA integrity_check`, caches per-connection result, publishes `session.storage.corrupted` Bus event on failure (event payload defined in `observability.md`)
 - [x] 2.4 Add `storage/migration-runner.ts` (`MigrationRunner`): reads `meta.schema_version`, dispatches to `migrations/vN.ts`, wraps in transaction, ROLLBACK on error, publishes `session.storage.migration_failed` event
-- [ ] 2.5 Add `storage/sqlite.ts` (`SqliteStore`) implementing the LegacyStore interface contract: `list(sessionID)`, `get(sessionID, messageID)`, `parts(messageID)`, `upsertMessage(...)`, `upsertPart(...)`, `deleteSession(sessionID)`; opens via Pool, runs IntegrityChecker on first acquire, runs MigrationRunner if schema_version mismatches
-- [ ] 2.6 Apply pragmas (`journal_mode=WAL`, `synchronous=NORMAL`, `foreign_keys=ON`) on every connection open
-- [ ] 2.7 Implement message info ↔ row encode/decode: promote `tokens.total` etc. to columns (DD-6); fall through `info_extra_json` for fields without a column
-- [ ] 2.8 Implement part payload ↔ row encode/decode: full part body to `payload_json`; preserve part `id` and message `sequence`
-- [ ] 2.9 Add `sqlite.test.ts` covering CRUD round-trips, schema_version handshake, integrity_check pass/fail, transaction atomicity (per-message commit), pool warm/cold acquire
+- [x] 2.5 Add `storage/sqlite.ts` (`SqliteStore`) implementing the LegacyStore interface contract: `list(sessionID)`, `get(sessionID, messageID)`, `parts(messageID)`, `upsertMessage(...)`, `upsertPart(...)`, `deleteSession(sessionID)`; opens via Pool, runs IntegrityChecker on first acquire, runs MigrationRunner if schema_version mismatches
+- [x] 2.6 Apply pragmas (`journal_mode=WAL`, `synchronous=NORMAL`, `foreign_keys=ON`) on every connection open
+- [x] 2.7 Implement message info ↔ row encode/decode: promote `tokens.total` etc. to columns (DD-6); fall through `info_extra_json` for fields without a column
+- [x] 2.8 Implement part payload ↔ row encode/decode: full part body to `payload_json`; preserve part `id` and message `sequence`
+- [x] 2.9 Add `sqlite.test.ts` covering CRUD round-trips, schema_version handshake, integrity_check pass/fail, transaction atomicity (per-message commit), pool warm/cold acquire
 
 ## 3. Router — dual-track dispatcher
 

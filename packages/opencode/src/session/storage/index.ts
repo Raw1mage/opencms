@@ -29,8 +29,16 @@ export namespace SessionStorage {
     /** Read one message + all its parts. */
     get(input: { sessionID: string; messageID: string }): Promise<MessageV2.WithParts>
 
-    /** Read parts for one message in render order. */
-    parts(messageID: string): Promise<MessageV2.Part[]>
+    /**
+     * Read parts for one message in render order.
+     *
+     * `sessionID` is optional for back-compat with the legacy filesystem
+     * surface (where messageID alone identifies the on-disk path). The
+     * SqliteStore requires it because parts live inside the per-session
+     * DB; calling SqliteStore.parts without sessionID throws. The Router
+     * (task 3.1) always supplies it.
+     */
+    parts(messageID: string, sessionID?: string): Promise<MessageV2.Part[]>
 
     /** Insert or update a message info row. */
     upsertMessage(info: MessageV2.Info): Promise<void>

@@ -37,7 +37,7 @@ export const LegacyStore: SessionStorage.Backend = {
     }
   },
 
-  async parts(messageID: string): Promise<MessageV2.Part[]> {
+  async parts(messageID: string, _sessionID?: string): Promise<MessageV2.Part[]> {
     const result = [] as MessageV2.Part[]
     for (const item of await Storage.list(["part", messageID])) {
       // TOCTOU: a part listed by Storage.list can be deleted before we

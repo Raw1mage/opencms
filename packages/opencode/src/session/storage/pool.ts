@@ -94,7 +94,21 @@ export namespace ConnectionPool {
 
     const db = new Database(dbPath, { create: true })
     applyPragmas(db)
-    if (opts.onColdOpen) await opts.onColdOpen(db, dbPath)
+    if (opts.onColdOpen) {
+      try {
+        await opts.onColdOpen(db, dbPath)
+      } catch (err) {
+        // Failure during integrity / migration must not leave the
+        // handle leaked. Close before re-throwing — DD-13 propagates
+        // the error to the caller without silent fallback.
+        try {
+          db.close()
+        } catch {
+          /* ignore */
+        }
+        throw err
+      }
+    }
 
     entries.set(opts.sessionID, {
       sessionID: opts.sessionID,
