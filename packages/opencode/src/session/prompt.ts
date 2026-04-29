@@ -1542,17 +1542,34 @@ export namespace SessionPrompt {
           }
         }
 
-        // Detector B — narrative repetition. Catches the case where the
-        // model varies tool calls each turn but keeps restating the same
-        // future-tense intent (e.g. "我會 materialize Phase 5..." across
-        // 4 turns where each turn does a different small tool call but
-        // never advances). Diagnosed 2026-04-29 from Phase 5 hand-off
-        // session that ran 4+ turns of identical-meaning narration.
+        // Detector B — narrative repetition.
         //
-        // Method: bigram Jaccard similarity between the leading text of
-        // each assistant turn. If 3 consecutive turns each share >0.5
-        // similarity with the next, treat as narrative loop and break.
-        if (recentAssistants.length === 3) {
+        // Catches the case where the model varies tool calls each turn but
+        // keeps restating the same future-tense intent (e.g. "我會
+        // materialize Phase 5..." across 4 turns where each turn does a
+        // different small tool call but never advances). Diagnosed
+        // 2026-04-29 from Phase 5 hand-off session that ran 4+ turns of
+        // identical-meaning narration.
+        //
+        // Two-stage response, in keeping with autorun philosophy
+        // (default human reaction = "go, follow the plan"):
+        //
+        //   stage 1 — first 2-turn similarity hit, no prior nudge in
+        //             the last few turns: inject a synthetic "go" user
+        //             message giving explicit permission. Most
+        //             paralysis is the model waiting for approval that
+        //             never came; the nudge unblocks it without a
+        //             human round-trip.
+        //
+        //   stage 2 — same similarity still firing AFTER a nudge (i.e.
+        //             3 consecutive similar turns OR 2 with a recent
+        //             nudge already in history): real paralysis, not
+        //             just permission-waiting. Break with detector B
+        //             error so the user can intervene.
+        //
+        // Similarity is bigram Jaccard on the normalized leading text
+        // of each assistant turn (>0.5 = same intent restated).
+        if (recentAssistants.length >= 2) {
           const leadingText = (m: MessageV2.WithParts): string => {
             const text = m.parts.find((p) => p.type === "text" && !(p as { synthetic?: boolean }).synthetic) as
               | { text?: string }
@@ -1570,27 +1587,97 @@ export namespace SessionPrompt {
             for (const x of a) if (b.has(x)) inter++
             return inter / (a.size + b.size - inter)
           }
-          const texts = recentAssistants.map(leadingText)
-          if (texts.every((t) => t.length >= 60)) {
-            const grams = texts.map(bigrams)
-            const j01 = jaccard(grams[0], grams[1])
-            const j12 = jaccard(grams[1], grams[2])
-            if (j01 > 0.5 && j12 > 0.5) {
-              log.warn("breaking narrative repetition loop", {
-                sessionID,
-                step,
-                similarity01: j01.toFixed(2),
-                similarity12: j12.toFixed(2),
-                samplePrefix: texts[0].slice(0, 120),
-              })
-              lastAssistant.error = new NamedError.Unknown({
-                message:
-                  "Model is restating the same intent across 3 consecutive turns without advancing (different tool calls but same narrative). Stopping to prevent runaway. Try giving a direct execution instruction instead of a planning prompt.",
-              }).toObject()
-              lastAssistant.finish = "error"
-              await Session.updateMessage(lastAssistant)
-              break
+
+          // Did we already nudge in the last few turns? Look for a
+          // synthetic user message tagged with our marker between the
+          // newest two assistants in recentAssistants.
+          const NUDGE_MARKER = "[runtime-autorun-nudge]"
+          const newestAssistantIdx = msgs.findLastIndex(
+            (m) => m.info.id === recentAssistants[0].info.id,
+          )
+          const priorAssistantIdx = recentAssistants[1]
+            ? msgs.findLastIndex((m) => m.info.id === recentAssistants[1].info.id)
+            : -1
+          let nudgedRecently = false
+          if (priorAssistantIdx >= 0 && newestAssistantIdx > priorAssistantIdx) {
+            for (let i = priorAssistantIdx + 1; i < newestAssistantIdx; i++) {
+              if (msgs[i].info.role !== "user") continue
+              const hasNudge = msgs[i].parts.some(
+                (p) =>
+                  p.type === "text" &&
+                  (p as { synthetic?: boolean }).synthetic === true &&
+                  ((p as { text?: string }).text ?? "").includes(NUDGE_MARKER),
+              )
+              if (hasNudge) {
+                nudgedRecently = true
+                break
+              }
             }
+          }
+
+          const texts = recentAssistants.map(leadingText)
+          const longEnough = texts.every((t) => t.length >= 60)
+          const j01 = longEnough ? jaccard(bigrams(texts[0]), bigrams(texts[1])) : 0
+          const j12 =
+            longEnough && recentAssistants.length === 3
+              ? jaccard(bigrams(texts[1]), bigrams(texts[2]))
+              : 0
+
+          // Stage 2 — break.
+          const stage2 =
+            longEnough &&
+            ((recentAssistants.length === 3 && j01 > 0.5 && j12 > 0.5) ||
+              (recentAssistants.length >= 2 && j01 > 0.5 && nudgedRecently))
+          if (stage2) {
+            log.warn("breaking narrative repetition loop (post-nudge or 3-turn)", {
+              sessionID,
+              step,
+              similarity01: j01.toFixed(2),
+              similarity12: j12.toFixed(2),
+              nudgedRecently,
+              samplePrefix: texts[0].slice(0, 120),
+            })
+            lastAssistant.error = new NamedError.Unknown({
+              message:
+                "Model is restating the same intent across consecutive turns without advancing, even after a runtime nudge. Stopping to prevent runaway. Send a direct execution instruction or abort.",
+            }).toObject()
+            lastAssistant.finish = "error"
+            await Session.updateMessage(lastAssistant)
+            break
+          }
+
+          // Stage 1 — nudge.
+          const stage1 = longEnough && j01 > 0.5 && !nudgedRecently
+          if (stage1) {
+            log.info("autorun nudge: narrative repetition detected, injecting go", {
+              sessionID,
+              step,
+              similarity01: j01.toFixed(2),
+              samplePrefix: texts[0].slice(0, 120),
+            })
+            const nudgeUser: MessageV2.User = {
+              id: Identifier.ascending("message"),
+              sessionID,
+              role: "user",
+              time: { created: Date.now() },
+              agent: lastUser.agent,
+              model: lastUser.model,
+              variant: lastUser.variant,
+            }
+            await Session.updateMessage(nudgeUser)
+            await Session.updatePart({
+              id: Identifier.ascending("part"),
+              messageID: nudgeUser.id,
+              sessionID,
+              type: "text",
+              text:
+                NUDGE_MARKER +
+                " ok to go — follow the plan you described. " +
+                "Stop only if a critical issue or genuine blocker appears " +
+                "(not just a consideration). Don't restate; execute.",
+              synthetic: true,
+            } satisfies MessageV2.TextPart)
+            continue
           }
         }
       }
