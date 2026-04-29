@@ -140,38 +140,40 @@ export namespace SessionCompaction {
     ),
   }
 
-  // Bridge: opencode-side Compacted event → codex-provider chain reset.
-  // After every successful compaction, clear codex's lastResponseId so
-  // the next request to /responses starts a fresh server-side chain.
-  // Without this, codex accumulates a hidden chain via
-  // previous_response_id that grows past model.contextLimit even when
-  // opencode's own observedTokens shows ample room — leading to
-  // "Codex WS: input exceeds context window" rejections that no amount
-  // of opencode-side compaction can fix.
-  //
-  // Dynamic import at fire time to avoid pulling codex-provider into
-  // compaction.ts's static import graph (provider-agnostic core stays
-  // provider-agnostic; the runtime bridge is the only coupling).
-  Bus.subscribe(Event.Compacted, async (evt) => {
+  /**
+   * Publish Event.Compacted AND reset codex's per-session chain
+   * (lastResponseId). Bridge: after every compaction, clear codex's
+   * server-side chain pointer so next request starts fresh — without
+   * this, codex accumulates a hidden chain via previous_response_id
+   * that grows past model.contextLimit even when opencode's own
+   * observedTokens shows ample room.
+   *
+   * Direct call (not Bus.subscribe) because subscriber-pattern was
+   * unreliable — Instance scoping difference between subscriber
+   * registration time and event publish time meant the callback
+   * never fired in production. Inline call from every Compacted
+   * publish site is verbose but reliable.
+   *
+   * Use this helper anywhere we used to call Bus.publish(Event.Compacted, ...).
+   */
+  export async function publishCompactedAndResetChain(sessionID: string) {
+    Bus.publish(Event.Compacted, { sessionID })
     try {
       const { invalidateContinuation } = await import(
         "@opencode-ai/codex-provider/continuation"
       )
-      invalidateContinuation(evt.properties.sessionID)
+      invalidateContinuation(sessionID)
       Log.create({ service: "session.compaction" }).info(
         "codex chain reset after compaction (lastResponseId cleared)",
-        { sessionID: evt.properties.sessionID },
+        { sessionID },
       )
     } catch (err) {
       Log.create({ service: "session.compaction" }).warn(
         "codex chain reset failed (non-fatal)",
-        {
-          sessionID: evt.properties.sessionID,
-          error: err instanceof Error ? err.message : String(err),
-        },
+        { sessionID, error: err instanceof Error ? err.message : String(err) },
       )
     }
-  })
+  }
 
   const COMPACTION_BUFFER = 20_000
   const DEFAULT_HEADROOM = 8_000
@@ -527,7 +529,7 @@ export namespace SessionCompaction {
     // Phase 13.2-B: disk-file checkpoint write removed. The anchor message
     // written above IS the durable record; rebind reads it via stream scan.
 
-    Bus.publish(Event.Compacted, { sessionID: input.sessionID })
+    void publishCompactedAndResetChain(input.sessionID)
 
     if (input.auto) {
       // Create continue message for auto mode
@@ -1161,7 +1163,7 @@ When constructing the summary, try to stick to this template:
       auto: input.auto,
     })
 
-    Bus.publish(Event.Compacted, { sessionID: input.sessionID })
+    void publishCompactedAndResetChain(input.sessionID)
 
     // Read summary text out for the caller (and the checkpoint save below).
     const summaryMsg = (await Session.messages({ sessionID: input.sessionID })).findLast(
@@ -2308,10 +2310,11 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
       try {
         return await runLlmCompactInner(sessionID, request, opts)
       } finally {
-        // Always dismiss the UI toast, even on failure / timeout.
-        // Subscribers that need success/failure discrimination should
-        // look at the LlmCompactResult.ok flag returned to the caller.
-        Bus.publish(Event.Compacted, { sessionID })
+        // Always dismiss the UI toast AND reset codex chain, even on
+        // failure / timeout. Subscribers that need success/failure
+        // discrimination should look at the LlmCompactResult.ok flag
+        // returned to the caller.
+        void publishCompactedAndResetChain(sessionID)
       }
     }
 
