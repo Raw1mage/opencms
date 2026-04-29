@@ -25,7 +25,7 @@ import {
 } from "@opencode-ai/codex-provider"
 import { createCodex } from "@opencode-ai/codex-provider/provider"
 import { isCodexCredentials } from "@opencode-ai/codex-provider/auth"
-import { setContinuationFilePath } from "@opencode-ai/codex-provider/continuation"
+import { setContinuationFilePath, invalidateContinuation } from "@opencode-ai/codex-provider/continuation"
 import type { TokenResponse, PkceCodes } from "@opencode-ai/codex-provider"
 import { Log } from "../util/log"
 import { Installation } from "../installation"
@@ -33,9 +33,41 @@ import { Auth } from "../auth"
 import { Global } from "../global"
 import { BusEvent } from "@/bus/bus-event"
 import { codexServerCompact } from "../provider/codex-compaction"
+import { Bus } from "../bus"
 import { z } from "zod"
 import path from "path"
 import os from "os"
+
+// Bridge: opencode-side compaction event → codex-provider chain reset.
+// When ANY compaction succeeds (narrative / hybrid_llm / plugin), reset
+// codex's lastResponseId so the next request to /responses starts a
+// fresh server-side conversation chain. Without this, codex accumulates
+// a hidden chain via previous_response_id that can grow past
+// model.contextLimit even when opencode's own observedTokens shows
+// plenty of room — leading to "Codex WS: input exceeds context window"
+// rejections that no amount of opencode-side compaction can fix.
+//
+// Module-level subscription, fires on every Event.Compacted regardless
+// of which session. Lazy-resolves the event symbol to dodge circular
+// import with session/compaction.ts (which imports
+// ContinuationInvalidatedEvent from this file).
+;(async () => {
+  const { SessionCompaction } = await import("../session/compaction")
+  Bus.subscribe(SessionCompaction.Event.Compacted, (evt) => {
+    const sid = evt.properties.sessionID
+    invalidateContinuation(sid)
+    Log.create({ service: "plugin.codex" }).info(
+      "codex chain reset after compaction (lastResponseId cleared)",
+      { sessionID: sid },
+    )
+  })
+})().catch((err) => {
+  // Subscription must not crash daemon startup — if it fails, codex
+  // chain reset is just disabled and we revert to old behaviour.
+  Log.create({ service: "plugin.codex" }).warn("failed to subscribe to Compacted event", {
+    error: err instanceof Error ? err.message : String(err),
+  })
+})
 
 /**
  * Mimic upstream codex-rs `get_codex_user_agent`:
