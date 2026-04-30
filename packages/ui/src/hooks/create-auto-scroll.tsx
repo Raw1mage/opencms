@@ -22,6 +22,7 @@ export function createAutoScroll(options: AutoScrollOptions) {
   let autoTimer: ReturnType<typeof setTimeout> | undefined
   let cleanup: (() => void) | undefined
   let auto: { top: number; time: number } | undefined
+  let explicitFollow = false
   // rAF loop state (no rafId needed — uses loopActive flag)
   // Track previous scrollHeight so resize handling can detect real content
   // growth while all follow-bottom writers still converge on one exact
@@ -41,6 +42,7 @@ export function createAutoScroll(options: AutoScrollOptions) {
 
   const setMode = (mode: ScrollMode, reason: string, extra: Record<string, unknown> = {}) => {
     if (store.mode === mode) return
+    if (mode === "free-reading") explicitFollow = false
     setStore("mode", mode)
     debug("mode-change", { mode, reason, ...extra })
   }
@@ -236,6 +238,7 @@ export function createAutoScroll(options: AutoScrollOptions) {
   const stop = (force = false) => {
     const el = scroll
     if (!el) return
+    explicitFollow = false
     clearAuto()
     if (!force && !canScroll(el)) {
       if (userScrolled()) setMode("follow-bottom", "no-overflow")
@@ -346,6 +349,14 @@ export function createAutoScroll(options: AutoScrollOptions) {
       return
     }
 
+    if (explicitFollow) {
+      markAuto(el)
+      el.scrollTop = bottomScrollTop(el)
+      lastScrollHeight = el.scrollHeight
+      debug("handle-scroll-explicit-follow", metrics(el))
+      return
+    }
+
     debug("handle-scroll-user")
     stop()
   }
@@ -408,7 +419,7 @@ export function createAutoScroll(options: AutoScrollOptions) {
         resumeOnly: options.resumeOnly === true,
       })
 
-      if (distance > 1) {
+      if (distance > 1 && !explicitFollow) {
         stopRafLoop()
         setMode("free-reading", "resize-away-from-bottom")
         debug("resize-blocked-away-from-bottom", { delta, distance, ...metrics(el) })
@@ -430,6 +441,13 @@ export function createAutoScroll(options: AutoScrollOptions) {
         recordAnchorHit()
         if (circuitBroken) {
           debug("resize-circuit-broken-snap", { delta, remaining })
+          return
+        }
+        if (explicitFollow) {
+          markAuto(el)
+          el.scrollTop = bottomScrollTop(el)
+          lastScrollHeight = el.scrollHeight
+          debug("resize-explicit-follow-snap", { delta, remaining, ...metrics(el) })
           return
         }
         setMode("free-reading", "resize-remaining-away-from-bottom")
@@ -456,7 +474,7 @@ export function createAutoScroll(options: AutoScrollOptions) {
         }
         if (!userScrolled()) {
           const el = scroll
-          if (el && canScroll(el) && distanceFromBottom(el) > threshold()) {
+          if (el && canScroll(el) && distanceFromBottom(el) > threshold() && !explicitFollow) {
             stopRafLoop()
             setMode("free-reading", "working-start-away-from-bottom")
             debug("working-start-blocked-away-from-bottom", metrics(el))
@@ -532,6 +550,7 @@ export function createAutoScroll(options: AutoScrollOptions) {
         anchorHitTimes.length = 0
         debug("circuit-breaker-reset-by-user")
       }
+      explicitFollow = true
       if (userScrolled()) setMode("follow-bottom", "explicit-resume")
       debug("resume")
       scrollToBottom(true)

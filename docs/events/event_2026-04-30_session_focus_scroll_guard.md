@@ -78,6 +78,7 @@ OUT:
 - User clarified toolcall card height is effectively constant, so follow-bottom math should not be difficult or heuristic. Consolidated all auto-scroll bottom writers (`markAuto`, rAF follow loop, smooth scroll, immediate scroll, resize-follow) onto a single `bottomScrollTop(el)` formula instead of mixing `scrollHeight`, clamped browser behavior, and delta math.
 - User refined the jitter symptom: at the instant a toolcall completes, a bottom status/output line appears to disappear, the page scrolls down briefly, then returns. Added a dedicated bottom anchor sentinel at the end of the session timeline and re-enabled browser scroll anchoring only for that sentinel while in follow-bottom mode. Free-reading still disables the sentinel anchor.
 - User confirmed the remaining one-line jitter matches the `正在考慮下一步` / status row disappearing and reappearing around toolcall boundaries. Changed `SessionTurn` so the status row remains mounted for the duration of `working()` and uses `visibility: hidden` when inactive, preserving its vertical slot without exposing stale status text.
+- Regression after commit `b0f06265c`: user reported the follow-bottom button could no longer lock follow-bottom. Re-read `create-auto-scroll.tsx` and found explicit `resume()` only changed the mode, while the newer away-from-bottom guards (`resize-away-from-bottom`, `resize-remaining-away-from-bottom`, `working-start-away-from-bottom`) could immediately flip the state back to `free-reading`. Added an explicit follow latch set by `resume()` and cleared only by real user scroll/interaction, so explicit follow-bottom can override those stale-mode guards while user intent still exits follow mode.
 
 ### Root Cause
 
@@ -110,6 +111,7 @@ OUT:
 - Follow-bottom invariant: every JS follow-bottom path must write the same exact bottom coordinate, `max(0, scrollHeight - clientHeight)`. Do not rely on browser clamping from `scrollTop = scrollHeight`, and do not add resize deltas when the desired target is a stable bottom coordinate.
 - Completion jitter root cause refinement: when a running status row / transient line disappears on tool completion, JS can only correct after layout has already produced a visible frame. The bottom sentinel makes the browser's own layout-time scroll anchoring preserve the bottom edge before JS follow-bottom code runs, while the rest of the reactive message subtree remains excluded from anchoring.
 - Final status-row root cause refinement: `SessionTurn` previously mounted the inline status row only when `retry()` or `(working() && active())` was true. At toolcall handoff/completion boundaries, `working()` can remain true while `active()` briefly drops false, removing the row and collapsing one line of height. Keeping the row mounted while `working()` is true makes the layout height stable across that boundary.
+- Follow-bottom regression root cause: the anti-steal guards treated every away-from-bottom measurement as reading intent, but after an explicit resume the away-from-bottom distance can be transient/stale while the browser, ResizeObserver, or working-start transition is still settling. Without a separate explicit-follow latch, the same guards that protected free-reading also defeated the user's explicit request to lock onto bottom.
 
 ### Validation
 
@@ -146,6 +148,8 @@ OUT:
 - Status-row jitter manual validation after frontend restart: user confirmed the follow-bottom toolcall completion jitter is fixed. This validates keeping `session-turn-status-inline` mounted during `working()` and hiding it with `visibility: hidden` when inactive, so the transient "considering next steps" row no longer collapses layout between tool calls.
 - Status-row focused eslint: `bun run eslint packages/ui/src/components/session-turn.tsx`: passed.
 - Status-row whitespace check: `git diff --check -- packages/ui/src/components/session-turn.tsx packages/ui/src/components/session-turn.css docs/events/event_2026-04-30_session_focus_scroll_guard.md`: passed.
+- Explicit-follow focused eslint: `bun run eslint packages/ui/src/hooks/create-auto-scroll.tsx`: passed.
+- Explicit-follow whitespace check: `git diff --check -- packages/ui/src/hooks/create-auto-scroll.tsx`: passed.
 - Architecture Sync: Verified (No doc changes). Basis: changes stay within existing `packages/app/src/pages/session/` focus/scroll coordination and do not introduce new module boundaries, backend contracts, state authorities, or runtime flows.
 
 ## XDG Backup
