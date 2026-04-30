@@ -22,7 +22,10 @@ export namespace Todo {
       risk: z.enum(["low", "medium", "high"]).optional(),
       needsApproval: z.boolean().optional(),
       canDelegate: z.boolean().optional(),
-      waitingOn: z.enum(["subagent", "approval", "decision", "external"]).optional(),
+      waitingOn: z
+        .enum(["subagent", "approval", "decision", "external"])
+        .optional()
+        .catch(undefined),
       dependsOn: z.array(z.string()).optional(),
     })
     .optional()
@@ -33,8 +36,16 @@ export namespace Todo {
     .object({
       content: z.string().describe("Brief description of the task"),
       status: z.string().describe("Current status of the task: pending, in_progress, completed, cancelled"),
-      priority: z.string().describe("Priority level of the task: high, medium, low"),
-      id: z.string().describe("Unique identifier for the todo item"),
+      priority: z
+        .string()
+        .optional()
+        .default("medium")
+        .describe("Priority level of the task: high, medium, low (defaults to medium if omitted)"),
+      id: z
+        .string()
+        .optional()
+        .default(() => `todo_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`)
+        .describe("Unique identifier for the todo item (auto-generated if omitted)"),
       action: Action,
     })
     .meta({ ref: "Todo" })
