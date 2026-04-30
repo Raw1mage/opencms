@@ -4,7 +4,6 @@ import { Plugin } from "../plugin"
 import { Tool } from "../tool/tool"
 import { ulid } from "ulid"
 import { debugCheckpoint } from "@/util/debug"
-import { ToolFrequency } from "../tool/frequency"
 import { SessionPrompt } from "./prompt"
 
 const log = Log.create({ service: "tool-invoker" })
@@ -124,8 +123,6 @@ export namespace ToolInvoker {
         },
         result,
       )
-
-      ToolFrequency.record(toolID).catch(() => {})
 
       return result
     } catch (error) {

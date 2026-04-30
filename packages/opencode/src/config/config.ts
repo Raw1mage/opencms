@@ -1651,10 +1651,6 @@ export namespace Config {
           lazy_tools: z
             .object({
               enabled: z.boolean().optional().describe("Enable lazy tool loading for primary agents (default: true)"),
-              promotion_threshold: z
-                .number()
-                .optional()
-                .describe("Heat score threshold for auto-promoting tools to always-present (default: 50)"),
               always_present: z
                 .array(z.string())
                 .optional()

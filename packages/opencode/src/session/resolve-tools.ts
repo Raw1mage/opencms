@@ -17,10 +17,8 @@ import { Provider } from "../provider/provider"
 import { Config } from "../config/config"
 import ENABLEMENT from "./prompt/enablement.json"
 import { UnlockedTools } from "./unlocked-tools"
-import { ToolFrequency } from "../tool/frequency"
 import {
   ALWAYS_PRESENT_TOOLS,
-  NEVER_PROMOTE_TOOLS,
   buildCatalog,
   formatCatalogDescription,
   formatLazyCatalogPrompt,
@@ -318,23 +316,14 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
 
   if (lazyEnabled && input.agent.mode !== "subagent") {
     const alwaysPresent = new Set(ALWAYS_PRESENT_TOOLS)
-    for (const id of lazyConfig?.always_present ?? []) {
-      if (NEVER_PROMOTE_TOOLS.has(id)) continue
-      alwaysPresent.add(id)
-    }
-
-    const threshold = lazyConfig?.promotion_threshold ?? 50
-    const promotedToolsRaw = await ToolFrequency.promoted(threshold)
-    const promotedTools = promotedToolsRaw.filter((id) => !NEVER_PROMOTE_TOOLS.has(id))
-    for (const id of promotedTools) alwaysPresent.add(id)
+    for (const id of lazyConfig?.always_present ?? []) alwaysPresent.add(id)
 
     const unlocked = UnlockedTools.get(input.session.id)
     const allToolEntries = Object.entries(tools).map(([id, tool]) => ({
       id,
       description: ((tool as any).description ?? "") as string,
     }))
-    const frequencyScores = await ToolFrequency.scores()
-    const catalog = buildCatalog(allToolEntries, frequencyScores)
+    const catalog = buildCatalog(allToolEntries)
     const lazyToolCount = allToolEntries.filter((tool) => !alwaysPresent.has(tool.id)).length
 
     if (tools["tool_loader"]) {
@@ -424,7 +413,6 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
 
     debugCheckpoint("tool.resolve", "lazy-filter", {
       alwaysPresent: [...alwaysPresent],
-      promoted: promotedTools,
       unlocked: [...unlocked],
       catalogSize: catalog.length,
       removedCount: lazyTools.size,
