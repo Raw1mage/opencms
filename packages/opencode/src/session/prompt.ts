@@ -1452,7 +1452,18 @@ export namespace SessionPrompt {
         }
       }
 
-      if (!lastUser) throw new Error("No user message found in stream. This should never happen.")
+      // Post-compaction the stream may legitimately contain only the synthetic
+      // anchor + compaction summary (both assistant-role); the original user
+      // turn has been folded into the summary. The upstream loop assumed
+      // every iteration is driven by a fresh user message and panicked here,
+      // surfacing a "Compaction failed: UnknownError" toast even though the
+      // compaction itself succeeded. Treat the empty-user case as a clean
+      // exit instead — runloop has nothing left to drive, return to
+      // waiting_user.
+      if (!lastUser) {
+        log.info("loop:no_user_after_compaction — exiting cleanly", { sessionID, step })
+        break
+      }
       const format = lastUser.format ?? { type: "text" }
 
       // Guard: detect empty-response loop (finish=unknown|other, 0 tokens).
