@@ -213,24 +213,55 @@ interface PruneStats {
   bytesSaved: number
 }
 
+function pruneLargeStringField(holder: Record<string, any>, key: string, label: string): boolean {
+  const value = holder[key]
+  if (typeof value !== "string" || value.length <= PRUNE_OUTPUT_HEAD * 2) return false
+  holder[key] = `[dream-pruned: dropped ${value.length.toLocaleString()} bytes of ${label}]`
+  return true
+}
+
+function pruneToolMetadata(metadata: Record<string, any>): boolean {
+  let changed = false
+  changed = pruneLargeStringField(metadata, "diff", "diff") || changed
+  if (Array.isArray(metadata.files)) {
+    for (const file of metadata.files) {
+      if (!file || typeof file !== "object") continue
+      const entry = file as Record<string, any>
+      let entryChanged = false
+      entryChanged = pruneLargeStringField(entry, "diff", "file diff") || entryChanged
+      entryChanged = pruneLargeStringField(entry, "before", "file before snapshot") || entryChanged
+      entryChanged = pruneLargeStringField(entry, "after", "file after snapshot") || entryChanged
+      if (entryChanged) entry.dreamPruned = true
+      changed = entryChanged || changed
+    }
+  }
+  if (changed) metadata.dreamPruned = true
+  return changed
+}
+
 function prunePart(part: MessageV2.Part, stats: PruneStats): MessageV2.Part {
   const original = JSON.stringify(part)
   if (original.length <= PRUNE_PART_BYTES) return part
   const before = original.length
-  // Tool parts: drop oversized metadata.diff entirely; truncate
+  // Tool parts: drop oversized diff payloads entirely; truncate
   // state.output to head + tail. Keep input + title — the decision
-  // trail and display string.
+  // trail and display string. Older apply_patch tool parts may carry
+  // the diff under state.metadata.diff rather than top-level metadata.diff.
   if (part.type === "tool") {
     const cloned = JSON.parse(original) as typeof part & {
       metadata?: Record<string, unknown> & { dreamPruned?: boolean; diff?: unknown }
-      state: typeof part.state & { output?: unknown }
+      state: typeof part.state & {
+        output?: unknown
+        metadata?: Record<string, unknown> & { dreamPruned?: boolean; diff?: unknown }
+      }
     }
     const m = (cloned.metadata ?? {}) as Record<string, any>
-    if (typeof m.diff === "string" && m.diff.length > PRUNE_OUTPUT_HEAD * 2) {
-      const droppedBytes = m.diff.length
-      m.diff = `[dream-pruned: dropped ${droppedBytes.toLocaleString()} bytes of diff]`
+    pruneToolMetadata(m)
+    const state = cloned.state as {
+      output?: unknown
+      metadata?: Record<string, any> & { dreamPruned?: boolean; diff?: unknown }
     }
-    const state = cloned.state as { output?: unknown }
+    if (state.metadata) pruneToolMetadata(state.metadata)
     if (typeof state.output === "string" && state.output.length > PRUNE_OUTPUT_HEAD + PRUNE_OUTPUT_TAIL + 64) {
       const s = state.output
       state.output =
@@ -301,6 +332,16 @@ async function readLegacySnapshot(sessionID: string): Promise<MessageV2.WithPart
   const messages: MessageV2.WithParts[] = []
   for await (const message of LegacyStore.stream(sessionID)) messages.push(message)
   return messages
+}
+
+function quoteSqlString(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`
+}
+
+async function ensureTmpMaterialized(db: Database, tmp: string): Promise<void> {
+  if (await exists(tmp)) return
+  db.exec(`VACUUM INTO ${quoteSqlString(tmp)}`)
+  if (!(await exists(tmp))) throw new Error(`SQLite did not materialize tmp database at ${tmp}`)
 }
 
 async function writeSnapshot(input: {
@@ -387,6 +428,7 @@ async function writeSnapshot(input: {
       })
     }
     await input.hooks?.afterTmpWrite?.(input.sessionID, tmp)
+    await ensureTmpMaterialized(db, tmp)
     db.exec("PRAGMA wal_checkpoint(TRUNCATE)")
   } finally {
     db.close()

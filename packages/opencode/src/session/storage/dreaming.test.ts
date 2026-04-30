@@ -19,6 +19,7 @@ const SIDS = [
   "ses_test_dreaming_no_preempt",
   "ses_test_dreaming_old",
   "ses_test_dreaming_new",
+  "ses_test_dreaming_nested_diff",
 ]
 
 function legacyDir(sessionID: string): string {
@@ -246,6 +247,73 @@ describe("DreamingWorker migration", () => {
         .catch(() => false),
     ).toBe(false)
     expect(detectFormat(sid).format).toBe("legacy")
+  })
+
+  it("prunes oversized tool diffs stored under state.metadata during migration", async () => {
+    const sid = "ses_test_dreaming_nested_diff"
+    await seedLegacy(sid)
+    const suffix = sid.replace(/[^a-z0-9]/g, "").slice(-8)
+    const nestedDiffPartID = "prt_nested" + suffix
+    await LegacyStore.upsertPart({
+      id: nestedDiffPartID,
+      sessionID: sid,
+      messageID: "msg_bbb" + suffix,
+      type: "tool",
+      callID: "call_nested_diff",
+      tool: "apply_patch",
+      state: {
+        status: "completed",
+        input: { patchText: "*** Begin Patch\n*** Delete File: script/test-bin\n*** End Patch" },
+        output: "Success. Updated the following files:\nD script/test-bin",
+        title: "Success. Updated the following files:\nD script/test-bin",
+        metadata: {
+          diff: "x".repeat(300_000),
+          files: [
+            {
+              filePath: "/tmp/script/test-bin",
+              relativePath: "script/test-bin",
+              type: "delete",
+              diff: "y".repeat(300_000),
+              before: "z".repeat(300_000),
+              after: "",
+              additions: 0,
+              deletions: 1,
+            },
+          ],
+        },
+        time: { start: 1700000001000, end: 1700000002000 },
+      },
+      metadata: { openai: { itemId: "item_nested_diff" } },
+    } as MessageV2.Part)
+
+    await DreamingWorker.migrateSession(sid)
+
+    const db = new Database(ConnectionPool.resolveDbPath(sid), { readonly: true, create: false })
+    try {
+      const row = db
+        .query<{ payload_json: string }, [string]>("SELECT payload_json FROM parts WHERE id = ?")
+        .get(nestedDiffPartID)
+      expect(row).toBeTruthy()
+      const payload = JSON.parse(row!.payload_json) as {
+        state: {
+          metadata: {
+            diff: string
+            dreamPruned?: boolean
+            files: Array<{ diff: string; before: string; dreamPruned?: boolean }>
+          }
+        }
+      }
+      expect(payload.state.metadata.diff).toContain("dream-pruned: dropped 300,000 bytes of diff")
+      expect(payload.state.metadata.dreamPruned).toBe(true)
+      expect(payload.state.metadata.files[0].diff).toContain("dream-pruned: dropped 300,000 bytes of file diff")
+      expect(payload.state.metadata.files[0].before).toContain(
+        "dream-pruned: dropped 300,000 bytes of file before snapshot",
+      )
+      expect(payload.state.metadata.files[0].dreamPruned).toBe(true)
+      expect(row!.payload_json.length).toBeLessThan(10_000)
+    } finally {
+      db.close()
+    }
   })
 
   it("idle tick migrates exactly one oldest legacy session", async () => {
