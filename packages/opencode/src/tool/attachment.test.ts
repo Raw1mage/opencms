@@ -6,7 +6,9 @@ import { join } from "node:path"
 import type { SessionStorage } from "../session/storage"
 
 const { Tweaks } = await import("../config/tweaks")
-const { AttachmentTool, setAttachmentQueryReaderForTesting } = await import("./attachment")
+const { AttachmentTool, setAttachmentQueryReaderForTesting, setVisionWorkerRunnerForTesting } = await import(
+  "./attachment"
+)
 
 const ENV_KEY = "OPENCODE_TWEAKS_PATH"
 const SID = "ses_attachmenttooltest000000"
@@ -65,6 +67,7 @@ afterEach(() => {
   else process.env[ENV_KEY] = prevEnv
   Tweaks.resetForTesting()
   setAttachmentQueryReaderForTesting()
+  setVisionWorkerRunnerForTesting()
   rmSync(tmpDir, { recursive: true, force: true })
 })
 
@@ -84,10 +87,50 @@ describe("AttachmentTool", () => {
     await expect(execute({ ref_id: "ref_missing" })).rejects.toThrow("attachment_ref not found or unreadable")
   })
 
-  it("fails image queries with an explicit vision capability error and no fallback", async () => {
+  it("fails image queries when no vision-capable worker is available", async () => {
     blobs.set("ref_image", blob({ refID: "ref_image", mime: "image/png", filename: "scan.png", content: Uint8Array.from([1, 2, 3]) }))
+    setVisionWorkerRunnerForTesting(async () => {
+      throw new Error("no vision-capable worker is available for ref_image")
+    })
 
-    await expect(execute({ ref_id: "ref_image", mode: "vision" })).rejects.toThrow("no vision-capable worker is configured")
+    await expect(execute({ ref_id: "ref_image", mode: "vision" })).rejects.toThrow("no vision-capable worker")
+  })
+
+  it("dispatches image refs to the vision worker and returns the digest", async () => {
+    blobs.set(
+      "ref_image",
+      blob({ refID: "ref_image", mime: "image/png", filename: "scan.png", content: Uint8Array.from([1, 2, 3]) }),
+    )
+    let received: { question: string; mime: string } | undefined
+    setVisionWorkerRunnerForTesting(async ({ blob, question }) => {
+      received = { question, mime: blob.mime }
+      return { providerId: "anthropic", modelID: "claude-haiku-4-5", text: "VISION_DIGEST_TEXT" }
+    })
+
+    const result = await execute({ ref_id: "ref_image", mode: "vision", question: "what does it say?" })
+
+    expect(received?.question).toBe("what does it say?")
+    expect(received?.mime).toBe("image/png")
+    expect(result.metadata.worker).toBe("anthropic/claude-haiku-4-5")
+    expect(result.output).toContain("VISION_DIGEST_TEXT")
+    expect(result.output).toContain('"query": "read"')
+  })
+
+  it("auto-routes mode=digest on image refs through the vision worker", async () => {
+    blobs.set(
+      "ref_image2",
+      blob({ refID: "ref_image2", mime: "image/jpeg", content: Uint8Array.from([9, 8, 7]) }),
+    )
+    setVisionWorkerRunnerForTesting(async () => ({
+      providerId: "codex",
+      modelID: "gpt-5.5",
+      text: "AUTO_DIGEST",
+    }))
+
+    const result = await execute({ ref_id: "ref_image2" })
+
+    expect(result.output).toContain("AUTO_DIGEST")
+    expect(result.output).toContain('"query": "read"')
   })
 
   it("drills into task-result refs with bounded preview and metadata", async () => {

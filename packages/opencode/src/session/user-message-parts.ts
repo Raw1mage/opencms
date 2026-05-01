@@ -63,7 +63,14 @@ async function routeOversizedAttachment(input: {
 }): Promise<MessageV2.AttachmentRefPart | undefined> {
   const cfg = Tweaks.bigContentBoundarySync()
   const byteSize = input.bytes.byteLength
-  if (byteSize <= cfg.userAttachmentMaxBytes) {
+  // Rich-media attachments (images, PDFs) always route through the reader
+  // subagent regardless of size — keeps behaviour consistent (small and large
+  // images are read the same way) and prevents image bytes from leaking into
+  // the main agent's context. Only plain text-like attachments still honour
+  // the byte threshold, since main reading raw text inline is its native job.
+  const mime = input.part.mime
+  const forceRefRoute = mime.startsWith("image/") || mime === "application/pdf"
+  if (!forceRefRoute && byteSize <= cfg.userAttachmentMaxBytes) {
     emitBoundaryRoutingTelemetry({
       boundary: "user_attachment",
       action: "inline",

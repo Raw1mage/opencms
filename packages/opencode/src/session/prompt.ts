@@ -457,6 +457,27 @@ export async function deriveObservedCondition(input: {
   return null
 }
 
+function hasUnreadAttachmentRefs(msgs: MessageV2.WithParts[]): boolean {
+  const seen = new Set<string>()
+  const read = new Set<string>()
+  for (const msg of msgs) {
+    for (const part of msg.parts) {
+      if (part.type === "attachment_ref") {
+        seen.add(part.ref_id)
+        continue
+      }
+      if (part.type === "tool" && part.tool === "attachment" && part.state.status === "completed") {
+        const refID = (part.state.input as { ref_id?: unknown })?.ref_id
+        if (typeof refID === "string") read.add(refID)
+      }
+    }
+  }
+  for (const ref of seen) {
+    if (!read.has(ref)) return true
+  }
+  return false
+}
+
 function countTrailingEmptyAssistantResponses(msgs: MessageV2.WithParts[]): number {
   let count = 0
   let sawUserBoundary = false
@@ -2525,6 +2546,25 @@ export namespace SessionPrompt {
         })
       }
 
+      // Forced reader gate: when the conversation has any attachment_ref part
+      // that has not yet been read by the `attachment` tool, clamp this turn to
+      // the attachment tool with toolChoice="required" so the main agent must
+      // dispatch a reader subagent before doing anything else. The agent gets
+      // to see the user's full prompt + ref metadata, so it can craft the
+      // question; what it cannot do is skip the dispatch or hallucinate the
+      // contents. Skipped during structured-output mode (json_schema owns
+      // toolChoice) and on subagent sessions (the parent already gated).
+      const forcedReadGate =
+        !session.parentID && format.type !== "json_schema" && hasUnreadAttachmentRefs(msgs) && !!tools["attachment"]
+      const gatedTools = forcedReadGate ? { attachment: tools["attachment"] } : tools
+      const gatedLazyTools = forcedReadGate ? new Map<string, AITool>() : lazyTools
+      const gatedLazyCatalogPrompt = forcedReadGate ? undefined : lazyCatalogPrompt
+      const gatedToolChoice: "auto" | "required" | "none" | undefined = forcedReadGate
+        ? "required"
+        : format.type === "json_schema"
+          ? "required"
+          : undefined
+
       if (step === 1) {
         SessionSummary.summarize({
           sessionID: sessionID,
@@ -2643,7 +2683,7 @@ export namespace SessionPrompt {
           // Only include heavy instruction prompts (AGENTS.md) for Main Agents (no parentID).
           // Subagents should rely on the task description and SYSTEM.md.
           ...(session.parentID ? [] : instructionPrompts),
-          ...(lazyCatalogPrompt ? [lazyCatalogPrompt] : []),
+          ...(gatedLazyCatalogPrompt ? [gatedLazyCatalogPrompt] : []),
           ...(format.type === "json_schema" ? [STRUCTURED_OUTPUT_SYSTEM_PROMPT] : []),
           ...noticeAddenda,
         ],
@@ -2675,10 +2715,10 @@ export namespace SessionPrompt {
               ]
             : []),
         ]),
-        tools,
-        lazyTools,
+        tools: gatedTools,
+        lazyTools: gatedLazyTools,
         model: activeModel,
-        toolChoice: format.type === "json_schema" ? "required" : undefined,
+        toolChoice: gatedToolChoice,
       })
 
       if (structuredOutput !== undefined) {

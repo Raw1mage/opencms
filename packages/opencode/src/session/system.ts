@@ -28,6 +28,8 @@ import PROMPT_AGENT_COMPACTION from "../agent/prompt/compaction.txt"
 import PROMPT_AGENT_SUMMARY from "../agent/prompt/summary.txt"
 import PROMPT_AGENT_TITLE from "../agent/prompt/title.txt"
 import PROMPT_AGENT_CRON from "../agent/prompt/cron.txt"
+import PROMPT_AGENT_VISION from "../agent/prompt/vision.txt"
+import PROMPT_AGENT_PDF_READER from "../agent/prompt/pdf-reader.txt"
 
 import type { Provider } from "@/provider/provider"
 
@@ -53,6 +55,8 @@ const AGENT_PROMPTS: Record<string, string> = {
   summary: PROMPT_AGENT_SUMMARY,
   title: PROMPT_AGENT_TITLE,
   cron: PROMPT_AGENT_CRON,
+  vision: PROMPT_AGENT_VISION,
+  "pdf-reader": PROMPT_AGENT_PDF_READER,
 }
 
 export namespace SystemPrompt {
