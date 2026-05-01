@@ -1089,10 +1089,24 @@ export namespace Session {
         delta,
         textLength,
       })
+      log.info("[PART-FLOW-A] published part.updated (delta-stripped)", {
+        sessionID: part.sessionID,
+        partId: part.id,
+        partType: part.type,
+        tool: (part as { tool?: string }).tool,
+        textLength,
+      })
     } else {
       Bus.publish(MessageV2.Event.PartUpdated, {
         part,
         delta,
+      })
+      log.info("[PART-FLOW-A] published part.updated", {
+        sessionID: part.sessionID,
+        partId: part.id,
+        partType: part.type,
+        tool: (part as { tool?: string }).tool,
+        toolStateStatus: (part as { state?: { status?: string } }).state?.status,
       })
     }
 

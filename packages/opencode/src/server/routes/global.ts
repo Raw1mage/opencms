@@ -323,6 +323,15 @@ export const GlobalRoutes = lazy(() =>
                   `[DELTA-SSE] partUpdates=${_sseMetrics.partUpdates} totalBytes=${_sseMetrics.totalBytes} avgBytes=${avgBytes} thisBytes=${data.length}`,
                 )
               }
+              const part = payload?.properties?.part
+              log.info("[PART-FLOW-B] forwarding part.updated to SSE", {
+                connId,
+                partType: part?.type,
+                tool: part?.tool,
+                partId: part?.id,
+                sessionID: part?.sessionID,
+                bytes: data.length,
+              })
             }
 
             await stream.writeSSE({

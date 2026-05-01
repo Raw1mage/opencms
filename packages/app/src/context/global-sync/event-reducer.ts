@@ -391,6 +391,21 @@ export function applyDirectoryEvent(input: {
       const parts = input.store.part[part.messageID]
       const tweaksCfg = frontendTweaks()
 
+      // [PART-FLOW-C] reducer entry — confirms event reached the frontend.
+      // Watch the browser console; one log per inbound part.updated event.
+      try {
+        // eslint-disable-next-line no-console
+        console.log("[PART-FLOW-C] reducer received part.updated", {
+          partType: (part as { type?: string }).type,
+          tool: (part as { tool?: string }).tool,
+          partId: (part as { id?: string }).id,
+          messageID: (part as { messageID?: string }).messageID,
+          sessionID: (part as { sessionID?: string }).sessionID,
+          hasDelta: typeof delta === "string",
+          existingMessageStored: !!parts,
+        })
+      } catch {}
+
       // Delta-aware streaming: when delta is present and part.text is stripped,
       // append delta to the existing stored part instead of replacing it wholesale.
       if (delta && parts && ("type" in part) && (part.type === "text" || part.type === "reasoning")) {
