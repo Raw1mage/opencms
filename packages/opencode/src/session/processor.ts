@@ -520,9 +520,17 @@ export namespace SessionProcessor {
                       const err = new Error(
                         `Child session exceeded ${MAX_CUMULATIVE_ESCALATIONS} cumulative rate-limit escalations; every rotation target was rate-limited. Failing fast.`,
                       )
+                      input.assistantMessage.finish = "rate_limited"
                       input.assistantMessage.error = MessageV2.fromError(err, {
                         providerId: streamInput.model.providerId,
                       })
+                      // Persist disk-terminal state before breaking. Both
+                      // finish AND time.completed must be set — watchdog A
+                      // (task.ts:2270) gates on time.completed, and a
+                      // finish-only write leaves the parent's watchdog
+                      // polling forever ("subagent silently vanished").
+                      input.assistantMessage.time.completed = Date.now()
+                      await Session.updateMessage(input.assistantMessage)
                       Bus.publish(Session.Event.Error, {
                         sessionID: input.assistantMessage.sessionID,
                         error: input.assistantMessage.error,
@@ -591,6 +599,9 @@ export namespace SessionProcessor {
                       })
                       // R3: persist disk-terminal so parent's watchdog A
                       // can read finish and emit task.completed event.
+                      // BOTH finish AND time.completed required — the
+                      // watchdog gate at task.ts:2270 checks time.completed.
+                      input.assistantMessage.time.completed = Date.now()
                       await Session.updateMessage(input.assistantMessage)
                       Bus.publish(Session.Event.Error, {
                         sessionID: input.assistantMessage.sessionID,
@@ -687,9 +698,15 @@ export namespace SessionProcessor {
                       const rateLimitError = new Error(
                         `All accounts for ${streamInput.model.providerId} are rate-limited. Please wait a few minutes.`,
                       )
+                      input.assistantMessage.finish = "rate_limited"
                       input.assistantMessage.error = MessageV2.fromError(rateLimitError, {
                         providerId: streamInput.model.providerId,
                       })
+                      // Persist disk-terminal state before breaking. Both
+                      // finish AND time.completed required — the parent's
+                      // watchdog A (task.ts:2270) gates on time.completed.
+                      input.assistantMessage.time.completed = Date.now()
+                      await Session.updateMessage(input.assistantMessage)
                       Bus.publish(Session.Event.Error, {
                         sessionID: input.assistantMessage.sessionID,
                         error: input.assistantMessage.error,
@@ -1391,7 +1408,10 @@ export namespace SessionProcessor {
                 status: (e as any)?.status ?? (e as any)?.statusCode,
                 note: "force-stopping to prevent infinite retry spiral and server-side abuse detection",
               })
+              input.assistantMessage.finish = "error"
               input.assistantMessage.error = MessageV2.fromError(e, { providerId: input.model.providerId })
+              input.assistantMessage.time.completed = Date.now()
+              await Session.updateMessage(input.assistantMessage)
               Bus.publish(Session.Event.Error, {
                 sessionID: input.assistantMessage.sessionID,
                 error: input.assistantMessage.error,
@@ -1425,9 +1445,12 @@ export namespace SessionProcessor {
                   const failErr = new Error(
                     `Child session exceeded ${MAX_CUMULATIVE_ESCALATIONS} cumulative rate-limit escalations; every rotation target was rate-limited. Failing fast.`,
                   )
+                  input.assistantMessage.finish = "rate_limited"
                   input.assistantMessage.error = MessageV2.fromError(failErr, {
                     providerId: streamInput.model.providerId,
                   })
+                  input.assistantMessage.time.completed = Date.now()
+                  await Session.updateMessage(input.assistantMessage)
                   Bus.publish(Session.Event.Error, {
                     sessionID: input.assistantMessage.sessionID,
                     error: input.assistantMessage.error,
@@ -1504,6 +1527,7 @@ export namespace SessionProcessor {
                   })
                   input.assistantMessage.finish = "rate_limited"
                   input.assistantMessage.error = MessageV2.fromError(e, { providerId: input.model.providerId })
+                  input.assistantMessage.time.completed = Date.now()
                   // R3: persist disk-terminal so parent's watchdog A can deliver.
                   // The original 429 error `e` carries resets_in_seconds in its
                   // message body — watchdog/subscriber parses it for errorDetail.
@@ -1537,7 +1561,10 @@ export namespace SessionProcessor {
                   note: "stopping rotation to avoid server-side abuse detection",
                 })
                 // Surface error and stop — do NOT fall through to SessionRetry
+                input.assistantMessage.finish = "rate_limited"
                 input.assistantMessage.error = MessageV2.fromError(e, { providerId: input.model.providerId })
+                input.assistantMessage.time.completed = Date.now()
+                await Session.updateMessage(input.assistantMessage)
                 Bus.publish(Session.Event.Error, {
                   sessionID: input.assistantMessage.sessionID,
                   error: input.assistantMessage.error,
