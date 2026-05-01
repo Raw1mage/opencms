@@ -1840,9 +1840,25 @@ export namespace SessionProcessor {
             })
             const error = MessageV2.fromError(e, { providerId: input.model.providerId })
             if (MessageV2.ContextOverflowError.isInstance(error)) {
-              // FIX: context overflow should trigger compaction instead of terminal error (@event_20260213_typecheck_and_review)
-              needsCompaction = true
-              break
+              // FIX: context overflow should trigger compaction instead of terminal error.
+              //
+              // 2026-05-01: the original implementation set `needsCompaction = true; break`,
+              // which silently failed because `break` here exits the outer `while (true)`
+              // (no enclosing for-await/switch in the catch body) and bypasses the
+              // `if (needsCompaction) return "compact"` at the end of the while iteration —
+              // process() returns undefined, so prompt.ts:2726 sees `result !== "compact"`
+              // and skips the auto-heal compaction. The bug was masked while the only
+              // upstream classifier was APICallError (rare for WS transports). After the
+              // 2026-05-01 plain-Error → isOverflowMessage routing landed in
+              // message-v2.ts:fromError, the dead-break was exposed every time codex's
+              // WS layer threw a context-window-exceeded error.
+              //
+              // Fix: return "compact" directly. Mark time.completed + persist the assistant
+              // message first so the parent's watchdog A (task.ts:2270) doesn't poll forever
+              // — same minimum cleanup the post-while block at 1992-2024 would have done.
+              input.assistantMessage.time.completed = Date.now()
+              await Session.updateMessage(input.assistantMessage)
+              return "compact"
             }
             const retry = SessionRetry.retryable(error)
             if (retry !== undefined) {
