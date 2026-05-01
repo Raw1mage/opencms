@@ -49,6 +49,7 @@ import type { Auth as SDKAuth } from "@opencode-ai/sdk"
 import { ProviderTransform } from "./transform"
 import { ToolCallBridgeManager } from "./toolcall-bridge"
 import { CUSTOM_LOADERS as IMPORTED_CUSTOM_LOADERS } from "./custom-loaders-def"
+import { assertFamilyKey } from "./registry-shape"
 
 export namespace Provider {
   const log = Log.create({ service: "provider" })
@@ -1046,9 +1047,17 @@ export namespace Provider {
 
     log.info("init")
 
+    // @spec specs/provider-account-decoupling DD-1 — providers[] keys MUST be
+    // a registered family. Capture the snapshot once at init so the sync
+    // mergeProvider closure can validate every write without going async.
+    // Phase 1 wires the guard but does NOT yet reroute per-account writes;
+    // phase 2 rewrites the populate loop so this guard stops throwing.
+    const knownFamiliesSnapshot: readonly string[] = await Account.knownFamilies({ includeStorage: true })
+
     const configProviders = Object.entries(config.provider ?? {})
 
     function mergeProvider(providerId: string, provider: Partial<Info>) {
+      assertFamilyKey(providerId, knownFamiliesSnapshot)
       const existing = providers[providerId]
       if (existing) {
         providers[providerId] = mergeDeep(existing, provider) as Info

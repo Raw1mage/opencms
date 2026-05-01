@@ -251,6 +251,16 @@ export namespace Account {
     return listKnownProvidersInternal(options)
   }
 
+  /**
+   * @internal:migration-only
+   *
+   * Recovers a family from a per-account or per-instance providerId via regex
+   * + longest-prefix matching. Kept ONLY so the one-shot migration script
+   * (specs/provider-account-decoupling/ DD-9) can normalise legacy storage
+   * fields. Runtime dispatch paths MUST NOT call this — pass family + accountId
+   * as separate dimensions instead. Adding new runtime callers re-introduces
+   * the 2026-05-02 CodexFamilyExhausted bug class.
+   */
   export function resolveFamilyFromKnown(providerId: string, knownFamilies: readonly string[]): string | undefined {
     if (!providerId) return undefined
     const unique = Array.from(new Set(knownFamilies.filter(Boolean)))
@@ -789,6 +799,13 @@ export namespace Account {
    * - "{provider}" -> provider
    * - "{provider}-api-{name}" -> provider
    * - "{provider}-subscription-{name}" -> provider
+   *
+   * @internal:migration-only
+   *
+   * Recovers a family from a legacy per-account providerId. Kept ONLY for the
+   * one-shot migration script (specs/provider-account-decoupling/ DD-9).
+   * Runtime dispatch MUST NOT call this — carry family + accountId as
+   * separate dimensions instead.
    */
   export function parseProvider(accountId: string): string | undefined {
     if (!accountId || typeof accountId !== "string") return undefined

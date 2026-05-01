@@ -4,10 +4,10 @@ Phased checklist. Implementing-state agent loads exactly one phase's `- [ ]` ite
 
 ## 1. Boundary infrastructure (compile-time guard rails)
 
-- [ ] 1.1 Create `packages/opencode/src/provider/registry-shape.ts` exporting `RegistryShapeError`, `UnknownFamilyError`, `NoActiveAccountError`, `MigrationRequiredError` per [data-schema.json#Errors](data-schema.json)
-- [ ] 1.2 Add `assertFamilyKey(providerId, knownFamilies)` helper in registry-shape.ts that throws `RegistryShapeError` on miss
-- [ ] 1.3 Wire `assertFamilyKey` into the registry write path (every `providers[X] = ...` call site in `provider.ts`); commit with all sites still passing legacy keys — tests will fail loudly until phase 2 lands
-- [ ] 1.4 Tag `Account.parseProvider` and `Account.resolveFamilyFromKnown` with `@internal:migration-only` JSDoc per DD-9; leave behaviour unchanged
+- [x] 1.1 Create `packages/opencode/src/provider/registry-shape.ts` exporting `RegistryShapeError`, `UnknownFamilyError`, `NoActiveAccountError`, `MigrationRequiredError` per [data-schema.json#Errors](data-schema.json)
+- [x] 1.2 Add `assertFamilyKey(providerId, knownFamilies)` helper in registry-shape.ts that throws `RegistryShapeError` on miss
+- [x] 1.3 Wire `assertFamilyKey` into the registry write path (every `providers[X] = ...` call site in `provider.ts`); commit with all sites still passing legacy keys — tests will fail loudly until phase 2 lands
+- [x] 1.4 Tag `Account.parseProvider` and `Account.resolveFamilyFromKnown` with `@internal:migration-only` JSDoc per DD-9; leave behaviour unchanged
 
 ## 2. Registry shape rewrite (DD-1, DD-4)
 
