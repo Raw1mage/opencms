@@ -640,8 +640,21 @@ export default function Page() {
     if (!event.properties?.sessionID || event.properties.sessionID !== params.id) return
     if (event.type === "session.compaction.started") {
       const isBackground = event.properties.mode === "hybrid_llm_background"
+      // Backend fires CompactionStarted twice: once at run() entry with
+      // mode="auto" (immediate UI feedback before the kind chain walks),
+      // and once per-kind when the chain actually executes (mode="plugin"
+      // / "llm" / "hybrid_llm"). Keep the existing foreground toaster
+      // showing through both — only re-show when transitioning between
+      // foreground and background mode.
+      const wantsBackgroundToast = isBackground
+      const hasToast = compactionToastId !== undefined
+      if (hasToast && !wantsBackgroundToast) {
+        // Already showing the persistent foreground toast; the new "auto"
+        // or per-kind emit is just confirmation of the same operation.
+        return
+      }
       dismissCompactionToast()
-      if (isBackground) {
+      if (wantsBackgroundToast) {
         // Non-blocking: brief auto-dismiss default toast. User can keep typing.
         compactionToastId = showToast({
           title: language.t("toast.session.compact.background.loading"),
@@ -649,7 +662,7 @@ export default function Page() {
           duration: 4000,
         }) as unknown as number
       } else {
-        // Blocking foreground compaction (plugin/llm/sync hybrid).
+        // Blocking foreground compaction (auto entry / plugin / llm / sync hybrid).
         compactionToastId = showToast({
           title: language.t("toast.session.compact.loading"),
           variant: "loading",

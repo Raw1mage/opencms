@@ -136,7 +136,13 @@ export namespace SessionCompaction {
       "session.compaction.started",
       z.object({
         sessionID: z.string(),
-        mode: z.enum(["plugin", "llm", "hybrid_llm", "hybrid_llm_background"]),
+        // "auto" fires the moment compaction.run() decides to walk the
+        // kind chain, before any kind has actually executed — gives the UI
+        // a toaster trigger that's not gated on codex round-trips inside
+        // low-cost-server. plugin / llm / hybrid_llm / hybrid_llm_background
+        // fire from per-kind sites and indicate which kind committed the
+        // anchor. UI typically just needs ANY of these to show the toaster.
+        mode: z.enum(["auto", "plugin", "llm", "hybrid_llm", "hybrid_llm_background"]),
       }),
     ),
   }
@@ -1497,6 +1503,18 @@ When constructing the summary, try to stick to this template:
     }
 
     log.info("compaction.started", { sessionID, observed, step, intent })
+
+    // Fire the UI-visible "compaction starting" event NOW, before the kind
+    // chain runs. The chain head is often `low-cost-server` (codex's own
+    // server-side compact), which involves a 30-60s codex round-trip. The
+    // per-kind emits inside compactWithSharedContext / tryLlmAgent / hybrid
+    // only fire when their kind actually executes — meaning the toaster
+    // could be invisible for the entire low-cost-server attempt. With this
+    // upstream emit the toaster shows the moment we decide to compact, so
+    // the user gets immediate feedback that "something is happening" and is
+    // not staring at a frozen UI through the codex round-trip. Per-kind
+    // emits stay (they mark which kind committed) — UI debounces.
+    Bus.publish(Event.CompactionStarted, { sessionID, mode: "auto" })
 
     const baseChain = KIND_CHAIN[observed]
     // Manual --rich: skip 1-3 (free) and 4 (low-cost-server), go straight to llm-agent.
