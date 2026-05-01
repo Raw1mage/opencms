@@ -862,6 +862,24 @@ export namespace Provider {
     })
   export type Model = z.infer<typeof Model>
 
+  // @spec specs/provider-account-decoupling DD-1, DD-4
+  // Per-account state lives under `accounts: Record<accountId, AccountState>`.
+  // Top-level `options` / `active` / `email` / `coolingDownUntil` /
+  // `cooldownReason` describe the FAMILY-level merged view (active account's
+  // contribution + plugin/auth augmentations). Per-account specifics belong
+  // in `accounts[accountId]`.
+  export const AccountState = z
+    .object({
+      options: z.record(z.string(), z.any()),
+      active: z.boolean().optional(),
+      email: z.string().optional(),
+      coolingDownUntil: z.number().optional(),
+      cooldownReason: z.string().optional(),
+      displayName: z.string().optional(),
+    })
+    .meta({ ref: "AccountState" })
+  export type AccountState = z.infer<typeof AccountState>
+
   export const Info = z
     .object({
       id: z.string(),
@@ -876,6 +894,10 @@ export namespace Provider {
       coolingDownUntil: z.number().optional(),
       cooldownReason: z.string().optional(),
       models: z.record(z.string(), Model),
+      // @spec DD-1 — per-account state held under family-level Provider.Info;
+      // accountId is opaque (stays as accountId; never appears as a top-level
+      // providers[] key).
+      accounts: z.record(z.string(), AccountState).default({}),
     })
     .meta({
       ref: "Provider",
@@ -1475,10 +1497,8 @@ export namespace Provider {
         if (disabled.has(accountId)) continue
         if (!isProviderAllowed(accountId)) continue
 
-        let effectiveId = accountId
-
         // Determined display name
-        let displayName = Account.getDisplayName(accountId, accountInfo, family)
+        const displayName = Account.getDisplayName(accountId, accountInfo, family)
 
         // Add to database with models inherited from base provider
         const options: Record<string, any> = {}
@@ -1587,31 +1607,55 @@ export namespace Provider {
           "gemini-1.5-flash-latest",
         ])
 
-        database[effectiveId] = {
-          id: effectiveId,
+        // @spec specs/provider-account-decoupling DD-1, DD-4
+        // Per-account state goes under providers[family].accounts[accountId].
+        // The family entry itself is the only providers[] key — Model.providerId
+        // is always the family. accountId stays opaque (it remains the literal
+        // string from accounts.json keys; just never appears as a providerId).
+        const filteredModels = pickBy(
+          mapValues(baseProvider.models, (model) => ({
+            ...model,
+            providerId: family,
+          })),
+          (_model, id) => {
+            if (family === "google-api") return GOOGLE_API_WHITELIST.has(id) || id.startsWith("gemini-")
+            return !isModelIgnored(family, id)
+          },
+        )
+
+        // Ensure the family-level provider exists in providers[] before we
+        // attach account state to it.
+        mergeProvider(family, {
           source: "custom",
-          name: displayName,
+          name: baseProvider.name,
+          options: baseProvider.options ?? {},
+          models: filteredModels,
+        })
+
+        const familyEntry = providers[family]
+        if (!familyEntry) continue
+        if (!familyEntry.accounts) familyEntry.accounts = {}
+
+        familyEntry.accounts[accountId] = {
+          options: mergeDeep(baseProvider.options ?? {}, options) as Info["options"],
           active: familyData.activeAccount === accountId,
           email: accountInfo.type === "subscription" ? accountInfo.email : undefined,
           coolingDownUntil: accountInfo.type === "subscription" ? accountInfo.coolingDownUntil : undefined,
           cooldownReason: blocked ?? (accountInfo.type === "subscription" ? accountInfo.cooldownReason : undefined),
-          env: [],
-          options: mergeDeep(baseProvider.options ?? {}, options) as Info["options"],
-          models: pickBy(
-            mapValues(baseProvider.models, (model) => ({
-              ...model,
-              providerId: effectiveId,
-            })),
-            (model, id) => {
-              if (family === "google-api") return GOOGLE_API_WHITELIST.has(id) || id.startsWith("gemini-")
-              return !isModelIgnored(effectiveId, id)
-            },
-          ),
+          displayName,
         }
 
-        mergeProvider(effectiveId, {
-          source: "custom",
-        })
+        // Mirror the active account's display attributes onto the family-level
+        // entry so existing UIs that read providers[family].{active,email,...}
+        // see the active account's values.
+        if (familyData.activeAccount === accountId) {
+          familyEntry.active = true
+          familyEntry.email = accountInfo.type === "subscription" ? accountInfo.email : undefined
+          familyEntry.coolingDownUntil =
+            accountInfo.type === "subscription" ? accountInfo.coolingDownUntil : undefined
+          familyEntry.cooldownReason =
+            blocked ?? (accountInfo.type === "subscription" ? accountInfo.cooldownReason : undefined)
+        }
       }
     }
 
@@ -1680,47 +1724,67 @@ export namespace Provider {
         log.debug("no family auth found", { family })
       }
 
-      // 2. Load for EVERY account belonging to this family (Parallelized)
+      // 2. Load for EVERY account belonging to this family (Parallelized).
+      // @spec specs/provider-account-decoupling DD-1 — per-account state is
+      // now under providers[family].accounts[accountId]; no separate
+      // providers[accountId] entry exists.
       const familyData = allFamilies[family]
-      if (familyData) {
+      const familyEntry = providers[family]
+      if (familyData && familyEntry) {
+        if (!familyEntry.accounts) familyEntry.accounts = {}
         const accountLoaderPromises = Object.keys(familyData.accounts).map(async (accountId) => {
-          if (!providers[accountId] || !plugin.auth?.loader) return
+          if (!plugin.auth?.loader) return
+          const accountState = familyEntry.accounts![accountId]
+          if (!accountState) return
 
           debugCheckpoint("provider", "account loader start", { family, accountId })
-          const accountOptions = await plugin.auth.loader(() => loadAuth(accountId), providers[accountId])
+          // Loader sees a synthetic Info shaped like the family entry but with
+          // this account's options, so existing loaders that read
+          // `providers[X].options` keep working.
+          const loaderView: Info = {
+            ...familyEntry,
+            options: accountState.options,
+          }
+          // NOTE: Phase 3 will switch Auth.get to two-arg (family, accountId).
+          // For phase 2 we still hand loadAuth the accountId form because
+          // Auth.get(accountId) is the legacy single-arg lookup. Auth.get
+          // itself isn't rewritten until phase 3.
+          const accountOptions = await plugin.auth.loader(() => loadAuth(accountId), loaderView)
           debugCheckpoint("provider", "account loader end", { family, accountId, hasResult: !!accountOptions })
           if (accountOptions) {
-            const { getModel: acctGetModel, ...acctRest } = accountOptions as Record<string, any> & {
+            const { getModel: _acctGetModel, ...acctRest } = accountOptions as Record<string, any> & {
               getModel?: CustomModelLoader
             }
             // Account-level getModel not needed — accounts inherit from family's modelLoaders
             // via canonicalProviderId resolution in getLanguage(). Only merge options.
-            providers[accountId].options = mergeDeep(providers[accountId].options, acctRest) as Info["options"]
+            accountState.options = mergeDeep(accountState.options, acctRest) as Info["options"]
           }
         })
         await Promise.all(accountLoaderPromises)
 
-        // Inherit custom fetch from the active account only.
-        // Never use object insertion order as an execution policy.
-        if (providers[family] && !providers[family].options?.fetch) {
+        // Inherit custom fetch (and active credentials) from the active account
+        // onto the family-level options. Never use object insertion order as an
+        // execution policy.
+        if (!familyEntry.options?.fetch) {
           const activeAccountId = familyData.activeAccount
-          if (activeAccountId && providers[activeAccountId]?.options?.fetch) {
+          const activeState = activeAccountId ? familyEntry.accounts[activeAccountId] : undefined
+          if (activeState?.options?.fetch) {
             log.info("inheriting custom fetch from active account to base provider", {
               family,
               accountId: activeAccountId,
             })
-            providers[family].options = mergeDeep(providers[family].options, {
-              fetch: providers[activeAccountId].options.fetch,
-              apiKey: providers[activeAccountId].options.apiKey,
+            familyEntry.options = mergeDeep(familyEntry.options, {
+              fetch: activeState.options.fetch,
+              apiKey: activeState.options.apiKey,
               // Auth credentials for native claude-cli provider
-              ...(providers[activeAccountId].options.type && {
-                type: providers[activeAccountId].options.type,
-                refresh: providers[activeAccountId].options.refresh,
-                access: providers[activeAccountId].options.access,
-                expires: providers[activeAccountId].options.expires,
-                orgID: providers[activeAccountId].options.orgID,
-                email: providers[activeAccountId].options.email,
-                accountId: providers[activeAccountId].options.accountId,
+              ...(activeState.options.type && {
+                type: activeState.options.type,
+                refresh: activeState.options.refresh,
+                access: activeState.options.access,
+                expires: activeState.options.expires,
+                orgID: activeState.options.orgID,
+                email: activeState.options.email,
+                accountId: activeState.options.accountId,
               }),
             }) as Info["options"]
           } else {
@@ -1805,7 +1869,10 @@ export namespace Provider {
       }
     }
 
-    // Propagate base provider options to account-based providers (only for families without specific plugins or as fallback)
+    // Propagate base provider options into per-account state (only for families
+    // without specific plugins or as fallback).
+    // @spec specs/provider-account-decoupling DD-1 — per-account state lives
+    // under providers[family].accounts[accountId], not providers[accountId].
     for (const family of Account.FAMILIES) {
       const baseProvider = providers[family]
       if (!baseProvider?.options) continue
@@ -1813,16 +1880,12 @@ export namespace Provider {
       const fData = allFamilies[family]
       if (!fData) continue
 
-      for (const [accountId, accountInfo] of Object.entries(fData.accounts)) {
-        let effectiveId = accountId
-
-        if (providers[effectiveId]) {
-          // Merge options, prioritizing account-specific options (from plugin loaders)
-          providers[effectiveId].options = mergeDeep(
-            baseProvider.options,
-            providers[effectiveId].options ?? {},
-          ) as Info["options"]
-        }
+      if (!baseProvider.accounts) baseProvider.accounts = {}
+      for (const accountId of Object.keys(fData.accounts)) {
+        const accountState = baseProvider.accounts[accountId]
+        if (!accountState) continue
+        // Merge options, prioritizing account-specific options (from plugin loaders)
+        accountState.options = mergeDeep(baseProvider.options, accountState.options ?? {}) as Info["options"]
       }
     }
 

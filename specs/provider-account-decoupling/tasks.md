@@ -11,12 +11,12 @@ Phased checklist. Implementing-state agent loads exactly one phase's `- [ ]` ite
 
 ## 2. Registry shape rewrite (DD-1, DD-4)
 
-- [ ] 2.1 Extend `Provider.Info` type with `accounts: Record<accountId, AccountState>` sub-map; declare `AccountState` shape per [data-schema.json#ProviderInfo](data-schema.json)
-- [ ] 2.2 Rewrite the populate loop at [provider.ts:1459-1605](packages/opencode/src/provider/provider.ts#L1459-L1605) — keep one `providers[family]` entry per family; merge per-account options/auth/cooldown into `providers[family].accounts[accountId]` instead of `providers[accountId]`
-- [ ] 2.3 Rewrite fetch inheritance at [provider.ts:1697-1723](packages/opencode/src/provider/provider.ts#L1697-L1723) to read from `providers[family].accounts[activeAccount].options.fetch`
-- [ ] 2.4 Audit every `model.providerId = ...` assignment; ensure right-hand side is always a family (never accountId)
-- [ ] 2.5 Update `mergeProvider(providerId, patch)` and any other internal helpers to assume family-only keys
-- [ ] 2.6 Run `bun test packages/opencode/test/account/` and `packages/opencode/test/provider/` — expect failures, fix only registry-shape-related ones
+- [x] 2.1 Extend `Provider.Info` type with `accounts: Record<accountId, AccountState>` sub-map; declare `AccountState` shape per [data-schema.json#ProviderInfo](data-schema.json)
+- [x] 2.2 Rewrite the populate loop at [provider.ts:1459-1605](packages/opencode/src/provider/provider.ts#L1459-L1605) — keep one `providers[family]` entry per family; merge per-account options/auth/cooldown into `providers[family].accounts[accountId]` instead of `providers[accountId]`
+- [x] 2.3 Rewrite fetch inheritance at [provider.ts:1697-1723](packages/opencode/src/provider/provider.ts#L1697-L1723) to read from `providers[family].accounts[activeAccount].options.fetch`
+- [x] 2.4 Audit every `model.providerId = ...` assignment; ensure right-hand side is always a family (never accountId)
+- [x] 2.5 Update `mergeProvider(providerId, patch)` and any other internal helpers to assume family-only keys
+- [x] 2.6 Run `bun test packages/opencode/test/account/` and `packages/opencode/test/provider/` — expect failures, fix only registry-shape-related ones
 
 ## 3. Auth lookup signature change (DD-2)
 
