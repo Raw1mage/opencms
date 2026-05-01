@@ -29,8 +29,21 @@ export namespace ProviderError {
     return status === 404 || e.isRetryable
   }
 
-  // Providers not reliably handled in this function:
-  // - z.ai: can accept overflow silently (needs token-count/context-window checks)
+  /**
+   * Match a free-form error message against the known context-overflow
+   * patterns. Exposed so MessageV2.fromError can classify plain `Error`
+   * instances (e.g. ones thrown by raw transport layers like
+   * codex-provider's transport-ws.ts) without losing them to
+   * NamedError.Unknown — that miss bypasses the auto-heal compaction path
+   * and surfaces a user-visible red toast.
+   *
+   * Providers not reliably handled here:
+   * - z.ai: can accept overflow silently (needs token-count/context-window checks)
+   */
+  export function isOverflowMessage(message: string): boolean {
+    return isOverflow(message)
+  }
+
   function isOverflow(message: string) {
     if (OVERFLOW_PATTERNS.some((p) => p.test(message))) return true
 

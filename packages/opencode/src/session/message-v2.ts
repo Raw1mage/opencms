@@ -1349,6 +1349,20 @@ export namespace MessageV2 {
           { cause: e },
         ).toObject()
       case e instanceof Error:
+        // Plain Error path — covers raw transport-layer throws (e.g.
+        // codex-provider transport-ws.ts wrapping the upstream context_length_exceeded
+        // event into `new Error("Codex WS: Your input exceeds the context window of this model")`).
+        // Without this check the error gets boxed as NamedError.Unknown and
+        // bypasses the processor.ts:1842 ContextOverflowError → needsCompaction
+        // auto-heal branch, surfacing a user-visible terminal red toast.
+        if (ProviderError.isOverflowMessage(e.message)) {
+          return new MessageV2.ContextOverflowError(
+            {
+              message: e.message,
+            },
+            { cause: e },
+          ).toObject()
+        }
         return new NamedError.Unknown(unknownErrorData(e, ctx), { cause: e }).toObject()
       default:
         try {
