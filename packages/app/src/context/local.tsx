@@ -59,12 +59,38 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       return Object.keys(providers[providerKey]?.accounts ?? {})
     }
 
+    /**
+     * Returns true if the account is not currently rate-limit cooled down.
+     * Reads SSOT from globalSync.data.account_families which is fed by the
+     * server-side rate-limit tracker (rotation-state.json). When the cooldown
+     * window expires the account becomes healthy again automatically; no
+     * manual reset is needed. An unknown account (no account_families entry)
+     * is treated as healthy — the caller's later validity checks will catch
+     * a truly missing account.
+     */
+    function isAccountHealthy(providerID: string, accountID?: string) {
+      if (!accountID) return true
+      const providerKey = resolveProviderKey(providerID)
+      const account = globalSync.data.account_families?.[providerKey]?.accounts?.[accountID] as
+        | { coolingDownUntil?: number }
+        | undefined
+      const until = account?.coolingDownUntil
+      if (typeof until !== "number") return true
+      return until <= Date.now()
+    }
+
     function replacementAccountID(providerID: string, currentAccountID?: string) {
       const providerKey = resolveProviderKey(providerID)
       const providerData = globalSync.data.account_families[providerKey]
       const active = providerData?.activeAccount
       const ids = Object.keys(providerData?.accounts ?? {})
-      if (active && active !== currentAccountID && ids.includes(active)) return active
+      // Prefer the active account, then any other healthy account, then the
+      // currently cooling-down current as last resort (so we don't break a
+      // session whose entire family is cooling down).
+      if (active && active !== currentAccountID && ids.includes(active) && isAccountHealthy(providerID, active))
+        return active
+      const healthy = ids.find((id) => id !== currentAccountID && isAccountHealthy(providerID, id))
+      if (healthy) return healthy
       return ids.find((id) => id !== currentAccountID) ?? ids[0]
     }
 
@@ -73,10 +99,23 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       if (!model.accountID) return model
       const ids = availableAccountIds(model.providerID)
       if (ids.length === 0) return model
-      if (ids.includes(model.accountID)) return model
-      const nextAccountID = replacementAccountID(model.providerID, model.accountID)
-      if (!nextAccountID) return undefined
-      return { ...model, accountID: nextAccountID }
+      // If the requested account is no longer in the family, swap it.
+      if (!ids.includes(model.accountID)) {
+        const nextAccountID = replacementAccountID(model.providerID, model.accountID)
+        if (!nextAccountID) return undefined
+        return { ...model, accountID: nextAccountID }
+      }
+      // Account is in the family but cooling down — swap to a healthy sibling
+      // when one exists. This is what stops new sessions from inheriting a
+      // dead default and getting bounced through preflight rotation, which is
+      // what produced the "rate limit toast spam on every new session" RCA.
+      if (!isAccountHealthy(model.providerID, model.accountID)) {
+        const nextAccountID = replacementAccountID(model.providerID, model.accountID)
+        if (nextAccountID && nextAccountID !== model.accountID) {
+          return { ...model, accountID: nextAccountID }
+        }
+      }
+      return model
     }
 
     function isModelValid(model: ModelKey) {

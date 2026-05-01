@@ -32,7 +32,7 @@ import { findFallback, type ModelVector, type FallbackStrategy, isVectorRateLimi
 import { withRotationCoalesce } from "@/account/rotation/coalesce"
 import { Bus } from "@/bus"
 import { BusEvent } from "@/bus/bus-event"
-import { TuiEvent } from "@/cli/cmd/tui/event"
+import { TuiEvent, publishToastTraced } from "@/cli/cmd/tui/event"
 import { debugCheckpoint } from "@/util/debug"
 import {
   RateLimitJudge,
@@ -929,12 +929,15 @@ export namespace LLM {
           await RateLimitJudge.recordAuthFailure(input.model.providerId, accountId, input.model.id, error)
 
           // Show persistent error toast
-          Bus.publish(TuiEvent.ToastShow, {
-            title: "Authentication Failed",
-            message: `Auth failed for ${accountId}. Please re-authenticate.`,
-            variant: "error",
-            duration: 15000,
-          }).catch(() => {})
+          publishToastTraced(
+            {
+              title: "Authentication Failed",
+              message: `Auth failed for ${accountId}. Please re-authenticate.`,
+              variant: "error",
+              duration: 15000,
+            },
+            { source: "llm.onError.auth" },
+          ).catch(() => {})
           return
         }
 
@@ -947,12 +950,15 @@ export namespace LLM {
             lastRateLimitToastAt = now
             const waitMinutes = Math.ceil(result.backoffMs / 60000)
             const reasonText = formatRateLimitReason(result.reason)
-            Bus.publish(TuiEvent.ToastShow, {
-              title: "Rate Limit",
-              message: `${input.model.id}: ${reasonText}. Cooling down for ${waitMinutes}m.`,
-              variant: "warning",
-              duration: 8000,
-            }).catch(() => {})
+            publishToastTraced(
+              {
+                title: "Rate Limit",
+                message: `${input.model.id}: ${reasonText}. Cooling down for ${waitMinutes}m.`,
+                variant: "warning",
+                duration: 8000,
+              },
+              { source: "llm.onError.rateLimit" },
+            ).catch(() => {})
           }
         }
       },
@@ -1435,11 +1441,14 @@ export namespace LLM {
         const now1 = Date.now()
         if (now1 - lastRotationToastAt >= TOAST_DEBOUNCE_MS) {
           lastRotationToastAt = now1
-          Bus.publish(TuiEvent.ToastShow, {
-            message: toastMsg,
-            variant: "info",
-            duration: 8000,
-          }).catch(() => {})
+          publishToastTraced(
+            {
+              message: toastMsg,
+              variant: "info",
+              duration: 8000,
+            },
+            { source: "llm.rotation.sameProvider" },
+          ).catch(() => {})
         }
       }
 
@@ -1472,11 +1481,14 @@ export namespace LLM {
       const now2 = Date.now()
       if (now2 - lastRotationToastAt >= TOAST_DEBOUNCE_MS) {
         lastRotationToastAt = now2
-        Bus.publish(TuiEvent.ToastShow, {
-          message: toastMsg,
-          variant: "info",
-          duration: 8000,
-        }).catch(() => {})
+        publishToastTraced(
+          {
+            message: toastMsg,
+            variant: "info",
+            duration: 8000,
+          },
+          { source: "llm.rotation.crossProvider" },
+        ).catch(() => {})
       }
     }
 

@@ -52,7 +52,7 @@ import {
   isRuntimeRegistered,
   type CancelReason,
 } from "./prompt-runtime"
-import { TuiEvent } from "@/cli/cmd/tui/event"
+import { TuiEvent, publishToastTraced } from "@/cli/cmd/tui/event"
 import { runShellPrompt } from "./shell-runner"
 import { getPreloadedContext } from "./preloaded-context"
 import { insertReminders } from "./reminders"
@@ -2411,12 +2411,15 @@ export namespace SessionPrompt {
       const activeModel = imageResolution.model
       if (imageResolution.rotated) {
         const change = `${activeModel.providerId}/${activeModel.id}`
-        Bus.publish(TuiEvent.ToastShow, {
-          title: "Model Rotated",
-          message: `Using ${change} for image input`,
-          variant: "info",
-          duration: 4000,
-        }).catch(() => {})
+        publishToastTraced(
+          {
+            title: "Model Rotated",
+            message: `Using ${change} for image input`,
+            variant: "info",
+            duration: 4000,
+          },
+          { source: "prompt.imageRouter.rotated" },
+        ).catch(() => {})
 
         // PERSISTENCE: Update the user message to use this working model as the preference.
         // This ensures subsequent turns (which check `lastModel`) will default to this capability-verified model.

@@ -343,8 +343,26 @@ export const GlobalRoutes = lazy(() =>
             const id = sseNextId()
             const data = JSON.stringify(event)
 
-            // [DELTA-SSE] instrumentation: measure message.part.updated event sizes
             const payload = (event as any)?.payload
+            // [TOAST-TRACE] log toast event right before SSE write so we can
+            // measure publish→sse-write latency. Frontend logs receive time
+            // separately. emittedAt was stamped in publishToastTraced.
+            if (payload?.type === "tui.toast.show") {
+              const emittedAt = payload?.properties?.emittedAt
+              const writeAt = Date.now()
+              const queuedMs = emittedAt ? writeAt - emittedAt : undefined
+              log.info("[TOAST-TRACE] sse-write", {
+                connId,
+                emittedAt,
+                writeAt,
+                queuedMs,
+                title: payload?.properties?.title,
+                variant: payload?.properties?.variant,
+                messagePreview: String(payload?.properties?.message ?? "").slice(0, 120),
+              })
+            }
+
+            // [DELTA-SSE] instrumentation: measure message.part.updated event sizes
             if (payload?.type === "message.part.updated") {
               _sseMetrics.partUpdates++
               _sseMetrics.totalBytes += data.length

@@ -387,7 +387,21 @@ function createGlobalSync() {
     const event = e.details
 
     if (event?.type === "tui.toast.show") {
-      const { message, variant, title, duration } = (event.properties || {}) as any
+      const { message, variant, title, duration, emittedAt } = (event.properties || {}) as any
+      // [TOAST-TRACE] receive log — pair with backend [TOAST-TRACE] sse-write
+      // entries to measure publish→browser latency. Always show the toast
+      // regardless of age; this stamp is for RCA only.
+      const recvAt = Date.now()
+      const traversalMs = typeof emittedAt === "number" ? recvAt - emittedAt : undefined
+      // eslint-disable-next-line no-console
+      console.log("[TOAST-TRACE] recv", {
+        emittedAt,
+        recvAt,
+        traversalMs,
+        title,
+        variant,
+        messagePreview: String(message ?? "").slice(0, 120),
+      })
       if (!message) return
       showToast({
         title,

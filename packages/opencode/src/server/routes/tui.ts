@@ -3,7 +3,7 @@ import { describeRoute, validator, resolver } from "hono-openapi"
 import z from "zod"
 import { Bus } from "../../bus"
 import { Session } from "../../session"
-import { TuiEvent } from "@/cli/cmd/tui/event"
+import { TuiEvent, publishToastTraced } from "@/cli/cmd/tui/event"
 import { AsyncQueue } from "../../util/queue"
 import { errors } from "../error"
 import { lazy } from "../../util/lazy"
@@ -307,7 +307,7 @@ export const TuiRoutes = lazy(() =>
       }),
       validator("json", TuiEvent.ToastShow.properties),
       async (c) => {
-        await Bus.publish(TuiEvent.ToastShow, c.req.valid("json"))
+        await publishToastTraced(c.req.valid("json"), { source: "tui.api.toast" })
         return c.json(true)
       },
     )
