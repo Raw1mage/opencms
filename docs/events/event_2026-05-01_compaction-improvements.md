@@ -61,6 +61,8 @@ Start `/home/pkcs12/projects/opencode/specs/compaction-improvements` and execute
 - Realignment plan-sync: `plan-sync` warned because the beta branch base moved from `fef4c6b` to main `b9d0b9b`, so diff scanning includes unrelated main hotfix paths (`system-manager`, UI scroll, daemon/session hotfixes). These are base-authority changes already documented outside this compaction spec; no new compaction scope expansion is required.
 - Second beta realignment after main commits `4d9ad2e80` and `4953bef3e`: beta was fast-forwarded to main, a new rollback stash `pre-main-realign-2 compaction-improvements 2026-05-01` was kept, and the compaction feature stash was reapplied. The only conflict was `packages/opencode/src/session/compaction.ts`; resolution keeps main's early `CompactionStarted(mode: "auto")` UI event at `run()` entry and beta's provider-aware kind-chain/telemetry logic.
 - Second realignment validation: `git diff --check` passed and `bun test --timeout 30000 packages/opencode/test/session/prompt-account-routing.test.ts packages/opencode/src/session/compaction*.test.ts packages/opencode/src/session/*attachment*.test.ts packages/opencode/src/session/user-message-*.test.ts` passed (47 pass, 0 fail).
+- Test-branch fetch-back: created physical branch `test/compaction-improvements` in the main repo via worktree `/home/pkcs12/projects/opencode-worktrees/test-compaction-improvements`, cherry-picked beta commit `f891764aa` as `c9bf4b57e`, and did not merge into `main`.
+- Test-branch validation: after installing dependencies in the isolated test worktree, `bun test --timeout 30000 packages/opencode/test/session/prompt-account-routing.test.ts packages/opencode/src/session/compaction*.test.ts packages/opencode/src/session/*attachment*.test.ts packages/opencode/src/session/user-message-*.test.ts` passed (47 pass, 0 fail); `plan-validate` passed for `state=verified`.
 
 ## Phase Summary
 
@@ -101,8 +103,8 @@ Start `/home/pkcs12/projects/opencode/specs/compaction-improvements` and execute
 - Key decisions: telemetry is emitted as bounded debug payloads through existing checkpoints, never as a parallel bus or raw prompt/blob dump; final documentation records Phase D/E contracts in `specs/architecture.md`. After realigning beta onto main hotfix, main hotfix behavior is authoritative where contracts overlap.
 - Validation: focused compaction/session suite passed — 130 pass, 0 fail before realignment; first and second post-realignment focused suites passed — 47 pass, 0 fail each; `plan-promote --to verified`, `plan-validate`, and `plan-sync` all passed after the validator fix.
 - Drift: final pre-realignment plan-sync was clean; post-realignment plan-sync warned on unrelated main hotfix/base paths after rebasing onto `b9d0b9b`, recorded above as non-compaction drift.
-- Remaining: none for implementation; beta finalize/merge remains outside this request unless explicitly requested.
+- Remaining: none for implementation; test-branch review/merge remains outside this request unless explicitly requested.
 
 ## Remaining
 
-- All implementation tasks are complete. Spec state is `verified`. Beta finalize/merge/commit remains pending explicit user request.
+- All implementation tasks are complete. Spec state is `verified`. Test branch `test/compaction-improvements` contains the fetch-back commit and is ready for review.
