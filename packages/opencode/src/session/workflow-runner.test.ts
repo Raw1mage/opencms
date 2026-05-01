@@ -7,6 +7,7 @@ import {
   computeResumeRetryAt,
   describeAutonomousNextAction,
   evaluateAutonomousContinuation,
+  inspectPendingContinuationResumability,
   planAutonomousNextAction,
   shouldInterruptAutonomousRun,
   buildContinuationTrigger,
@@ -237,6 +238,38 @@ describe("shouldInterruptAutonomousRun", () => {
         hasPendingContinuation: true,
       }),
     ).toBe(false)
+  })
+})
+
+describe("inspectPendingContinuationResumability", () => {
+  it("always allows task completion collection past autorun and workflow stop gates", () => {
+    const session = baseSession({
+      workflow: {
+        ...baseSession().workflow!,
+        autonomous: { ...baseSession().workflow!.autonomous, enabled: false },
+        state: "completed",
+        stopReason: "plan_drained",
+      },
+    })
+
+    const result = inspectPendingContinuationResumability({
+      session,
+      status: { type: "idle" } as any,
+      inFlight: false,
+      health: {
+        state: "completed",
+        stopReason: "plan_drained",
+        queue: { hasPendingContinuation: true, reason: "todo_pending", queuedAt: 1, roundCount: 0 },
+        supervisor: { consecutiveResumeFailures: 0 },
+        anomalies: { recentCount: 0, flags: [], countsByType: {} },
+        summary: { health: "completed", label: "Autonomous workflow completed" },
+      },
+      triggerType: "task_completion",
+    })
+
+    expect(result.resumable).toBe(true)
+    expect(result.blockedReasons).not.toContain("autonomous_disabled")
+    expect(result.blockedReasons).not.toContain("workflow_completed")
   })
 })
 

@@ -234,6 +234,7 @@ export function SessionTurn(
       content?: string
       container?: string
     }
+    statusOverride?: { label: string; startedAt: number }
   }>,
 ) {
   const i18n = useI18n()
@@ -558,6 +559,7 @@ export function SessionTurn(
   })
 
   const status = createMemo(() => data.store.session_status[props.sessionID] ?? idle)
+  const statusOverride = createMemo(() => (isLastUserMessage() ? props.statusOverride : undefined))
   const working = createMemo(() => status().type !== "idle" && isLastUserMessage())
   const active = createMemo(() => {
     const msg = message()
@@ -598,8 +600,8 @@ export function SessionTurn(
     if (s.type !== "retry") return
     return s
   })
-  const statusLineMounted = createMemo(() => !!retry() || working())
-  const statusLineVisible = createMemo(() => !!retry() || (working() && active()))
+  const statusLineMounted = createMemo(() => !!retry() || !!statusOverride() || working())
+  const statusLineVisible = createMemo(() => !!retry() || !!statusOverride() || (working() && active()))
 
   const response = createMemo(() => lastTextPart()?.text)
   const responsePartId = createMemo(() => lastTextPart()?.id)
@@ -745,16 +747,18 @@ export function SessionTurn(
     // — without it, every() reports completed and the timer freezes.
     const msgs = assistantMessages()
     const allCompleted = msgs.length > 0 && msgs.every((m) => typeof m.time.completed === "number")
-    const completed = allCompleted && !working()
-      ? msgs.reduce<number | undefined>((max, item) => {
-          const value = item.time.completed
-          if (typeof value !== "number") return max
-          if (max === undefined) return value
-          return Math.max(max, value)
-        }, undefined)
-      : undefined
+    const completed =
+      allCompleted && !working()
+        ? msgs.reduce<number | undefined>((max, item) => {
+            const value = item.time.completed
+            if (typeof value !== "number") return max
+            if (max === undefined) return value
+            return Math.max(max, value)
+          }, undefined)
+        : undefined
 
-    const from = DateTime.fromMillis(msg.time.created)
+    const override = statusOverride()
+    const from = DateTime.fromMillis(override?.startedAt ?? msg.time.created)
     const to = completed ? DateTime.fromMillis(completed) : DateTime.now()
     const interval = Interval.fromDateTimes(from, to)
     const unit: DurationUnit[] = interval.length("seconds") > 60 ? ["minutes", "seconds"] : ["seconds"]
@@ -983,6 +987,14 @@ export function SessionTurn(
                                 : ""}
                             </span>
                             <span data-slot="session-turn-retry-attempt">(#{retry()?.attempt})</span>
+                          </Match>
+                          <Match when={statusOverride()}>
+                            {(override) => (
+                              <>
+                                <Spinner />
+                                <span data-slot="session-turn-status-text">{override().label}</span>
+                              </>
+                            )}
                           </Match>
                           <Match when={working() && active()}>
                             <Spinner />

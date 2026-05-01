@@ -2121,6 +2121,55 @@ static void route_complete_request(PendingRequest *pr) {
          req.method, req.path, (int)strlen(req.cookie),
          strstr(req.cookie, "oc_jwt=") ? 1 : 0, req.is_secure);
 
+    /* Gateway-owned auth endpoints MUST be intercepted before web routes.
+     * A catch-all web route such as "/" would otherwise proxy
+     * /global/auth/logout into the per-user daemon, which can surface
+     * daemon-side auth UI and cause logout/login flicker. */
+    if (strcmp(req.path, "/global/auth/session") == 0 ||
+        strcmp(req.path, "/api/v2/global/auth/session") == 0) {
+        const char *body = "{\"enabled\":false,\"authenticated\":true}";
+        http_send(fd, 200, "OK", "application/json",
+                  "Cache-Control: no-store\r\n", body, strlen(body));
+        close(fd);
+        return;
+    }
+
+    if ((strcmp(req.path, "/global/auth/login") == 0 ||
+         strcmp(req.path, "/api/v2/global/auth/login") == 0) &&
+        strcmp(req.method, "POST") == 0) {
+        char spa_user[256] = {}, spa_pass[256] = {};
+        int got_creds = 0;
+        if (req.body[0] && strstr(req.body, "\"username\"")) {
+            got_creds = json_extract_string(req.body, "username", spa_user, sizeof(spa_user)) &&
+                        json_extract_string(req.body, "password", spa_pass, sizeof(spa_pass));
+        }
+        if (!got_creds) {
+            got_creds = form_extract_value(req.body, "username", spa_user, sizeof(spa_user)) &&
+                        form_extract_value(req.body, "password", spa_pass, sizeof(spa_pass));
+        }
+        if (!got_creds || !spa_user[0]) {
+            const char *err = "{\"error\":\"Missing username or password\"}";
+            http_send(fd, 400, "Bad Request", "application/json", NULL, err, strlen(err));
+            close(fd);
+            return;
+        }
+        LOGI("SPA JSON login attempt for '%s'", spa_user);
+        submit_auth_job_ex(fd, spa_user, spa_pass, req.is_secure, peer_ip, 1);
+        return;
+    }
+
+    if (strcmp(req.path, "/global/auth/logout") == 0 ||
+        strcmp(req.path, "/api/v2/global/auth/logout") == 0) {
+        LOGI("logout: clearing JWT cookie");
+        const char *headers =
+            "Cache-Control: no-store\r\n"
+            "Set-Cookie: oc_jwt=; Path=/; Max-Age=0\r\n"
+            "Location: /\r\n";
+        http_send(fd, 303, "See Other", NULL, headers, NULL, 0);
+        close(fd);
+        return;
+    }
+
     /* ─── Check web routes (public or auth-required) ─────────────────── */
     WebRoute *wr = match_web_route(req.path);
     if (wr) {
@@ -2568,16 +2617,17 @@ static void route_complete_request(PendingRequest *pr) {
         return;
     }
 
-    /* Gateway-mode logout: clear JWT cookie and redirect to login page.
+    /* Gateway-mode logout: clear JWT cookie and redirect at the gateway layer.
      * MUST be intercepted here — if passed through splice proxy, daemon
-     * might clear its own session cookie, leaving the browser without JWT. */
+     * might clear its own session cookie or render daemon-side auth UI. */
     if (strcmp(req.path, "/global/auth/logout") == 0 ||
         strcmp(req.path, "/api/v2/global/auth/logout") == 0) {
         LOGI("logout: clearing JWT cookie");
-        const char *body = "{\"ok\":true}";
-        http_send(fd, 200, "OK", "application/json",
-                  "Cache-Control: no-store\r\nSet-Cookie: oc_jwt=; Path=/; Max-Age=0\r\n",
-                  body, strlen(body));
+        const char *headers =
+            "Cache-Control: no-store\r\n"
+            "Set-Cookie: oc_jwt=; Path=/; Max-Age=0\r\n"
+            "Location: /\r\n";
+        http_send(fd, 303, "See Other", NULL, headers, NULL, 0);
         close(fd);
         return;
     }

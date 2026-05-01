@@ -134,6 +134,7 @@ export function MessageTimeline(props: {
   onUnregisterMessage: (id: string) => void
   onFirstTurnMount?: () => void
   lastUserMessageID?: string
+  statusOverride?: { label: string; startedAt: number }
   expanded: Record<string, boolean>
   onToggleExpanded: (id: string) => void
 }) {
@@ -360,12 +361,16 @@ export function MessageTimeline(props: {
 
             <div
               role="log"
-              class="flex flex-col gap-12 items-start justify-start pb-[calc(var(--prompt-height,8rem)+64px)] md:pb-[calc(var(--prompt-height,10rem)+64px)] transition-[margin]"
+              class="flex flex-col gap-12 items-start justify-start transition-[margin,padding-bottom]"
               classList={{
                 "w-full": true,
                 "max-w-[1000px] mx-auto": props.centered,
                 "mt-0.5": props.centered,
                 "mt-0": !props.centered,
+                "pb-[calc(var(--prompt-height,8rem)+24px)] md:pb-[calc(var(--prompt-height,10rem)+24px)]":
+                  props.sessionBusy || !!props.statusOverride,
+                "pb-[calc(var(--prompt-height,8rem)+64px)] md:pb-[calc(var(--prompt-height,10rem)+64px)]":
+                  !props.sessionBusy && !props.statusOverride,
               }}
             >
               <Show when={props.turnStart > 0}>
@@ -439,6 +444,7 @@ export function MessageTimeline(props: {
                         sessionID={props.sessionID}
                         messageID={message.id}
                         lastUserMessageID={props.lastUserMessageID}
+                        statusOverride={message.id === props.lastUserMessageID ? props.statusOverride : undefined}
                         shellToolDefaultOpen={settings.general.shellToolPartsExpanded()}
                         editToolDefaultOpen={settings.general.editToolPartsExpanded()}
                         showReasoningSummaries={settings.general.showReasoningSummaries()}

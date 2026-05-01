@@ -19,7 +19,7 @@ import { Session } from "@/session"
 import { MessageV2 } from "@/session/message-v2"
 import { Instance } from "@/project/instance"
 import { Log } from "@/util/log"
-import { enqueueAutonomousContinue } from "@/session/workflow-runner"
+import { enqueueAutonomousContinue, resumePendingContinuations } from "@/session/workflow-runner"
 
 const log = Log.create({ service: "task.notice" })
 
@@ -111,6 +111,12 @@ export function registerPendingNoticeAppenderSubscriber() {
               sessionID: p.parentSessionID,
               user: latestUser,
               text: `Subagent ${p.childSessionID} finished (status=${p.status}). Drain pending notices and continue.`,
+              triggerType: p.status === "success" ? "task_completion" : "task_failure",
+              priority: "critical",
+            })
+            await resumePendingContinuations({
+              maxCount: 1,
+              preferredSessionID: p.parentSessionID,
             })
             log.info("auto-resume: parent runloop enqueued after notice", {
               jobId: p.jobId,

@@ -15,7 +15,7 @@ import { DialogSelectFile } from "@/components/dialog-select-file"
 import { DialogSelectModel } from "@/components/dialog-select-model"
 import { DialogSelectMcp } from "@/components/dialog-select-mcp"
 import { DialogFork } from "@/components/dialog-fork"
-import { showPromiseToast, showToast } from "@opencode-ai/ui/toast"
+import { showToast } from "@opencode-ai/ui/toast"
 import { findLast } from "@opencode-ai/util/array"
 import { extractPromptFromParts } from "@/utils/prompt"
 import { UserMessage } from "@opencode-ai/sdk/v2"
@@ -63,6 +63,7 @@ export type SessionCommandContext = {
   setActiveMessage: (message: UserMessage | undefined) => void
   addSelectionToContext: (path: string, selection: FileSelection) => void
   focusInput: () => void
+  setCompactionStatus: (status: { label: string; startedAt: number } | undefined) => void
 }
 
 const withCategory = (category: string) => {
@@ -377,21 +378,23 @@ export const useSessionCommands = (input: SessionCommandContext) => {
           })
           return
         }
-        showPromiseToast(
-          input.sdk.client.session.summarize({
+        input.setCompactionStatus({ label: input.language.t("toast.session.compact.loading"), startedAt: Date.now() })
+        try {
+          await input.sdk.client.session.summarize({
             sessionID,
             modelID: model.id,
             providerId: model.provider.id,
-          }),
-          {
-            loading: input.language.t("toast.session.compact.loading"),
-            success: () => input.language.t("toast.session.compact.success"),
-            error: (err) =>
-              input.language.t("toast.session.compact.error", {
-                reason: formatToastError(err),
-              }),
-          },
-        )
+          })
+        } catch (err) {
+          showToast({
+            title: input.language.t("toast.session.compact.error", {
+              reason: formatToastError(err),
+            }),
+            variant: "error",
+          })
+        } finally {
+          input.setCompactionStatus(undefined)
+        }
       },
     }),
     sessionCommand({

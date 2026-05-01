@@ -234,20 +234,16 @@ export const GlobalRoutes = lazy(() =>
         return c.json({ ok: true, username: issued.payload.username, csrfToken: issued.payload.csrf })
       },
     )
-    .post(
+    .on(
+      ["GET", "POST"],
       "/auth/logout",
       describeRoute({
         summary: "Logout web session",
-        description: "Invalidate current web auth session cookie.",
+        description: "Invalidate current web auth session cookie and return control to the gateway/login shell.",
         operationId: "global.auth.logout",
         responses: {
-          200: {
-            description: "Logout success",
-            content: {
-              "application/json": {
-                schema: resolver(z.object({ ok: z.literal(true) })),
-              },
-            },
+          303: {
+            description: "Logout success; redirect to gateway root",
           },
         },
       }),
@@ -261,7 +257,7 @@ export const GlobalRoutes = lazy(() =>
         // user as unauthenticated on the next request.
         const secure = c.req.url.startsWith("https")
         c.header("Set-Cookie", `oc_jwt=; Path=/; Max-Age=0${secure ? "; Secure" : ""}`, { append: true })
-        return c.json({ ok: true })
+        return c.redirect("/", 303)
       },
     )
     .get(
@@ -482,7 +478,10 @@ export const GlobalRoutes = lazy(() =>
       ),
       async (c) => {
         const runtimeMode = resolveRestartRuntimeMode()
-        const body = (c.req.valid("json" as never) as { targets?: Array<"daemon" | "frontend" | "gateway">; reason?: string } | undefined) ?? {}
+        const body =
+          (c.req.valid("json" as never) as
+            | { targets?: Array<"daemon" | "frontend" | "gateway">; reason?: string }
+            | undefined) ?? {}
         const targets = body.targets ?? []
         const wantsGateway = targets.includes("gateway")
 

@@ -138,13 +138,14 @@ export const { use: useWebAuth, provider: WebAuthProvider } = createSimpleContex
     }
 
     const logout = async () => {
+      if (!enabled()) {
+        window.location.replace(`${server.url}/global/auth/logout`)
+        return
+      }
       await fetcher(`${server.url}/global/auth/logout`, {
         method: "POST",
         headers: csrfToken() ? { "x-opencode-csrf": csrfToken()! } : undefined,
       }).catch(() => undefined)
-      // Clear gateway JWT cookie client-side (not HttpOnly, set via JS by gateway).
-      // Belt-and-suspenders: server also sends Set-Cookie, but reverse proxies may strip it.
-      document.cookie = "oc_jwt=; Path=/; Max-Age=0"
       setForcedUnauthenticated(true)
       await sessionActions.refetch()
     }

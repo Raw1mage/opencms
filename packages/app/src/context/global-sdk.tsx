@@ -85,6 +85,7 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
     let queue: Queued[] = []
     let buffer: Queued[] = []
     const coalesced = new Map<string, number>()
+    const recentlySeen = new Map<string, number>()
     const staleDeltas = new Set<string>()
     let timer: ReturnType<typeof setTimeout> | undefined
     let last = 0
@@ -116,12 +117,18 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
       buffer = events
       queue.length = 0
       coalesced.clear()
+      const now = Date.now()
+      for (const [eventKey, seenAt] of recentlySeen) {
+        if (now - seenAt > 2_000) recentlySeen.delete(eventKey)
+      }
       staleDeltas.clear()
 
       last = Date.now()
       batch(() => {
         for (const event of events) {
           const payload = event.payload as { type?: string; properties?: { messageID?: string; partID?: string } }
+          const eventKey = key(event.directory, event.payload)
+          if (eventKey) recentlySeen.set(eventKey, now)
           if (skip && payload.type === "message.part.delta") {
             const props = payload.properties
             if (!props?.messageID || !props?.partID) continue
@@ -259,6 +266,8 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
                   }
                   continue
                 }
+                const seenAt = recentlySeen.get(k)
+                if (seenAt !== undefined && Date.now() - seenAt < 2_000) continue
                 coalesced.set(k, queue.length)
               }
               queue.push({ directory, payload })

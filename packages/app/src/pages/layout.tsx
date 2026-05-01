@@ -1228,8 +1228,10 @@ export default function Layout(props: ParentProps) {
   const showEditProjectDialog = (project: LocalProject) => dialog.show(() => <DialogEditProject project={project} />)
 
   const logout = async () => {
+    const gatewayMode = !webAuth.enabled()
     const directories = layout.projects.list().map((project) => project.worktree)
     await webAuth.logout()
+    if (gatewayMode) return
     for (const directory of directories) {
       clearWorkspaceTerminals(directory, undefined, platform)
       layout.projects.close(directory)

@@ -228,6 +228,7 @@ export const PendingContinuationInfo = z.object({
   text: z.string(),
 })
 export type PendingContinuationInfo = z.infer<typeof PendingContinuationInfo>
+type PendingContinuationQueueItem = PendingContinuationInfo & { triggerType?: string }
 
 const RESUME_LOCK = "session.workflow.resume"
 const LEASE_MS = 30_000
@@ -239,7 +240,7 @@ let supervisorStarted = false
 let supervisorTimer: ReturnType<typeof setInterval> | undefined
 
 type ResumeCandidate = {
-  pending: PendingContinuationInfo
+  pending: PendingContinuationQueueItem
   session: Pick<Session.Info, "workflow" | "directory">
   status: SessionStatus.Info
   inFlight: boolean
@@ -286,6 +287,7 @@ export function shouldResumePendingContinuation(input: {
   health?: AutonomousWorkflowHealth
   owner?: string
   now?: number
+  triggerType?: string
 }) {
   return inspectPendingContinuationResumability(input).resumable
 }
@@ -297,19 +299,25 @@ export function inspectPendingContinuationResumability(input: {
   health?: AutonomousWorkflowHealth
   owner?: string
   now?: number
+  triggerType?: string
 }) {
   const blockedReasons: PendingContinuationResumeBlockReason[] = []
   if (input.inFlight) blockedReasons.push("in_flight")
   if (input.status.type === "busy") blockedReasons.push("status_busy")
   if (input.status.type === "retry") blockedReasons.push("status_retry")
 
+  const isTaskCompletion = input.triggerType === "task_completion" || input.triggerType === "task_failure"
   const workflow = input.session.workflow ?? Session.defaultWorkflow()
-  if (workflow.autonomous.enabled === false) blockedReasons.push("autonomous_disabled")
+  if (!isTaskCompletion && workflow.autonomous.enabled === false) blockedReasons.push("autonomous_disabled")
 
   const health = input.health ?? summarizeAutonomousWorkflowHealth({ workflow })
-  if (health.state === "blocked") blockedReasons.push("workflow_blocked")
-  if (health.state === "completed") blockedReasons.push("workflow_completed")
-  if (health.state === "waiting_user" && NON_RESUMABLE_WAITING_REASONS.has(health.stopReason ?? "")) {
+  if (!isTaskCompletion && health.state === "blocked") blockedReasons.push("workflow_blocked")
+  if (!isTaskCompletion && health.state === "completed") blockedReasons.push("workflow_completed")
+  if (
+    !isTaskCompletion &&
+    health.state === "waiting_user" &&
+    NON_RESUMABLE_WAITING_REASONS.has(health.stopReason ?? "")
+  ) {
     blockedReasons.push(`waiting_user_non_resumable:${health.stopReason}`)
   }
 
@@ -470,6 +478,7 @@ export function pickPendingContinuationsForResume(input: {
         inFlight: item.inFlight,
         health: item.health,
         owner: SUPERVISOR_OWNER,
+        triggerType: item.pending.triggerType,
       }),
     )
     .sort((a, b) => {
@@ -710,20 +719,11 @@ export async function clearPendingContinuation(sessionID: string) {
   await RunQueue.remove(sessionID)
 }
 
-export async function listPendingContinuations() {
+export async function listPendingContinuations(): Promise<PendingContinuationQueueItem[]> {
   // Read from RunQueue (lane-aware) with legacy fallback
   const queueEntries = await RunQueue.listAll()
   if (queueEntries.length > 0) {
-    return queueEntries.map(
-      (entry): PendingContinuationInfo => ({
-        sessionID: entry.sessionID,
-        messageID: entry.messageID,
-        createdAt: entry.createdAt,
-        roundCount: entry.roundCount,
-        reason: entry.reason,
-        text: entry.text,
-      }),
-    )
+    return queueEntries
   }
   // Legacy fallback: read from old storage keys
   const result: PendingContinuationInfo[] = []
@@ -766,6 +766,7 @@ export async function getPendingContinuationQueueInspection(
     inFlight,
     health,
     owner: SUPERVISOR_OWNER,
+    triggerType: pending ? (await RunQueue.peek(sessionID))?.triggerType : undefined,
   })
 
   return {
@@ -1013,6 +1014,7 @@ async function executeResumeInLane(sessionID: string, workspaceId: string | unde
         }).catch(() => undefined)
         await Session.updateWorkflowSupervisor({
           sessionID,
+          patch: {},
           clear: ["leaseOwner", "leaseExpiresAt", "retryAt"],
         }).catch(() => undefined)
         return
@@ -1098,6 +1100,8 @@ export async function enqueueAutonomousContinue(input: {
   user: MessageV2.User
   text?: string
   roundCount?: number
+  triggerType?: string
+  priority?: "critical" | "normal" | "background"
 }) {
   const now = Date.now()
   const session = await Session.get(input.sessionID)
@@ -1165,6 +1169,8 @@ export async function enqueueAutonomousContinue(input: {
     roundCount: input.roundCount ?? 0,
     reason: "todo_pending",
     text,
+    triggerType: input.triggerType,
+    priority: input.priority,
   })
   return message
 }

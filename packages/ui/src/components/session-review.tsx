@@ -78,6 +78,11 @@ export interface SessionReviewProps {
   readFile?: (path: string) => Promise<FileContent | undefined>
 }
 
+type LegacyFileDiffContent = {
+  before?: unknown
+  after?: unknown
+}
+
 const imageExtensions = new Set(["png", "jpg", "jpeg", "gif", "webp", "avif", "bmp", "ico", "tif", "tiff", "heic"])
 const audioExtensions = new Set(["mp3", "wav", "ogg", "m4a", "aac", "flac", "opus"])
 
@@ -138,6 +143,15 @@ function dataUrlFromValue(value: unknown): string | undefined {
   if (!mime.startsWith("image/") && !mime.startsWith("audio/")) return
 
   return `data:${mime};base64,${content}`
+}
+
+function legacyDiffText(diff: FileDiff, side: "before" | "after"): string {
+  const value = (diff as LegacyFileDiffContent)[side]
+  return typeof value === "string" ? value : ""
+}
+
+function legacyDiffValue(diff: FileDiff, side: "before" | "after"): unknown {
+  return (diff as LegacyFileDiffContent)[side]
 }
 
 function diffId(file: string): string | undefined {
@@ -246,8 +260,8 @@ export const SessionReview = (props: SessionReviewProps) => {
 
   const selectionPreview = (diff: FileDiff, range: SelectedLineRange) => {
     const side = selectionSide(range)
-    const contents = side === "deletions" ? diff.before : diff.after
-    if (typeof contents !== "string" || contents.length === 0) return undefined
+    const contents = legacyDiffText(diff, side === "deletions" ? "before" : "after")
+    if (contents.length === 0) return undefined
 
     const start = Math.max(1, Math.min(range.start, range.end))
     const end = Math.max(range.start, range.end)
@@ -366,8 +380,8 @@ export const SessionReview = (props: SessionReviewProps) => {
                 const comments = createMemo(() => (props.comments ?? []).filter((c) => c.file === file))
                 const commentedLines = createMemo(() => comments().map((c) => c.selection))
 
-                const beforeText = () => (typeof item().before === "string" ? item().before : "")
-                const afterText = () => (typeof item().after === "string" ? item().after : "")
+                const beforeText = () => legacyDiffText(item(), "before")
+                const afterText = () => legacyDiffText(item(), "after")
 
                 const tooLarge = createMemo(() => {
                   if (!expanded()) return false
@@ -391,11 +405,19 @@ export const SessionReview = (props: SessionReviewProps) => {
                 const isImage = () => isImageFile(file)
                 const isAudio = () => isAudioFile(file)
 
-                const diffImageSrc = createMemo(() => dataUrlFromValue(item().after) ?? dataUrlFromValue(item().before))
+                const diffImageSrc = createMemo(
+                  () =>
+                    dataUrlFromValue(legacyDiffValue(item(), "after")) ??
+                    dataUrlFromValue(legacyDiffValue(item(), "before")),
+                )
                 const [imageSrc, setImageSrc] = createSignal<string | undefined>(diffImageSrc())
                 const [imageStatus, setImageStatus] = createSignal<"idle" | "loading" | "error">("idle")
 
-                const diffAudioSrc = createMemo(() => dataUrlFromValue(item().after) ?? dataUrlFromValue(item().before))
+                const diffAudioSrc = createMemo(
+                  () =>
+                    dataUrlFromValue(legacyDiffValue(item(), "after")) ??
+                    dataUrlFromValue(legacyDiffValue(item(), "before")),
+                )
                 const [audioSrc, setAudioSrc] = createSignal<string | undefined>(diffAudioSrc())
                 const [audioStatus, setAudioStatus] = createSignal<"idle" | "loading" | "error">("idle")
                 const [audioMime, setAudioMime] = createSignal<string | undefined>(undefined)
@@ -688,11 +710,11 @@ export const SessionReview = (props: SessionReviewProps) => {
                                     commentedLines={commentedLines()}
                                     before={{
                                       name: file,
-                                      contents: typeof item().before === "string" ? item().before : "",
+                                      contents: beforeText(),
                                     }}
                                     after={{
                                       name: file,
-                                      contents: typeof item().after === "string" ? item().after : "",
+                                      contents: afterText(),
                                     }}
                                   />
                                 )}

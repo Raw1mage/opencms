@@ -41,7 +41,7 @@ import { useFreshnessClock } from "@/hooks/use-freshness-clock"
 import { uiFreshnessEnabled, uiFreshnessHardTimeoutSec, uiFreshnessThresholdSec } from "@/context/frontend-tweaks"
 import { ConstrainDragYAxis, getDraggableId } from "@/utils/solid-dnd"
 import { usePermission } from "@/context/permission"
-import { showToast, toaster } from "@opencode-ai/ui/toast"
+import { showToast } from "@opencode-ai/ui/toast"
 import { SessionHeader, SessionContextTab, SortableTab, FileVisual, NewSessionView } from "@/components/session"
 import { navMark, navParams } from "@/utils/perf"
 import { same } from "@/utils/same"
@@ -132,6 +132,7 @@ export default function Page() {
 
   const [ui, setUi] = createStore({
     responding: false,
+    statusFooter: undefined as { label: string; startedAt: number } | undefined,
     pendingMessage: undefined as string | undefined,
     scrollGesture: 0,
     autoCreated: false,
@@ -619,66 +620,26 @@ export default function Page() {
     return getSessionArbitrationChips({ userParts, toolParts: assistantParts })
   })
 
-  // Auto-compaction is hidden from the turn view; surface progress via toast
-  // so the user isn't left wondering during the slow plugin round-trip
-  // (Codex /responses/compact can take 30s+). Backend publishes
-  // session.compaction.started immediately and session.compacted on finish.
-  //
-  // mode='hybrid_llm_background' is non-blocking — runtime continues with
-  // the prior anchor while the LLM crunches a better one in background.
-  // Show a less alarming, auto-dismissing info toast for it instead of the
-  // persistent loading spinner that suggests the user is waiting.
-  let compactionToastId: number | undefined
-  const dismissCompactionToast = () => {
-    if (compactionToastId !== undefined) {
-      toaster.dismiss(compactionToastId)
-      compactionToastId = undefined
-    }
-  }
+  // Auto-compaction is hidden from the turn view; surface foreground progress
+  // through the status footer so it behaves like runloop work instead of a
+  // user-facing notification. Backend publishes session.compaction.started
+  // immediately and session.compacted on finish.
   const stopCompactionListener = sdk.event.listen((e) => {
     const event = e.details as { type: string; properties?: { sessionID?: string; mode?: string } }
     if (!event.properties?.sessionID || event.properties.sessionID !== params.id) return
     if (event.type === "session.compaction.started") {
       const isBackground = event.properties.mode === "hybrid_llm_background"
-      // Backend fires CompactionStarted twice: once at run() entry with
-      // mode="auto" (immediate UI feedback before the kind chain walks),
-      // and once per-kind when the chain actually executes (mode="plugin"
-      // / "llm" / "hybrid_llm"). Keep the existing foreground toaster
-      // showing through both — only re-show when transitioning between
-      // foreground and background mode.
-      const wantsBackgroundToast = isBackground
-      const hasToast = compactionToastId !== undefined
-      if (hasToast && !wantsBackgroundToast) {
-        // Already showing the persistent foreground toast; the new "auto"
-        // or per-kind emit is just confirmation of the same operation.
-        return
-      }
-      dismissCompactionToast()
-      if (wantsBackgroundToast) {
-        // Non-blocking: brief auto-dismiss default toast. User can keep typing.
-        compactionToastId = showToast({
-          title: language.t("toast.session.compact.background.loading"),
-          variant: "default",
-          duration: 4000,
-        }) as unknown as number
-      } else {
-        // Blocking foreground compaction (auto entry / plugin / llm / sync hybrid).
-        compactionToastId = showToast({
-          title: language.t("toast.session.compact.loading"),
-          variant: "loading",
-          persistent: true,
-        }) as unknown as number
-      }
+      if (isBackground) return
+      setUi(
+        "statusFooter",
+        (prev) => prev ?? { label: language.t("toast.session.compact.loading"), startedAt: Date.now() },
+      )
     } else if (event.type === "session.compacted") {
-      dismissCompactionToast()
-      showToast({
-        title: language.t("toast.session.compact.success"),
-        variant: "success",
-      })
+      setUi("statusFooter", undefined)
     }
   })
   onCleanup(() => {
-    dismissCompactionToast()
+    setUi("statusFooter", undefined)
     stopCompactionListener()
   })
 
@@ -1299,6 +1260,7 @@ export default function Page() {
     setActiveMessage,
     addSelectionToContext,
     focusInput,
+    setCompactionStatus: (status) => setUi("statusFooter", status),
   })
 
   const openReviewFile = createOpenReviewFile({
@@ -1958,6 +1920,7 @@ export default function Page() {
                       navMark({ dir: params.dir, to: id, name: "session:first-turn-mounted" })
                     }}
                     lastUserMessageID={lastUserMessage()?.id}
+                    statusOverride={ui.statusFooter}
                     expanded={store.expanded}
                     onToggleExpanded={(id: string) => setStore("expanded", id, (open: boolean | undefined) => !open)}
                   />
