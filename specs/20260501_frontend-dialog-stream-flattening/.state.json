@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "state": "planned",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-05-01T18:21:00Z",
+      "by": "TheSmartAI",
+      "mode": "new",
+      "reason": "frontend dialog stream flattening plan created"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-05-01T18:21:00Z",
+      "by": "TheSmartAI",
+      "mode": "promote",
+      "reason": "product model and component boundaries defined"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-05-01T18:21:00Z",
+      "by": "TheSmartAI",
+      "mode": "promote",
+      "reason": "execution tasks and validation plan captured"
+    },
+    {
+      "at": "2026-05-01T11:19:58.761Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/app/src/pages/session.tsx, packages/app/src/pages/session/message-timeline.tsx, packages/app/src/pages/session/use-session-commands.tsx, packages/opencode/src/server/routes/global.ts, packages/opencode/src/server/self-update.ts, packages/ui/src/components/session-turn.tsx",
+      "result": "warned",
+      "drift": [
+        "packages/app/src/pages/session.tsx",
+        "packages/app/src/pages/session/message-timeline.tsx",
+        "packages/app/src/pages/session/use-session-commands.tsx",
+        "packages/opencode/src/server/routes/global.ts",
+        "packages/opencode/src/server/self-update.ts",
+        "packages/ui/src/components/session-turn.tsx"
+      ],
+      "commit": "1c733d3e5ef1a00eb573e988db03f0de69bee8f9"
+    }
+  ]
+}

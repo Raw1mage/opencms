@@ -316,7 +316,8 @@ const WorkspaceSessionList = (props: {
 
   const toggleSessionChildren = (sessionId: string) => {
     const currentValue = sessionExpanded[sessionId] ?? true
-    console.log("[toggleSessionChildren]", sessionId, "current:", currentValue, "new:", !currentValue)
+    if (typeof localStorage !== "undefined" && localStorage.getItem("opencode:debug:sidebar") === "1")
+      console.log("[toggleSessionChildren]", sessionId, "current:", currentValue, "new:", !currentValue)
     setSessionExpanded(sessionId, !currentValue)
   }
 
@@ -352,7 +353,8 @@ const WorkspaceSessionList = (props: {
                 variant="ghost"
                 size="small"
                 onClick={() => {
-                  console.log("[Edit button clicked]", managementMode())
+                  if (typeof localStorage !== "undefined" && localStorage.getItem("opencode:debug:sidebar") === "1")
+                    console.log("[Edit button clicked]", managementMode())
                   setManagementMode(!managementMode())
                 }}
               />
@@ -432,7 +434,8 @@ const WorkspaceSessionList = (props: {
                             class="shrink-0 flex items-center justify-center w-5 h-8 text-text-weak hover:text-text-base transition-colors cursor-pointer"
                             aria-label={childrenExpanded() ? "Collapse" : "Expand"}
                             onClick={(e: MouseEvent) => {
-                              console.log("[Chevron clicked]", row.session.id, row.session.title)
+                              if (typeof localStorage !== "undefined" && localStorage.getItem("opencode:debug:sidebar") === "1")
+                                console.log("[Chevron clicked]", row.session.id, row.session.title)
                               e.preventDefault()
                               e.stopPropagation()
                               toggleSessionChildren(row.session.id)

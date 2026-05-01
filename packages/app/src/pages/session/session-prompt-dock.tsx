@@ -3,6 +3,7 @@ import type { QuestionRequest } from "@opencode-ai/sdk/v2"
 import { Button } from "@opencode-ai/ui/button"
 import { BasicTool } from "@opencode-ai/ui/basic-tool"
 import { Icon } from "@opencode-ai/ui/icon"
+import { StatusLine, type StatusLineSnapshot } from "@opencode-ai/ui/status-line"
 import { PromptInput } from "@/components/prompt-input"
 import { QuestionDock } from "@/components/question-dock"
 import { formatElapsedSeconds, questionSubtitle } from "@/pages/session/session-prompt-helpers"
@@ -24,6 +25,7 @@ export function SessionPromptDock(props: {
   onNewSessionWorktreeReset: () => void
   onSubmit: () => void
   setPromptDockRef: (el: HTMLDivElement) => void
+  statusLine?: StatusLineSnapshot | undefined
   activeChild?: {
     sessionID: string
     agent: string
@@ -67,6 +69,13 @@ export function SessionPromptDock(props: {
           "max-w-[1000px] mx-auto": props.centered,
         }}
       >
+        <Show when={props.statusLine}>
+          {(snapshot) => (
+            <div class="mb-2 px-1">
+              <StatusLine snapshot={snapshot()} />
+            </div>
+          )}
+        </Show>
         <Show when={props.activeChild}>
           {(child) => {
             // session-ui-freshness: opacity + hint mirror side-panel / tool-page

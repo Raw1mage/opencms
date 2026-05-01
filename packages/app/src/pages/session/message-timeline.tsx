@@ -6,6 +6,7 @@ import { DropdownMenu } from "@opencode-ai/ui/dropdown-menu"
 import { InlineInput } from "@opencode-ai/ui/inline-input"
 import { Tooltip } from "@opencode-ai/ui/tooltip"
 import { SessionTurn } from "@opencode-ai/ui/session-turn"
+import type { StatusLineSnapshot } from "@opencode-ai/ui/status-line"
 import type { UserMessage } from "@opencode-ai/sdk/v2"
 import { DirtyCountBubble } from "@/components/dirty-count-bubble"
 import { shouldMarkBoundaryGesture, normalizeWheelDelta } from "@/pages/session/message-gesture"
@@ -135,6 +136,8 @@ export function MessageTimeline(props: {
   onFirstTurnMount?: () => void
   lastUserMessageID?: string
   statusOverride?: { label: string; startedAt: number }
+  inlineStatus?: boolean
+  onStatusLineChange?: (snapshot: StatusLineSnapshot | undefined) => void
   expanded: Record<string, boolean>
   onToggleExpanded: (id: string) => void
 }) {
@@ -158,7 +161,6 @@ export function MessageTimeline(props: {
   }
 
   let touchGesture: number | undefined
-  const [statusLineMount, setStatusLineMount] = createSignal<HTMLDivElement | undefined>()
 
   createEffect(() => {
     sendSessionReloadDebugBeacon({
@@ -195,11 +197,6 @@ export function MessageTimeline(props: {
             <Icon name="arrow-down-to-line" />
           </button>
         </div>
-        <div
-          ref={setStatusLineMount}
-          data-slot="session-turn-status-anchor"
-          class="absolute left-1/2 -translate-x-1/2 bottom-[calc(var(--prompt-height,8rem)+8px)] z-[55] pointer-events-none w-full max-w-[1000px] px-4 md:px-6 flex justify-start"
-        />
         <div
           ref={props.setScrollRef}
           onWheel={(e) => {
@@ -448,6 +445,10 @@ export function MessageTimeline(props: {
                         messageID={message.id}
                         lastUserMessageID={props.lastUserMessageID}
                         statusOverride={message.id === props.lastUserMessageID ? props.statusOverride : undefined}
+                        inlineStatus={props.inlineStatus}
+                        onStatusLineChange={
+                          message.id === props.lastUserMessageID ? props.onStatusLineChange : undefined
+                        }
                         shellToolDefaultOpen={settings.general.shellToolPartsExpanded()}
                         editToolDefaultOpen={settings.general.editToolPartsExpanded()}
                         showReasoningSummaries={settings.general.showReasoningSummaries()}

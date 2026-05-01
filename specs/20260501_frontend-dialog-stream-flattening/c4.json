@@ -1,0 +1,41 @@
+{
+  "model": "C4",
+  "title": "Frontend Dialog Stream Flattening",
+  "containers": [
+    {
+      "id": "C1",
+      "name": "Web App",
+      "technology": "Solid.js",
+      "components": [
+        {
+          "id": "C1.1",
+          "name": "DialogStreamCanvas",
+          "responsibility": "Own flat stream canvas layout and scroll owner"
+        },
+        {
+          "id": "C1.2",
+          "name": "Stream card renderers",
+          "responsibility": "Render user, assistant, tool, result, error cards"
+        },
+        { "id": "C1.3", "name": "Turn status line", "responsibility": "Render all live progress/status text" }
+      ]
+    },
+    {
+      "id": "C2",
+      "name": "Session sync store",
+      "technology": "GlobalSync / SDK reducers",
+      "components": [
+        {
+          "id": "C2.1",
+          "name": "Message event state",
+          "responsibility": "Provide existing message/part data without schema changes"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    { "from": "C2.1", "to": "C1.1", "description": "supplies ordered session messages/parts" },
+    { "from": "C1.1", "to": "C1.2", "description": "delegates card rendering" },
+    { "from": "C1.1", "to": "C1.3", "description": "delegates live status display" }
+  ]
+}

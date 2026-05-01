@@ -392,18 +392,20 @@ export function applyDirectoryEvent(input: {
       const tweaksCfg = frontendTweaks()
 
       // [PART-FLOW-C] reducer entry — confirms event reached the frontend.
-      // Watch the browser console; one log per inbound part.updated event.
+      // Gated by localStorage["opencode:debug:part-flow"]="1" — fires per part.updated, very noisy during streaming.
       try {
-        // eslint-disable-next-line no-console
-        console.log("[PART-FLOW-C] reducer received part.updated", {
-          partType: (part as { type?: string }).type,
-          tool: (part as { tool?: string }).tool,
-          partId: (part as { id?: string }).id,
-          messageID: (part as { messageID?: string }).messageID,
-          sessionID: (part as { sessionID?: string }).sessionID,
-          hasDelta: typeof delta === "string",
-          existingMessageStored: !!parts,
-        })
+        if (typeof localStorage !== "undefined" && localStorage.getItem("opencode:debug:part-flow") === "1") {
+          // eslint-disable-next-line no-console
+          console.log("[PART-FLOW-C] reducer received part.updated", {
+            partType: (part as { type?: string }).type,
+            tool: (part as { tool?: string }).tool,
+            partId: (part as { id?: string }).id,
+            messageID: (part as { messageID?: string }).messageID,
+            sessionID: (part as { sessionID?: string }).sessionID,
+            hasDelta: typeof delta === "string",
+            existingMessageStored: !!parts,
+          })
+        }
       } catch {}
 
       // Delta-aware streaming: when delta is present and part.text is stripped,

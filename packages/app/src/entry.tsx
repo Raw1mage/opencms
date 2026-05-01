@@ -5,6 +5,7 @@ import { Platform, PlatformProvider } from "@/context/platform"
 import { dict as en } from "@/i18n/en"
 import { dict as zh } from "@/i18n/zh"
 import { handleNotificationClick } from "@/utils/notification-click"
+import { installClickInspect } from "@/utils/click-inspect"
 import pkg from "../package.json"
 
 const DEFAULT_SERVER_URL_KEY = "opencode.settings.dat:defaultServerUrl"
@@ -184,6 +185,7 @@ const platform: Platform = {
 }
 
 installDynamicImportRecovery()
+installClickInspect()
 
 if (root instanceof HTMLElement) {
   render(

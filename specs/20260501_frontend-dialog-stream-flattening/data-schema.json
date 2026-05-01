@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DialogStreamDisplayModel",
+  "type": "object",
+  "properties": {
+    "canvas": {
+      "type": "object",
+      "properties": {
+        "cards": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/card" }
+        },
+        "statusLine": { "$ref": "#/$defs/statusLine" }
+      },
+      "required": ["cards", "statusLine"]
+    }
+  },
+  "required": ["canvas"],
+  "$defs": {
+    "card": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "enum": ["user", "assistant-text", "tool-call", "tool-result", "error", "metadata"] },
+        "sourceMessageID": { "type": "string" },
+        "sourcePartID": { "type": "string" }
+      },
+      "required": ["id", "type"]
+    },
+    "statusLine": {
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["text", "active"]
+    }
+  }
+}

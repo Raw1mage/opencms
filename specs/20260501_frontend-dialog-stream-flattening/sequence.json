@@ -1,0 +1,20 @@
+{
+  "title": "Render embedded dialog stream",
+  "participants": ["Session sync store", "DialogStreamCanvas", "Card renderer", "TurnStatusLine"],
+  "messages": [
+    { "id": "MSG1", "from": "Session sync store", "to": "DialogStreamCanvas", "name": "message/part state changes" },
+    {
+      "id": "MSG2",
+      "from": "DialogStreamCanvas",
+      "to": "Card renderer",
+      "name": "render visible cards in arrival order"
+    },
+    { "id": "MSG3", "from": "DialogStreamCanvas", "to": "TurnStatusLine", "name": "render live operation status" },
+    { "id": "MSG4", "from": "Card renderer", "to": "DialogStreamCanvas", "name": "card content rendered" }
+  ],
+  "invariants": [
+    "No frontend-only runloop bubble is introduced.",
+    "Message/part IDs are not changed by layout flattening.",
+    "Live status has a single visible surface."
+  ]
+}

@@ -27,7 +27,7 @@ export default function Home() {
     return sync.data.project
       .slice()
       .sort((a, b) => (b.time.updated ?? b.time.created) - (a.time.updated ?? a.time.created))
-      .slice(0, 5)
+      .slice(0, 10)
   })
 
   const displayProjectPath = (worktree: string) => {

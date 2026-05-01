@@ -1,0 +1,22 @@
+{
+  "vectors": [
+    {
+      "id": "TV1",
+      "name": "assistant streaming text uses one text card",
+      "input": ["user message", "assistant text delta", "assistant text delta"],
+      "expected": ["UserInputCard", "AssistantTextCard(updated)"]
+    },
+    {
+      "id": "TV2",
+      "name": "tool call appends card",
+      "input": ["tool call", "tool result"],
+      "expected": ["ToolCallCard", "ToolResultCard"]
+    },
+    {
+      "id": "TV3",
+      "name": "compaction uses turn status line",
+      "input": ["compaction started", "compaction finished"],
+      "expected": ["TurnStatusLine(active)", "TurnStatusLine(cleared)"]
+    }
+  ]
+}

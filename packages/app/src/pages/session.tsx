@@ -66,6 +66,7 @@ import { terminalTabLabel } from "@/pages/session/terminal-label"
 import { MessageTimeline } from "@/pages/session/message-timeline"
 import { useSessionCommands } from "@/pages/session/use-session-commands"
 import { SessionPromptDock } from "@/pages/session/session-prompt-dock"
+import type { StatusLineSnapshot } from "@opencode-ai/ui/status-line"
 import {
   childSessionHref,
   deriveActiveChildStatus,
@@ -642,6 +643,7 @@ export default function Page() {
     stopCompactionListener()
   })
 
+  const [statusLine, setStatusLine] = createSignal<StatusLineSnapshot | undefined>()
   const [storageCorruption, setStorageCorruption] = createSignal<
     { sessionID: string; integrityCheckOutput?: string; dbPath?: string } | undefined
   >()
@@ -1922,6 +1924,8 @@ export default function Page() {
                     }}
                     lastUserMessageID={lastUserMessage()?.id}
                     statusOverride={ui.statusFooter}
+                    inlineStatus={false}
+                    onStatusLineChange={setStatusLine}
                     expanded={store.expanded}
                     onToggleExpanded={(id: string) => setStore("expanded", id, (open: boolean | undefined) => !open)}
                   />
@@ -1971,6 +1975,7 @@ export default function Page() {
               resumeScroll()
             }}
             setPromptDockRef={(el: HTMLDivElement) => (promptDock = el)}
+            statusLine={statusLine()}
             activeChild={visibleChildDock()}
             onOpenChildSession={(href) => navigate(href)}
             onAbortActiveChild={async () => {

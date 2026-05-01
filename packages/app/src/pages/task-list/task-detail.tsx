@@ -415,42 +415,16 @@ export function TaskDetail() {
                 </div>
               </Show>
 
-              {/* ── Output card (session conversation via SessionTurn) ── */}
-              <div class="rounded-lg border border-border-base bg-background-base overflow-hidden">
-                <div class="flex items-center justify-between px-3 py-2 border-b border-border-weak-base">
-                  <span class="text-11-semibold text-color-dimmed uppercase tracking-wider">Output</span>
-                  <Show when={activeSessionId() || outputError()}>
-                    <button
-                      class="text-11-medium text-color-dimmed hover:text-color-secondary cursor-pointer"
-                      onClick={() => {
-                        setActiveSessionId(undefined)
-                        setOutputError(undefined)
-                      }}
-                    >
-                      Clear
-                    </button>
-                  </Show>
-                </div>
-                <div
-                  class="overflow-y-auto resize-y"
-                  style={{ "min-height": "80px", height: "240px", "max-height": "600px" }}
-                >
-                  <Show when={testing() && !activeSessionId()}>
-                    <div class="px-3 py-4 text-color-dimmed text-center italic text-12-medium">
-                      Starting test run...
-                    </div>
-                  </Show>
-                  <Show when={!testing() && !activeSessionId() && !outputError()}>
-                    <div class="px-3 py-4 text-color-dimmed text-center italic text-12-medium">
-                      {hasJob() ? "Click Test to run this task" : "Create the task first, then test it"}
-                    </div>
-                  </Show>
-                  <Show when={outputError()}>
-                    <div class="px-3 py-2 text-red-400 text-12-medium whitespace-pre-wrap">{outputError()}</div>
-                  </Show>
-                  <Show when={activeSessionId()}>{(sid) => <TaskSessionOutput sessionId={sid()} />}</Show>
-                </div>
-              </div>
+              <SessionStreamPanel
+                sessionId={activeSessionId()}
+                testing={testing()}
+                outputError={outputError()}
+                emptyText={hasJob() ? "Click Test to run this task" : "Create the task first, then test it"}
+                onClear={() => {
+                  setActiveSessionId(undefined)
+                  setOutputError(undefined)
+                }}
+              />
 
               {/* ── Execution Log card (collapsed by default) ── */}
               <Show when={hasJob() && job()}>
@@ -688,20 +662,54 @@ function TaskSessionOutput(props: { sessionId: string }) {
       <For each={userMessages()}>
         {(msg) => (
           <SessionTurn
+            variant="embedded"
             sessionID={props.sessionId}
             messageID={msg.id}
             lastUserMessageID={lastUserMessageId()}
             shellToolDefaultOpen={settings.general.shellToolPartsExpanded()}
             editToolDefaultOpen={settings.general.editToolPartsExpanded()}
             showReasoningSummaries={settings.general.showReasoningSummaries()}
-            classes={{
-              root: "min-w-0 w-full",
-              content: "flex flex-col",
-              container: "w-full px-3",
-            }}
           />
         )}
       </For>
     </Show>
+  )
+}
+
+function SessionStreamPanel(props: {
+  sessionId?: string
+  testing: boolean
+  outputError?: string
+  emptyText: string
+  onClear: () => void
+}) {
+  const hasOutput = () => !!props.sessionId || !!props.outputError
+
+  return (
+    <div class="rounded-lg border border-border-base bg-background-base overflow-hidden">
+      <div class="flex items-center justify-between px-3 py-2 border-b border-border-weak-base">
+        <span class="text-11-semibold text-color-dimmed uppercase tracking-wider">Output</span>
+        <Show when={hasOutput()}>
+          <button
+            class="text-11-medium text-color-dimmed hover:text-color-secondary cursor-pointer"
+            onClick={props.onClear}
+          >
+            Clear
+          </button>
+        </Show>
+      </div>
+      <div class="overflow-y-auto resize-y" style={{ "min-height": "80px", height: "240px", "max-height": "600px" }}>
+        <Show when={props.testing && !props.sessionId}>
+          <div class="px-3 py-4 text-color-dimmed text-center italic text-12-medium">Starting test run...</div>
+        </Show>
+        <Show when={!props.testing && !props.sessionId && !props.outputError}>
+          <div class="px-3 py-4 text-color-dimmed text-center italic text-12-medium">{props.emptyText}</div>
+        </Show>
+        <Show when={props.outputError}>
+          {(error) => <div class="px-3 py-2 text-red-400 text-12-medium whitespace-pre-wrap">{error()}</div>}
+        </Show>
+        <Show when={props.sessionId}>{(sid) => <TaskSessionOutput sessionId={sid()} />}</Show>
+      </div>
+    </div>
   )
 }

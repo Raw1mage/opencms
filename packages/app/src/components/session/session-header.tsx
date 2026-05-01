@@ -157,7 +157,8 @@ export function SessionHeader() {
           .then((value) => Boolean(value))
           .catch(() => false)
           .then((ok) => {
-            console.debug(`[session-header] App "${app.label}" (${app.openWith}): ${ok ? "exists" : "does not exist"}`)
+            if (typeof localStorage !== "undefined" && localStorage.getItem("opencode:debug:session-header") === "1")
+              console.debug(`[session-header] App "${app.label}" (${app.openWith}): ${ok ? "exists" : "does not exist"}`)
             return [app.id, ok] as const
           }),
       ),
@@ -226,26 +227,31 @@ export function SessionHeader() {
   }
 
   const toggleDesktopPanel = (mode: "files" | "status" | "changes" | "context") => {
-    console.debug("[sidebar-debug][header] before toggleDesktopPanel", {
-      mode,
-      opened: layout.fileTree.opened(),
-      currentMode: layout.fileTree.mode(),
-    })
-    if (layout.fileTree.opened() && layout.fileTree.mode() === mode) {
-      layout.fileTree.close()
-      console.debug("[sidebar-debug][header] after close", {
+    const sidebarDebug =
+      typeof localStorage !== "undefined" && localStorage.getItem("opencode:debug:sidebar") === "1"
+    if (sidebarDebug)
+      console.debug("[sidebar-debug][header] before toggleDesktopPanel", {
         mode,
         opened: layout.fileTree.opened(),
         currentMode: layout.fileTree.mode(),
       })
+    if (layout.fileTree.opened() && layout.fileTree.mode() === mode) {
+      layout.fileTree.close()
+      if (sidebarDebug)
+        console.debug("[sidebar-debug][header] after close", {
+          mode,
+          opened: layout.fileTree.opened(),
+          currentMode: layout.fileTree.mode(),
+        })
       return
     }
     layout.fileTree.show(mode)
-    console.debug("[sidebar-debug][header] after show", {
-      mode,
-      opened: layout.fileTree.opened(),
-      currentMode: layout.fileTree.mode(),
-    })
+    if (sidebarDebug)
+      console.debug("[sidebar-debug][header] after show", {
+        mode,
+        opened: layout.fileTree.opened(),
+        currentMode: layout.fileTree.mode(),
+      })
   }
 
   const toggleDesktopTerminal = () => {

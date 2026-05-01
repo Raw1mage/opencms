@@ -13,12 +13,12 @@ import { type UiI18nKey, type UiI18nParams, useI18n } from "../context/i18n"
 
 import { Binary } from "@opencode-ai/util/binary"
 import { createEffect, createMemo, createSignal, For, Match, on, onCleanup, ParentProps, Show, Switch } from "solid-js"
-import { Portal } from "solid-js/web"
 import { AssistantParts, Message, Part } from "./message-part"
 import { Markdown } from "./markdown"
 import { IconButton } from "./icon-button"
 import { Card } from "./card"
 import { Spinner } from "./spinner"
+import type { StatusLineSnapshot } from "./status-line"
 import { SessionRetry } from "./session-retry"
 import { Tooltip } from "./tooltip"
 import { createStore } from "solid-js/store"
@@ -235,8 +235,10 @@ export function SessionTurn(
       content?: string
       container?: string
     }
+    variant?: "default" | "embedded"
     statusOverride?: { label: string; startedAt: number }
-    statusLineMount?: () => HTMLElement | undefined
+    inlineStatus?: boolean
+    onStatusLineChange?: (snapshot: StatusLineSnapshot | undefined) => void
   }>,
 ) {
   const i18n = useI18n()
@@ -605,49 +607,53 @@ export function SessionTurn(
   const statusLineMounted = createMemo(() => !!retry() || !!statusOverride() || working())
   const statusLineVisible = createMemo(() => !!retry() || !!statusOverride() || (working() && active()))
 
-  const renderStatusBody = () => (
-    <div data-slot="session-turn-status-inline" data-visible={statusLineVisible() ? "true" : "false"}>
-      <Switch>
-        <Match when={retry()}>
-          <span data-slot="session-turn-retry-message">
-            {(() => {
-              const r = retry()
-              if (!r) return ""
-              const msg = unwrap(r.message)
-              return msg.length > 60 ? msg.slice(0, 60) + "..." : msg
-            })()}
-          </span>
-          <span data-slot="session-turn-retry-seconds">
-            · {i18n.t("ui.sessionTurn.retry.retrying")}
-            {store.retrySeconds > 0 ? " " + i18n.t("ui.sessionTurn.retry.inSeconds", { seconds: store.retrySeconds }) : ""}
-          </span>
-          <span data-slot="session-turn-retry-attempt">(#{retry()?.attempt})</span>
-        </Match>
-        <Match when={statusOverride()}>
-          {(override) => (
-            <>
-              <Spinner />
-              <span data-slot="session-turn-status-text">{override().label}</span>
-            </>
-          )}
-        </Match>
-        <Match when={working() && active()}>
-          <Spinner />
-          <span data-slot="session-turn-status-text">
-            {store.status ?? i18n.t("ui.sessionTurn.status.consideringNextSteps")}
-          </span>
-        </Match>
-        <Match when={working()}>
-          <Spinner />
-          <span data-slot="session-turn-status-text">
-            {store.status ?? i18n.t("ui.sessionTurn.status.consideringNextSteps")}
-          </span>
-        </Match>
-      </Switch>
-      <span aria-hidden="true">·</span>
-      <span aria-live="off">{store.duration}</span>
-    </div>
-  )
+  // Emit a snapshot upward so an out-of-turn renderer (e.g. anchored in the
+  // prompt dock) can mirror this status line. Fires on every signal change
+  // including the per-second duration tick — that is intentional.
+  createEffect(() => {
+    const cb = props.onStatusLineChange
+    if (!cb) return
+    if (!isLastUserMessage() || !statusLineMounted()) {
+      cb(undefined)
+      return
+    }
+    const r = retry()
+    if (r) {
+      const msg = unwrap(r.message)
+      cb({
+        kind: "retry",
+        label: "",
+        duration: store.duration,
+        retry: {
+          messageShort: msg.length > 60 ? msg.slice(0, 60) + "..." : msg,
+          attempt: r.attempt,
+          retrySeconds: store.retrySeconds,
+          retryingLabel: i18n.t("ui.sessionTurn.retry.retrying"),
+          retryInLabel:
+            store.retrySeconds > 0 ? i18n.t("ui.sessionTurn.retry.inSeconds", { seconds: store.retrySeconds }) : undefined,
+        },
+      })
+      return
+    }
+    const ov = statusOverride()
+    if (ov) {
+      cb({ kind: "override", label: ov.label, duration: store.duration })
+      return
+    }
+    if (working()) {
+      cb({
+        kind: "working",
+        label: store.status ?? i18n.t("ui.sessionTurn.status.consideringNextSteps"),
+        duration: store.duration,
+      })
+      return
+    }
+    cb(undefined)
+  })
+
+  onCleanup(() => {
+    props.onStatusLineChange?.(undefined)
+  })
 
   const response = createMemo(() => lastTextPart()?.text)
   const responsePartId = createMemo(() => lastTextPart()?.id)
@@ -967,12 +973,24 @@ export function SessionTurn(
   })
 
   return (
-    <div data-component="session-turn" class={props.classes?.root} ref={setRootRef}>
-      <div data-slot="session-turn-content" class={props.classes?.content}>
+    <div
+      data-component="session-turn"
+      data-variant={props.variant === "embedded" ? "embedded" : undefined}
+      class={props.classes?.root ?? (props.variant === "embedded" ? "min-w-0 w-full" : undefined)}
+      ref={setRootRef}
+    >
+      <div
+        data-slot="session-turn-content"
+        class={props.classes?.content ?? (props.variant === "embedded" ? "flex flex-col" : undefined)}
+      >
         <div>
           <Show when={message()}>
             {(msg) => (
-              <div data-message={msg().id} data-slot="session-turn-message-container" class={props.classes?.container}>
+              <div
+                data-message={msg().id}
+                data-slot="session-turn-message-container"
+                class={props.classes?.container ?? (props.variant === "embedded" ? "w-full px-3" : undefined)}
+              >
                 <Switch>
                   <Match when={isShellMode()}>
                     <Part part={shellModePart()!} message={msg()} defaultOpen />
@@ -1014,10 +1032,50 @@ export function SessionTurn(
                             appeared simultaneously when steps were collapsed, doubling the red. */}
                       </div>
                     </Show>
-                    <Show when={statusLineMounted()}>
-                      <Show when={props.statusLineMount?.()} fallback={renderStatusBody()}>
-                        {(target) => <Portal mount={target()}>{renderStatusBody()}</Portal>}
-                      </Show>
+                    <Show when={statusLineMounted() && props.inlineStatus !== false}>
+                      <div data-slot="session-turn-status-inline" data-visible={statusLineVisible() ? "true" : "false"}>
+                        <Switch>
+                          <Match when={retry()}>
+                            <span data-slot="session-turn-retry-message">
+                              {(() => {
+                                const r = retry()
+                                if (!r) return ""
+                                const msg = unwrap(r.message)
+                                return msg.length > 60 ? msg.slice(0, 60) + "..." : msg
+                              })()}
+                            </span>
+                            <span data-slot="session-turn-retry-seconds">
+                              · {i18n.t("ui.sessionTurn.retry.retrying")}
+                              {store.retrySeconds > 0
+                                ? " " + i18n.t("ui.sessionTurn.retry.inSeconds", { seconds: store.retrySeconds })
+                                : ""}
+                            </span>
+                            <span data-slot="session-turn-retry-attempt">(#{retry()?.attempt})</span>
+                          </Match>
+                          <Match when={statusOverride()}>
+                            {(override) => (
+                              <>
+                                <Spinner />
+                                <span data-slot="session-turn-status-text">{override().label}</span>
+                              </>
+                            )}
+                          </Match>
+                          <Match when={working() && active()}>
+                            <Spinner />
+                            <span data-slot="session-turn-status-text">
+                              {store.status ?? i18n.t("ui.sessionTurn.status.consideringNextSteps")}
+                            </span>
+                          </Match>
+                          <Match when={working()}>
+                            <Spinner />
+                            <span data-slot="session-turn-status-text">
+                              {store.status ?? i18n.t("ui.sessionTurn.status.consideringNextSteps")}
+                            </span>
+                          </Match>
+                        </Switch>
+                        <span aria-hidden="true">·</span>
+                        <span aria-live="off">{store.duration}</span>
+                      </div>
                     </Show>
                     <Show when={answeredQuestionParts().length > 0}>
                       <div data-slot="session-turn-answered-question-parts">

@@ -1,0 +1,17 @@
+{
+  "model": "GRAFCET",
+  "title": "Dialog Stream Display State",
+  "steps": [
+    { "id": "S0", "name": "Idle canvas", "initial": true },
+    { "id": "S1", "name": "Append card" },
+    { "id": "S2", "name": "Update streaming text card" },
+    { "id": "S3", "name": "Update turn status line" }
+  ],
+  "transitions": [
+    { "id": "T1", "from": "S0", "to": "S1", "condition": "new visible event arrives" },
+    { "id": "T2", "from": "S1", "to": "S2", "condition": "assistant text stream continues" },
+    { "id": "T3", "from": "S1", "to": "S3", "condition": "status event arrives" },
+    { "id": "T4", "from": "S2", "to": "S0", "condition": "text update rendered" },
+    { "id": "T5", "from": "S3", "to": "S0", "condition": "status line updated" }
+  ]
+}
