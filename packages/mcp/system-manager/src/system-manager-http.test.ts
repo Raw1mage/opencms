@@ -1,4 +1,15 @@
-import { patchSessionViaApi, switchAccountViaApi, switchModelViaApi, type FetchLike } from "./system-manager-http"
+import {
+  patchSessionExecutionViaApi,
+  patchSessionViaApi,
+  postSessionRevertViaApi,
+  postSessionUnrevertViaApi,
+  readSessionInfoViaApi,
+  readSessionListViaApi,
+  readSessionMessagesViaApi,
+  switchAccountViaApi,
+  switchModelViaApi,
+  type FetchLike,
+} from "./system-manager-http"
 
 function okJson(data: any) {
   return {
@@ -140,18 +151,81 @@ describe("system-manager http helpers", () => {
       JSON.stringify({ execution: { providerId: "openai", modelID: "gpt-5.2", accountId: "acc_3" } }),
     )
   })
+
+  test("readSessionMessagesViaApi reads DB-backed dialog route with cursor params", async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = []
+    const fetchImpl: FetchLike = async (url, init) => {
+      calls.push({ url, init })
+      return okJson([
+        { info: { id: "msg_2", time: { created: 2 } }, parts: [] },
+        { info: { id: "msg_1", time: { created: 1 } }, parts: [] },
+      ])
+    }
+
+    const messages = await readSessionMessagesViaApi({
+      fetchImpl,
+      baseUrl: "http://127.0.0.1:1080/api/v2",
+      headers: new Headers(),
+      sessionID: "ses_db",
+      limit: 50,
+      before: "msg_3",
+    })
+
+    expect(calls[0]?.url).toBe("http://127.0.0.1:1080/api/v2/session/ses_db/message?limit=50&before=msg_3")
+    expect(messages.map((m) => m.info.id)).toEqual(["msg_1", "msg_2"])
+  })
+
+  test("readSessionInfoViaApi and readSessionListViaApi use session API instead of storage files", async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = []
+    const fetchImpl: FetchLike = async (url, init) => {
+      calls.push({ url, init })
+      if (url.endsWith("/session/ses_db")) return okJson({ id: "ses_db", title: "DB" })
+      return okJson([{ id: "ses_db", title: "DB" }])
+    }
+
+    await readSessionInfoViaApi({
+      fetchImpl,
+      baseUrl: "http://127.0.0.1:1080/api/v2",
+      headers: new Headers(),
+      sessionID: "ses_db",
+    })
+    const list = await readSessionListViaApi({
+      fetchImpl,
+      baseUrl: "http://127.0.0.1:1080/api/v2",
+      headers: new Headers(),
+      search: "DB",
+      limit: 5,
+    })
+
+    expect(calls[0]?.url).toBe("http://127.0.0.1:1080/api/v2/session/ses_db")
+    expect(calls[1]?.url).toBe("http://127.0.0.1:1080/api/v2/session?search=DB&limit=5")
+    expect(list).toHaveLength(1)
+  })
+
+  test("postSessionRevertViaApi and postSessionUnrevertViaApi call session mutation routes", async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = []
+    const fetchImpl: FetchLike = async (url, init) => {
+      calls.push({ url, init })
+      return okJson({})
+    }
+
+    await postSessionRevertViaApi({
+      fetchImpl,
+      baseUrl: "http://127.0.0.1:1080/api/v2",
+      headers: new Headers(),
+      sessionID: "ses_db",
+      messageID: "msg_1",
+    })
+    await postSessionUnrevertViaApi({
+      fetchImpl,
+      baseUrl: "http://127.0.0.1:1080/api/v2",
+      headers: new Headers(),
+      sessionID: "ses_db",
+    })
+
+    expect(calls[0]?.url).toBe("http://127.0.0.1:1080/api/v2/session/ses_db/revert")
+    expect(calls[0]?.init?.body).toBe(JSON.stringify({ messageID: "msg_1" }))
+    expect(calls[1]?.url).toBe("http://127.0.0.1:1080/api/v2/session/ses_db/unrevert")
+    expect(calls[1]?.init?.method).toBe("POST")
+  })
 })
-import {
-  patchSessionExecutionViaApi,
-  patchSessionViaApi,
-  switchAccountViaApi,
-  switchModelViaApi,
-  type FetchLike,
-} from "./system-manager-http"
-import {
-  patchSessionExecutionViaApi,
-  patchSessionViaApi,
-  switchAccountViaApi,
-  switchModelViaApi,
-  type FetchLike,
-} from "./system-manager-http"

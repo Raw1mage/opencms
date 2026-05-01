@@ -5,7 +5,12 @@ export type FetchLike = (
   ok: boolean
   status: number
   json(): Promise<any>
+  text?(): Promise<string>
 }>
+
+async function readErrorText(response: Awaited<ReturnType<FetchLike>>) {
+  return response.text ? await response.text().catch(() => "") : ""
+}
 
 export async function switchAccountViaApi(input: {
   fetchImpl: FetchLike
@@ -93,4 +98,110 @@ export async function patchSessionExecutionViaApi(input: {
     },
     errorPrefix: `Failed to update session execution for ${input.sessionID}`,
   })
+}
+
+export async function readSessionMessagesViaApi(input: {
+  fetchImpl: FetchLike
+  baseUrl: string
+  headers: Headers
+  sessionID: string
+  limit?: number
+  before?: string
+}) {
+  input.headers.set("Accept", "application/json")
+  const params = new URLSearchParams()
+  if (input.limit !== undefined) params.set("limit", String(input.limit))
+  if (input.before) params.set("before", input.before)
+  const query = params.toString()
+  const response = await input.fetchImpl(
+    `${input.baseUrl}/session/${encodeURIComponent(input.sessionID)}/message${query ? `?${query}` : ""}`,
+    { headers: input.headers },
+  )
+  if (response.status === 404) throw new Error(`session_not_found:${input.sessionID}`)
+  if (!response.ok) {
+    const text = await readErrorText(response)
+    throw new Error(`session_messages_http_${response.status}:${text.slice(0, 400)}`)
+  }
+  const messages = (await response.json()) as Array<{ info: any; parts: any[] }>
+  messages.sort((a, b) => (a.info?.time?.created ?? 0) - (b.info?.time?.created ?? 0))
+  return messages
+}
+
+export async function readSessionInfoViaApi(input: {
+  fetchImpl: FetchLike
+  baseUrl: string
+  headers: Headers
+  sessionID: string
+}) {
+  input.headers.set("Accept", "application/json")
+  const response = await input.fetchImpl(`${input.baseUrl}/session/${encodeURIComponent(input.sessionID)}`, {
+    headers: input.headers,
+  })
+  if (response.status === 404) throw new Error(`session_not_found:${input.sessionID}`)
+  if (!response.ok) {
+    const text = await readErrorText(response)
+    throw new Error(`session_info_http_${response.status}:${text.slice(0, 400)}`)
+  }
+  return response.json() as Promise<any>
+}
+
+export async function readSessionListViaApi(input: {
+  fetchImpl: FetchLike
+  baseUrl: string
+  headers: Headers
+  search?: string
+  limit?: number
+  roots?: boolean
+}) {
+  input.headers.set("Accept", "application/json")
+  const params = new URLSearchParams()
+  if (input.search) params.set("search", input.search)
+  if (input.limit !== undefined) params.set("limit", String(input.limit))
+  if (input.roots !== undefined) params.set("roots", String(input.roots))
+  const query = params.toString()
+  const response = await input.fetchImpl(`${input.baseUrl}/session${query ? `?${query}` : ""}`, {
+    headers: input.headers,
+  })
+  if (!response.ok) {
+    const text = await readErrorText(response)
+    throw new Error(`session_list_http_${response.status}:${text.slice(0, 400)}`)
+  }
+  const sessions = (await response.json()) as any[]
+  if (!Array.isArray(sessions)) throw new Error("session_list_invalid_payload")
+  return sessions
+}
+
+export async function postSessionRevertViaApi(input: {
+  fetchImpl: FetchLike
+  baseUrl: string
+  headers: Headers
+  sessionID: string
+  messageID: string
+}) {
+  input.headers.set("content-type", "application/json")
+  const response = await input.fetchImpl(`${input.baseUrl}/session/${encodeURIComponent(input.sessionID)}/revert`, {
+    method: "POST",
+    headers: input.headers,
+    body: JSON.stringify({ messageID: input.messageID }),
+  })
+  if (!response.ok) {
+    const text = await readErrorText(response)
+    throw new Error(`session_revert_http_${response.status}:${text.slice(0, 400)}`)
+  }
+}
+
+export async function postSessionUnrevertViaApi(input: {
+  fetchImpl: FetchLike
+  baseUrl: string
+  headers: Headers
+  sessionID: string
+}) {
+  const response = await input.fetchImpl(`${input.baseUrl}/session/${encodeURIComponent(input.sessionID)}/unrevert`, {
+    method: "POST",
+    headers: input.headers,
+  })
+  if (!response.ok) {
+    const text = await readErrorText(response)
+    throw new Error(`session_unrevert_http_${response.status}:${text.slice(0, 400)}`)
+  }
 }

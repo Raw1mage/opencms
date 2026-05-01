@@ -8,8 +8,15 @@ import os from "os"
 import path from "path"
 import { fileURLToPath, pathToFileURL } from "url"
 import { createHash } from "crypto"
-import { validateForkResult, validateForkSource } from "./system-manager-session"
-import { patchSessionExecutionViaApi, patchSessionViaApi } from "./system-manager-http"
+import {
+  patchSessionExecutionViaApi,
+  patchSessionViaApi,
+  postSessionRevertViaApi,
+  postSessionUnrevertViaApi,
+  readSessionInfoViaApi,
+  readSessionListViaApi,
+  readSessionMessagesViaApi,
+} from "./system-manager-http"
 
 const execAsync = promisify(exec)
 const execFileAsync = promisify(execFile)
@@ -17,8 +24,6 @@ const execFileAsync = promisify(execFile)
 const HOME = process.env.HOME ?? os.homedir()
 const XDG_CONFIG_HOME = process.env.XDG_CONFIG_HOME ?? path.join(HOME, ".config")
 const XDG_STATE_HOME = process.env.XDG_STATE_HOME ?? path.join(HOME, ".local", "state")
-const XDG_DATA_HOME = process.env.XDG_DATA_HOME ?? path.join(HOME, ".local", "share")
-const OPENCODE_DATA_HOME = process.env.OPENCODE_DATA_HOME ?? path.join(XDG_DATA_HOME, "opencode")
 
 const ACCOUNTS_PATH = path.join(XDG_CONFIG_HOME, "opencode", "accounts.json")
 const CONFIG_PATH = path.join(XDG_CONFIG_HOME, "opencode", "opencode.json")
@@ -26,7 +31,6 @@ const MODEL_STATE_PATH = path.join(XDG_STATE_HOME, "opencode", "model.json")
 const KV_PATH = path.join(XDG_STATE_HOME, "opencode", "kv.json")
 const ROTATION_STATE_PATH = path.join(XDG_STATE_HOME, "opencode", "rotation-state.json")
 const USAGE_STATS_PATH = path.join(XDG_CONFIG_HOME, "opencode", "usage-stats.json")
-const STORAGE_BASE = path.join(OPENCODE_DATA_HOME, "storage")
 const OPENCODE_SERVER_CFG = process.env.OPENCODE_SERVER_CFG ?? "/etc/opencode/opencode.cfg"
 const CODEX_ISSUER = "https://auth.openai.com"
 const CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
@@ -107,15 +111,7 @@ async function docxPreviewPdf(targetPath: string) {
 
   await execFileAsync(
     soffice,
-    [
-      "--headless",
-      `-env:UserInstallation=${profileUri}`,
-      "--convert-to",
-      "pdf",
-      "--outdir",
-      outDir,
-      targetPath,
-    ],
+    ["--headless", `-env:UserInstallation=${profileUri}`, "--convert-to", "pdf", "--outdir", outDir, targetPath],
     { timeout: 120000, maxBuffer: 1024 * 1024 * 8 },
   )
 
@@ -128,9 +124,7 @@ async function docxPreviewPdf(targetPath: string) {
 // Resolve the daemon unix socket path (same logic as server/daemon.ts)
 function getDaemonSocketPath(): string {
   const xdg = process.env.XDG_RUNTIME_DIR
-  const runtimeDir = xdg
-    ? path.join(xdg, "opencode")
-    : path.join(HOME, ".local", "state", "opencode", "run")
+  const runtimeDir = xdg ? path.join(xdg, "opencode") : path.join(HOME, ".local", "state", "opencode", "run")
   return path.join(runtimeDir, "daemon.sock")
 }
 
@@ -142,7 +136,7 @@ async function getServerApiBaseUrl() {
   // Check if daemon socket exists — prefer IPC over TCP
   const sock = getDaemonSocketPath()
   if (existsSync(sock)) {
-    return `http://localhost/api/v2`  // URL is nominal; actual transport is unix socket
+    return `http://localhost/api/v2` // URL is nominal; actual transport is unix socket
   }
 
   const raw = await fs.readFile(OPENCODE_SERVER_CFG, "utf-8").catch(() => "")
@@ -204,37 +198,62 @@ async function getServerRequestHeaders(method: string) {
   return headers
 }
 
-async function readNestedSessionMessages(sessionID: string) {
-  const messagesDir = path.join(STORAGE_BASE, "session", sessionID, "messages")
-  if (!(await pathExists(messagesDir))) {
-    throw new Error(`Canonical transcript storage missing for session ${sessionID}: ${messagesDir}`)
+async function readSessionMessagesFromDaemon(sessionID: string, input?: { limit?: number; before?: string }) {
+  const baseUrl = await getServerApiBaseUrl()
+  const headers = await getServerRequestHeaders("GET")
+  return readSessionMessagesViaApi({
+    fetchImpl: serverFetch as any,
+    baseUrl,
+    headers,
+    sessionID,
+    limit: input?.limit,
+    before: input?.before,
+  })
+}
+
+async function readSessionInfoFromDaemon(sessionID: string) {
+  const baseUrl = await getServerApiBaseUrl()
+  const headers = await getServerRequestHeaders("GET")
+  return readSessionInfoViaApi({ fetchImpl: serverFetch as any, baseUrl, headers, sessionID })
+}
+
+async function readSessionListFromDaemon(input?: { search?: string; limit?: number; roots?: boolean }) {
+  const baseUrl = await getServerApiBaseUrl()
+  const headers = await getServerRequestHeaders("GET")
+  return readSessionListViaApi({
+    fetchImpl: serverFetch as any,
+    baseUrl,
+    headers,
+    search: input?.search,
+    limit: input?.limit,
+    roots: input?.roots,
+  })
+}
+
+async function postSessionRevertToDaemon(sessionID: string, messageID: string) {
+  const baseUrl = await getServerApiBaseUrl()
+  const headers = await getServerRequestHeaders("POST")
+  await postSessionRevertViaApi({ fetchImpl: serverFetch as any, baseUrl, headers, sessionID, messageID })
+}
+
+async function postSessionUnrevertToDaemon(sessionID: string) {
+  const baseUrl = await getServerApiBaseUrl()
+  const headers = await getServerRequestHeaders("POST")
+  await postSessionUnrevertViaApi({ fetchImpl: serverFetch as any, baseUrl, headers, sessionID })
+}
+
+async function readAllSessionMessagesFromDaemon(sessionID: string) {
+  const limit = 200
+  let page = await readSessionMessagesFromDaemon(sessionID, { limit })
+  const all = [...page]
+  while (page.length === limit) {
+    const oldest = page[0]?.info?.id
+    if (!oldest) break
+    page = await readSessionMessagesFromDaemon(sessionID, { limit, before: oldest })
+    if (page.length === 0) break
+    all.unshift(...page)
   }
-
-  const entries = await fs.readdir(messagesDir, { withFileTypes: true })
-  const messages: Array<{ info: any; parts: any[] }> = []
-
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue
-    const messageDir = path.join(messagesDir, entry.name)
-    const infoPath = path.join(messageDir, "info.json")
-    const partsDir = path.join(messageDir, "parts")
-    if (!(await pathExists(infoPath))) {
-      throw new Error(`Canonical transcript message missing info.json: ${infoPath}`)
-    }
-    if (!(await pathExists(partsDir))) {
-      throw new Error(`Canonical transcript message missing parts directory: ${partsDir}`)
-    }
-
-    const info = JSON.parse(await fs.readFile(infoPath, "utf-8"))
-    const partFiles = (await fs.readdir(partsDir)).filter((name) => name.endsWith(".json")).sort()
-    const parts = await Promise.all(
-      partFiles.map(async (name) => JSON.parse(await fs.readFile(path.join(partsDir, name), "utf-8"))),
-    )
-    messages.push({ info, parts })
-  }
-
-  messages.sort((a, b) => (a.info.time?.created ?? 0) - (b.info.time?.created ?? 0))
-  return messages
+  return all
 }
 
 function getQuotaDayStart(): number {
@@ -539,7 +558,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "open_fileview",
-        description: "Open a file in the web UI file viewer tab. Use this to display rich content (HTML, markdown, SVG, PDF) to the user without reading it yourself. DOCX files are converted to a cached PDF preview first so original page layout is preserved while text remains selectable. The file will open in a new tab in the file viewer panel.",
+        description:
+          "Open a file in the web UI file viewer tab. Use this to display rich content (HTML, markdown, SVG, PDF) to the user without reading it yourself. DOCX files are converted to a cached PDF preview first so original page layout is preserved while text remains selectable. The file will open in a new tab in the file viewer panel.",
         inputSchema: {
           type: "object",
           properties: {
@@ -649,7 +669,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           type: "object",
           properties: {
             action: { type: "string", enum: ["set", "get"], description: "set: change level, get: read current level" },
-            level: { type: "string", enum: ["0", "1", "2", "3"], description: "Log level: 0=off, 1=quiet, 2=normal, 3=verbose (required for 'set' action)" },
+            level: {
+              type: "string",
+              enum: ["0", "1", "2", "3"],
+              description: "Log level: 0=off, 1=quiet, 2=normal, 3=verbose (required for 'set' action)",
+            },
           },
           required: ["action"],
         },
@@ -681,7 +705,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: {
           type: "object",
           properties: {
-            sessionID: { type: "string", description: "Child session ID (from a PendingSubagentNotice or list_subagents result)." },
+            sessionID: {
+              type: "string",
+              description: "Child session ID (from a PendingSubagentNotice or list_subagents result).",
+            },
             sinceMessageID: {
               type: "string",
               description: "Optional cursor — return only messages with ID > this value. Use for incremental polling.",
@@ -706,7 +733,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             source: {
               type: "string",
-              description: "GitHub URL (https://github.com/owner/repo) or absolute local path to an MCP server directory",
+              description:
+                "GitHub URL (https://github.com/owner/repo) or absolute local path to an MCP server directory",
             },
             id: {
               type: "string",
@@ -770,7 +798,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             reason: {
               type: "string",
-              description: "Short human-readable reason (stored in gateway log and restart event log). Example: 'applied auth middleware rewrite'.",
+              description:
+                "Short human-readable reason (stored in gateway log and restart event log). Example: 'applied auth middleware rewrite'.",
               maxLength: 500,
             },
           },
@@ -879,7 +908,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     if (name === "switch_session") {
       const { sessionID } = args as { sessionID: string }
-      const session = JSON.parse(await fs.readFile(path.join(STORAGE_BASE, "session", sessionID, "info.json"), "utf-8"))
+      const session = await readSessionInfoFromDaemon(sessionID)
       const dir = session.directory ?? ""
       const dirBase64 = Buffer.from(dir).toString("base64")
       const baseUrl = await getServerApiBaseUrl()
@@ -908,7 +937,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         accountId: string
         modelID?: string
       }
-      const session = JSON.parse(await fs.readFile(path.join(STORAGE_BASE, "session", sessionID, "info.json"), "utf-8"))
+      const session = await readSessionInfoFromDaemon(sessionID)
       const currentExecution = session.execution ?? {}
       const nextModelID = modelID ?? currentExecution.modelID
       if (!nextModelID) throw new Error("modelID is required when session has no existing execution model")
@@ -935,7 +964,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         modelID: string
         accountId?: string
       }
-      const session = JSON.parse(await fs.readFile(path.join(STORAGE_BASE, "session", sessionID, "info.json"), "utf-8"))
+      const session = await readSessionInfoFromDaemon(sessionID)
       const currentExecution = session.execution ?? {}
       const nextProviderId = providerId ?? currentExecution.providerId
       if (!nextProviderId) throw new Error("providerId is required when session has no existing execution provider")
@@ -1077,7 +1106,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if (name === "open_fileview") {
       const { path: targetPath, title } = args as { path: string; title?: string }
       const previewPath = (await docxPreviewPdf(targetPath)) ?? targetPath
-      const displayTitle = title ?? (previewPath === targetPath ? targetPath : `${path.basename(targetPath)} (PDF preview)`)
+      const displayTitle =
+        title ?? (previewPath === targetPath ? targetPath : `${path.basename(targetPath)} (PDF preview)`)
       // Write to KV store — frontend watches for fileview_open changes
       let kv: any = {}
       try {
@@ -1091,7 +1121,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if (name === "display_inline_image") {
       const { path: targetPath, mediaType, title } = args as { path: string; mediaType?: string; title?: string }
       if (!path.isAbsolute(targetPath)) {
-        return { content: [{ type: "text", text: "display_inline_image requires an absolute image path" }], isError: true }
+        return {
+          content: [{ type: "text", text: "display_inline_image requires an absolute image path" }],
+          isError: true,
+        }
       }
 
       const mimeType = inferInlineImageMimeType(targetPath, mediaType)
@@ -1169,34 +1202,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       if (operation === "search") {
         if (!query) throw new Error("query is required for search operation")
-        const sessionDir = path.join(STORAGE_BASE, "session")
-        const entries = await fs.readdir(sessionDir).catch(() => [] as string[])
-        const keywords = query.toLowerCase().split(/\s+/).filter(Boolean)
         const maxResults = searchLimit ?? 10
-
-        const matches: Array<{ id: string; title: string; directory: string; updated: number; url: string }> = []
-        for (const entry of entries) {
-          if (!entry.startsWith("ses_")) continue
-          try {
-            const info = JSON.parse(await fs.readFile(path.join(sessionDir, entry, "info.json"), "utf-8"))
-            const sessionTitle = (info.title ?? "").toLowerCase()
-            if (!keywords.every((kw: string) => sessionTitle.includes(kw))) continue
-            const dir = info.directory ?? ""
-            const dirBase64 = Buffer.from(dir).toString("base64")
-            matches.push({
-              id: info.id,
-              title: info.title ?? "(untitled)",
-              directory: dir,
-              updated: info.time?.updated ?? info.time?.created ?? 0,
-              url: `/${dirBase64}/session/${info.id}`,
-            })
-          } catch {
-            continue
+        const sessions = await readSessionListFromDaemon({ search: query, limit: maxResults })
+        const results = sessions.map((info) => {
+          const dir = info.directory ?? ""
+          const dirBase64 = Buffer.from(dir).toString("base64")
+          return {
+            id: info.id,
+            title: info.title ?? "(untitled)",
+            directory: dir,
+            updated: info.time?.updated ?? info.time?.created ?? 0,
+            url: `/${dirBase64}/session/${info.id}`,
           }
-        }
-
-        matches.sort((a, b) => b.updated - a.updated)
-        const results = matches.slice(0, maxResults)
+        })
 
         if (results.length === 0) {
           return { content: [{ type: "text", text: `No sessions found matching "${query}".` }] }
@@ -1208,7 +1226,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         })
         return {
           content: [
-            { type: "text", text: `Found ${matches.length} session(s) matching "${query}":\n\n${lines.join("\n\n")}` },
+            { type: "text", text: `Found ${results.length} session(s) matching "${query}":\n\n${lines.join("\n\n")}` },
           ],
         }
       }
@@ -1228,9 +1246,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         let sourceInfo: any | undefined
         if (sessionID) {
           try {
-            sourceInfo = JSON.parse(
-              await fs.readFile(path.join(STORAGE_BASE, "session", sessionID, "info.json"), "utf-8"),
-            )
+            sourceInfo = await readSessionInfoFromDaemon(sessionID)
           } catch (err) {
             throw new Error(
               `Handover source session ${sessionID} not found: ${err instanceof Error ? err.message : String(err)}`,
@@ -1281,9 +1297,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const wantsAutoPrompt = Boolean(sessionID) && handoverAutoPrompt !== false
         if (wantsAutoPrompt) {
           const exec = sourceInfo?.execution
-          const model = exec?.providerId && exec?.modelID
-            ? { providerId: exec.providerId, modelID: exec.modelID, accountId: exec.accountId }
-            : undefined
+          const model =
+            exec?.providerId && exec?.modelID
+              ? { providerId: exec.providerId, modelID: exec.modelID, accountId: exec.accountId }
+              : undefined
           if (!model) {
             autoPromptResult = "failed:no-model"
           } else {
@@ -1294,17 +1311,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             const promptHeaders = await getServerRequestHeaders("POST")
             promptHeaders.set("content-type", "application/json")
             if (targetDirectory) promptHeaders.set("x-opencode-directory", targetDirectory)
-            const rawPrompt = await serverFetch(
-              `${baseUrl}/session/${encodeURIComponent(createdID)}/prompt_async`,
-              {
-                method: "POST",
-                headers: promptHeaders,
-                body: JSON.stringify({
-                  model,
-                  parts: [{ type: "text", text: seedText }],
-                }),
-              },
-            ).catch(() => undefined)
+            const rawPrompt = await serverFetch(`${baseUrl}/session/${encodeURIComponent(createdID)}/prompt_async`, {
+              method: "POST",
+              headers: promptHeaders,
+              body: JSON.stringify({
+                model,
+                parts: [{ type: "text", text: seedText }],
+              }),
+            }).catch(() => undefined)
             autoPromptResult = rawPrompt?.ok ? "fired" : "failed:http"
           }
         } else if (sessionID) {
@@ -1345,36 +1359,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       if (!sessionID) throw new Error("sessionID is required for this operation")
-      const sessionInfoPath = `${STORAGE_BASE}/session/${sessionID}/info.json`
 
       if (operation === "undo") {
-        const messageDir = `${STORAGE_BASE}/message/${sessionID}`
-        const files = (await fs.readdir(messageDir)).sort()
-        let lastUserMsgID = null
+        const messages = await readSessionMessagesFromDaemon(sessionID, { limit: 200 })
+        let lastUserMsgID: string | null = null
         let lastUserContent = ""
-        for (let i = files.length - 1; i >= 0; i--) {
-          const msg = JSON.parse(await fs.readFile(`${messageDir}/${files[i]}`, "utf-8"))
-          if (msg.role === "user") {
-            lastUserMsgID = msg.id
-            // Try to get text content from parts
-            try {
-              const partDir = `${STORAGE_BASE}/part/${msg.id}`
-              const pFiles = await fs.readdir(partDir)
-              const parts = await Promise.all(
-                pFiles.sort().map(async (f: string) => JSON.parse(await fs.readFile(`${partDir}/${f}`, "utf-8"))),
-              )
-              lastUserContent = parts
-                .filter((p: any) => p.type === "text")
-                .map((p: any) => p.text)
-                .join("\n")
-            } catch (e) {}
+        for (let i = messages.length - 1; i >= 0; i--) {
+          const msg = messages[i]
+          if (msg.info?.role === "user") {
+            lastUserMsgID = msg.info.id
+            lastUserContent = msg.parts
+              .filter((p: any) => p.type === "text")
+              .map((p: any) => p.text)
+              .join("\n")
             break
           }
         }
         if (lastUserMsgID) {
-          const session = JSON.parse(await fs.readFile(sessionInfoPath, "utf-8"))
-          session.revert = { messageID: lastUserMsgID, diff: "" }
-          await fs.writeFile(sessionInfoPath, JSON.stringify(session, null, 2))
+          await postSessionRevertToDaemon(sessionID, lastUserMsgID)
           return {
             content: [
               {
@@ -1388,9 +1390,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       if (operation === "redo") {
-        const session = JSON.parse(await fs.readFile(sessionInfoPath, "utf-8"))
-        session.revert = null
-        await fs.writeFile(sessionInfoPath, JSON.stringify(session, null, 2))
+        await postSessionUnrevertToDaemon(sessionID)
         return { content: [{ type: "text", text: `Redid message in ${sessionID}` }] }
       }
 
@@ -1406,50 +1406,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       if (operation === "fork") {
-        const newID = "ses_" + Math.random().toString(36).substring(2, 15)
-        const newDir = path.join(STORAGE_BASE, "session", newID)
-        await fs.mkdir(newDir, { recursive: true })
-
-        const session = JSON.parse(await fs.readFile(sessionInfoPath, "utf-8"))
-        session.id = newID
-        session.parentID = undefined
-        session.title = `Fork of ${session.title || sessionID}`
-        session.time = {
-          created: Date.now(),
-          updated: Date.now(),
+        const baseUrl = await getServerApiBaseUrl()
+        const headers = await getServerRequestHeaders("POST")
+        headers.set("Content-Type", "application/json")
+        const response = await serverFetch(`${baseUrl}/session/${encodeURIComponent(sessionID)}/fork`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ messageID }),
+        })
+        if (!response.ok) {
+          const text = await response.text().catch(() => "")
+          throw new Error(`Failed to fork session ${sessionID}: HTTP ${response.status} ${text.slice(0, 400)}`)
         }
-
-        const sourceMessagesDir = path.join(STORAGE_BASE, "session", sessionID, "messages")
-        const legacyMessagesDir = path.join(STORAGE_BASE, "message", sessionID)
-        const targetMessagesDir = path.join(newDir, "messages")
-
-        const sourceValidation = await validateForkSource(STORAGE_BASE, sessionID)
-        if (sourceValidation.fatal.length > 0) {
-          await fs.rm(newDir, { recursive: true, force: true }).catch(() => {})
-          throw new Error(sourceValidation.fatal.join("; "))
-        }
-
-        const hasSourceMessages = await pathExists(sourceMessagesDir)
-
-        await fs.writeFile(path.join(newDir, "info.json"), JSON.stringify(session, null, 2))
-        const sessionIndexDir = path.join(STORAGE_BASE, "index", "session")
-        await fs.mkdir(sessionIndexDir, { recursive: true }).catch(() => {})
-        await fs.writeFile(
-          path.join(sessionIndexDir, `${newID}.json`),
-          JSON.stringify({ projectID: session.projectID, parentID: session.parentID }, null, 2),
-        )
-        if (hasSourceMessages) {
-          await fs.cp(sourceMessagesDir, targetMessagesDir, { recursive: true })
-        } else {
-          await fs.mkdir(path.join(STORAGE_BASE, "message"), { recursive: true }).catch(() => {})
-          await fs.cp(legacyMessagesDir, path.join(STORAGE_BASE, "message", newID), { recursive: true })
-        }
-
-        const forkValidation = await validateForkResult(STORAGE_BASE, newID)
-        if (forkValidation.fatal.length > 0) {
-          await fs.rm(newDir, { recursive: true, force: true }).catch(() => {})
-          throw new Error(`Forked session validation failed: ${forkValidation.fatal.join("; ")}`)
-        }
+        const forked = (await response.json()) as { id: string }
 
         let kv: any = {}
         try {
@@ -1458,10 +1427,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         kv.ui_trigger = "session.list.refresh"
         await fs.writeFile(KV_PATH, JSON.stringify(kv, null, 2))
 
-        const warnings = [...sourceValidation.warnings, ...forkValidation.warnings]
-        const warningText = warnings.length > 0 ? `\nWarnings: ${warnings.join(" | ")}` : ""
         return {
-          content: [{ type: "text", text: `Forked session ${sessionID} to new session ${newID}${warningText}` }],
+          content: [{ type: "text", text: `Forked session ${sessionID} to new session ${forked.id}` }],
         }
       }
     }
@@ -1503,20 +1470,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         parentSessionID?: string
         includeFinished?: boolean
       }
-      const sessionsDir = path.join(STORAGE_BASE, "session")
       const result: any[] = []
       try {
-        const entries = await fs.readdir(sessionsDir).catch(() => [] as string[])
-        for (const sid of entries) {
-          if (!sid.startsWith("ses_")) continue
-          const infoPath = path.join(sessionsDir, sid, "info.json")
-          if (!(await pathExists(infoPath))) continue
-          let info: any
-          try {
-            info = JSON.parse(await fs.readFile(infoPath, "utf-8"))
-          } catch {
-            continue
-          }
+        const sessions = await readSessionListFromDaemon({ limit: 1000 })
+        for (const info of sessions) {
+          const sid = info.id
           // Subagent = session with parentID
           if (!info.parentID) continue
           if (parentSessionID && info.parentID !== parentSessionID) continue
@@ -1527,7 +1485,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           let lastActivityAt: string | undefined
           let elapsedMs = 0
           try {
-            const messages = await readNestedSessionMessages(sid)
+            const messages = await readSessionMessagesFromDaemon(sid, { limit: 200 })
             const lastAssistant = [...messages].reverse().find((m) => m.info.role === "assistant")
             if (lastAssistant?.info.finish) {
               status = "finished"
@@ -1567,7 +1525,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     if (name === "read_subsession") {
-      const { sessionID, sinceMessageID, limit = 50 } = (args ?? {}) as {
+      const {
+        sessionID,
+        sinceMessageID,
+        limit = 50,
+      } = (args ?? {}) as {
         sessionID: string
         sinceMessageID?: string
         limit?: number
@@ -1577,18 +1539,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [{ type: "text", text: JSON.stringify({ error: "session_not_found", sessionID }) }],
         }
       }
-      const infoPath = path.join(STORAGE_BASE, "session", sessionID, "info.json")
-      if (!(await pathExists(infoPath))) {
-        return {
-          content: [{ type: "text", text: JSON.stringify({ error: "session_not_found", sessionID }) }],
-        }
-      }
       try {
-        const messages = await readNestedSessionMessages(sessionID)
-        // Sort chronologically by created time
-        messages.sort(
-          (a, b) => (a.info?.time?.created ?? 0) - (b.info?.time?.created ?? 0),
-        )
+        await readSessionInfoFromDaemon(sessionID)
+        const messages = await readSessionMessagesFromDaemon(sessionID, { limit: 200 })
         let filtered = messages
         if (sinceMessageID) {
           const idx = messages.findIndex((m) => m.info?.id === sinceMessageID)
@@ -1663,10 +1616,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     if (name === "export_transcript") {
       const { sessionID, savePath } = args as { sessionID: string; savePath?: string }
-      const sessionInfoPath = `${STORAGE_BASE}/session/${sessionID}/info.json`
 
-      const session = JSON.parse(await fs.readFile(sessionInfoPath, "utf-8"))
-      const messages = await readNestedSessionMessages(sessionID)
+      const session = await readSessionInfoFromDaemon(sessionID)
+      const messages = await readAllSessionMessagesFromDaemon(sessionID)
 
       let md = `# Session: ${session.title || sessionID}\n\n`
       for (const m of messages) {
@@ -1703,10 +1655,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           if (res.ok) {
             const data = (await res.json()) as { level: number; name: string }
             return {
-              content: [{
-                type: "text",
-                text: `Current log level: ${data.level} (${data.name})\n\nAvailable levels:\n  0 = off (all subscribers silent)\n  1 = quiet (debug.log writes, no toast)\n  2 = normal (debug.log + toast + card)\n  3 = verbose (reserved for future expansion)`,
-              }],
+              content: [
+                {
+                  type: "text",
+                  text: `Current log level: ${data.level} (${data.name})\n\nAvailable levels:\n  0 = off (all subscribers silent)\n  1 = quiet (debug.log writes, no toast)\n  2 = normal (debug.log + toast + card)\n  3 = verbose (reserved for future expansion)`,
+                },
+              ],
             }
           }
           return { content: [{ type: "text", text: `Error: server returned ${res.status}` }], isError: true }
@@ -1730,10 +1684,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (res.ok) {
           const data = (await res.json()) as { level: number; name: string }
           return {
-            content: [{
-              type: "text",
-              text: `Log level set to ${data.level} (${data.name}). Effective immediately.\n\nLevels:\n  0 = off\n  1 = quiet\n  2 = normal\n  3 = verbose`,
-            }],
+            content: [
+              {
+                type: "text",
+                text: `Log level set to ${data.level} (${data.name}). Effective immediately.\n\nLevels:\n  0 = off\n  1 = quiet\n  2 = normal\n  3 = verbose`,
+              },
+            ],
           }
         }
         return { content: [{ type: "text", text: `Error: server returned ${res.status}` }], isError: true }
@@ -1748,26 +1704,37 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { source, id: providedId } = args as { source: string; id?: string }
 
       const isGithub = source.startsWith("https://github.com/") || source.startsWith("git@")
-      const inferredId = providedId ?? (isGithub ? source.split("/").pop()?.replace(/\.git$/, "") : source.split("/").pop()) ?? "unknown"
+      const inferredId =
+        providedId ??
+        (isGithub
+          ? source
+              .split("/")
+              .pop()
+              ?.replace(/\.git$/, "")
+          : source.split("/").pop()) ??
+        "unknown"
 
       try {
         const baseUrl = await getServerApiBaseUrl()
         const res = await serverFetch(`${baseUrl}/mcp/store/apps`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(
-            isGithub
-              ? { githubUrl: source, id: inferredId }
-              : { path: source, id: inferredId }
-          ),
+          body: JSON.stringify(isGithub ? { githubUrl: source, id: inferredId } : { path: source, id: inferredId }),
         })
 
         if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` })) as { error?: string }
-          return { content: [{ type: "text", text: `Installation failed: ${err.error ?? res.statusText}` }], isError: true }
+          const err = (await res.json().catch(() => ({ error: `HTTP ${res.status}` }))) as { error?: string }
+          return {
+            content: [{ type: "text", text: `Installation failed: ${err.error ?? res.statusText}` }],
+            isError: true,
+          }
         }
 
-        const result = await res.json() as { id: string; manifest: { name: string; description?: string; command: string[] }; status: string }
+        const result = (await res.json()) as {
+          id: string
+          manifest: { name: string; description?: string; command: string[] }
+          status: string
+        }
         const lines = [
           `MCP App installed successfully:`,
           `  ID: ${result.id}`,
@@ -1789,7 +1756,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (!res.ok) {
           return { content: [{ type: "text", text: `Failed to list apps: HTTP ${res.status}` }], isError: true }
         }
-        const apps = await res.json() as Array<{
+        const apps = (await res.json()) as Array<{
           id: string
           entry: { path: string; enabled: boolean; source: { type: string } }
           manifest: { name: string; description?: string; icon?: string } | null
@@ -1820,7 +1787,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           method: "DELETE",
         })
         if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` })) as { error?: string }
+          const err = (await res.json().catch(() => ({ error: `HTTP ${res.status}` }))) as { error?: string }
           return { content: [{ type: "text", text: `Remove failed: ${err.error ?? res.statusText}` }], isError: true }
         }
         return { content: [{ type: "text", text: `MCP App '${id}' removed successfully.` }] }
