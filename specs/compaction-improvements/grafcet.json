@@ -1,0 +1,34 @@
+[
+  { "id": "S0", "name": "idle", "transitions": [{ "to": "S1", "condition": "before model call" }] },
+  {
+    "id": "S1",
+    "name": "evaluating_predicates",
+    "transitions": [
+      { "to": "S2", "condition": "trigger fires and cooldown permits" },
+      { "to": "S3", "condition": "no compaction trigger" }
+    ]
+  },
+  {
+    "id": "S2",
+    "name": "compacting",
+    "transitions": [{ "to": "S3", "condition": "anchor written or bounded fallback chosen" }]
+  },
+  {
+    "id": "S3",
+    "name": "surfacing_budget",
+    "transitions": [
+      { "to": "S4", "condition": "user/subagent boundary content present" },
+      { "to": "S5", "condition": "no routing needed" }
+    ]
+  },
+  {
+    "id": "S4",
+    "name": "routing_boundary_content",
+    "transitions": [
+      { "to": "S5", "condition": "content accepted" },
+      { "to": "SE", "condition": "storage/reject failure" }
+    ]
+  },
+  { "id": "S5", "name": "ready_for_model_call", "transitions": [] },
+  { "id": "SE", "name": "explicit_error", "transitions": [] }
+]

@@ -9,6 +9,7 @@
 //   ["message", sessionID, messageID]   → one message info file
 //   ["part", messageID]                 → directory listing of parts
 //   ["part", messageID, partID]         → one part file
+//   ["attachment", sessionID, refID]     → session-scoped oversized blob envelope
 //
 // Cross-cutting concerns (Bus event publishing, debounce, runaway guard,
 // usage delta tracking, transport optimization) intentionally remain in
@@ -21,6 +22,24 @@
 import { Storage } from "@/storage/storage"
 import type { MessageV2 } from "../message-v2"
 import type { SessionStorage } from "./index"
+
+type LegacyAttachmentEnvelope = SessionStorage.AttachmentBlobMetadata & { contentBase64: string }
+
+function encodeAttachmentBlob(blob: SessionStorage.AttachmentBlob): LegacyAttachmentEnvelope {
+  const { content, ...metadata } = blob
+  return {
+    ...metadata,
+    contentBase64: Buffer.from(content).toString("base64"),
+  }
+}
+
+function decodeAttachmentBlob(envelope: LegacyAttachmentEnvelope): SessionStorage.AttachmentBlob {
+  const { contentBase64, ...metadata } = envelope
+  return {
+    ...metadata,
+    content: Uint8Array.from(Buffer.from(contentBase64, "base64")),
+  }
+}
 
 export const LegacyStore: SessionStorage.Backend = {
   async *stream(sessionID: string): AsyncIterable<MessageV2.WithParts> {
@@ -64,6 +83,31 @@ export const LegacyStore: SessionStorage.Backend = {
     await Storage.write(["part", part.messageID, part.id], part)
   },
 
+  async upsertAttachmentBlob(blob: SessionStorage.AttachmentBlob): Promise<void> {
+    await Storage.write(["attachment", blob.sessionID, blob.refID], encodeAttachmentBlob(blob))
+  },
+
+  async getAttachmentBlob(input: { sessionID: string; refID: string }): Promise<SessionStorage.AttachmentBlob> {
+    const envelope = await Storage.read<LegacyAttachmentEnvelope>(["attachment", input.sessionID, input.refID])
+    return decodeAttachmentBlob(envelope)
+  },
+
+  async listAttachmentBlobs(sessionID: string): Promise<SessionStorage.AttachmentBlobMetadata[]> {
+    const result: SessionStorage.AttachmentBlobMetadata[] = []
+    for (const item of await Storage.list(["attachment", sessionID])) {
+      const envelope = await Storage.read<LegacyAttachmentEnvelope>(item)
+      const { contentBase64: _contentBase64, ...metadata } = envelope
+      void _contentBase64
+      result.push(metadata)
+    }
+    result.sort((a, b) => (a.refID > b.refID ? 1 : -1))
+    return result
+  },
+
+  async removeAttachmentBlob(input: { sessionID: string; refID: string }): Promise<void> {
+    await Storage.remove(["attachment", input.sessionID, input.refID])
+  },
+
   async deleteSession(sessionID: string): Promise<void> {
     // Best-effort recursive remove. Caller (Session.delete) owns Bus
     // event publication and any associated cleanup.
@@ -73,6 +117,9 @@ export const LegacyStore: SessionStorage.Backend = {
         await Storage.remove(partItem).catch(() => {})
       }
       await Storage.remove(["message", sessionID, messageID]).catch(() => {})
+    }
+    for (const item of await Storage.list(["attachment", sessionID])) {
+      await Storage.remove(item).catch(() => {})
     }
   },
 }

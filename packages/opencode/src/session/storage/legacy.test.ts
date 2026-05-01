@@ -83,6 +83,21 @@ function makeTextPart(messageID: string, id: string, text: string): MessageV2.Pa
   } as MessageV2.Part
 }
 
+function makeAttachmentBlob(refID = "att_ref_001") {
+  return {
+    refID,
+    sessionID: SID,
+    messageID: MID_A,
+    partID: PID_1,
+    mime: "text/plain",
+    filename: "large.txt",
+    byteSize: 11,
+    estTokens: 3,
+    createdAt: 1_700_000_000_000,
+    content: new Uint8Array([104, 101, 108, 108, 111]),
+  }
+}
+
 beforeEach(() => {
   fakeStore.clear()
   fakeListing.clear()
@@ -224,5 +239,38 @@ describe("LegacyStore helper functions (used by Session)", () => {
     const part = makeTextPart(MID_A, PID_1, "hi")
     await writePartFile(part)
     expect(writeCalls).toEqual([{ key: ["part", MID_A, PID_1], content: part }])
+  })
+})
+
+
+describe("LegacyStore attachment blob contract", () => {
+  it("round-trips, lists, and removes session-scoped attachment blobs", async () => {
+    const blob = makeAttachmentBlob()
+    await LegacyStore.upsertAttachmentBlob(blob)
+    fakeListing.set(["attachment", SID].join("/"), [["attachment", SID, blob.refID]])
+
+    const got = await LegacyStore.getAttachmentBlob({ sessionID: SID, refID: blob.refID })
+    expect([...got.content]).toEqual([...blob.content])
+    expect(got.sessionID).toBe(SID)
+
+    const listed = await LegacyStore.listAttachmentBlobs(SID)
+    expect(listed).toEqual([expect.objectContaining({ refID: blob.refID, sessionID: SID, byteSize: 11 })])
+    expect("content" in listed[0]).toBe(false)
+
+    await LegacyStore.removeAttachmentBlob({ sessionID: SID, refID: blob.refID })
+    expect(removeCalls.at(-1)).toEqual(["attachment", SID, blob.refID])
+  })
+
+  it("deleteSession removes attachment blobs in the same session namespace", async () => {
+    const blob = makeAttachmentBlob()
+    await LegacyStore.upsertMessage(makeMessageInfo(MID_A))
+    await LegacyStore.upsertAttachmentBlob(blob)
+    fakeListing.set(["message", SID].join("/"), [["message", SID, MID_A]])
+    fakeListing.set(["part", MID_A].join("/"), [])
+    fakeListing.set(["attachment", SID].join("/"), [["attachment", SID, blob.refID]])
+
+    await LegacyStore.deleteSession(SID)
+
+    expect(removeCalls).toContainEqual(["attachment", SID, blob.refID])
   })
 })

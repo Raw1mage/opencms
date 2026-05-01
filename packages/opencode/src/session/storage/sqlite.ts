@@ -84,6 +84,19 @@ interface PartRow {
   payload_json: string
 }
 
+interface AttachmentRow {
+  ref_id: string
+  session_id: string
+  message_id: string | null
+  part_id: string | null
+  mime: string
+  filename: string | null
+  byte_size: number
+  est_tokens: number
+  created_at: number
+  content: Uint8Array
+}
+
 /**
  * Encode a MessageV2.Info to a row tuple. Promoted columns are extracted
  * by name; the residue (everything not promoted) round-trips via
@@ -246,6 +259,50 @@ function decodePart(row: PartRow): MessageV2.Part {
   return JSON.parse(row.payload_json) as MessageV2.Part
 }
 
+function encodeAttachmentBlob(blob: SessionStorage.AttachmentBlob): AttachmentRow {
+  return {
+    ref_id: blob.refID,
+    session_id: blob.sessionID,
+    message_id: blob.messageID ?? null,
+    part_id: blob.partID ?? null,
+    mime: blob.mime,
+    filename: blob.filename ?? null,
+    byte_size: blob.byteSize,
+    est_tokens: blob.estTokens,
+    created_at: blob.createdAt,
+    content: blob.content,
+  }
+}
+
+function decodeAttachmentBlob(row: AttachmentRow): SessionStorage.AttachmentBlob {
+  return {
+    refID: row.ref_id,
+    sessionID: row.session_id,
+    ...(row.message_id ? { messageID: row.message_id } : {}),
+    ...(row.part_id ? { partID: row.part_id } : {}),
+    mime: row.mime,
+    ...(row.filename ? { filename: row.filename } : {}),
+    byteSize: row.byte_size,
+    estTokens: row.est_tokens,
+    createdAt: row.created_at,
+    content: Uint8Array.from(row.content),
+  }
+}
+
+function decodeAttachmentMetadata(row: Omit<AttachmentRow, "content">): SessionStorage.AttachmentBlobMetadata {
+  return {
+    refID: row.ref_id,
+    sessionID: row.session_id,
+    ...(row.message_id ? { messageID: row.message_id } : {}),
+    ...(row.part_id ? { partID: row.part_id } : {}),
+    mime: row.mime,
+    ...(row.filename ? { filename: row.filename } : {}),
+    byteSize: row.byte_size,
+    estTokens: row.est_tokens,
+    createdAt: row.created_at,
+  }
+}
+
 // ── Backend implementation ──────────────────────────────────────────────
 
 const SQL_INSERT_MESSAGE = `
@@ -295,6 +352,7 @@ const SQL_LIST_PARTS = `SELECT * FROM parts WHERE message_id = $message_id ORDER
 const SQL_DELETE_MESSAGE = `DELETE FROM messages WHERE id = $id`
 const SQL_DELETE_ALL_PARTS = `DELETE FROM parts`
 const SQL_DELETE_ALL_MESSAGES = `DELETE FROM messages`
+const SQL_DELETE_ALL_ATTACHMENTS = `DELETE FROM attachments`
 const SQL_PART_EXISTING_SEQ = `SELECT sequence FROM parts WHERE id = $id`
 const SQL_PART_NEXT_SEQ = `SELECT COALESCE(MAX(sequence) + 1, 0) AS next FROM parts WHERE message_id = $message_id`
 const SQL_INSERT_PART = `
@@ -304,6 +362,30 @@ ON CONFLICT(id) DO UPDATE SET
   type = excluded.type,
   payload_json = excluded.payload_json
 `
+const SQL_INSERT_ATTACHMENT = `
+INSERT INTO attachments (
+  ref_id, session_id, message_id, part_id, mime, filename, byte_size, est_tokens, created_at, content
+) VALUES (
+  $ref_id, $session_id, $message_id, $part_id, $mime, $filename, $byte_size, $est_tokens, $created_at, $content
+)
+ON CONFLICT(session_id, ref_id) DO UPDATE SET
+  message_id = excluded.message_id,
+  part_id = excluded.part_id,
+  mime = excluded.mime,
+  filename = excluded.filename,
+  byte_size = excluded.byte_size,
+  est_tokens = excluded.est_tokens,
+  created_at = excluded.created_at,
+  content = excluded.content
+`
+const SQL_GET_ATTACHMENT = `SELECT * FROM attachments WHERE ref_id = $ref_id AND session_id = $session_id`
+const SQL_LIST_ATTACHMENTS = `
+SELECT ref_id, session_id, message_id, part_id, mime, filename, byte_size, est_tokens, created_at
+FROM attachments
+WHERE session_id = $session_id
+ORDER BY ref_id ASC
+`
+const SQL_DELETE_ATTACHMENT = `DELETE FROM attachments WHERE ref_id = $ref_id AND session_id = $session_id`
 
 export const SqliteStore: SessionStorage.Backend = {
   async *stream(sessionID: string): AsyncIterable<MessageV2.WithParts> {
@@ -407,8 +489,52 @@ export const SqliteStore: SessionStorage.Backend = {
     })()
   },
 
+  async upsertAttachmentBlob(blob: SessionStorage.AttachmentBlob): Promise<void> {
+    const db = await acquireRW(blob.sessionID)
+    const row = encodeAttachmentBlob(blob)
+    db.transaction(() => {
+      db.query(SQL_INSERT_ATTACHMENT).run({
+        $ref_id: row.ref_id,
+        $session_id: row.session_id,
+        $message_id: row.message_id,
+        $part_id: row.part_id,
+        $mime: row.mime,
+        $filename: row.filename,
+        $byte_size: row.byte_size,
+        $est_tokens: row.est_tokens,
+        $created_at: row.created_at,
+        $content: row.content,
+      })
+    })()
+  },
+
+  async getAttachmentBlob(input: { sessionID: string; refID: string }): Promise<SessionStorage.AttachmentBlob> {
+    const db = await acquireRW(input.sessionID)
+    const row = db
+      .query<AttachmentRow, { $ref_id: string; $session_id: string }>(SQL_GET_ATTACHMENT)
+      .get({ $ref_id: input.refID, $session_id: input.sessionID })
+    if (!row) {
+      throw new Error(`SqliteStore.getAttachmentBlob: ref not found ${input.refID} in ${input.sessionID}`)
+    }
+    return decodeAttachmentBlob(row)
+  },
+
+  async listAttachmentBlobs(sessionID: string): Promise<SessionStorage.AttachmentBlobMetadata[]> {
+    const db = await acquireRW(sessionID)
+    const rows = db
+      .query<Omit<AttachmentRow, "content">, { $session_id: string }>(SQL_LIST_ATTACHMENTS)
+      .all({ $session_id: sessionID })
+    return rows.map(decodeAttachmentMetadata)
+  },
+
+  async removeAttachmentBlob(input: { sessionID: string; refID: string }): Promise<void> {
+    const db = await acquireRW(input.sessionID)
+    db.transaction(() => {
+      db.query(SQL_DELETE_ATTACHMENT).run({ $ref_id: input.refID, $session_id: input.sessionID })
+    })()
+  },
+
   async deleteSession(sessionID: string): Promise<void> {
-    // Close the pool entry first so no concurrent writer holds the file
     // open; then delete the .db (and any sidecar -wal / -shm) on disk.
     // FK ON DELETE CASCADE on parts → only need to clear messages, but
     // we explicitly clear both in one transaction for symmetry (and so
@@ -417,6 +543,7 @@ export const SqliteStore: SessionStorage.Backend = {
     const dbPath = ConnectionPool.resolveDbPath(sessionID)
     const db = await acquireRW(sessionID)
     db.transaction(() => {
+      db.exec(SQL_DELETE_ALL_ATTACHMENTS)
       db.exec(SQL_DELETE_ALL_PARTS)
       db.exec(SQL_DELETE_ALL_MESSAGES)
     })()

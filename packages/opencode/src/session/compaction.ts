@@ -20,6 +20,7 @@ import { Memory } from "./memory"
 import { Tweaks } from "../config/tweaks"
 import { PostCompaction } from "./post-compaction"
 import { ContinuationInvalidatedEvent } from "../plugin/codex-auth"
+import { emitCompactionPredicateTelemetry, emitKindChainTelemetry } from "./compaction-telemetry"
 
 // Subscribe to continuation invalidation. compaction-redesign DD-11:
 // state-driven signal — write timestamp onto session.execution; the
@@ -691,6 +692,7 @@ export namespace SessionCompaction {
     | "rebind"
     | "continuation-invalidated"
     | "provider-switched"
+    | "stall-recovery"
     | "manual"
     | "idle"
     | "empty-response"
@@ -724,9 +726,10 @@ export namespace SessionCompaction {
    *
    * `rebind` / `continuation-invalidated` chains stop at kind 3 — these
    * triggers are maintenance, not enrichment, so the runloop should not
-   * burn quota on them. `provider-switched` stops at kind 2 because raw
-   * tail (2 in new chain) carries provider-specific tool format, so
-   * `provider-switched` stops at narrative.
+   * burn quota on them. `provider-switched` starts with narrative but may
+   * fall back to replay-tail, which is still local and gives the next
+   * provider a bounded text recovery surface when narrative cannot build a
+   * useful anchor.
    *
    * Phase 13 (REVISED 2026-04-28): `schema` kind removed. Its sole role was
    * scavenging text from legacy SharedContext when narrative was empty —
@@ -739,7 +742,8 @@ export namespace SessionCompaction {
     idle: Object.freeze(["narrative", "replay-tail"] as const),
     rebind: Object.freeze(["narrative", "replay-tail"] as const),
     "continuation-invalidated": Object.freeze(["narrative", "replay-tail"] as const),
-    "provider-switched": Object.freeze(["narrative"] as const),
+    "provider-switched": Object.freeze(["narrative", "replay-tail"] as const),
+    "stall-recovery": Object.freeze(["narrative", "replay-tail", "low-cost-server", "llm-agent"] as const),
     manual: Object.freeze(["narrative", "low-cost-server", "llm-agent"] as const),
     // empty-response auto-heal: codex's server-side compact gets first crack
     // because the most likely root cause of the empty packet is codex's own
@@ -748,6 +752,43 @@ export namespace SessionCompaction {
     // kinds for non-codex providers (low-cost-server fails fast there).
     "empty-response": Object.freeze(["low-cost-server", "narrative", "replay-tail", "llm-agent"] as const),
   })
+
+  export function kindChainFor(observed: Observed): ReadonlyArray<KindName> {
+    return KIND_CHAIN[observed]
+  }
+
+  export function resolveKindChain(input: {
+    observed: Observed
+    providerId?: string
+    isSubscription?: boolean
+    ctxRatio?: number
+    codexServerPriorityRatio?: number
+  }): ReadonlyArray<KindName> {
+    const base = KIND_CHAIN[input.observed]
+    const threshold = input.codexServerPriorityRatio ?? Tweaks.compactionSync().codexServerPriorityRatio
+    const codexSubscription = input.providerId === "codex" && input.isSubscription === true
+    if (!codexSubscription || (input.ctxRatio ?? 0) <= threshold) return base
+    if (input.observed === "overflow" || input.observed === "cache-aware") {
+      return ["low-cost-server", "narrative", "replay-tail", "llm-agent"] as const
+    }
+    if (input.observed === "manual") {
+      return ["low-cost-server", "narrative", "llm-agent"] as const
+    }
+    return base
+  }
+
+  function isSubscriptionCostModel(model: Provider.Model | undefined): boolean {
+    if (!model) return false
+    return model.providerId === "codex" && model.cost.input === 0 && model.cost.output === 0
+  }
+
+  async function sessionContextRatio(sessionID: string, model: Provider.Model | undefined): Promise<number> {
+    if (!model) return 0
+    const tokens = await getLastAssistantTokens(sessionID).catch(() => undefined)
+    const window = model.limit.input ?? model.limit.context
+    if (!tokens || !window) return 0
+    return tokens.input / window
+  }
 
   /**
    * Whether a synthetic "Continue if you have next steps..." user message
@@ -763,6 +804,7 @@ export namespace SessionCompaction {
     rebind: false,
     "continuation-invalidated": false,
     "provider-switched": false,
+    "stall-recovery": false,
     manual: false,
     // empty-response auto-heal: token pressure drove the burp, so a synthetic
     // "Continue from where you left off" after the anchor lets the model
@@ -1499,6 +1541,13 @@ When constructing the summary, try to stick to this template:
         step,
         cooldownMs: Cooldown.COOLDOWN_MS,
       })
+      emitCompactionPredicateTelemetry({
+        sessionID,
+        step,
+        outcome: "block",
+        reason: "cooldown",
+        observed,
+      })
       return "continue"
     }
 
@@ -1516,10 +1565,26 @@ When constructing the summary, try to stick to this template:
     // emits stay (they mark which kind committed) — UI debounces.
     Bus.publish(Event.CompactionStarted, { sessionID, mode: "auto" })
 
-    const baseChain = KIND_CHAIN[observed]
-    // Manual --rich: skip 1-3 (free) and 4 (low-cost-server), go straight to llm-agent.
+    const model = await resolveActiveModel(sessionID)
+    const ctxRatio = await sessionContextRatio(sessionID, model)
+    const isSubscription = isSubscriptionCostModel(model)
+    const baseChain = resolveKindChain({
+      observed,
+      providerId: model?.providerId,
+      isSubscription,
+      ctxRatio,
+    })
+    // Manual --rich: skip provider-aware chain and go straight to llm-agent.
     const chain: ReadonlyArray<KindName> =
       observed === "manual" && intent === "rich" ? (["llm-agent"] as const) : baseChain
+    emitKindChainTelemetry({
+      observed,
+      providerId: model?.providerId,
+      isSubscription,
+      ctxRatio,
+      codexServerPriorityRatio: Tweaks.compactionSync().codexServerPriorityRatio,
+      chain,
+    })
 
     // hybrid_llm post-step eligibility (specs/tool-output-chunking/
     // refactored 2026-04-29 04:50: hybrid_llm is NOT in the chain.
@@ -1539,7 +1604,6 @@ When constructing the summary, try to stick to this template:
     // succeeds or times out.
     const hybridEnrichmentEligible: ReadonlySet<Observed> = new Set(["overflow", "cache-aware", "manual"])
 
-    const model = await resolveActiveModel(sessionID)
     const target = await resolveTargetPromptTokens()
     const hasPaidKindLater = (idx: number) => chain.slice(idx + 1).some((k) => !isLocalKind(k))
 
@@ -1679,6 +1743,7 @@ When constructing the summary, try to stick to this template:
   export const __test__ = Object.freeze({
     KIND_CHAIN,
     INJECT_CONTINUE,
+    resolveKindChain,
     setAnchorWriter(fn: (input: WriteAnchorInput) => Promise<void>) {
       _writeAnchor = fn
     },

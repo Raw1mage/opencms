@@ -31,6 +31,7 @@ import { ApplyPatchTool } from "./apply_patch"
 import { CronCreateTool, CronListTool, CronDeleteTool } from "./cron"
 import { RefreshCapabilityLayerTool } from "./refresh-capability-layer"
 import { ToolLoaderTool } from "./tool-loader"
+import { AttachmentTool } from "./attachment"
 import { pathToFileURL } from "url"
 
 export namespace ToolRegistry {
@@ -141,6 +142,7 @@ export namespace ToolRegistry {
       EditTool,
       WriteTool,
       TaskTool,
+      AttachmentTool,
       CancelTaskTool,
       WebFetchTool,
       TodoWriteTool,

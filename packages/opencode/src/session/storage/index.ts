@@ -11,6 +11,21 @@
 import type { MessageV2 } from "../message-v2"
 
 export namespace SessionStorage {
+  export interface AttachmentBlob {
+    refID: string
+    sessionID: string
+    messageID?: string
+    partID?: string
+    mime: string
+    filename?: string
+    byteSize: number
+    estTokens: number
+    createdAt: number
+    content: Uint8Array
+  }
+
+  export interface AttachmentBlobMetadata extends Omit<AttachmentBlob, "content"> {}
+
   /**
    * Storage backend contract. Both LegacyStore (filesystem walk) and
    * SqliteStore (SQL queries) implement this. Router dispatches per call.
@@ -45,6 +60,18 @@ export namespace SessionStorage {
 
     /** Insert or update a part row. */
     upsertPart(part: MessageV2.Part): Promise<void>
+
+    /** Insert or update an oversized attachment blob in the session namespace. */
+    upsertAttachmentBlob(blob: AttachmentBlob): Promise<void>
+
+    /** Read an oversized attachment blob by session-scoped ref id. */
+    getAttachmentBlob(input: { sessionID: string; refID: string }): Promise<AttachmentBlob>
+
+    /** List attachment blob metadata without materializing raw content. */
+    listAttachmentBlobs(sessionID: string): Promise<AttachmentBlobMetadata[]>
+
+    /** Remove one attachment blob by session-scoped ref id. */
+    removeAttachmentBlob(input: { sessionID: string; refID: string }): Promise<void>
 
     /** Remove an entire session and all its data. */
     deleteSession(sessionID: string): Promise<void>

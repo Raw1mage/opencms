@@ -81,6 +81,7 @@ import { Tweaks } from "@/config/tweaks"
 import { RebindEpoch } from "./rebind-epoch"
 import { CapabilityLayer } from "./capability-layer"
 import { registerProductionCapabilityLoader } from "./capability-layer-loader"
+import { emitCompactionPredicateTelemetry, emitContextBudgetTelemetry } from "./compaction-telemetry"
 
 // Production capability-layer loader is registered once per process. The
 // context resolver reads runtime-known fields (agent, isSubagent) from the
@@ -117,6 +118,15 @@ function renderNoticeAddendum(n: MessageV2.PendingSubagentNotice): string {
   }
   if (n.status === "canceled" && n.cancelReason) {
     tail.push(`reason=${JSON.stringify(n.cancelReason)}`)
+  }
+  if (n.result?.type === "inline" && n.result.text) {
+    tail.push(`result=${JSON.stringify(n.result.text)}`)
+  }
+  if (n.result?.type === "attachment_ref" && n.result.refID) {
+    tail.push(`result_ref=${n.result.refID}`)
+    if (typeof n.result.byteSize === "number") tail.push(`result_bytes=${n.result.byteSize}`)
+    if (typeof n.result.estTokens === "number") tail.push(`result_est_tokens=${n.result.estTokens}`)
+    if (n.result.preview) tail.push(`result_preview=${JSON.stringify(n.result.preview)}`)
   }
   const tailStr = tail.length > 0 ? " " + tail.join(" ") : ""
   const hint =
@@ -213,6 +223,88 @@ export function estimateMsgsTokenCount(msgs: MessageV2.WithParts[]): number {
   return total
 }
 
+type ContextBudgetStatus = "green" | "yellow" | "orange" | "red"
+
+export function contextBudgetStatus(
+  ratio: number,
+  thresholds = Tweaks.compactionSync().budgetStatusThresholds,
+): ContextBudgetStatus {
+  const [greenMax, yellowMax, orangeMax] = thresholds
+  if (ratio < greenMax) return "green"
+  if (ratio < yellowMax) return "yellow"
+  if (ratio < orangeMax) return "orange"
+  return "red"
+}
+
+function renderContextBudget(input: { lastFinished: MessageV2.Assistant; model: Provider.Model }): string | undefined {
+  const window = input.model.limit.input ?? input.model.limit.context
+  const used = input.lastFinished.tokens?.input ?? 0
+  if (!window || window <= 0 || used <= 0) {
+    emitContextBudgetTelemetry({ emitted: false, reason: "missing_window_or_usage", window, used })
+    return undefined
+  }
+  const cacheRead = input.lastFinished.tokens?.cache?.read ?? 0
+  const ratio = used / window
+  const cacheHitRate = used + cacheRead > 0 ? cacheRead / (used + cacheRead) : 0
+  emitContextBudgetTelemetry({
+    emitted: true,
+    window,
+    used,
+    ratio,
+    status: contextBudgetStatus(ratio),
+    cacheRead,
+    cacheHitRate,
+  })
+  return [
+    "<context_budget>",
+    `window: ${window}`,
+    `used: ${used}`,
+    `ratio: ${ratio.toFixed(2)}`,
+    `status: ${contextBudgetStatus(ratio)}`,
+    `cache_read: ${cacheRead}`,
+    `cache_hit_rate: ${cacheHitRate.toFixed(2)}`,
+    "as_of: end_of_turn_N-1",
+    "</context_budget>",
+  ].join("\n")
+}
+
+function withContextBudgetEnvelope(input: {
+  messages: MessageV2.WithParts[]
+  lastFinished?: MessageV2.Assistant
+  model: Provider.Model
+}): MessageV2.WithParts[] {
+  if (!input.lastFinished) return input.messages
+  const budget = renderContextBudget({ lastFinished: input.lastFinished, model: input.model })
+  if (!budget) return input.messages
+  const lastUserIndex = input.messages.findLastIndex((msg) => msg.info.role === "user")
+  if (lastUserIndex < 0) return input.messages
+  const lastUser = input.messages[lastUserIndex]
+  const budgetPart: MessageV2.TextPart = {
+    id: `${lastUser.info.id}:context-budget`,
+    messageID: lastUser.info.id,
+    sessionID: lastUser.info.sessionID,
+    type: "text",
+    synthetic: true,
+    text: budget,
+    metadata: { contextBudget: true, excludeFromDisplay: true },
+  }
+  const next = input.messages.slice()
+  next[lastUserIndex] = { ...lastUser, parts: [...lastUser.parts, budgetPart] }
+  return next
+}
+
+function findContextBudgetSource(messages: MessageV2.WithParts[]): MessageV2.Assistant | undefined {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const info = messages[i].info
+    if (info.role !== "assistant") continue
+    const assistant = info as MessageV2.Assistant
+    if (!assistant.finish) continue
+    if ((assistant.tokens?.input ?? 0) <= 0) continue
+    return assistant
+  }
+  return undefined
+}
+
 /**
  * compaction-redesign phase 6 — state-driven runloop evaluator (DD-1).
  *
@@ -222,20 +314,39 @@ export function estimateMsgsTokenCount(msgs: MessageV2.WithParts[]): number {
  * iterations. State staleness is impossible because each call recomputes
  * from current Memory + session.execution + message-stream tail.
  *
- * Priority order (mirrors design.md pseudocode):
- *   1. Cooldown — if blocked, return null (no compaction this round)
- *   2. Manual — unprocessed compaction-request part in tail
- *   3. Provider switch — pinned providerId differs from last anchor's
- *   4. Rebind — pinned accountId differs from last anchor's (same provider)
- *   5. Overflow — lastFinished tokens exceed model budget
- *   6. Cache-aware — lastFinished tokens cross cache-prefix threshold
- *   7. Idle — turn boundary with capacity to compact opportunistically (deferred)
- *   null otherwise
+ * Priority order is declared in TRIGGER_INVENTORY so tests can pin the
+ * trigger contract separately from the predicate implementation.
  *
  * The "subagent / cron / parent" exclusion mirrors the pre-existing
  * legacy guards in the runloop: this function returns null when
  * `session.parentID` is set so subagent sessions don't self-compact.
  */
+export const TRIGGER_INVENTORY = Object.freeze([
+  { id: "cooldown", observed: null, description: "cooldown blocks compaction" },
+  { id: "manual", observed: "manual", description: "user-initiated compaction request" },
+  { id: "auto-request", observed: "overflow", description: "system compaction request" },
+  {
+    id: "continuation-invalidated",
+    observed: "continuation-invalidated",
+    description: "provider rejected continuation chain",
+  },
+  {
+    id: "provider-switched",
+    observed: "provider-switched",
+    description: "anchor provider differs from pinned provider",
+  },
+  {
+    id: "account-rebind",
+    observed: null,
+    description: "same-provider account drift only invalidates remote continuation",
+  },
+  { id: "overflow", observed: "overflow", description: "prompt exceeds usable context budget" },
+  { id: "stall-recovery", observed: "stall-recovery", description: "consecutive empty high-context rounds" },
+  { id: "predicted-cache-miss", observed: "cache-aware", description: "predicted cache miss at high context" },
+  { id: "quota-pressure", observed: null, description: "quota pressure placeholder disabled until schema is pinned" },
+  { id: "cache-aware", observed: "cache-aware", description: "prompt crosses cache-aware threshold" },
+] as const)
+
 export async function deriveObservedCondition(input: {
   sessionID: string
   step: number
@@ -253,6 +364,9 @@ export async function deriveObservedCondition(input: {
   parentID: string | undefined
   /** DD-11: epoch ms set by codex Bus listener when previous_response_id was rejected. */
   continuationInvalidatedAt: number | undefined
+  predictedCacheMiss?: "miss" | "hit" | "unknown"
+  currentInputTokens?: number
+  modelContextWindow?: number
   isOverflow: () => Promise<boolean>
   isCacheAware: () => Promise<boolean>
 }): Promise<SessionCompaction.Observed | null> {
@@ -318,10 +432,50 @@ export async function deriveObservedCondition(input: {
   // pure-ish and testable).
   if (input.lastFinished) {
     if (await input.isOverflow()) return "overflow"
+
+    const compactionTweak = Tweaks.compactionSync()
+    const window = input.modelContextWindow ?? 0
+    const currentInputTokens = input.currentInputTokens ?? input.lastFinished.tokens.input
+    const ctxRatio = window > 0 ? currentInputTokens / window : 0
+
+    if (
+      countTrailingEmptyAssistantResponses(input.msgs) >= compactionTweak.stallRecoveryConsecutiveEmpty &&
+      ctxRatio > compactionTweak.stallRecoveryFloor
+    ) {
+      return "stall-recovery"
+    }
+
+    if (input.predictedCacheMiss === "miss" && ctxRatio > compactionTweak.cacheLossFloor) {
+      const cacheRead = input.lastFinished.tokens.cache.read ?? 0
+      const predictedUncached = Math.max(0, currentInputTokens - cacheRead)
+      if (predictedUncached >= compactionTweak.minUncachedTokens) return "cache-aware"
+    }
+
     if (await input.isCacheAware()) return "cache-aware"
   }
 
   return null
+}
+
+function countTrailingEmptyAssistantResponses(msgs: MessageV2.WithParts[]): number {
+  let count = 0
+  let sawUserBoundary = false
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const msg = msgs[i]
+    if (msg.info.role === "user") {
+      sawUserBoundary = true
+      break
+    }
+    if (msg.info.role !== "assistant") break
+    const assistant = msg.info as MessageV2.Assistant
+    const hasModelVisibleContent = msg.parts.some(
+      (part) => part.type === "text" || part.type === "tool" || part.type === "reasoning",
+    )
+    if (hasModelVisibleContent) break
+    if ((assistant.tokens?.input ?? 0) <= 0 || (assistant.tokens?.output ?? 0) > 0) break
+    count++
+  }
+  return sawUserBoundary ? count : 0
 }
 
 /**
@@ -1461,9 +1615,17 @@ export namespace SessionPrompt {
       // exit instead — runloop has nothing left to drive, return to
       // waiting_user.
       if (!lastUser) {
-        log.info("loop:no_user_after_compaction — exiting cleanly", { sessionID, step })
+        log.info("loop:no_user_after_compaction — exiting cleanly", {
+          sessionID,
+          step,
+          messageCount: msgs.length,
+          hasLastAssistant: !!lastAssistant,
+          hasLastFinished: !!lastFinished,
+          taskCount: tasks.length,
+        })
         break
       }
+      const contextBudgetSource = findContextBudgetSource(msgs)
       const format = lastUser.format ?? { type: "text" }
 
       // Guard: detect empty-response loop (finish=unknown|other, 0 tokens).
@@ -1505,9 +1667,7 @@ export namespace SessionPrompt {
         const lastUserParts = msgs.findLast((m) => m.info.id === lastUser.id)?.parts ?? []
         const lastUserAllSynthetic =
           lastUserParts.length > 0 &&
-          lastUserParts.every(
-            (p) => p.type !== "text" || (p as { synthetic?: boolean }).synthetic === true,
-          )
+          lastUserParts.every((p) => p.type !== "text" || (p as { synthetic?: boolean }).synthetic === true)
         if (lastUserAllSynthetic) {
           log.info("empty-response after synthetic trigger — natural silent stop", {
             sessionID,
@@ -1562,6 +1722,10 @@ export namespace SessionPrompt {
           }
         }
         if (emptyRoundCount === 1) {
+          const nudgeModel = await Provider.getModel(lastUser.model.providerId, lastUser.model.modelID)
+          const nudgeBudget = contextBudgetSource
+            ? renderContextBudget({ lastFinished: contextBudgetSource, model: nudgeModel })
+            : undefined
           log.info("self-heal: empty round 1, injecting retry nudge", {
             sessionID,
             step,
@@ -1582,11 +1746,15 @@ export namespace SessionPrompt {
             messageID: nudgeUser.id,
             sessionID,
             type: "text",
-            text:
+            text: [
               "[runtime-self-heal] Your previous turn ended without a usable response " +
-              "(provider hiccup or transient stall). If your work is in progress, " +
-              "continue from where you left off. If you can't proceed, briefly summarize " +
-              "what you accomplished and what's still pending, then stop.",
+                "(provider hiccup or transient stall). If your work is in progress, " +
+                "continue from where you left off. If you can't proceed, briefly summarize " +
+                "what you accomplished and what's still pending, then stop.",
+              nudgeBudget,
+            ]
+              .filter((part): part is string => !!part)
+              .join("\n"),
             synthetic: true,
           } satisfies MessageV2.TextPart)
           continue
@@ -1769,10 +1937,7 @@ export namespace SessionPrompt {
           const texts = recentAssistants.map(leadingText)
           const longEnough = texts.every((t) => t.length >= 60)
           const j01 = longEnough ? jaccard(bigrams(texts[0]), bigrams(texts[1])) : 0
-          const j12 =
-            longEnough && recentAssistants.length === 3
-              ? jaccard(bigrams(texts[1]), bigrams(texts[2]))
-              : 0
+          const j12 = longEnough && recentAssistants.length === 3 ? jaccard(bigrams(texts[1]), bigrams(texts[2])) : 0
 
           // Stage 2 — break: 3-turn span similar OR 2-turn similar after a nudge.
           const stage2 =
@@ -1871,16 +2036,19 @@ export namespace SessionPrompt {
         try {
           const before = msgs.length
           const result = applyStreamAnchorRebind(msgs)
+          const shouldRefreshRebindTokens =
+            result.applied || result.reason === "no_anchor" || result.reason === "unsafe_boundary"
+          let refreshedInputTokens = shouldRefreshRebindTokens ? estimateMsgsTokenCount(msgs) : undefined
           if (result.applied) {
             msgs = result.messages
+            refreshedInputTokens = estimateMsgsTokenCount(msgs)
             // Refresh lastFinished.tokens.input so the state-driven
             // evaluator below sees the RECONSTRUCTED prompt size, not the
             // pre-rebind assistant message's stale `tokens.input`.
             if (lastFinished) {
-              const reconstructedTokens = estimateMsgsTokenCount(msgs)
               lastFinished = {
                 ...lastFinished,
-                tokens: { ...lastFinished.tokens, input: reconstructedTokens },
+                tokens: { ...lastFinished.tokens, input: refreshedInputTokens ?? lastFinished.tokens.input },
               }
             }
             debugCheckpoint("prompt", "loop:rebind_stream_anchor_applied", {
@@ -1898,10 +2066,24 @@ export namespace SessionPrompt {
               reconstructedTokens: lastFinished?.tokens?.input,
             })
           } else if (result.reason === "unsafe_boundary") {
+            if (lastFinished && refreshedInputTokens !== undefined) {
+              lastFinished = {
+                ...lastFinished,
+                tokens: { ...lastFinished.tokens, input: refreshedInputTokens },
+              }
+            }
             log.warn("rebind skipped: unsafe boundary at first post-anchor message", {
               sessionID,
               anchorIndex: result.anchorIndex,
+              refreshedInputTokens,
             })
+          } else if (result.reason === "no_anchor") {
+            if (lastFinished && refreshedInputTokens !== undefined) {
+              lastFinished = {
+                ...lastFinished,
+                tokens: { ...lastFinished.tokens, input: refreshedInputTokens },
+              }
+            }
           }
           // result.reason === "no_anchor" is the common case for fresh sessions
           // — silent no-op.
@@ -2125,6 +2307,9 @@ export namespace SessionPrompt {
         compactionRequestAuto: task?.type === "compaction-request" ? task.auto : undefined,
         parentID: session.parentID,
         continuationInvalidatedAt: sessionExecForCompaction?.continuationInvalidatedAt,
+        predictedCacheMiss: sessionExecForCompaction?.continuationInvalidatedAt ? "miss" : "unknown",
+        currentInputTokens: overflowInputTokens,
+        modelContextWindow: model.limit.input ?? model.limit.context,
         isOverflow: () =>
           SessionCompaction.isOverflow({
             tokens: overflowTokens,
@@ -2139,6 +2324,19 @@ export namespace SessionPrompt {
             sessionID,
             currentRound: step,
           }),
+      })
+      emitCompactionPredicateTelemetry({
+        sessionID,
+        step,
+        outcome: observed ? "fire" : "none",
+        reason: observed ? "observed_condition" : "no_predicate_matched",
+        observed,
+        currentInputTokens: overflowInputTokens,
+        modelContextWindow: model.limit.input ?? model.limit.context,
+        predictedCacheMiss: sessionExecForCompaction?.continuationInvalidatedAt ? "miss" : "unknown",
+        hasLastFinished: !!lastFinished,
+        hasCompactionRequest: task?.type === "compaction-request",
+        isSubagent: !!session.parentID,
       })
 
       if (observed) {
@@ -2427,6 +2625,12 @@ export namespace SessionPrompt {
         }).catch(() => undefined)
       }
 
+      const sessionMessagesForModel = withContextBudgetEnvelope({
+        messages: sessionMessages,
+        lastFinished: contextBudgetSource,
+        model: activeModel,
+      })
+
       const result = await processor.process({
         user: lastUser,
         agent,
@@ -2461,7 +2665,7 @@ export namespace SessionPrompt {
                 },
               ]
             : []),
-          ...MessageV2.toModelMessages(sessionMessages, activeModel),
+          ...MessageV2.toModelMessages(sessionMessagesForModel, activeModel),
           ...(isLastStep
             ? [
                 {

@@ -195,11 +195,24 @@ export namespace Tweaks {
     fallbackProvider: string
     phase2MaxAnchorTokens: number
     pinnedZoneMaxTokensRatio: number
+    budgetStatusThresholds: readonly [number, number, number]
+    cacheLossFloor: number
+    minUncachedTokens: number
+    stallRecoveryFloor: number
+    stallRecoveryConsecutiveEmpty: number
+    quotaPressureThreshold: number
+    codexServerPriorityRatio: number
   }
 
   export interface SessionStorageConfig {
     idleThresholdMs: number
     connectionIdleMs: number
+  }
+
+  export interface BigContentBoundaryConfig {
+    userAttachmentMaxBytes: number
+    attachmentPreviewBytes: number
+    subagentResultMaxBytes: number
   }
 
   export interface Effective {
@@ -214,6 +227,7 @@ export namespace Tweaks {
     toolOutputBudget: ToolOutputBudgetConfig
     compaction: CompactionConfig
     sessionStorage: SessionStorageConfig
+    bigContentBoundary: BigContentBoundaryConfig
     source: { path: string; present: boolean }
   }
 
@@ -281,11 +295,24 @@ export namespace Tweaks {
     fallbackProvider: "",
     phase2MaxAnchorTokens: 5_000,
     pinnedZoneMaxTokensRatio: 0.3,
+    budgetStatusThresholds: [0.5, 0.75, 0.9],
+    cacheLossFloor: 0.5,
+    minUncachedTokens: 40_000,
+    stallRecoveryFloor: 0.5,
+    stallRecoveryConsecutiveEmpty: 2,
+    quotaPressureThreshold: 0.1,
+    codexServerPriorityRatio: 0.7,
   }
 
   const SESSION_STORAGE_DEFAULTS: SessionStorageConfig = {
     idleThresholdMs: 5_000,
     connectionIdleMs: 60_000,
+  }
+
+  const BIG_CONTENT_BOUNDARY_DEFAULTS: BigContentBoundaryConfig = {
+    userAttachmentMaxBytes: 20_000,
+    attachmentPreviewBytes: 1_000,
+    subagentResultMaxBytes: 5_000,
   }
 
   const PART_PERSISTENCE_DEFAULTS: PartPersistenceConfig = {
@@ -331,6 +358,34 @@ export namespace Tweaks {
       return undefined
     }
     return value
+  }
+
+  function parseRatio(raw: string, key: string): number | undefined {
+    const value = Number.parseFloat(raw.trim())
+    if (!Number.isFinite(value) || value < 0 || value > 1) {
+      log.warn("tweaks.cfg invalid ratio for " + key, { raw })
+      return undefined
+    }
+    return value
+  }
+
+  function parseThreeAscendingRatios(raw: string, key: string): readonly [number, number, number] | undefined {
+    const parts = raw
+      .split(",")
+      .map((part) => part.trim())
+      .filter((part) => part.length > 0)
+    if (parts.length !== 3) {
+      log.warn("tweaks.cfg invalid ratio list for " + key + " (expected 3 comma-separated ratios)", { raw })
+      return undefined
+    }
+    const values = parts.map((part) => parseRatio(part, key))
+    if (values.some((value) => value === undefined)) return undefined
+    const [greenMax, yellowMax, orangeMax] = values as [number, number, number]
+    if (!(greenMax < yellowMax && yellowMax < orangeMax)) {
+      log.warn("tweaks.cfg ratio list for " + key + " must be strictly ascending", { raw, values })
+      return undefined
+    }
+    return [greenMax, yellowMax, orangeMax]
   }
 
   function parseLines(body: string): Map<string, string> {
@@ -398,8 +453,18 @@ export namespace Tweaks {
     "compaction_fallback_provider",
     "compaction_phase2_max_anchor_tokens",
     "compaction_pinned_zone_max_tokens_ratio",
+    "compaction_budget_status_thresholds",
+    "compaction_cache_loss_floor",
+    "compaction_min_uncached_tokens",
+    "compaction_stall_recovery_floor",
+    "compaction_stall_recovery_consecutive_empty",
+    "compaction_quota_pressure_threshold",
+    "compaction_codex_server_priority_ratio",
     "session_storage_idle_threshold_ms",
     "session_storage_connection_idle_ms",
+    "boundary_user_attachment_max_bytes",
+    "boundary_attachment_preview_bytes",
+    "boundary_subagent_result_max_bytes",
   ])
 
   function parseFlag01(raw: string, key: string): 0 | 1 | undefined {
@@ -472,6 +537,7 @@ export namespace Tweaks {
           toolOutputBudget: TOOL_OUTPUT_BUDGET_DEFAULTS,
           compaction: COMPACTION_DEFAULTS,
           sessionStorage: SESSION_STORAGE_DEFAULTS,
+          bigContentBoundary: BIG_CONTENT_BOUNDARY_DEFAULTS,
         },
       })
       return {
@@ -489,6 +555,7 @@ export namespace Tweaks {
         toolOutputBudget: { ...TOOL_OUTPUT_BUDGET_DEFAULTS },
         compaction: { ...COMPACTION_DEFAULTS },
         sessionStorage: { ...SESSION_STORAGE_DEFAULTS },
+        bigContentBoundary: { ...BIG_CONTENT_BOUNDARY_DEFAULTS },
         source: { path: cfgPath, present: false },
       }
     }
@@ -785,6 +852,41 @@ export namespace Tweaks {
         }
       }
     }
+    const cmpBudgetStatusRaw = parsed.get("compaction_budget_status_thresholds")
+    if (cmpBudgetStatusRaw !== undefined) {
+      const v = parseThreeAscendingRatios(cmpBudgetStatusRaw, "compaction_budget_status_thresholds")
+      if (v !== undefined) compaction.budgetStatusThresholds = v
+    }
+    const cmpCacheLossFloorRaw = parsed.get("compaction_cache_loss_floor")
+    if (cmpCacheLossFloorRaw !== undefined) {
+      const v = parseRatio(cmpCacheLossFloorRaw, "compaction_cache_loss_floor")
+      if (v !== undefined) compaction.cacheLossFloor = v
+    }
+    const cmpMinUncachedRaw = parsed.get("compaction_min_uncached_tokens")
+    if (cmpMinUncachedRaw !== undefined) {
+      const v = parseIntRange(cmpMinUncachedRaw, "compaction_min_uncached_tokens", 0, 10_000_000)
+      if (v !== undefined) compaction.minUncachedTokens = v
+    }
+    const cmpStallFloorRaw = parsed.get("compaction_stall_recovery_floor")
+    if (cmpStallFloorRaw !== undefined) {
+      const v = parseRatio(cmpStallFloorRaw, "compaction_stall_recovery_floor")
+      if (v !== undefined) compaction.stallRecoveryFloor = v
+    }
+    const cmpStallCountRaw = parsed.get("compaction_stall_recovery_consecutive_empty")
+    if (cmpStallCountRaw !== undefined) {
+      const v = parseIntRange(cmpStallCountRaw, "compaction_stall_recovery_consecutive_empty", 1, 20)
+      if (v !== undefined) compaction.stallRecoveryConsecutiveEmpty = v
+    }
+    const cmpQuotaPressureRaw = parsed.get("compaction_quota_pressure_threshold")
+    if (cmpQuotaPressureRaw !== undefined) {
+      const v = parseRatio(cmpQuotaPressureRaw, "compaction_quota_pressure_threshold")
+      if (v !== undefined) compaction.quotaPressureThreshold = v
+    }
+    const cmpCodexServerPriorityRaw = parsed.get("compaction_codex_server_priority_ratio")
+    if (cmpCodexServerPriorityRaw !== undefined) {
+      const v = parseRatio(cmpCodexServerPriorityRaw, "compaction_codex_server_priority_ratio")
+      if (v !== undefined) compaction.codexServerPriorityRatio = v
+    }
 
     const sessionStorage: SessionStorageConfig = { ...SESSION_STORAGE_DEFAULTS }
     const storageIdleRaw = parsed.get("session_storage_idle_threshold_ms")
@@ -796,6 +898,23 @@ export namespace Tweaks {
     if (storageConnectionIdleRaw !== undefined) {
       const v = parseIntRange(storageConnectionIdleRaw, "session_storage_connection_idle_ms", 1_000, 3_600_000)
       if (v !== undefined) sessionStorage.connectionIdleMs = v
+    }
+
+    const bigContentBoundary: BigContentBoundaryConfig = { ...BIG_CONTENT_BOUNDARY_DEFAULTS }
+    const userAttachmentMaxRaw = parsed.get("boundary_user_attachment_max_bytes")
+    if (userAttachmentMaxRaw !== undefined) {
+      const v = parseIntRange(userAttachmentMaxRaw, "boundary_user_attachment_max_bytes", 1_024, 100_000_000)
+      if (v !== undefined) bigContentBoundary.userAttachmentMaxBytes = v
+    }
+    const attachmentPreviewRaw = parsed.get("boundary_attachment_preview_bytes")
+    if (attachmentPreviewRaw !== undefined) {
+      const v = parseIntRange(attachmentPreviewRaw, "boundary_attachment_preview_bytes", 0, 100_000)
+      if (v !== undefined) bigContentBoundary.attachmentPreviewBytes = v
+    }
+    const subagentResultMaxRaw = parsed.get("boundary_subagent_result_max_bytes")
+    if (subagentResultMaxRaw !== undefined) {
+      const v = parseIntRange(subagentResultMaxRaw, "boundary_subagent_result_max_bytes", 1_024, 100_000_000)
+      if (v !== undefined) bigContentBoundary.subagentResultMaxBytes = v
     }
 
     log.info("tweaks.cfg loaded", {
@@ -812,6 +931,7 @@ export namespace Tweaks {
         toolOutputBudget,
         compaction,
         sessionStorage,
+        bigContentBoundary,
       },
     })
     return {
@@ -826,6 +946,7 @@ export namespace Tweaks {
       toolOutputBudget,
       compaction,
       sessionStorage,
+      bigContentBoundary,
       source: { path: cfgPath, present: true },
     }
   }
@@ -880,6 +1001,10 @@ export namespace Tweaks {
     return (await effective()).sessionStorage
   }
 
+  export async function bigContentBoundary(): Promise<BigContentBoundaryConfig> {
+    return (await effective()).bigContentBoundary
+  }
+
   /**
    * Synchronous accessor for hot paths (e.g. updatePart). Returns defaults
    * until loadEffective() completes; after that returns the loaded values.
@@ -919,6 +1044,10 @@ export namespace Tweaks {
 
   export function sessionStorageSync(): SessionStorageConfig {
     return _effective?.sessionStorage ?? SESSION_STORAGE_DEFAULTS
+  }
+
+  export function bigContentBoundarySync(): BigContentBoundaryConfig {
+    return _effective?.bigContentBoundary ?? BIG_CONTENT_BOUNDARY_DEFAULTS
   }
 
   export async function loadEffective(): Promise<Effective> {

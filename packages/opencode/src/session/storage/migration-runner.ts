@@ -22,6 +22,7 @@ import { Log } from "@/util/log"
 import { SessionStorageEvent } from "./events"
 import { SessionStorageMetrics } from "./metrics"
 import * as v1 from "./migrations/v1"
+import * as v2 from "./migrations/v2"
 
 const log = Log.create({ service: "session.storage.migration" })
 
@@ -53,7 +54,10 @@ interface Migration {
   rollback(db: Database): void
 }
 
-const MIGRATIONS: Migration[] = [{ to: v1.VERSION, apply: v1.applyV1, rollback: v1.rollbackV1 }]
+const MIGRATIONS: Migration[] = [
+  { to: v1.VERSION, apply: v1.applyV1, rollback: v1.rollbackV1 },
+  { to: v2.VERSION, apply: v2.applyV2, rollback: v2.rollbackV2 },
+]
 
 export const TARGET_VERSION = MIGRATIONS[MIGRATIONS.length - 1].to
 

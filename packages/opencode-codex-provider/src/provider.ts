@@ -57,6 +57,53 @@ export function createCodex(options: CodexProviderOptions) {
   }
 }
 
+export function buildResponsesApiRequest(input: {
+  modelId: string
+  instructions?: string
+  input: ResponsesApiRequest["input"]
+  tools?: ResponsesApiRequest["tools"]
+  promptCacheKey: string
+  installationId?: string
+  window: WindowState
+  providerOptions?: Record<string, unknown>
+}): ResponsesApiRequest {
+  const po = input.providerOptions ?? {}
+  const body: ResponsesApiRequest = {
+    model: input.modelId,
+    instructions: input.instructions,
+    input: input.input,
+    // Mode 1 server-side compaction request shape: regular /responses calls
+    // carry context_management so Codex can compact the hidden server window
+    // inline instead of relying only on opencode's standalone kind-4 path.
+    context_management: [{ type: "compaction", compact_threshold: getCompactThreshold(input.modelId) }],
+    prompt_cache_key: (po.promptCacheKey as string) ?? input.promptCacheKey,
+    client_metadata: buildClientMetadata({
+      installationId: input.installationId,
+      window: input.window,
+    }),
+  }
+
+  body.store = (po.store as boolean) ?? false
+
+  if (po.serviceTier) body.service_tier = po.serviceTier as string
+  if (po.include) body.include = po.include as string[]
+
+  if (po.reasoningEffort || po.reasoningSummary) {
+    body.reasoning = {}
+    if (po.reasoningEffort) body.reasoning.effort = po.reasoningEffort as string
+    if (po.reasoningSummary) body.reasoning.summary = po.reasoningSummary as string
+  }
+
+  if (po.textVerbosity) body.text = { verbosity: po.textVerbosity as string }
+
+  if (input.tools && input.tools.length > 0) {
+    body.tools = input.tools
+    body.tool_choice = "auto"
+  }
+
+  return body
+}
+
 // ---------------------------------------------------------------------------
 // § 2  CodexLanguageModel
 // ---------------------------------------------------------------------------
@@ -118,7 +165,6 @@ class CodexLanguageModel implements LanguageModelV2 {
     // § 2.1.3  Convert prompt → instructions + input
     const { instructions, input } = convertPrompt(callOptions.prompt)
 
-
     // § 2.1.4  Convert tools
     const tools = convertTools(
       callOptions.tools?.filter((t): t is Extract<typeof t, { type: "function" }> => t.type === "function"),
@@ -131,56 +177,19 @@ class CodexLanguageModel implements LanguageModelV2 {
       ?? {}) as Record<string, unknown>
 
     // § 2.1.6  Build request body — match old AI SDK adapter output exactly
-    const body: ResponsesApiRequest = {
-      model: this.modelId,
+    const body = buildResponsesApiRequest({
+      modelId: this.modelId,
       instructions,
       input,
-      // NOTE: `stream` is intentionally omitted for WS (WS is inherently streaming).
-      // Only set for HTTP path — handled below before fetch().
-      prompt_cache_key: (po.promptCacheKey as string) ?? cacheKey,
-      context_management: [{
-        type: "compaction",
-        compact_threshold: getCompactThreshold(this.modelId),
-      }],
-      client_metadata: buildClientMetadata({
-        installationId: this.options.installationId,
-        window: this.window,
-      }),
-    }
-
-    // store (default false for Codex/OpenAI)
-    body.store = (po.store as boolean) ?? false
-
-    // service_tier
-    if (po.serviceTier) {
-      body.service_tier = po.serviceTier as string
-    }
-
-    // include (e.g. ["reasoning.encrypted_content"])
-    if (po.include) {
-      body.include = po.include as string[]
-    }
-
-    // reasoning controls
-    if (po.reasoningEffort || po.reasoningSummary) {
-      body.reasoning = {}
-      if (po.reasoningEffort) body.reasoning.effort = po.reasoningEffort as string
-      if (po.reasoningSummary) body.reasoning.summary = po.reasoningSummary as string
-    }
-
-    // text controls
-    if (po.textVerbosity) {
-      body.text = { verbosity: po.textVerbosity as string }
-    }
+      tools,
+      promptCacheKey: cacheKey,
+      installationId: this.options.installationId,
+      window: this.window,
+      providerOptions: po,
+    })
 
     // NOTE: max_output_tokens is NOT supported by Codex API (400 error).
     // Codex server controls output length internally via context_management.
-
-    // tools
-    if (tools && tools.length > 0) {
-      body.tools = tools
-      body.tool_choice = "auto"
-    }
 
     // § 2.1.5  Try WebSocket transport first
     const wsSessionId = sessionId ?? this.window.conversationId

@@ -29,6 +29,9 @@ import { Global } from "@/global"
 import path from "path"
 import { Instance } from "@/project/instance"
 import { SharedContext } from "@/session/shared-context"
+import { Tweaks } from "@/config/tweaks"
+import { Router as StorageRouter } from "@/session/storage/router"
+import { emitBoundaryRoutingTelemetry } from "@/session/compaction-telemetry"
 // Note: orchestrateModelSelection no longer used — subagent validates model against registry directly
 
 // NOTE: @event_task_tool_complex_input
@@ -132,6 +135,83 @@ const WORKER_POOL_MAX = 3 // Hard cap on concurrent worker processes
 const beacon = ActivityBeacon.scope("tool.task")
 const WORKER_ASSIGN_LOCK = "tool.task.worker.assign"
 
+type SubagentResultAttachmentWriter = Pick<typeof StorageRouter, "upsertAttachmentBlob">
+let subagentResultAttachmentWriter: SubagentResultAttachmentWriter = StorageRouter
+
+export function setSubagentResultAttachmentWriterForTesting(writer?: SubagentResultAttachmentWriter) {
+  subagentResultAttachmentWriter = writer ?? StorageRouter
+}
+
+function estimateSubagentResultTokens(byteSize: number): number {
+  return Math.ceil(byteSize / 4)
+}
+
+function extractTldrPreview(raw: string): string | undefined {
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim()
+    if (/^(tldr|tl;dr|summary|result)\s*:/i.test(trimmed)) return trimmed.slice(0, 1_000)
+  }
+  return undefined
+}
+
+export async function routeSubagentResultForNotice(input: {
+  parentSessionID: string
+  parentMessageID: string
+  childSessionID: string
+  raw: string
+}): Promise<MessageV2.PendingSubagentNotice["result"] | undefined> {
+  if (!input.raw.trim()) return undefined
+  const cfg = Tweaks.bigContentBoundarySync()
+  const content = Uint8Array.from(Buffer.from(input.raw, "utf8"))
+  const byteSize = content.byteLength
+  const estTokens = estimateSubagentResultTokens(byteSize)
+  if (byteSize <= cfg.subagentResultMaxBytes) {
+    emitBoundaryRoutingTelemetry({
+      boundary: "subagent_result",
+      action: "inline",
+      byteSize,
+      estTokens,
+      thresholdBytes: cfg.subagentResultMaxBytes,
+      reason: "below_threshold",
+    })
+    return { type: "inline", text: input.raw, byteSize, estTokens }
+  }
+
+  const refID = Identifier.ascending("part")
+  const preview = extractTldrPreview(input.raw) ?? "[preview unavailable; full subagent result stored by reference]"
+  await subagentResultAttachmentWriter.upsertAttachmentBlob({
+    refID,
+    sessionID: input.parentSessionID,
+    messageID: input.parentMessageID,
+    mime: "text/plain",
+    filename: `subagent-${input.childSessionID}-result.txt`,
+    byteSize,
+    estTokens,
+    createdAt: Date.now(),
+    content,
+  })
+  emitBoundaryRoutingTelemetry({
+    boundary: "subagent_result",
+    action: "attachment_ref",
+    refID,
+    mime: "text/plain",
+    byteSize,
+    estTokens,
+    thresholdBytes: cfg.subagentResultMaxBytes,
+    previewBytes: Buffer.byteLength(preview, "utf8"),
+    truncated: true,
+    hasFilename: true,
+    reason: "above_threshold",
+  })
+  return {
+    type: "attachment_ref",
+    refID,
+    byteSize,
+    estTokens,
+    preview,
+  }
+}
+
 export const TaskWorkerEvent = {
   Assigned: BusEvent.define(
     "task.worker.assigned",
@@ -216,6 +296,7 @@ export const TaskCompletedEvent = BusEvent.define(
       })
       .optional(),
     cancelReason: z.string().optional(),
+    result: MessageV2.PendingSubagentNotice.shape.result.optional(),
   }),
 )
 
@@ -2428,9 +2509,9 @@ export const TaskTool = Tool.define("task", async (ctx) => {
             if (watchdogTimer) clearInterval(watchdogTimer)
             await SessionActiveChild.set(ctx.sessionID, null).catch(() => undefined)
           }
-            // Kill worker on disk_terminal (bridge stuck) or silent_kill (truly hung).
-            // worker_dead path has an already-exited process; nothing to kill.
-            if (completionSource === "watchdog" && watchdogResolution !== "worker_dead") {
+          // Kill worker on disk_terminal (bridge stuck) or silent_kill (truly hung).
+          // worker_dead path has an already-exited process; nothing to kill.
+          if (completionSource === "watchdog" && watchdogResolution !== "worker_dead") {
             const worker = assignedWorkerID ? workers.find((w) => w.id === assignedWorkerID) : undefined
             if (worker) {
               Log.create({ service: "task" }).warn("proc-watchdog: killing worker", {
@@ -2484,6 +2565,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
             return opening + head + hint + closing
           }
           let childOutput = ""
+          let childResultRaw = ""
           if (workerOk) {
             try {
               const { messages: childMsgs } = await MessageV2.filterCompacted(MessageV2.stream(session.id))
@@ -2498,7 +2580,8 @@ export const TaskTool = Tool.define("task", async (ctx) => {
               }
               if (assistantTexts.length > 0) {
                 const recent = assistantTexts.slice(-3)
-                childOutput = boundChildBlock(recent.join("\n\n---\n\n"), "messages")
+                childResultRaw = recent.join("\n\n---\n\n")
+                childOutput = boundChildBlock(childResultRaw, "messages")
               }
             } catch {
               // Non-fatal: parent continues without child output detail
@@ -2518,7 +2601,8 @@ export const TaskTool = Tool.define("task", async (ctx) => {
                   if (childCtx.files.length > 0)
                     parts.push(`Files touched: ${childCtx.files.map((f: any) => f.path).join(", ")}`)
                   if (parts.length > 0) {
-                    childOutput = boundChildBlock(parts.join("\n\n"), "shared_context")
+                    childResultRaw = parts.join("\n\n")
+                    childOutput = boundChildBlock(childResultRaw, "shared_context")
                   }
                 }
               } catch {
@@ -2536,7 +2620,14 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           // assembly (Phase 5) consumes notices and the stub-return flip
           // lands (Phase 9), this becomes the primary delivery path.
           try {
-            const notifyStatus: "success" | "error" | "canceled" | "rate_limited" | "quota_low" | "worker_dead" | "silent_kill" = (() => {
+            const notifyStatus:
+              | "success"
+              | "error"
+              | "canceled"
+              | "rate_limited"
+              | "quota_low"
+              | "worker_dead"
+              | "silent_kill" = (() => {
               if (watchdogResolution === "worker_dead") return "worker_dead"
               if (watchdogResolution === "silent_kill") return "silent_kill"
               // Map child session's last finish to user-facing status.
@@ -2561,7 +2652,12 @@ export const TaskTool = Tool.define("task", async (ctx) => {
             let finishForEvent = workerOk ? "stop" : "error"
             let errorDetailForEvent: { message?: string; resetsInSeconds?: number } | undefined
             let rotateHintForEvent:
-              | { exhaustedAccountId: string; exhaustedAt?: string; remainingPercent?: number; directive: "rotate-before-redispatch" }
+              | {
+                  exhaustedAccountId: string
+                  exhaustedAt?: string
+                  remainingPercent?: number
+                  directive: "rotate-before-redispatch"
+                }
               | undefined
             try {
               const { messages: childMsgs } = await MessageV2.filterCompacted(MessageV2.stream(session.id))
@@ -2584,8 +2680,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
                     rotateHintForEvent = {
                       exhaustedAccountId: String(hint.exhaustedAccountId ?? "unknown"),
                       exhaustedAt: typeof hint.exhaustedAt === "string" ? hint.exhaustedAt : undefined,
-                      remainingPercent:
-                        typeof hint.remainingPercent === "number" ? hint.remainingPercent : undefined,
+                      remainingPercent: typeof hint.remainingPercent === "number" ? hint.remainingPercent : undefined,
                       directive: "rotate-before-redispatch",
                     }
                   }
@@ -2597,16 +2692,21 @@ export const TaskTool = Tool.define("task", async (ctx) => {
 
             // Resolve actual status using finishForEvent when watchdog didn't already classify
             let resolvedStatus = notifyStatus
-            if (
-              resolvedStatus !== "worker_dead" &&
-              resolvedStatus !== "silent_kill" &&
-              resolvedStatus !== "canceled"
-            ) {
+            if (resolvedStatus !== "worker_dead" && resolvedStatus !== "silent_kill" && resolvedStatus !== "canceled") {
               if (finishForEvent === "rate_limited") resolvedStatus = "rate_limited"
               else if (finishForEvent === "quota_low") resolvedStatus = "quota_low"
               else if (finishForEvent === "canceled") resolvedStatus = "canceled"
               else resolvedStatus = workerOk ? "success" : "error"
             }
+
+            const resultForEvent = workerOk
+              ? await routeSubagentResultForNotice({
+                  parentSessionID: ctx.sessionID,
+                  parentMessageID: ctx.messageID,
+                  childSessionID: session.id,
+                  raw: childResultRaw || childOutput,
+                })
+              : undefined
 
             await Bus.publish(TaskCompletedEvent, {
               jobId: ctx.callID ?? `job_${session.id}`,
@@ -2617,6 +2717,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
               elapsedMs: Date.now() - startedAt,
               errorDetail: errorDetailForEvent,
               rotateHint: rotateHintForEvent,
+              result: resultForEvent,
             })
           } catch (pubErr) {
             Log.create({ service: "task" }).warn("task.completed event publish failed", {

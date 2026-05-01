@@ -17,6 +17,7 @@ const SID_SQLITE = "ses_test_router_sqlite"
 const SID_LEGACY = "ses_test_router_legacy"
 const SID_DEBRIS = "ses_test_router_debris"
 const SID_TMP_INFLIGHT = "ses_test_router_tmp"
+const REF_A = "att_ref_router_001"
 
 function user(sessionID: string, id: string): MessageV2.User {
   return {
@@ -26,6 +27,21 @@ function user(sessionID: string, id: string): MessageV2.User {
     time: { created: 1700000000000 },
     agent: "build",
     model: { providerId: "anthropic", modelID: "claude-opus-4-7" },
+  }
+}
+
+function attachmentBlob(sessionID: string) {
+  return {
+    refID: REF_A,
+    sessionID,
+    messageID: "msg_a",
+    partID: "prt_a",
+    mime: "text/plain",
+    filename: "large.txt",
+    byteSize: 5,
+    estTokens: 2,
+    createdAt: 1700000006000,
+    content: new Uint8Array([104, 101, 108, 108, 111]),
   }
 }
 
@@ -115,6 +131,20 @@ describe("Router dispatch", () => {
     await Router.upsertMessage(user(SID_FRESH, "msg_a"))
     const dbPath = ConnectionPool.resolveDbPath(SID_FRESH)
     expect(await fs.stat(dbPath).then(() => true).catch(() => false)).toBe(true)
+  })
+
+  it("forwards attachment blob methods to the selected backend", async () => {
+    await Router.upsertMessage(user(SID_FRESH, "msg_a"))
+    await Router.upsertAttachmentBlob(attachmentBlob(SID_FRESH))
+
+    const got = await Router.getAttachmentBlob({ sessionID: SID_FRESH, refID: REF_A })
+    expect([...got.content]).toEqual([104, 101, 108, 108, 111])
+    expect(await Router.listAttachmentBlobs(SID_FRESH)).toEqual([
+      expect.objectContaining({ refID: REF_A, sessionID: SID_FRESH }),
+    ])
+
+    await Router.removeAttachmentBlob({ sessionID: SID_FRESH, refID: REF_A })
+    expect(await Router.listAttachmentBlobs(SID_FRESH)).toEqual([])
   })
 
   it("does not silently fall back from SqliteStore on read error (DD-13 / INV-4)", async () => {

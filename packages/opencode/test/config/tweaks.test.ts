@@ -65,12 +65,7 @@ describe("Tweaks.loadEffective", () => {
   })
 
   test("invalid integer falls back to default without swallowing other keys", async () => {
-    pointToFile(
-      [
-        "session_cache_ttl_sec=not_a_number",
-        "session_cache_max_entries=123",
-      ].join("\n"),
-    )
+    pointToFile(["session_cache_ttl_sec=not_a_number", "session_cache_max_entries=123"].join("\n"))
     const eff = await Tweaks.loadEffective()
     expect(eff.sessionCache.ttlSec).toBe(60)
     expect(eff.sessionCache.maxEntries).toBe(123)
@@ -95,24 +90,13 @@ describe("Tweaks.loadEffective", () => {
   })
 
   test("unknown keys are ignored (known keys still apply)", async () => {
-    pointToFile(
-      [
-        "some_unknown_key=42",
-        "ratelimit_burst=7",
-      ].join("\n"),
-    )
+    pointToFile(["some_unknown_key=42", "ratelimit_burst=7"].join("\n"))
     const eff = await Tweaks.loadEffective()
     expect(eff.rateLimit.burst).toBe(7)
   })
 
   test("malformed lines are ignored without corrupting parsing", async () => {
-    pointToFile(
-      [
-        "this line has no equals",
-        "=value_without_key",
-        "ratelimit_burst=9",
-      ].join("\n"),
-    )
+    pointToFile(["this line has no equals", "=value_without_key", "ratelimit_burst=9"].join("\n"))
     const eff = await Tweaks.loadEffective()
     expect(eff.rateLimit.burst).toBe(9)
   })
@@ -123,6 +107,16 @@ describe("Tweaks.loadEffective", () => {
     const rl = await Tweaks.rateLimit()
     expect(sc.ttlSec).toBe(30)
     expect(rl.burst).toBe(11)
+  })
+
+
+
+  test("big content boundary parses user attachment thresholds", async () => {
+    pointToFile(["boundary_user_attachment_max_bytes=4096", "boundary_attachment_preview_bytes=128", "boundary_subagent_result_max_bytes=8192"].join("\n"))
+    const boundary = await Tweaks.bigContentBoundary()
+    expect(boundary.userAttachmentMaxBytes).toBe(4096)
+    expect(boundary.attachmentPreviewBytes).toBe(128)
+    expect(boundary.subagentResultMaxBytes).toBe(8192)
   })
 
   // --- frontend-session-lazyload keys ---
@@ -219,11 +213,9 @@ describe("Tweaks.loadEffective", () => {
 
   test("session-ui-freshness parses flag=1 and custom thresholds", async () => {
     pointToFile(
-      [
-        "ui_session_freshness_enabled=1",
-        "ui_freshness_threshold_sec=30",
-        "ui_freshness_hard_timeout_sec=120",
-      ].join("\n") + "\n",
+      ["ui_session_freshness_enabled=1", "ui_freshness_threshold_sec=30", "ui_freshness_hard_timeout_sec=120"].join(
+        "\n",
+      ) + "\n",
     )
     const ui = await Tweaks.sessionUiFreshness()
     expect(ui).toEqual({ flag: 1, softThresholdSec: 30, hardTimeoutSec: 120 })
@@ -248,35 +240,22 @@ describe("Tweaks.loadEffective", () => {
   })
 
   test("session-ui-freshness soft >= hard triggers clamp (soft = hard - 1)", async () => {
-    pointToFile(
-      [
-        "ui_freshness_threshold_sec=90",
-        "ui_freshness_hard_timeout_sec=60",
-      ].join("\n") + "\n",
-    )
+    pointToFile(["ui_freshness_threshold_sec=90", "ui_freshness_hard_timeout_sec=60"].join("\n") + "\n")
     const ui = await Tweaks.sessionUiFreshness()
     expect(ui.hardTimeoutSec).toBe(60)
     expect(ui.softThresholdSec).toBe(59)
   })
 
   test("session-ui-freshness soft == hard also triggers clamp", async () => {
-    pointToFile(
-      [
-        "ui_freshness_threshold_sec=60",
-        "ui_freshness_hard_timeout_sec=60",
-      ].join("\n") + "\n",
-    )
+    pointToFile(["ui_freshness_threshold_sec=60", "ui_freshness_hard_timeout_sec=60"].join("\n") + "\n")
     const ui = await Tweaks.sessionUiFreshness()
     expect(ui.softThresholdSec).toBe(59)
   })
 
   test("session-ui-freshness keys coexist with frontend_lazyload keys", async () => {
     pointToFile(
-      [
-        "frontend_session_lazyload=1",
-        "ui_session_freshness_enabled=1",
-        "ui_freshness_threshold_sec=10",
-      ].join("\n") + "\n",
+      ["frontend_session_lazyload=1", "ui_session_freshness_enabled=1", "ui_freshness_threshold_sec=10"].join("\n") +
+        "\n",
     )
     const fl = await Tweaks.frontendLazyload()
     const ui = await Tweaks.sessionUiFreshness()
@@ -297,12 +276,7 @@ describe("Tweaks.loadEffective", () => {
   })
 
   test("autorun parses pipe-separated trigger + disarm phrases", async () => {
-    pointToFile(
-      [
-        "autorun_trigger_phrases=go|resume|繼續",
-        "autorun_disarm_phrases=halt|暫停",
-      ].join("\n") + "\n",
-    )
+    pointToFile(["autorun_trigger_phrases=go|resume|繼續", "autorun_disarm_phrases=halt|暫停"].join("\n") + "\n")
     const a = await Tweaks.autorun()
     expect(a.triggerPhrases).toEqual(["go", "resume", "繼續"])
     expect(a.disarmPhrases).toEqual(["halt", "暫停"])
@@ -329,5 +303,23 @@ describe("Tweaks.loadEffective", () => {
     await Tweaks.loadEffective()
     const afterLoad = Tweaks.autorunSync()
     expect(afterLoad.triggerPhrases).toEqual(["onlyme"])
+  })
+
+  test("compaction budget status thresholds default and parse custom ratios", async () => {
+    pointToMissing()
+    expect((await Tweaks.compaction()).budgetStatusThresholds).toEqual([0.5, 0.75, 0.9])
+
+    Tweaks.resetForTesting()
+    pointToFile("compaction_budget_status_thresholds=0.4,0.7,0.95\n")
+    expect((await Tweaks.compaction()).budgetStatusThresholds).toEqual([0.4, 0.7, 0.95])
+  })
+
+  test("compaction budget status thresholds reject malformed ratio lists", async () => {
+    pointToFile("compaction_budget_status_thresholds=0.7,0.5,0.9\n")
+    expect((await Tweaks.compaction()).budgetStatusThresholds).toEqual([0.5, 0.75, 0.9])
+
+    Tweaks.resetForTesting()
+    pointToFile("compaction_budget_status_thresholds=0.4,1.2,0.95\n")
+    expect((await Tweaks.compaction()).budgetStatusThresholds).toEqual([0.5, 0.75, 0.9])
   })
 })

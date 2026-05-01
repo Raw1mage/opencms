@@ -1,0 +1,279 @@
+{
+  "schema_version": 1,
+  "state": "verified",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-04-30T15:30:17.344Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-04-30T17:34:48.091Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "design artifacts completed for compaction improvements"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-04-30T17:35:22.068Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "execution tasks and handoff completed for compaction improvements"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-04-30T17:35:22.545Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "begin Phase A edge cleanup implementation"
+    },
+    {
+      "at": "2026-04-30T17:38:08.681Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/app/src/pages/session.tsx, packages/app/src/pages/session/__tests__/use-session-hash-scroll.test.ts, packages/app/src/pages/session/message-timeline.tsx, packages/app/src/pages/session/use-session-hash-scroll.ts, packages/ui/src/components/session-turn.tsx, packages/ui/src/hooks/create-auto-scroll.tsx",
+      "result": "warned",
+      "drift": [
+        "packages/app/src/pages/session.tsx",
+        "packages/app/src/pages/session/__tests__/use-session-hash-scroll.test.ts",
+        "packages/app/src/pages/session/message-timeline.tsx",
+        "packages/app/src/pages/session/use-session-hash-scroll.ts",
+        "packages/ui/src/components/session-turn.tsx",
+        "packages/ui/src/hooks/create-auto-scroll.tsx"
+      ],
+      "commit": "b0f06265c4b0035c40c383f62c84d0b5c246de50"
+    },
+    {
+      "at": "2026-04-30T17:39:32.171Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "b0f06265c4b0035c40c383f62c84d0b5c246de50"
+    },
+    {
+      "at": "2026-04-30T17:43:25.371Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "b0f06265c4b0035c40c383f62c84d0b5c246de50"
+    },
+    {
+      "at": "2026-04-30T17:44:50.300Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "b0f06265c4b0035c40c383f62c84d0b5c246de50"
+    },
+    {
+      "at": "2026-04-30T17:57:06.535Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "b0f06265c4b0035c40c383f62c84d0b5c246de50"
+    },
+    {
+      "at": "2026-04-30T17:59:31.878Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "b0f06265c4b0035c40c383f62c84d0b5c246de50"
+    },
+    {
+      "at": "2026-04-30T19:04:11.741Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/session/resolve-tools.ts, packages/opencode/src/tool/tool-loader.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/session/resolve-tools.ts",
+        "packages/opencode/src/tool/tool-loader.ts"
+      ],
+      "commit": "fef4c6b0a592d7b13a18d2cb592547fe24c2db81"
+    },
+    {
+      "at": "2026-04-30T19:51:53.922Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "fef4c6b0a592d7b13a18d2cb592547fe24c2db81"
+    },
+    {
+      "at": "2026-04-30T19:56:42.146Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "fef4c6b0a592d7b13a18d2cb592547fe24c2db81"
+    },
+    {
+      "at": "2026-04-30T20:18:42.074Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "fef4c6b0a592d7b13a18d2cb592547fe24c2db81"
+    },
+    {
+      "at": "2026-04-30T20:24:30.197Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "fef4c6b0a592d7b13a18d2cb592547fe24c2db81"
+    },
+    {
+      "at": "2026-05-01T02:46:10.870Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "fef4c6b0a592d7b13a18d2cb592547fe24c2db81"
+    },
+    {
+      "at": "2026-05-01T02:46:15.397Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "fef4c6b0a592d7b13a18d2cb592547fe24c2db81"
+    },
+    {
+      "at": "2026-05-01T02:56:41.434Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "fef4c6b0a592d7b13a18d2cb592547fe24c2db81"
+    },
+    {
+      "at": "2026-05-01T03:03:25.742Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "fef4c6b0a592d7b13a18d2cb592547fe24c2db81"
+    },
+    {
+      "at": "2026-05-01T03:06:18.751Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "fef4c6b0a592d7b13a18d2cb592547fe24c2db81"
+    },
+    {
+      "at": "2026-05-01T03:09:10.957Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "fef4c6b0a592d7b13a18d2cb592547fe24c2db81"
+    },
+    {
+      "at": "2026-05-01T03:58:32.056Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "fef4c6b0a592d7b13a18d2cb592547fe24c2db81"
+    },
+    {
+      "at": "2026-05-01T04:35:55.271Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "fef4c6b0a592d7b13a18d2cb592547fe24c2db81"
+    },
+    {
+      "at": "2026-05-01T04:38:50.481Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "fef4c6b0a592d7b13a18d2cb592547fe24c2db81"
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-05-01T04:41:21.362Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "all implementation tasks complete; focused compaction/session validation passed; architecture and event evidence synced"
+    },
+    {
+      "at": "2026-05-01T04:41:21.856Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "fef4c6b0a592d7b13a18d2cb592547fe24c2db81"
+    },
+    {
+      "at": "2026-05-01T04:41:44.163Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "fef4c6b0a592d7b13a18d2cb592547fe24c2db81"
+    },
+    {
+      "at": "2026-05-01T05:49:50.001Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/app/src/context/global-sync/event-reducer.ts, packages/mcp/system-manager/src/index.ts, packages/mcp/system-manager/src/system-manager-http.test.ts, packages/mcp/system-manager/src/system-manager-http.ts, packages/opencode/src/cli/cmd/session.ts, packages/opencode/src/config/config.ts, packages/opencode/src/daemon/index.ts, packages/opencode/src/provider/model-curation.ts, packages/opencode/src/server/routes/global.ts, packages/opencode/src/session/index.ts, packages/opencode/src/session/post-compaction.ts, packages/opencode/src/session/processor.ts, packages/opencode/src/session/resolve-tools.ts, packages/opencode/src/session/todo.ts, packages/opencode/src/session/tool-invoker.ts, packages/opencode/src/session/zombie-sweep.ts, packages/opencode/src/tool/frequency.ts, packages/opencode/src/tool/todo.ts, packages/opencode/src/tool/tool-loader.ts, packages/ui/src/components/session-turn.tsx, packages/ui/src/hooks/create-auto-scroll.tsx",
+      "result": "warned",
+      "drift": [
+        "packages/app/src/context/global-sync/event-reducer.ts",
+        "packages/mcp/system-manager/src/index.ts",
+        "packages/mcp/system-manager/src/system-manager-http.test.ts",
+        "packages/mcp/system-manager/src/system-manager-http.ts",
+        "packages/opencode/src/cli/cmd/session.ts",
+        "packages/opencode/src/config/config.ts",
+        "packages/opencode/src/daemon/index.ts",
+        "packages/opencode/src/provider/model-curation.ts",
+        "packages/opencode/src/server/routes/global.ts",
+        "packages/opencode/src/session/index.ts",
+        "packages/opencode/src/session/post-compaction.ts",
+        "packages/opencode/src/session/processor.ts",
+        "packages/opencode/src/session/resolve-tools.ts",
+        "packages/opencode/src/session/todo.ts",
+        "packages/opencode/src/session/tool-invoker.ts",
+        "packages/opencode/src/session/zombie-sweep.ts",
+        "packages/opencode/src/tool/frequency.ts",
+        "packages/opencode/src/tool/todo.ts",
+        "packages/opencode/src/tool/tool-loader.ts",
+        "packages/ui/src/components/session-turn.tsx",
+        "packages/ui/src/hooks/create-auto-scroll.tsx"
+      ],
+      "commit": "b9d0b9bac8e0a87b953c7175ec59afa583b38fe5"
+    },
+    {
+      "at": "2026-05-01T05:56:11.726Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/app/src/pages/session.tsx, packages/opencode/src/provider/error.ts, packages/opencode/src/session/message-v2.ts",
+      "result": "warned",
+      "drift": [
+        "packages/app/src/pages/session.tsx",
+        "packages/opencode/src/provider/error.ts",
+        "packages/opencode/src/session/message-v2.ts"
+      ],
+      "commit": "4953bef3e19ca8db06b1d86950b1142c9e588100"
+    }
+  ]
+}

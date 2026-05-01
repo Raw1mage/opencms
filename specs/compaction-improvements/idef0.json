@@ -1,0 +1,20 @@
+{
+  "diagram_title": "Improve Compaction Safety Boundaries",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A0",
+      "name": "Improve Compaction Safety Boundaries",
+      "inputs": ["message stream", "provider usage metadata", "user uploads", "subagent returns"],
+      "controls": ["no silent fallback", "message-stream SSOT", "provider boundary rules", "tweaks.cfg thresholds"],
+      "outputs": ["compaction anchors", "budget envelope", "reference parts", "telemetry events"],
+      "mechanisms": ["SessionCompaction", "prompt runloop", "codex provider", "session-scoped storage", "worker tools"],
+      "children": ["A1", "A2", "A3", "A4", "A5"]
+    },
+    { "id": "A1", "name": "Evaluate trigger inventory" },
+    { "id": "A2", "name": "Resolve compaction kind chain" },
+    { "id": "A3", "name": "Surface budget facts" },
+    { "id": "A4", "name": "Route oversized boundary content" },
+    { "id": "A5", "name": "Emit observability evidence" }
+  ]
+}

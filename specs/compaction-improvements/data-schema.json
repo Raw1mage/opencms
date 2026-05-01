@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Compaction Improvements Data Contracts",
+  "type": "object",
+  "definitions": {
+    "ContextBudget": {
+      "type": "object",
+      "required": ["window", "used", "ratio", "status", "as_of"],
+      "properties": {
+        "window": { "type": "integer", "minimum": 1 },
+        "used": { "type": "integer", "minimum": 0 },
+        "ratio": { "type": "number", "minimum": 0 },
+        "status": { "enum": ["green", "yellow", "orange", "red"] },
+        "cache_read": { "type": "integer", "minimum": 0 },
+        "cache_hit_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "as_of": { "type": "string" }
+      }
+    },
+    "AttachmentRefPart": {
+      "type": "object",
+      "required": ["type", "ref_id", "mime", "est_tokens", "byte_size"],
+      "properties": {
+        "type": { "const": "attachment_ref" },
+        "ref_id": { "type": "string" },
+        "mime": { "type": "string" },
+        "filename": { "type": "string" },
+        "est_tokens": { "type": "integer", "minimum": 0 },
+        "byte_size": { "type": "integer", "minimum": 0 },
+        "preview": { "type": "string" },
+        "dimensions": {
+          "type": "object",
+          "properties": { "w": { "type": "integer" }, "h": { "type": "integer" } }
+        }
+      }
+    }
+  }
+}

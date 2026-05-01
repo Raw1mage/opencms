@@ -1,0 +1,20 @@
+[
+  {
+    "id": "P1",
+    "name": "High-context cache-loss compaction",
+    "messages": [
+      { "id": "MSG1", "from": "C1.1", "to": "C1.2", "text": "evaluate trigger inventory" },
+      { "id": "MSG2", "from": "C1.2", "to": "C1.3", "text": "resolve codex-aware kind chain" },
+      { "id": "MSG3", "from": "C1.2", "to": "C1.1", "text": "write anchor or continue with explicit outcome" }
+    ]
+  },
+  {
+    "id": "P2",
+    "name": "Oversized boundary content routing",
+    "messages": [
+      { "id": "MSG4", "from": "C1.1", "to": "C1.4", "text": "store raw content in session namespace" },
+      { "id": "MSG5", "from": "C1.4", "to": "C1.1", "text": "return lightweight attachment_ref" },
+      { "id": "MSG6", "from": "C1.1", "to": "C1.5", "text": "emit routing telemetry" }
+    ]
+  }
+]

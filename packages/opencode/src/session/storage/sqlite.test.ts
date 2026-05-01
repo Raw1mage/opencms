@@ -14,7 +14,8 @@ import path from "path"
 import { SqliteStore } from "./sqlite"
 import { ConnectionPool } from "./pool"
 import { runIntegrityCheckUncached, StorageCorruptionError } from "./integrity"
-import { ensureSchema } from "./migration-runner"
+import { ensureSchema, TARGET_VERSION } from "./migration-runner"
+import * as v1 from "./migrations/v1"
 import type { MessageV2 } from "../message-v2"
 
 const SID = "ses_test_sqlite_001"
@@ -23,6 +24,7 @@ const MID_A = "msg_dd1aaaaaaaaa0000aaaaaaaaaaaaa"
 const MID_B = "msg_dd2bbbbbbbbb0000bbbbbbbbbbbbb"
 const PID_A1 = "prt_dd1aaaaa0000pa1aaaaaaaaaaaaa"
 const PID_A2 = "prt_dd1aaaaa0001pa2aaaaaaaaaaaaa"
+const REF_A = "att_ref_sqlite_001"
 
 function userMessage(sessionID: string, id: string): MessageV2.User {
   return {
@@ -72,6 +74,21 @@ function textPart(sessionID: string, messageID: string, id: string, text: string
   } as MessageV2.Part
 }
 
+function attachmentBlob(sessionID: string, refID = REF_A) {
+  return {
+    refID,
+    sessionID,
+    messageID: MID_A,
+    partID: PID_A1,
+    mime: "text/plain",
+    filename: "large.txt",
+    byteSize: 5,
+    estTokens: 2,
+    createdAt: 1700000006000,
+    content: new Uint8Array([104, 101, 108, 108, 111]),
+  }
+}
+
 beforeEach(() => {
   ConnectionPool.closeAll()
 })
@@ -81,7 +98,7 @@ afterEach(async () => {
   // Clean test DB files between tests
   const dbPath = ConnectionPool.resolveDbPath(SID)
   const dbPathB = ConnectionPool.resolveDbPath(SID_B)
-  for (const p of [dbPath, dbPathB, dbPath + "-wal", dbPath + "-shm", dbPathB + "-wal", dbPathB + "-shm"]) {
+  for (const p of [dbPath, dbPathB, dbPath + "-wal", dbPath + "-shm", dbPathB + "-wal", dbPathB + "-shm", dbPath + ".tmp", dbPathB + ".tmp"]) {
     await fs.rm(p, { force: true }).catch(() => {})
   }
 })
@@ -182,7 +199,7 @@ describe("SqliteStore CRUD", () => {
 })
 
 describe("SqliteStore schema + integrity", () => {
-  it("bootstraps schema_version=1 on fresh DB", async () => {
+  it("bootstraps current schema_version on fresh DB", async () => {
     await SqliteStore.upsertMessage(userMessage(SID, MID_A))
     const dbPath = ConnectionPool.resolveDbPath(SID)
     ConnectionPool.closeAll()
@@ -190,7 +207,7 @@ describe("SqliteStore schema + integrity", () => {
     const row = inspect
       .query<{ value: string }, []>("SELECT value FROM meta WHERE key = 'schema_version'")
       .get()
-    expect(row?.value).toBe("1")
+    expect(row?.value).toBe(String(TARGET_VERSION))
     inspect.close()
   })
 
@@ -204,15 +221,33 @@ describe("SqliteStore schema + integrity", () => {
     db.close()
   })
 
-  it("ensureSchema is idempotent — re-running on a v1 DB is a no-op", async () => {
+  it("ensureSchema is idempotent at the target version", async () => {
     await SqliteStore.upsertMessage(userMessage(SID, MID_A))
     const dbPath = ConnectionPool.resolveDbPath(SID)
     ConnectionPool.closeAll()
     const db = new Database(dbPath)
     await ensureSchema(db, SID, dbPath)
-    // Still readable
     const row = db.query<{ id: string }, []>("SELECT id FROM messages").get()
     expect(row?.id).toBe(MID_A)
+    db.close()
+  })
+
+  it("migrates an existing v1 DB to v2 attachment storage", async () => {
+    const dbPath = ConnectionPool.resolveDbPath(SID)
+    await fs.mkdir(path.dirname(dbPath), { recursive: true })
+    const db = new Database(dbPath)
+    db.transaction(() => {
+      v1.applyV1(db)
+      db.query("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").run("schema_version", "1")
+      db.query("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").run("session_id", SID)
+      db.exec("PRAGMA user_version = 1")
+    })()
+    await ensureSchema(db, SID, dbPath)
+
+    const table = db.query<{ name: string }, []>("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'attachments'").get()
+    const version = db.query<{ value: string }, []>("SELECT value FROM meta WHERE key = 'schema_version'").get()
+    expect(table?.name).toBe("attachments")
+    expect(version?.value).toBe(String(TARGET_VERSION))
     db.close()
   })
 
@@ -251,11 +286,32 @@ describe("SqliteStore transaction atomicity (DR-1 / INV-6)", () => {
   })
 })
 
+describe("SqliteStore attachment blob contract", () => {
+  it("round-trips, lists, removes, and fails explicitly on missing refs", async () => {
+    const blob = attachmentBlob(SID)
+    await SqliteStore.upsertMessage(userMessage(SID, MID_A))
+    await SqliteStore.upsertAttachmentBlob(blob)
+
+    const got = await SqliteStore.getAttachmentBlob({ sessionID: SID, refID: REF_A })
+    expect([...got.content]).toEqual([104, 101, 108, 108, 111])
+    expect(got.sessionID).toBe(SID)
+
+    const listed = await SqliteStore.listAttachmentBlobs(SID)
+    expect(listed).toEqual([expect.objectContaining({ refID: REF_A, sessionID: SID, byteSize: 5 })])
+    expect("content" in listed[0]).toBe(false)
+
+    await SqliteStore.removeAttachmentBlob({ sessionID: SID, refID: REF_A })
+    expect(await SqliteStore.listAttachmentBlobs(SID)).toEqual([])
+    await expect(SqliteStore.getAttachmentBlob({ sessionID: SID, refID: REF_A })).rejects.toThrow(/ref not found/)
+  })
+})
+
 describe("SqliteStore deleteSession", () => {
   it("clears all rows in the session's tables", async () => {
     await SqliteStore.upsertMessage(userMessage(SID, MID_A))
     await SqliteStore.upsertMessage(assistantMessage(SID, MID_B, MID_A))
     await SqliteStore.upsertPart(textPart(SID, MID_B, PID_A1, "hi"))
+    await SqliteStore.upsertAttachmentBlob(attachmentBlob(SID))
 
     await SqliteStore.deleteSession(SID)
 
@@ -267,8 +323,10 @@ describe("SqliteStore deleteSession", () => {
     const inspect = new Database(dbPath, { readonly: true, create: false })
     const msgCount = inspect.query<{ c: number }, []>("SELECT COUNT(*) as c FROM messages").get()?.c
     const partCount = inspect.query<{ c: number }, []>("SELECT COUNT(*) as c FROM parts").get()?.c
+    const attachmentCount = inspect.query<{ c: number }, []>("SELECT COUNT(*) as c FROM attachments").get()?.c
     expect(msgCount).toBe(0)
     expect(partCount).toBe(0)
+    expect(attachmentCount).toBe(0)
     inspect.close()
   })
 })

@@ -78,10 +78,14 @@ function stubAnchorMessage(sid: string, anchorAgeMs: number | null) {
 }
 
 describe("compaction-redesign phase 4 — KIND_CHAIN + INJECT_CONTINUE table structure", () => {
-  it("KIND_CHAIN entries are cost-monotonic for every observed (INV-4)", () => {
+  it("KIND_CHAIN entries are cost-monotonic except explicit server-priority recovery chains (INV-4)", () => {
     const COST = { narrative: 0, "replay-tail": 0, "low-cost-server": 1, "llm-agent": 2 } as const
     const chains = SessionCompaction.__test__.KIND_CHAIN
     for (const [observed, kinds] of Object.entries(chains)) {
+      if (observed === "empty-response") {
+        expect(kinds).toEqual(["low-cost-server", "narrative", "replay-tail", "llm-agent"])
+        continue
+      }
       let prev = -1
       for (const k of kinds) {
         const cost = COST[k as keyof typeof COST]
@@ -107,8 +111,8 @@ describe("compaction-redesign phase 4 — KIND_CHAIN + INJECT_CONTINUE table str
     expect(kinds).toEqual(["narrative", "low-cost-server", "llm-agent"])
   })
 
-  it("provider-switched chain stops at narrative (Phase 13 REVISED — schema kind removed)", () => {
-    expect(SessionCompaction.__test__.KIND_CHAIN["provider-switched"]).toEqual(["narrative"])
+  it("provider-switched chain stays local-only (narrative + replay-tail, no paid kinds)", () => {
+    expect(SessionCompaction.__test__.KIND_CHAIN["provider-switched"]).toEqual(["narrative", "replay-tail"])
   })
 
   it("Phase 13 REVISED — no chain contains 'schema' kind", () => {
@@ -246,10 +250,16 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
     expect(writes[0].auto).toBe(false) // manual never injects Continue
   })
 
-  it("R-5: run({observed: 'provider-switched'}) rejects replay-tail + paid kinds", async () => {
-    // Phase 13 REVISED: provider-switched chain is just ["narrative"]. Empty
-    // memory → narrative fails → chain exhausts → "stop".
+  it("R-5: run({observed: 'provider-switched'}) permits local replay-tail but rejects paid kinds", async () => {
+    // Provider-switched may recover from the local message tail, but must not
+    // spend quota on low-cost-server or llm-agent.
     setupCommonMocks({ turnSummaries: [] }, "ses_run_pswitch")
+    ;(Session as any).messages = mock(async () => [
+      {
+        info: { id: "msg_user", role: "user", sessionID: "ses_run_pswitch" },
+        parts: [{ type: "text", text: "recover this provider-switched request" }],
+      },
+    ])
     const writes: any[] = []
     SessionCompaction.__test__.setAnchorWriter(async (input) => {
       writes.push(input)
@@ -261,11 +271,12 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
       step: 3,
     })
 
-    expect(result).toBe("stop")
-    expect(writes).toHaveLength(0)
+    expect(result).toBe("continue")
+    expect(writes).toHaveLength(1)
+    expect(writes[0].kind).toBe("replay-tail")
+    expect(writes[0].auto).toBe(false)
 
     const chain = SessionCompaction.__test__.KIND_CHAIN["provider-switched"]
-    expect(chain).not.toContain("replay-tail")
     expect(chain).not.toContain("low-cost-server")
     expect(chain).not.toContain("llm-agent")
   })
@@ -426,7 +437,12 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
     setupCommonMocks({ turnSummaries: [] }, "ses_run_lowcost")
     ;(Session as any).messages = mock(async () => [
       {
-        info: { id: "msg_u1", role: "user", agent: "default", model: { providerId: "codex", modelID: "gpt-5.5", accountId: "acc-A" } },
+        info: {
+          id: "msg_u1",
+          role: "user",
+          agent: "default",
+          model: { providerId: "codex", modelID: "gpt-5.5", accountId: "acc-A" },
+        },
         parts: [{ type: "text", text: "do the thing" }],
       },
     ])
@@ -493,10 +509,7 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
         parts: [{ type: "text", text: longText }],
       })
     }
-    setupCommonMocks(
-      { turnSummaries: [], rawTailBudget: 20 },
-      "ses_run_replay_truncate",
-    )
+    setupCommonMocks({ turnSummaries: [], rawTailBudget: 20 }, "ses_run_replay_truncate")
     ;(Provider as any).getModel = mock(async () => ({
       id: "tiny-model",
       providerId: "openai",

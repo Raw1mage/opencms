@@ -1,0 +1,20 @@
+[
+  {
+    "id": "TV-1",
+    "requirement": "R1",
+    "input": { "predictMiss": "miss", "ctxRatio": 0.62, "predictedUncachedTokens": 45000 },
+    "expected": { "observed": "cache-aware", "fires": true }
+  },
+  {
+    "id": "TV-2",
+    "requirement": "R2",
+    "input": { "provider": "codex", "subscription": true, "ctxRatio": 0.8, "observed": "overflow" },
+    "expected": { "firstKind": "low-cost-server" }
+  },
+  {
+    "id": "TV-3",
+    "requirement": "R4",
+    "input": { "window": 272000, "used": 187432, "cache_read": 162000 },
+    "expected": { "status": "yellow", "as_of": "end_of_turn_N-1" }
+  }
+]

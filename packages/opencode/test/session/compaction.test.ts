@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import path from "path"
 import { SessionCompaction } from "../../src/session/compaction"
+import { deriveObservedCondition, TRIGGER_INVENTORY } from "../../src/session/prompt"
 import { Token } from "../../src/util/token"
 import { Instance } from "../../src/project/instance"
 import { Log } from "../../src/util/log"
@@ -225,6 +226,146 @@ describe("session.compaction.isOverflow", () => {
         expect(await SessionCompaction.isOverflow({ tokens, model })).toBe(false)
       },
     })
+  })
+})
+
+describe("session.compaction.kindChainFor", () => {
+  test("provider-switched keeps replay-tail as local fallback", () => {
+    expect(SessionCompaction.kindChainFor("provider-switched")).toEqual(["narrative", "replay-tail"])
+  })
+
+  test("prioritizes server compaction only for high-context codex subscription", () => {
+    expect(
+      SessionCompaction.__test__.resolveKindChain({
+        observed: "cache-aware",
+        providerId: "codex",
+        isSubscription: true,
+        ctxRatio: 0.8,
+        codexServerPriorityRatio: 0.7,
+      }),
+    ).toEqual(["low-cost-server", "narrative", "replay-tail", "llm-agent"])
+
+    expect(
+      SessionCompaction.__test__.resolveKindChain({
+        observed: "cache-aware",
+        providerId: "codex",
+        isSubscription: false,
+        ctxRatio: 0.8,
+        codexServerPriorityRatio: 0.7,
+      }),
+    ).toEqual(["narrative", "replay-tail", "low-cost-server", "llm-agent"])
+
+    expect(
+      SessionCompaction.__test__.resolveKindChain({
+        observed: "cache-aware",
+        providerId: "openai",
+        isSubscription: true,
+        ctxRatio: 0.8,
+        codexServerPriorityRatio: 0.7,
+      }),
+    ).toEqual(["narrative", "replay-tail", "low-cost-server", "llm-agent"])
+  })
+})
+
+describe("session.prompt trigger inventory", () => {
+  test("declares compaction trigger precedence explicitly", () => {
+    expect(TRIGGER_INVENTORY.map((trigger) => trigger.id)).toEqual([
+      "cooldown",
+      "manual",
+      "auto-request",
+      "continuation-invalidated",
+      "provider-switched",
+      "account-rebind",
+      "overflow",
+      "stall-recovery",
+      "predicted-cache-miss",
+      "quota-pressure",
+      "cache-aware",
+    ])
+  })
+
+  test("fires predicted cache miss only when high context and miss are explicit", async () => {
+    const base = {
+      sessionID: "ses_test",
+      step: 1,
+      msgs: [],
+      lastFinished: {
+        id: "msg_a",
+        role: "assistant",
+        sessionID: "ses_test",
+        parentID: "msg_u",
+        mode: "build",
+        agent: "build",
+        path: { cwd: "/tmp", root: "/tmp" },
+        cost: 0,
+        tokens: { input: 160_000, output: 1, reasoning: 0, cache: { read: 10_000, write: 0 } },
+        modelID: "test-model",
+        providerId: "test",
+        time: { created: Date.now() },
+        finish: "stop",
+      } as any,
+      pinnedProviderId: "test",
+      pinnedAccountId: undefined,
+      hasUnprocessedCompactionRequest: false,
+      compactionRequestAuto: undefined,
+      parentID: undefined,
+      continuationInvalidatedAt: undefined,
+      currentInputTokens: 160_000,
+      modelContextWindow: 200_000,
+      isOverflow: async () => false,
+      isCacheAware: async () => false,
+    }
+
+    expect(await deriveObservedCondition({ ...base, predictedCacheMiss: "miss" })).toBe("cache-aware")
+    expect(await deriveObservedCondition({ ...base, predictedCacheMiss: "unknown" })).toBeNull()
+    expect(await deriveObservedCondition({ ...base, predictedCacheMiss: "miss", currentInputTokens: 80_000 })).toBeNull()
+  })
+
+  test("fires stall-recovery without Continue injection", async () => {
+    const user = {
+      info: { id: "msg_u", role: "user", sessionID: "ses_test", time: { created: 1 }, agent: "build", model: { providerId: "test", modelID: "test-model" } },
+      parts: [{ type: "text", text: "continue" }],
+    } as any
+    const emptyAssistant = (id: string) =>
+      ({
+        info: {
+          id,
+          role: "assistant",
+          sessionID: "ses_test",
+          parentID: "msg_u",
+          mode: "build",
+          agent: "build",
+          path: { cwd: "/tmp", root: "/tmp" },
+          cost: 0,
+          tokens: { input: 120_000, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          modelID: "test-model",
+          providerId: "test",
+          time: { created: 2 },
+          finish: "unknown",
+        },
+        parts: [],
+      }) as any
+
+    const observed = await deriveObservedCondition({
+      sessionID: "ses_test",
+      step: 2,
+      msgs: [user, emptyAssistant("msg_a1"), emptyAssistant("msg_a2")],
+      lastFinished: emptyAssistant("msg_a2").info,
+      pinnedProviderId: "test",
+      pinnedAccountId: undefined,
+      hasUnprocessedCompactionRequest: false,
+      compactionRequestAuto: undefined,
+      parentID: undefined,
+      continuationInvalidatedAt: undefined,
+      currentInputTokens: 120_000,
+      modelContextWindow: 200_000,
+      isOverflow: async () => false,
+      isCacheAware: async () => false,
+    })
+
+    expect(observed).toBe("stall-recovery")
+    expect(SessionCompaction.kindChainFor("stall-recovery")).toEqual(["narrative", "replay-tail", "low-cost-server", "llm-agent"])
+    expect(SessionCompaction.__test__.INJECT_CONTINUE["stall-recovery"]).toBe(false)
   })
 })
 

@@ -214,6 +214,22 @@ export const Router: SessionStorage.Backend = {
     return pick(part.sessionID).upsertPart(part)
   },
 
+  async upsertAttachmentBlob(blob: SessionStorage.AttachmentBlob): Promise<void> {
+    return pick(blob.sessionID).upsertAttachmentBlob(blob)
+  },
+
+  async getAttachmentBlob(input: { sessionID: string; refID: string }): Promise<SessionStorage.AttachmentBlob> {
+    return pick(input.sessionID).getAttachmentBlob(input)
+  },
+
+  async listAttachmentBlobs(sessionID: string): Promise<SessionStorage.AttachmentBlobMetadata[]> {
+    return pick(sessionID).listAttachmentBlobs(sessionID)
+  },
+
+  async removeAttachmentBlob(input: { sessionID: string; refID: string }): Promise<void> {
+    return pick(input.sessionID).removeAttachmentBlob(input)
+  },
+
   async deleteSession(sessionID: string): Promise<void> {
     // Both formats may need clearing during dual-track. Run the chosen
     // format's deleteSession, then opportunistically clean up any

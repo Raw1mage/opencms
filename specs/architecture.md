@@ -216,7 +216,7 @@ trigger=idle / rebind / continuation-invalidated:
   narrative → replay-tail  (no paid kinds; maintenance only)
 
 trigger=provider-switched:
-  narrative  (replay-tail excluded — raw tool-call format incompatible)
+  narrative → replay-tail  (local fallback only; no paid kinds)
 
 trigger=manual:
   narrative → low-cost-server → llm-agent
@@ -235,6 +235,62 @@ truncate AND a paid kind remains in the chain, run() escalates
 `INJECT_CONTINUE` table is frozen: rebind / continuation-invalidated /
 provider-switched / manual all map to `false`. The 2026-04-27 infinite
 loop bug is structurally extinct.
+
+Phase A edge cleanup (2026-05-01, specs/compaction-improvements):
+provider-switched compaction now exposes `SessionCompaction.kindChainFor`
+for tests and uses `narrative → replay-tail`, preserving the no-paid-kind
+rule while avoiding silent narrative-only failure. The prompt runloop
+refreshes `lastFinished.tokens.input` after stream-anchor rebind attempts
+for applied, no-anchor, and unsafe-boundary outcomes so downstream
+predicate checks do not read stale provider usage. If a runloop iteration
+has no user-message boundary (observed in compaction child failure modes),
+it logs the boundary state and stops before spawning another model round
+instead of throwing `No user message found in stream`.
+
+Phase B context-budget surfacing (2026-05-01,
+specs/compaction-improvements): prompt assembly appends a cache-safe
+`<context_budget>` text envelope to the latest user message passed to the
+model. The envelope uses only the most recent non-empty server-confirmed
+assistant usage snapshot (`tokens.input`, `cache.read`) and labels status
+via `Tweaks.compactionSync().budgetStatusThresholds` (default
+`0.50,0.75,0.90`). It is not added to the stable system prompt. Runtime
+self-heal nudges carry the same envelope, and subagent sessions inherit the
+same assembly path for their own session-local budget.
+
+Phase C trigger inventory and codex routing (2026-05-01,
+specs/compaction-improvements): `deriveObservedCondition` is now backed by
+an explicit `TRIGGER_INVENTORY` precedence contract including
+`stall-recovery` and `predicted-cache-miss`. Stall recovery compacts after
+consecutive empty high-context assistant rounds without injecting a
+synthetic Continue. Predicted cache miss maps to `cache-aware` only when the
+cache-loss signal is explicit and uncached input exceeds tweak thresholds.
+`SessionCompaction.resolveKindChain` makes kind ordering provider-aware:
+high-context codex OAuth subscription sessions (detected from the codex
+cost-zero model surface) prioritize `low-cost-server` before local narrative
+for overflow/cache-aware/manual triggers, while non-codex and non-subscription
+models keep the base chain. The codex provider's regular `/responses` request
+body is assembled through `buildResponsesApiRequest`, which always emits Mode
+1 server compaction shape `context_management: [{ type: "compaction",
+compact_threshold }]`; the standalone `/responses/compact` hook remains kind
+`low-cost-server`.
+
+Phase D/E big-content boundary and telemetry (2026-05-01,
+specs/compaction-improvements): oversized boundary payloads are routed by
+session-scoped reference instead of being injected raw into the next model
+context. `MessageV2.AttachmentRefPart` (`type: "attachment_ref"`) is the
+message-stream pointer, while raw bytes live behind `SessionStorage.Router`
+attachment blob APIs implemented by both LegacyStore and SQLiteStore (SQLite
+schema v2 `attachments` table). `user-message-parts.ts` stores oversized
+file/data uploads as attachment refs; `tool/task.ts` stores oversized child
+session returns in the parent session namespace before emitting pending
+subagent notices; `tool/attachment.ts` is the bounded drilldown surface for
+text/file digest and task-result references. Missing refs and image/vision
+capability gaps fail explicitly; runtime never silently selects another model
+or falls back to raw oversized content. `session/compaction-telemetry.ts`
+provides raw-content-safe payload builders for predicate outcomes, kind-chain
+resolution, context-budget surfacing, and big-content boundary routing;
+callers emit these through existing debug checkpoints rather than a parallel
+telemetry bus.
 
 ### Subagent compaction (DD-12)
 
@@ -315,7 +371,7 @@ Implementation history in `docs/events/`.
 
 ### Hybrid-LLM Compaction (Phase 2 of context-management subsystem, 2026-04-29)
 
-A new kind `hybrid_llm` (specs/tool-output-chunking/, refactor 2026-04-29) is now the **primary** kind for `overflow / cache-aware / manual` triggers, prepended at the front of the chain unconditionally. Existing kinds (`narrative / replay-tail / low-cost-server / llm-agent`) remain reachable as **fallback** if hybrid_llm's recovery ladder exhausts (1 retry stricter framing → Phase 2 absorb-pinned-zone → `E_OVERFLOW_UNRECOVERABLE`). Maintenance triggers (`idle / rebind / continuation-invalidated / provider-switched`) are untouched — they don't need a paid LLM call.
+`hybrid_llm` (specs/tool-output-chunking/, refactor 2026-04-29) is a background enrichment post-step for `overflow / cache-aware / manual` triggers when `compaction_enable_hybrid_llm` is enabled. The foreground chain first commits a fast anchor (`narrative / replay-tail / low-cost-server / llm-agent`, provider-aware as described above); after success, `scheduleHybridEnrichment` may upgrade that anchor asynchronously. Maintenance triggers (`idle / rebind / continuation-invalidated / provider-switched`) are untouched — they don't need a paid LLM call.
 
 - **`SessionCompaction.Hybrid` namespace** (in `packages/opencode/src/session/compaction.ts`): types mirror `specs/tool-output-chunking/data-schema.json` (`Anchor` / `JournalEntry` / `PinnedZoneEntry` / `ContextMarkers` / `ContextStatus` / `LLMCompactRequest` / `CompactionEvent` / `ErrorCode`). Pure functions for validation + envelope wrapping + payload construction.
 - **`Memory.Hybrid` accessors** (in `memory.ts`): selectors over the message stream — `getAnchorMessage` / `getJournalMessages` / `getPinnedToolMessages` / `recallMessage`. INV-10 single-source-of-truth preserved.

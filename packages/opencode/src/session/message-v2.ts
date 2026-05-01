@@ -308,6 +308,25 @@ export namespace MessageV2 {
   })
   export type FilePart = z.infer<typeof FilePart>
 
+  export const AttachmentRefPart = PartBase.extend({
+    type: z.literal("attachment_ref"),
+    ref_id: z.string(),
+    mime: z.string(),
+    filename: z.string().optional(),
+    est_tokens: z.number().int().nonnegative(),
+    byte_size: z.number().int().nonnegative(),
+    preview: z.string().optional(),
+    dimensions: z
+      .object({
+        w: z.number().int().positive(),
+        h: z.number().int().positive(),
+      })
+      .optional(),
+  }).meta({
+    ref: "AttachmentRefPart",
+  })
+  export type AttachmentRefPart = z.infer<typeof AttachmentRefPart>
+
   export const AgentPart = PartBase.extend({
     type: z.literal("agent"),
     name: z.string(),
@@ -524,6 +543,7 @@ export namespace MessageV2 {
       SubtaskPart,
       ReasoningPart,
       FilePart,
+      AttachmentRefPart,
       ToolPart,
       StepStartPart,
       StepFinishPart,
@@ -623,6 +643,16 @@ export namespace MessageV2 {
         })
         .optional(),
       cancelReason: z.string().max(500).optional(),
+      result: z
+        .object({
+          type: z.enum(["inline", "attachment_ref"]),
+          text: z.string().optional(),
+          refID: z.string().optional(),
+          byteSize: z.number().int().nonnegative().optional(),
+          estTokens: z.number().int().nonnegative().optional(),
+          preview: z.string().optional(),
+        })
+        .optional(),
     })
     .meta({ ref: "PendingSubagentNotice" })
   export type PendingSubagentNotice = z.infer<typeof PendingSubagentNotice>
@@ -786,6 +816,16 @@ export namespace MessageV2 {
               url: part.url,
               mediaType: part.mime,
               filename: part.filename,
+            })
+          if (part.type === "attachment_ref")
+            userMessage.parts.push({
+              type: "text",
+              text:
+                `<attachment_ref ref_id="${part.ref_id}" mime="${part.mime}" bytes="${part.byte_size}" estimated_tokens="${part.est_tokens}"` +
+                `${part.filename ? ` filename="${part.filename}"` : ""}>` +
+                `${part.preview ? `\n<preview>${part.preview}</preview>` : ""}` +
+                "\nRaw attachment content is stored by reference. Use attachment query tools when detailed content is needed." +
+                "\n</attachment_ref>",
             })
 
           if (part.type === "compaction" || part.type === "compaction-request") {

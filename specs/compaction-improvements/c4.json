@@ -1,0 +1,18 @@
+{
+  "systems": [
+    { "id": "C1", "name": "OpenCode Runtime", "description": "Session runloop and compaction orchestration" }
+  ],
+  "containers": [{ "id": "C1.1", "name": "Session Prompt Runloop", "system": "C1", "moduleRef": "A1" }],
+  "components": [
+    { "id": "C1.2", "name": "SessionCompaction", "container": "C1.1", "moduleRef": "A2" },
+    { "id": "C1.3", "name": "Provider/Codex Adapter", "container": "C1.1", "moduleRef": "A2" },
+    { "id": "C1.4", "name": "Boundary Content Store", "container": "C1.1", "moduleRef": "A4" },
+    { "id": "C1.5", "name": "Telemetry Bus", "container": "C1.1", "moduleRef": "A5" }
+  ],
+  "relationships": [
+    { "from": "C1.1", "to": "C1.2", "label": "runs trigger inventory and compaction" },
+    { "from": "C1.2", "to": "C1.3", "label": "selects provider-aware kind / codex mode" },
+    { "from": "C1.1", "to": "C1.4", "label": "stores oversized boundary content by reference" },
+    { "from": "C1.2", "to": "C1.5", "label": "emits decision evidence" }
+  ]
+}

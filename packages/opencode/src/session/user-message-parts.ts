@@ -14,14 +14,108 @@ import { Session } from "."
 import { ListTool } from "../tool/ls"
 import { FileTime } from "../file/time"
 import { PermissionNext } from "@/permission/next"
+import { Tweaks } from "@/config/tweaks"
+import { Router as StorageRouter } from "./storage/router"
+import { emitBoundaryRoutingTelemetry } from "./compaction-telemetry"
 
 const log = Log.create({ service: "session.user-message-parts" })
+
+type AttachmentBlobWriter = Pick<typeof StorageRouter, "upsertAttachmentBlob">
+let attachmentBlobWriter: AttachmentBlobWriter = StorageRouter
+
+export function setAttachmentBlobWriterForTesting(writer?: AttachmentBlobWriter) {
+  attachmentBlobWriter = writer ?? StorageRouter
+}
 
 type UserMessagePartInput =
   | (Omit<MessageV2.TextPart, "id" | "messageID" | "sessionID"> & { id?: string })
   | (Omit<MessageV2.FilePart, "id" | "messageID" | "sessionID"> & { id?: string })
   | (Omit<MessageV2.AgentPart, "id" | "messageID" | "sessionID"> & { id?: string })
   | (Omit<MessageV2.SubtaskPart, "id" | "messageID" | "sessionID"> & { id?: string })
+
+function estimateTokens(byteSize: number): number {
+  return Math.ceil(byteSize / 4)
+}
+
+function decodeDataUrl(url: string): Uint8Array {
+  const comma = url.indexOf(",")
+  if (comma < 0) throw new Error("invalid data URL attachment: missing payload separator")
+  const meta = url.slice(0, comma).toLowerCase()
+  const payload = url.slice(comma + 1)
+  if (meta.includes(";base64")) return Uint8Array.from(Buffer.from(payload, "base64"))
+  return Uint8Array.from(Buffer.from(decodeURIComponent(payload), "utf8"))
+}
+
+function previewBytes(bytes: Uint8Array, mime: string, limit: number): string | undefined {
+  if (limit <= 0) return undefined
+  const prefix = bytes.slice(0, Math.min(bytes.length, limit))
+  if (mime.startsWith("text/") || mime === "application/json" || mime.endsWith("+json")) {
+    return Buffer.from(prefix).toString("utf8")
+  }
+  return `[binary ${mime} content omitted; ${bytes.length} bytes stored by reference]`
+}
+
+async function routeOversizedAttachment(input: {
+  sessionID: string
+  messageID: string
+  part: Omit<MessageV2.FilePart, "id" | "messageID" | "sessionID"> & { id?: string }
+  bytes: Uint8Array
+}): Promise<MessageV2.AttachmentRefPart | undefined> {
+  const cfg = Tweaks.bigContentBoundarySync()
+  const byteSize = input.bytes.byteLength
+  if (byteSize <= cfg.userAttachmentMaxBytes) {
+    emitBoundaryRoutingTelemetry({
+      boundary: "user_attachment",
+      action: "inline",
+      mime: input.part.mime,
+      byteSize,
+      estTokens: estimateTokens(byteSize),
+      thresholdBytes: cfg.userAttachmentMaxBytes,
+      hasFilename: !!input.part.filename,
+      reason: "below_threshold",
+    })
+    return undefined
+  }
+
+  const refID = Identifier.ascending("part")
+  await attachmentBlobWriter.upsertAttachmentBlob({
+    refID,
+    sessionID: input.sessionID,
+    messageID: input.messageID,
+    mime: input.part.mime,
+    filename: input.part.filename,
+    byteSize,
+    estTokens: estimateTokens(byteSize),
+    createdAt: Date.now(),
+    content: input.bytes,
+  })
+  emitBoundaryRoutingTelemetry({
+    boundary: "user_attachment",
+    action: "attachment_ref",
+    refID,
+    mime: input.part.mime,
+    byteSize,
+    estTokens: estimateTokens(byteSize),
+    thresholdBytes: cfg.userAttachmentMaxBytes,
+    previewBytes: cfg.attachmentPreviewBytes,
+    truncated: byteSize > cfg.attachmentPreviewBytes,
+    hasFilename: !!input.part.filename,
+    reason: "above_threshold",
+  })
+
+  return {
+    id: Identifier.ascending("part"),
+    sessionID: input.sessionID,
+    messageID: input.messageID,
+    type: "attachment_ref",
+    ref_id: refID,
+    mime: input.part.mime,
+    filename: input.part.filename,
+    byte_size: byteSize,
+    est_tokens: estimateTokens(byteSize),
+    preview: previewBytes(input.bytes, input.part.mime, cfg.attachmentPreviewBytes),
+  }
+}
 
 export async function buildUserMessageParts(input: {
   partsInput: UserMessagePartInput[]
@@ -121,7 +215,15 @@ export async function buildUserMessageParts(input: {
         }
         const url = new URL(part.url)
         switch (url.protocol) {
-          case "data:":
+          case "data:": {
+            const dataBytes = decodeDataUrl(part.url)
+            const attachmentRef = await routeOversizedAttachment({
+              sessionID: input.sessionID,
+              messageID: input.info.id,
+              part,
+              bytes: dataBytes,
+            })
+            if (attachmentRef) return [attachmentRef]
             if (part.mime === "text/plain") {
               debugCheckpoint("prompt.file", "data:text", {
                 mime: part.mime,
@@ -154,6 +256,7 @@ export async function buildUserMessageParts(input: {
               ]
             }
             break
+          }
           case "file:": {
             log.info("file", { mime: part.mime })
             // have to normalize, symbol search returns absolute paths
@@ -168,6 +271,30 @@ export async function buildUserMessageParts(input: {
 
             if (stat.isDirectory()) {
               part.mime = "application/x-directory"
+            }
+
+            if (!stat.isDirectory()) {
+              const fileBytes = await Bun.file(filepath).bytes()
+              const attachmentRef = await routeOversizedAttachment({
+                sessionID: input.sessionID,
+                messageID: input.info.id,
+                part,
+                bytes: fileBytes,
+              })
+              if (attachmentRef) {
+                FileTime.read(input.sessionID, filepath)
+                return [
+                  {
+                    id: Identifier.ascending("part"),
+                    messageID: input.info.id,
+                    sessionID: input.sessionID,
+                    type: "text",
+                    text: `Called the Read tool with the following input: {"filePath":"${filepath}"}`,
+                    synthetic: true,
+                  },
+                  attachmentRef,
+                ]
+              }
             }
 
             if (part.mime === "text/plain") {

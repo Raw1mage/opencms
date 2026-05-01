@@ -58,6 +58,7 @@ export function registerPendingNoticeAppenderSubscriber() {
           errorDetail: p.errorDetail,
           rotateHint: p.rotateHint,
           cancelReason: p.cancelReason,
+          result: p.result,
         }
 
         await Session.update(p.parentSessionID, (draft) => {
