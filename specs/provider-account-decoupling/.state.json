@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "state": "planned",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-05-01T16:51:55.171Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-05-01T17:16:46.053Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "spec.md, design.md, c4.json, sequence.json, data-schema.json, idef0.json, grafcet.json drafted; user-confirmed scope (single cutover, OAuth untouched, full sweep)"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-05-01T17:32:38.789Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "tasks.md (9 phases), handoff.md, test-vectors.json (9 vectors), errors.md, observability.md drafted"
+    }
+  ]
+}

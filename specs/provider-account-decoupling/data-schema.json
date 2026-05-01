@@ -1,0 +1,147 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "provider-account-decoupling data contracts",
+  "definitions": {
+    "Family": {
+      "description": "Canonical provider family identifier. MUST be in Account.knownFamilies(). Examples: \"codex\", \"openai\", \"anthropic\", \"gemini-cli\".",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "examples": ["codex", "openai", "anthropic"]
+    },
+    "AccountId": {
+      "description": "Opaque per-account identifier. Today happens to be `<family>-(api|subscription)-<slug>`; treat as opaque outside Account.generateId. MUST NEVER appear as providerId outside accounts.json storage keys.",
+      "type": "string",
+      "minLength": 1,
+      "examples": ["codex-subscription-yeats-luo-thesmart-cc", "openai-api-1"]
+    },
+    "ModelId": {
+      "type": "string",
+      "minLength": 1,
+      "examples": ["gpt-5.5", "claude-opus-4-7"]
+    },
+    "ModelVector": {
+      "description": "Three-dimensional address used by rotation, identity audit, and persistence.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["providerId", "accountId", "modelID"],
+      "properties": {
+        "providerId": { "$ref": "#/definitions/Family" },
+        "accountId":  { "$ref": "#/definitions/AccountId" },
+        "modelID":    { "$ref": "#/definitions/ModelId" }
+      }
+    },
+    "AuthBlob": {
+      "description": "Auth credentials returned by Auth.get(family, accountId).",
+      "type": "object",
+      "oneOf": [
+        {
+          "required": ["type", "apiKey"],
+          "properties": {
+            "type": { "const": "api" },
+            "apiKey": { "type": "string" }
+          }
+        },
+        {
+          "required": ["type", "access", "refresh"],
+          "properties": {
+            "type": { "const": "oauth" },
+            "access": { "type": "string" },
+            "refresh": { "type": "string" },
+            "expires": { "type": "number" }
+          }
+        }
+      ]
+    },
+    "ProviderInfo": {
+      "description": "Family-level provider entry in the registry. Per-account state lives under `accounts`.",
+      "type": "object",
+      "required": ["id", "name", "models", "accounts"],
+      "properties": {
+        "id":    { "$ref": "#/definitions/Family" },
+        "name":  { "type": "string" },
+        "models": {
+          "type": "object",
+          "additionalProperties": { "type": "object" }
+        },
+        "accounts": {
+          "description": "Per-account state for this family. Key MUST be a valid AccountId; value carries auth options + cooldown state.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "options":            { "type": "object" },
+              "active":             { "type": "boolean" },
+              "email":              { "type": "string" },
+              "coolingDownUntil":   { "type": "number" },
+              "cooldownReason":     { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "AccountsJson": {
+      "description": "On-disk shape of ~/.config/opencode/accounts.json. STRUCTURE UNCHANGED by this refactor; only invariant is tightened.",
+      "type": "object",
+      "required": ["version", "families"],
+      "properties": {
+        "version": { "type": "integer" },
+        "families": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/definitions/Family" },
+          "additionalProperties": {
+            "type": "object",
+            "required": ["accounts"],
+            "properties": {
+              "activeAccount": { "$ref": "#/definitions/AccountId" },
+              "accounts": {
+                "type": "object",
+                "additionalProperties": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "MigrationMarker": {
+      "description": "Marker file `.migration-state.json` written by the migration script and verified at daemon boot.",
+      "type": "object",
+      "required": ["version", "migrated_at", "backup_path"],
+      "additionalProperties": false,
+      "properties": {
+        "version": { "const": "1" },
+        "migrated_at": { "type": "string", "format": "date-time" },
+        "backup_path": { "type": "string" }
+      }
+    },
+    "Errors": {
+      "description": "New error types introduced by this refactor.",
+      "type": "object",
+      "properties": {
+        "RegistryShapeError": {
+          "description": "Thrown when a non-family providerId is inserted into the providers map.",
+          "fields": ["providerId", "knownFamilies"]
+        },
+        "UnknownFamilyError": {
+          "description": "Thrown when Auth.get / getSDK receives a family not in knownFamilies.",
+          "fields": ["family", "knownFamilies"]
+        },
+        "NoActiveAccountError": {
+          "description": "Thrown when Auth.get(family) is called without an accountId AND the family has no activeAccount set.",
+          "fields": ["family"]
+        },
+        "MigrationRequiredError": {
+          "description": "Thrown at daemon boot when `.migration-state.json` is missing or version != \"1\".",
+          "fields": ["expectedVersion", "found"]
+        }
+      }
+    }
+  },
+  "invariants": [
+    "ProviderInfo.id === the key under which it is stored in providers[]",
+    "Every providers[] key is a Family",
+    "Every Model.providerId emitted from the registry is a Family",
+    "Every accounts.json families[] key is a Family",
+    "Auth.get is two-arg (family, accountId?); single-arg form removed",
+    "getSDK is three-arg (family, accountId, modelId); object-arg form removed"
+  ]
+}

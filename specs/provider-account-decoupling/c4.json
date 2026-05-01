@@ -1,0 +1,97 @@
+{
+  "schema": "c4-1.0",
+  "title": "provider-account-decoupling",
+  "scope": "container",
+  "systems": [
+    {
+      "id": "S1",
+      "name": "opencode runtime",
+      "description": "Local daemon serving multiple Claude / OpenAI / Codex / etc. provider families to interactive sessions and subagents."
+    }
+  ],
+  "containers": [
+    {
+      "id": "C1",
+      "system": "S1",
+      "name": "Provider Registry",
+      "moduleRef": "packages/opencode/src/provider/provider.ts",
+      "responsibility": "Holds family-level Provider.Info entries; enforces registry-boundary shape (DD-1, DD-4)."
+    },
+    {
+      "id": "C2",
+      "system": "S1",
+      "name": "Auth Lookup",
+      "moduleRef": "packages/opencode/src/auth/index.ts",
+      "responsibility": "Two-arg lookup (family, accountId?) returning AuthBlob (DD-2)."
+    },
+    {
+      "id": "C3",
+      "system": "S1",
+      "name": "SDK Dispatcher",
+      "moduleRef": "packages/opencode/src/provider/provider.ts",
+      "responsibility": "Three-arg getSDK (family, accountId, modelId) (DD-3)."
+    },
+    {
+      "id": "C4",
+      "system": "S1",
+      "name": "Rotation 3D",
+      "moduleRef": "packages/opencode/src/account/rotation3d.ts",
+      "responsibility": "Build fallback candidate pool over the (family, account, model) tuple. enforceCodexFamilyOnly + step3b hotfix removed (DD-5)."
+    },
+    {
+      "id": "C5",
+      "system": "S1",
+      "name": "Account Storage",
+      "moduleRef": "packages/opencode/src/account/index.ts",
+      "responsibility": "Persist accounts.json (already family-keyed; structure unchanged)."
+    },
+    {
+      "id": "C6",
+      "system": "S1",
+      "name": "Migration Tooling",
+      "moduleRef": "packages/opencode/scripts/migrate-provider-account-decoupling.ts",
+      "responsibility": "One-shot ops-driven migration; daemon stopped; backup + idempotent + marker (DD-6, DD-7)."
+    },
+    {
+      "id": "C7",
+      "system": "S1",
+      "name": "Daemon Boot Guard",
+      "moduleRef": "packages/opencode/src/index.ts",
+      "responsibility": "Refuses to start if migration marker missing or stale (DD-6)."
+    }
+  ],
+  "components": [
+    { "id": "C1.1", "container": "C1", "name": "providers map",          "type": "data",      "shape": "Record<family, Provider.Info>", "invariant": "every key in Account.knownFamilies()" },
+    { "id": "C1.2", "container": "C1", "name": "registry-shape guard",   "moduleRef": "packages/opencode/src/provider/registry-shape.ts", "type": "function", "responsibility": "throws RegistryShapeError on non-family key insertion" },
+    { "id": "C1.3", "container": "C1", "name": "populate loop",          "moduleRef": "packages/opencode/src/provider/provider.ts:1459-1605", "type": "function", "responsibility": "walks Account.listAll() and merges per-account state into Provider.Info.accounts sub-map" },
+    { "id": "C2.1", "container": "C2", "name": "Auth.get",               "type": "function", "signature": "(family: string, accountId?: string) => AuthBlob | undefined", "errors": ["UnknownFamilyError", "NoActiveAccountError"] },
+    { "id": "C2.2", "container": "C2", "name": "Auth.set",               "type": "function", "responsibility": "writes to accounts.json families.<family>.accounts.<accountId>; unchanged path" },
+    { "id": "C3.1", "container": "C3", "name": "getSDK",                 "type": "function", "signature": "(family: string, accountId: string, modelId: string) => ProviderSDK", "depends": ["C1.1", "C2.1"] },
+    { "id": "C4.1", "container": "C4", "name": "buildFallbackCandidates","type": "function", "depends": ["C1.1"], "invariant": "every candidate.providerId is a family" },
+    { "id": "C4.2", "container": "C4", "name": "selectBestFallback",     "type": "function" },
+    { "id": "C5.1", "container": "C5", "name": "accounts.json",          "type": "data", "path": "~/.config/opencode/accounts.json", "shape": "{ version, families: Record<family, { activeAccount, accounts: Record<accountId, AccountInfo> }> }", "invariant": "every families key in Account.knownFamilies()" },
+    { "id": "C5.2", "container": "C5", "name": "Account.generateId",     "type": "function", "annotation": "@internal:account-creation; produces opaque accountId" },
+    { "id": "C5.3", "container": "C5", "name": "Account.parseProvider",  "type": "function", "annotation": "@internal:migration-only (DD-9)" },
+    { "id": "C5.4", "container": "C5", "name": "Account.resolveFamilyFromKnown", "type": "function", "annotation": "@internal:migration-only (DD-9)" },
+    { "id": "C6.1", "container": "C6", "name": "backup-snapshot",        "type": "function" },
+    { "id": "C6.2", "container": "C6", "name": "session-storage-walker", "type": "function", "uses": ["C5.3", "C5.4"] },
+    { "id": "C6.3", "container": "C6", "name": "marker-writer",          "type": "function", "produces": ".migration-state.json" },
+    { "id": "C7.1", "container": "C7", "name": "marker-check",           "type": "function", "errors": ["MigrationRequiredError"] }
+  ],
+  "relationships": [
+    { "from": "C3.1", "to": "C1.1", "label": "lookup template" },
+    { "from": "C3.1", "to": "C2.1", "label": "lookup auth" },
+    { "from": "C4.1", "to": "C1.1", "label": "iterate families" },
+    { "from": "C4.1", "to": "C5.1", "label": "Account.list(family)" },
+    { "from": "C2.1", "to": "C5.1", "label": "read accounts" },
+    { "from": "C2.2", "to": "C5.1", "label": "write accounts" },
+    { "from": "C1.3", "to": "C1.2", "label": "all writes guarded" },
+    { "from": "C6.2", "to": "C5.1", "label": "read + sanity check" },
+    { "from": "C6.2", "to": "C6.1", "label": "backup before write" },
+    { "from": "C7.1", "to": "C6.3", "label": "verify marker" }
+  ],
+  "removed": [
+    { "ref": "packages/opencode/src/account/rotation3d.ts:830-851", "reason": "enforceCodexFamilyOnly — DD-5 deletes string-based family gate" },
+    { "ref": "packages/opencode/src/account/rotation3d.ts:746-775", "reason": "step 3b same-family skip — 2026-05-02 hotfix made redundant by DD-1" }
+  ]
+}

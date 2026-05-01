@@ -1,0 +1,18 @@
+[
+  { "id": "S0", "name": "legacy-runtime",         "actions": ["serve traffic with mixed-key registry", "rotation may misclassify codex family"], "transitionsOut": [{"to": "S1", "condition": "specs/provider-account-decoupling promoted to designed"}] },
+  { "id": "S1", "name": "spec-frozen",            "actions": ["specs/provider-account-decoupling state=designed", "code unchanged"], "transitionsOut": [{"to": "S2", "condition": "all tasks in tasks.md complete AND tests green AND user approves merge"}] },
+  { "id": "S2", "name": "code-merged",            "actions": ["new registry/auth/getSDK/rotation merged on baseBranch", "daemon NOT yet restarted (still on old binary)"], "transitionsOut": [{"to": "S3", "condition": "operator decision: ready to cut over"}] },
+  { "id": "S3", "name": "daemon-stopped",         "actions": ["operator runs `opencode daemon stop`", "no traffic"], "transitionsOut": [{"to": "S4", "condition": "operator runs migrate script (backup phase)"}] },
+  { "id": "S4", "name": "backup-taken",           "actions": ["snapshot accounts.json + storage/session/ → .backup/<ts>/"], "transitionsOut": [{"to": "S5", "condition": "backup snapshot completes"}] },
+  { "id": "S5", "name": "dry-run-reviewed",       "actions": ["operator runs migrate script with --dry-run", "diff inspected"], "transitionsOut": [
+      {"to": "S6", "condition": "operator approves dry-run diff"},
+      {"to": "S9", "condition": "dry-run shows unexpected diff → abort + rollback"}
+  ] },
+  { "id": "S6", "name": "migration-applied",      "actions": ["script walks session storage", "replaces per-account providerId fields with family", "writes .migration-state.json"], "transitionsOut": [
+      {"to": "S7", "condition": "all session files rewritten + sanity checks pass + marker written"},
+      {"to": "S9", "condition": "any write fails partway → abort + rollback"}
+  ] },
+  { "id": "S7", "name": "marker-verified",        "actions": ["operator confirms marker version=\"1\" and backup_path recorded"], "transitionsOut": [{"to": "S8", "condition": "operator starts daemon"}] },
+  { "id": "S8", "name": "daemon-restarted",       "actions": ["operator starts new binary", "boot guard checks marker → OK", "daemon serves traffic with family-only registry"], "transitionsOut": [{"to": "S9", "condition": "post-cutover smoke fails → rollback"}] },
+  { "id": "S9", "name": "rollback-restoring",     "actions": ["operator restores accounts.json + session/ from .backup/<ts>/", "deletes .migration-state.json", "deploys previous binary"], "transitionsOut": [{"to": "S2", "condition": "rollback complete; can attempt cutover again later"}] }
+]

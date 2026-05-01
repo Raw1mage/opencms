@@ -1,0 +1,161 @@
+[
+  {
+    "id": "TV1",
+    "requirement": "Spec §Requirement: Registry holds only families",
+    "scenario": "registry rejects per-account key",
+    "input": {
+      "operation": "providers[\"codex-subscription-foo\"] = { id: \"codex-subscription-foo\", ... }",
+      "knownFamilies": ["codex", "openai", "anthropic", "gemini-cli"]
+    },
+    "expect": {
+      "throws": "RegistryShapeError",
+      "fields": { "providerId": "codex-subscription-foo", "knownFamilies": ["codex", "openai", "anthropic", "gemini-cli"] }
+    }
+  },
+  {
+    "id": "TV2",
+    "requirement": "Spec §Requirement: Auth lookup is two-arg",
+    "scenario": "explicit account requested",
+    "input": {
+      "call": "Auth.get(\"codex\", \"codex-subscription-business-thesmart-cc\")",
+      "accountsJson": {
+        "version": 1,
+        "families": {
+          "codex": {
+            "activeAccount": "codex-subscription-yeats-luo-thesmart-cc",
+            "accounts": {
+              "codex-subscription-yeats-luo-thesmart-cc": { "type": "oauth", "access": "TOKEN_A", "refresh": "REFRESH_A" },
+              "codex-subscription-business-thesmart-cc": { "type": "oauth", "access": "TOKEN_B", "refresh": "REFRESH_B" }
+            }
+          }
+        }
+      }
+    },
+    "expect": {
+      "returns": { "type": "oauth", "access": "TOKEN_B", "refresh": "REFRESH_B" }
+    }
+  },
+  {
+    "id": "TV3",
+    "requirement": "Spec §Requirement: Auth lookup is two-arg",
+    "scenario": "family without an active account",
+    "input": {
+      "call": "Auth.get(\"codex\")",
+      "accountsJson": {
+        "version": 1,
+        "families": {
+          "codex": { "accounts": { "codex-subscription-foo": { "type": "oauth", "access": "x", "refresh": "y" } } }
+        }
+      }
+    },
+    "expect": {
+      "throws": "NoActiveAccountError",
+      "fields": { "family": "codex" }
+    }
+  },
+  {
+    "id": "TV4",
+    "requirement": "Spec §Requirement: rotation3d uses canonical comparisons",
+    "scenario": "step 1 only — same-family pool",
+    "input": {
+      "current": { "providerId": "codex", "accountId": "codex-subscription-yeats-luo-thesmart-cc", "modelID": "gpt-5.5" },
+      "knownAccounts": [
+        "codex-subscription-yeats-luo-thesmart-cc",
+        "codex-subscription-business-thesmart-cc",
+        "codex-subscription-developer-thesmart-cc"
+      ]
+    },
+    "expect": {
+      "candidates_providerId_set": ["codex"],
+      "candidate_count": 2,
+      "no_call_to": ["enforceCodexFamilyOnly", "step3b same-family skip"]
+    }
+  },
+  {
+    "id": "TV5",
+    "requirement": "Spec §Requirement: One-shot storage migration",
+    "scenario": "legacy session message with per-account providerId",
+    "input": {
+      "file": "storage/session/ses_X/messages/msg_Y/info.json",
+      "before": {
+        "id": "msg_Y",
+        "sessionID": "ses_X",
+        "role": "assistant",
+        "providerId": "codex-subscription-foo",
+        "accountId": "codex-subscription-foo",
+        "modelID": "gpt-5.5"
+      }
+    },
+    "expect": {
+      "after": {
+        "id": "msg_Y",
+        "sessionID": "ses_X",
+        "role": "assistant",
+        "providerId": "codex",
+        "accountId": "codex-subscription-foo",
+        "modelID": "gpt-5.5"
+      },
+      "log_line_contains": "rewrite providerId codex-subscription-foo → codex"
+    }
+  },
+  {
+    "id": "TV6",
+    "requirement": "Spec §Requirement: One-shot storage migration",
+    "scenario": "already-clean session message",
+    "input": {
+      "file": "storage/session/ses_X/messages/msg_Y/info.json",
+      "before": {
+        "id": "msg_Y",
+        "providerId": "codex",
+        "accountId": "codex-subscription-foo",
+        "modelID": "gpt-5.5"
+      }
+    },
+    "expect": {
+      "after_equals_before": true,
+      "log_line_contains": "skipped: already-clean"
+    }
+  },
+  {
+    "id": "TV7",
+    "requirement": "Spec §Requirement: Cutover atomicity",
+    "scenario": "daemon refuses to start without marker",
+    "input": {
+      "marker_file_present": false,
+      "daemon_command": "opencode serve"
+    },
+    "expect": {
+      "throws": "MigrationRequiredError",
+      "exit_code": 1,
+      "stderr_contains": "run migrate-provider-account-decoupling.ts"
+    }
+  },
+  {
+    "id": "TV8",
+    "requirement": "Spec §Requirement: Cutover atomicity",
+    "scenario": "daemon refuses to start with stale marker",
+    "input": {
+      "marker_file": { "version": "0", "migrated_at": "2025-12-01T00:00:00Z", "backup_path": "/old" },
+      "expected_version": "1"
+    },
+    "expect": {
+      "throws": "MigrationRequiredError",
+      "fields": { "expectedVersion": "1", "found": "0" },
+      "exit_code": 1
+    }
+  },
+  {
+    "id": "TV9",
+    "requirement": "Spec §Acceptance Checks",
+    "scenario": "post-migration grep audit",
+    "input": {
+      "command": "rg -nE \"-(api|subscription)-\" packages/opencode/src/ | grep -v test/"
+    },
+    "expect": {
+      "max_matches": 4,
+      "allowed_match_files": [
+        "packages/opencode/src/account/index.ts (Account.generateId, parseProvider, resolveFamilyFromKnown)"
+      ]
+    }
+  }
+]

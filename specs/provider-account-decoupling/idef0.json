@@ -1,0 +1,76 @@
+{
+  "diagram_title": "provider-account-decoupling",
+  "node_reference": "A0",
+  "a0": {
+    "id": "A0",
+    "name": "Decouple provider registry from per-account identity",
+    "inputs":   ["legacy storage with mixed family/per-account providerIds", "current registry shape", "16+ codex subscription accounts"],
+    "controls": ["spec.md requirements", "design.md decisions DD-1..DD-9", "AGENTS.md rule 1 (no silent fallback)", "user decision: single cutover (2026-05-02)"],
+    "outputs":  ["family-only providers registry", "two-arg Auth.get", "three-arg getSDK", "migrated session storage", "deleted enforceCodexFamilyOnly + step3b hotfix"],
+    "mechanisms": ["plan-builder spec lifecycle", "migration script (one-shot, ops-driven)", "RegistryShapeError boundary guard"]
+  },
+  "activities": [
+    {
+      "id": "A1",
+      "parent": "A0",
+      "name": "Tighten registry shape",
+      "inputs":   ["current providers[] with mixed keys", "Account.knownFamilies()"],
+      "controls": ["DD-1", "DD-4"],
+      "outputs":  ["providers: Record<family, Provider.Info>", "Provider.Info.accounts sub-map populated", "Model.providerId always family"],
+      "mechanisms": ["registry-shape.ts boundary guard", "rewrite of populate loop at provider.ts:1459-1605"]
+    },
+    {
+      "id": "A2",
+      "parent": "A0",
+      "name": "Convert Auth lookup to two-arg",
+      "inputs":   ["current Auth.get(providerId) callers"],
+      "controls": ["DD-2", "DD-8 (no shims)"],
+      "outputs":  ["Auth.get(family, accountId?) signature", "UnknownFamilyError + NoActiveAccountError thrown on bad input", "all call sites updated (auth-loader, agent.ts:381, mcp/app-registry.ts:360)"],
+      "mechanisms": ["TypeScript signature change forces compiler to flag every caller"]
+    },
+    {
+      "id": "A3",
+      "parent": "A0",
+      "name": "Convert getSDK to three-arg",
+      "inputs":   ["current getSDK(model) callers", "model.providerId values (mixed)"],
+      "controls": ["DD-3", "A1 output (providers family-only)"],
+      "outputs":  ["getSDK(family, accountId, modelId) signature", "ModelDispatch carrier replaces model.providerId-as-account hack"],
+      "mechanisms": ["TypeScript signature change"]
+    },
+    {
+      "id": "A4",
+      "parent": "A0",
+      "name": "Simplify rotation 3D",
+      "inputs":   ["enforceCodexFamilyOnly (rotation3d.ts:830-851)", "step3b hotfix (rotation3d.ts:746-775)"],
+      "controls": ["DD-5"],
+      "outputs":  ["both deleted", "candidate.providerId === current.providerId trivially correct"],
+      "mechanisms": ["pure deletion + test rewrite"]
+    },
+    {
+      "id": "A5",
+      "parent": "A0",
+      "name": "Migrate persisted storage",
+      "inputs":   ["session storage (info.json + parts/*.json)", "accounts.json", ".migration-state.json absent"],
+      "controls": ["DD-6", "DD-7", "DD-9"],
+      "outputs":  ["session storage normalized to family providerId", "backup snapshot at .backup/<ts>/", ".migration-state.json present"],
+      "mechanisms": ["migrate-provider-account-decoupling.ts (idempotent + dry-run mode)", "Account.parseProvider/resolveFamilyFromKnown reused (migration-only)"]
+    },
+    {
+      "id": "A6",
+      "parent": "A0",
+      "name": "Gate daemon boot on marker",
+      "inputs":   [".migration-state.json (or absence)"],
+      "controls": ["DD-6", "AGENTS.md rule 1"],
+      "outputs":  ["daemon starts only if marker present and version=\"1\"", "MigrationRequiredError on missing/stale marker"],
+      "mechanisms": ["src/index.ts boot guard"]
+    }
+  ],
+  "traceability": [
+    { "activity": "A1", "components": ["C1", "C1.1", "C1.2", "C1.3"] },
+    { "activity": "A2", "components": ["C2", "C2.1"] },
+    { "activity": "A3", "components": ["C3", "C3.1"] },
+    { "activity": "A4", "components": ["C4", "C4.1", "C4.2"] },
+    { "activity": "A5", "components": ["C6", "C6.1", "C6.2", "C6.3", "C5.3", "C5.4"] },
+    { "activity": "A6", "components": ["C7", "C7.1"] }
+  ]
+}

@@ -1,0 +1,74 @@
+[
+  {
+    "id": "P1",
+    "name": "Healthy completion on pinned account",
+    "componentRef": ["C3.1", "C2.1", "C1.1"],
+    "messages": [
+      { "id": "MSG1.1", "from": "Session Processor", "to": "C3.1 getSDK", "payload": "(family=\"codex\", accountId=\"codex-subscription-yeats-luo-thesmart-cc\", modelId=\"gpt-5.5\")" },
+      { "id": "MSG1.2", "from": "C3.1", "to": "C1.1 providers", "payload": "lookup providers[\"codex\"]" },
+      { "id": "MSG1.3", "from": "C1.1", "to": "C3.1", "payload": "Provider.Info template" },
+      { "id": "MSG1.4", "from": "C3.1", "to": "C2.1 Auth.get", "payload": "(\"codex\", \"codex-subscription-yeats-luo-thesmart-cc\")" },
+      { "id": "MSG1.5", "from": "C2.1", "to": "C3.1", "payload": "AuthBlob (OAuth tokens)" },
+      { "id": "MSG1.6", "from": "C3.1", "to": "Session Processor", "payload": "ProviderSDK bound to that account" }
+    ]
+  },
+  {
+    "id": "P2",
+    "name": "Rotation after rate-limit error (codex same-family fallback)",
+    "componentRef": ["C4.1", "C4.2", "C1.1", "C2.1", "C3.1"],
+    "messages": [
+      { "id": "MSG2.1", "from": "LLM error path", "to": "C4.1 buildFallbackCandidates", "payload": "current=(family=\"codex\", account=\"yeats-luo\", model=\"gpt-5.5\")" },
+      { "id": "MSG2.2", "from": "C4.1", "to": "C5 Account.list", "payload": "Account.list(\"codex\")" },
+      { "id": "MSG2.3", "from": "C5", "to": "C4.1", "payload": "16 accountIds under codex" },
+      { "id": "MSG2.4", "from": "C4.1", "to": "C4.1", "payload": "build candidates with providerId=\"codex\" for each non-current account; NO step 3b cross-provider duplication" },
+      { "id": "MSG2.5", "from": "C4.1", "to": "C4.2 selectBestFallback", "payload": "candidates list (all providerId=\"codex\")" },
+      { "id": "MSG2.6", "from": "C4.2", "to": "C4.2", "payload": "comparison `candidate.providerId === current.providerId` is trivially true; no enforceCodexFamilyOnly call" },
+      { "id": "MSG2.7", "from": "C4.2", "to": "LLM error path", "payload": "fallback (family=\"codex\", account=\"business-thesmart-cc\", model=\"gpt-5.5\")" },
+      { "id": "MSG2.8", "from": "LLM error path", "to": "C3.1 getSDK", "payload": "retry with new account" }
+    ]
+  },
+  {
+    "id": "P3",
+    "name": "Daemon boot with valid migration marker",
+    "componentRef": ["C7.1", "C6.3"],
+    "messages": [
+      { "id": "MSG3.1", "from": "boot", "to": "C7.1 marker-check", "payload": "verify .migration-state.json present and version=\"1\"" },
+      { "id": "MSG3.2", "from": "C7.1", "to": "C7.1", "payload": "OK — proceed with daemon initialisation" }
+    ]
+  },
+  {
+    "id": "P4",
+    "name": "Daemon boot with missing migration marker",
+    "componentRef": ["C7.1"],
+    "messages": [
+      { "id": "MSG4.1", "from": "boot", "to": "C7.1 marker-check", "payload": "look for .migration-state.json" },
+      { "id": "MSG4.2", "from": "C7.1", "to": "boot", "payload": "throw MigrationRequiredError(\"run migrate-provider-account-decoupling.ts first\")" },
+      { "id": "MSG4.3", "from": "boot", "to": "process", "payload": "exit code 1 (no silent fallback per AGENTS.md rule 1)" }
+    ]
+  },
+  {
+    "id": "P5",
+    "name": "One-shot migration run",
+    "componentRef": ["C6.1", "C6.2", "C6.3", "C5.1", "C5.3", "C5.4"],
+    "messages": [
+      { "id": "MSG5.1", "from": "operator", "to": "migrate script", "payload": "bun run migrate-provider-account-decoupling.ts" },
+      { "id": "MSG5.2", "from": "migrate script", "to": "C6.1 backup-snapshot", "payload": "snapshot accounts.json + storage/session/ to .backup/<ts>/" },
+      { "id": "MSG5.3", "from": "C6.1", "to": "migrate script", "payload": "backup_path" },
+      { "id": "MSG5.4", "from": "migrate script", "to": "C6.2 walker", "payload": "for each session message info.json + parts/*.json" },
+      { "id": "MSG5.5", "from": "C6.2", "to": "C5.4 resolveFamilyFromKnown", "payload": "providerId field value (e.g. \"codex-subscription-foo\")" },
+      { "id": "MSG5.6", "from": "C5.4", "to": "C6.2", "payload": "\"codex\"" },
+      { "id": "MSG5.7", "from": "C6.2", "to": "filesystem", "payload": "atomic rename rewrite providerId=\"codex\"" },
+      { "id": "MSG5.8", "from": "migrate script", "to": "C5.1", "payload": "sanity-check accounts.json (every families key in knownFamilies); fail loud if not" },
+      { "id": "MSG5.9", "from": "migrate script", "to": "C6.3 marker-writer", "payload": "write .migration-state.json {version:1, migrated_at, backup_path}" }
+    ]
+  },
+  {
+    "id": "P6",
+    "name": "Caller passes accountId where family expected (regression guard)",
+    "componentRef": ["C2.1", "C1.2"],
+    "messages": [
+      { "id": "MSG6.1", "from": "buggy caller", "to": "C2.1 Auth.get", "payload": "(\"codex-subscription-foo\", undefined)" },
+      { "id": "MSG6.2", "from": "C2.1", "to": "buggy caller", "payload": "throw UnknownFamilyError(\"codex-subscription-foo\" not in knownFamilies)" }
+    ]
+  }
+]
