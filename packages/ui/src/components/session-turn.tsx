@@ -357,12 +357,40 @@ export function SessionTurn(
         }
       }
 
-      // Forward scan: standard sequence (and autonomous multi-step)
+      // Forward scan: standard sequence (and autonomous multi-step).
+      //
+      // Synthetic-user transparency: auto-compaction injects a real user
+      // message whose only text part is `synthetic: true` (the "Continue if
+      // you have next steps" nudge). visibleUserMessages already filters
+      // these out so they don't render as empty bubbles, but post-compaction
+      // assistants set parentID = continueMsg.id, not the original user. If
+      // we break on the synthetic user, every post-compaction assistant
+      // becomes an orphan turn with no visible parent → tool bubbles vanish,
+      // only the streaming timer stays. Treat synthetic users as transparent
+      // and absorb their id into the accepted parent set.
+      const acceptedParents = new Set<string>([msg.id])
       for (let i = index + 1; i < messages.length; i++) {
         const item = messages[i]
         if (!item) continue
-        if (item.role === "user") break
-        if (item.role === "assistant" && item.parentID === msg.id) {
+        if (item.role === "user") {
+          const userParts = list(data.store.part?.[item.id], emptyParts)
+          let hasText = false
+          let hasNonSynthetic = false
+          for (const p of userParts) {
+            if (p.type !== "text") continue
+            hasText = true
+            if (!(p as { synthetic?: boolean }).synthetic) {
+              hasNonSynthetic = true
+              break
+            }
+          }
+          if (hasText && !hasNonSynthetic) {
+            acceptedParents.add(item.id)
+            continue
+          }
+          break
+        }
+        if (item.role === "assistant" && acceptedParents.has(item.parentID ?? "")) {
           // Hide auto-compaction assistant messages from the UI.
           // They remain in storage so the AI sees the summary on next turn;
           // a toast surfaces progress so the user isn't startled by the freeze.
