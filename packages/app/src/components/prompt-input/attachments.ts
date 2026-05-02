@@ -6,7 +6,57 @@ import { uuid } from "@/utils/uuid"
 import { getCursorPosition } from "./editor-dom"
 
 export const ACCEPTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"]
-export const ACCEPTED_FILE_TYPES = [...ACCEPTED_IMAGE_TYPES, "application/pdf"]
+// /specs/repo-incoming-attachments — drag-drop accepts the file types the
+// backend (routeOversizedAttachment → tryLandInIncoming → mcp dispatcher)
+// can route. Office formats land in <repo>/incoming/ and are picked up by
+// docxmcp / future xlsx-mcp / pptx-mcp via the dispatcher.
+export const ACCEPTED_OFFICE_TYPES = [
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation", // .pptx
+  "application/msword", // legacy .doc
+  "application/vnd.ms-excel", // legacy .xls
+  "application/vnd.ms-powerpoint", // legacy .ppt
+]
+export const ACCEPTED_TEXT_TYPES = [
+  "text/plain",
+  "text/markdown",
+  "text/csv",
+  "application/json",
+]
+export const ACCEPTED_FILE_TYPES = [
+  ...ACCEPTED_IMAGE_TYPES,
+  "application/pdf",
+  ...ACCEPTED_OFFICE_TYPES,
+  ...ACCEPTED_TEXT_TYPES,
+]
+
+// Extension-based MIME inference for OS / DE that don't fill in
+// dataTransfer.file.type for Office documents.
+const EXTENSION_TO_MIME: Record<string, string> = {
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  doc: "application/msword",
+  xls: "application/vnd.ms-excel",
+  ppt: "application/vnd.ms-powerpoint",
+  pdf: "application/pdf",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  txt: "text/plain",
+  md: "text/markdown",
+  csv: "text/csv",
+  json: "application/json",
+}
+
+function inferMimeFromFile(file: File): string {
+  if (file.type) return file.type
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? ""
+  return EXTENSION_TO_MIME[ext] ?? ""
+}
 const LARGE_PASTE_CHARS = 8000
 const LARGE_PASTE_BREAKS = 120
 
@@ -56,7 +106,8 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
   }
 
   const addImageAttachment = async (file: File) => {
-    if (!ACCEPTED_FILE_TYPES.includes(file.type)) return
+    const inferredMime = inferMimeFromFile(file)
+    if (!ACCEPTED_FILE_TYPES.includes(inferredMime)) return
     const key = imageKey(file)
     if (pendingImageKeys.has(key) || seenRecently(key)) return
     pendingImageKeys.add(key)
@@ -79,7 +130,7 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
         type: "image",
         id: uuid(),
         filename: file.name,
-        mime: file.type,
+        mime: inferredMime,
         dataUrl,
       }
       const cursorPosition = prompt.cursor() ?? getCursorPosition(editor)
@@ -217,7 +268,7 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     if (!dropped) return
 
     for (const file of Array.from(dropped)) {
-      if (ACCEPTED_FILE_TYPES.includes(file.type)) {
+      if (ACCEPTED_FILE_TYPES.includes(inferMimeFromFile(file))) {
         await addImageAttachment(file)
       }
     }
