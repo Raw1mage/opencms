@@ -22,6 +22,7 @@ import { PostCompaction } from "./post-compaction"
 import { ContinuationInvalidatedEvent } from "../plugin/codex-auth"
 import { emitCompactionPredicateTelemetry, emitKindChainTelemetry } from "./compaction-telemetry"
 import { sanitizeAnchorToString, type AnchorKind } from "./anchor-sanitizer"
+import { checkCleanTail } from "./idle-compaction-gate"
 
 // Subscribe to continuation invalidation. compaction-redesign DD-11:
 // state-driven signal — write timestamp onto session.execution; the
@@ -443,6 +444,20 @@ export namespace SessionCompaction {
     log.info("idle compaction evaluation", { utilization, threshold, count: budget.count, usable: budget.usable })
 
     if (utilization < threshold) return
+
+    // DD-7: defer if the conversation tail has any unmatched tool_use parts
+    // (pending/running). Inserting an anchor mid-flight would split the
+    // tool_use ↔ tool_result pair Anthropic strict-pairing requires.
+    const tailMessages = await Session.messages({ sessionID: input.sessionID }).catch(() => [] as MessageV2.WithParts[])
+    const cleanCheck = checkCleanTail(tailMessages, 2)
+    if (!cleanCheck.clean) {
+      log.info("compaction.idle.deferred", {
+        sessionID: input.sessionID,
+        reason: cleanCheck.reason ?? "unclean-tail",
+        scannedMessageCount: cleanCheck.scannedMessageCount,
+      })
+      return
+    }
 
     await run({
       sessionID: input.sessionID,
