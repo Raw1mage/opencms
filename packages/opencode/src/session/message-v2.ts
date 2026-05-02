@@ -827,16 +827,71 @@ export namespace MessageV2 {
               mediaType: part.mime,
               filename: part.filename,
             })
-          if (part.type === "attachment_ref")
+          if (part.type === "attachment_ref") {
+            // /specs/repo-incoming-attachments DD-17:
+            // - repo_path (when present) tells the LLM the bytes are on disk
+            //   in <projectRoot>/<repo_path> and gives it a direct path it
+            //   can hand to mcp tools (e.g. docxmcp_extract_outline) or
+            //   the Read tool. Without this, the LLM only sees an opaque
+            //   ref_id and falls back to delegating "go read this for me"
+            //   to a subagent.
+            // - The guidance line that follows lists the right routes by
+            //   mime so the main agent uses the dispatcher path directly
+            //   rather than re-delegating.
+            const isDocx =
+              part.mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            const isXlsx =
+              part.mime === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            const isPptx =
+              part.mime === "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            const isPdf = part.mime === "application/pdf"
+            const isImage = part.mime.startsWith("image/")
+
+            let routingHint = ""
+            if (part.repo_path) {
+              if (isDocx) {
+                routingHint =
+                  `\nThe bytes live on disk at \`${part.repo_path}\`. To inspect content, call ` +
+                  `\`mcpapp-docxmcp_extract_text\` (full text), \`mcpapp-docxmcp_extract_outline\` ` +
+                  `(headings tree), or \`mcpapp-docxmcp_explore_styles\` (style usage) with ` +
+                  `\`source\`/\`doc_dir\` set to the path. Do not delegate this to a subagent — ` +
+                  `the main agent has direct access to docxmcp tools.`
+              } else if (isXlsx || isPptx) {
+                routingHint =
+                  `\nThe bytes live on disk at \`${part.repo_path}\`. xlsx/pptx mcp tools are not ` +
+                  `wired yet; if needed, summarise from filename + size and ask the user how to proceed.`
+              } else if (isImage) {
+                routingHint =
+                  `\nThe bytes live on disk at \`${part.repo_path}\`. Use the \`attachment\` tool ` +
+                  `with \`mode=read\` and \`agent="vision"\` to dispatch to a vision reader.`
+              } else if (isPdf) {
+                routingHint =
+                  `\nThe bytes live on disk at \`${part.repo_path}\`. Use the \`attachment\` tool ` +
+                  `with \`mode=read\` and \`agent="pdf-reader"\` to dispatch to a pdf reader.`
+              } else {
+                routingHint =
+                  `\nThe bytes live on disk at \`${part.repo_path}\`. Use the \`Read\` tool with ` +
+                  `\`filePath="${part.repo_path}"\` for text formats, or \`attachment\` tool with ` +
+                  `\`mode=read\` and an explicit \`agent\` for richer mimes.`
+              }
+            } else {
+              // Legacy ref (pre-DD-17, bytes in attachments table only).
+              routingHint =
+                "\nRaw attachment content is stored by reference. Use the attachment tool when detailed content is needed."
+            }
+
             userMessage.parts.push({
               type: "text",
               text:
                 `<attachment_ref ref_id="${part.ref_id}" mime="${part.mime}" bytes="${part.byte_size}" estimated_tokens="${part.est_tokens}"` +
-                `${part.filename ? ` filename="${part.filename}"` : ""}>` +
+                `${part.filename ? ` filename="${part.filename}"` : ""}` +
+                `${part.repo_path ? ` repo_path="${part.repo_path}"` : ""}` +
+                `${part.sha256 ? ` sha256="${part.sha256}"` : ""}>` +
                 `${part.preview ? `\n<preview>${part.preview}</preview>` : ""}` +
-                "\nRaw attachment content is stored by reference. Use attachment query tools when detailed content is needed." +
+                routingHint +
                 "\n</attachment_ref>",
             })
+          }
 
           if (part.type === "compaction" || part.type === "compaction-request") {
             userMessage.parts.push({
