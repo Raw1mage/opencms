@@ -23,6 +23,7 @@ import { ContinuationInvalidatedEvent } from "../plugin/codex-auth"
 import { emitCompactionPredicateTelemetry, emitKindChainTelemetry } from "./compaction-telemetry"
 import { sanitizeAnchorToString, type AnchorKind } from "./anchor-sanitizer"
 import { checkCleanTail } from "./idle-compaction-gate"
+import { SkillLayerRegistry } from "./skill-layer-registry"
 
 // Subscribe to continuation invalidation. compaction-redesign DD-11:
 // state-driven signal — write timestamp onto session.execution; the
@@ -1275,6 +1276,28 @@ When constructing the summary, try to stick to this template:
       partCount: preSanitizedTextParts.length,
     })
 
+    // DD-9: skill auto-pin + snapshot for the LLM-agent path. The previous
+    // anchor (if any) is the most-recent summary-true message OTHER than
+    // processor.message; readMostRecentAnchorId returns the just-written
+    // one, so we filter it out.
+    const allAnchorMsgs = (await Session.messages({ sessionID: input.sessionID })).filter(
+      (m) => m.info.role === "assistant" && (m.info as MessageV2.Assistant).summary === true,
+    )
+    const prevLlmAnchorId = allAnchorMsgs
+      .filter((m) => m.info.id !== processor.message.id)
+      .at(-1)?.info.id
+
+    const sanitizedJoined = preSanitizedTextParts
+      .map((p) => (p as any).text ?? "")
+      .join("\n")
+    await annotateAnchorWithSkillState({
+      sessionID: input.sessionID,
+      summaryText: sanitizedJoined,
+      prevAnchorId: prevLlmAnchorId,
+      kind: "llm-agent",
+      explicitAnchorId: processor.message.id,
+    })
+
     // Write the compaction boundary anchor on the summary assistant message.
     await Session.updatePart({
       id: Identifier.ascending("part"),
@@ -1789,11 +1812,102 @@ When constructing the summary, try to stick to this template:
       sanitizedLength: sanitized.body.length,
       imperativePrefixApplied: sanitized.imperativePrefixApplied,
     })
+
+    // DD-9: identify previous anchor BEFORE the write so we can release its
+    // pinForAnchor entries afterwards. The cooldown gate (30s) makes
+    // back-to-back anchor races negligible in practice.
+    const prevAnchorId = await readMostRecentAnchorId(input.sessionID)
+
     await compactWithSharedContext({
       sessionID: input.sessionID,
       snapshot: sanitized.body,
       model: input.model,
       auto: input.auto,
+    })
+
+    // DD-9: scan the just-written anchor body for skill name references and
+    // pin matched active/summary skills so they survive idle decay until the
+    // next anchor supersedes this one. Snapshot is logged as telemetry only
+    // for Phase A; full anchor.metadata.skillSnapshot persistence is Phase B
+    // (requires CompactionPart schema extension).
+    await annotateAnchorWithSkillState({
+      sessionID: input.sessionID,
+      summaryText: sanitized.body,
+      prevAnchorId,
+      kind: input.kind,
+    })
+  }
+
+  async function readMostRecentAnchorId(sessionID: string): Promise<string | undefined> {
+    const messages = await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[])
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i]
+      if (m.info.role === "assistant" && (m.info as MessageV2.Assistant).summary === true) {
+        return m.info.id
+      }
+    }
+    return undefined
+  }
+
+  async function annotateAnchorWithSkillState(input: {
+    sessionID: string
+    summaryText: string
+    prevAnchorId: string | undefined
+    kind: KindName
+    /** Explicit anchor id (used by tryLlmAgent which already knows it). */
+    explicitAnchorId?: string
+  }): Promise<void> {
+    const newAnchorId = input.explicitAnchorId ?? (await readMostRecentAnchorId(input.sessionID))
+    if (!newAnchorId) {
+      log.warn("compaction.anchor.skill_binding_skipped", {
+        sessionID: input.sessionID,
+        reason: "no anchor found after write",
+      })
+      return
+    }
+
+    const entries = SkillLayerRegistry.list(input.sessionID)
+    const knownNames = entries.map((e) => e.name)
+    const matched = SkillLayerRegistry.scanReferences(input.summaryText, knownNames)
+
+    for (const name of matched) {
+      SkillLayerRegistry.pinForAnchor(input.sessionID, name, newAnchorId, "referenced-by-anchor")
+      log.info("skill.pin_for_anchor", {
+        sessionID: input.sessionID,
+        anchorId: newAnchorId,
+        skillName: name,
+        reason: "referenced-by-anchor",
+      })
+    }
+
+    let unpinnedNames: string[] = []
+    if (input.prevAnchorId && input.prevAnchorId !== newAnchorId) {
+      unpinnedNames = SkillLayerRegistry.unpinByAnchor(input.sessionID, input.prevAnchorId)
+      if (unpinnedNames.length > 0) {
+        log.info("skill.unpin_by_anchor", {
+          sessionID: input.sessionID,
+          anchorId: input.prevAnchorId,
+          unpinnedNames,
+        })
+      }
+    }
+
+    // skillSnapshot telemetry per observability.md (full disk persistence
+    // deferred to Phase B; this snapshot lives in event log only).
+    const snapshot = {
+      active: entries
+        .filter((e) => e.runtimeState === "active" || e.runtimeState === "sticky")
+        .map((e) => e.name),
+      summarized: entries.filter((e) => e.runtimeState === "summarized").map((e) => e.name),
+      pinned: entries.filter((e) => e.pinned).map((e) => e.name),
+    }
+    log.info("compaction.anchor.skill_snapshot", {
+      sessionID: input.sessionID,
+      anchorId: newAnchorId,
+      kind: input.kind,
+      matchedReferences: matched,
+      releasedFromPrevAnchor: unpinnedNames,
+      snapshot,
     })
   }
   let _writeAnchor: (input: WriteAnchorInput) => Promise<void> = defaultWriteAnchor

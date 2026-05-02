@@ -16,6 +16,13 @@ export type SkillLayerEntry = {
   pinned: boolean
   lastReason: string
   residue?: SkillLayerResidue
+  /**
+   * DD-9 (specs/prompt-cache-and-compaction-hardening): set of anchorIds that
+   * pinned this entry. `pinForAnchor` adds; `unpinByAnchor` removes. The skill
+   * remains pinned as long as the set is non-empty. Allows multiple concurrent
+   * anchors to pin the same skill without stomping each other on supersede.
+   */
+  pinnedByAnchors?: Set<string>
 }
 
 export type SkillLayerResidue = {
@@ -125,6 +132,76 @@ export namespace SkillLayerRegistry {
     entry.pinned = false
     entry.runtimeState = "idle"
     entry.lastReason = "unpinned"
+  }
+
+  /**
+   * DD-9: pin a skill on behalf of a compaction anchor. Multiple anchors can
+   * pin independently; the skill remains pinned until every anchor that
+   * pinned it has been superseded (via {@link unpinByAnchor}).
+   */
+  export function pinForAnchor(
+    sessionID: string,
+    name: string,
+    anchorId: string,
+    reason = "referenced-by-anchor",
+    now = Date.now(),
+  ) {
+    const entry = requireEntry(sessionID, name)
+    if (!entry.pinnedByAnchors) entry.pinnedByAnchors = new Set()
+    entry.pinnedByAnchors.add(anchorId)
+    entry.pinned = true
+    entry.runtimeState = "sticky"
+    entry.desiredState = "full"
+    entry.lastUsedAt = now
+    entry.lastReason = `${reason}:${anchorId}`
+    entry.residue = undefined
+  }
+
+  /**
+   * DD-9: when a new anchor supersedes an old one, unpin every entry that the
+   * old anchor previously pinned. The entry remains pinned if any other anchor
+   * still pins it. Called from compaction.run before the new anchor write.
+   */
+  export function unpinByAnchor(sessionID: string, anchorId: string): string[] {
+    const sessionRegistry = registry.get(sessionID)
+    if (!sessionRegistry) return []
+    const released: string[] = []
+    for (const entry of sessionRegistry.values()) {
+      if (!entry.pinnedByAnchors?.has(anchorId)) continue
+      entry.pinnedByAnchors.delete(anchorId)
+      if (entry.pinnedByAnchors.size === 0) {
+        // Manually-pinned entries (via `pin`) keep entry.pinned=true via the
+        // set being absent; we only flip to false when the set is empty AND
+        // the original pin came from a pinForAnchor (we can't distinguish
+        // origin perfectly, so the current rule is: empty anchor set →
+        // unpin. If the user explicitly called pin() afterwards they should
+        // call pin() again or the unpinByAnchor caller must coordinate.).
+        entry.pinned = false
+        entry.runtimeState = "idle"
+        entry.lastReason = `unpinned-by-anchor-supersede:${anchorId}`
+        released.push(entry.name)
+      } else {
+        entry.lastReason = `unpinned-partial-by-anchor:${anchorId}`
+      }
+    }
+    return released
+  }
+
+  /**
+   * DD-9 helper: scan a text body for skill name references using simple
+   * word-boundary substring match. Returns the subset of `knownNames` that
+   * appear as standalone tokens in the text.
+   */
+  export function scanReferences(text: string, knownNames: ReadonlyArray<string>): string[] {
+    if (!text || knownNames.length === 0) return []
+    const matched: string[] = []
+    for (const name of knownNames) {
+      // Escape regex metacharacters in skill names (most are kebab-case).
+      const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+      const re = new RegExp(`(^|[^A-Za-z0-9_-])${escaped}(?![A-Za-z0-9_-])`, "i")
+      if (re.test(text)) matched.push(name)
+    }
+    return matched
   }
 
   export function setDesiredState(
