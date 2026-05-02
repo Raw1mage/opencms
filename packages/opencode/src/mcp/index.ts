@@ -34,6 +34,7 @@ import { Env } from "@/env"
 import { Global } from "@/global"
 import fs from "fs/promises"
 import path from "path"
+import { IncomingDispatcher } from "../incoming/dispatcher"
 
 export namespace MCP {
   const log = Log.create({ service: "mcp" })
@@ -127,8 +128,22 @@ export namespace MCP {
     })
   }
 
+  // /specs/repo-incoming-attachments DD-3: every mcp tool call goes through
+  // IncomingDispatcher so incoming/** paths get staged into mcp-staging/
+  // (the only host dir the container is allowed to see) and published-out
+  // bundles land back in <repo>/incoming/<stem>/. The container never
+  // touches the user repo directly.
+  function appIdFromServerName(serverName: string): string {
+    return serverName.startsWith("mcpapp-") ? serverName.slice("mcpapp-".length) : serverName
+  }
+
   // Convert MCP tool definition to AI SDK Tool type
-  async function convertMcpTool(mcpTool: MCPToolDef, client: MCPClient, timeout?: number): Promise<Tool> {
+  async function convertMcpTool(
+    mcpTool: MCPToolDef,
+    client: MCPClient,
+    timeout?: number,
+    serverName?: string,
+  ): Promise<Tool> {
     const inputSchema = mcpTool.inputSchema
 
     // Spread first, then override type to ensure it's always "object"
@@ -139,19 +154,70 @@ export namespace MCP {
       additionalProperties: false,
     }
 
+    const appId = serverName ? appIdFromServerName(serverName) : "unknown"
+
     return dynamicTool({
       description: mcpTool.description ?? "",
       inputSchema: jsonSchema(schema),
       execute: async (args: unknown) => {
-        return client.callTool(
-          {
-            name: mcpTool.name,
-            arguments: (args || {}) as Record<string, unknown>,
-          },
-          CallToolResultSchema,
-          {
-            resetTimeoutOnProgress: true,
-            timeout,
+        const argsObj = (args || {}) as Record<string, unknown>
+        // sessionID is not available through the AI SDK dynamicTool seam.
+        // History entries written by the dispatcher carry null sessionId
+        // for mcp-driven events; that's acceptable for traceability.
+        const dispatch = await IncomingDispatcher.before({
+          toolName: mcpTool.name,
+          args: argsObj,
+          appId,
+          sessionID: null,
+        }).catch((err) => {
+          log.warn("incoming.dispatcher.before threw, passing args through unchanged", {
+            tool: mcpTool.name,
+            error: err instanceof Error ? err.message : String(err),
+          })
+          return null
+        })
+
+        let rawResult: unknown
+        if (dispatch?.ctx.skipMcpCall) {
+          // DD-17 cache hit: synthesize a result indicating the bundle is
+          // already published. The shape mirrors a normal mcp tools/call
+          // CallToolResultSchema response.
+          rawResult = {
+            content: [
+              {
+                type: "text",
+                text: `[incoming.dispatcher cache-hit] bundle already published at ${dispatch.ctx.cacheHit?.repoBundlePath}`,
+              },
+            ],
+            isError: false,
+            structuredContent: {
+              bundlePath: dispatch.ctx.cacheHit?.repoBundlePath,
+              fromCache: true,
+              sha256: dispatch.ctx.cacheHit?.sha,
+            },
+          }
+        } else {
+          rawResult = await client.callTool(
+            {
+              name: mcpTool.name,
+              arguments: dispatch ? dispatch.rewrittenArgs : argsObj,
+            },
+            CallToolResultSchema,
+            {
+              resetTimeoutOnProgress: true,
+              timeout,
+            },
+          )
+        }
+
+        if (!dispatch) return rawResult
+        return IncomingDispatcher.after({ result: rawResult, ctx: dispatch.ctx }).catch(
+          (err) => {
+            log.warn("incoming.dispatcher.after threw, returning raw mcp result", {
+              tool: mcpTool.name,
+              error: err instanceof Error ? err.message : String(err),
+            })
+            return rawResult
           },
         )
       },
@@ -1076,7 +1142,7 @@ export namespace MCP {
       for (const mcpTool of toolsResult.tools) {
         const sanitizedClientName = clientName.replace(/[^a-zA-Z0-9_-]/g, "_")
         const sanitizedToolName = mcpTool.name.replace(/[^a-zA-Z0-9_-]/g, "_")
-        result[sanitizedClientName + "_" + sanitizedToolName] = await convertMcpTool(mcpTool, client, timeout)
+        result[sanitizedClientName + "_" + sanitizedToolName] = await convertMcpTool(mcpTool, client, timeout, clientName)
       }
     }
 

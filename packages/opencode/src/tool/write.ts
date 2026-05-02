@@ -12,6 +12,7 @@ import { Filesystem } from "../util/filesystem"
 import { Instance } from "../project/instance"
 import { trimDiff } from "./edit"
 import { assertExternalDirectory } from "./external-directory"
+import { maybeBreakIncomingHardLink, maybeAppendToolWriteHistory } from "../incoming"
 
 const MAX_DIAGNOSTICS_PER_FILE = 20
 const MAX_PROJECT_DIAGNOSTICS_FILES = 5
@@ -42,7 +43,13 @@ export const WriteTool = Tool.define("write", {
       },
     })
 
+    // /specs/repo-incoming-attachments DD-11: detach any cache hard-link
+    // before writing so the bundle cache stays untouched.
+    await maybeBreakIncomingHardLink(filepath)
     await Bun.write(filepath, params.content)
+    // /specs/repo-incoming-attachments R6 / SEQ-TOOL-WRITE-HOOK: append
+    // a `tool:Write` entry to incoming/.history/ if filepath is in incoming/.
+    await maybeAppendToolWriteHistory(filepath, "Write", ctx.sessionID)
     await Bus.publish(File.Event.Edited, {
       file: filepath,
     })

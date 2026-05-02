@@ -1290,3 +1290,48 @@ Violations = P0 (user-facing orchestrator hang).
 - `I-4` mobile UX collapse on large sessions (next spec)
 
 See `specs/responsive-orchestrator/` for full documentation (proposal.md, spec.md, design.md DD-1..DD-11, IDEF0/GRAFCET, C4, sequence, tasks.md, handoff.md, errors.md, observability.md, test-vectors.json, issues.md).
+
+## Incoming Attachments Lifecycle (2026-05-03)
+
+Spec: `specs/repo-incoming-attachments/`. Replaces the legacy "embed every uploaded file as base64 inside `SessionStorage.AttachmentBlob.content`" model with a repo-anchored layout.
+
+**Layout (per project):**
+
+```
+<projectRoot>/
+  incoming/
+    .history/<filename>.jsonl       per-file append-only journal
+    <filename>                       canonical bytes (atomic-written)
+    <stem>/                          mcp tool bundle co-resident here
+      description.md / outline.md / media/ / manifest.json
+```
+
+**Layered model:**
+
+- **Layer 1 — repo (canonical)**: `<repo>/incoming/<filename>` is the source of truth. New uploads write here directly; the `attachments` table is no longer touched on the new path.
+- **Layer 2 — staging cache**: `~/.local/share/opencode/log/...mcp-staging/<appId>/{staging,bundles}/` keyed by sha256. Cross-session reuse: the same content hits the same bundle regardless of project.
+- **Layer 3 — mcp container**: only ever sees `/state` (mounted from the staging cache). Never sees the user repo, never mounts `$HOME`, never knows the project name.
+
+**Carrier**: `MessageV2.AttachmentRefPart` carries `repo_path` + `sha256` for new refs; legacy refs (no `repo_path`) keep going through the `attachments` table. Both readable indefinitely; no schema migration required.
+
+**Dispatcher boundary (`packages/opencode/src/incoming/dispatcher.ts`)**:
+- `before(toolName, args, appId)` — scans args for `incoming/**` paths, stages each into `mcp-staging/<appId>/staging/<sha>.<ext>`, rewrites args to container `/state/staging/...` paths, and short-circuits to a synthetic result if `bundles/<sha>/manifest.json` already exists and the manifest sha matches the directory key (cache hit).
+- `after(result, ctx)` — rewrites staging-path strings in result back to repo-relative paths (`/state/bundles/<sha>/...` → `incoming/<stem>/...`) and publishes any newly-produced bundle from the staging cache to `<repo>/incoming/<stem>/` via hard-link (cp -r on EXDEV / cross-fs).
+- `breakHardLinkBeforeWrite(path)` — invariant guarantor for in-place edits inside `incoming/<stem>/*`: detects `st_nlink > 1` and atomically detaches the live file from any cache-side hard-link before any `Write`/`Edit` tool overwrites it.
+
+**Tool-write hook**: `Write` and `Edit` tools call `maybeBreakIncomingHardLink(filepath)` before fs write and `maybeAppendToolWriteHistory(filepath, "<tool>", sessionID)` after, both no-op outside `incoming/**`. `Bash` is not hooked — anything `bash`-driven that writes inside `incoming/<stem>/` can corrupt the cache; OQ-8 in `specs/repo-incoming-attachments/design.md` tracks the long-term fix (centralised fs adapter wrapper).
+
+**Drift safety net**: `IncomingHistory.lookupCurrentSha` cheap-stats the live file (mtime + sizeBytes) against the last-known history entry; mismatch triggers a recompute and a `drift-detected` history entry. Catches external editors that bypass the tool-write hook.
+
+**Decisions worth knowing system-wide:**
+- DD-1 fail-fast on no `session.project.path` (no silent fallback to legacy cache).
+- DD-3 mcp container mount boundary stays narrow (`/state` only).
+- DD-11 publish via hard-link with break-on-write semantics.
+- DD-14 result-path rewriting is a scoped string replacement (no per-tool `pathFields` declaration).
+- DD-15 EXDEV / cross-fs auto-fallback to `cp -r`, emits `mcp.dispatcher.cross-fs-fallback`.
+- DD-16 `bundle/<sha>/manifest.json` integrity check before cache-hit publish; mismatched manifest → fall through to mcp recompute, emits `mcp.dispatcher.cache-corrupted`.
+- DD-17 new uploads live in repo + JSON metadata in `AttachmentRefPart`; `attachments` table untouched on the new path.
+
+**Observability**: tail with `tail -F ~/.local/share/opencode/log/debug.log | grep -E '"service":"incoming'`. Bus events: `incoming.history.appended`, `mcp.dispatcher.cache-hit`, `mcp.dispatcher.cache-miss`, `mcp.dispatcher.cache-corrupted`, `mcp.dispatcher.cross-fs-fallback`, `incoming.dispatcher.publish-failed`.
+
+**Cross-repo contract (docxmcp)**: docxmcp Wave 3 must produce `<bundles>/<sha>/manifest.json` containing at minimum `{ sha256, appId: "docxmcp", appVersion, createdAt }`. The dispatcher's manifest integrity check assumes this — see `~/projects/docxmcp/HANDOVER.md`.

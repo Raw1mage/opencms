@@ -32,7 +32,9 @@ function blob(input: Partial<SessionStorage.AttachmentBlob> & { refID: string; m
   }
 }
 
-async function execute(args: { ref_id: string; mode?: "digest" | "vision" | "task_result" }) {
+const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+async function execute(args: { ref_id: string; mode?: "digest" | "vision" | "read" | "task_result"; agent?: string; question?: string }) {
   const tool = await AttachmentTool.init()
   return tool.execute(args, {
     sessionID: SID,
@@ -131,6 +133,28 @@ describe("AttachmentTool", () => {
 
     expect(result.output).toContain("AUTO_DIGEST")
     expect(result.output).toContain('"query": "read"')
+  })
+
+  // /specs/repo-incoming-attachments task 2.6: docx auto-routing through
+  // the attachment tool was removed in favour of docxmcp + dispatcher.
+  // Users that still want to read docx via the reader-subagent path must
+  // pass agent="docx-reader" explicitly. The auto-route assertion is
+  // therefore inverted: docx with no explicit agent should refuse rather
+  // than silently dispatch to a reader.
+  it("docx refs no longer auto-route — explicit agent required", async () => {
+    blobs.set(
+      "ref_docx",
+      blob({
+        refID: "ref_docx",
+        mime: DOCX_MIME,
+        filename: "spec.docx",
+        content: Uint8Array.from([0x50, 0x4b, 0x03, 0x04]),
+      }),
+    )
+
+    await expect(
+      execute({ ref_id: "ref_docx", mode: "read", question: "what is the title?" }),
+    ).rejects.toThrow(/no default reader agent/i)
   })
 
   it("drills into task-result refs with bounded preview and metadata", async () => {

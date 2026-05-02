@@ -17,7 +17,8 @@ import { Tool } from "./tool"
 
 const log = Log.create({ service: "tool.attachment" })
 
-type AttachmentQueryReader = Pick<typeof StorageRouter, "getAttachmentBlob" | "stream">
+type AttachmentQueryReader = Pick<typeof StorageRouter, "getAttachmentBlob"> &
+  Partial<Pick<typeof StorageRouter, "stream">>
 let attachmentQueryReader: AttachmentQueryReader = StorageRouter
 
 export function setAttachmentQueryReaderForTesting(reader?: AttachmentQueryReader) {
@@ -35,20 +36,32 @@ export function setAttachmentQueryReaderForTesting(reader?: AttachmentQueryReade
  * Throws if (new path) the repo file is missing — this is the explicit
  * INC-3001' contract: do not retry the legacy attachments table when a
  * new-style ref's bytes are gone.
+ *
+ * The .stream() lookup is best-effort and skipped when the injected
+ * reader (test seam) does not provide it, so legacy tests continue to
+ * exercise the get-blob path unchanged.
  */
 async function loadAttachmentBlob(input: {
   sessionID: string
   refID: string
 }): Promise<SessionStorage.AttachmentBlob> {
   let foundPart: MessageV2.AttachmentRefPart | undefined
-  for await (const msg of attachmentQueryReader.stream(input.sessionID)) {
-    for (const part of msg.parts) {
-      if (part.type === "attachment_ref" && part.ref_id === input.refID) {
-        foundPart = part
-        break
+  if (typeof attachmentQueryReader.stream === "function") {
+    try {
+      for await (const msg of attachmentQueryReader.stream(input.sessionID)) {
+        for (const part of msg.parts) {
+          if (part.type === "attachment_ref" && part.ref_id === input.refID) {
+            foundPart = part
+            break
+          }
+        }
+        if (foundPart) break
       }
+    } catch (err) {
+      log.warn("loadAttachmentBlob: stream lookup failed, falling back to legacy", {
+        error: err instanceof Error ? err.message : String(err),
+      })
     }
-    if (foundPart) break
   }
   if (foundPart?.repo_path) {
     const projectRoot = Instance.project.worktree
@@ -98,69 +111,22 @@ export const setVisionWorkerRunnerForTesting = setReaderRunnerForTesting
 const DEFAULT_QUESTION =
   "The user did not ask a specific question. Produce the structured digest defined in your system prompt."
 
-const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-
-function isDocxMime(mime: string): boolean {
-  return mime === DOCX_MIME
-}
-
 // Hard-coded mime → reader agent mapping for the well-known fixed types.
-// Anything outside this table requires the orchestrator to pass `agent` explicitly.
+// docx is no longer in this table — docx work flows through docxmcp via the
+// IncomingDispatcher (see /specs/repo-incoming-attachments). Callers that
+// historically pre-extracted docx via pandoc here should now invoke
+// docx_decompose / docx_grep through the mcp tool surface instead.
 function defaultAgentForMime(mime: string): string | undefined {
   if (mime.startsWith("image/")) return "vision"
   if (mime === "application/pdf") return "pdf-reader"
-  if (isDocxMime(mime)) return "docx-reader"
   return undefined
 }
 
 // Minimum capability required from the SSOT model for a given mime.
-// docx is pre-extracted to markdown server-side via pandoc, so the model only
-// needs text-input capability — not "file" / native docx ingestion.
 function requiredCapabilityForMime(mime: string): "image" | "pdf" | "text" {
   if (mime.startsWith("image/")) return "image"
   if (mime === "application/pdf") return "pdf"
   return "text"
-}
-
-// Convert raw .docx bytes to Markdown via the system `pandoc` binary so the
-// reader subagent can consume it as plain text. We deliberately fail loud
-// (no silent fallback) when pandoc is missing or exits non-zero — silent
-// degradation here would leave the user wondering why a docx digest is
-// suddenly empty or hallucinated.
-async function extractDocxMarkdown(content: Uint8Array): Promise<string> {
-  let proc: ReturnType<typeof Bun.spawn>
-  try {
-    proc = Bun.spawn(["pandoc", "-f", "docx", "-t", "markdown", "--wrap=none"], {
-      stdin: "pipe",
-      stdout: "pipe",
-      stderr: "pipe",
-    })
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    throw new Error(
-      `docx reader requires the 'pandoc' binary on PATH but spawn failed: ${message}. Install pandoc and retry.`,
-    )
-  }
-  const writer = proc.stdin as unknown as { write: (data: Uint8Array) => unknown; end: () => Promise<void> | void }
-  writer.write(content)
-  await writer.end()
-  const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(proc.stdout as ReadableStream<Uint8Array>).text(),
-    new Response(proc.stderr as ReadableStream<Uint8Array>).text(),
-    proc.exited,
-  ])
-  if (exitCode !== 0) {
-    throw new Error(
-      `pandoc failed to convert docx (exit ${exitCode}): ${stderr.trim() || "no stderr output"}`,
-    )
-  }
-  const text = stdout.trim()
-  if (!text) {
-    throw new Error(
-      `pandoc returned empty markdown for the docx attachment${stderr.trim() ? ` (stderr: ${stderr.trim()})` : ""}`,
-    )
-  }
-  return text
 }
 
 async function loadSessionExecution(
@@ -238,28 +204,16 @@ async function defaultReaderRunner(input: {
     parentID,
     agent: input.agent,
   })
-  // docx is not natively ingestible by the model — pre-extract to markdown
-  // before composing the user message.
-  let userContent: Array<
+  // docx-specific pre-extraction (pandoc) was removed in
+  // /specs/repo-incoming-attachments phase 3 — docx work routes through
+  // docxmcp via IncomingDispatcher. For all current readers we hand the
+  // raw bytes to the model.
+  const userContent: Array<
     { type: "file"; data: Uint8Array; mediaType: string } | { type: "text"; text: string }
-  >
-  if (isDocxMime(input.blob.mime)) {
-    const markdown = await extractDocxMarkdown(input.blob.content)
-    userContent = [
-      {
-        type: "text",
-        text:
-          `--- BEGIN docx-extracted markdown (filename: ${input.blob.filename ?? "(unnamed)"}, ${input.blob.byteSize} raw bytes) ---\n` +
-          markdown +
-          `\n--- END docx-extracted markdown ---\n\nQuestion: ${input.question}`,
-      },
-    ]
-  } else {
-    userContent = [
-      { type: "file", data: input.blob.content, mediaType: input.blob.mime },
-      { type: "text", text: input.question },
-    ]
-  }
+  > = [
+    { type: "file", data: input.blob.content, mediaType: input.blob.mime },
+    { type: "text", text: input.question },
+  ]
   log.info("reader subagent dispatch", {
     sessionID: input.sessionID,
     refID: input.blob.refID,
@@ -361,7 +315,7 @@ export const AttachmentTool = Tool.define("attachment", {
     const wantsRead =
       requestedMode === "read" ||
       requestedMode === "vision" ||
-      (requestedMode === "digest" && (kind === "image" || blob.mime === "application/pdf" || isDocxMime(blob.mime)))
+      (requestedMode === "digest" && (kind === "image" || blob.mime === "application/pdf"))
 
     if (wantsRead) {
       const agentName = params.agent?.trim() || defaultAgentForMime(blob.mime)

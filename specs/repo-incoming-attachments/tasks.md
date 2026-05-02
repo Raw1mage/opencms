@@ -30,30 +30,30 @@
 - [x] 2.5\* (v3, ADDED 2026-05-03)：在 [message-v2.ts](../../packages/opencode/src/session/message-v2.ts) 的 `AttachmentRefPart` zod schema 加 `repo_path?: string` + `sha256?: string` 兩欄（passthrough 即可）。**不動** SQL schema、不動 storage 介面
 - [x] 2.5\*\* (v3, ADDED 2026-05-03)：[user-message-parts.ts:routeOversizedAttachment](../../packages/opencode/src/session/user-message-parts.ts) 改寫主路徑：resolveProjectIncoming → sanitize filename → atomic write to `<repo>/incoming/<filename>` → streaming sha256 → IncomingHistory.appendEntry → 把 `repo_path` + `sha256` 塞回 AttachmentRefPart、**不再呼叫 upsertAttachmentBlob**
 - [x] 2.5\*\*\* (v3, ADDED 2026-05-03)：[tool/attachment.ts](../../packages/opencode/src/tool/attachment.ts) 雙路徑讀取 — 找到對應 part，先看 `part.repo_path`：在 → 從 repo 讀 bytes 組 AttachmentBlob；不在 → 走既有 `getAttachmentBlob` legacy path 撈舊 attachments 表（R10'-S2）。repo file 不存在則明確報錯 INC-3001'，不退回 legacy（R10'-S3）
-- [-] 2.6 (deferred to phase 3) 刪除 `packages/opencode/src/tool/attachment.ts` 既有 docx 特化分支（pandoc subprocess、`extractDocxMarkdown` 提取等）— 移除前需要 dispatcher 在 phase 3 接通，否則 docxmcp 還沒掛上時 docx 檔案讀不開；維持 pandoc 路徑當 transitional fallback 直到 phase 3 完成
+- [x] 2.6 (deferred to phase 3) 刪除 `packages/opencode/src/tool/attachment.ts` 既有 docx 特化分支（pandoc subprocess、`extractDocxMarkdown` 提取等）— 移除前需要 dispatcher 在 phase 3 接通，否則 docxmcp 還沒掛上時 docx 檔案讀不開；維持 pandoc 路徑當 transitional fallback 直到 phase 3 完成
 - [-] 2.6.1 (deferred to phase 3, see slice summary) 把 `tool/attachment.ts` 內 `attachmentKind` / `metadataFor` 等 helper 改為「從 AttachmentBlob row 拿 `repoPath` 後展示給 LLM 的是 repo-relative path 而非 refID」，配合 client 端 UI 也顯示 `incoming/合約.docx`
 - [x] 2.7 integration tests：`packages/opencode/test/incoming/upload.test.ts` 跑 SEQ-UPLOAD-NEW / DEDUPE / CONFLICT 三個 scenario
 
 ## 3. mcp Dispatcher：stage-in / publish-out + sha-keyed cache
 
-- [ ] 3.1 在 `packages/opencode/src/incoming/dispatcher.ts` 實作 `before(toolName, args, appId)` → 解析 args 中的 incoming 路徑、stage 到 `mcp-staging/<app-id>/staging/<sha>.<ext>`
-- [ ] 3.2 實作 `lookupBundleCache(sha, appId)`：stat `mcp-staging/<app-id>/bundles/<sha>/`，命中時跳過 mcp tool（SEQ-MCP-DISPATCH-CACHE-HIT）
-- [ ] 3.3 實作 `after(toolName, result, ctx)` → 把 staging bundle hard-link 回 `<repo>/incoming/<stem>/`（DD-11）；同 fs 才嘗試 link，異 fs 直接 cp -r、emit `mcp.dispatcher.cross-fs-fallback`（DD-15）；append `bundle-published` 履歷
-- [ ] 3.3.1 實作 `rewriteResultPaths(result, ctx)`：DD-14 scoped string replacement，把 result 內所有 `/state/...` 與 `<staging-host>/...` 路徑反向映射成 `<repo>/incoming/...`，dispatcher 自己保留 (stagingPath, repoPath) 對應對；result 為 JSON 時 walk 所有 string field、為 text 時整段 replace
-- [ ] 3.3.2 cache-hit publish 前先讀 `bundles/<sha>/manifest.json`、比對 `manifest.sha256 == 目錄名 sha`（DD-16）；不一致 emit `mcp.dispatcher.cache-corrupted` + fall through 到 cache-miss 路徑；manifest 不存在則 log warning 但允許 publish（v1 漸進保護）
-- [ ] 3.4 實作 `breakHardLinkBeforeWrite(path)`：stat → if `st_nlink > 1` 則 `cp+rename`；提供給 Edit/Write/Bash tool 共用
-- [ ] 3.5 在 `packages/opencode/src/mcp/index.ts:convertMcpTool` execute 包裝：呼叫 `dispatcher.before` → 原 client.callTool → `dispatcher.after`
-- [ ] 3.6 path rewrite：args 中 `incoming/<filename>` → `/state/staging/<sha>.<ext>`，result 路徑反向映射
-- [ ] 3.7 cache hit / miss 各 emit Bus event（observability.md `evt:dispatcher.cache-hit` / `cache-miss`）
-- [ ] 3.8 integration test：`packages/opencode/test/incoming/dispatcher-cache-miss.test.ts` + `dispatcher-cache-hit.test.ts` 各跑一個 fake mcp app 走完 flow
+- [x] 3.1 在 `packages/opencode/src/incoming/dispatcher.ts` 實作 `before(toolName, args, appId)` → 解析 args 中的 incoming 路徑、stage 到 `mcp-staging/<app-id>/staging/<sha>.<ext>`
+- [x] 3.2 實作 `lookupBundleCache(sha, appId)`：stat `mcp-staging/<app-id>/bundles/<sha>/`，命中時跳過 mcp tool（SEQ-MCP-DISPATCH-CACHE-HIT）
+- [x] 3.3 實作 `after(toolName, result, ctx)` → 把 staging bundle hard-link 回 `<repo>/incoming/<stem>/`（DD-11）；同 fs 才嘗試 link，異 fs 直接 cp -r、emit `mcp.dispatcher.cross-fs-fallback`（DD-15）；append `bundle-published` 履歷
+- [x] 3.3.1 實作 `rewriteResultPaths(result, ctx)`：DD-14 scoped string replacement，把 result 內所有 `/state/...` 與 `<staging-host>/...` 路徑反向映射成 `<repo>/incoming/...`，dispatcher 自己保留 (stagingPath, repoPath) 對應對；result 為 JSON 時 walk 所有 string field、為 text 時整段 replace
+- [x] 3.3.2 cache-hit publish 前先讀 `bundles/<sha>/manifest.json`、比對 `manifest.sha256 == 目錄名 sha`（DD-16）；不一致 emit `mcp.dispatcher.cache-corrupted` + fall through 到 cache-miss 路徑；manifest 不存在則 log warning 但允許 publish（v1 漸進保護）
+- [x] 3.4 實作 `breakHardLinkBeforeWrite(path)`：stat → if `st_nlink > 1` 則 `cp+rename`；提供給 Edit/Write/Bash tool 共用
+- [x] 3.5 在 `packages/opencode/src/mcp/index.ts:convertMcpTool` execute 包裝：呼叫 `dispatcher.before` → 原 client.callTool → `dispatcher.after`
+- [x] 3.6 path rewrite：args 中 `incoming/<filename>` → `/state/staging/<sha>.<ext>`，result 路徑反向映射
+- [x] 3.7 cache hit / miss 各 emit Bus event（observability.md `evt:dispatcher.cache-hit` / `cache-miss`）
+- [x] 3.8 integration test：`packages/opencode/test/incoming/dispatcher-cache-miss.test.ts` + `dispatcher-cache-hit.test.ts` 各跑一個 fake mcp app 走完 flow
 
 ## 4. Tool-write Hook：Edit / Write / Bash 觸碰 incoming/ 後補履歷
 
-- [ ] 4.1 找出所有對 host fs 寫入的 tool entry（Edit, Write, Bash 至少；另外掃 `packages/opencode/src/tool/` 找有寫檔的）
-- [ ] 4.2 在 tool execute 後加 hook：若有任何 path match `<repo>/incoming/**`，呼叫 `incoming.history.touchAfterWrite(path, source: "tool:<name>")`
-- [ ] 4.3 hook 內部：`break-on-write`（若 nlink>1）→ 重算 sha256 → append history entry
-- [ ] 4.4 對應 R6-S1 / R6-S2、SEQ-TOOL-WRITE-HOOK
-- [ ] 4.5 negative test：故意有一個 tool 繞過 hook 直接 fs.writeFile，驗證 cache 內容**會**被污染（這是 RK-1/RK-3 的 known gap，confirm test 是用來鎖住 break-on-write 規則覆蓋率，未來新加 tool 必須過此 test）
+- [x] 4.1 找出所有對 host fs 寫入的 tool entry（Edit, Write, Bash 至少；另外掃 `packages/opencode/src/tool/` 找有寫檔的）
+- [x] 4.2 在 tool execute 後加 hook：若有任何 path match `<repo>/incoming/**`，呼叫 `incoming.history.touchAfterWrite(path, source: "tool:<name>")`
+- [x] 4.3 hook 內部：`break-on-write`（若 nlink>1）→ 重算 sha256 → append history entry
+- [x] 4.4 對應 R6-S1 / R6-S2、SEQ-TOOL-WRITE-HOOK
+- [x] 4.5 negative test：故意有一個 tool 繞過 hook 直接 fs.writeFile，驗證 cache 內容**會**被污染（這是 RK-1/RK-3 的 known gap，confirm test 是用來鎖住 break-on-write 規則覆蓋率，未來新加 tool 必須過此 test）
 
 ## 5. End-to-end：docxmcp 接到新 dispatcher、跑通完整流程
 
@@ -70,11 +70,11 @@
 
 ## 6. Documentation + Cross-repo sync
 
-- [ ] 6.1 更新 `specs/architecture.md`：新增「Incoming Attachments Lifecycle」段落，描述 incoming/ 模型、履歷契約、mcp dispatcher 邊界、break-on-write 規則
-- [ ] 6.2 docxmcp repo `HANDOVER.md`「不要重新討論」清單中「Bundle 預設落點：XDG_STATE + by-session」標 `[SUPERSEDED 2026-05-03 → opencode/specs/repo-incoming-attachments/]`
-- [ ] 6.2.1 docxmcp repo `HANDOVER.md`「不要重新討論」新增一條：「每個 bundle 必含 `manifest.json`，schema 見 opencode/specs/repo-incoming-attachments/data-schema.json#BundleManifest，至少 sha256/appId/appVersion/createdAt」(DD-16 跨 repo contract)
-- [ ] 6.2.2 docxmcp 軌 B1 (`bin/docx_decompose.py`) 實作必須包含寫 `manifest.json` 的最後一步；這條任務在 docxmcp Wave 3 軌 B 執行，但本 spec 在這裡留 trace 紀錄
-- [ ] 6.2.3 multi-tool sub-namespace 規約寫進 docxmcp `HANDOVER.md`：core decompose 寫 `incoming/<stem>/{description.md, outline.md, media/}`，其他 tool（grep/to_images）必須用 `incoming/<stem>/<tool-name>/` 子目錄（OQ-7）
+- [x] 6.1 更新 `specs/architecture.md`：新增「Incoming Attachments Lifecycle」段落，描述 incoming/ 模型、履歷契約、mcp dispatcher 邊界、break-on-write 規則
+- [x] 6.2 docxmcp repo `HANDOVER.md`「不要重新討論」清單中「Bundle 預設落點：XDG_STATE + by-session」標 `[SUPERSEDED 2026-05-03 → opencode/specs/repo-incoming-attachments/]`
+- [x] 6.2.1 docxmcp repo `HANDOVER.md`「不要重新討論」新增一條：「每個 bundle 必含 `manifest.json`，schema 見 opencode/specs/repo-incoming-attachments/data-schema.json#BundleManifest，至少 sha256/appId/appVersion/createdAt」(DD-16 跨 repo contract)
+- [x] 6.2.2 docxmcp 軌 B1 (`bin/docx_decompose.py`) 實作必須包含寫 `manifest.json` 的最後一步；這條任務在 docxmcp Wave 3 軌 B 執行，但本 spec 在這裡留 trace 紀錄
+- [x] 6.2.3 multi-tool sub-namespace 規約寫進 docxmcp `HANDOVER.md`：core decompose 寫 `incoming/<stem>/{description.md, outline.md, media/}`，其他 tool（grep/to_images）必須用 `incoming/<stem>/<tool-name>/` 子目錄（OQ-7）
 - [ ] 6.3 docxmcp repo `PLAN_opencode_integration.md` 軌 B 預期 bundle 落點段落同步更新
 - [ ] 6.4 開 docs/events 寫一篇 launch event：`docs/events/event_<launch-date>_repo-incoming-attachments-launch.md`
 - [ ] 6.5 client（web、TUI）upload UI：將 attachment 卡片顯示文字從 ref 改為 `<repo>/incoming/<filename>`，與 `repoPath` 欄位對應

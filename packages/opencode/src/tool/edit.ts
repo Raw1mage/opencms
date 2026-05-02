@@ -17,6 +17,7 @@ import { Filesystem } from "../util/filesystem"
 import { Instance } from "../project/instance"
 import { Snapshot } from "@/snapshot"
 import { assertExternalDirectory } from "./external-directory"
+import { maybeBreakIncomingHardLink, maybeAppendToolWriteHistory } from "../incoming"
 
 const MAX_DIAGNOSTICS_PER_FILE = 20
 
@@ -61,7 +62,9 @@ export const EditTool = Tool.define("edit", {
             diff,
           },
         })
+        await maybeBreakIncomingHardLink(filePath)
         await Bun.write(filePath, params.newString)
+        await maybeAppendToolWriteHistory(filePath, "Edit", ctx.sessionID)
         await Bus.publish(File.Event.Edited, {
           file: filePath,
         })
@@ -94,7 +97,9 @@ export const EditTool = Tool.define("edit", {
         },
       })
 
+      await maybeBreakIncomingHardLink(filePath)
       await file.write(contentNew)
+      await maybeAppendToolWriteHistory(filePath, "Edit", ctx.sessionID)
       await Bus.publish(File.Event.Edited, {
         file: filePath,
       })
