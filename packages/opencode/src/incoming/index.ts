@@ -26,26 +26,14 @@ const log = Log.create({ service: "incoming.tool-hook" })
  */
 
 /**
- * If `filepath` is under <projectRoot>/incoming/ and the file is hard-
- * linked (st_nlink > 1), detach it before writing so the cache copy
- * doesn't get clobbered. Silent no-op otherwise.
+ * /specs/docxmcp-http-transport phase 6: bind-mount hard-link
+ * detection retired. Kept as a no-op so callers (Edit / Write tools)
+ * compile unchanged. The HTTP transport replaces shared-inode caching
+ * with container-internal storage; nothing on the host shares an inode
+ * with anything in the docxmcp container any more.
  */
-export async function maybeBreakIncomingHardLink(filepath: string): Promise<void> {
-  let projectRoot: string
-  try {
-    projectRoot = IncomingPaths.projectRoot()
-  } catch {
-    return
-  }
-  const incomingAbs = path.join(projectRoot, IncomingPaths.INCOMING_DIR)
-  const target = path.resolve(filepath)
-  if (!target.startsWith(incomingAbs + path.sep) && target !== incomingAbs) return
-  await IncomingDispatcher.breakHardLinkBeforeWrite(target).catch((err) => {
-    log.warn("maybeBreakIncomingHardLink failed (non-fatal)", {
-      filepath,
-      error: err instanceof Error ? err.message : String(err),
-    })
-  })
+export async function maybeBreakIncomingHardLink(_filepath: string): Promise<void> {
+  // no-op
 }
 
 /**

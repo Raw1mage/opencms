@@ -47,7 +47,9 @@ export namespace McpAppStore {
 
   export const AppEntry = z.object({
     path: z.string(),
-    command: z.array(z.string()).min(1),
+    // /specs/docxmcp-http-transport: command is optional now; entries
+    // with transport=streamable-http use `url` instead.
+    command: z.array(z.string()).min(1).optional(),
     enabled: z.boolean(),
     installedAt: z.string(),
     source: AppSource,
@@ -55,6 +57,11 @@ export namespace McpAppStore {
     settingsSchema: McpAppManifest.Settings.optional(),
     config: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
     modelProcess: z.array(z.string()).optional(),
+    // /specs/docxmcp-http-transport DD-8 / DD-12: per-app transport.
+    // When `streamable-http`, opencode connects via StreamableHTTPClientTransport
+    // using `url` (which may be a unix:// scheme URL pointing at a Unix socket).
+    transport: z.enum(["stdio", "streamable-http", "sse"]).optional(),
+    url: z.string().optional(),
   })
   export type AppEntry = z.infer<typeof AppEntry>
 
@@ -187,10 +194,105 @@ export namespace McpAppStore {
   }
 
   /**
+   * /specs/docxmcp-http-transport DD-13: bind-mount lint with IPC exception.
+   *
+   * Predicate over a docker `command` array: returns the offending mount
+   * arg(s) that violate the policy. An empty array means the command is
+   * either non-docker or all bind mounts are within the IPC exception.
+   *
+   * Allowed bind mount: host path matches
+   *   ^/run/user/\d+/opencode/sockets/[a-z0-9-]+/?$
+   * AND container path matches
+   *   ^/run/[a-z0-9-]+/?$
+   * (the IPC rendezvous dir convention from DD-12 / DD-15).
+   */
+  const IPC_HOST_RE = /^\/run\/user\/\d+\/opencode\/sockets\/[a-z0-9-]+\/?$/
+  const IPC_CONTAINER_RE = /^\/run\/[a-z0-9-]+\/?$/
+
+  export function findBindMountViolations(command: readonly string[]): string[] {
+    const violations: string[] = []
+    for (let i = 0; i < command.length; i++) {
+      const tok = command[i]
+      let mountSpec: string | undefined
+      if ((tok === "-v" || tok === "--volume") && i + 1 < command.length) {
+        mountSpec = command[i + 1]
+        i++
+      } else if (typeof tok === "string" && tok.startsWith("--mount=") && tok.includes("type=bind")) {
+        mountSpec = tok.slice("--mount=".length)
+      } else if (tok === "--mount" && i + 1 < command.length && command[i + 1].includes("type=bind")) {
+        mountSpec = command[i + 1]
+        i++
+      }
+      if (!mountSpec) continue
+
+      // Parse: -v hostPath:containerPath[:flags] OR --mount type=bind,src=...,dst=...
+      let hostPath: string | undefined
+      let containerPath: string | undefined
+      if (mountSpec.includes(":") && !mountSpec.startsWith("type=")) {
+        const parts = mountSpec.split(":")
+        // Skip if it's just a named volume (no leading slash on host part).
+        if (!parts[0]?.startsWith("/")) continue
+        hostPath = parts[0]
+        containerPath = parts[1]
+      } else if (mountSpec.startsWith("type=bind")) {
+        const fields = Object.fromEntries(
+          mountSpec.split(",").map((kv) => {
+            const eq = kv.indexOf("=")
+            return eq < 0 ? [kv, ""] : [kv.slice(0, eq), kv.slice(eq + 1)]
+          }),
+        )
+        hostPath = (fields.src ?? fields.source) as string | undefined
+        containerPath = (fields.dst ?? fields.destination ?? fields.target) as string | undefined
+      }
+
+      if (!hostPath || !containerPath) continue
+
+      const hostOk = IPC_HOST_RE.test(hostPath)
+      const ctrOk = IPC_CONTAINER_RE.test(containerPath)
+      if (!(hostOk && ctrOk)) {
+        violations.push(`${tok === "--mount" || tok.startsWith("--mount=") ? "--mount " : "-v "}${mountSpec}`)
+      }
+    }
+    return violations
+  }
+
+  /**
    * Build a complete AppEntry with resolved command and probed tools.
    */
   async function buildEntry(appPath: string, manifest: McpAppManifest.Manifest): Promise<AppEntry> {
-    const resolvedCmd = resolveCommand(appPath, manifest.command)
+    // /specs/docxmcp-http-transport DD-1 / DD-12: HTTP transport branch.
+    // Manifests with transport=streamable-http carry a url instead of a
+    // command; nothing to bind-mount-lint, no probe via stdio (we'd need
+    // to bring up the container first which is out of band).
+    if (manifest.transport === "streamable-http" || manifest.transport === "sse") {
+      if (!manifest.url) {
+        throw new StoreError({ operation: "buildEntry", reason: "transport=streamable-http requires url" })
+      }
+      return {
+        path: appPath,
+        enabled: false,
+        installedAt: new Date().toISOString(),
+        source: { type: "local" },
+        tools: [],
+        settingsSchema: manifest.settings,
+        modelProcess: manifest.modelProcess,
+        transport: manifest.transport,
+        url: manifest.url,
+      }
+    }
+
+    const resolvedCmd = resolveCommand(appPath, manifest.command!)
+
+    // /specs/docxmcp-http-transport R8-S1 / DD-13: lint guard.
+    const violations = findBindMountViolations(resolvedCmd)
+    if (violations.length > 0) {
+      throw new StoreError({
+        operation: "addApp.bindMountLint",
+        reason:
+          `bind_mount_forbidden: ${violations.length} violation(s) — ${violations.join("; ")}` +
+          ` (policy: specs/docxmcp-http-transport)`,
+      })
+    }
 
     let tools: AppToolInfo[] = []
     try {

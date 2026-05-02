@@ -10,6 +10,23 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js"
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
+import type { FetchLike } from "@modelcontextprotocol/sdk/shared/transport.js"
+
+/**
+ * /specs/docxmcp-http-transport DD-12: parse a unix:// URL of the form
+ *   unix:///abs/path/to/sock:/http-path
+ * into { socketPath, httpPath }. Returns null if the URL is not a unix scheme.
+ */
+function parseUnixSocketUrl(raw: string): { socketPath: string; httpPath: string } | null {
+  if (!raw.startsWith("unix://")) return null
+  const rest = raw.slice("unix://".length)
+  // The socket path is filesystem-absolute and ends at the first ":/" we see.
+  const idx = rest.indexOf(":/")
+  if (idx < 0) {
+    return { socketPath: rest, httpPath: "/" }
+  }
+  return { socketPath: rest.slice(0, idx), httpPath: rest.slice(idx + 1) }
+}
 import { UnauthorizedError } from "@modelcontextprotocol/sdk/client/auth.js"
 import {
   CallToolResultSchema,
@@ -476,17 +493,30 @@ export namespace MCP {
         )
       }
 
+      // /specs/docxmcp-http-transport DD-12: support unix:// URLs by
+      // routing through a custom fetch that uses Bun's unix-socket option.
+      // URL form: unix:///abs/path/to/sock:/http-path
+      // We split on ":/" to separate the socket path from the HTTP path.
+      const unixSocketPath = parseUnixSocketUrl(mcp.url)
+      const httpUrl = unixSocketPath
+        ? new URL(unixSocketPath.httpPath || "/", "http://docxmcp.local")
+        : new URL(mcp.url)
+      const customFetch = unixSocketPath
+        ? ((url, init) => fetch(url as any, { ...(init ?? {}), unix: unixSocketPath.socketPath } as any)) as FetchLike
+        : undefined
+
       const transports: Array<{ name: string; transport: TransportWithAuth }> = [
         {
           name: "StreamableHTTP",
-          transport: new StreamableHTTPClientTransport(new URL(mcp.url), {
+          transport: new StreamableHTTPClientTransport(httpUrl, {
             authProvider,
             requestInit: mcp.headers ? { headers: mcp.headers } : undefined,
+            fetch: customFetch,
           }),
         },
         {
           name: "SSE",
-          transport: new SSEClientTransport(new URL(mcp.url), {
+          transport: new SSEClientTransport(httpUrl, {
             authProvider,
             requestInit: mcp.headers ? { headers: mcp.headers } : undefined,
           }),
@@ -1023,6 +1053,32 @@ export namespace MCP {
           if (s.status[`mcpapp-${id}`]?.status === "connected") return
 
           try {
+            // /specs/docxmcp-http-transport DD-8: HTTP transport branch.
+            // Entries that declare transport=streamable-http use `url`
+            // (which may be unix:// for Unix domain socket) instead of
+            // a docker command. We funnel those through the existing
+            // remote-mcp connection path in add().
+            if (entry.transport === "streamable-http" || entry.transport === "sse") {
+              if (!entry.url) {
+                log.warn("mcp-apps.json http-transport entry missing url", { id })
+                return
+              }
+              const result = await add(`mcpapp-${id}`, {
+                type: "remote",
+                url: entry.url,
+                enabled: true,
+              })
+              const statusMap = result?.status as Record<string, Status> | undefined
+              const addedStatus = statusMap?.[`mcpapp-${id}`]
+              if (addedStatus?.status === "failed") {
+                const errorMsg = "error" in addedStatus ? addedStatus.error : "unknown"
+                log.warn("mcp-apps.json http app failed to start", { id, url: entry.url, error: errorMsg })
+              } else {
+                log.info("mcp-apps.json http app connected", { id, url: entry.url, transport: entry.transport })
+              }
+              return
+            }
+
             // entry.command is already resolved to absolute path at registration time
             // by the sudo wrapper or addApp(). No re-resolution needed here.
             if (!entry.command || entry.command.length === 0) {

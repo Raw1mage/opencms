@@ -67,11 +67,16 @@ export namespace McpAppManifest {
 
   // ── Manifest schema ──────────────────────────────────────────────────
 
+  // /specs/docxmcp-http-transport DD-8 / DD-12: mcp app manifests can
+  // declare an HTTP transport (Streamable HTTP) including unix:// URLs
+  // for Unix domain socket binding. When `transport` is "streamable-http"
+  // the `command` array is optional (the docker container is brought up
+  // out-of-band by docker compose); the connection is keyed off `url`.
   export const Schema = z
     .object({
       id: z.string().min(1).regex(/^[a-zA-Z0-9_-]+$/, "id must be alphanumeric with hyphens/underscores"),
       name: z.string().min(1),
-      command: z.array(z.string()).min(1),
+      command: z.array(z.string()).min(1).optional(),
       description: z.string().optional(),
       icon: z.string().optional(),
       version: z.string().optional(),
@@ -80,7 +85,13 @@ export namespace McpAppManifest {
       modelProcess: z.array(z.string()).optional(),
       auth: Auth.optional().default({ type: "none" }),
       source: Source.optional(),
+      transport: z.enum(["stdio", "streamable-http", "sse"]).optional().default("stdio"),
+      url: z.string().optional(),
     })
+    .refine(
+      (m) => m.transport === "stdio" ? !!m.command : !!m.url,
+      "transport=streamable-http|sse requires url; transport=stdio requires command",
+    )
     .meta({ ref: "McpAppManifest" })
 
   export type Manifest = z.infer<typeof Schema>
@@ -240,6 +251,7 @@ export namespace McpAppManifest {
     const manifest: Manifest = {
       ...partial,
       auth: { type: "none" },
+      transport: "stdio",
     }
     const manifestPath = path.join(dir, "mcp.json")
     await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2))

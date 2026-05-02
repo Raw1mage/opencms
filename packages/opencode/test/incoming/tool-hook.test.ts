@@ -32,40 +32,20 @@ async function inProject<R>(fn: () => Promise<R>): Promise<R> {
   return Instance.provide({ directory: tmpdir, fn })
 }
 
-describe("maybeBreakIncomingHardLink", () => {
-  test("no-ops outside incoming/", async () => {
-    const f = path.join(tmpdir, "elsewhere.txt")
+describe("maybeBreakIncomingHardLink — no-op after http-transport cutover", () => {
+  // /specs/docxmcp-http-transport phase 6 retired the bind-mount cache;
+  // hard-link detection isn't applicable any more. Helper kept as a
+  // no-op so call sites compile. These tests verify the helper does
+  // not throw and does not modify the filesystem.
+  test("no-op when called with any path", async () => {
+    const f = path.join(tmpdir, "anything.txt")
     fs.writeFileSync(f, "x")
-    fs.linkSync(f, path.join(tmpdir, "elsewhere2.txt"))
-    expect(fs.statSync(f).nlink).toBe(2)
+    fs.linkSync(f, path.join(tmpdir, "buddy.txt"))
+    const inoBefore = fs.statSync(f).ino
+    const nlinkBefore = fs.statSync(f).nlink
     await inProject(() => maybeBreakIncomingHardLink(f))
-    // Still nlink=2 because outside incoming/, not our concern.
-    expect(fs.statSync(f).nlink).toBe(2)
-  })
-
-  test("detaches hard-link under incoming/<stem>/", async () => {
-    const cache = path.join(tmpdir, "cache.txt")
-    fs.writeFileSync(cache, "shared")
-    fs.mkdirSync(path.join(tmpdir, "incoming", "stemX"), { recursive: true })
-    const repo = path.join(tmpdir, "incoming", "stemX", "description.md")
-    fs.linkSync(cache, repo)
-    expect(fs.statSync(repo).nlink).toBe(2)
-
-    await inProject(() => maybeBreakIncomingHardLink(repo))
-
-    expect(fs.statSync(repo).nlink).toBe(1)
-    expect(fs.statSync(cache).nlink).toBe(1)
-    expect(fs.statSync(repo).ino).not.toBe(fs.statSync(cache).ino)
-  })
-
-  test("no project context → silent no-op", async () => {
-    const cache = path.join(tmpdir, "x.txt")
-    fs.writeFileSync(cache, "x")
-    fs.linkSync(cache, path.join(tmpdir, "y.txt"))
-    expect(fs.statSync(cache).nlink).toBe(2)
-    // no inProject — Instance.provide not called. project.id === "global".
-    await maybeBreakIncomingHardLink(cache)
-    expect(fs.statSync(cache).nlink).toBe(2)
+    expect(fs.statSync(f).ino).toBe(inoBefore)
+    expect(fs.statSync(f).nlink).toBe(nlinkBefore)
   })
 })
 
