@@ -67,6 +67,60 @@ afterEach(() => {
   fs.rmSync(stagingApp, { recursive: true, force: true })
 })
 
+describe("dispatcher.before — any repo path (not just incoming/)", () => {
+  test("stages a file at docx/foo.docx and publishes bundle to docx/foo/", async () => {
+    fs.mkdirSync(path.join(tmpdir, "docx"), { recursive: true })
+    fs.writeFileSync(path.join(tmpdir, "docx", "foo.docx"), "hello-from-docx-dir")
+    const expectedSha = sha256Hex("hello-from-docx-dir")
+
+    const beforeOut = await inProject(() =>
+      IncomingDispatcher.before({
+        toolName: "extract_text",
+        args: { source: "docx/foo.docx" },
+        appId: "test-app",
+        sessionID: "s-1",
+      }),
+    )
+
+    expect(beforeOut.rewrittenArgs.source).toBe(`/state/staging/${expectedSha}.docx`)
+    expect(beforeOut.ctx.stagedFiles[0]!.repoPath).toBe("docx/foo.docx")
+
+    // Path replacements must rewrite /state/bundles/<sha>/ to docx/foo/, not incoming/foo/
+    const reps = beforeOut.ctx.pathReplacements
+    expect(
+      reps.some((r) => r.from === `/state/bundles/${expectedSha}/` && r.to === "docx/foo/"),
+    ).toBe(true)
+
+    // simulate mcp producing a bundle and run after()
+    const bdir = bundleDir("test-app", expectedSha)
+    fs.mkdirSync(bdir, { recursive: true })
+    fs.writeFileSync(path.join(bdir, "out.txt"), "fresh body")
+    const fakeResult = {
+      content: [{ type: "text", text: `wrote /state/bundles/${expectedSha}/out.txt` }],
+    }
+    const rewritten = (await inProject(() =>
+      IncomingDispatcher.after({ result: fakeResult, ctx: beforeOut.ctx }),
+    )) as typeof fakeResult
+    expect(rewritten.content[0]!.text).toContain("docx/foo/out.txt")
+    // Bundle must publish next to source, not under incoming/
+    expect(fs.existsSync(path.join(tmpdir, "docx", "foo", "out.txt"))).toBe(true)
+    expect(fs.existsSync(path.join(tmpdir, "incoming", "foo"))).toBe(false)
+  })
+
+  test("rejects path traversal outside project root", async () => {
+    const beforeOut = await inProject(() =>
+      IncomingDispatcher.before({
+        toolName: "extract_text",
+        args: { source: "../../etc/passwd" },
+        appId: "test-app",
+        sessionID: null,
+      }),
+    )
+    expect(beforeOut.rewrittenArgs.source).toBe("../../etc/passwd")
+    expect(beforeOut.ctx.stagedFiles.length).toBe(0)
+  })
+})
+
 describe("dispatcher.before — stage + path rewrite", () => {
   test("rewrites incoming/foo.docx to /state/staging/<sha>.docx and records mappings", async () => {
     writeIncomingFile("foo.docx", "hello")

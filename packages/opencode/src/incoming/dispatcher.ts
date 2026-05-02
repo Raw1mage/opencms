@@ -118,24 +118,39 @@ export namespace IncomingDispatcher {
     })
   }
 
-  function looksLikeIncomingPath(value: string): boolean {
-    if (typeof value !== "string") return false
-    if (value.startsWith("incoming/") || value.startsWith("./incoming/")) return true
+  /**
+   * Heuristic: is `value` a candidate path string we should attempt to
+   * resolve against the project root and stage for the mcp container?
+   *
+   * v1 (incoming/ only) was too narrow — AI could not ask docxmcp to read
+   * a pre-existing repo file like `docx/foo.docx`. v2 accepts any string
+   * that *looks like* a relative path (no protocol, no leading `/`,
+   * contains `/` or has a likely-document extension). The actual
+   * existence check happens in the rewriter; non-resolving strings fall
+   * through unchanged.
+   */
+  function looksLikeRepoPath(value: string): boolean {
+    if (typeof value !== "string" || value.length === 0) return false
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(value)) return false // protocol e.g. http:, file:, data:
+    if (value.startsWith("/")) return false // absolute path — not a project relative
+    if (value.startsWith("./")) return true
+    if (value.includes("/")) return true
+    // bare filename with a known doc extension
+    if (/\.(docx?|xlsx?|pptx?|pdf|md|txt|csv|json|xml|yml|yaml)$/i.test(value)) return true
     return false
   }
 
-  // Walk an arbitrary args tree, collecting strings that look like
-  // incoming/** paths along with their JSONPath-style location so we can
-  // overwrite them in-place. Mutates a clone of the input, returns the
-  // clone + a list of mappings.
+  // Walk an arbitrary args tree, collecting candidate path strings and
+  // running them through `rewriter`. Returning a string from `rewriter`
+  // replaces the value; returning null leaves it unchanged.
   function rewriteIncomingPathsInArgs(
     args: Record<string, unknown>,
-    rewriter: (incomingRel: string) => string | null,
+    rewriter: (candidate: string) => string | null,
   ): { rewritten: Record<string, unknown>; mappings: Array<{ from: string; to: string }> } {
     const mappings: Array<{ from: string; to: string }> = []
     function walk(node: unknown): unknown {
       if (typeof node === "string") {
-        if (looksLikeIncomingPath(node)) {
+        if (looksLikeRepoPath(node)) {
           // Strip leading ./ for normalization
           const norm = node.startsWith("./") ? node.slice(2) : node
           const replacement = rewriter(norm)
@@ -345,11 +360,17 @@ export namespace IncomingDispatcher {
     appId: string
     sha: string
     stem: string
+    /**
+     * Repo-relative path where the bundle should publish. For an upload at
+     * incoming/合約.docx → "incoming/合約". For a pre-existing repo file
+     * docx/foo.docx → "docx/foo". Always sibling to the source file.
+     */
+    bundleRepoPath: string
     projectRoot: string
     sessionID: string
   }): Promise<{ repoBundlePath: string; method: "link" | "cp" }> {
     const src = bundleDirFor(input.appId, input.sha)
-    const dst = path.join(input.projectRoot, IncomingPaths.INCOMING_DIR, input.stem)
+    const dst = path.join(input.projectRoot, input.bundleRepoPath)
     if (!fssync.existsSync(src)) {
       throw new Error(`incoming.dispatcher: bundle missing in cache after mcp call: ${src}`)
     }
@@ -359,34 +380,41 @@ export namespace IncomingDispatcher {
     } catch (err: any) {
       await Bus.publish(PublishFailed, {
         sha256: input.sha,
-        repoPath: path.join(IncomingPaths.INCOMING_DIR, input.stem),
+        repoPath: input.bundleRepoPath,
         errno: err?.code ?? "unknown",
       }).catch(() => {})
       throw err
     }
-    // Append history on the original-stem slot for traceability.
-    await IncomingHistory.appendEntry(
-      `${input.stem}.bundle`,
-      IncomingHistory.makeEntry({
-        source: "bundle-published",
-        sha256: input.sha,
-        sessionId: input.sessionID,
-        annotation: `app=${input.appId} method=${copyResult.method}`,
-      }),
-      { root: input.projectRoot, emitBus: true },
-    ).catch((err) => {
-      log.warn("dispatcher: bundle-published history append failed", {
-        error: err instanceof Error ? err.message : String(err),
+    // Append history on the original-stem slot for traceability. Only
+    // record under incoming/.history if the bundle target is itself
+    // inside incoming/; for ad-hoc repo paths (e.g. docx/foo.docx) skip
+    // the history append to keep the journal scoped to upload lifecycle.
+    if (input.bundleRepoPath.startsWith(IncomingPaths.INCOMING_DIR + "/") ||
+        input.bundleRepoPath === IncomingPaths.INCOMING_DIR) {
+      await IncomingHistory.appendEntry(
+        `${input.stem}.bundle`,
+        IncomingHistory.makeEntry({
+          source: "bundle-published",
+          sha256: input.sha,
+          sessionId: input.sessionID,
+          annotation: `app=${input.appId} method=${copyResult.method}`,
+        }),
+        { root: input.projectRoot, emitBus: true },
+      ).catch((err) => {
+        log.warn("dispatcher: bundle-published history append failed", {
+          error: err instanceof Error ? err.message : String(err),
+        })
       })
-    })
+    }
     log.info("dispatcher: bundle published", {
       appId: input.appId,
       sha: input.sha,
       stem: input.stem,
+      bundleRepoPath: input.bundleRepoPath,
       method: copyResult.method,
     })
     return {
-      repoBundlePath: path.join(IncomingPaths.INCOMING_DIR, input.stem),
+      repoBundlePath: input.bundleRepoPath,
       method: copyResult.method,
     }
   }
@@ -439,18 +467,20 @@ export namespace IncomingDispatcher {
       return { rewrittenArgs: input.args, ctx }
     }
 
-    const incomingDirAbs = path.join(projectRoot, IncomingPaths.INCOMING_DIR)
     let cacheHitSha: string | null = null
     let cacheHitStem: string | null = null
+    let cacheHitBundleParent: string | null = null
 
     const { rewritten, mappings } = rewriteIncomingPathsInArgs(input.args, (norm) => {
       const repoRel = norm
       const abs = path.resolve(projectRoot!, repoRel)
-      if (!abs.startsWith(incomingDirAbs)) return null
+      // Project-root containment guard (also defends against ../ traversal).
+      if (!abs.startsWith(projectRoot! + path.sep) && abs !== projectRoot!) return null
       if (!fssync.existsSync(abs)) return null
-      // We have an incoming/ path — stage it (synchronously stash for later).
-      // Because rewriter is synchronous we resolve via a queued-on-tick trick:
-      // do a sync sha + sync hard-link / copy.
+      const stat = fssync.statSync(abs)
+      if (!stat.isFile()) return null
+      // We have a project-relative path that resolves to a real file —
+      // stage it for the mcp container. Sync IO because the rewriter is sync.
       const buf = fssync.readFileSync(abs)
       const hasher = createHash("sha256").update(buf)
       const sha = hasher.digest("hex")
@@ -469,21 +499,26 @@ export namespace IncomingDispatcher {
       }
       ctx.stagedFiles.push({ repoPath: repoRel, sha, ext, stagedPath })
 
-      // Remember the (first) staging path so we can compute mappings for
-      // result rewriting:
-      //   /state/staging/<sha><ext>  → incoming/<filename>  (input mapping)
-      //   /state/bundles/<sha>/      → incoming/<stem>/      (output mapping)
+      // Bundle co-resides with the source: e.g.
+      //   incoming/合約.docx  →  incoming/合約/
+      //   docx/foo.docx       →  docx/foo/
+      //   foo.docx (root)     →  foo/
       const stem = IncomingPaths.stem(path.basename(repoRel))
+      const bundleParent = path.dirname(repoRel)
+      const bundleRepoPath = bundleParent === "." || bundleParent === ""
+        ? stem
+        : path.join(bundleParent, stem)
       cacheHitSha = sha
       cacheHitStem = stem
+      cacheHitBundleParent = bundleRepoPath
       ctx.pathReplacements.push({ from: inContainerStagingPath(sha, ext), to: repoRel })
       ctx.pathReplacements.push({
         from: inContainerBundlesPath(sha) + "/",
-        to: path.join(IncomingPaths.INCOMING_DIR, stem) + "/",
+        to: bundleRepoPath + "/",
       })
       ctx.pathReplacements.push({
         from: inContainerBundlesPath(sha),
-        to: path.join(IncomingPaths.INCOMING_DIR, stem),
+        to: bundleRepoPath,
       })
       // Also rewrite host-side staging paths in case the mcp tool returns
       // absolute host paths (rare, but defensive).
@@ -493,18 +528,18 @@ export namespace IncomingDispatcher {
       })
       ctx.pathReplacements.push({
         from: bundleDirFor(input.appId, sha) + "/",
-        to: path.join(IncomingPaths.INCOMING_DIR, stem) + "/",
+        to: bundleRepoPath + "/",
       })
       ctx.pathReplacements.push({
         from: bundleDirFor(input.appId, sha),
-        to: path.join(IncomingPaths.INCOMING_DIR, stem),
+        to: bundleRepoPath,
       })
       return inContainerStagingPath(sha, ext)
     })
 
     // DD-16 cache hit fast-path: if we staged exactly one input AND a
     // valid bundle exists for that sha, short-circuit the mcp call.
-    if (cacheHitSha && cacheHitStem && ctx.stagedFiles.length === 1) {
+    if (cacheHitSha && cacheHitStem && cacheHitBundleParent && ctx.stagedFiles.length === 1) {
       const status = await verifyManifest(input.appId, cacheHitSha)
       if (status === "valid") {
         try {
@@ -512,6 +547,7 @@ export namespace IncomingDispatcher {
             appId: input.appId,
             sha: cacheHitSha,
             stem: cacheHitStem,
+            bundleRepoPath: cacheHitBundleParent,
             projectRoot,
             sessionID: input.sessionID ?? "(no-session)",
           })
@@ -578,11 +614,14 @@ export namespace IncomingDispatcher {
         const cacheDir = bundleDirFor(ctx.appId, stagedEntry.sha)
         if (!fssync.existsSync(cacheDir)) continue
         const stem = IncomingPaths.stem(path.basename(stagedEntry.repoPath))
+        const parent = path.dirname(stagedEntry.repoPath)
+        const bundleRepoPath = parent === "." || parent === "" ? stem : path.join(parent, stem)
         try {
           await publishBundle({
             appId: ctx.appId,
             sha: stagedEntry.sha,
             stem,
+            bundleRepoPath,
             projectRoot: ctx.projectRoot,
             sessionID: ctx.sessionID ?? "(no-session)",
           })
