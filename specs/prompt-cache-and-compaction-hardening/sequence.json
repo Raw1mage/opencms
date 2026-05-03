@@ -1,0 +1,138 @@
+[
+  {
+    "id": "P1",
+    "name": "Turn-1 prompt assembly with new context preface",
+    "trigger": "First user message of a session arrives at runloop",
+    "preconditions": [
+      "Static system tuple resolved (model, agent, account, AGENTS.md, SYSTEM.md, user-system)",
+      "PreloadProvider has cwd + README ready",
+      "SkillLayerRegistry has zero/some pinned + active + summary entries"
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "runloop", "to": "C1 PromptAssembler", "componentRef": "C1", "description": "assemble(turn=1, sessionID)" },
+      { "id": "MSG2", "from": "C1", "to": "C2 StaticSystemBuilder", "componentRef": "C2", "description": "buildStaticBlock(tuple) → { text, hash }" },
+      { "id": "MSG3", "from": "C1", "to": "C3 ContextPrefaceBuilder", "componentRef": "C3", "description": "buildPreface(sessionID) → ContextPrefaceMessage" },
+      { "id": "MSG4", "from": "C3", "to": "PreloadProvider", "description": "getPreloadParts() → {readme, cwd}" },
+      { "id": "MSG5", "from": "C3", "to": "SkillLayerRegistry", "description": "listForInjection() → {pinned[], active[], summary[]}" },
+      { "id": "MSG6", "from": "C3", "to": "C8 SkillAnchorBinder", "componentRef": "C8", "description": "(read-only) snapshot skill state for telemetry" },
+      { "id": "MSG7", "from": "C1", "to": "C10 PluginHookRouter", "componentRef": "C10", "description": "fire experimental.chat.system.transform(static)" },
+      { "id": "MSG8", "from": "C1", "to": "C10 PluginHookRouter", "componentRef": "C10", "description": "fire experimental.chat.context.transform(prefaceParts)" },
+      { "id": "MSG9", "from": "C1", "to": "C4 CacheBreakpointPlanner", "componentRef": "C4", "description": "applyCaching(messages[]): mark BP1 + BP2 + BP3 + BP4" },
+      { "id": "MSG10", "from": "C4", "to": "llm-provider", "description": "POST /messages with 4 ephemeral cache_control breakpoints" },
+      { "id": "MSG11", "from": "llm-provider", "to": "C11 Telemetry", "componentRef": "C11", "description": "response cache headers → emit prompt.cache.{system,preface.t1,preface.t2}.miss (turn 1, all cold)" }
+    ],
+    "postconditions": [
+      "Outbound messages[] has [staticSystem, contextPreface, userText]",
+      "C9 stores staticSystemHash for diagnostic rolling window"
+    ]
+  },
+  {
+    "id": "P2",
+    "name": "Turn-N prompt assembly with stable preface (cache hit path)",
+    "trigger": "Subsequent user message in same session, no model/agent/account change",
+    "preconditions": [
+      "Same tuple as turn N-1",
+      "No cwd file changes, no README edit, no pinned changes since turn N-1",
+      "No skill decay tick crossed",
+      "Today's date unchanged"
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "runloop", "to": "C1", "componentRef": "C1", "description": "assemble(turn=N, sessionID)" },
+      { "id": "MSG2", "from": "C1", "to": "C2", "componentRef": "C2", "description": "buildStaticBlock → byte-equal to turn N-1" },
+      { "id": "MSG3", "from": "C1", "to": "C3", "componentRef": "C3", "description": "buildPreface → byte-equal T1 + byte-equal T2" },
+      { "id": "MSG4", "from": "C1", "to": "C4", "componentRef": "C4", "description": "applyCaching: mark BP1..BP4" },
+      { "id": "MSG5", "from": "C4", "to": "llm-provider", "description": "POST /messages" },
+      { "id": "MSG6", "from": "llm-provider", "to": "C11", "componentRef": "C11", "description": "response: cache hits up through BP3 → emit prompt.cache.{system,preface.t1,preface.t2}.hit" }
+    ],
+    "postconditions": [
+      "Telemetry shows cumulative BP1/BP2/BP3 hit ≥ targets across stable session"
+    ]
+  },
+  {
+    "id": "P3",
+    "name": "Compaction with anchor sanitizer + skill auto-pin",
+    "trigger": "ContextOverflowError thrown during LLM call (observed='overflow')",
+    "preconditions": [
+      "compaction.run executes kindChain",
+      "kind narrative produced summary text containing imperative line and references to skill X (active)"
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "runloop", "to": "SessionCompaction.run", "description": "run({observed:'overflow'})" },
+      { "id": "MSG2", "from": "SessionCompaction.run", "to": "tryNarrative", "description": "produces summaryText T" },
+      { "id": "MSG3", "from": "SessionCompaction.run", "to": "C8 SkillAnchorBinder", "componentRef": "C8", "description": "scanReferences(T) → finds skill X" },
+      { "id": "MSG4", "from": "C8", "to": "SkillLayerRegistry", "description": "pinForAnchor('X', anchorId, reason='referenced-by-anchor-{id}')" },
+      { "id": "MSG5", "from": "C8", "to": "anchor.metadata", "description": "set skillSnapshot = {active, summarized, pinned}" },
+      { "id": "MSG6", "from": "SessionCompaction.run", "to": "C5 AnchorSanitizer", "componentRef": "C5", "description": "sanitize(T, kind='narrative') → wrapped + softened" },
+      { "id": "MSG7", "from": "C5", "to": "message-stream", "description": "append assistant message {summary:true, body=<prior_context>...</prior_context>, metadata.skillSnapshot}" }
+    ],
+    "postconditions": [
+      "Anchor body starts with <prior_context source=\"narrative\">",
+      "Skill X is pinned and exempt from idle decay",
+      "anchor.metadata.skillSnapshot recorded"
+    ]
+  },
+  {
+    "id": "P4",
+    "name": "Idle compaction defers on dangling tool_use",
+    "trigger": "Task dispatch settled; idleCompaction invoked with utilization > 60%",
+    "preconditions": [
+      "Last assistant message contains tool_use part id='T-42' with no subsequent tool_result for T-42 (race during subagent settle)"
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "runloop", "to": "idleCompaction", "description": "evaluate" },
+      { "id": "MSG2", "from": "idleCompaction", "to": "C6 IdleCompactionGate", "componentRef": "C6", "description": "checkCleanTail(N=2)" },
+      { "id": "MSG3", "from": "C6", "to": "Session.messages", "description": "read last 2 messages" },
+      { "id": "MSG4", "from": "C6", "to": "idleCompaction", "description": "return {clean:false, reason:'unmatched tool_use T-42'}" },
+      { "id": "MSG5", "from": "idleCompaction", "to": "C11 Telemetry", "componentRef": "C11", "description": "emit compaction.idle.deferred {reason:'unclean-tail'}" },
+      { "id": "MSG6", "from": "idleCompaction", "to": "runloop", "description": "return early; no anchor written" }
+    ],
+    "postconditions": [
+      "Message stream unchanged",
+      "Next idleCompaction tick re-evaluates after subagent settle completes"
+    ]
+  },
+  {
+    "id": "P5",
+    "name": "Cross-account rebind hard-fail",
+    "trigger": "Account switched mid-session from A1 (family F1) to A2 (family F2); RebindEpoch bumped to E",
+    "preconditions": [
+      "CapabilityLayer cache has entry for epoch E-1 with accountId=A1",
+      "loader fails when reinjecting for epoch E (e.g. AGENTS.md read race for new account home)"
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "C1 PromptAssembler", "to": "CapabilityLayer.get", "description": "get(sessionID, E) for new account A2" },
+      { "id": "MSG2", "from": "CapabilityLayer.get", "to": "reinject", "description": "loader call → throws" },
+      { "id": "MSG3", "from": "CapabilityLayer.get", "to": "C7 CapabilityLayerGuard", "componentRef": "C7", "description": "findFallbackEntry(maxEpochExclusive=E) → returns entry from epoch E-1 with accountId=A1" },
+      { "id": "MSG4", "from": "C7", "to": "C7", "description": "compare fallback.accountId(A1) vs requested(A2) → mismatch" },
+      { "id": "MSG5", "from": "C7", "to": "CapabilityLayer.get", "description": "throw CrossAccountRebindError {from:A1, to:A2, failures}" },
+      { "id": "MSG6", "from": "CapabilityLayer.get", "to": "C1", "description": "exception propagates" },
+      { "id": "MSG7", "from": "C1", "to": "runloop", "description": "exception propagates" },
+      { "id": "MSG8", "from": "runloop", "to": "user", "description": "user-visible: provider switch failed; retry or check account" }
+    ],
+    "postconditions": [
+      "No silent stale-BIOS request sent",
+      "Next user attempt re-evaluates loader (transient errors recover)"
+    ]
+  },
+  {
+    "id": "P6",
+    "name": "shouldCacheAwareCompact short-circuits on system prefix churn",
+    "trigger": "Cache hit rate drops below 40% across 3 turns",
+    "preconditions": [
+      "AGENTS.md was edited 2 turns ago → static system block hash changed",
+      "Conversation tail tokens ~25K (below 40K floor)"
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "runloop", "to": "shouldCacheAwareCompact", "description": "evaluate" },
+      { "id": "MSG2", "from": "shouldCacheAwareCompact", "to": "C9 CacheMissDiagnostic", "componentRef": "C9", "description": "diagnose(lastSystemBlockHashes)" },
+      { "id": "MSG3", "from": "C9", "to": "C9", "description": "compare last 3 hashes → not all equal → kind='system-prefix-churn'" },
+      { "id": "MSG4", "from": "C9", "to": "C11", "componentRef": "C11", "description": "emit compaction.cache_miss_diagnosis {kind:'system-prefix-churn'}" },
+      { "id": "MSG5", "from": "C9", "to": "shouldCacheAwareCompact", "description": "return false" },
+      { "id": "MSG6", "from": "shouldCacheAwareCompact", "to": "runloop", "description": "no compaction triggered" }
+    ],
+    "postconditions": [
+      "Cache will rebuild naturally over next few turns",
+      "No wasted compaction call on a non-conversation problem"
+    ]
+  }
+]

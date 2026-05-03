@@ -1,0 +1,251 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "data contract — prompt-cache-and-compaction-hardening",
+  "definitions": {
+    "StaticSystemTuple": {
+      "type": "object",
+      "description": "Inputs whose tuple identity must be byte-equal across turns to achieve BP1 cache hit.",
+      "required": ["modelId", "agentName", "accountId", "agentsMdHash", "systemMdHash", "userSystemHash", "role"],
+      "additionalProperties": false,
+      "properties": {
+        "modelId": { "type": "string" },
+        "agentName": { "type": "string" },
+        "accountId": { "type": "string" },
+        "agentsMdHash": { "type": "string", "description": "sha256 of resolved AGENTS.md content" },
+        "systemMdHash": { "type": "string", "description": "sha256 of resolved SYSTEM.md content" },
+        "userSystemHash": { "type": "string", "description": "sha256 of input.user.system or empty string" },
+        "role": { "enum": ["main", "subagent"] }
+      }
+    },
+    "StaticSystemBlock": {
+      "type": "object",
+      "required": ["text", "hash", "tuple"],
+      "additionalProperties": false,
+      "properties": {
+        "text": { "type": "string", "description": "Concatenated L1+L2+L3c+L5+L6+L7+L8 in DD-12 fixed order" },
+        "hash": { "type": "string", "description": "sha256 of text — fed into CacheMissDiagnostic" },
+        "tuple": { "$ref": "#/definitions/StaticSystemTuple" }
+      }
+    },
+    "ContextPrefaceParts": {
+      "type": "object",
+      "description": "Structured input to ContextPrefaceBuilder; also payload of experimental.chat.context.transform plugin hook.",
+      "required": ["t1", "t2"],
+      "additionalProperties": false,
+      "properties": {
+        "t1": {
+          "type": "object",
+          "description": "Session-stable tier (DD-1, DD-2)",
+          "required": ["readmeSummary", "cwdListing", "pinnedSkills", "todaysDate"],
+          "additionalProperties": false,
+          "properties": {
+            "readmeSummary": { "type": "string" },
+            "cwdListing": { "type": "string" },
+            "pinnedSkills": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/SkillContextEntry" }
+            },
+            "todaysDate": { "type": "string", "format": "date", "description": "Always last in T1 per DD-2" }
+          }
+        },
+        "t2": {
+          "type": "object",
+          "description": "Decay-tier (active + summarized skills)",
+          "required": ["activeSkills", "summarizedSkills"],
+          "additionalProperties": false,
+          "properties": {
+            "activeSkills": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/SkillContextEntry" }
+            },
+            "summarizedSkills": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/SkillContextEntry" }
+            }
+          }
+        }
+      }
+    },
+    "SkillContextEntry": {
+      "type": "object",
+      "required": ["name", "state", "content"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "state": { "enum": ["pinned", "active", "summary"] },
+        "content": { "type": "string", "description": "Full body for active/pinned; purpose+keepRules for summary" },
+        "loadedAt": { "type": "string", "format": "date-time" },
+        "lastUsedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "ContextPrefaceMessage": {
+      "type": "object",
+      "description": "user-role message persisted with kind='context-preface' marker (DD-5)",
+      "required": ["role", "kind", "content"],
+      "additionalProperties": false,
+      "properties": {
+        "role": { "const": "user" },
+        "kind": { "const": "context-preface" },
+        "content": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "description": "Multi-block content; block[0]=T1, block[1]=T2 if present, optional block[2]=trailing usage hint",
+          "items": { "$ref": "#/definitions/PrefaceContentBlock" }
+        }
+      }
+    },
+    "PrefaceContentBlock": {
+      "type": "object",
+      "required": ["type", "tier", "text"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "text" },
+        "tier": { "enum": ["t1", "t2", "trailing"] },
+        "text": { "type": "string" }
+      }
+    },
+    "BreakpointAllocation": {
+      "type": "object",
+      "description": "Where applyCaching placed cache_control markers for a single outbound request.",
+      "required": ["bp1", "bp4"],
+      "additionalProperties": false,
+      "properties": {
+        "bp1": { "$ref": "#/definitions/BreakpointMark", "description": "Static system block tail" },
+        "bp2": { "$ref": "#/definitions/BreakpointMark", "description": "T1 segment tail (omitted when no preface)" },
+        "bp3": { "$ref": "#/definitions/BreakpointMark", "description": "T2 segment tail (omitted when T2 empty)" },
+        "bp4": { "$ref": "#/definitions/BreakpointMark", "description": "Final non-system message tail" }
+      }
+    },
+    "BreakpointMark": {
+      "type": "object",
+      "required": ["messageIndex", "contentBlockIndex"],
+      "additionalProperties": false,
+      "properties": {
+        "messageIndex": { "type": "integer", "minimum": 0 },
+        "contentBlockIndex": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "AnchorMetadata": {
+      "type": "object",
+      "description": "Metadata persisted on compaction anchor message (DD-9). Stored alongside summary=true.",
+      "required": ["anchorId", "kind", "skillSnapshot"],
+      "additionalProperties": false,
+      "properties": {
+        "anchorId": { "type": "string", "description": "Unique id (ulid)" },
+        "kind": { "enum": ["narrative", "replay-tail", "low-cost-server", "llm-agent"] },
+        "skillSnapshot": {
+          "type": "object",
+          "required": ["active", "summarized", "pinned"],
+          "additionalProperties": false,
+          "properties": {
+            "active": { "type": "array", "items": { "type": "string" } },
+            "summarized": { "type": "array", "items": { "type": "string" } },
+            "pinned": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "pinnedByAnchor": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Skill names this anchor caused to be pinned; used by unpinByAnchor on supersede"
+        }
+      }
+    },
+    "SanitizedAnchorBody": {
+      "type": "object",
+      "description": "Output of AnchorSanitizer (DD-6). The persisted body equals `wrapperOpen + softenedBody + wrapperClose`.",
+      "required": ["wrapperOpen", "softenedBody", "wrapperClose"],
+      "additionalProperties": false,
+      "properties": {
+        "wrapperOpen": { "type": "string", "pattern": "^<prior_context source=\"(narrative|replay-tail|low-cost-server|llm-agent)\">$" },
+        "softenedBody": { "type": "string" },
+        "wrapperClose": { "const": "</prior_context>" }
+      }
+    },
+    "CleanTailCheckResult": {
+      "type": "object",
+      "description": "Output of IdleCompactionGate (DD-7).",
+      "required": ["clean"],
+      "additionalProperties": false,
+      "properties": {
+        "clean": { "type": "boolean" },
+        "reason": { "type": "string", "description": "Required when clean=false; e.g. 'unmatched tool_use T-42'" },
+        "scannedMessageCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "CrossAccountRebindError": {
+      "type": "object",
+      "description": "Error payload thrown by CapabilityLayerGuard (DD-8).",
+      "required": ["code", "from", "to", "failures"],
+      "additionalProperties": false,
+      "properties": {
+        "code": { "const": "CROSS_ACCOUNT_REBIND_FAILED" },
+        "from": { "type": "string", "description": "previous accountId" },
+        "to": { "type": "string", "description": "requested accountId" },
+        "failures": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["layer", "error"],
+            "additionalProperties": false,
+            "properties": {
+              "layer": { "enum": ["agents_md", "driver", "skill_content", "enablement"] },
+              "error": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "CacheMissDiagnosis": {
+      "type": "object",
+      "description": "Output of CacheMissDiagnostic (DD-10).",
+      "required": ["kind", "shouldCompact"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["system-prefix-churn", "conversation-growth", "neither"] },
+        "shouldCompact": { "type": "boolean", "description": "false for system-prefix-churn" },
+        "lastSystemHashes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Rolling window (max 3 entries)"
+        },
+        "conversationTailTokens": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "PromptCacheTelemetryEvent": {
+      "type": "object",
+      "description": "Emitted by C11 Telemetry per DD-13.",
+      "required": ["name", "sessionID", "turnIndex"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "enum": [
+            "prompt.cache.system.hit",
+            "prompt.cache.system.miss",
+            "prompt.cache.preface.t1.hit",
+            "prompt.cache.preface.t1.miss",
+            "prompt.cache.preface.t2.hit",
+            "prompt.cache.preface.t2.miss",
+            "compaction.cache_miss_diagnosis",
+            "compaction.idle.deferred"
+          ]
+        },
+        "sessionID": { "type": "string" },
+        "turnIndex": { "type": "integer", "minimum": 0 },
+        "diagnosisKind": { "enum": ["system-prefix-churn", "conversation-growth", "neither"] },
+        "deferReason": { "enum": ["unclean-tail", "below-threshold"] }
+      }
+    },
+    "PluginContextTransformInput": {
+      "type": "object",
+      "description": "Payload to experimental.chat.context.transform plugin hook (DD-11).",
+      "required": ["sessionID", "model", "preface"],
+      "additionalProperties": false,
+      "properties": {
+        "sessionID": { "type": "string" },
+        "model": { "type": "object", "description": "Provider.Model" },
+        "preface": { "$ref": "#/definitions/ContextPrefaceParts" }
+      }
+    }
+  }
+}

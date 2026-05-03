@@ -1,0 +1,150 @@
+{
+  "diagram_title": "Stabilize Prompt Cache And Harden Compaction",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Assemble Prompt",
+      "description": "PromptAssembler turn-level orchestration; produces static system message, context preface message, and triggers plugin hooks (C1, DD-12).",
+      "decomposition": "A1"
+    },
+    {
+      "id": "A2",
+      "title": "Place Cache Breakpoints",
+      "description": "Map BP1..BP4 onto outbound messages per DD-3 allocation (C4).",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Protect Compaction Anchor",
+      "description": "Apply sanitizer, idle gate, skill binding, cache-miss diagnosis around anchor write (C5, C6, C8, C9).",
+      "decomposition": "A3"
+    },
+    {
+      "id": "A4",
+      "title": "Guard Capability Rebind",
+      "description": "Distinguish cross-account vs same-account fallback in CapabilityLayer.get (C7, DD-8).",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Emit Telemetry",
+      "description": "Publish prompt.cache.* and compaction.* events per DD-13 (C11).",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "user turn submission", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A1:control", "label": "AGENTS.md / SYSTEM.md / model+agent+account tuple", "type": "control" },
+    { "id": "AR3", "source": "EXTERNAL", "target": "A1:mechanism", "label": "PreloadProvider, SkillLayerRegistry, SystemPrompt builders", "type": "mechanism" },
+    { "id": "AR4", "source": "A1:output", "target": "A2:input", "label": "outbound messages[] (static system + preface + user)", "type": "input" },
+    { "id": "AR5", "source": "EXTERNAL", "target": "A2:control", "label": "Anthropic 4-breakpoint budget; per-provider cache control variant", "type": "control" },
+    { "id": "AR6", "source": "A2:output", "target": "EXTERNAL", "label": "request to LLM provider with cache_control marks", "type": "output" },
+    { "id": "AR7", "source": "EXTERNAL", "target": "A3:input", "label": "compaction trigger (overflow / idle / cache-aware / etc.)", "type": "input" },
+    { "id": "AR8", "source": "A1:output", "target": "A4:input", "label": "request for current capability layer (per turn)", "type": "input" },
+    { "id": "AR9", "source": "EXTERNAL", "target": "A4:control", "label": "RebindEpoch + accountId of pinned identity", "type": "control" },
+    { "id": "AR10", "source": "A4:output", "target": "A1:input", "label": "resolved CapabilityLayerCacheEntry OR thrown CrossAccountRebindError", "type": "output" },
+    { "id": "AR11", "source": "A3:output", "target": "EXTERNAL", "label": "sanitized anchor message appended to message-stream", "type": "output" },
+    { "id": "AR12", "source": "A2:output", "target": "A5:input", "label": "BP placement record + provider response cache headers", "type": "input" },
+    { "id": "AR13", "source": "A3:output", "target": "A5:input", "label": "compaction.cache_miss_diagnosis + compaction.idle.deferred events", "type": "input" },
+    { "id": "AR14", "source": "A5:output", "target": "EXTERNAL", "label": "Bus-published telemetry events", "type": "output" }
+  ],
+  "decompositions": {
+    "A1": {
+      "diagram_title": "Assemble Prompt",
+      "node_reference": "A1",
+      "activities": [
+        {
+          "id": "A11",
+          "title": "Build Static System Block",
+          "description": "Concatenate L1 Driver + L2 Agent + L3c AGENTS + L5 user-system + L6 BOUNDARY + L7 SYSTEM.md + L8 Identity in DD-12 fixed order; emit byte-deterministic text + sha256 hash (C2).",
+          "decomposition": null
+        },
+        {
+          "id": "A12",
+          "title": "Build Context Preface",
+          "description": "Pull T1 (README, cwd, pinned skills, today's date) and T2 (active skills, summary skills) ranked slow-first; emit user-role message with kind=context-preface and tier-marked content blocks (C3, DD-1/2/4/5).",
+          "decomposition": null
+        },
+        {
+          "id": "A13",
+          "title": "Fan Out Plugin Hooks",
+          "description": "Fire experimental.chat.system.transform with static block; fire experimental.chat.context.transform with ContextPrefaceParts (C10, DD-11).",
+          "decomposition": null
+        }
+      ],
+      "arrows": [
+        { "id": "AR1.1", "source": "EXTERNAL", "target": "A11:input", "label": "static tuple (model, agent, account, AGENTS.md, SYSTEM.md, user-system, role)", "type": "input" },
+        { "id": "AR1.2", "source": "EXTERNAL", "target": "A12:input", "label": "preload parts + skill registry snapshot + date", "type": "input" },
+        { "id": "AR1.3", "source": "A11:output", "target": "A13:input", "label": "static system message", "type": "input" },
+        { "id": "AR1.4", "source": "A12:output", "target": "A13:input", "label": "context preface ContextPrefaceParts", "type": "input" },
+        { "id": "AR1.5", "source": "A11:output", "target": "EXTERNAL", "label": "static system block (text + hash)", "type": "output" },
+        { "id": "AR1.6", "source": "A12:output", "target": "EXTERNAL", "label": "context preface message", "type": "output" },
+        { "id": "AR1.7", "source": "A13:output", "target": "EXTERNAL", "label": "post-hook system + preface (mutated by plugins)", "type": "output" },
+        { "id": "AR1.8", "source": "EXTERNAL", "target": "A11:control", "label": "DD-12 fixed layer order", "type": "control" },
+        { "id": "AR1.9", "source": "EXTERNAL", "target": "A12:control", "label": "DD-1 envelope rule, DD-2 date-last rule, DD-4 single-message-multi-block rule", "type": "control" }
+      ]
+    },
+    "A3": {
+      "diagram_title": "Protect Compaction Anchor",
+      "node_reference": "A3",
+      "activities": [
+        {
+          "id": "A31",
+          "title": "Sanitize Anchor Body",
+          "description": "Wrap body in <prior_context source=\"{kind}\">; rewrite imperative-leading lines with 'Note from prior context: ' prefix (C5, DD-6).",
+          "decomposition": null
+        },
+        {
+          "id": "A32",
+          "title": "Gate Idle Compaction",
+          "description": "Scan last 2 messages for unmatched tool_use; defer with telemetry when unclean; pass through when clean (C6, DD-7).",
+          "decomposition": null
+        },
+        {
+          "id": "A33",
+          "title": "Bind Skill To Anchor",
+          "description": "Scan compacted span for skill name references; pin matched active/summary skills; embed skillSnapshot into anchor metadata (C8, DD-9).",
+          "decomposition": null
+        },
+        {
+          "id": "A34",
+          "title": "Diagnose Cache Miss",
+          "description": "Compare last 3 staticSystemBlock hashes; classify churn vs conversation-growth; gate cache-aware compaction (C9, DD-10).",
+          "decomposition": null
+        }
+      ],
+      "arrows": [
+        { "id": "AR3.1", "source": "EXTERNAL", "target": "A32:input", "label": "idleCompaction trigger (utilization > threshold)", "type": "input" },
+        { "id": "AR3.2", "source": "EXTERNAL", "target": "A34:input", "label": "shouldCacheAwareCompact trigger (cache hit drop)", "type": "input" },
+        { "id": "AR3.3", "source": "A32:output", "target": "A33:input", "label": "clean-tail OK; allow anchor pipeline", "type": "input" },
+        { "id": "AR3.4", "source": "A33:output", "target": "A31:input", "label": "anchor body + metadata (skillSnapshot attached)", "type": "input" },
+        { "id": "AR3.5", "source": "A31:output", "target": "EXTERNAL", "label": "sanitized anchor body for message-stream append", "type": "output" },
+        { "id": "AR3.6", "source": "A34:output", "target": "EXTERNAL", "label": "compaction.cache_miss_diagnosis decision (compact yes/no)", "type": "output" },
+        { "id": "AR3.7", "source": "A32:output", "target": "EXTERNAL", "label": "compaction.idle.deferred telemetry (when unclean)", "type": "output" },
+        { "id": "AR3.8", "source": "EXTERNAL", "target": "A31:control", "label": "DD-6 wrapper + softening rules", "type": "control" },
+        { "id": "AR3.9", "source": "EXTERNAL", "target": "A32:control", "label": "DD-7 N=2 scan window", "type": "control" },
+        { "id": "AR3.10", "source": "EXTERNAL", "target": "A33:control", "label": "DD-9 auto-pin + snapshot rules", "type": "control" },
+        { "id": "AR3.11", "source": "EXTERNAL", "target": "A34:control", "label": "DD-10 churn-classification rules", "type": "control" }
+      ]
+    }
+  },
+  "validation_notes": [
+    "plan-builder convention requires singular idef0.json; this file embeds A0 root + A1/A3 decompositions inline via the 'decompositions' map (per-level file split per miatdiagram §8.1 not adopted to match plan-validate.ts expectations).",
+    "Every activity has at least one input and one output arrow per IDEF0 §5 ICOM rules.",
+    "ModuleRefs in grafcet.json reference these activity IDs (A1, A11, A12, A13, A2, A3, A31, A32, A33, A34, A4, A5)."
+  ],
+  "traceability_matrix": [
+    { "activity": "A1", "components": ["C1"], "decisions": ["DD-12"], "requirements": ["R1", "R2"] },
+    { "activity": "A11", "components": ["C2"], "decisions": ["DD-12"], "requirements": ["R1"] },
+    { "activity": "A12", "components": ["C3"], "decisions": ["DD-1", "DD-2", "DD-4", "DD-5"], "requirements": ["R2"] },
+    { "activity": "A13", "components": ["C10"], "decisions": ["DD-11"], "requirements": ["R7"] },
+    { "activity": "A2", "components": ["C4"], "decisions": ["DD-3", "DD-14"], "requirements": ["R3"] },
+    { "activity": "A31", "components": ["C5"], "decisions": ["DD-6"], "requirements": ["R4"] },
+    { "activity": "A32", "components": ["C6"], "decisions": ["DD-7"], "requirements": ["R5"] },
+    { "activity": "A33", "components": ["C8"], "decisions": ["DD-9"], "requirements": ["R7-skill-coherence"] },
+    { "activity": "A34", "components": ["C9"], "decisions": ["DD-10"], "requirements": ["R7-diagnostic"] },
+    { "activity": "A4", "components": ["C7"], "decisions": ["DD-8"], "requirements": ["R6"] },
+    { "activity": "A5", "components": ["C11"], "decisions": ["DD-13"], "requirements": ["acceptance-checks"] }
+  ]
+}

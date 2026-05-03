@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "state": "verified",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-05-02T04:22:58.336Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-05-02T04:44:24.719Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "spec/design/c4/sequence/data-schema/idef0/grafcet drafted; 14 DDs locked (DD-1 envelope, DD-2 date-last 已使用者確認 2026-05-02); 7 Requirements with GIVEN/WHEN/THEN; 11 components mapped to 14 DDs in c4.json; 6 sequences cover assembly turn 1/N + 4 compaction bug paths"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-05-02T05:08:03.293Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "tasks.md (Phase A x5 + Phase B sketch + finalize gates) + handoff.md (execution contract, stop gates, beta surface) + test-vectors.json (R1-R7 + plugin) + errors.md (5 codes) + observability.md (cache+compaction telemetry + alerts) drafted; beta worktree on beta/prompt-cache-hardening from main@164aca4a9 with XDG isolation"
+    },
+    {
+      "at": "2026-05-02T05:15:39.861Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "164aca4a9e25aa4fa4451735e2f767c16a098c73"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-05-02T05:15:48.987Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Phase A.1 anchor sanitizer landed (commit 0859abcc6); first - [x] in tasks.md per §16.6"
+    },
+    {
+      "at": "2026-05-03T12:00:00.000Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "rebased beta/prompt-cache-hardening onto main@c27a127e8 (was @164aca4a9, +30 main commits including b5dd2caad prompt.ts 627-line shrink). No conflicts; CapabilityLayer.get + llm.ts system.push hook points survived. 57/57 Phase A unit tests pass; 0 new typecheck errors in touched files (pre-existing errors in share-next.ts / codex-provider / console-function are orthogonal). Re-review: 5 DDs still appropriate, no design pivot needed.",
+      "result": "clean",
+      "commit": "f69b99f4a"
+    },
+    {
+      "at": "2026-05-03T13:00:00.000Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "second rebase onto main@09b0faa72 (+1 incoming/* commit, zero overlap with session/*). 57/57 unit tests still green. Branch tip moved to b1f3fa9c4.",
+      "result": "clean",
+      "commit": "b1f3fa9c4"
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-05-03T13:30:00.000Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Phase A 5 DDs landed via merge --no-ff into main. §6.1 + §6.2 + §6.5 + §6.7 + §7.1 + §7.3 done. §6.3 (manual smoke) + §6.4 (phase summary docs) deferred to dogfood follow-up. §6.6 + §7.2 N/A (zero conflicts → skipped intermediate test branch)."
+    }
+  ]
+}

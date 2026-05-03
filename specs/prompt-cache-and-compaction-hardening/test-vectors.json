@@ -1,0 +1,470 @@
+[
+  {
+    "id": "TV-R1-1",
+    "requirement": "R1: System block is purely static within a session",
+    "scenario": "two consecutive turns with identical static tuple produce byte-equal system block",
+    "input": {
+      "tuple": {
+        "modelId": "claude-sonnet-4-6",
+        "agentName": "build",
+        "accountId": "acc-1",
+        "agentsMdHash": "sha256:abc",
+        "systemMdHash": "sha256:def",
+        "userSystemHash": "",
+        "role": "main"
+      },
+      "callTwice": true
+    },
+    "expected": {
+      "byteEqual": true,
+      "containsLayers": [
+        "L1",
+        "L2",
+        "L3c",
+        "L5",
+        "L6",
+        "L7",
+        "L8"
+      ],
+      "excludesLayers": [
+        "L3a-preload",
+        "L3b-date",
+        "L4-routing",
+        "L9-skill"
+      ]
+    }
+  },
+  {
+    "id": "TV-R2-1",
+    "requirement": "R2: Dynamic content lives in user-role context preface, ranked slow-first",
+    "scenario": "preface contains T1 first (README, cwd, pinned, date) then T2 (active, summary)",
+    "input": {
+      "preload": {
+        "readmeSummary": "X",
+        "cwdListing": "a\nb"
+      },
+      "skills": {
+        "pinned": [
+          "frontend"
+        ],
+        "active": [
+          "bash-toolkit"
+        ],
+        "summarized": [
+          "legacy-helper"
+        ]
+      },
+      "todaysDate": "2026-05-02"
+    },
+    "expected": {
+      "messageRole": "user",
+      "messageKind": "context-preface",
+      "contentBlockOrder": [
+        "t1:readme",
+        "t1:cwd",
+        "t1:pinned-frontend",
+        "t1:date-2026-05-02",
+        "t2:active-bash-toolkit",
+        "t2:summary-legacy-helper"
+      ]
+    }
+  },
+  {
+    "id": "TV-R2-2",
+    "requirement": "R2",
+    "scenario": "matched routing for keyword K appears in current user turn, not preface",
+    "input": {
+      "userText": "search the database for X",
+      "matchedRouting": [
+        "mcp:database-tools"
+      ]
+    },
+    "expected": {
+      "prefaceContainsRouting": false,
+      "userTurnContainsRouting": true
+    }
+  },
+  {
+    "id": "TV-R3-1",
+    "requirement": "R3: Cache breakpoints at 4 fixed positions",
+    "scenario": "full preface with T1 + T2 → 4 breakpoints placed",
+    "input": {
+      "messages": [
+        {
+          "role": "system",
+          "kind": "static",
+          "contentBlocks": 1
+        },
+        {
+          "role": "user",
+          "kind": "context-preface",
+          "contentBlocks": 2
+        },
+        {
+          "role": "user",
+          "kind": null,
+          "contentBlocks": 1
+        }
+      ]
+    },
+    "expected": {
+      "breakpointCount": 4,
+      "marks": [
+        {
+          "messageIndex": 0,
+          "contentBlockIndex": 0
+        },
+        {
+          "messageIndex": 1,
+          "contentBlockIndex": 0
+        },
+        {
+          "messageIndex": 1,
+          "contentBlockIndex": 1
+        },
+        {
+          "messageIndex": 2,
+          "contentBlockIndex": 0
+        }
+      ]
+    }
+  },
+  {
+    "id": "TV-R3-2",
+    "requirement": "R3",
+    "scenario": "T2 empty → BP3 omitted, total ≤ 4",
+    "input": {
+      "messages": [
+        {
+          "role": "system",
+          "kind": "static",
+          "contentBlocks": 1
+        },
+        {
+          "role": "user",
+          "kind": "context-preface",
+          "contentBlocks": 1
+        },
+        {
+          "role": "user",
+          "kind": null,
+          "contentBlocks": 1
+        }
+      ]
+    },
+    "expected": {
+      "breakpointCount": 3,
+      "marks": [
+        {
+          "messageIndex": 0,
+          "contentBlockIndex": 0
+        },
+        {
+          "messageIndex": 1,
+          "contentBlockIndex": 0
+        },
+        {
+          "messageIndex": 2,
+          "contentBlockIndex": 0
+        }
+      ]
+    }
+  },
+  {
+    "id": "TV-R4-1",
+    "requirement": "R4: Anchor never shadows L7",
+    "scenario": "narrative summary with leading 'You must' is wrapped + softened",
+    "input": {
+      "kind": "narrative",
+      "summaryText": "You must always validate input.\nThen process the result."
+    },
+    "expected": {
+      "bodyStartsWith": "<prior_context source=\"narrative\">",
+      "bodyEndsWith": "</prior_context>",
+      "containsSoftened": "Note from prior context: You must always validate input.",
+      "imperativePrefixApplied": true
+    }
+  },
+  {
+    "id": "TV-R4-2",
+    "requirement": "R4",
+    "scenario": "false-positive candidate 'You should consider X' still gets prefixed (acceptable)",
+    "input": {
+      "kind": "narrative",
+      "summaryText": "You should consider edge case Y."
+    },
+    "expected": {
+      "imperativePrefixApplied": true,
+      "softenedBodyContains": "Note from prior context:"
+    }
+  },
+  {
+    "id": "TV-R4-3",
+    "requirement": "R4",
+    "scenario": "byte-deterministic — same input twice → byte-equal output",
+    "input": {
+      "kind": "llm-agent",
+      "summaryText": "Anchor body content here."
+    },
+    "expected": {
+      "byteEqualAcrossInvocations": true
+    }
+  },
+  {
+    "id": "TV-R5-1",
+    "requirement": "R5: Idle compaction defers when tail unclean",
+    "scenario": "last assistant has tool_use id=T-42 with no matching tool_result",
+    "input": {
+      "messages": [
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "do thing"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "tool_use",
+              "id": "T-42",
+              "name": "bash",
+              "input": {}
+            }
+          ]
+        }
+      ],
+      "utilization": 0.7,
+      "threshold": 0.6
+    },
+    "expected": {
+      "deferred": true,
+      "reason": "unmatched tool_use T-42",
+      "anchorWritten": false,
+      "telemetryEmitted": "compaction.idle.deferred"
+    }
+  },
+  {
+    "id": "TV-R5-2",
+    "requirement": "R5",
+    "scenario": "tail clean → proceed",
+    "input": {
+      "messages": [
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "tool_use",
+              "id": "T-1",
+              "name": "read",
+              "input": {}
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "parts": [
+            {
+              "type": "tool_result",
+              "toolUseId": "T-1",
+              "result": "ok"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "text",
+              "text": "done"
+            }
+          ]
+        }
+      ],
+      "utilization": 0.7,
+      "threshold": 0.6
+    },
+    "expected": {
+      "deferred": false,
+      "compactionRunInvoked": true
+    }
+  },
+  {
+    "id": "TV-R6-1",
+    "requirement": "R6: CapabilityLayer cross-account hard-fail",
+    "scenario": "epoch E for account A2 fails; fallback finds entry from epoch E-1 with account A1 → throw",
+    "input": {
+      "sessionID": "s-1",
+      "requestedEpoch": 5,
+      "requestedAccountId": "A2",
+      "loaderFails": true,
+      "cachedFallback": {
+        "epoch": 4,
+        "accountId": "A1"
+      }
+    },
+    "expected": {
+      "throws": "CrossAccountRebindError",
+      "errorPayload": {
+        "from": "A1",
+        "to": "A2",
+        "code": "CROSS_ACCOUNT_REBIND_FAILED"
+      }
+    }
+  },
+  {
+    "id": "TV-R6-2",
+    "requirement": "R6",
+    "scenario": "epoch E for account A1 fails; fallback finds entry from epoch E-1 also account A1 → return + WARN",
+    "input": {
+      "sessionID": "s-1",
+      "requestedEpoch": 5,
+      "requestedAccountId": "A1",
+      "loaderFails": true,
+      "cachedFallback": {
+        "epoch": 4,
+        "accountId": "A1"
+      }
+    },
+    "expected": {
+      "returnsFallback": true,
+      "warnLogged": true
+    }
+  },
+  {
+    "id": "TV-R7-skill-1",
+    "requirement": "R7-skill-coherence: narrative anchor pins active skills referenced in span",
+    "scenario": "compacted span references skill 'bash-toolkit' (active) → pinForAnchor called",
+    "input": {
+      "summaryText": "Used the bash-toolkit skill to inspect logs.",
+      "registryState": {
+        "active": [
+          "bash-toolkit"
+        ],
+        "summary": [],
+        "pinned": []
+      }
+    },
+    "expected": {
+      "pinForAnchorCalled": true,
+      "pinnedNames": [
+        "bash-toolkit"
+      ],
+      "anchorMetadata.skillSnapshot.active": [
+        "bash-toolkit"
+      ],
+      "anchorMetadata.pinnedByAnchor": [
+        "bash-toolkit"
+      ]
+    }
+  },
+  {
+    "id": "TV-R7-skill-2",
+    "requirement": "R7-skill-coherence",
+    "scenario": "new anchor written → previous anchor's pinnedByAnchor entries unpinned",
+    "input": {
+      "previousAnchor": {
+        "anchorId": "anchor-1",
+        "pinnedByAnchor": [
+          "bash-toolkit"
+        ]
+      },
+      "newAnchor": {
+        "anchorId": "anchor-2",
+        "pinnedByAnchor": []
+      }
+    },
+    "expected": {
+      "unpinByAnchorCalledWith": "anchor-1",
+      "bashToolkitStillPinned": false
+    }
+  },
+  {
+    "id": "TV-R7-diagnostic-1",
+    "requirement": "R7-diagnostic: shouldCacheAwareCompact short-circuits on system-prefix-churn",
+    "scenario": "last 3 system block hashes differ → return false",
+    "input": {
+      "lastSystemBlockHashes": [
+        "sha256:a",
+        "sha256:b",
+        "sha256:c"
+      ],
+      "cacheHitRate": 0.2,
+      "conversationTailTokens": 25000
+    },
+    "expected": {
+      "diagnosisKind": "system-prefix-churn",
+      "shouldCompact": false,
+      "telemetryEmitted": "compaction.cache_miss_diagnosis"
+    }
+  },
+  {
+    "id": "TV-R7-diagnostic-2",
+    "requirement": "R7-diagnostic",
+    "scenario": "all 3 system hashes equal + tail > 40K → conversation-growth → return true",
+    "input": {
+      "lastSystemBlockHashes": [
+        "sha256:a",
+        "sha256:a",
+        "sha256:a"
+      ],
+      "cacheHitRate": 0.2,
+      "conversationTailTokens": 50000
+    },
+    "expected": {
+      "diagnosisKind": "conversation-growth",
+      "shouldCompact": true
+    }
+  },
+  {
+    "id": "TV-R7-diagnostic-3",
+    "requirement": "R7-diagnostic",
+    "scenario": "fewer than 2 hashes recorded → kind=neither, no compaction",
+    "input": {
+      "lastSystemBlockHashes": [
+        "sha256:a"
+      ],
+      "cacheHitRate": 0.2,
+      "conversationTailTokens": 50000
+    },
+    "expected": {
+      "diagnosisKind": "neither",
+      "shouldCompact": false
+    }
+  },
+  {
+    "id": "TV-plugin-1",
+    "requirement": "R7-plugin: experimental.chat.context.transform receives ContextPrefaceParts",
+    "scenario": "plugin mutates preface.t1.readmeSummary → mutation reflected in outbound message",
+    "input": {
+      "preface": {
+        "t1": {
+          "readmeSummary": "original"
+        },
+        "t2": {}
+      },
+      "pluginMutation": {
+        "t1.readmeSummary": "modified by plugin"
+      }
+    },
+    "expected": {
+      "outboundPrefaceContains": "modified by plugin",
+      "hookFired": true
+    }
+  },
+  {
+    "id": "TV-plugin-2",
+    "requirement": "R7-plugin: legacy plugin injecting dynamic via system.transform → WARN logged but injection honored",
+    "scenario": "plugin appends '<dynamic-skill-text>' via experimental.chat.system.transform",
+    "input": {
+      "legacyPluginMutation": "<dynamic-skill-text>"
+    },
+    "expected": {
+      "warnLogged": true,
+      "injectionApplied": true
+    }
+  }
+]

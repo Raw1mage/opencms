@@ -1,0 +1,289 @@
+{
+  "$schema": "https://plan-builder.local/schemas/c4.json",
+  "title": "C4 model — prompt-cache-and-compaction-hardening",
+  "level": "component",
+  "systems": [
+    {
+      "id": "opencode-session",
+      "name": "opencode session subsystem",
+      "description": "Per-session prompt assembly, LLM streaming, compaction, capability layer"
+    }
+  ],
+  "containers": [
+    {
+      "id": "opencode-daemon",
+      "name": "opencode daemon (bun)",
+      "technology": "bun + TypeScript",
+      "description": "Single long-running process; serves sessions over Unix socket"
+    },
+    {
+      "id": "message-stream",
+      "name": "Session message stream",
+      "technology": "filesystem-backed append log",
+      "description": "Authoritative chronological record of messages + parts; carries `kind: context-preface` flag on user-role preface entries"
+    },
+    {
+      "id": "llm-provider",
+      "name": "LLM provider API",
+      "technology": "Anthropic / OpenAI-compatible / Bedrock / OpenRouter",
+      "description": "External LLM endpoint; honors ephemeral cache_control breakpoints (max 4 per request)"
+    },
+    {
+      "id": "plugin-host",
+      "name": "Plugin host",
+      "technology": "in-process JS module loader",
+      "description": "Hosts plugins that subscribe to chat hooks"
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "name": "PromptAssembler",
+      "container": "opencode-daemon",
+      "moduleRef": "packages/opencode/src/session/llm.ts",
+      "idef0Ref": "A1",
+      "description": "Top-level prompt assembly entry. Replaces current join-everything-as-system[0] with a two-track output: static system block + context preface. DD-12.",
+      "responsibilities": [
+        "Resolve (model, agent, account, role, AGENTS.md, SYSTEM.md) tuple per turn",
+        "Call StaticSystemBuilder to get system[] (size ≤ 1)",
+        "Call ContextPrefaceBuilder to get preface ContextPrefaceMessage (or null)",
+        "Splice preface message into outbound messages[] before user's first text on each turn",
+        "Trigger plugin hooks chat.system.transform + chat.context.transform"
+      ]
+    },
+    {
+      "id": "C2",
+      "name": "StaticSystemBuilder",
+      "container": "opencode-daemon",
+      "moduleRef": "packages/opencode/src/session/llm.ts (extracted helper)",
+      "idef0Ref": "A11",
+      "description": "Builds the pure-static system block (L1+L2+L3c+L5+L6+L7+L8). DD-12. Output is byte-deterministic given the input tuple.",
+      "responsibilities": [
+        "Concatenate driver / agent / AGENTS.md / user-system / boundary / SYSTEM.md / identity in fixed order",
+        "Hash output for cache miss diagnostic (feeds C9)",
+        "Return zero-or-one system message"
+      ]
+    },
+    {
+      "id": "C3",
+      "name": "ContextPrefaceBuilder",
+      "container": "opencode-daemon",
+      "moduleRef": "packages/opencode/src/session/context-preface.ts (NEW)",
+      "idef0Ref": "A12",
+      "description": "Builds the user-role context preface message containing T1+T2 dynamic content, ranked slow-first per DD-1/DD-2/DD-4.",
+      "responsibilities": [
+        "Pull preload parts (README summary, cwd listing) from PreloadProvider",
+        "Pull pinned skills + active/summary skills from SkillLayerRegistry",
+        "Pull `Today's date` from environment provider",
+        "Order: README → cwd → pinned skills → date | active skills → summary skills",
+        "Emit single user-role message with `kind: context-preface` metadata, content as multiple text blocks aligned with breakpoint positions"
+      ]
+    },
+    {
+      "id": "C4",
+      "name": "CacheBreakpointPlanner",
+      "container": "opencode-daemon",
+      "moduleRef": "packages/opencode/src/provider/transform.ts (applyCaching extended)",
+      "idef0Ref": "A2",
+      "description": "Places ephemeral cache_control on 4 deliberate boundaries (BP1..BP4) per DD-3.",
+      "responsibilities": [
+        "Identify static system message → mark its last content block (BP1)",
+        "Identify context preface message → mark its T1-end content block (BP2) and T2-end content block (BP3)",
+        "Mark final non-system message's last content block (BP4)",
+        "Skip BP3 if T2 segment is empty; never relocate"
+      ]
+    },
+    {
+      "id": "C5",
+      "name": "AnchorSanitizer",
+      "container": "opencode-daemon",
+      "moduleRef": "packages/opencode/src/session/anchor-sanitizer.ts (NEW)",
+      "idef0Ref": "A31",
+      "description": "Wraps + softens compaction anchor body before persistence. DD-6.",
+      "responsibilities": [
+        "Wrap body in <prior_context source=\"{kind}\">…</prior_context>",
+        "Rewrite imperative-leading lines with 'Note from prior context: ' prefix",
+        "Preserve byte-deterministic transform (same input → same output)"
+      ]
+    },
+    {
+      "id": "C6",
+      "name": "IdleCompactionGate",
+      "container": "opencode-daemon",
+      "moduleRef": "packages/opencode/src/session/compaction.ts (idleCompaction extended)",
+      "idef0Ref": "A32",
+      "description": "Pre-checks conversation tail cleanliness before allowing idle compaction to insert anchor. DD-7.",
+      "responsibilities": [
+        "Scan last N=2 messages for unmatched tool_use ids",
+        "Defer (return early with telemetry) when unclean",
+        "Pass through when clean"
+      ]
+    },
+    {
+      "id": "C7",
+      "name": "CapabilityLayerGuard",
+      "container": "opencode-daemon",
+      "moduleRef": "packages/opencode/src/session/capability-layer.ts (get/findFallbackEntry extended)",
+      "idef0Ref": "A4",
+      "description": "Distinguishes cross-account vs same-account fallback paths; throws on cross-account. DD-8.",
+      "responsibilities": [
+        "Track fallback entry's accountId vs current request's accountId",
+        "Throw CrossAccountRebindError when different",
+        "Allow same-account fallback with WARN (existing behavior)"
+      ]
+    },
+    {
+      "id": "C8",
+      "name": "SkillAnchorBinder",
+      "container": "opencode-daemon",
+      "moduleRef": "packages/opencode/src/session/skill-layer-registry.ts (pinForAnchor/unpinByAnchor NEW) + compaction.ts",
+      "idef0Ref": "A33",
+      "description": "Binds compaction anchor lifetime to skill pinning state. DD-9.",
+      "responsibilities": [
+        "Scan compacted span for skill name references",
+        "Call pinForAnchor(name, anchorId) for matched active/summary skills",
+        "Embed skillSnapshot into anchor metadata",
+        "Call unpinByAnchor(oldAnchorId) when superseded"
+      ]
+    },
+    {
+      "id": "C9",
+      "name": "CacheMissDiagnostic",
+      "container": "opencode-daemon",
+      "moduleRef": "packages/opencode/src/session/compaction.ts (shouldCacheAwareCompact extended)",
+      "idef0Ref": "A34",
+      "description": "Classifies cache miss as system-prefix-churn vs conversation-growth before allowing cache-aware compaction. DD-10.",
+      "responsibilities": [
+        "Maintain rolling lastSystemBlockHash[] over last 3 turns",
+        "Compare current vs prior hashes",
+        "Return false + telemetry when churn detected; return existing decision otherwise"
+      ]
+    },
+    {
+      "id": "C10",
+      "name": "PluginHookRouter",
+      "container": "plugin-host",
+      "moduleRef": "packages/opencode/src/plugin/index.ts",
+      "idef0Ref": "A13",
+      "description": "Routes the new context.transform hook to subscribers; preserves system.transform. DD-11.",
+      "responsibilities": [
+        "Fire experimental.chat.system.transform with static-only system[]",
+        "Fire experimental.chat.context.transform with ContextPrefaceParts",
+        "WARN-log dynamic content injected via legacy hook for one release"
+      ]
+    },
+    {
+      "id": "C11",
+      "name": "Telemetry",
+      "container": "opencode-daemon",
+      "moduleRef": "packages/opencode/src/session/compaction-telemetry.ts (extended)",
+      "idef0Ref": "A5",
+      "description": "Emits new cache + compaction events per DD-13.",
+      "responsibilities": [
+        "Emit prompt.cache.system.{hit,miss} (BP1 outcome from provider response)",
+        "Emit prompt.cache.preface.t1.{hit,miss} (BP2)",
+        "Emit prompt.cache.preface.t2.{hit,miss} (BP3)",
+        "Emit compaction.cache_miss_diagnosis with kind label"
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "id": "REL1",
+      "source": "C1",
+      "target": "C2",
+      "description": "Requests static system block",
+      "technology": "function call"
+    },
+    {
+      "id": "REL2",
+      "source": "C1",
+      "target": "C3",
+      "description": "Requests context preface message",
+      "technology": "function call"
+    },
+    {
+      "id": "REL3",
+      "source": "C1",
+      "target": "C10",
+      "description": "Triggers chat.system.transform and chat.context.transform hooks",
+      "technology": "plugin hook"
+    },
+    {
+      "id": "REL4",
+      "source": "C1",
+      "target": "C4",
+      "description": "Hands assembled messages[] to applyCaching",
+      "technology": "function call (in transform pipeline)"
+    },
+    {
+      "id": "REL5",
+      "source": "C4",
+      "target": "llm-provider",
+      "description": "Sends request with cache_control on 4 breakpoints",
+      "technology": "HTTPS"
+    },
+    {
+      "id": "REL6",
+      "source": "C2",
+      "target": "C9",
+      "description": "Provides system block hash for diagnostic rolling window",
+      "technology": "function call (returns hash alongside text)"
+    },
+    {
+      "id": "REL7",
+      "source": "C5",
+      "target": "message-stream",
+      "description": "Persists sanitized anchor body",
+      "technology": "Storage append"
+    },
+    {
+      "id": "REL8",
+      "source": "C6",
+      "target": "C5",
+      "description": "Forwards to anchor write only when clean-tail check passes",
+      "technology": "function call"
+    },
+    {
+      "id": "REL9",
+      "source": "C7",
+      "target": "C1",
+      "description": "Throws CrossAccountRebindError; PromptAssembler propagates to runloop",
+      "technology": "exception"
+    },
+    {
+      "id": "REL10",
+      "source": "C8",
+      "target": "C5",
+      "description": "Annotates anchor metadata with skillSnapshot before sanitizer wrap",
+      "technology": "in-process struct mutation"
+    },
+    {
+      "id": "REL11",
+      "source": "C9",
+      "target": "C11",
+      "description": "Emits compaction.cache_miss_diagnosis telemetry",
+      "technology": "Bus.publish"
+    },
+    {
+      "id": "REL12",
+      "source": "C4",
+      "target": "C11",
+      "description": "Emits prompt.cache.{system,preface.t1,preface.t2}.{hit,miss} from provider response headers",
+      "technology": "Bus.publish"
+    },
+    {
+      "id": "REL13",
+      "source": "C3",
+      "target": "C8",
+      "description": "Reads SkillLayerRegistry pinned + active + summarized state",
+      "technology": "function call"
+    }
+  ],
+  "deployment": {
+    "single-binary": {
+      "description": "All components compiled into the opencode daemon; no separate process",
+      "instances": ["opencode-daemon"]
+    }
+  }
+}
