@@ -631,27 +631,43 @@ export namespace LLM {
           const refs = sessionInfo?.execution?.activeImageRefs ?? []
           if (refs.length > 0) {
             const messagesV2 = await SessionMod.messages({ sessionID: input.sessionID }).catch(() => [])
-            const refsByFilename = new Map<string, InlineImageRefInput>()
-            for (const m of messagesV2) {
-              for (const part of m.parts ?? []) {
-                if (part.type !== "attachment_ref") continue
-                if (!part.filename || !part.repo_path || !part.mime?.startsWith("image/")) continue
-                refsByFilename.set(part.filename, {
-                  filename: part.filename,
-                  mime: part.mime,
-                  repo_path: part.repo_path,
-                })
-              }
-            }
             const { IncomingPaths } = await import("@/incoming/paths")
+            const { SessionIncomingPaths } = await import("@/incoming/session-paths")
+            const pathMod = await import("node:path")
             let projectRoot = ""
             try {
               projectRoot = IncomingPaths.projectRoot()
             } catch {
               projectRoot = ""
             }
-            if (projectRoot) {
-              activeImageBlocks = await buildActiveImageContentBlocks(refs, refsByFilename, projectRoot)
+            const refsByFilename = new Map<string, InlineImageRefInput>()
+            for (const m of messagesV2) {
+              for (const part of m.parts ?? []) {
+                if (part.type !== "attachment_ref") continue
+                if (!part.filename || !part.mime?.startsWith("image/")) continue
+                // Hotfix: prefer session_path over repo_path for new image
+                // attachments. Old image refs (pre-hotfix) keep working via
+                // repo_path fallback.
+                let absPath = ""
+                if (part.session_path) {
+                  try {
+                    absPath = SessionIncomingPaths.resolveAbsolute(input.sessionID, part.session_path)
+                  } catch {
+                    absPath = ""
+                  }
+                } else if (part.repo_path && projectRoot) {
+                  absPath = pathMod.join(projectRoot, part.repo_path)
+                }
+                if (!absPath) continue
+                refsByFilename.set(part.filename, {
+                  filename: part.filename,
+                  mime: part.mime,
+                  absPath,
+                })
+              }
+            }
+            if (refsByFilename.size > 0) {
+              activeImageBlocks = await buildActiveImageContentBlocks(refs, refsByFilename)
             }
           }
         } catch (err) {

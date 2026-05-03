@@ -35,20 +35,20 @@ function writeImage(repoPath: string, payload: string): void {
   writeFileSync(abs, payload)
 }
 
-function ref(filename: string, repo_path: string, mime = "image/png"): [string, InlineImageRefInput] {
-  return [filename, { filename, mime, repo_path }]
+function ref(filename: string, repoRel: string, mime = "image/png"): [string, InlineImageRefInput] {
+  return [filename, { filename, mime, absPath: path.join(projectRoot, repoRel) }]
 }
 
 describe("buildActiveImageContentBlocks (v4 DD-19/DD-20)", () => {
   it("returns empty array when activeImageRefs empty", async () => {
-    const out = await buildActiveImageContentBlocks([], new Map(), projectRoot)
+    const out = await buildActiveImageContentBlocks([], new Map())
     expect(out).toEqual([])
   })
 
   it("emits one block per active filename with data URI", async () => {
     writeImage("incoming/a.png", "AAA")
     const refs = new Map<string, InlineImageRefInput>([ref("a.png", "incoming/a.png")])
-    const out = await buildActiveImageContentBlocks(["a.png"], refs, projectRoot)
+    const out = await buildActiveImageContentBlocks(["a.png"], refs)
     expect(out).toHaveLength(1)
     expect(out[0].type).toBe("file")
     expect(out[0].tier).toBe("trailing")
@@ -65,32 +65,43 @@ describe("buildActiveImageContentBlocks (v4 DD-19/DD-20)", () => {
       ref("a.png", "incoming/a.png"),
       ref("b.jpg", "incoming/b.jpg", "image/jpeg"),
     ])
-    const out = await buildActiveImageContentBlocks(["b.jpg", "a.png"], refs, projectRoot)
+    const out = await buildActiveImageContentBlocks(["b.jpg", "a.png"], refs)
     expect(out.map((b) => b.filename)).toEqual(["b.jpg", "a.png"])
   })
 
   it("skips filenames missing from refsByFilename", async () => {
-    const out = await buildActiveImageContentBlocks(["ghost.png"], new Map(), projectRoot)
+    const out = await buildActiveImageContentBlocks(["ghost.png"], new Map())
     expect(out).toEqual([])
   })
 
   it("skips files missing from disk without throwing", async () => {
     const refs = new Map<string, InlineImageRefInput>([ref("vanished.png", "incoming/vanished.png")])
-    const out = await buildActiveImageContentBlocks(["vanished.png"], refs, projectRoot)
+    const out = await buildActiveImageContentBlocks(["vanished.png"], refs)
     expect(out).toEqual([])
   })
 
   it("skips refs with non-image mime", async () => {
     const refs = new Map<string, InlineImageRefInput>([ref("doc.pdf", "incoming/doc.pdf", "application/pdf")])
-    const out = await buildActiveImageContentBlocks(["doc.pdf"], refs, projectRoot)
+    const out = await buildActiveImageContentBlocks(["doc.pdf"], refs)
     expect(out).toEqual([])
+  })
+
+  it("works with session-scoped absPath (storage-agnostic)", async () => {
+    // Helper accepts any pre-resolved absPath — repo or session-scoped.
+    writeImage("session-scoped/img.png", "SESS")
+    const refs = new Map<string, InlineImageRefInput>([
+      ["img.png", { filename: "img.png", mime: "image/png", absPath: path.join(projectRoot, "session-scoped/img.png") }],
+    ])
+    const out = await buildActiveImageContentBlocks(["img.png"], refs)
+    expect(out).toHaveLength(1)
+    expect(out[0].url).toContain(Buffer.from("SESS").toString("base64"))
   })
 
   it("is byte-deterministic for the same filesystem state", async () => {
     writeImage("incoming/det.png", "DET")
     const refs = new Map<string, InlineImageRefInput>([ref("det.png", "incoming/det.png")])
-    const a = await buildActiveImageContentBlocks(["det.png"], refs, projectRoot)
-    const b = await buildActiveImageContentBlocks(["det.png"], refs, projectRoot)
+    const a = await buildActiveImageContentBlocks(["det.png"], refs)
+    const b = await buildActiveImageContentBlocks(["det.png"], refs)
     expect(a).toEqual(b)
   })
 })

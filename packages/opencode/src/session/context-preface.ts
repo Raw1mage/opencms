@@ -15,7 +15,6 @@
 // message as instruction-bearing context rather than chitchat. No A/B test
 // dependency.
 
-import path from "node:path"
 import { promises as fsp } from "node:fs"
 
 import { Log } from "../util/log"
@@ -125,16 +124,22 @@ export function buildPreface(input: BuildPrefaceInput): ContextPrefaceMessageOut
  * Skipping is preferred over throwing because the preface assembly path is
  * latency-critical and a missing image file should not break a turn.
  */
+/**
+ * Pre-resolved input for the inline-image emitter. The caller is
+ * responsible for resolving the absolute filesystem path from whatever
+ * storage backend the attachment_ref points at — session-scoped XDG
+ * (session_path) or repo-relative (repo_path). Keeping resolution out
+ * of this module preserves storage-agnostic testability.
+ */
 export interface InlineImageRefInput {
   filename: string
   mime: string
-  repo_path: string
+  absPath: string
 }
 
 export async function buildActiveImageContentBlocks(
   activeImageRefs: string[],
   refsByFilename: Map<string, InlineImageRefInput>,
-  projectRoot: string,
 ): Promise<InlineImageContentBlock[]> {
   const out: InlineImageContentBlock[] = []
   for (const filename of activeImageRefs) {
@@ -147,19 +152,18 @@ export async function buildActiveImageContentBlocks(
       log.warn("inline image ref has non-image mime; skipping", { filename, mime: ref.mime })
       continue
     }
-    if (!ref.repo_path) {
-      log.warn("inline image ref missing repo_path; skipping", { filename })
+    if (!ref.absPath) {
+      log.warn("inline image ref missing absPath; skipping", { filename })
       continue
     }
-    const absPath = path.join(projectRoot, ref.repo_path)
     try {
-      const bytes = await fsp.readFile(absPath)
+      const bytes = await fsp.readFile(ref.absPath)
       const url = `data:${ref.mime};base64,${bytes.toString("base64")}`
       out.push({ type: "file", tier: "trailing", url, mediaType: ref.mime, filename })
     } catch (err) {
       log.warn("inline image read failed; skipping", {
         filename,
-        absPath,
+        absPath: ref.absPath,
         error: err instanceof Error ? err.message : String(err),
       })
     }

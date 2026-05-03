@@ -21,6 +21,7 @@ import path from "node:path"
 import fs from "node:fs/promises"
 import { existsSync } from "node:fs"
 import { IncomingPaths } from "../incoming/paths"
+import { SessionIncomingPaths } from "../incoming/session-paths"
 import { classifyOffice } from "../incoming/office-mime"
 import { landOfficeUpload } from "../incoming/decompose-hook"
 import { IncomingHistory } from "../incoming/history"
@@ -278,31 +279,63 @@ async function routeOversizedAttachment(input: {
 
   const refID = Identifier.ascending("part")
 
-  // /specs/repo-incoming-attachments DD-17 main path: try to land bytes in
-  // <repo>/incoming/. On success the AttachmentRefPart carries repo_path +
-  // sha256 and we skip upsertAttachmentBlob entirely. On failure (non-project
-  // session, sanitize reject, fs error) fall back to the legacy attachments-
-  // table content blob path so existing flows keep working.
-  const landed = await tryLandInIncoming({
-    filename: input.part.filename,
-    bytes: input.bytes,
-    sessionID: input.sessionID,
-    mime: input.part.mime,
-  }).catch((err) => {
-    log.warn("incoming: tryLandInIncoming threw, falling back to legacy storage", {
-      sessionID: input.sessionID,
-      error: err instanceof Error ? err.message : String(err),
-    })
-    return null as null
-  })
+  // attachment-lifecycle v4 hotfix: image attachments route to session-
+  // scoped XDG storage (`~/.local/share/opencode/sessions/<id>/attachments/`)
+  // rather than the project repo. They are debug screenshots and similar
+  // ephemeral content, not project knowledge.
+  //
+  // Office binary + PDF + everything else continues to use the
+  // /specs/repo-incoming-attachments path: bytes land in
+  // `<repo>/incoming/`, ref carries repo_path + sha256.
+  const isImage = mime.startsWith("image/")
 
+  let sessionPath: string | undefined
   let repoPath: string | undefined
   let sha256: string | undefined
+  let sanitizedName: string | undefined
+  let landingReason: "above_threshold:session" | "above_threshold:incoming" | "above_threshold:legacy" =
+    "above_threshold:legacy"
 
-  if (landed) {
-    repoPath = landed.repoPath
-    sha256 = landed.sha256
+  if (isImage) {
+    const landedSession = await SessionIncomingPaths.tryLandInSession({
+      sessionID: input.sessionID,
+      filename: input.part.filename,
+      bytes: input.bytes,
+    }).catch((err) => {
+      log.warn("session-incoming: tryLandInSession threw, falling back to legacy storage", {
+        sessionID: input.sessionID,
+        error: err instanceof Error ? err.message : String(err),
+      })
+      return null as null
+    })
+    if (landedSession) {
+      sessionPath = landedSession.sessionPath
+      sha256 = landedSession.sha256
+      sanitizedName = landedSession.sanitizedName
+      landingReason = "above_threshold:session"
+    }
   } else {
+    const landed = await tryLandInIncoming({
+      filename: input.part.filename,
+      bytes: input.bytes,
+      sessionID: input.sessionID,
+      mime: input.part.mime,
+    }).catch((err) => {
+      log.warn("incoming: tryLandInIncoming threw, falling back to legacy storage", {
+        sessionID: input.sessionID,
+        error: err instanceof Error ? err.message : String(err),
+      })
+      return null as null
+    })
+    if (landed) {
+      repoPath = landed.repoPath
+      sha256 = landed.sha256
+      sanitizedName = landed.sanitizedName
+      landingReason = "above_threshold:incoming"
+    }
+  }
+
+  if (!sessionPath && !repoPath) {
     await attachmentBlobWriter.upsertAttachmentBlob({
       refID,
       sessionID: input.sessionID,
@@ -327,7 +360,7 @@ async function routeOversizedAttachment(input: {
     previewBytes: cfg.attachmentPreviewBytes,
     truncated: byteSize > cfg.attachmentPreviewBytes,
     hasFilename: !!input.part.filename,
-    reason: landed ? "above_threshold:incoming" : "above_threshold:legacy",
+    reason: landingReason,
   })
 
   return {
@@ -337,11 +370,12 @@ async function routeOversizedAttachment(input: {
     type: "attachment_ref",
     ref_id: refID,
     mime: input.part.mime,
-    filename: landed?.sanitizedName ?? input.part.filename,
+    filename: sanitizedName ?? input.part.filename,
     byte_size: byteSize,
     est_tokens: estimateTokens(byteSize),
     preview: previewBytes(input.bytes, input.part.mime, cfg.attachmentPreviewBytes),
     repo_path: repoPath,
+    session_path: sessionPath,
     sha256: sha256,
   }
 }

@@ -330,6 +330,12 @@ export namespace MessageV2 {
     // both fields; legacy refs (pre-2026-05-03) leave them undefined and
     // the reader falls back to attachments.content.
     repo_path: z.string().optional(),
+    // attachment-lifecycle v4 hotfix: image attachments (and any other
+    // session-ephemeral binary) live under
+    // `${Global.Path.data}/<session_path>` instead of the project repo.
+    // When BOTH session_path and repo_path are present, readers prefer
+    // session_path. See packages/opencode/src/incoming/session-paths.ts.
+    session_path: z.string().optional(),
     sha256: z
       .string()
       .regex(/^[0-9a-f]{64}$/)

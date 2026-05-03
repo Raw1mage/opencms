@@ -63,6 +63,41 @@ async function loadAttachmentBlob(input: {
       })
     }
   }
+  // attachment-lifecycle v4 hotfix: prefer session_path (XDG-scoped image
+  // storage) over repo_path. Both never co-exist on a fresh upload — the
+  // routing fork picks one or the other — but if both are present
+  // (defensive), session_path wins.
+  if (foundPart?.session_path) {
+    const { SessionIncomingPaths } = await import("../incoming/session-paths")
+    let absolute: string
+    try {
+      absolute = SessionIncomingPaths.resolveAbsolute(input.sessionID, foundPart.session_path)
+    } catch (err) {
+      throw new Error(
+        `attachment_session_path_invalid: ref_id ${input.refID} session_path=${foundPart.session_path} did not resolve (${err instanceof Error ? err.message : String(err)}).`,
+      )
+    }
+    let bytes: Uint8Array
+    try {
+      bytes = await fs.readFile(absolute)
+    } catch (err) {
+      throw new Error(
+        `attachment_session_file_missing: ref_id ${input.refID} points at ${foundPart.session_path} but the file is gone (${err instanceof Error ? err.message : String(err)}). Re-upload required.`,
+      )
+    }
+    return {
+      refID: foundPart.ref_id,
+      sessionID: input.sessionID,
+      messageID: foundPart.messageID,
+      partID: foundPart.id,
+      mime: foundPart.mime,
+      filename: foundPart.filename,
+      byteSize: foundPart.byte_size,
+      estTokens: foundPart.est_tokens,
+      createdAt: Date.now(),
+      content: bytes,
+    }
+  }
   if (foundPart?.repo_path) {
     const projectRoot = Instance.project.worktree
     const absolute = path.resolve(projectRoot, foundPart.repo_path)

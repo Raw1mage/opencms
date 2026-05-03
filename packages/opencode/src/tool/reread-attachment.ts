@@ -17,25 +17,35 @@ const parameters = z.object({
     .describe("The original filename of a previously-attached image. Match the filename exactly as it appeared on upload."),
 })
 
+interface InlineableCandidatePart {
+  type: string
+  mime?: string
+  filename?: string
+  repo_path?: string
+  session_path?: string
+}
+
 interface MessageWithParts {
-  parts?: ReadonlyArray<{ type: string; mime?: string; filename?: string; repo_path?: string }>
+  parts?: ReadonlyArray<InlineableCandidatePart>
 }
 
 /**
  * Walk session messages newest-first, return the most recent
- * inline-eligible attachment_ref (mime image/* + repo_path populated)
- * matching `filename`. Pure helper — exported for unit testing.
+ * inline-eligible attachment_ref (mime image/* AND either repo_path OR
+ * session_path populated) matching `filename`. Pure helper — exported
+ * for unit testing.
  */
 export function findInlineableAttachment(
   messages: ReadonlyArray<MessageWithParts>,
   filename: string,
-): { type: string; mime?: string; filename?: string; repo_path?: string } | undefined {
+): InlineableCandidatePart | undefined {
   for (let mi = messages.length - 1; mi >= 0; mi--) {
     const msg = messages[mi]
     for (const part of msg?.parts ?? []) {
       if (part.type !== "attachment_ref") continue
       if (part.filename !== filename) continue
-      if (!part.repo_path || !part.mime?.startsWith("image/")) continue
+      if (!part.mime?.startsWith("image/")) continue
+      if (!part.repo_path && !part.session_path) continue
       return part
     }
   }
