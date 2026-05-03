@@ -669,9 +669,113 @@ export namespace Storage {
     const target = await resolvePath(dir, key)
     return withErrorHandling(async () => {
       using _ = await Lock.read(target)
-      const result = await Bun.file(target).json()
-      return result as T
+      try {
+        const result = await Bun.file(target).json()
+        return result as T
+      } catch (e) {
+        // HOTFIX 2026-05-03 — Phase-4 SQLite migration deletes <id>/info.json
+        // but never persists session-level metadata into <id>.db.meta. The result
+        // is ~2400 sessions invisible to Session.listGlobal because Storage.read
+        // ENOENTs. Recover at read-time: synthesize a minimal Session.Info from
+        // index + .db so the session reappears in lists. No disk write — pure
+        // runtime fallback, fully reversible.
+        const errnoException = e as NodeJS.ErrnoException
+        if (errnoException?.code !== "ENOENT" || key[0] !== "session") throw e
+        const sessionID = key[2] ?? key[1]
+        if (!sessionID || typeof sessionID !== "string") throw e
+        const dbPath = path.join(dir, "session", `${sessionID}.db`)
+        if (!(await Bun.file(dbPath).exists())) throw e
+        const recovered = await reconstructSessionInfoFromDb(dir, sessionID, dbPath).catch(() => undefined)
+        if (!recovered) throw e
+        return recovered as T
+      }
     })
+  }
+
+  /**
+   * HOTFIX 2026-05-03 — read-time reconstruction of session-level metadata
+   * for sessions that the Phase-4 dreaming migration moved into <id>.db
+   * without preserving info.json. Returns a best-effort Session.Info shape:
+   *
+   * - id            from arg
+   * - projectID     from storage/index/session/<id>.json (the index entry)
+   * - parentID      same source
+   * - directory     looked up from project record (storage/project/<projectID>.json)
+   * - time.created  MIN(time_created) from messages
+   * - time.updated  MAX(time_created) from messages
+   * - title         first user message text part preview, or "(recovered)"
+   * - version, slug, summary, share, archived  default/empty
+   *
+   * The original title is genuinely lost (dreaming worker bug) — see the
+   * RCA in docs/events/event_2026-05-03_session-listGlobal-db-blind-spot.md.
+   */
+  async function reconstructSessionInfoFromDb(
+    dir: string,
+    sessionID: string,
+    dbPath: string,
+  ): Promise<Record<string, unknown> | undefined> {
+    let projectID: string | undefined
+    let parentID: string | undefined
+    const indexPath = path.join(dir, ...SESSION_INDEX_DIR, `${sessionID}.json`)
+    try {
+      const idx = await Bun.file(indexPath).json()
+      projectID = idx?.projectID
+      parentID = idx?.parentID
+    } catch {
+      // index entry missing — leave projectID undefined; listGlobal will skip
+    }
+    if (!projectID) return undefined
+
+    let directory: string | undefined
+    try {
+      const projInfo = await Bun.file(path.join(dir, "project", `${projectID}.json`)).json()
+      directory = projInfo?.worktree
+    } catch {}
+
+    let timeCreated = 0
+    let timeUpdated = 0
+    let title = ""
+    try {
+      const { Database } = await import("bun:sqlite")
+      const db = new Database(dbPath, { readonly: true })
+      try {
+        const row = db.query<{ tmin: number; tmax: number }, []>(
+          "SELECT MIN(time_created) as tmin, MAX(time_created) as tmax FROM messages",
+        ).get()
+        timeCreated = row?.tmin ?? 0
+        timeUpdated = row?.tmax ?? timeCreated
+        const firstUser = db.query<{ payload_json: string }, []>(
+          `SELECT p.payload_json FROM parts p
+           JOIN messages m ON m.id = p.message_id
+           WHERE m.role = 'user' AND p.type = 'text'
+           ORDER BY m.time_created, p.sequence LIMIT 1`,
+        ).get()
+        if (firstUser?.payload_json) {
+          try {
+            const parsed = JSON.parse(firstUser.payload_json)
+            const text = typeof parsed?.text === "string" ? parsed.text : ""
+            if (text) title = text.slice(0, 80).replace(/\s+/g, " ").trim()
+          } catch {}
+        }
+      } finally {
+        db.close()
+      }
+    } catch {
+      // sqlite open failure — leave timestamps at 0
+    }
+    if (!title) title = `(recovered ${sessionID.slice(-8)})`
+
+    return {
+      id: sessionID,
+      slug: "",
+      version: "local",
+      projectID,
+      parentID,
+      directory,
+      title,
+      time: { created: timeCreated, updated: timeUpdated },
+      _recovered: true,
+    }
   }
 
   export async function update<T>(key: string[], fn: (draft: T) => void) {
