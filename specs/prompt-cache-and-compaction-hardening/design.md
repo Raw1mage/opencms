@@ -45,6 +45,7 @@ This spec relocates dynamic content out of the system role into a user-role cont
 - **DD-5** 使用獨立 marker role/sentinel 讓下游系統識別 context preface message：在 message metadata 加 `kind: "context-preface"`，不引入新的 protocol role。
   - Reason: 維持 OpenAI/Anthropic 標準 role 集合；用 metadata 旗標讓 compaction / replay / UI 能 opt-in 處理。
   - Consequence: `MessageV2.User` schema 需加可選 `kind` 欄位；序列化往返保留。
+  - **Amended 2026-05-03 (recalibration after provider-account-decoupling 1-8 merged)**: schema field MUST be `z.optional()`；舊 session 記錄無此欄位仍能載入。`MessageV2` 在 provider-account-decoupling 期間未動，無 schema 衝突。
 
 - **DD-6** Anchor sanitizer 採白名單 + 包裝雙重防線：
   1. 強制把整段壓縮文字塞進 `<prior_context source="{narrative|llm-agent|low-cost-server|replay-tail}">…</prior_context>` 包裝。
@@ -67,10 +68,12 @@ This spec relocates dynamic content out of the system role into a user-role cont
   - **Auto-pin**：scan 壓縮 span 內所有 tool 呼叫與文字，匹配 `SkillLayerRegistry` 已知 skill name；命中且狀態為 active/summary 者，呼叫 `pin(name, reason="referenced-by-anchor-{anchorId}")`。
   - Reason: snapshot 解決 audit；auto-pin 解決 「decay 後 conversation 引用空 skill」的 runtime correctness 問題。
   - Consequence: pinned skill 不再被 idle decay 收掉，可能讓 L9 體積膨脹；以「unpin on archive」緩解 — anchor 被新 anchor supersede 時 unpin 舊 anchor 的 referenced skills。
+  - **Amended 2026-05-03 (Phase A landed, Phase B recalibration)**: Phase A 已實作 auto-pin + telemetry-only snapshot（commit `caa6ef135` + 整合 wiring `abcd06ffc`）。Phase B 補 disk persistence — `MessageV2.CompactionPart` 加 `metadata: { skillSnapshot? }` optional 欄位，舊 anchor 沒有 metadata 欄位仍能解析。
 
 - **DD-10** `shouldCacheAwareCompact` 加 cache miss diagnostic：用 `lastSystemBlockHash` session-state 比較最近 3 turn 的 hash；若 hash 變動則歸類 `system-prefix-churn`、return false；若 hash 穩定但 cache miss 持續高且 conversation tail tokens > 閾值則歸類 `conversation-growth`、return true。
   - Reason: 直接根因驅動的決策比間接訊號（cache hit rate）更穩。
   - Consequence: session 需多儲一個 `lastSystemBlockHash` 欄位（lightweight）；新 telemetry 維度 `compaction.cache_miss_diagnosis.kind`。
+  - **Amended 2026-05-03**: Phase A 實作以 `system.join("\n")` 整段為 hash 對象（in-memory `cache-miss-diagnostic.ts`，commit `5360a0716`）。Phase B 改為僅 hash 純 static 區段（StaticSystemBuilder 的 hash output）— dynamic 抖動不再污染診斷訊號，churn 偵測精度提升。`recordSystemBlockHash` 接口不變，僅改餵入內容。
 
 - **DD-11** Plugin hook 契約：保留 `experimental.chat.system.transform`（只接收 static block），新增 `experimental.chat.context.transform`（接收 ContextPrefaceParts）。一個 release 後若無 plugin 仍依賴舊 hook 注入動態內容，移除舊 hook 的 dynamic-content warn 兼容路徑。
   - Reason: 漸進遷移，避免 break 既有 plugin 生態。
@@ -79,6 +82,7 @@ This spec relocates dynamic content out of the system role into a user-role cont
 - **DD-12** Static system block 順序鎖定為 `L1 Driver → L2 Agent → L3c AGENTS → L5 user-system → L6 BOUNDARY → L7 SYSTEM.md → L8 Identity`。L9 Skill 不再進 system，移至 preface T2。
   - Reason: 與 [docs/prompt_injection.md](../../docs/prompt_injection.md) 既有層級號順序一致；BOUNDARY 仍切「情境（前 5 層）/ 權威（後 3 層）」，只是物理位置縮為純權威區。
   - Consequence: docs 必須改寫澄清「L9 Skill 在物理上位於 preface T2，不再屬於 system role」；權威鏈聲明維持原樣。
+  - **Amended 2026-05-03**: 順序不變，但 driver 文字現在 per-(family, accountId) — 由 provider-account-decoupling 已 land 的 `Provider.getLanguage(model, accountId)` 與 `Auth.get(family, accountId)` 提供（[llm.ts:444-456](../../packages/opencode/src/session/llm.ts#L444-L456)）。tuple identity 必須包含 family 與 accountId，見 DD-15。
 
 - **DD-13** Telemetry 新增 4 個事件類別：
   - `prompt.cache.system.{hit,miss}` — BP1 命中
@@ -91,6 +95,16 @@ This spec relocates dynamic content out of the system role into a user-role cont
   - Reason: lite 模式刻意精簡 token，加 preface 反而違背意圖。
   - Consequence: lite 模式不享有 BP2/BP3 增益；可接受，因為 lite 也不載入 skill / preload。
 
+- **DD-15 (NEW 2026-05-03 — provider-account-decoupling 對齊)** `StaticSystemTuple` 必須將 `family` 列為第一級欄位，與 `accountId` 並列。byte-equality 比較鍵：`(family, accountId, modelId, agentName, agentsMdHash, systemMdHash, userSystemHash, role)`。
+  - Reason: provider-account-decoupling 1-8 已 land，`providerId` 不再等於 family — 同一 family 下可有多 account，driver / auth header / quota 都 per-account。tuple 漏掉 family 或 accountId 會讓兩個不同 account 的 system block 誤判為相等而 cache 互污染。
+  - Consequence: tuple resolver 從 (model, agent, account, role, AGENTS.md, SYSTEM.md, user-system) 派生時需呼叫 `Account.resolveFamilyFromKnown(model.providerId, await Account.knownFamilies())`；fail loud on miss。
+  - Source of truth：[packages/opencode/src/account/index.ts `Account.knownFamilies` / `resolveFamilyFromKnown`](../../packages/opencode/src/account/index.ts#L250-L268)。
+
+- **DD-16 (NEW 2026-05-03 — provider-account-decoupling 邊界守則)** Phase B 新增的 `StaticSystemBuilder` 與 `ContextPrefaceBuilder` 不得直接以 `model.providerId` 當作 `providers[X]` 的 key — 必須先轉成 family slug（per `Account.resolveFamilyFromKnown`）才存取 provider registry。
+  - Reason: `provider/registry-shape.ts:assertFamilyKey` 在每個 write site 守門；繞過會在 boot guard 抛 `RegistryShapeError`。
+  - Consequence: 所有 `Provider.getProvider` / `Provider.getLanguage` / `Auth.get` 呼叫必須帶 family 與（必要時）accountId 兩參。Phase A 修的 [llm.ts:444-456](../../packages/opencode/src/session/llm.ts#L444-L456) 已示範正確用法 — Phase B 新建構件比照。
+  - Validation hook: `provider/registry-shape.ts` 已是 boot guard，新建構件若違反會自然 trip wire；不需要額外 lint。
+
 ## Risks / Trade-offs
 
 - **R1 LLM 對 user-role context 的權威感受不足**：preface 雖然在 user role，但模型可能更容易忽略其指引（e.g. preload 中的「DO NOT run ls」）。Mitigation：加 STDIO-style 標註 `## CONTEXT PREFACE — read but do not echo`；在發布前用 fixed 任務跑 A/B 評估指令遵從度。如果差異 > 5%，回退或加重複申明。
@@ -99,6 +113,9 @@ This spec relocates dynamic content out of the system role into a user-role cont
 - **R4 Skill auto-pin 導致 L9 膨脹**：長 session 連續 compaction 會持續 pin skill。Mitigation：DD-9 的 unpin-on-anchor-supersede；額外加 telemetry `skill.pin.count` 觀測。
 - **R5 Sanitizer 誤改**：合法的「You should consider X」被加前綴。Mitigation：先做 inline + telemetry，看實際 false-positive rate 後決定是否加白名單動詞表。
 - **R6 Cross-account hard-fail 在熱路徑造成 user-visible error**：DD-8 觸發後使用者會看到「provider 切換失敗」。Mitigation：runloop 加 retry；error message 給明確復原指引。
+- **R7 (NEW 2026-05-03) MessageV2 schema 加 optional 欄位導致舊 session 載入錯誤**：DD-5 加 `kind` / DD-9 加 `metadata.skillSnapshot`。Mitigation：兩個欄位皆 `z.optional()`；舊 session 沒這欄位 zod 仍能解析；序列化往返測試在 B.1 phase。
+- **R8 (NEW 2026-05-03) Phase 9 cutover 與 Phase B daemon restart 競爭 migration marker**：provider-account-decoupling 的 `migration-boot-guard.ts` 在 daemon 啟動時檢查 `~/.local/share/opencode/storage/.migration-state.json`；Phase B 落地後 daemon 重啟若 marker 不存在會啟動失敗。Mitigation：B.0.1 強制等 Phase 9 cutover 完成後才開動 Phase B；Phase B 自身不引入新 migration marker，僅用 feature flag。
+- **R9 (NEW 2026-05-03) family 解析在新 StaticSystemBuilder 漏邊界檢查 → `RegistryShapeError`**：DD-16 要求繞 `Account.resolveFamilyFromKnown`。Mitigation：reuse [llm.ts:444-456](../../packages/opencode/src/session/llm.ts#L444-L456) 既有的（family, accountId）拉取邏輯；新建構件不重寫，組合而非平行實作。
 
 ## Critical Files
 
@@ -124,9 +141,12 @@ This spec relocates dynamic content out of the system role into a user-role cont
 
 ## Migration / Rollout
 
-- **Phase A** — 純機制硬化（DD-6 / DD-7 / DD-8 / DD-9 / DD-10）：與 9 層架構正交，可獨立合併、獨立回退。
-- **Phase B** — 物理重排（DD-1 ~ DD-5 / DD-11 / DD-12 / DD-13 / DD-14）：先 feature-flag 包裹 (`OPENCODE_PROMPT_PREFACE=1`)，內部 dogfood 一週後預設開啟。
-- **Rollback**: Phase B 可單獨關 flag 回到舊 join 行為；Phase A 各 DD 獨立 revert。
+- **Phase A** — 純機制硬化（DD-6 / DD-7 / DD-8 / DD-9 / DD-10）：**已 land 2026-05-03**（merge `002e77b26` + DD-9 wiring `abcd06ffc`）；與 9 層架構正交，可獨立合併、獨立回退。
+- **Phase B** — 物理重排（DD-1 ~ DD-5 / DD-11 / DD-12 / DD-13 / DD-14 / DD-15 / DD-16）：先 feature-flag 包裹 (`OPENCODE_PROMPT_PREFACE=1`)，內部 dogfood 一週後預設開啟。tasks.md §8 持有完整 task 樹 B.0 → B.11。
+- **Phase B 啟動前置條件**（per R8）：
+  1. provider-account-decoupling Phase 9 cutover 完成（migration marker 存在、daemon 已啟用新 binary、smoke test 通過、push 完成）。否則 Phase B 後續 daemon restart 會被 boot guard 拒收。
+  2. Phase A telemetry 至少累積 1 週數據；判斷 Phase B 預期收益是否值得投入（若 `compaction.cache_miss_diagnosis.kind=system-prefix-churn` 比例本來就低，Phase B 收益縮水）。
+- **Rollback**: Phase B 可單獨關 `OPENCODE_PROMPT_PREFACE` flag 回到舊 join 行為；Phase A 各 DD 獨立 revert（已 land，僅作為紀錄）。
 
 ## Open Questions
 

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "verified",
+  "state": "living",
   "profile": [],
   "history": [
     {
@@ -77,6 +77,38 @@
         "packages/opencode/src/session/compaction.phase-a-wiring.test.ts"
       ],
       "commit": "5f32c3678ffca47d29ba0cc3f1ef1f203c29b031"
+    },
+    {
+      "at": "2026-05-03T14:12:49.556Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "5f32c3678ffca47d29ba0cc3f1ef1f203c29b031"
+    },
+    {
+      "at": "2026-05-03T14:12:59.789Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "26d1bc062fe6686f5a7959d171075713f4eda934"
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-05-03T15:00:03.023Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Phase A merged to main 2026-05-03 (commit 002e77b26 + DD-9 wiring abcd06ffc); spec content matches current code state. Living state allows downstream amend for Phase B recalibration."
+    },
+    {
+      "from": "living",
+      "to": "living",
+      "at": "2026-05-03T15:00:03.482Z",
+      "by": "pkcs12",
+      "mode": "amend",
+      "reason": "Phase B recalibration against main 26d1bc062: design.md DD-15 (family in tuple) + DD-16 (assertFamilyKey boundary) added; DD-5/9/10/12 amended; R7/R8/R9 added; Migration/Rollout updated. tasks.md §8 rewritten as B.0..B.11 with B.0 prerequisites (Phase 9 cutover + Phase A telemetry) + LLM A/B test + seam table."
     }
   ]
 }

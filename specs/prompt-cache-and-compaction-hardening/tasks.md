@@ -52,7 +52,7 @@ commit: `5360a0716`. Phase A 對 `system.join` 視為單塊（對齊現況）；
 
 - [x] 6.1 全部 unit tests 在 beta worktree 跑綠（57/57 pass，108 expect calls；記得 `source .beta-env/activate.sh`）。Integration tests 延到 6.3 手動煙霧測試。
 - [x] 6.2 跑 `bun run typecheck` 無新錯誤。touched files 在 main 與 branch 上的錯誤計數均為 0；其餘 share-next.ts / codex-provider / console-function 的 pre-existing 錯誤與本分支無關。
-- [ ] 6.3 手動煙霧測試（**deferred 至 dogfood 階段**）：
+- [-] ~~6.3 手動煙霧測試~~（deferred 至 Phase B.0.2 telemetry 觀察階段；單元測試覆蓋已足夠 finalize Phase A，dogfood window 自然會產生這些 telemetry 事件）。原項目內容：
   - 開一個 session 跑 5 turns，觀察 telemetry log 有 `compaction.cache_miss_diagnosis` 事件
   - 故意 trigger compaction（context overflow 或 manual /compact），grep anchor body 確認以 `<prior_context` 開頭
 - [x] 6.4 phase summary: [docs/events/event_20260503_prompt-cache-hardening-phase-a-landed.md](../../docs/events/event_20260503_prompt-cache-hardening-phase-a-landed.md)
@@ -66,34 +66,140 @@ commit: `5360a0716`. Phase A 對 `system.join` 視為單塊（對齊現況）；
 - [N/A] 7.2 刪除中介 test branch — 未建立。
 - [x] 7.3 main 為 authoritative。**2026-05-03 cleanup**：beta worktree (`/home/pkcs12/projects/opencode-worktrees/prompt-cache-hardening`) 已 `git worktree remove`；branch `beta/prompt-cache-hardening` (was `b1f3fa9c4`) 已 `git branch -d` 刪除（fully merged，安全）。Phase B 啟動時從 main 重建 worktree + 新 branch。
 
-## 8. Phase B (gated — 不要在 Phase A 落地前開動)
+## 8. Phase B (gated — 校準 2026-05-03 against main `26d1bc062`)
 
-預期內容（細項在 Phase A 收尾後展開）：
+> **Recalibration note**: 原 sketch 寫於 Phase A 開工前。2026-05-03 經 user 重新校準，貼著當下 main 重排為 B.0 → B.11。校準後：
+>
+> - 加 B.0 前置條件章節（provider-account-decoupling Phase 9 + Phase A telemetry 觀察）
+> - 對齊 DD-15 / DD-16（family + accountId 為第一級維度，per provider-account-decoupling 1-8）
+> - 拆 B.1 schema preludes 為獨立 sub-phase（可獨立 ship 不影響執行路徑）
+> - 補 LLM A/B test (R1 mitigation) 到 B.9
+> - 補 Phase A→B 接縫說明於本檔末
 
-- B.1 ContextPrefaceBuilder 新檔 + 結構化 ContextPrefaceParts
-- B.2 PreloadProvider 改回 structured，不再 emit string
-- B.3 SystemPrompt.environment 拆 date 出來
-- B.4 StaticSystemBuilder 重構 llm.ts L483-L604 路徑（縮成 7 層 static）
-- B.5 transform.ts applyCaching 升級為 4-breakpoint allocator
-- B.6 plugin hook `experimental.chat.context.transform` 註冊
-- B.7 SkillLayerRegistry 接 ContextPrefaceBuilder
-- B.8 docs/prompt_injection.md 改寫 + 新檔 docs/prompt_dynamic_context.md
-- B.9 Feature flag `OPENCODE_PROMPT_PREFACE` 包裹整段
-- B.10 一週 dogfood + 量測 BP1/BP2/BP3 命中率
-- B.11 預設開 flag
+### 8.0 Phase B 前置條件（在 mainRepo 操作）
+
+- B.0.1 確認 provider-account-decoupling Phase 9 cutover 已完成。檢查項：`~/.local/share/opencode/storage/.migration-state.json` 存在且 version=`"1"`、daemon 跑新 binary 無 `RegistryShapeError`、smoke test 通過、push 完成。**未滿足前不得進 B.1**（per [design.md R8](./design.md#risks--trade-offs)）。
+- B.0.2 收集 Phase A 至少 1 週 telemetry 摘要：
+  - `compaction.cache_miss_diagnosis.kind` 分布（churn / growth / neither）
+  - `compaction.anchor.sanitized.imperativePrefixApplied` 比例（false-positive 率）
+  - `capability_layer.cross_account_rebind_failed` 計數
+  - `compaction.idle.deferred` 比例
+  決策點：若 churn 比例本身 < 5%，回報使用者重新評估 Phase B 是否值得做。
+- B.0.3 從 main 重建 beta worktree：
+  ```
+  git worktree add -b beta/prompt-cache-hardening-phase-b \
+    /home/pkcs12/projects/opencode-worktrees/prompt-cache-hardening-phase-b main
+  ```
+  + 複製 `.beta-env/activate.sh` (per [feedback_beta_xdg_isolation](../../.claude/projects/-home-pkcs12-projects-opencode/memory/feedback_beta_xdg_isolation.md))。
+- B.0.4 confirm `MessageV2.User` / `MessageV2.CompactionPart` 在 `Session.updateMessage` / `Session.updatePart` 路徑接受 optional 新欄位（不需要 storage migration，僅 schema bump）。
+
+### 8.1 Phase B.1 — Schema preludes (independent, shippable alone)
+
+- B.1.1 `MessageV2.User` 加 `kind: z.literal("context-preface").optional()` (per [design.md DD-5 amended 2026-05-03](./design.md#decisions))；序列化 round-trip 測試
+- B.1.2 `MessageV2.CompactionPart` 加 `metadata: z.object({ skillSnapshot: z.object({ active: z.array(z.string()), summarized: z.array(z.string()), pinned: z.array(z.string()) }).optional() }).optional()` (per DD-9 amended)
+- B.1.3 新檔 `session/context-preface-types.ts`：純 type 定義 `ContextPrefaceParts` / `PreloadParts`（無 runtime；對齊 [data-schema.json](./data-schema.json)）
+
+### 8.2 Phase B.2 — Decompose dynamic from static
+
+- B.2.1 `session/preloaded-context.ts`：吐出 `PreloadParts { readmeSummary, cwdListing }` 結構；保留向後相容 string adapter
+- B.2.2 `session/system.ts environment()`：分 `{ baseEnv, todaysDate }`（DD-2: date 放 T1 末段）
+- B.2.3 新檔 `session/context-preface.ts`：`buildPreface(input)` 組裝 `ContextPrefaceMessage`，content blocks tier 標記 t1 / t2，slow-first 排序
+- B.2.4 unit tests：preface byte-equality across stable session、T2 empty case、pinned-only case
+
+### 8.3 Phase B.3 — Static system block + tuple resolver
+
+- B.3.1 新檔 `session/static-system-builder.ts`：`buildStaticBlock(tuple)` 純函式 → `{ text, hash }`
+- B.3.2 tuple resolver helper：從 (model, agent, account, role, AGENTS.md, SYSTEM.md, user-system) 派生 `StaticSystemTuple`，包含 `family` 與 `accountId`（per DD-15）
+- B.3.3 family 解析經 `Account.resolveFamilyFromKnown(model.providerId, await Account.knownFamilies())`（per DD-16），fail loud on miss
+- B.3.4 sha256 hash 對齊既有 `cache-miss-diagnostic.recordSystemBlockHash` 接口（DD-10 amended）
+- B.3.5 unit tests：tuple 不變 → byte-equal；改 family / accountId / agent / AGENTS.md → 不等
+
+### 8.4 Phase B.4 — Wire into llm.ts behind feature flag
+
+- B.4.1 在 [llm.ts:483-604](../../packages/opencode/src/session/llm.ts#L483-L604) 加 `OPENCODE_PROMPT_PREFACE === "1"` 判斷；新路徑 vs 既有路徑共存
+- B.4.2 新路徑：`buildStaticBlock` → 單一純 static system message；`buildPreface` → 插入 user message 之前 (kind=context-preface)
+- B.4.3 plugin hook 兩條路徑：static 走 `experimental.chat.system.transform`（接收純 static）；preface 走新 `experimental.chat.context.transform`
+- B.4.4 既有路徑（flag off）保持完全不變；既有 unit tests 不需修改
+- B.4.5 lite provider (DD-14) 不變；不下 BP2/BP3
+- B.4.6 cache-miss-diagnostic recordSystemBlockHash 改餵 `staticBlock.hash` 而非 `system.join("\n")`（DD-10 amended）
+
+### 8.5 Phase B.5 — Cache breakpoint allocator (4-BP)
+
+- B.5.1 `provider/transform.ts applyCaching` 升級：偵測 system message + context-preface message + final non-system message
+- B.5.2 BP1 在 static system 末尾、BP2/BP3 在 preface tier 末尾、BP4 在 conversation 末段（per DD-3）
+- B.5.3 T2 為空時 BP3 omit、不重新分配
+- B.5.4 unit tests：full preface → 4 BP；no T2 → 3 BP；no preface (flag off) → 既有 2 BP 行為
+- B.5.5 multi-content-block in single message 的 cache_control 放置（前段 block 也要能下 BP，不只末尾）
+
+### 8.6 Phase B.6 — Plugin hook + telemetry
+
+- B.6.1 在 `plugin/index.ts` 註冊 `experimental.chat.context.transform`，payload 對齊 [data-schema.json `PluginContextTransformInput`](./data-schema.json)
+- B.6.2 舊 hook 注入 dynamic 內容偵測：WARN log `plugin.legacy_dynamic_injection_warn`（一個 release 兼容期，per DD-11）
+- B.6.3 新 telemetry events：`prompt.cache.system.{hit,miss}`、`prompt.cache.preface.t1.{hit,miss}`、`prompt.cache.preface.t2.{hit,miss}` — 從 LLM 回應 cache headers 派生（per DD-13）
+
+### 8.7 Phase B.7 — Skill anchor snapshot 持久化
+
+- B.7.1 `compaction.ts annotateAnchorWithSkillState`：將 `skillSnapshot` 寫入 anchor 的 compaction part `metadata.skillSnapshot`（per DD-9 amended）
+- B.7.2 既有 telemetry-only `log.info("compaction.anchor.skill_snapshot")` 保留為 backup signal
+- B.7.3 unit tests：persisted anchor 含 skillSnapshot；舊 anchor (Phase A 期間寫入的) 沒 metadata graceful；replay 流程能讀
+
+### 8.8 Phase B.8 — Docs
+
+- B.8.1 改寫 [docs/prompt_injection.md](../../docs/prompt_injection.md) 第 1-30 行 9 層圖示為「7 static system + N dynamic context」雙軌；保留權威鏈聲明
+- B.8.2 新檔 `docs/prompt_dynamic_context.md`：preface 結構、tier ranking、breakpoint 配置、plugin hook migration guide
+- B.8.3 在 [specs/architecture.md](../architecture.md) 加 Phase B 落地紀錄
+
+### 8.9 Phase B.9 — Validation gate
+
+- B.9.1 全部 unit + integration tests 在 beta worktree 跑綠（記得 `source .beta-env/activate.sh`）
+- B.9.2 `bun run typecheck` 無新錯誤（不計 share-next.ts pre-existing）
+- B.9.3 LLM 行為 A/B test（R1 mitigation）：固定任務跑兩次（flag on/off），比對 preload 內 "DO NOT run ls" 之類指引的遵從度。差異 > 5% → 加重複申明或回退 DD-1
+- B.9.4 手動煙霧：跑 10 turns，確認 `prompt.cache.preface.{t1,t2}.hit` telemetry 出現
+- B.9.5 寫 phase summary `docs/events/event_<YYYYMMDD>_phase-b-landed.md`
+- B.9.6 fetch-back via `test/prompt-cache-hardening-phase-b`（per beta-workflow §7）；STOP for user finalize
+
+### 8.10 Phase B.10 — Dogfood (flag default OFF)
+
+- B.10.1 預設 flag OFF；通知有用 `experimental.chat.system.transform` 的 plugin 開發者遷移
+- B.10.2 觀察 1 週 telemetry：BP1/BP2/BP3 命中率、`compaction.cache_miss_diagnosis.kind=system-prefix-churn` 比例 < 10%
+- B.10.3 量測 acceptance check 達標：BP1 ≥ 95%、BP2 ≥ 80%、BP3 ≥ 60%（per [spec.md Acceptance Checks](./spec.md#acceptance-checks)）
+
+### 8.11 Phase B.11 — Default-on (gated)
+
+- B.11.1 取得使用者批准
+- B.11.2 預設 flag ON；通知 plugin 兼容期結束預告（next release 移除舊 hook 對 dynamic 內容的兼容）
+- B.11.3 一個 release 後移除 `plugin.legacy_dynamic_injection_warn` 兼容路徑
+
+### 8.12 Phase A → Phase B 接縫表
+
+| Phase A 留給 Phase B 的 hook | Phase B 動作 |
+|---|---|
+| `cache-miss-diagnostic.recordSystemBlockHash` 入口已存在，但餵 `system.join` | B.4.6 改餵 `staticBlock.hash`；接口不變 |
+| `annotateAnchorWithSkillState` 寫入 telemetry-only snapshot | B.7.1 補 disk persistence 至 `CompactionPart.metadata.skillSnapshot` |
+| `idle-compaction-gate.checkCleanTail` 已上線且與架構正交 | 不動 |
+| `CrossAccountRebindError` 已對齊 (family, accountId) | 不動，B.3 / B.4 沿用同一 (family, accountId) 解析 |
+| Phase A test 套件 (107 tests) | B.9.1 跑時必須仍綠 |
 
 ## Dependencies between phases
 
-Phase A 各 task 互相獨立（可任意順序，但建議依編號）。Phase B 內部依賴：
-- B.1 ← B.2, B.3, B.7
-- B.4 ← B.1, B.5
-- B.5 與 B.4 可並行開始但需在驗證前匯流
-- B.6 ← B.4
-- B.10 是 gate，B.11 在 B.10 結果良好後才動
+- Phase A: 已 land 2026-05-03；各 task 互相獨立
+- Phase B 內部依賴（校準 2026-05-03）：
+  - B.0 全部完成才能進 B.1
+  - B.1 (schema) 可獨立 ship；後續 phase 仰賴新欄位
+  - B.2 與 B.3 並行 OK；皆完成才能進 B.4
+  - B.4 ← B.1 + B.2 + B.3 + B.6.1 (hook 註冊先行)
+  - B.5 與 B.4 可並行開始；validation 前匯流
+  - B.7 ← B.1.2 (CompactionPart schema)
+  - B.8 在 B.4-B.7 完成後寫
+  - B.9 是 validation gate；全綠後 STOP for user
+  - B.10 是 dogfood gate；達標後 B.11 取得獨立批准
 
 ## Stop gates
 
-- 6.7（Phase A 完成等批准 finalize）
-- Phase B 啟動需獨立批准
-- B.11（預設開 flag）需獨立批准
-- 任何 6.5 / 6.6 出現衝突或測試紅 — 立即停手回報
+- ~~6.7~~ Phase A 已 finalize
+- B.0.1（provider-account-decoupling Phase 9 cutover 未完成不得進 B.1）
+- B.0.2 telemetry 觀察結果 → 若 churn 比例極低，徵詢使用者是否撤回 Phase B
+- B.9.6 Phase B 全綠後 STOP for user finalize
+- B.10 dogfood 1 週後評估
+- B.11.1（預設開 flag）需獨立批准
+- 任何衝突或測試紅 — 立即停手回報
