@@ -54,7 +54,7 @@ commit: `5360a0716`. Phase A 對 `system.join` 視為單塊（對齊現況）；
 - [ ] 6.3 手動煙霧測試（**deferred 至 dogfood 階段**）：
   - 開一個 session 跑 5 turns，觀察 telemetry log 有 `compaction.cache_miss_diagnosis` 事件
   - 故意 trigger compaction（context overflow 或 manual /compact），grep anchor body 確認以 `<prior_context` 開頭
-- [ ] 6.4 寫 phase summary 到 `docs/events/event_<YYYYMMDD>_phase-a-landed.md`（pending — 由本次 merge 後另行補）
+- [x] 6.4 phase summary: [docs/events/event_20260503_prompt-cache-hardening-phase-a-landed.md](../../docs/events/event_20260503_prompt-cache-hardening-phase-a-landed.md)
 - [x] 6.5 rebase 到最新 main（兩次：onto `c27a127e8` 再 onto `09b0faa72`），無衝突。
 - [N/A] 6.6 fetch-back via `test/prompt-cache-hardening-phase-a`：由於 rebase 零衝突且 main 在期間動的檔案（`incoming/*`）與 branch 觸碰的 `session/*` 完全不重疊，中介 test branch 提供零額外訊號，跳過直接 §7.1。
 - [x] 6.7 STOP — 使用者於 2026-05-03 批准直接 merge 到 main。
