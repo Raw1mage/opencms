@@ -712,6 +712,24 @@ export namespace Session {
   }
 
   /**
+   * attachment-lifecycle v4 (DD-20): set the activeImageRefs queue on the
+   * session's execution identity. Called by the user-message commit hook
+   * (addOnUpload) and the post-completion drain hook
+   * (drainAfterAssistant). No-op when no execution identity exists yet.
+   */
+  export async function setActiveImageRefs(sessionID: string, refs: string[]) {
+    return update(
+      sessionID,
+      (draft) => {
+        if (draft.execution) {
+          draft.execution = { ...draft.execution, activeImageRefs: refs }
+        }
+      },
+      { touch: false },
+    )
+  }
+
+  /**
    * compaction-redesign DD-11: record the moment codex rejected
    * `previous_response_id`. State-driven equivalent of legacy
    * `markRebindCompaction`. The runloop's `deriveObservedCondition`
