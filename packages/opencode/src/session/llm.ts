@@ -619,18 +619,33 @@ export namespace LLM {
       const enablementText = injectEnablementSnapshot ? buildEnablementSnapshot(input.messages) : ""
       const partitioned = SkillLayerRegistry.partitionForPreface(skillLayerEntries)
 
-      // attachment-lifecycle v4 (DD-19/DD-20): resolve any image refs queued
-      // for inline rendering this turn. They land at the END of trailing tier
-      // (BP4 zone) so per-turn churn never invalidates the T1/T2 prefix.
+      // attachment-lifecycle v4/v5 (DD-19/DD-20/DD-22): assemble
+      //   1. activeImageBlocks — actual image binary for the AI to view
+      //      this turn (only filenames in activeImageRefs, populated by
+      //      reread_attachment voucher calls — v5 no longer auto-adds on
+      //      upload).
+      //   2. inventory text — `<attached_images>` block listing every
+      //      session-attached image so the AI knows what's available
+      //      and can call reread_attachment for the ones it needs.
+      // Both ride the trailing tier (BP4 zone) so per-turn churn never
+      // invalidates T1/T2 prefix.
       let activeImageBlocks: InlineImageContentBlock[] = []
+      let inventoryText = ""
       const inlineCfg = Tweaks.attachmentInlineSync()
       if (inlineCfg.enabled) {
         try {
           const { Session: SessionMod } = await import("@/session")
+          const { buildAttachedImagesInventory } = await import("./attached-images-inventory")
           const sessionInfo = await SessionMod.get(input.sessionID).catch(() => undefined)
           const refs = sessionInfo?.execution?.activeImageRefs ?? []
+          const messagesV2 = await SessionMod.messages({ sessionID: input.sessionID }).catch(() => [])
+
+          // v5 inventory: built from ALL image attachment_refs, regardless
+          // of whether they're in the active set this turn. Empty when 0
+          // images so caller can omit cleanly.
+          inventoryText = buildAttachedImagesInventory(messagesV2, { activeImageRefs: refs })
+
           if (refs.length > 0) {
-            const messagesV2 = await SessionMod.messages({ sessionID: input.sessionID }).catch(() => [])
             const { IncomingPaths } = await import("@/incoming/paths")
             const { SessionIncomingPaths } = await import("@/incoming/session-paths")
             const pathMod = await import("node:path")
@@ -688,6 +703,10 @@ export namespace LLM {
         trailingExtras: [
           ...input.system.filter(Boolean),
           ...(enablementText ? [enablementText] : []),
+          // v5: inventory comes LAST in text trailing extras so it sits
+          // immediately before the actual image blocks (also trailing tier).
+          // AI reads "what's available" → sees pixels → uses both signals.
+          ...(inventoryText ? [inventoryText] : []),
         ],
         activeImageBlocks,
       }

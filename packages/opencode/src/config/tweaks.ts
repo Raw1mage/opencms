@@ -332,7 +332,12 @@ export namespace Tweaks {
 
   const ATTACHMENT_INLINE_DEFAULTS: AttachmentInlineConfig = {
     enabled: true,
-    activeSetMax: 3,
+    // v5 DD-22.2: cap repurposed. No longer bounds upload count
+    // (irrelevant — uploads don't auto-queue under v5 opt-in). Now
+    // bounds AI-driven reread accumulation (defensive ceiling against
+    // a buggy AI calling reread for 100 different filenames in one
+    // turn). Range 1-50 (was 1-20).
+    activeSetMax: 8,
   }
 
   const PART_PERSISTENCE_DEFAULTS: PartPersistenceConfig = {
@@ -949,7 +954,7 @@ export namespace Tweaks {
     }
     const attActiveSetMaxRaw = parsed.get("attachment_active_set_max")
     if (attActiveSetMaxRaw !== undefined) {
-      const v = parseIntRange(attActiveSetMaxRaw, "attachment_active_set_max", 1, 20)
+      const v = parseIntRange(attActiveSetMaxRaw, "attachment_active_set_max", 1, 50)
       if (v !== undefined) attachmentInline.activeSetMax = v
     }
 

@@ -34,8 +34,9 @@ describe("Tweaks.attachmentInline (v4 DD-19/DD-20)", () => {
     process.env[ENV_KEY] = join(tmpDir, "does-not-exist.cfg")
     Tweaks.resetForTesting()
     const cfg = await Tweaks.attachmentInline()
-    expect(cfg).toEqual({ enabled: true, activeSetMax: 3 })
-    expect(Tweaks.attachmentInlineSync()).toEqual({ enabled: true, activeSetMax: 3 })
+    // v5 DD-22.2: default raised 3 → 8 (cap now bounds AI-driven reread, not upload).
+    expect(cfg).toEqual({ enabled: true, activeSetMax: 8 })
+    expect(Tweaks.attachmentInlineSync()).toEqual({ enabled: true, activeSetMax: 8 })
   })
 
   it("respects attachment_inline_enabled=false", async () => {
@@ -48,9 +49,14 @@ describe("Tweaks.attachmentInline (v4 DD-19/DD-20)", () => {
     expect((await Tweaks.attachmentInline()).activeSetMax).toBe(5)
   })
 
-  it("falls back to default when attachment_active_set_max out of range", async () => {
+  it("falls back to default when attachment_active_set_max out of range (v5 range 1-50)", async () => {
     await loadFromCfg("attachment_active_set_max=999\n")
-    expect((await Tweaks.attachmentInline()).activeSetMax).toBe(3)
+    expect((await Tweaks.attachmentInline()).activeSetMax).toBe(8)
+  })
+
+  it("v5 DD-22.2 accepts up to 50 (was 20)", async () => {
+    await loadFromCfg("attachment_active_set_max=50\n")
+    expect((await Tweaks.attachmentInline()).activeSetMax).toBe(50)
   })
 
   it("attachmentInlineSync mirrors attachmentInline once loaded", async () => {

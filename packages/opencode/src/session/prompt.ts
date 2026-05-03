@@ -2416,27 +2416,14 @@ export namespace SessionPrompt {
       variant: input.variant,
     })
 
-    // attachment-lifecycle v4 (DD-20): if this user message brought in any
-    // inline-eligible image attachments, queue their filenames for the next
-    // turn's preface trailing tier. Failures here are non-fatal — the
-    // message is already persisted and the chat must continue.
-    try {
-      const { Tweaks } = await import("@/config/tweaks")
-      const inlineCfg = Tweaks.attachmentInlineSync()
-      if (inlineCfg.enabled) {
-        const { addOnUpload } = await import("./active-image-refs")
-        const sessionInfo = await Session.get(input.sessionID).catch(() => undefined)
-        const prior = sessionInfo?.execution?.activeImageRefs
-        const next = addOnUpload(prior, parts as Array<{ type: string; mime?: string; filename?: string; repo_path?: string }>, {
-          max: inlineCfg.activeSetMax,
-        })
-        if (next.length !== (prior?.length ?? 0) || next.some((v, i) => v !== prior?.[i])) {
-          await Session.setActiveImageRefs(input.sessionID, next)
-        }
-      }
-    } catch {
-      // swallow — see comment above
-    }
+    // attachment-lifecycle v5 (DD-22): upload no longer auto-queues images
+    // into activeImageRefs. The preface inventory text (built by
+    // buildAttachedImagesInventory in context-preface assembly) advertises
+    // every uploaded image; AI explicitly calls reread_attachment to bring
+    // specific filenames into the next turn's preface trailing tier.
+    //
+    // The v4 addOnUpload helper is intentionally retained (unused here) so
+    // future re-enablement is a one-line revert.
 
     return {
       info,

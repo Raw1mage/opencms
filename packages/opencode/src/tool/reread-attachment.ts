@@ -65,7 +65,7 @@ export function findInlineableAttachment(
  */
 export const RereadAttachmentTool = Tool.define("reread_attachment", {
   description:
-    "Queue a previously-attached image for inline viewing on your NEXT response. Use this when the prior text reference for an image is not enough to answer accurately. The image is NOT returned in this tool's result — instead, the actual pixels appear inline in the context preface of your next turn. `filename` must match the original upload exactly.",
+    "Fetch a session-attached image into your next response so you can see its pixels. Use this for any image listed in the <attached_images> inventory — uploaded images do NOT auto-inline, you must opt in for the specific filenames you need. The image is NOT returned in this tool's result; instead the actual pixels appear inline in the context preface of your next turn. `filename` must match an inventory entry exactly.",
   parameters,
   async execute(
     params,
