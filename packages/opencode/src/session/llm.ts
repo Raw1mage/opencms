@@ -1287,10 +1287,16 @@ export namespace LLM {
     })
 
     if (!fallback) {
+      // Hotfix 2026-05-02: resolve via family so this also fires for per-account
+      // providerIds (codex-subscription-<slug>), not only the literal "codex".
+      const currentFamily = (await resolveProviderKey(currentModel.providerId)) ?? currentModel.providerId
       debugCheckpoint("syslog.rotation", "handleRateLimitFallback: no fallback candidate found", {
         currentVector: `${currentModel.providerId}:${currentAccountId}:${currentModel.id}`,
+        currentFamily,
         strategy,
         triedVectorCount: triedVectors.size,
+        triedVectors: Array.from(triedVectors),
+        willThrowCodexFamilyExhausted: currentFamily === "codex",
         note: "all candidates exhausted or rate-limited",
       })
       // @plans/codex-rotation-hotfix Phase 3 — codex family is same-provider-only
@@ -1298,7 +1304,7 @@ export namespace LLM {
       // codex subscription account is out of 5H / weekly quota. Surface this as a
       // codex-specific error so the operator gets an actionable message instead
       // of the generic "all accounts rate-limited" fallback downstream.
-      if (currentModel.providerId === "codex") {
+      if (currentFamily === "codex") {
         throw new CodexFamilyExhausted({
           providerId: currentModel.providerId,
           accountId: currentAccountId,
