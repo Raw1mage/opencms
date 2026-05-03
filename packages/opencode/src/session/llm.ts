@@ -640,9 +640,32 @@ export namespace LLM {
         }
         return -1
       })()
+      // DD-3 + B.5 wiring: tag T1-end and T2-end content blocks with the
+      // ProviderTransform PHASE_B_BREAKPOINT_PROVIDER_OPTION marker so
+      // applyCaching places explicit BP2/BP3 there. The trailing tier is
+      // deliberately NOT marked — it rides BP4 via the following user msg.
+      const blocks = preface.contentBlocks
+      const t1LastIdx = (() => {
+        for (let i = blocks.length - 1; i >= 0; i--) {
+          if (blocks[i]?.tier === "t1") return i
+        }
+        return -1
+      })()
+      const t2LastIdx = (() => {
+        for (let i = blocks.length - 1; i >= 0; i--) {
+          if (blocks[i]?.tier === "t2") return i
+        }
+        return -1
+      })()
       const prefaceMessage: ModelMessage = {
         role: "user",
-        content: preface.contentBlocks.map((b) => ({ type: "text" as const, text: b.text })),
+        content: blocks.map((b, i) => {
+          const needsBreakpoint = i === t1LastIdx || i === t2LastIdx
+          const baseProviderOptions: Record<string, any> = needsBreakpoint
+            ? { [ProviderTransform.PHASE_B_BREAKPOINT_PROVIDER_OPTION]: true }
+            : {}
+          return { type: "text" as const, text: b.text, providerOptions: baseProviderOptions }
+        }),
       }
       const insertAt = lastUserIdx >= 0 ? lastUserIdx : input.messages.length
       input.messages = [
