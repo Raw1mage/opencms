@@ -98,7 +98,21 @@ export namespace Auth {
 
     debugCheckpoint("auth", "Auth.get called", { family, accountId })
 
-    const knownFamilies = await Account.knownFamilies({ includeStorage: true })
+    // @spec specs/provider-account-decoupling DD-1 follow-up (2026-05-03)
+    // The "known" set is the union of:
+    //   1. Account.knownFamilies()  — PROVIDERS list ∪ models.dev ∪ accounts.json families
+    //   2. Provider.knownProviderIds() — runtime registry, includes synthetic/inherited
+    //      entries (e.g. github-copilot-enterprise via inheritFrom())
+    // (1) alone misses curated entries that are not in models.dev. Mirrors the
+    // same expansion that mergeProvider's assertFamilyKey does at
+    // provider.ts:1073-1097 (commit 722fbeb45).
+    const baseKnown = await Account.knownFamilies({ includeStorage: true })
+    let knownFamilies: readonly string[] = baseKnown
+    if (!baseKnown.includes(family)) {
+      const { Provider } = await import("../provider/provider")
+      const registryKeys = await Provider.knownProviderIds().catch(() => [] as readonly string[])
+      knownFamilies = Array.from(new Set([...baseKnown, ...registryKeys]))
+    }
     if (!knownFamilies.includes(family)) {
       throw new UnknownFamilyError({
         family,

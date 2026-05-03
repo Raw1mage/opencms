@@ -2073,6 +2073,22 @@ export namespace Provider {
     return state().then((s) => s.providers)
   }
 
+  /**
+   * @spec specs/provider-account-decoupling DD-1 follow-up (2026-05-03)
+   *
+   * Returns the union of all currently-registered provider keys (everything in
+   * `providers[]`). Used by Auth.get to allow synthetic / inherited families
+   * (e.g. github-copilot-enterprise) that are NOT in `Account.knownFamilies()`
+   * but DO live in the runtime registry via inheritFrom().
+   *
+   * Mirrors the same expansion that mergeProvider's assertFamilyKey does at
+   * provider.ts:1073-1097.
+   */
+  export async function knownProviderIds(): Promise<readonly string[]> {
+    const s = await state()
+    return Object.keys(s.providers)
+  }
+
   export function reset() {
     state.reset()
     log.info("provider state reset")
