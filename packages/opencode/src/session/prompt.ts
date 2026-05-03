@@ -79,7 +79,7 @@ import {
 import { detectAutorunIntent, extractUserText } from "./autorun/detector"
 import { Tweaks } from "@/config/tweaks"
 import { RebindEpoch } from "./rebind-epoch"
-import { CapabilityLayer } from "./capability-layer"
+import { CapabilityLayer, CrossAccountRebindError } from "./capability-layer"
 import { registerProductionCapabilityLoader } from "./capability-layer-loader"
 import { emitCompactionPredicateTelemetry, emitContextBudgetTelemetry } from "./compaction-telemetry"
 
@@ -2081,9 +2081,30 @@ export namespace SessionPrompt {
             reason: "first runLoop iteration after daemon start",
           })
         }
-        await CapabilityLayer.get(sessionID, RebindEpoch.current(sessionID))
+        // DD-8: pass current accountId so CapabilityLayer.get can refuse a
+        // cross-account fallback. Same-account fallback (transient loader
+        // failure) keeps the existing degraded-mode WARN behavior.
+        await CapabilityLayer.get(
+          sessionID,
+          RebindEpoch.current(sessionID),
+          session.execution?.accountId ?? lastUser?.model?.accountId,
+        )
       } catch (err) {
-        // Loud warn — AGENTS.md 第一條 prohibits silent fallback.
+        // DD-8: cross-account rebind failure is a correctness violation, not
+        // a tolerable degraded state. Re-throw to runloop so the user sees
+        // an actionable error instead of silently getting stale BIOS bound
+        // to a different account's auth/quota/model limits.
+        if (err instanceof CrossAccountRebindError) {
+          log.error("capability-layer cross-account rebind failed; refusing prompt assembly", {
+            sessionID,
+            from: err.from,
+            to: err.to,
+            failures: err.failures,
+          })
+          throw err
+        }
+        // Loud warn — AGENTS.md 第一條 prohibits silent fallback for everything
+        // else, but transient same-account failures keep the runloop alive.
         log.warn("capability-layer refresh failed (non-fatal, continuing prompt assembly)", {
           sessionID,
           error: err instanceof Error ? err.message : String(err),

@@ -21,6 +21,10 @@ import { Tweaks } from "../config/tweaks"
 import { PostCompaction } from "./post-compaction"
 import { ContinuationInvalidatedEvent } from "../plugin/codex-auth"
 import { emitCompactionPredicateTelemetry, emitKindChainTelemetry } from "./compaction-telemetry"
+import { sanitizeAnchorToString, type AnchorKind } from "./anchor-sanitizer"
+import { checkCleanTail } from "./idle-compaction-gate"
+import { SkillLayerRegistry } from "./skill-layer-registry"
+import { diagnoseCacheMiss } from "./cache-miss-diagnostic"
 
 // Subscribe to continuation invalidation. compaction-redesign DD-11:
 // state-driven signal — write timestamp onto session.execution; the
@@ -344,6 +348,27 @@ export namespace SessionCompaction {
     // Phase 13.1: round-based cooldown removed (see isOverflow comment).
     // Cooldown gate happens once in `run()` via `Cooldown.shouldThrottle`.
 
+    // DD-10: classify the cache miss before triggering. If the system block
+    // bytes are churning across recent turns, compacting the conversation
+    // will not help (cache will miss again next turn). Only fire when the
+    // miss is plausibly attributable to conversation growth.
+    if (input.sessionID) {
+      const diag = diagnoseCacheMiss({
+        sessionID: input.sessionID,
+        conversationTailTokens: totalInput,
+      })
+      log.info("compaction.cache_miss_diagnosis", {
+        sessionID: input.sessionID,
+        kind: diag.kind,
+        shouldCompact: diag.shouldCompact,
+        lastSystemHashes: diag.lastSystemHashes.map((h) => h.slice(0, 8)),
+        conversationTailTokens: diag.conversationTailTokens,
+      })
+      if (!diag.shouldCompact) {
+        return false
+      }
+    }
+
     log.warn("cache-aware compaction triggered", {
       sessionID: input.sessionID,
       cacheHitRate: (cacheHitRate * 100).toFixed(0) + "%",
@@ -442,6 +467,20 @@ export namespace SessionCompaction {
     log.info("idle compaction evaluation", { utilization, threshold, count: budget.count, usable: budget.usable })
 
     if (utilization < threshold) return
+
+    // DD-7: defer if the conversation tail has any unmatched tool_use parts
+    // (pending/running). Inserting an anchor mid-flight would split the
+    // tool_use ↔ tool_result pair Anthropic strict-pairing requires.
+    const tailMessages = await Session.messages({ sessionID: input.sessionID }).catch(() => [] as MessageV2.WithParts[])
+    const cleanCheck = checkCleanTail(tailMessages, 2)
+    if (!cleanCheck.clean) {
+      log.info("compaction.idle.deferred", {
+        sessionID: input.sessionID,
+        reason: cleanCheck.reason ?? "unclean-tail",
+        scannedMessageCount: cleanCheck.scannedMessageCount,
+      })
+      return
+    }
 
     await run({
       sessionID: input.sessionID,
@@ -1221,6 +1260,66 @@ When constructing the summary, try to stick to this template:
     if (processor.message.error) return null
     if (result !== "continue") return null
 
+    // DD-6: rewrite the LLM-streamed text parts in place with sanitized
+    // bodies before the compaction boundary marker is written. The
+    // streamed parts are already persisted, so we issue Session.updatePart
+    // for each one to replace the on-disk text. The same sanitizer runs in
+    // defaultWriteAnchor for the non-LLM kinds (narrative / replay-tail /
+    // low-cost-server) — this branch handles the kind 5 path where the
+    // persisted message is the anchor itself.
+    const preSanitizedMsg = (await Session.messages({ sessionID: input.sessionID })).findLast(
+      (m) => m.info.id === processor.message.id,
+    )
+    const preSanitizedTextParts = preSanitizedMsg?.parts.filter((p) => p.type === "text") ?? []
+    let imperativePrefixApplied = false
+    let originalLength = 0
+    let sanitizedLength = 0
+    for (const part of preSanitizedTextParts) {
+      const original = (part as any).text ?? ""
+      originalLength += original.length
+      const sanitized = sanitizeAnchorToString(original, "llm-agent")
+      if (sanitized.imperativePrefixApplied) imperativePrefixApplied = true
+      sanitizedLength += sanitized.body.length
+      await Session.updatePart({
+        id: part.id,
+        messageID: processor.message.id,
+        sessionID: input.sessionID,
+        type: "text",
+        text: sanitized.body,
+        time: (part as any).time ?? { start: Date.now(), end: Date.now() },
+      })
+    }
+    log.info("compaction.anchor.sanitized", {
+      sessionID: input.sessionID,
+      kind: "llm-agent",
+      originalLength,
+      sanitizedLength,
+      imperativePrefixApplied,
+      partCount: preSanitizedTextParts.length,
+    })
+
+    // DD-9: skill auto-pin + snapshot for the LLM-agent path. The previous
+    // anchor (if any) is the most-recent summary-true message OTHER than
+    // processor.message; readMostRecentAnchorId returns the just-written
+    // one, so we filter it out.
+    const allAnchorMsgs = (await Session.messages({ sessionID: input.sessionID })).filter(
+      (m) => m.info.role === "assistant" && (m.info as MessageV2.Assistant).summary === true,
+    )
+    const prevLlmAnchorId = allAnchorMsgs
+      .filter((m) => m.info.id !== processor.message.id)
+      .at(-1)?.info.id
+
+    const sanitizedJoined = preSanitizedTextParts
+      .map((p) => (p as any).text ?? "")
+      .join("\n")
+    await annotateAnchorWithSkillState({
+      sessionID: input.sessionID,
+      summaryText: sanitizedJoined,
+      prevAnchorId: prevLlmAnchorId,
+      kind: "llm-agent",
+      explicitAnchorId: processor.message.id,
+    })
+
     // Write the compaction boundary anchor on the summary assistant message.
     await Session.updatePart({
       id: Identifier.ascending("part"),
@@ -1725,11 +1824,112 @@ When constructing the summary, try to stick to this template:
     kind: KindName
   }
   const defaultWriteAnchor = async (input: WriteAnchorInput) => {
+    // DD-6: anchor body is wrapped + softened before persistence so it
+    // cannot be misread as system authority by the LLM on next turn.
+    const sanitized = sanitizeAnchorToString(input.summaryText, input.kind as AnchorKind)
+    log.info("compaction.anchor.sanitized", {
+      sessionID: input.sessionID,
+      kind: input.kind,
+      originalLength: input.summaryText.length,
+      sanitizedLength: sanitized.body.length,
+      imperativePrefixApplied: sanitized.imperativePrefixApplied,
+    })
+
+    // DD-9: identify previous anchor BEFORE the write so we can release its
+    // pinForAnchor entries afterwards. The cooldown gate (30s) makes
+    // back-to-back anchor races negligible in practice.
+    const prevAnchorId = await readMostRecentAnchorId(input.sessionID)
+
     await compactWithSharedContext({
       sessionID: input.sessionID,
-      snapshot: input.summaryText,
+      snapshot: sanitized.body,
       model: input.model,
       auto: input.auto,
+    })
+
+    // DD-9: scan the just-written anchor body for skill name references and
+    // pin matched active/summary skills so they survive idle decay until the
+    // next anchor supersedes this one. Snapshot is logged as telemetry only
+    // for Phase A; full anchor.metadata.skillSnapshot persistence is Phase B
+    // (requires CompactionPart schema extension).
+    await annotateAnchorWithSkillState({
+      sessionID: input.sessionID,
+      summaryText: sanitized.body,
+      prevAnchorId,
+      kind: input.kind,
+    })
+  }
+
+  async function readMostRecentAnchorId(sessionID: string): Promise<string | undefined> {
+    const messages = await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[])
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i]
+      if (m.info.role === "assistant" && (m.info as MessageV2.Assistant).summary === true) {
+        return m.info.id
+      }
+    }
+    return undefined
+  }
+
+  async function annotateAnchorWithSkillState(input: {
+    sessionID: string
+    summaryText: string
+    prevAnchorId: string | undefined
+    kind: KindName
+    /** Explicit anchor id (used by tryLlmAgent which already knows it). */
+    explicitAnchorId?: string
+  }): Promise<void> {
+    const newAnchorId = input.explicitAnchorId ?? (await readMostRecentAnchorId(input.sessionID))
+    if (!newAnchorId) {
+      log.warn("compaction.anchor.skill_binding_skipped", {
+        sessionID: input.sessionID,
+        reason: "no anchor found after write",
+      })
+      return
+    }
+
+    const entries = SkillLayerRegistry.list(input.sessionID)
+    const knownNames = entries.map((e) => e.name)
+    const matched = SkillLayerRegistry.scanReferences(input.summaryText, knownNames)
+
+    for (const name of matched) {
+      SkillLayerRegistry.pinForAnchor(input.sessionID, name, newAnchorId, "referenced-by-anchor")
+      log.info("skill.pin_for_anchor", {
+        sessionID: input.sessionID,
+        anchorId: newAnchorId,
+        skillName: name,
+        reason: "referenced-by-anchor",
+      })
+    }
+
+    let unpinnedNames: string[] = []
+    if (input.prevAnchorId && input.prevAnchorId !== newAnchorId) {
+      unpinnedNames = SkillLayerRegistry.unpinByAnchor(input.sessionID, input.prevAnchorId)
+      if (unpinnedNames.length > 0) {
+        log.info("skill.unpin_by_anchor", {
+          sessionID: input.sessionID,
+          anchorId: input.prevAnchorId,
+          unpinnedNames,
+        })
+      }
+    }
+
+    // skillSnapshot telemetry per observability.md (full disk persistence
+    // deferred to Phase B; this snapshot lives in event log only).
+    const snapshot = {
+      active: entries
+        .filter((e) => e.runtimeState === "active" || e.runtimeState === "sticky")
+        .map((e) => e.name),
+      summarized: entries.filter((e) => e.runtimeState === "summarized").map((e) => e.name),
+      pinned: entries.filter((e) => e.pinned).map((e) => e.name),
+    }
+    log.info("compaction.anchor.skill_snapshot", {
+      sessionID: input.sessionID,
+      anchorId: newAnchorId,
+      kind: input.kind,
+      matchedReferences: matched,
+      releasedFromPrevAnchor: unpinnedNames,
+      snapshot,
     })
   }
   let _writeAnchor: (input: WriteAnchorInput) => Promise<void> = defaultWriteAnchor

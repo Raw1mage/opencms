@@ -51,6 +51,41 @@ export type CapabilityLayerCacheEntry = {
   epoch: number
   createdAt: number
   layers: LayerBundle
+  /**
+   * DD-8 (specs/prompt-cache-and-compaction-hardening): account identity at
+   * the time this entry was loaded. When a later request for a different
+   * accountId would otherwise return this entry as a fallback, CapabilityLayer.get
+   * throws CrossAccountRebindError instead so the LLM never receives stale
+   * driver / AGENTS.md / enablement bound to the wrong account.
+   *
+   * Optional for backwards compat — callers that do not pass accountId fall
+   * back to today's behavior (silent fallback with WARN log).
+   */
+  accountId?: string
+}
+
+/**
+ * DD-8 hard-fail error: thrown by CapabilityLayer.get when its fallback path
+ * would otherwise return an entry bound to a different account than the
+ * caller requested. Per AGENTS.md "no silent fallback", crossing account
+ * boundaries with stale BIOS is a correctness violation, not a degraded
+ * mode the runloop should silently absorb.
+ */
+export class CrossAccountRebindError extends Error {
+  readonly code = "CROSS_ACCOUNT_REBIND_FAILED" as const
+  readonly from: string | undefined
+  readonly to: string
+  readonly failures: ReinjectOutcome["failures"]
+  constructor(input: { from: string | undefined; to: string; failures: ReinjectOutcome["failures"] }) {
+    super(
+      `capability-layer cross-account fallback refused: from=${input.from ?? "<unknown>"} to=${input.to}; ` +
+        `failures=${input.failures.map((f) => `${f.layer}:${f.error}`).join(",")}`,
+    )
+    this.name = "CrossAccountRebindError"
+    this.from = input.from
+    this.to = input.to
+    this.failures = input.failures
+  }
 }
 
 export type ReinjectOutcome = {
@@ -178,21 +213,47 @@ export namespace CapabilityLayer {
   export async function get(
     sessionID: string,
     epoch: number,
+    requestedAccountId?: string,
   ): Promise<CapabilityLayerCacheEntry> {
     ensureSubscribed()
     const hit = peek(sessionID, epoch)
     if (hit) return hit
-    const outcome = await reinject(sessionID, epoch)
+    const outcome = await reinject(sessionID, epoch, requestedAccountId)
     const after = peek(sessionID, epoch)
     if (after) return after
     // Reinject failed and no entry was written at the requested epoch. Try
     // previous-epoch fallback for the session.
     const fallback = findFallbackEntry(sessionID, epoch)
     if (fallback) {
+      // DD-8: cross-account fallback is a correctness violation (stale BIOS
+      // for new account). Throw CrossAccountRebindError to surface to runloop.
+      // Same-account fallback (transient loader failure) keeps existing WARN
+      // + degraded-mode behavior.
+      if (
+        requestedAccountId &&
+        fallback.accountId &&
+        fallback.accountId !== requestedAccountId
+      ) {
+        log.error("[capability-layer] cross-account fallback refused", {
+          sessionID,
+          currentEpoch: epoch,
+          fallbackEpoch: fallback.epoch,
+          fallbackAccountId: fallback.accountId,
+          requestedAccountId,
+          failures: outcome.failures,
+        })
+        throw new CrossAccountRebindError({
+          from: fallback.accountId,
+          to: requestedAccountId,
+          failures: outcome.failures,
+        })
+      }
       log.warn("[capability-layer] fallback to previous epoch cache", {
         sessionID,
         currentEpoch: epoch,
         fallbackEpoch: fallback.epoch,
+        fallbackAccountId: fallback.accountId,
+        requestedAccountId,
         failures: outcome.failures,
       })
       return fallback
@@ -211,7 +272,11 @@ export namespace CapabilityLayer {
    * `capability_layer.refreshed`. On failure, leaves the existing cache intact
    * (does NOT overwrite) and emits `capability_layer.refresh_failed`.
    */
-  export async function reinject(sessionID: string, epoch: number): Promise<ReinjectOutcome> {
+  export async function reinject(
+    sessionID: string,
+    epoch: number,
+    accountId?: string,
+  ): Promise<ReinjectOutcome> {
     ensureSubscribed()
     const failures: ReinjectOutcome["failures"] = []
     const started = Date.now()
@@ -290,6 +355,7 @@ export namespace CapabilityLayer {
       epoch,
       createdAt: Date.now(),
       layers: bundle,
+      accountId,
     }
     let sessionCache = cache.get(sessionID)
     if (!sessionCache) {

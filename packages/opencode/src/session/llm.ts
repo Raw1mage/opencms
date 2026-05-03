@@ -48,6 +48,7 @@ import { logSessionAccountAudit, resolveAccountAuditSource } from "./account-aud
 import { resolveProviderBillingMode } from "@/provider/billing-mode"
 import { SkillLayerRegistry } from "./skill-layer-registry"
 import { buildSkillLayerRegistrySystemPart } from "./skill-layer-seam"
+import { recordSystemBlockHash } from "./cache-miss-diagnostic"
 import { ALWAYS_PRESENT_TOOLS } from "@/tool/tool-loader"
 
 /**
@@ -602,6 +603,12 @@ export namespace LLM {
       system.length = 0
       system.push(header, rest.join("\n"))
     }
+
+    // DD-10 (specs/prompt-cache-and-compaction-hardening): record the assembled
+    // system block hash for cache-miss diagnostic. Phase A treats system[0] as
+    // a single block (matching current join-everything behavior); Phase B will
+    // split static vs preface and hash only the static portion.
+    recordSystemBlockHash(input.sessionID, system.join("\n"))
 
     const variant =
       !input.small && input.model.variants && input.user.variant ? input.model.variants[input.user.variant] : {}

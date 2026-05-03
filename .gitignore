@@ -63,3 +63,6 @@ __pycache__/
 /recyclebin/
 daemon/opencode-gateway
 .opencode/mcp-output/
+
+# beta XDG isolation env (per worktree, never commit)
+.beta-env/
