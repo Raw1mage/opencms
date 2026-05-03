@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "state": "implementing",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-05-03T07:22:40.962Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-05-03T07:51:25.631Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "design.md DD-1..DD-10 drafted; idef0/grafcet/c4/sequence/data-schema/spec all present; user signed off on DD-5 sibling rename + DD-7 map-not-content fold rules"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-05-03T07:58:04.598Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "tasks/handoff/errors/observability/test-vectors all present and validation-passing"
+    },
+    {
+      "at": "2026-05-03T08:30:32.625Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "77b7787e6c041ee4f353067ed44ce8faf164110c"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-05-03T08:30:46.726Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Phase 1 (docxmcp extract_all) + 1b (async refactor) tasks complete; smoke-tested fast 10s + background 46s on 56MB fixture; ready to bump submodule pointer + start opencode dispatcher work"
+    },
+    {
+      "at": "2026-05-03T11:08:33.743Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/app/src/components/dialog-select-directory.tsx, packages/opencode-claude-provider/src/headers.ts, packages/opencode-claude-provider/src/index.ts, packages/opencode-claude-provider/src/protocol.ts, packages/opencode-claude-provider/src/provider.ts, packages/opencode-claude-provider/test/protocol.test.ts, packages/opencode/src/file/index.ts, packages/opencode/src/server/routes/file.ts, scripts/inspect-beta-header.ts",
+      "result": "warned",
+      "drift": [
+        "packages/app/src/components/dialog-select-directory.tsx",
+        "packages/opencode-claude-provider/src/headers.ts",
+        "packages/opencode-claude-provider/src/index.ts",
+        "packages/opencode-claude-provider/src/protocol.ts",
+        "packages/opencode-claude-provider/src/provider.ts",
+        "packages/opencode-claude-provider/test/protocol.test.ts",
+        "packages/opencode/src/file/index.ts",
+        "packages/opencode/src/server/routes/file.ts",
+        "scripts/inspect-beta-header.ts"
+      ],
+      "commit": "1da423ba33a2be14b3a6ba3e7d0ba9130ec71557"
+    }
+  ]
+}

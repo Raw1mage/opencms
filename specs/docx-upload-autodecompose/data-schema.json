@@ -1,0 +1,198 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://specs.opencode/incoming-stem-manifest.schema.json",
+  "title": "incoming/<stem>/manifest.json",
+  "description": "Canonical machine contract for an Office-upload decomposition tree. Written by the upload dispatcher (or by docxmcp's extract_all and faithfully copied through). Read by the message composer to render the routing hint, by the AI via standard read tools, and by humans for debugging.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "stem", "source", "decompose", "files"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Bump on any breaking change to this schema."
+    },
+    "stem": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^/\\\\]+$",
+      "description": "Filename without extension; matches the directory name under incoming/. Slashes / backslashes are forbidden."
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filename", "mime", "byte_size", "sha256", "uploaded_at"],
+      "properties": {
+        "filename": { "type": "string", "minLength": 1, "description": "Original upload filename including extension." },
+        "mime": { "type": "string", "minLength": 1, "description": "Detected mime type." },
+        "byte_size": { "type": "integer", "minimum": 0 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$", "description": "Hex SHA-256 of the original bytes; combined with filename to form the cache key." },
+        "uploaded_at": { "type": "string", "format": "date-time", "description": "ISO-8601 UTC timestamp; used as the rename suffix when this dir is superseded by new content under the same name." }
+      }
+    },
+    "decompose": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "duration_ms", "background_status"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["ok", "failed", "unsupported"],
+          "description": "Fast-phase outcome. ok = fast artifacts (outline + template) written; failed = error captured in failure.md; unsupported = unsupported.md written explaining the constraint."
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Fast-phase wall time, milliseconds."
+        },
+        "reason": {
+          "type": "string",
+          "description": "REQUIRED when status != ok. One-line plain-language reason. No stack trace, no internal paths."
+        },
+        "decomposer": {
+          "type": "string",
+          "enum": ["docxmcp.extract_all", "opencode.legacy_ole2_scanner", "opencode.unsupported_writer", "opencode.failure_recorder"],
+          "description": "Which component produced this manifest."
+        },
+        "background_status": {
+          "type": "string",
+          "enum": ["running", "done", "failed", "n/a"],
+          "description": "State of the background phase that writes body.md, chapters/, tables/, media/. `running` = fast phase done, background still in flight; `done` = background completed; `failed` = background hit an exception (see background_error); `n/a` = decomposer has no background phase (legacy scanner, unsupported writer, failure recorder)."
+        },
+        "pending_kinds": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["body", "chapter", "table", "media"] },
+          "description": "REQUIRED when background_status == 'running'. Lists kinds the background phase is still writing. Drives the routing-hint banner."
+        },
+        "background_duration_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Present when background_status in (done, failed). Background phase wall time, milliseconds."
+        },
+        "background_error": {
+          "type": "string",
+          "description": "Present when background_status == 'failed'. One-line plain reason."
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "enum": ["failed", "unsupported"] } } },
+          "then": { "required": ["reason"] }
+        },
+        {
+          "if": { "properties": { "background_status": { "const": "running" } } },
+          "then": { "required": ["pending_kinds"] }
+        },
+        {
+          "if": { "properties": { "background_status": { "const": "failed" } } },
+          "then": { "required": ["background_error"] }
+        }
+      ]
+    },
+    "files": {
+      "type": "array",
+      "description": "Every file under incoming/<stem>/ except manifest.json itself. Order is the canonical render order for the routing hint.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "kind", "summary"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^/].*",
+            "description": "Path relative to incoming/<stem>/; never starts with a slash."
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["body", "outline", "chapter", "table", "media", "template", "unsupported", "failure", "pending_marker"],
+            "description": "Functional kind. Routing hint groups files by kind. `pending_marker` is the auto-generated _PENDING.md that lives inside a subdirectory while its kind is still being produced; it is removed when background completes."
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Short human-readable summary, e.g. '3,214 lines', '5 rows × 4 cols', '14 headings, 3 chapters'. May be rendered verbatim into the AI's view."
+          },
+          "byte_size": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "schema_version": 1,
+      "stem": "foo",
+      "source": {
+        "filename": "foo.docx",
+        "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "byte_size": 134912,
+        "sha256": "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456",
+        "uploaded_at": "2026-05-03T08:14:22Z"
+      },
+      "decompose": {
+        "status": "ok",
+        "duration_ms": 312,
+        "decomposer": "docxmcp.extract_all",
+        "background_status": "done",
+        "background_duration_ms": 580
+      },
+      "files": [
+        { "path": "body.md", "kind": "body", "summary": "3,214 paragraphs" },
+        { "path": "outline.md", "kind": "outline", "summary": "14 headings, 3 chapters" },
+        { "path": "chapters/01-introduction.md", "kind": "chapter", "summary": "chapter 1" },
+        { "path": "chapters/02-method.md", "kind": "chapter", "summary": "chapter 2" },
+        { "path": "tables/01.csv", "kind": "table", "summary": "5 rows × 4 cols" },
+        { "path": "media/01-figure-a.png", "kind": "media", "summary": "image/png" },
+        { "path": "template/template.dotx", "kind": "template", "summary": "reusable .dotx (12 styles)" },
+        { "path": "template/styles.xml", "kind": "template", "summary": "raw style definitions" }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "stem": "broken",
+      "source": {
+        "filename": "broken.docx",
+        "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "byte_size": 4321,
+        "sha256": "deadbeef00000000000000000000000000000000000000000000000000000000",
+        "uploaded_at": "2026-05-03T09:00:00Z"
+      },
+      "decompose": {
+        "status": "failed",
+        "duration_ms": 30000,
+        "reason": "docxmcp 服務暫時無回應 (timeout 30s)",
+        "decomposer": "opencode.failure_recorder",
+        "background_status": "n/a"
+      },
+      "files": [
+        { "path": "failure.md", "kind": "failure", "summary": "timeout reason" }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "stem": "welfare",
+      "source": {
+        "filename": "welfare.docx",
+        "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "byte_size": 56435098,
+        "sha256": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+        "uploaded_at": "2026-05-03T10:00:00Z"
+      },
+      "decompose": {
+        "status": "ok",
+        "duration_ms": 10405,
+        "decomposer": "docxmcp.extract_all",
+        "background_status": "running",
+        "pending_kinds": ["body", "chapter", "table", "media"]
+      },
+      "files": [
+        { "path": "outline.md", "kind": "outline", "summary": "116 headings, 9 chapters" },
+        { "path": "template/styles.xml", "kind": "template", "summary": "raw word/styles.xml" },
+        { "path": "template/template.dotx", "kind": "template", "summary": "reusable .dotx" },
+        { "path": "chapters/_PENDING.md", "kind": "pending_marker", "summary": "background extraction in progress" },
+        { "path": "tables/_PENDING.md", "kind": "pending_marker", "summary": "background extraction in progress" },
+        { "path": "media/_PENDING.md", "kind": "pending_marker", "summary": "background extraction in progress" }
+      ]
+    }
+  ]
+}

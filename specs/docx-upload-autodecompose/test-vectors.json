@@ -1,0 +1,379 @@
+[
+  {
+    "id": "TV-1",
+    "requirement": "Decompose runs synchronously at upload time",
+    "scenario": "docx upload triggers decompose before AI sees message",
+    "input": {
+      "filename": "small.docx",
+      "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "byte_size": 92410,
+      "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "prior_dir_exists": false,
+      "user_message": "幫我摘要這份檔案"
+    },
+    "expected": {
+      "docxmcp_called": true,
+      "docxmcp_entry": "extract_all",
+      "manifest_written": true,
+      "manifest": {
+        "schema_version": 1,
+        "stem": "small",
+        "source": {
+          "filename": "small.docx",
+          "byte_size": 92410,
+          "sha256": "1111…1111"
+        },
+        "decompose": {
+          "status": "ok",
+          "decomposer": "docxmcp.extract_all"
+        },
+        "files_kinds_present": [
+          "body",
+          "outline",
+          "chapter",
+          "table",
+          "media",
+          "template"
+        ]
+      },
+      "ai_message_includes_routing_hint": true,
+      "ai_message_excludes_body_content": true
+    }
+  },
+  {
+    "id": "TV-2",
+    "requirement": "Cache hit short-circuits decompose",
+    "scenario": "identical re-upload skips decompose",
+    "input": {
+      "filename": "small.docx",
+      "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "byte_size": 92410,
+      "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "prior_dir_exists": true,
+      "prior_manifest_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "prior_manifest_filename": "small.docx",
+      "user_message": "再幫我看一次"
+    },
+    "expected": {
+      "docxmcp_called": false,
+      "manifest_rewritten": false,
+      "telemetry": {
+        "cache": "hit"
+      },
+      "ai_message_routing_hint_marks_cache_hit": true
+    }
+  },
+  {
+    "id": "TV-3",
+    "requirement": "Same-name different-content uploads paired-rename the OLD version aside",
+    "scenario": "sha drift triggers paired rename of source file + bundle dir",
+    "input": {
+      "filename": "foo.docx",
+      "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "byte_size": 134912,
+      "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "prior_dir_exists": true,
+      "prior_manifest_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "prior_manifest_filename": "foo.docx",
+      "prior_manifest_uploaded_at": "2026-05-03T08:14:22Z"
+    },
+    "expected": {
+      "rename_actions_paired": {
+        "old_source_renamed_from": "incoming/foo.docx",
+        "old_source_renamed_to": "incoming/foo-20260503-081422.docx",
+        "old_dir_renamed_from": "incoming/foo/",
+        "old_dir_renamed_to": "incoming/foo-20260503-081422/"
+      },
+      "rename_atomicity": "both succeed or both rollback",
+      "fresh_canonical_pair_created": {
+        "source": "incoming/foo.docx",
+        "dir": "incoming/foo/"
+      },
+      "docxmcp_called": true,
+      "ai_routing_hint_advertises_canonical_only": true
+    }
+  },
+  {
+    "id": "TV-4",
+    "requirement": "Decompose failure is soft",
+    "scenario": "docxmcp times out",
+    "input": {
+      "filename": "broken.docx",
+      "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "byte_size": 4321,
+      "sha256": "deadbeef00000000000000000000000000000000000000000000000000000000",
+      "docxmcp_timeout": true
+    },
+    "expected": {
+      "upload_succeeded": true,
+      "manifest": {
+        "decompose": {
+          "status": "failed",
+          "reason": "docxmcp 服務暫時無回應 (timeout 30s)",
+          "decomposer": "opencode.failure_recorder"
+        },
+        "files_kinds_present": [
+          "failure"
+        ]
+      },
+      "failure_md_written": true,
+      "ai_routing_hint_includes_reason_verbatim": true,
+      "no_silent_fallback": true
+    }
+  },
+  {
+    "id": "TV-5",
+    "requirement": "Legacy Office uses in-process layout-preserving fallback",
+    "scenario": ".doc upload produces body.md preserving layout",
+    "input": {
+      "filename": "legal.doc",
+      "mime": "application/msword",
+      "byte_size": 412580,
+      "fixture_known_text_lines": 487,
+      "fixture_known_blank_lines": 92,
+      "fixture_known_leading_whitespace_lines": 156
+    },
+    "expected": {
+      "scanner_invoked": true,
+      "output_path": "incoming/legal/body.md",
+      "manifest": {
+        "decompose": {
+          "status": "ok",
+          "decomposer": "opencode.legacy_ole2_scanner"
+        },
+        "files_kinds_present": [
+          "body"
+        ]
+      },
+      "preservation_thresholds": {
+        "newlines_preserved_min_pct": 0.9,
+        "blank_lines_preserved_min_pct": 0.85,
+        "leading_whitespace_preserved_min_pct": 0.8
+      }
+    }
+  },
+  {
+    "id": "TV-6",
+    "requirement": "Modern xlsx / pptx surface as unsupported",
+    "scenario": ".xlsx upload writes unsupported note",
+    "input": {
+      "filename": "sheet.xlsx",
+      "mime": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "byte_size": 18432
+    },
+    "expected": {
+      "docxmcp_called": false,
+      "scanner_invoked": false,
+      "unsupported_md_written": true,
+      "manifest": {
+        "decompose": {
+          "status": "unsupported",
+          "reason": "此格式（xlsx）目前不支援自動拆解；請使用者轉成 .docx 後再上傳"
+        },
+        "files_kinds_present": [
+          "unsupported"
+        ]
+      },
+      "ai_routing_hint_advises_convert_to_docx": true
+    }
+  },
+  {
+    "id": "TV-7",
+    "requirement": "Routing hint is a map, never content",
+    "scenario": "routing hint folds long lists",
+    "input": {
+      "manifest_summary": {
+        "chapters_count": 44,
+        "tables_count": 187,
+        "media_count": 612,
+        "headings_count": 512
+      }
+    },
+    "expected": {
+      "hint_lines_chapter_text_matches": "chapters/01-…04-…（還有 40 份，共 44 份）",
+      "hint_lines_table_text_matches": "tables/01.csv 起 187 份",
+      "hint_lines_media_text_matches": "media/01-…（共 612 張）",
+      "hint_excludes_body_content": true,
+      "hint_closes_with_action_contract": true
+    }
+  },
+  {
+    "id": "TV-8",
+    "requirement": "Cross-cut — no silent fallback",
+    "scenario": "docxmcp extract_all entry missing on the host",
+    "input": {
+      "filename": "any.docx",
+      "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "docxmcp_extract_all_registered": false
+    },
+    "expected": {
+      "docxmcp_called_with_extract_all": true,
+      "docxmcp_returned_unknown_tool_error": true,
+      "fallback_to_ai_driven_path": false,
+      "manifest": {
+        "decompose": {
+          "status": "failed",
+          "reason": "docx 處理工具暫不可用，請聯繫管理員更新"
+        }
+      }
+    }
+  },
+  {
+    "id": "TV-9",
+    "requirement": "Telemetry records every decompose",
+    "scenario": "every upload emits one telemetry event",
+    "input": {
+      "any_office_upload": true,
+      "outcome": "any of ok / failed / unsupported"
+    },
+    "expected": {
+      "event_emitted_count": 1,
+      "event_name": "incoming.decompose",
+      "event_required_fields": [
+        "mime",
+        "format",
+        "byte_size",
+        "duration_ms",
+        "cache",
+        "status"
+      ],
+      "event_optional_fields_when_failed": [
+        "reason"
+      ],
+      "event_optional_fields_when_regen": [
+        "prior_sibling"
+      ]
+    }
+  },
+  {
+    "id": "TV-10",
+    "requirement": "Fast-phase decompose runs synchronously at upload time",
+    "scenario": "Large docx (56 MB) returns fast with running background",
+    "input": {
+      "filename": "welfare.docx",
+      "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "byte_size": 56435098
+    },
+    "expected": {
+      "fast_phase_max_ms": 15000,
+      "manifest_after_fast": {
+        "decompose": {
+          "status": "ok",
+          "background_status": "running",
+          "pending_kinds": [
+            "body",
+            "chapter",
+            "table",
+            "media"
+          ]
+        },
+        "files_kinds_present": [
+          "outline",
+          "template",
+          "pending_marker"
+        ]
+      },
+      "pending_markers_present": [
+        "incoming/welfare/chapters/_PENDING.md",
+        "incoming/welfare/tables/_PENDING.md",
+        "incoming/welfare/media/_PENDING.md"
+      ]
+    }
+  },
+  {
+    "id": "TV-11",
+    "requirement": "Background phase produces body + chapters + tables + media",
+    "scenario": "Background phase completes asynchronously after the fast phase",
+    "input": {
+      "preceding_test_vector": "TV-10",
+      "wait_for_background_max_ms": 90000
+    },
+    "expected": {
+      "manifest_after_background": {
+        "decompose": {
+          "background_status": "done",
+          "background_duration_ms": "< 90000",
+          "pending_kinds": "absent"
+        },
+        "files_kinds_present": [
+          "body",
+          "outline",
+          "chapter",
+          "table",
+          "media",
+          "template"
+        ]
+      },
+      "pending_markers_removed": [
+        "incoming/welfare/chapters/_PENDING.md",
+        "incoming/welfare/tables/_PENDING.md",
+        "incoming/welfare/media/_PENDING.md"
+      ]
+    }
+  },
+  {
+    "id": "TV-12",
+    "requirement": "AI can discover the running state without prior knowledge",
+    "scenario": "AI ls chapters/ during background sees _PENDING.md",
+    "input": {
+      "preceding_test_vector": "TV-10",
+      "ai_action": "ls incoming/welfare/chapters/"
+    },
+    "expected": {
+      "visible_files": [
+        "_PENDING.md"
+      ],
+      "_PENDING_md_contents_includes": [
+        "manifest.json",
+        "background_status",
+        "extract_all_collect"
+      ]
+    }
+  },
+  {
+    "id": "TV-13",
+    "requirement": "AI can synchronously wait for completion when needed",
+    "scenario": "extract_all_collect blocks until background_status flips",
+    "input": {
+      "preceding_test_vector": "TV-10",
+      "tool_call": "mcpapp-docxmcp_extract_all_collect",
+      "args": {
+        "doc_dir": "/path/to/welfare",
+        "wait": 60
+      }
+    },
+    "expected": {
+      "returns_within_seconds": 60,
+      "manifest_at_return": {
+        "decompose": {
+          "background_status": "done"
+        }
+      },
+      "bundle_includes_files_kinds": [
+        "body",
+        "chapter",
+        "table",
+        "media"
+      ]
+    }
+  },
+  {
+    "id": "TV-14",
+    "requirement": "Background phase failure is recorded loudly",
+    "scenario": "Background phase throws; manifest captures the failure",
+    "input": {
+      "simulated_background_exception": "IOError: disk full"
+    },
+    "expected": {
+      "manifest_after_failure": {
+        "decompose": {
+          "background_status": "failed",
+          "background_error": "IOError: disk full",
+          "background_duration_ms": "> 0"
+        }
+      },
+      "pending_markers_NOT_removed": true,
+      "no_silent_fallback": true
+    }
+  }
+]

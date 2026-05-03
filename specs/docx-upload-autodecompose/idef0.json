@@ -1,0 +1,47 @@
+{
+  "diagram_title": "Process Office Document Upload",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Validate Office Upload",
+      "description": "Receive uploaded bytes, classify the Office mime, compute the content-hash cache key, and resolve cache hit / miss.",
+      "decomposition": "A1"
+    },
+    {
+      "id": "A2",
+      "title": "Decompose Office Content",
+      "description": "Run the format-specific decomposer (docxmcp extract_all for docx; in-process printable-runs for legacy OLE2; placeholder note for xlsx/pptx; failure record on error).",
+      "decomposition": "A2"
+    },
+    {
+      "id": "A3",
+      "title": "Publish Decomposed Tree",
+      "description": "Write the decomposed artifacts under incoming/<stem>/, rename any prior dir with different content to incoming/<stem>-<old-timestamp>/, emit telemetry.",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Compose Routing Hint",
+      "description": "Read manifest.json and render a plain-language map of the decomposed tree; attach it to the user message before the AI sees it.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "uploaded bytes + filename + mime", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A1:control", "label": "tweaks.cfg (timeout, density threshold)", "type": "control" },
+    { "id": "AR3", "source": "EXTERNAL", "target": "A1:mechanism", "label": "opencode dispatcher", "type": "mechanism" },
+    { "id": "AR4", "source": "A1:output", "target": "A2:input", "label": "validated upload + cache verdict", "type": "input" },
+    { "id": "AR5", "source": "EXTERNAL", "target": "A2:mechanism", "label": "docxmcp service / printable-runs scanner", "type": "mechanism" },
+    { "id": "AR6", "source": "EXTERNAL", "target": "A2:control", "label": "decompose timeout 30s", "type": "control" },
+    { "id": "AR7", "source": "A1:output", "target": "A3:input", "label": "stem path + cache hit flag", "type": "input" },
+    { "id": "AR8", "source": "A2:output", "target": "A3:input", "label": "decomposed artifacts + manifest payload", "type": "input" },
+    { "id": "AR9", "source": "EXTERNAL", "target": "A3:mechanism", "label": "host filesystem", "type": "mechanism" },
+    { "id": "AR10", "source": "A3:output", "target": "A4:input", "label": "manifest path on disk", "type": "input" },
+    { "id": "AR11", "source": "EXTERNAL", "target": "A4:control", "label": "fold rules (>4 items collapse)", "type": "control" },
+    { "id": "AR12", "source": "EXTERNAL", "target": "A4:mechanism", "label": "message composer", "type": "mechanism" },
+    { "id": "AR13", "source": "A3:output", "target": "EXTERNAL", "label": "incoming/<stem>/ tree on disk", "type": "output" },
+    { "id": "AR14", "source": "A4:output", "target": "EXTERNAL", "label": "decorated message → AI", "type": "output" },
+    { "id": "AR15", "source": "A3:output", "target": "EXTERNAL", "label": "incoming.decompose telemetry event", "type": "output" }
+  ]
+}

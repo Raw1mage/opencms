@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "diagram_title": "Container & Component View — docx-upload-autodecompose",
+  "systems": [
+    {
+      "id": "S1",
+      "name": "opencode runtime",
+      "description": "Bun-based agent runtime; hosts the upload pipeline, message composer, AI session, and the AI-callable upload-time tool."
+    },
+    {
+      "id": "S2",
+      "name": "docxmcp service",
+      "description": "Standalone Python MCP server providing docx operations (extract / patch / rebuild)."
+    },
+    {
+      "id": "S3",
+      "name": "host filesystem",
+      "description": "The repo's incoming/ directory; landing zone for uploads and decomposed trees."
+    }
+  ],
+  "containers": [
+    { "id": "T1", "systemRef": "S1", "name": "User-Message Upload Hook", "description": "tryLandInIncoming + Office hook (DD-9 rewrite). Receives uploaded bytes from chat UI; lands them; for Office mimes runs cache lookup + version-rename + synchronous fast-phase decompose." },
+    { "id": "T1b", "systemRef": "S1", "name": "Polling Loop", "description": "Per-stem extract_all_collect(wait=0) every 5 s during background; stops on background_status != running OR 180 s safety cap." },
+    { "id": "T2", "systemRef": "S1", "name": "Message Composer / Routing Hint Generator", "description": "Reads manifest; renders plain-language routing hint into the user message. Embedded once (DD-13 pull-only — AI re-reads manifest as needed)." },
+    { "id": "T3", "systemRef": "S1", "name": "Attachment Tool", "description": "AI-callable query tool (image / PDF / text / JSON only after Phase 8 strips Office branches)." },
+    { "id": "T4", "systemRef": "S1", "name": "Telemetry Bus", "description": "Existing telemetry sink for incoming.decompose events." },
+    { "id": "T4b", "systemRef": "S1", "name": "MCP Tool Dispatcher", "description": "Existing dispatcher.ts: intercepts AI tool calls passing paths under incoming/, rewrites paths to tokens, ships tar bundles back. Used by Polling Loop to deliver extract_all_collect calls." },
+    { "id": "T5", "systemRef": "S2", "name": "Extract All Orchestrator (Fast)", "description": "extract_all entry: synchronously writes outline + template + manifest skeleton; spawns detached background child; returns fast bundle." },
+    { "id": "T5b", "systemRef": "S2", "name": "Extract All Background Child", "description": "Double-fork-detached grandchild process. Writes body + chapters + tables + media; rewrites manifest to status=done; removes _PENDING.md markers." },
+    { "id": "T5c", "systemRef": "S2", "name": "Extract All Collect", "description": "Companion entry. Optionally blocks on background_status; bundle producer ships per-token incremental diff via _last_bundled_state." },
+    { "id": "T5d", "systemRef": "S2", "name": "Bundle Producer (Stateful)", "description": "Per-token _last_bundled_state in mcp_server.py; each MCP call's bundle = files added/modified since last bundle for this token." },
+    { "id": "T6", "systemRef": "S2", "name": "Per-Tool Extractors", "description": "Existing extract_text / extract_outline / extract_chapter / extract_styles scripts; reused from new orchestrator." }
+  ],
+  "components": [
+    { "id": "C1", "containerRef": "T1", "name": "Office Mime Detector", "moduleRef": "A12", "description": "Classifies upload by mime + extension into docx | doc | xls | ppt | xlsx | pptx | non-office." },
+    { "id": "C2", "containerRef": "T1", "name": "Cache Key Resolver", "moduleRef": "A13", "description": "Computes sha256(bytes) + ':' + filename." },
+    { "id": "C3", "containerRef": "T1", "name": "Cache Lookup", "moduleRef": "A14", "description": "Reads incoming/<stem>/manifest.json to determine hit / fresh / regen verdict." },
+    { "id": "C4", "containerRef": "T1", "name": "Decompose Router", "moduleRef": "A2", "description": "Dispatches to docxmcp / legacy scanner / unsupported writer based on format." },
+    { "id": "C5", "containerRef": "T1", "name": "Legacy OLE2 Scanner", "moduleRef": "A22", "description": "In-process two-pass printable-runs scanner; emits body.md preserving layout." },
+    { "id": "C6", "containerRef": "T1", "name": "Unsupported Note Writer", "moduleRef": "A23", "description": "Writes incoming/<stem>/unsupported.md for xlsx / pptx." },
+    { "id": "C7", "containerRef": "T1", "name": "Failure Recorder", "moduleRef": "A24", "description": "Writes failure.md + failure manifest; never silent." },
+    { "id": "C8", "containerRef": "T1", "name": "Stem Dir Manager", "moduleRef": "A3", "description": "Renames prior dirs to incoming/<stem>-<old-timestamp>/ on sha drift; writes new tree." },
+    { "id": "C9", "containerRef": "T2", "name": "Routing Hint Renderer", "moduleRef": "A4", "description": "Reads manifest, applies >4 fold rule, produces plain-language hint." },
+    { "id": "C10", "containerRef": "T5", "name": "Body Outline Chapter Extractor", "moduleRef": "A21", "description": "Sub-step of extract_all: runs existing extract_text / extract_outline / extract_chapter." },
+    { "id": "C11", "containerRef": "T5", "name": "Template Asset Extractor", "moduleRef": "A21", "description": "Sub-step of extract_all: copies styles / theme / numbering XML out of unpack tree; repackages template.dotx." },
+    { "id": "C12", "containerRef": "T5", "name": "Manifest Emitter", "moduleRef": "A21", "description": "Sub-step of extract_all: writes manifest.json reflecting everything produced." }
+  ],
+  "relationships": [
+    { "id": "R1", "from": "T1", "to": "T5", "label": "extract_all (token, output_dir) — fast phase", "protocol": "MCP over HTTP+UDS" },
+    { "id": "R1b", "from": "T1b", "to": "T4b", "label": "extract_all_collect (token, wait=0) — every 5 s", "protocol": "MCP over HTTP+UDS via dispatcher" },
+    { "id": "R1c", "from": "T4b", "to": "T5c", "label": "forwarded extract_all_collect call", "protocol": "MCP" },
+    { "id": "R2", "from": "T5", "to": "T6", "label": "Python function call (in-process for outline + template)", "protocol": "Python" },
+    { "id": "R2b", "from": "T5b", "to": "T6", "label": "Python function call (background: body + chapters + tables + media)", "protocol": "Python" },
+    { "id": "R2c", "from": "T5", "to": "T5b", "label": "double-fork detach (parent → intermediate → grandchild)", "protocol": "POSIX fork" },
+    { "id": "R2d", "from": "T5", "to": "T5d", "label": "shipped fast bundle updates _last_bundled_state", "protocol": "in-process" },
+    { "id": "R2e", "from": "T5c", "to": "T5d", "label": "diff against _last_bundled_state → incremental bundle", "protocol": "in-process" },
+    { "id": "R3", "from": "T1", "to": "S3", "label": "write incoming/<stem>/* fast artifacts + manifest skeleton + _PENDING markers", "protocol": "filesystem" },
+    { "id": "R3b", "from": "T1b", "to": "S3", "label": "write incoming/<stem>/* incremental artifacts as polls return", "protocol": "filesystem" },
+    { "id": "R4", "from": "T2", "to": "S3", "label": "read incoming/<stem>/manifest.json (per-render, fresh)", "protocol": "filesystem" },
+    { "id": "R5", "from": "T1", "to": "T4", "label": "incoming.decompose event (one per upload, includes background outcome eventually)", "protocol": "in-process bus" },
+    { "id": "R6", "from": "T2", "to": "T1", "label": "rendered routing hint", "protocol": "in-process" },
+    { "id": "R7", "from": "T3", "to": "S3", "label": "(only for image / PDF / text / JSON refs after Phase 8)", "protocol": "filesystem" }
+  ]
+}

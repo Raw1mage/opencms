@@ -1,0 +1,41 @@
+{
+  "diagram_title": "Validate Office Upload",
+  "node_reference": "A1",
+  "activities": [
+    {
+      "id": "A11",
+      "title": "Receive Upload Bytes",
+      "description": "Read the multipart upload, persist bytes to incoming/<original-filename>, assign a session-scoped ref id.",
+      "decomposition": null
+    },
+    {
+      "id": "A12",
+      "title": "Detect Office Mime",
+      "description": "Classify the upload by mime + filename extension into one of: docx | doc | xls | ppt | xlsx | pptx | non-office.",
+      "decomposition": null
+    },
+    {
+      "id": "A13",
+      "title": "Compute Cache Key",
+      "description": "Compute sha256(bytes) and concatenate with original_filename to form the cache key.",
+      "decomposition": null
+    },
+    {
+      "id": "A14",
+      "title": "Resolve Cache Hit",
+      "description": "Check whether incoming/<stem>/manifest.json exists with matching source.sha256 + source.filename. If hit, mark for short-circuit; if miss with prior dir, mark for rename-then-regenerate.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "AR101", "source": "EXTERNAL", "target": "A11:input", "label": "multipart upload bytes", "type": "input" },
+    { "id": "AR102", "source": "EXTERNAL", "target": "A11:mechanism", "label": "upload dispatcher", "type": "mechanism" },
+    { "id": "AR103", "source": "A11:output", "target": "A12:input", "label": "bytes + filename + reported mime", "type": "input" },
+    { "id": "AR104", "source": "A11:output", "target": "A13:input", "label": "bytes + filename", "type": "input" },
+    { "id": "AR105", "source": "A12:output", "target": "A14:input", "label": "office format classification", "type": "input" },
+    { "id": "AR106", "source": "A13:output", "target": "A14:input", "label": "cache key (sha256 + filename)", "type": "input" },
+    { "id": "AR107", "source": "EXTERNAL", "target": "A14:mechanism", "label": "host filesystem", "type": "mechanism" },
+    { "id": "AR108", "source": "A14:output", "target": "EXTERNAL", "label": "validated upload + cache verdict (hit / fresh / regen)", "type": "output" },
+    { "id": "AR109", "source": "A11:output", "target": "EXTERNAL", "label": "ref id (for AI message metadata)", "type": "output" }
+  ]
+}

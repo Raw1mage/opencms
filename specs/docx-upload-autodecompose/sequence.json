@@ -1,0 +1,142 @@
+[
+  {
+    "scenario_id": "P1",
+    "scenario_title": "Happy path: first-time .docx upload — fast phase + background poll loop + AI summary",
+    "participants": [
+      { "id": "user", "name": "User" },
+      { "id": "uphook", "name": "User-Message Upload Hook", "componentRef": "T1" },
+      { "id": "polling", "name": "Polling Loop", "componentRef": "T1b" },
+      { "id": "docxmcp_fast", "name": "docxmcp extract_all (fast)", "componentRef": "T5" },
+      { "id": "docxmcp_bg", "name": "docxmcp background child", "componentRef": "T5b" },
+      { "id": "docxmcp_collect", "name": "docxmcp extract_all_collect", "componentRef": "T5c" },
+      { "id": "composer", "name": "Routing Hint Renderer", "componentRef": "T2" },
+      { "id": "ai", "name": "AI session" }
+    ],
+    "messages": [
+      { "id": "MSG1",  "from": "user",          "to": "uphook",         "label": "POST upload (foo.docx, '幫我摘要')" },
+      { "id": "MSG2",  "from": "uphook",        "to": "uphook",         "label": "tryLandInIncoming: write incoming/foo.docx; sha256 + filename → no prior pair → cache miss" },
+      { "id": "MSG3",  "from": "uphook",        "to": "docxmcp_fast",   "label": "extract_all(token=foo) [fast phase, sync, 30 s timeout]" },
+      { "id": "MSG4",  "from": "docxmcp_fast",  "to": "docxmcp_fast",   "label": "write outline.md + template/* + manifest{background_status:running, pending_kinds:[body,chapter,table,media]} + _PENDING.md markers in chapters/, tables/, media/" },
+      { "id": "MSG5",  "from": "docxmcp_fast",  "to": "docxmcp_bg",     "label": "double-fork detached child" },
+      { "id": "MSG6",  "from": "docxmcp_fast",  "to": "uphook",         "label": "fast tar bundle (outline + template + manifest + markers)" },
+      { "id": "MSG7",  "from": "uphook",        "to": "uphook",         "label": "extract bundle into incoming/foo/" },
+      { "id": "MSG8",  "from": "uphook",        "to": "polling",        "label": "schedule poll every 5 s; cap 180 s" },
+      { "id": "MSG9",  "from": "uphook",        "to": "composer",       "label": "manifest path; render hint" },
+      { "id": "MSG10", "from": "composer",      "to": "ai",             "label": "user message + routing hint (banner '⏳ 背景拆解中', pull-refresh contract per DD-13)" },
+      { "id": "MSG11", "from": "ai",            "to": "ai",             "label": "read incoming/foo/manifest.json (per DD-13) → bg=running → read incoming/foo/outline.md to start summary" },
+      { "id": "MSG12", "from": "docxmcp_bg",    "to": "docxmcp_bg",     "label": "(in container) write body.md, then chapters/01-…, 02-…, 03-…, tables/01.csv, …, media/…" },
+      { "id": "MSG13", "from": "polling",       "to": "docxmcp_collect","label": "[T+5s] extract_all_collect(wait=0)" },
+      { "id": "MSG14", "from": "docxmcp_collect","to": "polling",       "label": "incremental bundle (body.md + chapters/01-, /02-, tables/01.csv) + manifest{bg:running}" },
+      { "id": "MSG15", "from": "polling",       "to": "polling",        "label": "publish increment into incoming/foo/" },
+      { "id": "MSG16", "from": "polling",       "to": "docxmcp_collect","label": "[T+10s] extract_all_collect(wait=0)" },
+      { "id": "MSG17", "from": "docxmcp_collect","to": "polling",       "label": "incremental bundle (chapters/03-, media/05-, …) + manifest{bg:running}" },
+      { "id": "MSG18", "from": "docxmcp_bg",    "to": "docxmcp_bg",     "label": "(in container) finish; rewrite manifest{bg:done, duration_ms_bg:46000}; remove _PENDING.md markers" },
+      { "id": "MSG19", "from": "polling",       "to": "docxmcp_collect","label": "[T+15s] extract_all_collect(wait=0)" },
+      { "id": "MSG20", "from": "docxmcp_collect","to": "polling",       "label": "final bundle (manifest{bg:done} + last extras) + marker removals" },
+      { "id": "MSG21", "from": "polling",       "to": "polling",        "label": "manifest.bg=done → stop polling" },
+      { "id": "MSG22", "from": "ai",            "to": "ai",             "label": "[next AI turn] user asks 'show me chapter 3' → re-read manifest (DD-13) → bg=done, chapters/03-*.md present → read it" },
+      { "id": "MSG23", "from": "ai",            "to": "user",           "label": "summary reply" }
+    ]
+  },
+  {
+    "scenario_id": "P2",
+    "scenario_title": "Cache hit: same content re-uploaded",
+    "participants": [
+      { "id": "user", "name": "User" },
+      { "id": "dispatcher", "name": "Upload Dispatcher", "componentRef": "C4" },
+      { "id": "composer", "name": "Routing Hint Renderer", "componentRef": "C9" },
+      { "id": "ai", "name": "AI session" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "user",       "to": "dispatcher", "label": "POST upload (foo.docx — bytewise identical to previous)" },
+      { "id": "MSG2", "from": "dispatcher", "to": "dispatcher", "label": "sha256+filename matches existing manifest → cache hit" },
+      { "id": "MSG3", "from": "dispatcher", "to": "composer",   "label": "manifest path (no decompose run)" },
+      { "id": "MSG4", "from": "composer",   "to": "ai",         "label": "user message + routing hint (cache-hit marker)" },
+      { "id": "MSG5", "from": "ai",         "to": "user",       "label": "reply (no AI tokens spent on decompose)" }
+    ]
+  },
+  {
+    "scenario_id": "P3",
+    "scenario_title": "Same filename, different content: paired version-rename of OLD pair, new pair occupies canonical (DD-5 amended)",
+    "participants": [
+      { "id": "user", "name": "User" },
+      { "id": "uphook", "name": "User-Message Upload Hook", "componentRef": "T1" },
+      { "id": "rename", "name": "Version-Rename Helper", "componentRef": "T1" },
+      { "id": "docxmcp_fast", "name": "docxmcp extract_all (fast)", "componentRef": "T5" },
+      { "id": "composer", "name": "Routing Hint Renderer", "componentRef": "T2" },
+      { "id": "ai", "name": "AI session" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "user",         "to": "uphook",       "label": "POST upload (foo.docx — different bytes from previous)" },
+      { "id": "MSG2", "from": "uphook",       "to": "uphook",       "label": "tryLandInIncoming sha mismatch; verdict = regen" },
+      { "id": "MSG3", "from": "uphook",       "to": "rename",       "label": "paired rename request: stem=foo, ext=docx, oldUploadedAt=2026-05-03T08:14:22Z" },
+      { "id": "MSG4", "from": "rename",       "to": "rename",       "label": "atomic: incoming/foo.docx → incoming/foo-20260503-081422.docx; incoming/foo/ → incoming/foo-20260503-081422/" },
+      { "id": "MSG5", "from": "rename",       "to": "uphook",       "label": "ok (both renamed; on failure both rolled back, upload rejected)" },
+      { "id": "MSG6", "from": "uphook",       "to": "uphook",       "label": "write new bytes to canonical incoming/foo.docx" },
+      { "id": "MSG7", "from": "uphook",       "to": "docxmcp_fast", "label": "extract_all(token=foo) [fast phase]" },
+      { "id": "MSG8", "from": "docxmcp_fast", "to": "uphook",       "label": "fast bundle (outline + template + manifest skeleton)" },
+      { "id": "MSG9", "from": "uphook",       "to": "uphook",       "label": "extract into fresh incoming/foo/; schedule polling" },
+      { "id": "MSG10","from": "composer",     "to": "ai",           "label": "user message + routing hint advertises canonical incoming/foo/ only; suffixed sibling preserved on disk but not mentioned" }
+    ]
+  },
+  {
+    "scenario_id": "P4",
+    "scenario_title": "Soft-fail: docxmcp service times out",
+    "participants": [
+      { "id": "user", "name": "User" },
+      { "id": "dispatcher", "name": "Upload Dispatcher", "componentRef": "C4" },
+      { "id": "docxmcp", "name": "docxmcp extract_all", "componentRef": "C10" },
+      { "id": "failure", "name": "Failure Recorder", "componentRef": "C7" },
+      { "id": "composer", "name": "Routing Hint Renderer", "componentRef": "C9" },
+      { "id": "ai", "name": "AI session" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "user",       "to": "dispatcher", "label": "POST upload (broken.docx, '摘要這個')" },
+      { "id": "MSG2", "from": "dispatcher", "to": "docxmcp",    "label": "extract_all(token, out_dir=...)" },
+      { "id": "MSG3", "from": "docxmcp",    "to": "dispatcher", "label": "(no response within 30s)" },
+      { "id": "MSG4", "from": "dispatcher", "to": "failure",    "label": "write failure.md ('docxmcp 服務暫時無回應 (timeout 30s)')" },
+      { "id": "MSG5", "from": "failure",    "to": "composer",   "label": "failure manifest path" },
+      { "id": "MSG6", "from": "composer",   "to": "ai",         "label": "user message + soft-fail routing hint (DD-6 wording)" },
+      { "id": "MSG7", "from": "ai",         "to": "user",       "label": "apologise; suggest re-upload" }
+    ]
+  },
+  {
+    "scenario_id": "P5",
+    "scenario_title": "Legacy .doc upload: in-process plain-text fallback",
+    "participants": [
+      { "id": "user", "name": "User" },
+      { "id": "dispatcher", "name": "Upload Dispatcher", "componentRef": "C4" },
+      { "id": "scanner", "name": "Legacy OLE2 Scanner", "componentRef": "C5" },
+      { "id": "composer", "name": "Routing Hint Renderer", "componentRef": "C9" },
+      { "id": "ai", "name": "AI session" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "user",       "to": "dispatcher", "label": "POST upload (legal.doc, '幫我抓重點')" },
+      { "id": "MSG2", "from": "dispatcher", "to": "scanner",    "label": "scan_legacy_office(bytes)" },
+      { "id": "MSG3", "from": "scanner",    "to": "scanner",    "label": "two-pass ASCII + UTF-16LE; preserve newlines/blank lines/leading whitespace" },
+      { "id": "MSG4", "from": "scanner",    "to": "dispatcher", "label": "body.md (layout-preserved) + minimal manifest" },
+      { "id": "MSG5", "from": "dispatcher", "to": "composer",   "label": "manifest path (kind=body only)" },
+      { "id": "MSG6", "from": "composer",   "to": "ai",         "label": "user message + hint marking output as 'noisy, structure-guessable'" },
+      { "id": "MSG7", "from": "ai",         "to": "ai",         "label": "read body.md; infer headings from indentation cues" },
+      { "id": "MSG8", "from": "ai",         "to": "user",       "label": "summary with caveat" }
+    ]
+  },
+  {
+    "scenario_id": "P6",
+    "scenario_title": "Unsupported .xlsx upload",
+    "participants": [
+      { "id": "user", "name": "User" },
+      { "id": "dispatcher", "name": "Upload Dispatcher", "componentRef": "C4" },
+      { "id": "writer", "name": "Unsupported Note Writer", "componentRef": "C6" },
+      { "id": "composer", "name": "Routing Hint Renderer", "componentRef": "C9" },
+      { "id": "ai", "name": "AI session" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "user",       "to": "dispatcher", "label": "POST upload (sheet.xlsx, '看一下這份試算表')" },
+      { "id": "MSG2", "from": "dispatcher", "to": "writer",     "label": "write_unsupported_note(stem)" },
+      { "id": "MSG3", "from": "writer",     "to": "dispatcher", "label": "incoming/sheet/unsupported.md + manifest (status=unsupported)" },
+      { "id": "MSG4", "from": "composer",   "to": "ai",         "label": "user message + hint stating 'no decomposition; suggest user convert to docx'" },
+      { "id": "MSG5", "from": "ai",         "to": "user",       "label": "ask user to convert to .docx" }
+    ]
+  }
+]

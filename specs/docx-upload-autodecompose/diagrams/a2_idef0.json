@@ -1,0 +1,47 @@
+{
+  "diagram_title": "Decompose Office Content",
+  "node_reference": "A2",
+  "activities": [
+    {
+      "id": "A21",
+      "title": "Decompose Modern Document",
+      "description": "For .docx: two-phase. Fast phase invokes docxmcp extract_all synchronously; receives outline + template + manifest skeleton (background_status=running). Background phase runs in a detached child inside docxmcp container; opencode-side polling loop calls extract_all_collect every 5 s with wait=0 to ship incremental bundles until manifest flips to done or 180 s safety cap.",
+      "decomposition": null
+    },
+    {
+      "id": "A22",
+      "title": "Scan Legacy Office Bytes",
+      "description": "For .doc / .xls / .ppt: run the in-process layout-preserving printable-runs scanner (two-pass ASCII + UTF-16LE); produce body.md plus minimal manifest.",
+      "decomposition": null
+    },
+    {
+      "id": "A23",
+      "title": "Mark Format Unsupported",
+      "description": "For .xlsx / .pptx: write incoming/<stem>/unsupported.md explaining the constraint; produce manifest with status=unsupported.",
+      "decomposition": null
+    },
+    {
+      "id": "A24",
+      "title": "Record Decompose Failure",
+      "description": "On exception, timeout, or invalid output from any of A21..A23: write failure.md with one-line plain-language reason; produce manifest with status=failed.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "AR201", "source": "EXTERNAL", "target": "A21:input", "label": "docx upload + ref id (when format=docx)", "type": "input" },
+    { "id": "AR202", "source": "EXTERNAL", "target": "A21:mechanism", "label": "docxmcp service over MCP transport + opencode-side polling loop", "type": "mechanism" },
+    { "id": "AR203", "source": "EXTERNAL", "target": "A21:control", "label": "fast-phase 30 s hard timeout; polling 5 s interval; 180 s safety cap", "type": "control" },
+    { "id": "AR204", "source": "EXTERNAL", "target": "A22:input", "label": "legacy office upload (when format=doc/xls/ppt)", "type": "input" },
+    { "id": "AR205", "source": "EXTERNAL", "target": "A22:mechanism", "label": "in-process printable-runs scanner", "type": "mechanism" },
+    { "id": "AR206", "source": "EXTERNAL", "target": "A22:control", "label": "density threshold + min run length (tweaks.cfg)", "type": "control" },
+    { "id": "AR207", "source": "EXTERNAL", "target": "A23:input", "label": "modern xlsx/pptx upload (when format=xlsx/pptx)", "type": "input" },
+    { "id": "AR208", "source": "EXTERNAL", "target": "A23:mechanism", "label": "static note writer", "type": "mechanism" },
+    { "id": "AR209", "source": "A21:output", "target": "A24:input", "label": "exception / timeout / invalid output", "type": "input" },
+    { "id": "AR210", "source": "A22:output", "target": "A24:input", "label": "scanner failure", "type": "input" },
+    { "id": "AR211", "source": "A23:output", "target": "A24:input", "label": "writer failure", "type": "input" },
+    { "id": "AR212", "source": "A21:output", "target": "EXTERNAL", "label": "decomposed artifacts (docx success path)", "type": "output" },
+    { "id": "AR213", "source": "A22:output", "target": "EXTERNAL", "label": "body.md (legacy success path)", "type": "output" },
+    { "id": "AR214", "source": "A23:output", "target": "EXTERNAL", "label": "unsupported.md (modern unsupported path)", "type": "output" },
+    { "id": "AR215", "source": "A24:output", "target": "EXTERNAL", "label": "failure.md + failure manifest (any failure path)", "type": "output" }
+  ]
+}
