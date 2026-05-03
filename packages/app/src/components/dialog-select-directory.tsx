@@ -77,9 +77,8 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
   const [pathInput, setPathInput] = createSignal(startDirectory())
   const [errorText, setErrorText] = createSignal("")
   const [navigating, setNavigating] = createSignal(false)
-  const [creatingDirectory, setCreatingDirectory] = createSignal(false)
-  const [newDirectoryName, setNewDirectoryName] = createSignal("")
   const [creating, setCreating] = createSignal(false)
+  const [createTarget, setCreateTarget] = createSignal("")
 
   const recent = createMemo(() => {
     return sync.data.project
@@ -105,7 +104,7 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
       .then((x) => x.data ?? [])
   }
 
-  const [rows, { refetch }] = createResource(currentDir, async (directory) => {
+  const [rows] = createResource(currentDir, async (directory) => {
     return listDirectory(directory).then((nodes) =>
       nodes
         .filter((n) => n.type === "directory")
@@ -136,10 +135,6 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
 
   const resolveTarget = () => toAbsolutePath(pathInput(), currentDir(), home())
 
-  const browseFromInput = async () => {
-    await navigateTo(pathInput())
-  }
-
   const confirmTarget = async () => {
     const target = resolveTarget()
     setErrorText("")
@@ -147,7 +142,7 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
       .then(() => true)
       .catch(() => false)
     if (!ok) {
-      setErrorText(language.t("dialog.directory.empty"))
+      setCreateTarget(target)
       return
     }
 
@@ -165,18 +160,7 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
     dialog.close()
   }
 
-  const createDirectory = async () => {
-    const name = newDirectoryName().trim()
-    if (!name) {
-      setErrorText("Enter a folder name.")
-      return
-    }
-    if (name === "." || name === ".." || name.includes("/") || name.includes("\\")) {
-      setErrorText("Folder name cannot be '.', '..', or contain path separators.")
-      return
-    }
-
-    const target = joinPath(currentDir(), name)
+  const createDirectory = async (target: string) => {
     setCreating(true)
     setErrorText("")
     try {
@@ -187,12 +171,11 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
         body: JSON.stringify({ path: target }),
       })
       if (!response.ok) throw new Error(await response.text())
-      setCreatingDirectory(false)
-      setNewDirectoryName("")
+      setCreateTarget("")
       writeLastOpenDirectory(target)
-      setCurrentDir(target)
-      setPathInput(target)
-      refetch()
+      if (props.multiple) props.onSelect([target])
+      else props.onSelect(target)
+      dialog.close()
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       setErrorText(message || "Failed to create folder.")
@@ -206,60 +189,48 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
       title={props.title ?? language.t("command.project.open")}
       class="w-[860px] max-w-[92vw] flex flex-col h-[85vh] max-h-[800px]"
     >
-      <div class="flex flex-col gap-3 flex-1 overflow-hidden p-4">
-        <div class="flex items-center gap-2 w-full shrink-0">
+      <div class="relative flex flex-col gap-3 flex-1 overflow-hidden p-4">
+        <div class="w-full shrink-0">
           <TextField
             value={pathInput()}
             onInput={(e) => setPathInput(e.currentTarget.value)}
             onKeyDown={(e: KeyboardEvent) => {
               if (e.key !== "Enter") return
               e.preventDefault()
-              void browseFromInput()
+              void confirmTarget()
             }}
             class="w-full"
             placeholder={language.t("dialog.directory.search.placeholder") || "Enter or paste path..."}
           />
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => {
-              setCreatingDirectory(true)
-              setErrorText("")
-            }}
-          >
-            New Folder
-          </Button>
         </div>
 
-        <Show when={creatingDirectory()}>
-          <div class="flex items-center gap-2 shrink-0 bg-surface-base p-2 rounded border border-border-base">
-            <span class="text-12-regular text-text-weak shrink-0">New folder in {currentDir()}</span>
-            <TextField
-              value={newDirectoryName()}
-              onInput={(e) => setNewDirectoryName(e.currentTarget.value)}
-              onKeyDown={(e: KeyboardEvent) => {
-                if (e.key !== "Enter") return
-                e.preventDefault()
-                void createDirectory()
-              }}
-              class="flex-1"
-              placeholder="Folder name"
-            />
-            <Button type="button" variant="primary" disabled={creating()} onClick={() => void createDirectory()}>
-              Create
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={creating()}
-              onClick={() => {
-                setCreatingDirectory(false)
-                setNewDirectoryName("")
-              }}
-            >
-              Cancel
-            </Button>
-          </div>
+        <Show when={createTarget()}>
+          {(target) => (
+            <div class="absolute inset-0 z-10 flex items-center justify-center bg-surface-base/70 p-4">
+              <div class="w-[420px] max-w-full rounded-lg border border-border-base bg-surface-raised-base p-4 shadow-lg flex flex-col gap-3">
+                <div class="text-16-semibold text-text-base">新增資料夾？</div>
+                <div class="text-13-regular text-text-muted break-all">
+                  找不到此路徑：{target()}。要建立這個資料夾並開啟為專案嗎？
+                </div>
+                <Show when={errorText()}>
+                  {(msg) => <div class="text-12-regular text-icon-danger-base break-all">{msg()}</div>}
+                </Show>
+                <div class="flex justify-end gap-2 pt-2">
+                  <Button type="button" variant="ghost" disabled={creating()} onClick={() => setCreateTarget("")}>
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    disabled={creating()}
+                    onClick={() => void createDirectory(target())}
+                  >
+                    Create and Open
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </Show>
 
         <div class="flex-1 overflow-hidden flex flex-col min-h-0 border border-border-base rounded-md">
