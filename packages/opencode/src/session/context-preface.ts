@@ -15,8 +15,15 @@
 // message as instruction-bearing context rather than chitchat. No A/B test
 // dependency.
 
+import path from "node:path"
+import { promises as fsp } from "node:fs"
+
+import { Log } from "../util/log"
+
 import type { ContextPrefaceParts, PreloadParts, PrefaceContentBlock, SkillContextEntry } from "./context-preface-types"
 import { CONTEXT_PREFACE_KIND, PREFACE_DIRECTIVE_HEADER } from "./context-preface-types"
+
+const log = Log.create({ service: "context-preface" })
 
 export interface BuildPrefaceInput {
   preload: PreloadParts
@@ -34,7 +41,16 @@ export interface BuildPrefaceInput {
    * PrefaceContentBlock). Per-turn cache invalidation is fine here.
    */
   trailingExtras?: string[]
+  /**
+   * attachment-lifecycle v4 (DD-19/DD-20): pre-resolved inline image content
+   * blocks emitted as the LAST entries in the trailing tier (BP4 zone).
+   * Caller (llm.ts) is responsible for reading bytes off disk via
+   * `buildActiveImageContentBlocks`. Empty / undefined = no images inlined.
+   */
+  activeImageBlocks?: InlineImageContentBlock[]
 }
+
+export type InlineImageContentBlock = Extract<PrefaceContentBlock, { type: "file" }>
 
 export interface ContextPrefaceMessageOutput {
   parts: ContextPrefaceParts
@@ -87,7 +103,68 @@ export function buildPreface(input: BuildPrefaceInput): ContextPrefaceMessageOut
     contentBlocks.push({ type: "text", tier: "trailing", text: trailing.join("\n\n") })
   }
 
+  // v4 DD-19: image binary blocks ride at the very end of trailing tier so
+  // per-turn churn lands in BP4 zone and never invalidates T1/T2 prefix.
+  for (const block of input.activeImageBlocks ?? []) {
+    contentBlocks.push(block)
+  }
+
   return { parts, contentBlocks, kind: CONTEXT_PREFACE_KIND, t2Empty }
+}
+
+/**
+ * attachment-lifecycle v4 (DD-19/DD-20): read inline image bytes off disk
+ * for filenames listed in `activeImageRefs`. Returns content blocks ready
+ * to pass into `buildPreface(..., {activeImageBlocks})`.
+ *
+ * Skips silently (with telemetry) when:
+ *   - filename has no entry in `refsByFilename`
+ *   - referenced file is missing on disk
+ *   - referenced file fails to read for any reason
+ *
+ * Skipping is preferred over throwing because the preface assembly path is
+ * latency-critical and a missing image file should not break a turn.
+ */
+export interface InlineImageRefInput {
+  filename: string
+  mime: string
+  repo_path: string
+}
+
+export async function buildActiveImageContentBlocks(
+  activeImageRefs: string[],
+  refsByFilename: Map<string, InlineImageRefInput>,
+  projectRoot: string,
+): Promise<InlineImageContentBlock[]> {
+  const out: InlineImageContentBlock[] = []
+  for (const filename of activeImageRefs) {
+    const ref = refsByFilename.get(filename)
+    if (!ref) {
+      log.warn("inline image ref not found in session parts; skipping", { filename })
+      continue
+    }
+    if (!ref.mime.startsWith("image/")) {
+      log.warn("inline image ref has non-image mime; skipping", { filename, mime: ref.mime })
+      continue
+    }
+    if (!ref.repo_path) {
+      log.warn("inline image ref missing repo_path; skipping", { filename })
+      continue
+    }
+    const absPath = path.join(projectRoot, ref.repo_path)
+    try {
+      const bytes = await fsp.readFile(absPath)
+      const url = `data:${ref.mime};base64,${bytes.toString("base64")}`
+      out.push({ type: "file", tier: "trailing", url, mediaType: ref.mime, filename })
+    } catch (err) {
+      log.warn("inline image read failed; skipping", {
+        filename,
+        absPath,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+  return out
 }
 
 /** Render T1 with the directive header always present and date last (DD-2). */

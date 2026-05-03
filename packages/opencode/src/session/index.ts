@@ -257,6 +257,14 @@ export namespace Session {
      * anchor-recency comparison; no flag-clear step.
      */
     continuationInvalidatedAt: z.number().optional(),
+    /**
+     * attachment-lifecycle v4 DD-20: image filenames currently queued for
+     * inline rendering in the next preface trailing tier (BP4 zone). Drained
+     * after each assistant `finish="stop"` so the active set never grows
+     * across turns. Re-populated by `addOnUpload` (post-user-message) or
+     * `addOnReread` (voucher tool). Empty/undefined = no images inlined.
+     */
+    activeImageRefs: z.array(z.string()).optional(),
   })
   export type ExecutionIdentity = z.output<typeof ExecutionIdentity>
 
@@ -698,6 +706,24 @@ export namespace Session {
           current: draft.execution,
           model: input.model,
         })
+      },
+      { touch: false },
+    )
+  }
+
+  /**
+   * attachment-lifecycle v4 (DD-20): set the activeImageRefs queue on the
+   * session's execution identity. Called by the user-message commit hook
+   * (addOnUpload) and the post-completion drain hook
+   * (drainAfterAssistant). No-op when no execution identity exists yet.
+   */
+  export async function setActiveImageRefs(sessionID: string, refs: string[]) {
+    return update(
+      sessionID,
+      (draft) => {
+        if (draft.execution) {
+          draft.execution = { ...draft.execution, activeImageRefs: refs }
+        }
       },
       { touch: false },
     )

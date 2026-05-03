@@ -56,11 +56,14 @@ export interface PreloadParts {
  * output directives, subagent notices). It rides the per-turn cache
  * naturally — no dedicated breakpoint, follows the user message into BP4.
  */
-export interface PrefaceContentBlock {
-  type: "text"
-  tier: "t1" | "t2" | "trailing"
-  text: string
-}
+export type PrefaceContentBlock =
+  | { type: "text"; tier: "t1" | "t2" | "trailing"; text: string }
+  /**
+   * attachment-lifecycle v4 (DD-19/DD-20): inline image binary block placed
+   * in the preface trailing tier (BP4 zone). Per-turn churn here does not
+   * disturb T1/T2 cache prefix.
+   */
+  | { type: "file"; tier: "trailing"; url: string; mediaType: string; filename: string }
 
 /**
  * Marker constant exposed for downstream consumers (UI, replay, compaction)

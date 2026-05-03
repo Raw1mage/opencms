@@ -2416,6 +2416,28 @@ export namespace SessionPrompt {
       variant: input.variant,
     })
 
+    // attachment-lifecycle v4 (DD-20): if this user message brought in any
+    // inline-eligible image attachments, queue their filenames for the next
+    // turn's preface trailing tier. Failures here are non-fatal — the
+    // message is already persisted and the chat must continue.
+    try {
+      const { Tweaks } = await import("@/config/tweaks")
+      const inlineCfg = Tweaks.attachmentInlineSync()
+      if (inlineCfg.enabled) {
+        const { addOnUpload } = await import("./active-image-refs")
+        const sessionInfo = await Session.get(input.sessionID).catch(() => undefined)
+        const prior = sessionInfo?.execution?.activeImageRefs
+        const next = addOnUpload(prior, parts as Array<{ type: string; mime?: string; filename?: string; repo_path?: string }>, {
+          max: inlineCfg.activeSetMax,
+        })
+        if (next.length !== (prior?.length ?? 0) || next.some((v, i) => v !== prior?.[i])) {
+          await Session.setActiveImageRefs(input.sessionID, next)
+        }
+      }
+    } catch {
+      // swallow — see comment above
+    }
+
     return {
       info,
       parts,

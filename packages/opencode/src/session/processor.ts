@@ -1149,6 +1149,21 @@ export namespace SessionProcessor {
                     cost: usage.cost,
                   })
                   await Session.updateMessage(input.assistantMessage)
+
+                  // attachment-lifecycle v4 (DD-20, R9 mitigation): drain any
+                  // queued inline images regardless of finishReason. The next
+                  // turn rebuilds the active set fresh from new uploads or
+                  // explicit reread vouchers — never inherits past turn's set.
+                  try {
+                    const sessionForDrain = await Session.get(input.sessionID).catch(() => undefined)
+                    const priorRefs = sessionForDrain?.execution?.activeImageRefs ?? []
+                    if (priorRefs.length > 0) {
+                      await Session.setActiveImageRefs(input.sessionID, [])
+                    }
+                  } catch {
+                    // non-fatal — drained-on-next-turn fallback acceptable
+                  }
+
                   if (snapshot) {
                     const patch = await Snapshot.patch(snapshot)
                     if (patch.files.length) {
