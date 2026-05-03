@@ -37,6 +37,7 @@ commit: `4fcc76f8f`.
 - [x] 4.3 `compaction.ts defaultWriteAnchor` 增 `annotateAnchorWithSkillState`：找新 anchor id → scan → pinForAnchor 命中者 → unpinByAnchor 上一個 anchor → log `compaction.anchor.skill_snapshot` telemetry。`tryLlmAgent` 同步加，用 `processor.message.id` 為 explicit id。
 - [x] 4.4 prev anchor 偵測：在 write 之前讀 `readMostRecentAnchorId`，write 之後再讀新 id；若不同則 unpin 舊 id。
 - [x] 4.5 11 unit tests in `skill-anchor-binder.test.ts`（pin/unpin 生命週期 + scanReferences edge cases）。skillSnapshot 結構符 telemetry 格式（disk persistence on CompactionPart 延到 Phase B，schema 改動較大）。
+- [x] 4.6 (post-merge) `packages/opencode/src/session/compaction.phase-a-wiring.test.ts` 新增 4 個 end-to-end 整合測試，跑完整 `SessionCompaction.run → kindChain → defaultWriteAnchor → annotateAnchorWithSkillState → SkillLayerRegistry.pinForAnchor` 鏈，確認單元測試覆蓋的 wire-up 在實際路徑也命中。commit: `abcd06ffc`。
 commit: `caa6ef135`.
 
 ## 5. Phase A.5 — Cache miss diagnostic (DD-10, R7-diagnostic)
@@ -63,7 +64,7 @@ commit: `5360a0716`. Phase A 對 `system.join` 視為單塊（對齊現況）；
 
 - [x] 7.1 `git merge --no-ff beta/prompt-cache-hardening` 進 main（在 mainRepo），含 5 個 implementation commits + 1 spec package commit。
 - [N/A] 7.2 刪除中介 test branch — 未建立。
-- [x] 7.3 main 為 authoritative；`beta/prompt-cache-hardening` 分支保留以承接 Phase B。
+- [x] 7.3 main 為 authoritative。**2026-05-03 cleanup**：beta worktree (`/home/pkcs12/projects/opencode-worktrees/prompt-cache-hardening`) 已 `git worktree remove`；branch `beta/prompt-cache-hardening` (was `b1f3fa9c4`) 已 `git branch -d` 刪除（fully merged，安全）。Phase B 啟動時從 main 重建 worktree + 新 branch。
 
 ## 8. Phase B (gated — 不要在 Phase A 落地前開動)
 

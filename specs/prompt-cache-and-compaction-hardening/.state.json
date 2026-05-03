@@ -66,6 +66,17 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "Phase A 5 DDs landed via merge --no-ff into main. §6.1 + §6.2 + §6.5 + §6.7 + §7.1 + §7.3 done. §6.3 (manual smoke) + §6.4 (phase summary docs) deferred to dogfood follow-up. §6.6 + §7.2 N/A (zero conflicts → skipped intermediate test branch)."
+    },
+    {
+      "at": "2026-05-03T14:12:25.461Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/session/compaction.phase-a-wiring.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/session/compaction.phase-a-wiring.test.ts"
+      ],
+      "commit": "5f32c3678ffca47d29ba0cc3f1ef1f203c29b031"
     }
   ]
 }
