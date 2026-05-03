@@ -109,6 +109,27 @@
       "by": "pkcs12",
       "mode": "amend",
       "reason": "Phase B recalibration against main 26d1bc062: design.md DD-15 (family in tuple) + DD-16 (assertFamilyKey boundary) added; DD-5/9/10/12 amended; R7/R8/R9 added; Migration/Rollout updated. tasks.md §8 rewritten as B.0..B.11 with B.0 prerequisites (Phase 9 cutover + Phase A telemetry) + LLM A/B test + seam table."
+    },
+    {
+      "at": "2026-05-03T15:00:40.061Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/scripts/migrate-provider-account-decoupling.ts, packages/opencode/src/account/rotation3d.ts, packages/opencode/src/auth/index.ts, packages/opencode/src/cli/cmd/auth.ts, packages/opencode/src/cli/cmd/serve.ts, packages/opencode/src/mcp/app-registry.ts, packages/opencode/src/provider/provider.ts, packages/opencode/test/account/codex-family-only-fallback.test.ts, packages/opencode/test/account/provider-account-decoupling.test.ts, packages/opencode/test/auth/family-resolution.test.ts, packages/opencode/test/scripts/migrate-decoupling.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/scripts/migrate-provider-account-decoupling.ts",
+        "packages/opencode/src/account/rotation3d.ts",
+        "packages/opencode/src/auth/index.ts",
+        "packages/opencode/src/cli/cmd/auth.ts",
+        "packages/opencode/src/cli/cmd/serve.ts",
+        "packages/opencode/src/mcp/app-registry.ts",
+        "packages/opencode/src/provider/provider.ts",
+        "packages/opencode/test/account/codex-family-only-fallback.test.ts",
+        "packages/opencode/test/account/provider-account-decoupling.test.ts",
+        "packages/opencode/test/auth/family-resolution.test.ts",
+        "packages/opencode/test/scripts/migrate-decoupling.test.ts"
+      ],
+      "commit": "660f652c44cba2e5d7d893944e7e62f96f30cf38"
     }
   ]
 }
