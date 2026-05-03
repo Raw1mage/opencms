@@ -591,99 +591,6 @@ export namespace SessionPrompt {
   const log = Log.create({ service: "session.prompt" })
   export const OUTPUT_TOKEN_MAX = Flag.OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX || 32_000
 
-  const PLAN_ENFORCEMENT_ALLOWED_PROGRESS_PATTERNS = [
-    /^(progress|status|current plan|current goal|resolved decisions|remaining open questions|next step)/i,
-    /^(I (have|will|am)|We (have|will|are))/i,
-  ]
-
-  const PLAN_DECISION_QUESTION_PATTERNS = [
-    /\?$/,
-    /\b(should|which|what should|do you want|would you like|prefer|pick|choose|A or B|name|naming)\b/i,
-    /還是|或者|要不要|是否|命名|選哪|哪個/i,
-  ]
-
-  const PLAN_DECISION_KEYWORDS = [
-    "scope",
-    "priority",
-    "approval",
-    "validation",
-    "delegate",
-    "delegation",
-    "risk",
-    "naming",
-    "model",
-    "provider",
-    "account",
-    "session-local",
-    "global",
-    "範圍",
-    "優先",
-    "批准",
-    "驗證",
-    "委派",
-    "風險",
-    "命名",
-    "provider",
-    "account",
-    "model",
-  ]
-
-  export function classifyPlanModeAssistantTurn(input: {
-    agentName: string
-    finish?: string
-    parts: MessageV2.WithParts["parts"]
-  }) {
-    if (input.agentName !== "plan")
-      return { enforced: false as const, violation: false as const, reason: "not_plan" as const }
-
-    const toolParts = input.parts.filter((part) => part.type === "tool")
-    const hasQuestionTool = toolParts.some((part) => part.tool === "question")
-    if (hasQuestionTool || input.finish === "tool-calls") {
-      return {
-        enforced: true as const,
-        violation: false as const,
-        reason: hasQuestionTool ? ("question_tool" as const) : ("tool_calls" as const),
-      }
-    }
-
-    const textParts = input.parts.filter((part): part is MessageV2.TextPart => part.type === "text" && !part.synthetic)
-    const text = textParts
-      .map((part) => part.text.trim())
-      .filter(Boolean)
-      .join("\n")
-      .trim()
-    if (!text) return { enforced: true as const, violation: false as const, reason: "empty_text" as const }
-
-    const looksLikeProgress = PLAN_ENFORCEMENT_ALLOWED_PROGRESS_PATTERNS.some((pattern) => pattern.test(text))
-    const looksLikeDecisionQuestion =
-      PLAN_DECISION_QUESTION_PATTERNS.some((pattern) => pattern.test(text)) &&
-      PLAN_DECISION_KEYWORDS.some((keyword) => text.toLowerCase().includes(keyword.toLowerCase()))
-
-    if (looksLikeDecisionQuestion) {
-      return {
-        enforced: true as const,
-        violation: true as const,
-        reason: "plain_text_decision_question" as const,
-        text,
-      }
-    }
-
-    if (text.includes("?") && !looksLikeProgress) {
-      return {
-        enforced: true as const,
-        violation: true as const,
-        reason: "plain_text_question" as const,
-        text,
-      }
-    }
-
-    return {
-      enforced: true as const,
-      violation: false as const,
-      reason: looksLikeProgress ? ("progress_summary" as const) : ("non_question_text" as const),
-    }
-  }
-
   export function assertNotBusy(sessionID: string) {
     return assertNotBusyRuntime(sessionID)
   }
@@ -975,354 +882,6 @@ export namespace SessionPrompt {
     }
   }
 
-  export function buildSmartRunnerQuestion(input: { questionText?: string }) {
-    const questionText = input.questionText?.trim()
-    if (!questionText) return undefined
-    return {
-      question: questionText,
-      header: "Decision needed",
-      options: [],
-      custom: true,
-    } satisfies Question.Info
-  }
-
-  export function formatSmartRunnerQuestionAnswers(input: {
-    question: Pick<Question.Info, "question">
-    answers: Array<{ answer?: string[] }>
-  }) {
-    const answerText =
-      input.answers
-        .flatMap((item) => item.answer ?? [])
-        .filter(Boolean)
-        .join(", ") || "Unanswered"
-    return `User answered Smart Runner question "${input.question.question}" with: ${answerText}. Continue with this answer in mind.`
-  }
-
-  function prefixAINarration(text: string) {
-    const trimmed = text.trim()
-    if (!trimmed) return "[AI]"
-    return trimmed.startsWith("[AI]") ? trimmed : `[AI] ${trimmed}`
-  }
-
-  async function persistSmartRunnerTrace(input: {
-    sessionID: string
-    trace: any
-    persistTrace?: (input: { sessionID: string; trace: any }) => Promise<unknown>
-  }) {
-    if (!input.persistTrace) return
-    await input.persistTrace({
-      sessionID: input.sessionID,
-      trace: clone(input.trace),
-    })
-  }
-
-  export async function handleSmartRunnerAskUserAdoption(input: {
-    sessionID: string
-    question: Question.Info
-    trace: any
-    lastUser: Pick<MessageV2.User, "agent" | "model" | "variant" | "format"> & { id?: string }
-    ask?: (input: { sessionID: string; question: Question.Info }) => Promise<Question.Answer[]>
-    persistTrace?: (input: { sessionID: string; trace: any }) => Promise<unknown>
-    updateMessage?: (message: any) => Promise<unknown>
-    updatePart?: (part: any) => Promise<unknown>
-    setWorkflowState?: typeof Session.setWorkflowState
-  }) {
-    const ask =
-      input.ask ??
-      (async ({ sessionID, question }: { sessionID: string; question: Question.Info }) =>
-        Question.ask({ sessionID, questions: [question] }))
-    const updateMessage = input.updateMessage ?? Session.updateMessage
-    const updatePart = input.updatePart ?? Session.updatePart
-    const setWorkflowState = input.setWorkflowState ?? Session.setWorkflowState
-
-    try {
-      const answers = await ask({ sessionID: input.sessionID, question: input.question })
-      await persistSmartRunnerTrace(input)
-
-      const userMessage: MessageV2.User = {
-        id: Identifier.ascending("message"),
-        sessionID: input.sessionID,
-        role: "user",
-        time: { created: Date.now() },
-        agent: input.lastUser.agent,
-        model: input.lastUser.model,
-        variant: input.lastUser.variant,
-        format: input.lastUser.format,
-      }
-      await updateMessage(userMessage)
-      await updatePart({
-        id: Identifier.ascending("part"),
-        messageID: userMessage.id,
-        sessionID: input.sessionID,
-        type: "text",
-        synthetic: true,
-        text: formatSmartRunnerQuestionAnswers({
-          question: input.question,
-          answers: [{ answer: answers[0] }],
-        }),
-      })
-      return { outcome: "answered" as const }
-    } catch (error) {
-      if (!(error instanceof Question.RejectedError)) throw error
-      await persistSmartRunnerTrace(input)
-      await persistSmartRunnerTrace(input)
-      await setWorkflowState({
-        sessionID: input.sessionID,
-        state: "waiting_user",
-        stopReason: "product_decision_needed",
-      })
-      return { outcome: "rejected" as const }
-    }
-  }
-
-  export async function handleSmartRunnerApprovalRequest(input: {
-    sessionID: string
-    trace: any
-    persistTrace?: (input: { sessionID: string; trace: any }) => Promise<unknown>
-    setWorkflowState?: typeof Session.setWorkflowState
-  }) {
-    await persistSmartRunnerTrace(input)
-    await (input.setWorkflowState ?? Session.setWorkflowState)({
-      sessionID: input.sessionID,
-      state: "waiting_user",
-      stopReason: "approval_needed",
-    })
-    return { outcome: "requested" as const }
-  }
-
-  export async function handleSmartRunnerRiskPause(input: {
-    sessionID: string
-    trace: any
-    persistTrace?: (input: { sessionID: string; trace: any }) => Promise<unknown>
-    setWorkflowState?: typeof Session.setWorkflowState
-  }) {
-    await persistSmartRunnerTrace(input)
-    await (input.setWorkflowState ?? Session.setWorkflowState)({
-      sessionID: input.sessionID,
-      state: "waiting_user",
-      stopReason: "risk_review_needed",
-    })
-    return { outcome: "paused" as const }
-  }
-
-  export async function handleSmartRunnerCompletionAdoption(input: {
-    sessionID: string
-    todos: Todo.Info[]
-    suggestion: any
-    roundCount: number
-    updateTodos: (input: any) => Promise<unknown>
-    decideContinuation: (input: { sessionID: string; roundCount: number }) => Promise<any>
-    setWorkflowState?: typeof Session.setWorkflowState
-    persistTrace?: (input: { sessionID: string; trace: any }) => Promise<unknown>
-    trace: any
-  }) {
-    const adopted = Todo.applyHostAdoptedCompletion(input.todos, input.suggestion.completionRequest)
-    const trace = clone(input.trace)
-    if (trace?.suggestion?.completionRequest) {
-      trace.suggestion.completionRequest.hostAdopted = adopted.adopted
-      trace.suggestion.completionRequest.hostAdoptionReason = adopted.reason
-    }
-    await persistSmartRunnerTrace({ sessionID: input.sessionID, trace, persistTrace: input.persistTrace })
-    if (!adopted.adopted) return adopted
-
-    await input.updateTodos({ sessionID: input.sessionID, todos: adopted.todos, mode: "status_update" })
-    const decision = await input.decideContinuation({ sessionID: input.sessionID, roundCount: input.roundCount })
-    if (decision.continue) {
-      return {
-        adopted: false as const,
-        reason: "not_terminal_after_completion" as const,
-        decision,
-        todos: adopted.todos,
-      }
-    }
-    await (input.setWorkflowState ?? Session.setWorkflowState)({
-      sessionID: input.sessionID,
-      state: "completed",
-      stopReason: decision.reason,
-    })
-    return {
-      adopted: true as const,
-      reason: "adopted" as const,
-      outcome: "completed" as const,
-      decision,
-      todos: adopted.todos,
-    }
-  }
-
-  export async function handleSmartRunnerReplanAdoption(input: {
-    sessionID: string
-    todos: Todo.Info[]
-    suggestion: any
-    roundCount: number
-    fallbackDecision: any
-    updateTodos: (input: any) => Promise<unknown>
-    decideContinuation: (input: { sessionID: string; roundCount: number }) => Promise<any>
-  }) {
-    const adopted = Todo.applyHostAdoptedReplan(input.todos, input.suggestion.replanAdoption)
-    if (!adopted.adopted) return { ...adopted, decision: input.fallbackDecision }
-    await input.updateTodos({ sessionID: input.sessionID, todos: adopted.todos, mode: "status_update" })
-    const decision = await input.decideContinuation({ sessionID: input.sessionID, roundCount: input.roundCount })
-    return {
-      adopted: true as const,
-      reason: "adopted" as const,
-      decision,
-      todos: adopted.todos,
-    }
-  }
-
-  export async function handleSmartRunnerContinuationSideEffects(
-    input: Parameters<typeof handleContinuationSideEffects>[0],
-  ) {
-    // Runner silent: no narration emitted
-    // The autonomous runner operates silently in the background
-    const enqueueContinue = input.enqueueContinue ?? enqueueAutonomousContinue
-    const nextRoundCount = input.autonomousRounds + 1
-    await enqueueContinue({
-      sessionID: input.sessionID,
-      user: input.user,
-      roundCount: nextRoundCount,
-      text: input.decision.text,
-    })
-    return {
-      halted: false as const,
-      nextRoundCount,
-      narration: undefined, // Runner no longer emits narration
-    }
-  }
-
-  export async function handleSmartRunnerAdoptedStopNarration(input: {
-    sessionID: string
-    user: Pick<MessageV2.User, "id" | "agent" | "variant" | "model">
-    text: string
-    kind?: "pause" | "complete"
-    emitNarration?: typeof emitAutonomousNarration
-  }) {
-    await (input.emitNarration ?? emitAutonomousNarration)({
-      sessionID: input.sessionID,
-      parentID: input.user.id,
-      agent: input.user.agent,
-      variant: input.user.variant,
-      model: input.user.model,
-      kind: input.kind ?? "pause",
-      text: prefixAINarration(input.text),
-    })
-    return { emitted: true as const }
-  }
-
-  export async function handleSmartRunnerStopDecision(input: {
-    sessionID: string
-    activeModel: any
-    autonomousRounds: number
-    lastUser: MessageV2.User
-    messages: MessageV2.WithParts[]
-    todos: Todo.Info[]
-    decision: any
-    getConfig: () => Promise<{ enabled?: boolean; assist?: boolean }>
-    evaluateGovernor: (input: any) => Promise<any>
-    listQuestions: () => Promise<any[]>
-    askUser?: (input: any) => Promise<any>
-    requestApproval?: (input: any) => Promise<any>
-    pauseForRisk?: (input: any) => Promise<any>
-    completePath?: (input: any) => Promise<any>
-    replan?: (input: any) => Promise<any>
-    persistTrace?: (input: { sessionID: string; trace: any }) => Promise<unknown>
-    applyAssist?: (input: any) => any
-  }) {
-    const config = await input.getConfig()
-    if (!config.enabled) return { kind: "continue" as const, continueDecision: input.decision }
-
-    const trace = await input.evaluateGovernor({
-      sessionID: input.sessionID,
-      activeModel: input.activeModel,
-      autonomousRounds: input.autonomousRounds,
-      lastUser: input.lastUser,
-      messages: input.messages,
-      todos: input.todos,
-      decision: input.decision,
-    })
-
-    if (
-      trace.suggestion?.approvalRequest?.policy?.adoptionMode &&
-      trace.suggestion.approvalRequest.policy.adoptionMode !== "host_adoptable"
-    ) {
-      trace.suggestion.approvalRequest.hostAdoptionReason = "policy_not_host_adoptable"
-      await persistSmartRunnerTrace({ sessionID: input.sessionID, trace, persistTrace: input.persistTrace })
-      return { kind: "continue" as const, continueDecision: input.decision }
-    }
-
-    if (
-      trace.suggestion?.riskPauseRequest?.policy?.adoptionMode &&
-      trace.suggestion.riskPauseRequest.policy.adoptionMode !== "host_adoptable"
-    ) {
-      trace.suggestion.riskPauseRequest.hostAdoptionReason = "policy_not_host_adoptable"
-      await persistSmartRunnerTrace({ sessionID: input.sessionID, trace, persistTrace: input.persistTrace })
-      return { kind: "continue" as const, continueDecision: input.decision }
-    }
-
-    const governorDecision = trace.decision?.decision
-    if (governorDecision === "ask_user") {
-      const question = buildSmartRunnerQuestion({
-        questionText: trace.decision?.nextAction?.narration ?? trace.decision?.reason,
-      })
-      const outcome = await input.askUser?.({
-        sessionID: input.sessionID,
-        question,
-        trace,
-        lastUser: input.lastUser,
-      })
-      return { kind: "ask_user" as const, adopted: true as const, ...outcome }
-    }
-
-    if (governorDecision === "request_approval") {
-      const outcome = await input.requestApproval?.({ sessionID: input.sessionID, trace })
-      return { kind: "request_approval" as const, adopted: true as const, ...outcome }
-    }
-
-    if (governorDecision === "pause_for_risk") {
-      const outcome = await input.pauseForRisk?.({ sessionID: input.sessionID, trace })
-      return { kind: "pause_for_risk" as const, adopted: true as const, ...outcome }
-    }
-
-    if (governorDecision === "complete") {
-      const outcome = await input.completePath?.({ sessionID: input.sessionID, trace })
-      return { kind: "complete" as const, adopted: true as const, ...outcome }
-    }
-
-    let continueDecision = input.decision
-    if (input.replan) {
-      const replanned = await input.replan({
-        sessionID: input.sessionID,
-        todos: input.todos,
-        roundCount: input.autonomousRounds,
-        trace,
-      })
-      continueDecision = replanned?.decision ?? continueDecision
-    }
-
-    if (input.applyAssist && config.assist) {
-      const assisted = input.applyAssist({
-        trace,
-        decision: continueDecision,
-        todos: input.todos,
-      })
-      await persistSmartRunnerTrace({ sessionID: input.sessionID, trace, persistTrace: input.persistTrace })
-      if (assisted?.applied && assisted.decision) {
-        return {
-          kind: "continue" as const,
-          narrationOverride: assisted.narration ? prefixAINarration(assisted.narration) : undefined,
-          continueDecision: {
-            ...assisted.decision,
-            text: prefixAINarration(assisted.decision.text),
-          },
-        }
-      }
-    }
-
-    if (input.persistTrace) {
-      await persistSmartRunnerTrace({ sessionID: input.sessionID, trace, persistTrace: input.persistTrace })
-    }
-    return { kind: "continue" as const, continueDecision }
-  }
 
   async function runLoop(
     sessionID: string,
@@ -1767,15 +1326,7 @@ export namespace SessionPrompt {
             messageID: nudgeUser.id,
             sessionID,
             type: "text",
-            text: [
-              "[runtime-self-heal] Your previous turn ended without a usable response " +
-                "(provider hiccup or transient stall). If your work is in progress, " +
-                "continue from where you left off. If you can't proceed, briefly summarize " +
-                "what you accomplished and what's still pending, then stop.",
-              nudgeBudget,
-            ]
-              .filter((part): part is string => !!part)
-              .join("\n"),
+            text: ["?", nudgeBudget].filter((part): part is string => !!part).join("\n"),
             synthetic: true,
           } satisfies MessageV2.TextPart)
           continue
@@ -1805,25 +1356,17 @@ export namespace SessionPrompt {
         break
       }
 
-      // Hotfix 2026-04-29 (rev 2026-04-30): tool-call paralysis detectors.
+      // Tool-call paralysis detectors — observability only (2026-05-03).
+      // Decision: log signal, do not intervene. Removed nudge injection
+      // (was: synthetic user message granting "ok to go") and hard-break
+      // (was: lastAssistant.error + finish=error). The plan-mode police
+      // that produced these loops were already removed, so we expect this
+      // signal to be rare. Re-introduce intervention only if telemetry
+      // shows a real runaway pattern.
       //
-      // Two complementary signals catch when the model is stuck without
-      // making progress between turns:
-      //
-      //   Detector A — exact tool-call signature repetition (e.g. 116x
-      //                rewriting the same todowrite content).
-      //   Detector B — narrative-only repetition: tool calls vary each
-      //                turn, but the leading text restates the same
-      //                future-tense intent ("I will do X").
-      //
-      // Both follow the autorun philosophy: default human reaction =
-      // "yes, go ahead". Stage 1 of either detector injects a synthetic
-      // user-message nudge giving explicit permission. Stage 2 breaks
-      // the runloop only if the nudge already fired and the same
-      // pattern continues — i.e. real paralysis, not permission-waiting.
+      //   Detector A — exact tool-call signature repetition.
+      //   Detector B — narrative-only repetition (similar leading text).
       if (lastAssistant?.finish === "tool-calls" && lastAssistant.id > lastUser.id) {
-        // Collect last 3 completed tool-call assistant turns. Detector A
-        // needs 2; Detector B needs up to 3 for similarity-pair check.
         const recentAssistants: MessageV2.WithParts[] = []
         for (let i = msgs.length - 1; i >= 0 && recentAssistants.length < 3; i--) {
           if (msgs[i].info.role === "assistant") {
@@ -1834,64 +1377,6 @@ export namespace SessionPrompt {
           }
         }
 
-        // ── Shared helpers (nudge tracking + injection) ────────────────────
-        const NUDGE_MARKER = "[runtime-autorun-nudge]"
-        const nudgedBetweenLastTwo = ((): boolean => {
-          if (recentAssistants.length < 2) return false
-          const newestIdx = msgs.findLastIndex((m) => m.info.id === recentAssistants[0].info.id)
-          const priorIdx = msgs.findLastIndex((m) => m.info.id === recentAssistants[1].info.id)
-          if (priorIdx < 0 || newestIdx <= priorIdx) return false
-          for (let i = priorIdx + 1; i < newestIdx; i++) {
-            if (msgs[i].info.role !== "user") continue
-            const hasNudge = msgs[i].parts.some(
-              (p) =>
-                p.type === "text" &&
-                (p as { synthetic?: boolean }).synthetic === true &&
-                ((p as { text?: string }).text ?? "").includes(NUDGE_MARKER),
-            )
-            if (hasNudge) return true
-          }
-          return false
-        })()
-        const injectNudge = async (
-          reasonTag: string,
-          extra: Record<string, unknown> = {},
-          options?: { bannedTool?: string },
-        ) => {
-          log.info("autorun nudge: " + reasonTag, { sessionID, step, ...extra })
-          const nudgeUser: MessageV2.User = {
-            id: Identifier.ascending("message"),
-            sessionID,
-            role: "user",
-            time: { created: Date.now() },
-            agent: lastUser.agent,
-            model: lastUser.model,
-            variant: lastUser.variant,
-          }
-          await Session.updateMessage(nudgeUser)
-          // Tool-specific ban: when paralysis is anchored on a repeated tool
-          // call, a generic "go execute" nudge backfires — the model reads
-          // "execute" as "do my current pattern again." Name the offending
-          // tool and forbid it for the next turn.
-          const text = options?.bannedTool
-            ? `${NUDGE_MARKER} You called \`${options.bannedTool}\` with byte-identical args on consecutive turns. ` +
-              `Do NOT call \`${options.bannedTool}\` again this turn. ` +
-              `Pick a different tool: bash / task / read / grep / glob / apply_patch / question. ` +
-              `If you genuinely cannot make progress without ${options.bannedTool}, return a plain text response describing the blocker and stop.`
-            : `${NUDGE_MARKER} ok to go — follow the plan you described. ` +
-              `Stop only if a critical issue or genuine blocker appears ` +
-              `(not just a consideration). Don't restate; execute.`
-          await Session.updatePart({
-            id: Identifier.ascending("part"),
-            messageID: nudgeUser.id,
-            sessionID,
-            type: "text",
-            text,
-            synthetic: true,
-          } satisfies MessageV2.TextPart)
-        }
-
-        // ── Detector A — exact tool-call signature match across 2 turns ───
         if (recentAssistants.length >= 2) {
           const sigs = recentAssistants.slice(0, 2).map((m) => {
             const tools = m.parts.filter((p) => p.type === "tool")
@@ -1905,34 +1390,15 @@ export namespace SessionPrompt {
               .join("|")
           })
           if (sigs[0] && sigs[0] === sigs[1]) {
-            if (!nudgedBetweenLastTwo) {
-              // Stage 1 — nudge. Identify the specific tool being repeated
-              // so the nudge can ban it by name; a generic "go execute"
-              // hint gets misread as "do your current pattern again."
-              const repeatedTool = recentAssistants[0].parts
-                .filter((p) => p.type === "tool")
-                .map((p) => (p as MessageV2.ToolPart).tool)[0]
-              await injectNudge(
-                "tool-call signature repeat",
-                { signature: sigs[0].slice(0, 200), bannedTool: repeatedTool },
-                { bannedTool: repeatedTool },
-              )
-              continue
-            }
-            // Stage 2 — break (nudge didn't help).
-            log.warn("breaking tool-call planning loop (signature, post-nudge)", {
+            const repeatedTool = recentAssistants[0].parts
+              .filter((p) => p.type === "tool")
+              .map((p) => (p as MessageV2.ToolPart).tool)[0]
+            log.warn("paralysis-observe: tool-call signature repeated", {
               sessionID,
               step,
               signature: sigs[0].slice(0, 200),
-              consecutiveRepeats: 2,
+              repeatedTool,
             })
-            lastAssistant.error = new NamedError.Unknown({
-              message:
-                "Model is repeating the same tool call across consecutive turns even after a runtime nudge. Stopping to prevent runaway. Send a direct execution instruction or abort.",
-            }).toObject()
-            lastAssistant.finish = "error"
-            await Session.updateMessage(lastAssistant)
-            break
           }
         }
 
@@ -1954,42 +1420,18 @@ export namespace SessionPrompt {
             for (const x of a) if (b.has(x)) inter++
             return inter / (a.size + b.size - inter)
           }
-
           const texts = recentAssistants.map(leadingText)
           const longEnough = texts.every((t) => t.length >= 60)
-          const j01 = longEnough ? jaccard(bigrams(texts[0]), bigrams(texts[1])) : 0
-          const j12 = longEnough && recentAssistants.length === 3 ? jaccard(bigrams(texts[1]), bigrams(texts[2])) : 0
-
-          // Stage 2 — break: 3-turn span similar OR 2-turn similar after a nudge.
-          const stage2 =
-            longEnough &&
-            ((recentAssistants.length === 3 && j01 > 0.5 && j12 > 0.5) ||
-              (recentAssistants.length >= 2 && j01 > 0.5 && nudgedBetweenLastTwo))
-          if (stage2) {
-            log.warn("breaking narrative repetition loop (post-nudge or 3-turn)", {
-              sessionID,
-              step,
-              similarity01: j01.toFixed(2),
-              similarity12: j12.toFixed(2),
-              nudgedBetweenLastTwo,
-              samplePrefix: texts[0].slice(0, 120),
-            })
-            lastAssistant.error = new NamedError.Unknown({
-              message:
-                "Model is restating the same intent across consecutive turns without advancing, even after a runtime nudge. Stopping to prevent runaway. Send a direct execution instruction or abort.",
-            }).toObject()
-            lastAssistant.finish = "error"
-            await Session.updateMessage(lastAssistant)
-            break
-          }
-
-          // Stage 1 — nudge.
-          if (longEnough && j01 > 0.5 && !nudgedBetweenLastTwo) {
-            await injectNudge("narrative repetition", {
-              similarity01: j01.toFixed(2),
-              samplePrefix: texts[0].slice(0, 120),
-            })
-            continue
+          if (longEnough) {
+            const j01 = jaccard(bigrams(texts[0]), bigrams(texts[1]))
+            if (j01 > 0.5) {
+              log.warn("paralysis-observe: narrative repetition", {
+                sessionID,
+                step,
+                similarity01: j01.toFixed(2),
+                samplePrefix: texts[0].slice(0, 120),
+              })
+            }
           }
         }
       }
@@ -2589,10 +2031,10 @@ export namespace SessionPrompt {
             if (!part.text.trim()) continue
             part.text = [
               "<system-reminder>",
-              "The user sent the following message:",
+              "The user sent the following message mid-run:",
               part.text,
               "",
-              "Please address this message and continue with your tasks.",
+              "Address it and decide how to proceed — continue, adjust, or stop, based on what the user said.",
               "</system-reminder>",
             ].join("\n")
           }
@@ -2745,21 +2187,6 @@ export namespace SessionPrompt {
         break
       }
       if (result === "stop") {
-        const planTurnCheck = classifyPlanModeAssistantTurn({
-          agentName: agent.name,
-          finish: processor.message.finish,
-          parts: await MessageV2.parts(processor.message.id),
-        })
-        if (planTurnCheck.enforced && planTurnCheck.violation) {
-          processor.message.error = new NamedError.Unknown({
-            message:
-              `Plan mode enforcement violation: ${planTurnCheck.reason}. ` +
-              `Bounded or execution-shaping questions must use MCP question; allowed endings are question tool or non-question progress summary.`,
-          }).toObject()
-          await Session.updateMessage(processor.message)
-          break
-        }
-
         // processor returned "stop" → blocked (permission/question rejected)
         // or assistant error. Workflow state is already set inside processor.
         // Child sessions must also stop here — parent/task completion wiring

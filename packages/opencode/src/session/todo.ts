@@ -322,6 +322,19 @@ export namespace Todo {
   }) {
     const current = await get(input.sessionID)
     if (!current.length) return current
+
+    // Defer to AI on the force-overwrite path: if AI has already marked
+    // the linked todo as completed or cancelled (via its own TodoWrite
+    // while the subagent was running), runtime must not snatch it back.
+    // Only "completed" is force-overwriting; "returned"/"error" preserve
+    // existing non-pending status, so they don't need the guard.
+    if (input.linkedTodoID && input.taskStatus === "completed") {
+      const linked = current.find((todo) => todo.id === input.linkedTodoID)
+      if (linked && (linked.status === "completed" || linked.status === "cancelled")) {
+        return current
+      }
+    }
+
     const todos = enrichAll(
       current.map((todo) => {
         if (input.linkedTodoID && todo.id === input.linkedTodoID) {

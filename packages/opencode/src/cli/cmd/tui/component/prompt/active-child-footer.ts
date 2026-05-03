@@ -12,7 +12,7 @@ const FALLBACK_STEP = {
   handoff: "Handing off...",
 } as const
 
-const AGENT_LABELS = ["coding", "explore", "testing", "review", "build", "plan"] as const
+const AGENT_LABELS = ["coding", "explore", "testing", "review", "build"] as const
 
 const compact = (value: string | undefined, max = 120) => {
   const trimmed = value?.replace(/\s+/g, " ").trim()

@@ -650,47 +650,23 @@ export async function decideAutonomousContinuation(input: {
     lastDecisionReason: input.lastDecisionReason,
   })
 
-  // specs/autonomous-opt-in/ Phase 6 — refill on armed-but-drained.
-  // If the session is armed and the initial decision is todo_complete,
-  // attempt to pull the next phase of unchecked items from the active
-  // spec's tasks.md. If refill succeeds, re-evaluate with fresh todos so
-  // the runloop continues naturally. If refill declines (no active spec,
-  // no pending phase, or multi-spec ambiguity), disarm the session with
-  // stopReason=plan_drained so the operator knows autonomous finished.
+  // 2026-05-03: removed auto-refill from tasks.md. Plan-builder skill owns
+  // todolist materialization — the AI uses TodoWrite when it decides to
+  // advance to the next phase. On todo_complete, just disarm autonomous so
+  // the session naturally exits.
   if (!decision.continue && decision.reason === "todo_complete" && session.workflow?.autonomous.enabled === true) {
-    const { attemptRefill } = await import("./autorun/refill")
-    const result = await attemptRefill(input.sessionID)
-    if (result.refilled) {
-      todos = await Todo.get(input.sessionID)
-      decision = evaluateAutonomousContinuation({
-        session,
-        todos,
-        lastDecisionReason: input.lastDecisionReason,
-      })
-      log.info("autorun refill applied, re-evaluated continuation", {
-        sessionID: input.sessionID,
-        specSlug: result.specSlug,
-        phase: result.phase,
-        nextDecision: decision.reason,
-      })
-    } else {
-      // Flip enabled=false so the UI reflects the completion and future
-      // prompts don't silently retrigger. Set stopReason for observability.
-      await Session.updateAutonomous({
-        sessionID: input.sessionID,
-        policy: { enabled: false },
-      })
-      await Session.setWorkflowState({
-        sessionID: input.sessionID,
-        state: session.workflow.state,
-        stopReason: "plan_drained",
-      }).catch(() => undefined)
-      log.info("autorun plan_drained (refill declined)", {
-        sessionID: input.sessionID,
-        reason: result.reason,
-        specSlug: result.specSlug,
-      })
-    }
+    await Session.updateAutonomous({
+      sessionID: input.sessionID,
+      policy: { enabled: false },
+    })
+    await Session.setWorkflowState({
+      sessionID: input.sessionID,
+      state: session.workflow.state,
+      stopReason: "plan_drained",
+    }).catch(() => undefined)
+    log.info("autorun completed: todos drained", {
+      sessionID: input.sessionID,
+    })
   }
 
   debugCheckpoint("workflow", "continuation_decision", {

@@ -14,8 +14,6 @@ import PROMPT_GENERATE from "./generate.txt"
 // Built-in defaults: packages/opencode/src/agent/prompt/<name>.txt
 import { PermissionNext } from "@/permission/next"
 import { mergeDeep, pipe, sortBy, values } from "remeda"
-import { Global } from "@/global"
-import path from "path"
 import { Plugin } from "@/plugin"
 
 export namespace Agent {
@@ -93,24 +91,6 @@ export namespace Agent {
           defaults,
           PermissionNext.fromConfig({
             question: "allow",
-          }),
-          user,
-        ),
-        mode: "primary",
-        native: true,
-      },
-      plan: {
-        name: "plan",
-        description:
-          "Planner-first discussion agent. Maintains specs, decisions, and plan-derived todos before or during execution.",
-        options: {},
-        permission: PermissionNext.merge(
-          defaults,
-          PermissionNext.fromConfig({
-            question: "allow",
-            external_directory: {
-              [path.join(Global.Path.data, "plans", "*")]: "allow",
-            },
           }),
           user,
         ),

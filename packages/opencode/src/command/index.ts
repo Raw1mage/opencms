@@ -73,7 +73,6 @@ export namespace Command {
     INIT: "init",
     REVIEW: "review",
     UPDATE_MODELS: "update_models",
-    PLAN: "plan",
     RELOAD: "reload",
     DREAM_ON: "dream_on",
     DREAM_OFF: "dream_off",
@@ -160,14 +159,6 @@ export namespace Command {
             title: "Models Updated",
           }
         },
-      },
-      [Default.PLAN]: {
-        name: Default.PLAN,
-        description: "enter planner-first discussion mode",
-        source: "command",
-        template:
-          "The user requested plan mode. Load planner + miatdiagram skills, then use `bun run scripts/plan-init.ts` to set up the spec directory.",
-        hints: [],
       },
       [Default.RELOAD]: {
         name: Default.RELOAD,

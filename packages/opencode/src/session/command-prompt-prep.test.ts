@@ -4,15 +4,6 @@ import { Session } from "."
 import { prepareCommandPrompt } from "./command-prompt-prep"
 
 describe("prepareCommandPrompt", () => {
-  it("registers builtin /plan command as canonical planner entry", async () => {
-    const command = await Command.get("plan")
-    expect(command).toBeDefined()
-    expect(command?.name).toBe("plan")
-    expect(command?.description).toContain("planner")
-    const template = await command?.template
-    expect(template).toContain("plan mode")
-  })
-
   it("prefers session.execution for subtask user model when no explicit input model is provided", async () => {
     const session = await Session.createNext({
       id: "session_command_prompt_execution",

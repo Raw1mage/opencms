@@ -19,7 +19,7 @@ test("returns default native agents when no config", async () => {
       const agents = await Agent.list()
       const names = agents.map((a) => a.name)
       expect(names).toContain("build")
-      expect(names).toContain("plan")
+      expect(names).not.toContain("plan")
       expect(names).toContain("general")
       expect(names).toContain("explore")
       expect(names).toContain("compaction")
@@ -40,20 +40,6 @@ test("build agent has correct default properties", async () => {
       expect(build?.native).toBe(true)
       expect(evalPerm(build, "edit")).toBe("allow")
       expect(evalPerm(build, "bash")).toBe("allow")
-    },
-  })
-})
-
-test("plan agent remains primary and no longer models plan mode as hard readonly by description alone", async () => {
-  await using tmp = await tmpdir()
-  await Instance.provide({
-    directory: tmp.path,
-    fn: async () => {
-      const plan = await Agent.get("plan")
-      expect(plan).toBeDefined()
-      expect(plan?.mode).toBe("primary")
-      expect(plan?.description).toContain("Planner-first")
-      expect(evalPerm(plan, "question")).toBe("allow")
     },
   })
 })
@@ -245,7 +231,7 @@ test("agent steps/maxSteps config sets steps property", async () => {
     config: {
       agent: {
         build: { steps: 50 },
-        plan: { maxSteps: 100 },
+        general: { maxSteps: 100 },
       },
     },
   })
@@ -253,9 +239,9 @@ test("agent steps/maxSteps config sets steps property", async () => {
     directory: tmp.path,
     fn: async () => {
       const build = await Agent.get("build")
-      const plan = await Agent.get("plan")
+      const general = await Agent.get("general")
       expect(build?.steps).toBe(50)
-      expect(plan?.steps).toBe(100)
+      expect(general?.steps).toBe(100)
     },
   })
 })
@@ -575,21 +561,6 @@ test("defaultAgent returns build when no default_agent config", async () => {
   })
 })
 
-test("defaultAgent respects default_agent config set to plan", async () => {
-  await using tmp = await tmpdir({
-    config: {
-      default_agent: "plan",
-    },
-  })
-  await Instance.provide({
-    directory: tmp.path,
-    fn: async () => {
-      const agent = await Agent.defaultAgent()
-      expect(agent).toBe("plan")
-    },
-  })
-})
-
 test("defaultAgent respects default_agent config set to custom agent with mode all", async () => {
   await using tmp = await tmpdir({
     config: {
@@ -652,7 +623,7 @@ test("defaultAgent throws when default_agent points to non-existent agent", asyn
   })
 })
 
-test("defaultAgent returns plan when build is disabled and default_agent not set", async () => {
+test("defaultAgent throws when build is disabled and no other primary agents exist", async () => {
   await using tmp = await tmpdir({
     config: {
       agent: {
@@ -663,26 +634,7 @@ test("defaultAgent returns plan when build is disabled and default_agent not set
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const agent = await Agent.defaultAgent()
-      // build is disabled, so it should return plan (next primary agent)
-      expect(agent).toBe("plan")
-    },
-  })
-})
-
-test("defaultAgent throws when all primary agents are disabled", async () => {
-  await using tmp = await tmpdir({
-    config: {
-      agent: {
-        build: { disable: true },
-        plan: { disable: true },
-      },
-    },
-  })
-  await Instance.provide({
-    directory: tmp.path,
-    fn: async () => {
-      // build and plan are disabled, no primary-capable agents remain
+      // build is the only primary visible agent; disabling it leaves none
       await expect(Agent.defaultAgent()).rejects.toThrow("no primary visible agent found")
     },
   })

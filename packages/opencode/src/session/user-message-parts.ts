@@ -646,25 +646,6 @@ export async function buildUserMessageParts(input: {
       }
 
       if (part.type === "agent") {
-        if (part.name === "plan" || part.name === "planner") {
-          return [
-            {
-              id: Identifier.ascending("part"),
-              ...part,
-              messageID: input.info.id,
-              sessionID: input.sessionID,
-            },
-            {
-              id: Identifier.ascending("part"),
-              messageID: input.info.id,
-              sessionID: input.sessionID,
-              type: "text",
-              synthetic: true,
-              text: " The user explicitly requested planner mode via @planner. Do not treat this as a subagent task. Load the planner skill and continue planner-first discussion, maintaining the active planner artifacts.",
-            },
-          ]
-        }
-
         // Check if this agent would be denied by task permission
         const perm = PermissionNext.evaluate("task", part.name, input.agentPermission)
         const hint = perm.action === "deny" ? " . Invoked by user; guaranteed to exist." : ""
