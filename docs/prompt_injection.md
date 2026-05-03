@@ -1,42 +1,88 @@
 # System Prompt 注入結構
 
-本文件說明 OpenCode 如何在每次 LLM 請求中組裝多層 system prompt，每一層的職責、注入條件，以及整體的設計哲學。
+本文件說明 OpenCode 如何在每次 LLM 請求中組裝 prompt 內容，包含 system role 與 user-role context preface 兩個物理載體。
 
-> **權威來源**：`specs/agent_framework/slices/system-prompt/hooks.md`
-> **組裝核心**：`packages/opencode/src/session/llm.ts`
+> **權威來源**：`specs/prompt-cache-and-compaction-hardening/`（Phase B 落地後）
+> **組裝核心**：`packages/opencode/src/session/llm.ts`、`packages/opencode/src/session/static-system-builder.ts`、`packages/opencode/src/session/context-preface.ts`
+> **延伸閱讀**：[prompt_dynamic_context.md](./prompt_dynamic_context.md)（dynamic 內容承載架構）
 
 ---
 
-## 1. 總覽：9 層注入架構
+## 1. 總覽：雙軌架構（Phase B 後）
 
-每次 LLM 呼叫時，system prompt 由 9 個獨立層按固定順序串接。每層有明確的「注入政策」（always_on / conditional / dynamic），決定該層是否出現在最終請求中。
+Phase B（specs/prompt-cache-and-compaction-hardening）之後，prompt 內容由**兩個物理載體**承載，各自走不同的 cache 命中策略：
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  Layer 1   Provider Driver Prompt         (always_on)            │
-│  Layer 2   Agent Custom Prompt            (conditional)          │
-│  Layer 3   Dynamic Session Prompts        (dynamic)              │
-│            ├─ 3a. Preloaded Context                              │
-│            ├─ 3b. Environment Metadata                           │
-│            └─ 3c. AGENTS.md（僅 Main Agent）                      │
-│  Layer 4   Enablement Snapshot            (conditional)          │
-│  Layer 5   User Custom System Prompt      (conditional)          │
-│  Layer 6   ─── CRITICAL OPERATIONAL BOUNDARY ───  (always_on)   │
-│  Layer 7   Core System Prompt (SYSTEM.md) (always_on)            │
-│  Layer 8   Identity Reinforcement         (always_on)            │
-│  Layer 9   Skill Layer Registry           (dynamic)              │
-└──────────────────────────────────────────────────────────────────┘
-              ↓
-        Post-processing:
-          • Gemini XML 優化（僅 gemini 模型）
-          • Plugin hook: experimental.chat.system.transform
-          • Plugin hook: chat.params / chat.headers
-              ↓
+│  ┌─ system role (1 message, byte-static within session) ──────┐  │
+│  │  Layer 1   Provider Driver Prompt         (always_on)      │  │
+│  │  Layer 2   Agent Custom Prompt            (conditional)    │  │
+│  │  Layer 3c  AGENTS.md（僅 Main Agent）      (conditional)    │  │
+│  │  Layer 5   User Custom System Prompt      (conditional)    │  │
+│  │  Layer 6   ─── CRITICAL OPERATIONAL BOUNDARY ───           │  │
+│  │  Layer 7   Core System Prompt (SYSTEM.md) (always_on)      │  │
+│  │  Layer 8   Identity Reinforcement         (always_on)      │  │
+│  └────────────────────────────────────────────────── BP1 ─────┘  │
+│                                                                   │
+│  ┌─ user role (1 message, kind="context-preface") ─────────────┐ │
+│  │  T1 (session-stable)                                        │ │
+│  │   - PREFACE_DIRECTIVE_HEADER (R1 mitigation, 永遠首行)       │ │
+│  │   - L3a Preload (cwd listing + README summary)              │ │
+│  │   - L9 pinned skills                                        │ │
+│  │   - L3b Today's date  ────────────────────────── BP2 ─────  │ │
+│  │  T2 (decay-tier)                                            │ │
+│  │   - L9 active skills                                        │ │
+│  │   - L9 summarized skills  ─────────────────────── BP3 ─────  │ │
+│  │  trailing (per-turn)                                        │ │
+│  │   - L4 enablement matched routing                           │ │
+│  │   - lazy tool catalog hint                                  │ │
+│  │   - structured-output directive                             │ │
+│  │   - subagent return notices                                 │ │
+│  │   - quota-low addenda (added by processor.ts)               │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+│                                                                   │
+│  conversation history ...                                         │
+│  user message (typed text)  ──────────────────────── BP4 ─────   │
+└───────────────────────────────────────────────────────────────────┘
+
+        Plugin hooks:
+          • experimental.chat.system.transform   (static block only)
+          • experimental.chat.context.transform  (preface fields)
+          • experimental.chat.messages.transform (conversation list)
+          • experimental.session.compacting      (compaction agent prompt)
+          • chat.params / chat.headers           (HTTP layer)
+
         Wire Format 決策：
           • system role（標準 API）
           • user role（某些 OAuth proxy）
           • developer role（Codex Responses API）
 ```
+
+**4 個 cache breakpoint 的分工**（per design.md DD-3）：
+
+| BP | 涵蓋區段 | 失效時機 |
+|----|---------|---------|
+| **BP1** | 整段 static system | 換 model / 換 agent / 換 account / SYSTEM.md 改 / AGENTS.md 改 |
+| **BP2** | static + T1 | T1 內任一變動（cwd 檔案增刪、midnight、pin/unpin） |
+| **BP3** | static + T1 + T2 | skill idle decay tick（10 / 30 min 邊界） |
+| **BP4** | 全部 | 每 turn 自然推進 |
+
+T3（trailing tier）內容（matched routing、lazy catalog、notices）落在 BP3 與 BP4 之間，**不獨佔 cache breakpoint** — per-turn 變動下無 cache 收益，留給 BP4 對齊 conversation 推進。
+
+---
+
+## 1.1 Phase B 之前的 9 層架構（歷史）
+
+Phase B 之前（pre-2026-05-04），所有內容（含 dynamic）擠在 system role 一個 message 裡，按 1-9 層順序串接：
+
+```
+[L1 Driver][L2 Agent] [L3a Preload][L3b Env][L3c AGENTS] [L4 Enablement]
+[L5 User-system] [L6 BOUNDARY] [L7 SYSTEM.md][L8 Identity] [L9 Skill]
+```
+
+問題：**dynamic 內容（L3a/L3b/L4/L9）散在中間和末尾，任一處變動讓整段 system prefix cache 失效**。
+
+Phase B 把 dynamic 物理下放到 user role，內部按變動頻率（slow → fast）排序，下 4 個 cache breakpoint 在 tier 邊界。權威鏈（SYSTEM > AGENTS > Driver > Skills）不變，僅承載位置從 system role 切到 user role；R1 mitigation 用 `## CONTEXT PREFACE — read but do not echo` directive 替代事後 A/B 驗證。
 
 ---
 
