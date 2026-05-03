@@ -215,6 +215,20 @@ export namespace Tweaks {
     subagentResultMaxBytes: number
   }
 
+  /**
+   * attachment-lifecycle v4 (DD-19/DD-20). Inline-image emission into the
+   * preface trailing tier (BP4 cache zone).
+   * - enabled: master switch. When false, activeImageRefs is never populated
+   *   and the preface trailing tier emits no image content blocks; behavior
+   *   reverts to vision-subagent-only routing.
+   * - activeSetMax: FIFO cap on activeImageRefs size (R9 mitigation). When
+   *   exceeded, oldest entry drops out so per-turn binary size stays bounded.
+   */
+  export interface AttachmentInlineConfig {
+    enabled: boolean
+    activeSetMax: number
+  }
+
   export interface Effective {
     sessionCache: SessionCacheConfig
     rateLimit: RateLimitConfig
@@ -228,6 +242,7 @@ export namespace Tweaks {
     compaction: CompactionConfig
     sessionStorage: SessionStorageConfig
     bigContentBoundary: BigContentBoundaryConfig
+    attachmentInline: AttachmentInlineConfig
     source: { path: string; present: boolean }
   }
 
@@ -313,6 +328,11 @@ export namespace Tweaks {
     userAttachmentMaxBytes: 20_000,
     attachmentPreviewBytes: 1_000,
     subagentResultMaxBytes: 5_000,
+  }
+
+  const ATTACHMENT_INLINE_DEFAULTS: AttachmentInlineConfig = {
+    enabled: true,
+    activeSetMax: 3,
   }
 
   const PART_PERSISTENCE_DEFAULTS: PartPersistenceConfig = {
@@ -465,6 +485,8 @@ export namespace Tweaks {
     "boundary_user_attachment_max_bytes",
     "boundary_attachment_preview_bytes",
     "boundary_subagent_result_max_bytes",
+    "attachment_inline_enabled",
+    "attachment_active_set_max",
   ])
 
   function parseFlag01(raw: string, key: string): 0 | 1 | undefined {
@@ -538,6 +560,7 @@ export namespace Tweaks {
           compaction: COMPACTION_DEFAULTS,
           sessionStorage: SESSION_STORAGE_DEFAULTS,
           bigContentBoundary: BIG_CONTENT_BOUNDARY_DEFAULTS,
+          attachmentInline: ATTACHMENT_INLINE_DEFAULTS,
         },
       })
       return {
@@ -556,6 +579,7 @@ export namespace Tweaks {
         compaction: { ...COMPACTION_DEFAULTS },
         sessionStorage: { ...SESSION_STORAGE_DEFAULTS },
         bigContentBoundary: { ...BIG_CONTENT_BOUNDARY_DEFAULTS },
+        attachmentInline: { ...ATTACHMENT_INLINE_DEFAULTS },
         source: { path: cfgPath, present: false },
       }
     }
@@ -917,6 +941,18 @@ export namespace Tweaks {
       if (v !== undefined) bigContentBoundary.subagentResultMaxBytes = v
     }
 
+    const attachmentInline: AttachmentInlineConfig = { ...ATTACHMENT_INLINE_DEFAULTS }
+    const attInlineEnabledRaw = parsed.get("attachment_inline_enabled")
+    if (attInlineEnabledRaw !== undefined) {
+      const v = parseBool(attInlineEnabledRaw, "attachment_inline_enabled")
+      if (v !== undefined) attachmentInline.enabled = v
+    }
+    const attActiveSetMaxRaw = parsed.get("attachment_active_set_max")
+    if (attActiveSetMaxRaw !== undefined) {
+      const v = parseIntRange(attActiveSetMaxRaw, "attachment_active_set_max", 1, 20)
+      if (v !== undefined) attachmentInline.activeSetMax = v
+    }
+
     log.info("tweaks.cfg loaded", {
       path: cfgPath,
       effective: {
@@ -932,6 +968,7 @@ export namespace Tweaks {
         compaction,
         sessionStorage,
         bigContentBoundary,
+        attachmentInline,
       },
     })
     return {
@@ -947,6 +984,7 @@ export namespace Tweaks {
       compaction,
       sessionStorage,
       bigContentBoundary,
+      attachmentInline,
       source: { path: cfgPath, present: true },
     }
   }
@@ -1048,6 +1086,18 @@ export namespace Tweaks {
 
   export function bigContentBoundarySync(): BigContentBoundaryConfig {
     return _effective?.bigContentBoundary ?? BIG_CONTENT_BOUNDARY_DEFAULTS
+  }
+
+  export async function attachmentInline(): Promise<AttachmentInlineConfig> {
+    return (await effective()).attachmentInline
+  }
+
+  /**
+   * Synchronous accessor for the preface assembly hot path. Returns
+   * defaults until loadEffective() completes.
+   */
+  export function attachmentInlineSync(): AttachmentInlineConfig {
+    return _effective?.attachmentInline ?? ATTACHMENT_INLINE_DEFAULTS
   }
 
   export async function loadEffective(): Promise<Effective> {

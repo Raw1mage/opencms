@@ -257,6 +257,14 @@ export namespace Session {
      * anchor-recency comparison; no flag-clear step.
      */
     continuationInvalidatedAt: z.number().optional(),
+    /**
+     * attachment-lifecycle v4 DD-20: image filenames currently queued for
+     * inline rendering in the next preface trailing tier (BP4 zone). Drained
+     * after each assistant `finish="stop"` so the active set never grows
+     * across turns. Re-populated by `addOnUpload` (post-user-message) or
+     * `addOnReread` (voucher tool). Empty/undefined = no images inlined.
+     */
+    activeImageRefs: z.array(z.string()).optional(),
   })
   export type ExecutionIdentity = z.output<typeof ExecutionIdentity>
 
