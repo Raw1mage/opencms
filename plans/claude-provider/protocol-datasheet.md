@@ -1,8 +1,17 @@
 # Claude CLI Protocol Datasheet
 
-> Source of truth: `@anthropic-ai/claude-code@2.1.92` npm package (`cli.js`)
-> Extraction date: 2026-04-07
-> Previous reference version: 2.1.39
+> Source of truth: `@anthropic-ai/claude-code@2.1.112` npm package (`cli.js`)
+> Mirrored at: `refs/claude-code-npm/cli.js`
+> Extraction date (last bump): 2026-05-03
+> Previous reference versions: 2.1.92, 2.1.39
+>
+> **Note:** 2.1.113+ shipped as native binary (no JS source). 2.1.112 is the
+> last upstream release where protocol constants are inspectable as source.
+> See `refs/claude-code-npm/REFS.md` for cutover details.
+>
+> **Beta-flag assembly logic** is captured in detail at
+> `specs/claude-provider-beta-fingerprint-realign/design.md` § Research
+> Outcomes (DD-11 through DD-15). Section 11 below is the current truth.
 
 ---
 
@@ -10,7 +19,7 @@
 
 | Constant | Value | Notes |
 |---|---|---|
-| VERSION | `"2.1.92"` | Used in User-Agent, billing header hash |
+| VERSION | `"2.1.126"` (User-Agent) / `"2.1.112"` (datasheet ref) | UA bumped 2026-05-03; datasheet pinned to last JS release |
 | CLIENT_ID (production) | `"9d1c250a-e61b-44d9-88ed-5944d1962f5e"` | OAuth client identifier |
 | CLIENT_ID (local-oauth) | `"22422756-60c9-4084-8eb7-27705fd5cf9a"` | For local development only |
 | ATTRIBUTION_SALT | `"59cf53e54c78"` | Used in billing header hash (`jBY` in minified) |
@@ -257,6 +266,61 @@ All current models: 200k tokens (context-1m beta enables 1M for supported models
 
 ---
 
+## 11. Beta Flag Assembly (cli.js@2.1.112 ZR1)
+
+> Decoded from `refs/claude-code-npm/cli.js` function `ZR1` at offset ~3482150;
+> beta-string constants block at offset ~2439173. Helper predicates `ja`, `iO_`,
+> `I7`, `$Q` resolved at offsets 3481451, 3480483, 38983, 2317694 respectively.
+>
+> Source-of-truth in opencode: `packages/opencode-claude-provider/src/protocol.ts`
+> function `assembleBetas`. Test matrix: `specs/claude-provider-beta-fingerprint-realign/test-vectors.json`.
+
+### 11.1 Helper predicates
+
+| Helper | Upstream symbol | Definition |
+|---|---|---|
+| `isHaikuModel(modelId)` | `o5(q).includes("haiku")` | lowercased substring match |
+| `supports1MContext(modelId)` | `DP(q)` | prefix in `{claude-opus-4, claude-opus-4-7, claude-sonnet-4-5, claude-sonnet-4-6}` |
+| `supportsThinking(modelId)` | `ggq(q)` | true unless `DISABLE_INTERLEAVED_THINKING` env set |
+| `isFirstPartyish(provider)` | `$Q(q)` | `provider ∈ {firstParty, anthropicAws, foundry, mantle}` |
+| `modelSupportsContextManagement(modelId, provider)` | `iO_(q)` | foundry → true ; firstPartyish → !startsWith("claude-3-") ; else → contains opus-4/sonnet-4/haiku-4 |
+| `ja()`-equivalent | `ja()` | `isFirstPartyish(provider) && !disableExperimentalBetas` |
+| `isInteractive` | `!I7()` | `B8.isInteractive` truthy. **opencode runtime always false (DD-17)** |
+
+### 11.2 Push order (canonical sequence)
+
+Each push is an independent gate. The output array preserves this exact order so the comma-joined header value matches upstream byte-for-byte under equivalent inputs.
+
+| # | Flag | Gate |
+|---|---|---|
+| 1 | `claude-code-20250219` | `!isHaiku` |
+| 2 | `oauth-2025-04-20` | `isOAuth` |
+| 3 | `context-1m-2025-08-07` | `supports1MContext(modelId)` |
+| 4 | `interleaved-thinking-2025-05-14` | `supportsThinking(modelId) && !disableInterleavedThinking` |
+| 5 | `redact-thinking-2026-02-12` | `ja() && supportsThinking(m) && !disableInterleavedThinking && isInteractive && !showThinkingSummaries` |
+| 6 | `context-management-2025-06-27` | `provider === "firstParty" && !disableExperimentalBetas && modelSupportsContextManagement(m, provider)` |
+| 7 | `structured-outputs-2025-12-15` | RESERVED — tengu_tool_pear flag, not in opencode path |
+| 8 | `web-search-2025-03-05` | RESERVED — vertex/foundry only, not in opencode path |
+| 9 | `prompt-caching-scope-2026-01-05` | `ja()` (NOT `isOAuth` — see DD-11) |
+| 10 | `...env.ANTHROPIC_BETAS` | append, then dedup preserving first-occurrence |
+
+### 11.3 opencode-specific posture
+
+| Field | opencode runtime value | Reason |
+|---|---|---|
+| `isOAuth` | always `true` | DD-16: OAuth-only auth posture; provider.ts panics on non-OAuth creds |
+| `provider` | always `"firstParty"` | DD-4: opencode does not route through Bedrock/Vertex/Foundry |
+| `isInteractive` | always `false` | DD-17: opencode is a daemon serving SSE, not a TTY |
+
+Effect: `redact-thinking-2026-02-12` never fires from opencode runtime; the matrix tests still cover it for upstream-fidelity assertions.
+
+### 11.4 Divergences fixed by this realign
+
+Pre-realign (commit 4f6039bf1 and earlier): `assembleBetas` collapsed three flags into a `MINIMUM_BETAS` always-send set, mis-gated `prompt-caching-scope` on `isOAuth` instead of `ja()`, omitted `redact-thinking` entirely, and produced flags in a non-upstream order. Six divergences are enumerated in
+`specs/claude-provider-beta-fingerprint-realign/proposal.md` § Why; full DECISIONS in `design.md` DD-1 through DD-17.
+
+---
+
 ## Appendix: Wire Format Example
 
 ### Request (subscription auth, messages endpoint)
@@ -266,11 +330,11 @@ POST /v1/messages?beta=true HTTP/1.1
 Host: api.anthropic.com
 Authorization: Bearer {access_token}
 anthropic-version: 2023-06-01
-anthropic-beta: claude-code-20250219,interleaved-thinking-2025-05-14,context-management-2025-06-27,oauth-2025-04-20,prompt-caching-scope-2026-01-05
-User-Agent: claude-code/2.1.92
+anthropic-beta: claude-code-20250219,oauth-2025-04-20,context-1m-2025-08-07,interleaved-thinking-2025-05-14,context-management-2025-06-27,prompt-caching-scope-2026-01-05
+User-Agent: claude-code/2.1.126
 Content-Type: application/json
 x-organization-uuid: {orgUuid}
-x-anthropic-billing-header: cc_version=2.1.92.a3f; cc_entrypoint=unknown; cch=00000;
+x-anthropic-billing-header: cc_version=2.1.126.a3f; cc_entrypoint=unknown; cch=00000;
 
 {
   "model": "claude-sonnet-4-6-20250627",

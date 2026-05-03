@@ -108,18 +108,35 @@ class ClaudeCodeLanguageModel implements LanguageModelV2 {
     })
 
     // § 4.2.5  Build headers from scratch
-    const isOAuth = creds.type === "oauth" || creds.type === "subscription"
+    //
+    // Auth posture (DD-16): opencode is OAuth-only. The `isOAuth` flag below
+    // is hardcoded to true because the runtime never holds API-key credentials
+    // — the multi-account subscription router would not work with bare keys.
+    // The credential type guard exists only to FAIL LOUD if a non-OAuth
+    // credential ever sneaks in, not to enable a fallback.
+    if (creds.type !== "oauth" && creds.type !== "subscription") {
+      throw new Error(
+        `claude-provider: opencode is OAuth-only (DD-16); refusing creds.type="${String(creds.type)}"`,
+      )
+    }
     const envBetasRaw = process.env.ANTHROPIC_BETAS
     const headers = buildHeaders({
       accessToken: creds.access!,
       modelId: this.modelId,
-      isOAuth,
+      isOAuth: true,
       orgID: creds.orgID,
       billingContent,
       fastMode: this.options.fastMode,
       effort: !!callOptions.providerOptions?.effort,
       taskBudget: !!callOptions.providerOptions?.taskBudget,
       envBetas: envBetasRaw ? envBetasRaw.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
+      // Deployment posture (DD-4 + DD-17): opencode runs as a daemon serving
+      // SSE to web/TUI clients, not a TTY. provider is always firstParty.
+      provider: "firstParty",
+      isInteractive: false,
+      showThinkingSummaries: !!callOptions.providerOptions?.showThinkingSummaries,
+      disableExperimentalBetas: !!process.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS,
+      disableInterleavedThinking: !!process.env.DISABLE_INTERLEAVED_THINKING,
     })
 
     // § 4.2.6  Build request body — single serialize
