@@ -21,6 +21,8 @@ import path from "node:path"
 import fs from "node:fs/promises"
 import { existsSync } from "node:fs"
 import { IncomingPaths } from "../incoming/paths"
+import { classifyOffice } from "../incoming/office-mime"
+import { landOfficeUpload } from "../incoming/decompose-hook"
 import { IncomingHistory } from "../incoming/history"
 import { Instance } from "../project/instance"
 
@@ -73,6 +75,16 @@ export async function tryLandInIncoming(input: {
   filename: string | undefined
   bytes: Uint8Array
   sessionID: string
+  /**
+   * Optional mime hint. When the mime classifies as an Office format
+   * (per office-mime.ts), this function delegates to the upload-time
+   * decompose hook (specs/docx-upload-autodecompose) which owns cache
+   * lookup, paired version-rename, atomic write, AND the synchronous
+   * fast-phase decompose call. For non-Office mimes (or when mime is
+   * absent) the legacy dedupe + conflict-rename + atomic write path
+   * runs unchanged.
+   */
+  mime?: string
 }): Promise<{ repoPath: string; sha256: string; sanitizedName: string } | null> {
   if (!input.filename) {
     log.warn("incoming: skipping (no filename); will fall back to legacy attachments-table path")
@@ -90,6 +102,59 @@ export async function tryLandInIncoming(input: {
       return null
     }
     throw err
+  }
+
+  // ── Office upload-time decompose hook (DD-9) ──────────────────────
+  //
+  // Delegates the whole flow (cache lookup, paired version-rename on
+  // sha drift, atomic write, synchronous fast-phase decompose call,
+  // background poll loop) to the docx-upload-autodecompose pipeline
+  // when the mime is Office. Falls through to the legacy flow on any
+  // non-Office mime or when sanitisation / hook setup fails.
+  if (input.mime) {
+    const officeKind = classifyOffice(input.mime, input.filename)
+    if (officeKind !== "non-office") {
+      let officeSanitized: string
+      try {
+        officeSanitized = IncomingPaths.sanitize(input.filename)
+      } catch (err) {
+        log.warn("incoming.office: filename sanitize failed, falling back to legacy path", {
+          filename: input.filename,
+          error: err instanceof Error ? err.message : String(err),
+        })
+        // Fall through; legacy code below sanitises and writes.
+        // (Defining sanitizedName twice is avoided by structuring this
+        // as an inline conditional rather than goto.)
+        officeSanitized = ""
+      }
+      if (officeSanitized) {
+        const { createHash } = await import("node:crypto")
+        const sha256 = createHash("sha256").update(input.bytes).digest("hex")
+        const result = await landOfficeUpload({
+          filename: officeSanitized,
+          mime: input.mime,
+          bytes: input.bytes,
+          sha256,
+          projectRoot,
+          sessionID: input.sessionID,
+        }).catch((err) => {
+          log.warn("incoming.office: landOfficeUpload threw, falling back to legacy storage", {
+            sessionID: input.sessionID,
+            filename: officeSanitized,
+            error: err instanceof Error ? err.message : String(err),
+          })
+          return null
+        })
+        if (result) {
+          return {
+            repoPath: result.repoPath,
+            sha256,
+            sanitizedName: result.sanitizedName,
+          }
+        }
+        // landOfficeUpload returned null → fall through to legacy.
+      }
+    }
   }
 
   let sanitizedName: string
@@ -222,6 +287,7 @@ async function routeOversizedAttachment(input: {
     filename: input.part.filename,
     bytes: input.bytes,
     sessionID: input.sessionID,
+    mime: input.part.mime,
   }).catch((err) => {
     log.warn("incoming: tryLandInIncoming threw, falling back to legacy storage", {
       sessionID: input.sessionID,

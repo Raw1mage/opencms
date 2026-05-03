@@ -341,6 +341,49 @@ export namespace IncomingDispatcher {
     }
   }
 
+  // ── Server-initiated helpers (used by the upload-time decompose hook,
+  //    not by AI tool calls) ─────────────────────────────────────────────
+
+  /**
+   * Upload an Office file to its mcp app's /files endpoint and receive
+   * a token. Public wrapper around the private uploadFile so the
+   * upload-time decompose hook (specs/docx-upload-autodecompose) can
+   * reuse the same transport without re-implementing it.
+   */
+  export async function uploadFileForApp(input: {
+    appId: string
+    repoPath: string
+    projectRoot: string
+    toolName: string
+  }): Promise<{ token: string; sha256: string; sizeBytes: number } | null> {
+    return uploadFile(input)
+  }
+
+  /**
+   * Extract a base64 tar bundle into the bundle dir co-located with
+   * the source file. Public wrapper around the private publishBundle.
+   * The upload-time decompose hook uses this to land the fast-phase
+   * bundle returned by docxmcp's extract_all.
+   */
+  export async function publishBundleForApp(input: {
+    appId: string
+    repoPath: string
+    projectRoot: string
+    tarB64: string
+    fromCache: boolean
+  }): Promise<void> {
+    return publishBundle(input)
+  }
+
+  /**
+   * Best-effort token cleanup. Used by the polling loop after the
+   * background phase finishes (or after the safety cap fires) so the
+   * docxmcp container doesn't accumulate dead tokens.
+   */
+  export async function deleteTokenForApp(appId: string, token: string): Promise<void> {
+    return deleteToken(appId, token)
+  }
+
   // ── Top-level before / after ───────────────────────────────────────────
 
   export interface DispatchContext {

@@ -111,11 +111,13 @@ export const setVisionWorkerRunnerForTesting = setReaderRunnerForTesting
 const DEFAULT_QUESTION =
   "The user did not ask a specific question. Produce the structured digest defined in your system prompt."
 
-// Hard-coded mime → reader agent mapping for the well-known fixed types.
-// docx is no longer in this table — docx work flows through docxmcp via the
-// IncomingDispatcher (see /specs/repo-incoming-attachments). Callers that
-// historically pre-extracted docx via pandoc here should now invoke
-// docx_decompose / docx_grep through the mcp tool surface instead.
+// Hard-coded mime → reader subagent mapping. After
+// /specs/docx-upload-autodecompose, this tool's contract narrows to
+// image / PDF / text-like / JSON only. Office formats (docx / doc /
+// xls / ppt / xlsx / pptx) are handled at upload time by the
+// auto-decompose hook in user-message-parts.ts → tryLandInIncoming;
+// the AI reads the resulting incoming/<stem>/ tree directly via the
+// standard read tool. Office mimes are not mapped here.
 function defaultAgentForMime(mime: string): string | undefined {
   if (mime.startsWith("image/")) return "vision"
   if (mime === "application/pdf") return "pdf-reader"
@@ -252,7 +254,7 @@ const parameters = z.object({
     .string()
     .optional()
     .describe(
-      "For mode=read: explicit reader agent name (e.g. 'vision', 'pdf-reader', 'docx-reader'). Defaults to the hard-coded mapping by mime; required for mimes outside the mapping.",
+      "For mode=read: explicit reader agent name (e.g. 'vision', 'pdf-reader'). Defaults to the hard-coded mapping by mime; required for mimes outside the mapping. NOTE: Office formats (docx / doc / xls / ppt / xlsx / pptx) are NOT serviced here — they are auto-decomposed at upload time into incoming/<stem>/; read those files directly via the standard read tool.",
     ),
 })
 

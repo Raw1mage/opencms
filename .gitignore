@@ -1,6 +1,11 @@
 .DS_Store
 node_modules
 .worktrees
+
+# Per-conversation upload landing zone (specs/docx-upload-autodecompose).
+# docxmcp decomposes docx into incoming/<stem>/ subtrees here; legacy OLE2
+# fallback also lives under this dir. Never tracked.
+/incoming/
 .sst
 .env
 .idea
