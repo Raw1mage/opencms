@@ -9,22 +9,52 @@
       "All attachment_refs currently have dehydrated !== true (or undefined)"
     ],
     "messages": [
-      { "id": "MSG1", "from": "processor.ts", "to": "C1 DehydrationHook", "componentRef": "C1", "description": "Post-completion hook fires with assistant message id" },
-      { "id": "MSG2", "from": "C1", "to": "session-storage", "description": "Read parent user message + its attachment_ref parts" },
-      { "id": "MSG3", "from": "C1", "to": "session-storage", "description": "Read assistant response text" },
-      { "id": "MSG4", "from": "C1", "to": "C6 AnnotationExtractor", "componentRef": "C6", "description": "extractAnnotation(responseText) → trimmed string ≤ 4000 chars" },
-      { "id": "MSG5", "from": "C1", "to": "session-storage", "description": "For each image attachment_ref: read binary from attachments table" },
-      { "id": "MSG6", "from": "C1", "to": "C2 IncomingStore", "componentRef": "C2", "description": "put(sessionID, filename, bytes) — write binary to ~/.local/state/opencode/incoming/<sid>/<filename>" },
-      { "id": "MSG7", "from": "C2", "to": "C1", "description": "Returns absolute path of staged file" },
-      { "id": "MSG8", "from": "C1", "to": "session-storage", "description": "Session.updatePart with dehydrated=true, annotation, sha256, incoming_path; delete binary row from attachments" },
-      { "id": "MSG9", "from": "C1", "to": "Bus", "description": "Emit telemetry: attachment.dehydrated { sessionID, filename, sha256, originalEstTokens, annotationChars }" }
+      {
+        "id": "MSG1",
+        "from": "processor.ts",
+        "to": "C1 DehydrationHook",
+        "componentRef": "C1",
+        "description": "Post-completion hook fires with assistant message id"
+      },
+      {
+        "id": "MSG2",
+        "from": "C1",
+        "to": "session-storage",
+        "description": "Read parent user message + its attachment_ref parts"
+      },
+      {
+        "id": "MSG3",
+        "from": "C1",
+        "to": "session-storage",
+        "description": "Read assistant response text"
+      },
+      {
+        "id": "MSG4",
+        "from": "C1",
+        "to": "C6 AnnotationExtractor",
+        "componentRef": "C6",
+        "description": "extractAnnotation(responseText) → trimmed string ≤ 4000 chars"
+      },
+      {
+        "id": "MSG8",
+        "from": "C1",
+        "to": "session-storage",
+        "description": "Session.updatePart: set dehydrated=true + annotation. repo_path / sha256 unchanged. (No binary move — binary already at <worktree>/<repo_path> via repo-incoming-attachments upload path.)"
+      },
+      {
+        "id": "MSG9",
+        "from": "C1",
+        "to": "Bus",
+        "description": "Emit telemetry: attachment.dehydrated { sessionID, filename, sha256, originalEstTokens, annotationChars }"
+      }
     ],
     "postconditions": [
       "Each image attachment_ref now has dehydrated=true with annotation populated",
       "Session sqlite attachments table has one fewer binary row per dehydrated image",
       "~/.local/state/opencode/incoming/<sid>/<filename> exists with the original binary",
       "Next LLM call wire payload will contain <dehydrated_attachment> text block instead of image_url"
-    ]
+    ],
+    "_recalibrationNote_v2_2026-05-04": "P1 messages MSG5-MSG8 simplified — no binary move; binary already at <worktree>/<repo_path>"
   },
   {
     "id": "P2",
@@ -35,11 +65,38 @@
       "Binary file at ~/.local/state/opencode/incoming/<sid>/<filename> still exists (within TTL)"
     ],
     "messages": [
-      { "id": "MSG1", "from": "model", "to": "C3 RereadAttachmentTool", "componentRef": "C3", "description": "Tool invocation with filename arg" },
-      { "id": "MSG2", "from": "C3", "to": "C2 IncomingStore", "componentRef": "C2", "description": "get(sessionID, filename) → bytes | null" },
-      { "id": "MSG3", "from": "C2", "to": "C3", "description": "Returns binary bytes" },
-      { "id": "MSG4", "from": "C3", "to": "model", "description": "Tool result: { type: 'image', url: 'data:image/png;base64,...', est_tokens, byte_size }" },
-      { "id": "MSG5", "from": "C3", "to": "Bus", "description": "Emit telemetry: attachment.rereaded { sessionID, filename }" }
+      {
+        "id": "MSG1",
+        "from": "model",
+        "to": "C3 RereadAttachmentTool",
+        "componentRef": "C3",
+        "description": "Tool invocation with filename arg"
+      },
+      {
+        "id": "MSG2",
+        "from": "C3",
+        "to": "C2 IncomingStore",
+        "componentRef": "C2",
+        "description": "get(sessionID, filename) → bytes | null"
+      },
+      {
+        "id": "MSG3",
+        "from": "C2",
+        "to": "C3",
+        "description": "Returns binary bytes"
+      },
+      {
+        "id": "MSG4",
+        "from": "C3",
+        "to": "model",
+        "description": "Tool result: { type: 'image', url: 'data:image/png;base64,...', est_tokens, byte_size }"
+      },
+      {
+        "id": "MSG5",
+        "from": "C3",
+        "to": "Bus",
+        "description": "Emit telemetry: attachment.rereaded { sessionID, filename }"
+      }
     ],
     "postconditions": [
       "Tool result is appended to conversation as a tool-result part containing the image",
@@ -48,16 +105,33 @@
   },
   {
     "id": "P3",
-    "name": "Reread fails after GC",
-    "trigger": "Model calls reread_attachment after the binary has been GC'd",
+    "name": "Reread fails after user removed file from repo",
+    "trigger": "Model calls reread_attachment after user has removed the file from <worktree>/incoming/",
     "preconditions": [
-      "Session was deleted > TTL days ago",
-      "GC sweep has already removed ~/.local/state/opencode/incoming/<sid>/"
+      "Some prior turn dehydrated this attachment",
+      "User removed the file from <worktree>/<repo_path> (git clean / rm)"
     ],
     "messages": [
-      { "id": "MSG1", "from": "model", "to": "C3", "componentRef": "C3", "description": "Tool invocation" },
-      { "id": "MSG2", "from": "C3", "to": "C2", "componentRef": "C2", "description": "get(sessionID, filename) → null" },
-      { "id": "MSG3", "from": "C3", "to": "model", "description": "Tool result: { error: 'attachment_expired', message: 'Image was staged but has been garbage-collected past its TTL.' }" }
+      {
+        "id": "MSG1",
+        "from": "model",
+        "to": "C3",
+        "componentRef": "C3",
+        "description": "Tool invocation"
+      },
+      {
+        "id": "MSG2",
+        "from": "C3",
+        "to": "C2",
+        "componentRef": "C2",
+        "description": "get(sessionID, filename) → null"
+      },
+      {
+        "id": "MSG3",
+        "from": "C3",
+        "to": "model",
+        "description": "Tool result: { error: 'attachment_not_found', message: 'Image is no longer at <worktree>/<repo_path>. Ask user to re-upload.' }"
+      }
     ],
     "postconditions": [
       "Model receives clear error message and can request re-upload from user"
@@ -71,35 +145,41 @@
       "Conversation history contains at least one attachment_ref with dehydrated=true"
     ],
     "messages": [
-      { "id": "MSG1", "from": "prompt.ts", "to": "session-storage", "description": "Read conversation messages" },
-      { "id": "MSG2", "from": "prompt.ts", "to": "C4 WireFormatTransformer", "componentRef": "C4", "description": "MessageV2.toModelMessages(messages, model)" },
-      { "id": "MSG3", "from": "C4", "to": "C4", "description": "For each part: if attachment_ref + dehydrated=true → emit text block <dehydrated_attachment filename='X' sha256='Y'>annotation</dehydrated_attachment>; else emit image_url block as today" },
-      { "id": "MSG4", "from": "C4", "to": "LLM.stream", "description": "Returns ModelMessage[] with dehydrated attachments as text blocks" },
-      { "id": "MSG5", "from": "LLM.stream", "to": "llm-provider", "description": "Wire payload contains text annotation, NOT image binary; input_tokens drops accordingly" }
+      {
+        "id": "MSG1",
+        "from": "prompt.ts",
+        "to": "session-storage",
+        "description": "Read conversation messages"
+      },
+      {
+        "id": "MSG2",
+        "from": "prompt.ts",
+        "to": "C4 WireFormatTransformer",
+        "componentRef": "C4",
+        "description": "MessageV2.toModelMessages(messages, model)"
+      },
+      {
+        "id": "MSG3",
+        "from": "C4",
+        "to": "C4",
+        "description": "For each part: if attachment_ref + dehydrated=true → emit text block <dehydrated_attachment filename='X' sha256='Y'>annotation</dehydrated_attachment>; else emit image_url block as today"
+      },
+      {
+        "id": "MSG4",
+        "from": "C4",
+        "to": "LLM.stream",
+        "description": "Returns ModelMessage[] with dehydrated attachments as text blocks"
+      },
+      {
+        "id": "MSG5",
+        "from": "LLM.stream",
+        "to": "llm-provider",
+        "description": "Wire payload contains text annotation, NOT image binary; input_tokens drops accordingly"
+      }
     ],
     "postconditions": [
       "Provider receives dramatically smaller payload for dehydrated attachments",
       "Token usage drops from ~20K per image to ~200-1000 per annotation"
-    ]
-  },
-  {
-    "id": "P5",
-    "name": "GC sweep at daemon startup",
-    "trigger": "Daemon starts up (cli/cmd/serve.ts handler initialization phase)",
-    "preconditions": [
-      "Migration boot guard has passed",
-      "~/.local/state/opencode/incoming/ exists (or will be created on first put)"
-    ],
-    "messages": [
-      { "id": "MSG1", "from": "cli/cmd/serve.ts", "to": "C5 GarbageCollector", "componentRef": "C5", "description": "Triggers gcSweep() on startup" },
-      { "id": "MSG2", "from": "C5", "to": "C2 IncomingStore", "componentRef": "C2", "description": "list all sessionIDs that have an incoming dir" },
-      { "id": "MSG3", "from": "C5", "to": "session-storage", "description": "For each sid, look up Session.get(sid) → check if deleted > TTL days ago OR session doesn't exist" },
-      { "id": "MSG4", "from": "C5", "to": "C2", "description": "deleteSession(sid) for each eligible — recursive rm" },
-      { "id": "MSG5", "from": "C5", "to": "Bus", "description": "Emit telemetry: attachment.gc.swept { sessionsScanned, sessionsDeleted, bytesFreed, durationMs }" }
-    ],
-    "postconditions": [
-      "Disk usage in ~/.local/state/opencode/incoming/ reflects only sessions still active or within TTL grace window",
-      "Telemetry record visible for ops"
     ]
   }
 ]

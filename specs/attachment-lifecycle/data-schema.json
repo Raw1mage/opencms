@@ -5,92 +5,171 @@
     "AttachmentRefPartExtended": {
       "type": "object",
       "description": "MessageV2.AttachmentRefPart with optional dehydration metadata fields (DD-7). Pre-Phase-B parts have these fields absent and parse as undefined (backwards compatible).",
-      "required": ["id", "sessionID", "messageID", "type", "ref_id", "mime", "byte_size", "est_tokens"],
+      "required": [
+        "id",
+        "sessionID",
+        "messageID",
+        "type",
+        "ref_id",
+        "mime",
+        "byte_size",
+        "est_tokens"
+      ],
       "additionalProperties": false,
       "properties": {
-        "id": { "type": "string" },
-        "sessionID": { "type": "string" },
-        "messageID": { "type": "string" },
-        "type": { "const": "attachment_ref" },
-        "ref_id": { "type": "string" },
-        "mime": { "type": "string" },
-        "filename": { "type": "string" },
-        "preview": { "type": "string" },
+        "id": {
+          "type": "string"
+        },
+        "sessionID": {
+          "type": "string"
+        },
+        "messageID": {
+          "type": "string"
+        },
+        "type": {
+          "const": "attachment_ref"
+        },
+        "ref_id": {
+          "type": "string"
+        },
+        "mime": {
+          "type": "string"
+        },
+        "filename": {
+          "type": "string"
+        },
+        "preview": {
+          "type": "string"
+        },
         "dimensions": {
           "type": "object",
-          "properties": { "width": { "type": "integer" }, "height": { "type": "integer" } }
+          "properties": {
+            "width": {
+              "type": "integer"
+            },
+            "height": {
+              "type": "integer"
+            }
+          }
         },
-        "byte_size": { "type": "integer", "minimum": 0 },
-        "est_tokens": { "type": "integer", "minimum": 0 },
-        "dehydrated": { "type": "boolean", "description": "When true, binary lives in incoming staging not in attachments table" },
-        "annotation": { "type": "string", "maxLength": 4000, "description": "DD-12: trimmed assistant response text (head+tail if longer than 4000 chars)" },
-        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$", "description": "Content hash of the original binary" },
-        "incoming_path": { "type": "string", "description": "Absolute path to staged binary, e.g. /home/<user>/.local/state/opencode/incoming/<sid>/<filename>" }
+        "byte_size": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "est_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dehydrated": {
+          "type": "boolean",
+          "description": "When true, binary lives in incoming staging not in attachments table"
+        },
+        "annotation": {
+          "type": "string",
+          "maxLength": 4000,
+          "description": "DD-12: trimmed assistant response text (head+tail if longer than 4000 chars)"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "Owned by repo-incoming-attachments spec; not added by attachment-lifecycle"
+        },
+        "repo_path": {
+          "type": "string",
+          "description": "Owned by repo-incoming-attachments spec; not added by attachment-lifecycle"
+        }
       }
     },
     "RereadAttachmentInput": {
       "type": "object",
-      "required": ["filename"],
+      "required": [
+        "filename"
+      ],
       "additionalProperties": false,
       "properties": {
-        "filename": { "type": "string", "description": "Filename as recorded in the dehydrated attachment_ref" }
+        "filename": {
+          "type": "string",
+          "description": "Filename as recorded in the dehydrated attachment_ref"
+        }
       }
     },
     "RereadAttachmentResultOk": {
       "type": "object",
-      "required": ["type", "url", "est_tokens", "byte_size"],
+      "required": [
+        "type",
+        "url",
+        "est_tokens",
+        "byte_size"
+      ],
       "additionalProperties": false,
       "properties": {
-        "type": { "const": "image" },
-        "url": { "type": "string", "description": "Data URI of the staged binary, e.g. data:image/png;base64,..." },
-        "est_tokens": { "type": "integer", "minimum": 0 },
-        "byte_size": { "type": "integer", "minimum": 0 }
+        "type": {
+          "const": "image"
+        },
+        "url": {
+          "type": "string",
+          "description": "Data URI of the staged binary, e.g. data:image/png;base64,..."
+        },
+        "est_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "byte_size": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
     "RereadAttachmentResultError": {
       "type": "object",
-      "required": ["error", "message"],
+      "required": [
+        "error",
+        "message"
+      ],
       "additionalProperties": false,
       "properties": {
-        "error": { "enum": ["attachment_expired", "attachment_not_found"] },
-        "message": { "type": "string" }
+        "error": {
+          "enum": [
+            "attachment_not_found"
+          ]
+        },
+        "message": {
+          "type": "string"
+        }
       }
     },
     "AttachmentDehydratedTelemetry": {
       "type": "object",
-      "required": ["name", "sessionID", "filename", "sha256", "originalEstTokens", "annotationChars"],
+      "required": [
+        "name",
+        "sessionID",
+        "filename",
+        "sha256",
+        "originalEstTokens",
+        "annotationChars"
+      ],
       "additionalProperties": false,
       "properties": {
-        "name": { "const": "attachment.dehydrated" },
-        "sessionID": { "type": "string" },
-        "filename": { "type": "string" },
-        "sha256": { "type": "string" },
-        "originalEstTokens": { "type": "integer", "minimum": 0 },
-        "annotationChars": { "type": "integer", "minimum": 0 }
-      }
-    },
-    "AttachmentGcSweptTelemetry": {
-      "type": "object",
-      "required": ["name", "sessionsScanned", "sessionsDeleted", "bytesFreed", "durationMs"],
-      "additionalProperties": false,
-      "properties": {
-        "name": { "const": "attachment.gc.swept" },
-        "sessionsScanned": { "type": "integer", "minimum": 0 },
-        "sessionsDeleted": { "type": "integer", "minimum": 0 },
-        "bytesFreed": { "type": "integer", "minimum": 0 },
-        "durationMs": { "type": "integer", "minimum": 0 }
-      }
-    },
-    "IncomingStorePath": {
-      "type": "object",
-      "description": "Path computation for ~/.local/state/opencode/incoming/<sid>/<filename> (DD-2)",
-      "required": ["base", "sessionID", "filename", "absolutePath"],
-      "additionalProperties": false,
-      "properties": {
-        "base": { "type": "string", "description": "Global.Path.state + '/incoming'" },
-        "sessionID": { "type": "string" },
-        "filename": { "type": "string" },
-        "absolutePath": { "type": "string" }
+        "name": {
+          "const": "attachment.dehydrated"
+        },
+        "sessionID": {
+          "type": "string"
+        },
+        "filename": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string"
+        },
+        "originalEstTokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "annotationChars": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
     "TweaksConfig": {
@@ -98,10 +177,17 @@
       "description": "New /etc/opencode/tweaks.cfg knobs",
       "additionalProperties": false,
       "properties": {
-        "attachment_incoming_ttl_days": { "type": "integer", "minimum": 1, "default": 7 },
-        "attachment_dehydrate_enabled": { "type": "boolean", "default": true },
-        "attachment_annotation_max_chars": { "type": "integer", "minimum": 200, "default": 4000 }
+        "attachment_dehydrate_enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "attachment_annotation_max_chars": {
+          "type": "integer",
+          "minimum": 200,
+          "default": 4000
+        }
       }
     }
-  }
+  },
+  "_recalibrationNote_v2_2026-05-04": "Removed IncomingStorePath, AttachmentGcSweptTelemetry. RereadAttachmentResultError.error enum reduced to attachment_not_found only (attachment_expired removed under DD-4'). Removed attachment_incoming_ttl_days knob."
 }

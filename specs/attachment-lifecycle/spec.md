@@ -10,7 +10,8 @@ Image attachments uploaded by the user collapse into a small text annotation aft
 |---|---|
 | **Hydrated attachment** | The full `attachment_ref` part with binary still in conversation history (the only state pre-dehydration) |
 | **Dehydrated attachment** | The same `attachment_ref` part rewritten to carry only `{filename, sha256, annotation, incoming_path}`; binary moved to filesystem |
-| **Incoming staging** | Filesystem location `~/.local/state/opencode/incoming/<sessionID>/<filename>` where the binary lives during its TTL window |
+| ~~**Incoming staging**~~ → see **Repo incoming** | (v1, SUPERSEDED 2026-05-04) — staging path no longer at `~/.local/state/opencode/incoming/`; see Repo incoming below |
+| **Repo incoming** (v2) | Filesystem location `<session.project.worktree>/incoming/<filename>` owned by `repo-incoming-attachments` spec. attachment-lifecycle reuses without writing — `attachment_ref.repo_path` already records this path. |
 | **`reread_attachment` tool** | Tool the model calls to fetch the binary back from incoming and inject as a fresh `attachment_ref` in the next turn |
 | **Annotation** | Plain text replacing the binary; in v1 this is a verbatim slice of the assistant turn's response text (no extra LLM call) |
 | **GC sweep** | Background pass that deletes incoming/`<sid>`/ folders for sessions deleted > 7 days ago |
@@ -56,9 +57,9 @@ Image attachments uploaded by the user collapse into a small text annotation aft
 - **AND** the next turn's user message inherits this fresh image (via tool result handling)
 
 #### Scenario: file missing returns error
-- **GIVEN** the binary has been GC'd
+- **GIVEN** the binary at `<worktree>/<repo_path>` has been removed by the user (e.g. `git clean`, manual delete, never landed for legacy session)
 - **WHEN** the model calls `reread_attachment({filename: "image (3).png"})`
-- **THEN** the tool returns an error: `{error: "attachment_expired", message: "Image '<file>' was staged but has been garbage-collected past its 7-day TTL. Original is no longer recoverable; please re-upload if needed."}`
+- **THEN** the tool returns an error: `{error: "attachment_not_found", message: "Image '<file>' is no longer at <worktree>/<repo_path>. Please ask the user to re-upload if you need to look at it."}`
 
 ### Requirement: Staging is per-session and isolated
 
@@ -68,24 +69,9 @@ Image attachments uploaded by the user collapse into a small text annotation aft
 - **THEN** they live at separate paths: `~/.local/state/opencode/incoming/sesA/image.png` and `~/.local/state/opencode/incoming/sesB/image.png`
 - **AND** subagent dispatched from session A does NOT inherit session A's incoming
 
-### Requirement: Garbage collection sweep
+~~### Requirement: Garbage collection sweep~~
 
-#### Scenario: daemon startup runs GC sweep
-- **GIVEN** the daemon starts up
-- **WHEN** the GC initialization runs
-- **THEN** it lists all `~/.local/state/opencode/incoming/<sessionID>/` directories
-- **AND** for each, looks up the session info; if session was deleted > 7 days ago (or doesn't exist anymore), the directory is recursively removed
-- **AND** GC results are logged: `attachment.gc.swept {sessionsScanned, sessionsDeleted, bytesFreed}`
-
-#### Scenario: cron sweep at 24h interval
-- **GIVEN** the daemon has been running > 24h since last GC
-- **WHEN** the daily timer fires
-- **THEN** the same sweep logic runs
-
-#### Scenario: session.deleted Bus event triggers immediate scheduled cleanup
-- **GIVEN** a session is deleted via `Session.delete`
-- **WHEN** the `session.deleted` Bus event fires
-- **THEN** the session's incoming dir is marked for cleanup at the next GC cycle (NOT deleted immediately, to honor the 7-day grace period for accidental deletion recovery)
+**(v1, SUPERSEDED 2026-05-04)** Removed under design.md DD-4'. Binary lifecycle is owned by `repo-incoming-attachments` (per-project, user-managed via `git clean` / `.gitignore` / manual `rm`). attachment-lifecycle has no GC sweep, no TTL, no daemon-startup hook, no cron timer. Reread errors with `attachment_not_found` if user has removed the file from `<worktree>/incoming/`.
 
 ### Requirement: Dehydration is one-way unless reread
 
@@ -102,7 +88,7 @@ Image attachments uploaded by the user collapse into a small text annotation aft
 | `attachment.dehydrated` event fires once per image post-turn | Unit test on processor.ts hook |
 | Wire payload for next LLM call contains `<dehydrated_attachment>` not raw image | Integration test with mock provider |
 | `reread_attachment` tool returns valid image content | Unit test |
-| GC sweep deletes `<sid>` dirs after 7-day TTL | Unit test with synthetic timestamps |
+| ~~GC sweep deletes `<sid>` dirs after 7-day TTL~~ | (v1, SUPERSEDED 2026-05-04 — no GC; user-managed) |
 | Subagent does not inherit parent's incoming | Integration test |
 | Non-image mimes (PDF) NOT dehydrated in v1 | Unit test |
 

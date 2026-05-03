@@ -4,14 +4,33 @@
     "requirement": "R1: dehydrate every image attachment after first read",
     "scenario": "user message with one image, assistant finish=stop, hook dehydrates",
     "input": {
-      "userMessage": { "parts": [{ "type": "attachment_ref", "mime": "image/png", "filename": "screenshot.png", "byte_size": 50000, "est_tokens": 20000 }] },
-      "assistantMessage": { "finish": "stop", "responseText": "I see a Grafana dashboard with 5 panels showing CPU, memory, and disk usage..." }
+      "userMessage": {
+        "parts": [
+          {
+            "type": "attachment_ref",
+            "mime": "image/png",
+            "filename": "screenshot.png",
+            "byte_size": 50000,
+            "est_tokens": 20000
+          }
+        ]
+      },
+      "assistantMessage": {
+        "finish": "stop",
+        "responseText": "I see a Grafana dashboard with 5 panels showing CPU, memory, and disk usage..."
+      }
     },
     "expected": {
-      "attachmentRef": { "dehydrated": true, "annotation": "I see a Grafana dashboard...", "sha256": "<64-hex>", "incoming_path": "<abs path under ~/.local/state/opencode/incoming/>" },
-      "sqliteAttachmentsRowDeleted": true,
-      "filesystemFileExists": true,
-      "telemetry": "attachment.dehydrated"
+      "attachmentRef": {
+        "dehydrated": true,
+        "annotation": "I see a Grafana dashboard...",
+        "sha256": "<64-hex>",
+        "incoming_path": "<abs path under ~/.local/state/opencode/incoming/>"
+      },
+      "sqliteAttachmentsRowDeleted": "n/a (binary already at repo_path; not in sqlite)",
+      "filesystemFileExists": "n/a (binary stays untouched at <worktree>/<repo_path>)",
+      "telemetry": "attachment.dehydrated",
+      "repoPathPreserved": true
     }
   },
   {
@@ -19,8 +38,19 @@
     "requirement": "R1: PDF not dehydrated in v1",
     "scenario": "user message with PDF attachment, assistant finish=stop",
     "input": {
-      "userMessage": { "parts": [{ "type": "attachment_ref", "mime": "application/pdf", "filename": "doc.pdf" }] },
-      "assistantMessage": { "finish": "stop", "responseText": "..." }
+      "userMessage": {
+        "parts": [
+          {
+            "type": "attachment_ref",
+            "mime": "application/pdf",
+            "filename": "doc.pdf"
+          }
+        ]
+      },
+      "assistantMessage": {
+        "finish": "stop",
+        "responseText": "..."
+      }
     },
     "expected": {
       "attachmentRef.dehydrated": "undefined or false",
@@ -32,8 +62,18 @@
     "requirement": "R1: failed turns skip dehydration",
     "scenario": "user message with image, assistant finish=error",
     "input": {
-      "userMessage": { "parts": [{ "type": "attachment_ref", "mime": "image/png", "filename": "x.png" }] },
-      "assistantMessage": { "finish": "error" }
+      "userMessage": {
+        "parts": [
+          {
+            "type": "attachment_ref",
+            "mime": "image/png",
+            "filename": "x.png"
+          }
+        ]
+      },
+      "assistantMessage": {
+        "finish": "error"
+      }
     },
     "expected": {
       "attachmentRef.dehydrated": "undefined or false",
@@ -45,7 +85,15 @@
     "requirement": "R1: idempotent — already-dehydrated parts skipped",
     "scenario": "hook fires on a turn whose part is already dehydrated",
     "input": {
-      "userMessage": { "parts": [{ "type": "attachment_ref", "dehydrated": true, "annotation": "X" }] }
+      "userMessage": {
+        "parts": [
+          {
+            "type": "attachment_ref",
+            "dehydrated": true,
+            "annotation": "X"
+          }
+        ]
+      }
     },
     "expected": {
       "noChange": true,
@@ -57,10 +105,19 @@
     "requirement": "R2: wire payload uses dehydrated stub",
     "scenario": "MessageV2.toModelMessages converts a dehydrated attachment_ref",
     "input": {
-      "part": { "type": "attachment_ref", "dehydrated": true, "filename": "image.png", "sha256": "abc...", "annotation": "Grafana dashboard with errors panel" }
+      "part": {
+        "type": "attachment_ref",
+        "dehydrated": true,
+        "filename": "image.png",
+        "sha256": "abc...",
+        "annotation": "Grafana dashboard with errors panel"
+      }
     },
     "expected": {
-      "wireBlock": { "type": "text", "text": "<dehydrated_attachment filename=\"image.png\" sha256=\"abc...\">Grafana dashboard with errors panel</dehydrated_attachment>" },
+      "wireBlock": {
+        "type": "text",
+        "text": "<dehydrated_attachment filename=\"image.png\" sha256=\"abc...\">Grafana dashboard with errors panel</dehydrated_attachment>"
+      },
       "noImageUrlBlockEmitted": true
     }
   },
@@ -69,10 +126,18 @@
     "requirement": "R2: hydrated attachment_ref still renders as image_url",
     "scenario": "non-dehydrated attachment_ref converts as today",
     "input": {
-      "part": { "type": "attachment_ref", "mime": "image/png", "url": "data:image/png;base64,...", "filename": "x.png" }
+      "part": {
+        "type": "attachment_ref",
+        "mime": "image/png",
+        "url": "data:image/png;base64,...",
+        "filename": "x.png"
+      }
     },
     "expected": {
-      "wireBlock": { "type": "image", "url": "data:image/png;base64,..." }
+      "wireBlock": {
+        "type": "image",
+        "url": "data:image/png;base64,..."
+      }
     }
   },
   {
@@ -80,32 +145,59 @@
     "requirement": "R3: reread tool happy path",
     "scenario": "model calls reread_attachment with valid filename",
     "input": {
-      "toolArgs": { "filename": "screenshot.png" },
-      "incomingState": { "fileExists": true, "bytes": "<50KB png>" }
+      "toolArgs": {
+        "filename": "screenshot.png"
+      },
+      "incomingState": {
+        "fileExists": true,
+        "bytes": "<50KB png>"
+      }
     },
     "expected": {
-      "result": { "type": "image", "url": "data:image/png;base64,...", "est_tokens": 20000, "byte_size": 50000 },
+      "result": {
+        "type": "image",
+        "url": "data:image/png;base64,...",
+        "est_tokens": 20000,
+        "byte_size": 50000
+      },
       "telemetry": "attachment.rereaded"
     }
   },
   {
     "id": "TV-R3-2",
     "requirement": "R3: reread tool returns attachment_expired when GC'd",
-    "scenario": "model calls reread_attachment after GC",
+    "scenario": "model calls reread_attachment after user removed file from repo",
     "input": {
-      "toolArgs": { "filename": "screenshot.png" },
-      "incomingState": { "fileExists": false }
+      "toolArgs": {
+        "filename": "screenshot.png"
+      },
+      "incomingState": {
+        "fileExists": false,
+        "reason": "user-deleted-from-repo"
+      }
     },
     "expected": {
-      "result": { "error": "attachment_expired", "message": "<contains 'staged'>" }
+      "result": {
+        "error": "attachment_not_found",
+        "message": "<contains 'no longer at'>"
+      }
     }
   },
   {
     "id": "TV-R3-3",
     "requirement": "R3: reread tool sanitization rejects path traversal",
     "scenario": "model calls reread_attachment with `../escape.png`",
-    "input": { "toolArgs": { "filename": "../etc/passwd" } },
-    "expected": { "result": { "error": "attachment_not_found", "message": "<contains 'invalid filename'>" } }
+    "input": {
+      "toolArgs": {
+        "filename": "../etc/passwd"
+      }
+    },
+    "expected": {
+      "result": {
+        "error": "attachment_not_found",
+        "message": "<contains 'invalid filename'>"
+      }
+    }
   },
   {
     "id": "TV-R4-1",
@@ -114,7 +206,10 @@
     "input": {
       "parentSessionID": "ses_parent",
       "childSessionID": "ses_child",
-      "parentIncomingFiles": ["a.png", "b.png"]
+      "parentIncomingFiles": [
+        "a.png",
+        "b.png"
+      ]
     },
     "expected": {
       "IncomingStore.list('ses_child')": [],
@@ -122,51 +217,27 @@
     }
   },
   {
-    "id": "TV-R5-1",
-    "requirement": "R5: GC sweeps expired sessions",
-    "scenario": "two sessions: one deleted 8 days ago, one active",
-    "input": {
-      "sessions": [
-        { "sid": "ses_old", "deletedAt": "now - 8 days" },
-        { "sid": "ses_alive", "deletedAt": null }
-      ],
-      "incomingDirs": ["ses_old", "ses_alive"]
-    },
-    "expected": {
-      "afterSweep": { "ses_old": "removed", "ses_alive": "kept" },
-      "telemetry": "attachment.gc.swept { sessionsScanned: 2, sessionsDeleted: 1, bytesFreed: > 0 }"
-    }
-  },
-  {
-    "id": "TV-R5-2",
-    "requirement": "R5: GC respects 7-day grace post deletion",
-    "scenario": "session deleted 6 days ago is NOT swept",
-    "input": {
-      "session": { "sid": "ses_recent", "deletedAt": "now - 6 days" }
-    },
-    "expected": {
-      "afterSweep": { "ses_recent": "kept" }
-    }
-  },
-  {
-    "id": "TV-tweaks-1",
-    "requirement": "Configurability via tweaks.cfg",
-    "scenario": "ttl_days set to 1, GC sweeps session deleted 2 days ago",
-    "input": {
-      "tweaks": { "attachment_incoming_ttl_days": 1 },
-      "session": { "sid": "ses_x", "deletedAt": "now - 2 days" }
-    },
-    "expected": { "afterSweep": { "ses_x": "removed" } }
-  },
-  {
     "id": "TV-tweaks-2",
     "requirement": "Configurability — disable dehydration",
     "scenario": "attachment_dehydrate_enabled=false",
     "input": {
-      "tweaks": { "attachment_dehydrate_enabled": false },
-      "userMessage": { "parts": [{ "type": "attachment_ref", "mime": "image/png" }] },
-      "assistantMessage": { "finish": "stop" }
+      "tweaks": {
+        "attachment_dehydrate_enabled": false
+      },
+      "userMessage": {
+        "parts": [
+          {
+            "type": "attachment_ref",
+            "mime": "image/png"
+          }
+        ]
+      },
+      "assistantMessage": {
+        "finish": "stop"
+      }
     },
-    "expected": { "attachmentRef.dehydrated": "undefined or false" }
+    "expected": {
+      "attachmentRef.dehydrated": "undefined or false"
+    }
   }
 ]

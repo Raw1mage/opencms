@@ -2,17 +2,9 @@
 
 ## Error Catalogue
 
-### E-ATTACHMENT-EXPIRED (model-facing tool error)
+### ~~E-ATTACHMENT-EXPIRED~~ (v1, SUPERSEDED 2026-05-04)
 
-| 欄位 | 值 |
-|---|---|
-| **Code** | `attachment_expired` |
-| **Source** | `tool/reread-attachment.ts` (DD-9) |
-| **Layer** | tool result |
-| **Throw site** | When `IncomingStore.get(sid, filename)` returns null AND a part with this filename has `dehydrated=true` (i.e. binary was here, GC removed it) |
-| **User-visible message** | "Image '<filename>' was staged but has been garbage-collected past its 7-day TTL. Original is no longer recoverable; please ask the user to re-upload if you need to look at it." |
-| **Recovery** | Model asks user to re-upload; alternative — model proceeds based on existing annotation |
-| **Telemetry** | `attachment.reread.expired { sessionID, filename }` |
+Removed under DD-4'. No GC, no time-based expiry. Reread failure now folds into `E-ATTACHMENT-NOT-FOUND` regardless of cause (file removed by user, never landed for legacy session, etc).
 
 ### E-ATTACHMENT-NOT-FOUND (model-facing tool error)
 
@@ -21,10 +13,10 @@
 | **Code** | `attachment_not_found` |
 | **Source** | `tool/reread-attachment.ts` |
 | **Layer** | tool result |
-| **Throw site** | When the requested filename matches no dehydrated part in this session, or sanitization rejects the input (path traversal etc) |
-| **User-visible message** | "No staged attachment named '<filename>' found in this session. Either the filename is incorrect, or it was never uploaded." |
-| **Recovery** | Model self-corrects by listing prior attachments mentally / asks user |
-| **Telemetry** | `attachment.reread.not_found { sessionID, filename }` |
+| **Throw site** | (1) requested filename matches no dehydrated part in this session, OR (2) sanitization rejects the input (path traversal etc), OR (3) **(v2 2026-05-04)** part has `repo_path` but the file at `<worktree>/<repo_path>` no longer exists (user removed it via `git clean` / `rm`) |
+| **User-visible message** | Case 1/2: "No staged attachment named '<filename>' found in this session." Case 3: "Image '<filename>' is no longer at <worktree>/<repo_path>. Please ask the user to re-upload." |
+| **Recovery** | Model self-corrects by listing prior attachments mentally / asks user to re-upload |
+| **Telemetry** | `attachment.reread.not_found { sessionID, filename, reason: "no-matching-part" \| "invalid-filename" \| "file-removed-from-repo" }` |
 
 ### W-DEHYDRATION-SKIPPED (telemetry-only, not thrown)
 
@@ -46,34 +38,18 @@ Multiple sub-cases all surface as `attachment.dehydrate.skipped`:
 | **User-visible** | none |
 | **Recovery** | Natural — non-image / failed turn / disabled don't need recovery; rare `binary-missing-from-sqlite` indicates upstream race or earlier failure (treat as defensive) |
 
-### E-INCOMING-WRITE-FAILED (logged, dehydration aborts for that part)
+### ~~E-INCOMING-WRITE-FAILED~~ (v1, SUPERSEDED 2026-05-04)
 
-| 欄位 | 值 |
-|---|---|
-| **Code** | `incoming_write_failed` |
-| **Source** | `incoming-store.ts put()` |
-| **Layer** | session/storage |
-| **Throw site** | Filesystem write fails (disk full, permission denied, EIO) |
-| **User-visible message** | none (background hook); session continues with attachment still hydrated |
-| **Recovery** | Defensive: leave the attachment_ref in its original hydrated form; emit `attachment.dehydrate.write_failed { sessionID, filename, error }`; ops should investigate disk/permissions |
-| **Telemetry** | `attachment.dehydrate.write_failed { sessionID, filename, error }` |
+Removed. attachment-lifecycle does not write binaries (DD-2'). Upload write failures are owned by `repo-incoming-attachments`'s own error handling.
 
-### E-GC-SWEEP-FAILED (logged, GC aborts for that session)
+### ~~E-GC-SWEEP-FAILED~~ (v1, SUPERSEDED 2026-05-04)
 
-| 欄位 | 值 |
-|---|---|
-| **Code** | (no throw to caller; per-session error logged) |
-| **Source** | `garbage-collect-incoming.ts` |
-| **Layer** | session/storage |
-| **Throw site** | rmdir / unlink fails for a specific session dir |
-| **Recovery** | Skip that session; continue sweep on others; emit warn telemetry |
-| **Telemetry** | `attachment.gc.session_failed { sessionID, error }` |
+Removed. No GC under DD-4'.
 
 ## Error budget / SLO
 
 | Event | Tolerance | Alert |
 |---|---|---|
-| `attachment_expired` (model received) | normal — happens for sessions older than TTL | only alert if > 5% of reread calls return expired (unexpected GC) |
-| `attachment_not_found` | < 1% of reread calls (model rarely typos filename) | persistent > 5% → review tool prompt clarity |
-| `attachment.dehydrate.write_failed` | 0 | any 1 occurrence → ops investigate disk |
-| `attachment.gc.session_failed` | < 1% of swept sessions | > 5% → permission/FS audit |
+| `attachment_not_found` reason=no-matching-part | < 1% of reread calls (model rarely typos filename) | persistent > 5% → review tool prompt clarity |
+| `attachment_not_found` reason=file-removed-from-repo | depends on user `git clean` cadence; no SLO | n/a |
+| `attachment_not_found` reason=invalid-filename | < 0.1% (model attempting `..`) | any non-trivial rate → review tool description |

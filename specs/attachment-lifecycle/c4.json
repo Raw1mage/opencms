@@ -2,6 +2,7 @@
   "$schema": "https://plan-builder.local/schemas/c4.json",
   "title": "C4 model — attachment-lifecycle",
   "level": "component",
+  "_recalibrationNote_v2_2026-05-04": "C2 IncomingStore + C5 GarbageCollector removed; binary lifecycle owned by repo-incoming-attachments spec. attachment-lifecycle reads existing IncomingPaths module (read-only consumer).",
   "systems": [
     {
       "id": "opencode-session",
@@ -23,10 +24,10 @@
       "description": "Holds messages, parts, attachments table (binary blobs)"
     },
     {
-      "id": "incoming-staging",
-      "name": "Incoming staging (XDG state-home)",
-      "technology": "filesystem at ~/.local/state/opencode/incoming/<sid>/",
-      "description": "Per-session disk cache for dehydrated attachment binaries with 7-day TTL post-session.deleted"
+      "id": "repo-incoming",
+      "name": "Repo incoming (owned by repo-incoming-attachments)",
+      "technology": "filesystem at <session.project.worktree>/incoming/<filename>",
+      "description": "Per-project repo-attached storage owned by repo-incoming-attachments spec. attachment-lifecycle reads only via IncomingPaths.projectRoot() + part.repo_path. No writes from this spec."
     }
   ],
   "components": [
@@ -40,11 +41,11 @@
     },
     {
       "id": "C2",
-      "name": "IncomingStore",
-      "container": "incoming-staging",
-      "moduleRef": "packages/opencode/src/session/storage/incoming-store.ts (NEW)",
+      "name": "IncomingPathsConsumer",
+      "container": "opencode-daemon",
+      "moduleRef": "packages/opencode/src/incoming/paths.ts (EXISTING; reused read-only)",
       "idef0Ref": "A2",
-      "description": "Filesystem wrapper for ~/.local/state/opencode/incoming/<sid>/. Operations: put(sid, filename, bytes) → path; get(sid, filename) → bytes; list(sid) → filenames; deleteSession(sid) → bytesFreed."
+      "description": "(v2 2026-05-04) Read-only consumer of repo-incoming-attachments' IncomingPaths namespace. Resolves <worktree>/<repo_path> for the reread tool. attachment-lifecycle does NOT write here; binary placement is handled at upload time by routeOversizedAttachment per repo-incoming-attachments phase 2.5**."
     },
     {
       "id": "C3",
@@ -65,10 +66,12 @@
     {
       "id": "C5",
       "name": "GarbageCollector",
-      "container": "opencode-daemon",
-      "moduleRef": "packages/opencode/src/session/storage/garbage-collect-incoming.ts (NEW)",
-      "idef0Ref": "A5",
-      "description": "Sweeps incoming/<sid>/ directories for sessions deleted > TTL days ago. Triggered at daemon startup + daily cron timer."
+      "_supersededAt": "2026-05-04",
+      "_supersededBy": "DD-4' — no GC needed; binary lifecycle user-managed via repo",
+      "container": "(removed)",
+      "moduleRef": "(removed; not implemented)",
+      "idef0Ref": "(removed)",
+      "description": "(v1 SUPERSEDED 2026-05-04) Removed. Binaries persist in <worktree>/incoming/ for the lifetime of the project; user manages cleanup via git clean / .gitignore / rm."
     },
     {
       "id": "C6",
@@ -81,14 +84,14 @@
   ],
   "relationships": [
     { "id": "REL1", "source": "C1", "target": "C6", "description": "Calls extractAnnotation(responseText) for each attachment", "technology": "function call" },
-    { "id": "REL2", "source": "C1", "target": "C2", "description": "put(sid, filename, bytes) for each image binary", "technology": "function call" },
-    { "id": "REL3", "source": "C1", "target": "session-storage", "description": "Updates attachment_ref part: sets dehydrated=true, annotation, sha256, incoming_path. Deletes binary row from attachments table.", "technology": "Session.updatePart + sqlite UPDATE/DELETE" },
-    { "id": "REL4", "source": "C3", "target": "C2", "description": "get(sid, filename) on tool invocation", "technology": "function call" },
+    { "id": "REL2", "_supersededAt": "2026-05-04", "source": "(removed)", "target": "(removed)", "description": "(v1 SUPERSEDED) put(sid, filename, bytes) — removed; binary already in repo via repo-incoming upload path", "technology": "(n/a)" },
+    { "id": "REL3", "source": "C1", "target": "session-storage", "description": "(v2 2026-05-04) Updates attachment_ref part: sets dehydrated=true + annotation. repo_path / sha256 are NOT touched (already populated by repo-incoming upload path).", "technology": "Session.updatePart" },
+    { "id": "REL4", "source": "C3", "target": "C2", "description": "(v2 2026-05-04) Resolves abs path via IncomingPaths.projectRoot() + part.repo_path; reads bytes via fs.readFile.", "technology": "function call + filesystem read" },
     { "id": "REL5", "source": "C3", "target": "opencode-daemon", "description": "Returns image content block as tool result", "technology": "tool framework" },
     { "id": "REL6", "source": "C4", "target": "session-storage", "description": "Reads attachment_ref parts during messages → ModelMessage conversion", "technology": "Session.messages" },
-    { "id": "REL7", "source": "C5", "target": "C2", "description": "deleteSession(sid) for sessions past TTL", "technology": "function call" },
-    { "id": "REL8", "source": "C5", "target": "session-storage", "description": "Reads session.time.deleted for TTL eligibility check", "technology": "Session.list (filter deleted > TTL ago)" },
-    { "id": "REL9", "source": "opencode-daemon", "target": "C5", "description": "Triggers GC sweep at startup + daily cron", "technology": "function call" },
+    { "id": "REL7", "_supersededAt": "2026-05-04", "source": "(removed)", "target": "(removed)", "description": "(v1 SUPERSEDED) GC delete — removed", "technology": "(n/a)" },
+    { "id": "REL8", "_supersededAt": "2026-05-04", "source": "(removed)", "target": "(removed)", "description": "(v1 SUPERSEDED) GC TTL check — removed", "technology": "(n/a)" },
+    { "id": "REL9", "_supersededAt": "2026-05-04", "source": "(removed)", "target": "(removed)", "description": "(v1 SUPERSEDED) GC trigger — removed", "technology": "(n/a)" },
     { "id": "REL10", "source": "opencode-daemon", "target": "C1", "description": "post-completion lifecycle event triggers dehydration hook", "technology": "Bus event or inline call from processor" }
   ]
 }

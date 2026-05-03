@@ -4,45 +4,39 @@
 > Spec writes (this file, design.md, etc.): mainRepo at `/home/pkcs12/projects/opencode`.
 > Always `source .beta-env/activate.sh` before any `bun test` / `bun run` in beta worktree.
 
-User-framed as a "small hotfix" — 5 implementation phases, no feature flag, direct-ship architecture.
+User-framed as a "small hotfix" — 3 implementation phases, no feature flag, direct-ship architecture.
+
+> **Recalibration v2 (2026-05-04)**: discovered `repo-incoming-attachments` (state=`implementing`) already owns the binary lifecycle (per-project `<worktree>/incoming/<filename>` + `attachment_ref.repo_path` + sha256 dedup). attachment-lifecycle scope reduces to: schema delta (2 fields) + post-completion hook + reread tool. **No IncomingStore, no GC** — the binary lives in the repo and is user-managed. Per design.md DD-2' / DD-4' / DD-15 / DD-16.
 
 ## 0. Prerequisites
 
-- [ ] T.0.1 Create beta worktree:
+- [x] T.0.1 Create beta worktree (done 2026-05-04):
   ```
   git worktree add -b beta/attachment-lifecycle \
     /home/pkcs12/projects/opencode-worktrees/attachment-lifecycle main
   ```
-- [ ] T.0.2 Bootstrap `.beta-env/activate.sh` (XDG isolation pointed at the new worktree path); copy `theme/opencode.json` if needed for `bun install` postinstall.
-- [ ] T.0.3 `bun install` in beta worktree; baseline test sweep on `packages/opencode/src/session/` matches main.
+- [x] T.0.2 Bootstrap `.beta-env/activate.sh` (XDG isolation pointed at the new worktree path); `theme/opencode.json` copied; `bun install` ran clean.
+- [x] T.0.3 Baseline test sweep on `packages/opencode/src/session/` — 52 Phase A/B tests pass (matches main).
+- [x] T.0.4 (NEW) Read [`specs/repo-incoming-attachments/`](../repo-incoming-attachments/) — confirm `attachment_ref.repo_path` is populated by `routeOversizedAttachment` for all NEW image uploads. Skip dehydration when `repo_path` is undefined (DD-15).
 
-## 1. Phase T.1 — Foundation: schema + IncomingStore + AnnotationExtractor
+## 1. Phase T.1 — Foundation: schema + AnnotationExtractor
 
-- [ ] T.1.1 Extend `MessageV2.AttachmentRefPart` schema with optional fields (DD-7):
+- [ ] T.1.1 Extend `MessageV2.AttachmentRefPart` schema with **two** new optional fields (DD-16):
   - `dehydrated?: z.boolean()`
   - `annotation?: z.string().max(4000)`
-  - `sha256?: z.string().regex(/^[a-f0-9]{64}$/)`
-  - `incoming_path?: z.string()`
-  - Roundtrip test: old part with no fields parses; new part with all fields parses; tampering with sha256 length rejects.
+  - (already-existing `repo_path?` and `sha256?` from repo-incoming spec — reused, no change.)
+  - Roundtrip test: old part with no fields parses; new part with `dehydrated=true` + annotation parses; annotation > 4000 chars rejects.
 
-- [ ] T.1.2 New file `packages/opencode/src/session/storage/incoming-store.ts`:
-  - `put(sessionID, filename, bytes): Promise<{absolutePath, sha256}>`
-  - `get(sessionID, filename): Promise<Uint8Array | null>`
-  - `list(sessionID): Promise<string[]>`
-  - `deleteSession(sessionID): Promise<{bytesFreed: number}>`
-  - `listAllSessions(): Promise<string[]>` (for GC walker)
-  - Path resolution: `path.join(Global.Path.state, "incoming", sessionID, filename)`
-  - Sanitization: refuse `..` in filename; absolute path containment check.
-  - 12-15 unit tests covering happy / missing / sanitization / list-all.
+- ~~T.1.2 IncomingStore filesystem wrapper~~ **(removed by v2 recalibration — `<worktree>/incoming/` already owned by `repo-incoming-attachments`; reread tool reads via existing `tool/attachment.ts` pattern using `repo_path`)**
 
-- [ ] T.1.3 New helper in `packages/opencode/src/session/processor.ts` (or extracted to `attachment-annotator.ts`):
+- [ ] T.1.2 (renumbered) New helper in `packages/opencode/src/session/processor.ts` (or extracted to `attachment-annotator.ts`):
   - `extractAnnotation(responseText: string): string` — trim + 4000 char cap + head/tail truncation marker (DD-12).
   - 6 unit tests: under cap / at cap / over cap (head+tail) / empty / whitespace-only / multi-line preservation.
 
-- [ ] T.1.4 Tweaks knobs in `packages/opencode/src/config/tweaks.ts`:
+- [ ] T.1.3 (renumbered) Tweaks knobs in `packages/opencode/src/config/tweaks.ts`:
   - `attachment_dehydrate_enabled: boolean` (default true)
-  - `attachment_incoming_ttl_days: number` (default 7)
   - `attachment_annotation_max_chars: number` (default 4000)
+  - ~~`attachment_incoming_ttl_days`~~ (removed — no GC under DD-4')
 
 ## 2. Phase T.2 — Behavior: DehydrationHook + WireFormatTransformer
 
@@ -51,44 +45,38 @@ User-framed as a "small hotfix" — 5 implementation phases, no feature flag, di
   - Skip if part already `dehydrated === true` (DD-5)
   - Skip if mime not `image/*` (DD-3 v1 scope)
   - Skip if `finish !== "stop"` (DD-10)
-  - For each: extractAnnotation → IncomingStore.put → Session.updatePart with new fields → delete sqlite attachments row → emit telemetry
+  - **Skip if `repo_path` is undefined** (DD-15 — pre-repo-incoming legacy attachment, no binary location to point reread at)
+  - For each remaining: `extractAnnotation` → `Session.updatePart` setting `dehydrated=true` + `annotation` (`repo_path` and `sha256` already populated by repo-incoming, leave them alone) → emit telemetry. **No binary movement; binary already at `<worktree>/<repo_path>`.**
 
 - [ ] T.2.2 Branch wire-format conversion in `MessageV2.toModelMessages` (or equivalent serializer):
-  - When `attachment_ref.dehydrated === true`: emit `{type: "text", text: <dehydrated_attachment ...>annotation</dehydrated_attachment>}`
-  - When `dehydrated !== true`: existing image_url block path (DD-8)
+  - When `attachment_ref.dehydrated === true`: emit `{type: "text", text: <dehydrated_attachment filename="..." sha256="..." repo_path="...">annotation</dehydrated_attachment>}`
+  - When `dehydrated !== true`: existing image content block path (whether legacy sqlite-blob or repo-incoming dual-read) (DD-8)
   - 6 tests cover both branches + idempotency (re-serialize same part → same bytes).
 
-- [ ] T.2.3 Integration test (lightweight): synthesize a session with 1 user message + 1 image attachment + 1 finished assistant message; run dehydration hook; confirm:
-  - sqlite attachments row gone
-  - file at `~/.local/state/opencode/incoming/<sid>/image.png` exists with correct bytes
+- [ ] T.2.3 Integration test (lightweight): synthesize a session with 1 user message + 1 image attachment (with `repo_path` populated, simulating post-repo-incoming upload) + 1 finished assistant message; run dehydration hook; confirm:
   - attachment_ref part has `dehydrated=true` + annotation populated
-  - subsequent toModelMessages emits text block
+  - `repo_path` and `sha256` unchanged
+  - file at `<worktree>/<repo_path>` is **untouched** (we don't move it)
+  - subsequent toModelMessages emits `<dehydrated_attachment>` text block (not image content block)
 
 ## 3. Phase T.3 — RereadAttachmentTool
 
 - [ ] T.3.1 New file `packages/opencode/src/tool/reread-attachment.ts`:
   - Tool name: `reread_attachment`
   - Input schema: `{filename: string}`
-  - Body: lookup `IncomingStore.get(sessionID, filename)` → if found, return `{type: "image", url: data URI, est_tokens, byte_size}`; if missing, return `{error: "attachment_expired", message: ...}`
-  - 5 tests: happy / missing / non-existent filename / sanitization / telemetry emit.
+  - Body: walk session messages, find a `attachment_ref` with matching filename + `dehydrated=true` + `repo_path` populated; resolve absolute path via `IncomingPaths.projectRoot()` + part.repo_path; read bytes via `fs.readFile`. If found → return `{type: "image", url: data URI, est_tokens, byte_size}`; if file missing → `{error: "attachment_not_found", message: ...}`; if no matching dehydrated part → `{error: "attachment_not_found", message: ...}`.
+  - 5 tests: happy (post-dehydration reread) / file deleted from repo / no matching part / multi-attachment match-by-filename / telemetry emit.
 
 - [ ] T.3.2 Register tool in `packages/opencode/src/tool/index.ts` core registry. Description tells model when to use:
   ```
-  Re-read a previously dehydrated image attachment. Use when the dehydrated_attachment annotation is insufficient and you need the original image content. Filename matches the original attachment filename.
+  Re-read a previously dehydrated image attachment. Use when the <dehydrated_attachment> annotation is insufficient and you need to look at the original image content. Filename matches the original attachment filename (visible in the dehydrated_attachment tag).
   ```
 
-- [ ] T.3.3 Integration test: dehydrate → call reread → confirm fresh image content returned.
+- [ ] T.3.3 Integration test: dehydrate (with `repo_path` populated) → call `reread_attachment(filename)` → confirm fresh image content returned, sourced from `<worktree>/<repo_path>`.
 
-## 4. Phase T.4 — GarbageCollector + cron
+~~## 4. Phase T.4 — GarbageCollector + cron~~
 
-- [ ] T.4.1 New file `packages/opencode/src/session/storage/garbage-collect-incoming.ts`:
-  - `gcSweep(): Promise<{sessionsScanned, sessionsDeleted, bytesFreed, durationMs}>`
-  - For each session dir: lookup Session.get(sid) → if missing or `time.deleted` > TTL days ago → IncomingStore.deleteSession
-  - 5 tests with synthetic timestamps.
-
-- [ ] T.4.2 Wire into `cli/cmd/serve.ts handler` post-migration-boot-guard, pre-listen.
-
-- [ ] T.4.3 Register daily cron timer (use existing cron subsystem); trigger `attachment.gc.daily`.
+**Removed by v2 recalibration 2026-05-04**. Per DD-4', binaries persist in `<worktree>/incoming/<filename>` for the lifetime of the project repo; cleanup is the user's choice via `git clean` / `.gitignore` / manual `rm`. Reread errors with `attachment_not_found` if user has removed the file.
 
 ## 5. Phase T.5 — Validation + finalize
 
@@ -109,16 +97,17 @@ User-framed as a "small hotfix" — 5 implementation phases, no feature flag, di
 
 ## Dependencies between phases
 
-- T.0 unblocks all
-- T.1 (schema + foundation) → T.2 (behavior consumes new schema)
+- T.0 done — unblocks all
+- T.1 (schema + annotator + tweaks) → T.2 (behavior consumes new schema)
 - T.2 (dehydration hook + serializer) → T.3 (reread tool depends on dehydrated parts existing)
-- T.4 (GC) parallel to T.3 (no interdep)
-- T.5 (validation) gate after T.1-T.4 all green
+- ~~T.4 (GC)~~ removed under v2 recalibration
+- T.5 (validation) gate after T.1-T.3 all green
 - T.6 (finalize) after user approval
 
 ## Stop gates
 
-- T.0.1 fail (worktree creation) → stop and report
+- ~~T.0.1 fail~~ T.0 已完成 2026-05-04
 - T.5.7 STOP for user finalize approval
 - T.6.4 daemon restart needs explicit user "重啟嗎？" consent
 - Any test red → stop, fix, no skip
+- Pre-repo-incoming legacy attachment (`repo_path` undefined) detected during T.2.1 hook design — confirm DD-15 skip behavior is correct, no test regression

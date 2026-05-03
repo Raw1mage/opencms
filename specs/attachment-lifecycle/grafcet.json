@@ -6,12 +6,14 @@
     "StepAction": "Idle: await assistant turn completion or tool call or GC tick",
     "LinkInputType": [],
     "LinkInputNumber": [],
-    "LinkOutputNumber": [1, 20, 30],
+    "LinkOutputNumber": [
+      1,
+      20
+    ],
     "LinkOutputType": "divergence_or",
     "Condition": [
       "assistant_finish_stop",
-      "model_called_reread_attachment",
-      "daemon_startup OR daily_cron_tick"
+      "model_called_reread_attachment"
     ],
     "SubGrafcet": []
   },
@@ -21,10 +23,16 @@
     "StepType": "normal",
     "StepAction": "Locate parent user message + its image attachment_ref parts",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["attachments_listed"],
+    "Condition": [
+      "attachments_listed"
+    ],
     "SubGrafcet": []
   },
   {
@@ -33,8 +41,13 @@
     "StepType": "normal",
     "StepAction": "For each part: check dehydrated flag and mime",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [3, 0],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      3,
+      0
+    ],
     "LinkOutputType": "divergence_or",
     "Condition": [
       "image_mime AND NOT dehydrated AND finish=stop",
@@ -48,34 +61,34 @@
     "StepType": "normal",
     "StepAction": "Extract annotation from assistant response text (≤ 4000 chars)",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [4],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      5
+    ],
     "LinkOutputType": "track",
-    "Condition": ["annotation_extracted"],
-    "SubGrafcet": []
-  },
-  {
-    "StepNumber": 4,
-    "ModuleRef": "A12",
-    "StepType": "normal",
-    "StepAction": "IncomingStore.put(sid, filename, bytes) → returns abs path",
-    "LinkInputType": "track",
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [5],
-    "LinkOutputType": "track",
-    "Condition": ["binary_written_to_disk"],
+    "Condition": [
+      "annotation_extracted"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 5,
     "ModuleRef": "A13",
     "StepType": "normal",
-    "StepAction": "Session.updatePart: set dehydrated=true, annotation, sha256, incoming_path; delete sqlite attachments row",
+    "StepAction": "Session.updatePart: set dehydrated=true + annotation (repo_path / sha256 unchanged; no binary move)",
     "LinkInputType": "track",
-    "LinkInputNumber": [4],
-    "LinkOutputNumber": [6],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      6
+    ],
     "LinkOutputType": "track",
-    "Condition": ["part_rewritten_and_binary_removed_from_sqlite"],
+    "Condition": [
+      "part_rewritten"
+    ],
     "SubGrafcet": []
   },
   {
@@ -84,10 +97,16 @@
     "StepType": "normal",
     "StepAction": "Emit telemetry attachment.dehydrated; loop to next attachment or return idle",
     "LinkInputType": "track",
-    "LinkInputNumber": [5],
-    "LinkOutputNumber": [0],
+    "LinkInputNumber": [
+      5
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["all_attachments_processed"],
+    "Condition": [
+      "all_attachments_processed"
+    ],
     "SubGrafcet": []
   },
   {
@@ -96,10 +115,16 @@
     "StepType": "normal",
     "StepAction": "Read filename arg; lookup IncomingStore.get(sid, filename)",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [21],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      21
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["lookup_complete"],
+    "Condition": [
+      "lookup_complete"
+    ],
     "SubGrafcet": []
   },
   {
@@ -108,10 +133,18 @@
     "StepType": "normal",
     "StepAction": "Branch on file presence",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [20],
-    "LinkOutputNumber": [22, 23],
+    "LinkInputNumber": [
+      20
+    ],
+    "LinkOutputNumber": [
+      22,
+      23
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["bytes_returned", "file_missing_or_gcd"]
+    "Condition": [
+      "bytes_returned",
+      "file_missing_or_gcd"
+    ]
   },
   {
     "StepNumber": 22,
@@ -119,10 +152,16 @@
     "StepType": "normal",
     "StepAction": "Return tool result {type:'image', url:'data:...', est_tokens, byte_size}; emit attachment.rereaded telemetry",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [21],
-    "LinkOutputNumber": [0],
+    "LinkInputNumber": [
+      21
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["return_to_idle"]
+    "Condition": [
+      "return_to_idle"
+    ]
   },
   {
     "StepNumber": 23,
@@ -130,80 +169,15 @@
     "StepType": "normal",
     "StepAction": "Return tool error {error:'attachment_expired', message:'...'}",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [21],
-    "LinkOutputNumber": [0],
+    "LinkInputNumber": [
+      21
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["return_to_idle"]
-  },
-  {
-    "StepNumber": 30,
-    "ModuleRef": "A5",
-    "StepType": "normal",
-    "StepAction": "List all sessionID dirs under ~/.local/state/opencode/incoming/",
-    "LinkInputType": "divergence_or",
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [31],
-    "LinkOutputType": "track",
-    "Condition": ["dirs_listed"],
-    "SubGrafcet": []
-  },
-  {
-    "StepNumber": 31,
-    "ModuleRef": "A5",
-    "StepType": "normal",
-    "StepAction": "For each sid: check Session.get(sid).time.deleted vs (now - TTL)",
-    "LinkInputType": "track",
-    "LinkInputNumber": [30],
-    "LinkOutputNumber": [32],
-    "LinkOutputType": "divergence_or",
-    "Condition": ["check_complete"],
-    "SubGrafcet": []
-  },
-  {
-    "StepNumber": 32,
-    "ModuleRef": "A5",
-    "StepType": "normal",
-    "StepAction": "Branch: expired sessions get deleted, others kept",
-    "LinkInputType": "divergence_or",
-    "LinkInputNumber": [31],
-    "LinkOutputNumber": [33, 34],
-    "LinkOutputType": "divergence_or",
-    "Condition": ["session_deleted_or_expired", "session_alive_within_ttl"]
-  },
-  {
-    "StepNumber": 33,
-    "ModuleRef": "A5",
-    "StepType": "normal",
-    "StepAction": "IncomingStore.deleteSession(sid) — recursive rm; accumulate bytes freed",
-    "LinkInputType": "divergence_or",
-    "LinkInputNumber": [32],
-    "LinkOutputNumber": [35],
-    "LinkOutputType": "convergence_or",
-    "Condition": ["dir_removed"],
-    "SubGrafcet": []
-  },
-  {
-    "StepNumber": 34,
-    "ModuleRef": "A5",
-    "StepType": "normal",
-    "StepAction": "Skip — session still within TTL window or active",
-    "LinkInputType": "divergence_or",
-    "LinkInputNumber": [32],
-    "LinkOutputNumber": [35],
-    "LinkOutputType": "convergence_or",
-    "Condition": ["skipped"],
-    "SubGrafcet": []
-  },
-  {
-    "StepNumber": 35,
-    "ModuleRef": "A5",
-    "StepType": "normal",
-    "StepAction": "Emit telemetry attachment.gc.swept {sessionsScanned, sessionsDeleted, bytesFreed, durationMs}; return idle",
-    "LinkInputType": "convergence_or",
-    "LinkInputNumber": [33, 34],
-    "LinkOutputNumber": [0],
-    "LinkOutputType": "track",
-    "Condition": ["return_to_idle"],
-    "SubGrafcet": []
+    "Condition": [
+      "return_to_idle"
+    ]
   }
 ]
