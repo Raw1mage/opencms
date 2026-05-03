@@ -50,7 +50,14 @@ import { SkillLayerRegistry } from "./skill-layer-registry"
 import { buildSkillLayerRegistrySystemPart } from "./skill-layer-seam"
 import { recordSystemBlockHash } from "./cache-miss-diagnostic"
 import { buildStaticBlock, resolveFamily, type StaticSystemTuple } from "./static-system-builder"
-import { buildPreface, type ContextPrefaceMessageOutput } from "./context-preface"
+import {
+  buildActiveImageContentBlocks,
+  buildPreface,
+  type ContextPrefaceMessageOutput,
+  type InlineImageContentBlock,
+  type InlineImageRefInput,
+} from "./context-preface"
+import { Tweaks } from "@/config/tweaks"
 import { Account } from "../account"
 import { ALWAYS_PRESENT_TOOLS } from "@/tool/tool-loader"
 
@@ -611,6 +618,49 @@ export namespace LLM {
       // ride the trailing tier.
       const enablementText = injectEnablementSnapshot ? buildEnablementSnapshot(input.messages) : ""
       const partitioned = SkillLayerRegistry.partitionForPreface(skillLayerEntries)
+
+      // attachment-lifecycle v4 (DD-19/DD-20): resolve any image refs queued
+      // for inline rendering this turn. They land at the END of trailing tier
+      // (BP4 zone) so per-turn churn never invalidates the T1/T2 prefix.
+      let activeImageBlocks: InlineImageContentBlock[] = []
+      const inlineCfg = Tweaks.attachmentInlineSync()
+      if (inlineCfg.enabled) {
+        try {
+          const { Session: SessionMod } = await import("@/session")
+          const sessionInfo = await SessionMod.get(input.sessionID).catch(() => undefined)
+          const refs = sessionInfo?.execution?.activeImageRefs ?? []
+          if (refs.length > 0) {
+            const messagesV2 = await SessionMod.messages({ sessionID: input.sessionID }).catch(() => [])
+            const refsByFilename = new Map<string, InlineImageRefInput>()
+            for (const m of messagesV2) {
+              for (const part of m.parts ?? []) {
+                if (part.type !== "attachment_ref") continue
+                if (!part.filename || !part.repo_path || !part.mime?.startsWith("image/")) continue
+                refsByFilename.set(part.filename, {
+                  filename: part.filename,
+                  mime: part.mime,
+                  repo_path: part.repo_path,
+                })
+              }
+            }
+            const { IncomingPaths } = await import("@/incoming/paths")
+            let projectRoot = ""
+            try {
+              projectRoot = IncomingPaths.projectRoot()
+            } catch {
+              projectRoot = ""
+            }
+            if (projectRoot) {
+              activeImageBlocks = await buildActiveImageContentBlocks(refs, refsByFilename, projectRoot)
+            }
+          }
+        } catch (err) {
+          l.warn("active image inline failed; preface continues without images", {
+            error: err instanceof Error ? err.message : String(err),
+          })
+        }
+      }
+
       const prefaceInput = {
         preload: input.preload ?? { readmeSummary: "", cwdListing: "" },
         skills: {
@@ -623,6 +673,7 @@ export namespace LLM {
           ...input.system.filter(Boolean),
           ...(enablementText ? [enablementText] : []),
         ],
+        activeImageBlocks,
       }
 
       // DD-11: experimental.chat.context.transform hook. Plugins can mutate
@@ -663,6 +714,7 @@ export namespace LLM {
         },
         todaysDate: contextTransformOutput.preface.t1.todaysDate,
         trailingExtras: contextTransformOutput.trailingExtras,
+        activeImageBlocks: prefaceInput.activeImageBlocks,
       })
 
       // DD-13 (assembly-time telemetry): emit the breakpoint plan so we can
@@ -670,16 +722,18 @@ export namespace LLM {
       // telemetry from provider response headers is deferred — the existing
       // cachedInputTokens in usage stats already covers that signal at a
       // coarser granularity.
-      const t1Block = preface.contentBlocks.find((b) => b.tier === "t1")
-      const t2Block = preface.contentBlocks.find((b) => b.tier === "t2")
-      const trailingBlock = preface.contentBlocks.find((b) => b.tier === "trailing")
+      const t1Block = preface.contentBlocks.find((b) => b.type === "text" && b.tier === "t1")
+      const t2Block = preface.contentBlocks.find((b) => b.type === "text" && b.tier === "t2")
+      const trailingTextBlock = preface.contentBlocks.find((b) => b.type === "text" && b.tier === "trailing")
+      const inlineImageCount = preface.contentBlocks.filter((b) => b.type === "file").length
       log.info("prompt.preface.assembled", {
         sessionID: input.sessionID,
         staticBlockChars: staticBlock.text.length,
         staticBlockHash: staticBlock.hash.slice(0, 12),
-        t1Chars: t1Block?.text.length ?? 0,
-        t2Chars: t2Block?.text.length ?? 0,
-        trailingChars: trailingBlock?.text.length ?? 0,
+        t1Chars: t1Block && t1Block.type === "text" ? t1Block.text.length : 0,
+        t2Chars: t2Block && t2Block.type === "text" ? t2Block.text.length : 0,
+        trailingChars: trailingTextBlock && trailingTextBlock.type === "text" ? trailingTextBlock.text.length : 0,
+        inlineImageCount,
         t2Empty: preface.t2Empty,
         breakpointPlan: {
           BP1: "static-system-end",
@@ -710,13 +764,15 @@ export namespace LLM {
       const blocks = preface.contentBlocks
       const t1LastIdx = (() => {
         for (let i = blocks.length - 1; i >= 0; i--) {
-          if (blocks[i]?.tier === "t1") return i
+          const b = blocks[i]
+          if (b?.type === "text" && b.tier === "t1") return i
         }
         return -1
       })()
       const t2LastIdx = (() => {
         for (let i = blocks.length - 1; i >= 0; i--) {
-          if (blocks[i]?.tier === "t2") return i
+          const b = blocks[i]
+          if (b?.type === "text" && b.tier === "t2") return i
         }
         return -1
       })()
@@ -725,6 +781,17 @@ export namespace LLM {
       // Flat boolean at the outer level fails validation with
       // "messages must be a ModelMessage[]".
       const prefaceContent = blocks.map((b, i) => {
+        if (b.type === "file") {
+          // v4 DD-19: image binary block — passes through to AI SDK as-is.
+          // Never gets a Phase B breakpoint marker; rides BP4 with the
+          // following user message (per-turn churn zone).
+          return {
+            type: "file" as const,
+            data: b.url,
+            mediaType: b.mediaType,
+            filename: b.filename,
+          }
+        }
         const needsBreakpoint = i === t1LastIdx || i === t2LastIdx
         if (needsBreakpoint) {
           return {
@@ -851,14 +918,26 @@ export namespace LLM {
         policy: "always_on",
       })),
       ...(preface
-        ? preface.contentBlocks.map((b) => ({
-            key: `preface_${b.tier}`,
-            name: `情境前序 (${b.tier.toUpperCase()})`,
-            chars: b.text.length,
-            tokens: Token.estimate(b.text),
-            injected: b.text.trim().length > 0,
-            policy: b.tier === "trailing" ? "dynamic" : b.tier === "t2" ? "decay" : "session_stable",
-          }))
+        ? preface.contentBlocks.map((b, idx) => {
+            if (b.type === "file") {
+              return {
+                key: `preface_image_${idx}`,
+                name: `情境前序 (圖片 ${b.filename})`,
+                chars: 0,
+                tokens: 0,
+                injected: true,
+                policy: "dynamic",
+              }
+            }
+            return {
+              key: `preface_${b.tier}`,
+              name: `情境前序 (${b.tier.toUpperCase()})`,
+              chars: b.text.length,
+              tokens: Token.estimate(b.text),
+              injected: b.text.trim().length > 0,
+              policy: b.tier === "trailing" ? "dynamic" : b.tier === "t2" ? "decay" : "session_stable",
+            }
+          })
         : []),
     ]
     const finalSystemChars = filteredSystem.reduce((sum, item) => sum + item.length, 0)
