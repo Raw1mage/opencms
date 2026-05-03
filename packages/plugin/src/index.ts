@@ -234,6 +234,39 @@ export interface Hooks {
     },
   ) => Promise<void>
   /**
+   * Phase B (specs/prompt-cache-and-compaction-hardening DD-11). Called after
+   * the user-role context preface has been assembled but before the outbound
+   * messages list is finalized. Plugins can mutate any of the preface fields:
+   *
+   * - `t1.readmeSummary` / `t1.cwdListing` / `t1.pinnedSkills` / `t1.todaysDate`
+   * - `t2.activeSkills` / `t2.summarizedSkills`
+   * - `trailingExtras` (per-turn dynamic content)
+   *
+   * Migration note (one release of compatibility): plugins that previously
+   * injected dynamic content via `experimental.chat.system.transform` should
+   * migrate to this hook. Old hook now receives only the static system block;
+   * dynamic injection there is logged with a deprecation warning and will be
+   * silent-dropped one release later.
+   */
+  "experimental.chat.context.transform"?: (
+    input: { sessionID: string; model: Model },
+    output: {
+      preface: {
+        t1: {
+          readmeSummary: string
+          cwdListing: string
+          pinnedSkills: Array<{ name: string; state: "pinned"; content: string }>
+          todaysDate: string
+        }
+        t2: {
+          activeSkills: Array<{ name: string; state: "active"; content: string }>
+          summarizedSkills: Array<{ name: string; state: "summary"; content: string }>
+        }
+      }
+      trailingExtras: string[]
+    },
+  ) => Promise<void>
+  /**
    * Called before session compaction starts. Allows plugins to customize
    * the compaction prompt.
    *

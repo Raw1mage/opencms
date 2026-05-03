@@ -610,12 +610,8 @@ export namespace LLM {
       // for lazy catalog / structured output / notices / quota-low addenda)
       // ride the trailing tier.
       const enablementText = injectEnablementSnapshot ? buildEnablementSnapshot(input.messages) : ""
-      const trailingExtras = [
-        ...input.system.filter(Boolean),
-        ...(enablementText ? [enablementText] : []),
-      ]
       const partitioned = SkillLayerRegistry.partitionForPreface(skillLayerEntries)
-      preface = buildPreface({
+      const prefaceInput = {
         preload: input.preload ?? { readmeSummary: "", cwdListing: "" },
         skills: {
           pinned: partitioned.pinned,
@@ -623,7 +619,74 @@ export namespace LLM {
           summarized: partitioned.summarized,
         },
         todaysDate: input.todaysDate ?? new Date().toDateString(),
-        trailingExtras,
+        trailingExtras: [
+          ...input.system.filter(Boolean),
+          ...(enablementText ? [enablementText] : []),
+        ],
+      }
+
+      // DD-11: experimental.chat.context.transform hook. Plugins can mutate
+      // preface fields (preload / skills / date / trailingExtras) before
+      // buildPreface serializes them. This is the new hook for Phase B
+      // dynamic content, complementing experimental.chat.system.transform
+      // which now receives only the static block.
+      const contextTransformOutput = {
+        preface: {
+          t1: {
+            readmeSummary: prefaceInput.preload.readmeSummary,
+            cwdListing: prefaceInput.preload.cwdListing,
+            pinnedSkills: prefaceInput.skills.pinned,
+            todaysDate: prefaceInput.todaysDate,
+          },
+          t2: {
+            activeSkills: prefaceInput.skills.active,
+            summarizedSkills: prefaceInput.skills.summarized,
+          },
+        },
+        trailingExtras: prefaceInput.trailingExtras,
+      }
+      await Plugin.trigger(
+        "experimental.chat.context.transform",
+        { sessionID: input.sessionID, model: input.model },
+        contextTransformOutput,
+      )
+      // Reconstruct prefaceInput from possibly-mutated hook output.
+      preface = buildPreface({
+        preload: {
+          readmeSummary: contextTransformOutput.preface.t1.readmeSummary,
+          cwdListing: contextTransformOutput.preface.t1.cwdListing,
+        },
+        skills: {
+          pinned: contextTransformOutput.preface.t1.pinnedSkills,
+          active: contextTransformOutput.preface.t2.activeSkills,
+          summarized: contextTransformOutput.preface.t2.summarizedSkills,
+        },
+        todaysDate: contextTransformOutput.preface.t1.todaysDate,
+        trailingExtras: contextTransformOutput.trailingExtras,
+      })
+
+      // DD-13 (assembly-time telemetry): emit the breakpoint plan so we can
+      // observe the static-vs-dynamic split per turn. Cache hit/miss
+      // telemetry from provider response headers is deferred — the existing
+      // cachedInputTokens in usage stats already covers that signal at a
+      // coarser granularity.
+      const t1Block = preface.contentBlocks.find((b) => b.tier === "t1")
+      const t2Block = preface.contentBlocks.find((b) => b.tier === "t2")
+      const trailingBlock = preface.contentBlocks.find((b) => b.tier === "trailing")
+      log.info("prompt.preface.assembled", {
+        sessionID: input.sessionID,
+        staticBlockChars: staticBlock.text.length,
+        staticBlockHash: staticBlock.hash.slice(0, 12),
+        t1Chars: t1Block?.text.length ?? 0,
+        t2Chars: t2Block?.text.length ?? 0,
+        trailingChars: trailingBlock?.text.length ?? 0,
+        t2Empty: preface.t2Empty,
+        breakpointPlan: {
+          BP1: "static-system-end",
+          BP2: t1Block ? "preface-t1-end" : "omitted",
+          BP3: t2Block ? "preface-t2-end" : "omitted",
+          BP4: "conversation-final",
+        },
       })
     }
 
