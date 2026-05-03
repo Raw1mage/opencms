@@ -70,6 +70,8 @@ Phased checklist. Implementing-state agent loads exactly one phase's `- [ ]` ite
 
 ## 9. Cutover (ops, after merge)
 
+> Operator-driven; daemon must be stopped during the window. Full runbook + rollback path: [docs/events/event_2026-05-03_provider-account-decoupling-cutover.md](../../docs/events/event_2026-05-03_provider-account-decoupling-cutover.md). Spec promotes `verified → living` after smoke (§ 9.6) passes.
+
 - [ ] 9.1 `opencode daemon stop`
 - [ ] 9.2 `bun run packages/opencode/scripts/migrate-provider-account-decoupling.ts --dry-run` — review diff
 - [ ] 9.3 `bun run packages/opencode/scripts/migrate-provider-account-decoupling.ts --apply` — backup + sweep + marker
