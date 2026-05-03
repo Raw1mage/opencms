@@ -13,12 +13,26 @@ export {
   IDENTITY_AGENT_SDK,
   IDENTITY_PURE_AGENT,
   IDENTITY_VALIDATION_SET,
-  MINIMUM_BETAS,
+  BETA_CLAUDE_CODE,
+  BETA_OAUTH,
+  BETA_CONTEXT_1M,
+  BETA_INTERLEAVED_THINKING,
+  BETA_REDACT_THINKING,
+  BETA_CONTEXT_MANAGEMENT,
+  BETA_PROMPT_CACHING_SCOPE,
+  BETA_FAST_MODE,
+  BETA_EFFORT,
+  BETA_TASK_BUDGETS,
+  isFirstPartyish,
+  isHaikuModel,
+  supports1MContext,
+  supportsThinking,
+  modelSupportsContextManagement,
   assembleBetas,
   calculateAttributionHash,
   buildBillingHeader,
 } from "./protocol.js"
-export type { AssembleBetasOptions } from "./protocol.js"
+export type { AssembleBetasOptions, ProviderRoute } from "./protocol.js"
 
 // Model catalog
 export {

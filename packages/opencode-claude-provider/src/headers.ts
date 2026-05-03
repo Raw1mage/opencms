@@ -10,6 +10,7 @@ import {
   assembleBetas,
   buildBillingHeader,
   type AssembleBetasOptions,
+  type ProviderRoute,
 } from "./protocol.js"
 
 // ---------------------------------------------------------------------------
@@ -21,7 +22,7 @@ export interface BuildHeadersOptions {
   accessToken: string
   /** Model ID for beta flag assembly */
   modelId: string
-  /** Whether auth is OAuth/subscription */
+  /** Whether auth is OAuth/subscription. opencode always passes true (DD-16). */
   isOAuth: boolean
   /** Organization UUID (optional) */
   orgID?: string
@@ -37,6 +38,16 @@ export interface BuildHeadersOptions {
   taskBudget?: boolean
   /** Extra betas from ANTHROPIC_BETAS env */
   envBetas?: string[]
+  /** Routing target. opencode always firstParty (DD-4). */
+  provider?: ProviderRoute
+  /** Suppresses redact-thinking. */
+  showThinkingSummaries?: boolean
+  /** Resolved from CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS at the call site. */
+  disableExperimentalBetas?: boolean
+  /** Resolved from DISABLE_INTERLEAVED_THINKING at the call site. */
+  disableInterleavedThinking?: boolean
+  /** True iff running in interactive TTY. opencode daemon always false (DD-17). */
+  isInteractive?: boolean
 }
 
 export function buildHeaders(options: BuildHeadersOptions): Headers {
@@ -48,7 +59,7 @@ export function buildHeaders(options: BuildHeadersOptions): Headers {
   headers.set("Content-Type", "application/json")
   headers.set("User-Agent", `claude-code/${VERSION}`)
 
-  // Beta flags — dynamic per-request assembly
+  // Beta flags — dynamic per-request assembly (1:1 forward)
   const betaOptions: AssembleBetasOptions = {
     isOAuth: options.isOAuth,
     modelId: options.modelId,
@@ -56,6 +67,11 @@ export function buildHeaders(options: BuildHeadersOptions): Headers {
     effort: options.effort,
     taskBudget: options.taskBudget,
     envBetas: options.envBetas,
+    provider: options.provider,
+    showThinkingSummaries: options.showThinkingSummaries,
+    disableExperimentalBetas: options.disableExperimentalBetas,
+    disableInterleavedThinking: options.disableInterleavedThinking,
+    isInteractive: options.isInteractive,
   }
   const betas = assembleBetas(betaOptions)
   headers.set("anthropic-beta", betas.join(","))
