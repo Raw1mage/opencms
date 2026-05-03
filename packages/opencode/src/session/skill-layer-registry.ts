@@ -311,6 +311,70 @@ export namespace SkillLayerRegistry {
     return Array.from(registry.get(sessionID)?.values() ?? []).sort((a, b) => a.name.localeCompare(b.name))
   }
 
+  /**
+   * Phase B B.4 helper: partition a SkillLayerEntry list into the three
+   * tier buckets the context preface builder expects (DD-1 + DD-12).
+   *
+   * - pinned   → preface T1 (session-stable, byte-equal across turns)
+   * - active   → preface T2 (decay-tier, full content)
+   * - summary  → preface T2 (decay-tier, summary-only)
+   * - unloaded → dropped (returned in `dropped` for telemetry)
+   *
+   * Output is sorted by name within each bucket for byte determinism.
+   */
+  export function partitionForPreface(entries: ReadonlyArray<SkillLayerEntry>): {
+    pinned: Array<{ name: string; state: "pinned"; content: string; loadedAt?: number; lastUsedAt?: number }>
+    active: Array<{ name: string; state: "active"; content: string; loadedAt?: number; lastUsedAt?: number }>
+    summarized: Array<{ name: string; state: "summary"; content: string; loadedAt?: number; lastUsedAt?: number }>
+    dropped: string[]
+  } {
+    const pinned: ReturnType<typeof partitionForPreface>["pinned"] = []
+    const active: ReturnType<typeof partitionForPreface>["active"] = []
+    const summarized: ReturnType<typeof partitionForPreface>["summarized"] = []
+    const dropped: string[] = []
+    for (const e of entries) {
+      if (e.runtimeState === "unloaded" || e.desiredState === "absent") {
+        dropped.push(e.name)
+        continue
+      }
+      if (e.pinned) {
+        pinned.push({
+          name: e.name,
+          state: "pinned",
+          content: e.content,
+          loadedAt: e.loadedAt,
+          lastUsedAt: e.lastUsedAt,
+        })
+        continue
+      }
+      if (e.runtimeState === "summarized" || e.desiredState === "summary") {
+        const summaryBody = e.residue
+          ? `purpose: ${e.residue.purpose}\nkeepRules:\n${e.residue.keepRules.map((r) => `  - ${r}`).join("\n")}`
+          : `purpose: ${e.purpose}`
+        summarized.push({
+          name: e.name,
+          state: "summary",
+          content: summaryBody,
+          loadedAt: e.loadedAt,
+          lastUsedAt: e.lastUsedAt,
+        })
+        continue
+      }
+      active.push({
+        name: e.name,
+        state: "active",
+        content: e.content,
+        loadedAt: e.loadedAt,
+        lastUsedAt: e.lastUsedAt,
+      })
+    }
+    const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name)
+    pinned.sort(byName)
+    active.sort(byName)
+    summarized.sort(byName)
+    return { pinned, active, summarized, dropped }
+  }
+
   export function peek(sessionID: string, name: string): SkillLayerEntry | undefined {
     return registry.get(sessionID)?.get(name)
   }

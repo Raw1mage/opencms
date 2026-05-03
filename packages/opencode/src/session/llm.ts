@@ -49,6 +49,9 @@ import { resolveProviderBillingMode } from "@/provider/billing-mode"
 import { SkillLayerRegistry } from "./skill-layer-registry"
 import { buildSkillLayerRegistrySystemPart } from "./skill-layer-seam"
 import { recordSystemBlockHash } from "./cache-miss-diagnostic"
+import { buildStaticBlock, resolveFamily, type StaticSystemTuple } from "./static-system-builder"
+import { buildPreface, type ContextPrefaceMessageOutput } from "./context-preface"
+import { Account } from "../account"
 import { ALWAYS_PRESENT_TOOLS } from "@/tool/tool-loader"
 
 /**
@@ -207,7 +210,25 @@ export namespace LLM {
     model: Provider.Model
     accountId?: string
     agent: Agent.Info
+    /**
+     * Phase B: per-turn "trailing" system addenda. Carries content that
+     * doesn't belong to the static system block or the preface T1/T2 segments
+     * — e.g. lazy tool catalog hints, structured-output directives, subagent
+     * return notices, processor.ts quota-low wrap-up. Emitted as the
+     * trailing content block of the context preface message (per-turn cache
+     * invalidation is acceptable here).
+     *
+     * Pre-Phase-B callers used this as a catch-all that also included
+     * preload + env + AGENTS; those three responsibilities now live in the
+     * dedicated fields below.
+     */
     system: string[]
+    /** Phase B (DD-1, DD-2): structured preload for preface T1. */
+    preload?: import("./context-preface-types").PreloadParts
+    /** Phase B (DD-2): today's date for preface T1 (last item in T1). */
+    todaysDate?: string
+    /** Phase B (DD-12 L3c): AGENTS.md text. Empty for subagents. */
+    agentsMd?: string
     abort: AbortSignal
     messages: ModelMessage[]
     small?: boolean
@@ -487,134 +508,240 @@ export namespace LLM {
     // x-codex-parent-thread-id header on codex Responses API calls.
     const parentSessionID = subagentSession ? await resolveParentSessionID(input.sessionID) : undefined
     const injectEnablementSnapshot = shouldInjectEnablementSnapshot(input.messages)
-    const system = []
-    const systemPartEntries = isLiteProvider
-      ? [
-          {
-            key: "lite_system_prompt",
-            name: "精簡提詞",
-            policy: "always_on",
-            text: [
-              "You are a helpful assistant. Be concise and direct.",
-              "Reply in the same language the user uses.",
-              input.user.system ?? "",
-            ]
-              .filter(Boolean)
-              .join("\n"),
-          },
-        ]
-      : [
-          {
-            key: "provider_prompt",
-            name: "提供者層",
-            // Always load provider prompt regardless of wire format.
-            // useInstructionsOption only controls HOW the prompt is sent
-            // (instructions field vs system messages), not WHETHER to load it.
-            policy: "always_on",
-            text: (await SystemPrompt.provider(input.model)).join("\n"),
-          },
-          {
-            key: "agent_prompt",
-            name: "代理提詞",
-            policy: "conditional",
-            text: input.agent.prompt ?? "",
-          },
-          {
-            key: "dynamic_system",
-            name: "上下文層",
-            policy: "dynamic",
-            text: input.system.join("\n"),
-          },
-          {
-            key: "enablement_snapshot",
-            name: "能力快照",
-            policy: injectEnablementSnapshot ? "conditional_active" : "conditional_skipped",
-            text: injectEnablementSnapshot ? buildEnablementSnapshot(input.messages) : "",
-          },
-          {
-            key: "user_system",
-            name: "自訂提詞",
-            policy: "conditional",
-            text: input.user.system ?? "",
-          },
-          {
-            key: "critical_boundary_separator",
-            name: "安全邊界",
-            policy: "always_on",
-            text: `\n\n--- CRITICAL OPERATIONAL BOUNDARY ---\n\n`,
-          },
-          {
-            key: "core_system_prompt",
-            name: "核心提詞",
-            policy: "always_on",
-            text: (await SystemPrompt.system(subagentSession)).join("\n"),
-          },
-          {
-            key: "identity_reinforcement",
-            name: "身分強化",
-            policy: "always_on",
-            text:
-              `\n\n[IDENTITY REINFORCEMENT]\n` +
-              `Current Role: ${subagentSession ? "Subagent" : "Main Agent"}\n` +
-              `Session Context: ${subagentSession ? "Sub-task" : "Main-task Orchestration"}`,
-          },
-          {
-            ...buildSkillLayerRegistrySystemPart(skillLayerEntries),
-          },
-        ]
+    const system: string[] = []
+    let preface: ContextPrefaceMessageOutput | undefined
 
-    system.push(
-      systemPartEntries
-        .map((entry) => entry.text)
-        .filter((x) => x)
-        .join("\n"),
-    )
+    if (isLiteProvider) {
+      // Lite provider (DD-14): single concise system prompt, no static-block
+      // refactor, no preface. Lite mode optimizes for token economy.
+      const liteText = [
+        "You are a helpful assistant. Be concise and direct.",
+        "Reply in the same language the user uses.",
+        input.user.system ?? "",
+      ]
+        .filter(Boolean)
+        .join("\n")
+      system.push(liteText)
+      // Cache-miss diagnostic still tracks lite hash for completeness.
+      recordSystemBlockHash(input.sessionID, liteText)
+    } else {
+      // Phase B (DD-12 + DD-15 + DD-16): assemble the seven static layers
+      // through the StaticSystemBuilder pipeline.
+      const knownFamilies = await Account.knownFamilies()
+      const family = resolveFamily(executionModel.providerId, knownFamilies)
 
-    // 7. Model-specific prompt optimization (inline, no hook indirection)
-    // Gemini models respond better when AGENTS.md instructions are
-    // wrapped in <behavioral_guidelines> XML tags with restructured ordering.
-    const modelId = input.model?.id?.toLowerCase() || ""
-    if (modelId.includes("gemini") && system[0]) {
-      const mainPrompt = system[0]
-      const agentsBlockRegex = /Instructions from: .*?AGENTS\.md[\s\S]*?(?=\nInstructions from:|<env>|$)/g
-      const matches = mainPrompt.match(agentsBlockRegex)
-      if (matches && matches.length > 0) {
-        const agentsContent = matches.join("\n\n").trim()
-        let strippedPrompt = mainPrompt.replace(agentsBlockRegex, "").trim()
-        const headerRegex = /^(IMPORTANT:[\s\S]*?)(?=\n# |$)/
-        const headerMatch = strippedPrompt.match(headerRegex)
-        let header = ""
-        if (headerMatch) {
-          header = headerMatch[1].trim()
-          strippedPrompt = strippedPrompt.replace(headerMatch[0], "").trim()
-        }
-        const optimizedAgents = `<behavioral_guidelines>\n${agentsContent}\n</behavioral_guidelines>`
-        system[0] = [header, optimizedAgents, strippedPrompt].filter(Boolean).join("\n\n")
+      const driverText = (await SystemPrompt.provider(input.model)).join("\n")
+      const agentText = input.agent.prompt ?? ""
+      // Subagents skip AGENTS.md (matches pre-Phase-B prompt.ts L2151
+      // `session.parentID ? [] : instructionPrompts`). Caller threads the
+      // agentsMd field; we just gate it here on subagent-ness.
+      const agentsMdText = subagentSession ? "" : input.agentsMd ?? ""
+      const userSystemText = input.user.system ?? ""
+      const systemMdText = (await SystemPrompt.system(subagentSession)).join("\n")
+      const identityText =
+        `\n\n[IDENTITY REINFORCEMENT]\n` +
+        `Current Role: ${subagentSession ? "Subagent" : "Main Agent"}\n` +
+        `Session Context: ${subagentSession ? "Sub-task" : "Main-task Orchestration"}`
+
+      const tuple: StaticSystemTuple = {
+        family,
+        accountId: currentAccountId ?? undefined,
+        modelId: input.model.id,
+        agentName: input.agent.name,
+        role: subagentSession ? "subagent" : "main",
+        layers: {
+          driver: driverText,
+          agent: agentText,
+          agentsMd: agentsMdText,
+          userSystem: userSystemText,
+          systemMd: systemMdText,
+          identity: identityText,
+        },
       }
+      const staticBlock = buildStaticBlock(tuple)
+
+      // Gemini-specific behavioral_guidelines optimization (preserved from
+      // pre-Phase-B). Operates on the assembled static block text. The
+      // surgery only matches the AGENTS.md region; if anything moves around
+      // due to Phase B layer reordering this no-ops gracefully.
+      let staticText = staticBlock.text
+      const modelId = input.model?.id?.toLowerCase() || ""
+      if (modelId.includes("gemini") && staticText) {
+        const agentsBlockRegex = /Instructions from: .*?AGENTS\.md[\s\S]*?(?=\nInstructions from:|<env>|$)/g
+        const matches = staticText.match(agentsBlockRegex)
+        if (matches && matches.length > 0) {
+          const agentsContent = matches.join("\n\n").trim()
+          let stripped = staticText.replace(agentsBlockRegex, "").trim()
+          const headerRegex = /^(IMPORTANT:[\s\S]*?)(?=\n# |$)/
+          const headerMatch = stripped.match(headerRegex)
+          let headerLine = ""
+          if (headerMatch) {
+            headerLine = headerMatch[1].trim()
+            stripped = stripped.replace(headerMatch[0], "").trim()
+          }
+          const optimizedAgents = `<behavioral_guidelines>\n${agentsContent}\n</behavioral_guidelines>`
+          staticText = [headerLine, optimizedAgents, stripped].filter(Boolean).join("\n\n")
+        }
+      }
+
+      system.push(staticText)
+
+      // Plugin transform on the static-only system array (DD-11).
+      const original = clone(system)
+      await Plugin.trigger(
+        "experimental.chat.system.transform",
+        { sessionID: input.sessionID, model: input.model },
+        { system },
+      )
+      if (system.length === 0) {
+        system.push(...original)
+      }
+
+      // DD-10 (Phase B amended): record the static-block hash, NOT the
+      // full system.join. Phase A's `system.join("\n")` was a placeholder;
+      // now that the static portion is byte-isolated we feed the sharper
+      // signal so cache_miss_diagnosis can distinguish system-prefix-churn
+      // from conversation growth without dynamic noise.
+      recordSystemBlockHash(input.sessionID, staticBlock.hash)
+
+      // Phase B (DD-1, DD-2, DD-4, DD-5): build the user-role context preface
+      // with T1 (preload + pinned skills + date) and T2 (active + summarized
+      // skills) ranked slow-first. Per-turn extras (input.system carry-over
+      // for lazy catalog / structured output / notices / quota-low addenda)
+      // ride the trailing tier.
+      const enablementText = injectEnablementSnapshot ? buildEnablementSnapshot(input.messages) : ""
+      const partitioned = SkillLayerRegistry.partitionForPreface(skillLayerEntries)
+      const prefaceInput = {
+        preload: input.preload ?? { readmeSummary: "", cwdListing: "" },
+        skills: {
+          pinned: partitioned.pinned,
+          active: partitioned.active,
+          summarized: partitioned.summarized,
+        },
+        todaysDate: input.todaysDate ?? new Date().toDateString(),
+        trailingExtras: [
+          ...input.system.filter(Boolean),
+          ...(enablementText ? [enablementText] : []),
+        ],
+      }
+
+      // DD-11: experimental.chat.context.transform hook. Plugins can mutate
+      // preface fields (preload / skills / date / trailingExtras) before
+      // buildPreface serializes them. This is the new hook for Phase B
+      // dynamic content, complementing experimental.chat.system.transform
+      // which now receives only the static block.
+      const contextTransformOutput = {
+        preface: {
+          t1: {
+            readmeSummary: prefaceInput.preload.readmeSummary,
+            cwdListing: prefaceInput.preload.cwdListing,
+            pinnedSkills: prefaceInput.skills.pinned,
+            todaysDate: prefaceInput.todaysDate,
+          },
+          t2: {
+            activeSkills: prefaceInput.skills.active,
+            summarizedSkills: prefaceInput.skills.summarized,
+          },
+        },
+        trailingExtras: prefaceInput.trailingExtras,
+      }
+      await Plugin.trigger(
+        "experimental.chat.context.transform",
+        { sessionID: input.sessionID, model: input.model },
+        contextTransformOutput,
+      )
+      // Reconstruct prefaceInput from possibly-mutated hook output.
+      preface = buildPreface({
+        preload: {
+          readmeSummary: contextTransformOutput.preface.t1.readmeSummary,
+          cwdListing: contextTransformOutput.preface.t1.cwdListing,
+        },
+        skills: {
+          pinned: contextTransformOutput.preface.t1.pinnedSkills,
+          active: contextTransformOutput.preface.t2.activeSkills,
+          summarized: contextTransformOutput.preface.t2.summarizedSkills,
+        },
+        todaysDate: contextTransformOutput.preface.t1.todaysDate,
+        trailingExtras: contextTransformOutput.trailingExtras,
+      })
+
+      // DD-13 (assembly-time telemetry): emit the breakpoint plan so we can
+      // observe the static-vs-dynamic split per turn. Cache hit/miss
+      // telemetry from provider response headers is deferred — the existing
+      // cachedInputTokens in usage stats already covers that signal at a
+      // coarser granularity.
+      const t1Block = preface.contentBlocks.find((b) => b.tier === "t1")
+      const t2Block = preface.contentBlocks.find((b) => b.tier === "t2")
+      const trailingBlock = preface.contentBlocks.find((b) => b.tier === "trailing")
+      log.info("prompt.preface.assembled", {
+        sessionID: input.sessionID,
+        staticBlockChars: staticBlock.text.length,
+        staticBlockHash: staticBlock.hash.slice(0, 12),
+        t1Chars: t1Block?.text.length ?? 0,
+        t2Chars: t2Block?.text.length ?? 0,
+        trailingChars: trailingBlock?.text.length ?? 0,
+        t2Empty: preface.t2Empty,
+        breakpointPlan: {
+          BP1: "static-system-end",
+          BP2: t1Block ? "preface-t1-end" : "omitted",
+          BP3: t2Block ? "preface-t2-end" : "omitted",
+          BP4: "conversation-final",
+        },
+      })
     }
 
-    const header = system[0]
-    const original = clone(system)
-    await Plugin.trigger(
-      "experimental.chat.system.transform",
-      { sessionID: input.sessionID, model: input.model },
-      { system },
-    )
-    if (system.length === 0) {
-      system.push(...original)
+    // Splice the preface message into the outbound messages list. DD-1 says
+    // "before the user's first real text turn"; with multi-turn streaming
+    // the most recent user turn is the relevant insertion point — putting
+    // the preface immediately before THAT user message keeps it adjacent so
+    // the LLM reads it as context for the upcoming reply. The preface is
+    // ephemeral (rebuilt per call); not persisted to storage.
+    if (preface) {
+      const lastUserIdx = (() => {
+        for (let i = input.messages.length - 1; i >= 0; i--) {
+          if (input.messages[i]?.role === "user") return i
+        }
+        return -1
+      })()
+      // DD-3 + B.5 wiring: tag T1-end and T2-end content blocks with the
+      // ProviderTransform PHASE_B_BREAKPOINT_PROVIDER_OPTION marker so
+      // applyCaching places explicit BP2/BP3 there. The trailing tier is
+      // deliberately NOT marked — it rides BP4 via the following user msg.
+      const blocks = preface.contentBlocks
+      const t1LastIdx = (() => {
+        for (let i = blocks.length - 1; i >= 0; i--) {
+          if (blocks[i]?.tier === "t1") return i
+        }
+        return -1
+      })()
+      const t2LastIdx = (() => {
+        for (let i = blocks.length - 1; i >= 0; i--) {
+          if (blocks[i]?.tier === "t2") return i
+        }
+        return -1
+      })()
+      const prefaceMessage: ModelMessage = {
+        role: "user",
+        content: blocks.map((b, i) => {
+          const needsBreakpoint = i === t1LastIdx || i === t2LastIdx
+          const baseProviderOptions: Record<string, any> = needsBreakpoint
+            ? { [ProviderTransform.PHASE_B_BREAKPOINT_PROVIDER_OPTION]: true }
+            : {}
+          return { type: "text" as const, text: b.text, providerOptions: baseProviderOptions }
+        }),
+      }
+      const insertAt = lastUserIdx >= 0 ? lastUserIdx : input.messages.length
+      input.messages = [
+        ...input.messages.slice(0, insertAt),
+        prefaceMessage,
+        ...input.messages.slice(insertAt),
+      ]
     }
-    // rejoin to maintain 2-part structure for caching if header unchanged
-    if (system.length > 2 && system[0] === header) {
-      const rest = system.slice(1)
-      system.length = 0
-      system.push(header, rest.join("\n"))
-    }
-
-    // DD-10 (specs/prompt-cache-and-compaction-hardening): record the assembled
-    // system block hash for cache-miss diagnostic. Phase A treats system[0] as
-    // a single block (matching current join-everything behavior); Phase B will
-    // split static vs preface and hash only the static portion.
-    recordSystemBlockHash(input.sessionID, system.join("\n"))
+    // unused locals for backwards-compat (build/lint cleanliness — remove
+    // when buildSkillLayerRegistrySystemPart and injectEnablementSnapshot
+    // are fully retired in Phase B follow-ups).
+    void buildSkillLayerRegistrySystemPart
+    void injectEnablementSnapshot
 
     const variant =
       !input.small && input.model.variants && input.user.variant ? input.model.variants[input.user.variant] : {}
@@ -704,14 +831,30 @@ export namespace LLM {
     // Anthropic API returns 400 error: "system: text content blocks must be non-empty"
     // @event_20260209_empty_system_blocks
     const filteredSystem = system.filter((x) => x && x.trim() !== "")
-    const promptTelemetryBlocks = systemPartEntries.map((entry) => ({
-      key: entry.key,
-      name: entry.name,
-      chars: entry.text.length,
-      tokens: Token.estimate(entry.text),
-      injected: entry.text.trim().length > 0,
-      policy: entry.policy,
-    }))
+    // Phase B: telemetry blocks reflect the new two-track shape (static
+    // system + preface). The old per-layer breakdown is replaced by a
+    // coarser block-level view; per-layer chars/tokens are derivable
+    // upstream by the caller if needed.
+    const promptTelemetryBlocks: Array<{ key: string; name: string; chars: number; tokens: number; injected: boolean; policy: string }> = [
+      ...system.map((text, idx) => ({
+        key: `system_block_${idx}`,
+        name: idx === 0 ? "靜態系統層" : `系統補充 ${idx}`,
+        chars: text.length,
+        tokens: Token.estimate(text),
+        injected: text.trim().length > 0,
+        policy: "always_on",
+      })),
+      ...(preface
+        ? preface.contentBlocks.map((b) => ({
+            key: `preface_${b.tier}`,
+            name: `情境前序 (${b.tier.toUpperCase()})`,
+            chars: b.text.length,
+            tokens: Token.estimate(b.text),
+            injected: b.text.trim().length > 0,
+            policy: b.tier === "trailing" ? "dynamic" : b.tier === "t2" ? "decay" : "session_stable",
+          }))
+        : []),
+    ]
     const finalSystemChars = filteredSystem.reduce((sum, item) => sum + item.length, 0)
     const finalSystemTokens = filteredSystem.reduce((sum, item) => sum + Token.estimate(item), 0)
     const promptId = `prompt_${Bun.hash(

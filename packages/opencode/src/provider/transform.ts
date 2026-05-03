@@ -223,7 +223,24 @@ export namespace ProviderTransform {
     return msgs
   }
 
-  function applyCaching(msgs: ModelMessage[], providerId: string): ModelMessage[] {
+  /**
+   * Phase B B.5 (DD-3 of specs/prompt-cache-and-compaction-hardening):
+   * Marker on a content block requesting an explicit cache breakpoint at
+   * its tail. llm.ts attaches this when building the preface message so
+   * applyCaching knows to put BP2 / BP3 there even though the block isn't
+   * the last one of its message. Trailing-tier blocks are deliberately
+   * NOT marked (they ride BP4 via the user message).
+   */
+  const PHASE_B_BREAKPOINT_KEY = "_phaseBBreakpoint" as const
+
+  function hasPhaseBPrefaceMarks(msg: ModelMessage): boolean {
+    if (!Array.isArray(msg.content)) return false
+    return msg.content.some(
+      (b) => b && typeof b === "object" && (b.providerOptions as any)?.[PHASE_B_BREAKPOINT_KEY] === true,
+    )
+  }
+
+  export function applyCaching(msgs: ModelMessage[], providerId: string): ModelMessage[] {
     const system = msgs.filter((msg) => msg.role === "system").slice(0, 2)
     const final = msgs.filter((msg) => msg.role !== "system").slice(-2)
 
@@ -245,8 +262,31 @@ export namespace ProviderTransform {
       },
     }
 
+    let phaseBExtraBreakpoints = 0
+    const useMessageLevelOptions = providerId.includes("bedrock")
+
+    // Phase B explicit breakpoints (BP2, BP3): walk every message and mark
+    // any content block flagged with `_phaseBBreakpoint`. Done first so the
+    // legacy rule below can detect-and-skip messages already covered.
+    if (!useMessageLevelOptions) {
+      for (const msg of msgs) {
+        if (!Array.isArray(msg.content)) continue
+        for (const block of msg.content) {
+          if (!block || typeof block !== "object") continue
+          if ((block.providerOptions as any)?.[PHASE_B_BREAKPOINT_KEY] !== true) continue
+          block.providerOptions = mergeDeep(block.providerOptions ?? {}, providerOptions)
+          phaseBExtraBreakpoints++
+        }
+      }
+    }
+
+    // Legacy rule (BP1 system tail + BP4 conversation tail): mark the last
+    // content block of the first 2 system messages and the last 2
+    // non-system messages. Skip messages whose blocks already carry an
+    // explicit Phase B breakpoint to avoid double-counting against
+    // Anthropic's 4-BP-per-request limit.
     for (const msg of unique([...system, ...final])) {
-      const useMessageLevelOptions = providerId.includes("bedrock")
+      if (hasPhaseBPrefaceMarks(msg)) continue
       const shouldUseContentOptions = !useMessageLevelOptions && Array.isArray(msg.content) && msg.content.length > 0
 
       if (shouldUseContentOptions) {
@@ -264,14 +304,22 @@ export namespace ProviderTransform {
       providerId,
       systemCount: system.length,
       finalCount: final.length,
+      phaseBExtraBreakpoints,
       messageRoles: unique([...system, ...final]).map((msg) => msg.role),
-      useMessageLevelOptions: providerId.includes("bedrock"),
+      useMessageLevelOptions,
       providerOptionKeys: Object.keys(providerOptions).sort(),
       cacheKeywords: JSON.stringify(providerOptions).includes("cache") ? ["cache"] : [],
     })
 
     return msgs
   }
+
+  /**
+   * Public marker key for llm.ts to tag preface content blocks that need
+   * an explicit cache breakpoint (BP2 = T1 end, BP3 = T2 end). Trailing
+   * tier deliberately omitted — rides BP4 via the user message.
+   */
+  export const PHASE_B_BREAKPOINT_PROVIDER_OPTION = PHASE_B_BREAKPOINT_KEY
 
   function unsupportedParts(msgs: ModelMessage[], model: Provider.Model): ModelMessage[] {
     return msgs.map((msg) => {

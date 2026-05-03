@@ -54,7 +54,7 @@ import {
 } from "./prompt-runtime"
 import { TuiEvent, publishToastTraced } from "@/cli/cmd/tui/event"
 import { runShellPrompt } from "./shell-runner"
-import { getPreloadedContext } from "./preloaded-context"
+import { getPreloadedContext, getPreloadParts } from "./preloaded-context"
 import { insertReminders } from "./reminders"
 import { ensureTitle } from "./title-manager"
 import { resolvePromptParts as resolvePromptPartsInner } from "./prompt-part-resolver"
@@ -2137,18 +2137,39 @@ export namespace SessionPrompt {
         model: activeModel,
       })
 
+      // Phase B (specs/prompt-cache-and-compaction-hardening DD-1..DD-16):
+      // dynamic content (preload, env date, AGENTS.md) is no longer pre-baked
+      // into a single `system` string array. Caller threads structured fields;
+      // LLM.stream assembles a static system block + a user-role context
+      // preface message with tier-aware content blocks.
+      //
+      // Pre-Phase-B layout (kept here for reference during dogfood window):
+      //   system: [getPreloadedContext, ...environmentPrompts,
+      //            ...(parent ? [] : instructionPrompts),
+      //            gatedLazyCatalogPrompt?, STRUCTURED_OUTPUT?, ...noticeAddenda]
+      const preloadParts = await getPreloadParts(sessionID)
+      const envParts = await SystemPrompt.environmentParts(activeModel, sessionID, session.parentID)
       const result = await processor.process({
         user: lastUser,
         agent,
         abort,
         sessionID,
         accountId: effectiveAccountId,
+        // T1 preload (DD-1): cwd + README. Empty string for missing pieces is fine.
+        preload: preloadParts,
+        // DD-2: today's date last in T1, sourced from environmentParts split.
+        todaysDate: envParts.todaysDate,
+        // DD-12 L3c: AGENTS.md text. Subagents skip via LLM.stream gate, but
+        // we also short-circuit here for clarity and to avoid the disk read.
+        agentsMd: session.parentID
+          ? ""
+          : [envParts.baseEnv + "\n</env>\n<directories>\n  \n</directories>", ...instructionPrompts]
+              .filter(Boolean)
+              .join("\n"),
+        // Trailing per-turn extras: lazy catalog + structured-output directive
+        // + subagent return notices. Carried into preface trailing tier in
+        // LLM.stream (cache-friendly: rides the user-turn invalidation).
         system: [
-          await getPreloadedContext(sessionID),
-          ...environmentPrompts,
-          // Only include heavy instruction prompts (AGENTS.md) for Main Agents (no parentID).
-          // Subagents should rely on the task description and SYSTEM.md.
-          ...(session.parentID ? [] : instructionPrompts),
           ...(gatedLazyCatalogPrompt ? [gatedLazyCatalogPrompt] : []),
           ...(format.type === "json_schema" ? [STRUCTURED_OUTPUT_SYSTEM_PROMPT] : []),
           ...noticeAddenda,

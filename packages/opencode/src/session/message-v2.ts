@@ -354,9 +354,38 @@ export namespace MessageV2 {
   })
   export type AgentPart = z.infer<typeof AgentPart>
 
+  /**
+   * DD-9 (specs/prompt-cache-and-compaction-hardening): snapshot of the
+   * SkillLayerRegistry state at the moment the compaction anchor was
+   * written. Persisted on the anchor's compaction part for audit and
+   * replay (re-pinning skills referenced by older compacted spans).
+   * Telemetry-only in Phase A; persisted on disk in Phase B.
+   */
+  export const CompactionSkillSnapshot = z.object({
+    active: z.array(z.string()),
+    summarized: z.array(z.string()),
+    pinned: z.array(z.string()),
+  }).meta({ ref: "CompactionSkillSnapshot" })
+  export type CompactionSkillSnapshot = z.infer<typeof CompactionSkillSnapshot>
+
   export const CompactionPart = PartBase.extend({
     type: z.enum(["compaction", "compaction-request"]),
     auto: z.boolean(),
+    /**
+     * DD-9: anchor-scoped metadata. Optional for backwards compat — old
+     * compaction parts written before Phase B don't have this field.
+     */
+    metadata: z
+      .object({
+        skillSnapshot: CompactionSkillSnapshot.optional(),
+        /**
+         * Names of skills that this anchor specifically pinned via
+         * SkillLayerRegistry.pinForAnchor. unpinByAnchor on supersede
+         * walks this list.
+         */
+        pinnedByAnchor: z.array(z.string()).optional(),
+      })
+      .optional(),
   }).meta({
     ref: "CompactionPart",
   })
@@ -544,6 +573,14 @@ export namespace MessageV2 {
     system: z.string().optional(),
     tools: z.record(z.string(), z.boolean()).optional(),
     variant: z.string().optional(),
+    /**
+     * DD-5 (specs/prompt-cache-and-compaction-hardening): marks a user-role
+     * message that carries dynamic context (preload / skills / date / etc)
+     * rather than user-typed content. Inserted by llm.ts before the user's
+     * actual text on each turn. Optional for backwards compatibility — old
+     * sessions without this field continue to load.
+     */
+    kind: z.literal("context-preface").optional(),
   }).meta({
     ref: "UserMessage",
   })
