@@ -138,6 +138,27 @@
       "by": "pkcs12",
       "mode": "amend",
       "reason": "Phase B recalibration v2 (2026-05-04, user direct-ship decision): drop telemetry observation gate (收益方向確定); drop feature flag wiring (new path = sole path day 1); drop dogfood + default-on dance; bake R1 mitigation into B.2.3 (preface directive header). Surgery scope same (DD-1..16 unchanged); execution path simpler. Rollback via git revert."
+    },
+    {
+      "at": "2026-05-03T16:14:42.772Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/account/rotation3d.ts, packages/opencode/src/provider/provider.ts, packages/opencode/src/storage/storage.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/account/rotation3d.ts",
+        "packages/opencode/src/provider/provider.ts",
+        "packages/opencode/src/storage/storage.ts"
+      ],
+      "commit": "5430bf32d5e9cd70560eaa0479bf15709b82b9b9"
+    },
+    {
+      "from": "living",
+      "to": "living",
+      "at": "2026-05-03T17:34:19.575Z",
+      "by": "pkcs12",
+      "mode": "amend",
+      "reason": "Phase B finalized: merged into main via test/prompt-cache-hardening-phase-b. 8 implementation commits (1c7194055..21a08ad2e) + hot-fix (4f78c5126) + docs (ad18df79f, dee77e116). Validation in production session ses_211c853fcffer... shows 99%+ cache hit rate at steady state. Direct-ship architecture confirmed working."
     }
   ]
 }
