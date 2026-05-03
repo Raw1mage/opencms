@@ -2,10 +2,10 @@ import { describe, it, expect } from "bun:test"
 import { ProviderTransform } from "./transform"
 import type { ModelMessage } from "ai"
 
-const BP_KEY = ProviderTransform.PHASE_B_BREAKPOINT_PROVIDER_OPTION
+const BP_OPTS = ProviderTransform.PHASE_B_BREAKPOINT_PROVIDER_OPTION
 
 function block(text: string, mark = false) {
-  const opts: any = mark ? { [BP_KEY]: true } : {}
+  const opts: Record<string, Record<string, unknown>> = mark ? { ...BP_OPTS } : {}
   return { type: "text" as const, text, providerOptions: opts }
 }
 

@@ -230,13 +230,22 @@ export namespace ProviderTransform {
    * applyCaching knows to put BP2 / BP3 there even though the block isn't
    * the last one of its message. Trailing-tier blocks are deliberately
    * NOT marked (they ride BP4 via the user message).
+   *
+   * Encoded as a two-level nested provider-options namespace because
+   * AI SDK's `providerMetadataSchema` is `Record<string, Record<string,
+   * JsonValue>>` — flat boolean values at the outer level fail validation
+   * with "messages must be a ModelMessage[]".
    */
-  const PHASE_B_BREAKPOINT_KEY = "_phaseBBreakpoint" as const
+  const PHASE_B_NAMESPACE = "phaseB" as const
+  const PHASE_B_BREAKPOINT_FIELD = "breakpoint" as const
 
   function hasPhaseBPrefaceMarks(msg: ModelMessage): boolean {
     if (!Array.isArray(msg.content)) return false
     return msg.content.some(
-      (b) => b && typeof b === "object" && (b.providerOptions as any)?.[PHASE_B_BREAKPOINT_KEY] === true,
+      (b) =>
+        b &&
+        typeof b === "object" &&
+        (b.providerOptions as any)?.[PHASE_B_NAMESPACE]?.[PHASE_B_BREAKPOINT_FIELD] === true,
     )
   }
 
@@ -266,14 +275,16 @@ export namespace ProviderTransform {
     const useMessageLevelOptions = providerId.includes("bedrock")
 
     // Phase B explicit breakpoints (BP2, BP3): walk every message and mark
-    // any content block flagged with `_phaseBBreakpoint`. Done first so the
-    // legacy rule below can detect-and-skip messages already covered.
+    // any content block flagged via providerOptions.phaseB.breakpoint=true.
+    // Done first so the legacy rule below can detect-and-skip messages
+    // already covered.
     if (!useMessageLevelOptions) {
       for (const msg of msgs) {
         if (!Array.isArray(msg.content)) continue
         for (const block of msg.content) {
           if (!block || typeof block !== "object") continue
-          if ((block.providerOptions as any)?.[PHASE_B_BREAKPOINT_KEY] !== true) continue
+          const phaseBOpts = (block.providerOptions as any)?.[PHASE_B_NAMESPACE]
+          if (!phaseBOpts || phaseBOpts[PHASE_B_BREAKPOINT_FIELD] !== true) continue
           block.providerOptions = mergeDeep(block.providerOptions ?? {}, providerOptions)
           phaseBExtraBreakpoints++
         }
@@ -315,11 +326,23 @@ export namespace ProviderTransform {
   }
 
   /**
-   * Public marker key for llm.ts to tag preface content blocks that need
-   * an explicit cache breakpoint (BP2 = T1 end, BP3 = T2 end). Trailing
-   * tier deliberately omitted — rides BP4 via the user message.
+   * Public marker for llm.ts to tag preface content blocks that need an
+   * explicit cache breakpoint (BP2 = T1 end, BP3 = T2 end). Trailing tier
+   * deliberately omitted — rides BP4 via the user message.
+   *
+   * Usage:
+   *   { providerOptions: PHASE_B_BREAKPOINT_PROVIDER_OPTION }
+   * which expands to
+   *   { providerOptions: { phaseB: { breakpoint: true } } }
+   *
+   * The two-level nesting matches AI SDK's `providerMetadataSchema`
+   * (Record<string, Record<string, JsonValue>>); flat boolean values at
+   * the outer level fail Zod validation with "messages must be a
+   * ModelMessage[]".
    */
-  export const PHASE_B_BREAKPOINT_PROVIDER_OPTION = PHASE_B_BREAKPOINT_KEY
+  export const PHASE_B_BREAKPOINT_PROVIDER_OPTION = {
+    [PHASE_B_NAMESPACE]: { [PHASE_B_BREAKPOINT_FIELD]: true },
+  } as const
 
   function unsupportedParts(msgs: ModelMessage[], model: Provider.Model): ModelMessage[] {
     return msgs.map((msg) => {

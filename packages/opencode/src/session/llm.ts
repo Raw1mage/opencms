@@ -720,16 +720,22 @@ export namespace LLM {
         }
         return -1
       })()
-      const prefaceMessage: ModelMessage = {
-        role: "user",
-        content: blocks.map((b, i) => {
-          const needsBreakpoint = i === t1LastIdx || i === t2LastIdx
-          const baseProviderOptions: Record<string, any> = needsBreakpoint
-            ? { [ProviderTransform.PHASE_B_BREAKPOINT_PROVIDER_OPTION]: true }
-            : {}
-          return { type: "text" as const, text: b.text, providerOptions: baseProviderOptions }
-        }),
-      }
+      // Two-level nested namespace required by AI SDK's
+      // providerMetadataSchema (Record<string, Record<string, JsonValue>>).
+      // Flat boolean at the outer level fails validation with
+      // "messages must be a ModelMessage[]".
+      const prefaceContent = blocks.map((b, i) => {
+        const needsBreakpoint = i === t1LastIdx || i === t2LastIdx
+        if (needsBreakpoint) {
+          return {
+            type: "text" as const,
+            text: b.text,
+            providerOptions: { ...ProviderTransform.PHASE_B_BREAKPOINT_PROVIDER_OPTION },
+          }
+        }
+        return { type: "text" as const, text: b.text }
+      })
+      const prefaceMessage: ModelMessage = { role: "user", content: prefaceContent }
       const insertAt = lastUserIdx >= 0 ? lastUserIdx : input.messages.length
       input.messages = [
         ...input.messages.slice(0, insertAt),
