@@ -331,7 +331,7 @@ export async function landOfficeUpload(input: LandOfficeInput): Promise<LandOffi
   // 7c. .docx → docxmcp.extract_all (fast phase) + spawn poll loop
   if (kind === "docx") {
     try {
-      await runDocxExtractAll({
+      const { token } = await runDocxExtractAll({
         repoPath,
         projectRoot: input.projectRoot,
       })
@@ -345,6 +345,7 @@ export async function landOfficeUpload(input: LandOfficeInput): Promise<LandOffi
           repoPath,
           projectRoot: input.projectRoot,
           appId: DOCXMCP_APP_ID,
+          token,
         })
       }
       await emitTelemetry({
@@ -396,11 +397,17 @@ export async function landOfficeUpload(input: LandOfficeInput): Promise<LandOffi
  * Run docxmcp's extract_all (fast phase). Uploads the file via the
  * mcp app's /files endpoint, calls extract_all over MCP with a 30 s
  * hard timeout, lands the returned bundle into the bundle dir.
+ *
+ * Returns the token so the polling loop can reuse it. Reusing the
+ * token is critical: docxmcp's background process is bound to the
+ * token's doc_dir; if poll-loop re-uploaded each cycle, every collect
+ * call would see an empty fresh token_dir and miss the background
+ * work entirely.
  */
 async function runDocxExtractAll(input: {
   repoPath: string
   projectRoot: string
-}): Promise<void> {
+}): Promise<{ token: string }> {
   // Step 1: upload bytes → token
   const upload = await IncomingDispatcher.uploadFileForApp({
     appId: DOCXMCP_APP_ID,
@@ -456,6 +463,7 @@ async function runDocxExtractAll(input: {
     tarB64: sc.bundle_tar_b64,
     fromCache: !!sc.from_cache,
   })
+  return { token: upload.token }
 }
 
 function formatDocxmcpError(err: unknown): string {

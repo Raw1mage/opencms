@@ -44,6 +44,16 @@ export interface StartPollLoopInput {
   repoPath: string
   projectRoot: string
   appId: string
+  /**
+   * Token from the original extract_all call. CRITICAL: docxmcp's
+   * background phase is bound to a SPECIFIC token's doc_dir. Earlier
+   * versions of this loop re-uploaded the file each cycle to obtain a
+   * fresh token, but every collect call then ran against an empty
+   * fresh token_dir and saw NO progress — the actual background was
+   * orphaned in the original token_dir. The hook now passes through
+   * the original token; the loop reuses it for every poll.
+   */
+  token: string
 }
 
 /**
@@ -85,12 +95,23 @@ async function runLoop(input: StartPollLoopInput): Promise<void> {
           error: markErr instanceof Error ? markErr.message : String(markErr),
         })
       })
+      await cleanupToken(input)
       return
     }
 
     const bgStatus = manifest?.decompose.background_status
     if (bgStatus !== "running") {
       log.info("poll loop done", { stem: input.stem, bgStatus })
+      // Bug fix 2026-05-03: bundle producer ships new files but does
+      // NOT ship file deletions. _PENDING.md markers were created at
+      // fast-phase return and the docxmcp-side background phase deletes
+      // them inside the container; that deletion never reaches the
+      // host. Clean them up here on the host side as part of the loop's
+      // terminal step. Idempotent (rmSync force ignores ENOENT).
+      if (bgStatus === "done") {
+        await cleanupPendingMarkers(input)
+      }
+      await cleanupToken(input)
       return
     }
   }
@@ -102,51 +123,29 @@ async function runLoop(input: StartPollLoopInput): Promise<void> {
     stem: input.stem,
     cap_ms: POLL_SAFETY_CAP_MS,
   })
+  await cleanupToken(input)
 }
 
 /**
- * One poll cycle: call extract_all_collect, land any new files, return
- * the latest manifest.
+ * One poll cycle: call extract_all_collect against the ORIGINAL
+ * extract_all token (so the docxmcp-side background phase the call
+ * looks at is actually the one we care about), land any new files
+ * in the bundle, return the latest manifest.
  */
 async function pollOnce(input: StartPollLoopInput): Promise<Manifest | null> {
   const clients = await MCP.clients()
   const client = clients[`mcpapp-${input.appId}`] ?? clients[input.appId]
   if (!client) throw new Error("docxmcp mcp client not connected")
 
-  // We need the token. The fast-phase upload obtained one but didn't
-  // surface it to us. extract_all_collect on docxmcp accepts a doc_dir
-  // path argument; since the dispatcher's path-rewriting layer will
-  // re-upload + re-tokenise the path on each call, the polling loop
-  // can pass the repo-relative path and let the dispatcher handle
-  // tokenisation via its existing AI-tool flow. BUT — the dispatcher's
-  // before() is wired for AI tool calls, not server-initiated ones.
-  //
-  // Simplest: re-upload the source file each poll to get a fresh
-  // token. This is wasteful but bounded (up to 12 polls × small
-  // upload cost on a local Unix socket). Future optimisation: keep
-  // the original token alive across polls (requires plumbing it from
-  // the hook into this loop).
-  const upload = await IncomingDispatcher.uploadFileForApp({
-    appId: input.appId,
-    repoPath: input.repoPath,
-    projectRoot: input.projectRoot,
-    toolName: DOCXMCP_TOOL_COLLECT,
-  })
-  if (!upload) throw new Error("docxmcp /files re-upload failed")
-
   let result
-  try {
-    result = await client.callTool(
-      {
-        name: DOCXMCP_TOOL_COLLECT,
-        arguments: { token: upload.token, doc_dir: input.repoPath, wait: 0 },
-      },
-      CallToolResultSchema,
-      { timeout: POLL_INTERVAL_MS, resetTimeoutOnProgress: false },
-    )
-  } finally {
-    await IncomingDispatcher.deleteTokenForApp(input.appId, upload.token).catch(() => {})
-  }
+  result = await client.callTool(
+    {
+      name: DOCXMCP_TOOL_COLLECT,
+      arguments: { token: input.token, doc_dir: input.repoPath, wait: 0 },
+    },
+    CallToolResultSchema,
+    { timeout: POLL_INTERVAL_MS, resetTimeoutOnProgress: false },
+  )
 
   const sc = (result as { structuredContent?: { bundle_tar_b64?: string; from_cache?: boolean } })
     .structuredContent
@@ -162,6 +161,36 @@ async function pollOnce(input: StartPollLoopInput): Promise<Manifest | null> {
 
   const stemDir = stemDirForStem(input.stem, input.projectRoot)
   return await readManifest(stemDir)
+}
+
+/**
+ * After polling completes (success / failure / safety cap), best-
+ * effort delete the token so docxmcp's session storage doesn't grow
+ * unbounded. Called from runLoop's terminal paths.
+ */
+async function cleanupToken(input: StartPollLoopInput): Promise<void> {
+  await IncomingDispatcher.deleteTokenForApp(input.appId, input.token).catch(() => {})
+}
+
+/**
+ * Best-effort removal of host-side _PENDING.md markers when the
+ * background phase finishes. The bundle producer only ships new /
+ * modified files, never deletions, so the markers (created at fast-
+ * phase return + deleted in the container by the background phase)
+ * persist on the host until we clean them up here.
+ */
+async function cleanupPendingMarkers(input: StartPollLoopInput): Promise<void> {
+  const stemDir = stemDirForStem(input.stem, input.projectRoot)
+  for (const sub of ["chapters", "tables", "media"]) {
+    const marker = path.join(stemDir, sub, "_PENDING.md")
+    await fs.rm(marker, { force: true }).catch((err) => {
+      log.warn("cleanupPendingMarkers: rm failed (non-fatal)", {
+        stem: input.stem,
+        marker,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    })
+  }
 }
 
 async function markBackgroundFailed(input: StartPollLoopInput, reason: string): Promise<void> {

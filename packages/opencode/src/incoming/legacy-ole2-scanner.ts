@@ -96,28 +96,40 @@ export async function scanLegacyOle2(input: LegacyScanInput): Promise<LegacyScan
 // ----------------------------------------------------------------------
 
 /**
- * Run both passes, prefer UTF-16LE on overlap, apply density filter.
+ * Run both passes, pick or merge based on what each found, apply density filter.
  * Returns the final body.md string (may be empty).
+ *
+ * Selection logic — both passes always run, then we decide what to ship:
+ *   - If both passes are empty/trivial → return empty string.
+ *   - If only one pass found content → use it alone.
+ *   - If both found content → concatenate with a clear separator so the
+ *     AI sees both signals; legacy .doc that mixes ASCII headers + CJK
+ *     body benefits from this. The AI is told in the routing hint that
+ *     the output is a noisy plain-text fallback.
  */
 export function renderBody(bytes: Uint8Array, densityThreshold: number): string {
   const ascii = scanAsciiUtf8(bytes)
   const utf16 = scanUtf16Le(bytes)
+  const MIN_CONTENT_CHARS = 4 // anything shorter is structural junk
 
-  // Prefer UTF-16LE pass when both yielded content. Heuristic: if
-  // utf16 produced more characters than ascii, treat it as the better
-  // pass and use it alone. Otherwise concatenate (ascii first, utf16
-  // second) so callers see both signals.
+  const asciiHasContent = ascii.replace(/\s/g, "").length >= MIN_CONTENT_CHARS
+  const utf16HasContent = utf16.replace(/\s/g, "").length >= MIN_CONTENT_CHARS
+
   let raw: string
-  if (utf16.length > ascii.length * 1.2) {
-    raw = utf16
-  } else if (ascii.length > utf16.length * 1.2) {
+  if (!asciiHasContent && !utf16HasContent) {
+    raw = ""
+  } else if (asciiHasContent && !utf16HasContent) {
     raw = ascii
-  } else if (ascii.length === 0) {
+  } else if (!asciiHasContent && utf16HasContent) {
     raw = utf16
-  } else if (utf16.length === 0) {
-    raw = ascii
   } else {
-    // Roughly equal — concatenate with a separator so AI can see both
+    // Both yielded real content — keep both. Note: for ASCII source
+    // text, the UTF-16LE pass produces gibberish from re-interpreting
+    // pairs of ASCII bytes as 16-bit codepoints; for CJK source text
+    // the ASCII pass produces gibberish from reading the high+low
+    // bytes of CJK codepoints as ASCII characters. Neither alone is
+    // safe to pick automatically. Concatenating + labelling lets the
+    // AI ignore the gibberish side.
     raw = `${ascii}\n\n--- (UTF-16LE pass) ---\n\n${utf16}`
   }
 
@@ -138,30 +150,32 @@ export function renderBody(bytes: Uint8Array, densityThreshold: number): string 
  */
 function scanAsciiUtf8(bytes: Uint8Array): string {
   const out: string[] = []
-  let lastWasNewline = false
+  // Distinguish "real source newline (CR/LF/CRLF)" from "synthetic
+  // newline emitted as a separator after binary noise". Real newlines
+  // are ALWAYS preserved (so blank paragraph lines survive). Only
+  // synthetic separators collapse to at most one consecutive newline
+  // so binary headers don't produce a flood of blank lines.
+  let lastWasSynthetic = false
   for (let i = 0; i < bytes.length; i++) {
     const b = bytes[i]
     if (b >= 0x20 && b < 0x7f) {
       out.push(String.fromCharCode(b))
-      lastWasNewline = false
+      lastWasSynthetic = false
     } else if (b === 0x09) {
       out.push("\t")
-      lastWasNewline = false
+      lastWasSynthetic = false
     } else if (b === 0x0a || b === 0x0d) {
-      // Treat CR / LF / CRLF as a single newline; collapse runs.
-      if (!lastWasNewline) {
-        out.push("\n")
-        lastWasNewline = true
-      }
+      // Real source newline — always emit, never collapse.
+      out.push("\n")
+      lastWasSynthetic = false
       // CRLF: skip the LF after CR.
       if (b === 0x0d && i + 1 < bytes.length && bytes[i + 1] === 0x0a) i++
     } else {
-      // Non-printable binary noise. Treat as a soft separator: insert
-      // at most one newline between text runs so layout doesn't
-      // flatten everything into one mega-line.
-      if (!lastWasNewline) {
+      // Non-printable binary noise. Soft separator: at most one
+      // synthetic newline between text runs.
+      if (!lastWasSynthetic) {
         out.push("\n")
-        lastWasNewline = true
+        lastWasSynthetic = true
       }
     }
   }
@@ -180,17 +194,17 @@ function scanAsciiUtf8(bytes: Uint8Array): string {
  */
 function scanUtf16Le(bytes: Uint8Array): string {
   const out: string[] = []
-  let lastWasNewline = false
+  // Same real-vs-synthetic distinction as the ASCII pass — real source
+  // CR/LF always preserved; only binary-noise separators collapse.
+  let lastWasSynthetic = false
   for (let i = 0; i + 1 < bytes.length; i += 2) {
     const cp = bytes[i] | (bytes[i + 1] << 8)
     if (cp === 0x09) {
       out.push("\t")
-      lastWasNewline = false
+      lastWasSynthetic = false
     } else if (cp === 0x0a || cp === 0x0d) {
-      if (!lastWasNewline) {
-        out.push("\n")
-        lastWasNewline = true
-      }
+      out.push("\n")
+      lastWasSynthetic = false
     } else if (
       cp >= 0x20 &&
       cp !== 0x7f &&
@@ -198,11 +212,11 @@ function scanUtf16Le(bytes: Uint8Array): string {
       (cp < 0xd800 || cp > 0xdfff)
     ) {
       out.push(String.fromCharCode(cp))
-      lastWasNewline = false
+      lastWasSynthetic = false
     } else {
-      if (!lastWasNewline) {
+      if (!lastWasSynthetic) {
         out.push("\n")
-        lastWasNewline = true
+        lastWasSynthetic = true
       }
     }
   }
