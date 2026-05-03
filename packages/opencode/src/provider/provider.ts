@@ -2555,10 +2555,27 @@ export namespace Provider {
       ? await getSDK(family, accountId, model).catch(() => null)
       : await getSDK(family, accountId, model)
 
+    // @spec specs/provider-account-decoupling DD-3 follow-up (2026-05-04)
+    // CRITICAL FALSE-POSITIVE 429 ROOT CAUSE: previously this call passed
+    // `provider.options` (family-level), which carries the *active account's*
+    // OAuth token thanks to the inheritance mirror at provider.ts:1791-1804.
+    // For a non-active accountId, the loader (e.g. codex-auth) would construct
+    // the SDK with the active account's credentials → all rotated requests hit
+    // the active account's quota → 4 codex accounts cascade-429 with identical
+    // resets_at timestamps in 90 seconds (the false positive the user reported
+    // 2026-05-03 23:39).
+    // Mirror the same merge that getSDK does (provider.ts:2131-2136): account
+    // state options on top of family options, so the loader sees the correct
+    // per-account credentials.
+    const accountState = accountId ? provider.accounts?.[accountId] : undefined
+    const loaderOptions = accountState
+      ? (mergeDeep({ ...provider.options }, accountState.options) as Info["options"])
+      : provider.options
+
     try {
       const language =
         loader !== undefined
-          ? await loader(sdk, model.api.id, provider.options)
+          ? await loader(sdk, model.api.id, loaderOptions)
           : sdk!.languageModel(model.api.id)
       s.models.set(cacheKey, language)
       return language

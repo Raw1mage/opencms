@@ -256,6 +256,19 @@ function scoreCandidateByStrategy(
   // Base score from health
   let score = candidate.healthScore
 
+  // @spec specs/provider-account-decoupling DD-5 follow-up (2026-05-04)
+  // Soft same-family preference: when codex (or any family) hits a 429,
+  // prefer rotating to ANOTHER account in the same family before crossing to
+  // gemini-cli / anthropic / etc. Replaces the deleted enforceCodexFamilyOnly
+  // hard gate with a scoring weight — cross-family fallback is still allowed
+  // when same-family is genuinely empty, but it's never picked over a healthy
+  // same-family candidate. +1000 dominates the +100..+500 dimension/purpose
+  // bonuses below so this preference holds even when the cross-family
+  // candidate has a marginally higher healthScore.
+  if (isSameProvider && !isSameAccount) {
+    score += 1000
+  }
+
   // 1. Dimension Score (Account/Model/Provider)
   switch (strategy) {
     case "account-first":
