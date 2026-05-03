@@ -24,6 +24,8 @@ import type { Provider } from "@/provider/provider"
 import { Token } from "../util/token"
 import { Bus } from "@/bus"
 import { debugCheckpoint } from "@/util/debug"
+import { IncomingPaths } from "../incoming/paths"
+import { renderOfficeRoutingHint } from "../incoming/routing-hint"
 
 export namespace MessageV2 {
   export type ContinuationResetTrigger =
@@ -828,38 +830,36 @@ export namespace MessageV2 {
               filename: part.filename,
             })
           if (part.type === "attachment_ref") {
-            // /specs/repo-incoming-attachments DD-17:
-            // - repo_path (when present) tells the LLM the bytes are on disk
-            //   in <projectRoot>/<repo_path> and gives it a direct path it
-            //   can hand to mcp tools (e.g. docxmcp_extract_outline) or
-            //   the Read tool. Without this, the LLM only sees an opaque
-            //   ref_id and falls back to delegating "go read this for me"
-            //   to a subagent.
-            // - The guidance line that follows lists the right routes by
-            //   mime so the main agent uses the dispatcher path directly
-            //   rather than re-delegating.
-            const isDocx =
-              part.mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            const isXlsx =
-              part.mime === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            const isPptx =
-              part.mime === "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            // /specs/repo-incoming-attachments DD-17 + /specs/docx-upload-autodecompose DD-7/DD-13:
+            // - repo_path (when present) tells the LLM the bytes are on disk.
+            // - For Office mimes with a manifest at incoming/<stem>/manifest.json,
+            //   renderOfficeRoutingHint produces the manifest-driven map (DD-7
+            //   fold rules + DD-12 cached-failure prefix + DD-13 pull-refresh
+            //   contract). Returns null when manifest is missing — caller
+            //   falls through to the per-mime fallback blocks below.
+            // - For non-Office mimes: per-mime fallback blocks (image / pdf /
+            //   text-like) handle routing as before.
             const isPdf = part.mime === "application/pdf"
             const isImage = part.mime.startsWith("image/")
 
             let routingHint = ""
             if (part.repo_path) {
-              if (isDocx) {
-                routingHint =
-                  `\nThe bytes live on disk at \`${part.repo_path}\`. To inspect content, call ` +
-                  `\`mcpapp-docxmcp_extract_text\` (full text), \`mcpapp-docxmcp_extract_outline\` ` +
-                  `(headings tree), or \`mcpapp-docxmcp_explore_styles\` (style usage) with ` +
-                  `\`source\`/\`doc_dir\` set to the path. Do not delegate this to a subagent — ` +
-                  `the main agent has direct access to docxmcp tools.`
-              } else if (isXlsx || isPptx) {
-                routingHint =
-                  `\nThe bytes live on disk at \`${part.repo_path}\`. xlsx/pptx mcp tools are not ` +
-                  `wired yet; if needed, summarise from filename + size and ask the user how to proceed.`
+              let projectRoot: string | null = null
+              try {
+                projectRoot = IncomingPaths.projectRoot()
+              } catch {
+                projectRoot = null
+              }
+              const officeHint = projectRoot
+                ? renderOfficeRoutingHint({
+                    repoPath: part.repo_path,
+                    mime: part.mime,
+                    filename: part.filename,
+                    projectRoot,
+                  })
+                : null
+              if (officeHint) {
+                routingHint = `\n${officeHint}`
               } else if (isImage) {
                 routingHint =
                   `\nThe bytes live on disk at \`${part.repo_path}\`. Use the \`attachment\` tool ` +
