@@ -216,30 +216,33 @@ Absolute paths only. Read before write. Concise responses.`
   }
 
   export async function environment(model: Provider.Model, sessionID: string, parentID?: string) {
+    const split = await environmentParts(model, sessionID, parentID)
+    return [`${split.baseEnv}\n  Today's date: ${split.todaysDate}\n</env>\n<directories>\n  \n</directories>`]
+  }
+
+  /**
+   * Phase B B.2.2 (DD-2): structured environment split. baseEnv carries the
+   * session-scoped fields (model id, session ids, cwd, vcs, platform) — all
+   * stable within a session. todaysDate is the only daily-mutating field;
+   * keeping it separate lets the preface builder place it last in T1 so
+   * cross-day cache invalidation only affects content after the date marker.
+   */
+  export async function environmentParts(
+    model: Provider.Model,
+    sessionID: string,
+    parentID?: string,
+  ): Promise<{ baseEnv: string; todaysDate: string }> {
     const project = Instance.project
-    return [
-      [
-        `You are powered by the model named ${model.api.id}. The exact model ID is ${model.providerId}/${model.api.id}`,
-        `Here is some useful information about the environment you are running in:`,
-        `<env>`,
-        `  Session ID: ${sessionID}`,
-        `  Parent Session ID: ${parentID ?? "none (Main Session)"}`,
-        `  Working directory: ${Instance.directory}`,
-        `  Is directory a git repo: ${project.vcs === "git" ? "yes" : "no"}`,
-        `  Platform: ${process.platform}`,
-        `  Today's date: ${new Date().toDateString()}`,
-        `</env>`,
-        `<directories>`,
-        `  ${
-          project.vcs === "git" && false
-            ? await Ripgrep.tree({
-                cwd: Instance.directory,
-                limit: 50,
-              })
-            : ""
-        }`,
-        `</directories>`,
-      ].join("\n"),
-    ]
+    const baseEnv = [
+      `You are powered by the model named ${model.api.id}. The exact model ID is ${model.providerId}/${model.api.id}`,
+      `Here is some useful information about the environment you are running in:`,
+      `<env>`,
+      `  Session ID: ${sessionID}`,
+      `  Parent Session ID: ${parentID ?? "none (Main Session)"}`,
+      `  Working directory: ${Instance.directory}`,
+      `  Is directory a git repo: ${project.vcs === "git" ? "yes" : "no"}`,
+      `  Platform: ${process.platform}`,
+    ].join("\n")
+    return { baseEnv, todaysDate: new Date().toDateString() }
   }
 }

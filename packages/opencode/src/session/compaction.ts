@@ -1914,8 +1914,9 @@ When constructing the summary, try to stick to this template:
       }
     }
 
-    // skillSnapshot telemetry per observability.md (full disk persistence
-    // deferred to Phase B; this snapshot lives in event log only).
+    // DD-9 (Phase B): skillSnapshot persisted on the anchor's compaction part
+    // metadata so audit + replay can read it from disk. Telemetry log retained
+    // as backup signal.
     const snapshot = {
       active: entries
         .filter((e) => e.runtimeState === "active" || e.runtimeState === "sticky")
@@ -1931,6 +1932,43 @@ When constructing the summary, try to stick to this template:
       releasedFromPrevAnchor: unpinnedNames,
       snapshot,
     })
+
+    // Persist on the anchor's compaction part. Find the part by walking
+    // the anchor message; if missing, log and continue (telemetry-only path
+    // still preserves the data).
+    try {
+      const anchorMsg = (await Session.messages({ sessionID: input.sessionID })).find(
+        (m) => m.info.id === newAnchorId,
+      )
+      const compactionPart = anchorMsg?.parts.find(
+        (p) => p.type === "compaction" || p.type === "compaction-request",
+      ) as MessageV2.CompactionPart | undefined
+      if (!compactionPart) {
+        log.warn("compaction.anchor.skill_snapshot_persist_skipped", {
+          sessionID: input.sessionID,
+          anchorId: newAnchorId,
+          reason: "no compaction part on anchor",
+        })
+        return
+      }
+      await Session.updatePart({
+        id: compactionPart.id,
+        messageID: newAnchorId,
+        sessionID: input.sessionID,
+        type: compactionPart.type,
+        auto: compactionPart.auto,
+        metadata: {
+          skillSnapshot: snapshot,
+          pinnedByAnchor: matched,
+        },
+      } as MessageV2.CompactionPart)
+    } catch (err) {
+      log.warn("compaction.anchor.skill_snapshot_persist_failed", {
+        sessionID: input.sessionID,
+        anchorId: newAnchorId,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
   }
   let _writeAnchor: (input: WriteAnchorInput) => Promise<void> = defaultWriteAnchor
 

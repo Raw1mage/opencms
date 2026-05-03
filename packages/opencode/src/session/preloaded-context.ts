@@ -1,20 +1,27 @@
 import path from "path"
 import fs from "fs/promises"
 import { Instance } from "../project/instance"
-import { Global } from "../global"
+import type { PreloadParts } from "./context-preface-types"
 
-export async function getPreloadedContext(_sessionID?: string): Promise<string> {
+/**
+ * Phase B B.2.1 (DD-1): structured preload output. Producer for the T1
+ * segment of the context preface (cwd listing + README summary). Pure data —
+ * no XML wrapping; the consumer (context-preface.ts buildPreface) chooses
+ * the wire format. Old skill_context payload removed: skills now flow
+ * through SkillLayerRegistry into preface T2 segment, not preload.
+ */
+export async function getPreloadParts(_sessionID?: string): Promise<PreloadParts> {
   const root = Instance.worktree
-  let listing = ""
+  let cwdListing = ""
   try {
     const files = await fs.readdir(root)
-    listing = files.slice(0, 50).join("\n")
-    if (files.length > 50) listing += "\n... (truncated)"
+    cwdListing = files.slice(0, 50).join("\n")
+    if (files.length > 50) cwdListing += "\n... (truncated)"
   } catch (e) {
-    listing = String(e)
+    cwdListing = String(e)
   }
 
-  let readme = ""
+  let readmeSummary = ""
   try {
     const candidates = ["README.md", "readme.md", "README.txt", "README"]
     for (const candidate of candidates) {
@@ -24,51 +31,37 @@ export async function getPreloadedContext(_sessionID?: string): Promise<string> 
         .then(() => true)
         .catch(() => false)
       if (exists) {
-        readme = await fs.readFile(p, "utf-8")
-        readme = readme.slice(0, 1000)
+        readmeSummary = await fs.readFile(p, "utf-8")
+        readmeSummary = readmeSummary.slice(0, 1000)
         break
       }
     }
   } catch {
-    readme = "Error reading README"
+    readmeSummary = "Error reading README"
   }
 
-  let skills = ""
-  // Core skills are no longer pre-loaded to save tokens.
-  // Agents are expected to load them dynamically via the `skill` tool as per AGENTS.md instructions.
-  const skillNames: string[] = [] 
-  const skillDirs = [path.join(root, ".opencode", "skills"), path.join(Global.Path.data, "skills")]
+  return { readmeSummary, cwdListing }
+}
 
-  for (const name of skillNames) {
-    let content = ""
-    for (const dir of skillDirs) {
-      const p = path.join(dir, name, "SKILL.md")
-      const exists = await fs
-        .stat(p)
-        .then(() => true)
-        .catch(() => false)
-      if (exists) {
-        content = await fs.readFile(p, "utf-8")
-        break
-      }
-    }
-    if (content) {
-      skills += `\n<skill name="${name}">\n${content}\n</skill>`
-    }
-  }
-
+/**
+ * Backwards-compatible string form of preloaded context. Wraps {@link
+ * getPreloadParts} in the legacy `<preloaded_context>` XML envelope. Kept
+ * for any caller still asking for the pre-Phase-B single-string output. New
+ * code should call {@link getPreloadParts} and route through buildPreface.
+ */
+export async function getPreloadedContext(sessionID?: string): Promise<string> {
+  const parts = await getPreloadParts(sessionID)
   return `
 <preloaded_context>
 <env_context>
 <cwd_listing>
-${listing}
+${parts.cwdListing}
 </cwd_listing>
 <readme_summary>
-${readme}
+${parts.readmeSummary}
 </readme_summary>
 </env_context>
 <skill_context>
-${skills}
 </skill_context>
 </preloaded_context>
 
