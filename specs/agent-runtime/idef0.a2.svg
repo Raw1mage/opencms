@@ -1,83 +1,74 @@
-<svg width="1496.6" height="717.6" viewBox="-178.3 -165.8 1496.6 717.6" xmlns="http://www.w3.org/2000/svg">
+<svg width="1447.3" height="717.6" viewBox="-191.1 -165.8 1447.3 717.6" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
 <marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
 </defs>
-<rect x="-178.3" y="-165.8" width="1496.6" height="717.6" fill="white" />
+<rect x="-191.1" y="-165.8" width="1447.3" height="717.6" fill="white" />
 <rect x="130.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A21" />
-<text x="230.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >A21</text>
-<text x="230.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >EXTRACT</text>
-<text x="230.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >USER TEXT</text>
-<rect x="494.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A22" />
-<text x="594.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >A22</text>
-<text x="594.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >MATCH ARM OR</text>
-<text x="594.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >DISARM PHRASE</text>
-<rect x="810.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A23" />
-<text x="910.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >A23</text>
-<text x="910.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >UPDATE WORKFLOW</text>
-<text x="910.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >AUTONOMOUS FLAG</text>
+<text x="230.0" y="162.4" text-anchor="middle" font-size="21" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >A21</text>
+<text x="230.0" y="202.4" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >取出 使用者 文字</text>
+<rect x="455.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A22" />
+<text x="555.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >A22</text>
+<text x="555.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >比對 啟用</text>
+<text x="555.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >或 停用 短語</text>
+<rect x="735.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A23" />
+<text x="835.0" y="164.5" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >A23</text>
+<text x="835.0" y="198.8" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >更新工作流程自主旗標</text>
 <rect x="130.0" y="340.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A24" />
-<text x="230.0" y="371.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >A24</text>
-<text x="230.0" y="401.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >PLAN CONTINUATION</text>
-<text x="230.0" y="431.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >OR STOP</text>
-<rect x="494.0" y="340.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A25" />
-<text x="594.0" y="371.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A25" >A25</text>
-<text x="594.0" y="401.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A25" >INJECT RESUME</text>
-<text x="594.0" y="431.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A25" >SYNTHETIC MESSAGE</text>
-<rect x="80.0" y="44.2" width="980.0" height="497.6" stroke="black" fill="none" stroke-width="2" />
-<rect x="450.0" y="-155.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
-<text x="570.0" y="-129.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
-<text x="570.0" y="-99.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >RESOLVE</text>
-<text x="570.0" y="-69.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >AUTONOMOUS MODE</text>
-<line x1="450.0" y1="-155.8" x2="80.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="690.0" y1="-155.8" x2="1060.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="450.0" y1="-45.8" x2="80.0" y2="541.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="690.0" y1="-45.8" x2="1060.0" y2="541.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<path d="M 330.0 180.0 L 494.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_extract_to_match" data-waypoints="330.0,180.0 494.0,180.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 694.0 180.0 L 810.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_match_to_update" data-waypoints="694.0,180.0 810.0,180.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 380.0 L 494.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_plan_to_inject" data-waypoints="330.0,380.0 494.0,380.0" marker-end="url(#arrow)" fill="none" />
+<text x="230.0" y="380.4" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >A24</text>
+<text x="230.0" y="426.1" text-anchor="middle" font-size="27" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >規劃延續或停止</text>
+<rect x="455.0" y="340.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A25" />
+<text x="555.0" y="383.5" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A25" >A25</text>
+<text x="555.0" y="420.6" text-anchor="middle" font-size="21" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A25" >注入恢復用合成訊息</text>
+<rect x="80.0" y="44.2" width="905.0" height="497.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="412.5" y="-155.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="532.5" y="-119.4" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
+<text x="532.5" y="-76.5" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >解析自主模式</text>
+<line x1="412.5" y1="-155.8" x2="80.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="652.5" y1="-155.8" x2="985.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="412.5" y1="-45.8" x2="80.0" y2="541.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="652.5" y1="-45.8" x2="985.0" y2="541.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 330.0 180.0 L 455.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_extract_to_match" data-waypoints="330.0,180.0 455.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 655.0 180.0 L 735.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_match_to_update" data-waypoints="655.0,180.0 735.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 380.0 L 455.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_plan_to_inject" data-waypoints="330.0,380.0 455.0,380.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 30.0 180.0 L 130.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_in_msg" data-waypoints="30.0,180.0 130.0,180.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 230.0 275.8 L 230.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_mech_extract" data-waypoints="230.0,275.8 230.0,240.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 594.0 84.2 L 594.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_ctrl_phrases" data-waypoints="594.0,84.2 594.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 594.0 275.8 L 594.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_mech_detect" data-waypoints="594.0,275.8 594.0,240.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 910.0 275.8 L 910.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_mech_update" data-waypoints="910.0,275.8 910.0,240.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 910.0 84.2 L 910.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_ctrl_default" data-waypoints="910.0,84.2 910.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 555.0 84.2 L 555.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_ctrl_phrases" data-waypoints="555.0,84.2 555.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 555.0 275.8 L 555.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_mech_detect" data-waypoints="555.0,275.8 555.0,240.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 835.0 275.8 L 835.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_mech_update" data-waypoints="835.0,275.8 835.0,240.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 835.0 84.2 L 835.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_ctrl_default" data-waypoints="835.0,84.2 835.0,120.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 30.0 400.0 L 130.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_in_turn" data-waypoints="30.0,400.0 130.0,400.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 230.0 495.8 L 230.0 460.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_mech_plan" data-waypoints="230.0,495.8 230.0,460.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 420.0 L 402.0 420.0 Q 412.0 420.0 412.0 430.0 L 412.0 491.8 Q 412.0 501.8 422.0 501.8 L 1110.0 501.8" stroke="black" stroke-width="1.2" data-arrow-id="a2_plan_stop" data-waypoints="330.0,420.0 412.0,420.0 412.0,501.8 1110.0,501.8" marker-end="url(#arrow)" fill="none" />
-<path d="M 594.0 304.2 L 594.0 340.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_ctrl_resume" data-waypoints="594.0,304.2 594.0,340.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 594.0 495.8 L 594.0 460.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_mech_inject" data-waypoints="594.0,495.8 594.0,460.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 694.0 400.0 L 1110.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_inject_out" data-waypoints="694.0,400.0 1110.0,400.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 420.0 L 382.5 420.0 Q 392.5 420.0 392.5 430.0 L 392.5 491.8 Q 392.5 501.8 402.5 501.8 L 1035.0 501.8" stroke="black" stroke-width="1.2" data-arrow-id="a2_plan_stop" data-waypoints="330.0,420.0 392.5,420.0 392.5,501.8 1035.0,501.8" marker-end="url(#arrow)" fill="none" />
+<path d="M 555.0 304.2 L 555.0 340.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_ctrl_resume" data-waypoints="555.0,304.2 555.0,340.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 555.0 495.8 L 555.0 460.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_mech_inject" data-waypoints="555.0,495.8 555.0,460.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 655.0 400.0 L 1035.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_inject_out" data-waypoints="655.0,400.0 1035.0,400.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 230.0 304.2 L 230.0 340.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A24_control" data-waypoints="230.0,304.2 230.0,340.0" marker-end="url(#arrow)" fill="none" />
-<text x="230.0" y="291.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_mech_extract">autorun/detector.ts extractUserText</text>
-<text x="594.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_ctrl_phrases">Tweaks.autorunSync triggerPhrases / disarmPhrases</text>
-<text x="594.0" y="291.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_mech_detect">detectAutorunIntent (case-insensitive substring)</text>
-<text x="910.0" y="291.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_mech_update">Session.updateAutonomous</text>
-<text x="904.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_ctrl_default">Session.defaultWorkflow</text>
-<text x="916.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_ctrl_default">Initial Disarmed</text>
-<text x="224.0" y="476.0" font-size="11" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_mech_plan">workflow-runner.ts</text>
-<text x="236.0" y="476.0" font-size="11" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_mech_plan">planAutonomousNextAction (L568)</text>
-<text x="588.0" y="334.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_ctrl_resume">AUTONOMOUS_RESUME_TEXT</text>
-<text x="600.0" y="334.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_ctrl_resume">(workflow-runner.ts:28)</text>
-<text x="588.0" y="476.0" font-size="12" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_mech_inject">prompt.ts continuation</text>
-<text x="600.0" y="476.0" font-size="12" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_mech_inject">dispatch (L2262-2302)</text>
-<text x="224.0" y="334.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_update_to_plan">workflow.autonomous.enabled、Subagent Never</text>
-<text x="236.0" y="334.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_update_to_plan">Auto-Continues (reason: subagent_session)</text>
-<text x="412.0" y="175.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_extract_to_match">Synthetic-Stripped</text>
-<text x="412.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_extract_to_match">User Text</text>
-<text x="752.0" y="175.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_match_to_update">Arm / Disarm</text>
-<text x="752.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_match_to_update">Verdict</text>
-<text x="412.0" y="375.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_plan_to_inject">Continue Verdict</text>
-<text x="412.0" y="392.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_plan_to_inject">+ Active Todo</text>
-<text x="26.0" y="171.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_in_msg">Incoming User</text>
-<text x="26.0" y="197.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_in_msg">Message Parts</text>
-<text x="26.0" y="378.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_in_turn">Turn Boundary</text>
-<text x="26.0" y="404.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_in_turn">+ parentID +</text>
-<text x="26.0" y="430.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_in_turn">Todo Status</text>
-<text x="1114.0" y="479.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_plan_stop">Stop {not_armed |</text>
-<text x="1114.0" y="505.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_plan_stop">subagent_session</text>
-<text x="1114.0" y="531.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_plan_stop">| todo_complete}</text>
-<text x="1114.0" y="378.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_inject_out">Synthetic</text>
-<text x="1114.0" y="404.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_inject_out">Continue Message</text>
-<text x="1114.0" y="430.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_inject_out">For Next Turn</text>
+<text x="230.0" y="291.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_mech_extract">autorun/detector.ts 取出使用者文字</text>
+<text x="555.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_ctrl_phrases">Tweaks.autorunSync 觸發短語 / 停用短語</text>
+<text x="555.0" y="291.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_mech_detect">detectAutorunIntent（不分大小寫子字串）</text>
+<text x="835.0" y="291.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_mech_update">會話.更新自主</text>
+<text x="835.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_ctrl_default">會話預設工作流程初始為解除武裝</text>
+<text x="224.0" y="476.0" font-size="12" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_mech_plan">workflow-runner.ts</text>
+<text x="236.0" y="476.0" font-size="12" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_mech_plan">規劃自主下一個動作 (L568)</text>
+<text x="549.0" y="334.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_ctrl_resume">自主恢復文字</text>
+<text x="561.0" y="334.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_ctrl_resume">(workflow-runner.ts:28)</text>
+<text x="549.0" y="476.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_mech_inject">prompt.ts 延續</text>
+<text x="561.0" y="476.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_mech_inject">派發 (L2262-2302)</text>
+<text x="224.0" y="334.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_update_to_plan">工作流程.自主.已啟用</text>
+<text x="236.0" y="334.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_update_to_plan">子代理永不自動延續（原因：子代理會話）</text>
+<text x="392.5" y="175.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_extract_to_match">已剝除合成部</text>
+<text x="392.5" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_extract_to_match">分的使用者文字</text>
+<text x="695.0" y="175.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_match_to_update">啟用 /</text>
+<text x="695.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_match_to_update">停用判定</text>
+<text x="392.5" y="375.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_plan_to_inject">繼續判定 +</text>
+<text x="392.5" y="392.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_plan_to_inject">作用中待辦</text>
+<text x="26.0" y="171.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_in_msg">傳入使用</text>
+<text x="26.0" y="197.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_in_msg">者訊息片段</text>
+<text x="26.0" y="391.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_in_turn">回合邊界 + 父層</text>
+<text x="26.0" y="417.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_in_turn">ID + 待辦狀態</text>
+<text x="1039.0" y="492.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_plan_stop">停止 {未啟用 | 子代</text>
+<text x="1039.0" y="518.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_plan_stop">理會話 | 待辦完成}</text>
+<text x="1039.0" y="391.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_inject_out">合成 繼續 訊息</text>
+<text x="1039.0" y="417.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_inject_out">供 下一個 回合</text>
 </svg>

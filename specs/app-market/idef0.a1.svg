@@ -1,58 +1,57 @@
-<svg width="1176.6" height="751.8" viewBox="-178.3 -171.8 1176.6 751.8" xmlns="http://www.w3.org/2000/svg">
+<svg width="1272.3" height="751.8" viewBox="-221.1 -171.8 1272.3 751.8" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
 <marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
 </defs>
-<rect x="-178.3" y="-171.8" width="1176.6" height="751.8" fill="white" />
-<rect x="130.0" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A11" />
-<text x="230.0" y="158.0" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >A11</text>
-<text x="230.0" y="200.8" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >FETCH MCP</text>
-<text x="230.0" y="247.7" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >SERVER APPS</text>
-<rect x="450.0" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A12" />
-<text x="550.0" y="159.4" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >A12</text>
-<text x="550.0" y="200.9" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >FETCH</text>
-<text x="550.0" y="245.9" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >MANAGED APPS</text>
-<rect x="130.0" y="370.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A13" />
-<text x="230.0" y="408.0" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A13" >A13</text>
-<text x="230.0" y="450.8" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A13" >FETCH</text>
-<text x="230.0" y="497.7" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A13" >STORE APPS</text>
-<rect x="450.0" y="370.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A14" />
-<text x="550.0" y="409.4" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A14" >A14</text>
-<text x="550.0" y="450.9" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A14" >NORMALIZE</text>
-<text x="550.0" y="495.9" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A14" >AND DECORATE</text>
-<rect x="80.0" y="38.2" width="660.0" height="531.8" stroke="black" fill="none" stroke-width="2" />
-<rect x="290.0" y="-161.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
-<text x="410.0" y="-121.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
-<text x="410.0" y="-89.0" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >LIST AVAILABLE APPS</text>
-<line x1="290.0" y1="-161.8" x2="80.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="530.0" y1="-161.8" x2="740.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="290.0" y1="-51.8" x2="80.0" y2="570.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="530.0" y1="-51.8" x2="740.0" y2="570.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<path d="M 330.0 490.0 L 450.0 490.0" stroke="black" stroke-width="1.2" data-arrow-id="a1m3" data-waypoints="330.0,490.0 450.0,490.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 200.0 L 360.0 200.0 Q 370.0 200.0 370.0 210.0 L 370.0 440.0 Q 370.0 450.0 380.0 450.0 L 450.0 450.0" stroke="black" stroke-width="1.2" data-arrow-id="a1m1" data-waypoints="330.0,200.0 370.0,200.0 370.0,450.0 450.0,450.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 650.0 200.0 L 680.0 200.0 Q 690.0 200.0 690.0 210.0 L 690.0 310.0 Q 690.0 320.0 680.0 320.0 L 420.0 320.0 Q 410.0 320.0 410.0 330.0 L 410.0 400.0 Q 410.0 410.0 420.0 410.0 L 450.0 410.0" stroke="black" stroke-width="1.2" data-arrow-id="a1m2" data-waypoints="650.0,200.0 690.0,200.0 690.0,320.0 410.0,320.0 410.0,410.0 450.0,410.0" marker-end="url(#arrow)" fill="none" />
+<rect x="-221.1" y="-171.8" width="1272.3" height="751.8" fill="white" />
+<rect x="130.0" y="120.0" width="205.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A11" />
+<text x="232.5" y="158.0" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >A11</text>
+<text x="232.5" y="200.8" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >FETCH MCP</text>
+<text x="232.5" y="247.7" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >伺服器 APPS</text>
+<rect x="455.0" y="120.0" width="205.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A12" />
+<text x="557.5" y="159.4" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >A12</text>
+<text x="557.5" y="200.9" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >FETCH</text>
+<text x="557.5" y="245.9" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >MANAGED APPS</text>
+<rect x="130.0" y="370.0" width="205.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A13" />
+<text x="232.5" y="408.0" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A13" >A13</text>
+<text x="232.5" y="450.8" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A13" >FETCH</text>
+<text x="232.5" y="497.7" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A13" >STORE APPS</text>
+<rect x="455.0" y="370.0" width="205.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A14" />
+<text x="557.5" y="408.0" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A14" >A14</text>
+<text x="557.5" y="450.8" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A14" >NORMALIZE</text>
+<text x="557.5" y="497.7" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A14" >與 DECORATE</text>
+<rect x="80.0" y="38.2" width="670.0" height="531.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="295.0" y="-161.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="415.0" y="-122.3" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
+<text x="415.0" y="-88.0" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >清單 AVAILABLE APPS</text>
+<line x1="295.0" y1="-161.8" x2="80.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="535.0" y1="-161.8" x2="750.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="295.0" y1="-51.8" x2="80.0" y2="570.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="535.0" y1="-51.8" x2="750.0" y2="570.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 335.0 490.0 L 455.0 490.0" stroke="black" stroke-width="1.2" data-arrow-id="a1m3" data-waypoints="335.0,490.0 455.0,490.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 335.0 200.0 L 365.0 200.0 Q 375.0 200.0 375.0 210.0 L 375.0 440.0 Q 375.0 450.0 385.0 450.0 L 455.0 450.0" stroke="black" stroke-width="1.2" data-arrow-id="a1m1" data-waypoints="335.0,200.0 375.0,200.0 375.0,450.0 455.0,450.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 660.0 200.0 L 690.0 200.0 Q 700.0 200.0 700.0 210.0 L 700.0 310.0 Q 700.0 320.0 690.0 320.0 L 425.0 320.0 Q 415.0 320.0 415.0 330.0 L 415.0 400.0 Q 415.0 410.0 425.0 410.0 L 455.0 410.0" stroke="black" stroke-width="1.2" data-arrow-id="a1m2" data-waypoints="660.0,200.0 700.0,200.0 700.0,320.0 415.0,320.0 415.0,410.0 455.0,410.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 30.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="a1in1" data-waypoints="30.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 30.0 78.2 L 360.0 78.2 Q 370.0 78.2 370.0 88.2 L 370.0 170.0 Q 370.0 180.0 380.0 180.0 L 450.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a1in2" data-waypoints="30.0,78.2 370.0,78.2 370.0,180.0 450.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 30.0 78.2 L 365.0 78.2 Q 375.0 78.2 375.0 88.2 L 375.0 170.0 Q 375.0 180.0 385.0 180.0 L 455.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a1in2" data-waypoints="30.0,78.2 375.0,78.2 375.0,180.0 455.0,180.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 30.0 450.0 L 130.0 450.0" stroke="black" stroke-width="1.2" data-arrow-id="a1in3" data-waypoints="30.0,450.0 130.0,450.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a1c1" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 550.0 84.2 L 550.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a1c2" data-waypoints="550.0,84.2 550.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 334.2 L 230.0 370.0" stroke="black" stroke-width="1.2" data-arrow-id="a1c3" data-waypoints="230.0,334.2 230.0,370.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 550.0 334.2 L 550.0 370.0" stroke="black" stroke-width="1.2" data-arrow-id="a1c4" data-waypoints="550.0,334.2 550.0,370.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 650.0 450.0 L 790.0 450.0" stroke="black" stroke-width="1.2" data-arrow-id="a1out1" data-waypoints="650.0,450.0 790.0,450.0" marker-end="url(#arrow)" fill="none" />
-<text x="224.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1c1">Promise.all</text>
-<text x="236.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1c1">fan-out</text>
-<text x="550.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1c2">Promise.all fan-out</text>
-<text x="230.0" y="328.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1c3">Promise.all fan-out</text>
-<text x="544.0" y="364.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1c4">gauth.json (OAuth</text>
-<text x="556.0" y="364.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1c4">token state)</text>
-<text x="390.0" y="482.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1m3" >storeApps</text>
-<text x="400.0" y="303.4" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1m1" >serverApps</text>
-<text x="550.0" y="312.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1m2" >managedApps</text>
-<text x="26.0" y="204.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1in1">mcp.json</text>
-<text x="26.0" y="82.2" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1in2">managed-apps.json</text>
-<text x="26.0" y="441.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1in3">mcp-apps.json</text>
-<text x="26.0" y="467.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1in3">(system + user)</text>
-<text x="794.0" y="441.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1out1">MarketApp[]</text>
-<text x="794.0" y="467.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1out1">JSON response</text>
-<path d="M 400.0,299.2 L 399.4,299.7 L 398.8,300.1 L 398.1,300.6 L 397.5,301.0 L 396.9,301.4 L 396.2,301.7 L 395.6,302.0 L 395.0,302.3 L 394.4,302.5 L 393.8,302.6 L 393.1,302.7 L 392.5,302.7 L 391.9,302.7 L 391.2,302.6 L 390.6,302.5 L 390.0,302.3 L 389.4,302.0 L 388.8,301.7 L 388.1,301.4 L 387.5,301.0 L 386.9,300.6 L 386.2,300.1 L 385.6,299.7 L 385.0,299.2 L 384.4,298.8 L 383.8,298.3 L 383.1,297.9 L 382.5,297.5 L 381.9,297.1 L 381.2,296.8 L 380.6,296.5 L 380.0,296.2 L 379.4,296.0 L 378.8,295.8 L 378.1,295.8 L 377.5,295.7 L 376.9,295.8 L 376.2,295.8 L 375.6,296.0 L 375.0,296.2 L 374.4,296.5 L 373.8,296.8 L 373.1,297.1 L 372.5,297.5 L 371.9,297.9 L 371.2,298.3 L 370.6,298.8 L 370.0,299.2" stroke="red" stroke-width="0.8" fill="none" opacity="0.5" />
+<path d="M 232.5 84.2 L 232.5 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a1c1" data-waypoints="232.5,84.2 232.5,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 557.5 84.2 L 557.5 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a1c2" data-waypoints="557.5,84.2 557.5,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 232.5 334.2 L 232.5 370.0" stroke="black" stroke-width="1.2" data-arrow-id="a1c3" data-waypoints="232.5,334.2 232.5,370.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 557.5 334.2 L 557.5 370.0" stroke="black" stroke-width="1.2" data-arrow-id="a1c4" data-waypoints="557.5,334.2 557.5,370.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 660.0 450.0 L 800.0 450.0" stroke="black" stroke-width="1.2" data-arrow-id="a1out1" data-waypoints="660.0,450.0 800.0,450.0" marker-end="url(#arrow)" fill="none" />
+<text x="226.5" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1c1">Promise.all</text>
+<text x="238.5" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1c1">fan-out</text>
+<text x="557.5" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1c2">Promise.all fan-out</text>
+<text x="232.5" y="328.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1c3">Promise.all fan-out</text>
+<text x="551.5" y="364.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1c4">gauth.js在</text>
+<text x="563.5" y="364.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1c4">(OAuth token 狀態)</text>
+<text x="395.0" y="482.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1m3" >storeApps</text>
+<text x="405.0" y="303.4" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1m1" >伺服器apps</text>
+<text x="557.5" y="312.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1m2" >managedApps</text>
+<text x="26.0" y="204.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1in1">mcp.js在</text>
+<text x="26.0" y="82.2" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1in2">managed-apps.js在</text>
+<text x="26.0" y="441.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1in3">mcp-apps.js在</text>
+<text x="26.0" y="467.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1in3">(system + 使用者)</text>
+<text x="804.0" y="454.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1out1">MarketApp[] JSON 回應</text>
+<path d="M 405.0,299.2 L 404.4,299.7 L 403.8,300.1 L 403.1,300.6 L 402.5,301.0 L 401.9,301.4 L 401.2,301.7 L 400.6,302.0 L 400.0,302.3 L 399.4,302.5 L 398.8,302.6 L 398.1,302.7 L 397.5,302.7 L 396.9,302.7 L 396.2,302.6 L 395.6,302.5 L 395.0,302.3 L 394.4,302.0 L 393.8,301.7 L 393.1,301.4 L 392.5,301.0 L 391.9,300.6 L 391.2,300.1 L 390.6,299.7 L 390.0,299.2 L 389.4,298.8 L 388.8,298.3 L 388.1,297.9 L 387.5,297.5 L 386.9,297.1 L 386.2,296.8 L 385.6,296.5 L 385.0,296.2 L 384.4,296.0 L 383.8,295.8 L 383.1,295.8 L 382.5,295.7 L 381.9,295.8 L 381.2,295.8 L 380.6,296.0 L 380.0,296.2 L 379.4,296.5 L 378.8,296.8 L 378.1,297.1 L 377.5,297.5 L 376.9,297.9 L 376.2,298.3 L 375.6,298.8 L 375.0,299.2" stroke="red" stroke-width="0.8" fill="none" opacity="0.5" />
 </svg>

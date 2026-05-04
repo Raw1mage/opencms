@@ -2,157 +2,246 @@
   {
     "StepNumber": 0,
     "StepType": "initial",
-    "StepAction": "no_spec_in_flight",
+    "StepAction": "無spec在flight",
     "ModuleRef": "A1",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [11],
-    "LinkOutputNumber": [1],
-    "Condition": ["plan_init_invoked_for_new_slug_OR_legacy_plans_touched"],
+    "LinkInputNumber": [
+      11
+    ],
+    "LinkOutputNumber": [
+      1
+    ],
+    "Condition": [
+      "規劃initinvoked供newslugOR legacyplanstouched"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 1,
     "StepType": "normal",
-    "StepAction": "propose_state",
+    "StepAction": "propose狀態",
     "ModuleRef": "A11",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2],
-    "Condition": ["proposal_md_AND_state_json_written_state==proposed"],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2
+    ],
+    "Condition": [
+      "proposalmdAND 狀態jsonwritten狀態==proposed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "StepType": "normal",
-    "StepAction": "design_state",
+    "StepAction": "design狀態",
     "ModuleRef": "A12",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [3],
-    "Condition": ["spec_md_design_md_idef0_grafcet_c4_sequence_data_schema_present_AND_validate_passes"],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      3
+    ],
+    "Condition": [
+      "specmddesignmdidef0grafcetc4sequencedataschemapresentAND validatepasses"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "StepType": "normal",
-    "StepAction": "plan_state",
+    "StepAction": "規劃狀態",
     "ModuleRef": "A13",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [4],
-    "Condition": ["tasks_md_handoff_md_test_vectors_errors_observability_present"],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      4
+    ],
+    "Condition": [
+      "tasksmdhandoffmdtestvectors錯誤observabilitypresent"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 4,
     "StepType": "normal",
-    "StepAction": "implement_state",
+    "StepAction": "implement狀態",
     "ModuleRef": "A13",
     "LinkInputType": [],
     "LinkOutputType": "divergence_or",
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [5, 12],
-    "Condition": ["all_tasks_checked_AND_sync_clean", "plan_abandoned_or_refactor_requested"],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      5,
+      12
+    ],
+    "Condition": [
+      "alltaskscheckedAND syncclean",
+      "規劃abandoned或refactorrequested"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 5,
     "StepType": "normal",
-    "StepAction": "verify_state",
+    "StepAction": "verify狀態",
     "ModuleRef": "A12",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [4],
-    "LinkOutputNumber": [6],
-    "Condition": ["validation_evidence_attached_AND_tests_pass"],
+    "LinkInputNumber": [
+      4
+    ],
+    "LinkOutputNumber": [
+      6
+    ],
+    "Condition": [
+      "validationevidenceattachedAND testspass"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 6,
     "StepType": "normal",
-    "StepAction": "live_state_sync_checkpoint",
+    "StepAction": "live狀態synccheckpoint",
     "ModuleRef": "A14",
     "LinkInputType": [],
     "LinkOutputType": "divergence_or",
-    "LinkInputNumber": [5],
-    "LinkOutputNumber": [7, 8, 9, 10],
-    "Condition": ["mode==amend", "mode==revise_or_extend", "mode==refactor", "mode==archive"],
+    "LinkInputNumber": [
+      5
+    ],
+    "LinkOutputNumber": [
+      7,
+      8,
+      9,
+      10
+    ],
+    "Condition": [
+      "mode==amend",
+      "mode==revise或extend",
+      "mode==refactor",
+      "mode==archive"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 7,
     "StepType": "normal",
-    "StepAction": "amend_inline_delta",
+    "StepAction": "amendinlinedelta",
     "ModuleRef": "A13",
     "LinkInputType": [],
     "LinkOutputType": "convergence_or",
-    "LinkInputNumber": [6],
-    "LinkOutputNumber": [11],
-    "Condition": ["inline_delta_marker_added_AND_state_remains_living"],
+    "LinkInputNumber": [
+      6
+    ],
+    "LinkOutputNumber": [
+      11
+    ],
+    "Condition": [
+      "inlinedeltamarkeraddedAND 狀態remainsliving"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 8,
     "StepType": "normal",
-    "StepAction": "revise_or_extend_back_to_designed",
+    "StepAction": "revise或extend回到到designed",
     "ModuleRef": "A13",
     "LinkInputType": [],
     "LinkOutputType": "convergence_or",
-    "LinkInputNumber": [6],
-    "LinkOutputNumber": [2],
-    "Condition": ["state_set_designed_AND_revise_or_extend_history_entry_appended"],
+    "LinkInputNumber": [
+      6
+    ],
+    "LinkOutputNumber": [
+      2
+    ],
+    "Condition": [
+      "狀態setdesignedAND revise或extendhistory項目appended"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 9,
     "StepType": "normal",
-    "StepAction": "refactor_snapshot_and_reset",
+    "StepAction": "refactorsnapshot與reset",
     "ModuleRef": "A13",
     "LinkInputType": [],
     "LinkOutputType": "convergence_or",
-    "LinkInputNumber": [6],
-    "LinkOutputNumber": [1],
-    "Condition": ["history_refactor_YYYY_MM_DD_created_AND_artifacts_reset_to_proposed_skeleton"],
+    "LinkInputNumber": [
+      6
+    ],
+    "LinkOutputNumber": [
+      1
+    ],
+    "Condition": [
+      "historyrefactorYYYY MM DD createdAND artifactsreset到proposedskeleton"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 10,
     "StepType": "normal",
-    "StepAction": "archive_state",
+    "StepAction": "archive狀態",
     "ModuleRef": "A13",
     "LinkInputType": [],
     "LinkOutputType": "convergence_or",
-    "LinkInputNumber": [6],
-    "LinkOutputNumber": [11],
-    "Condition": ["state_set_archived_AND_optional_move_to_archive_folder_done"],
+    "LinkInputNumber": [
+      6
+    ],
+    "LinkOutputNumber": [
+      11
+    ],
+    "Condition": [
+      "狀態setarchivedAND optionalmove到archivefolderdone"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 11,
     "StepType": "normal",
-    "StepAction": "spec_at_rest",
+    "StepAction": "spec於rest",
     "ModuleRef": "A1",
-    "LinkInputType": ["convergence_or"],
+    "LinkInputType": [
+      "convergence_or"
+    ],
     "LinkOutputType": "track",
-    "LinkInputNumber": [7, 10],
-    "LinkOutputNumber": [0],
-    "Condition": ["1"],
+    "LinkInputNumber": [
+      7,
+      10
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
+    "Condition": [
+      "1"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 12,
     "StepType": "normal",
-    "StepAction": "abandon_or_rollback",
+    "StepAction": "abandon或rollback",
     "ModuleRef": "A13",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [4],
-    "LinkOutputNumber": [11],
-    "Condition": ["plan_rollback_refactor_or_explicit_abandon_recorded_in_history"],
+    "LinkInputNumber": [
+      4
+    ],
+    "LinkOutputNumber": [
+      11
+    ],
+    "Condition": [
+      "規劃rollbackrefactor或explicitabandonrecorded在history"
+    ],
     "SubGrafcet": []
   }
 ]

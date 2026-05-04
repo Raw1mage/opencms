@@ -272,14 +272,14 @@ export default function Page() {
     if (!view().filePane.opened()) view().filePane.open()
   }
 
-  const openTab = (value: string) => {
+  const openTab = (value: string, options?: { force?: boolean }) => {
     const next = normalizeTab(value)
     tabs().open(next)
     tabs().setActive(next)
 
     const path = file.pathFromTab(next)
     if (!path) return
-    file.load(path)
+    file.load(path, options?.force ? { force: true } : undefined)
     openFilePane()
   }
 
@@ -289,6 +289,78 @@ export default function Page() {
 
     const path = file.pathFromTab(active)
     if (path) file.load(path)
+  })
+
+  // Active file tab freshness poll: while an active file tab is visible,
+  // probe /file/stat every 2s and force-reload when mtime/size changes.
+  // Scope is one-file-only so the cost stays trivial without needing the
+  // workspace-wide experimental file watcher.
+  const FILE_STAT_POLL_MS = 2000
+  const [docVisible, setDocVisible] = createSignal(
+    typeof document === "undefined" ? true : document.visibilityState !== "hidden",
+  )
+  if (typeof document !== "undefined") {
+    const onVisibility = () => setDocVisible(document.visibilityState !== "hidden")
+    document.addEventListener("visibilitychange", onVisibility)
+    onCleanup(() => document.removeEventListener("visibilitychange", onVisibility))
+  }
+
+  // File tree freshness: while the page is visible, re-list every
+  // currently-expanded+loaded directory periodically so externally
+  // created files (e.g. emitted by drawmiat container) appear without
+  // the user having to collapse-and-re-expand. One immediate refresh
+  // on visibility return + 5s poll while visible.
+  const FILE_TREE_POLL_MS = 5000
+  createEffect(() => {
+    if (!docVisible()) return
+    void file.tree.refreshLoaded?.()
+    const handle = setInterval(() => {
+      void file.tree.refreshLoaded?.()
+    }, FILE_TREE_POLL_MS)
+    onCleanup(() => clearInterval(handle))
+  })
+  createEffect(() => {
+    const active = tabs().active()
+    if (!active || !active.startsWith("file://")) return
+    if (!docVisible()) return
+    const path = file.pathFromTab(active)
+    if (!path) return
+
+    let stopped = false
+    let lastMtime: number | undefined
+    let lastSize: number | undefined
+
+    const tick = async () => {
+      if (stopped) return
+      try {
+        const url = `${sdk.url}/api/v2/file/stat?path=${encodeURIComponent(path)}`
+        const response = await sdk.fetch(url)
+        if (!response.ok) return
+        const stat = (await response.json()) as { mtime?: number; size?: number }
+        if (stopped) return
+        const mtime = typeof stat.mtime === "number" ? stat.mtime : undefined
+        const size = typeof stat.size === "number" ? stat.size : undefined
+        if (lastMtime === undefined && lastSize === undefined) {
+          lastMtime = mtime
+          lastSize = size
+          return
+        }
+        if (mtime !== lastMtime || size !== lastSize) {
+          lastMtime = mtime
+          lastSize = size
+          file.load(path, { force: true })
+        }
+      } catch {
+        // Network errors are silent — next tick retries.
+      }
+    }
+
+    void tick()
+    const handle = setInterval(tick, FILE_STAT_POLL_MS)
+    onCleanup(() => {
+      stopped = true
+      clearInterval(handle)
+    })
   })
 
   createEffect(() => {
@@ -1794,7 +1866,7 @@ export default function Page() {
     const detail = (e as CustomEvent).detail as { path: string } | undefined
     if (!detail?.path) return
     const tabValue = `file://${detail.path}`
-    openTab(tabValue)
+    openTab(tabValue, { force: true })
   }
   window.addEventListener("opencode:open-file", handleOpenFile)
 

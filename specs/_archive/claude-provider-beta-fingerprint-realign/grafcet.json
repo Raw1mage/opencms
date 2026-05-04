@@ -2,105 +2,181 @@
   {
     "step": "S0",
     "label": "INIT",
-    "description": "assembleBetas(opts) entered; betaList = []",
-    "actions": ["betaList := []"],
-    "transitions": [{ "to": "S1", "condition": "always" }]
+    "description": "組裝betas(opts) entered; beta清單 = []",
+    "actions": [
+      "betaList := []"
+    ],
+    "transitions": [
+      {
+        "to": "S1",
+        "condition": "always"
+      }
+    ]
   },
   {
     "step": "S1",
-    "label": "RESOLVE_PREDICATES",
-    "description": "Compute model predicates from opts.modelId",
+    "label": "RESOLVE PREDICATES",
+    "description": "Compute 模型 predicates 來自 opts.模型id",
     "actions": [
       "isHaiku := isHaikuModel(opts.modelId)",
       "is1M := supports1MContext(opts.modelId)",
       "thinks := supportsThinking(opts.modelId)",
       "ctxMgmtOK := modelSupportsContextManagement(opts.modelId)"
     ],
-    "transitions": [{ "to": "S2", "condition": "always" }]
+    "transitions": [
+      {
+        "to": "S2",
+        "condition": "always"
+      }
+    ]
   },
   {
     "step": "S2",
-    "label": "PUSH_CLAUDE_CODE",
+    "label": "PUSH CLAUDE CODE",
     "description": "Conditionally push claude-code-20250219",
-    "actions": ["if (!isHaiku) betaList.push('claude-code-20250219')"],
-    "transitions": [{ "to": "S3", "condition": "always" }]
+    "actions": [
+      "if (!isHaiku) betaList.push('claude-code-20250219')"
+    ],
+    "transitions": [
+      {
+        "to": "S3",
+        "condition": "always"
+      }
+    ]
   },
   {
     "step": "S3",
-    "label": "PUSH_OAUTH",
+    "label": "PUSH OAUTH",
     "description": "Conditionally push oauth-2025-04-20",
-    "actions": ["if (opts.isOAuth) betaList.push('oauth-2025-04-20')"],
-    "transitions": [{ "to": "S4", "condition": "always" }]
+    "actions": [
+      "if (opts.isOAuth) betaList.push('oauth-2025-04-20')"
+    ],
+    "transitions": [
+      {
+        "to": "S4",
+        "condition": "always"
+      }
+    ]
   },
   {
     "step": "S4",
-    "label": "PUSH_CONTEXT_1M",
-    "description": "Conditionally push context-1m-2025-08-07",
-    "actions": ["if (is1M) betaList.push('context-1m-2025-08-07')"],
-    "transitions": [{ "to": "S5", "condition": "always" }]
+    "label": "PUSH CONTEXT 1M",
+    "description": "Conditionally push 上下文-1m-2025-08-07",
+    "actions": [
+      "if (is1M) betaList.push('context-1m-2025-08-07')"
+    ],
+    "transitions": [
+      {
+        "to": "S5",
+        "condition": "always"
+      }
+    ]
   },
   {
     "step": "S5",
-    "label": "PUSH_INTERLEAVED_THINKING",
+    "label": "PUSH INTERLEAVED THINKING",
     "description": "Conditionally push interleaved-thinking-2025-05-14",
     "actions": [
       "if (thinks && !opts.disableInterleavedThinking) betaList.push('interleaved-thinking-2025-05-14')"
     ],
-    "transitions": [{ "to": "S6", "condition": "always" }]
+    "transitions": [
+      {
+        "to": "S6",
+        "condition": "always"
+      }
+    ]
   },
   {
     "step": "S6",
-    "label": "PUSH_REDACT_THINKING",
-    "description": "Conditionally push redact-thinking-2026-02-12. Upstream gate: ja() && ggq && !I7() && showSummaries!==true. Note: in opencode runtime isInteractive is always false (DD-17) so this never fires; matrix tests cover both branches.",
+    "label": "PUSH REDACT THINKING",
+    "description": "Conditionally push redact-thinking-2026-02-12. Upstream gate: ja() && ggq && !I7() && showSummaries!==true. Note: 在 opencode runtime 是interactive 是 always false (DD-17) so this never fires; matrix tests cover both branches.",
     "actions": [
       "if (isFirstPartyish(opts.provider) && !opts.disableExperimentalBetas && thinks && !opts.disableInterleavedThinking && opts.isInteractive && !opts.showThinkingSummaries) betaList.push('redact-thinking-2026-02-12')"
     ],
-    "transitions": [{ "to": "S7", "condition": "always" }]
+    "transitions": [
+      {
+        "to": "S7",
+        "condition": "always"
+      }
+    ]
   },
   {
     "step": "S7",
-    "label": "PUSH_CONTEXT_MGMT",
-    "description": "Conditionally push context-management-2025-06-27",
+    "label": "PUSH CONTEXT MGMT",
+    "description": "Conditionally push 上下文-management-2025-06-27",
     "actions": [
       "if (opts.provider === 'firstParty' && !opts.disableExperimentalBetas && ctxMgmtOK) betaList.push('context-management-2025-06-27')"
     ],
-    "transitions": [{ "to": "S8", "condition": "always" }]
+    "transitions": [
+      {
+        "to": "S8",
+        "condition": "always"
+      }
+    ]
   },
   {
     "step": "S8",
-    "label": "RESERVED_SLOTS",
-    "description": "RESERVED upstream positions for structured-outputs-2025-12-15 and web-search-2025-03-05; no push in this plan",
-    "actions": ["/* RESERVED — see spec.md Requirement 7 */"],
-    "transitions": [{ "to": "S9", "condition": "always" }]
+    "label": "RESERVED SLOTS",
+    "description": "RESERVED upstream positions 供 structured-outputs-2025-12-15 與 web-search-2025-03-05; 無 push 在 this 規劃",
+    "actions": [
+      "/* RESERVED — see spec.md Requirement 7 */"
+    ],
+    "transitions": [
+      {
+        "to": "S9",
+        "condition": "always"
+      }
+    ]
   },
   {
     "step": "S9",
-    "label": "PUSH_PROMPT_CACHING_SCOPE",
-    "description": "Conditionally push prompt-caching-scope-2026-01-05. Upstream gate: ja() — equivalent to isFirstPartyish && !disableExperimentalBetas, NOT isOAuth (resolved DD-11).",
+    "label": "PUSH PROMPT CACHING SCOPE",
+    "description": "Conditionally push 提示-caching-scope-2026-01-05. Upstream gate: ja() — equivalent 到 是firstpartyish && !disableExperimentalBetas, NOT 是OAuth (已解析 DD-11).",
     "actions": [
       "if (isFirstPartyish(opts.provider) && !opts.disableExperimentalBetas) betaList.push('prompt-caching-scope-2026-01-05')"
     ],
-    "transitions": [{ "to": "S10", "condition": "always" }]
+    "transitions": [
+      {
+        "to": "S10",
+        "condition": "always"
+      }
+    ]
   },
   {
     "step": "S10",
-    "label": "APPEND_ENV_BETAS",
-    "description": "Append entries from opts.envBetas (from process.env.ANTHROPIC_BETAS)",
-    "actions": ["betaList.push(...opts.envBetas)"],
-    "transitions": [{ "to": "S11", "condition": "always" }]
+    "label": "APPEND ENV BETAS",
+    "description": "追加 entries 來自 opts.envBetas (來自 process.env.ANTHROPIC BETAS)",
+    "actions": [
+      "betaList.push(...opts.envBetas)"
+    ],
+    "transitions": [
+      {
+        "to": "S11",
+        "condition": "always"
+      }
+    ]
   },
   {
     "step": "S11",
     "label": "DEDUP",
     "description": "Deduplicate preserving first-occurrence order",
-    "actions": ["betaList := [...new Set(betaList)]"],
-    "transitions": [{ "to": "S12", "condition": "always" }]
+    "actions": [
+      "betaList := [...new Set(betaList)]"
+    ],
+    "transitions": [
+      {
+        "to": "S12",
+        "condition": "always"
+      }
+    ]
   },
   {
     "step": "S12",
     "label": "RETURN",
-    "description": "Return betaList to caller",
-    "actions": ["return betaList"],
+    "description": "返回 beta清單 到 caller",
+    "actions": [
+      "return betaList"
+    ],
     "transitions": []
   }
 ]

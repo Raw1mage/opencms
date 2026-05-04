@@ -1,0 +1,120 @@
+<svg width="1203" height="986" viewBox="-138.0 -26.0 1203.2 986.0" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker></defs>
+<rect x="-138.0" y="-26.0" width="1203.2" height="986.0" fill="white" />
+<rect x="380.0" y="80.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<rect x="385.0" y="85.0" width="30.0" height="30.0" stroke="black" stroke-width="1" fill="none" />
+<text x="400" y="105.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">0</text>
+<line x1="420.0" y1="100.0" x2="460.0" y2="100.0" stroke="black" />
+<rect x="460.0" y="54.0" width="182.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="551.3" y="80.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">等待 First</text>
+<text x="551.3" y="104.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">助手 回合</text>
+<text x="551.3" y="127.99999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Completion</text>
+<line x1="400" y1="120.0" x2="400" y2="200.0" stroke="black" />
+<line x1="380" y1="160.0" x2="420" y2="160.0" stroke="black" stroke-width="2" />
+<text x="424.0" y="164.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">Session.created AND !Session.父層ID</text>
+<rect x="380.0" y="200.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="400" y="225.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">1</text>
+<line x1="420.0" y1="220.0" x2="460.0" y2="220.0" stroke="black" />
+<rect x="460.0" y="174.0" width="182.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<line x1="472.0" y1="174.0" x2="472.0" y2="266.0" stroke="black" />
+<line x1="630.5999999999999" y1="174.0" x2="630.5999999999999" y2="266.0" stroke="black" />
+<text x="551.3" y="200.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">更新 上</text>
+<text x="551.3" y="224.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">下文 來</text>
+<text x="551.3" y="248.00000000000003" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">自 回合</text>
+<line x1="400" y1="240.0" x2="400" y2="320.0" stroke="black" />
+<line x1="380" y1="280.0" x2="420" y2="280.0" stroke="black" stroke-width="2" />
+<text x="424.0" y="284.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">助手.回合.已完成 AND config.shared上下文 !== false</text>
+<rect x="380.0" y="320.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="400" y="345.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">2</text>
+<line x1="420.0" y1="340.0" x2="460.0" y2="340.0" stroke="black" />
+<rect x="460.0" y="294.0" width="182.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="551.3" y="320.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Evaluate</text>
+<text x="551.3" y="344.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">回合 Boundary</text>
+<text x="551.3" y="368.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Actions</text>
+<line x1="400" y1="360.0" x2="400" y2="400.0" stroke="black" />
+<line x1="17.40000000000002" y1="400.0" x2="782.5999999999999" y2="400.0" stroke="black" stroke-width="1.5" />
+<line x1="57.40000000000002" y1="400.0" x2="57.40000000000002" y2="440.0" stroke="black" />
+<line x1="37.40000000000002" y1="440.0" x2="77.40000000000002" y2="440.0" stroke="black" stroke-width="2" />
+<text x="33.40000000000002" y="424.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">更新.完成</text>
+<text x="33.40000000000002" y="444.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">AND space.</text>
+<text x="33.40000000000002" y="464.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">persisted</text>
+<line x1="57.40000000000002" y1="440.0" x2="57.40000000000002" y2="480.0" stroke="black" marker-end="url(#arrow)" />
+<line x1="400.0" y1="400.0" x2="400.0" y2="440.0" stroke="black" />
+<line x1="380.0" y1="440.0" x2="420.0" y2="440.0" stroke="black" stroke-width="2" />
+<line x1="400.0" y1="440.0" x2="400.0" y2="480.0" stroke="black" marker-end="url(#arrow)" />
+<line x1="742.5999999999999" y1="400.0" x2="742.5999999999999" y2="440.0" stroke="black" />
+<line x1="722.5999999999999" y1="440.0" x2="762.5999999999999" y2="440.0" stroke="black" stroke-width="2" />
+<line x1="742.5999999999999" y1="440.0" x2="742.5999999999999" y2="480.0" stroke="black" marker-end="url(#arrow)" />
+<rect x="37.40000000000002" y="480.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="57.40000000000002" y="505.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">3</text>
+<line x1="77.40000000000002" y1="500.0" x2="117.40000000000002" y2="500.0" stroke="black" />
+<rect x="117.40000000000003" y="454.0" width="182.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<line x1="129.4" y1="454.0" x2="129.4" y2="546.0" stroke="black" />
+<line x1="288.0" y1="454.0" x2="288.0" y2="546.0" stroke="black" />
+<text x="208.70000000000002" y="480.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Evaluate 閒</text>
+<text x="208.70000000000002" y="504.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">置 壓縮 於 回</text>
+<text x="208.70000000000002" y="528.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">合 Boundary</text>
+<line x1="57.40000000000002" y1="520.0" x2="57.40000000000002" y2="600.0" stroke="black" />
+<line x1="37.40000000000002" y1="560.0" x2="77.40000000000002" y2="560.0" stroke="black" stroke-width="2" />
+<text x="81.40000000000002" y="564.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">回合.has已完成任務派發</text>
+<rect x="37.40000000000002" y="600.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="57.40000000000002" y="625.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">4</text>
+<line x1="77.40000000000002" y1="620.0" x2="117.40000000000002" y2="620.0" stroke="black" />
+<rect x="117.40000000000003" y="574.0" width="182.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<line x1="129.4" y1="574.0" x2="129.4" y2="666.0" stroke="black" />
+<line x1="288.0" y1="574.0" x2="288.0" y2="666.0" stroke="black" />
+<text x="208.70000000000002" y="600.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Inject Snapshot</text>
+<text x="208.70000000000002" y="624.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">進入 子代理 During</text>
+<text x="208.70000000000002" y="648.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">任務 工具 (Sync)</text>
+<line x1="57.40000000000002" y1="640.0" x2="57.40000000000002" y2="720.0" stroke="black" />
+<line x1="37.40000000000002" y1="680.0" x2="77.40000000000002" y2="680.0" stroke="black" stroke-width="2" />
+<text x="81.40000000000002" y="684.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">任務.工具.executing AND !params.Sessionid AND snapshot.nonEmpty</text>
+<rect x="380.0" y="480.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="400.0" y="505.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">5</text>
+<line x1="420.0" y1="500.0" x2="460.0" y2="500.0" stroke="black" />
+<rect x="460.0" y="454.0" width="182.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="551.3" y="492.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Handle Overflow 壓</text>
+<text x="551.3" y="516.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">縮 使用 Shared 上下文</text>
+<line x1="400.0" y1="520.0" x2="400.0" y2="600.0" stroke="black" />
+<line x1="380.0" y1="560.0" x2="420.0" y2="560.0" stroke="black" stroke-width="2" />
+<text x="424.0" y="564.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">overflow.triggered AND snapshot.nonEmpty</text>
+<rect x="380.0" y="600.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="400.0" y="625.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">6</text>
+<line x1="420.0" y1="620.0" x2="460.0" y2="620.0" stroke="black" />
+<rect x="460.0" y="574.0" width="182.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="551.3" y="600.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Write Summary</text>
+<text x="551.3" y="624.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">與 發布</text>
+<text x="551.3" y="648.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Compacted 事件</text>
+<line x1="400.0" y1="640.0" x2="400.0" y2="720.0" stroke="black" />
+<line x1="380.0" y1="680.0" x2="420.0" y2="680.0" stroke="black" stroke-width="2" />
+<text x="424.0" y="684.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">overflow.snapshot.就緒</text>
+<rect x="722.5999999999999" y="480.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="742.5999999999999" y="505.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">7</text>
+<line x1="762.5999999999999" y1="500.0" x2="802.5999999999999" y2="500.0" stroke="black" />
+<rect x="802.5999999999999" y="454.0" width="182.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="893.8999999999999" y="480.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">fallback</text>
+<text x="893.8999999999999" y="504.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">到 Existing</text>
+<text x="893.8999999999999" y="528.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">壓縮 Agent</text>
+<line x1="742.5999999999999" y1="520.0" x2="742.5999999999999" y2="600.0" stroke="black" />
+<line x1="722.5999999999999" y1="560.0" x2="762.5999999999999" y2="560.0" stroke="black" stroke-width="2" />
+<text x="766.5999999999999" y="564.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">overflow.triggered AND snapshot.empty</text>
+<line x1="17.40000000000002" y1="720.0" x2="782.5999999999999" y2="720.0" stroke="black" stroke-width="1.5" />
+<line x1="57.40000000000002" y1="720.0" x2="57.40000000000002" y2="720.0" stroke="black" />
+<line x1="400.0" y1="720.0" x2="400.0" y2="720.0" stroke="black" />
+<line x1="742.5999999999999" y1="600.0" x2="742.5999999999999" y2="720.0" stroke="black" />
+<line x1="400" y1="720.0" x2="400" y2="760.0" stroke="black" marker-end="url(#arrow)" />
+<rect x="380.0" y="760.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="400" y="785.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">8</text>
+<line x1="420.0" y1="780.0" x2="460.0" y2="780.0" stroke="black" />
+<rect x="460.0" y="734.0" width="182.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="551.3" y="760.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">返回 到</text>
+<text x="551.3" y="784.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">等待 下</text>
+<text x="551.3" y="807.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">一個 回合</text>
+<line x1="400" y1="800.0" x2="400" y2="880.0" stroke="black" />
+<line x1="380" y1="840.0" x2="420" y2="840.0" stroke="black" stroke-width="2" />
+<text x="424.0" y="844.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">事件.handled</text>
+<line x1="400" y1="880.0" x2="400" y2="880.0" stroke="black" />
+<line x1="400" y1="880.0" x2="-42.59999999999998" y2="880.0" stroke="black" />
+<line x1="-42.59999999999998" y1="880.0" x2="-42.59999999999998" y2="176.0" stroke="black" />
+<line x1="-42.59999999999998" y1="176.0" x2="400" y2="176.0" stroke="black" marker-end="url(#arrow)" />
+</svg>

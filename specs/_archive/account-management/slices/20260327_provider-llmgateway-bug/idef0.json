@@ -1,35 +1,89 @@
 {
-  "diagram_title": "Provider SSOT Registry — IDEF0",
+  "diagram_title": "Provider SSOT 註冊表 — IDEF0",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A1",
-      "title": "Define Supported Provider Registry",
-      "description": "Create a repo-owned canonical registry for cms-supported providers.",
+      "title": "Define Supported Provider 註冊表",
+      "description": "Create repo-owned canonical 註冊表 供 cms-supported Provider.",
       "decomposition": null
     },
     {
       "id": "A2",
-      "title": "Assemble Provider List From Registry",
-      "description": "Build canonical provider rows from the supported-provider registry and overlay runtime state.",
+      "title": "組裝 Provider 清單 來自 註冊表",
+      "description": "建置 canonical Provider rows 來自 supported-Provider 註冊表 與 overlay runtime 狀態.",
       "decomposition": null
     },
     {
       "id": "A3",
       "title": "Align Provider Consumers",
-      "description": "Update web/TUI provider consumers to use registry-derived identity and labels.",
+      "description": "更新 web/TUI Provider consumers 到 use 註冊表-derived 身分 與 labels.",
       "decomposition": null
     }
   ],
   "arrows": [
-    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "Provider RCA Evidence", "type": "input" },
-    { "id": "AR2", "source": "EXTERNAL", "target": "A1:control", "label": "Product Support Boundary", "type": "control" },
-    { "id": "AR3", "source": "A1:output", "target": "A2:input", "label": "Supported Provider Registry", "type": "output" },
-    { "id": "AR4", "source": "EXTERNAL", "target": "A2:control", "label": "ModelsDev Runtime Account State", "type": "control" },
-    { "id": "AR5", "source": "A2:output", "target": "A3:input", "label": "Canonical Provider Rows", "type": "output" },
-    { "id": "AR6", "source": "EXTERNAL", "target": "A3:control", "label": "UI Provider Surfaces", "type": "control" },
-    { "id": "AR7", "source": "EXTERNAL", "target": "A1:mechanism", "label": "Provider Modules", "type": "mechanism" },
-    { "id": "AR8", "source": "EXTERNAL", "target": "A2:mechanism", "label": "Server Route And Runtime State", "type": "mechanism" },
-    { "id": "AR9", "source": "EXTERNAL", "target": "A3:mechanism", "label": "Web And TUI Components", "type": "mechanism" }
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "Provider RCA Evidence",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "Product Support Boundary",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "Supported Provider 註冊表",
+      "type": "output"
+    },
+    {
+      "id": "AR4",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "模型開發 Runtime 帳號 狀態",
+      "type": "control"
+    },
+    {
+      "id": "AR5",
+      "source": "A2:output",
+      "target": "A3:input",
+      "label": "Canonical Provider Rows",
+      "type": "output"
+    },
+    {
+      "id": "AR6",
+      "source": "EXTERNAL",
+      "target": "A3:control",
+      "label": "UI Provider Surfaces",
+      "type": "control"
+    },
+    {
+      "id": "AR7",
+      "source": "EXTERNAL",
+      "target": "A1:mechanism",
+      "label": "Provider Modules",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR8",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "label": "伺服器 路由 與 Runtime 狀態",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR9",
+      "source": "EXTERNAL",
+      "target": "A3:mechanism",
+      "label": "Web 與 TUI Components",
+      "type": "mechanism"
+    }
   ]
 }

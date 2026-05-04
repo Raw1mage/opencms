@@ -1,127 +1,312 @@
 {
   "diagram_title": "Curate App Marketplace",
   "node_reference": "A0",
-  "description": "Unified install/configure/enable surface for three MCP component kinds (mcp-server / managed-app / mcp-app) inside the webapp Admin Panel. Catalog endpoint /api/v2/mcp/market fans out across MCP.serverApps + ManagedAppRegistry.list + McpAppStore.listApps. Persisted in managed-apps.json plus two-tier mcp-apps.json. Shipped (live as of 2026-05-04).",
+  "description": "Unified install/configure/enable surface 供 three MCP component kinds (mcp-伺服器 / managed-app / mcp-app) inside webapp 管理 面板. Catalog endpoint /api/v2/mcp/market fans out across MCP.伺服器apps + ManagedAppRegistry.清單 + McpAppStore.清單apps. Persisted 在 managed-apps.js在 plus two-tier mcp-apps.js在. 已交付 (live 作為 的 2026-05-04).",
   "activities": [
     {
       "id": "A1",
-      "title": "List Available Apps",
-      "description": "GET /api/v2/mcp/market (server/routes/mcp.ts L29-L116) parallel-fans out the three sources and normalizes each entry to a MarketApp shape. Reads gauth.json so OAuth-expired apps surface needs_auth.",
+      "title": "清單 Available Apps",
+      "description": "GET /api/v2/mcp/market (server/routes/mcp.ts L29-L116) 平行-fans out three sources 與 normalizes each 項目 到 MarketApp shape. Reads gauth.js在 so OAuth-expired apps surface needs驗證.",
       "decomposition": {
-        "diagram_title": "List Available Apps",
+        "diagram_title": "清單 Available Apps",
         "node_reference": "A1",
         "activities": [
           {
             "id": "A11",
-            "title": "Fetch MCP Server Apps",
-            "description": "MCP.serverApps() (mcp/index.ts L811) returns ServerApp shape (L803) for stdio/HTTP servers declared in mcp.json."
+            "title": "Fetch MCP 伺服器 Apps",
+            "description": "MCP.serverApps() (mcp/index.ts L811) 返回 伺服器app shape (L803) 供 stdio/HTTP 伺服器 declared 在 mcp.js在."
           },
           {
             "id": "A12",
             "title": "Fetch Managed Apps",
-            "description": "ManagedAppRegistry.list() reads ~/.config/opencode/managed-apps.json. BUILTIN_CATALOG (mcp/app-registry.ts:272) is currently empty; mechanism on standby."
+            "description": "ManagedAppRegistry.list() reads ~/.config/opencode/managed-apps.js在. BUILTIN CATALOG (mcp/app-registry.ts:272) 是 currently empty; 機制 在 standby."
           },
           {
             "id": "A13",
             "title": "Fetch Store Apps",
-            "description": "McpAppStore.listApps().catch(()=>[]) merges /etc/opencode/mcp-apps.json (system, sudo opencode-app-install) with ~/.config/opencode/mcp-apps.json (user). System wins on id collision."
+            "description": "McpAppStore.listApps().catch(()=>[]) merges /etc/opencode/mcp-apps.js在 (system, sudo opencode-app-install) 使用 ~/.config/opencode/mcp-apps.js在 (使用者). System wins 在 id collision."
           },
           {
             "id": "A14",
-            "title": "Normalize And Decorate",
-            "description": "Each entry mapped to MarketApp (kind, name, description, icon, status, tools, enabled, optional auth+error). gauth.json consulted to attach needs_auth / 'OAuth token expired' instead of silent failure."
+            "title": "Normalize 與 Decorate",
+            "description": "Each 項目 mapped 到 MarketApp (kind, name, description, icon, 狀態, tools, 已啟用, optional 驗證+錯誤). gauth.js在 consulted 到 attach needs驗證 / 'OAuth token expired' instead 的 靜默 failure."
           }
         ],
         "arrows": [
-          {"id": "a1in1", "source": "EXTERNAL", "target": "A11:input", "label": "mcp.json"},
-          {"id": "a1in2", "source": "EXTERNAL", "target": "A12:input", "label": "managed-apps.json"},
-          {"id": "a1in3", "source": "EXTERNAL", "target": "A13:input", "label": "mcp-apps.json (system + user)"},
-          {"id": "a1c1", "source": "EXTERNAL", "target": "A11:control", "label": "Promise.all fan-out"},
-          {"id": "a1c2", "source": "EXTERNAL", "target": "A12:control", "label": "Promise.all fan-out"},
-          {"id": "a1c3", "source": "EXTERNAL", "target": "A13:control", "label": "Promise.all fan-out"},
-          {"id": "a1m1", "source": "A11:output", "target": "A14:input", "label": "serverApps"},
-          {"id": "a1m2", "source": "A12:output", "target": "A14:input", "label": "managedApps"},
-          {"id": "a1m3", "source": "A13:output", "target": "A14:input", "label": "storeApps"},
-          {"id": "a1c4", "source": "EXTERNAL", "target": "A14:control", "label": "gauth.json (OAuth token state)"},
-          {"id": "a1out1", "source": "A14:output", "target": "EXTERNAL", "label": "MarketApp[] JSON response"}
+          {
+            "id": "a1in1",
+            "source": "EXTERNAL",
+            "target": "A11:input",
+            "label": "mcp.js在"
+          },
+          {
+            "id": "a1in2",
+            "source": "EXTERNAL",
+            "target": "A12:input",
+            "label": "managed-apps.js在"
+          },
+          {
+            "id": "a1in3",
+            "source": "EXTERNAL",
+            "target": "A13:input",
+            "label": "mcp-apps.js在 (system + 使用者)"
+          },
+          {
+            "id": "a1c1",
+            "source": "EXTERNAL",
+            "target": "A11:control",
+            "label": "Promise.all fan-out"
+          },
+          {
+            "id": "a1c2",
+            "source": "EXTERNAL",
+            "target": "A12:control",
+            "label": "Promise.all fan-out"
+          },
+          {
+            "id": "a1c3",
+            "source": "EXTERNAL",
+            "target": "A13:control",
+            "label": "Promise.all fan-out"
+          },
+          {
+            "id": "a1m1",
+            "source": "A11:output",
+            "target": "A14:input",
+            "label": "伺服器apps"
+          },
+          {
+            "id": "a1m2",
+            "source": "A12:output",
+            "target": "A14:input",
+            "label": "managedApps"
+          },
+          {
+            "id": "a1m3",
+            "source": "A13:output",
+            "target": "A14:input",
+            "label": "storeApps"
+          },
+          {
+            "id": "a1c4",
+            "source": "EXTERNAL",
+            "target": "A14:control",
+            "label": "gauth.js在 (OAuth token 狀態)"
+          },
+          {
+            "id": "a1out1",
+            "source": "A14:output",
+            "target": "EXTERNAL",
+            "label": "MarketApp[] JSON 回應"
+          }
         ]
       }
     },
     {
       "id": "A2",
-      "title": "Install App By Kind",
-      "description": "Kind-dependent install branch: mcp-server uses POST /:id/connect; managed-app uses POST /apps/:appId/install; mcp-app uses POST /store/apps (GitHub URL or local path) optionally preceded by POST /store/apps/preview dry-run.",
+      "title": "Install App 由 Kind",
+      "description": "Kind-dependent install branch: mcp-伺服器 uses POST /:id/connect; managed-app uses POST /apps/:appId/install; mcp-app uses POST /store/apps (GitHub URL 或 local 路徑) optionally preceded 由 POST /store/apps/preview dry-執行.",
       "decomposition": {
-        "diagram_title": "Install App By Kind",
+        "diagram_title": "Install App 由 Kind",
         "node_reference": "A2",
         "activities": [
           {
             "id": "A21",
-            "title": "Connect MCP Server",
-            "description": "POST /:id/connect / /disconnect for stdio or HTTP servers from mcp.json."
+            "title": "Connect MCP 伺服器",
+            "description": "POST /:id/connect / /disconnect 供 stdio 或 HTTP 伺服器 來自 mcp.js在."
           },
           {
             "id": "A22",
             "title": "Install Managed App",
-            "description": "POST /apps/:appId/install runs ManagedAppRegistry install state machine (mcp/app-registry.ts L119-L267 in mcp.ts)."
+            "description": "POST /apps/:appId/install runs ManagedAppRegistry install 狀態 machine (mcp/app-registry.ts L119-L267 在 mcp.ts)."
           },
           {
             "id": "A23",
             "title": "Preview Store App",
-            "description": "POST /store/apps/preview reads remote/local manifest dry-run; rejects bad manifest before commit."
+            "description": "POST /store/apps/preview reads remote/local Manifest dry-執行; rejects bad Manifest before commit."
           },
           {
             "id": "A24",
-            "title": "Register Store App",
-            "description": "POST /store/apps via McpAppStore.cloneAndRegister (GitHub URL) or addApp (local path). Persists to ~/.config/opencode/mcp-apps.json."
+            "title": "註冊 Store App",
+            "description": "POST /store/apps 透過 McpAppStore.clone與註冊 (GitHub URL) 或 addApp (local 路徑). Persists 到 ~/.config/opencode/mcp-apps.js在."
           }
         ],
         "arrows": [
-          {"id": "a2in1", "source": "EXTERNAL", "target": "A21:input", "label": "mcp-server id"},
-          {"id": "a2in2", "source": "EXTERNAL", "target": "A22:input", "label": "managed appId"},
-          {"id": "a2in3", "source": "EXTERNAL", "target": "A23:input", "label": "GitHub URL or local path"},
-          {"id": "a2c4", "source": "A23:output", "target": "A24:control", "label": "preview validated manifest"},
-          {"id": "a2mch1", "source": "EXTERNAL", "target": "A21:mechanism", "label": "stdio / HTTP transport"},
-          {"id": "a2mch2", "source": "EXTERNAL", "target": "A22:mechanism", "label": "ManagedAppRegistry"},
-          {"id": "a2mch4", "source": "EXTERNAL", "target": "A24:mechanism", "label": "McpAppStore"},
-          {"id": "a2out1", "source": "A21:output", "target": "EXTERNAL", "label": "ServerApp connected status"},
-          {"id": "a2out2", "source": "A22:output", "target": "EXTERNAL", "label": "managed_app.updated event"},
-          {"id": "a2out4", "source": "A24:output", "target": "EXTERNAL", "label": "store app registered, listed"}
+          {
+            "id": "a2in1",
+            "source": "EXTERNAL",
+            "target": "A21:input",
+            "label": "mcp-伺服器 id"
+          },
+          {
+            "id": "a2in2",
+            "source": "EXTERNAL",
+            "target": "A22:input",
+            "label": "managed appId"
+          },
+          {
+            "id": "a2in3",
+            "source": "EXTERNAL",
+            "target": "A23:input",
+            "label": "GitHub URL 或 local 路徑"
+          },
+          {
+            "id": "a2c4",
+            "source": "A23:output",
+            "target": "A24:control",
+            "label": "preview validated Manifest"
+          },
+          {
+            "id": "a2mch1",
+            "source": "EXTERNAL",
+            "target": "A21:mechanism",
+            "label": "stdio / HTTP transport"
+          },
+          {
+            "id": "a2mch2",
+            "source": "EXTERNAL",
+            "target": "A22:mechanism",
+            "label": "ManagedAppRegistry"
+          },
+          {
+            "id": "a2mch4",
+            "source": "EXTERNAL",
+            "target": "A24:mechanism",
+            "label": "McpAppStore"
+          },
+          {
+            "id": "a2out1",
+            "source": "A21:output",
+            "target": "EXTERNAL",
+            "label": "伺服器app connected 狀態"
+          },
+          {
+            "id": "a2out2",
+            "source": "A22:output",
+            "target": "EXTERNAL",
+            "label": "managedapp.updated 事件"
+          },
+          {
+            "id": "a2out4",
+            "source": "A24:output",
+            "target": "EXTERNAL",
+            "label": "store app 已註冊, listed"
+          }
         ]
       }
     },
     {
       "id": "A3",
       "title": "Configure App Settings",
-      "description": "POST /apps/:appId/config (managed) and /store/apps/:id/config (store, secrets). Settings dialog renders dynamic fields from settingsSchema returned by the catalog endpoint."
+      "description": "POST /apps/:appId/設定 (managed) 與 /store/apps/:id/設定 (store, secrets). Settings 對話框 renders dynamic fields 來自 settingsschema returned 由 catalog endpoint."
     },
     {
       "id": "A4",
       "title": "Authorize App OAuth",
-      "description": "GET /api/v2/mcp/apps/:appId/oauth/connect opens 600x700 popup; callback persists token, emits managed_app.updated. Token expiry surfaces as needs_auth + 'OAuth token expired'."
+      "description": "GET /api/v2/mcp/apps/:appId/oauth/connect opens 600x700 popup; callback persists token, emits managedapp.updated. Token expiry surfaces 作為 needs驗證 + 'OAuth token expired'."
     },
     {
       "id": "A5",
       "title": "Uninstall App",
-      "description": "POST /apps/:appId/uninstall (managed), DELETE /store/apps/:id (store), POST /:id/disconnect (mcp-server). PATCH /store/apps/:id and POST /apps/:appId/disable provide the toggle-off path before uninstall."
+      "description": "POST /apps/:appId/uninstall (managed), DELETE /store/apps/:id (store), POST /:id/disconnect (mcp-伺服器). PATCH /store/apps/:id 與 POST /apps/:appId/disable provide toggle-off 路徑 before uninstall."
     }
   ],
   "arrows": [
-    {"id": "a0i1", "source": "EXTERNAL", "target": "A1:input", "label": "operator opens App Market dialog (layout.tsx:1065)"},
-    {"id": "a0c1", "source": "EXTERNAL", "target": "A1:control", "label": "GET /api/v2/mcp/market"},
-    {"id": "a0m1", "source": "A1:output", "target": "A2:input", "label": "MarketApp catalog (kind classifier)"},
-    {"id": "a0m1b", "source": "A1:output", "target": "EXTERNAL", "label": "rendered card grid (CARD_MIN_W=260, mobile single-col <767px)"},
-    {"id": "a0i2", "source": "EXTERNAL", "target": "A2:control", "label": "operator picks app + kind branch"},
-    {"id": "a0m2", "source": "A2:output", "target": "A3:input", "label": "installed app (settingsSchema)"},
-    {"id": "a0i3", "source": "EXTERNAL", "target": "A3:control", "label": "settings form submission"},
-    {"id": "a0m3", "source": "A3:output", "target": "A4:input", "label": "configured app needing OAuth"},
-    {"id": "a0c4", "source": "EXTERNAL", "target": "A4:control", "label": "needs_auth flag"},
-    {"id": "a0mch4", "source": "EXTERNAL", "target": "A4:mechanism", "label": "popup window + /oauth/callback"},
-    {"id": "a0o4a", "source": "A4:output", "target": "A1:control", "label": "managed_app.updated → refetch market"},
-    {"id": "a0i5", "source": "EXTERNAL", "target": "A5:input", "label": "operator confirms uninstall"},
-    {"id": "a0c5", "source": "EXTERNAL", "target": "A5:control", "label": "managedAppUsageHttpStatus 403/409/503 guard"},
-    {"id": "a0o5", "source": "A5:output", "target": "A1:control", "label": "removed entry → refetch market"},
-    {"id": "a0o1", "source": "A2:output", "target": "EXTERNAL", "label": "ready / connected status pill"},
-    {"id": "a0o2", "source": "A3:output", "target": "EXTERNAL", "label": "persisted config (managed-apps.json / mcp-apps.json)"}
+    {
+      "id": "a0i1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "operator opens App Market 對話框 (layout.tsx:1065)"
+    },
+    {
+      "id": "a0c1",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "GET /api/v2/mcp/market"
+    },
+    {
+      "id": "a0m1",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "MarketApp catalog (kind classifier)"
+    },
+    {
+      "id": "a0m1b",
+      "source": "A1:output",
+      "target": "EXTERNAL",
+      "label": "rendered card grid (CARD MIN W=260, 行動版 single-col <767px)"
+    },
+    {
+      "id": "a0i2",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "operator picks app + kind branch"
+    },
+    {
+      "id": "a0m2",
+      "source": "A2:output",
+      "target": "A3:input",
+      "label": "installed app (settingsschema)"
+    },
+    {
+      "id": "a0i3",
+      "source": "EXTERNAL",
+      "target": "A3:control",
+      "label": "settings form submission"
+    },
+    {
+      "id": "a0m3",
+      "source": "A3:output",
+      "target": "A4:input",
+      "label": "configured app needing OAuth"
+    },
+    {
+      "id": "a0c4",
+      "source": "EXTERNAL",
+      "target": "A4:control",
+      "label": "needs驗證 flag"
+    },
+    {
+      "id": "a0mch4",
+      "source": "EXTERNAL",
+      "target": "A4:mechanism",
+      "label": "popup window + /oauth/callback"
+    },
+    {
+      "id": "a0o4a",
+      "source": "A4:output",
+      "target": "A1:control",
+      "label": "managedapp.updated → refetch market"
+    },
+    {
+      "id": "a0i5",
+      "source": "EXTERNAL",
+      "target": "A5:input",
+      "label": "operator confirms uninstall"
+    },
+    {
+      "id": "a0c5",
+      "source": "EXTERNAL",
+      "target": "A5:control",
+      "label": "managedappusagehttp狀態 403/409/503 guard"
+    },
+    {
+      "id": "a0o5",
+      "source": "A5:output",
+      "target": "A1:control",
+      "label": "removed 項目 → refetch market"
+    },
+    {
+      "id": "a0o1",
+      "source": "A2:output",
+      "target": "EXTERNAL",
+      "label": "就緒 / connected 狀態 pill"
+    },
+    {
+      "id": "a0o2",
+      "source": "A3:output",
+      "target": "EXTERNAL",
+      "label": "persisted 設定 (managed-apps.js在 / mcp-apps.js在)"
+    }
   ]
 }

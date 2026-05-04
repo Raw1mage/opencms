@@ -1,23 +1,23 @@
 {
-  "diagram_title": "Codex Incremental Delta Fix Plan",
+  "diagram_title": "Codex Incremental Delta Fix 規劃",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A1",
       "title": "Measure Delta Loss Points",
-      "description": "Instrument request, runtime, SSE, and consumer boundaries to prove where delta savings are lost.",
+      "description": "Instrument 請求, runtime, SSE, 與 consumer boundaries 到 prove where delta savings 是 lost.",
       "decomposition": null
     },
     {
       "id": "A2",
       "title": "Rewrite Runtime Delta Transport",
-      "description": "Replace full-part streamed transport with delta-aware event flow while preserving durable correctness.",
+      "description": "Replace full-part streamed transport 使用 delta-aware 事件 flow while preserving durable correctness.",
       "decomposition": null
     },
     {
       "id": "A3",
-      "title": "Migrate Stream Consumers",
-      "description": "Update Web, TUI, and subagent bridge consumers to apply delta-aware streamed updates.",
+      "title": "Migrate 串流 Consumers",
+      "description": "更新 Web, TUI, 與 子代理 bridge consumers 到 apply delta-aware streamed updates.",
       "decomposition": null
     }
   ],
@@ -33,28 +33,28 @@
       "id": "AR2",
       "source": "EXTERNAL",
       "target": "A1:control",
-      "label": "No Silent Fallback Policy",
+      "label": "無 靜默 fallback Policy",
       "type": "control"
     },
     {
       "id": "AR3",
       "source": "A1:output",
       "target": "A2:input",
-      "label": "Baseline Metrics And Hot Path Proof",
+      "label": "Baseline Metrics 與 Hot 路徑 Proof",
       "type": "input"
     },
     {
       "id": "AR4",
       "source": "EXTERNAL",
       "target": "A2:control",
-      "label": "Codex Continuation Contract",
+      "label": "Codex 延續 Contract",
       "type": "control"
     },
     {
       "id": "AR5",
       "source": "A2:output",
       "target": "A3:input",
-      "label": "Delta Aware Event Contract",
+      "label": "Delta Aware 事件 Contract",
       "type": "input"
     },
     {
@@ -68,28 +68,28 @@
       "id": "AR7",
       "source": "A3:output",
       "target": "EXTERNAL",
-      "label": "Validated Delta Fix Implementation Plan",
+      "label": "Validated Delta Fix Implementation 規劃",
       "type": "output"
     },
     {
       "id": "AR8",
       "source": "EXTERNAL",
       "target": "A1:mechanism",
-      "label": "Session SSE Web TUI Tool Modules",
+      "label": "Session SSE Web TUI 工具 Modules",
       "type": "mechanism"
     },
     {
       "id": "AR9",
       "source": "EXTERNAL",
       "target": "A2:mechanism",
-      "label": "Session Event Storage Server Modules",
+      "label": "Session 事件 儲存 伺服器 Modules",
       "type": "mechanism"
     },
     {
       "id": "AR10",
       "source": "EXTERNAL",
       "target": "A3:mechanism",
-      "label": "App TUI Subagent Consumers",
+      "label": "App TUI 子代理 Consumers",
       "type": "mechanism"
     }
   ]

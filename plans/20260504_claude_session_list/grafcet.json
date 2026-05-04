@@ -1,0 +1,18 @@
+{
+  "model": "GRAFCET",
+  "title": "Claude Session List MVP State Flow",
+  "steps": [
+    { "id": "S0", "name": "Idle" },
+    { "id": "S1", "name": "Load session summaries" },
+    { "id": "S2", "name": "Classify Claude sessions" },
+    { "id": "S3", "name": "Render list" },
+    { "id": "S4", "name": "Render explicit error" }
+  ],
+  "transitions": [
+    { "from": "S0", "to": "S1", "condition": "operator opens Claude session list" },
+    { "from": "S1", "to": "S2", "condition": "session API returns metadata" },
+    { "from": "S2", "to": "S3", "condition": "classification succeeds" },
+    { "from": "S1", "to": "S4", "condition": "session API fails" },
+    { "from": "S2", "to": "S4", "condition": "classification source is ambiguous" }
+  ]
+}

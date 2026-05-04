@@ -9,6 +9,7 @@ import {
   ToolPart,
 } from "@opencode-ai/sdk/v2/client"
 import { useData } from "../context"
+import { linkifyFileReferences } from "./file-path-link"
 import { type UiI18nKey, type UiI18nParams, useI18n } from "../context/i18n"
 
 import { Binary } from "@opencode-ai/util/binary"
@@ -659,7 +660,11 @@ export function SessionTurn(
     props.onStatusLineChange?.(undefined)
   })
 
-  const response = createMemo(() => lastTextPart()?.text)
+  const response = createMemo(() => {
+    const text = lastTextPart()?.text
+    if (!text) return text
+    return linkifyFileReferences(text, data.directory)
+  })
   const responsePartId = createMemo(() => lastTextPart()?.id)
   const hasDiffs = createMemo(() => (message()?.summary?.diffs?.length ?? 0) > 0)
   const hideResponsePart = createMemo(() => !working() && !!responsePartId())

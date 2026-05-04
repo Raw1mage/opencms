@@ -1,181 +1,225 @@
 {
   "$schema": "grafcet",
-  "title": "Codex Turn Lifecycle — State Evolution",
+  "title": "Codex 回合 Lifecycle — 狀態 Evolution",
   "version": "2026-04-08",
   "note": "IEC 60848 Grafcet modelling the observable state transitions in a single Codex API turn, from request building through compaction.",
-
   "steps": [
     {
       "id": "S0",
       "name": "Idle",
-      "description": "Session awaiting user input. WS may be connected (warm) or disconnected.",
+      "description": "Session awaiting 使用者 輸入. WS may 是 connected (warm) 或 disconnected.",
       "initial": true
     },
     {
       "id": "S1",
       "name": "Auth Resolved",
-      "description": "OAuth token valid, originator set, installation_id available."
+      "description": "OAuth token valid, originator set, installationid available."
     },
     {
       "id": "S2",
       "name": "Request Built",
-      "description": "ResponsesApiRequest body assembled: instructions, input, tools, reasoning, text, client_metadata, context_management."
+      "description": "responsesapi請求 body assembled: instructions, 輸入, tools, reasoning, 文字, clientmetadata, 上下文management."
     },
     {
       "id": "S3",
       "name": "Delta Computed",
-      "description": "Incremental input delta calculated against previous request. If WS session invalid or request shape changed, falls back to full input."
+      "description": "Incremental 輸入 delta calculated against previous 請求. If WS Session invalid 或 請求 shape changed, falls 回到 到 full 輸入."
     },
     {
       "id": "S4",
       "name": "Transport Selected",
-      "description": "Transport chosen: WS (primary), HTTP SSE (fallback), or WebRTC (realtime). Headers attached including x-codex-window-id."
+      "description": "Transport chosen: WS (primary), HTTP SSE (fallback), 或 WebRTC (realtime). Headers attached including x-codex-window-id."
     },
     {
       "id": "S5",
       "name": "Request Dispatched",
-      "description": "Request sent on selected transport. Awaiting first response frame."
+      "description": "請求 sent 在 selected transport. Awaiting first 回應 frame."
     },
     {
       "id": "S6",
       "name": "Streaming",
-      "description": "Response events streaming: text deltas, tool calls, reasoning items. Token usage accumulating."
+      "description": "回應 事件 streaming: 文字 deltas, 工具 calls, reasoning items. Token usage accumulating."
     },
     {
       "id": "S7",
       "name": "Turn Complete",
-      "description": "Response stream ended. Final token usage known. response_id captured for continuation."
+      "description": "回應 串流 ended. Final token usage known. 回應id captured 供 延續."
     },
     {
       "id": "S8",
       "name": "Compaction Triggered",
-      "description": "Token usage exceeds compact_threshold. Compaction initiated (remote or inline)."
+      "description": "Token usage exceeds compactthreshold. 壓縮 initiated (remote 或 inline)."
     },
     {
       "id": "S9",
       "name": "Compaction Complete",
-      "description": "History replaced with compacted summary. WS session reset. Window generation advanced."
+      "description": "History replaced 使用 compacted summary. WS Session reset. Window generation advanced."
     },
     {
       "id": "S10",
       "name": "Error / Fallback",
-      "description": "Transport error, auth failure, or rate limit. May trigger WS→HTTP fallback or retry."
+      "description": "Transport 錯誤, 驗證 failure, 或 速率限制. May trigger WS→HTTP fallback 或 重試."
     }
   ],
-
   "transitions": [
     {
       "id": "T0→1",
       "from": "S0",
       "to": "S1",
       "condition": "User input received ∧ auth token valid",
-      "actions": ["Resolve OAuth token", "Resolve originator", "Resolve installation_id"]
+      "actions": [
+        "Resolve OAuth token",
+        "Resolve originator",
+        "Resolve installation_id"
+      ]
     },
     {
       "id": "T1→2",
       "from": "S1",
       "to": "S2",
       "condition": "Auth resolved",
-      "actions": ["Compose instructions", "Encode input items", "Serialize tools", "Attach controls + metadata", "Set context_management"]
+      "actions": [
+        "Compose instructions",
+        "Encode input items",
+        "Serialize tools",
+        "Attach controls + metadata",
+        "Set context_management"
+      ]
     },
     {
       "id": "T2→3",
       "from": "S2",
       "to": "S3",
       "condition": "Request body ready",
-      "actions": ["Compare with previous request", "Compute input delta if WS session valid"]
+      "actions": [
+        "Compare with previous request",
+        "Compute input delta if WS session valid"
+      ]
     },
     {
       "id": "T3→4",
       "from": "S3",
       "to": "S4",
       "condition": "Delta computed",
-      "actions": ["Evaluate transport eligibility", "Build transport headers (window-id, parent-thread, beta-features)"]
+      "actions": [
+        "Evaluate transport eligibility",
+        "Build transport headers (window-id, parent-thread, beta-features)"
+      ]
     },
     {
       "id": "T4→5",
       "from": "S4",
       "to": "S5",
       "condition": "Transport ready",
-      "actions": ["Dispatch request on selected transport"]
+      "actions": [
+        "Dispatch request on selected transport"
+      ]
     },
     {
       "id": "T5→6",
       "from": "S5",
       "to": "S6",
       "condition": "First response frame received",
-      "actions": ["Start SSE/WS event parsing"]
+      "actions": [
+        "Start SSE/WS event parsing"
+      ]
     },
     {
       "id": "T6→7",
       "from": "S6",
       "to": "S7",
       "condition": "response.completed event received",
-      "actions": ["Capture response_id", "Update token usage", "Record rate limits"]
+      "actions": [
+        "Capture response_id",
+        "Update token usage",
+        "Record rate limits"
+      ]
     },
     {
       "id": "T7→0",
       "from": "S7",
       "to": "S0",
       "condition": "Token usage < compact_threshold",
-      "actions": ["Update continuation cache", "Emit turn completed"]
+      "actions": [
+        "Update continuation cache",
+        "Emit turn completed"
+      ]
     },
     {
       "id": "T7→8",
       "from": "S7",
       "to": "S8",
       "condition": "Token usage ≥ compact_threshold",
-      "actions": ["Initiate compaction (remote if OpenAI, inline otherwise)"]
+      "actions": [
+        "Initiate compaction (remote if OpenAI, inline otherwise)"
+      ]
     },
     {
       "id": "T8→9",
       "from": "S8",
       "to": "S9",
       "condition": "Compaction LLM response received",
-      "actions": ["Replace history with summary", "Inject initial context if mid-turn"]
+      "actions": [
+        "Replace history with summary",
+        "Inject initial context if mid-turn"
+      ]
     },
     {
       "id": "T9→0",
       "from": "S9",
       "to": "S0",
       "condition": "Always",
-      "actions": ["reset_websocket_session()", "advance_window_generation()", "Emit compaction completed"]
+      "actions": [
+        "reset_websocket_session()",
+        "advance_window_generation()",
+        "Emit compaction completed"
+      ]
     },
     {
       "id": "T5→10",
       "from": "S5",
       "to": "S10",
       "condition": "Connect timeout ∨ auth error ∨ 4xx/5xx",
-      "actions": ["Classify error"]
+      "actions": [
+        "Classify error"
+      ]
     },
     {
       "id": "T6→10",
       "from": "S6",
       "to": "S10",
       "condition": "Mid-stream stall timeout ∨ WS close ∨ rate_limit_exceeded",
-      "actions": ["Classify error", "Record partial response"]
+      "actions": [
+        "Classify error",
+        "Record partial response"
+      ]
     },
     {
       "id": "T10→4",
       "from": "S10",
       "to": "S4",
       "condition": "Retryable error ∧ retry budget > 0",
-      "actions": ["Backoff wait", "WS→HTTP fallback if WS error (sticky per session)"]
+      "actions": [
+        "Backoff wait",
+        "WS→HTTP fallback if WS error (sticky per session)"
+      ]
     },
     {
       "id": "T10→0",
       "from": "S10",
       "to": "S0",
       "condition": "Non-retryable error ∨ retry budget exhausted",
-      "actions": ["Emit error event", "Clear turn state"]
+      "actions": [
+        "Emit error event",
+        "Clear turn state"
+      ]
     }
   ],
-
   "parallel_branches": [
     {
       "id": "PB1",
       "name": "Subagent Fork",
-      "description": "During S6, tool calls may spawn subagent turns. Each subagent follows its own S0→S7 lifecycle with inherited auth but separate thread_id.",
+      "description": "During S6, 工具 calls may 啟動 子代理 turns. Each 子代理 follows its own S0→S7 lifecycle 使用 inherited 驗證 but separate threadid.",
       "fork_from": "S6",
       "join_at": "S6",
       "condition": "Tool call requires subagent execution",
@@ -184,7 +228,7 @@
     {
       "id": "PB2",
       "name": "Inter-Agent Mailbox",
-      "description": "NEW: Agents can send InterAgentCommunication via Mailbox. Receiver checks pending mails before/during turn. Preemption possible after reasoning/commentary items.",
+      "description": "NEW: Agents can send InterAgentCommunication 透過 Mailbox. Receiver checks 待處理 mails before/during 回合. Preemption possible after reasoning/commentary items.",
       "fork_from": "S6",
       "join_at": "S6",
       "condition": "Mailbox has pending messages",

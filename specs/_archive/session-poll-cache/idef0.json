@@ -5,37 +5,37 @@
     {
       "id": "A1",
       "title": "Serve Cached Session Read",
-      "description": "Return session metadata and message list from in-process cache when fresh; on miss, load from storage and memoize.",
+      "description": "返回 Session metadata 與 訊息 清單 來自 在-process 快取 when fresh; 在 miss, load 來自 儲存 與 memoize.",
       "decomposition": null
     },
     {
       "id": "A2",
-      "title": "Invalidate Cache On Write Event",
-      "description": "Subscribe to MessageV2.Event.* and Session.Event.* (including worker-bridged events) and drop all cache keys for the affected sessionID; bump per-session version counter.",
+      "title": "Invalidate 快取 在 Write 事件",
+      "description": "Subscribe 到 訊息v2.事件.* 與 Session.事件.* (including worker-bridged 事件) 與 drop all 快取 keys 供 affected SessionID; bump 依-Session version counter.",
       "decomposition": null
     },
     {
       "id": "A3",
       "title": "Evaluate Conditional GET",
-      "description": "Compute weak ETag from sessionID + version; compare If-None-Match header; short-circuit with 304 when matching.",
+      "description": "Compute weak ETag 來自 SessionID + version; compare If-None-比對 header; short-circuit 使用 304 when matching.",
       "decomposition": null
     },
     {
       "id": "A4",
-      "title": "Enforce Per-Identity Rate Limit",
-      "description": "Apply token-bucket per (username, method, routePattern); return 429 with Retry-After when exhausted; exempt internal and health paths.",
+      "title": "Enforce 依-身分 Rate Limit",
+      "description": "Apply token-bucket 依 (username, method, 路由pattern); 返回 429 使用 重試-After when exhausted; exempt internal 與 健康 路徑.",
       "decomposition": null
     },
     {
       "id": "A5",
-      "title": "Expose Cache And RateLimit Health",
-      "description": "Serve GET /api/v2/server/cache/health with entries, hit/miss rate, eviction count, subscriptionAlive, and rate-limit stats over the past 5 minutes.",
+      "title": "Expose 快取 與 RateLimit 健康",
+      "description": "Serve GET /api/v2/伺服器/快取/健康 使用 entries, hit/miss rate, eviction count, subscriptionAlive, 與 rate-limit stats over past 5 minutes.",
       "decomposition": null
     },
     {
       "id": "A6",
-      "title": "Load Tunables From tweaks.cfg",
-      "description": "Parse /etc/opencode/tweaks.cfg with defaults; log actual effective values at startup; warn (not silently fall back) on format errors.",
+      "title": "Load Tunables 來自 tweaks.cfg",
+      "description": "解析 /etc/opencode/tweaks.cfg 使用 defaults; 記錄 actual effective values 於 startup; warn (不 silently fall 回到) 在 format 錯誤.",
       "decomposition": null
     }
   ],
@@ -44,35 +44,35 @@
       "id": "AR1",
       "source": "EXTERNAL",
       "target": "A4:input",
-      "label": "HTTP Request (session GET / messages GET)",
+      "label": "HTTP 請求 (Session GET / messages GET)",
       "type": "input"
     },
     {
       "id": "AR2",
       "source": "A4:output",
       "target": "A3:input",
-      "label": "Allowed Request",
+      "label": "Allowed 請求",
       "type": "input"
     },
     {
       "id": "AR3",
       "source": "A3:output",
       "target": "A1:input",
-      "label": "Non-304 Request (needs body)",
+      "label": "Non-304 請求 (needs body)",
       "type": "input"
     },
     {
       "id": "AR4",
       "source": "A1:output",
       "target": "EXTERNAL",
-      "label": "200 Response With ETag + Body",
+      "label": "200 回應 使用 ETag + Body",
       "type": "output"
     },
     {
       "id": "AR5",
       "source": "A3:output",
       "target": "EXTERNAL",
-      "label": "304 Not Modified",
+      "label": "304 不 Modified",
       "type": "output"
     },
     {
@@ -86,14 +86,14 @@
       "id": "AR7",
       "source": "EXTERNAL",
       "target": "A2:input",
-      "label": "Bus MessageV2/Session Event",
+      "label": "Bus 訊息v2/Session 事件",
       "type": "input"
     },
     {
       "id": "AR8",
       "source": "A2:output",
       "target": "A1:control",
-      "label": "Invalidation Signal For sessionID",
+      "label": "Invalidation Signal 供 SessionID",
       "type": "control"
     },
     {
@@ -114,42 +114,42 @@
       "id": "AR11",
       "source": "A6:output",
       "target": "A4:control",
-      "label": "QPS / Burst / Enable Flag / Exempt List",
+      "label": "QPS / Burst / Enable Flag / Exempt 清單",
       "type": "control"
     },
     {
       "id": "AR12",
       "source": "EXTERNAL",
       "target": "A6:input",
-      "label": "/etc/opencode/tweaks.cfg File",
+      "label": "/etc/opencode/tweaks.cfg 檔案",
       "type": "input"
     },
     {
       "id": "AR13",
       "source": "EXTERNAL",
       "target": "A1:mechanism",
-      "label": "Storage.read (fallback disk loader)",
+      "label": "儲存.read (fallback 磁碟 loader)",
       "type": "mechanism"
     },
     {
       "id": "AR14",
       "source": "EXTERNAL",
       "target": "A2:mechanism",
-      "label": "Bus.subscribeGlobal",
+      "label": "Bus.subscribe全域",
       "type": "mechanism"
     },
     {
       "id": "AR15",
       "source": "EXTERNAL",
       "target": "A5:input",
-      "label": "HTTP GET /cache/health",
+      "label": "HTTP GET /快取/健康",
       "type": "input"
     },
     {
       "id": "AR16",
       "source": "A1:output",
       "target": "A5:input",
-      "label": "Cache Stats Snapshot",
+      "label": "快取 Stats Snapshot",
       "type": "input"
     },
     {
@@ -163,7 +163,7 @@
       "id": "AR18",
       "source": "A5:output",
       "target": "EXTERNAL",
-      "label": "Health JSON",
+      "label": "健康 JSON",
       "type": "output"
     }
   ]

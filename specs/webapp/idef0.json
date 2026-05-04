@@ -1,161 +1,401 @@
 {
-  "diagram_title": "Serve Web Frontend",
+  "diagram_title": "提供 Web 前端服務",
   "node_reference": "A0",
-  "description": "SolidJS SPA at packages/app/, built and refreshed by webctl.sh, exposed via the C gateway through two-layer route registration (web_registry.json + web_routes.conf), surfacing the Admin Panel and rich rendering plus dual-path voice input. Shipped (live as of 2026-05-04).",
+  "description": "SolidJS SPA 於 packages/app/, 建置並刷新 由 webctl.sh, exposed 透過 C Gateway through 雙層 路由 註冊 (web registry.js在 + web routes.conf), surfacing 管理 面板 與 豐富 rendering plus dual-路徑 語音 輸入. 已交付 (live 作為 的 2026-05-04).",
   "activities": [
     {
       "id": "A1",
-      "title": "Build And Refresh Bundle",
-      "description": "webctl.sh dev-start / build-frontend / web-refresh orchestration. Vite produces packages/app/dist/, deployed to /usr/local/share/opencode/frontend/.",
+      "title": "建置並刷新 Bundle",
+      "description": "webctl.sh 開發-start / 建置-前端 / web-刷新 orchestration. Vite produces packages/app/dist/, deployed 到 /usr/local/share/opencode/前端/.",
       "decomposition": {
-        "diagram_title": "Build And Refresh Bundle",
+        "diagram_title": "建置並刷新 Bundle",
         "node_reference": "A1",
         "activities": [
           {
             "id": "A11",
-            "title": "Spawn Dev Servers",
-            "description": "webctl.sh do_dev_start (~L1162): bun --conditions=browser backend on OPENCODE_PORT=1080 plus Vite frontend on OPENCODE_FRONTEND_DEV_PORT=3000."
+            "title": "啟動 開發 伺服器",
+            "description": "webctl.sh do開發start (~L1162): bun --conditions=browser 後端 在 OPENCODE PORT=1080 plus Vite 前端 在 OPENCODE FRONTEND DEV PORT=3000."
           },
           {
             "id": "A12",
-            "title": "Run Vite Production Build",
-            "description": "webctl.sh do_build_frontend (~L1934) → packages/app/dist/."
+            "title": "執行 Vite 正式 建置",
+            "description": "webctl.sh do建置前端 (~L1934) → packages/app/dist/."
           },
           {
             "id": "A13",
-            "title": "Deploy And Bounce Gateway",
-            "description": "webctl.sh web-refresh copies dist/ to /usr/local/share/opencode/frontend/ and restarts opencode-gateway.service so OPENCODE_FRONTEND_PATH is re-read."
+            "title": "部署 與 重啟 Gateway",
+            "description": "webctl.sh web-刷新 copies dist/ 到 /usr/local/share/opencode/前端/ 與 restarts opencode-gateway.service so OPENCODE FRONTEND PATH 是 重新讀取."
           }
         ],
         "arrows": [
-          {"id": "a1in1", "source": "EXTERNAL", "target": "A11:input", "label": "packages/app/ source"},
-          {"id": "a1in2", "source": "EXTERNAL", "target": "A11:control", "label": "OPENCODE_PORT / OPENCODE_FRONTEND_DEV_PORT env"},
-          {"id": "a1in3", "source": "EXTERNAL", "target": "A11:mechanism", "label": "bun + Vite dev"},
-          {"id": "a1m1", "source": "A11:output", "target": "A12:input", "label": "validated source tree"},
-          {"id": "a1c2", "source": "EXTERNAL", "target": "A12:control", "label": "vite.config.ts + tsconfig"},
-          {"id": "a1mch2", "source": "EXTERNAL", "target": "A12:mechanism", "label": "vite build"},
-          {"id": "a1m2", "source": "A12:output", "target": "A13:input", "label": "packages/app/dist/"},
-          {"id": "a1c3", "source": "EXTERNAL", "target": "A13:control", "label": "OPENCODE_FRONTEND_PATH (opencode.cfg)"},
-          {"id": "a1mch3", "source": "EXTERNAL", "target": "A13:mechanism", "label": "systemctl + cp"},
-          {"id": "a1out1", "source": "A11:output", "target": "EXTERNAL", "label": "live HMR session"},
-          {"id": "a1out2", "source": "A13:output", "target": "EXTERNAL", "label": "deployed dist served by gateway"}
+          {
+            "id": "a1in1",
+            "source": "EXTERNAL",
+            "target": "A11:input",
+            "label": "packages/app/ 來源"
+          },
+          {
+            "id": "a1in2",
+            "source": "EXTERNAL",
+            "target": "A11:control",
+            "label": "OPENCODE PORT / OPENCODE FRONTEND DEV PORT env"
+          },
+          {
+            "id": "a1in3",
+            "source": "EXTERNAL",
+            "target": "A11:mechanism",
+            "label": "bun + Vite 開發"
+          },
+          {
+            "id": "a1m1",
+            "source": "A11:output",
+            "target": "A12:input",
+            "label": "已驗證原始碼樹"
+          },
+          {
+            "id": "a1c2",
+            "source": "EXTERNAL",
+            "target": "A12:control",
+            "label": "vite.config.ts + tsconfig"
+          },
+          {
+            "id": "a1mch2",
+            "source": "EXTERNAL",
+            "target": "A12:mechanism",
+            "label": "vite 建置"
+          },
+          {
+            "id": "a1m2",
+            "source": "A12:output",
+            "target": "A13:input",
+            "label": "packages/app/dist/"
+          },
+          {
+            "id": "a1c3",
+            "source": "EXTERNAL",
+            "target": "A13:control",
+            "label": "OPENCODE FRONTEND PATH (opencode.cfg)"
+          },
+          {
+            "id": "a1mch3",
+            "source": "EXTERNAL",
+            "target": "A13:mechanism",
+            "label": "systemctl + cp"
+          },
+          {
+            "id": "a1out1",
+            "source": "A11:output",
+            "target": "EXTERNAL",
+            "label": "live HMR Session"
+          },
+          {
+            "id": "a1out2",
+            "source": "A13:output",
+            "target": "EXTERNAL",
+            "label": "由 Gateway 提供服務的已部署 dist"
+          }
         ]
       }
     },
     {
       "id": "A2",
-      "title": "Register Gateway Route",
-      "description": "Two-layer route registration: ~/.config/web_registry.json declares user-level entries, /etc/opencode/web_routes.conf is the system-level table mutated by webctl.sh publish-route over /run/opencode-gateway/ctl.sock.",
+      "title": "註冊 Gateway 路由",
+      "description": "Two-layer 路由 註冊: ~/.config/web registry.js在 declares 使用者層級 entries, /etc/opencode/web routes.conf 是 系統層級 表 mutated 由 webctl.sh 發布路由 over /run/opencode-gateway/ctl.sock.",
       "decomposition": {
-        "diagram_title": "Register Gateway Route",
+        "diagram_title": "註冊 Gateway 路由",
         "node_reference": "A2",
         "activities": [
           {
             "id": "A21",
-            "title": "Update User Registry",
-            "description": "Edit ~/.config/web_registry.json (entryName, projectRoot, publicBasePath, host, primaryPort, webctlPath, enabled, access)."
+            "title": "更新 使用者註冊表",
+            "description": "Edit ~/.config/web registry.js在 (項目name, 專案root, publicbase路徑, host, primaryPort, webctl路徑, 已啟用, access)."
           },
           {
             "id": "A22",
-            "title": "Publish System Route",
-            "description": "webctl.sh publish-route writes <prefix> <host> <port> <owner_uid> [auth] into /etc/opencode/web_routes.conf via gateway ctl.sock admin command."
+            "title": "發布 系統路由",
+            "description": "webctl.sh 發布路由 writes <前綴> <host> <port> <owneruid> [驗證] 進入 /etc/opencode/web routes.conf 透過 Gateway ctl.sock 管理 command."
           },
           {
             "id": "A23",
-            "title": "Reload Gateway Table",
-            "description": "Gateway reads conf at start and on SIGHUP, longest-prefix matches incoming requests."
+            "title": "重載 Gateway 表",
+            "description": "Gateway reads conf 於 start 與 在 SIGHUP, longest-前綴 matches incoming requests."
           },
           {
             "id": "A24",
-            "title": "Probe Route Health",
-            "description": "server/routes/web-route.ts tcpProbe(host, port, timeoutMs) feeds the UI per-route health badge."
+            "title": "探測 路由健康狀態",
+            "description": "server/routes/web-route.ts tcp探測(host, port, timeoutMs) feeds UI 依-路由 健康 badge."
           }
         ],
         "arrows": [
-          {"id": "a2in1", "source": "EXTERNAL", "target": "A21:input", "label": "entry declaration"},
-          {"id": "a2c1", "source": "EXTERNAL", "target": "A21:control", "label": "registry schema"},
-          {"id": "a2m1", "source": "A21:output", "target": "A22:input", "label": "registered entry"},
-          {"id": "a2mch2", "source": "EXTERNAL", "target": "A22:mechanism", "label": "ctl.sock admin socket"},
-          {"id": "a2m2", "source": "A22:output", "target": "A23:input", "label": "web_routes.conf line"},
-          {"id": "a2c3", "source": "EXTERNAL", "target": "A23:control", "label": "SIGHUP / startup signal"},
-          {"id": "a2m3", "source": "A23:output", "target": "A24:input", "label": "active route"},
-          {"id": "a2mch4", "source": "EXTERNAL", "target": "A24:mechanism", "label": "tcpProbe() helper"},
-          {"id": "a2out1", "source": "A23:output", "target": "EXTERNAL", "label": "splice-ready prefix"},
-          {"id": "a2out2", "source": "A24:output", "target": "EXTERNAL", "label": "health status JSON"}
+          {
+            "id": "a2in1",
+            "source": "EXTERNAL",
+            "target": "A21:input",
+            "label": "項目 declaration"
+          },
+          {
+            "id": "a2c1",
+            "source": "EXTERNAL",
+            "target": "A21:control",
+            "label": "註冊表 schema"
+          },
+          {
+            "id": "a2m1",
+            "source": "A21:output",
+            "target": "A22:input",
+            "label": "已註冊項目"
+          },
+          {
+            "id": "a2mch2",
+            "source": "EXTERNAL",
+            "target": "A22:mechanism",
+            "label": "ctl.sock 管理 socket"
+          },
+          {
+            "id": "a2m2",
+            "source": "A22:output",
+            "target": "A23:input",
+            "label": "web routes.conf line"
+          },
+          {
+            "id": "a2c3",
+            "source": "EXTERNAL",
+            "target": "A23:control",
+            "label": "SIGHUP / 啟動訊號"
+          },
+          {
+            "id": "a2m3",
+            "source": "A23:output",
+            "target": "A24:input",
+            "label": "作用中路由"
+          },
+          {
+            "id": "a2mch4",
+            "source": "EXTERNAL",
+            "target": "A24:mechanism",
+            "label": "tcpProbe() helper"
+          },
+          {
+            "id": "a2out1",
+            "source": "A23:output",
+            "target": "EXTERNAL",
+            "label": "splice-就緒 前綴"
+          },
+          {
+            "id": "a2out2",
+            "source": "A24:output",
+            "target": "EXTERNAL",
+            "label": "健康 狀態 JSON"
+          }
         ]
       }
     },
     {
       "id": "A3",
-      "title": "Render SPA Shell",
-      "description": "src/app.tsx router root with AppShellProviders (Settings/Permission/Layout/Notification/Models/Command/Highlights), authenticated by WebAuthProvider + AuthGate. Routes: /, /system/tasks/:jobId?, /:dir/session/:id?, terminal-popout, tool detail.",
+      "title": "渲染 SPA 外殼",
+      "description": "src/app.tsx router root 使用 AppShellProviders (Settings/Permission/Layout/Notification/模型/Command/Highlights), authenticated 由 WebAuthProvider + 驗證閘門. 路由: /, /system/tasks/:工作id?, /:dir/Session/:id?, 終止-popout, 工具 detail.",
       "decomposition": {
-        "diagram_title": "Render SPA Shell",
+        "diagram_title": "渲染 SPA 外殼",
         "node_reference": "A3",
         "activities": [
           {
             "id": "A31",
-            "title": "Authenticate Session",
-            "description": "WebAuthProvider + AuthGate verify gateway-issued oc_jwt cookie; cross-user login redirect clears localStorage."
+            "title": "驗證 Session",
+            "description": "WebAuthProvider + 驗證閘門 verify Gateway-issued oc jwt cookie; cross-使用者 登入 重新導向 clears localStorage."
           },
           {
             "id": "A32",
             "title": "Mount Provider Stack",
-            "description": "AppShellProviders wraps Settings → Permission → Layout → Notification → Models → Command → Highlights (app.tsx L102-L141)."
+            "description": "AppShellProviders wraps Settings → Permission → Layout → Notification → 模型 → Command → Highlights (app.tsx L102-L141)."
           },
           {
             "id": "A33",
-            "title": "Resolve Route And Render",
-            "description": "@solidjs/router resolves URL to Home / TaskList / Session / tool detail / terminal-popout (AppInterface at app.tsx L243)."
+            "title": "解析 路由 與 渲染",
+            "description": "@solidjs/router resolves URL 到 Home / 任務清單 / Session / 工具 detail / 終止-popout (AppInterface 於 app.tsx L243)."
           },
           {
             "id": "A34",
-            "title": "Render Rich Markdown",
-            "description": "pages/session/markdown-file-viewer.ts detects Mermaid via three fence patterns and renders via mermaid v11.12.0; rich-markdown-surface.tsx + message-file-links.ts make path:line clickable, opening the file tab and updating selected-line state."
+            "title": "渲染 豐富 Markdown",
+            "description": "pages/session/markdown-file-viewer.ts detects Mermaid 透過 three fence patterns 與 renders 透過 mermaid v11.12.0; rich-markdown-surface.tsx + message-file-links.ts make 路徑:line clickable, opening 檔案 tab 與 updating selected-line 狀態."
           }
         ],
         "arrows": [
-          {"id": "a3in1", "source": "EXTERNAL", "target": "A31:input", "label": "browser request + oc_jwt"},
-          {"id": "a3c1", "source": "EXTERNAL", "target": "A31:control", "label": "PAM/JWT policy"},
-          {"id": "a3m1", "source": "A31:output", "target": "A32:input", "label": "authenticated session"},
-          {"id": "a3c2", "source": "EXTERNAL", "target": "A32:control", "label": "AppShellProviders order"},
-          {"id": "a3m2", "source": "A32:output", "target": "A33:input", "label": "ready provider tree"},
-          {"id": "a3c3", "source": "EXTERNAL", "target": "A33:control", "label": "URL + router config"},
-          {"id": "a3m3", "source": "A33:output", "target": "A34:input", "label": "session message stream"},
-          {"id": "a3mch4", "source": "EXTERNAL", "target": "A34:mechanism", "label": "mermaid 11.12.0"},
-          {"id": "a3out1", "source": "A33:output", "target": "EXTERNAL", "label": "rendered route"},
-          {"id": "a3out2", "source": "A34:output", "target": "EXTERNAL", "label": "rich markdown + clickable links"},
-          {"id": "a3fb1", "source": "A34:output", "target": "A33:control", "label": "open-file-tab event"}
+          {
+            "id": "a3in1",
+            "source": "EXTERNAL",
+            "target": "A31:input",
+            "label": "browser 請求 + oc jwt"
+          },
+          {
+            "id": "a3c1",
+            "source": "EXTERNAL",
+            "target": "A31:control",
+            "label": "PAM/JWT policy"
+          },
+          {
+            "id": "a3m1",
+            "source": "A31:output",
+            "target": "A32:input",
+            "label": "authenticated Session"
+          },
+          {
+            "id": "a3c2",
+            "source": "EXTERNAL",
+            "target": "A32:control",
+            "label": "AppShellProviders order"
+          },
+          {
+            "id": "a3m2",
+            "source": "A32:output",
+            "target": "A33:input",
+            "label": "就緒 Provider tree"
+          },
+          {
+            "id": "a3c3",
+            "source": "EXTERNAL",
+            "target": "A33:control",
+            "label": "URL + router 設定"
+          },
+          {
+            "id": "a3m3",
+            "source": "A33:output",
+            "target": "A34:input",
+            "label": "Session 訊息 串流"
+          },
+          {
+            "id": "a3mch4",
+            "source": "EXTERNAL",
+            "target": "A34:mechanism",
+            "label": "mermaid 11.12.0"
+          },
+          {
+            "id": "a3out1",
+            "source": "A33:output",
+            "target": "EXTERNAL",
+            "label": "rendered 路由"
+          },
+          {
+            "id": "a3out2",
+            "source": "A34:output",
+            "target": "EXTERNAL",
+            "label": "豐富 markdown + clickable links"
+          },
+          {
+            "id": "a3fb1",
+            "source": "A34:output",
+            "target": "A33:control",
+            "label": "open-檔案-tab 事件"
+          }
         ]
       }
     },
     {
       "id": "A4",
-      "title": "Drive Admin Panel",
-      "description": "/admin three-in-one surface combining provider/model management (dialog-manage-models.tsx), accounts.json multi-account view, and App Market dialog. Opened from pages/layout.tsx (L1065)."
+      "title": "Drive 管理 面板",
+      "description": "/管理 three-在-單次 surface combining Provider/模型 management (dialog-manage-models.tsx), accounts.js在 multi-帳號 view, 與 App Market 對話框. Opened 來自 pages/layout.tsx (L1065)."
     },
     {
       "id": "A5",
-      "title": "Capture Voice Input",
-      "description": "Dual-path: desktop SpeechRecognition (utils/speech.ts) with smart-punctuation; mobile MediaRecorder 1s chunks (utils/audio-recorder.ts + transcribe.ts) → POST /api/v2/session/:id/transcribe (server/routes/session.ts ~L2563). Both converge on applyVoiceTranscript() → prompt.set(). voicePath() picked once at mount; no silent re-evaluation."
+      "title": "Capture 語音 輸入",
+      "description": "Dual-路徑: desktop SpeechRecognition (utils/speech.ts) 使用 smart-punctuation; 行動版 MediaRecorder 1s 分塊 (utils/audio-recorder.ts + transcribe.ts) → POST /api/v2/Session/:id/transcribe (server/routes/session.ts ~L2563). Both converge 在 applyVoiceTranscript() → 提示.set(). voicePath() picked once 於 mount; 無 靜默 re-evaluation."
     }
   ],
   "arrows": [
-    {"id": "a0i1", "source": "EXTERNAL", "target": "A1:input", "label": "packages/app/ source tree"},
-    {"id": "a0i2", "source": "EXTERNAL", "target": "A1:control", "label": "/etc/opencode/opencode.cfg (OPENCODE_FRONTEND_PATH)"},
-    {"id": "a0m1", "source": "A1:output", "target": "A2:input", "label": "deployed dist + entry metadata"},
-    {"id": "a0i3", "source": "EXTERNAL", "target": "A2:control", "label": "publish-route command"},
-    {"id": "a0m2", "source": "A2:output", "target": "A3:input", "label": "splice-ready prefix"},
-    {"id": "a0i4", "source": "EXTERNAL", "target": "A3:input", "label": "browser HTTP request"},
-    {"id": "a0i5", "source": "EXTERNAL", "target": "A3:control", "label": "oc_jwt cookie"},
-    {"id": "a0m3", "source": "A3:output", "target": "A4:input", "label": "rendered admin chrome"},
-    {"id": "a0m4", "source": "A3:output", "target": "A5:input", "label": "active prompt-input.tsx"},
-    {"id": "a0i6", "source": "EXTERNAL", "target": "A5:control", "label": "voicePath() runtime decision"},
-    {"id": "a0i7", "source": "EXTERNAL", "target": "A5:mechanism", "label": "SpeechRecognition / MediaRecorder + transcribe API"},
-    {"id": "a0i8", "source": "EXTERNAL", "target": "A4:control", "label": "operator clicks Manage Models / Accounts / App Market"},
-    {"id": "a0o1", "source": "A3:output", "target": "EXTERNAL", "label": "rendered SPA pages"},
-    {"id": "a0o2", "source": "A4:output", "target": "EXTERNAL", "label": "config / catalog mutations"},
-    {"id": "a0o3", "source": "A5:output", "target": "EXTERNAL", "label": "voice-derived prompt text"},
-    {"id": "a0fb1", "source": "A4:output", "target": "A2:control", "label": "App Market may register new sibling routes"}
+    {
+      "id": "a0i1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "packages/app/ 原始碼樹"
+    },
+    {
+      "id": "a0i2",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "/etc/opencode/opencode.cfg (OPENCODE FRONTEND PATH)"
+    },
+    {
+      "id": "a0m1",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "deployed dist + 項目 metadata"
+    },
+    {
+      "id": "a0i3",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "發布路由 command"
+    },
+    {
+      "id": "a0m2",
+      "source": "A2:output",
+      "target": "A3:input",
+      "label": "splice-就緒 前綴"
+    },
+    {
+      "id": "a0i4",
+      "source": "EXTERNAL",
+      "target": "A3:input",
+      "label": "browser HTTP 請求"
+    },
+    {
+      "id": "a0i5",
+      "source": "EXTERNAL",
+      "target": "A3:control",
+      "label": "oc jwt cookie"
+    },
+    {
+      "id": "a0m3",
+      "source": "A3:output",
+      "target": "A4:input",
+      "label": "rendered 管理 chrome"
+    },
+    {
+      "id": "a0m4",
+      "source": "A3:output",
+      "target": "A5:input",
+      "label": "active prompt-input.tsx"
+    },
+    {
+      "id": "a0i6",
+      "source": "EXTERNAL",
+      "target": "A5:control",
+      "label": "voicePath() runtime decision"
+    },
+    {
+      "id": "a0i7",
+      "source": "EXTERNAL",
+      "target": "A5:mechanism",
+      "label": "SpeechRecognition / MediaRecorder + transcribe API"
+    },
+    {
+      "id": "a0i8",
+      "source": "EXTERNAL",
+      "target": "A4:control",
+      "label": "operator clicks Manage 模型 / 帳號 / App Market"
+    },
+    {
+      "id": "a0o1",
+      "source": "A3:output",
+      "target": "EXTERNAL",
+      "label": "rendered SPA pages"
+    },
+    {
+      "id": "a0o2",
+      "source": "A4:output",
+      "target": "EXTERNAL",
+      "label": "設定 / catalog mutations"
+    },
+    {
+      "id": "a0o3",
+      "source": "A5:output",
+      "target": "EXTERNAL",
+      "label": "語音-derived 提示 文字"
+    },
+    {
+      "id": "a0fb1",
+      "source": "A4:output",
+      "target": "A2:control",
+      "label": "App Market may 註冊 new sibling 路由"
+    }
   ]
 }

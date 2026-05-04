@@ -1,29 +1,29 @@
 {
-  "diagram_title": "Generic Branch Repo MCP CICD — Functional Context",
+  "diagram_title": "Generic Branch Repo MCP CICD — Functional 上下文",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A1",
-      "title": "Resolve Project Context",
-      "description": "Infer or validate repo root, base branch, branch naming policy, beta worktree policy, and runtime launcher policy.",
+      "title": "解析 專案 上下文",
+      "description": "Infer 或 validate repo root, base branch, branch naming policy, beta worktree policy, 與 runtime launcher policy.",
       "decomposition": null
     },
     {
       "id": "A2",
       "title": "Prepare Feature Loop",
-      "description": "Create or reuse a feature branch and attach the beta worktree from cms.",
+      "description": "Create 或 reuse feature branch 與 attach beta worktree 來自 cms.",
       "decomposition": null
     },
     {
       "id": "A3",
       "title": "Validate Feature Runtime",
-      "description": "Switch the main worktree to the feature branch and launch the web runtime for manual verification.",
+      "description": "Switch main worktree 到 feature branch 與 launch web runtime 供 manual verification.",
       "decomposition": null
     },
     {
       "id": "A4",
       "title": "Finalize Feature Branch",
-      "description": "Merge the verified feature branch back into cms and perform guarded cleanup.",
+      "description": "合併 verified feature branch 回到 進入 cms 與 perform guarded cleanup.",
       "decomposition": null
     }
   ],
@@ -32,7 +32,7 @@
       "id": "AR1",
       "source": "EXTERNAL",
       "target": "A1:input",
-      "label": "Repo And Task Context",
+      "label": "Repo 與 任務 上下文",
       "type": "input"
     },
     {
@@ -46,7 +46,7 @@
       "id": "AR3",
       "source": "A1:output",
       "target": "A2:input",
-      "label": "Resolved Project Policy",
+      "label": "已解析 專案 Policy",
       "type": "output"
     },
     {
@@ -60,14 +60,14 @@
       "id": "AR5",
       "source": "EXTERNAL",
       "target": "A3:control",
-      "label": "Project Runtime Rules",
+      "label": "專案 Runtime Rules",
       "type": "control"
     },
     {
       "id": "AR6",
       "source": "A3:output",
       "target": "A4:input",
-      "label": "Verification Result",
+      "label": "Verification 結果",
       "type": "output"
     },
     {
@@ -81,14 +81,14 @@
       "id": "AR8",
       "source": "EXTERNAL",
       "target": "A1:mechanism",
-      "label": "Git And MCP Runtime",
+      "label": "Git 與 MCP Runtime",
       "type": "mechanism"
     },
     {
       "id": "AR9",
       "source": "A4:output",
       "target": "EXTERNAL",
-      "label": "Merged Base Branch And Cleanup Report",
+      "label": "Merged Base Branch 與 Cleanup Report",
       "type": "output"
     }
   ]

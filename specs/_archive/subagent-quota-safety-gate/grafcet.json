@@ -1,69 +1,169 @@
 [
   {
     "id": "S0",
-    "label": "Subagent spawned",
+    "label": "子代理 spawned",
     "description": "Task tool 建完 subsession，標 source='task-tool'",
-    "actions": ["session.info.source = 'task-tool'"],
+    "actions": [
+      "session.info.source = 'task-tool'"
+    ],
     "transitions": [
-      { "to": "S1", "condition": "runloop starts", "refs": ["A1", "A2"] }
+      {
+        "to": "S1",
+        "condition": "runloop starts",
+        "refs": [
+          "A1",
+          "A2"
+        ]
+      }
     ]
   },
   {
     "id": "S1",
-    "label": "Running tool-call round",
-    "description": "Subagent 發 request → tool_use → tool_result",
-    "actions": ["normal runloop"],
+    "label": "執行中 工具-呼叫 round",
+    "description": "Subagent 發 request → tool use → tool result",
+    "actions": [
+      "normal runloop"
+    ],
     "transitions": [
-      { "to": "S2", "condition": "tool-call round completed, about to dispatch next request", "refs": ["A2", "A3"] },
-      { "to": "S_DONE", "condition": "subagent finished normally (no more work)", "refs": [] }
+      {
+        "to": "S2",
+        "condition": "tool-call round completed, about to dispatch next request",
+        "refs": [
+          "A2",
+          "A3"
+        ]
+      },
+      {
+        "to": "S_DONE",
+        "condition": "subagent finished normally (no more work)",
+        "refs": []
+      }
     ]
   },
   {
     "id": "S2",
     "label": "Gate: check applicability",
-    "description": "is task-tool subagent? gate enabled?",
-    "actions": ["read session.source", "read tweaks.cfg"],
+    "description": "是 任務-工具 子代理? gate 已啟用?",
+    "actions": [
+      "read session.source",
+      "read tweaks.cfg"
+    ],
     "transitions": [
-      { "to": "S1", "condition": "not task-tool subagent OR gate disabled (log would-have-trip if disabled)", "refs": ["A3"] },
-      { "to": "S3", "condition": "task-tool subagent AND gate enabled", "refs": ["A3"] }
+      {
+        "to": "S1",
+        "condition": "not task-tool subagent OR gate disabled (log would-have-trip if disabled)",
+        "refs": [
+          "A3"
+        ]
+      },
+      {
+        "to": "S3",
+        "condition": "task-tool subagent AND gate enabled",
+        "refs": [
+          "A3"
+        ]
+      }
     ]
   },
   {
     "id": "S3",
-    "label": "Gate: probe quota",
-    "description": "Call AccountQuotaProbe registry for pinned accountId",
-    "actions": ["probe(provider, accountId)"],
+    "label": "Gate: 探測 配額",
+    "description": "呼叫 帳號配額探測 註冊表 供 已釘選 帳號id",
+    "actions": [
+      "probe(provider, accountId)"
+    ],
     "transitions": [
-      { "to": "S4", "condition": "probe OK with UsagePayload", "refs": ["A4"] },
-      { "to": "S1", "condition": "probe unavailable / failed → WARN log, let subagent proceed (DD-14)", "refs": ["A4"] }
+      {
+        "to": "S4",
+        "condition": "probe OK with UsagePayload",
+        "refs": [
+          "A4"
+        ]
+      },
+      {
+        "to": "S1",
+        "condition": "probe unavailable / failed → WARN log, let subagent proceed (DD-14)",
+        "refs": [
+          "A4"
+        ]
+      }
     ]
   },
   {
     "id": "S4",
-    "label": "Gate: evaluate threshold + dispatch by source",
-    "description": "min(5H, weekly) < threshold? If trip, dispatch by session.source",
-    "actions": ["compute remainingPercent", "pick triggerWindow", "read session.source"],
+    "label": "Gate: evaluate threshold + 派發 由 來源",
+    "description": "min(5H, weekly) < threshold? If trip, 派發 由 Session.來源",
+    "actions": [
+      "compute remainingPercent",
+      "pick triggerWindow",
+      "read session.source"
+    ],
     "transitions": [
-      { "to": "S1", "condition": "remainingPercent >= threshold", "refs": ["A3"] },
-      { "to": "S5", "condition": "trip AND source='task-tool' → subagent cancel path", "refs": ["A3", "A5"] },
-      { "to": "S_MAIN_PICK", "condition": "trip AND source in ('user-initiated', null) → main rotate path", "refs": ["A3", "A9"] },
-      { "to": "S1", "condition": "trip AND source in ('mcp-handover', other) → noop", "refs": ["A3"] }
+      {
+        "to": "S1",
+        "condition": "remainingPercent >= threshold",
+        "refs": [
+          "A3"
+        ]
+      },
+      {
+        "to": "S5",
+        "condition": "trip AND source='task-tool' → subagent cancel path",
+        "refs": [
+          "A3",
+          "A5"
+        ]
+      },
+      {
+        "to": "S_MAIN_PICK",
+        "condition": "trip AND source in ('user-initiated', null) → main rotate path",
+        "refs": [
+          "A3",
+          "A9"
+        ]
+      },
+      {
+        "to": "S1",
+        "condition": "trip AND source in ('mcp-handover', other) → noop",
+        "refs": [
+          "A3"
+        ]
+      }
     ]
   },
   {
     "id": "S_MAIN_PICK",
     "label": "Main: pick healthiest candidate",
-    "description": "Best-available by 5H remaining, exclude self + cooldowned + probe-fail",
-    "actions": ["filter candidates", "sort by 5H desc", "tie-break weekly desc", "check rotate cooldown"],
+    "description": "Best-available 由 5H remaining, exclude self + cooldowned + 探測-fail",
+    "actions": [
+      "filter candidates",
+      "sort by 5H desc",
+      "tie-break weekly desc",
+      "check rotate cooldown"
+    ],
     "transitions": [
-      { "to": "S_MAIN_ROTATE", "condition": "candidate exists AND cooldown not active", "refs": ["A9", "A10"] },
-      { "to": "S_MAIN_STOP", "condition": "no candidate OR cooldown active OR all probes failed", "refs": ["A9", "A12"] }
+      {
+        "to": "S_MAIN_ROTATE",
+        "condition": "candidate exists AND cooldown not active",
+        "refs": [
+          "A9",
+          "A10"
+        ]
+      },
+      {
+        "to": "S_MAIN_STOP",
+        "condition": "no candidate OR cooldown active OR all probes failed",
+        "refs": [
+          "A9",
+          "A12"
+        ]
+      }
     ]
   },
   {
     "id": "S_MAIN_ROTATE",
-    "label": "Main: re-pin with override + emit banner",
-    "description": "Silent rotate, conversation continues",
+    "label": "Main: re-釘選 使用 override + 發出 banner",
+    "description": "靜默 rotate, conversation continues",
     "actions": [
       "pinExecutionIdentity(new, {override:'quota-gate-rotate', fromAccount, ...})",
       "append overrideHistory entry",
@@ -71,13 +171,20 @@
       "frontend renders non-blocking notice"
     ],
     "transitions": [
-      { "to": "S1", "condition": "next provider request uses new pin", "refs": ["A10", "A11"] }
+      {
+        "to": "S1",
+        "condition": "next provider request uses new pin",
+        "refs": [
+          "A10",
+          "A11"
+        ]
+      }
     ]
   },
   {
     "id": "S_MAIN_STOP",
     "label": "Main: hard-stop fallback",
-    "description": "Append user-audience summary as assistant/system message, finish turn",
+    "description": "追加 使用者-audience summary 作為 助手/system 訊息, 完成 回合",
     "actions": [
       "quota-trip-summary (audience: 'user')",
       "append assistant message with structured quota-alert content",
@@ -85,47 +192,84 @@
       "SSE close normally"
     ],
     "transitions": [
-      { "to": "S_DONE", "condition": "turn finished", "refs": ["A12"] }
+      {
+        "to": "S_DONE",
+        "condition": "turn finished",
+        "refs": [
+          "A12"
+        ]
+      }
     ]
   },
   {
     "id": "S5",
-    "label": "Cancel with quota-gate-trip",
-    "description": "runtime cancel(session, 'quota-gate-trip')",
-    "actions": ["CancelReason = 'quota-gate-trip'", "bus: session.canceled"],
+    "label": "Cancel 使用 配額-gate-trip",
+    "description": "runtime cancel(Session, '配額-gate-trip')",
+    "actions": [
+      "CancelReason = 'quota-gate-trip'",
+      "bus: session.canceled"
+    ],
     "transitions": [
-      { "to": "S6", "condition": "cancel propagated", "refs": ["A5", "A6"] }
+      {
+        "to": "S6",
+        "condition": "cancel propagated",
+        "refs": [
+          "A5",
+          "A6"
+        ]
+      }
     ]
   },
   {
     "id": "S6",
     "label": "Generate structured summary",
-    "description": "mechanical scan of messages + SharedContext + TodoWrite state",
-    "actions": ["scan completedToolCalls (max 20)", "extract readFiles/editedFiles", "snapshot lastMessages × 3", "capture pendingWork"],
+    "description": "mechanical 掃描 的 messages + shared上下文 + 待辦write 狀態",
+    "actions": [
+      "scan completedToolCalls (max 20)",
+      "extract readFiles/editedFiles",
+      "snapshot lastMessages × 3",
+      "capture pendingWork"
+    ],
     "transitions": [
-      { "to": "S7", "condition": "summary composed", "refs": ["A6", "A7"] }
+      {
+        "to": "S7",
+        "condition": "summary composed",
+        "refs": [
+          "A6",
+          "A7"
+        ]
+      }
     ]
   },
   {
     "id": "S7",
-    "label": "Return TaskResult to parent",
-    "description": "Task tool result = {tripped:true, reason, triggerWindow, remainingPercent, summary, sharedContext}",
-    "actions": ["compose TaskResult", "resolve parent's task tool await"],
+    "label": "返回 任務結果 到 父層",
+    "description": "任務 工具 結果 = {tripped:true, reason, triggerWindow, remainingPercent, summary, shared上下文}",
+    "actions": [
+      "compose TaskResult",
+      "resolve parent's task tool await"
+    ],
     "transitions": [
-      { "to": "S_TRIPPED", "condition": "result delivered to parent", "refs": ["A7"] }
+      {
+        "to": "S_TRIPPED",
+        "condition": "result delivered to parent",
+        "refs": [
+          "A7"
+        ]
+      }
     ]
   },
   {
     "id": "S_DONE",
     "label": "Normal termination",
-    "description": "subagent finished without trip",
+    "description": "子代理 finished 不 trip",
     "actions": [],
     "transitions": []
   },
   {
     "id": "S_TRIPPED",
     "label": "Gate-tripped termination",
-    "description": "parent received structured trip result; parent LLM decides next step",
+    "description": "父層 已收到 structured trip 結果; 父層 LLM decides 下一個 步驟",
     "actions": [],
     "transitions": []
   }

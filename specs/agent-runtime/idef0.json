@@ -1,34 +1,34 @@
 {
-  "diagram_title": "Run Agent Loop",
+  "diagram_title": "執行代理迴圈",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A1",
-      "title": "Preload Mandatory Skills",
-      "description": "Resolve sentinel blocks from project AGENTS.md, global AGENTS.md, and (for coding subagent only) coding.txt; preload + pin Skills via SkillLayerRegistry. Shipped: mandatory-skills.ts, capability-layer-loader.ts loadAndPinAll. Missing skills log skill.mandatory_missing without throwing.",
+      "title": "預載必要技能",
+      "description": "解析 Sentinel 區塊，來源包含專案 AGENTS.md、全域 AGENTS.md，以及僅供 coding 子代理使用的 coding.txt；透過 SkillLayerRegistry 預載並釘選技能。已交付：mandatory-skills.ts、capability-layer-loader.ts 載入並釘選全部技能。缺失技能只記錄技能.必要缺失，不拋出。",
       "decomposition": {
-        "diagram_title": "Preload Mandatory Skills",
+        "diagram_title": "預載必要技能",
         "node_reference": "A1",
         "activities": [
           {
             "id": "A11",
-            "title": "Parse Sentinel Blocks"
+            "title": "解析 Sentinel 區塊"
           },
           {
             "id": "A12",
-            "title": "Resolve Source Priority"
+            "title": "解析來源優先序"
           },
           {
             "id": "A13",
-            "title": "Discover Skill Manifests"
+            "title": "探索技能清單"
           },
           {
             "id": "A14",
-            "title": "Pin And Record Loaded"
+            "title": "釘選並記錄已載入狀態"
           },
           {
             "id": "A15",
-            "title": "Emit Missing Anomaly"
+            "title": "發出缺失異常"
           }
         ],
         "arrows": [
@@ -36,122 +36,122 @@
             "id": "a1_in_session",
             "source": "EXTERNAL",
             "target": "A12:input",
-            "label": "Session + Agent Identity"
+            "label": "會話與代理身分"
           },
           {
             "id": "a1_mech_parser",
             "source": "EXTERNAL",
             "target": "A11:mechanism",
-            "label": "mandatory-skills.ts parseSentinelBlocks"
+            "label": "mandatory-skills.ts 解析Sentinel區塊"
           },
           {
             "id": "a1_ctrl_grammar",
             "source": "EXTERNAL",
             "target": "A11:control",
-            "label": "<!-- opencode:mandatory-skills --> Grammar"
+            "label": "<!-- opencode:mandatory-skills --> 語法"
           },
           {
             "id": "a1_in_files",
             "source": "EXTERNAL",
             "target": "A11:input",
-            "label": "AGENTS.md + coding.txt Bytes"
+            "label": "AGENTS.md + coding.txt 位元組"
           },
           {
             "id": "a1_parse_to_resolve",
             "source": "A11:output",
             "target": "A12:control",
-            "label": "Bullet Lists Per Source"
+            "label": "各來源的項目清單"
           },
           {
             "id": "a1_ctrl_priority",
             "source": "EXTERNAL",
             "target": "A12:control",
-            "label": "Priority: project > global > coding.txt"
+            "label": "優先序: 專案 > 全域 > coding.txt"
           },
           {
             "id": "a1_mech_resolver",
             "source": "EXTERNAL",
             "target": "A12:mechanism",
-            "label": "resolveMandatoryList (mandatory-skills.ts)"
+            "label": "解析必要清單 (mandatory-skills.ts)"
           },
           {
             "id": "a1_resolve_to_discover",
             "source": "A12:output",
             "target": "A13:input",
-            "label": "Deduped Skill Name List"
+            "label": "去重後的技能名稱清單"
           },
           {
             "id": "a1_mech_discover",
             "source": "EXTERNAL",
             "target": "A13:mechanism",
-            "label": "Skill Discovery API"
+            "label": "技能探索 API"
           },
           {
             "id": "a1_discover_to_pin",
             "source": "A13:output",
             "target": "A14:input",
-            "label": "Discovered Manifests"
+            "label": "已探索到的技能清單"
           },
           {
             "id": "a1_discover_to_missing",
             "source": "A13:output",
             "target": "A15:input",
-            "label": "Missing Skill Name + searchedPaths"
+            "label": "缺失技能名稱 + 已搜尋路徑"
           },
           {
             "id": "a1_mech_pin",
             "source": "EXTERNAL",
             "target": "A14:mechanism",
-            "label": "SkillLayerRegistry.recordLoaded + pin"
+            "label": "SkillLayerRegistry.記錄已載入 + 釘選"
           },
           {
             "id": "a1_ctrl_keeprule",
             "source": "EXTERNAL",
             "target": "A14:control",
-            "label": "keepRule mandatory:agents_md / mandatory:coding_txt"
+            "label": "保留規則 必要:agentsmd / 必要:codingtxt"
           },
           {
             "id": "a1_pin_out",
             "source": "A14:output",
             "target": "EXTERNAL",
-            "label": "Pinned Skills (Idle-Decay Exempt)"
+            "label": "已釘選技能（免除閒置衰退）"
           },
           {
             "id": "a1_missing_out",
             "source": "A15:output",
             "target": "EXTERNAL",
-            "label": "skill.mandatory_missing Anomaly Event"
+            "label": "技能.必要缺失 異常事件"
           }
         ]
       }
     },
     {
       "id": "A2",
-      "title": "Resolve Autonomous Mode",
-      "description": "Parse user message for verbal arm/disarm phrases and gate auto-continuation. PARTIAL: only verbal arm/disarm shipped. autonomous-opt-in R1 (spec-binding), R2 (non-empty todo at arm), R3b (question-based arm from plan-promote) NOT in code. Continuation engine: workflow-runner.planAutonomousNextAction. Subagents auto-stop with reason subagent_session.",
+      "title": "解析自主模式",
+      "description": "解析使用者訊息，用於口語啟用/停用短語與自動延續閘門。部分交付：僅口語啟用/停用已交付。自主選擇加入的 R1（規格綁定）、R2（啟用時待辦不可為空）、R3b（由規劃提升而來的問題式啟用）尚未進入程式碼。延續引擎：workflow-runner.ts 規劃自主下一個動作。子代理會依原因為子代理會話而自動停止。",
       "decomposition": {
-        "diagram_title": "Resolve Autonomous Mode",
+        "diagram_title": "解析自主模式",
         "node_reference": "A2",
         "activities": [
           {
             "id": "A21",
-            "title": "Extract User Text"
+            "title": "取出 使用者 文字"
           },
           {
             "id": "A22",
-            "title": "Match Arm Or Disarm Phrase"
+            "title": "比對 啟用 或 停用 短語"
           },
           {
             "id": "A23",
-            "title": "Update Workflow Autonomous Flag"
+            "title": "更新工作流程自主旗標"
           },
           {
             "id": "A24",
-            "title": "Plan Continuation Or Stop"
+            "title": "規劃延續或停止"
           },
           {
             "id": "A25",
-            "title": "Inject Resume Synthetic Message"
+            "title": "注入恢復用合成訊息"
           }
         ],
         "arrows": [
@@ -159,138 +159,138 @@
             "id": "a2_in_msg",
             "source": "EXTERNAL",
             "target": "A21:input",
-            "label": "Incoming User Message Parts"
+            "label": "傳入使用者訊息片段"
           },
           {
             "id": "a2_mech_extract",
             "source": "EXTERNAL",
             "target": "A21:mechanism",
-            "label": "autorun/detector.ts extractUserText"
+            "label": "autorun/detector.ts 取出使用者文字"
           },
           {
             "id": "a2_extract_to_match",
             "source": "A21:output",
             "target": "A22:input",
-            "label": "Synthetic-Stripped User Text"
+            "label": "已剝除合成部分的使用者文字"
           },
           {
             "id": "a2_ctrl_phrases",
             "source": "EXTERNAL",
             "target": "A22:control",
-            "label": "Tweaks.autorunSync triggerPhrases / disarmPhrases"
+            "label": "Tweaks.autorunSync 觸發短語 / 停用短語"
           },
           {
             "id": "a2_mech_detect",
             "source": "EXTERNAL",
             "target": "A22:mechanism",
-            "label": "detectAutorunIntent (case-insensitive substring)"
+            "label": "detectAutorunIntent（不分大小寫子字串）"
           },
           {
             "id": "a2_match_to_update",
             "source": "A22:output",
             "target": "A23:input",
-            "label": "Arm / Disarm Verdict"
+            "label": "啟用 / 停用判定"
           },
           {
             "id": "a2_mech_update",
             "source": "EXTERNAL",
             "target": "A23:mechanism",
-            "label": "Session.updateAutonomous"
+            "label": "會話.更新自主"
           },
           {
             "id": "a2_ctrl_default",
             "source": "EXTERNAL",
             "target": "A23:control",
-            "label": "Session.defaultWorkflow Initial Disarmed"
+            "label": "會話預設工作流程初始為解除武裝"
           },
           {
             "id": "a2_update_to_plan",
             "source": "A23:output",
             "target": "A24:control",
-            "label": "workflow.autonomous.enabled"
+            "label": "工作流程.自主.已啟用"
           },
           {
             "id": "a2_in_turn",
             "source": "EXTERNAL",
             "target": "A24:input",
-            "label": "Turn Boundary + parentID + Todo Status"
+            "label": "回合邊界 + 父層ID + 待辦狀態"
           },
           {
             "id": "a2_mech_plan",
             "source": "EXTERNAL",
             "target": "A24:mechanism",
-            "label": "workflow-runner.ts planAutonomousNextAction (L568)"
+            "label": "workflow-runner.ts 規劃自主下一個動作 (L568)"
           },
           {
             "id": "a2_ctrl_subagent",
             "source": "EXTERNAL",
             "target": "A24:control",
-            "label": "Subagent Never Auto-Continues (reason: subagent_session)"
+            "label": "子代理永不自動延續（原因：子代理會話）"
           },
           {
             "id": "a2_plan_stop",
             "source": "A24:output",
             "target": "EXTERNAL",
-            "label": "Stop {not_armed | subagent_session | todo_complete}"
+            "label": "停止 {未啟用 | 子代理會話 | 待辦完成}"
           },
           {
             "id": "a2_plan_to_inject",
             "source": "A24:output",
             "target": "A25:input",
-            "label": "Continue Verdict + Active Todo"
+            "label": "繼續判定 + 作用中待辦"
           },
           {
             "id": "a2_ctrl_resume",
             "source": "EXTERNAL",
             "target": "A25:control",
-            "label": "AUTONOMOUS_RESUME_TEXT (workflow-runner.ts:28)"
+            "label": "自主恢復文字 (workflow-runner.ts:28)"
           },
           {
             "id": "a2_mech_inject",
             "source": "EXTERNAL",
             "target": "A25:mechanism",
-            "label": "prompt.ts continuation dispatch (L2262-2302)"
+            "label": "prompt.ts 延續 派發 (L2262-2302)"
           },
           {
             "id": "a2_inject_out",
             "source": "A25:output",
             "target": "EXTERNAL",
-            "label": "Synthetic Continue Message For Next Turn"
+            "label": "合成 繼續 訊息 供 下一個 回合"
           }
         ]
       }
     },
     {
       "id": "A3",
-      "title": "Dispatch Subagent",
-      "description": "Async fire-and-forget subagent dispatch via task tool; results delivered back via PendingSubagentNotice on parent's NEXT prompt assemble (no message stream pollution). Shipped: tool/task.ts, TaskCompletedEvent, proc-scan watchdog (L2239-2469), cancel-task tool. Bridge-silence watchdog NOT yet wired (subagent hang pattern).",
+      "title": "派發 子代理",
+      "description": "透過任務工具非同步派發子代理並立即返回；結果會在父層下一次提示組裝時，透過待處理子代理通知送回，不污染訊息串流。已交付：tool/task.ts、任務已完成事件、程序掃描看門狗 (L2239-2469)、取消任務工具。橋接靜默看門狗尚未接線（子代理卡住模式）。",
       "decomposition": {
-        "diagram_title": "Dispatch Subagent",
+        "diagram_title": "派發 子代理",
         "node_reference": "A3",
         "activities": [
           {
             "id": "A31",
-            "title": "Queue Subagent Job"
+            "title": "排入佇列 子代理 工作"
           },
           {
             "id": "A32",
-            "title": "Run Proc Scan Watchdog"
+            "title": "執行 程序 掃描 看門狗"
           },
           {
             "id": "A33",
-            "title": "Detect Terminal Or Death"
+            "title": "偵測終止或死亡"
           },
           {
             "id": "A34",
-            "title": "Emit Task Completed Event"
+            "title": "發出 任務 已完成 事件"
           },
           {
             "id": "A35",
-            "title": "Append Pending Subagent Notice"
+            "title": "追加 待處理 子代理 通知"
           },
           {
             "id": "A36",
-            "title": "Render Notice On Next Assemble"
+            "title": "渲染 通知 在 下一個 組裝"
           }
         ],
         "arrows": [
@@ -298,145 +298,145 @@
             "id": "a3_in_call",
             "source": "EXTERNAL",
             "target": "A31:input",
-            "label": "task() Tool Call (parent assistant turn)"
+            "label": "task() 工具 呼叫 (父層 助手 回合)"
           },
           {
             "id": "a3_mech_queue",
             "source": "EXTERNAL",
             "target": "A31:mechanism",
-            "label": "tool/task.ts dispatch lane"
+            "label": "tool/task.ts 派發通道"
           },
           {
             "id": "a3_ctrl_lane",
             "source": "EXTERNAL",
             "target": "A31:control",
-            "label": "Lane Concurrency (Global, Not Channel-Scoped)"
+            "label": "通道併發（全域，不限於單一通道）"
           },
           {
             "id": "a3_queue_stub",
             "source": "A31:output",
             "target": "EXTERNAL",
-            "label": "Tool Result {dispatched:true} (parent turn returns)"
+            "label": "工具 結果 {dispatched:true} (父層 回合 返回)"
           },
           {
             "id": "a3_queue_to_watch",
             "source": "A31:output",
             "target": "A32:input",
-            "label": "Job Registered jobId + childSessionID"
+            "label": "工作已註冊工作ID + 子會話ID"
           },
           {
             "id": "a3_mech_watch",
             "source": "EXTERNAL",
             "target": "A32:mechanism",
-            "label": "setInterval poll task.ts:2346 (unified)"
+            "label": "setInterval 輪詢 task.ts:2346（統一路徑）"
           },
           {
             "id": "a3_ctrl_watch",
             "source": "EXTERNAL",
             "target": "A32:control",
-            "label": "Disk Grace + Silent Threshold + Proc State"
+            "label": "磁碟寬限期 + 靜默門檻 + 程序狀態"
           },
           {
             "id": "a3_watch_to_detect",
             "source": "A32:output",
             "target": "A33:input",
-            "label": "Tick Sample (disk + pid + lastEvent)"
+            "label": "週期取樣（磁碟 + pid + 最近事件）"
           },
           {
             "id": "a3_mech_detect",
             "source": "EXTERNAL",
             "target": "A33:mechanism",
-            "label": "Conditions: disk_terminal | worker_dead | silent_kill"
+            "label": "條件：磁碟終止 | 工作程序已死亡 | 靜默終止"
           },
           {
             "id": "a3_detect_to_emit",
             "source": "A33:output",
             "target": "A34:input",
-            "label": "Status {success|error|canceled|rate_limited|quota_low|worker_dead|silent_kill}"
+            "label": "狀態 {成功|錯誤|已取消|速率受限|配額低|工作程序已死亡|靜默終止}"
           },
           {
             "id": "a3_mech_emit",
             "source": "EXTERNAL",
             "target": "A34:mechanism",
-            "label": "TaskCompletedEvent (task.ts:274)"
+            "label": "任務已完成事件 (task.ts:274)"
           },
           {
             "id": "a3_emit_to_notice",
             "source": "A34:output",
             "target": "A35:input",
-            "label": "Event Payload (jobId, finish, elapsedMs, rotateHint)"
+            "label": "事件酬載（工作ID、完成狀態、elapsedMs、rotateHint）"
           },
           {
             "id": "a3_mech_notice",
             "source": "EXTERNAL",
             "target": "A35:mechanism",
-            "label": "info.json#pendingSubagentNotices append"
+            "label": "info.js在#待處理子代理通知 追加"
           },
           {
             "id": "a3_ctrl_clean",
             "source": "EXTERNAL",
             "target": "A35:control",
-            "label": "DD: Never Append To messages/ Stream"
+            "label": "設計決策：絕不追加到 messages/ 串流"
           },
           {
             "id": "a3_notice_to_render",
             "source": "A35:output",
             "target": "A36:input",
-            "label": "Pending Notice Queued On Parent Session"
+            "label": "待處理通知已排入父層會話"
           },
           {
             "id": "a3_mech_assemble",
             "source": "EXTERNAL",
             "target": "A36:mechanism",
-            "label": "Prompt Assembler addendum + pop"
+            "label": "提示組裝器附加段落 + 彈出"
           },
           {
             "id": "a3_render_out",
             "source": "A36:output",
             "target": "EXTERNAL",
-            "label": "System-Prompt Addendum For Parent's Next Turn"
+            "label": "系統提示附加段落供父層下一個回合使用"
           },
           {
             "id": "a3_in_cancel",
             "source": "EXTERNAL",
             "target": "A33:control",
-            "label": "cancel_task / cancelByJobId (task.ts:814)"
+            "label": "cancel任務 / cancel由工作id (task.ts:814)"
           }
         ]
       }
     },
     {
       "id": "A4",
-      "title": "Enforce Subagent Quota",
-      "description": "PARTIAL. Soft wrap-up only: probe quota after each subagent stream; if hourlyRemaining < red-line, set quotaLowExitRequested and dispatch ONE final wrap-up turn, then finish:'quota_low'. Hard mid-turn cancel gate from subagent-quota-safety-gate spec NOT in code. Anchor: processor.ts:1357-1399; knob subagent_quota_low_red_line_percent (tweaks.ts:468)."
+      "title": "強制執行子代理配額",
+      "description": "部分交付。僅有軟收尾：每次子代理串流後偵測配額；若 hourlyRemaining < 紅線，設定配額低退出請求並派發一次最終收尾回合，然後完成為「配額低」。硬性回合中取消閘門來自子代理配額安全閘規格，尚未進入程式碼。錨點：processor.ts:1357-1399；旋鈕：子代理配額低紅線百分比 (tweaks.ts:468)。"
     },
     {
       "id": "A5",
-      "title": "Handle Question Tool",
-      "description": "z.preprocess(Question.normalize) handles flat-single + string-options shapes; Question.ask wires AbortSignal lifecycle (pre-aborted/late-abort/manual-reply-wins); webapp QuestionDock uses FNV-1a 32-bit canonical-JSON cache key for restore-on-reask. Shipped end-to-end.",
+      "title": "處理問題工具",
+      "description": "z.preprocess(問題.normalize) 處理扁平單題與字串選項形狀；問題.ask 接線 AbortSignal 生命週期（預先中止、延遲中止、手動回覆優先）；webapp 問題面板使用 FNV-1 32-bit canonical-JSON 快取鍵，供重新詢問時還原。已端到端交付。",
       "decomposition": {
-        "diagram_title": "Handle Question Tool",
+        "diagram_title": "處理問題工具",
         "node_reference": "A5",
         "activities": [
           {
             "id": "A51",
-            "title": "Normalize Question Input"
+            "title": "正規化問題輸入"
           },
           {
             "id": "A52",
-            "title": "Register Pending Entry"
+            "title": "註冊 待處理 項目"
           },
           {
             "id": "A53",
-            "title": "Wire Abort Signal"
+            "title": "接線中止訊號"
           },
           {
             "id": "A54",
-            "title": "Hash Cache Key And Restore"
+            "title": "雜湊快取鍵並還原"
           },
           {
             "id": "A55",
-            "title": "Resolve Reply Or Reject"
+            "title": "解析回覆或拒絕"
           }
         ],
         "arrows": [
@@ -444,110 +444,110 @@
             "id": "a5_in_args",
             "source": "EXTERNAL",
             "target": "A51:input",
-            "label": "Raw question Tool Args"
+            "label": "原始問題工具參數"
           },
           {
             "id": "a5_mech_norm",
             "source": "EXTERNAL",
             "target": "A51:mechanism",
-            "label": "z.preprocess(Question.normalize) (tool/question.ts L25-57)"
+            "label": "z.preprocess(問題.normalize) (tool/question.ts L25-57)"
           },
           {
             "id": "a5_ctrl_hint",
             "source": "EXTERNAL",
             "target": "A51:control",
-            "label": "SCHEMA_HINT On Validation Miss"
+            "label": "驗證未命中時的結構提示"
           },
           {
             "id": "a5_norm_to_pending",
             "source": "A51:output",
             "target": "A52:input",
-            "label": "Canonical {questions:[{question,options,multiple}]}"
+            "label": "標準形狀 {questions:[{問題,options,multiple}]}"
           },
           {
             "id": "a5_mech_pending",
             "source": "EXTERNAL",
             "target": "A52:mechanism",
-            "label": "Question.ask pending[id] + Bus.publish(question.asked)"
+            "label": "問題.ask 待處理[id] + Bus.發布(問題.asked)"
           },
           {
             "id": "a5_pending_to_abort",
             "source": "A52:output",
             "target": "A53:input",
-            "label": "Pending Entry + Caller AbortSignal"
+            "label": "待處理項目 + 呼叫方 AbortSignal"
           },
           {
             "id": "a5_mech_abort",
             "source": "EXTERNAL",
             "target": "A53:mechanism",
-            "label": "question/index.ts:122-200 abort wiring"
+            "label": "question/index.ts:122-200 中止接線"
           },
           {
             "id": "a5_ctrl_reason",
             "source": "EXTERNAL",
             "target": "A53:control",
-            "label": "signal.reason: manual-stop / rate-limit-fallback / watchdog labels"
+            "label": "signal.reason：手動停止 / 速率限制備援 / 看門狗標籤"
           },
           {
             "id": "a5_pending_to_cache",
             "source": "A52:output",
             "target": "A54:input",
-            "label": "Question Content Bytes"
+            "label": "問題內容位元組"
           },
           {
             "id": "a5_mech_cache",
             "source": "EXTERNAL",
             "target": "A54:mechanism",
-            "label": "components/question-cache-key.ts canonicalJson + fnv1a32"
+            "label": "components/question-cache-key.ts canonicalJson + fnv132"
           },
           {
             "id": "a5_ctrl_session",
             "source": "EXTERNAL",
             "target": "A54:control",
-            "label": "Cache Scope: (sessionID, contentHash)"
+            "label": "快取範圍：(SessionID, contentHash)"
           },
           {
             "id": "a5_cache_out",
             "source": "A54:output",
             "target": "EXTERNAL",
-            "label": "Restored Draft Or Empty Store"
+            "label": "已還原草稿或空儲存"
           },
           {
             "id": "a5_abort_to_resolve",
             "source": "A53:output",
             "target": "A55:input",
-            "label": "Abort Or Late-Abort Signal"
+            "label": "中止或延遲中止訊號"
           },
           {
             "id": "a5_in_reply",
             "source": "EXTERNAL",
             "target": "A55:input",
-            "label": "User Reply From QuestionDock"
+            "label": "使用者回覆來自問題面板"
           },
           {
             "id": "a5_mech_resolve",
             "source": "EXTERNAL",
             "target": "A55:mechanism",
-            "label": "Bus.publish(Event.Rejected) Or Resolve Promise"
+            "label": "Bus.發布(事件.Rejected) 或解析 Promise"
           },
           {
             "id": "a5_resolve_out",
             "source": "A55:output",
             "target": "EXTERNAL",
-            "label": "RejectedError Or Reply Back To Tool"
+            "label": "拒絕錯誤或回覆返回工具"
           }
         ]
       }
     },
     {
       "id": "A6",
-      "title": "Drive Scheduler Heartbeat",
-      "description": "Durable cron scheduler with boot-recovery, skip-to-next, retry backoff. Generic Scheduler is for in-process periodics (telemetry, idle-MCP-unload). Channels portion of scheduler-channels spec NOT built; current kill-switch is workspace-scoped, not channel-scoped. Anchors: cron/heartbeat.ts L86-155, cron/retry.ts L113-172, scheduler/index.ts."
+      "title": "驅動排程器心跳",
+      "description": "耐久 cron 排程器使用開機復原、跳到下一次與重試退避。通用排程器供程序內週期工作使用（遙測、閒置 MCP 卸載）。排程器通道規格中的通道部分尚未建置；目前終止開關以工作區為範圍，而非以通道為範圍。錨點：cron/heartbeat.ts L86-155、cron/retry.ts L113-172、scheduler/index.ts。"
     },
     {
       "id": "A7",
-      "title": "Refill From Active Plan",
-      "description": "autorun/refill drains active spec tasks.md by reading active spec slug, finding next un-checked task line, and seeding it as the next continuation message. Acts only when autonomy is armed AND nextActionableTodo returns null but spec has remaining tasks."
+      "title": "從作用中規劃補充",
+      "description": "autorun/refill 會讀取作用中規格識別段、找到下一個未勾選任務列，並將其種入為下一個延續訊息，藉此清空作用中規格 tasks.md。僅在自主已啟用，且下一個可執行待辦返回空值但規格仍有剩餘任務時執行。"
     }
   ],
   "arrows": [
@@ -555,49 +555,49 @@
       "id": "x_in_user",
       "source": "EXTERNAL",
       "target": "A2:input",
-      "label": "User Message (Verbal Trigger Candidate)"
+      "label": "使用者訊息（口語觸發候選）"
     },
     {
       "id": "x_in_user_to_loop",
       "source": "EXTERNAL",
       "target": "A1:input",
-      "label": "Session Identity + Agent Selection"
+      "label": "會話身分 + 代理選擇"
     },
     {
       "id": "x_ctrl_agent_registry",
       "source": "EXTERNAL",
       "target": "A1:control",
-      "label": "Agent.list / defaultAgent (agent/agent.ts L297, L306)"
+      "label": "代理清單 / defaultAgent (agent/agent.ts L297, L306)"
     },
     {
       "id": "x_ctrl_tweaks",
       "source": "EXTERNAL",
       "target": "A2:control",
-      "label": "tweaks.cfg autorun_*_phrases"
+      "label": "tweaks.cfg autorun*phrases"
     },
     {
       "id": "x_skills_to_loop",
       "source": "A1:output",
       "target": "A2:control",
-      "label": "Pinned Skills Snapshot"
+      "label": "已釘選技能快照"
     },
     {
       "id": "x_mode_to_dispatch",
       "source": "A2:output",
       "target": "A3:control",
-      "label": "Autonomy Verdict (Armed / Not-Armed)"
+      "label": "自主判定（已啟用 / 未啟用）"
     },
     {
       "id": "x_dispatch_to_quota",
       "source": "A3:output",
       "target": "A4:input",
-      "label": "Subagent Stream Boundary (TaskCompletedEvent)"
+      "label": "子代理串流邊界（任務已完成事件）"
     },
     {
       "id": "x_ctrl_quota_knob",
       "source": "EXTERNAL",
       "target": "A4:control",
-      "label": "subagent_quota_low_red_line_percent (tweaks.ts:468)"
+      "label": "子代理配額lowredlinepercent (tweaks.ts:468)"
     },
     {
       "id": "x_mech_quota",
@@ -609,7 +609,7 @@
       "id": "x_quota_to_dispatch",
       "source": "A4:output",
       "target": "A3:control",
-      "label": "quotaLowExitRequested -> Final Wrap-Up Turn"
+      "label": "配額低退出請求 -> 最終收尾回合"
     },
     {
       "id": "x_quota_to_notice",
@@ -621,91 +621,91 @@
       "id": "x_loop_to_question",
       "source": "EXTERNAL",
       "target": "A5:input",
-      "label": "LLM Calls question() Tool"
+      "label": "模型呼叫 question() 工具"
     },
     {
       "id": "x_question_to_loop",
       "source": "A5:output",
       "target": "EXTERNAL",
-      "label": "Reply Or RejectedError Returned To Tool Caller"
+      "label": "回覆或拒絕錯誤返回工具呼叫方"
     },
     {
       "id": "x_mech_heartbeat",
       "source": "EXTERNAL",
       "target": "A6:mechanism",
-      "label": "cron/heartbeat.ts boot-recovery + minute tick"
+      "label": "cron/heartbeat.ts 開機復原 + 分鐘週期"
     },
     {
       "id": "x_ctrl_stale",
       "source": "EXTERNAL",
       "target": "A6:control",
-      "label": "STALE_THRESHOLD_MS=5min + retry backoff"
+      "label": "過期門檻毫秒=5分鐘 + 重試退避"
     },
     {
       "id": "x_heartbeat_out",
       "source": "A6:output",
       "target": "EXTERNAL",
-      "label": "Cron Job Dispatch (cron/delivery.ts)"
+      "label": "cron 工作派發 (cron/delivery.ts)"
     },
     {
       "id": "x_killswitch",
       "source": "EXTERNAL",
       "target": "A6:control",
-      "label": "Kill-Switch (Workspace-Scoped, Channels Not Built)"
+      "label": "終止開關（工作區範圍，通道尚未建置）"
     },
     {
       "id": "x_refill_to_mode",
       "source": "A7:output",
       "target": "A2:input",
-      "label": "Synthetic Resume Text From tasks.md"
+      "label": "合成恢復文字來自 tasks.md"
     },
     {
       "id": "x_mode_to_refill",
       "source": "A2:output",
       "target": "A7:control",
-      "label": "Armed AND nextActionableTodo Null"
+      "label": "已啟用且下一個可執行待辦為空"
     },
     {
       "id": "x_mech_refill",
       "source": "EXTERNAL",
       "target": "A7:mechanism",
-      "label": "session/autorun/refill"
+      "label": "會話/自動執行/補充"
     },
     {
       "id": "x_in_active_spec",
       "source": "EXTERNAL",
       "target": "A7:input",
-      "label": "Active Spec Slug + tasks.md"
+      "label": "作用中規格識別段 + tasks.md"
     },
     {
       "id": "x_loop_out_assistant",
       "source": "A2:output",
       "target": "EXTERNAL",
-      "label": "Assistant Turn Output (Stream)"
+      "label": "助手 回合 輸出 (串流)"
     },
     {
       "id": "x_loop_out_dispatch",
       "source": "A3:output",
       "target": "EXTERNAL",
-      "label": "Subagent Worker Spawned Asynchronously"
+      "label": "子代理工作程序非同步產生"
     },
     {
       "id": "ctx_in_user",
       "source": "EXTERNAL",
       "target": "A0:input",
-      "label": "User Prompt + Tool Replies"
+      "label": "使用者提示 + 工具回覆"
     },
     {
       "id": "ctx_ctl_tweaks",
       "source": "EXTERNAL",
       "target": "A0:control",
-      "label": "tweaks.cfg + AGENTS.md Sentinels + Agent Registry"
+      "label": "tweaks.cfg + AGENTS.md Sentinel + 代理註冊表"
     },
     {
       "id": "ctx_out_assistant",
       "source": "A0:output",
       "target": "EXTERNAL",
-      "label": "Assistant Stream + Tool Calls + Subagent Side-Effects"
+      "label": "助手串流 + 工具呼叫 + 子代理副作用"
     }
   ]
 }

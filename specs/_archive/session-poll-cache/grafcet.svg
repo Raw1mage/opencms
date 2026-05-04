@@ -1,0 +1,183 @@
+<svg width="6119" height="1370" viewBox="-3256.2 -50.0 6119.2 1370.0" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker></defs>
+<rect x="-3256.2" y="-50.0" width="6119.2" height="1370.0" fill="white" />
+<rect x="380.0" y="80.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<rect x="385.0" y="85.0" width="30.0" height="30.0" stroke="black" stroke-width="1" fill="none" />
+<text x="400" y="105.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">0</text>
+<line x1="420.0" y1="100.0" x2="460.0" y2="100.0" stroke="black" />
+<rect x="460.0" y="54.0" width="336.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="628.3" y="80.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">閒置 — 就緒 到</text>
+<text x="628.3" y="104.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">accept requests</text>
+<text x="628.3" y="127.99999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">與 bus 事件</text>
+<line x1="400" y1="120.0" x2="400" y2="160.0" stroke="black" />
+<line x1="-1626.3999999999999" y1="160.0" x2="2426.3999999999996" y2="160.0" stroke="black" stroke-width="1.5" />
+<line x1="-1586.3999999999999" y1="160.0" x2="-1586.3999999999999" y2="200.0" stroke="black" />
+<line x1="-1606.3999999999999" y1="200.0" x2="-1566.3999999999999" y2="200.0" stroke="black" stroke-width="2" />
+<text x="-1610.3999999999999" y="204.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">http請求arrived</text>
+<line x1="-1586.3999999999999" y1="200.0" x2="-1586.3999999999999" y2="240.0" stroke="black" marker-end="url(#arrow)" />
+<line x1="2386.3999999999996" y1="160.0" x2="2386.3999999999996" y2="200.0" stroke="black" />
+<line x1="2366.3999999999996" y1="200.0" x2="2406.3999999999996" y2="200.0" stroke="black" stroke-width="2" />
+<text x="2410.4" y="204.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">bus事件arrived</text>
+<line x1="2386.3999999999996" y1="200.0" x2="2386.3999999999996" y2="240.0" stroke="black" marker-end="url(#arrow)" />
+<rect x="-1606.3999999999999" y="240.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="-1586.3999999999999" y="265.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">1</text>
+<line x1="-1566.3999999999999" y1="260.0" x2="-1526.3999999999999" y2="260.0" stroke="black" />
+<rect x="-1526.3999999999999" y="214.0" width="336.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="-1358.1" y="240.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Check rate-limit</text>
+<text x="-1358.1" y="264.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">bucket 供 (username,</text>
+<text x="-1358.1" y="288.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">method, 路由pattern)</text>
+<line x1="-1586.3999999999999" y1="280.0" x2="-1586.3999999999999" y2="320.0" stroke="black" />
+<line x1="-2619.6" y1="320.0" x2="-553.1999999999999" y2="320.0" stroke="black" stroke-width="1.5" />
+<line x1="-2579.6" y1="320.0" x2="-2579.6" y2="360.0" stroke="black" />
+<line x1="-2599.6" y1="360.0" x2="-2559.6" y2="360.0" stroke="black" stroke-width="2" />
+<text x="-2603.5999999999995" y="364.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">tokenavailable或exempt</text>
+<line x1="-2579.6" y1="360.0" x2="-2579.6" y2="400.0" stroke="black" marker-end="url(#arrow)" />
+<line x1="-593.1999999999999" y1="320.0" x2="-593.1999999999999" y2="360.0" stroke="black" />
+<line x1="-613.1999999999999" y1="360.0" x2="-573.1999999999999" y2="360.0" stroke="black" stroke-width="2" />
+<text x="-569.1999999999999" y="364.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">bucketexhausted</text>
+<line x1="-593.1999999999999" y1="360.0" x2="-593.1999999999999" y2="400.0" stroke="black" marker-end="url(#arrow)" />
+<rect x="-2599.6" y="400.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="-2579.6" y="425.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">2</text>
+<line x1="-2559.6" y1="420.0" x2="-2519.6" y2="420.0" stroke="black" />
+<rect x="-2519.6000000000004" y="374.0" width="336.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="-2351.3" y="400.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Compute weak</text>
+<text x="-2351.3" y="424.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">ETag 與 compare</text>
+<text x="-2351.3" y="448.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">If-None-比對</text>
+<line x1="-2579.6" y1="440.0" x2="-2579.6" y2="480.0" stroke="black" />
+<line x1="-3116.2" y1="480.0" x2="-2043.0" y2="480.0" stroke="black" stroke-width="1.5" />
+<line x1="-3076.2" y1="480.0" x2="-3076.2" y2="520.0" stroke="black" />
+<line x1="-3096.2" y1="520.0" x2="-3056.2" y2="520.0" stroke="black" stroke-width="2" />
+<text x="-3100.2" y="524.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">etag比對</text>
+<line x1="-3076.2" y1="520.0" x2="-3076.2" y2="560.0" stroke="black" marker-end="url(#arrow)" />
+<line x1="-2083.0" y1="480.0" x2="-2083.0" y2="520.0" stroke="black" />
+<line x1="-2103.0" y1="520.0" x2="-2063.0" y2="520.0" stroke="black" stroke-width="2" />
+<text x="-2059.0" y="524.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">etagmismatch或absent</text>
+<line x1="-2083.0" y1="520.0" x2="-2083.0" y2="560.0" stroke="black" marker-end="url(#arrow)" />
+<rect x="-3096.2" y="560.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="-3076.2" y="585.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">4</text>
+<line x1="-3056.2" y1="580.0" x2="-3016.2" y2="580.0" stroke="black" />
+<rect x="-3016.2000000000003" y="534.0" width="336.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="-2847.9" y="560.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">返回 304 不</text>
+<text x="-2847.9" y="584.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Modified 使</text>
+<text x="-2847.9" y="608.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">用 empty body</text>
+<line x1="-3076.2" y1="600.0" x2="-3076.2" y2="680.0" stroke="black" />
+<line x1="-3096.2" y1="640.0" x2="-3056.2" y2="640.0" stroke="black" stroke-width="2" />
+<text x="-3052.2000000000003" y="644.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">回應sent</text>
+<rect x="-2103.0" y="560.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="-2083.0" y="585.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">5</text>
+<line x1="-2063.0" y1="580.0" x2="-2023.0" y2="580.0" stroke="black" />
+<rect x="-2023.0000000000002" y="534.0" width="336.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="-1854.7000000000003" y="560.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Lookup 快取 項目 供</text>
+<text x="-1854.7000000000003" y="584.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Session:&lt;id&gt; 或</text>
+<text x="-1854.7000000000003" y="608.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">messages:&lt;id&gt;:&lt;limit&gt;</text>
+<line x1="-2083.0" y1="600.0" x2="-2083.0" y2="640.0" stroke="black" />
+<line x1="-2371.3" y1="640.0" x2="-1794.7" y2="640.0" stroke="black" stroke-width="1.5" />
+<line x1="-2331.3" y1="640.0" x2="-2331.3" y2="680.0" stroke="black" />
+<line x1="-2351.3" y1="680.0" x2="-2311.3" y2="680.0" stroke="black" stroke-width="2" />
+<text x="-2355.3" y="684.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">快取hitfresh</text>
+<line x1="-2331.3" y1="680.0" x2="-2331.3" y2="720.0" stroke="black" marker-end="url(#arrow)" />
+<line x1="-1834.7" y1="640.0" x2="-1834.7" y2="680.0" stroke="black" />
+<line x1="-1854.7" y1="680.0" x2="-1814.7" y2="680.0" stroke="black" stroke-width="2" />
+<text x="-1810.6999999999998" y="684.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">快取miss或expired</text>
+<line x1="-1834.7" y1="680.0" x2="-1834.7" y2="720.0" stroke="black" marker-end="url(#arrow)" />
+<rect x="-2351.3" y="720.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="-2331.3" y="745.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">6</text>
+<line x1="-2311.3" y1="740.0" x2="-2271.3" y2="740.0" stroke="black" />
+<rect x="-2271.3" y="694.0" width="336.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="-2103.0" y="720.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Serve cached body</text>
+<text x="-2103.0" y="744.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">使用 ETag; 記錄</text>
+<text x="-2103.0" y="767.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Session快取.Hit</text>
+<line x1="-2331.3" y1="760.0" x2="-2331.3" y2="840.0" stroke="black" />
+<line x1="-2351.3" y1="800.0" x2="-2311.3" y2="800.0" stroke="black" stroke-width="2" />
+<text x="-2307.2999999999997" y="804.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">回應sent</text>
+<rect x="-1854.7" y="720.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="-1834.7" y="745.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">7</text>
+<line x1="-1814.7" y1="740.0" x2="-1774.6999999999998" y2="740.0" stroke="black" />
+<rect x="-1774.6999999999998" y="694.0" width="336.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="-1606.3999999999999" y="720.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Load 來自 儲存 透過 Session.get/</text>
+<text x="-1606.3999999999999" y="744.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">messages; memoize under LRU</text>
+<text x="-1606.3999999999999" y="767.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">cap; 記錄 Session快取.Miss</text>
+<line x1="-1834.7" y1="760.0" x2="-1834.7" y2="840.0" stroke="black" />
+<line x1="-1854.7" y1="800.0" x2="-1814.7" y2="800.0" stroke="black" stroke-width="2" />
+<text x="-1810.6999999999998" y="804.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">已載入與cached</text>
+<rect x="-1854.7" y="840.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="-1834.7" y="865.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">8</text>
+<line x1="-1814.7" y1="860.0" x2="-1774.6999999999998" y2="860.0" stroke="black" />
+<rect x="-1774.6999999999998" y="814.0" width="336.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="-1606.3999999999999" y="840.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">發出 200 回應</text>
+<text x="-1606.3999999999999" y="864.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">使用 new ETag</text>
+<text x="-1606.3999999999999" y="887.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">與 body</text>
+<line x1="-1834.7" y1="880.0" x2="-1834.7" y2="960.0" stroke="black" />
+<line x1="-1854.7" y1="920.0" x2="-1814.7" y2="920.0" stroke="black" stroke-width="2" />
+<text x="-1810.6999999999998" y="924.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">回應sent</text>
+<line x1="-2371.3" y1="960.0" x2="-1794.7" y2="960.0" stroke="black" stroke-width="1.5" />
+<line x1="-2331.3" y1="840.0" x2="-2331.3" y2="960.0" stroke="black" />
+<line x1="-1834.7" y1="960.0" x2="-1834.7" y2="960.0" stroke="black" />
+<line x1="-2083.0" y1="960.0" x2="-2083.0" y2="1000.0" stroke="black" marker-end="url(#arrow)" />
+<line x1="-3116.2" y1="1000.0" x2="-2043.0" y2="1000.0" stroke="black" stroke-width="1.5" />
+<line x1="-3076.2" y1="680.0" x2="-3076.2" y2="1000.0" stroke="black" />
+<line x1="-2083.0" y1="1000.0" x2="-2083.0" y2="1000.0" stroke="black" />
+<line x1="-2579.6" y1="1000.0" x2="-2579.6" y2="1040.0" stroke="black" marker-end="url(#arrow)" />
+<rect x="-613.1999999999999" y="400.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="-593.1999999999999" y="425.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">3</text>
+<line x1="-573.1999999999999" y1="420.0" x2="-533.1999999999999" y2="420.0" stroke="black" />
+<rect x="-533.1999999999999" y="374.0" width="336.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="-364.9" y="412.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">發出 429 使用 重試-After 與</text>
+<text x="-364.9" y="435.99999999999994" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">記錄 RateLimit.Throttled</text>
+<line x1="-593.1999999999999" y1="440.0" x2="-593.1999999999999" y2="520.0" stroke="black" />
+<line x1="-613.1999999999999" y1="480.0" x2="-573.1999999999999" y2="480.0" stroke="black" stroke-width="2" />
+<text x="-569.1999999999999" y="484.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">回應sent</text>
+<line x1="-2619.6" y1="1040.0" x2="-553.1999999999999" y2="1040.0" stroke="black" stroke-width="1.5" />
+<line x1="-2579.6" y1="1040.0" x2="-2579.6" y2="1040.0" stroke="black" />
+<line x1="-593.1999999999999" y1="520.0" x2="-593.1999999999999" y2="1040.0" stroke="black" />
+<line x1="-1586.3999999999999" y1="1040.0" x2="-1586.3999999999999" y2="1080.0" stroke="black" marker-end="url(#arrow)" />
+<rect x="2366.3999999999996" y="240.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="2386.3999999999996" y="265.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">10</text>
+<line x1="2406.3999999999996" y1="260.0" x2="2446.3999999999996" y2="260.0" stroke="black" />
+<rect x="2446.3999999999996" y="214.0" width="336.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="2614.7" y="240.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Receive bus 事件 (訊息</text>
+<text x="2614.7" y="264.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">v2.事件.* 或 Session.</text>
+<text x="2614.7" y="288.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">事件.*); 取出 SessionID</text>
+<line x1="2386.3999999999996" y1="280.0" x2="2386.3999999999996" y2="360.0" stroke="black" />
+<line x1="2366.3999999999996" y1="320.0" x2="2406.3999999999996" y2="320.0" stroke="black" stroke-width="2" />
+<text x="2410.4" y="324.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">Sessionid已取出</text>
+<rect x="2366.3999999999996" y="360.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="2386.3999999999996" y="385.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">11</text>
+<line x1="2406.3999999999996" y1="380.0" x2="2446.3999999999996" y2="380.0" stroke="black" />
+<rect x="2446.3999999999996" y="334.0" width="336.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="2614.7" y="360.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Drop all 快取 keys under</text>
+<text x="2614.7" y="384.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Session:&lt;id&gt;*, messages:</text>
+<text x="2614.7" y="408.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">&lt;id&gt;*; bump version counter</text>
+<line x1="2386.3999999999996" y1="400.0" x2="2386.3999999999996" y2="480.0" stroke="black" />
+<line x1="2366.3999999999996" y1="440.0" x2="2406.3999999999996" y2="440.0" stroke="black" stroke-width="2" />
+<text x="2410.4" y="444.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">invalidation完成</text>
+<rect x="2366.3999999999996" y="480.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="2386.3999999999996" y="505.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">12</text>
+<line x1="2406.3999999999996" y1="500.0" x2="2446.3999999999996" y2="500.0" stroke="black" />
+<rect x="2446.3999999999996" y="454.0" width="336.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="2614.7" y="480.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">發布 Session快取.事件.Invalidated; 記</text>
+<text x="2614.7" y="504.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">錄.info if subscription 是 healthy,</text>
+<text x="2614.7" y="528.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">記錄.warn if subscription disabled</text>
+<line x1="2386.3999999999996" y1="520.0" x2="2386.3999999999996" y2="600.0" stroke="black" />
+<line x1="2366.3999999999996" y1="560.0" x2="2406.3999999999996" y2="560.0" stroke="black" stroke-width="2" />
+<text x="2410.4" y="564.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">observabilityrecorded</text>
+<line x1="-1626.3999999999999" y1="1080.0" x2="2426.3999999999996" y2="1080.0" stroke="black" stroke-width="1.5" />
+<line x1="-1586.3999999999999" y1="1080.0" x2="-1586.3999999999999" y2="1080.0" stroke="black" />
+<line x1="2386.3999999999996" y1="600.0" x2="2386.3999999999996" y2="1080.0" stroke="black" />
+<line x1="400" y1="1080.0" x2="400" y2="1120.0" stroke="black" marker-end="url(#arrow)" />
+<rect x="380.0" y="1120.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="400" y="1145.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">9</text>
+<line x1="420.0" y1="1140.0" x2="460.0" y2="1140.0" stroke="black" />
+<rect x="460.0" y="1094.0" width="336.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="628.3" y="1120.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">返回 到 閒置; statistics</text>
+<text x="628.3" y="1144.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">updated; 下一個 請求</text>
+<text x="628.3" y="1168.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">或 事件 awaited</text>
+<line x1="400" y1="1160.0" x2="400" y2="1240.0" stroke="black" />
+<line x1="380" y1="1200.0" x2="420" y2="1200.0" stroke="black" stroke-width="2" />
+<text x="424.0" y="1204.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">就緒</text>
+<line x1="400" y1="1240.0" x2="400" y2="1240.0" stroke="black" />
+<line x1="400" y1="1240.0" x2="-3176.2" y2="1240.0" stroke="black" />
+<line x1="-3176.2" y1="1240.0" x2="-3176.2" y2="30.0" stroke="black" />
+<line x1="-3176.2" y1="30.0" x2="400" y2="30.0" stroke="black" />
+<line x1="400" y1="30.0" x2="400" y2="70.0" stroke="black" marker-end="url(#arrow)" />
+</svg>

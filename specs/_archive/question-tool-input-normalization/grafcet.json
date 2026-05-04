@@ -1,21 +1,23 @@
 [
   {
     "id": "S0",
-    "label": "Idle",
-    "description": "No tool call in flight; AI SDK stream running for content tokens",
+    "label": "閒置",
+    "description": "無 工具 呼叫 在 flight; AI SDK 串流 執行中 供 content tokens",
     "actions": [],
     "transitions": [
       {
         "to": "S1",
         "condition": "AI SDK emits tool-call event",
-        "refs": ["A1"]
+        "refs": [
+          "A1"
+        ]
       }
     ]
   },
   {
     "id": "S1",
-    "label": "ReceivedRawArgs",
-    "description": "Processor received value.input as raw LLM args; tool part created with status=running, state.input=raw",
+    "label": "已收到rawargs",
+    "description": "Processor 已收到 value.輸入 作為 raw LLM args; 工具 part created 使用 狀態=執行中, 狀態.輸入=raw",
     "actions": [
       "toolcalls[callID] = { ... state: {status: 'running', input: value.input} }",
       "Session.updatePart (raw state.input)"
@@ -24,14 +26,16 @@
       {
         "to": "S2",
         "condition": "Tool.define wrapper starts execute(args, ctx)",
-        "refs": ["A2"]
+        "refs": [
+          "A2"
+        ]
       }
     ]
   },
   {
     "id": "S2",
-    "label": "ParsingViaZod",
-    "description": "Tool.define wrapper runs parameters.parse(args); z.preprocess transforms flat → canonical, string[] options → [{label,description}], missing header filled",
+    "label": "parsing透過zod",
+    "description": "工具.define wrapper runs parameters.解析(args); z.preprocess transforms flat → canonical, string[] options → [{label,description}], 缺失 header filled",
     "actions": [
       "const parsed = toolInfo.parameters.parse(args)"
     ],
@@ -39,19 +43,24 @@
       {
         "to": "S3",
         "condition": "parse succeeds",
-        "refs": ["A2", "A3"]
+        "refs": [
+          "A2",
+          "A3"
+        ]
       },
       {
         "to": "S6",
         "condition": "parse throws ZodError",
-        "refs": ["A2"]
+        "refs": [
+          "A2"
+        ]
       }
     ]
   },
   {
     "id": "S3",
     "label": "Executing",
-    "description": "Tool execute(parsed, ctx) runs; for QuestionTool, Question.ask is called with normalized questions array",
+    "description": "工具 execute(parsed, ctx) runs; 供 問題工具, 問題.ask 是 called 使用 normalized questions array",
     "actions": [
       "execute(parsed, ctx)",
       "tool-specific work (Question.ask / Bash / Edit / ...)"
@@ -60,19 +69,23 @@
       {
         "to": "S4",
         "condition": "execute resolves with result",
-        "refs": ["A3"]
+        "refs": [
+          "A3"
+        ]
       },
       {
         "to": "S5",
         "condition": "execute throws at runtime",
-        "refs": ["A3"]
+        "refs": [
+          "A3"
+        ]
       }
     ]
   },
   {
     "id": "S4",
     "label": "PersistingNormalized",
-    "description": "Processor tool-result handler: looks up ToolRegistry.get(toolName).parameters, safeParse(value.input), writes normalized to state.input with status=completed",
+    "description": "Processor 工具-結果 handler: looks up ToolRegistry.get(工具name).parameters, safe解析(value.輸入), writes normalized 到 狀態.輸入 使用 狀態=已完成",
     "actions": [
       "const registryTool = ToolRegistry.get(value.toolName)",
       "const parsed = registryTool?.parameters.safeParse(value.input)",
@@ -83,14 +96,17 @@
       {
         "to": "S7",
         "condition": "UI reads updated tool part",
-        "refs": ["A4", "A5"]
+        "refs": [
+          "A4",
+          "A5"
+        ]
       }
     ]
   },
   {
     "id": "S5",
-    "label": "PersistingError",
-    "description": "Processor tool-error handler: writes state.input = value.input (raw) for debug evidence, status='error'",
+    "label": "persisting錯誤",
+    "description": "Processor 工具-錯誤 handler: writes 狀態.輸入 = value.輸入 (raw) 供 debug evidence, 狀態='錯誤'",
     "actions": [
       "Session.updatePart with state.input = value.input, state.error = errorMsg, status='error'"
     ],
@@ -98,14 +114,17 @@
       {
         "to": "S7",
         "condition": "UI reads errored tool part",
-        "refs": ["A4", "A5"]
+        "refs": [
+          "A4",
+          "A5"
+        ]
       }
     ]
   },
   {
     "id": "S6",
-    "label": "FormatValidationError",
-    "description": "Wrapper catches ZodError; if tool has formatValidationError, wraps into human-readable message; otherwise uses generic fallback; execute never runs",
+    "label": "formatvalidation錯誤",
+    "description": "Wrapper catches zod錯誤; if 工具 has formatvalidation錯誤, wraps 進入 human-readable 訊息; otherwise uses generic fallback; execute never runs",
     "actions": [
       "throw new Error(toolInfo.formatValidationError(error), { cause: error })"
     ],
@@ -113,14 +132,16 @@
       {
         "to": "S5",
         "condition": "caught as tool-error downstream",
-        "refs": ["A4"]
+        "refs": [
+          "A4"
+        ]
       }
     ]
   },
   {
     "id": "S7",
     "label": "RenderingDefensively",
-    "description": "UI (QuestionDock / message-part / TUI session) imports Question.normalize and runs it on state.input before destructuring; old raw sessions and new normalized sessions both render correctly",
+    "description": "UI (問題dock / 訊息-part / TUI Session) imports 問題.normalize 與 runs it 在 狀態.輸入 before destructuring; old raw Session 與 new normalized Session both 渲染 correctly",
     "actions": [
       "const normalized = Question.normalize(props.input)",
       "render questions tabs with q.header || q.question.slice(0,30)",
@@ -130,7 +151,9 @@
       {
         "to": "S0",
         "condition": "user submits/dismisses or session ends",
-        "refs": ["A5"]
+        "refs": [
+          "A5"
+        ]
       }
     ]
   }

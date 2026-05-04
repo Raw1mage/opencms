@@ -13,10 +13,12 @@ import { SessionRevert } from "../../session/revert"
 import { SessionStatus } from "@/session/status"
 import { SessionSummary } from "@/session/summary"
 import { SessionMonitor } from "@/session/monitor"
+import { ClaudeImport } from "@/session/claude-import"
 import { SkillLayerRegistry } from "@/session/skill-layer-registry"
 import { RebindEpoch, RebindTrigger } from "@/session/rebind-epoch"
 import { CapabilityLayer } from "@/session/capability-layer"
 import { getSessionMessageDiff, getSessionOwnedDirtyDiff } from "@/project/workspace"
+import { Instance } from "@/project/instance"
 import { Todo } from "../../session/todo"
 import { extractChecklistItems } from "@/session/tasks-checklist"
 import { Agent } from "../../agent/agent"
@@ -49,8 +51,15 @@ const SessionMetaResponse = z.object({
   partCount: z.number().int().min(0).meta({ description: "Total part files on disk for this session" }),
   totalBytes: z.number().int().min(0).meta({ description: "Sum of part file sizes in bytes" }),
   lastUpdated: z.string().meta({ description: "ISO-8601 timestamp of most recent part/message/session write" }),
-  etag: z.string().meta({ description: "Weak ETag; shares version counter with session:{id} and messages:{id}:{limit}" }),
-  messageCount: z.number().int().min(0).optional().meta({ description: "Message count; optional hint for initial page size decision" }),
+  etag: z
+    .string()
+    .meta({ description: "Weak ETag; shares version counter with session:{id} and messages:{id}:{limit}" }),
+  messageCount: z
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .meta({ description: "Message count; optional hint for initial page size decision" }),
 })
 
 const AutonomousWorkflowHealthSchema = z.object({
@@ -217,6 +226,7 @@ export const SessionRoutes = lazy(() =>
             .meta({ description: "Filter sessions updated on or after this timestamp (milliseconds since epoch)" }),
           search: z.string().optional().meta({ description: "Filter sessions by title (case-insensitive)" }),
           limit: z.coerce.number().optional().meta({ description: "Maximum number of sessions to return" }),
+          providerFamily: z.literal("claude").optional().meta({ description: "Filter sessions by provider family" }),
         }),
       ),
       async (c) => {
@@ -242,6 +252,7 @@ export const SessionRoutes = lazy(() =>
           start: query.start,
           search: query.search,
           limit: query.limit,
+          providerFamily: query.providerFamily,
         })) {
           sessions.push(session)
         }
@@ -867,6 +878,106 @@ export const SessionRoutes = lazy(() =>
         }
         const session = await Session.create(body)
         return c.json(session)
+      },
+    )
+    .get(
+      "/import/claude",
+      describeRoute({
+        summary: "List Claude Code native transcripts",
+        description:
+          "Lists project-scoped Claude Code native transcript files available for deterministic takeover import.",
+        operationId: "session.listClaudeImports",
+        responses: {
+          200: {
+            description: "Claude Code native transcript list",
+            content: {
+              "application/json": {
+                schema: resolver(ClaudeImport.NativeSession.array()),
+              },
+            },
+          },
+        },
+      }),
+      validator("query", z.object({ directory: z.string().optional() })),
+      async (c) => {
+        const query = c.req.valid("query")
+        const username = RequestUser.username()
+        if (username && UserDaemonManager.routeSessionListEnabled()) {
+          const response = await UserDaemonManager.callSessionImportClaudeList<ClaudeImport.NativeSession[]>(
+            username,
+            query,
+          )
+          if (response.ok && Array.isArray(response.data)) return c.json(response.data)
+          return c.json(
+            {
+              code: response.ok ? "DAEMON_INVALID_PAYLOAD" : response.error.code,
+              message: response.ok
+                ? "daemon session.listClaudeImports payload is not an array"
+                : response.error.message,
+            },
+            503,
+          )
+        }
+        try {
+          const result = await Instance.provide({
+            directory: query.directory ?? Instance.directory,
+            fn: () => ClaudeImport.listNative(query),
+          })
+          return c.json(result)
+        } catch (error) {
+          if (error instanceof ClaudeImport.ImportError) {
+            return c.json({ code: error.code, message: error.message, details: error.details }, 400)
+          }
+          throw error
+        }
+      },
+    )
+    .post(
+      "/import/claude",
+      describeRoute({
+        summary: "Import Claude Code transcript",
+        description:
+          "Deterministically imports or delta-syncs a Claude Code native transcript into an OpenCode takeover session.",
+        operationId: "session.importClaude",
+        responses: {
+          ...errors(400),
+          200: {
+            description: "Successfully imported or synced Claude transcript",
+            content: {
+              "application/json": {
+                schema: resolver(ClaudeImport.Result),
+              },
+            },
+          },
+        },
+      }),
+      validator("json", ClaudeImport.Input),
+      async (c) => {
+        const body = c.req.valid("json")
+        const username = RequestUser.username()
+        if (username && UserDaemonManager.routeSessionMutationEnabled()) {
+          const response = await UserDaemonManager.callSessionImportClaude<ClaudeImport.Result>(username, body)
+          if (response.ok && response.data) return c.json(response.data)
+          return c.json(
+            {
+              code: response.ok ? "DAEMON_INVALID_PAYLOAD" : response.error.code,
+              message: response.ok ? "daemon session.importClaude payload is empty" : response.error.message,
+            },
+            503,
+          )
+        }
+        try {
+          const result = await Instance.provide({
+            directory: body.directory ?? Instance.directory,
+            fn: () => ClaudeImport.importTranscript(body),
+          })
+          return c.json(result)
+        } catch (error) {
+          if (error instanceof ClaudeImport.ImportError) {
+            return c.json({ code: error.code, message: error.message, details: error.details }, 400)
+          }
+          throw error
+        }
       },
     )
     .delete(
@@ -1670,9 +1781,7 @@ export const SessionRoutes = lazy(() =>
                     turnSummariesCount: z.number(),
                     fileIndexCount: z.number(),
                     actionLogCount: z.number(),
-                    lastCompactedAt: z
-                      .object({ round: z.number(), timestamp: z.number() })
-                      .nullable(),
+                    lastCompactedAt: z.object({ round: z.number(), timestamp: z.number() }).nullable(),
                   }),
                 ),
               },
@@ -1856,14 +1965,10 @@ export const SessionRoutes = lazy(() =>
           username: username ?? "local",
         })
         if (username && UserDaemonManager.routeSessionReadEnabled()) {
-          const response = await UserDaemonManager.callSessionMessages<MessageV2.WithParts[]>(
-            username,
-            sessionID,
-            {
-              limit: query.limit,
-              before: query.before,
-            },
-          )
+          const response = await UserDaemonManager.callSessionMessages<MessageV2.WithParts[]>(username, sessionID, {
+            limit: query.limit,
+            before: query.before,
+          })
           if (response.ok && Array.isArray(response.data)) return c.json(response.data)
           return c.json(
             {

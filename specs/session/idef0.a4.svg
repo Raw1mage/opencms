@@ -1,24 +1,24 @@
-<svg width="1604.6" height="757.6" viewBox="-258.3 -171.8 1604.6 757.6" xmlns="http://www.w3.org/2000/svg">
+<svg width="1667.4" height="757.6" viewBox="-289.7 -171.8 1667.4 757.6" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
 <marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
 </defs>
-<rect x="-258.3" y="-171.8" width="1604.6" height="757.6" fill="white" />
+<rect x="-289.7" y="-171.8" width="1667.4" height="757.6" fill="white" />
 <rect x="130.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A41" />
 <text x="230.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A41" >A41</text>
 <text x="230.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A41" >HYDRATE TAIL</text>
-<text x="230.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A41" >ON ATTACH</text>
+<text x="230.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A41" >在 ATTACH</text>
 <rect x="478.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A42" />
 <text x="578.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A42" >A42</text>
 <text x="578.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A42" >SUBSCRIBE</text>
-<text x="578.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A42" >SSE STREAM</text>
+<text x="578.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A42" >SSE 串流</text>
 <rect x="798.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A43" />
 <text x="898.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A43" >A43</text>
 <text x="898.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A43" >LOAD OLDER</text>
-<text x="898.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A43" >SLICE ON SCROLL</text>
+<text x="898.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A43" >SLICE 在 SCROLL</text>
 <rect x="130.0" y="380.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A44" />
 <text x="230.0" y="409.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A44" >A44</text>
-<text x="230.0" y="441.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A44" >REDUCE APPEND</text>
+<text x="230.0" y="441.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A44" >REDUCE 追加</text>
 <text x="230.0" y="472.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A44" >VERSUS REBUILD</text>
 <rect x="478.0" y="380.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A45" />
 <text x="578.0" y="409.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A45" >A45</text>
@@ -26,9 +26,8 @@
 <text x="578.0" y="472.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A45" >PARTS</text>
 <rect x="0.0" y="38.2" width="1088.0" height="537.6" stroke="black" fill="none" stroke-width="2" />
 <rect x="424.0" y="-161.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
-<text x="544.0" y="-135.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >A4</text>
-<text x="544.0" y="-105.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >STREAM FRONTEND</text>
-<text x="544.0" y="-75.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >UPDATES</text>
+<text x="544.0" y="-124.4" text-anchor="middle" font-size="21" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >A4</text>
+<text x="544.0" y="-84.4" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >串流 前端 UPDATES</text>
 <line x1="424.0" y1="-161.8" x2="0.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
 <line x1="664.0" y1="-161.8" x2="1088.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
 <line x1="424.0" y1="-51.8" x2="0.0" y2="575.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
@@ -50,29 +49,28 @@
 <path d="M 578.0 344.2 L 578.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="a4_ctrl_caps" data-waypoints="578.0,344.2 578.0,380.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 578.0 535.8 L 578.0 500.0" stroke="black" stroke-width="1.2" data-arrow-id="a4_mech_fold" data-waypoints="578.0,535.8 578.0,500.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 678.0 440.0 L 1138.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="a4_out_render" data-waypoints="678.0,440.0 1138.0,440.0" marker-end="url(#arrow)" fill="none" />
-<text x="224.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_ctrl_tail">session_tail_mobile</text>
-<text x="236.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_ctrl_tail">session_tail_desktop</text>
+<text x="224.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_ctrl_tail">Sessiontail行動版</text>
+<text x="236.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_ctrl_tail">Sessiontaildesktop</text>
 <text x="224.0" y="256.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_mech_sync">context/sync.tsx</text>
-<text x="236.0" y="256.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_mech_sync">fetchSessionMeta</text>
+<text x="236.0" y="256.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_mech_sync">fetchSessionmeta</text>
 <text x="572.0" y="256.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_mech_sse">server/app.ts</text>
 <text x="584.0" y="256.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_mech_sse">SSE Handler</text>
-<text x="572.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_ctrl_after">Events After</text>
-<text x="584.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_ctrl_after">Subscription Only</text>
+<text x="572.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_ctrl_after">事件 After</text>
+<text x="584.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_ctrl_after">Subscription 僅</text>
 <text x="898.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_ctrl_cursor">before=&lt;id&gt; Cursor Param</text>
 <text x="898.0" y="291.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_mech_lazyload">loadOlderMessages (sync.tsx L321)</text>
 <text x="230.0" y="551.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_mech_reducer">global-sync/event-reducer.ts</text>
-<text x="224.0" y="374.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_ctrl_prefix">Prefix-Match</text>
+<text x="224.0" y="374.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_ctrl_prefix">前綴-比對</text>
 <text x="236.0" y="374.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_ctrl_prefix">Heuristic</text>
-<text x="572.0" y="374.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_ctrl_caps">part_inline_cap_kb 64</text>
-<text x="584.0" y="374.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_ctrl_caps">Stream 500KB Hard Cap</text>
+<text x="572.0" y="374.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_ctrl_caps">partinlinecapkb 64</text>
+<text x="584.0" y="374.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_ctrl_caps">串流 500KB Hard Cap</text>
 <text x="578.0" y="551.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_mech_fold">FoldableMarkdown / data.expandPart</text>
 <text x="404.0" y="175.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_tail_to_sse">Tail Hydrated</text>
 <text x="404.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_tail_to_sse">Store</text>
 <text x="404.0" y="432.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_reduce_to_fold" >Reconciled Parts</text>
 <text x="578.0" y="322.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_older_to_reduce" >Older Slice Prepended</text>
-<text x="230.0" y="308.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_sse_to_reduce" >PartUpdated Or Rebuild Event</text>
-<text x="-54.0" y="171.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_in_route">Session Route</text>
-<text x="-54.0" y="197.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_in_route">Entered</text>
+<text x="230.0" y="308.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_sse_to_reduce" >PartUpdated 或 Rebuild 事件</text>
+<text x="-54.0" y="184.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_in_route">Session 路由 Entered</text>
 <text x="-54.0" y="69.2" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_in_scroll">Scroll-Up</text>
 <text x="-54.0" y="95.2" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_in_scroll">Sentinel</text>
 <text x="1142.0" y="444.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4_out_render">Rendered Timeline</text>

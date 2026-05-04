@@ -6,9 +6,13 @@
     "StepAction": "Collect Baseline Delta Metrics",
     "LinkInputType": [],
     "LinkInputNumber": [],
-    "LinkOutputNumber": [1],
+    "LinkOutputNumber": [
+      1
+    ],
     "LinkOutputType": "track",
-    "Condition": ["baseline instrumentation is added"],
+    "Condition": [
+      "baseline instrumentation 是 added"
+    ],
     "SubGrafcet": []
   },
   {
@@ -17,46 +21,68 @@
     "StepType": "normal",
     "StepAction": "Rewrite Runtime Delta Transport",
     "LinkInputType": [],
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2, 4],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2,
+      4
+    ],
     "LinkOutputType": "or_diverge",
-    "Condition": ["baseline confirms output fanout dominates", "baseline requires scope replan"],
+    "Condition": [
+      "baseline confirms 輸出 fanout dominates",
+      "baseline requires scope replan"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Migrate Web TUI And Bridge Consumers",
+    "StepAction": "Migrate Web TUI 與 Bridge Consumers",
     "LinkInputType": [],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [3],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      3
+    ],
     "LinkOutputType": "track",
-    "Condition": ["delta aware event contract is stable"],
+    "Condition": [
+      "delta aware 事件 contract 是 stable"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Validate Payload Reduction And Rendering Correctness",
+    "StepAction": "Validate Payload Reduction 與 Rendering Correctness",
     "LinkInputType": [],
-    "LinkInputNumber": [2],
+    "LinkInputNumber": [
+      2
+    ],
     "LinkOutputNumber": [],
     "LinkOutputType": "track",
-    "Condition": ["targeted validation passes"],
+    "Condition": [
+      "targeted validation passes"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 4,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Return To Planning For Scope Adjustment",
+    "StepAction": "返回 到 Planning 供 Scope Adjustment",
     "LinkInputType": [],
-    "LinkInputNumber": [1],
+    "LinkInputNumber": [
+      1
+    ],
     "LinkOutputNumber": [],
     "LinkOutputType": "track",
-    "Condition": ["measured dominant cost differs from planned hot path"],
+    "Condition": [
+      "measured dominant cost differs 來自 planned hot 路徑"
+    ],
     "SubGrafcet": []
   }
 ]

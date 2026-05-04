@@ -1,177 +1,399 @@
 {
-  "diagram_title": "Account Manager Unified Refactor v2",
+  "diagram_title": "帳號 Manager Unified Refactor v2",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A0",
-      "title": "Unified Account Manager Refactor",
-      "description": "Build AccountManager service layer with event bus, eliminate silent fallbacks, unify mutation paths across all surfaces, and harden deploy verification.",
+      "title": "Unified 帳號 Manager Refactor",
+      "description": "建置 帳號manager service layer 使用 事件 bus, eliminate 靜默 fallbacks, unify mutation 路徑 across all surfaces, 與 harden 部署 verification.",
       "decomposition": {
         "node_reference": "A0",
         "activities": [
           {
             "id": "A1",
-            "title": "Build AccountManager Service + Event Bus (Slice 0)",
-            "description": "Create the central AccountManager service, integrate typed event bus, implement write-ahead storage safety, and declare provider capabilities.",
+            "title": "建置 帳號manager Service + 事件 Bus (Slice 0)",
+            "description": "Create central 帳號manager service, integrate typed 事件 bus, implement write-ahead 儲存 safety, 與 declare Provider capabilities.",
             "decomposition": {
               "node_reference": "A1",
               "activities": [
                 {
                   "id": "A11",
-                  "title": "Define AccountManager API",
-                  "description": "Create account/manager.ts with connectAccount, renameAccount, removeAccount, setActiveAccount, beginLogin, getQuotaHint signatures.",
+                  "title": "Define 帳號manager API",
+                  "description": "Create account/manager.ts 使用 connect帳號, rename帳號, remove帳號, setactive帳號, begin登入, get配額hint signatures.",
                   "decomposition": null
                 },
                 {
                   "id": "A12",
-                  "title": "Integrate Event Bus",
-                  "description": "Define typed account events (connected/renamed/removed/active-changed) and emit from each mutation method.",
+                  "title": "Integrate 事件 Bus",
+                  "description": "Define typed 帳號 事件 (connected/renamed/removed/active-changed) 與 發出 來自 each mutation method.",
                   "decomposition": null
                 },
                 {
                   "id": "A13",
-                  "title": "Implement Write-Ahead Storage",
-                  "description": "Refactor Account.save() to temp-file → rename → update-memory pattern ensuring crash-safe writes.",
+                  "title": "Implement Write-Ahead 儲存",
+                  "description": "Refactor 帳號.save() 到 temp-檔案 → rename → 更新-memory pattern ensuring crash-safe writes.",
                   "decomposition": null
                 },
                 {
                   "id": "A14",
                   "title": "Declare Provider Capabilities",
-                  "description": "Add ProviderCapabilities interface to provider config, replace hardcoded gemini-cli/google-api branches with capability lookups.",
+                  "description": "Add Providercapabilities interface 到 Provider 設定, replace hardcoded gemini-cli/google-api branches 使用 capability lookups.",
                   "decomposition": null
                 },
                 {
                   "id": "A15",
-                  "title": "Setup Event Consumers",
-                  "description": "Wire TUI subscriber, Web SSE channel, and Console SSE listener for account events.",
+                  "title": "Setup 事件 Consumers",
+                  "description": "Wire TUI subscriber, Web SSE 通道, 與 Console SSE listener 供 帳號 事件.",
                   "decomposition": null
                 }
               ],
               "arrows": [
-                { "id": "a1arr1", "source": "EXTERNAL", "target": "A11:input", "label": "Current Auth+Account API", "type": "input" },
-                { "id": "a1arr2", "source": "A11:output", "target": "A12:input", "label": "AccountManager API", "type": "output" },
-                { "id": "a1arr3", "source": "A12:output", "target": "A13:input", "label": "Event-Emitting Service", "type": "output" },
-                { "id": "a1arr4", "source": "A13:output", "target": "A14:input", "label": "Safe-Write Service", "type": "output" },
-                { "id": "a1arr5", "source": "A14:output", "target": "A15:input", "label": "Capability-Aware Service", "type": "output" },
-                { "id": "a1arr6", "source": "A15:output", "target": "A2:input", "label": "Complete Service Layer", "type": "output" }
+                {
+                  "id": "a1arr1",
+                  "source": "EXTERNAL",
+                  "target": "A11:input",
+                  "label": "Current 驗證+帳號 API",
+                  "type": "input"
+                },
+                {
+                  "id": "a1arr2",
+                  "source": "A11:output",
+                  "target": "A12:input",
+                  "label": "帳號manager API",
+                  "type": "output"
+                },
+                {
+                  "id": "a1arr3",
+                  "source": "A12:output",
+                  "target": "A13:input",
+                  "label": "事件-Emitting Service",
+                  "type": "output"
+                },
+                {
+                  "id": "a1arr4",
+                  "source": "A13:output",
+                  "target": "A14:input",
+                  "label": "Safe-Write Service",
+                  "type": "output"
+                },
+                {
+                  "id": "a1arr5",
+                  "source": "A14:output",
+                  "target": "A15:input",
+                  "label": "Capability-Aware Service",
+                  "type": "output"
+                },
+                {
+                  "id": "a1arr6",
+                  "source": "A15:output",
+                  "target": "A2:input",
+                  "label": "完成 Service Layer",
+                  "type": "output"
+                }
               ]
             }
           },
           {
             "id": "A2",
-            "title": "Backend Convergence (Slice A+B)",
-            "description": "Delegate all route mutations to AccountManager, add mismatch guards, eliminate silent fallbacks.",
+            "title": "後端 Convergence (Slice +B)",
+            "description": "Delegate all 路由 mutations 到 帳號manager, add mismatch guards, eliminate 靜默 fallbacks.",
             "decomposition": {
               "node_reference": "A2",
               "activities": [
                 {
                   "id": "A21",
-                  "title": "Route Service Delegation (Slice A)",
-                  "description": "Rewrite all mutation routes to delegate to AccountManager, add providerKey/family mismatch guard returning 400.",
+                  "title": "路由 Service Delegation (Slice )",
+                  "description": "Rewrite all mutation 路由 到 delegate 到 帳號manager, add Providerkey/family mismatch guard returning 400.",
                   "decomposition": null
                 },
                 {
                   "id": "A22",
-                  "title": "Silent Fallback Elimination (Slice B)",
-                  "description": "Auth.set disclosure, UserDaemonManager single-path, mutation target validation, explicit migration logging.",
+                  "title": "靜默 fallback Elimination (Slice B)",
+                  "description": "驗證.set disclosure, 使用者daemonmanager single-路徑, mutation 目標 validation, explicit migration logging.",
                   "decomposition": null
                 }
               ],
               "arrows": [
-                { "id": "a2arr1", "source": "A1:output", "target": "A21:input", "label": "AccountManager Service", "type": "input" },
-                { "id": "a2arr2", "source": "A1:output", "target": "A22:input", "label": "AccountManager Service", "type": "input" },
-                { "id": "a2arr3", "source": "A21:output", "target": "A3:input", "label": "Delegated Routes", "type": "output" },
-                { "id": "a2arr4", "source": "A22:output", "target": "A3:input", "label": "Fallback-Free Service", "type": "output" }
+                {
+                  "id": "a2arr1",
+                  "source": "A1:output",
+                  "target": "A21:input",
+                  "label": "帳號manager Service",
+                  "type": "input"
+                },
+                {
+                  "id": "a2arr2",
+                  "source": "A1:output",
+                  "target": "A22:input",
+                  "label": "帳號manager Service",
+                  "type": "input"
+                },
+                {
+                  "id": "a2arr3",
+                  "source": "A21:output",
+                  "target": "A3:input",
+                  "label": "Delegated 路由",
+                  "type": "output"
+                },
+                {
+                  "id": "a2arr4",
+                  "source": "A22:output",
+                  "target": "A3:input",
+                  "label": "fallback-Free Service",
+                  "type": "output"
+                }
               ]
             }
           },
           {
             "id": "A3",
             "title": "CLI/TUI Convergence (Slice C)",
-            "description": "Replace all direct Account.*/Auth.* mutation calls in CLI and TUI with AccountManager calls.",
+            "description": "Replace all direct 帳號.*/驗證.* mutation calls 在 CLI 與 TUI 使用 帳號manager calls.",
             "decomposition": null
           },
           {
             "id": "A4",
-            "title": "Frontend Convergence (Slice D+E)",
-            "description": "Unify session-local vs global active authority, align app/console surface contracts, replace console full-reload with SSE sync.",
+            "title": "前端 Convergence (Slice D+E)",
+            "description": "Unify Session-local vs 全域 active authority, align app/console surface contracts, replace console full-重載 使用 SSE sync.",
             "decomposition": {
               "node_reference": "A4",
               "activities": [
                 {
                   "id": "A41",
                   "title": "Authority Unification (Slice D)",
-                  "description": "Define session-local ephemeral selection vs global active account, implement separate UI badges, handle session-local account deletion.",
+                  "description": "Define Session-local ephemeral selection vs 全域 active 帳號, implement separate UI badges, handle Session-local 帳號 deletion.",
                   "decomposition": null
                 },
                 {
                   "id": "A42",
                   "title": "Surface Alignment (Slice E)",
-                  "description": "Unify app/console form semantics, route model-manager actions through AccountManager, replace console reload with SSE.",
+                  "description": "Unify app/console form semantics, 路由 模型-manager actions through 帳號manager, replace console 重載 使用 SSE.",
                   "decomposition": null
                 }
               ],
               "arrows": [
-                { "id": "a4arr1", "source": "A3:output", "target": "A41:input", "label": "Converged CLI/TUI", "type": "input" },
-                { "id": "a4arr2", "source": "A3:output", "target": "A42:input", "label": "Converged CLI/TUI", "type": "input" },
-                { "id": "a4arr3", "source": "A41:output", "target": "A5:input", "label": "Unified Authority", "type": "output" },
-                { "id": "a4arr4", "source": "A42:output", "target": "A5:input", "label": "Aligned Surfaces", "type": "output" }
+                {
+                  "id": "a4arr1",
+                  "source": "A3:output",
+                  "target": "A41:input",
+                  "label": "Converged CLI/TUI",
+                  "type": "input"
+                },
+                {
+                  "id": "a4arr2",
+                  "source": "A3:output",
+                  "target": "A42:input",
+                  "label": "Converged CLI/TUI",
+                  "type": "input"
+                },
+                {
+                  "id": "a4arr3",
+                  "source": "A41:output",
+                  "target": "A5:input",
+                  "label": "Unified Authority",
+                  "type": "output"
+                },
+                {
+                  "id": "a4arr4",
+                  "source": "A42:output",
+                  "target": "A5:input",
+                  "label": "Aligned Surfaces",
+                  "type": "output"
+                }
               ]
             }
           },
           {
             "id": "A5",
             "title": "Hardening (Slice F)",
-            "description": "Automate deploy SHA256 gate, harden Account ID format, completely eliminate family naming drift, make silent migrations explicit.",
+            "description": "Automate 部署 SHA256 gate, harden 帳號 ID format, completely eliminate family naming drift, make 靜默 migrations explicit.",
             "decomposition": {
               "node_reference": "A5",
               "activities": [
                 {
                   "id": "A51",
-                  "title": "Deploy Gate Automation",
-                  "description": "Add verify_deploy() SHA256 check to webctl.sh, fail dev-refresh on hash mismatch.",
+                  "title": "部署 Gate Automation",
+                  "description": "Add verify deploy() SHA256 check 到 webctl.sh, fail 開發刷新 在 hash mismatch.",
                   "decomposition": null
                 },
                 {
                   "id": "A52",
                   "title": "Legacy Cleanup — Family 完全消除",
-                  "description": "Eliminate parseProvider()/parseFamily() entirely, remove all FamilyData/FAMILIES/resolveFamily exports, rename canonical-family-source → canonical-provider-source, migrate storage key families→providers, make migrations explicit.",
+                  "description": "Eliminate parseProvider()/parseFamily() entirely, remove all FamilyData/FAMILIES/解析family exports, rename canonical-family-來源 → canonical-Provider-來源, migrate 儲存 key families→Provider, make migrations explicit.",
                   "decomposition": null
                 }
               ],
               "arrows": [
-                { "id": "a5arr1", "source": "A4:output", "target": "A51:input", "label": "Converged System", "type": "input" },
-                { "id": "a5arr2", "source": "A51:output", "target": "A52:input", "label": "Verified Deploy", "type": "output" },
-                { "id": "a5arr3", "source": "A52:output", "target": "EXTERNAL", "label": "Hardened System", "type": "output" }
+                {
+                  "id": "a5arr1",
+                  "source": "A4:output",
+                  "target": "A51:input",
+                  "label": "Converged System",
+                  "type": "input"
+                },
+                {
+                  "id": "a5arr2",
+                  "source": "A51:output",
+                  "target": "A52:input",
+                  "label": "Verified 部署",
+                  "type": "output"
+                },
+                {
+                  "id": "a5arr3",
+                  "source": "A52:output",
+                  "target": "EXTERNAL",
+                  "label": "Hardened System",
+                  "type": "output"
+                }
               ]
             }
           }
         ],
         "arrows": [
-          { "id": "arr1", "source": "EXTERNAL", "target": "A1:input", "label": "Current Account System", "type": "input" },
-          { "id": "arr2", "source": "A1:output", "target": "A2:input", "label": "AccountManager + Event Bus", "type": "output" },
-          { "id": "arr3", "source": "A2:output", "target": "A3:input", "label": "Backend Converged", "type": "output" },
-          { "id": "arr4", "source": "A3:output", "target": "A4:input", "label": "All Mutations Unified", "type": "output" },
-          { "id": "arr5", "source": "A4:output", "target": "A5:input", "label": "Frontend Converged", "type": "output" },
-          { "id": "arr6", "source": "A5:output", "target": "EXTERNAL", "label": "Hardened Unified System", "type": "output" },
-          { "id": "arr7", "source": "EXTERNAL", "target": "A1:control", "label": "No Silent Fallback Policy", "type": "control" },
-          { "id": "arr8", "source": "EXTERNAL", "target": "A2:control", "label": "Transport-Only Route Policy", "type": "control" },
-          { "id": "arr9", "source": "EXTERNAL", "target": "A3:control", "label": "Single Mutation Entry Policy", "type": "control" },
-          { "id": "arr10", "source": "EXTERNAL", "target": "A4:control", "label": "Authority Separation Policy", "type": "control" },
-          { "id": "arr11", "source": "EXTERNAL", "target": "A5:control", "label": "Family Elimination Policy + UX Invariance Constraint", "type": "control" },
-          { "id": "arr12", "source": "EXTERNAL", "target": "A1:mechanism", "label": "Bus Infrastructure + Provider Config", "type": "mechanism" },
-          { "id": "arr13", "source": "EXTERNAL", "target": "A2:mechanism", "label": "Route Source + Auth Source", "type": "mechanism" },
-          { "id": "arr14", "source": "EXTERNAL", "target": "A3:mechanism", "label": "CLI/TUI Source", "type": "mechanism" },
-          { "id": "arr15", "source": "EXTERNAL", "target": "A4:mechanism", "label": "App/Console/Dialog Source", "type": "mechanism" },
-          { "id": "arr16", "source": "EXTERNAL", "target": "A5:mechanism", "label": "webctl.sh + Lint Tools", "type": "mechanism" }
+          {
+            "id": "arr1",
+            "source": "EXTERNAL",
+            "target": "A1:input",
+            "label": "Current 帳號 System",
+            "type": "input"
+          },
+          {
+            "id": "arr2",
+            "source": "A1:output",
+            "target": "A2:input",
+            "label": "帳號manager + 事件 Bus",
+            "type": "output"
+          },
+          {
+            "id": "arr3",
+            "source": "A2:output",
+            "target": "A3:input",
+            "label": "後端 Converged",
+            "type": "output"
+          },
+          {
+            "id": "arr4",
+            "source": "A3:output",
+            "target": "A4:input",
+            "label": "All Mutations Unified",
+            "type": "output"
+          },
+          {
+            "id": "arr5",
+            "source": "A4:output",
+            "target": "A5:input",
+            "label": "前端 Converged",
+            "type": "output"
+          },
+          {
+            "id": "arr6",
+            "source": "A5:output",
+            "target": "EXTERNAL",
+            "label": "Hardened Unified System",
+            "type": "output"
+          },
+          {
+            "id": "arr7",
+            "source": "EXTERNAL",
+            "target": "A1:control",
+            "label": "無 靜默 fallback Policy",
+            "type": "control"
+          },
+          {
+            "id": "arr8",
+            "source": "EXTERNAL",
+            "target": "A2:control",
+            "label": "Transport-僅 路由 Policy",
+            "type": "control"
+          },
+          {
+            "id": "arr9",
+            "source": "EXTERNAL",
+            "target": "A3:control",
+            "label": "Single Mutation 項目 Policy",
+            "type": "control"
+          },
+          {
+            "id": "arr10",
+            "source": "EXTERNAL",
+            "target": "A4:control",
+            "label": "Authority Separation Policy",
+            "type": "control"
+          },
+          {
+            "id": "arr11",
+            "source": "EXTERNAL",
+            "target": "A5:control",
+            "label": "Family Elimination Policy + UX Invariance Constraint",
+            "type": "control"
+          },
+          {
+            "id": "arr12",
+            "source": "EXTERNAL",
+            "target": "A1:mechanism",
+            "label": "Bus Infrastructure + Provider 設定",
+            "type": "mechanism"
+          },
+          {
+            "id": "arr13",
+            "source": "EXTERNAL",
+            "target": "A2:mechanism",
+            "label": "路由 來源 + 驗證 來源",
+            "type": "mechanism"
+          },
+          {
+            "id": "arr14",
+            "source": "EXTERNAL",
+            "target": "A3:mechanism",
+            "label": "CLI/TUI 來源",
+            "type": "mechanism"
+          },
+          {
+            "id": "arr15",
+            "source": "EXTERNAL",
+            "target": "A4:mechanism",
+            "label": "App/Console/對話框 來源",
+            "type": "mechanism"
+          },
+          {
+            "id": "arr16",
+            "source": "EXTERNAL",
+            "target": "A5:mechanism",
+            "label": "webctl.sh + Lint Tools",
+            "type": "mechanism"
+          }
         ]
       }
     }
   ],
   "arrows": [
-    { "id": "root1", "source": "EXTERNAL", "target": "A0:input", "label": "Fragmented Account System", "type": "input" },
-    { "id": "root2", "source": "A0:output", "target": "EXTERNAL", "label": "Unified Account Manager with Event Bus", "type": "output" },
-    { "id": "root3", "source": "EXTERNAL", "target": "A0:control", "label": "Architecture + No-Fallback Constraints", "type": "control" },
-    { "id": "root4", "source": "EXTERNAL", "target": "A0:mechanism", "label": "Planner + Builder Workflow", "type": "mechanism" }
+    {
+      "id": "root1",
+      "source": "EXTERNAL",
+      "target": "A0:input",
+      "label": "Fragmented 帳號 System",
+      "type": "input"
+    },
+    {
+      "id": "root2",
+      "source": "A0:output",
+      "target": "EXTERNAL",
+      "label": "Unified 帳號 Manager 使用 事件 Bus",
+      "type": "output"
+    },
+    {
+      "id": "root3",
+      "source": "EXTERNAL",
+      "target": "A0:control",
+      "label": "Architecture + 無-fallback Constraints",
+      "type": "control"
+    },
+    {
+      "id": "root4",
+      "source": "EXTERNAL",
+      "target": "A0:mechanism",
+      "label": "Planner + Builder 工作流程",
+      "type": "mechanism"
+    }
   ]
 }

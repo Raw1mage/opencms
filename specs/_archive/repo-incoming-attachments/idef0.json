@@ -1,5 +1,5 @@
 {
-  "diagram_title": "Manage Incoming Attachments — opencode runtime file lifecycle from upload to mcp-derived artifacts",
+  "diagram_title": "Manage Incoming 附件 — opencode runtime 檔案 lifecycle 來自 上傳 到 mcp-derived artifacts",
   "node_reference": "A0",
   "viewpoint": "opencode runtime — file lifecycle from upload to mcp-derived artifacts",
   "purpose": "Decompose how an uploaded file moves into the repo, gets tracked, and triggers mcp-driven derivative production.",
@@ -7,102 +7,235 @@
     {
       "id": "A0",
       "name": "Manage Incoming Attachments",
-      "inputs": ["A0-I1: User-uploaded file body", "A0-I2: AI tool calls referencing incoming/**"],
-      "controls": ["A0-C1: session.project.path", "A0-C2: tweaks.cfg (idle/cap policies)", "A0-C3: AGENTS.md no-silent-fallback rule"],
-      "outputs": ["A0-O1: Files persisted under <repo>/incoming/", "A0-O2: History journals incoming/.history/*.jsonl", "A0-O3: Bundles in <repo>/incoming/<stem>/", "A0-O4: Bus events for observability"],
-      "mechanisms": ["A0-M1: opencode daemon", "A0-M2: docxmcp container", "A0-M3: user-state directory ~/.local/state/opencode/"]
+      "inputs": [
+        "A0-I1: User-uploaded file body",
+        "A0-I2: AI tool calls referencing incoming/**"
+      ],
+      "controls": [
+        "A0-C1: session.project.path",
+        "A0-C2: tweaks.cfg (idle/cap policies)",
+        "A0-C3: AGENTS.md no-silent-fallback rule"
+      ],
+      "outputs": [
+        "A0-O1: Files persisted under <repo>/incoming/",
+        "A0-O2: History journals incoming/.history/*.jsonl",
+        "A0-O3: Bundles in <repo>/incoming/<stem>/",
+        "A0-O4: Bus events for observability"
+      ],
+      "mechanisms": [
+        "A0-M1: opencode daemon",
+        "A0-M2: docxmcp container",
+        "A0-M3: user-state directory ~/.local/state/opencode/"
+      ]
     },
     {
       "id": "A1",
       "parent": "A0",
       "name": "Receive and place upload",
-      "inputs": ["A1-I1: File body stream", "A1-I2: filename", "A1-I3: sessionId"],
-      "controls": ["A1-C1: session.project.path", "A1-C2: conflict-naming rule (D=a)"],
-      "outputs": ["A1-O1: Persisted incoming/<filename>", "A1-O2: AttachmentRef returned to client"],
-      "mechanisms": ["A1-M1: Upload route", "A1-M2: incoming.paths resolver"]
+      "inputs": [
+        "A1-I1: File body stream",
+        "A1-I2: filename",
+        "A1-I3: sessionId"
+      ],
+      "controls": [
+        "A1-C1: session.project.path",
+        "A1-C2: conflict-naming rule (D=a)"
+      ],
+      "outputs": [
+        "A1-O1: Persisted incoming/<filename>",
+        "A1-O2: AttachmentRef returned to client"
+      ],
+      "mechanisms": [
+        "A1-M1: Upload route",
+        "A1-M2: incoming.paths resolver"
+      ]
     },
     {
       "id": "A2",
       "parent": "A0",
       "name": "Append history entry",
-      "inputs": ["A2-I1: Transition event (upload | tool-write | drift | bundle-published)"],
-      "controls": ["A2-C1: HistoryEntry schema v1", "A2-C2: append-only invariant"],
-      "outputs": ["A2-O1: New jsonl line in incoming/.history/<filename>.jsonl", "A2-O2: Bus event incoming.history.appended"],
-      "mechanisms": ["A2-M1: history.ts append API"]
+      "inputs": [
+        "A2-I1: Transition event (upload | tool-write | drift | bundle-published)"
+      ],
+      "controls": [
+        "A2-C1: HistoryEntry schema v1",
+        "A2-C2: append-only invariant"
+      ],
+      "outputs": [
+        "A2-O1: New jsonl line in incoming/.history/<filename>.jsonl",
+        "A2-O2: Bus event incoming.history.appended"
+      ],
+      "mechanisms": [
+        "A2-M1: history.ts append API"
+      ]
     },
     {
       "id": "A3",
       "parent": "A0",
       "name": "Compute and lookup current sha",
-      "inputs": ["A3-I1: filename"],
-      "controls": ["A3-C1: cheap-stat threshold (mtime + sizeBytes)", "A3-C2: drift safety net rule"],
-      "outputs": ["A3-O1: currentSha256", "A3-O2: optional drift-detected history entry (via A2)"],
-      "mechanisms": ["A3-M1: history.ts lookup API"]
+      "inputs": [
+        "A3-I1: filename"
+      ],
+      "controls": [
+        "A3-C1: cheap-stat threshold (mtime + sizeBytes)",
+        "A3-C2: drift safety net rule"
+      ],
+      "outputs": [
+        "A3-O1: currentSha256",
+        "A3-O2: optional drift-detected history entry (via A2)"
+      ],
+      "mechanisms": [
+        "A3-M1: history.ts lookup API"
+      ]
     },
     {
       "id": "A4",
       "parent": "A0",
       "name": "Dispatch mcp tool with stage-in / publish-out",
-      "inputs": ["A4-I1: tool-call args containing incoming/** path", "A4-I2: appId"],
-      "controls": ["A4-C1: mcp container mount boundary (/state only)", "A4-C2: sha-keyed cache policy"],
-      "outputs": ["A4-O1: tool result with repo paths", "A4-O2: bundle published in incoming/<stem>/", "A4-O3: cache populated bundles/<sha>/"],
-      "mechanisms": ["A4-M1: incoming.dispatcher", "A4-M2: docxmcp / future mcp containers"]
+      "inputs": [
+        "A4-I1: tool-call args containing incoming/** path",
+        "A4-I2: appId"
+      ],
+      "controls": [
+        "A4-C1: mcp container mount boundary (/state only)",
+        "A4-C2: sha-keyed cache policy"
+      ],
+      "outputs": [
+        "A4-O1: tool result with repo paths",
+        "A4-O2: bundle published in incoming/<stem>/",
+        "A4-O3: cache populated bundles/<sha>/"
+      ],
+      "mechanisms": [
+        "A4-M1: incoming.dispatcher",
+        "A4-M2: docxmcp / future mcp containers"
+      ]
     },
     {
       "id": "A4.1",
       "parent": "A4",
       "name": "Resolve sha and check cache",
-      "inputs": ["A4.1-I1: tool args", "A4.1-I2: appId"],
+      "inputs": [
+        "A4.1-I1: tool args",
+        "A4.1-I2: appId"
+      ],
       "controls": [],
-      "outputs": ["A4.1-O1: cache-hit | cache-miss decision", "A4.1-O2: sha"],
-      "mechanisms": ["A4.1-M1: history lookup (calls A3)", "A4.1-M2: stat bundles/<sha>/"]
+      "outputs": [
+        "A4.1-O1: cache-hit | cache-miss decision",
+        "A4.1-O2: sha"
+      ],
+      "mechanisms": [
+        "A4.1-M1: history lookup (calls A3)",
+        "A4.1-M2: stat bundles/<sha>/"
+      ]
     },
     {
       "id": "A4.2",
       "parent": "A4",
       "name": "Stage repo file into mcp-staging",
-      "inputs": ["A4.2-I1: incoming/<filename>", "A4.2-I2: sha"],
+      "inputs": [
+        "A4.2-I1: incoming/<filename>",
+        "A4.2-I2: sha"
+      ],
       "controls": [],
-      "outputs": ["A4.2-O1: mcp-staging/<app>/staging/<sha>.<ext>"],
-      "mechanisms": ["A4.2-M1: cp"]
+      "outputs": [
+        "A4.2-O1: mcp-staging/<app>/staging/<sha>.<ext>"
+      ],
+      "mechanisms": [
+        "A4.2-M1: cp"
+      ]
     },
     {
       "id": "A4.3",
       "parent": "A4",
       "name": "Invoke mcp tool",
-      "inputs": ["A4.3-I1: rewritten args"],
-      "controls": ["A4.3-C1: mcp protocol contract"],
-      "outputs": ["A4.3-O1: bundle in mcp-staging/<app>/bundles/<sha>/"],
-      "mechanisms": ["A4.3-M1: StdioClientTransport to docxmcp"]
+      "inputs": [
+        "A4.3-I1: rewritten args"
+      ],
+      "controls": [
+        "A4.3-C1: mcp protocol contract"
+      ],
+      "outputs": [
+        "A4.3-O1: bundle in mcp-staging/<app>/bundles/<sha>/"
+      ],
+      "mechanisms": [
+        "A4.3-M1: StdioClientTransport to docxmcp"
+      ]
     },
     {
       "id": "A4.4",
       "parent": "A4",
       "name": "Publish bundle back to incoming/",
-      "inputs": ["A4.4-I1: mcp-staging/<app>/bundles/<sha>/"],
-      "controls": ["A4.4-C1: cp-not-hard-link policy v1 (DD-11)"],
-      "outputs": ["A4.4-O1: incoming/<stem>/", "A4.4-O2: history entry source=bundle-published"],
-      "mechanisms": ["A4.4-M1: cp -r", "A4.4-M2: history append (calls A2)"]
+      "inputs": [
+        "A4.4-I1: mcp-staging/<app>/bundles/<sha>/"
+      ],
+      "controls": [
+        "A4.4-C1: cp-not-hard-link policy v1 (DD-11)"
+      ],
+      "outputs": [
+        "A4.4-O1: incoming/<stem>/",
+        "A4.4-O2: history entry source=bundle-published"
+      ],
+      "mechanisms": [
+        "A4.4-M1: cp -r",
+        "A4.4-M2: history append (calls A2)"
+      ]
     },
     {
       "id": "A5",
       "parent": "A0",
       "name": "Hook tool-write to history",
-      "inputs": ["A5-I1: Edit/Write/Bash tool result", "A5-I2: paths touched"],
-      "controls": ["A5-C1: paths matching incoming/** trigger hook"],
-      "outputs": ["A5-O1: history entry source=tool:<name>"],
-      "mechanisms": ["A5-M1: tool dispatcher post-action hook"]
+      "inputs": [
+        "A5-I1: Edit/Write/Bash tool result",
+        "A5-I2: paths touched"
+      ],
+      "controls": [
+        "A5-C1: paths matching incoming/** trigger hook"
+      ],
+      "outputs": [
+        "A5-O1: history entry source=tool:<name>"
+      ],
+      "mechanisms": [
+        "A5-M1: tool dispatcher post-action hook"
+      ]
     }
   ],
   "traceability": {
-    "A1": ["R1", "R5", "R9", "R10"],
-    "A2": ["R2", "R5"],
-    "A3": ["R5", "R7"],
-    "A4": ["R3", "R4", "R8"],
-    "A4.1": ["R4"],
-    "A4.2": ["R3", "R8"],
-    "A4.3": ["R3", "R8"],
-    "A4.4": ["R3", "R4"],
-    "A5": ["R6"]
+    "A1": [
+      "R1",
+      "R5",
+      "R9",
+      "R10"
+    ],
+    "A2": [
+      "R2",
+      "R5"
+    ],
+    "A3": [
+      "R5",
+      "R7"
+    ],
+    "A4": [
+      "R3",
+      "R4",
+      "R8"
+    ],
+    "A4.1": [
+      "R4"
+    ],
+    "A4.2": [
+      "R3",
+      "R8"
+    ],
+    "A4.3": [
+      "R3",
+      "R8"
+    ],
+    "A4.4": [
+      "R3",
+      "R4"
+    ],
+    "A5": [
+      "R6"
+    ]
   }
 }

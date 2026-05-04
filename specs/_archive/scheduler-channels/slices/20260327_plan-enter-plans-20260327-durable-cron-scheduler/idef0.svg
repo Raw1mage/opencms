@@ -1,53 +1,50 @@
-<svg width="1543.0" height="911.6" viewBox="-142.0 -215.8 1543.0 911.6" xmlns="http://www.w3.org/2000/svg">
+<svg width="1138.3" height="661.6" viewBox="-181.1 -165.8 1138.3 661.6" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
 <marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
 </defs>
-<rect x="-142.0" y="-215.8" width="1543.0" height="911.6" fill="white" />
-<rect x="130.0" y="120.0" width="338.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
-<text x="299.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >A1</text>
-<text x="299.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >CONSOLIDATE</text>
-<text x="299.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >SCHEDULER BASELINE</text>
-<rect x="655.0" y="120.0" width="338.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
-<text x="824.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >A2</text>
-<text x="824.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >HARDEN RUNTIME</text>
-<text x="824.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >EVIDENCE</text>
-<rect x="130.0" y="360.0" width="338.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
-<text x="299.0" y="396.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >A3</text>
-<text x="299.0" y="426.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >SYNC DURABLE</text>
-<text x="299.0" y="456.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >SCHEDULER</text>
-<text x="299.0" y="486.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >DOCUMENTATION</text>
-<path d="M 468.0 200.0 L 655.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR3" data-waypoints="468.0,200.0 655.0,200.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 993.0 200.0 L 1023.0 200.0 Q 1033.0 200.0 1033.0 210.0 L 1033.0 311.8 Q 1033.0 321.8 1023.0 321.8 L 100.0 321.8 Q 90.0 321.8 90.0 331.8 L 90.0 430.0 Q 90.0 440.0 100.0 440.0 L 130.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="AR5" data-waypoints="993.0,200.0 1033.0,200.0 1033.0,321.8 90.0,321.8 90.0,440.0 130.0,440.0" marker-end="url(#arrow)" fill="none" />
-<path d="M -58.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR1" data-waypoints="-58.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 468.0 440.0 L 1317.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="AR6" data-waypoints="468.0,440.0 1317.0,440.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 299.0 84.2 L 299.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR2" data-waypoints="299.0,84.2 299.0,120.0" marker-end="url(#arrow)" fill="none" />
-<text x="293.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR2" >Architecture And</text>
-<text x="305.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR2" >Event Evidence</text>
-<path d="M 824.0 84.2 L 824.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR4" data-waypoints="824.0,84.2 824.0,120.0" marker-end="url(#arrow)" fill="none" />
-<text x="818.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR4" >Fail-Fast</text>
-<text x="830.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR4" >Validation Policy</text>
-<path d="M 299.0 315.8 L 299.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="AR7" data-waypoints="299.0,315.8 299.0,280.0" marker-end="url(#arrow)" fill="none" />
-<text x="293.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR7" >Planner Artifacts</text>
-<text x="305.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR7" >And Cron Modules</text>
-<path d="M 824.0 315.8 L 824.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="AR8" data-waypoints="824.0,315.8 824.0,280.0" marker-end="url(#arrow)" fill="none" />
-<text x="818.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR8" >Cron Tests And</text>
-<text x="830.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR8" >Web Runtime</text>
-<path d="M 299.0 555.8 L 299.0 520.0" stroke="black" stroke-width="1.2" data-arrow-id="AR9" data-waypoints="299.0,555.8 299.0,520.0" marker-end="url(#arrow)" fill="none" />
-<text x="293.0" y="536.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR9" >Event Log And</text>
-<text x="305.0" y="536.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR9" >Architecture SSOT</text>
-<rect x="30.0" y="24.2" width="1063.0" height="591.6" stroke="black" fill="none" stroke-width="2" />
-<rect x="389.5" y="-175.8" width="344.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
-<text x="561.5" y="-164.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >A0</text>
-<text x="561.5" y="-134.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >DURABLE CRON</text>
-<text x="561.5" y="-104.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >SCHEDULER</text>
-<text x="561.5" y="-74.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >CONSOLIDATION</text>
-<line x1="389.5" y1="-175.8" x2="30.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="733.5" y1="-175.8" x2="1093.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="389.5" y1="-65.8" x2="30.0" y2="615.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="733.5" y1="-65.8" x2="1093.0" y2="615.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<text x="561.5" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR3" >Consolidated Baseline</text>
-<text x="299.0" y="339.8" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR5" >Validated Runtime Evidence</text>
-<text x="26.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR1" >Plan Intent</text>
-<text x="1097.0" y="432.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR6" >Execution-Ready Plan Package</text>
+<rect x="-181.1" y="-165.8" width="1138.3" height="661.6" fill="white" />
+<rect x="130.0" y="120.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="230.0" y="143.9" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
+<text x="230.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >CONSOLIDATE 排</text>
+<text x="230.0" y="197.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >程器 BASELINE</text>
+<rect x="446.0" y="120.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="546.0" y="143.9" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
+<text x="546.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >HARDEN RUNTIME</text>
+<text x="546.0" y="197.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >EVIDENCE</text>
+<rect x="130.0" y="310.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="230.0" y="333.9" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >A3</text>
+<text x="230.0" y="361.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >SYNC DURABLE 排程</text>
+<text x="230.0" y="387.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >器 DOCUMENTATION</text>
+<rect x="40.0" y="44.2" width="696.0" height="441.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="229.5" y="-155.8" width="317.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="388.0" y="-129.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >A0</text>
+<text x="388.0" y="-99.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >DURABLE CRON 排程</text>
+<text x="388.0" y="-69.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >器 CONSOLIDATION</text>
+<line x1="229.5" y1="-155.8" x2="40.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="546.5" y1="-155.8" x2="736.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="229.5" y1="-45.8" x2="40.0" y2="485.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="546.5" y1="-45.8" x2="736.0" y2="485.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 330.0 170.0 L 446.0 170.0" stroke="black" stroke-width="1.2" data-arrow-id="AR3" data-waypoints="330.0,170.0 446.0,170.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 646.0 170.0 L 676.0 170.0 Q 686.0 170.0 686.0 180.0 L 686.0 260.0 Q 686.0 270.0 676.0 270.0 L 100.0 270.0 Q 90.0 270.0 90.0 280.0 L 90.0 350.0 Q 90.0 360.0 100.0 360.0 L 130.0 360.0" stroke="black" stroke-width="1.2" data-arrow-id="AR5" data-waypoints="646.0,170.0 686.0,170.0 686.0,270.0 90.0,270.0 90.0,360.0 130.0,360.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -10.0 170.0 L 130.0 170.0" stroke="black" stroke-width="1.2" data-arrow-id="AR1" data-waypoints="-10.0,170.0 130.0,170.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR2" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 546.0 84.2 L 546.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR4" data-waypoints="546.0,84.2 546.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 360.0 L 786.0 360.0" stroke="black" stroke-width="1.2" data-arrow-id="AR6" data-waypoints="330.0,360.0 786.0,360.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 255.8 L 230.0 220.0" stroke="black" stroke-width="1.2" data-arrow-id="AR7" data-waypoints="230.0,255.8 230.0,220.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 546.0 255.8 L 546.0 220.0" stroke="black" stroke-width="1.2" data-arrow-id="AR8" data-waypoints="546.0,255.8 546.0,220.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 445.8 L 230.0 410.0" stroke="black" stroke-width="1.2" data-arrow-id="AR9" data-waypoints="230.0,445.8 230.0,410.0" marker-end="url(#arrow)" fill="none" />
+<text x="230.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR2">Architecture 與 事件 Evidence</text>
+<text x="546.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR4">Fail-Fast Validation Policy</text>
+<text x="224.0" y="236.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR7">Planner Artifacts</text>
+<text x="236.0" y="236.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR7">Cron Modules</text>
+<text x="540.0" y="236.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR8">Cron Tests</text>
+<text x="552.0" y="236.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR8">Web Runtime</text>
+<text x="230.0" y="461.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR9">事件 記錄 與 Architecture SSOT</text>
+<text x="388.0" y="165.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR3">Consolidated</text>
+<text x="388.0" y="182.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR3">Baseline</text>
+<text x="230.0" y="288.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR5" >Validated Runtime Evidence</text>
+<text x="-14.0" y="174.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR1">規劃 Intent</text>
+<text x="790.0" y="351.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR6">Execution-就緒</text>
+<text x="790.0" y="377.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR6">規劃 Package</text>
 </svg>

@@ -1,35 +1,35 @@
 {
-  "diagram_title": "Operate Unified Message Bus",
+  "diagram_title": "Operate Unified 訊息 Bus",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A1",
-      "title": "Publish Event To Topic",
-      "description": "Validate event props against zod schema and dispatch to all topic subscribers. Entry point for 124 Bus.publish sites + 318 debugCheckpoint sites via Bus.debug wrapper.",
+      "title": "發布 事件 到 Topic",
+      "description": "Validate 事件 props against zod schema 與 派發 到 all topic subscribers. 項目 point 供 124 Bus.發布 sites + 318 debugCheckpoint sites 透過 Bus.debug wrapper.",
       "decomposition": "A1"
     },
     {
       "id": "A2",
-      "title": "Route To Backend Subscribers",
-      "description": "Execute registered backend subscriber callbacks: debug-writer (debug.log), tui-toaster (TUI toast). Each subscriber applies its own logLevel gate.",
+      "title": "路由 到 後端 Subscribers",
+      "description": "Execute 已註冊 後端 subscriber callbacks: debug-writer (debug.記錄), tui-toaster (TUI toast). Each subscriber applies its own 記錄level gate.",
       "decomposition": "A2"
     },
     {
       "id": "A3",
-      "title": "Transport To Frontend Via SSE",
-      "description": "GlobalBus SSE transport adapter — wildcard subscriber that relays all events to frontend via Hono streamSSE endpoint /api/v2/global/event.",
+      "title": "Transport 到 前端 透過 SSE",
+      "description": "全域bus SSE transport adapter — wildcard subscriber that relays all 事件 到 前端 透過 Hono 串流SSE endpoint /api/v2/全域/事件.",
       "decomposition": null
     },
     {
       "id": "A4",
-      "title": "Route Frontend Events To Components",
-      "description": "Broadcast-first delivery to all children stores. Frontend subscribers (webapp toaster, LLM card, session list) process events via event-reducer.",
+      "title": "路由 前端 事件 到 Components",
+      "description": "Broadcast-first delivery 到 all children stores. 前端 subscribers (webapp toaster, LLM card, Session 清單) process 事件 透過 事件-reducer.",
       "decomposition": null
     },
     {
       "id": "A5",
-      "title": "Migrate Legacy Event Callers",
-      "description": "Backward-compatible wrappers: debugCheckpoint() → Bus.debug(), GlobalBus.emit() → Bus.publish(), TuiEvent.ToastShow → tui-toaster subscriber.",
+      "title": "Migrate Legacy 事件 Callers",
+      "description": "Backward-compatible wrappers: debugCheckpoint() → Bus.debug(), 全域bus.emit() → Bus.publish(), tui事件.ToastShow → tui-toaster subscriber.",
       "decomposition": null
     }
   ],
@@ -38,28 +38,28 @@
       "id": "AR1",
       "source": "EXTERNAL",
       "target": "A1:input",
-      "label": "Event Props From Publisher",
+      "label": "事件 Props 來自 Publisher",
       "type": "input"
     },
     {
       "id": "AR2",
       "source": "EXTERNAL",
       "target": "A5:input",
-      "label": "Legacy debugCheckpoint And GlobalBus Calls",
+      "label": "Legacy debugCheckpoint 與 全域bus Calls",
       "type": "input"
     },
     {
       "id": "AR3",
       "source": "EXTERNAL",
       "target": "A1:control",
-      "label": "Zod Schema Validation",
+      "label": "Zod schema Validation",
       "type": "control"
     },
     {
       "id": "AR4",
       "source": "EXTERNAL",
       "target": "A2:control",
-      "label": "OPENCODE_LOG_LEVEL Subscriber Filter",
+      "label": "OPENCODE LOG LEVEL Subscriber Filter",
       "type": "control"
     },
     {
@@ -73,21 +73,21 @@
       "id": "AR6",
       "source": "A1:output",
       "target": "A2:input",
-      "label": "Validated Event With Topic",
+      "label": "Validated 事件 使用 Topic",
       "type": "output"
     },
     {
       "id": "AR7",
       "source": "A1:output",
       "target": "A3:input",
-      "label": "Validated Event For SSE Transport",
+      "label": "Validated 事件 供 SSE Transport",
       "type": "output"
     },
     {
       "id": "AR8",
       "source": "A2:output",
       "target": "EXTERNAL",
-      "label": "Debug Log Entries",
+      "label": "Debug 記錄 Entries",
       "type": "output"
     },
     {
@@ -101,7 +101,7 @@
       "id": "AR10",
       "source": "A3:output",
       "target": "A4:input",
-      "label": "SSE Event Stream",
+      "label": "SSE 事件 串流",
       "type": "output"
     },
     {
@@ -115,42 +115,42 @@
       "id": "AR12",
       "source": "A4:output",
       "target": "EXTERNAL",
-      "label": "Webapp Card State Updates",
+      "label": "Webapp Card 狀態 Updates",
       "type": "output"
     },
     {
       "id": "AR13",
       "source": "A5:output",
       "target": "A1:input",
-      "label": "Wrapped Legacy Events",
+      "label": "Wrapped Legacy 事件",
       "type": "output"
     },
     {
       "id": "AR14",
       "source": "EXTERNAL",
       "target": "A1:mechanism",
-      "label": "Bus.publish Dispatcher",
+      "label": "Bus.發布 Dispatcher",
       "type": "mechanism"
     },
     {
       "id": "AR15",
       "source": "EXTERNAL",
       "target": "A2:mechanism",
-      "label": "Bus.subscribe Callback Registry",
+      "label": "Bus.subscribe Callback 註冊表",
       "type": "mechanism"
     },
     {
       "id": "AR16",
       "source": "EXTERNAL",
       "target": "A3:mechanism",
-      "label": "GlobalBus SSE Adapter And Hono streamSSE",
+      "label": "全域bus SSE Adapter 與 Hono 串流SSE",
       "type": "mechanism"
     },
     {
       "id": "AR17",
       "source": "EXTERNAL",
       "target": "A4:mechanism",
-      "label": "SolidJS Store And Event Reducer",
+      "label": "SolidJS Store 與 事件 Reducer",
       "type": "mechanism"
     },
     {

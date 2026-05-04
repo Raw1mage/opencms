@@ -1,55 +1,50 @@
-<svg width="1267.4" height="717.6" viewBox="-229.7 -165.8 1267.4 717.6" xmlns="http://www.w3.org/2000/svg">
+<svg width="1163.0" height="717.6" viewBox="-204.0 -165.8 1163.0 717.6" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
 <marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
 </defs>
-<rect x="-229.7" y="-165.8" width="1267.4" height="717.6" fill="white" />
+<rect x="-204.0" y="-165.8" width="1163.0" height="717.6" fill="white" />
 <rect x="130.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A21" />
-<text x="230.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >A21</text>
-<text x="230.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >UPDATE USER</text>
-<text x="230.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >REGISTRY</text>
-<rect x="478.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A22" />
-<text x="578.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >A22</text>
-<text x="578.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >PUBLISH</text>
-<text x="578.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >SYSTEM ROUTE</text>
+<text x="230.0" y="162.9" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >A21</text>
+<text x="230.0" y="201.5" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >更新 使用者註冊表</text>
+<rect x="425.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A22" />
+<text x="525.0" y="159.9" text-anchor="middle" font-size="26" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >A22</text>
+<text x="525.0" y="207.0" text-anchor="middle" font-size="28" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >發布 系統路由</text>
 <rect x="130.0" y="340.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A23" />
-<text x="230.0" y="369.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >A23</text>
-<text x="230.0" y="401.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >RELOAD</text>
-<text x="230.0" y="432.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >GATEWAY TABLE</text>
-<rect x="478.0" y="340.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A24" />
-<text x="578.0" y="369.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >A24</text>
-<text x="578.0" y="401.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >PROBE ROUTE</text>
-<text x="578.0" y="432.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >HEALTH</text>
-<rect x="40.0" y="44.2" width="728.0" height="497.6" stroke="black" fill="none" stroke-width="2" />
-<rect x="284.0" y="-155.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
-<text x="404.0" y="-114.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
-<text x="404.0" y="-84.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >REGISTER GATEWAY ROUTE</text>
-<line x1="284.0" y1="-155.8" x2="40.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="524.0" y1="-155.8" x2="768.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="284.0" y1="-45.8" x2="40.0" y2="541.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="524.0" y1="-45.8" x2="768.0" y2="541.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<path d="M 330.0 180.0 L 478.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a2m1" data-waypoints="330.0,180.0 478.0,180.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 380.0 L 478.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="a2m3" data-waypoints="330.0,380.0 478.0,380.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 678.0 180.0 L 708.0 180.0 Q 718.0 180.0 718.0 190.0 L 718.0 280.0 Q 718.0 290.0 708.0 290.0 L 100.0 290.0 Q 90.0 290.0 90.0 300.0 L 90.0 390.0 Q 90.0 400.0 100.0 400.0 L 130.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="a2m2" data-waypoints="678.0,180.0 718.0,180.0 718.0,290.0 90.0,290.0 90.0,400.0 130.0,400.0" marker-end="url(#arrow)" fill="none" />
+<text x="230.0" y="383.5" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >A23</text>
+<text x="230.0" y="420.6" text-anchor="middle" font-size="21" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >重載 GATEWAY 表</text>
+<rect x="425.0" y="340.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A24" />
+<text x="525.0" y="382.9" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >A24</text>
+<text x="525.0" y="421.5" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >探測 路由健康狀態</text>
+<rect x="40.0" y="44.2" width="675.0" height="497.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="257.5" y="-155.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="377.5" y="-118.4" text-anchor="middle" font-size="21" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
+<text x="377.5" y="-78.4" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >註冊 GATEWAY 路由</text>
+<line x1="257.5" y1="-155.8" x2="40.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="497.5" y1="-155.8" x2="715.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="257.5" y1="-45.8" x2="40.0" y2="541.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="497.5" y1="-45.8" x2="715.0" y2="541.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 330.0 180.0 L 425.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a2m1" data-waypoints="330.0,180.0 425.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 380.0 L 425.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="a2m3" data-waypoints="330.0,380.0 425.0,380.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 625.0 180.0 L 655.0 180.0 Q 665.0 180.0 665.0 190.0 L 665.0 280.0 Q 665.0 290.0 655.0 290.0 L 100.0 290.0 Q 90.0 290.0 90.0 300.0 L 90.0 390.0 Q 90.0 400.0 100.0 400.0 L 130.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="a2m2" data-waypoints="625.0,180.0 665.0,180.0 665.0,290.0 90.0,290.0 90.0,400.0 130.0,400.0" marker-end="url(#arrow)" fill="none" />
 <path d="M -10.0 180.0 L 130.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a2in1" data-waypoints="-10.0,180.0 130.0,180.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a2c1" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 578.0 275.8 L 578.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a2mch2" data-waypoints="578.0,275.8 578.0,240.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 525.0 275.8 L 525.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a2mch2" data-waypoints="525.0,275.8 525.0,240.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 230.0 304.2 L 230.0 340.0" stroke="black" stroke-width="1.2" data-arrow-id="a2c3" data-waypoints="230.0,304.2 230.0,340.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 578.0 495.8 L 578.0 460.0" stroke="black" stroke-width="1.2" data-arrow-id="a2mch4" data-waypoints="578.0,495.8 578.0,460.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 420.0 L 394.0 420.0 Q 404.0 420.0 404.0 430.0 L 404.0 491.8 Q 404.0 501.8 414.0 501.8 L 818.0 501.8" stroke="black" stroke-width="1.2" data-arrow-id="a2out1" data-waypoints="330.0,420.0 404.0,420.0 404.0,501.8 818.0,501.8" marker-end="url(#arrow)" fill="none" />
-<path d="M 678.0 400.0 L 818.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="a2out2" data-waypoints="678.0,400.0 818.0,400.0" marker-end="url(#arrow)" fill="none" />
-<text x="230.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2c1">registry schema</text>
-<text x="572.0" y="256.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2mch2">ctl.sock</text>
-<text x="584.0" y="256.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2mch2">admin socket</text>
+<path d="M 525.0 495.8 L 525.0 460.0" stroke="black" stroke-width="1.2" data-arrow-id="a2mch4" data-waypoints="525.0,495.8 525.0,460.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 420.0 L 367.5 420.0 Q 377.5 420.0 377.5 430.0 L 377.5 491.8 Q 377.5 501.8 387.5 501.8 L 765.0 501.8" stroke="black" stroke-width="1.2" data-arrow-id="a2out1" data-waypoints="330.0,420.0 377.5,420.0 377.5,501.8 765.0,501.8" marker-end="url(#arrow)" fill="none" />
+<path d="M 625.0 400.0 L 765.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="a2out2" data-waypoints="625.0,400.0 765.0,400.0" marker-end="url(#arrow)" fill="none" />
+<text x="230.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2c1">註冊表 schema</text>
+<text x="519.0" y="256.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2mch2">ctl.sock</text>
+<text x="531.0" y="256.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2mch2">管理 socket</text>
 <text x="224.0" y="334.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2c3">SIGHUP</text>
-<text x="236.0" y="334.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2c3">startup signal</text>
-<text x="572.0" y="476.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2mch4">tcpProbe</text>
-<text x="584.0" y="476.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2mch4">() helper</text>
-<text x="404.0" y="172.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2m1" >registered entry</text>
-<text x="404.0" y="398.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2m3" >active route</text>
-<text x="578.0" y="308.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2m2" >web_routes.conf line</text>
-<text x="-14.0" y="184.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2in1">entry declaration</text>
-<text x="822.0" y="492.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out1">splice-ready</text>
-<text x="822.0" y="518.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out1">prefix</text>
-<text x="822.0" y="404.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out2">health status JSON</text>
+<text x="236.0" y="334.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2c3">啟動訊號</text>
+<text x="519.0" y="476.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2mch4">tcpProbe</text>
+<text x="531.0" y="476.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2mch4">() helper</text>
+<text x="377.5" y="172.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2m1" >已註冊項目</text>
+<text x="377.5" y="372.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2m3" >作用中路由</text>
+<text x="525.0" y="308.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2m2" >web routes.conf line</text>
+<text x="-14.0" y="184.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2in1">項目 declaration</text>
+<text x="769.0" y="505.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out1">splice-就緒 前綴</text>
+<text x="769.0" y="404.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out2">健康 狀態 JSON</text>
 </svg>

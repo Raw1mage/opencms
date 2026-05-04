@@ -1,144 +1,333 @@
 {
-  "diagram_title": "Subagent quota safety gate + observation tools",
+  "diagram_title": "子代理 配額 safety gate + observation tools",
   "node_reference": "A0",
   "parent_reference": null,
   "standard": "IEEE 1320.1-1998 / FIPS 183 (IDEF0)",
   "activities": [
     {
       "id": "A1",
-      "label": "Spawn subagent with task-tool source marker",
+      "label": "啟動 子代理 使用 任務-工具 來源 marker",
       "description": "Task tool 建立新 subsession 時在 session.info 標 source='task-tool' + parentSessionID",
-      "inputs": ["Parent session", "Task tool args"],
-      "outputs": ["New session.info with source='task-tool'", "subagent runloop starts"],
-      "controls": ["DD-11: spawn origin 標記"],
-      "mechanisms": ["packages/opencode/src/tool/task.ts"]
+      "inputs": [
+        "Parent session",
+        "Task tool args"
+      ],
+      "outputs": [
+        "New session.info with source='task-tool'",
+        "subagent runloop starts"
+      ],
+      "controls": [
+        "DD-11: spawn origin 標記"
+      ],
+      "mechanisms": [
+        "packages/opencode/src/tool/task.ts"
+      ]
     },
     {
       "id": "A2",
-      "label": "Subagent executes tool-call round",
-      "description": "Subagent LLM 吐 tool_use → runtime 執行 → tool_result 回給 LLM",
-      "inputs": ["LLM request", "tools"],
-      "outputs": ["Completed tool-call entry in session messages"],
-      "controls": ["既有 runloop"],
-      "mechanisms": ["session/prompt.ts or processor.ts"]
+      "label": "子代理 executes 工具-呼叫 round",
+      "description": "Subagent LLM 吐 tool use → runtime 執行 → tool result 回給 LLM",
+      "inputs": [
+        "LLM request",
+        "tools"
+      ],
+      "outputs": [
+        "Completed tool-call entry in session messages"
+      ],
+      "controls": [
+        "既有 runloop"
+      ],
+      "mechanisms": [
+        "session/prompt.ts or processor.ts"
+      ]
     },
     {
       "id": "A3",
-      "label": "Pre-dispatch quota gate check",
+      "label": "Pre-派發 配額 gate check",
       "description": "下一筆 provider request 發出前，runtime 判斷是否 task-tool subagent、gate 是否啟用、呼叫 probe 拿剩餘 %",
-      "inputs": ["session.source", "tweaks.cfg", "AccountQuotaProbe result"],
-      "outputs": ["gate_decision {trip, triggerWindow?, remainingPercent?}"],
+      "inputs": [
+        "session.source",
+        "tweaks.cfg",
+        "AccountQuotaProbe result"
+      ],
+      "outputs": [
+        "gate_decision {trip, triggerWindow?, remainingPercent?}"
+      ],
       "controls": [
         "DD-10: tool-call 邊界 hook",
         "DD-11: 只管 task-tool subagent",
         "DD-12: min(5H, weekly) < threshold",
         "DD-14: probe 不可用則放行 + WARN"
       ],
-      "mechanisms": ["新 gate hook module"]
+      "mechanisms": [
+        "新 gate hook module"
+      ]
     },
     {
       "id": "A4",
-      "label": "Probe quota via AccountQuotaProbe registry",
+      "label": "探測 配額 透過 帳號配額探測 註冊表",
       "description": "讀 quota-cache.json；stale 時 fetch live API 寫回；失敗則回 probe-failed",
-      "inputs": ["provider", "accountId", "TTL"],
-      "outputs": ["UsagePayload | {probe-failed}"],
-      "controls": ["DD-17: 共享 cache+registry", "DD-3: TTL 60s default"],
-      "mechanisms": ["account/quota-probe.ts + codex 實作"]
+      "inputs": [
+        "provider",
+        "accountId",
+        "TTL"
+      ],
+      "outputs": [
+        "UsagePayload | {probe-failed}"
+      ],
+      "controls": [
+        "DD-17: 共享 cache+registry",
+        "DD-3: TTL 60s default"
+      ],
+      "mechanisms": [
+        "account/quota-probe.ts + codex 實作"
+      ]
     },
     {
       "id": "A5",
-      "label": "Cancel subagent with quota-gate-trip reason",
+      "label": "Cancel 子代理 使用 配額-gate-trip reason",
       "description": "Runtime 呼叫 cancel(session, reason='quota-gate-trip')；subagent runloop 結束、不再發 request",
-      "inputs": ["session", "CancelReason"],
-      "outputs": ["subagent runloop terminated", "bus: session.canceled"],
+      "inputs": [
+        "session",
+        "CancelReason"
+      ],
+      "outputs": [
+        "subagent runloop terminated",
+        "bus: session.canceled"
+      ],
       "controls": [
         "DD-13: 新 CancelReason",
         "Prerequisite: fix prompt.ts:390-403 manual_interrupt override bug"
       ],
-      "mechanisms": ["prompt-runtime.ts cancel path"]
+      "mechanisms": [
+        "prompt-runtime.ts cancel path"
+      ]
     },
     {
       "id": "A6",
       "label": "Generate structured trip summary",
       "description": "Runtime 機械掃 subagent 的 messages / SharedContext / TodoWrite state，產 StructuredSummary",
-      "inputs": ["subagent session messages", "SharedContext snapshot"],
-      "outputs": ["StructuredSummary JSON"],
+      "inputs": [
+        "subagent session messages",
+        "SharedContext snapshot"
+      ],
+      "outputs": [
+        "StructuredSummary JSON"
+      ],
       "controls": [
         "DD-15: 不呼叫 LLM",
         "DD-17: max_tool_calls=20、last_message_max_chars=500 等上限"
       ],
-      "mechanisms": ["session/quota-trip-summary.ts (new)"]
+      "mechanisms": [
+        "session/quota-trip-summary.ts (new)"
+      ]
     },
     {
       "id": "A7",
-      "label": "Return TaskResult (tripped=true) to parent",
-      "description": "Task tool 把 {tripped, reason, summary, sharedContext} 組成 tool_result 回 parent LLM",
-      "inputs": ["StructuredSummary", "SharedContext", "trip metadata"],
-      "outputs": ["parent session 收到 tool_result"],
-      "controls": ["DD-16: TaskResult union 型別"],
-      "mechanisms": ["tool/task.ts result composer"]
+      "label": "返回 任務結果 (tripped=true) 到 父層",
+      "description": "Task tool 把 {tripped, reason, summary, sharedContext} 組成 tool result 回 parent LLM",
+      "inputs": [
+        "StructuredSummary",
+        "SharedContext",
+        "trip metadata"
+      ],
+      "outputs": [
+        "parent session 收到 tool_result"
+      ],
+      "controls": [
+        "DD-16: TaskResult union 型別"
+      ],
+      "mechanisms": [
+        "tool/task.ts result composer"
+      ]
     },
     {
       "id": "A8",
-      "label": "Observation tool self-check (supporting)",
-      "description": "任何 session 呼叫 get_my_current_usage，bridge 注入 sessionID，tool 回 UsagePayload + 新鮮度",
-      "inputs": ["LLM tool call", "sessionID (bridge-injected)"],
-      "outputs": ["SupportedQuotaResponse | UnsupportedQuotaResponse"],
-      "controls": ["v1 DD-1..7 全部保留"],
-      "mechanisms": ["MCP bridge + system-manager tool + quota-probe registry"]
+      "label": "Observation 工具 self-check (supporting)",
+      "description": "任何 session 呼叫 get my current usage，bridge 注入 sessionID，tool 回 UsagePayload + 新鮮度",
+      "inputs": [
+        "LLM tool call",
+        "sessionID (bridge-injected)"
+      ],
+      "outputs": [
+        "SupportedQuotaResponse | UnsupportedQuotaResponse"
+      ],
+      "controls": [
+        "v1 DD-1..7 全部保留"
+      ],
+      "mechanisms": [
+        "MCP bridge + system-manager tool + quota-probe registry"
+      ]
     },
     {
       "id": "A9",
-      "label": "Main handler — pick healthiest candidate account",
+      "label": "Main handler — pick healthiest candidate 帳號",
       "description": "gate trip on main session → 選同 family 內 best-available 帳號（排除 self、cooldown、probe-fail）",
-      "inputs": ["current accountId", "family accounts[]", "quota-cache.json", "rotation-state.json cooldowns"],
-      "outputs": ["candidate accountId or null (hard-stop path)"],
-      "controls": ["DD-21: best-available by 5H remaining", "R-22: 30s rotate cooldown"],
-      "mechanisms": ["account/pick-healthiest-account.ts (new)"]
+      "inputs": [
+        "current accountId",
+        "family accounts[]",
+        "quota-cache.json",
+        "rotation-state.json cooldowns"
+      ],
+      "outputs": [
+        "candidate accountId or null (hard-stop path)"
+      ],
+      "controls": [
+        "DD-21: best-available by 5H remaining",
+        "R-22: 30s rotate cooldown"
+      ],
+      "mechanisms": [
+        "account/pick-healthiest-account.ts (new)"
+      ]
     },
     {
       "id": "A10",
-      "label": "Main handler — unpin + re-pin with override",
+      "label": "Main handler — unpin + re-釘選 使用 override",
       "description": "呼叫 pinExecutionIdentity(new, {override:'quota-gate-rotate',...})；append overrideHistory",
-      "inputs": ["session", "new accountId", "override metadata"],
-      "outputs": ["session.info updated", "bus: session.quotaGateRotated"],
-      "controls": ["DD-22: override contract"],
-      "mechanisms": ["session/index.ts pinExecutionIdentity (extended)"]
+      "inputs": [
+        "session",
+        "new accountId",
+        "override metadata"
+      ],
+      "outputs": [
+        "session.info updated",
+        "bus: session.quotaGateRotated"
+      ],
+      "controls": [
+        "DD-22: override contract"
+      ],
+      "mechanisms": [
+        "session/index.ts pinExecutionIdentity (extended)"
+      ]
     },
     {
       "id": "A11",
-      "label": "Main handler — emit banner to UI",
+      "label": "Main handler — 發出 banner 到 UI",
       "description": "Bus event 送到 SSE；前端 render non-blocking system notice",
-      "inputs": ["quotaGateRotated event"],
-      "outputs": ["banner visible in conversation timeline"],
-      "controls": ["DD-24: info severity, non-blocking"],
-      "mechanisms": ["session bus + SSE + frontend notice component"]
+      "inputs": [
+        "quotaGateRotated event"
+      ],
+      "outputs": [
+        "banner visible in conversation timeline"
+      ],
+      "controls": [
+        "DD-24: info severity, non-blocking"
+      ],
+      "mechanisms": [
+        "session bus + SSE + frontend notice component"
+      ]
     },
     {
       "id": "A12",
       "label": "Main handler — hard-stop fallback",
       "description": "候選為空 / cooldown / 全 probe 失敗 → 插入 assistant hard-stop message + finishReason",
-      "inputs": ["session", "StructuredSummary (audience:'user')"],
-      "outputs": ["appended assistant message", "finishReason='quota-gate-hard-stop'", "SSE close"],
-      "controls": ["DD-23: 走 natural finish 而非 cancel"],
-      "mechanisms": ["session runloop finish path"]
+      "inputs": [
+        "session",
+        "StructuredSummary (audience:'user')"
+      ],
+      "outputs": [
+        "appended assistant message",
+        "finishReason='quota-gate-hard-stop'",
+        "SSE close"
+      ],
+      "controls": [
+        "DD-23: 走 natural finish 而非 cancel"
+      ],
+      "mechanisms": [
+        "session runloop finish path"
+      ]
     }
   ],
   "relationships": [
-    { "from": "A1", "to": "A2", "kind": "triggers", "via": "subagent runloop start" },
-    { "from": "A2", "to": "A3", "kind": "produces-input", "via": "tool-call completed, pre-dispatch hook fires" },
-    { "from": "A3", "to": "A4", "kind": "calls", "via": "probe(provider, accountId)" },
-    { "from": "A4", "to": "A3", "kind": "produces-input", "via": "UsagePayload" },
-    { "from": "A3", "to": "A2", "kind": "allows", "via": "gate_decision.trip=false → next round" },
-    { "from": "A3", "to": "A5", "kind": "triggers", "via": "trip AND session.source='task-tool'" },
-    { "from": "A3", "to": "A9", "kind": "triggers", "via": "trip AND session.source='user-initiated'|null" },
-    { "from": "A5", "to": "A6", "kind": "triggers", "via": "generate summary before result composition" },
-    { "from": "A6", "to": "A7", "kind": "produces-input", "via": "StructuredSummary (audience:'parent-llm')" },
-    { "from": "A9", "to": "A10", "kind": "triggers", "via": "candidate found" },
-    { "from": "A9", "to": "A12", "kind": "triggers", "via": "no candidate / cooldown" },
-    { "from": "A10", "to": "A11", "kind": "triggers", "via": "bus: session.quotaGateRotated" },
-    { "from": "A10", "to": "A2", "kind": "allows", "via": "next request uses new pin" },
-    { "from": "A12", "to": "A6", "kind": "calls", "via": "quota-trip-summary.ts (audience:'user')" },
-    { "from": "A8", "to": "A4", "kind": "calls", "via": "shared probe registry" }
+    {
+      "from": "A1",
+      "to": "A2",
+      "kind": "triggers",
+      "via": "subagent runloop start"
+    },
+    {
+      "from": "A2",
+      "to": "A3",
+      "kind": "produces-input",
+      "via": "tool-call completed, pre-dispatch hook fires"
+    },
+    {
+      "from": "A3",
+      "to": "A4",
+      "kind": "calls",
+      "via": "probe(provider, accountId)"
+    },
+    {
+      "from": "A4",
+      "to": "A3",
+      "kind": "produces-input",
+      "via": "UsagePayload"
+    },
+    {
+      "from": "A3",
+      "to": "A2",
+      "kind": "allows",
+      "via": "gate_decision.trip=false → next round"
+    },
+    {
+      "from": "A3",
+      "to": "A5",
+      "kind": "triggers",
+      "via": "trip AND session.source='task-tool'"
+    },
+    {
+      "from": "A3",
+      "to": "A9",
+      "kind": "triggers",
+      "via": "trip AND session.source='user-initiated'|null"
+    },
+    {
+      "from": "A5",
+      "to": "A6",
+      "kind": "triggers",
+      "via": "generate summary before result composition"
+    },
+    {
+      "from": "A6",
+      "to": "A7",
+      "kind": "produces-input",
+      "via": "StructuredSummary (audience:'parent-llm')"
+    },
+    {
+      "from": "A9",
+      "to": "A10",
+      "kind": "triggers",
+      "via": "candidate found"
+    },
+    {
+      "from": "A9",
+      "to": "A12",
+      "kind": "triggers",
+      "via": "no candidate / cooldown"
+    },
+    {
+      "from": "A10",
+      "to": "A11",
+      "kind": "triggers",
+      "via": "bus: session.quotaGateRotated"
+    },
+    {
+      "from": "A10",
+      "to": "A2",
+      "kind": "allows",
+      "via": "next request uses new pin"
+    },
+    {
+      "from": "A12",
+      "to": "A6",
+      "kind": "calls",
+      "via": "quota-trip-summary.ts (audience:'user')"
+    },
+    {
+      "from": "A8",
+      "to": "A4",
+      "kind": "calls",
+      "via": "shared probe registry"
+    }
   ]
 }

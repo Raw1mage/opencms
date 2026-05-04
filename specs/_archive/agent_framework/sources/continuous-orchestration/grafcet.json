@@ -3,60 +3,92 @@
     "StepNumber": 0,
     "ModuleRef": "A1",
     "StepType": "initial",
-    "StepAction": "Receive Task Dispatch Request",
+    "StepAction": "Receive 任務 派發 請求",
     "LinkInputType": [],
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [1],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      1
+    ],
     "LinkOutputType": "track",
-    "Condition": ["orchestrator_calls_task"],
+    "Condition": [
+      "協調器calls任務"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 1,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Dispatch Child Worker And Return Metadata",
+    "StepAction": "派發 Child worker 與 返回 Metadata",
     "LinkInputType": [],
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2
+    ],
     "LinkOutputType": "track",
-    "Condition": ["child_session_created_and_worker_spawned"],
+    "Condition": [
+      "childSessioncreated與workerspawned"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Await Completion Event In Background",
+    "StepAction": "等待 Completion 事件 在 Background",
     "LinkInputType": [],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [3,4],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      3,
+      4
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["task_worker_done", "task_worker_failed"],
+    "Condition": [
+      "任務workerdone",
+      "任務workerfailed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Resume Parent With Success Message",
+    "StepAction": "Resume 父層 使用 Success 訊息",
     "LinkInputType": [],
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [0],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["parent_message_injected_and_enqueued"],
+    "Condition": [
+      "父層訊息injected與enqueued"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 4,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Resume Parent With Failure Message",
+    "StepAction": "Resume 父層 使用 Failure 訊息",
     "LinkInputType": [],
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [0],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["failure_message_injected_and_enqueued"],
+    "Condition": [
+      "failure訊息injected與enqueued"
+    ],
     "SubGrafcet": []
   }
 ]

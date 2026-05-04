@@ -5,30 +5,29 @@
 </defs>
 <rect x="-218.3" y="-171.8" width="1244.6" height="661.8" fill="white" />
 <rect x="130.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A21" />
-<text x="230.0" y="151.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >A21</text>
-<text x="230.0" y="181.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >LOOK UP BASE</text>
-<text x="230.0" y="211.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >CHAIN PER OBSERVED</text>
+<text x="230.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >A21</text>
+<text x="230.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >LOOK UP BASE</text>
+<text x="230.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >CHAIN 依 OBSERVED</text>
 <rect x="478.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A22" />
 <text x="578.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >A22</text>
-<text x="578.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >RESOLVE PROVIDER</text>
+<text x="578.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >解析 PROVIDER</text>
 <text x="578.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >AWARE REORDER</text>
 <rect x="130.0" y="320.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A23" />
 <text x="230.0" y="349.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >A23</text>
 <text x="230.0" y="381.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >APPLY MANUAL</text>
-<text x="230.0" y="412.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >RICH OVERRIDE</text>
+<text x="230.0" y="412.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >豐富 OVERRIDE</text>
 <rect x="478.0" y="320.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A24" />
 <text x="578.0" y="349.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >A24</text>
-<text x="578.0" y="381.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >EMIT KIND</text>
-<text x="578.0" y="412.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >CHAIN TELEMETRY</text>
+<text x="578.0" y="381.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >發出 KIND CHAIN</text>
+<text x="578.0" y="412.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >TELEMETRY</text>
 <rect x="40.0" y="38.2" width="728.0" height="441.8" stroke="black" fill="none" stroke-width="2" />
-<rect x="264.0" y="-161.8" width="280.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
-<text x="404.0" y="-135.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
-<text x="404.0" y="-105.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >SELECT COMPACTION</text>
-<text x="404.0" y="-75.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >KIND CHAIN</text>
-<line x1="264.0" y1="-161.8" x2="40.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="544.0" y1="-161.8" x2="768.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="264.0" y1="-51.8" x2="40.0" y2="480.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="544.0" y1="-51.8" x2="768.0" y2="480.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<rect x="284.0" y="-161.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="404.0" y="-120.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
+<text x="404.0" y="-90.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >SELECT 壓縮 KIND CHAIN</text>
+<line x1="284.0" y1="-161.8" x2="40.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="524.0" y1="-161.8" x2="768.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="284.0" y1="-51.8" x2="40.0" y2="480.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="524.0" y1="-51.8" x2="768.0" y2="480.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
 <path d="M 330.0 200.0 L 478.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_out_base" data-waypoints="330.0,200.0 478.0,200.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 330.0 380.0 L 478.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_out_final" data-waypoints="330.0,380.0 478.0,380.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 678.0 180.0 L 708.0 180.0 Q 718.0 180.0 718.0 190.0 L 718.0 270.0 Q 718.0 280.0 708.0 280.0 L 100.0 280.0 Q 90.0 280.0 90.0 290.0 L 90.0 350.0 Q 90.0 360.0 100.0 360.0 L 130.0 360.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_out_resolved" data-waypoints="678.0,180.0 718.0,180.0 718.0,280.0 90.0,280.0 90.0,360.0 130.0,360.0" marker-end="url(#arrow)" fill="none" />
@@ -38,17 +37,17 @@
 <path d="M 578.0 84.2 L 578.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_ctrl_threshold" data-waypoints="578.0,84.2 578.0,120.0" marker-end="url(#arrow)" fill="none" />
 <path d="M -10.0 400.0 L 130.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_in_intent" data-waypoints="-10.0,400.0 130.0,400.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 678.0 380.0 L 818.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_out_chain" data-waypoints="678.0,380.0 818.0,380.0" marker-end="url(#arrow)" fill="none" />
-<text x="224.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_ctrl_table">KIND_CHAIN</text>
-<text x="236.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_ctrl_table">Table</text>
-<text x="578.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_ctrl_threshold">CodexServerPriorityRatio</text>
+<text x="224.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_ctrl_table">KIND</text>
+<text x="236.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_ctrl_table">CHAIN 表</text>
+<text x="578.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_ctrl_threshold">codex伺服器優先序ratio</text>
 <text x="404.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_out_base" >Base Chain</text>
 <text x="404.0" y="372.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_out_final" >Final Kind Chain</text>
-<text x="578.0" y="298.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_out_resolved" >Resolved Chain</text>
+<text x="578.0" y="298.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_out_resolved" >已解析 Chain</text>
 <text x="-14.0" y="171.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_in_observed">Observed</text>
 <text x="-14.0" y="197.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_in_observed">Condition</text>
-<text x="-14.0" y="69.2" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_in_model">Active Model And</text>
+<text x="-14.0" y="69.2" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_in_model">Active 模型 與</text>
 <text x="-14.0" y="95.2" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_in_model">Subscription Flag</text>
 <text x="-14.0" y="404.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_in_intent">Intent Flag</text>
 <text x="822.0" y="371.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_out_chain">Kind Chain</text>
-<text x="822.0" y="397.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_out_chain">To Executor</text>
+<text x="822.0" y="397.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_out_chain">到 Executor</text>
 </svg>

@@ -3,38 +3,57 @@
     "StepNumber": 0,
     "ModuleRef": "A1",
     "StepType": "initial",
-    "StepAction": "Store has no entry for this sid; reducer waiting for first session-scoped SSE event. Once the first event arrives, reducer creates the entry with receivedAt = Date.now() and transitions to Fresh.",
+    "StepAction": "Store has 無 項目 供 this sid; reducer waiting 供 first Session-scoped SSE 事件. Once first 事件 arrives, reducer creates 項目 使用 已收到於 = Date.now() 與 transitions 到 Fresh.",
     "LinkInputType": [],
     "LinkInputNumber": [],
-    "LinkOutputNumber": [1],
+    "LinkOutputNumber": [
+      1
+    ],
     "LinkOutputType": "track",
-    "Condition": ["event_arrived"],
+    "Condition": [
+      "事件arrived"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 1,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Entry exists; fidelity = fresh. Any further session-scoped event for this sid continuously refreshes receivedAt = Date.now() via reducer (step-internal side effect, no transition). UI memo renders normally without stale hint.",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2],
+    "StepAction": "項目 exists; fidelity = fresh. Any further Session-scoped 事件 供 this sid continuously refreshes 已收到於 = Date.now() 透過 reducer (步驟-internal side effect, 無 transition). UI memo renders normally 不 stale hint.",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2
+    ],
     "LinkOutputType": "track",
-    "Condition": ["freshnessNow - receivedAt >= ui_freshness_threshold_sec * 1000"],
+    "Condition": [
+      "freshnessNow - 已收到於 >= uifreshnessthresholdsec * 1000"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Entry exists but soft threshold exceeded; fidelity = stale. UI memo renders 'updated N ago' badge while still showing content. Either an event arrival rolls back to Fresh, or the hard threshold advances to HardStale.",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [1, 3],
+    "StepAction": "項目 exists but soft threshold exceeded; fidelity = stale. UI memo renders 'updated N ago' badge while still showing content. Either 事件 arrival rolls 回到 到 Fresh, 或 hard threshold advances 到 HardStale.",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      1,
+      3
+    ],
     "LinkOutputType": "divergence_or",
     "Condition": [
-      "event_arrived",
-      "freshnessNow - receivedAt >= ui_freshness_hard_timeout_sec * 1000"
+      "事件arrived",
+      "freshnessNow - 已收到於 >= uifreshnesshardtimeoutsec * 1000"
     ],
     "SubGrafcet": []
   },
@@ -42,12 +61,20 @@
     "StepNumber": 3,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Hard threshold exceeded; fidelity = hard-stale. UI memo degrades render: card grayed / collapsed / elapsed timer frozen. Only an event arrival returns to Fresh.",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [1],
+    "StepAction": "Hard threshold exceeded; fidelity = hard-stale. UI memo degrades 渲染: card grayed / collapsed / elapsed timer frozen. 僅 事件 arrival 返回 到 Fresh.",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      1
+    ],
     "LinkOutputType": "track",
-    "Condition": ["event_arrived"],
+    "Condition": [
+      "事件arrived"
+    ],
     "SubGrafcet": []
   }
 ]

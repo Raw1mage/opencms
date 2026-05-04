@@ -1,0 +1,30 @@
+{
+  "model": "IDEF0",
+  "title": "Claude Session List",
+  "nodes": [
+    {
+      "id": "A0",
+      "name": "Monitor Claude Sessions",
+      "inputs": ["XDG-backed session metadata"],
+      "controls": ["No legacy fallback", "Read-only MVP", "Secret redaction"],
+      "outputs": ["Claude session list view", "Session detail navigation"],
+      "mechanisms": ["Daemon session API", "Session storage router", "Web UI"]
+    },
+    {
+      "id": "A1",
+      "name": "Classify Claude-related sessions",
+      "inputs": ["Session metadata", "Provider/model/account labels"],
+      "controls": ["Explicit provider family rules"],
+      "outputs": ["Filtered session summaries"],
+      "mechanisms": ["Backend classifier"]
+    },
+    {
+      "id": "A2",
+      "name": "Render monitoring surface",
+      "inputs": ["Filtered session summaries"],
+      "controls": ["Frontend state rules", "Error visibility"],
+      "outputs": ["Operator-visible list"],
+      "mechanisms": ["Solid UI"]
+    }
+  ]
+}

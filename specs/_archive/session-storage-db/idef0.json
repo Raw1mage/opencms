@@ -1,100 +1,304 @@
 {
-  "diagram_title": "Manage Session Storage (A0 context)",
+  "diagram_title": "Manage Session 儲存 (0 上下文)",
   "node_reference": "A0",
-  "description": "Top-level functional decomposition of the session-storage subsystem after migration to SQLite. Each level-1 activity maps to a C4 component (see c4.json moduleRef / ideF0Ref). A2 decomposes into A21..A23 in the embedded sub-level descriptor.",
+  "description": "Top-level functional decomposition 的 Session-儲存 subsystem after migration 到 SQLite. Each level-1 activity maps 到 C4 component (see c4.js在 moduleRef / ideF0Ref). 2 decomposes 進入 21..23 在 embedded sub-level descriptor.",
   "activities": [
     {
       "id": "A1",
-      "title": "Route Storage Call",
-      "description": "Per-call dispatcher that detects whether <sid>.db or <sid>/ is the source of truth and forwards to the SQLite or legacy implementation. Implements DD-9 signature compatibility.",
+      "title": "路由 儲存 呼叫",
+      "description": "依-呼叫 dispatcher that detects whether <sid>.db 或 <sid>/ 是 來源 的 truth 與 forwards 到 SQLite 或 legacy implementation. Implements DD-9 signature compatibility.",
       "decomposition": null
     },
     {
       "id": "A2",
       "title": "Operate Sqlite Store",
-      "description": "SQLite-backed session storage. Owns connection pool, applies WAL pragmas (DD-3), runs integrity checks and schema migrations.",
+      "description": "SQLite-backed Session 儲存. Owns connection pool, applies WAL pragmas (DD-3), runs integrity checks 與 schema migrations.",
       "decomposition": "A2"
     },
     {
       "id": "A3",
       "title": "Read Legacy Directory",
-      "description": "Read-only access to the existing per-message / per-part directory layout. Active during the dual-track period until a session is migrated.",
+      "description": "Read-僅 access 到 existing 依-訊息 / 依-part directory layout. Active during dual-track period 直到 Session 是 migrated.",
       "decomposition": null
     },
     {
       "id": "A4",
       "title": "Migrate Legacy Session",
-      "description": "Idle-time worker that performs three-stage atomic migration of one legacy session per tick (DD-7 / DR-4). Inhabits the same daemon process (DD-14).",
+      "description": "閒置-time worker that performs three-stage atomic migration 的 單次 legacy Session 依 tick (DD-7 / DR-4). Inhabits same daemon process (DD-14).",
       "decomposition": null
     },
     {
       "id": "A5",
-      "title": "Inspect Session State",
-      "description": "Debug CLI surface (DD-12) providing list / show / check subcommands. Read-only, dual-format-aware.",
+      "title": "Inspect Session 狀態",
+      "description": "Debug CLI surface (DD-12) providing 清單 / show / check subcommands. Read-僅, dual-format-aware.",
       "decomposition": null
     }
   ],
   "arrows": [
-    { "id": "AR1",  "source": "EXTERNAL", "target": "A1:input",     "label": "Storage Call (Session.messages / updateMessage / updatePart)", "type": "input" },
-    { "id": "AR2",  "source": "EXTERNAL", "target": "A1:input",     "label": "Reader Query From TUI Or Admin Panel",                          "type": "input" },
-    { "id": "AR3",  "source": "EXTERNAL", "target": "A1:control",   "label": "Storage Format Detection Rule",                                  "type": "control" },
-    { "id": "AR4",  "source": "A1",       "target": "A2:input",     "label": "Dispatched Sqlite Call",                                         "type": "output" },
-    { "id": "AR5",  "source": "A1",       "target": "A3:input",     "label": "Dispatched Legacy Call",                                         "type": "output" },
-    { "id": "AR6",  "source": "A2",       "target": "EXTERNAL",     "label": "Messages With Parts Result",                                     "type": "output" },
-    { "id": "AR7",  "source": "A3",       "target": "EXTERNAL",     "label": "Messages With Parts Result",                                     "type": "output" },
-    { "id": "AR8",  "source": "A2",       "target": "EXTERNAL",     "label": "Storage Corrupted Bus Event",                                    "type": "output" },
-    { "id": "AR9",  "source": "EXTERNAL", "target": "A4:input",     "label": "Idle Sweep Tick",                                                "type": "input" },
-    { "id": "AR10", "source": "A3",       "target": "A4:input",     "label": "Legacy Session Inventory",                                       "type": "input" },
-    { "id": "AR11", "source": "A4",       "target": "A2:input",     "label": "Bulk Insert Migrated Rows",                                      "type": "output" },
-    { "id": "AR12", "source": "A4",       "target": "EXTERNAL",     "label": "Storage Migrated Bus Event",                                     "type": "output" },
-    { "id": "AR13", "source": "EXTERNAL", "target": "A4:control",   "label": "Idle Threshold Milliseconds",                                    "type": "control" },
-    { "id": "AR14", "source": "EXTERNAL", "target": "A2:control",   "label": "Schema Version Expected",                                        "type": "control" },
-    { "id": "AR15", "source": "EXTERNAL", "target": "A2:control",   "label": "No Silent Fallback Rule",                                        "type": "control" },
-    { "id": "AR16", "source": "EXTERNAL", "target": "A1:mechanism", "label": "Bun Runtime",                                                    "type": "mechanism" },
-    { "id": "AR17", "source": "EXTERNAL", "target": "A2:mechanism", "label": "Bun Sqlite Module",                                              "type": "mechanism" },
-    { "id": "AR18", "source": "EXTERNAL", "target": "A2:mechanism", "label": "Filesystem",                                                     "type": "mechanism" },
-    { "id": "AR19", "source": "EXTERNAL", "target": "A3:mechanism", "label": "Filesystem",                                                     "type": "mechanism" },
-    { "id": "AR20", "source": "EXTERNAL", "target": "A4:mechanism", "label": "Filesystem And Posix Rename",                                    "type": "mechanism" },
-    { "id": "AR21", "source": "EXTERNAL", "target": "A4:mechanism", "label": "Bus Publisher",                                                  "type": "mechanism" },
-    { "id": "AR22", "source": "EXTERNAL", "target": "A5:input",     "label": "Cli Subcommand Invocation",                                      "type": "input" },
-    { "id": "AR23", "source": "A5",       "target": "A1:input",     "label": "Read Only Storage Call",                                         "type": "call" },
-    { "id": "AR24", "source": "A5",       "target": "EXTERNAL",     "label": "Stdout Diagnostic Output",                                       "type": "output" }
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "儲存 呼叫 (Session.messages / 更新訊息 / 更新part)",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "Reader Query 來自 TUI 或 管理 面板",
+      "type": "input"
+    },
+    {
+      "id": "AR3",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "儲存 Format Detection Rule",
+      "type": "control"
+    },
+    {
+      "id": "AR4",
+      "source": "A1",
+      "target": "A2:input",
+      "label": "Dispatched Sqlite 呼叫",
+      "type": "output"
+    },
+    {
+      "id": "AR5",
+      "source": "A1",
+      "target": "A3:input",
+      "label": "Dispatched Legacy 呼叫",
+      "type": "output"
+    },
+    {
+      "id": "AR6",
+      "source": "A2",
+      "target": "EXTERNAL",
+      "label": "Messages 使用 Parts 結果",
+      "type": "output"
+    },
+    {
+      "id": "AR7",
+      "source": "A3",
+      "target": "EXTERNAL",
+      "label": "Messages 使用 Parts 結果",
+      "type": "output"
+    },
+    {
+      "id": "AR8",
+      "source": "A2",
+      "target": "EXTERNAL",
+      "label": "儲存 Corrupted Bus 事件",
+      "type": "output"
+    },
+    {
+      "id": "AR9",
+      "source": "EXTERNAL",
+      "target": "A4:input",
+      "label": "閒置 Sweep tick",
+      "type": "input"
+    },
+    {
+      "id": "AR10",
+      "source": "A3",
+      "target": "A4:input",
+      "label": "Legacy Session Inventory",
+      "type": "input"
+    },
+    {
+      "id": "AR11",
+      "source": "A4",
+      "target": "A2:input",
+      "label": "Bulk Insert Migrated Rows",
+      "type": "output"
+    },
+    {
+      "id": "AR12",
+      "source": "A4",
+      "target": "EXTERNAL",
+      "label": "儲存 Migrated Bus 事件",
+      "type": "output"
+    },
+    {
+      "id": "AR13",
+      "source": "EXTERNAL",
+      "target": "A4:control",
+      "label": "閒置 Threshold Milliseconds",
+      "type": "control"
+    },
+    {
+      "id": "AR14",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "schema Version Expected",
+      "type": "control"
+    },
+    {
+      "id": "AR15",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "無 靜默 fallback Rule",
+      "type": "control"
+    },
+    {
+      "id": "AR16",
+      "source": "EXTERNAL",
+      "target": "A1:mechanism",
+      "label": "Bun Runtime",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR17",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "label": "Bun Sqlite Module",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR18",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "label": "Filesystem",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR19",
+      "source": "EXTERNAL",
+      "target": "A3:mechanism",
+      "label": "Filesystem",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR20",
+      "source": "EXTERNAL",
+      "target": "A4:mechanism",
+      "label": "Filesystem 與 Posix Rename",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR21",
+      "source": "EXTERNAL",
+      "target": "A4:mechanism",
+      "label": "Bus Publisher",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR22",
+      "source": "EXTERNAL",
+      "target": "A5:input",
+      "label": "Cli Subcommand Invocation",
+      "type": "input"
+    },
+    {
+      "id": "AR23",
+      "source": "A5",
+      "target": "A1:input",
+      "label": "Read 僅 儲存 呼叫",
+      "type": "call"
+    },
+    {
+      "id": "AR24",
+      "source": "A5",
+      "target": "EXTERNAL",
+      "label": "Stdout Diagnostic 輸出",
+      "type": "output"
+    }
   ],
   "subDiagrams": {
     "A2": {
-      "diagram_title": "Operate Sqlite Store (A2 decomposition)",
+      "diagram_title": "Operate Sqlite Store (2 decomposition)",
       "node_reference": "A2",
       "activities": [
         {
           "id": "A21",
           "title": "Verify Database Integrity",
-          "description": "Runs PRAGMA integrity_check on first open per connection (DR-3). Caches result for the lifetime of the connection. Publishes session.storage.corrupted Bus event on failure and refuses to load.",
+          "description": "Runs PRAGMA integritycheck 在 first open 依 connection (DR-3). Caches 結果 供 lifetime 的 connection. Publishes Session.儲存.corrupted Bus 事件 在 failure 與 refuses 到 load.",
           "decomposition": null
         },
         {
           "id": "A22",
           "title": "Manage Connection Pool",
-          "description": "Bounded LRU pool of SQLite handles keyed by sessionID (DD-10). Closes idle connections after CONNECTION_IDLE_MS to prevent handle leak.",
+          "description": "Bounded LRU pool 的 SQLite handles keyed 由 SessionID (DD-10). Closes 閒置 connections after CONNECTION IDLE MS 到 prevent handle leak.",
           "decomposition": null
         },
         {
           "id": "A23",
-          "title": "Run Schema Migration",
-          "description": "Compares meta.schema_version vs runtime expected. Runs forward migration SQL inside a transaction (DR-5); ROLLBACK on failure leaves DB at the prior version, opens read-only.",
+          "title": "執行 schema Migration",
+          "description": "Compares meta.schemaversion vs runtime expected. Runs forward migration SQL inside transaction (DR-5); ROLLBACK 在 failure leaves DB 於 prior version, opens read-僅.",
           "decomposition": null
         }
       ],
       "arrows": [
-        { "id": "AR2-1",  "source": "EXTERNAL", "target": "A22:input",     "label": "Acquire Request By Session Id", "type": "input" },
-        { "id": "AR2-2",  "source": "A22",       "target": "A21:input",     "label": "Newly Opened Connection",       "type": "output" },
-        { "id": "AR2-3",  "source": "A22",       "target": "A23:input",     "label": "Newly Opened Connection",       "type": "output" },
-        { "id": "AR2-4",  "source": "A21",       "target": "EXTERNAL",      "label": "Integrity Verdict",             "type": "output" },
-        { "id": "AR2-5",  "source": "A23",       "target": "EXTERNAL",      "label": "Migrated Schema Version",       "type": "output" },
-        { "id": "AR2-6",  "source": "EXTERNAL",  "target": "A23:control",   "label": "Runtime Expected Schema Version","type": "control" },
-        { "id": "AR2-7",  "source": "EXTERNAL",  "target": "A22:control",   "label": "Pool Size Cap",                 "type": "control" },
-        { "id": "AR2-8",  "source": "EXTERNAL",  "target": "A21:mechanism", "label": "Sqlite Pragma Engine",          "type": "mechanism" },
-        { "id": "AR2-9",  "source": "EXTERNAL",  "target": "A22:mechanism", "label": "Bun Sqlite Module",             "type": "mechanism" },
-        { "id": "AR2-10", "source": "EXTERNAL",  "target": "A23:mechanism", "label": "Sqlite Transaction Engine",     "type": "mechanism" }
+        {
+          "id": "AR2-1",
+          "source": "EXTERNAL",
+          "target": "A22:input",
+          "label": "Acquire 請求 由 Session Id",
+          "type": "input"
+        },
+        {
+          "id": "AR2-2",
+          "source": "A22",
+          "target": "A21:input",
+          "label": "Newly Opened Connection",
+          "type": "output"
+        },
+        {
+          "id": "AR2-3",
+          "source": "A22",
+          "target": "A23:input",
+          "label": "Newly Opened Connection",
+          "type": "output"
+        },
+        {
+          "id": "AR2-4",
+          "source": "A21",
+          "target": "EXTERNAL",
+          "label": "Integrity Verdict",
+          "type": "output"
+        },
+        {
+          "id": "AR2-5",
+          "source": "A23",
+          "target": "EXTERNAL",
+          "label": "Migrated schema Version",
+          "type": "output"
+        },
+        {
+          "id": "AR2-6",
+          "source": "EXTERNAL",
+          "target": "A23:control",
+          "label": "Runtime Expected schema Version",
+          "type": "control"
+        },
+        {
+          "id": "AR2-7",
+          "source": "EXTERNAL",
+          "target": "A22:control",
+          "label": "Pool Size Cap",
+          "type": "control"
+        },
+        {
+          "id": "AR2-8",
+          "source": "EXTERNAL",
+          "target": "A21:mechanism",
+          "label": "Sqlite Pragma Engine",
+          "type": "mechanism"
+        },
+        {
+          "id": "AR2-9",
+          "source": "EXTERNAL",
+          "target": "A22:mechanism",
+          "label": "Bun Sqlite Module",
+          "type": "mechanism"
+        },
+        {
+          "id": "AR2-10",
+          "source": "EXTERNAL",
+          "target": "A23:mechanism",
+          "label": "Sqlite Transaction Engine",
+          "type": "mechanism"
+        }
       ]
     }
   },

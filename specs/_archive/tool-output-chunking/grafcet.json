@@ -3,140 +3,212 @@
     "id": "S0",
     "name": "Entry",
     "type": "initial",
-    "description": "Runloop iteration begins; prompt-build invoked",
-    "actions": ["Load session state", "Snapshot Memory(anchor, journal, pinned_zone)"]
+    "description": "Runloop iteration begins; 提示-建置 invoked",
+    "actions": [
+      "Load session state",
+      "Snapshot Memory(anchor, journal, pinned_zone)"
+    ]
   },
   {
     "id": "S1",
     "name": "ParseMarkers",
-    "description": "Parse ContextMarkers from recent assistant messages (Layer 5 pre-pass)",
-    "actions": ["Apply pin → schedule pinned_zone append", "Apply drop → record drop set", "Apply recall → load disk content + journal-tail append"]
+    "description": "解析 上下文markers 來自 recent 助手 messages (Layer 5 pre-pass)",
+    "actions": [
+      "Apply pin → schedule pinned_zone append",
+      "Apply drop → record drop set",
+      "Apply recall → load disk content + journal-tail append"
+    ]
   },
   {
     "id": "S2",
     "name": "MaterialisePinnedZone",
-    "description": "Wrap each pinned tool_result as user-role message envelope (DD-4)",
-    "actions": ["For each pin: synth user message [Pinned earlier output] tool X (round K)...", "Check pinned_zone size vs cap"]
+    "description": "Wrap each 已釘選 工具結果 作為 使用者-role 訊息 envelope (DD-4)",
+    "actions": [
+      "For each pin: synth user message [Pinned earlier output] tool X (round K)...",
+      "Check pinned_zone size vs cap"
+    ]
   },
   {
     "id": "S3",
     "name": "ComputeStatus",
-    "description": "Build ContextStatus block (R-5)",
-    "actions": ["Sum tokens across zones", "Compute room_remaining, anchor_coverage, journal_depth", "Embed into system message"]
+    "description": "建置 上下文狀態 區塊 (R-5)",
+    "actions": [
+      "Sum tokens across zones",
+      "Compute room_remaining, anchor_coverage, journal_depth",
+      "Embed into system message"
+    ]
   },
   {
     "id": "S4",
     "name": "AssemblePrompt",
     "description": "Five-zone canonical assembly (DD-1)",
-    "actions": ["prompt = [system+status, anchor, pinned_zone, journal, current_round]"]
+    "actions": [
+      "prompt = [system+status, anchor, pinned_zone, journal, current_round]"
+    ]
   },
   {
     "id": "S5",
     "name": "OverflowGate",
-    "description": "Compaction-redesign overflow gate evaluates fit",
-    "actions": ["If prompt fits per-request budget AND pinned_zone <= cap → S6", "Else → S10 (compaction needed)"]
+    "description": "壓縮-redesign overflow gate evaluates fit",
+    "actions": [
+      "If prompt fits per-request budget AND pinned_zone <= cap → S6",
+      "Else → S10 (compaction needed)"
+    ]
   },
   {
     "id": "S6",
     "name": "DispatchToolOrLLM",
-    "description": "Send prompt to LLM or dispatch tool",
-    "actions": ["AI may emit ContextMarkers in next message (loops back via S1)", "AI may call compact_now (S20)"]
+    "description": "Send 提示 到 LLM 或 派發 工具",
+    "actions": [
+      "AI may emit ContextMarkers in next message (loops back via S1)",
+      "AI may call compact_now (S20)"
+    ]
   },
   {
     "id": "S7",
     "name": "ToolInvocation",
-    "description": "Tool-side bound: ctx.outputBudget applied (Layer 2)",
-    "actions": ["Compute outputBudget", "Slice on natural boundary", "Append TruncationHint if sliced"]
+    "description": "工具-side bound: ctx.輸出budget applied (Layer 2)",
+    "actions": [
+      "Compute outputBudget",
+      "Slice on natural boundary",
+      "Append TruncationHint if sliced"
+    ]
   },
   {
     "id": "S8",
     "name": "RoundComplete",
-    "description": "Append round to journal (append-only)",
-    "actions": ["Append tool_call + tool_result pair adjacent", "No mutation of prior zones"]
+    "description": "追加 round 到 journal (追加-僅)",
+    "actions": [
+      "Append tool_call + tool_result pair adjacent",
+      "No mutation of prior zones"
+    ]
   },
   {
     "id": "S9",
     "name": "RoundExit",
     "type": "final",
-    "description": "Return control to runloop"
+    "description": "返回 控制 到 runloop"
   },
   {
     "id": "S10",
     "name": "EnterCompaction",
-    "description": "Compaction triggered (overflow gate OR pinned_zone over cap OR voluntary)",
-    "actions": ["Determine trigger source", "If voluntary → mark voluntary:true"]
+    "description": "壓縮 triggered (overflow gate OR 已釘選zone over cap OR voluntary)",
+    "actions": [
+      "Determine trigger source",
+      "If voluntary → mark voluntary:true"
+    ]
   },
   {
     "id": "S11",
     "name": "DecideMode",
-    "description": "Choose Phase 1 or Phase 2",
-    "actions": ["If pinned_zone > cap → S13 (force Phase 2)", "Else → S12 (Phase 1)"]
+    "description": "Choose Phase 1 或 Phase 2",
+    "actions": [
+      "If pinned_zone > cap → S13 (force Phase 2)",
+      "Else → S12 (Phase 1)"
+    ]
   },
   {
     "id": "S12",
     "name": "Phase1",
-    "description": "Phase 1 LLM_compact (DD-3, DD-11)",
-    "actions": ["Build LLMCompactRequest{phase:1, strict:false, priorAnchor, journalUnpinned, dropMarkers, targetTokens}", "Choose internalMode: single-pass vs chunk-and-merge by input size", "Invoke EXT-LLM with 30s timeout"]
+    "description": "Phase 1 LLM compact (DD-3, DD-11)",
+    "actions": [
+      "Build LLMCompactRequest{phase:1, strict:false, priorAnchor, journalUnpinned, dropMarkers, targetTokens}",
+      "Choose internalMode: single-pass vs chunk-and-merge by input size",
+      "Invoke EXT-LLM with 30s timeout"
+    ]
   },
   {
     "id": "S13",
     "name": "Phase2",
-    "description": "Phase 2 fail-safe LLM_compact (DD-9)",
-    "actions": ["Build LLMCompactRequest{phase:2, strict:true, priorAnchor, journalAll+pinnedZone, targetTokens=5000}", "Invoke EXT-LLM with 30s timeout"]
+    "description": "Phase 2 fail-safe LLM compact (DD-9)",
+    "actions": [
+      "Build LLMCompactRequest{phase:2, strict:true, priorAnchor, journalAll+pinnedZone, targetTokens=5000}",
+      "Invoke EXT-LLM with 30s timeout"
+    ]
   },
   {
     "id": "S14",
     "name": "SanityCheck",
-    "description": "Validate output (DD-6)",
-    "actions": ["Check outputTokens < (anchor + journal_input)", "Check anchor body shape (Markdown only, v1 header, no provider tokens)", "If fail → S15 retry; if pass → S17"]
+    "description": "Validate 輸出 (DD-6)",
+    "actions": [
+      "Check outputTokens < (anchor + journal_input)",
+      "Check anchor body shape (Markdown only, v1 header, no provider tokens)",
+      "If fail → S15 retry; if pass → S17"
+    ]
   },
   {
     "id": "S15",
     "name": "RetryStricter",
-    "description": "Single retry with stricter framing",
-    "actions": ["Re-invoke LLM_compact with reduced targetTokens", "If still fail → S16"]
+    "description": "Single 重試 使用 stricter framing",
+    "actions": [
+      "Re-invoke LLM_compact with reduced targetTokens",
+      "If still fail → S16"
+    ]
   },
   {
     "id": "S16",
     "name": "FallbackPath",
     "description": "Graceful degradation (DD-6)",
-    "actions": ["Optional: try compaction.fallbackProvider", "Else: keepPriorAnchor + truncateJournalFromOldest until prompt fits", "Emit error event E_HYBRID_LLM_FAILED|TIMEOUT|MALFORMED"]
+    "actions": [
+      "Optional: try compaction.fallbackProvider",
+      "Else: keepPriorAnchor + truncateJournalFromOldest until prompt fits",
+      "Emit error event E_HYBRID_LLM_FAILED|TIMEOUT|MALFORMED"
+    ]
   },
   {
     "id": "S17",
     "name": "WriteAnchor",
-    "description": "Persist new anchor to message stream",
-    "actions": ["Append assistant message {summary:true, content:anchorBody, metadata:anchorMeta}", "If Phase 2: clearPinnedZone"]
+    "description": "持久化 new anchor 到 訊息 串流",
+    "actions": [
+      "Append assistant message {summary:true, content:anchorBody, metadata:anchorMeta}",
+      "If Phase 2: clearPinnedZone"
+    ]
   },
   {
     "id": "S18",
     "name": "PostCompactionFitCheck",
-    "description": "Re-evaluate prompt fit after compaction",
-    "actions": ["If Phase 1 result still over budget AND pinned_zone non-empty → S13 (escalate to Phase 2)", "If Phase 2 result still over → S19 (unrecoverable)", "Else → S22"]
+    "description": "Re-evaluate 提示 fit after 壓縮",
+    "actions": [
+      "If Phase 1 result still over budget AND pinned_zone non-empty → S13 (escalate to Phase 2)",
+      "If Phase 2 result still over → S19 (unrecoverable)",
+      "Else → S22"
+    ]
   },
   {
     "id": "S19",
     "name": "UnrecoverableExit",
     "type": "final",
-    "description": "Bounded chain exhausted; raise to runloop (no Phase 3)",
-    "actions": ["Raise E_OVERFLOW_UNRECOVERABLE with user-facing remediation message"]
+    "description": "Bounded chain exhausted; raise 到 runloop (無 Phase 3)",
+    "actions": [
+      "Raise E_OVERFLOW_UNRECOVERABLE with user-facing remediation message"
+    ]
   },
   {
     "id": "S20",
     "name": "VoluntarySummarize",
-    "description": "compact_now tool handler (R-6, DD-14)",
-    "actions": ["Mark voluntary:true", "Branch to S10 with voluntary flag"]
+    "description": "compactnow 工具 handler (R-6, DD-14)",
+    "actions": [
+      "Mark voluntary:true",
+      "Branch to S10 with voluntary flag"
+    ]
   },
   {
     "id": "S21",
     "name": "EmitTelemetry",
-    "description": "Synchronous CompactionEvent emit (R-13)",
-    "actions": ["Build CompactionEvent record", "Append to telemetry stream", "MUST land before runloop continues"]
+    "description": "Synchronous 壓縮事件 發出 (R-13)",
+    "actions": [
+      "Build CompactionEvent record",
+      "Append to telemetry stream",
+      "MUST land before runloop continues"
+    ]
   },
   {
     "id": "S22",
     "name": "CompactionDone",
-    "description": "Return to runloop; back to prompt-build for next round",
-    "actions": ["If voluntary: return tool_result {room_remaining_after, anchor_size, status} to AI", "Loop back to S0 for next round"]
+    "description": "返回 到 runloop; 回到 到 提示-建置 供 下一個 round",
+    "actions": [
+      "If voluntary: return tool_result {room_remaining_after, anchor_size, status} to AI",
+      "Loop back to S0 for next round"
+    ]
   }
 ]

@@ -1,5 +1,5 @@
 {
-  "diagram_title": "docxmcp HTTP Transport — file lifecycle from upload to mcp-derived artifacts via narrow boundary",
+  "diagram_title": "docxmcp HTTP Transport — 檔案 lifecycle 來自 上傳 到 mcp-derived artifacts 透過 narrow boundary",
   "node_reference": "A0",
   "viewpoint": "opencode runtime + docxmcp container — file flows without bind mount",
   "purpose": "Decompose how a docx file moves from <repo>/incoming/ through HTTP multipart upload into a narrow-boundary docxmcp container, gets processed, and returns as a bundle written next to the source.",
@@ -7,82 +7,175 @@
     {
       "id": "A0",
       "name": "Run docxmcp Tool via HTTP Transport",
-      "inputs": ["A0-I1: AI tool call with repo-relative path", "A0-I2: file in <repo>/incoming/"],
-      "controls": ["A0-C1: bind mount forbidden (R1)", "A0-C2: localhost-only HTTP binding (DD-12)", "A0-C3: token TTL+LRU+cap (DD-4)"],
-      "outputs": ["A0-O1: bundle written to <repo>/<sourceDir>/<stem>/", "A0-O2: tool result with rewritten paths returned to AI", "A0-O3: token deleted"],
-      "mechanisms": ["A0-M1: opencode dispatcher", "A0-M2: docxmcp HTTP server", "A0-M3: docker named volume (cache only)"]
+      "inputs": [
+        "A0-I1: AI tool call with repo-relative path",
+        "A0-I2: file in <repo>/incoming/"
+      ],
+      "controls": [
+        "A0-C1: bind mount forbidden (R1)",
+        "A0-C2: localhost-only HTTP binding (DD-12)",
+        "A0-C3: token TTL+LRU+cap (DD-4)"
+      ],
+      "outputs": [
+        "A0-O1: bundle written to <repo>/<sourceDir>/<stem>/",
+        "A0-O2: tool result with rewritten paths returned to AI",
+        "A0-O3: token deleted"
+      ],
+      "mechanisms": [
+        "A0-M1: opencode dispatcher",
+        "A0-M2: docxmcp HTTP server",
+        "A0-M3: docker named volume (cache only)"
+      ]
     },
     {
       "id": "A1",
       "parent": "A0",
       "name": "Upload file via multipart POST",
-      "inputs": ["A1-I1: <repo>/incoming/<filename> raw bytes"],
-      "controls": ["A1-C1: multipart streaming (DD-11)", "A1-C2: token format (DD-3)"],
-      "outputs": ["A1-O1: token", "A1-O2: bytes written to /tmp/docxmcp-sessions/<token>/<filename> (in container)"],
-      "mechanisms": ["A1-M1: opencode HTTP client", "A1-M2: docxmcp /files route"]
+      "inputs": [
+        "A1-I1: <repo>/incoming/<filename> raw bytes"
+      ],
+      "controls": [
+        "A1-C1: multipart streaming (DD-11)",
+        "A1-C2: token format (DD-3)"
+      ],
+      "outputs": [
+        "A1-O1: token",
+        "A1-O2: bytes written to /tmp/docxmcp-sessions/<token>/<filename> (in container)"
+      ],
+      "mechanisms": [
+        "A1-M1: opencode HTTP client",
+        "A1-M2: docxmcp /files route"
+      ]
     },
     {
       "id": "A2",
       "parent": "A0",
       "name": "Rewrite tool args (path → token)",
-      "inputs": ["A2-I1: original args containing incoming/<filename>", "A2-I2: token from A1"],
+      "inputs": [
+        "A2-I1: original args containing incoming/<filename>",
+        "A2-I2: token from A1"
+      ],
       "controls": [],
-      "outputs": ["A2-O1: rewrittenArgs with {token: <tok>}"],
-      "mechanisms": ["A2-M1: dispatcher.before"]
+      "outputs": [
+        "A2-O1: rewrittenArgs with {token: <tok>}"
+      ],
+      "mechanisms": [
+        "A2-M1: dispatcher.before"
+      ]
     },
     {
       "id": "A3",
       "parent": "A0",
       "name": "Invoke tool via MCP Streamable HTTP",
-      "inputs": ["A3-I1: rewrittenArgs", "A3-I2: tool name"],
-      "controls": ["A3-C1: MCP protocol contract"],
-      "outputs": ["A3-O1: tool result with structuredContent.bundle_tar_b64"],
-      "mechanisms": ["A3-M1: StreamableHTTPClientTransport ↔ StreamableHTTPSessionManager"]
+      "inputs": [
+        "A3-I1: rewrittenArgs",
+        "A3-I2: tool name"
+      ],
+      "controls": [
+        "A3-C1: MCP protocol contract"
+      ],
+      "outputs": [
+        "A3-O1: tool result with structuredContent.bundle_tar_b64"
+      ],
+      "mechanisms": [
+        "A3-M1: StreamableHTTPClientTransport ↔ StreamableHTTPSessionManager"
+      ]
     },
     {
       "id": "A4",
       "parent": "A0",
       "name": "Resolve token + run CLI in container",
-      "inputs": ["A4-I1: tools/call request"],
-      "controls": ["A4-C1: token must exist in token store"],
-      "outputs": ["A4-O1: bundle in /var/cache/docxmcp/bundles/<sha>/ (container)", "A4-O2: result with base64 tar"],
-      "mechanisms": ["A4-M1: _mcp_registry", "A4-M2: bin/<tool>.py CLI", "A4-M3: bundle cache (named volume)"]
+      "inputs": [
+        "A4-I1: tools/call request"
+      ],
+      "controls": [
+        "A4-C1: token must exist in token store"
+      ],
+      "outputs": [
+        "A4-O1: bundle in /var/cache/docxmcp/bundles/<sha>/ (container)",
+        "A4-O2: result with base64 tar"
+      ],
+      "mechanisms": [
+        "A4-M1: _mcp_registry",
+        "A4-M2: bin/<tool>.py CLI",
+        "A4-M3: bundle cache (named volume)"
+      ]
     },
     {
       "id": "A5",
       "parent": "A0",
       "name": "Decode and publish bundle to repo",
-      "inputs": ["A5-I1: tool result bundle_tar_b64"],
-      "controls": ["A5-C1: decode size cap"],
-      "outputs": ["A5-O1: bundle written to <repo>/<sourceDir>/<stem>/"],
-      "mechanisms": ["A5-M1: dispatcher.after"]
+      "inputs": [
+        "A5-I1: tool result bundle_tar_b64"
+      ],
+      "controls": [
+        "A5-C1: decode size cap"
+      ],
+      "outputs": [
+        "A5-O1: bundle written to <repo>/<sourceDir>/<stem>/"
+      ],
+      "mechanisms": [
+        "A5-M1: dispatcher.after"
+      ]
     },
     {
       "id": "A6",
       "parent": "A0",
       "name": "Cleanup token",
-      "inputs": ["A6-I1: token from A1"],
+      "inputs": [
+        "A6-I1: token from A1"
+      ],
       "controls": [],
-      "outputs": ["A6-O1: DELETE /files/{token} sent (best effort)"],
-      "mechanisms": ["A6-M1: dispatcher.after cleanup phase"]
+      "outputs": [
+        "A6-O1: DELETE /files/{token} sent (best effort)"
+      ],
+      "mechanisms": [
+        "A6-M1: dispatcher.after cleanup phase"
+      ]
     },
     {
       "id": "A7",
       "parent": "A0",
       "name": "Audit bind-mount across mcp-apps",
-      "inputs": ["A7-I1: mcp-apps.json (system + user)"],
-      "controls": ["A7-C1: bind mount banned policy (R8)"],
-      "outputs": ["A7-O1: violation list", "A7-O2: register API reject if any new entry attempts -v / --mount type=bind"],
-      "mechanisms": ["A7-M1: McpAppStore.addApp lint", "A7-M2: GET /store/audit-bind-mounts"]
+      "inputs": [
+        "A7-I1: mcp-apps.json (system + user)"
+      ],
+      "controls": [
+        "A7-C1: bind mount banned policy (R8)"
+      ],
+      "outputs": [
+        "A7-O1: violation list",
+        "A7-O2: register API reject if any new entry attempts -v / --mount type=bind"
+      ],
+      "mechanisms": [
+        "A7-M1: McpAppStore.addApp lint",
+        "A7-M2: GET /store/audit-bind-mounts"
+      ]
     }
   ],
   "traceability": {
-    "A1": ["R2", "R5"],
-    "A2": ["R5"],
-    "A3": ["R4"],
-    "A4": ["R3"],
-    "A5": ["R5", "R9"],
-    "A6": ["R5"],
-    "A7": ["R8"]
+    "A1": [
+      "R2",
+      "R5"
+    ],
+    "A2": [
+      "R5"
+    ],
+    "A3": [
+      "R4"
+    ],
+    "A4": [
+      "R3"
+    ],
+    "A5": [
+      "R5",
+      "R9"
+    ],
+    "A6": [
+      "R5"
+    ],
+    "A7": [
+      "R8"
+    ]
   }
 }

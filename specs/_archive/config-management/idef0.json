@@ -1,10 +1,10 @@
 {
-  "diagram_title": "Config Restructure — Functional Decomposition",
+  "diagram_title": "設定 Restructure — Functional Decomposition",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A1",
-      "title": "Load Config Files",
+      "title": "Load 設定 檔案",
       "description": "讀取 opencode.json / providers.json / mcp.json，解析失敗時走 LKG 快照或 section-level 空集",
       "decomposition": null
     },
@@ -16,14 +16,14 @@
     },
     {
       "id": "A3",
-      "title": "Emit Error Response",
+      "title": "發出 錯誤 回應",
       "description": "Daemon 於 config 解析失敗時回傳結構化 503，並於 webapp 側以 ErrorBoundary 呈現，嚴禁原文外洩",
       "decomposition": null
     },
     {
       "id": "A4",
-      "title": "Migrate Legacy Config",
-      "description": "一次性遷移腳本：刪除冗餘 disabled_providers、拆分 opencode.json 成三檔",
+      "title": "Migrate Legacy 設定",
+      "description": "一次性遷移腳本：刪除冗餘 disabled providers、拆分 opencode.json 成三檔",
       "decomposition": null
     }
   ],
@@ -32,35 +32,35 @@
       "id": "AR1",
       "source": "EXTERNAL",
       "target": "A1:input",
-      "label": "XDG Config Files",
+      "label": "XDG 設定 檔案",
       "type": "input"
     },
     {
       "id": "AR2",
       "source": "EXTERNAL",
       "target": "A1:control",
-      "label": "AGENTS.md Rule #1 (No Silent Fallback)",
+      "label": "AGENTS.md Rule #1 (無 靜默 fallback)",
       "type": "control"
     },
     {
       "id": "AR3",
       "source": "A1:output",
       "target": "A2:input",
-      "label": "Parsed Config Snapshot",
+      "label": "Parsed 設定 Snapshot",
       "type": "output"
     },
     {
       "id": "AR4",
       "source": "EXTERNAL",
       "target": "A1:mechanism",
-      "label": "Config Namespace + LKG Store",
+      "label": "設定 Namespace + LKG Store",
       "type": "mechanism"
     },
     {
       "id": "AR5",
       "source": "EXTERNAL",
       "target": "A2:input",
-      "label": "accounts.json",
+      "label": "accounts.js在",
       "type": "input"
     },
     {
@@ -74,14 +74,14 @@
       "id": "AR7",
       "source": "EXTERNAL",
       "target": "A2:mechanism",
-      "label": "providerAvailability Module",
+      "label": "Provideravailability Module",
       "type": "mechanism"
     },
     {
       "id": "AR8",
       "source": "A1:output",
       "target": "A3:input",
-      "label": "Parse Failure Signal",
+      "label": "解析 Failure Signal",
       "type": "input"
     },
     {
@@ -95,35 +95,35 @@
       "id": "AR10",
       "source": "A3:output",
       "target": "EXTERNAL",
-      "label": "Structured Error Card",
+      "label": "Structured 錯誤 Card",
       "type": "output"
     },
     {
       "id": "AR11",
       "source": "EXTERNAL",
       "target": "A3:mechanism",
-      "label": "onError Handler + Webapp ErrorBoundary",
+      "label": "在錯誤 Handler + Webapp 錯誤boundary",
       "type": "mechanism"
     },
     {
       "id": "AR12",
       "source": "EXTERNAL",
       "target": "A4:input",
-      "label": "Legacy opencode.json",
+      "label": "Legacy opencode.js在",
       "type": "input"
     },
     {
       "id": "AR13",
       "source": "EXTERNAL",
       "target": "A4:control",
-      "label": "Dry-run + Backup Policy",
+      "label": "Dry-執行 + Backup Policy",
       "type": "control"
     },
     {
       "id": "AR14",
       "source": "A4:output",
       "target": "EXTERNAL",
-      "label": "Split Config Files",
+      "label": "Split 設定 檔案",
       "type": "output"
     },
     {

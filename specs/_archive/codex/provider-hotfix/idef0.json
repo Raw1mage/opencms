@@ -4,32 +4,32 @@
   "activities": [
     {
       "id": "A1",
-      "title": "Revoke Codex OAuth Token On Logout",
-      "description": "Before local account teardown, POST refresh token to upstream revoke endpoint; fail-closed on any error so local state never detaches from upstream",
+      "title": "Revoke Codex OAuth Token 在 Logout",
+      "description": "Before local 帳號 teardown, POST 刷新 token 到 upstream revoke endpoint; fail-closed 在 any 錯誤 so local 狀態 never detaches 來自 upstream",
       "decomposition": null
     },
     {
       "id": "A2",
-      "title": "Emit Codex Context Window Headers",
-      "description": "Attach x-codex-window-id (per-session UUID), x-codex-parent-thread-id (from Session.parentID), and x-openai-subagent (from agent lineage) on every Responses API request",
+      "title": "發出 Codex 上下文 Window Headers",
+      "description": "Attach x-codex-window-id (依-Session UUID), x-codex-父層-thread-id (來自 Session.父層ID), 與 x-openai-子代理 (來自 agent lineage) 在 every Responses API 請求",
       "decomposition": null
     },
     {
       "id": "A3",
-      "title": "Surface Anthropic xhigh Effort For Opus 4.7",
-      "description": "Extend anthropic effort-variant transform with xhigh budget for Opus 4.7+ models, gated by model id or release_date",
+      "title": "Surface Anthropic xhigh Effort 供 Opus 4.7",
+      "description": "Extend anthropic effort-variant transform 使用 xhigh budget 供 Opus 4.7+ 模型, gated 由 模型 id 或 releasedate",
       "decomposition": null
     },
     {
       "id": "A4",
-      "title": "Narrow disabled_providers To Auto Only",
-      "description": "Keep providers[id] populated when id is disabled; mark as auto-hidden; let explicit getModel resolve; auto pickers filter via the flag",
+      "title": "Narrow disabledProvider 到 Auto 僅",
+      "description": "Keep Provider[id] populated when id 是 disabled; mark 作為 auto-hidden; let explicit get模型 解析; auto pickers filter 透過 flag",
       "decomposition": null
     },
     {
       "id": "A5",
-      "title": "Bump Refs Pointers And Record Incident",
-      "description": "Advance refs/claude-code + refs/codex submodule pointers to the analysis HEADs and write the docs/events entry describing all phases",
+      "title": "Bump Refs Pointers 與 記錄 Incident",
+      "description": "Advance refs/claude-code + refs/codex submodule pointers 到 analysis HEADs 與 write docs/事件 項目 describing all phases",
       "decomposition": null
     }
   ],
@@ -38,7 +38,7 @@
       "id": "AR1",
       "source": "EXTERNAL",
       "target": "A1:input",
-      "label": "Account Remove Request",
+      "label": "帳號 Remove 請求",
       "type": "input"
     },
     {
@@ -52,21 +52,21 @@
       "id": "AR3",
       "source": "A1:output",
       "target": "EXTERNAL",
-      "label": "Revoked Account Or Error",
+      "label": "Revoked 帳號 或 錯誤",
       "type": "output"
     },
     {
       "id": "AR4",
       "source": "EXTERNAL",
       "target": "A1:mechanism",
-      "label": "CodexAuth Revoke Helper",
+      "label": "codex驗證 Revoke Helper",
       "type": "mechanism"
     },
     {
       "id": "AR5",
       "source": "EXTERNAL",
       "target": "A2:input",
-      "label": "Outbound Responses Request",
+      "label": "Outbound Responses 請求",
       "type": "input"
     },
     {
@@ -80,21 +80,21 @@
       "id": "AR7",
       "source": "A2:output",
       "target": "EXTERNAL",
-      "label": "Headered Request To Codex API",
+      "label": "Headered 請求 到 Codex API",
       "type": "output"
     },
     {
       "id": "AR8",
       "source": "EXTERNAL",
       "target": "A2:mechanism",
-      "label": "Openai Quota Fetch Interceptor",
+      "label": "Openai 配額 Fetch Interceptor",
       "type": "mechanism"
     },
     {
       "id": "AR9",
       "source": "EXTERNAL",
       "target": "A3:input",
-      "label": "Anthropic Model Metadata",
+      "label": "Anthropic 模型 Metadata",
       "type": "input"
     },
     {
@@ -108,7 +108,7 @@
       "id": "AR11",
       "source": "A3:output",
       "target": "EXTERNAL",
-      "label": "Variant Map With xhigh",
+      "label": "Variant Map 使用 xhigh",
       "type": "output"
     },
     {
@@ -122,7 +122,7 @@
       "id": "AR13",
       "source": "EXTERNAL",
       "target": "A4:input",
-      "label": "Config disabled_providers List",
+      "label": "設定 disabledProvider 清單",
       "type": "input"
     },
     {
@@ -136,7 +136,7 @@
       "id": "AR15",
       "source": "A4:output",
       "target": "EXTERNAL",
-      "label": "Provider Universe With Auto Hidden Flag",
+      "label": "Provider Universe 使用 Auto Hidden Flag",
       "type": "output"
     },
     {
@@ -164,7 +164,7 @@
       "id": "AR19",
       "source": "A5:output",
       "target": "EXTERNAL",
-      "label": "Super Repo Commit And Event Record",
+      "label": "Super Repo Commit 與 事件 記錄",
       "type": "output"
     },
     {

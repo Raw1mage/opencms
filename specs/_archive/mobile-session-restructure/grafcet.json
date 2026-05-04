@@ -3,48 +3,72 @@
     "StepNumber": 0,
     "ModuleRef": "A1",
     "StepType": "initial",
-    "StepAction": "TurnBoundaryReached",
+    "StepAction": "回合boundaryreached",
     "LinkInputType": [],
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [1],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      1
+    ],
     "LinkOutputType": "track",
-    "Condition": ["turn_end_detected"],
+    "Condition": [
+      "回合enddetected"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 1,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "QueryGitNumstat + BuildSlimFileDiffArray",
+    "StepAction": "QueryGitNumstat + 建置slim檔案diffarray",
     "LinkInputType": [],
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2
+    ],
     "LinkOutputType": "track",
-    "Condition": ["array_built"],
+    "Condition": [
+      "arraybuilt"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "WriteMessageInfoJson (slim, via Storage.update)",
+    "StepAction": "write訊息infojson (slim, 透過 儲存.更新)",
     "LinkInputType": [],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [3],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      3
+    ],
     "LinkOutputType": "track",
-    "Condition": ["persisted"],
+    "Condition": [
+      "persisted"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "EmitBusMessageUpdated + ServeOnRead (slim payload)",
+    "StepAction": "發出bus訊息updated + serve在read (slim payload)",
     "LinkInputType": [],
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [0],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["emitted"],
+    "Condition": [
+      "emitted"
+    ],
     "SubGrafcet": []
   },
   {
@@ -53,34 +77,52 @@
     "StepType": "initial",
     "StepAction": "ClientReviewTabMounted",
     "LinkInputType": [],
-    "LinkInputNumber": [102],
-    "LinkOutputNumber": [101],
+    "LinkInputNumber": [
+      102
+    ],
+    "LinkOutputNumber": [
+      101
+    ],
     "LinkOutputType": "track",
-    "Condition": ["render_initiated"],
+    "Condition": [
+      "渲染initiated"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 101,
     "ModuleRef": "A6",
     "StepType": "normal",
-    "StepAction": "RenderMetadataRowsOnly (path, +A/-D, status)",
+    "StepAction": "渲染metadatarows僅 (路徑, +/-D, 狀態)",
     "LinkInputType": [],
-    "LinkInputNumber": [100],
-    "LinkOutputNumber": [102],
+    "LinkInputNumber": [
+      100
+    ],
+    "LinkOutputNumber": [
+      102
+    ],
     "LinkOutputType": "track",
-    "Condition": ["rendered"],
+    "Condition": [
+      "rendered"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 102,
     "ModuleRef": "A6",
     "StepType": "final",
-    "StepAction": "UserSeesMetadataList (no expand control)",
+    "StepAction": "使用者seesmetadata清單 (無 expand 控制)",
     "LinkInputType": [],
-    "LinkInputNumber": [101],
-    "LinkOutputNumber": [100],
+    "LinkInputNumber": [
+      101
+    ],
+    "LinkOutputNumber": [
+      100
+    ],
     "LinkOutputType": "track",
-    "Condition": ["tab_unmount_or_next_session"],
+    "Condition": [
+      "tabunmount或下一個Session"
+    ],
     "SubGrafcet": []
   },
   {
@@ -90,45 +132,65 @@
     "StepAction": "OwnedDiffCheckInvoked",
     "LinkInputType": [],
     "LinkInputNumber": [],
-    "LinkOutputNumber": [201],
+    "LinkOutputNumber": [
+      201
+    ],
     "LinkOutputType": "track",
-    "Condition": ["check_begins"],
+    "Condition": [
+      "checkbegins"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 201,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "ReadSlimMessageRecords + ForEachFile: GitShowAgainstSnapshotCommit",
+    "StepAction": "readslim訊息records + 供each檔案: GitShowAgainstSnapshotCommit",
     "LinkInputType": [],
-    "LinkInputNumber": [200],
-    "LinkOutputNumber": [202, 210],
+    "LinkInputNumber": [
+      200
+    ],
+    "LinkOutputNumber": [
+      202,
+      210
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["git_ok", "git_failed"],
+    "Condition": [
+      "gitok",
+      "gitfailed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 202,
     "ModuleRef": "A4",
     "StepType": "final",
-    "StepAction": "ReturnOwnedDiffResult",
+    "StepAction": "返回owneddiff結果",
     "LinkInputType": [],
-    "LinkInputNumber": [201],
+    "LinkInputNumber": [
+      201
+    ],
     "LinkOutputNumber": [],
     "LinkOutputType": "track",
-    "Condition": ["result_returned"],
+    "Condition": [
+      "結果returned"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 210,
     "ModuleRef": "A4",
     "StepType": "final",
-    "StepAction": "SurfaceExplicitGitError (never empty or partial state)",
+    "StepAction": "surfaceexplicitgit錯誤 (never empty 或 partial 狀態)",
     "LinkInputType": [],
-    "LinkInputNumber": [201],
+    "LinkInputNumber": [
+      201
+    ],
     "LinkOutputNumber": [],
     "LinkOutputType": "track",
-    "Condition": ["error_surfaced"],
+    "Condition": [
+      "錯誤surfaced"
+    ],
     "SubGrafcet": []
   },
   {
@@ -138,21 +200,31 @@
     "StepAction": "OperatorRunsMigrationScript",
     "LinkInputType": [],
     "LinkInputNumber": [],
-    "LinkOutputNumber": [301],
+    "LinkOutputNumber": [
+      301
+    ],
     "LinkOutputType": "track",
-    "Condition": ["script_launched"],
+    "Condition": [
+      "scriptlaunched"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 301,
     "ModuleRef": "A5",
     "StepType": "normal",
-    "StepAction": "WalkSessionDir",
+    "StepAction": "walkSessiondir",
     "LinkInputType": [],
-    "LinkInputNumber": [300],
-    "LinkOutputNumber": [302],
+    "LinkInputNumber": [
+      300
+    ],
+    "LinkOutputNumber": [
+      302
+    ],
     "LinkOutputType": "track",
-    "Condition": ["iterating"],
+    "Condition": [
+      "iterating"
+    ],
     "SubGrafcet": []
   },
   {
@@ -160,23 +232,40 @@
     "ModuleRef": "A5",
     "StepType": "normal",
     "StepAction": "CheckMigrationMarker",
-    "LinkInputType": ["convergence_or"],
-    "LinkInputNumber": [301, 305],
-    "LinkOutputNumber": [303, 306],
+    "LinkInputType": [
+      "convergence_or"
+    ],
+    "LinkInputNumber": [
+      301,
+      305
+    ],
+    "LinkOutputNumber": [
+      303,
+      306
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["needs_migration", "already_migrated"],
+    "Condition": [
+      "needsmigration",
+      "alreadymigrated"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 303,
     "ModuleRef": "A5",
     "StepType": "normal",
-    "StepAction": "ForEachMessageInfoJson: ParseStripBeforeAfter",
+    "StepAction": "供each訊息infojson: 解析移除beforeafter",
     "LinkInputType": [],
-    "LinkInputNumber": [302],
-    "LinkOutputNumber": [304],
+    "LinkInputNumber": [
+      302
+    ],
+    "LinkOutputNumber": [
+      304
+    ],
     "LinkOutputType": "track",
-    "Condition": ["message_processed"],
+    "Condition": [
+      "訊息processed"
+    ],
     "SubGrafcet": []
   },
   {
@@ -185,34 +274,50 @@
     "StepType": "normal",
     "StepAction": "AtomicWriteTempPlusRename",
     "LinkInputType": [],
-    "LinkInputNumber": [303],
-    "LinkOutputNumber": [305],
+    "LinkInputNumber": [
+      303
+    ],
+    "LinkOutputNumber": [
+      305
+    ],
     "LinkOutputType": "track",
-    "Condition": ["persisted"],
+    "Condition": [
+      "persisted"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 305,
     "ModuleRef": "A5",
     "StepType": "normal",
-    "StepAction": "WriteMigrationMarker + LogSessionSummary",
+    "StepAction": "WriteMigrationMarker + 記錄Sessionsummary",
     "LinkInputType": [],
-    "LinkInputNumber": [304],
-    "LinkOutputNumber": [302],
+    "LinkInputNumber": [
+      304
+    ],
+    "LinkOutputNumber": [
+      302
+    ],
     "LinkOutputType": "track",
-    "Condition": ["marker_written"],
+    "Condition": [
+      "markerwritten"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 306,
     "ModuleRef": "A5",
     "StepType": "final",
-    "StepAction": "ReportOverallStats(sessions_processed, bytes_reclaimed)",
+    "StepAction": "ReportOverallStats(Sessionprocessed, 位元組reclaimed)",
     "LinkInputType": [],
-    "LinkInputNumber": [302],
+    "LinkInputNumber": [
+      302
+    ],
     "LinkOutputNumber": [],
     "LinkOutputType": "track",
-    "Condition": ["reported"],
+    "Condition": [
+      "reported"
+    ],
     "SubGrafcet": []
   }
 ]

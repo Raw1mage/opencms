@@ -1,47 +1,137 @@
 {
-  "diagram_title": "Process Office Document Upload",
+  "diagram_title": "Process Office Document 上傳",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A1",
-      "title": "Validate Office Upload",
-      "description": "Receive uploaded bytes, classify the Office mime, compute the content-hash cache key, and resolve cache hit / miss.",
+      "title": "Validate Office 上傳",
+      "description": "Receive uploaded 位元組, classify Office mime, compute content-hash 快取 key, 與 解析 快取 hit / miss.",
       "decomposition": "A1"
     },
     {
       "id": "A2",
       "title": "Decompose Office Content",
-      "description": "Run the format-specific decomposer (docxmcp extract_all for docx; in-process printable-runs for legacy OLE2; placeholder note for xlsx/pptx; failure record on error).",
+      "description": "執行 format-specific decomposer (docxmcp 取出all 供 docx; 在-process printable-runs 供 legacy OLE2; placeholder note 供 xlsx/pptx; failure 記錄 在 錯誤).",
       "decomposition": "A2"
     },
     {
       "id": "A3",
-      "title": "Publish Decomposed Tree",
-      "description": "Write the decomposed artifacts under incoming/<stem>/, rename any prior dir with different content to incoming/<stem>-<old-timestamp>/, emit telemetry.",
+      "title": "發布 Decomposed Tree",
+      "description": "Write decomposed artifacts under incoming/<stem>/, rename any prior dir 使用 different content 到 incoming/<stem>-<old-timestamp>/, 發出 telemetry.",
       "decomposition": null
     },
     {
       "id": "A4",
       "title": "Compose Routing Hint",
-      "description": "Read manifest.json and render a plain-language map of the decomposed tree; attach it to the user message before the AI sees it.",
+      "description": "Read manifest.js在 與 渲染 plain-language map 的 decomposed tree; attach it 到 使用者 訊息 before AI sees it.",
       "decomposition": null
     }
   ],
   "arrows": [
-    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "uploaded bytes + filename + mime", "type": "input" },
-    { "id": "AR2", "source": "EXTERNAL", "target": "A1:control", "label": "tweaks.cfg (timeout, density threshold)", "type": "control" },
-    { "id": "AR3", "source": "EXTERNAL", "target": "A1:mechanism", "label": "opencode dispatcher", "type": "mechanism" },
-    { "id": "AR4", "source": "A1:output", "target": "A2:input", "label": "validated upload + cache verdict", "type": "input" },
-    { "id": "AR5", "source": "EXTERNAL", "target": "A2:mechanism", "label": "docxmcp service / printable-runs scanner", "type": "mechanism" },
-    { "id": "AR6", "source": "EXTERNAL", "target": "A2:control", "label": "decompose timeout 30s", "type": "control" },
-    { "id": "AR7", "source": "A1:output", "target": "A3:input", "label": "stem path + cache hit flag", "type": "input" },
-    { "id": "AR8", "source": "A2:output", "target": "A3:input", "label": "decomposed artifacts + manifest payload", "type": "input" },
-    { "id": "AR9", "source": "EXTERNAL", "target": "A3:mechanism", "label": "host filesystem", "type": "mechanism" },
-    { "id": "AR10", "source": "A3:output", "target": "A4:input", "label": "manifest path on disk", "type": "input" },
-    { "id": "AR11", "source": "EXTERNAL", "target": "A4:control", "label": "fold rules (>4 items collapse)", "type": "control" },
-    { "id": "AR12", "source": "EXTERNAL", "target": "A4:mechanism", "label": "message composer", "type": "mechanism" },
-    { "id": "AR13", "source": "A3:output", "target": "EXTERNAL", "label": "incoming/<stem>/ tree on disk", "type": "output" },
-    { "id": "AR14", "source": "A4:output", "target": "EXTERNAL", "label": "decorated message → AI", "type": "output" },
-    { "id": "AR15", "source": "A3:output", "target": "EXTERNAL", "label": "incoming.decompose telemetry event", "type": "output" }
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "uploaded 位元組 + filename + mime",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "tweaks.cfg (timeout, density threshold)",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "EXTERNAL",
+      "target": "A1:mechanism",
+      "label": "opencode dispatcher",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR4",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "validated 上傳 + 快取 verdict",
+      "type": "input"
+    },
+    {
+      "id": "AR5",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "label": "docxmcp service / printable-runs scanner",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR6",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "decompose timeout 30s",
+      "type": "control"
+    },
+    {
+      "id": "AR7",
+      "source": "A1:output",
+      "target": "A3:input",
+      "label": "stem 路徑 + 快取 hit flag",
+      "type": "input"
+    },
+    {
+      "id": "AR8",
+      "source": "A2:output",
+      "target": "A3:input",
+      "label": "decomposed artifacts + Manifest payload",
+      "type": "input"
+    },
+    {
+      "id": "AR9",
+      "source": "EXTERNAL",
+      "target": "A3:mechanism",
+      "label": "host filesystem",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR10",
+      "source": "A3:output",
+      "target": "A4:input",
+      "label": "Manifest 路徑 在 磁碟",
+      "type": "input"
+    },
+    {
+      "id": "AR11",
+      "source": "EXTERNAL",
+      "target": "A4:control",
+      "label": "fold rules (>4 items collapse)",
+      "type": "control"
+    },
+    {
+      "id": "AR12",
+      "source": "EXTERNAL",
+      "target": "A4:mechanism",
+      "label": "訊息 composer",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR13",
+      "source": "A3:output",
+      "target": "EXTERNAL",
+      "label": "incoming/<stem>/ tree 在 磁碟",
+      "type": "output"
+    },
+    {
+      "id": "AR14",
+      "source": "A4:output",
+      "target": "EXTERNAL",
+      "label": "decorated 訊息 → AI",
+      "type": "output"
+    },
+    {
+      "id": "AR15",
+      "source": "A3:output",
+      "target": "EXTERNAL",
+      "label": "incoming.decompose telemetry 事件",
+      "type": "output"
+    }
   ]
 }

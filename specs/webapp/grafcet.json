@@ -2,133 +2,209 @@
   {
     "StepNumber": 0,
     "StepType": "initial",
-    "StepAction": "idle_no_frontend",
+    "StepAction": "閒置無前端",
     "ModuleRef": "A0",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [10],
-    "LinkOutputNumber": [1],
-    "Condition": ["operator_runs_webctl_dev_start"],
+    "LinkInputNumber": [
+      10
+    ],
+    "LinkOutputNumber": [
+      1
+    ],
+    "Condition": [
+      "operatorrunswebctl開發start"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 1,
     "StepType": "normal",
-    "StepAction": "build_frontend_bundle",
+    "StepAction": "建置前端Bundle",
     "ModuleRef": "A12",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2],
-    "Condition": ["dist_emitted_or_dev_server_listening"],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2
+    ],
+    "Condition": [
+      "distemitted或開發伺服器listening"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "StepType": "normal",
-    "StepAction": "publish_gateway_route",
+    "StepAction": "發布Gateway路由",
     "ModuleRef": "A22",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [3],
-    "Condition": ["web_routes_conf_reloaded_via_SIGHUP"],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      3
+    ],
+    "Condition": [
+      "web路由confreloaded透過SIGHUP"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "StepType": "normal",
-    "StepAction": "serve_authenticated_spa_shell",
+    "StepAction": "serveauthenticatedSPA外殼",
     "ModuleRef": "A31",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [4],
-    "Condition": ["oc_jwt_valid_AND_AuthGate_passed"],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      4
+    ],
+    "Condition": [
+      "oc jwtvalidAND AuthGatepassed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 4,
     "StepType": "normal",
-    "StepAction": "mount_providers_and_render_route",
+    "StepAction": "mountProvider與渲染路由",
     "ModuleRef": "A33",
     "LinkInputType": [],
     "LinkOutputType": "divergence_or",
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [5, 6, 7],
-    "Condition": ["user_opens_admin", "user_clicks_path_link", "user_starts_voice_input"],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      5,
+      6,
+      7
+    ],
+    "Condition": [
+      "使用者opens管理",
+      "使用者clicks路徑link",
+      "使用者starts語音輸入"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 5,
     "StepType": "normal",
-    "StepAction": "drive_admin_panel_action",
+    "StepAction": "drive管理面板action",
     "ModuleRef": "A4",
     "LinkInputType": [],
     "LinkOutputType": "convergence_or",
-    "LinkInputNumber": [4],
-    "LinkOutputNumber": [8],
-    "Condition": ["dialog_action_committed_or_closed"],
+    "LinkInputNumber": [
+      4
+    ],
+    "LinkOutputNumber": [
+      8
+    ],
+    "Condition": [
+      "對話框actioncommitted或closed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 6,
     "StepType": "normal",
-    "StepAction": "render_rich_markdown_link",
+    "StepAction": "渲染豐富markdownlink",
     "ModuleRef": "A34",
     "LinkInputType": [],
     "LinkOutputType": "convergence_or",
-    "LinkInputNumber": [4],
-    "LinkOutputNumber": [8],
-    "Condition": ["file_tab_opened_at_line"],
+    "LinkInputNumber": [
+      4
+    ],
+    "LinkOutputNumber": [
+      8
+    ],
+    "Condition": [
+      "檔案tabopened於line"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 7,
     "StepType": "normal",
-    "StepAction": "capture_voice_via_chosen_path",
+    "StepAction": "capture語音透過chosen路徑",
     "ModuleRef": "A5",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [4],
-    "LinkOutputNumber": [9],
-    "Condition": ["voice_buffer_ready_or_chunk_available"],
+    "LinkInputNumber": [
+      4
+    ],
+    "LinkOutputNumber": [
+      9
+    ],
+    "Condition": [
+      "語音buffer就緒或分塊available"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 8,
     "StepType": "normal",
-    "StepAction": "wait_for_next_user_event",
+    "StepAction": "wait供下一個使用者事件",
     "ModuleRef": "A3",
-    "LinkInputType": ["convergence_or"],
+    "LinkInputType": [
+      "convergence_or"
+    ],
     "LinkOutputType": "track",
-    "LinkInputNumber": [5, 6],
-    "LinkOutputNumber": [10],
-    "Condition": ["session_idle_or_route_change"],
+    "LinkInputNumber": [
+      5,
+      6
+    ],
+    "LinkOutputNumber": [
+      10
+    ],
+    "Condition": [
+      "Session閒置或路由change"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 9,
     "StepType": "normal",
-    "StepAction": "deliver_transcript_to_prompt",
+    "StepAction": "delivertranscript到提示",
     "ModuleRef": "A5",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [7],
-    "LinkOutputNumber": [10],
-    "Condition": ["applyVoiceTranscript_succeeded_or_explicit_error_surfaced"],
+    "LinkInputNumber": [
+      7
+    ],
+    "LinkOutputNumber": [
+      10
+    ],
+    "Condition": [
+      "apply語音transcriptsucceeded或explicit錯誤surfaced"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 10,
     "StepType": "normal",
-    "StepAction": "return_to_idle_loop",
+    "StepAction": "返回到閒置loop",
     "ModuleRef": "A0",
-    "LinkInputType": ["convergence_or"],
+    "LinkInputType": [
+      "convergence_or"
+    ],
     "LinkOutputType": "track",
-    "LinkInputNumber": [8, 9],
-    "LinkOutputNumber": [0],
-    "Condition": ["1"],
+    "LinkInputNumber": [
+      8,
+      9
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
+    "Condition": [
+      "1"
+    ],
     "SubGrafcet": []
   }
 ]

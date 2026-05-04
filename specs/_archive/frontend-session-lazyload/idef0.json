@@ -1,48 +1,83 @@
 {
-  "diagram_title": "Frontend Session Lazy-Load",
+  "diagram_title": "前端 Session Lazy-Load",
   "node_reference": "A0",
   "description": "瀏覽器端打開 session 時的資料載入與渲染流程，目標是避免 OOM 並允許被動載入歷史。",
-  "inputs": ["User navigation", "SSE events", "Session storage"],
-  "outputs": ["Rendered DOM", "Telemetry"],
-  "controls": ["tweaks.cfg", "AGENTS.md 規範", "feature flag"],
-  "mechanisms": ["webapp-spa", "opencode-server", "SessionCache"],
+  "inputs": [
+    "User navigation",
+    "SSE events",
+    "Session storage"
+  ],
+  "outputs": [
+    "Rendered DOM",
+    "Telemetry"
+  ],
+  "controls": [
+    "tweaks.cfg",
+    "AGENTS.md 規範",
+    "feature flag"
+  ],
+  "mechanisms": [
+    "webapp-spa",
+    "opencode-server",
+    "SessionCache"
+  ],
   "activities": [
     {
       "id": "A1",
       "title": "決定是否 auto-redirect",
       "description": "首頁瀏覽時判斷 lastSession 是否可直接進入",
-      "inputs": ["URL navigate", "localStorage lastSession"],
-      "outputs": ["Navigate decision"],
-      "controls": ["tweaks.cfg: session_size_threshold_{kb,parts}"],
-      "mechanisms": ["CMP1 LayoutPage.openRootSession", "CMP8 SessionMetaRoute"],
+      "inputs": [
+        "URL navigate",
+        "localStorage lastSession"
+      ],
+      "outputs": [
+        "Navigate decision"
+      ],
+      "controls": [
+        "tweaks.cfg: session_size_threshold_{kb,parts}"
+      ],
+      "mechanisms": [
+        "CMP1 LayoutPage.openRootSession",
+        "CMP8 SessionMetaRoute"
+      ],
       "decomposition": [
         {
           "id": "A1.1",
           "title": "呼叫 meta 端點取 session size hint",
           "description": "Pre-redirect 向 server 要 partCount / totalBytes",
           "requirementRef": "R1.S1,R1.S2,R1.S3",
-          "mechanisms": ["CMP1", "CMP8"]
+          "mechanisms": [
+            "CMP1",
+            "CMP8"
+          ]
         },
         {
           "id": "A1.2",
           "title": "Sidebar 新對話按鈕",
           "description": "常駐逃生鈕，不依賴 lastSession",
           "requirementRef": "R1.S4",
-          "mechanisms": ["CMP2"]
+          "mechanisms": [
+            "CMP2"
+          ]
         },
         {
           "id": "A1.3",
           "title": "/sessions 列表頁",
           "description": "純列表，不 auto-redirect",
           "requirementRef": "R1.S2,R1.S3",
-          "mechanisms": ["CMP3"]
+          "mechanisms": [
+            "CMP3"
+          ]
         },
         {
           "id": "A1.4",
           "title": "伺服器 meta endpoint",
           "description": "GET /session/:id/meta，走 SessionCache",
           "requirementRef": "R1.S1,R1.S2",
-          "mechanisms": ["CMP8", "CMP9 SessionCache"]
+          "mechanisms": [
+            "CMP8",
+            "CMP9 SessionCache"
+          ]
         }
       ]
     },
@@ -50,24 +85,38 @@
       "id": "A2",
       "title": "Part 層保護",
       "description": "渲染與事件 apply 時對單一 part 施加 size 上限",
-      "inputs": ["SSE message.part.updated", "part.text"],
-      "outputs": ["Rendered part DOM（受限）"],
-      "controls": ["tweaks.cfg: part_inline_cap_kb, tail_window_kb, fold_preview_lines"],
-      "mechanisms": ["CMP6 MessagePart", "CMP7 EventReducer"],
+      "inputs": [
+        "SSE message.part.updated",
+        "part.text"
+      ],
+      "outputs": [
+        "Rendered part DOM（受限）"
+      ],
+      "controls": [
+        "tweaks.cfg: part_inline_cap_kb, tail_window_kb, fold_preview_lines"
+      ],
+      "mechanisms": [
+        "CMP6 MessagePart",
+        "CMP7 EventReducer"
+      ],
       "decomposition": [
         {
           "id": "A2.1",
-          "title": "MessagePart size-cap fold UI",
+          "title": "訊息part size-cap fold UI",
           "description": "完成 part 超過 cap → 收合 + 展開鈕",
           "requirementRef": "R2,R3.S2",
-          "mechanisms": ["CMP6"]
+          "mechanisms": [
+            "CMP6"
+          ]
         },
         {
           "id": "A2.2",
-          "title": "EventReducer rebuild heuristic + tail-window",
+          "title": "事件reducer rebuild heuristic + tail-window",
           "description": "辨識 AI SDK rebuild 改走 append；streaming 超 cap 截到 last N KB",
           "requirementRef": "R3.S1,R4",
-          "mechanisms": ["CMP7"]
+          "mechanisms": [
+            "CMP7"
+          ]
         }
       ]
     },
@@ -75,24 +124,38 @@
       "id": "A3",
       "title": "Scroll-spy 被動載入歷史",
       "description": "使用者往上捲時自動補舊訊息",
-      "inputs": ["scroll event", "IntersectionObserver"],
-      "outputs": ["loadMore 呼叫 + 舊訊息 prepend"],
-      "controls": ["tweaks.cfg: initial_page_size_{small,medium,large}"],
-      "mechanisms": ["CMP4 SyncContext.history", "CMP5 MessageTimeline"],
+      "inputs": [
+        "scroll event",
+        "IntersectionObserver"
+      ],
+      "outputs": [
+        "loadMore 呼叫 + 舊訊息 prepend"
+      ],
+      "controls": [
+        "tweaks.cfg: initial_page_size_{small,medium,large}"
+      ],
+      "mechanisms": [
+        "CMP4 SyncContext.history",
+        "CMP5 MessageTimeline"
+      ],
       "decomposition": [
         {
           "id": "A3.1",
           "title": "初始 page size 依 meta 動態",
           "description": "partCount ≤50 全載、≤200 載 100、否則載 50",
           "requirementRef": "R6",
-          "mechanisms": ["CMP4"]
+          "mechanisms": [
+            "CMP4"
+          ]
         },
         {
           "id": "A3.2",
           "title": "頂端 sentinel IntersectionObserver",
           "description": "進 viewport 觸發 loadMore；仅在 free-reading mode 啟用",
           "requirementRef": "R5",
-          "mechanisms": ["CMP5"]
+          "mechanisms": [
+            "CMP5"
+          ]
         }
       ]
     },
@@ -100,28 +163,41 @@
       "id": "A4",
       "title": "設定與 rollout",
       "description": "tweaks.cfg flag 切換 + observability",
-      "inputs": ["tweaks.cfg"],
-      "outputs": ["runtime behavior + telemetry"],
-      "mechanisms": ["CMP11 TweaksLoader", "CMP9 SessionCache"],
+      "inputs": [
+        "tweaks.cfg"
+      ],
+      "outputs": [
+        "runtime behavior + telemetry"
+      ],
+      "mechanisms": [
+        "CMP11 TweaksLoader",
+        "CMP9 SessionCache"
+      ],
       "decomposition": [
         {
           "id": "A4.1",
           "title": "SessionCache meta 命名空間",
           "description": "cache key session:{id}:meta 與既有 version 掛勾",
-          "mechanisms": ["CMP9"]
+          "mechanisms": [
+            "CMP9"
+          ]
         },
         {
           "id": "A4.2",
           "title": "既有 message endpoint（重用）",
           "description": "GET /:id/message?limit=N 契約不變",
-          "mechanisms": ["CMP10"]
+          "mechanisms": [
+            "CMP10"
+          ]
         },
         {
           "id": "A4.3",
           "title": "tweaks.cfg 新 keys + feature flag",
-          "description": "frontend_session_lazyload 等九組 key",
+          "description": "frontend session lazyload 等九組 key",
           "requirementRef": "R7",
-          "mechanisms": ["CMP11"]
+          "mechanisms": [
+            "CMP11"
+          ]
         }
       ]
     }

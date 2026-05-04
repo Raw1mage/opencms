@@ -1,78 +1,71 @@
-<svg width="1671.4" height="757.6" viewBox="-229.7 -165.8 1671.4 757.6" xmlns="http://www.w3.org/2000/svg">
+<svg width="1636.9" height="757.6" viewBox="-195.4 -165.8 1636.9 757.6" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
 <marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
 </defs>
-<rect x="-229.7" y="-165.8" width="1671.4" height="757.6" fill="white" />
+<rect x="-195.4" y="-165.8" width="1636.9" height="757.6" fill="white" />
 <rect x="130.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A51" />
-<text x="230.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A51" >A51</text>
-<text x="230.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A51" >NORMALIZE</text>
-<text x="230.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A51" >QUESTION INPUT</text>
-<rect x="518.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A52" />
-<text x="618.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A52" >A52</text>
-<text x="618.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A52" >REGISTER</text>
-<text x="618.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A52" >PENDING ENTRY</text>
-<rect x="882.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A53" />
-<text x="982.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A53" >A53</text>
-<text x="982.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A53" >WIRE ABORT</text>
-<text x="982.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A53" >SIGNAL</text>
+<text x="230.0" y="160.4" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A51" >A51</text>
+<text x="230.0" y="206.1" text-anchor="middle" font-size="27" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A51" >正規化問題輸入</text>
+<rect x="552.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A52" />
+<text x="652.0" y="162.4" text-anchor="middle" font-size="21" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A52" >A52</text>
+<text x="652.0" y="202.4" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A52" >註冊 待處理 項目</text>
+<rect x="916.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A53" />
+<text x="1016.0" y="159.9" text-anchor="middle" font-size="26" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A53" >A53</text>
+<text x="1016.0" y="207.0" text-anchor="middle" font-size="28" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A53" >接線中止訊號</text>
 <rect x="130.0" y="380.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A54" />
-<text x="230.0" y="409.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A54" >A54</text>
-<text x="230.0" y="441.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A54" >HASH CACHE KEY</text>
-<text x="230.0" y="472.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A54" >AND RESTORE</text>
-<rect x="518.0" y="380.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A55" />
-<text x="618.0" y="409.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A55" >A55</text>
-<text x="618.0" y="441.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A55" >RESOLVE REPLY</text>
-<text x="618.0" y="472.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A55" >OR REJECT</text>
-<rect x="40.0" y="44.2" width="1132.0" height="537.6" stroke="black" fill="none" stroke-width="2" />
-<rect x="486.0" y="-155.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A5" />
-<text x="606.0" y="-115.3" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >A5</text>
-<text x="606.0" y="-83.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >HANDLE QUESTION TOOL</text>
-<line x1="486.0" y1="-155.8" x2="40.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="726.0" y1="-155.8" x2="1172.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="486.0" y1="-45.8" x2="40.0" y2="581.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="726.0" y1="-45.8" x2="1172.0" y2="581.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<path d="M 330.0 180.0 L 518.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_norm_to_pending" data-waypoints="330.0,180.0 518.0,180.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 718.0 160.0 L 882.0 160.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_pending_to_abort" data-waypoints="718.0,160.0 882.0,160.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 718.0 200.0 L 790.0 200.0 Q 800.0 200.0 800.0 210.0 L 800.0 280.0 Q 800.0 290.0 790.0 290.0 L 100.0 290.0 Q 90.0 290.0 90.0 300.0 L 90.0 430.0 Q 90.0 440.0 100.0 440.0 L 130.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_pending_to_cache" data-waypoints="718.0,200.0 800.0,200.0 800.0,290.0 90.0,290.0 90.0,440.0 130.0,440.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1082.0 180.0 L 1112.0 180.0 Q 1122.0 180.0 1122.0 190.0 L 1122.0 320.0 Q 1122.0 330.0 1112.0 330.0 L 481.0 330.0 Q 471.0 330.0 471.0 340.0 L 471.0 410.0 Q 471.0 420.0 481.0 420.0 L 518.0 420.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_abort_to_resolve" data-waypoints="1082.0,180.0 1122.0,180.0 1122.0,330.0 471.0,330.0 471.0,420.0 518.0,420.0" marker-end="url(#arrow)" fill="none" />
+<text x="230.0" y="421.9" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A54" >A54</text>
+<text x="230.0" y="463.4" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A54" >雜湊快取鍵並還原</text>
+<rect x="552.0" y="380.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A55" />
+<text x="652.0" y="420.4" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A55" >A55</text>
+<text x="652.0" y="466.1" text-anchor="middle" font-size="27" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A55" >解析回覆或拒絕</text>
+<rect x="40.0" y="44.2" width="1166.0" height="537.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="503.0" y="-155.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A5" />
+<text x="623.0" y="-119.4" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >A5</text>
+<text x="623.0" y="-76.5" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >處理問題工具</text>
+<line x1="503.0" y1="-155.8" x2="40.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="743.0" y1="-155.8" x2="1206.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="503.0" y1="-45.8" x2="40.0" y2="581.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="743.0" y1="-45.8" x2="1206.0" y2="581.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 330.0 180.0 L 552.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_norm_to_pending" data-waypoints="330.0,180.0 552.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 752.0 160.0 L 916.0 160.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_pending_to_abort" data-waypoints="752.0,160.0 916.0,160.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 752.0 200.0 L 824.0 200.0 Q 834.0 200.0 834.0 210.0 L 834.0 280.0 Q 834.0 290.0 824.0 290.0 L 100.0 290.0 Q 90.0 290.0 90.0 300.0 L 90.0 430.0 Q 90.0 440.0 100.0 440.0 L 130.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_pending_to_cache" data-waypoints="752.0,200.0 834.0,200.0 834.0,290.0 90.0,290.0 90.0,440.0 130.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1116.0 180.0 L 1146.0 180.0 Q 1156.0 180.0 1156.0 190.0 L 1156.0 320.0 Q 1156.0 330.0 1146.0 330.0 L 506.5 330.0 Q 496.5 330.0 496.5 340.0 L 496.5 410.0 Q 496.5 420.0 506.5 420.0 L 552.0 420.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_abort_to_resolve" data-waypoints="1116.0,180.0 1156.0,180.0 1156.0,330.0 496.5,330.0 496.5,420.0 552.0,420.0" marker-end="url(#arrow)" fill="none" />
 <path d="M -10.0 180.0 L 130.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_in_args" data-waypoints="-10.0,180.0 130.0,180.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 230.0 275.8 L 230.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_mech_norm" data-waypoints="230.0,275.8 230.0,240.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_ctrl_hint" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 618.0 275.8 L 618.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_mech_pending" data-waypoints="618.0,275.8 618.0,240.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 982.0 275.8 L 982.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_mech_abort" data-waypoints="982.0,275.8 982.0,240.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 982.0 84.2 L 982.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_ctrl_reason" data-waypoints="982.0,84.2 982.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 652.0 275.8 L 652.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_mech_pending" data-waypoints="652.0,275.8 652.0,240.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1016.0 275.8 L 1016.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_mech_abort" data-waypoints="1016.0,275.8 1016.0,240.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1016.0 84.2 L 1016.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_ctrl_reason" data-waypoints="1016.0,84.2 1016.0,120.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 230.0 535.8 L 230.0 500.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_mech_cache" data-waypoints="230.0,535.8 230.0,500.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 230.0 344.2 L 230.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_ctrl_session" data-waypoints="230.0,344.2 230.0,380.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 440.0 L 367.0 440.0 Q 377.0 440.0 377.0 450.0 L 377.0 531.8 Q 377.0 541.8 387.0 541.8 L 1222.0 541.8" stroke="black" stroke-width="1.2" data-arrow-id="a5_cache_out" data-waypoints="330.0,440.0 377.0,440.0 377.0,541.8 1222.0,541.8" marker-end="url(#arrow)" fill="none" />
-<path d="M -10.0 330.0 L 414.0 330.0 Q 424.0 330.0 424.0 340.0 L 424.0 450.0 Q 424.0 460.0 434.0 460.0 L 518.0 460.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_in_reply" data-waypoints="-10.0,330.0 424.0,330.0 424.0,460.0 518.0,460.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 618.0 535.8 L 618.0 500.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_mech_resolve" data-waypoints="618.0,535.8 618.0,500.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 718.0 440.0 L 1222.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_resolve_out" data-waypoints="718.0,440.0 1222.0,440.0" marker-end="url(#arrow)" fill="none" />
-<text x="224.0" y="256.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_mech_norm">z.preprocess(Question.normalize)</text>
+<path d="M 330.0 440.0 L 375.5 440.0 Q 385.5 440.0 385.5 450.0 L 385.5 531.8 Q 385.5 541.8 395.5 541.8 L 1256.0 541.8" stroke="black" stroke-width="1.2" data-arrow-id="a5_cache_out" data-waypoints="330.0,440.0 385.5,440.0 385.5,541.8 1256.0,541.8" marker-end="url(#arrow)" fill="none" />
+<path d="M -10.0 330.0 L 431.0 330.0 Q 441.0 330.0 441.0 340.0 L 441.0 450.0 Q 441.0 460.0 451.0 460.0 L 552.0 460.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_in_reply" data-waypoints="-10.0,330.0 441.0,330.0 441.0,460.0 552.0,460.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 652.0 535.8 L 652.0 500.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_mech_resolve" data-waypoints="652.0,535.8 652.0,500.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 752.0 440.0 L 1256.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_resolve_out" data-waypoints="752.0,440.0 1256.0,440.0" marker-end="url(#arrow)" fill="none" />
+<text x="224.0" y="256.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_mech_norm">z.preprocess(問題.normalize)</text>
 <text x="236.0" y="256.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_mech_norm">(tool/question.ts L25-57)</text>
-<text x="230.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_ctrl_hint">SCHEMA_HINT On Validation Miss</text>
-<text x="612.0" y="256.0" font-size="12" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_mech_pending">Question.ask pending[id]</text>
-<text x="624.0" y="256.0" font-size="12" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_mech_pending">Bus.publish(question.asked)</text>
-<text x="976.0" y="256.0" font-size="11" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_mech_abort">question/index.ts:122-200</text>
-<text x="988.0" y="256.0" font-size="11" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_mech_abort">abort wiring</text>
-<text x="982.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_ctrl_reason">signal.reason: manual-stop / rate-limit-fallback / watchdog labels</text>
-<text x="224.0" y="516.0" font-size="12" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_mech_cache">components/question-cache-key.ts</text>
-<text x="236.0" y="516.0" font-size="12" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_mech_cache">canonicalJson + fnv1a32</text>
-<text x="224.0" y="374.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_ctrl_session">Cache Scope:</text>
-<text x="236.0" y="374.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_ctrl_session">(sessionID, contentHash)</text>
-<text x="612.0" y="516.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_mech_resolve">Bus.publish(Event.Rejected)</text>
-<text x="624.0" y="516.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_mech_resolve">Or Resolve Promise</text>
-<text x="424.0" y="180.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_norm_to_pending"><tspan x="424.0" dy="0">Canonical</tspan><tspan x="424.0" dy="16.0">{questions:[{question</tspan><tspan x="424.0" dy="16.0">options</tspan><tspan x="424.0" dy="16.0">multiple}]}</tspan></text>
-<text x="800.0" y="155.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_pending_to_abort">Pending Entry +</text>
-<text x="800.0" y="172.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_pending_to_abort">Caller AbortSignal</text>
-<text x="618.0" y="308.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_pending_to_cache" >Question Content Bytes</text>
-<text x="618.0" y="348.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_abort_to_resolve" >Abort Or Late-Abort Signal</text>
-<text x="-14.0" y="171.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_in_args">Raw question</text>
-<text x="-14.0" y="197.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_in_args">Tool Args</text>
-<text x="1226.0" y="532.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_cache_out">Restored Draft</text>
-<text x="1226.0" y="558.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_cache_out">Or Empty Store</text>
-<text x="-14.0" y="321.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_in_reply">User Reply From</text>
-<text x="-14.0" y="347.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_in_reply">QuestionDock</text>
-<text x="1226.0" y="431.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_resolve_out">RejectedError Or</text>
-<text x="1226.0" y="457.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_resolve_out">Reply Back To Tool</text>
+<text x="230.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_ctrl_hint">驗證未命中時的結構提示</text>
+<text x="646.0" y="256.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_mech_pending">問題.ask 待處理[id]</text>
+<text x="658.0" y="256.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_mech_pending">Bus.發布(問題.asked)</text>
+<text x="1016.0" y="291.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_mech_abort">question/index.ts:122-200 中止接線</text>
+<text x="1016.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_ctrl_reason">signal.reason：手動停止 / 速率限制備援 / 看門狗標籤</text>
+<text x="224.0" y="516.0" font-size="13" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_mech_cache">components/question-cache-key.ts</text>
+<text x="236.0" y="516.0" font-size="13" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_mech_cache">canonicalJson + fnv132</text>
+<text x="224.0" y="374.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_ctrl_session">快取範圍：(SessionID,</text>
+<text x="236.0" y="374.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_ctrl_session">contentHash)</text>
+<text x="646.0" y="516.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_mech_resolve">Bus.發布(事件.Rejected)</text>
+<text x="658.0" y="516.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_mech_resolve">解析 Promise</text>
+<text x="441.0" y="180.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_norm_to_pending"><tspan x="441.0" dy="0">標準形狀 {questions:[{問題</tspan><tspan x="441.0" dy="16.0">options</tspan><tspan x="441.0" dy="16.0">multiple}]}</tspan></text>
+<text x="834.0" y="155.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_pending_to_abort">待處理項目 + 呼叫方</text>
+<text x="834.0" y="172.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_pending_to_abort">AbortSignal</text>
+<text x="652.0" y="308.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_pending_to_cache" >問題內容位元組</text>
+<text x="652.0" y="348.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_abort_to_resolve" >中止或延遲中止訊號</text>
+<text x="-14.0" y="184.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_in_args">原始問題工具參數</text>
+<text x="1260.0" y="532.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_cache_out">已還原草</text>
+<text x="1260.0" y="558.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_cache_out">稿或空儲存</text>
+<text x="-14.0" y="321.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_in_reply">使用者回覆</text>
+<text x="-14.0" y="347.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_in_reply">來自問題面板</text>
+<text x="1260.0" y="431.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_resolve_out">拒絕錯誤或</text>
+<text x="1260.0" y="457.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_resolve_out">回覆返回工具</text>
 </svg>

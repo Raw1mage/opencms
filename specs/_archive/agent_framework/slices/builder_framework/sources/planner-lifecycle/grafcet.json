@@ -5,70 +5,108 @@
     "StepType": "initial",
     "StepAction": "Confirm Lifecycle Decisions",
     "LinkInputType": [],
-    "LinkInputNumber": [4],
-    "LinkOutputNumber": [1],
+    "LinkInputNumber": [
+      4
+    ],
+    "LinkOutputNumber": [
+      1
+    ],
     "LinkOutputType": "track",
-    "Condition": ["plan_started"],
+    "Condition": [
+      "規劃started"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 1,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "Refactor Planner Runtime Paths",
+    "StepAction": "Refactor Planner Runtime 路徑",
     "LinkInputType": [],
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2, 5],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2,
+      5
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["runtime_contract_defined", "legacy_rule_ambiguous"],
+    "Condition": [
+      "runtimecontractdefined",
+      "legacyruleambiguous"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Rewrite Prompt And Skill Contracts",
+    "StepAction": "Rewrite 提示 與 技能 Contracts",
     "LinkInputType": [],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [3],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      3
+    ],
     "LinkOutputType": "track",
-    "Condition": ["runtime_refactor_complete"],
+    "Condition": [
+      "runtimerefactor完成"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "ModuleRef": "A5",
     "StepType": "normal",
-    "StepAction": "Validate Plan Completeness And Build Readiness",
+    "StepAction": "Validate 規劃 Completeness 與 建置 Readiness",
     "LinkInputType": [],
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [4],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      4
+    ],
     "LinkOutputType": "track",
-    "Condition": ["contracts_aligned"],
+    "Condition": [
+      "contractsaligned"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 4,
     "ModuleRef": "A5",
     "StepType": "normal",
-    "StepAction": "Await Build Mode Approval",
+    "StepAction": "等待 建置 Mode Approval",
     "LinkInputType": [],
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [0],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["plan_exit_confirmed"],
+    "Condition": [
+      "規劃exitconfirmed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 5,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Stop For Legacy Evidence Decision",
+    "StepAction": "Stop 供 Legacy Evidence Decision",
     "LinkInputType": [],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [3],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      3
+    ],
     "LinkOutputType": "track",
-    "Condition": ["legacy_triage_resolved"],
+    "Condition": [
+      "legacytriage已解析"
+    ],
     "SubGrafcet": []
   }
 ]

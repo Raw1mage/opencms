@@ -3,12 +3,18 @@
     "StepNumber": 0,
     "ModuleRef": "A1",
     "StepType": "initial",
-    "StepAction": "Await Approved Plan Exit",
+    "StepAction": "等待 Approved 規劃 Exit",
     "LinkInputType": [],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [1],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      1
+    ],
     "LinkOutputType": "track",
-    "Condition": ["approved_plan_ready"],
+    "Condition": [
+      "approved規劃就緒"
+    ],
     "SubGrafcet": []
   },
   {
@@ -17,34 +23,56 @@
     "StepType": "normal",
     "StepAction": "Bootstrap Beta Branch Work",
     "LinkInputType": [],
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2,3],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2,
+      3
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["beta_context_resolved", "clarification_or_blocker"],
+    "Condition": [
+      "beta上下文已解析",
+      "clarification或blocker"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "Run Routine Build Git Flow",
+    "StepAction": "執行 Routine 建置 Git Flow",
     "LinkInputType": [],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [4,5],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      4,
+      5
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["validation_needed", "build_failed_or_needs_rework"],
+    "Condition": [
+      "validationneeded",
+      "建置failed或needsrework"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Pause For Clarification",
+    "StepAction": "Pause 供 Clarification",
     "LinkInputType": [],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [0],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["clarification_answered"],
+    "Condition": [
+      "clarificationanswered"
+    ],
     "SubGrafcet": []
   },
   {
@@ -53,58 +81,91 @@
     "StepType": "normal",
     "StepAction": "Validate Main Repo Syncback",
     "LinkInputType": [],
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [6,7],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      6,
+      7
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["validation_passed", "validation_failed"],
+    "Condition": [
+      "validationpassed",
+      "validationfailed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 5,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "Continue Beta Iteration",
+    "StepAction": "繼續 Beta Iteration",
     "LinkInputType": [],
-    "LinkInputNumber": [2,4],
-    "LinkOutputNumber": [2],
+    "LinkInputNumber": [
+      2,
+      4
+    ],
+    "LinkOutputNumber": [
+      2
+    ],
     "LinkOutputType": "track",
-    "Condition": ["more_build_work"],
+    "Condition": [
+      "more建置work"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 6,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Prepare Merge Preflight",
+    "StepAction": "Prepare 合併 Preflight",
     "LinkInputType": [],
-    "LinkInputNumber": [4],
-    "LinkOutputNumber": [8],
+    "LinkInputNumber": [
+      4
+    ],
+    "LinkOutputNumber": [
+      8
+    ],
     "LinkOutputType": "track",
-    "Condition": ["merge_preflight_ready"],
+    "Condition": [
+      "合併preflight就緒"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 7,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "Return To Beta Branch Work",
+    "StepAction": "返回 到 Beta Branch Work",
     "LinkInputType": [],
-    "LinkInputNumber": [4],
-    "LinkOutputNumber": [2],
+    "LinkInputNumber": [
+      4
+    ],
+    "LinkOutputNumber": [
+      2
+    ],
     "LinkOutputType": "track",
-    "Condition": ["rework_required"],
+    "Condition": [
+      "reworkrequired"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 8,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Pause For Merge Approval",
+    "StepAction": "Pause 供 合併 Approval",
     "LinkInputType": [],
-    "LinkInputNumber": [6],
-    "LinkOutputNumber": [0],
+    "LinkInputNumber": [
+      6
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["approval_deferred_or_complete"],
+    "Condition": [
+      "approvaldeferred或完成"
+    ],
     "SubGrafcet": []
   }
 ]

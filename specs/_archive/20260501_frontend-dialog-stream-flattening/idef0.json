@@ -1,36 +1,74 @@
 {
   "model": "IDEF0",
-  "title": "Frontend Dialog Stream Flattening",
+  "title": "前端 對話框 串流 扁平化",
   "nodes": [
     {
       "id": "A0",
       "name": "Render Flat Dialog Stream Canvas",
-      "inputs": ["Session message events", "UI status state"],
-      "controls": ["Single status line rule", "Frontend-only display boundary"],
-      "outputs": ["Flat card canvas"],
-      "mechanisms": ["Solid components", "SessionTurn renderer", "Dialog stream canvas"]
+      "inputs": [
+        "Session message events",
+        "UI status state"
+      ],
+      "controls": [
+        "Single status line rule",
+        "Frontend-only display boundary"
+      ],
+      "outputs": [
+        "Flat card canvas"
+      ],
+      "mechanisms": [
+        "Solid components",
+        "SessionTurn renderer",
+        "Dialog stream canvas"
+      ]
     },
     {
       "id": "A1",
       "name": "Map events to visible cards",
-      "inputs": ["Message parts"],
-      "controls": ["Event arrival order"],
-      "outputs": ["Card sequence"],
-      "mechanisms": ["Frontend reducers", "Stream component"]
+      "inputs": [
+        "Message parts"
+      ],
+      "controls": [
+        "Event arrival order"
+      ],
+      "outputs": [
+        "Card sequence"
+      ],
+      "mechanisms": [
+        "Frontend reducers",
+        "Stream component"
+      ]
     },
     {
       "id": "A2",
       "name": "Display live status",
-      "inputs": ["Thinking/compaction/tool status"],
-      "controls": ["Turn status line only"],
-      "outputs": ["Status line text"],
-      "mechanisms": ["SessionTurn status surface"]
+      "inputs": [
+        "Thinking/compaction/tool status"
+      ],
+      "controls": [
+        "Turn status line only"
+      ],
+      "outputs": [
+        "Status line text"
+      ],
+      "mechanisms": [
+        "SessionTurn status surface"
+      ]
     }
   ],
   "traceability": {
-    "R1": ["A0", "A1"],
-    "R2": ["A2"],
-    "R3": ["A0"],
-    "R4": ["A1"]
+    "R1": [
+      "A0",
+      "A1"
+    ],
+    "R2": [
+      "A2"
+    ],
+    "R3": [
+      "A0"
+    ],
+    "R4": [
+      "A1"
+    ]
   }
 }

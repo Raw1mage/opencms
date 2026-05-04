@@ -3,84 +3,129 @@
     "StepNumber": 0,
     "ModuleRef": "A4",
     "StepType": "initial",
-    "StepAction": "Start gateway login evaluation",
+    "StepAction": "Start Gateway 登入 evaluation",
     "LinkInputType": [],
     "LinkInputNumber": [],
-    "LinkOutputNumber": [1],
+    "LinkOutputNumber": [
+      1
+    ],
     "LinkOutputType": "track",
-    "Condition": ["start"],
+    "Condition": [
+      "start"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 1,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Inspect login mode and identity source",
+    "StepAction": "Inspect 登入 mode 與 身分 來源",
     "LinkInputType": [],
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2, 3],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2,
+      3
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["linux_pam_login", "google_login"],
+    "Condition": [
+      "linuxpam登入",
+      "google登入"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Authorize via Linux PAM and route to uid daemon",
+    "StepAction": "Authorize 透過 Linux PAM 與 路由 到 uid daemon",
     "LinkInputType": [],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [5],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      5
+    ],
     "LinkOutputType": "track",
-    "Condition": ["pam_success"],
+    "Condition": [
+      "pamsuccess"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Query global binding registry under /etc/opencode/",
+    "StepAction": "Query 全域 binding 註冊表 under /etc/opencode/",
     "LinkInputType": [],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [4, 6],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      4,
+      6
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["binding_found", "binding_missing"],
+    "Condition": [
+      "bindingfound",
+      "binding缺失"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 4,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "Accept bound Google identity and continue",
+    "StepAction": "Accept bound Google 身分 與 繼續",
     "LinkInputType": [],
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [5],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      5
+    ],
     "LinkOutputType": "track",
-    "Condition": ["google_bound"],
+    "Condition": [
+      "googlebound"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 5,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Route session to per-user daemon",
+    "StepAction": "路由 Session 到 依-使用者 daemon",
     "LinkInputType": [],
-    "LinkInputNumber": [2, 4],
-    "LinkOutputNumber": [0],
+    "LinkInputNumber": [
+      2,
+      4
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["daemon_ready"],
+    "Condition": [
+      "daemon就緒"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 6,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Reject unbound Google identity with explicit denial",
+    "StepAction": "Reject unbound Google 身分 使用 explicit denial",
     "LinkInputType": [],
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [0],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["binding_missing"],
+    "Condition": [
+      "binding缺失"
+    ],
     "SubGrafcet": []
   }
 ]

@@ -262,6 +262,7 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
       tree: {
         list: tree.listDir,
         refresh: (input: string) => tree.listDir(input, { force: true }),
+        refreshLoaded: tree.refreshLoaded,
         state: tree.dirState,
         children: tree.children,
         expand: tree.expandDir,

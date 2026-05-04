@@ -1,67 +1,68 @@
-<svg width="1663.4" height="785.8" viewBox="-229.7 -165.8 1663.4 785.8" xmlns="http://www.w3.org/2000/svg">
+<svg width="1911.7" height="785.8" viewBox="-336.9 -165.8 1911.7 785.8" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
 <marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
 </defs>
-<rect x="-229.7" y="-165.8" width="1663.4" height="785.8" fill="white" />
-<rect x="130.0" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A51" />
-<text x="230.0" y="165.2" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A51" >A51</text>
-<text x="230.0" y="200.9" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A51" >LOOKUP</text>
-<text x="230.0" y="238.4" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A51" >MANIFEST CACHE</text>
-<rect x="486.0" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A52" />
-<text x="586.0" y="162.3" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A52" >A52</text>
-<text x="586.0" y="200.9" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A52" >RUN FAST</text>
-<text x="586.0" y="242.1" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A52" >PHASE EXTRACT</text>
-<rect x="874.0" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A53" />
-<text x="974.0" y="168.1" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A53" >A53</text>
-<text x="974.0" y="201.0" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A53" >SPAWN BACKGROUND</text>
-<text x="974.0" y="234.7" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A53" >WORKER</text>
-<rect x="130.0" y="410.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A54" />
-<text x="230.0" y="449.4" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A54" >A54</text>
-<text x="230.0" y="490.9" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A54" >POLL EXTRACT</text>
-<text x="230.0" y="535.9" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A54" >ALL COLLECT</text>
-<rect x="486.0" y="410.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A55" />
-<text x="586.0" y="449.4" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A55" >A55</text>
-<text x="586.0" y="490.9" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A55" >RENDER</text>
-<text x="586.0" y="535.9" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A55" >ROUTING HINT</text>
-<rect x="40.0" y="44.2" width="1124.0" height="565.8" stroke="black" fill="none" stroke-width="2" />
-<rect x="482.0" y="-155.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A5" />
-<text x="602.0" y="-115.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >A5</text>
-<text x="602.0" y="-83.0" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >AUTO DECOMPOSE DOCX</text>
-<line x1="482.0" y1="-155.8" x2="40.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="722.0" y1="-155.8" x2="1164.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="482.0" y1="-45.8" x2="40.0" y2="610.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="722.0" y1="-45.8" x2="1164.0" y2="610.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<path d="M 330.0 173.3 L 486.0 173.3" stroke="black" stroke-width="1.2" data-arrow-id="a5_cache_out_miss" data-waypoints="330.0,173.3 486.0,173.3" marker-end="url(#arrow)" fill="none" />
-<path d="M 686.0 173.3 L 874.0 173.3" stroke="black" stroke-width="1.2" data-arrow-id="a5_fast_to_bg" data-waypoints="686.0,173.3 874.0,173.3" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 530.0 L 486.0 530.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_poll_to_hint" data-waypoints="330.0,530.0 486.0,530.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1074.0 200.0 L 1104.0 200.0 Q 1114.0 200.0 1114.0 210.0 L 1114.0 310.0 Q 1114.0 320.0 1104.0 320.0 L 100.0 320.0 Q 90.0 320.0 90.0 330.0 L 90.0 480.0 Q 90.0 490.0 100.0 490.0 L 130.0 490.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_bg_to_poll" data-waypoints="1074.0,200.0 1114.0,200.0 1114.0,320.0 90.0,320.0 90.0,490.0 130.0,490.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 226.7 L 372.0 226.7 Q 382.0 226.7 382.0 236.7 L 382.0 480.0 Q 382.0 490.0 392.0 490.0 L 486.0 490.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_cache_out_hit" data-waypoints="330.0,226.7 382.0,226.7 382.0,490.0 486.0,490.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 686.0 226.7 L 770.0 226.7 Q 780.0 226.7 780.0 236.7 L 780.0 350.0 Q 780.0 360.0 770.0 360.0 L 444.0 360.0 Q 434.0 360.0 434.0 370.0 L 434.0 440.0 Q 434.0 450.0 444.0 450.0 L 486.0 450.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_fast_out_imm" data-waypoints="686.0,226.7 780.0,226.7 780.0,360.0 434.0,360.0 434.0,450.0 486.0,450.0" marker-end="url(#arrow)" fill="none" />
+<rect x="-336.9" y="-165.8" width="1911.7" height="785.8" fill="white" />
+<rect x="130.0" y="120.0" width="214.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A51" />
+<text x="237.0" y="158.0" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A51" >A51</text>
+<text x="237.0" y="200.8" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A51" >LOOKUP</text>
+<text x="237.0" y="247.7" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A51" >MANIFEST 快取</text>
+<rect x="492.0" y="120.0" width="214.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A52" />
+<text x="599.0" y="158.0" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A52" >A52</text>
+<text x="599.0" y="200.8" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A52" >執行 FAST</text>
+<text x="599.0" y="247.7" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A52" >PHASE 取出</text>
+<rect x="894.0" y="120.0" width="214.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A53" />
+<text x="1001.0" y="162.3" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A53" >A53</text>
+<text x="1001.0" y="200.9" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A53" >啟動 BACKGROUND</text>
+<text x="1001.0" y="242.1" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A53" >WORKER</text>
+<rect x="130.0" y="410.0" width="214.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A54" />
+<text x="237.0" y="448.0" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A54" >A54</text>
+<text x="237.0" y="490.8" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A54" >POLL 取出</text>
+<text x="237.0" y="537.7" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A54" >ALL COLLECT</text>
+<rect x="492.0" y="410.0" width="214.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A55" />
+<text x="599.0" y="448.0" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A55" >A55</text>
+<text x="599.0" y="490.8" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A55" >渲染 ROUTING</text>
+<text x="599.0" y="537.7" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A55" >HINT</text>
+<rect x="40.0" y="44.2" width="1158.0" height="565.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="499.0" y="-155.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A5" />
+<text x="619.0" y="-115.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >A5</text>
+<text x="619.0" y="-83.0" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >AUTO DECOMPOSE DOCX</text>
+<line x1="499.0" y1="-155.8" x2="40.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="739.0" y1="-155.8" x2="1198.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="499.0" y1="-45.8" x2="40.0" y2="610.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="739.0" y1="-45.8" x2="1198.0" y2="610.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 344.0 173.3 L 492.0 173.3" stroke="black" stroke-width="1.2" data-arrow-id="a5_cache_out_miss" data-waypoints="344.0,173.3 492.0,173.3" marker-end="url(#arrow)" fill="none" />
+<path d="M 706.0 173.3 L 894.0 173.3" stroke="black" stroke-width="1.2" data-arrow-id="a5_fast_to_bg" data-waypoints="706.0,173.3 894.0,173.3" marker-end="url(#arrow)" fill="none" />
+<path d="M 344.0 530.0 L 492.0 530.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_poll_to_hint" data-waypoints="344.0,530.0 492.0,530.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1108.0 200.0 L 1138.0 200.0 Q 1148.0 200.0 1148.0 210.0 L 1148.0 310.0 Q 1148.0 320.0 1138.0 320.0 L 100.0 320.0 Q 90.0 320.0 90.0 330.0 L 90.0 480.0 Q 90.0 490.0 100.0 490.0 L 130.0 490.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_bg_to_poll" data-waypoints="1108.0,200.0 1148.0,200.0 1148.0,320.0 90.0,320.0 90.0,490.0 130.0,490.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 344.0 226.7 L 383.3 226.7 Q 393.3 226.7 393.3 236.7 L 393.3 480.0 Q 393.3 490.0 403.3 490.0 L 492.0 490.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_cache_out_hit" data-waypoints="344.0,226.7 393.3,226.7 393.3,490.0 492.0,490.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 706.0 226.7 L 790.0 226.7 Q 800.0 226.7 800.0 236.7 L 800.0 350.0 Q 800.0 360.0 790.0 360.0 L 452.7 360.0 Q 442.7 360.0 442.7 370.0 L 442.7 440.0 Q 442.7 450.0 452.7 450.0 L 492.0 450.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_fast_out_imm" data-waypoints="706.0,226.7 800.0,226.7 800.0,360.0 442.7,360.0 442.7,450.0 492.0,450.0" marker-end="url(#arrow)" fill="none" />
 <path d="M -10.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_in_office" data-waypoints="-10.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_cache_ctrl" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 586.0 84.2 L 586.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_fast_ctrl" data-waypoints="586.0,84.2 586.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 974.0 84.2 L 974.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_bg_ctrl" data-waypoints="974.0,84.2 974.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 374.2 L 230.0 410.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_poll_ctrl" data-waypoints="230.0,374.2 230.0,410.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 586.0 374.2 L 586.0 410.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_hint_ctrl" data-waypoints="586.0,374.2 586.0,410.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 686.0 490.0 L 1214.0 490.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_hint_out" data-waypoints="686.0,490.0 1214.0,490.0" marker-end="url(#arrow)" fill="none" />
-<text x="230.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_cache_ctrl">manifest.lookupCache DD-12</text>
-<text x="586.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_fast_ctrl">docxmcp extract_all 30s timeout</text>
-<text x="974.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_bg_ctrl">Detached Child Process Handle</text>
-<text x="230.0" y="368.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_poll_ctrl">startPollLoop 5s Cycle 180s Cap</text>
-<text x="582.0" y="404.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_hint_ctrl">renderOfficeRoutingHint DD-7</text>
-<text x="408.0" y="165.3" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_cache_out_miss" >Cache Miss Buffer</text>
-<text x="780.0" y="168.3" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_fast_to_bg">Outline Plus Template</text>
-<text x="780.0" y="185.3" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_fast_to_bg">Plus Manifest</text>
-<text x="408.0" y="525.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_poll_to_hint">Final Manifest</text>
-<text x="408.0" y="542.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_poll_to_hint">Plus Bundle Tree</text>
-<text x="586.0" y="338.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_bg_to_poll" >Worker pid Plus Job Token</text>
-<text x="352.0" y="305.1" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_cache_out_hit" >Cache Hit Manifest Status</text>
-<text x="725.6" y="355.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_fast_out_imm">Pending Markers</text>
-<text x="725.6" y="372.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_fast_out_imm">Manifest</text>
+<path d="M 237.0 84.2 L 237.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_cache_ctrl" data-waypoints="237.0,84.2 237.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 599.0 84.2 L 599.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_fast_ctrl" data-waypoints="599.0,84.2 599.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1001.0 84.2 L 1001.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_bg_ctrl" data-waypoints="1001.0,84.2 1001.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 237.0 374.2 L 237.0 410.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_poll_ctrl" data-waypoints="237.0,374.2 237.0,410.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 599.0 374.2 L 599.0 410.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_hint_ctrl" data-waypoints="599.0,374.2 599.0,410.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 706.0 490.0 L 1248.0 490.0" stroke="black" stroke-width="1.2" data-arrow-id="a5_hint_out" data-waypoints="706.0,490.0 1248.0,490.0" marker-end="url(#arrow)" fill="none" />
+<text x="237.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_cache_ctrl">Manifest.lookup快取 DD-12</text>
+<text x="599.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_fast_ctrl">docxmcp 取出all 30s timeout</text>
+<text x="1001.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_bg_ctrl">Detached Child Process Handle</text>
+<text x="237.0" y="368.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_poll_ctrl">startPollLoop 5s Cycle 180s Cap</text>
+<text x="593.0" y="404.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_hint_ctrl">渲染officeroutinghint</text>
+<text x="605.0" y="404.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_hint_ctrl">DD-7</text>
+<text x="418.0" y="168.3" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_cache_out_miss">快取</text>
+<text x="418.0" y="185.3" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_cache_out_miss">Miss Buffer</text>
+<text x="800.0" y="168.3" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_fast_to_bg">Outline Plus Template</text>
+<text x="800.0" y="185.3" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_fast_to_bg">Plus Manifest</text>
+<text x="418.0" y="525.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_poll_to_hint">Final Manifest</text>
+<text x="418.0" y="542.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_poll_to_hint">Plus Bundle Tree</text>
+<text x="599.0" y="338.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_bg_to_poll" >worker pid Plus 工作 Token</text>
+<text x="363.3" y="305.1" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_cache_out_hit" >快取 Hit Manifest 狀態</text>
+<text x="743.8" y="355.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_fast_out_imm">待處理 Markers</text>
+<text x="743.8" y="372.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_fast_out_imm">Manifest</text>
 <text x="-14.0" y="191.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_in_office">Office Mime Buffer</text>
 <text x="-14.0" y="217.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_in_office">Plus sha256</text>
-<text x="1218.0" y="481.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_hint_out">Routing Hint</text>
-<text x="1218.0" y="507.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_hint_out">Text Block To AI</text>
-<path d="M 352.0,300.9 L 352.6,301.4 L 353.2,301.8 L 353.9,302.3 L 354.5,302.7 L 355.1,303.1 L 355.8,303.4 L 356.4,303.7 L 357.0,304.0 L 357.6,304.2 L 358.2,304.3 L 358.9,304.4 L 359.5,304.4 L 360.1,304.4 L 360.8,304.3 L 361.4,304.2 L 362.0,304.0 L 362.6,303.7 L 363.2,303.4 L 363.9,303.1 L 364.5,302.7 L 365.1,302.3 L 365.8,301.8 L 366.4,301.4 L 367.0,300.9 L 367.6,300.5 L 368.2,300.0 L 368.9,299.6 L 369.5,299.2 L 370.1,298.8 L 370.8,298.5 L 371.4,298.2 L 372.0,297.9 L 372.6,297.7 L 373.2,297.6 L 373.9,297.5 L 374.5,297.4 L 375.1,297.5 L 375.8,297.6 L 376.4,297.7 L 377.0,297.9 L 377.6,298.2 L 378.2,298.5 L 378.9,298.8 L 379.5,299.2 L 380.1,299.6 L 380.8,300.0 L 381.4,300.5 L 382.0,300.9" stroke="red" stroke-width="0.8" fill="none" opacity="0.5" />
+<text x="1252.0" y="494.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a5_hint_out">Routing Hint 文字 區塊 到 AI</text>
+<path d="M 363.3,300.9 L 364.0,301.4 L 364.6,301.8 L 365.2,302.3 L 365.8,302.7 L 366.5,303.1 L 367.1,303.4 L 367.7,303.7 L 368.3,304.0 L 369.0,304.2 L 369.6,304.3 L 370.2,304.4 L 370.8,304.4 L 371.5,304.4 L 372.1,304.3 L 372.7,304.2 L 373.3,304.0 L 374.0,303.7 L 374.6,303.4 L 375.2,303.1 L 375.8,302.7 L 376.5,302.3 L 377.1,301.8 L 377.7,301.4 L 378.3,300.9 L 379.0,300.5 L 379.6,300.0 L 380.2,299.6 L 380.8,299.2 L 381.5,298.8 L 382.1,298.5 L 382.7,298.2 L 383.3,297.9 L 384.0,297.7 L 384.6,297.6 L 385.2,297.5 L 385.8,297.4 L 386.5,297.5 L 387.1,297.6 L 387.7,297.7 L 388.3,297.9 L 389.0,298.2 L 389.6,298.5 L 390.2,298.8 L 390.8,299.2 L 391.5,299.6 L 392.1,300.0 L 392.7,300.5 L 393.3,300.9" stroke="red" stroke-width="0.8" fill="none" opacity="0.5" />
 </svg>

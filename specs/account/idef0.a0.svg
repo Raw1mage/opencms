@@ -1,88 +1,80 @@
-<svg width="1765.1" height="881.8" viewBox="-292.6 -250.0 1765.1 881.8" xmlns="http://www.w3.org/2000/svg">
+<svg width="1918.6" height="881.8" viewBox="-318.3 -250.0 1918.6 881.8" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
 <marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
 </defs>
-<rect x="-292.6" y="-250.0" width="1765.1" height="881.8" fill="white" />
-<rect x="130.0" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
-<text x="230.0" y="183.5" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
-<text x="230.0" y="220.6" text-anchor="middle" font-size="21" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >ADD ACCOUNT</text>
-<rect x="490.0" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
-<text x="590.0" y="151.2" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
-<text x="590.0" y="184.1" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >AUTHENTICATE</text>
-<text x="590.0" y="217.8" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >ACCOUNT</text>
-<text x="590.0" y="251.6" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >FOR REQUEST</text>
-<rect x="850.0" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
-<text x="950.0" y="168.1" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >A3</text>
-<text x="950.0" y="201.0" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >NORMALIZE</text>
-<text x="950.0" y="234.7" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >IDENTITY ON LOAD</text>
-<rect x="130.0" y="380.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
-<text x="230.0" y="423.8" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >A4</text>
-<text x="230.0" y="460.9" text-anchor="middle" font-size="21" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >BIND IDENTITY</text>
-<text x="230.0" y="500.3" text-anchor="middle" font-size="21" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >TO LINUX USER</text>
-<rect x="490.0" y="380.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A5" />
-<text x="590.0" y="425.2" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >A5</text>
-<text x="590.0" y="460.9" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >REMOVE ACCOUNT</text>
-<text x="590.0" y="498.4" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >WITH REVOKE</text>
-<rect x="80.0" y="-40.0" width="1020.0" height="661.8" stroke="black" fill="none" stroke-width="2" />
-<rect x="470.0" y="-240.0" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
-<text x="590.0" y="-214.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >A0</text>
-<text x="590.0" y="-184.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >MANAGE ACCOUNT</text>
-<text x="590.0" y="-154.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >IDENTITY</text>
-<line x1="470.0" y1="-240.0" x2="80.0" y2="-40.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="710.0" y1="-240.0" x2="1100.0" y2="-40.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="470.0" y1="-130.0" x2="80.0" y2="621.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="710.0" y1="-130.0" x2="1100.0" y2="621.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<path d="M 330.0 200.0 L 400.0 200.0 Q 410.0 200.0 410.0 190.0 L 410.0 88.2 Q 410.0 78.2 420.0 78.2 L 760.0 78.2 Q 770.0 78.2 770.0 88.2 L 770.0 190.0 Q 770.0 200.0 780.0 200.0 L 850.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="m_added_to_normalize" data-waypoints="330.0,200.0 410.0,200.0 410.0,78.2 770.0,78.2 770.0,200.0 850.0,200.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 690.0 433.3 L 760.0 433.3 Q 770.0 433.3 770.0 423.3 L 770.0 250.0 Q 770.0 240.0 780.0 240.0 L 850.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="m_remove_to_normalize" data-waypoints="690.0,433.3 770.0,433.3 770.0,240.0 850.0,240.0" marker-end="url(#arrow)" fill="none" />
+<rect x="-318.3" y="-250.0" width="1918.6" height="881.8" fill="white" />
+<rect x="130.0" y="120.0" width="234.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="247.0" y="179.9" text-anchor="middle" font-size="26" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
+<text x="247.0" y="227.0" text-anchor="middle" font-size="28" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >ADD 帳號</text>
+<rect x="524.0" y="120.0" width="234.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="641.0" y="181.4" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
+<text x="641.0" y="224.3" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >驗證 帳號 供 請求</text>
+<rect x="918.0" y="120.0" width="234.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="1035.0" y="158.0" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >A3</text>
+<text x="1035.0" y="200.8" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >NORMALIZE</text>
+<text x="1035.0" y="247.7" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >身分 在 LOAD</text>
+<rect x="130.0" y="380.0" width="234.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
+<text x="247.0" y="418.0" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >A4</text>
+<text x="247.0" y="460.8" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >BIND 身分 到</text>
+<text x="247.0" y="507.7" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >LINUX 使用者</text>
+<rect x="524.0" y="380.0" width="234.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A5" />
+<text x="641.0" y="418.0" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >A5</text>
+<text x="641.0" y="460.8" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >REMOVE 帳號</text>
+<text x="641.0" y="507.7" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >使用 REVOKE</text>
+<rect x="80.0" y="-40.0" width="1122.0" height="661.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="521.0" y="-240.0" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="641.0" y="-203.6" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >A0</text>
+<text x="641.0" y="-160.7" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >MANAGE 帳號 身分</text>
+<line x1="521.0" y1="-240.0" x2="80.0" y2="-40.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="761.0" y1="-240.0" x2="1202.0" y2="-40.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="521.0" y1="-130.0" x2="80.0" y2="621.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="761.0" y1="-130.0" x2="1202.0" y2="621.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 364.0 200.0 L 434.0 200.0 Q 444.0 200.0 444.0 190.0 L 444.0 88.2 Q 444.0 78.2 454.0 78.2 L 828.0 78.2 Q 838.0 78.2 838.0 88.2 L 838.0 190.0 Q 838.0 200.0 848.0 200.0 L 918.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="m_added_to_normalize" data-waypoints="364.0,200.0 444.0,200.0 444.0,78.2 838.0,78.2 838.0,200.0 918.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 758.0 433.3 L 828.0 433.3 Q 838.0 433.3 838.0 423.3 L 838.0 250.0 Q 838.0 240.0 848.0 240.0 L 918.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="m_remove_to_normalize" data-waypoints="758.0,433.3 838.0,433.3 838.0,240.0 918.0,240.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 30.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="m_in_add_req" data-waypoints="30.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="m_ctrl_strict_storage" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 315.8 L 230.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="m_mech_authset" data-waypoints="230.0,315.8 230.0,280.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 30.0 40.0 L 440.0 40.0 Q 450.0 40.0 450.0 50.0 L 450.0 190.0 Q 450.0 200.0 460.0 200.0 L 490.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="m_in_dispatch" data-waypoints="30.0,40.0 450.0,40.0 450.0,200.0 490.0,200.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 30.0 0.0 L 800.0 0.0 Q 810.0 0.0 810.0 10.0 L 810.0 150.0 Q 810.0 160.0 820.0 160.0 L 850.0 160.0" stroke="black" stroke-width="1.2" data-arrow-id="m_in_load" data-waypoints="30.0,0.0 810.0,0.0 810.0,160.0 850.0,160.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 950.0 84.2 L 950.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="m_ctrl_normalize" data-waypoints="950.0,84.2 950.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 950.0 315.8 L 950.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="m_mech_normalize" data-waypoints="950.0,315.8 950.0,280.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1050.0 200.0 L 1150.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="m_normalize_report" data-waypoints="1050.0,200.0 1150.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 247.0 84.2 L 247.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="m_ctrl_strict_storage" data-waypoints="247.0,84.2 247.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 247.0 315.8 L 247.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="m_mech_authset" data-waypoints="247.0,315.8 247.0,280.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 30.0 40.0 L 474.0 40.0 Q 484.0 40.0 484.0 50.0 L 484.0 190.0 Q 484.0 200.0 494.0 200.0 L 524.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="m_in_dispatch" data-waypoints="30.0,40.0 484.0,40.0 484.0,200.0 524.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 30.0 0.0 L 868.0 0.0 Q 878.0 0.0 878.0 10.0 L 878.0 150.0 Q 878.0 160.0 888.0 160.0 L 918.0 160.0" stroke="black" stroke-width="1.2" data-arrow-id="m_in_load" data-waypoints="30.0,0.0 878.0,0.0 878.0,160.0 918.0,160.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1035.0 84.2 L 1035.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="m_ctrl_normalize" data-waypoints="1035.0,84.2 1035.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1035.0 315.8 L 1035.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="m_mech_normalize" data-waypoints="1035.0,315.8 1035.0,280.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1152.0 200.0 L 1252.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="m_normalize_report" data-waypoints="1152.0,200.0 1252.0,200.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 30.0 460.0 L 130.0 460.0" stroke="black" stroke-width="1.2" data-arrow-id="m_in_google" data-waypoints="30.0,460.0 130.0,460.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 344.2 L 230.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="m_ctrl_bindings" data-waypoints="230.0,344.2 230.0,380.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 575.8 L 230.0 540.0" stroke="black" stroke-width="1.2" data-arrow-id="m_mech_binding" data-waypoints="230.0,575.8 230.0,540.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 460.0 L 360.0 460.0 Q 370.0 460.0 370.0 470.0 L 370.0 571.8 Q 370.0 581.8 380.0 581.8 L 1150.0 581.8" stroke="black" stroke-width="1.2" data-arrow-id="m_out_binding_status" data-waypoints="330.0,460.0 370.0,460.0 370.0,581.8 1150.0,581.8" marker-end="url(#arrow)" fill="none" />
-<path d="M 30.0 330.0 L 400.0 330.0 Q 410.0 330.0 410.0 340.0 L 410.0 450.0 Q 410.0 460.0 420.0 460.0 L 490.0 460.0" stroke="black" stroke-width="1.2" data-arrow-id="m_in_remove_req" data-waypoints="30.0,330.0 410.0,330.0 410.0,460.0 490.0,460.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 590.0 344.2 L 590.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="m_ctrl_codex_revoke" data-waypoints="590.0,344.2 590.0,380.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 590.0 575.8 L 590.0 540.0" stroke="black" stroke-width="1.2" data-arrow-id="m_mech_logoutCodex" data-waypoints="590.0,575.8 590.0,540.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 690.0 486.7 L 1150.0 486.7" stroke="black" stroke-width="1.2" data-arrow-id="m_remove_event" data-waypoints="690.0,486.7 1150.0,486.7" marker-end="url(#arrow)" fill="none" />
-<path d="M 690.0 200.0 L 720.0 200.0 Q 730.0 200.0 730.0 210.0 L 730.0 320.0 Q 730.0 330.0 740.0 330.0 L 1150.0 330.0" stroke="black" stroke-width="1.2" data-arrow-id="m_out_auth_header" data-waypoints="690.0,200.0 730.0,200.0 730.0,330.0 1150.0,330.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 570.0 84.2 L 570.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A2_control" data-waypoints="570.0,84.2 570.0,120.0" marker-end="url(#arrow)" fill="none" />
-<text x="230.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_ctrl_strict_storage">Account.add Refuses Silent Overwrite</text>
-<text x="224.0" y="296.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_mech_authset">auth/index.ts</text>
-<text x="236.0" y="296.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_mech_authset">Auth.set</text>
-<text x="950.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_ctrl_normalize">Managed App Stripper Registry</text>
-<text x="946.0" y="296.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_mech_normalize">Account.normalizeIdentities L1122</text>
-<text x="224.0" y="374.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_ctrl_bindings">google-bindings.json</text>
-<text x="236.0" y="374.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_ctrl_bindings">1to1 Cardinality</text>
-<text x="230.0" y="591.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_mech_binding">GoogleBinding.bind unbind lookup</text>
-<text x="584.0" y="374.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_ctrl_codex_revoke">Codex Revoke Before</text>
-<text x="596.0" y="374.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_ctrl_codex_revoke">Delete Fail Closed</text>
-<text x="584.0" y="556.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_mech_logoutCodex">plugin/codex-auth.ts</text>
-<text x="596.0" y="556.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_mech_logoutCodex">logoutCodex</text>
-<text x="564.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_ctrl_dd8">DD-8 Family AccountId Separate、Canonical</text>
-<text x="576.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_ctrl_dd8">Family Map、Bound Linux User Identity</text>
-<text x="590.0" y="70.2" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_added_to_normalize" >Newly Persisted Account</text>
-<text x="800.0" y="421.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_remove_to_normalize" >Post Remove State Reload</text>
-<text x="26.0" y="191.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_in_add_req">CLI Or TUI</text>
-<text x="26.0" y="217.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_in_add_req">Login Request</text>
-<text x="26.0" y="31.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_in_dispatch">Provider Dispatch</text>
-<text x="26.0" y="57.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_in_dispatch">Auth.get</text>
-<text x="26.0" y="4.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_in_load">accounts.json On Disk State</text>
-<text x="1154.0" y="204.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_normalize_report">NormalizeIdentitiesReport</text>
+<path d="M 247.0 344.2 L 247.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="m_ctrl_bindings" data-waypoints="247.0,344.2 247.0,380.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 247.0 575.8 L 247.0 540.0" stroke="black" stroke-width="1.2" data-arrow-id="m_mech_binding" data-waypoints="247.0,575.8 247.0,540.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 364.0 460.0 L 394.0 460.0 Q 404.0 460.0 404.0 470.0 L 404.0 571.8 Q 404.0 581.8 414.0 581.8 L 1252.0 581.8" stroke="black" stroke-width="1.2" data-arrow-id="m_out_binding_status" data-waypoints="364.0,460.0 404.0,460.0 404.0,581.8 1252.0,581.8" marker-end="url(#arrow)" fill="none" />
+<path d="M 30.0 330.0 L 434.0 330.0 Q 444.0 330.0 444.0 340.0 L 444.0 450.0 Q 444.0 460.0 454.0 460.0 L 524.0 460.0" stroke="black" stroke-width="1.2" data-arrow-id="m_in_remove_req" data-waypoints="30.0,330.0 444.0,330.0 444.0,460.0 524.0,460.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 641.0 344.2 L 641.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="m_ctrl_codex_revoke" data-waypoints="641.0,344.2 641.0,380.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 641.0 575.8 L 641.0 540.0" stroke="black" stroke-width="1.2" data-arrow-id="m_mech_logoutCodex" data-waypoints="641.0,575.8 641.0,540.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 758.0 486.7 L 1252.0 486.7" stroke="black" stroke-width="1.2" data-arrow-id="m_remove_event" data-waypoints="758.0,486.7 1252.0,486.7" marker-end="url(#arrow)" fill="none" />
+<path d="M 758.0 200.0 L 788.0 200.0 Q 798.0 200.0 798.0 210.0 L 798.0 320.0 Q 798.0 330.0 808.0 330.0 L 1252.0 330.0" stroke="black" stroke-width="1.2" data-arrow-id="m_out_auth_header" data-waypoints="758.0,200.0 798.0,200.0 798.0,330.0 1252.0,330.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 617.6 84.2 L 617.6 120.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A2_control" data-waypoints="617.6,84.2 617.6,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="247.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_ctrl_strict_storage">帳號.add Refuses 靜默 Overwrite</text>
+<text x="241.0" y="296.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_mech_authset">auth/index.ts</text>
+<text x="253.0" y="296.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_mech_authset">驗證.set</text>
+<text x="1035.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_ctrl_normalize">Managed App Stripper 註冊表</text>
+<text x="1029.0" y="296.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_mech_normalize">帳號.normalizeIdentities</text>
+<text x="1041.0" y="296.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_mech_normalize">L1122</text>
+<text x="241.0" y="374.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_ctrl_bindings">google-bindings.js在</text>
+<text x="253.0" y="374.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_ctrl_bindings">1到1 Cardinality</text>
+<text x="247.0" y="591.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_mech_binding">GoogleBinding.bind unbind lookup</text>
+<text x="641.0" y="338.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_ctrl_codex_revoke">Codex Revoke Before Delete Fail Closed</text>
+<text x="635.0" y="556.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_mech_logoutCodex">plugin/codex-auth.ts</text>
+<text x="647.0" y="556.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_mech_logoutCodex">logoutCodex</text>
+<text x="611.6" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_ctrl_dd8">DD-8 Family 帳號id Separate、Canonical</text>
+<text x="623.6" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_ctrl_dd8">Family Map、Bound Linux 使用者 身分</text>
+<text x="641.0" y="70.2" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_added_to_normalize" >Newly Persisted 帳號</text>
+<text x="868.0" y="421.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_remove_to_normalize" >Post Remove 狀態 重載</text>
+<text x="26.0" y="204.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_in_add_req">CLI 或 TUI 登入 請求</text>
+<text x="26.0" y="44.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_in_dispatch">Provider 派發 驗證.get</text>
+<text x="26.0" y="4.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_in_load">accounts.js在 在 磁碟 狀態</text>
+<text x="1256.0" y="204.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_normalize_report">NormalizeIdentitiesReport</text>
 <text x="26.0" y="451.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_in_google">Google OAuth</text>
 <text x="26.0" y="477.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_in_google">Verified Email</text>
-<text x="1154.0" y="572.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_out_binding_status">Per User Daemon</text>
-<text x="1154.0" y="598.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_out_binding_status">Route Decision</text>
-<text x="26.0" y="321.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_in_remove_req">Remove Account</text>
-<text x="26.0" y="347.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_in_remove_req">Command</text>
-<text x="1154.0" y="477.7" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_remove_event">account.removed</text>
-<text x="1154.0" y="503.7" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_remove_event">Bus Event</text>
-<text x="1154.0" y="321.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_out_auth_header">Authenticated</text>
-<text x="1154.0" y="347.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_out_auth_header">Provider Request</text>
+<text x="1256.0" y="585.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_out_binding_status">依 使用者 Daemon 路由 Decision</text>
+<text x="26.0" y="334.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_in_remove_req">Remove 帳號 Command</text>
+<text x="1256.0" y="490.7" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_remove_event">帳號.removed Bus 事件</text>
+<text x="1256.0" y="321.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_out_auth_header">Authenticated</text>
+<text x="1256.0" y="347.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m_out_auth_header">Provider 請求</text>
 </svg>

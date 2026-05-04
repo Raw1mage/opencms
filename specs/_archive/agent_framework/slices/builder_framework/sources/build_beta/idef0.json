@@ -1,23 +1,23 @@
 {
-  "diagram_title": "Builder Native Beta Workflow",
+  "diagram_title": "Builder Native Beta 工作流程",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A1",
-      "title": "Approve Build Entry",
-      "description": "Validate planner artifacts and approve beta-aware build entry through the existing builder control plane",
+      "title": "Approve 建置 項目",
+      "description": "Validate planner artifacts 與 approve beta-aware 建置 項目 through existing builder 控制 plane",
       "decomposition": null
     },
     {
       "id": "A2",
       "title": "Execute Beta Branch Work",
-      "description": "Create or reuse the beta branch/worktree and perform routine implementation git flow inside builder",
+      "description": "Create 或 reuse beta branch/worktree 與 perform routine implementation git flow inside builder",
       "decomposition": null
     },
     {
       "id": "A3",
       "title": "Validate Mainline Integration",
-      "description": "Sync the feature branch back to the main repo, run runtime validation, and prepare merge preflight",
+      "description": "Sync feature branch 回到 到 main repo, 執行 runtime validation, 與 prepare 合併 preflight",
       "decomposition": null
     }
   ],
@@ -33,7 +33,7 @@
       "id": "AR2",
       "source": "EXTERNAL",
       "target": "A1:control",
-      "label": "Build Approval And Stop Gates",
+      "label": "建置 Approval 與 Stop Gates",
       "type": "control"
     },
     {
@@ -47,7 +47,7 @@
       "id": "AR4",
       "source": "EXTERNAL",
       "target": "A2:control",
-      "label": "Branch Naming Runtime Policy And Git Policy",
+      "label": "Branch Naming Runtime Policy 與 Git Policy",
       "type": "control"
     },
     {
@@ -61,14 +61,14 @@
       "id": "AR6",
       "source": "A2:output",
       "target": "A3:input",
-      "label": "Feature Branch And Validation Context",
+      "label": "Feature Branch 與 Validation 上下文",
       "type": "output"
     },
     {
       "id": "AR7",
       "source": "EXTERNAL",
       "target": "A3:control",
-      "label": "Validation And Merge Approval Policy",
+      "label": "Validation 與 合併 Approval Policy",
       "type": "control"
     },
     {
@@ -82,7 +82,7 @@
       "id": "AR9",
       "source": "A3:output",
       "target": "EXTERNAL",
-      "label": "Validated Branch Ready For Merge Decision",
+      "label": "Validated Branch 就緒 供 合併 Decision",
       "type": "output"
     }
   ]

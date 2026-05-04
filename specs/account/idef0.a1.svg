@@ -1,85 +1,82 @@
-<svg width="1639.4" height="757.6" viewBox="-229.7 -165.8 1639.4 757.6" xmlns="http://www.w3.org/2000/svg">
+<svg width="1787.4" height="757.6" viewBox="-229.7 -165.8 1787.4 757.6" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
 <marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
 </defs>
-<rect x="-229.7" y="-165.8" width="1639.4" height="757.6" fill="white" />
-<rect x="130.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A11" />
-<text x="230.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >A11</text>
-<text x="230.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >RESOLVE</text>
-<text x="230.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >PROVIDER KEY</text>
-<rect x="478.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A12" />
-<text x="578.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >A12</text>
-<text x="578.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >RUN IDENTITY</text>
-<text x="578.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >RESOLUTION CHAIN</text>
-<rect x="810.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A13" />
-<text x="910.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A13" >A13</text>
-<text x="910.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A13" >DEDUP BY TOKEN</text>
-<text x="910.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A13" >OR API KEY</text>
-<rect x="130.0" y="380.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A14" />
-<text x="230.0" y="409.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A14" >A14</text>
-<text x="230.0" y="441.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A14" >GENERATE ACCOUNT</text>
-<text x="230.0" y="472.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A14" >ID WITH SUFFIX</text>
-<rect x="478.0" y="380.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A15" />
-<text x="578.0" y="409.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A15" >A15</text>
-<text x="578.0" y="441.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A15" >PERSIST THROUGH</text>
-<text x="578.0" y="472.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A15" >MUTEX STORAGE</text>
-<rect x="810.0" y="380.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A16" />
-<text x="910.0" y="409.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A16" >A16</text>
-<text x="910.0" y="441.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A16" >PUBLISH ACCOUNT</text>
-<text x="910.0" y="472.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A16" >ADDED EVENT</text>
-<rect x="40.0" y="44.2" width="1100.0" height="537.6" stroke="black" fill="none" stroke-width="2" />
-<rect x="470.0" y="-155.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
-<text x="590.0" y="-119.4" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
-<text x="590.0" y="-76.5" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >ADD ACCOUNT</text>
-<line x1="470.0" y1="-155.8" x2="40.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="710.0" y1="-155.8" x2="1140.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="470.0" y1="-45.8" x2="40.0" y2="581.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="710.0" y1="-45.8" x2="1140.0" y2="581.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<path d="M 330.0 180.0 L 478.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_key_to_chain" data-waypoints="330.0,180.0 478.0,180.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 678.0 180.0 L 810.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_identity_to_dedup" data-waypoints="678.0,180.0 810.0,180.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 460.0 L 478.0 460.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_id_to_persist" data-waypoints="330.0,460.0 478.0,460.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 678.0 420.0 L 810.0 420.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_persist_to_bus" data-waypoints="678.0,420.0 810.0,420.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1010.0 200.0 L 1040.0 200.0 Q 1050.0 200.0 1050.0 210.0 L 1050.0 280.0 Q 1050.0 290.0 1040.0 290.0 L 100.0 290.0 Q 90.0 290.0 90.0 300.0 L 90.0 430.0 Q 90.0 440.0 100.0 440.0 L 130.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_dedup_miss_to_genid" data-waypoints="1010.0,200.0 1050.0,200.0 1050.0,290.0 90.0,290.0 90.0,440.0 130.0,440.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1010.0 160.0 L 1080.0 160.0 Q 1090.0 160.0 1090.0 170.0 L 1090.0 320.0 Q 1090.0 330.0 1080.0 330.0 L 414.0 330.0 Q 404.0 330.0 404.0 340.0 L 404.0 410.0 Q 404.0 420.0 414.0 420.0 L 478.0 420.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_dedup_hit_to_persist" data-waypoints="1010.0,160.0 1090.0,160.0 1090.0,330.0 404.0,330.0 404.0,420.0 478.0,420.0" marker-end="url(#arrow)" fill="none" />
+<rect x="-229.7" y="-165.8" width="1787.4" height="757.6" fill="white" />
+<rect x="130.0" y="120.0" width="260.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A11" />
+<text x="260.0" y="161.9" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >A11</text>
+<text x="260.0" y="203.4" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >解析 PROVIDER KEY</text>
+<rect x="506.0" y="120.0" width="260.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A12" />
+<text x="636.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >A12</text>
+<text x="636.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >執行 身分</text>
+<text x="636.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >RESOLUTION CHAIN</text>
+<rect x="898.0" y="120.0" width="260.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A13" />
+<text x="1028.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A13" >A13</text>
+<text x="1028.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A13" >DEDUP 由 TOKEN</text>
+<text x="1028.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A13" >或 API KEY</text>
+<rect x="130.0" y="380.0" width="260.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A14" />
+<text x="260.0" y="409.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A14" >A14</text>
+<text x="260.0" y="441.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A14" >GENERATE 帳號</text>
+<text x="260.0" y="472.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A14" >ID 使用 SUFFIX</text>
+<rect x="506.0" y="380.0" width="260.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A15" />
+<text x="636.0" y="425.5" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A15" >A15</text>
+<text x="636.0" y="456.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A15" >持久化 THROUGH MUTEX 儲存</text>
+<rect x="898.0" y="380.0" width="260.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A16" />
+<text x="1028.0" y="422.9" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A16" >A16</text>
+<text x="1028.0" y="461.5" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A16" >發布 帳號 ADDED 事件</text>
+<rect x="40.0" y="44.2" width="1248.0" height="537.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="544.0" y="-155.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="664.0" y="-119.4" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
+<text x="664.0" y="-76.5" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >ADD 帳號</text>
+<line x1="544.0" y1="-155.8" x2="40.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="784.0" y1="-155.8" x2="1288.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="544.0" y1="-45.8" x2="40.0" y2="581.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="784.0" y1="-45.8" x2="1288.0" y2="581.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 390.0 180.0 L 506.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_key_to_chain" data-waypoints="390.0,180.0 506.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 766.0 180.0 L 898.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_identity_to_dedup" data-waypoints="766.0,180.0 898.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 390.0 460.0 L 506.0 460.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_id_to_persist" data-waypoints="390.0,460.0 506.0,460.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 766.0 420.0 L 898.0 420.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_persist_to_bus" data-waypoints="766.0,420.0 898.0,420.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1158.0 200.0 L 1188.0 200.0 Q 1198.0 200.0 1198.0 210.0 L 1198.0 280.0 Q 1198.0 290.0 1188.0 290.0 L 100.0 290.0 Q 90.0 290.0 90.0 300.0 L 90.0 430.0 Q 90.0 440.0 100.0 440.0 L 130.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_dedup_miss_to_genid" data-waypoints="1158.0,200.0 1198.0,200.0 1198.0,290.0 90.0,290.0 90.0,440.0 130.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1158.0 160.0 L 1228.0 160.0 Q 1238.0 160.0 1238.0 170.0 L 1238.0 320.0 Q 1238.0 330.0 1228.0 330.0 L 458.0 330.0 Q 448.0 330.0 448.0 340.0 L 448.0 410.0 Q 448.0 420.0 458.0 420.0 L 506.0 420.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_dedup_hit_to_persist" data-waypoints="1158.0,160.0 1238.0,160.0 1238.0,330.0 448.0,330.0 448.0,420.0 506.0,420.0" marker-end="url(#arrow)" fill="none" />
 <path d="M -10.0 180.0 L 130.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_in_creds" data-waypoints="-10.0,180.0 130.0,180.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_ctrl_dd2" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 275.8 L 230.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_mech_resolve" data-waypoints="230.0,275.8 230.0,240.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 578.0 84.2 L 578.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_ctrl_chain" data-waypoints="578.0,84.2 578.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 578.0 275.8 L 578.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_mech_jwt" data-waypoints="578.0,275.8 578.0,240.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 910.0 275.8 L 910.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_mech_dedup" data-waypoints="910.0,275.8 910.0,240.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 535.8 L 230.0 500.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_mech_genid" data-waypoints="230.0,535.8 230.0,500.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 578.0 344.2 L 578.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_ctrl_strict" data-waypoints="578.0,344.2 578.0,380.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 578.0 535.8 L 578.0 500.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_mech_storage" data-waypoints="578.0,535.8 578.0,500.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 910.0 535.8 L 910.0 500.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_mech_bus" data-waypoints="910.0,535.8 910.0,500.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1010.0 440.0 L 1190.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_out_bus" data-waypoints="1010.0,440.0 1190.0,440.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 678.0 460.0 L 734.0 460.0 Q 744.0 460.0 744.0 470.0 L 744.0 531.8 Q 744.0 541.8 754.0 541.8 L 1190.0 541.8" stroke="black" stroke-width="1.2" data-arrow-id="a1_out_record" data-waypoints="678.0,460.0 744.0,460.0 744.0,541.8 1190.0,541.8" marker-end="url(#arrow)" fill="none" />
-<text x="230.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_ctrl_dd2">DD-2 Strict Family Dispatch</text>
-<text x="226.0" y="256.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_mech_resolve">Account.resolveProviderOrSelf</text>
-<text x="578.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_ctrl_chain">Email Username Tokenhash Order</text>
-<text x="572.0" y="256.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_mech_jwt">auth/index.ts</text>
-<text x="584.0" y="256.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_mech_jwt">L206 Auth.set</text>
-<text x="904.0" y="256.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_mech_dedup">Account.deduplicateByToken</text>
-<text x="916.0" y="256.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_mech_dedup">Existing Scan</text>
-<text x="230.0" y="551.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_mech_genid">Account.generateId Suffix Loop</text>
-<text x="572.0" y="374.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_ctrl_strict">No Silent</text>
-<text x="584.0" y="374.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_ctrl_strict">Overwrite Invariant</text>
-<text x="578.0" y="551.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_mech_storage">Account.add withMutex accounts.json</text>
-<text x="904.0" y="516.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_mech_bus">Bus.publish</text>
-<text x="916.0" y="516.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_mech_bus">AccountAdded</text>
-<text x="404.0" y="175.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_key_to_chain">Canonical</text>
-<text x="404.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_key_to_chain">Provider Key</text>
-<text x="744.0" y="175.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_identity_to_dedup">Resolved</text>
-<text x="744.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_identity_to_dedup">Identity Slug</text>
-<text x="404.0" y="452.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_id_to_persist" >Fresh Account Id</text>
-<text x="744.0" y="415.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_persist_to_bus">Persisted</text>
-<text x="744.0" y="432.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_persist_to_bus">Sanitized Info</text>
-<text x="578.0" y="308.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_dedup_miss_to_genid" >New Identity Needs Id</text>
-<text x="910.0" y="322.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_dedup_hit_to_persist" >Existing Record Update Patch</text>
-<text x="-14.0" y="171.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_in_creds">Auth.set</text>
+<path d="M 260.0 84.2 L 260.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_ctrl_dd2" data-waypoints="260.0,84.2 260.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 260.0 275.8 L 260.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_mech_resolve" data-waypoints="260.0,275.8 260.0,240.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 636.0 84.2 L 636.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_ctrl_chain" data-waypoints="636.0,84.2 636.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 636.0 275.8 L 636.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_mech_jwt" data-waypoints="636.0,275.8 636.0,240.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1028.0 275.8 L 1028.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_mech_dedup" data-waypoints="1028.0,275.8 1028.0,240.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 260.0 535.8 L 260.0 500.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_mech_genid" data-waypoints="260.0,535.8 260.0,500.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 636.0 344.2 L 636.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_ctrl_strict" data-waypoints="636.0,344.2 636.0,380.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 636.0 535.8 L 636.0 500.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_mech_storage" data-waypoints="636.0,535.8 636.0,500.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1028.0 535.8 L 1028.0 500.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_mech_bus" data-waypoints="1028.0,535.8 1028.0,500.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1158.0 440.0 L 1338.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_out_bus" data-waypoints="1158.0,440.0 1338.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 766.0 460.0 L 822.0 460.0 Q 832.0 460.0 832.0 470.0 L 832.0 531.8 Q 832.0 541.8 842.0 541.8 L 1338.0 541.8" stroke="black" stroke-width="1.2" data-arrow-id="a1_out_record" data-waypoints="766.0,460.0 832.0,460.0 832.0,541.8 1338.0,541.8" marker-end="url(#arrow)" fill="none" />
+<text x="260.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_ctrl_dd2">DD-2 Strict Family 派發</text>
+<text x="254.0" y="256.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_mech_resolve">帳號.解析Provider</text>
+<text x="266.0" y="256.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_mech_resolve">self</text>
+<text x="636.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_ctrl_chain">Email Username Tokenhash Order</text>
+<text x="630.0" y="256.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_mech_jwt">auth/index.ts</text>
+<text x="642.0" y="256.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_mech_jwt">L206 驗證.set</text>
+<text x="1022.0" y="256.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_mech_dedup">帳號.deduplicate由token</text>
+<text x="1034.0" y="256.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_mech_dedup">Existing 掃描</text>
+<text x="260.0" y="551.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_mech_genid">帳號.generateId Suffix Loop</text>
+<text x="630.0" y="374.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_ctrl_strict">無 靜默 Overwrite</text>
+<text x="642.0" y="374.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_ctrl_strict">Invariant</text>
+<text x="636.0" y="551.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_mech_storage">帳號.add 使用mutex accounts.js在</text>
+<text x="1022.0" y="516.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_mech_bus">Bus.發布</text>
+<text x="1034.0" y="516.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_mech_bus">帳號added</text>
+<text x="448.0" y="175.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_key_to_chain">Canonical</text>
+<text x="448.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_key_to_chain">Provider Key</text>
+<text x="832.0" y="175.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_identity_to_dedup">已解析 身分</text>
+<text x="832.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_identity_to_dedup">Slug</text>
+<text x="448.0" y="455.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_id_to_persist">Fresh</text>
+<text x="448.0" y="472.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_id_to_persist">帳號 Id</text>
+<text x="832.0" y="415.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_persist_to_bus">Persisted</text>
+<text x="832.0" y="432.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_persist_to_bus">Sanitized Info</text>
+<text x="636.0" y="308.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_dedup_miss_to_genid" >New 身分 Needs Id</text>
+<text x="1028.0" y="322.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_dedup_hit_to_persist" >Existing 記錄 更新 Patch</text>
+<text x="-14.0" y="171.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_in_creds">驗證.set</text>
 <text x="-14.0" y="197.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_in_creds">Credential Payload</text>
-<text x="1194.0" y="431.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_bus">account.added</text>
-<text x="1194.0" y="457.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_bus">Event</text>
-<text x="1194.0" y="532.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_record">Stored Account</text>
-<text x="1194.0" y="558.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_record">Record</text>
+<text x="1342.0" y="444.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_bus">帳號.added 事件</text>
+<text x="1342.0" y="545.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_record">Stored 帳號 記錄</text>
 </svg>

@@ -14,6 +14,7 @@ import { GoogleBinding } from "../../google-binding"
 import { RequestUser } from "@/runtime/request-user"
 
 const oauthLog = Log.create({ service: "managed-app-oauth" })
+const RETIRED_MARKET_APP_IDS = new Set(["beta-tool", "fake-good"])
 
 function managedAppUsageHttpStatus(reason: ManagedAppRegistry.UsageErrorReason): 401 | 409 | 503 {
   switch (reason) {
@@ -74,41 +75,47 @@ export const McpRoutes = lazy(() =>
         }
 
         // Convert store apps to unified format
-        const storeCards = storeApps.map((app) => {
-          const auth = app.manifest?.auth
-          let status = app.entry.enabled ? "connected" : "disabled"
-          let error: string | undefined
+        const storeCards = storeApps
+          .filter((app) => !RETIRED_MARKET_APP_IDS.has(app.id))
+          .map((app) => {
+            const auth = app.manifest?.auth
+            let status = app.entry.enabled ? "connected" : "disabled"
+            let error: string | undefined
 
-          // Derive auth status for enabled apps
-          if (app.entry.enabled && auth && auth.type !== "none") {
-            if (auth.type === "oauth") {
-              const provider = (auth as any).provider
-              if (provider === "google" && (!hasGoogleToken || googleTokenExpired)) {
-                status = "needs_auth"
-                if (googleTokenExpired) error = "OAuth token expired"
+            // Derive auth status for enabled apps
+            if (app.entry.enabled && auth && auth.type !== "none") {
+              if (auth.type === "oauth") {
+                const provider = (auth as any).provider
+                if (provider === "google" && (!hasGoogleToken || googleTokenExpired)) {
+                  status = "needs_auth"
+                  if (googleTokenExpired) error = "OAuth token expired"
+                }
+              } else if (auth.type === "api-key") {
+                const tokenEnv = (auth as any).tokenEnv
+                if (tokenEnv && !app.entry.config?.[tokenEnv]) status = "needs_auth"
               }
-            } else if (auth.type === "api-key") {
-              const tokenEnv = (auth as any).tokenEnv
-              if (tokenEnv && !app.entry.config?.[tokenEnv]) status = "needs_auth"
             }
-          }
 
-          return {
-            id: `store-${app.id}`,
-            name: app.manifest?.name ?? app.id,
-            description: app.manifest?.description ?? "",
-            icon: app.manifest?.icon ?? "📦",
-            kind: "mcp-app" as const,
-            status,
-            error,
-            tools: (app.entry.tools ?? []).map((t) => ({ id: t.name, name: t.name, description: t.description ?? "" })),
-            enabled: app.entry.enabled,
-            auth: app.manifest?.auth,
-            toolCount: app.entry.tools?.length ?? 0,
-            settingsSchema: app.entry.settingsSchema ?? app.manifest?.settings,
-            config: app.entry.config,
-          }
-        })
+            return {
+              id: `store-${app.id}`,
+              name: app.manifest?.name ?? app.id,
+              description: app.manifest?.description ?? "",
+              icon: app.manifest?.icon ?? "📦",
+              kind: "mcp-app" as const,
+              status,
+              error,
+              tools: (app.entry.tools ?? []).map((t) => ({
+                id: t.name,
+                name: t.name,
+                description: t.description ?? "",
+              })),
+              enabled: app.entry.enabled,
+              auth: app.manifest?.auth,
+              toolCount: app.entry.tools?.length ?? 0,
+              settingsSchema: app.entry.settingsSchema ?? app.manifest?.settings,
+              config: app.entry.config,
+            }
+          })
 
         return c.json([...serverApps, ...managedCards, ...storeCards])
       },
@@ -391,7 +398,10 @@ export const McpRoutes = lazy(() =>
 
         // Legacy hardcoded Google OAuth apps (fallback for managed apps still in registry)
         const LEGACY_GOOGLE_OAUTH_APPS: Record<string, { scopeEnv: string; scopeDefault: string }> = {
-          "google-calendar": { scopeEnv: "GOOGLE_CALENDAR_SCOPE", scopeDefault: "https://www.googleapis.com/auth/calendar" },
+          "google-calendar": {
+            scopeEnv: "GOOGLE_CALENDAR_SCOPE",
+            scopeDefault: "https://www.googleapis.com/auth/calendar",
+          },
           gmail: { scopeEnv: "GOOGLE_GMAIL_SCOPE", scopeDefault: "https://mail.google.com/" },
         }
 
@@ -858,7 +868,13 @@ export const McpRoutes = lazy(() =>
         const body = c.req.valid("json")
 
         if (body.githubUrl) {
-          const id = body.id ?? body.githubUrl.split("/").pop()?.replace(/\.git$/, "") ?? "unknown"
+          const id =
+            body.id ??
+            body.githubUrl
+              .split("/")
+              .pop()
+              ?.replace(/\.git$/, "") ??
+            "unknown"
           try {
             const manifest = await McpAppStore.cloneAndRegister(body.githubUrl, id)
             return c.json({ id, manifest, status: "installed" })

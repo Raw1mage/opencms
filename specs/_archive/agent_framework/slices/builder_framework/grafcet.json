@@ -3,72 +3,106 @@
     "StepNumber": 0,
     "ModuleRef": "A1",
     "StepType": "initial",
-    "StepAction": "Load approved mission and derive expected quiz answer key",
+    "StepAction": "Load approved mission 與 derive expected quiz answer key",
     "LinkInputType": [],
     "LinkInputNumber": [],
-    "LinkOutputNumber": [1],
+    "LinkOutputNumber": [
+      1
+    ],
     "LinkOutputType": "track",
-    "Condition": ["build_entry_requested"],
+    "Condition": [
+      "建置項目requested"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 1,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "Ask structured build admission quiz and evaluate first response",
+    "StepAction": "Ask structured 建置 admission quiz 與 evaluate first 回應",
     "LinkInputType": [],
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2, 3],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2,
+      3
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["answers_match", "answers_mismatch"],
+    "Condition": [
+      "answers比對",
+      "answersmismatch"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Admit build and continue with minimal build-mode narration",
+    "StepAction": "Admit 建置 與 繼續 使用 minimal 建置-mode narration",
     "LinkInputType": [],
-    "LinkInputNumber": [1],
+    "LinkInputNumber": [
+      1
+    ],
     "LinkOutputNumber": [],
     "LinkOutputType": "track",
-    "Condition": ["admission_granted"],
+    "Condition": [
+      "admissiongranted"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Return mismatch evidence and allow one reflection retry",
+    "StepAction": "返回 mismatch evidence 與 allow 單次 reflection 重試",
     "LinkInputType": [],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [4],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      4
+    ],
     "LinkOutputType": "track",
-    "Condition": ["retry_available"],
+    "Condition": [
+      "重試available"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 4,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "Evaluate reflected retry answer",
+    "StepAction": "Evaluate reflected 重試 answer",
     "LinkInputType": [],
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [2, 5],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      2,
+      5
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["retry_answers_match", "retry_answers_still_mismatch"],
+    "Condition": [
+      "重試answers比對",
+      "重試answersstillmismatch"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 5,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Stop build admission and ask the user",
+    "StepAction": "Stop 建置 admission 與 ask 使用者",
     "LinkInputType": [],
-    "LinkInputNumber": [4],
+    "LinkInputNumber": [
+      4
+    ],
     "LinkOutputNumber": [],
     "LinkOutputType": "track",
-    "Condition": ["user_clarification_required"],
+    "Condition": [
+      "使用者clarificationrequired"
+    ],
     "SubGrafcet": []
   }
 ]

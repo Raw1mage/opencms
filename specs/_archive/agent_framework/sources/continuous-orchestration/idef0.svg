@@ -1,32 +1,28 @@
-<svg width="1154.0" height="671.6" viewBox="-198.0 -215.8 1154.0 671.6" xmlns="http://www.w3.org/2000/svg">
+<svg width="1099.4" height="471.6" viewBox="-319.7 -165.8 1099.4 471.6" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
 <marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
 </defs>
-<rect x="-198.0" y="-215.8" width="1154.0" height="671.6" fill="white" />
-<rect x="130.0" y="120.0" width="338.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
-<text x="299.0" y="156.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >A1</text>
-<text x="299.0" y="186.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >COORDINATE</text>
-<text x="299.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >CONTINUOUS TASK</text>
-<text x="299.0" y="246.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >EXECUTION</text>
-<path d="M -114.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR1" data-waypoints="-114.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 468.0 200.0 L 872.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR3" data-waypoints="468.0,200.0 872.0,200.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 299.0 84.2 L 299.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR2" data-waypoints="299.0,84.2 299.0,120.0" marker-end="url(#arrow)" fill="none" />
-<text x="293.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR2" >Planner Contract</text>
-<text x="305.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR2" >And Runtime Policies</text>
-<path d="M 299.0 315.8 L 299.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="AR4" data-waypoints="299.0,315.8 299.0,280.0" marker-end="url(#arrow)" fill="none" />
-<text x="293.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR4" >Task Worker Bus</text>
-<text x="305.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR4" >Session Queue UI</text>
-<rect x="70.0" y="24.2" width="458.0" height="351.6" stroke="black" fill="none" stroke-width="2" />
-<rect x="143.0" y="-175.8" width="312.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
-<text x="299.0" y="-164.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >A0</text>
-<text x="299.0" y="-134.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >CONTINUOUS</text>
-<text x="299.0" y="-104.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >ORCHESTRATION</text>
-<text x="299.0" y="-74.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >CONTEXT</text>
-<line x1="143.0" y1="-175.8" x2="70.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="455.0" y1="-175.8" x2="528.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="143.0" y1="-65.8" x2="70.0" y2="375.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="455.0" y1="-65.8" x2="528.0" y2="375.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<text x="66.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR1" >Task Delegation Request</text>
-<text x="532.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR3" >Dispatch Metadata And Continuation Outcomes</text>
+<rect x="-319.7" y="-165.8" width="1099.4" height="471.6" fill="white" />
+<rect x="130.0" y="120.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="230.0" y="145.3" text-anchor="middle" font-size="11" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
+<text x="230.0" y="171.1" text-anchor="middle" font-size="13" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >COORDINATE CONTINUOUS</text>
+<text x="230.0" y="195.4" text-anchor="middle" font-size="13" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >任務 EXECUTION</text>
+<rect x="80.0" y="44.2" width="300.0" height="251.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="79.5" y="-155.8" width="301.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="230.0" y="-129.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >A0</text>
+<text x="230.0" y="-99.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >CONTINUOUS</text>
+<text x="230.0" y="-69.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >ORCHESTRATION 上下文</text>
+<line x1="79.5" y1="-155.8" x2="80.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="380.5" y1="-155.8" x2="380.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="79.5" y1="-45.8" x2="80.0" y2="295.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="380.5" y1="-45.8" x2="380.0" y2="295.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 30.0 170.0 L 130.0 170.0" stroke="black" stroke-width="1.2" data-arrow-id="AR1" data-waypoints="30.0,170.0 130.0,170.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR2" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 170.0 L 430.0 170.0" stroke="black" stroke-width="1.2" data-arrow-id="AR3" data-waypoints="330.0,170.0 430.0,170.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 255.8 L 230.0 220.0" stroke="black" stroke-width="1.2" data-arrow-id="AR4" data-waypoints="230.0,255.8 230.0,220.0" marker-end="url(#arrow)" fill="none" />
+<text x="230.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR2">Planner Contract 與 Runtime Policies</text>
+<text x="230.0" y="271.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR4">任務 worker Bus Session 排入佇列 UI</text>
+<text x="26.0" y="174.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR1">任務 Delegation 請求</text>
+<text x="434.0" y="174.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR3">派發 Metadata 與 延續 Outcomes</text>
 </svg>

@@ -507,6 +507,7 @@ export namespace UserDaemonManager {
       start?: number
       search?: string
       limit?: number
+      providerFamily?: "claude"
     },
   ) {
     observe(username)
@@ -537,6 +538,7 @@ export namespace UserDaemonManager {
     if (query.start !== undefined) params.set("start", String(query.start))
     if (query.search) params.set("search", query.search)
     if (query.limit !== undefined) params.set("limit", String(query.limit))
+    if (query.providerFamily) params.set("providerFamily", query.providerFamily)
     const qs = params.toString()
 
     return callJSON<T>({
@@ -544,6 +546,50 @@ export namespace UserDaemonManager {
       method: "GET",
       path: qs ? `/session?${qs}` : "/session",
     })
+  }
+
+  export async function callSessionImportClaude<T>(
+    username: string,
+    body: {
+      directory?: string
+      sourceSessionID: string
+      transcriptPath?: string
+    },
+  ) {
+    observe(username)
+    const safe = LinuxUserExec.sanitizeUsername(username)
+    if (!safe)
+      return {
+        ok: false,
+        error: { code: "DAEMON_INVALID_USER", message: "invalid username" },
+      } satisfies DaemonCallResult<T>
+    const entry = daemons.get(safe)
+    if (!entry)
+      return {
+        ok: false,
+        error: { code: "DAEMON_NOT_OBSERVED", message: "daemon not observed" },
+      } satisfies DaemonCallResult<T>
+    return callJSON<T>({ entry, method: "POST", path: "/session/import/claude", body })
+  }
+
+  export async function callSessionImportClaudeList<T>(username: string, query: { directory?: string }) {
+    observe(username)
+    const safe = LinuxUserExec.sanitizeUsername(username)
+    if (!safe)
+      return {
+        ok: false,
+        error: { code: "DAEMON_INVALID_USER", message: "invalid username" },
+      } satisfies DaemonCallResult<T>
+    const entry = daemons.get(safe)
+    if (!entry)
+      return {
+        ok: false,
+        error: { code: "DAEMON_NOT_OBSERVED", message: "daemon not observed" },
+      } satisfies DaemonCallResult<T>
+    const params = new URLSearchParams()
+    if (query.directory) params.set("directory", query.directory)
+    const qs = params.toString()
+    return callJSON<T>({ entry, method: "GET", path: qs ? `/session/import/claude?${qs}` : "/session/import/claude" })
   }
 
   export async function callSessionGet<T>(username: string, sessionID: string) {
@@ -771,7 +817,7 @@ export namespace UserDaemonManager {
         error: { code: "DAEMON_NOT_OBSERVED", message: "daemon not observed" },
       } satisfies DaemonCallResult<T>
 
-    const normalised = typeof opts === "number" ? { limit: opts } : opts ?? {}
+    const normalised = typeof opts === "number" ? { limit: opts } : (opts ?? {})
     const params = new URLSearchParams()
     if (normalised.limit !== undefined) params.set("limit", String(normalised.limit))
     if (normalised.before !== undefined) params.set("before", normalised.before)

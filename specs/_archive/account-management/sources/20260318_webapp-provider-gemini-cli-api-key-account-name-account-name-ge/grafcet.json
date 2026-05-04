@@ -3,95 +3,150 @@
     "StepNumber": 0,
     "ModuleRef": "A1",
     "StepType": "initial",
-    "StepAction": "Build AccountManager service (account/manager.ts) with API signature and wrap Auth+Account",
+    "StepAction": "建置 帳號manager service (account/manager.ts) 使用 API signature 與 wrap 驗證+帳號",
     "LinkInputType": [],
     "LinkInputNumber": [],
-    "LinkOutputNumber": [1],
+    "LinkOutputNumber": [
+      1
+    ],
     "LinkOutputType": "track",
-    "Condition": ["AccountManager module created with all method signatures"],
+    "Condition": [
+      "帳號manager module created 使用 all method signatures"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 1,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Integrate typed event bus: define account events and emit from each mutation method",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2],
+    "StepAction": "Integrate typed 事件 bus: define 帳號 事件 與 發出 來自 each mutation method",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2
+    ],
     "LinkOutputType": "track",
-    "Condition": ["All mutation methods emit typed events via packages/bus"],
+    "Condition": [
+      "All mutation methods 發出 typed 事件 透過 packages/bus"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Implement write-ahead storage pattern (temp → rename → update memory) and provider capability declaration",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [3],
+    "StepAction": "Implement write-ahead 儲存 pattern (temp → rename → 更新 memory) 與 Provider capability declaration",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      3
+    ],
     "LinkOutputType": "track",
-    "Condition": ["save() uses write-ahead; provider hardcode replaced with capability lookups"],
+    "Condition": [
+      "save() uses write-ahead; Provider hardcode replaced 使用 capability lookups"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Setup event consumers: TUI subscriber, Web SSE channel, Console SSE listener",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [4, 5],
+    "StepAction": "Setup 事件 consumers: TUI subscriber, Web SSE 通道, Console SSE listener",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      4,
+      5
+    ],
     "LinkOutputType": "divergence_and",
-    "Condition": ["Consumers receive account events and update state; end-to-end verified"],
+    "Condition": [
+      "Consumers receive 帳號 事件 與 更新 狀態; end-到-end verified"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 4,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "Route Service Delegation (Slice A): delegate all mutation routes to AccountManager, add mismatch guard (400), remove daemon fallback",
-    "LinkInputType": ["divergence_and"],
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [6],
+    "StepAction": "路由 Service Delegation (Slice ): delegate all mutation 路由 到 帳號manager, add mismatch guard (400), remove daemon fallback",
+    "LinkInputType": [
+      "divergence_and"
+    ],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      6
+    ],
     "LinkOutputType": "track",
-    "Condition": ["All mutation routes delegate to AccountManager; no direct Account/Auth calls in routes; mismatch returns 400"],
+    "Condition": [
+      "All mutation 路由 delegate 到 帳號manager; 無 direct 帳號/驗證 calls 在 路由; mismatch 返回 400"
+    ],
     "SubGrafcet": [
       {
         "StepNumber": 0,
         "ModuleRef": "A21",
         "StepType": "initial",
-        "StepAction": "Rewrite list/setActive/rename routes to delegate to AccountManager",
+        "StepAction": "Rewrite 清單/setActive/rename 路由 到 delegate 到 帳號manager",
         "LinkInputType": [],
         "LinkInputNumber": [],
-        "LinkOutputNumber": [1],
+        "LinkOutputNumber": [
+          1
+        ],
         "LinkOutputType": "track",
-        "Condition": ["GET/POST/PATCH routes delegated"],
+        "Condition": [
+          "GET/POST/PATCH 路由 delegated"
+        ],
         "SubGrafcet": []
       },
       {
         "StepNumber": 1,
         "ModuleRef": "A21",
         "StepType": "normal",
-        "StepAction": "Rewrite remove/connect/login/quota routes and add mismatch guard",
-        "LinkInputType": ["track"],
-        "LinkInputNumber": [0],
-        "LinkOutputNumber": [2],
+        "StepAction": "Rewrite remove/connect/登入/配額 路由 與 add mismatch guard",
+        "LinkInputType": [
+          "track"
+        ],
+        "LinkInputNumber": [
+          0
+        ],
+        "LinkOutputNumber": [
+          2
+        ],
         "LinkOutputType": "track",
-        "Condition": ["All routes delegated; mismatch guard active"],
+        "Condition": [
+          "All 路由 delegated; mismatch guard active"
+        ],
         "SubGrafcet": []
       },
       {
         "StepNumber": 2,
         "ModuleRef": "A21",
         "StepType": "normal",
-        "StepAction": "Remove UserDaemonManager fallback path (daemon fail → 503, no fallback)",
-        "LinkInputType": ["track"],
-        "LinkInputNumber": [1],
+        "StepAction": "Remove 使用者daemonmanager fallback 路徑 (daemon fail → 503, 無 fallback)",
+        "LinkInputType": [
+          "track"
+        ],
+        "LinkInputNumber": [
+          1
+        ],
         "LinkOutputNumber": [],
         "LinkOutputType": "track",
-        "Condition": ["No fallback path exists in route layer"],
+        "Condition": [
+          "無 fallback 路徑 exists 在 路由 layer"
+        ],
         "SubGrafcet": []
       }
     ]
@@ -100,84 +155,143 @@
     "StepNumber": 5,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "Silent Fallback Elimination (Slice B): Auth.set disclosure, mutation target validation, explicit migration logging",
-    "LinkInputType": ["divergence_and"],
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [6],
+    "StepAction": "靜默 fallback Elimination (Slice B): 驗證.set disclosure, mutation 目標 validation, explicit migration logging",
+    "LinkInputType": [
+      "divergence_and"
+    ],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      6
+    ],
     "LinkOutputType": "track",
-    "Condition": ["Auth.set returns action disclosure; missing targets return 404; migrations log explicitly"],
+    "Condition": [
+      "驗證.set 返回 action disclosure; 缺失 targets 返回 404; migrations 記錄 explicitly"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 6,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "CLI/TUI Mutation Convergence (Slice C): replace all direct Account/Auth mutations with AccountManager calls",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [4, 5],
-    "LinkOutputNumber": [7, 8],
+    "StepAction": "CLI/TUI Mutation Convergence (Slice C): replace all direct 帳號/驗證 mutations 使用 帳號manager calls",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      4,
+      5
+    ],
+    "LinkOutputNumber": [
+      7,
+      8
+    ],
     "LinkOutputType": "divergence_and",
-    "Condition": ["No direct Account.setActive/remove/update or Auth.set/remove in CLI/TUI; mutations emit events"],
+    "Condition": [
+      "無 direct 帳號.setActive/remove/更新 或 驗證.set/remove 在 CLI/TUI; mutations 發出 事件"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 7,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Authority Unification (Slice D): implement session-local ephemeral selection, separate UI badges, handle account deletion fallback",
-    "LinkInputType": ["divergence_and"],
-    "LinkInputNumber": [6],
-    "LinkOutputNumber": [9],
+    "StepAction": "Authority Unification (Slice D): implement Session-local ephemeral selection, separate UI badges, handle 帳號 deletion fallback",
+    "LinkInputType": [
+      "divergence_and"
+    ],
+    "LinkInputNumber": [
+      6
+    ],
+    "LinkOutputNumber": [
+      9
+    ],
     "LinkOutputType": "track",
-    "Condition": ["Session-local selection is ephemeral; global active unchanged by model-manager selection; UI badges differentiated"],
+    "Condition": [
+      "Session-local selection 是 ephemeral; 全域 active unchanged 由 模型-manager selection; UI badges differentiated"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 8,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Surface Alignment (Slice E): unify app/console form semantics, route model-manager actions through AccountManager, replace console reload with SSE",
-    "LinkInputType": ["divergence_and"],
-    "LinkInputNumber": [6],
-    "LinkOutputNumber": [9],
+    "StepAction": "Surface Alignment (Slice E): unify app/console form semantics, 路由 模型-manager actions through 帳號manager, replace console 重載 使用 SSE",
+    "LinkInputType": [
+      "divergence_and"
+    ],
+    "LinkInputNumber": [
+      6
+    ],
+    "LinkOutputNumber": [
+      9
+    ],
     "LinkOutputType": "track",
-    "Condition": ["Form fields canonical; model-manager actions go through service; console uses SSE sync"],
+    "Condition": [
+      "Form fields canonical; 模型-manager actions go through service; console uses SSE sync"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 9,
     "ModuleRef": "A5",
     "StepType": "normal",
-    "StepAction": "Deploy Gate + Legacy Cleanup (Slice F): automate SHA256 gate in webctl.sh, eliminate parseProvider/parseFamily entirely, remove all family type exports/helpers, rename canonical-family-source → canonical-provider-source, migrate storage key",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [7, 8],
-    "LinkOutputNumber": [10, 11],
+    "StepAction": "部署 Gate + Legacy Cleanup (Slice F): automate SHA256 gate 在 webctl.sh, eliminate 解析Provider/解析family entirely, remove all family type exports/helpers, rename canonical-family-來源 → canonical-Provider-來源, migrate 儲存 key",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      7,
+      8
+    ],
+    "LinkOutputNumber": [
+      10,
+      11
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["SHA256 gate passes", "All family code eliminated, no residual FamilyData/FAMILIES/resolveFamily/parseFamily"],
+    "Condition": [
+      "SHA256 gate passes",
+      "All family code eliminated, 無 residual FamilyData/FAMILIES/解析family/解析family"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 10,
     "ModuleRef": "A5",
     "StepType": "normal",
-    "StepAction": "Finalize: update architecture.md, event logs, run regression (ghost responses), complete cross-cutting tasks",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [9],
+    "StepAction": "Finalize: 更新 architecture.md, 事件 logs, 執行 regression (ghost responses), 完成 cross-cutting tasks",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      9
+    ],
     "LinkOutputNumber": [],
     "LinkOutputType": "track",
-    "Condition": ["All slices validated; architecture synced; no ghost responses regression"],
+    "Condition": [
+      "All slices validated; architecture synced; 無 ghost responses regression"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 11,
     "ModuleRef": "A5",
     "StepType": "normal",
-    "StepAction": "Verify UX invariance: TUI admin panel and webapp model manager operation flow unchanged after refactor",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [9],
-    "LinkOutputNumber": [10],
+    "StepAction": "Verify UX invariance: TUI 管理 面板 與 webapp 模型 manager operation flow unchanged after refactor",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      9
+    ],
+    "LinkOutputNumber": [
+      10
+    ],
     "LinkOutputType": "track",
-    "Condition": ["UX regression test passed: TUI admin panel + webapp model manager flows verified identical"],
+    "Condition": [
+      "UX regression test passed: TUI 管理 面板 + webapp 模型 manager flows verified identical"
+    ],
     "SubGrafcet": []
   }
 ]

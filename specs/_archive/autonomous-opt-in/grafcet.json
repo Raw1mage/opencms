@@ -3,27 +3,37 @@
     "StepNumber": 0,
     "ModuleRef": "A0",
     "StepType": "initial",
-    "StepAction": "Session idle; runloop does not pump autonomous continuations",
+    "StepAction": "Session 閒置; runloop does 不 pump 自主 continuations",
     "LinkInputType": [],
     "LinkInputNumber": [],
-    "LinkOutputNumber": [1],
+    "LinkOutputNumber": [
+      1
+    ],
     "LinkOutputType": "track",
-    "Condition": ["arm_signal_received AND binding_valid AND state IN {planned, implementing} AND has_actionable_todo"],
+    "Condition": [
+      "啟用signal已收到 AND bindingvalid AND 狀態 IN {planned, implementing} AND has可執行待辦"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 1,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Autorun armed; runloop pumps continuation when todolist has actionable items",
+    "StepAction": "Autorun 已啟用; runloop pumps 延續 when todolist has 可執行 items",
     "LinkInputType": "track",
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2, 3, 4],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2,
+      3,
+      4
+    ],
     "LinkOutputType": "divergence_or",
     "Condition": [
-      "todolist_drained AND plan_has_next_phase",
-      "user_speaks OR blocker_fires OR abort_signal",
-      "plan_edit_during_implementing"
+      "todolistdrained AND 規劃has下一個phase",
+      "使用者speaks OR blockerfires OR abortsignal",
+      "規劃editduringimplementing"
     ],
     "SubGrafcet": []
   },
@@ -31,48 +41,74 @@
     "StepNumber": 2,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Refill TodoWrite from tasks.md next phase; log autorun.refill event",
+    "StepAction": "Refill 待辦write 來自 tasks.md 下一個 phase; 記錄 autorun.refill 事件",
     "LinkInputType": "track",
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [1, 5],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      1,
+      5
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["refill_non_empty", "refill_empty"],
+    "Condition": [
+      "refillnonempty",
+      "refillempty"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "ModuleRef": "A5",
     "StepType": "normal",
-    "StepAction": "Disarm: flip autorun_armed to false; log autorun.disarmed with reason; .state.json unchanged",
+    "StepAction": "停用: flip autorun已啟用 到 false; 記錄 autorun.disarmed 使用 reason; .state.js在 unchanged",
     "LinkInputType": "track",
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [0],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["disarm_complete"],
+    "Condition": [
+      "停用完成"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 4,
     "ModuleRef": "A6",
     "StepType": "normal",
-    "StepAction": "Demote .state.json implementing->planned; flip autorun_armed to false; log autorun.demoted_by_edit",
+    "StepAction": "Demote .state.js在 implementing->planned; flip autorun已啟用 到 false; 記錄 autorun.demoted由edit",
     "LinkInputType": "track",
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [0],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["demotion_complete"],
+    "Condition": [
+      "demotion完成"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 5,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Plan fully drained; flip autorun_armed to false; emit autorun.completed; return stop reason plan_drained",
+    "StepAction": "規劃 fully drained; flip autorun已啟用 到 false; 發出 autorun.已完成; 返回 stop reason 規劃drained",
     "LinkInputType": "track",
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [0],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["cleanup_complete"],
+    "Condition": [
+      "cleanup完成"
+    ],
     "SubGrafcet": []
   }
 ]

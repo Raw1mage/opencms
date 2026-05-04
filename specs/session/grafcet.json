@@ -2,190 +2,292 @@
   {
     "StepNumber": 0,
     "StepType": "initial",
-    "StepAction": "session_unbound_idle",
+    "StepAction": "Sessionunbound閒置",
     "ModuleRef": "A0",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [12],
-    "LinkOutputNumber": [1],
-    "Condition": ["client_opens_session_route"],
+    "LinkInputNumber": [
+      12
+    ],
+    "LinkOutputNumber": [
+      1
+    ],
+    "Condition": [
+      "clientopensSession路由"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 1,
     "StepType": "normal",
-    "StepAction": "bind_session_and_bump_epoch",
+    "StepAction": "bindSession與bumpepoch",
     "ModuleRef": "A2",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2],
-    "Condition": ["epoch_bump_ok && reinject_complete"],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2
+    ],
+    "Condition": [
+      "epochbumpok && reinject完成"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "StepType": "normal",
-    "StepAction": "hydrate_tail_via_messages_endpoint",
+    "StepAction": "hydratetail透過messagesendpoint",
     "ModuleRef": "A41",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [3],
-    "Condition": ["tail_loaded_or_304"],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      3
+    ],
+    "Condition": [
+      "tail已載入或304"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "StepType": "normal",
-    "StepAction": "subscribe_sse_and_await_input",
+    "StepAction": "subscribesse與等待輸入",
     "ModuleRef": "A42",
-    "LinkInputType": ["convergence_or"],
+    "LinkInputType": [
+      "convergence_or"
+    ],
     "LinkOutputType": "divergence_or",
-    "LinkInputNumber": [2, 11, 13, 14],
-    "LinkOutputNumber": [4, 7, 9, 12],
+    "LinkInputNumber": [
+      2,
+      11,
+      13,
+      14
+    ],
+    "LinkOutputNumber": [
+      4,
+      7,
+      9,
+      12
+    ],
     "Condition": [
-      "user_submits_prompt",
-      "rebind_trigger_observed",
-      "scroll_up_sentinel_hit",
-      "idle_freshness_tick"
+      "使用者submits提示",
+      "rebindtriggerobserved",
+      "scrollupSentinelhit",
+      "閒置freshnesstick"
     ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 4,
     "StepType": "normal",
-    "StepAction": "submit_message_and_persist",
+    "StepAction": "submit訊息與持久化",
     "ModuleRef": "A5",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [5],
-    "Condition": ["http_post_2xx && message_appended"],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      5
+    ],
+    "Condition": [
+      "httppost2xx && 訊息appended"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 5,
     "StepType": "normal",
-    "StepAction": "dispatch_to_runloop",
+    "StepAction": "派發到runloop",
     "ModuleRef": "A5",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [4],
-    "LinkOutputNumber": [6],
-    "Condition": ["runloop_started && stream_open"],
+    "LinkInputNumber": [
+      4
+    ],
+    "LinkOutputNumber": [
+      6
+    ],
+    "Condition": [
+      "runloopstarted && 串流open"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 6,
     "StepType": "normal",
-    "StepAction": "stream_parts_invalidate_cache_push_sse",
+    "StepAction": "串流partsinvalidate快取pushsse",
     "ModuleRef": "A3",
     "LinkInputType": [],
     "LinkOutputType": "convergence_or",
-    "LinkInputNumber": [5],
-    "LinkOutputNumber": [11],
-    "Condition": ["message_completed_or_aborted"],
+    "LinkInputNumber": [
+      5
+    ],
+    "LinkOutputNumber": [
+      11
+    ],
+    "Condition": [
+      "訊息已完成或aborted"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 7,
     "StepType": "normal",
-    "StepAction": "apply_rebind_rate_limit",
+    "StepAction": "applyrebindratelimit",
     "ModuleRef": "A22",
     "LinkInputType": [],
     "LinkOutputType": "divergence_or",
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [8, 11],
-    "Condition": ["under_rate_limit", "rate_limited_storm"],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      8,
+      11
+    ],
+    "Condition": [
+      "underratelimit",
+      "ratelimitedstorm"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 8,
     "StepType": "normal",
-    "StepAction": "reinject_capability_snapshot",
+    "StepAction": "reinjectcapabilitysnapshot",
     "ModuleRef": "A24",
     "LinkInputType": [],
     "LinkOutputType": "convergence_or",
-    "LinkInputNumber": [7],
-    "LinkOutputNumber": [11],
-    "Condition": ["reinject_returns_or_session_busy"],
+    "LinkInputNumber": [
+      7
+    ],
+    "LinkOutputNumber": [
+      11
+    ],
+    "Condition": [
+      "reinject返回或Sessionbusy"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 9,
     "StepType": "normal",
-    "StepAction": "load_older_slice_with_before_cursor",
+    "StepAction": "loadolderslice使用beforecursor",
     "ModuleRef": "A43",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [10],
-    "Condition": ["older_slice_returned_or_empty"],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      10
+    ],
+    "Condition": [
+      "olderslicereturned或empty"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 10,
     "StepType": "normal",
-    "StepAction": "reduce_and_fold_parts",
+    "StepAction": "reduce與foldparts",
     "ModuleRef": "A45",
     "LinkInputType": [],
     "LinkOutputType": "convergence_or",
-    "LinkInputNumber": [9],
-    "LinkOutputNumber": [11],
-    "Condition": ["timeline_rendered"],
+    "LinkInputNumber": [
+      9
+    ],
+    "LinkOutputNumber": [
+      11
+    ],
+    "Condition": [
+      "timelinerendered"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 11,
     "StepType": "normal",
-    "StepAction": "stamp_received_at_and_classify_freshness",
+    "StepAction": "stamp已收到於與classifyfreshness",
     "ModuleRef": "A6",
-    "LinkInputType": ["convergence_or"],
+    "LinkInputType": [
+      "convergence_or"
+    ],
     "LinkOutputType": "track",
-    "LinkInputNumber": [6, 8, 10],
-    "LinkOutputNumber": [3],
-    "Condition": ["fidelity_classified"],
+    "LinkInputNumber": [
+      6,
+      8,
+      10
+    ],
+    "LinkOutputNumber": [
+      3
+    ],
+    "Condition": [
+      "fidelityclassified"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 12,
     "StepType": "normal",
-    "StepAction": "freshness_clock_tick",
+    "StepAction": "freshnessclocktick",
     "ModuleRef": "A6",
     "LinkInputType": [],
     "LinkOutputType": "divergence_or",
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [13, 14, 0],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      13,
+      14,
+      0
+    ],
     "Condition": [
-      "stale_threshold_crossed",
-      "hard_stale_threshold_crossed",
-      "session_route_left"
+      "stalethresholdcrossed",
+      "hardstalethresholdcrossed",
+      "Session路由left"
     ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 13,
     "StepType": "normal",
-    "StepAction": "force_tail_refetch_on_stale",
+    "StepAction": "forcetailrefetch在stale",
     "ModuleRef": "A41",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [12],
-    "LinkOutputNumber": [3],
-    "Condition": ["tail_refreshed"],
+    "LinkInputNumber": [
+      12
+    ],
+    "LinkOutputNumber": [
+      3
+    ],
+    "Condition": [
+      "tailrefreshed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 14,
     "StepType": "normal",
-    "StepAction": "schedule_resume_rebind_on_hard_stale",
+    "StepAction": "scheduleresumerebind在hardstale",
     "ModuleRef": "A2",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [12],
-    "LinkOutputNumber": [3],
-    "Condition": ["resume_post_returned"],
+    "LinkInputNumber": [
+      12
+    ],
+    "LinkOutputNumber": [
+      3
+    ],
+    "Condition": [
+      "resumepostreturned"
+    ],
     "SubGrafcet": []
   }
 ]

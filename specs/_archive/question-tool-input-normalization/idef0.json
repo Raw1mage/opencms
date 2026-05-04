@@ -1,12 +1,12 @@
 {
-  "diagram_title": "Tool input normalization pipeline",
+  "diagram_title": "工具 輸入 normalization pipeline",
   "node_reference": "A0",
   "parent_reference": null,
   "standard": "IEEE 1320.1-1998 / FIPS 183 (IDEF0)",
   "activities": [
     {
       "id": "A1",
-      "label": "Receive raw LLM tool-call args",
+      "label": "Receive raw LLM 工具-呼叫 args",
       "description": "AI SDK stream 解析出 tool-call event，包含 tool name、callID、raw arguments object（LLM 產生，可能 noncompliant）",
       "inputs": [
         "LLM streaming response",
@@ -28,7 +28,7 @@
     },
     {
       "id": "A2",
-      "label": "Parse & normalize via zod schema",
+      "label": "解析 & normalize 透過 zod schema",
       "description": "Tool.define wrapper 呼叫 parameters.parse(raw)；z.preprocess/z.transform/z.default 於此階段執行；成功回傳 parsed value，失敗丟 ZodError",
       "inputs": [
         "raw args from A1",
@@ -49,7 +49,7 @@
     },
     {
       "id": "A3",
-      "label": "Execute tool with parsed args",
+      "label": "Execute 工具 使用 parsed args",
       "description": "Tool handler 實作（如 QuestionTool）收到 parsed args 跑業務邏輯；例如 QuestionTool 呼叫 Question.ask(sessionID, questions, tool, abort)",
       "inputs": [
         "parsed args from A2",
@@ -70,7 +70,7 @@
     },
     {
       "id": "A4",
-      "label": "Persist tool part state.input",
+      "label": "持久化 工具 part 狀態.輸入",
       "description": "Processor 在 tool-result / tool-error 時寫入 session 存檔；completed 用 ToolRegistry 查 schema safeParse 存 normalized；error 保留 raw",
       "inputs": [
         "value.input (raw or already normalized)",
@@ -93,7 +93,7 @@
     },
     {
       "id": "A5",
-      "label": "Render tool part with defensive normalize",
+      "label": "渲染 工具 part 使用 defensive normalize",
       "description": "UI 讀 state.input 前先過 Question.normalize helper；兼容舊 session 的 raw shape 與新 session 的 normalized shape",
       "inputs": [
         "state.input from A4",
@@ -122,42 +122,72 @@
       "activities": [
         {
           "id": "A2.1",
-          "label": "Classify input shape",
-          "description": "Determine whether input is null / primitive / flat single-question / canonical multi-question / unknown",
-          "inputs": ["raw args"],
-          "outputs": ["shape classification tag"],
-          "controls": ["DD-4 helper contract"],
-          "mechanisms": ["Question.normalize (top-level dispatch)"]
+          "label": "Classify 輸入 shape",
+          "description": "Determine whether 輸入 是 null / primitive / flat single-問題 / canonical multi-問題 / unknown",
+          "inputs": [
+            "raw args"
+          ],
+          "outputs": [
+            "shape classification tag"
+          ],
+          "controls": [
+            "DD-4 helper contract"
+          ],
+          "mechanisms": [
+            "Question.normalize (top-level dispatch)"
+          ]
         },
         {
           "id": "A2.2",
-          "label": "Wrap flat into array",
-          "description": "If flat single-question { question, options, multiple }, wrap into { questions: [normalizeSingle(input)] }",
-          "inputs": ["flat input"],
-          "outputs": ["{ questions: [...] } structure"],
-          "controls": ["DD-4: flat detection rule"],
-          "mechanisms": ["Question.normalize branch"]
+          "label": "Wrap flat 進入 array",
+          "description": "If flat single-問題 { 問題, options, multiple }, wrap 進入 { questions: [normalizeSingle(輸入)] }",
+          "inputs": [
+            "flat input"
+          ],
+          "outputs": [
+            "{ questions: [...] } structure"
+          ],
+          "controls": [
+            "DD-4: flat detection rule"
+          ],
+          "mechanisms": [
+            "Question.normalize branch"
+          ]
         },
         {
           "id": "A2.3",
-          "label": "Normalize each question (per-item)",
-          "description": "For each question: auto-fill header if missing; coerce options (string → {label, description}; {value, detail|explanation} → {label, description})",
-          "inputs": ["raw question object"],
-          "outputs": ["canonical question object"],
+          "label": "Normalize each 問題 (依-item)",
+          "description": "供 each 問題: auto-fill header if 缺失; coerce options (string → {label, description}; {value, detail|explanation} → {label, description})",
+          "inputs": [
+            "raw question object"
+          ],
+          "outputs": [
+            "canonical question object"
+          ],
           "controls": [
             "header fallback = question.slice(0, 30)",
             "option description fallback chain"
           ],
-          "mechanisms": ["Question.normalizeSingle"]
+          "mechanisms": [
+            "Question.normalizeSingle"
+          ]
         },
         {
           "id": "A2.4",
           "label": "Validate against zod schema",
-          "description": "After preprocess, the outer z.object validates canonical shape; throws ZodError on violation",
-          "inputs": ["preprocessed candidate"],
-          "outputs": ["parsed value or ZodError"],
-          "controls": ["zod .parse() semantics"],
-          "mechanisms": ["zod runtime"]
+          "description": "After preprocess, outer z.object validates canonical shape; 拋出 zod錯誤 在 violation",
+          "inputs": [
+            "preprocessed candidate"
+          ],
+          "outputs": [
+            "parsed value or ZodError"
+          ],
+          "controls": [
+            "zod .parse() semantics"
+          ],
+          "mechanisms": [
+            "zod runtime"
+          ]
         }
       ]
     }

@@ -803,6 +803,7 @@ export namespace Session {
     search?: string
     limit?: number
     archived?: boolean
+    providerFamily?: "claude"
   }) {
     const term = input?.search?.toLowerCase()
     const limit = input?.limit ?? 100
@@ -854,6 +855,7 @@ export namespace Session {
         if (input?.cursor !== undefined && session.time.updated >= input.cursor) return null
         if (!input?.archived && session.time.archived !== undefined) return null
         if (term !== undefined && !session.title.toLowerCase().includes(term)) return null
+        if (input?.providerFamily === "claude" && !isClaudeSession(session)) return null
 
         return {
           ...session,
@@ -870,6 +872,17 @@ export namespace Session {
     for (const session of sessions.slice(0, limit)) {
       yield session
     }
+  }
+
+  export function isClaudeSession(session: Pick<Info, "execution">) {
+    const execution = session.execution
+    if (!execution) return false
+    return (
+      execution.providerId === "claude-cli" ||
+      execution.providerId === "anthropic" ||
+      execution.modelID.startsWith("claude-") ||
+      execution.modelID.includes("/claude-")
+    )
   }
 
   export const children = fn(Identifier.schema("session"), async (parentID) => {

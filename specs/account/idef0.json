@@ -1,37 +1,37 @@
 {
-  "diagram_title": "Manage Account Identity",
+  "diagram_title": "Manage 帳號 身分",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A1",
-      "title": "Add Account",
+      "title": "Add 帳號",
       "decomposition": {
-        "diagram_title": "Add Account",
+        "diagram_title": "Add 帳號",
         "node_reference": "A1",
         "activities": [
           {
             "id": "A11",
-            "title": "Resolve Provider Key"
+            "title": "解析 Provider Key"
           },
           {
             "id": "A12",
-            "title": "Run Identity Resolution Chain"
+            "title": "執行 身分 Resolution Chain"
           },
           {
             "id": "A13",
-            "title": "Dedup By Token Or Api Key"
+            "title": "Dedup 由 Token 或 Api Key"
           },
           {
             "id": "A14",
-            "title": "Generate Account Id With Suffix"
+            "title": "Generate 帳號 Id 使用 Suffix"
           },
           {
             "id": "A15",
-            "title": "Persist Through Mutex Storage"
+            "title": "持久化 Through Mutex 儲存"
           },
           {
             "id": "A16",
-            "title": "Publish Account Added Event"
+            "title": "發布 帳號 Added 事件"
           }
         ],
         "arrows": [
@@ -39,19 +39,19 @@
             "id": "a1_in_creds",
             "source": "EXTERNAL",
             "target": "A11:input",
-            "label": "Auth.set Credential Payload"
+            "label": "驗證.set Credential Payload"
           },
           {
             "id": "a1_ctrl_dd2",
             "source": "EXTERNAL",
             "target": "A11:control",
-            "label": "DD-2 Strict Family Dispatch"
+            "label": "DD-2 Strict Family 派發"
           },
           {
             "id": "a1_mech_resolve",
             "source": "EXTERNAL",
             "target": "A11:mechanism",
-            "label": "Account.resolveProviderOrSelf"
+            "label": "帳號.解析Provider或self"
           },
           {
             "id": "a1_key_to_chain",
@@ -69,55 +69,55 @@
             "id": "a1_mech_jwt",
             "source": "EXTERNAL",
             "target": "A12:mechanism",
-            "label": "auth/index.ts L206 Auth.set"
+            "label": "auth/index.ts L206 驗證.set"
           },
           {
             "id": "a1_identity_to_dedup",
             "source": "A12:output",
             "target": "A13:input",
-            "label": "Resolved Identity Slug"
+            "label": "已解析 身分 Slug"
           },
           {
             "id": "a1_mech_dedup",
             "source": "EXTERNAL",
             "target": "A13:mechanism",
-            "label": "Account.deduplicateByToken Existing Scan"
+            "label": "帳號.deduplicate由token Existing 掃描"
           },
           {
             "id": "a1_dedup_hit_to_persist",
             "source": "A13:output",
             "target": "A15:input",
-            "label": "Existing Record Update Patch"
+            "label": "Existing 記錄 更新 Patch"
           },
           {
             "id": "a1_dedup_miss_to_genid",
             "source": "A13:output",
             "target": "A14:input",
-            "label": "New Identity Needs Id"
+            "label": "New 身分 Needs Id"
           },
           {
             "id": "a1_mech_genid",
             "source": "EXTERNAL",
             "target": "A14:mechanism",
-            "label": "Account.generateId Suffix Loop"
+            "label": "帳號.generateId Suffix Loop"
           },
           {
             "id": "a1_id_to_persist",
             "source": "A14:output",
             "target": "A15:input",
-            "label": "Fresh Account Id"
+            "label": "Fresh 帳號 Id"
           },
           {
             "id": "a1_ctrl_strict",
             "source": "EXTERNAL",
             "target": "A15:control",
-            "label": "No Silent Overwrite Invariant"
+            "label": "無 靜默 Overwrite Invariant"
           },
           {
             "id": "a1_mech_storage",
             "source": "EXTERNAL",
             "target": "A15:mechanism",
-            "label": "Account.add withMutex accounts.json"
+            "label": "帳號.add 使用mutex accounts.js在"
           },
           {
             "id": "a1_persist_to_bus",
@@ -129,45 +129,45 @@
             "id": "a1_mech_bus",
             "source": "EXTERNAL",
             "target": "A16:mechanism",
-            "label": "Bus.publish AccountAdded"
+            "label": "Bus.發布 帳號added"
           },
           {
             "id": "a1_out_bus",
             "source": "A16:output",
             "target": "EXTERNAL",
-            "label": "account.added Event"
+            "label": "帳號.added 事件"
           },
           {
             "id": "a1_out_record",
             "source": "A15:output",
             "target": "EXTERNAL",
-            "label": "Stored Account Record"
+            "label": "Stored 帳號 記錄"
           }
         ]
       }
     },
     {
       "id": "A2",
-      "title": "Authenticate Account For Request",
+      "title": "驗證 帳號 供 請求",
       "decomposition": {
-        "diagram_title": "Authenticate Account For Request",
+        "diagram_title": "驗證 帳號 供 請求",
         "node_reference": "A2",
         "activities": [
           {
             "id": "A21",
-            "title": "Validate Family Is Known"
+            "title": "Validate Family 是 Known"
           },
           {
             "id": "A22",
-            "title": "Select Active Or Rotated Account"
+            "title": "Select Active 或 Rotated 帳號"
           },
           {
             "id": "A23",
-            "title": "Refresh Or Reuse Token"
+            "title": "刷新 或 Reuse Token"
           },
           {
             "id": "A24",
-            "title": "Materialize Auth Header"
+            "title": "Materialize 驗證 Header"
           }
         ],
         "arrows": [
@@ -175,19 +175,19 @@
             "id": "a2_in_req",
             "source": "EXTERNAL",
             "target": "A21:input",
-            "label": "Auth.get family accountId"
+            "label": "驗證.get family 帳號id"
           },
           {
             "id": "a2_ctrl_unknown",
             "source": "EXTERNAL",
             "target": "A21:control",
-            "label": "UnknownFamilyError On Miss"
+            "label": "unknownfamily錯誤 在 Miss"
           },
           {
             "id": "a2_mech_known",
             "source": "EXTERNAL",
             "target": "A21:mechanism",
-            "label": "Account.knownFamilies"
+            "label": "帳號.knownFamilies"
           },
           {
             "id": "a2_known_to_select",
@@ -199,19 +199,19 @@
             "id": "a2_ctrl_active",
             "source": "EXTERNAL",
             "target": "A22:control",
-            "label": "NoActiveAccountError No Silent First Pick"
+            "label": "無active帳號錯誤 無 靜默 First Pick"
           },
           {
             "id": "a2_mech_rotation",
             "source": "EXTERNAL",
             "target": "A22:mechanism",
-            "label": "Account.getNextAvailable rotation3d"
+            "label": "帳號.get下一個available 輪替3d"
           },
           {
             "id": "a2_select_to_refresh",
             "source": "A22:output",
             "target": "A23:input",
-            "label": "Chosen Account Info"
+            "label": "Chosen 帳號 Info"
           },
           {
             "id": "a2_ctrl_codex_stale",
@@ -223,7 +223,7 @@
             "id": "a2_mech_refresh",
             "source": "EXTERNAL",
             "target": "A23:mechanism",
-            "label": "OAuth Refresh Token Exchange"
+            "label": "OAuth 刷新 Token Exchange"
           },
           {
             "id": "a2_refresh_to_header",
@@ -235,28 +235,28 @@
             "id": "a2_mech_accountToAuth",
             "source": "EXTERNAL",
             "target": "A24:mechanism",
-            "label": "Auth.accountToAuth L49"
+            "label": "驗證.帳號到驗證 L49"
           },
           {
             "id": "a2_out_auth",
             "source": "A24:output",
             "target": "EXTERNAL",
-            "label": "Provider Auth Header"
+            "label": "Provider 驗證 Header"
           }
         ]
       }
     },
     {
       "id": "A3",
-      "title": "Normalize Identity On Load"
+      "title": "Normalize 身分 在 Load"
     },
     {
       "id": "A4",
-      "title": "Bind Identity To Linux User"
+      "title": "Bind 身分 到 Linux 使用者"
     },
     {
       "id": "A5",
-      "title": "Remove Account With Revoke"
+      "title": "Remove 帳號 使用 Revoke"
     }
   ],
   "arrows": [
@@ -264,37 +264,37 @@
       "id": "m_in_add_req",
       "source": "EXTERNAL",
       "target": "A1:input",
-      "label": "CLI Or TUI Login Request"
+      "label": "CLI 或 TUI 登入 請求"
     },
     {
       "id": "m_ctrl_strict_storage",
       "source": "EXTERNAL",
       "target": "A1:control",
-      "label": "Account.add Refuses Silent Overwrite"
+      "label": "帳號.add Refuses 靜默 Overwrite"
     },
     {
       "id": "m_mech_authset",
       "source": "EXTERNAL",
       "target": "A1:mechanism",
-      "label": "auth/index.ts Auth.set"
+      "label": "auth/index.ts 驗證.set"
     },
     {
       "id": "m_added_to_normalize",
       "source": "A1:output",
       "target": "A3:input",
-      "label": "Newly Persisted Account"
+      "label": "Newly Persisted 帳號"
     },
     {
       "id": "m_in_dispatch",
       "source": "EXTERNAL",
       "target": "A2:input",
-      "label": "Provider Dispatch Auth.get"
+      "label": "Provider 派發 驗證.get"
     },
     {
       "id": "m_ctrl_dd8",
       "source": "EXTERNAL",
       "target": "A2:control",
-      "label": "DD-8 Family AccountId Separate"
+      "label": "DD-8 Family 帳號id Separate"
     },
     {
       "id": "m_normalize_feeds_dispatch",
@@ -306,19 +306,19 @@
       "id": "m_in_load",
       "source": "EXTERNAL",
       "target": "A3:input",
-      "label": "accounts.json On Disk State"
+      "label": "accounts.js在 在 磁碟 狀態"
     },
     {
       "id": "m_ctrl_normalize",
       "source": "EXTERNAL",
       "target": "A3:control",
-      "label": "Managed App Stripper Registry"
+      "label": "Managed App Stripper 註冊表"
     },
     {
       "id": "m_mech_normalize",
       "source": "EXTERNAL",
       "target": "A3:mechanism",
-      "label": "Account.normalizeIdentities L1122"
+      "label": "帳號.normalizeIdentities L1122"
     },
     {
       "id": "m_normalize_report",
@@ -336,7 +336,7 @@
       "id": "m_ctrl_bindings",
       "source": "EXTERNAL",
       "target": "A4:control",
-      "label": "google-bindings.json 1to1 Cardinality"
+      "label": "google-bindings.js在 1到1 Cardinality"
     },
     {
       "id": "m_mech_binding",
@@ -348,19 +348,19 @@
       "id": "m_bind_to_dispatch",
       "source": "A4:output",
       "target": "A2:control",
-      "label": "Bound Linux User Identity"
+      "label": "Bound Linux 使用者 身分"
     },
     {
       "id": "m_out_binding_status",
       "source": "A4:output",
       "target": "EXTERNAL",
-      "label": "Per User Daemon Route Decision"
+      "label": "依 使用者 Daemon 路由 Decision"
     },
     {
       "id": "m_in_remove_req",
       "source": "EXTERNAL",
       "target": "A5:input",
-      "label": "Remove Account Command"
+      "label": "Remove 帳號 Command"
     },
     {
       "id": "m_ctrl_codex_revoke",
@@ -378,19 +378,19 @@
       "id": "m_remove_to_normalize",
       "source": "A5:output",
       "target": "A3:input",
-      "label": "Post Remove State Reload"
+      "label": "Post Remove 狀態 重載"
     },
     {
       "id": "m_remove_event",
       "source": "A5:output",
       "target": "EXTERNAL",
-      "label": "account.removed Bus Event"
+      "label": "帳號.removed Bus 事件"
     },
     {
       "id": "m_out_auth_header",
       "source": "A2:output",
       "target": "EXTERNAL",
-      "label": "Authenticated Provider Request"
+      "label": "Authenticated Provider 請求"
     }
   ]
 }

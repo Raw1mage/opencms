@@ -1,59 +1,149 @@
 {
-  "diagram_title": "Mobile Session Restructure — Functional Decomposition (simplified, no diff viewer)",
+  "diagram_title": "行動版 Session Restructure — Functional Decomposition (simplified, 無 diff viewer)",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A1",
-      "title": "Generate slim file-diff at end of turn",
-      "description": "Workflow runner queries git for additions/deletions/status per file. Never reads file bodies into buffers. Writes slim FileDiff[] to user message summary.diffs.",
+      "title": "Generate slim 檔案-diff 於 end 的 回合",
+      "description": "工作流程 runner queries git 供 additions/deletions/狀態 依 檔案. Never reads 檔案 bodies 進入 buffers. Writes slim 檔案diff[] 到 使用者 訊息 summary.diffs.",
       "decomposition": null
     },
     {
       "id": "A2",
-      "title": "Persist slim message record",
-      "description": "Existing Storage.write path writes the message info.json. Because the in-memory shape has no before/after fields, the disk representation is automatically slim.",
+      "title": "持久化 slim 訊息 記錄",
+      "description": "Existing 儲存.write 路徑 writes 訊息 info.js在. Because 在-memory shape has 無 before/after fields, 磁碟 representation 是 automatically slim.",
       "decomposition": null
     },
     {
       "id": "A3",
-      "title": "Serve session reads (slim payload)",
-      "description": "HTTP message routes, SSE bus.message.updated, share export all return the slim shape unchanged from disk. Clients render metadata-only views. No diff viewer path exists server-side.",
+      "title": "Serve Session reads (slim payload)",
+      "description": "HTTP 訊息 路由, SSE bus.訊息.updated, share export all 返回 slim shape unchanged 來自 磁碟. Clients 渲染 metadata-僅 views. 無 diff viewer 路徑 exists 伺服器-side.",
       "decomposition": null
     },
     {
       "id": "A4",
-      "title": "Server-side owned-diff via git",
-      "description": "Workspace owned-diff check calls git directly (git show against the message snapshot commit) when it needs to compare file content with worktree state. No shared helper; inline call.",
+      "title": "伺服器-side owned-diff 透過 git",
+      "description": "Workspace owned-diff check calls git directly (git show against 訊息 snapshot commit) when it needs 到 compare 檔案 content 使用 worktree 狀態. 無 shared helper; inline 呼叫.",
       "decomposition": null
     },
     {
       "id": "A5",
-      "title": "Migrate historical sessions (one-shot)",
-      "description": "Maintenance script walks session/ directory, rewrites each message info.json to slim shape (strip before/after), writes per-session marker. Atomic per-file (temp + rename). Idempotent (marker skips).",
+      "title": "Migrate historical Session (單次-回合)",
+      "description": "Maintenance script walks Session/ directory, rewrites each 訊息 info.js在 到 slim shape (移除 before/after), writes 依-Session marker. Atomic 依-檔案 (temp + rename). Idempotent (marker skips).",
       "decomposition": null
     },
     {
       "id": "A6",
-      "title": "UI renders metadata rows only",
-      "description": "Desktop review tab, shared SessionReview component, enterprise share page — all render one row per changed file: path, additions, deletions, status. No expand button, no diff content fetch.",
+      "title": "UI renders metadata rows 僅",
+      "description": "Desktop review tab, shared Sessionreview component, enterprise share page — all 渲染 單次 row 依 changed 檔案: 路徑, additions, deletions, 狀態. 無 expand button, 無 diff content fetch.",
       "decomposition": null
     }
   ],
   "arrows": [
-    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "Turn boundary (end of assistant response)", "type": "input" },
-    { "id": "AR2", "source": "EXTERNAL", "target": "A1:control", "label": "Schema definition: FileDiff has no before/after", "type": "control" },
-    { "id": "AR3", "source": "EXTERNAL", "target": "A1:mechanism", "label": "git diff --numstat + snapshot commit graph (existing)", "type": "mechanism" },
-    { "id": "AR4", "source": "A1:output", "target": "A2:input", "label": "FileDiff[] (slim)", "type": "input" },
-    { "id": "AR5", "source": "EXTERNAL", "target": "A2:mechanism", "label": "Storage.write (existing)", "type": "mechanism" },
-    { "id": "AR6", "source": "A2:output", "target": "A3:input", "label": "Persisted message record", "type": "input" },
-    { "id": "AR7", "source": "A3:output", "target": "A6:input", "label": "Slim payloads (HTTP + SSE + share)", "type": "input" },
-    { "id": "AR8", "source": "A6:output", "target": "EXTERNAL", "label": "Metadata rows rendered to user", "type": "output" },
-    { "id": "AR9", "source": "A2:output", "target": "A4:input", "label": "Slim record (owned-diff reader)", "type": "input" },
-    { "id": "AR10", "source": "EXTERNAL", "target": "A4:mechanism", "label": "git show against snapshot commit", "type": "mechanism" },
-    { "id": "AR11", "source": "A4:output", "target": "EXTERNAL", "label": "Owned-diff result (same semantics as before)", "type": "output" },
-    { "id": "AR12", "source": "EXTERNAL", "target": "A5:input", "label": "Operator invocation: migrate-strip-diffs.ts", "type": "input" },
-    { "id": "AR13", "source": "EXTERNAL", "target": "A5:control", "label": "Per-session migration marker (idempotency)", "type": "control" },
-    { "id": "AR14", "source": "EXTERNAL", "target": "A5:mechanism", "label": "Filesystem walk + atomic rename + structured logger", "type": "mechanism" },
-    { "id": "AR15", "source": "A5:output", "target": "EXTERNAL", "label": "Slimmed session records + audit log", "type": "output" }
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "回合 boundary (end 的 助手 回應)",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "schema definition: 檔案diff has 無 before/after",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "EXTERNAL",
+      "target": "A1:mechanism",
+      "label": "git diff --numstat + snapshot commit graph (existing)",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR4",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "檔案diff[] (slim)",
+      "type": "input"
+    },
+    {
+      "id": "AR5",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "label": "儲存.write (existing)",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR6",
+      "source": "A2:output",
+      "target": "A3:input",
+      "label": "Persisted 訊息 記錄",
+      "type": "input"
+    },
+    {
+      "id": "AR7",
+      "source": "A3:output",
+      "target": "A6:input",
+      "label": "Slim payloads (HTTP + SSE + share)",
+      "type": "input"
+    },
+    {
+      "id": "AR8",
+      "source": "A6:output",
+      "target": "EXTERNAL",
+      "label": "Metadata rows rendered 到 使用者",
+      "type": "output"
+    },
+    {
+      "id": "AR9",
+      "source": "A2:output",
+      "target": "A4:input",
+      "label": "Slim 記錄 (owned-diff reader)",
+      "type": "input"
+    },
+    {
+      "id": "AR10",
+      "source": "EXTERNAL",
+      "target": "A4:mechanism",
+      "label": "git show against snapshot commit",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR11",
+      "source": "A4:output",
+      "target": "EXTERNAL",
+      "label": "Owned-diff 結果 (same semantics 作為 before)",
+      "type": "output"
+    },
+    {
+      "id": "AR12",
+      "source": "EXTERNAL",
+      "target": "A5:input",
+      "label": "Operator invocation: migrate-strip-diffs.ts",
+      "type": "input"
+    },
+    {
+      "id": "AR13",
+      "source": "EXTERNAL",
+      "target": "A5:control",
+      "label": "依-Session migration marker (idempotency)",
+      "type": "control"
+    },
+    {
+      "id": "AR14",
+      "source": "EXTERNAL",
+      "target": "A5:mechanism",
+      "label": "Filesystem walk + atomic rename + structured logger",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR15",
+      "source": "A5:output",
+      "target": "EXTERNAL",
+      "label": "Slimmed Session records + audit 記錄",
+      "type": "output"
+    }
   ]
 }

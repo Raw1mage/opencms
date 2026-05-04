@@ -1,34 +1,32 @@
-<svg width="1206.9" height="671.6" viewBox="-195.4 -165.8 1206.9 671.6" xmlns="http://www.w3.org/2000/svg">
+<svg width="1355.4" height="671.6" viewBox="-269.7 -165.8 1355.4 671.6" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
 <marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
 </defs>
-<rect x="-195.4" y="-165.8" width="1206.9" height="671.6" fill="white" />
+<rect x="-269.7" y="-165.8" width="1355.4" height="671.6" fill="white" />
 <rect x="130.0" y="120.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A21" />
 <text x="230.0" y="143.9" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >A21</text>
 <text x="230.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >VALIDATE</text>
-<text x="230.0" y="197.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >FAMILY IS KNOWN</text>
+<text x="230.0" y="197.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >FAMILY 是 KNOWN</text>
 <rect x="486.0" y="120.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A22" />
 <text x="586.0" y="143.9" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >A22</text>
-<text x="586.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >SELECT ACTIVE OR</text>
-<text x="586.0" y="197.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >ROTATED ACCOUNT</text>
+<text x="586.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >SELECT ACTIVE</text>
+<text x="586.0" y="197.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >或 ROTATED 帳號</text>
 <rect x="130.0" y="320.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A23" />
-<text x="230.0" y="343.9" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >A23</text>
-<text x="230.0" y="371.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >REFRESH OR</text>
-<text x="230.0" y="397.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >REUSE TOKEN</text>
+<text x="230.0" y="356.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >A23</text>
+<text x="230.0" y="386.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >刷新 或 REUSE TOKEN</text>
 <rect x="486.0" y="320.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A24" />
 <text x="586.0" y="343.9" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >A24</text>
 <text x="586.0" y="371.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >MATERIALIZE</text>
-<text x="586.0" y="397.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >AUTH HEADER</text>
+<text x="586.0" y="397.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >驗證 HEADER</text>
 <rect x="40.0" y="44.2" width="736.0" height="451.6" stroke="black" fill="none" stroke-width="2" />
-<rect x="252.0" y="-155.8" width="312.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
-<text x="408.0" y="-129.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
-<text x="408.0" y="-99.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >AUTHENTICATE</text>
-<text x="408.0" y="-69.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >ACCOUNT FOR REQUEST</text>
-<line x1="252.0" y1="-155.8" x2="40.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="564.0" y1="-155.8" x2="776.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="252.0" y1="-45.8" x2="40.0" y2="495.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="564.0" y1="-45.8" x2="776.0" y2="495.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<rect x="288.0" y="-155.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="408.0" y="-118.4" text-anchor="middle" font-size="21" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
+<text x="408.0" y="-78.4" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >驗證 帳號 供 請求</text>
+<line x1="288.0" y1="-155.8" x2="40.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="528.0" y1="-155.8" x2="776.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="288.0" y1="-45.8" x2="40.0" y2="495.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="528.0" y1="-45.8" x2="776.0" y2="495.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
 <path d="M 330.0 170.0 L 486.0 170.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_known_to_select" data-waypoints="330.0,170.0 486.0,170.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 330.0 370.0 L 486.0 370.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_refresh_to_header" data-waypoints="330.0,370.0 486.0,370.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 686.0 170.0 L 716.0 170.0 Q 726.0 170.0 726.0 180.0 L 726.0 260.0 Q 726.0 270.0 716.0 270.0 L 100.0 270.0 Q 90.0 270.0 90.0 280.0 L 90.0 360.0 Q 90.0 370.0 100.0 370.0 L 130.0 370.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_select_to_refresh" data-waypoints="686.0,170.0 726.0,170.0 726.0,270.0 90.0,270.0 90.0,370.0 130.0,370.0" marker-end="url(#arrow)" fill="none" />
@@ -41,21 +39,19 @@
 <path d="M 230.0 455.8 L 230.0 420.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_mech_refresh" data-waypoints="230.0,455.8 230.0,420.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 586.0 455.8 L 586.0 420.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_mech_accountToAuth" data-waypoints="586.0,455.8 586.0,420.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 686.0 370.0 L 826.0 370.0" stroke="black" stroke-width="1.2" data-arrow-id="a2_out_auth" data-waypoints="686.0,370.0 826.0,370.0" marker-end="url(#arrow)" fill="none" />
-<text x="230.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_ctrl_unknown">UnknownFamilyError On Miss</text>
-<text x="226.0" y="236.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_mech_known">Account.knownFamilies</text>
-<text x="586.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_ctrl_active">NoActiveAccountError No Silent First Pick</text>
-<text x="580.0" y="236.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_mech_rotation">Account.getNextAvailable</text>
-<text x="592.0" y="236.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_mech_rotation">rotation3d</text>
+<text x="230.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_ctrl_unknown">unknownfamily錯誤 在 Miss</text>
+<text x="226.0" y="236.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_mech_known">帳號.knownFamilies</text>
+<text x="586.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_ctrl_active">無active帳號錯誤 無 靜默 First Pick</text>
+<text x="580.0" y="236.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_mech_rotation">帳號.get下一個available</text>
+<text x="592.0" y="236.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_mech_rotation">輪替3d</text>
 <text x="224.0" y="314.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_ctrl_codex_stale">Codex Stale OAuth</text>
 <text x="236.0" y="314.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_ctrl_codex_stale">Degrades Silently</text>
-<text x="230.0" y="471.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_mech_refresh">OAuth Refresh Token Exchange</text>
-<text x="586.0" y="471.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_mech_accountToAuth">Auth.accountToAuth L49</text>
+<text x="230.0" y="471.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_mech_refresh">OAuth 刷新 Token Exchange</text>
+<text x="586.0" y="471.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_mech_accountToAuth">驗證.帳號到驗證 L49</text>
 <text x="408.0" y="165.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_known_to_select">Validated</text>
 <text x="408.0" y="182.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_known_to_select">Family Key</text>
 <text x="408.0" y="362.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_refresh_to_header" >Live Access Token</text>
-<text x="586.0" y="288.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_select_to_refresh" >Chosen Account Info</text>
-<text x="-14.0" y="161.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_in_req">Auth.get family</text>
-<text x="-14.0" y="187.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_in_req">accountId</text>
-<text x="830.0" y="361.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_out_auth">Provider</text>
-<text x="830.0" y="387.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_out_auth">Auth Header</text>
+<text x="586.0" y="288.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_select_to_refresh" >Chosen 帳號 Info</text>
+<text x="-14.0" y="174.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_in_req">驗證.get family 帳號id</text>
+<text x="830.0" y="374.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2_out_auth">Provider 驗證 Header</text>
 </svg>

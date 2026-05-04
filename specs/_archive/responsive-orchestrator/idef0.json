@@ -1,35 +1,35 @@
 {
-  "diagram_title": "Responsive Orchestrator — Async Task Tool with Disk-Terminal Delivery",
+  "diagram_title": "響應式 協調器 — 非同步 任務 工具 使用 磁碟-終止 Delivery",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A1",
-      "title": "Dispatch task & return stub immediately",
-      "description": "Main agent emits task tool call. Tool spawns subagent worker, allocates jobId + childSessionID, returns dispatched stub result satisfying LLM tool-use protocol (DD-1).",
+      "title": "派發 任務 & 返回 stub immediately",
+      "description": "Main agent emits 任務 工具 呼叫. 工具 spawns 子代理 worker, allocates 工作id + childSessionID, 返回 dispatched stub 結果 satisfying LLM 工具-use protocol (DD-1).",
       "decomposition": null
     },
     {
       "id": "A2",
-      "title": "Run subagent independently",
-      "description": "Subagent worker process executes its runloop in isolation. Includes the new post-turn quota check (R6) and reactive 429 handling with bounded escalation wait (R3).",
+      "title": "執行 子代理 independently",
+      "description": "子代理 worker process executes its runloop 在 isolation. Includes new post-回合 配額 check (R6) 與 reactive 429 handling 使用 bounded escalation wait (R3).",
       "decomposition": null
     },
     {
       "id": "A3",
-      "title": "Detect terminal finish & emit completed event",
-      "description": "Background watcher (formerly the synchronous await) monitors child via watchdog A/B/C. On any TERMINAL_FINISHES disk write or proc death, emits TaskCompletedEvent on Bus.",
+      "title": "Detect 終止 完成 & 發出 已完成 事件",
+      "description": "Background watcher (formerly synchronous 等待) monitors child 透過 看門狗 /B/C. 在 any TERMINAL FINISHES 磁碟 write 或 程序 death, emits 任務已完成事件 在 Bus.",
       "decomposition": null
     },
     {
       "id": "A4",
-      "title": "Inject synthetic task_result message into parent",
-      "description": "Subscriber consumes TaskCompletedEvent, builds TaskResultMessage payload, appends as MessageV2.User with synthetic.source='task_result' to parent session. Triggers parent runloop wakeup.",
+      "title": "Inject 合成 任務結果 訊息 進入 父層",
+      "description": "Subscriber consumes 任務已完成事件, builds 任務結果訊息 payload, appends 作為 訊息v2.使用者 使用 合成.來源='任務結果' 到 父層 Session. Triggers 父層 runloop wakeup.",
       "decomposition": null
     },
     {
       "id": "A5",
-      "title": "Cancel running subagent (out-of-band)",
-      "description": "Main agent invokes cancel_task tool. Single authority pattern (DD-6): signal abort, worker writes 'cancelled' finish, normal A3+A4 path delivers result. cancel_task returns within 1s.",
+      "title": "Cancel 執行中 子代理 (out-的-band)",
+      "description": "Main agent invokes cancel任務 工具. Single authority pattern (DD-6): signal abort, worker writes 'cancelled' 完成, normal 3+4 路徑 delivers 結果. cancel任務 返回 within 1s.",
       "decomposition": null
     }
   ],
@@ -38,7 +38,7 @@
       "id": "AR1",
       "source": "EXTERNAL",
       "target": "A1:input",
-      "label": "task tool_use call (description, prompt, subagent_type)",
+      "label": "任務 工具use 呼叫 (description, 提示, 子代理type)",
       "type": "input"
     },
     {
@@ -52,112 +52,112 @@
       "id": "AR3",
       "source": "A1:output",
       "target": "EXTERNAL",
-      "label": "TaskDispatchedResult stub (jobId, childSessionID)",
+      "label": "任務dispatched結果 stub (工作id, childSessionID)",
       "type": "output"
     },
     {
       "id": "AR4",
       "source": "EXTERNAL",
       "target": "A1:mechanism",
-      "label": "Worker pool, Storage.write, Identifier.create",
+      "label": "worker pool, 儲存.write, Identifier.create",
       "type": "mechanism"
     },
     {
       "id": "AR5",
       "source": "A1:output",
       "target": "A2:input",
-      "label": "Worker handle + child session bootstrap",
+      "label": "worker handle + child Session bootstrap",
       "type": "input"
     },
     {
       "id": "AR6",
       "source": "EXTERNAL",
       "target": "A2:control",
-      "label": "tweaks.cfg: subagent_escalation_wait_ms, subagent_quota_low_red_line_percent",
+      "label": "tweaks.cfg: 子代理escalationwaitms, 子代理配額lowredlinepercent",
       "type": "control"
     },
     {
       "id": "AR7",
       "source": "A2:output",
       "target": "A3:input",
-      "label": "Disk-written terminal finish (stop|error|cancelled|rate_limited|quota_low)",
+      "label": "磁碟-written 終止 完成 (stop|錯誤|cancelled|ratelimited|配額low)",
       "type": "input"
     },
     {
       "id": "AR8",
       "source": "EXTERNAL",
       "target": "A2:mechanism",
-      "label": "LLM provider, Storage, ModelUpdateSignal, checkCodexLowQuotaAndMark",
+      "label": "LLM Provider, 儲存, 模型更新signal, checkcodexlow配額與mark",
       "type": "mechanism"
     },
     {
       "id": "AR9",
       "source": "EXTERNAL",
       "target": "A3:control",
-      "label": "tweaks: WATCHDOG_INTERVAL_MS=5000, DISK_GRACE_MS=5000, SILENCE_THRESHOLD_MS=60000",
+      "label": "tweaks: WATCHDOG INTERVAL MS=5000, DISK GRACE MS=5000, SILENCE THRESHOLD MS=60000",
       "type": "control"
     },
     {
       "id": "AR10",
       "source": "A3:output",
       "target": "A4:input",
-      "label": "TaskCompletedEvent (Bus)",
+      "label": "任務已完成事件 (Bus)",
       "type": "input"
     },
     {
       "id": "AR11",
       "source": "EXTERNAL",
       "target": "A3:mechanism",
-      "label": "/proc reader, MessageV2.stream, Bus.publish",
+      "label": "/程序 reader, 訊息v2.串流, Bus.發布",
       "type": "mechanism"
     },
     {
       "id": "AR12",
       "source": "EXTERNAL",
       "target": "A4:control",
-      "label": "MessageV2.User schema; synthetic flag tagging rules (DD-3)",
+      "label": "訊息v2.使用者 schema; 合成 flag tagging rules (DD-3)",
       "type": "control"
     },
     {
       "id": "AR13",
       "source": "A4:output",
       "target": "EXTERNAL",
-      "label": "Parent session new turn with synthetic <task_result> message",
+      "label": "父層 Session new 回合 使用 合成 <任務結果> 訊息",
       "type": "output"
     },
     {
       "id": "AR14",
       "source": "EXTERNAL",
       "target": "A4:mechanism",
-      "label": "Session.appendMessage, Bus subscriber framework",
+      "label": "Session.追加訊息, Bus subscriber framework",
       "type": "mechanism"
     },
     {
       "id": "AR15",
       "source": "EXTERNAL",
       "target": "A5:input",
-      "label": "cancel_task tool_use (jobId, reason)",
+      "label": "cancel任務 工具use (工作id, reason)",
       "type": "input"
     },
     {
       "id": "AR16",
       "source": "A5:output",
       "target": "A2:input",
-      "label": "Abort signal to worker (jobId-scoped)",
+      "label": "Abort signal 到 worker (工作id-scoped)",
       "type": "input"
     },
     {
       "id": "AR17",
       "source": "A5:output",
       "target": "EXTERNAL",
-      "label": "CancelTaskResult (cancelled|not_found|already_terminal)",
+      "label": "cancel任務結果 (cancelled|不found|already終止)",
       "type": "output"
     },
     {
       "id": "AR18",
       "source": "EXTERNAL",
       "target": "A5:mechanism",
-      "label": "Worker registry lookup, AbortSignal propagation",
+      "label": "worker 註冊表 lookup, AbortSignal propagation",
       "type": "mechanism"
     }
   ]

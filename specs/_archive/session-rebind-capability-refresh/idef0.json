@@ -1,29 +1,29 @@
 {
-  "diagram_title": "session-rebind-capability-refresh — Rebind Event → Capability Layer Refresh Pipeline",
+  "diagram_title": "Session-rebind-capability-刷新 — Rebind 事件 → Capability Layer 刷新 Pipeline",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A1",
       "title": "Manage Rebind Epoch",
-      "description": "維護 per-session 整數 epoch counter；提供 bumpEpoch API；強制 rate limit（5/sec/session）；bump 時清除同 session 能力層 cache 並發 session.rebind 事件。",
+      "description": "維護 per-session 整數 epoch counter；提供 bumpEpoch API；強制 速率限制（5/sec/session）；bump 時清除同 session 能力層 cache 並發 session.rebind 事件。",
       "decomposition": null
     },
     {
       "id": "A2",
-      "title": "Refresh Capability Layer",
-      "description": "讀磁碟上的 AGENTS.md（global + project）、driver prompt、mandatory skills 內容、enablement.json；填入 (sessionID, epoch)-keyed cache；發 capability_layer.refreshed 事件；失敗時保留前一個 epoch 的 cache 不覆寫。",
+      "title": "刷新 Capability Layer",
+      "description": "讀磁碟上的 AGENTS.md（global + project）、driver prompt、mandatory skills 內容、enablement.json；填入 (sessionID, epoch)-keyed cache；發 capability layer.refreshed 事件；失敗時保留前一個 epoch 的 cache 不覆寫。",
       "decomposition": null
     },
     {
       "id": "A3",
-      "title": "Assemble Session Prompt",
+      "title": "組裝 Session 提示",
       "description": "runLoop 每輪呼叫：取當前 epoch → 從 cache 取能力層（cache miss 觸發 A2 reinject）→ 套 rebind checkpoint / SharedContext 對話層壓縮 → 組 system[] → 送 LLM。契約：能力層取得順序**必須**早於 checkpoint apply。",
       "decomposition": null
     },
     {
       "id": "A4",
-      "title": "Accept Explicit Refresh Trigger",
-      "description": "暴露兩個 rebind 入口：`/reload` slash command（使用者手動）、`refresh_capability_layer` tool call（AI 主動，per-turn 3 次 rate limit）。兩者共用 A1 的 bumpEpoch API。",
+      "title": "Accept Explicit 刷新 Trigger",
+      "description": "暴露兩個 rebind 入口：`/reload` slash command（使用者手動）、`refresh capability layer` tool call（AI 主動，每回合 3 次 速率限制）。兩者共用 A1 的 bumpEpoch API。",
       "decomposition": null
     },
     {
@@ -34,8 +34,8 @@
     },
     {
       "id": "A6",
-      "title": "Record Observability Events",
-      "description": "所有 rebind 事件透過 RuntimeEventService 發佈：session.rebind（成功 bump）、capability_layer.refreshed（reinject 完成）、session.rebind_storm（rate limit 超過）、capability_layer.refresh_failed（reinject 例外）、tool.refresh_loop_suspected（per-turn 超限）。",
+      "title": "記錄 Observability 事件",
+      "description": "所有 rebind 事件透過 RuntimeEventService 發佈：session.rebind（成功 bump）、capability layer.refreshed（reinject 完成）、session.rebind storm（速率限制 超過）、capability layer.refresh failed（reinject 例外）、tool.refresh loop suspected（每回合 超限）。",
       "decomposition": null
     }
   ],
@@ -44,56 +44,56 @@
       "id": "AR1",
       "source": "EXTERNAL",
       "target": "A4:input",
-      "label": "User slash `/reload` text / AI tool invocation args",
+      "label": "使用者 slash `/重載` 文字 / AI 工具 invocation args",
       "type": "input"
     },
     {
       "id": "AR2",
       "source": "EXTERNAL",
       "target": "A5:input",
-      "label": "POST /session/:id/resume from UI",
+      "label": "POST /Session/:id/resume 來自 UI",
       "type": "input"
     },
     {
       "id": "AR3",
       "source": "EXTERNAL",
       "target": "A3:input",
-      "label": "User message / provider switch signal / autonomous trigger",
+      "label": "使用者 訊息 / Provider switch signal / 自主 trigger",
       "type": "input"
     },
     {
       "id": "AR4",
       "source": "EXTERNAL",
       "target": "A1:control",
-      "label": "Rate-limit policy (5 bumps/sec/session)",
+      "label": "Rate-limit policy (5 bumps/sec/Session)",
       "type": "control"
     },
     {
       "id": "AR5",
       "source": "EXTERNAL",
       "target": "A1:control",
-      "label": "Rebind Trigger enum (daemon_start|session_resume|provider_switch|slash_reload|tool_call)",
+      "label": "Rebind Trigger enum (daemonstart|Sessionresume|Providerswitch|slash重載|工具呼叫)",
       "type": "control"
     },
     {
       "id": "AR6",
       "source": "EXTERNAL",
       "target": "A2:control",
-      "label": "Capability Layer catalog (agents_md / driver / skill_content / enablement)",
+      "label": "Capability Layer catalog (agentsmd / driver / 技能content / enablement)",
       "type": "control"
     },
     {
       "id": "AR7",
       "source": "EXTERNAL",
       "target": "A3:control",
-      "label": "Refresh-order contract: capability-layer BEFORE checkpoint apply",
+      "label": "刷新-order contract: capability-layer BEFORE checkpoint apply",
       "type": "control"
     },
     {
       "id": "AR8",
       "source": "EXTERNAL",
       "target": "A4:control",
-      "label": "per-turn tool rate limit (3x); origin-only-user for slash command",
+      "label": "依-回合 工具 速率限制 (3x); origin-僅-使用者 供 slash command",
       "type": "control"
     },
     {
@@ -107,126 +107,126 @@
       "id": "AR10",
       "source": "A4:output",
       "target": "A1:input",
-      "label": "bumpEpoch(trigger=slash_reload|tool_call)",
+      "label": "bumpEpoch(trigger=slash重載|工具呼叫)",
       "type": "output"
     },
     {
       "id": "AR11",
       "source": "A5:output",
       "target": "A1:input",
-      "label": "bumpEpoch(trigger=session_resume)",
+      "label": "bumpEpoch(trigger=Sessionresume)",
       "type": "output"
     },
     {
       "id": "AR12",
       "source": "A3:output",
       "target": "A1:input",
-      "label": "bumpEpoch(trigger=daemon_start | provider_switch) from runLoop pre-loop",
+      "label": "bumpEpoch(trigger=daemonstart | Providerswitch) 來自 執行loop pre-loop",
       "type": "output"
     },
     {
       "id": "AR13",
       "source": "A1:output",
       "target": "A2:input",
-      "label": "New epoch + cache-cleared signal (triggers reinject)",
+      "label": "New epoch + 快取-cleared signal (triggers reinject)",
       "type": "output"
     },
     {
       "id": "AR14",
       "source": "A1:output",
       "target": "A6:input",
-      "label": "session.rebind event payload (trigger, prev→curr epoch)",
+      "label": "Session.rebind 事件 payload (trigger, prev→curr epoch)",
       "type": "output"
     },
     {
       "id": "AR15",
       "source": "A1:output",
       "target": "A6:input",
-      "label": "session.rebind_storm anomaly (when rate-limited)",
+      "label": "Session.rebindstorm 異常 (when rate-limited)",
       "type": "output"
     },
     {
       "id": "AR16",
       "source": "A2:output",
       "target": "A3:input",
-      "label": "Cached capability layer at (sessionID, epoch)",
+      "label": "Cached capability layer 於 (SessionID, epoch)",
       "type": "output"
     },
     {
       "id": "AR17",
       "source": "A2:output",
       "target": "A6:input",
-      "label": "capability_layer.refreshed event (layers, pinnedSkills)",
+      "label": "capabilitylayer.refreshed 事件 (layers, 已釘選技能)",
       "type": "output"
     },
     {
       "id": "AR18",
       "source": "A2:output",
       "target": "A6:input",
-      "label": "capability_layer.refresh_failed anomaly (on reinject exception)",
+      "label": "capabilitylayer.刷新failed 異常 (在 reinject exception)",
       "type": "output"
     },
     {
       "id": "AR19",
       "source": "A3:output",
       "target": "EXTERNAL",
-      "label": "Assembled system[] + messages → LLM call",
+      "label": "Assembled system[] + messages → LLM 呼叫",
       "type": "output"
     },
     {
       "id": "AR20",
       "source": "A5:output",
       "target": "A6:input",
-      "label": "Silent init round ack (no LLM called)",
+      "label": "靜默 init round ack (無 LLM called)",
       "type": "output"
     },
     {
       "id": "AR21",
       "source": "A6:output",
       "target": "EXTERNAL",
-      "label": "SSE push to UI dashboard (capability_layer.refreshed stream)",
+      "label": "SSE push 到 UI dashboard (capabilitylayer.refreshed 串流)",
       "type": "output"
     },
     {
       "id": "AR22",
       "source": "EXTERNAL",
       "target": "A1:mechanism",
-      "label": "RebindEpoch module (in-memory Map<sessionID, epoch>)",
+      "label": "RebindEpoch module (在-memory Map<SessionID, epoch>)",
       "type": "mechanism"
     },
     {
       "id": "AR23",
       "source": "EXTERNAL",
       "target": "A2:mechanism",
-      "label": "CapabilityLayer module + File I/O + SkillLayerRegistry",
+      "label": "CapabilityLayer module + 檔案 I/O + SkillLayerRegistry",
       "type": "mechanism"
     },
     {
       "id": "AR24",
       "source": "EXTERNAL",
       "target": "A3:mechanism",
-      "label": "SessionPrompt.runLoop + skill-layer-seam renderer",
+      "label": "Session提示.執行loop + 技能-layer-seam renderer",
       "type": "mechanism"
     },
     {
       "id": "AR25",
       "source": "EXTERNAL",
       "target": "A4:mechanism",
-      "label": "SlashCommand dispatcher + Tool registry",
+      "label": "SlashCommand dispatcher + 工具 註冊表",
       "type": "mechanism"
     },
     {
       "id": "AR26",
       "source": "EXTERNAL",
       "target": "A5:mechanism",
-      "label": "HTTP server route handler + daemon Unix socket",
+      "label": "HTTP 伺服器 路由 handler + daemon Unix socket",
       "type": "mechanism"
     },
     {
       "id": "AR27",
       "source": "EXTERNAL",
       "target": "A6:mechanism",
-      "label": "RuntimeEventService + Bus + SSE stream",
+      "label": "runtime事件service + Bus + SSE 串流",
       "type": "mechanism"
     }
   ]

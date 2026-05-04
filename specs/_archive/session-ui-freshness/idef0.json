@@ -1,35 +1,35 @@
 {
-  "diagram_title": "Render Session-Scoped Data With Explicit Freshness",
+  "diagram_title": "渲染 Session-Scoped Data 使用 Explicit Freshness",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A1",
-      "title": "Stamp Received Time On Incoming Events",
-      "description": "Client reducer writes Date.now() into the store entry's receivedAt field whenever a session-scoped SSE event arrives for a given sid (DD-1 inline field, DD-4 no silent fallback).",
+      "title": "Stamp 已收到 Time 在 Incoming 事件",
+      "description": "Client reducer writes Date.now() 進入 store 項目's 已收到於 field whenever Session-scoped SSE 事件 arrives 供 given sid (DD-1 inline field, DD-4 無 靜默 fallback).",
       "decomposition": null
     },
     {
       "id": "A2",
-      "title": "Tick Freshness Clock Every Second",
-      "description": "useFreshnessClock helper owns a single 1-second setInterval that drives the shared freshnessNow Solid signal; all freshness-aware memos subscribe to the same signal (DD-2).",
+      "title": "tick Freshness Clock Every Second",
+      "description": "useFreshnessClock helper owns single 1-second setInterval that drives shared freshnessNow Solid signal; all freshness-aware memos subscribe 到 same signal (DD-2).",
       "decomposition": null
     },
     {
       "id": "A3",
-      "title": "Compute Fidelity From Received Time",
-      "description": "Per-entry freshness memo reads (freshnessNow - receivedAt) and compares against soft/hard thresholds to classify fidelity as fresh / stale / hard-stale. Missing or invalid receivedAt forces hard-stale (DD-4).",
+      "title": "Compute Fidelity 來自 已收到 Time",
+      "description": "依-項目 freshness memo reads (freshnessNow - 已收到於) 與 compares against soft/hard thresholds 到 classify fidelity 作為 fresh / stale / hard-stale. 缺失 或 invalid 已收到於 forces hard-stale (DD-4).",
       "decomposition": null
     },
     {
       "id": "A4",
-      "title": "Render UI With Fidelity Aware Degradation",
-      "description": "Session page, side panel, tool page consume fidelity classification to apply per-component degradation (stale badge / card collapse / grayed elapsed). PromptInput does NOT subscribe to fidelity; it only blocks on permission/question pending (DD-6 retires connection-state coupling).",
+      "title": "渲染 UI 使用 Fidelity Aware Degradation",
+      "description": "Session page, side 面板, 工具 page consume fidelity classification 到 apply 依-component degradation (stale badge / card collapse / grayed elapsed). 提示輸入 does NOT subscribe 到 fidelity; it 僅 區塊 在 permission/問題 待處理 (DD-6 retires connection-狀態 coupling).",
       "decomposition": null
     },
     {
       "id": "A5",
       "title": "Load Freshness Tweaks",
-      "description": "Client bootstrap fetches GET /config/tweaks/frontend and exposes ui_session_freshness_enabled, ui_freshness_threshold_sec, ui_freshness_hard_timeout_sec as Solid signals. Feature flag (DD-5) gates A4 degradation; thresholds (DD-3) drive A3 classification.",
+      "description": "Client bootstrap fetches GET /設定/tweaks/前端 與 exposes uiSessionfreshness已啟用, uifreshnessthresholdsec, uifreshnesshardtimeoutsec 作為 Solid signals. Feature flag (DD-5) gates 4 degradation; thresholds (DD-3) drive 3 classification.",
       "decomposition": null
     }
   ],
@@ -38,14 +38,14 @@
       "id": "AR1",
       "source": "EXTERNAL",
       "target": "A1:input",
-      "label": "SSE events: session.status / session.active-child.updated / monitor.*",
+      "label": "SSE 事件: Session.狀態 / Session.active-child.updated / monitor.*",
       "type": "input"
     },
     {
       "id": "AR2",
       "source": "A1:output",
       "target": "A3:input",
-      "label": "Store entry with inline receivedAt",
+      "label": "Store 項目 使用 inline 已收到於",
       "type": "input"
     },
     {
@@ -59,14 +59,14 @@
       "id": "AR4",
       "source": "A5:output",
       "target": "A3:control",
-      "label": "Thresholds: soft=ui_freshness_threshold_sec, hard=ui_freshness_hard_timeout_sec",
+      "label": "Thresholds: soft=uifreshnessthresholdsec, hard=uifreshnesshardtimeoutsec",
       "type": "control"
     },
     {
       "id": "AR5",
       "source": "A5:output",
       "target": "A4:control",
-      "label": "Feature flag ui_session_freshness_enabled (0 = bypass degradation)",
+      "label": "Feature flag uiSessionfreshness已啟用 (0 = bypass degradation)",
       "type": "control"
     },
     {
@@ -101,7 +101,7 @@
       "id": "AR10",
       "source": "EXTERNAL",
       "target": "A3:mechanism",
-      "label": "Solid fine-grained memos (per-entry) in session.tsx / session-side-panel.tsx / tool-page.tsx",
+      "label": "Solid fine-grained memos (依-項目) 在 session.tsx / session-side-panel.tsx / tool-page.tsx",
       "type": "mechanism"
     },
     {
@@ -115,7 +115,7 @@
       "id": "AR12",
       "source": "EXTERNAL",
       "target": "A5:mechanism",
-      "label": "packages/app/src/context/frontend-tweaks.ts + GET /config/tweaks/frontend (served by packages/opencode/src/server/routes/config.ts)",
+      "label": "packages/app/src/context/frontend-tweaks.ts + GET /設定/tweaks/前端 (served 由 packages/opencode/src/server/routes/config.ts)",
       "type": "mechanism"
     }
   ]

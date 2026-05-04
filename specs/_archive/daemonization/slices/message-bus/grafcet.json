@@ -3,60 +3,94 @@
     "StepNumber": 0,
     "ModuleRef": "A1",
     "StepType": "initial",
-    "StepAction": "Await Event Publish Call",
+    "StepAction": "等待 事件 發布 呼叫",
     "LinkInputType": [],
-    "LinkInputNumber": [5, 6],
-    "LinkOutputNumber": [1],
+    "LinkInputNumber": [
+      5,
+      6
+    ],
+    "LinkOutputNumber": [
+      1
+    ],
     "LinkOutputType": "track",
-    "Condition": ["Bus.publish_invoked"],
+    "Condition": [
+      "Bus.發布invoked"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 1,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Validate Event Against Zod Schema",
+    "StepAction": "Validate 事件 Against Zod schema",
     "LinkInputType": [],
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2, 5],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2,
+      5
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["schema_valid", "schema_invalid"],
+    "Condition": [
+      "schemavalid",
+      "schemainvalid"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Fork Subscriber Dispatch",
+    "StepAction": "Fork Subscriber 派發",
     "LinkInputType": [],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [3, 4],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      3,
+      4
+    ],
     "LinkOutputType": "divergence_and",
-    "Condition": ["dispatch"],
+    "Condition": [
+      "派發"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "Execute Backend Subscriber Callbacks",
+    "StepAction": "Execute 後端 Subscriber Callbacks",
     "LinkInputType": [],
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [6],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      6
+    ],
     "LinkOutputType": "convergence_and",
-    "Condition": ["callbacks_complete"],
+    "Condition": [
+      "callbacks完成"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 4,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Emit SSE Transport Event",
+    "StepAction": "發出 SSE Transport 事件",
     "LinkInputType": [],
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [6],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      6
+    ],
     "LinkOutputType": "convergence_and",
-    "Condition": ["sse_emitted"],
+    "Condition": [
+      "sseemitted"
+    ],
     "SubGrafcet": []
   },
   {
@@ -65,22 +99,37 @@
     "StepType": "normal",
     "StepAction": "Report Validation Failure",
     "LinkInputType": [],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [0],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["reset"],
+    "Condition": [
+      "reset"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 6,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Route Frontend Event To Components",
-    "LinkInputType": ["convergence_and"],
-    "LinkInputNumber": [3, 4],
-    "LinkOutputNumber": [0],
+    "StepAction": "路由 前端 事件 到 Components",
+    "LinkInputType": [
+      "convergence_and"
+    ],
+    "LinkInputNumber": [
+      3,
+      4
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["delivery_complete"],
+    "Condition": [
+      "delivery完成"
+    ],
     "SubGrafcet": []
   }
 ]

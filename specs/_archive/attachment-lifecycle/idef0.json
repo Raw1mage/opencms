@@ -1,23 +1,23 @@
 {
-  "diagram_title": "Manage Attachment Lifecycle",
+  "diagram_title": "Manage 附件 Lifecycle",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A1",
-      "title": "Dehydrate Attachment After Read",
-      "description": "Post-assistant-completion hook collapses image attachment_ref parts to text annotation + filesystem-staged binary (C1, DD-1, DD-3, DD-5).",
+      "title": "Dehydrate 附件 After Read",
+      "description": "Post-助手-completion hook collapses image 附件ref parts 到 文字 annotation + filesystem-staged binary (C1, DD-1, DD-3, DD-5).",
       "decomposition": "A1"
     },
     {
       "id": "A3",
       "title": "Reread Staged Binary",
-      "description": "Tool exposing IncomingStore.get to the model; returns fresh image content block (C3, DD-9).",
+      "description": "工具 exposing IncomingStore.get 到 模型; 返回 fresh image content 區塊 (C3, DD-9).",
       "decomposition": null
     },
     {
       "id": "A4",
-      "title": "Serialize Dehydrated Stub To Wire",
-      "description": "MessageV2.toModelMessages branches on dehydrated=true → emit text block instead of image_url (C4, DD-8).",
+      "title": "Serialize Dehydrated stub 到 Wire",
+      "description": "訊息v2.到模型messages branches 在 dehydrated=true → 發出 文字 區塊 instead 的 imageurl (C4, DD-8).",
       "decomposition": null
     }
   ],
@@ -26,74 +26,74 @@
       "id": "AR1",
       "source": "EXTERNAL",
       "target": "A1:input",
-      "label": "assistant message with finish=stop",
+      "label": "助手 訊息 使用 完成=stop",
       "type": "input"
     },
     {
       "id": "AR2",
       "source": "EXTERNAL",
       "target": "A1:control",
-      "label": "DD-3 always-dehydrate policy + DD-10 skip-on-failed-turn rule",
+      "label": "DD-3 always-dehydrate policy + DD-10 skip-在-failed-回合 rule",
       "type": "control"
     },
     {
       "id": "AR3",
       "source": "EXTERNAL",
       "target": "A1:mechanism",
-      "label": "Session.messages, Session.updatePart, IncomingStore",
+      "label": "Session.messages, Session.更新part, IncomingStore",
       "type": "mechanism"
     },
     {
       "id": "AR6",
       "source": "A1:output",
       "target": "EXTERNAL",
-      "label": "rewritten attachment_ref part with dehydrated=true + annotation; binary moved",
+      "label": "rewritten 附件ref part 使用 dehydrated=true + annotation; binary moved",
       "type": "output"
     },
     {
       "id": "AR7",
       "source": "EXTERNAL",
       "target": "A3:input",
-      "label": "model tool call reread_attachment(filename)",
+      "label": "模型 工具 呼叫 reread附件(filename)",
       "type": "input"
     },
     {
       "id": "AR8",
       "source": "A3:output",
       "target": "EXTERNAL",
-      "label": "fresh image content block OR attachment_expired error",
+      "label": "fresh image content 區塊 OR 附件expired 錯誤",
       "type": "output"
     },
     {
       "id": "AR9",
       "source": "EXTERNAL",
       "target": "A4:input",
-      "label": "MessageV2 conversation messages list",
+      "label": "訊息v2 conversation messages 清單",
       "type": "input"
     },
     {
       "id": "AR10",
       "source": "A4:output",
       "target": "EXTERNAL",
-      "label": "ModelMessage[] for AI SDK; dehydrated parts as text blocks",
+      "label": "模型訊息[] 供 AI SDK; dehydrated parts 作為 文字 區塊",
       "type": "output"
     }
   ],
   "decompositions": {
     "A1": {
-      "diagram_title": "Dehydrate Attachment After Read",
+      "diagram_title": "Dehydrate 附件 After Read",
       "node_reference": "A1",
       "activities": [
         {
           "id": "A11",
-          "title": "Extract Annotation",
-          "description": "Pure function over assistant response text → trimmed annotation ≤ 4000 chars (head + tail truncation if longer). C6, DD-12.",
+          "title": "取出 Annotation",
+          "description": "Pure function over 助手 回應 文字 → trimmed annotation ≤ 4000 chars (head + tail truncation if longer). C6, DD-12.",
           "decomposition": null
         },
         {
           "id": "A13",
-          "title": "Rewrite Attachment Part",
-          "description": "Session.updatePart with dehydrated=true, annotation, sha256, incoming_path. Idempotent guard via dehydrated check (DD-5).",
+          "title": "Rewrite 附件 Part",
+          "description": "Session.更新part 使用 dehydrated=true, annotation, sha256, incoming路徑. Idempotent guard 透過 dehydrated check (DD-5).",
           "decomposition": null
         }
       ],
@@ -102,7 +102,7 @@
           "id": "AR1.1",
           "source": "EXTERNAL",
           "target": "A11:input",
-          "label": "assistant response text",
+          "label": "助手 回應 文字",
           "type": "input"
         },
         {
@@ -123,7 +123,7 @@
           "id": "AR1.6",
           "source": "A13:output",
           "target": "EXTERNAL",
-          "label": "rewritten attachment_ref part persisted to session storage",
+          "label": "rewritten 附件ref part persisted 到 Session 儲存",
           "type": "output"
         }
       ]

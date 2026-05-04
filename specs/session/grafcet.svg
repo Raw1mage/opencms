@@ -1,217 +1,203 @@
-<svg width="2588" height="1360" viewBox="-1027.2 -40.0 2588.0 1360.0" xmlns="http://www.w3.org/2000/svg">
-<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker></defs>
-<rect x="-1027.2" y="-40.0" width="2588.0" height="1360.0" fill="white" />
-<rect x="360.0" y="80.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<rect x="365.0" y="85.0" width="70.0" height="50.0" stroke="black" stroke-width="1" fill="none" />
-<text x="400" y="115.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">0</text>
-<line x1="440" y1="110.0" x2="480.0" y2="110.0" stroke="black" />
-<rect x="479.99999999999994" y="64.0" width="173.6" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="566.8" y="90.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">session_</text>
-<text x="566.8" y="114.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">unbound_</text>
-<text x="566.8" y="138.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">idle</text>
-<line x1="400" y1="140.0" x2="400" y2="220" stroke="black" />
-<line x1="380" y1="180.0" x2="420" y2="180.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="184.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">client_opens_session_route</text>
-<rect x="360.0" y="220.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="255.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">1</text>
-<line x1="440" y1="250.0" x2="480.0" y2="250.0" stroke="black" />
-<rect x="479.99999999999994" y="204.0" width="173.6" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="566.8" y="242.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">bind_session_</text>
-<text x="566.8" y="266.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">and_bump_epoch</text>
-<line x1="400" y1="280.0" x2="400" y2="360" stroke="black" />
-<line x1="380" y1="320.0" x2="420" y2="320.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="324.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">epoch_bump_ok &amp;&amp; reinject_complete</text>
-<rect x="360.0" y="360.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="395.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">2</text>
-<line x1="440" y1="390.0" x2="480.0" y2="390.0" stroke="black" />
-<rect x="479.99999999999994" y="344.0" width="173.6" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="566.8" y="370.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">hydrate_tail_</text>
-<text x="566.8" y="394.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">via_messages_</text>
-<text x="566.8" y="418.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">endpoint</text>
-<line x1="400" y1="420.0" x2="400" y2="500" stroke="black" />
-<line x1="380" y1="460.0" x2="420" y2="460.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="464.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">tail_loaded_or_304</text>
-<rect x="360.0" y="500.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="535.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">3</text>
-<line x1="440" y1="530.0" x2="480.0" y2="530.0" stroke="black" />
-<rect x="479.99999999999994" y="484.0" width="173.6" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="566.8" y="510.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">subscribe_</text>
-<text x="566.8" y="534.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">sse_and_</text>
-<text x="566.8" y="558.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">await_input</text>
-<line x1="400" y1="560" x2="400" y2="600" stroke="black" />
-<line x1="-627.2" y1="600" x2="1140.3999999999999" y2="600" stroke="black" stroke-width="1.5" />
-<line x1="-587.2" y1="600" x2="-587.2" y2="640" stroke="black" />
-<line x1="-607.2" y1="640" x2="-567.2" y2="640" stroke="black" stroke-width="2" />
-<text x="-611.2" y="644" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">user_submits_prompt</text>
-<line x1="-587.2" y1="640" x2="-587.2" y2="680" stroke="black" marker-end="url(#arrow)" />
-<line x1="-93.60000000000007" y1="600" x2="-93.60000000000007" y2="640" stroke="black" />
-<line x1="-113.60000000000007" y1="640" x2="-73.60000000000007" y2="640" stroke="black" stroke-width="2" />
-<text x="-117.60000000000007" y="644" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">rebind_trigger_observed</text>
-<line x1="-93.60000000000007" y1="640" x2="-93.60000000000007" y2="680" stroke="black" marker-end="url(#arrow)" />
-<line x1="399.99999999999994" y1="600" x2="399.99999999999994" y2="640" stroke="black" />
-<line x1="379.99999999999994" y1="640" x2="419.99999999999994" y2="640" stroke="black" stroke-width="2" />
-<text x="375.99999999999994" y="644" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">scroll_up_sentinel_hit</text>
-<line x1="399.99999999999994" y1="640" x2="399.99999999999994" y2="680" stroke="black" marker-end="url(#arrow)" />
-<line x1="1100.3999999999999" y1="600" x2="1100.3999999999999" y2="640" stroke="black" />
-<line x1="1080.3999999999999" y1="640" x2="1120.3999999999999" y2="640" stroke="black" stroke-width="2" />
-<text x="1124.4" y="644" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">idle_freshness_tick</text>
-<line x1="1100.3999999999999" y1="640" x2="1100.3999999999999" y2="680" stroke="black" marker-end="url(#arrow)" />
-<rect x="-627.2" y="680.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-587.2" y="715.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">4</text>
-<line x1="-547.2" y1="710.0" x2="-507.20000000000005" y2="710.0" stroke="black" />
-<rect x="-507.2000000000001" y="664.0" width="173.6" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="-420.4000000000001" y="690.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">submit_</text>
-<text x="-420.4000000000001" y="714.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">message_</text>
-<text x="-420.4000000000001" y="737.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">and_persist</text>
-<line x1="-587.2" y1="740.0" x2="-587.2" y2="820" stroke="black" />
-<line x1="-607.2" y1="780.0" x2="-567.2" y2="780.0" stroke="black" stroke-width="2" />
-<text x="-563.2" y="784.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">http_post_2xx &amp;&amp; message_appended</text>
-<rect x="-627.2" y="820.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-587.2" y="855.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">5</text>
-<line x1="-547.2" y1="850.0" x2="-507.20000000000005" y2="850.0" stroke="black" />
-<rect x="-507.2000000000001" y="804.0" width="173.6" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="-420.4000000000001" y="842.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">dispatch_</text>
-<text x="-420.4000000000001" y="866.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">to_runloop</text>
-<line x1="-587.2" y1="880.0" x2="-587.2" y2="960" stroke="black" />
-<line x1="-607.2" y1="920.0" x2="-567.2" y2="920.0" stroke="black" stroke-width="2" />
-<text x="-563.2" y="924.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">runloop_started &amp;&amp; stream_open</text>
-<rect x="-627.2" y="960.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-587.2" y="995.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">6</text>
-<line x1="-547.2" y1="990.0" x2="-507.20000000000005" y2="990.0" stroke="black" />
-<rect x="-507.2000000000001" y="944.0" width="173.6" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="-420.4000000000001" y="970.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">stream_parts_</text>
-<text x="-420.4000000000001" y="994.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">invalidate_</text>
-<text x="-420.4000000000001" y="1017.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">cache_push_sse</text>
-<line x1="-587.2" y1="1020.0" x2="-587.2" y2="1100" stroke="black" />
-<line x1="-607.2" y1="1060.0" x2="-567.2" y2="1060.0" stroke="black" stroke-width="2" />
-<text x="-563.2" y="1064.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">message_completed_or_aborted</text>
-<rect x="-627.2" y="1100.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-587.2" y="1135.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">11</text>
-<line x1="-547.2" y1="1130.0" x2="-507.20000000000005" y2="1130.0" stroke="black" />
-<rect x="-507.2000000000001" y="1084.0" width="173.6" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="-420.4000000000001" y="1110.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">stamp_received_</text>
-<text x="-420.4000000000001" y="1134.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">at_and_classify_</text>
-<text x="-420.4000000000001" y="1158.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">freshness</text>
-<line x1="-587.2" y1="1160.0" x2="-587.2" y2="1240" stroke="black" />
-<line x1="-607.2" y1="1200.0" x2="-567.2" y2="1200.0" stroke="black" stroke-width="2" />
-<text x="-563.2" y="1204.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">fidelity_classified</text>
-<rect x="-133.60000000000008" y="680.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-93.60000000000007" y="715.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">7</text>
-<line x1="-53.600000000000065" y1="710.0" x2="-13.600000000000065" y2="710.0" stroke="black" />
-<rect x="-13.600000000000065" y="664.0" width="173.6" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="73.19999999999993" y="690.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">apply_</text>
-<text x="73.19999999999993" y="714.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">rebind_</text>
-<text x="73.19999999999993" y="737.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">rate_limit</text>
-<line x1="-93.60000000000007" y1="740" x2="-93.60000000000007" y2="780" stroke="black" />
-<line x1="-213.60000000000008" y1="780" x2="153.19999999999993" y2="780" stroke="black" stroke-width="1.5" />
-<line x1="-173.60000000000008" y1="780" x2="-173.60000000000008" y2="820" stroke="black" />
-<line x1="-193.60000000000008" y1="820" x2="-153.60000000000008" y2="820" stroke="black" stroke-width="2" />
-<text x="-197.60000000000005" y="824" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">under_rate_limit</text>
-<line x1="-173.60000000000008" y1="820" x2="-173.60000000000008" y2="860" stroke="black" marker-end="url(#arrow)" />
-<line x1="113.19999999999993" y1="780" x2="113.19999999999993" y2="820" stroke="black" />
-<line x1="93.19999999999993" y1="820" x2="133.19999999999993" y2="820" stroke="black" stroke-width="2" />
-<text x="137.19999999999993" y="824" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">rate_limited_storm</text>
-<line x1="113.19999999999993" y1="820" x2="113.19999999999993" y2="860" stroke="black" />
-<rect x="-213.60000000000008" y="860.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-173.60000000000008" y="895.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">8</text>
-<line x1="-133.60000000000008" y1="890.0" x2="-93.60000000000007" y2="890.0" stroke="black" />
-<rect x="-93.60000000000007" y="844.0" width="173.6" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="-6.800000000000068" y="870.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">reinject_</text>
-<text x="-6.800000000000068" y="894.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">capability_</text>
-<text x="-6.800000000000068" y="917.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">snapshot</text>
-<line x1="-173.60000000000008" y1="920.0" x2="-173.60000000000008" y2="1000" stroke="black" />
-<line x1="-193.60000000000008" y1="960.0" x2="-153.60000000000008" y2="960.0" stroke="black" stroke-width="2" />
-<text x="-149.60000000000005" y="964.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">reinject_returns_or_session_busy</text>
-<rect x="359.99999999999994" y="680.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="399.99999999999994" y="715.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">9</text>
-<line x1="439.99999999999994" y1="710.0" x2="479.99999999999994" y2="710.0" stroke="black" />
-<rect x="479.99999999999994" y="664.0" width="173.6" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="566.8" y="690.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">load_older_</text>
-<text x="566.8" y="714.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">slice_with_</text>
-<text x="566.8" y="737.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">before_cursor</text>
-<line x1="399.99999999999994" y1="740.0" x2="399.99999999999994" y2="820" stroke="black" />
-<line x1="379.99999999999994" y1="780.0" x2="419.99999999999994" y2="780.0" stroke="black" stroke-width="2" />
-<text x="423.9999999999999" y="784.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">older_slice_returned_or_empty</text>
-<rect x="359.99999999999994" y="820.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="399.99999999999994" y="855.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">10</text>
-<line x1="439.99999999999994" y1="850.0" x2="479.99999999999994" y2="850.0" stroke="black" />
-<rect x="479.99999999999994" y="804.0" width="173.6" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="566.8" y="830.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">reduce_</text>
-<text x="566.8" y="854.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">and_fold_</text>
-<text x="566.8" y="877.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">parts</text>
-<line x1="399.99999999999994" y1="880.0" x2="399.99999999999994" y2="960" stroke="black" />
-<line x1="379.99999999999994" y1="920.0" x2="419.99999999999994" y2="920.0" stroke="black" stroke-width="2" />
-<text x="423.9999999999999" y="924.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">timeline_rendered</text>
-<rect x="1060.3999999999999" y="680.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="1100.3999999999999" y="715.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">12</text>
-<line x1="1140.3999999999999" y1="710.0" x2="1180.3999999999999" y2="710.0" stroke="black" />
-<rect x="1180.4" y="664.0" width="173.6" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="1267.2" y="702.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">freshness_</text>
-<text x="1267.2" y="726.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">clock_tick</text>
-<line x1="1100.3999999999999" y1="740" x2="1100.3999999999999" y2="780" stroke="black" />
-<line x1="773.5999999999999" y1="780" x2="1553.9999999999998" y2="780" stroke="black" stroke-width="1.5" />
-<line x1="813.5999999999999" y1="780" x2="813.5999999999999" y2="820" stroke="black" />
-<line x1="793.5999999999999" y1="820" x2="833.5999999999999" y2="820" stroke="black" stroke-width="2" />
-<text x="789.5999999999998" y="824" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">stale_threshold_crossed</text>
-<line x1="813.5999999999999" y1="820" x2="813.5999999999999" y2="860" stroke="black" marker-end="url(#arrow)" />
-<line x1="1227.2" y1="780" x2="1227.2" y2="820" stroke="black" />
-<line x1="1207.2" y1="820" x2="1247.2" y2="820" stroke="black" stroke-width="2" />
-<text x="1251.2" y="824" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">hard_stale_threshold_crossed</text>
-<line x1="1227.2" y1="820" x2="1227.2" y2="860" stroke="black" marker-end="url(#arrow)" />
-<line x1="1513.9999999999998" y1="780" x2="1513.9999999999998" y2="820" stroke="black" />
-<line x1="1493.9999999999998" y1="820" x2="1533.9999999999998" y2="820" stroke="black" stroke-width="2" />
-<text x="1537.9999999999998" y="824" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">session_route_left</text>
-<line x1="1513.9999999999998" y1="820" x2="1513.9999999999998" y2="860" stroke="black" />
-<rect x="773.5999999999999" y="860.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="813.5999999999999" y="895.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">13</text>
-<line x1="853.5999999999999" y1="890.0" x2="893.5999999999999" y2="890.0" stroke="black" />
-<rect x="893.5999999999999" y="844.0" width="173.6" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="980.3999999999999" y="870.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">force_tail_</text>
-<text x="980.3999999999999" y="894.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">refetch_</text>
-<text x="980.3999999999999" y="917.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">on_stale</text>
-<line x1="813.5999999999999" y1="920.0" x2="813.5999999999999" y2="1000" stroke="black" />
-<line x1="793.5999999999999" y1="960.0" x2="833.5999999999999" y2="960.0" stroke="black" stroke-width="2" />
-<text x="837.5999999999999" y="964.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">tail_refreshed</text>
-<rect x="1187.2" y="860.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="1227.2" y="895.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">14</text>
-<line x1="1267.2" y1="890.0" x2="1307.2" y2="890.0" stroke="black" />
-<rect x="1307.2" y="844.0" width="173.6" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="1394.0" y="870.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">schedule_</text>
-<text x="1394.0" y="894.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">resume_rebind_</text>
-<text x="1394.0" y="917.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">on_hard_stale</text>
-<line x1="1227.2" y1="920.0" x2="1227.2" y2="1000" stroke="black" />
-<line x1="1207.2" y1="960.0" x2="1247.2" y2="960.0" stroke="black" stroke-width="2" />
-<text x="1251.2" y="964.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">resume_post_returned</text>
-<line x1="-587.2" y1="1240" x2="-587.2" y2="1240.0" stroke="black" />
-<line x1="-587.2" y1="1240.0" x2="-707.2" y2="1240.0" stroke="black" />
-<line x1="-707.2" y1="1240.0" x2="-707.2" y2="486.0" stroke="black" />
-<line x1="-707.2" y1="486.0" x2="400" y2="486.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="813.5999999999999" y1="1000" x2="813.5999999999999" y2="1020.0" stroke="black" />
-<line x1="813.5999999999999" y1="1020.0" x2="-787.2" y2="1020.0" stroke="black" />
-<line x1="-787.2" y1="1020.0" x2="-787.2" y2="486.0" stroke="black" />
-<line x1="-787.2" y1="486.0" x2="400" y2="486.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="1227.2" y1="1000" x2="1227.2" y2="1040.0" stroke="black" />
-<line x1="1227.2" y1="1040.0" x2="-867.2" y2="1040.0" stroke="black" />
-<line x1="-867.2" y1="1040.0" x2="-867.2" y2="486.0" stroke="black" />
-<line x1="-867.2" y1="486.0" x2="400" y2="486.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="1513.9999999999998" y1="860" x2="1513.9999999999998" y2="920.0" stroke="black" />
-<line x1="1513.9999999999998" y1="920.0" x2="-947.2" y2="920.0" stroke="black" />
-<line x1="-947.2" y1="920.0" x2="-947.2" y2="40.0" stroke="black" />
-<line x1="-947.2" y1="40.0" x2="400" y2="40.0" stroke="black" />
-<line x1="400" y1="40.0" x2="400" y2="80.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="113.19999999999993" y1="860" x2="113.19999999999993" y2="860" stroke="black" />
-<line x1="113.19999999999993" y1="860" x2="113.19999999999993" y2="860" stroke="black" />
-<line x1="113.19999999999993" y1="860" x2="113.19999999999993" y2="1080.0" stroke="black" />
-<line x1="113.19999999999993" y1="1080.0" x2="-587.2" y2="1080.0" stroke="black" />
-<line x1="-587.2" y1="1080.0" x2="-587.2" y2="1100.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="-173.60000000000008" y1="1000" x2="-173.60000000000008" y2="1000" stroke="black" />
-<line x1="-173.60000000000008" y1="1000" x2="-173.60000000000008" y2="1000" stroke="black" />
-<line x1="-173.60000000000008" y1="1000" x2="-173.60000000000008" y2="1080.0" stroke="black" />
-<line x1="-173.60000000000008" y1="1080.0" x2="-587.2" y2="1080.0" stroke="black" />
-<line x1="-587.2" y1="1080.0" x2="-587.2" y2="1100.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="399.99999999999994" y1="960" x2="399.99999999999994" y2="960" stroke="black" />
-<line x1="399.99999999999994" y1="960" x2="399.99999999999994" y2="960" stroke="black" />
-<line x1="399.99999999999994" y1="960" x2="399.99999999999994" y2="1080.0" stroke="black" />
-<line x1="399.99999999999994" y1="1080.0" x2="-587.2" y2="1080.0" stroke="black" />
-<line x1="-587.2" y1="1080.0" x2="-587.2" y2="1100.0" stroke="black" marker-end="url(#arrow)" />
+<svg xmlns="http://www.w3.org/2000/svg" width="2197" height="1664" viewBox="-40.00 -1.92 109.83 83.20" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="-40.00" y="-1.92" width="109.83" height="83.20" fill="white"/>
+<path class="edge" d="M 20.00 7.08 L 20.00 9.16"/>
+<path class="edge edge-arrow" d="M 20.00 9.16 L 20.00 11.24"/>
+<path class="edge" d="M 20.00 14.24 L 20.00 16.32"/>
+<path class="edge edge-arrow" d="M 20.00 16.32 L 20.00 18.40"/>
+<path class="edge" d="M 20.00 21.40 L 20.00 25.48"/>
+<path class="edge edge-arrow" d="M 20.00 25.48 L 20.00 27.56"/>
+<path class="edge" d="M 20.00 30.56 L 20.00 32.64"/>
+<path class="edge edge-arrow" d="M 0.00 32.64 L 0.00 34.14 Q 0.00 34.64 0.00 35.14 L 0.00 36.72"/>
+<path class="edge edge-arrow" d="M 10.00 32.64 L 10.00 34.14 Q 10.00 34.64 10.00 35.14 L 10.00 36.72"/>
+<path class="edge edge-arrow" d="M 30.00 32.64 L 30.00 34.14 Q 30.00 34.64 30.00 35.14 L 30.00 36.72"/>
+<path class="edge edge-arrow" d="M 40.00 32.64 L 40.00 34.14 Q 40.00 34.64 40.00 35.14 L 40.00 36.72"/>
+<path class="edge" d="M 0.00 39.72 L -21.50 39.72 Q -22.00 39.72 -22.00 40.22 L -22.00 43.30 Q -22.00 43.80 -21.50 43.80 L 0.00 43.80"/>
+<path class="edge edge-arrow" d="M 0.00 43.80 L 0.00 47.88"/>
+<path class="edge" d="M 0.00 50.88 L 0.00 54.96"/>
+<path class="edge edge-arrow" d="M 0.00 54.96 L 0.00 61.04"/>
+<path class="edge" d="M 0.00 64.04 L 0.00 68.12"/>
+<path class="edge edge-arrow" d="M 10.00 68.12 L 19.50 68.12 Q 20.00 68.12 20.00 68.62 L 20.00 70.20"/>
+<path class="edge" d="M 10.00 39.72 L 10.00 41.80"/>
+<path class="edge" d="M 0.00 41.80 L 0.00 43.80"/>
+<path class="edge" d="M -10.00 43.80 L -10.00 47.88"/>
+<path class="edge" d="M 20.00 41.80 L 20.00 45.30 Q 20.00 45.80 20.00 46.30 L 20.00 68.12"/>
+<path class="edge" d="M -10.00 50.88 L -10.00 60.46 Q -10.00 60.96 -10.50 60.96 L -25.50 60.96 Q -26.00 60.96 -26.00 61.46 L -26.00 65.62 Q -26.00 66.12 -25.50 66.12 L -10.50 66.12 Q -10.00 66.12 -10.00 66.62 L -10.00 68.12"/>
+<path class="edge" d="M -22.00 39.72 L -30.00 39.72"/>
+<path class="edge" d="M 30.00 39.72 L 0.00 39.72"/>
+<path class="edge" d="M -30.00 39.72 L -30.00 43.80"/>
+<path class="edge" d="M -30.00 43.80 L -22.00 43.80"/>
+<path class="edge" d="M 0.00 43.80 L 30.00 43.80"/>
+<path class="edge edge-arrow" d="M 30.00 43.80 L 30.00 47.88"/>
+<path class="edge" d="M 30.00 50.88 L 30.00 60.96"/>
+<path class="edge" d="M 30.00 60.96 L -10.00 60.96"/>
+<path class="edge" d="M -10.00 66.12 L 30.00 66.12"/>
+<path class="edge" d="M 30.00 66.12 L 30.00 68.12"/>
+<path class="edge" d="M 20.00 73.20 L 20.00 75.28"/>
+<path class="edge" d="M 20.00 75.28 L 20.00 77.28"/>
+<path class="edge" d="M 20.00 77.28 L -32.00 77.28"/>
+<path class="edge" d="M -32.00 77.28 L -32.00 25.56"/>
+<path class="edge" d="M -32.00 25.56 L 20.00 25.56"/>
+<path class="edge" d="M 40.00 39.72 L 40.00 41.80"/>
+<path class="edge edge-arrow" d="M 40.00 41.80 L 40.00 43.30 Q 40.00 43.80 40.00 44.30 L 40.00 47.88"/>
+<path class="edge edge-arrow" d="M 50.00 41.80 L 50.00 43.30 Q 50.00 43.80 50.00 44.30 L 50.00 47.88"/>
+<path class="edge" d="M 30.00 41.80 L 30.00 43.80"/>
+<path class="edge" d="M 30.00 45.80 L -36.00 45.80"/>
+<path class="edge" d="M -36.00 45.80 L -36.00 2.08"/>
+<path class="edge" d="M -36.00 2.08 L 20.00 2.08"/>
+<path class="edge edge-arrow" d="M 20.00 2.08 L 20.00 4.08"/>
+<path class="edge" d="M 40.00 50.88 L 40.00 52.96"/>
+<path class="edge" d="M 40.00 52.96 L 40.00 56.96"/>
+<path class="edge" d="M 40.00 56.96 L -32.00 56.96"/>
+<path class="edge" d="M 50.00 50.88 L 50.00 58.96"/>
+<path class="edge" d="M 50.00 58.96 L 50.00 60.96"/>
+<path class="edge" d="M -26.00 60.96 L -32.00 60.96"/>
+<path class="edge" d="M 50.00 60.96 L 30.00 60.96"/>
+<rect class="step" x="18.00" y="4.08" width="4.00" height="3.00"/>
+<rect class="step-inner" x="18.25" y="4.33" width="3.50" height="2.50"/>
+<text class="label" x="20.00" y="5.58">0</text>
+<rect class="step" x="18.00" y="11.24" width="4.00" height="3.00"/>
+<text class="label" x="20.00" y="12.74">1</text>
+<rect class="step" x="18.00" y="18.40" width="4.00" height="3.00"/>
+<text class="label" x="20.00" y="19.90">2</text>
+<rect class="step" x="18.00" y="27.56" width="4.00" height="3.00"/>
+<text class="label" x="20.00" y="29.06">3</text>
+<rect class="step" x="-2.00" y="36.72" width="4.00" height="3.00"/>
+<text class="label" x="0.00" y="38.22">4</text>
+<rect class="step" x="-2.00" y="47.88" width="4.00" height="3.00"/>
+<text class="label" x="0.00" y="49.38">5</text>
+<rect class="step" x="-2.00" y="61.04" width="4.00" height="3.00"/>
+<text class="label" x="0.00" y="62.54">6</text>
+<rect class="step" x="8.00" y="36.72" width="4.00" height="3.00"/>
+<text class="label" x="10.00" y="38.22">7</text>
+<rect class="step" x="-12.00" y="47.88" width="4.00" height="3.00"/>
+<text class="label" x="-10.00" y="49.38">8</text>
+<rect class="step" x="28.00" y="36.72" width="4.00" height="3.00"/>
+<text class="label" x="30.00" y="38.22">9</text>
+<rect class="step" x="28.00" y="47.88" width="4.00" height="3.00"/>
+<text class="label" x="30.00" y="49.38">10</text>
+<rect class="step" x="18.00" y="70.20" width="4.00" height="3.00"/>
+<text class="label" x="20.00" y="71.70">11</text>
+<rect class="step" x="38.00" y="36.72" width="4.00" height="3.00"/>
+<text class="label" x="40.00" y="38.22">12</text>
+<rect class="step" x="38.00" y="47.88" width="4.00" height="3.00"/>
+<text class="label" x="40.00" y="49.38">13</text>
+<rect class="step" x="48.00" y="47.88" width="4.00" height="3.00"/>
+<text class="label" x="50.00" y="49.38">14</text>
+<line class="assoc" x1="22.00" y1="5.58" x2="23.00" y2="5.58"/>
+<rect class="action" x="23.00" y="4.00" width="12.83" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="29.41" y="5.58"><tspan x="29.41" dy="0">Sessionunbound閒置</tspan></text>
+<line class="assoc" x1="22.00" y1="12.74" x2="23.00" y2="12.74"/>
+<rect class="action" x="23.00" y="11.16" width="12.83" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="29.41" y="12.33"><tspan x="29.41" dy="0">bindSession與</tspan><tspan x="29.41" dy="0.82">bumpepoch</tspan></text>
+<line class="assoc" x1="22.00" y1="19.90" x2="23.00" y2="19.90"/>
+<rect class="action" x="23.00" y="18.32" width="12.83" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="29.41" y="19.49"><tspan x="29.41" dy="0">hydratetail透過</tspan><tspan x="29.41" dy="0.82">messagesendpoint</tspan></text>
+<line class="assoc" x1="22.00" y1="29.06" x2="23.00" y2="29.06"/>
+<rect class="action" x="23.00" y="27.48" width="12.83" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="29.41" y="28.65"><tspan x="29.41" dy="0">subscribesse與</tspan><tspan x="29.41" dy="0.82">等待輸入</tspan></text>
+<line class="assoc" x1="2.00" y1="38.22" x2="3.00" y2="38.22"/>
+<rect class="action" x="3.00" y="36.64" width="12.83" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="9.41" y="37.81"><tspan x="9.41" dy="0">submit訊</tspan><tspan x="9.41" dy="0.82">息與持久化</tspan></text>
+<line class="assoc" x1="2.00" y1="49.38" x2="3.00" y2="49.38"/>
+<rect class="action" x="3.00" y="47.80" width="12.83" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="9.41" y="48.97"><tspan x="9.41" dy="0">派發到</tspan><tspan x="9.41" dy="0.82">runloop</tspan></text>
+<line class="assoc" x1="2.00" y1="62.54" x2="3.00" y2="62.54"/>
+<rect class="action" x="3.00" y="60.96" width="12.83" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="9.41" y="61.72"><tspan x="9.41" dy="0">串流</tspan><tspan x="9.41" dy="0.82">partsinvalidate快</tspan><tspan x="9.41" dy="0.82">取pushsse</tspan></text>
+<line class="assoc" x1="12.00" y1="38.22" x2="13.00" y2="38.22"/>
+<rect class="action" x="13.00" y="36.64" width="12.83" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="19.41" y="38.22"><tspan x="19.41" dy="0">applyrebindratelimit</tspan></text>
+<line class="assoc" x1="-8.00" y1="49.38" x2="-7.00" y2="49.38"/>
+<rect class="action" x="-7.00" y="47.80" width="12.83" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="-0.58" y="49.38"><tspan x="-0.58" dy="0">reinjectcapabilitysnapshot</tspan></text>
+<line class="assoc" x1="32.00" y1="38.22" x2="33.00" y2="38.22"/>
+<rect class="action" x="33.00" y="36.64" width="12.83" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="39.41" y="37.81"><tspan x="39.41" dy="0">loadolderslice使</tspan><tspan x="39.41" dy="0.82">用beforecursor</tspan></text>
+<line class="assoc" x1="32.00" y1="49.38" x2="33.00" y2="49.38"/>
+<rect class="action" x="33.00" y="47.80" width="12.83" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="39.41" y="48.97"><tspan x="39.41" dy="0">reduce與</tspan><tspan x="39.41" dy="0.82">foldparts</tspan></text>
+<line class="assoc" x1="22.00" y1="71.70" x2="23.00" y2="71.70"/>
+<rect class="action" x="23.00" y="70.12" width="12.83" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="29.41" y="71.29"><tspan x="29.41" dy="0">stamp已收到於與</tspan><tspan x="29.41" dy="0.82">classifyfreshness</tspan></text>
+<line class="assoc" x1="42.00" y1="38.22" x2="43.00" y2="38.22"/>
+<rect class="action" x="43.00" y="36.64" width="12.83" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="49.41" y="38.22"><tspan x="49.41" dy="0">freshnessclocktick</tspan></text>
+<line class="assoc" x1="42.00" y1="49.38" x2="43.00" y2="49.38"/>
+<rect class="action" x="43.00" y="47.80" width="12.83" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="49.41" y="49.38"><tspan x="49.41" dy="0">forcetailrefetch在stale</tspan></text>
+<line class="assoc" x1="52.00" y1="49.38" x2="53.00" y2="49.38"/>
+<rect class="action" x="53.00" y="47.80" width="12.83" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="59.41" y="48.97"><tspan x="59.41" dy="0">scheduleresumerebind在</tspan><tspan x="59.41" dy="0.82">hardstale</tspan></text>
+<line class="gate" x1="19.00" y1="9.16" x2="21.00" y2="9.16"/>
+<text class="gate-label" x="21.40" y="9.16">clientopensSession路由</text>
+<line class="gate" x1="19.00" y1="16.32" x2="21.00" y2="16.32"/>
+<text class="gate-label" x="21.40" y="16.32">epochbumpok &amp;&amp; reinject完成</text>
+<line class="gate" x1="18.00" y1="25.48" x2="22.00" y2="25.48"/>
+<line class="gate" x1="-4.00" y1="32.64" x2="44.00" y2="32.64"/>
+<line class="gate" x1="-1.00" y1="43.80" x2="1.00" y2="43.80"/>
+<text class="gate-label" x="1.40" y="43.80">httppost2xx &amp;&amp; 訊息appended</text>
+<line class="gate" x1="-1.00" y1="54.96" x2="1.00" y2="54.96"/>
+<text class="gate-label" x="1.40" y="54.96">runloopstarted &amp;&amp; 串流open</text>
+<line class="gate" x1="-12.00" y1="68.12" x2="32.00" y2="68.12"/>
+<line class="gate" x1="-4.00" y1="41.80" x2="24.00" y2="41.80"/>
+<line class="gate" x1="29.00" y1="43.80" x2="31.00" y2="43.80"/>
+<text class="gate-label" x="31.40" y="43.80">olderslicereturned或empty</text>
+<line class="gate" x1="19.00" y1="75.28" x2="21.00" y2="75.28"/>
+<text class="gate-label" x="21.40" y="75.28">fidelityclassified</text>
+<line class="gate" x1="26.00" y1="41.80" x2="54.00" y2="41.80"/>
+<line class="gate" x1="39.00" y1="52.96" x2="41.00" y2="52.96"/>
+<text class="gate-label" x="41.40" y="52.96">tailrefreshed</text>
+<line class="gate" x1="49.00" y1="58.96" x2="51.00" y2="58.96"/>
+<text class="gate-label" x="51.40" y="58.96">resumepostreturned</text>
+<line class="gate" x1="19.00" y1="23.48" x2="21.00" y2="23.48"/>
+<text class="gate-label" x="21.40" y="23.48">tail已載入或304</text>
+<line class="gate" x1="-1.00" y1="34.64" x2="1.00" y2="34.64"/>
+<text class="gate-label-left" x="-1.40" y="34.64">使用者submits提示</text>
+<line class="gate" x1="9.00" y1="34.64" x2="11.00" y2="34.64"/>
+<text class="gate-label-left" x="8.60" y="34.64">rebindtriggerobserved</text>
+<line class="gate" x1="29.00" y1="34.64" x2="31.00" y2="34.64"/>
+<text class="gate-label" x="31.40" y="34.64">scrollupSentinelhit</text>
+<line class="gate" x1="39.00" y1="34.64" x2="41.00" y2="34.64"/>
+<text class="gate-label" x="41.40" y="34.64">閒置freshnesstick</text>
+<line class="gate" x1="-1.00" y1="66.12" x2="1.00" y2="66.12"/>
+<text class="gate-label-left" x="-1.40" y="66.12">訊息已完成或aborted</text>
+<line class="gate" x1="-1.00" y1="43.80" x2="1.00" y2="43.80"/>
+<text class="gate-label-left" x="-1.40" y="43.80">underratelimit</text>
+<line class="gate" x1="19.00" y1="43.80" x2="21.00" y2="43.80"/>
+<text class="gate-label" x="21.40" y="43.80">ratelimitedstorm</text>
+<line class="gate" x1="-11.00" y1="66.12" x2="-9.00" y2="66.12"/>
+<text class="gate-label-left" x="-11.40" y="66.12">reinject返回或Sessionbusy</text>
+<line class="gate" x1="29.00" y1="66.12" x2="31.00" y2="66.12"/>
+<text class="gate-label" x="31.40" y="66.12">timelinerendered</text>
+<line class="gate" x1="39.00" y1="43.80" x2="41.00" y2="43.80"/>
+<text class="gate-label" x="41.40" y="43.80">stalethresholdcrossed</text>
+<line class="gate" x1="49.00" y1="43.80" x2="51.00" y2="43.80"/>
+<text class="gate-label" x="51.40" y="43.80">hardstalethresholdcrossed</text>
+<line class="gate" x1="29.00" y1="43.80" x2="31.00" y2="43.80"/>
+<text class="gate-label-left" x="28.60" y="43.80">Session路由left</text>
+<line class="flyover-mask" x1="-33.00" y1="45.80" x2="-31.00" y2="45.80"/>
+<path class="flyover" d="M -33.00 45.80 Q -32.00 44.80 -31.00 45.80"/>
+<circle class="junction" cx="20.00" cy="25.56" r="0.22"/>
+<circle class="junction" cx="-22.00" cy="39.72" r="0.22"/>
+<circle class="junction" cx="-22.00" cy="43.80" r="0.22"/>
+<circle class="junction" cx="-10.00" cy="43.80" r="0.22"/>
+<circle class="junction" cx="20.00" cy="45.80" r="0.22"/>
+<circle class="junction" cx="-10.00" cy="60.96" r="0.22"/>
+<circle class="junction" cx="-26.00" cy="60.96" r="0.22"/>
+<circle class="junction" cx="-10.00" cy="66.12" r="0.22"/>
+<circle class="junction" cx="30.00" cy="45.80" r="0.22"/>
+<circle class="junction" cx="30.00" cy="60.96" r="0.22"/>
+<circle class="junction" cx="-32.00" cy="56.96" r="0.22"/>
+<circle class="junction" cx="-32.00" cy="60.96" r="0.22"/>
 </svg>

@@ -1,69 +1,66 @@
-<svg width="2410.9" height="757.6" viewBox="-595.4 -165.8 2410.9 757.6" xmlns="http://www.w3.org/2000/svg">
+<svg width="1740.7" height="757.6" viewBox="-246.9 -165.8 1740.7 757.6" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
 <marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
 </defs>
-<rect x="-595.4" y="-165.8" width="2410.9" height="757.6" fill="white" />
-<rect x="130.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A61" />
-<text x="230.0" y="165.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A61" >A61</text>
-<text x="230.0" y="197.8" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A61" >CHOOSE TRANSPORT</text>
-<rect x="478.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A62" />
-<text x="578.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A62" >A62</text>
-<text x="578.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A62" >OPEN CONNECTION</text>
-<text x="578.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A62" >AND SEND PAYLOAD</text>
-<rect x="850.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A63" />
-<text x="950.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A63" >A63</text>
-<text x="950.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A63" >STREAM AND</text>
-<text x="950.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A63" >CLASSIFY CHUNKS</text>
-<rect x="130.0" y="380.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A64" />
-<text x="230.0" y="403.2" text-anchor="middle" font-size="11" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A64" >A64</text>
-<text x="230.0" y="428.9" text-anchor="middle" font-size="13" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A64" >RECOVER ON</text>
-<text x="230.0" y="453.2" text-anchor="middle" font-size="13" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A64" >CONTINUATION</text>
-<text x="230.0" y="477.6" text-anchor="middle" font-size="13" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A64" >INVALIDATED</text>
-<rect x="478.0" y="380.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A65" />
-<text x="578.0" y="413.9" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A65" >A65</text>
-<text x="578.0" y="441.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A65" >UPDATE USAGE AND</text>
-<text x="578.0" y="467.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A65" >RATE-LIMIT TELEMETRY</text>
-<rect x="40.0" y="44.2" width="1140.0" height="537.6" stroke="black" fill="none" stroke-width="2" />
-<rect x="470.0" y="-155.8" width="280.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A6" />
-<text x="610.0" y="-129.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >A6</text>
-<text x="610.0" y="-99.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >DISPATCH AND</text>
-<text x="610.0" y="-69.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >STREAM RESPONSE</text>
-<line x1="470.0" y1="-155.8" x2="40.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="750.0" y1="-155.8" x2="1180.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="470.0" y1="-45.8" x2="40.0" y2="581.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="750.0" y1="-45.8" x2="1180.0" y2="581.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<path d="M 330.0 180.0 L 478.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a61_to_a62" data-waypoints="330.0,180.0 478.0,180.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 678.0 180.0 L 850.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a62_to_a63" data-waypoints="678.0,180.0 850.0,180.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1050.0 200.0 L 1080.0 200.0 Q 1090.0 200.0 1090.0 210.0 L 1090.0 280.0 Q 1090.0 290.0 1080.0 290.0 L 100.0 290.0 Q 90.0 290.0 90.0 300.0 L 90.0 430.0 Q 90.0 440.0 100.0 440.0 L 130.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="a63_to_a64" data-waypoints="1050.0,200.0 1090.0,200.0 1090.0,290.0 90.0,290.0 90.0,440.0 130.0,440.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1050.0 160.0 L 1120.0 160.0 Q 1130.0 160.0 1130.0 170.0 L 1130.0 320.0 Q 1130.0 330.0 1120.0 330.0 L 438.7 330.0 Q 428.7 330.0 428.7 340.0 L 428.7 430.0 Q 428.7 440.0 438.7 440.0 L 478.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="a63_to_a65" data-waypoints="1050.0,160.0 1130.0,160.0 1130.0,330.0 428.7,330.0 428.7,440.0 478.0,440.0" marker-end="url(#arrow)" fill="none" />
+<rect x="-246.9" y="-165.8" width="1740.7" height="757.6" fill="white" />
+<rect x="130.0" y="120.0" width="203.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A61" />
+<text x="231.5" y="165.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A61" >A61</text>
+<text x="231.5" y="197.8" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A61" >CHOOSE TRANSPORT</text>
+<rect x="453.0" y="120.0" width="203.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A62" />
+<text x="554.5" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A62" >A62</text>
+<text x="554.5" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A62" >OPEN CONNECTION</text>
+<text x="554.5" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A62" >與 SEND PAYLOAD</text>
+<rect x="874.0" y="120.0" width="203.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A63" />
+<text x="975.5" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A63" >A63</text>
+<text x="975.5" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A63" >串流 與</text>
+<text x="975.5" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A63" >CLASSIFY 分塊</text>
+<rect x="130.0" y="380.0" width="203.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A64" />
+<text x="231.5" y="409.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A64" >A64</text>
+<text x="231.5" y="441.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A64" >RECOVER 在 延</text>
+<text x="231.5" y="472.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A64" >續 INVALIDATED</text>
+<rect x="453.0" y="380.0" width="203.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A65" />
+<text x="554.5" y="413.9" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A65" >A65</text>
+<text x="554.5" y="441.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A65" >更新 USAGE 與</text>
+<text x="554.5" y="467.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A65" >RATE-LIMIT TELEMETRY</text>
+<rect x="40.0" y="44.2" width="1167.0" height="537.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="503.5" y="-155.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A6" />
+<text x="623.5" y="-117.9" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >A6</text>
+<text x="623.5" y="-79.3" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >派發 與 串流 回應</text>
+<line x1="503.5" y1="-155.8" x2="40.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="743.5" y1="-155.8" x2="1207.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="503.5" y1="-45.8" x2="40.0" y2="581.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="743.5" y1="-45.8" x2="1207.0" y2="581.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 333.0 180.0 L 453.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a61_to_a62" data-waypoints="333.0,180.0 453.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 656.0 180.0 L 874.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a62_to_a63" data-waypoints="656.0,180.0 874.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1077.0 200.0 L 1107.0 200.0 Q 1117.0 200.0 1117.0 210.0 L 1117.0 280.0 Q 1117.0 290.0 1107.0 290.0 L 100.0 290.0 Q 90.0 290.0 90.0 300.0 L 90.0 430.0 Q 90.0 440.0 100.0 440.0 L 130.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="a63_to_a64" data-waypoints="1077.0,200.0 1117.0,200.0 1117.0,290.0 90.0,290.0 90.0,440.0 130.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1077.0 160.0 L 1147.0 160.0 Q 1157.0 160.0 1157.0 170.0 L 1157.0 320.0 Q 1157.0 330.0 1147.0 330.0 L 423.0 330.0 Q 413.0 330.0 413.0 340.0 L 413.0 430.0 Q 413.0 440.0 423.0 440.0 L 453.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="a63_to_a65" data-waypoints="1077.0,160.0 1157.0,160.0 1157.0,330.0 413.0,330.0 413.0,440.0 453.0,440.0" marker-end="url(#arrow)" fill="none" />
 <path d="M -10.0 180.0 L 130.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a61_in_payload" data-waypoints="-10.0,180.0 130.0,180.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a61_ctl_sticky" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 578.0 275.8 L 578.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a62_mech_transport" data-waypoints="578.0,275.8 578.0,240.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 950.0 84.2 L 950.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a63_ctl_errors" data-waypoints="950.0,84.2 950.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 950.0 275.8 L 950.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a63_mech_sse" data-waypoints="950.0,275.8 950.0,240.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 344.2 L 230.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="a64_ctl_bus" data-waypoints="230.0,344.2 230.0,380.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 440.0 L 369.3 440.0 Q 379.3 440.0 379.3 450.0 L 379.3 531.8 Q 379.3 541.8 389.3 541.8 L 1230.0 541.8" stroke="black" stroke-width="1.2" data-arrow-id="a64_out_event" data-waypoints="330.0,440.0 379.3,440.0 379.3,541.8 1230.0,541.8" marker-end="url(#arrow)" fill="none" />
-<path d="M 578.0 535.8 L 578.0 500.0" stroke="black" stroke-width="1.2" data-arrow-id="a65_mech_telemetry" data-waypoints="578.0,535.8 578.0,500.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 678.0 440.0 L 1230.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="a65_out_stream" data-waypoints="678.0,440.0 1230.0,440.0" marker-end="url(#arrow)" fill="none" />
-<text x="230.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a61_ctl_sticky">Session WS sticky-fallback flag</text>
-<text x="572.0" y="256.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a62_mech_transport">transport-ws.ts upgrade</text>
-<text x="584.0" y="256.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a62_mech_transport">(WS_BETA_HEADER) / fetch POST</text>
-<text x="950.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a63_ctl_errors">WrappedWebsocketErrorEvent / HTTP status classifier (error.ts)</text>
-<text x="944.0" y="256.0" font-size="11" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a63_mech_sse">AI-SDK SSE consumer</text>
-<text x="956.0" y="256.0" font-size="11" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a63_mech_sse">(uniform across HTTP/WS)</text>
-<text x="230.0" y="338.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a64_ctl_bus">Bus event channel</text>
-<text x="572.0" y="516.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a65_mech_telemetry">rotation3d quota tracker;</text>
-<text x="584.0" y="516.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a65_mech_telemetry">[WS-RATE-LIMITS] logger</text>
-<text x="404.0" y="175.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a61_to_a62">Transport choice</text>
-<text x="404.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a61_to_a62">(WS or HTTP)</text>
-<text x="764.0" y="175.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a62_to_a63">Synthetic Response</text>
-<text x="764.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a62_to_a63">(text/event-stream)</text>
-<text x="578.0" y="308.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a63_to_a64" >continuation-invalidated marker / 4xx-5xx</text>
-<text x="578.0" y="348.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a63_to_a65" >Completion frames (usage, rate_limits)</text>
+<path d="M 231.5 84.2 L 231.5 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a61_ctl_sticky" data-waypoints="231.5,84.2 231.5,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 554.5 275.8 L 554.5 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a62_mech_transport" data-waypoints="554.5,275.8 554.5,240.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 975.5 84.2 L 975.5 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a63_ctl_errors" data-waypoints="975.5,84.2 975.5,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 975.5 275.8 L 975.5 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a63_mech_sse" data-waypoints="975.5,275.8 975.5,240.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 231.5 344.2 L 231.5 380.0" stroke="black" stroke-width="1.2" data-arrow-id="a64_ctl_bus" data-waypoints="231.5,344.2 231.5,380.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 333.0 440.0 L 363.0 440.0 Q 373.0 440.0 373.0 450.0 L 373.0 531.8 Q 373.0 541.8 383.0 541.8 L 1257.0 541.8" stroke="black" stroke-width="1.2" data-arrow-id="a64_out_event" data-waypoints="333.0,440.0 373.0,440.0 373.0,541.8 1257.0,541.8" marker-end="url(#arrow)" fill="none" />
+<path d="M 554.5 535.8 L 554.5 500.0" stroke="black" stroke-width="1.2" data-arrow-id="a65_mech_telemetry" data-waypoints="554.5,535.8 554.5,500.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 656.0 440.0 L 1257.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="a65_out_stream" data-waypoints="656.0,440.0 1257.0,440.0" marker-end="url(#arrow)" fill="none" />
+<text x="231.5" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a61_ctl_sticky">Session WS sticky-fallback flag</text>
+<text x="548.5" y="256.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a62_mech_transport">transport-ws.ts upgrade (WS</text>
+<text x="560.5" y="256.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a62_mech_transport">BETA HEADER) / fetch POST</text>
+<text x="975.5" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a63_ctl_errors">wrappedwebsocket錯誤事件 / HTTP 狀態 classifier (error.ts)</text>
+<text x="969.5" y="256.0" font-size="11" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a63_mech_sse">AI-SDK SSE consumer</text>
+<text x="981.5" y="256.0" font-size="11" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a63_mech_sse">(uniform across HTTP/WS)</text>
+<text x="231.5" y="338.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a64_ctl_bus">Bus 事件 通道</text>
+<text x="548.5" y="516.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a65_mech_telemetry">輪替3d 配額 tracker;</text>
+<text x="560.5" y="516.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a65_mech_telemetry">[WS-RATE-LIMITS] logger</text>
+<text x="393.0" y="180.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a61_to_a62"><tspan x="393.0" dy="0">Transport</tspan><tspan x="393.0" dy="16.0">choice (WS</tspan><tspan x="393.0" dy="16.0">或 HTTP)</tspan></text>
+<text x="765.0" y="172.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a62_to_a63" >合成 回應 (文字/事件-串流)</text>
+<text x="554.5" y="308.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a63_to_a64" >延續-invalidated marker / 4xx-5xx</text>
+<text x="554.5" y="348.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a63_to_a65" >Completion frames (usage, ratelimits)</text>
 <text x="-14.0" y="171.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a61_in_payload">Transformed</text>
 <text x="-14.0" y="197.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a61_in_payload">payload + headers</text>
-<text x="1234.0" y="545.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a64_out_event">ContinuationInvalidated bus event + cache eviction</text>
-<text x="1234.0" y="431.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a65_out_stream">Streamed AI-SDK</text>
-<text x="1234.0" y="457.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a65_out_stream">output + telemetry</text>
+<text x="1261.0" y="532.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a64_out_event">延續invalidated bus</text>
+<text x="1261.0" y="558.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a64_out_event">事件 + 快取 eviction</text>
+<text x="1261.0" y="431.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a65_out_stream">Streamed AI-SDK</text>
+<text x="1261.0" y="457.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a65_out_stream">輸出 + telemetry</text>
 </svg>

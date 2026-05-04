@@ -259,12 +259,31 @@ export function Markdown(
 
   let copySetupTimer: ReturnType<typeof setTimeout> | undefined
   let copyCleanup: (() => void) | undefined
+  let fileviewClickCleanup: (() => void) | undefined
 
   createEffect(() => {
     const container = root()
     const content = html()
     if (!container) return
     if (isServer) return
+
+    if (!fileviewClickCleanup) {
+      const handler = (event: MouseEvent) => {
+        const target = (event.target as HTMLElement | null)?.closest<HTMLElement>("[data-fileview-path]")
+        if (!target) return
+        const path = target.getAttribute("data-fileview-path")
+        if (!path) return
+        event.preventDefault()
+        const line = target.getAttribute("data-fileview-line")
+        const column = target.getAttribute("data-fileview-column")
+        const detail: { path: string; line?: number; column?: number } = { path }
+        if (line) detail.line = Number(line)
+        if (column) detail.column = Number(column)
+        window.dispatchEvent(new CustomEvent("opencode:open-file", { detail }))
+      }
+      container.addEventListener("click", handler)
+      fileviewClickCleanup = () => container.removeEventListener("click", handler)
+    }
 
     if (!content) {
       container.innerHTML = ""
@@ -299,6 +318,7 @@ export function Markdown(
   onCleanup(() => {
     if (copySetupTimer) clearTimeout(copySetupTimer)
     if (copyCleanup) copyCleanup()
+    if (fileviewClickCleanup) fileviewClickCleanup()
   })
 
   return (

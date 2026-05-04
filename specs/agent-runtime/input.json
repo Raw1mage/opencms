@@ -1,0 +1,79 @@
+[
+  {
+    "StepNumber": 70,
+    "StepType": "initial",
+    "StepAction": "queue_job_and_return_stub_result",
+    "ModuleRef": "A31",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [
+      73
+    ],
+    "LinkOutputNumber": [
+      71
+    ],
+    "Condition": [
+      "job_registered_jobid"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 71,
+    "StepType": "normal",
+    "StepAction": "tick_proc_scan_watchdog",
+    "ModuleRef": "A32",
+    "LinkInputType": [],
+    "LinkOutputType": "divergence_or",
+    "LinkInputNumber": [
+      70
+    ],
+    "LinkOutputNumber": [
+      72,
+      73
+    ],
+    "Condition": [
+      "disk_terminal || worker_dead || silent_kill",
+      "still_running"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 72,
+    "StepType": "normal",
+    "StepAction": "emit_task_completed_and_append_pending_notice",
+    "ModuleRef": "A34",
+    "LinkInputType": [],
+    "LinkOutputType": "convergence_or",
+    "LinkInputNumber": [
+      71
+    ],
+    "LinkOutputNumber": [
+      73
+    ],
+    "Condition": [
+      "pendingSubagentNotices_appended"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 73,
+    "StepType": "normal",
+    "StepAction": "idle_until_next_parent_assemble",
+    "ModuleRef": "A36",
+    "LinkInputType": [
+      "convergence_or"
+    ],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [
+      71,
+      72
+    ],
+    "LinkOutputNumber": [
+      70
+    ],
+    "Condition": [
+      "1"
+    ],
+    "SubGrafcet": []
+  }
+]

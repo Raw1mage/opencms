@@ -1,5 +1,5 @@
 {
-  "diagram_title": "Compact Session Context",
+  "diagram_title": "Compact Session 上下文",
   "node_reference": "A0",
   "activities": [
     {
@@ -15,15 +15,15 @@
           },
           {
             "id": "A12",
-            "title": "Detect Manual Compaction Request"
+            "title": "Detect Manual 壓縮 請求"
           },
           {
             "id": "A13",
-            "title": "Detect Continuation Invalidation"
+            "title": "Detect 延續 Invalidation"
           },
           {
             "id": "A14",
-            "title": "Detect Identity Drift"
+            "title": "Detect 身分 Drift"
           },
           {
             "id": "A15",
@@ -31,7 +31,7 @@
           },
           {
             "id": "A16",
-            "title": "Diagnose Cache Miss Kind"
+            "title": "Diagnose 快取 Miss Kind"
           }
         ],
         "arrows": [
@@ -63,31 +63,31 @@
             "id": "a1_in_compact_req",
             "source": "EXTERNAL",
             "target": "A12:input",
-            "label": "Compaction Request Part"
+            "label": "壓縮 請求 Part"
           },
           {
             "id": "a1_out_manual",
             "source": "A12:output",
             "target": "A13:input",
-            "label": "Manual Or Overflow Tag"
+            "label": "Manual 或 Overflow Tag"
           },
           {
             "id": "a1_in_invalidated",
             "source": "EXTERNAL",
             "target": "A13:input",
-            "label": "ContinuationInvalidatedAt Timestamp"
+            "label": "延續invalidated於 Timestamp"
           },
           {
             "id": "a1_out_ci",
             "source": "A13:output",
             "target": "A14:input",
-            "label": "Continuation Invalidated Tag"
+            "label": "延續 Invalidated Tag"
           },
           {
             "id": "a1_in_pinned",
             "source": "EXTERNAL",
             "target": "A14:input",
-            "label": "Pinned Provider And Account"
+            "label": "已釘選 Provider 與 帳號"
           },
           {
             "id": "a1_out_drift",
@@ -99,25 +99,25 @@
             "id": "a1_in_tokens",
             "source": "EXTERNAL",
             "target": "A15:input",
-            "label": "Last Assistant Token Counts"
+            "label": "Last 助手 Token Counts"
           },
           {
             "id": "a1_ctrl_tweaks",
             "source": "EXTERNAL",
             "target": "A15:control",
-            "label": "Compaction Tweaks Cfg"
+            "label": "壓縮 Tweaks Cfg"
           },
           {
             "id": "a1_out_overflow",
             "source": "A15:output",
             "target": "A16:input",
-            "label": "Overflow Or Stall Tag"
+            "label": "Overflow 或 Stall Tag"
           },
           {
             "id": "a1_in_hashes",
             "source": "EXTERNAL",
             "target": "A16:input",
-            "label": "Recent System Block Hashes"
+            "label": "Recent System 區塊 Hashes"
           },
           {
             "id": "a1_out_observed",
@@ -130,26 +130,26 @@
     },
     {
       "id": "A2",
-      "title": "Select Compaction Kind Chain",
+      "title": "Select 壓縮 Kind Chain",
       "decomposition": {
-        "diagram_title": "Select Compaction Kind Chain",
+        "diagram_title": "Select 壓縮 Kind Chain",
         "node_reference": "A2",
         "activities": [
           {
             "id": "A21",
-            "title": "Look Up Base Chain Per Observed"
+            "title": "Look Up Base Chain 依 Observed"
           },
           {
             "id": "A22",
-            "title": "Resolve Provider Aware Reorder"
+            "title": "解析 Provider Aware Reorder"
           },
           {
             "id": "A23",
-            "title": "Apply Manual Rich Override"
+            "title": "Apply Manual 豐富 Override"
           },
           {
             "id": "A24",
-            "title": "Emit Kind Chain Telemetry"
+            "title": "發出 Kind Chain Telemetry"
           }
         ],
         "arrows": [
@@ -163,7 +163,7 @@
             "id": "a2_ctrl_table",
             "source": "EXTERNAL",
             "target": "A21:control",
-            "label": "KIND_CHAIN Table"
+            "label": "KIND CHAIN 表"
           },
           {
             "id": "a2_out_base",
@@ -175,19 +175,19 @@
             "id": "a2_in_model",
             "source": "EXTERNAL",
             "target": "A22:input",
-            "label": "Active Model And Subscription Flag"
+            "label": "Active 模型 與 Subscription Flag"
           },
           {
             "id": "a2_ctrl_threshold",
             "source": "EXTERNAL",
             "target": "A22:control",
-            "label": "CodexServerPriorityRatio"
+            "label": "codex伺服器優先序ratio"
           },
           {
             "id": "a2_out_resolved",
             "source": "A22:output",
             "target": "A23:input",
-            "label": "Resolved Chain"
+            "label": "已解析 Chain"
           },
           {
             "id": "a2_in_intent",
@@ -205,7 +205,7 @@
             "id": "a2_out_chain",
             "source": "A24:output",
             "target": "EXTERNAL",
-            "label": "Kind Chain To Executor"
+            "label": "Kind Chain 到 Executor"
           }
         ]
       }
@@ -227,7 +227,7 @@
           },
           {
             "id": "A33",
-            "title": "Try Low Cost Server Kind"
+            "title": "Try Low Cost 伺服器 Kind"
           },
           {
             "id": "A34",
@@ -235,11 +235,11 @@
           },
           {
             "id": "A35",
-            "title": "Escalate Truncated Local Result"
+            "title": "Escalate Truncated Local 結果"
           },
           {
             "id": "A36",
-            "title": "Abort On Chain Exhaustion"
+            "title": "Abort 在 Chain Exhaustion"
           }
         ],
         "arrows": [
@@ -253,19 +253,19 @@
             "id": "a3_in_memory",
             "source": "EXTERNAL",
             "target": "A31:input",
-            "label": "Turn Summary Store"
+            "label": "回合 Summary Store"
           },
           {
             "id": "a3_ctrl_target",
             "source": "EXTERNAL",
             "target": "A31:control",
-            "label": "Target Prompt Tokens"
+            "label": "目標 提示 Tokens"
           },
           {
             "id": "a3_out_narrative",
             "source": "A31:output",
             "target": "A35:input",
-            "label": "Narrative Attempt Result"
+            "label": "Narrative Attempt 結果"
           },
           {
             "id": "a3_in_tail",
@@ -277,43 +277,43 @@
             "id": "a3_out_replay",
             "source": "A32:output",
             "target": "A35:input",
-            "label": "Replay Tail Attempt Result"
+            "label": "Replay Tail Attempt 結果"
           },
           {
             "id": "a3_in_codex",
             "source": "EXTERNAL",
             "target": "A33:input",
-            "label": "Codex Previous Response Id"
+            "label": "Codex Previous 回應 Id"
           },
           {
             "id": "a3_out_lowcost",
             "source": "A33:output",
             "target": "A35:input",
-            "label": "Low Cost Server Attempt Result"
+            "label": "Low Cost 伺服器 Attempt 結果"
           },
           {
             "id": "a3_in_llm_input",
             "source": "EXTERNAL",
             "target": "A34:input",
-            "label": "Subagent Prompt Bundle"
+            "label": "子代理 提示 Bundle"
           },
           {
             "id": "a3_out_llm",
             "source": "A34:output",
             "target": "A35:input",
-            "label": "LLM Agent Attempt Result"
+            "label": "LLM Agent Attempt 結果"
           },
           {
             "id": "a3_out_winner",
             "source": "A35:output",
             "target": "EXTERNAL",
-            "label": "Summary Text Or Inline Anchor"
+            "label": "Summary 文字 或 Inline Anchor"
           },
           {
             "id": "a3_out_abort",
             "source": "A36:output",
             "target": "EXTERNAL",
-            "label": "Stop Result"
+            "label": "Stop 結果"
           },
           {
             "id": "a3_in_exhausted",
@@ -330,30 +330,30 @@
     },
     {
       "id": "A5",
-      "title": "Inject Synthetic Continue"
+      "title": "Inject 合成 繼續"
     },
     {
       "id": "A6",
-      "title": "Apply Cache Layout And Static System",
+      "title": "Apply 快取 Layout 與 Static System",
       "decomposition": {
-        "diagram_title": "Apply Cache Layout And Static System",
+        "diagram_title": "Apply 快取 Layout 與 Static System",
         "node_reference": "A6",
         "activities": [
           {
             "id": "A61",
-            "title": "Build Static System Block"
+            "title": "建置 Static System 區塊"
           },
           {
             "id": "A62",
-            "title": "Emit Context Preface Parts"
+            "title": "發出 上下文 Preface Parts"
           },
           {
             "id": "A63",
-            "title": "Place Cache Breakpoints"
+            "title": "Place 快取 Breakpoints"
           },
           {
             "id": "A64",
-            "title": "Record System Block Hash"
+            "title": "記錄 System 區塊 Hash"
           }
         ],
         "arrows": [
@@ -367,19 +367,19 @@
             "id": "a6_out_block",
             "source": "A61:output",
             "target": "A63:input",
-            "label": "Static System Block"
+            "label": "Static System 區塊"
           },
           {
             "id": "a6_in_dynamic",
             "source": "EXTERNAL",
             "target": "A62:input",
-            "label": "Cwd Skills Date Routing Inputs"
+            "label": "Cwd 技能 Date Routing Inputs"
           },
           {
             "id": "a6_out_preface",
             "source": "A62:output",
             "target": "A63:input",
-            "label": "Context Preface Parts"
+            "label": "上下文 Preface Parts"
           },
           {
             "id": "a6_ctrl_provider",
@@ -391,26 +391,26 @@
             "id": "a6_out_msgs",
             "source": "A63:output",
             "target": "EXTERNAL",
-            "label": "Messages With BP1 To BP4"
+            "label": "Messages 使用 BP1 到 BP4"
           },
           {
             "id": "a6_out_hash_in",
             "source": "A61:output",
             "target": "A64:input",
-            "label": "Static Block Bytes"
+            "label": "Static 區塊 位元組"
           },
           {
             "id": "a6_out_hash",
             "source": "A64:output",
             "target": "EXTERNAL",
-            "label": "Recorded System Block Hash"
+            "label": "Recorded System 區塊 Hash"
           }
         ]
       }
     },
     {
       "id": "A7",
-      "title": "Record Telemetry And Post Compaction"
+      "title": "記錄 Telemetry 與 Post 壓縮"
     }
   ],
   "arrows": [
@@ -418,19 +418,19 @@
       "id": "m_in_session",
       "source": "EXTERNAL",
       "target": "A1:input",
-      "label": "Session State Snapshot"
+      "label": "Session 狀態 Snapshot"
     },
     {
       "id": "m_in_step",
       "source": "EXTERNAL",
       "target": "A1:input",
-      "label": "Runloop Step Counter"
+      "label": "Runloop 步驟 Counter"
     },
     {
       "id": "m_ctrl_tweaks",
       "source": "EXTERNAL",
       "target": "A1:control",
-      "label": "Tweaks Cfg And AGENTS Md"
+      "label": "Tweaks Cfg 與 AGENTS Md"
     },
     {
       "id": "m_a1_a2",
@@ -442,25 +442,25 @@
       "id": "m_ctrl_a2",
       "source": "EXTERNAL",
       "target": "A2:control",
-      "label": "Active Provider And Subscription"
+      "label": "Active Provider 與 Subscription"
     },
     {
       "id": "m_a2_a3",
       "source": "A2:output",
       "target": "A3:input",
-      "label": "Resolved Kind Chain"
+      "label": "已解析 Kind Chain"
     },
     {
       "id": "m_in_memory",
       "source": "EXTERNAL",
       "target": "A3:input",
-      "label": "Memory And Shared Context"
+      "label": "Memory 與 Shared 上下文"
     },
     {
       "id": "m_a3_a4",
       "source": "A3:output",
       "target": "A4:input",
-      "label": "Summary Text"
+      "label": "Summary 文字"
     },
     {
       "id": "m_ctrl_a4",
@@ -472,49 +472,49 @@
       "id": "m_a4_a5",
       "source": "A4:output",
       "target": "A5:input",
-      "label": "Anchor Message Id"
+      "label": "Anchor 訊息 Id"
     },
     {
       "id": "m_ctrl_a5",
       "source": "EXTERNAL",
       "target": "A5:control",
-      "label": "INJECT_CONTINUE Table"
+      "label": "INJECT CONTINUE 表"
     },
     {
       "id": "m_a5_a6",
       "source": "A5:output",
       "target": "A6:input",
-      "label": "Updated Message Stream"
+      "label": "Updated 訊息 串流"
     },
     {
       "id": "m_a4_a6",
       "source": "A4:output",
       "target": "A6:input",
-      "label": "Anchor With Skill Snapshot"
+      "label": "Anchor 使用 技能 Snapshot"
     },
     {
       "id": "m_a6_out",
       "source": "A6:output",
       "target": "EXTERNAL",
-      "label": "Cache Optimized Prompt"
+      "label": "快取 Optimized 提示"
     },
     {
       "id": "m_a3_a7",
       "source": "A3:output",
       "target": "A7:input",
-      "label": "Per Kind Attempt Outcomes"
+      "label": "依 Kind Attempt Outcomes"
     },
     {
       "id": "m_a4_a7",
       "source": "A4:output",
       "target": "A7:input",
-      "label": "Anchor Created At"
+      "label": "Anchor Created 於"
     },
     {
       "id": "m_a7_out",
       "source": "A7:output",
       "target": "EXTERNAL",
-      "label": "Telemetry And Cooldown Signal"
+      "label": "Telemetry 與 Cooldown Signal"
     },
     {
       "id": "m_a3_stop",

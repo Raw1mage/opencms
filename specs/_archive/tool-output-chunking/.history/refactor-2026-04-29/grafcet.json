@@ -4,7 +4,7 @@
     "name": "ToolDispatch",
     "moduleRef": "A1",
     "type": "initial",
-    "description": "Tool framework receives a tool call and populates ctx.outputBudget",
+    "description": "工具 framework receives 工具 呼叫 與 populates ctx.輸出budget",
     "actions": [
       "Read active model.limit.context",
       "Read tweaks.cfg tool_output_budget_default and per-tool override",
@@ -16,7 +16,7 @@
     "id": "T1",
     "name": "ProduceNaturalOutput",
     "moduleRef": "A11",
-    "description": "Tool runs its read/exec/fetch and produces the would-be output string",
+    "description": "工具 runs its read/exec/fetch 與 produces would-是 輸出 string",
     "actions": [
       "Run primary tool work",
       "Estimate token count of natural output via estimateTokenCount"
@@ -26,18 +26,27 @@
     "id": "T2",
     "name": "DecideBudgetVerdict",
     "moduleRef": "A12",
-    "description": "Compare natural-output token estimate against ctx.outputBudget",
+    "description": "Compare natural-輸出 token estimate against ctx.輸出budget",
     "transitions": [
-      { "guard": "estimate <= budget", "next": "T3" },
-      { "guard": "estimate > budget AND tool is sliceable", "next": "T4" },
-      { "guard": "estimate > budget AND tool refuses to slice (apply_patch)", "next": "T7" }
+      {
+        "guard": "estimate <= budget",
+        "next": "T3"
+      },
+      {
+        "guard": "estimate > budget AND tool is sliceable",
+        "next": "T4"
+      },
+      {
+        "guard": "estimate > budget AND tool refuses to slice (apply_patch)",
+        "next": "T7"
+      }
     ]
   },
   {
     "id": "T3",
     "name": "PassThrough",
     "moduleRef": "A12",
-    "description": "Output fits; return verbatim, no hint appended",
+    "description": "輸出 fits; 返回 verbatim, 無 hint appended",
     "actions": [
       "Return natural output string unchanged"
     ],
@@ -47,7 +56,7 @@
     "id": "T4",
     "name": "SliceOnSemanticBoundary",
     "moduleRef": "A13",
-    "description": "Cut on tool-natural unit (line/match/message/paragraph)",
+    "description": "Cut 在 工具-natural unit (line/比對/訊息/paragraph)",
     "actions": [
       "Choose semantic unit per tool (read=line, grep=match, read_subsession=message, etc.)",
       "Greedily accumulate units until token budget reached",
@@ -58,7 +67,7 @@
     "id": "T5",
     "name": "FormatTruncationHint",
     "moduleRef": "A14",
-    "description": "Append plain-language hint with literal anchor token",
+    "description": "追加 plain-language hint 使用 literal anchor token",
     "actions": [
       "Compute fraction (e.g. lines 1-1500 of 8421)",
       "Compose exact arg adjustment text (offset=1500 / msgIdx_from=200 / narrow pattern)",
@@ -70,7 +79,7 @@
     "id": "T7",
     "name": "RaiseToolError",
     "moduleRef": "A13",
-    "description": "Tool cannot produce a useful slice (e.g. apply_patch diff is atomic)",
+    "description": "工具 cannot produce useful slice (e.g. applypatch diff 是 atomic)",
     "actions": [
       "Raise structured error with tool name, requested size, budget"
     ],
@@ -81,14 +90,14 @@
     "name": "ToolReturn",
     "moduleRef": "A1",
     "type": "final",
-    "description": "Tool result string forwarded to runtime; runloop appends to message stream"
+    "description": "工具 結果 string forwarded 到 runtime; runloop appends 到 訊息 串流"
   },
   {
     "id": "C0",
     "name": "CompactionEntry",
     "moduleRef": "A2",
     "type": "initial",
-    "description": "SessionCompaction.run({sessionID, observed, step}) called by runloop",
+    "description": "Session壓縮.執行({SessionID, observed, 步驟}) called 由 runloop",
     "actions": [
       "Bind KIND_CHAIN = [narrative, replay-tail, low-cost-server, llm-agent, chunked-digest]",
       "Set kindIndex = 0"
@@ -99,28 +108,43 @@
     "id": "C1",
     "name": "PickNextKind",
     "moduleRef": "A21",
-    "description": "Walk to the next kind in KIND_CHAIN",
+    "description": "Walk 到 下一個 kind 在 KIND CHAIN",
     "transitions": [
-      { "guard": "kindIndex < KIND_CHAIN.length", "next": "C2" },
-      { "guard": "kindIndex >= KIND_CHAIN.length", "next": "C9" }
+      {
+        "guard": "kindIndex < KIND_CHAIN.length",
+        "next": "C2"
+      },
+      {
+        "guard": "kindIndex >= KIND_CHAIN.length",
+        "next": "C9"
+      }
     ]
   },
   {
     "id": "C2",
     "name": "AttemptKind",
     "moduleRef": "A21",
-    "description": "Invoke the kind's executor; for chunked-digest enter dedicated subgrafcet",
+    "description": "Invoke kind's executor; 供 chunked-digest enter dedicated subgrafcet",
     "transitions": [
-      { "guard": "kind == chunked-digest", "next": "D0" },
-      { "guard": "kind != chunked-digest AND executor returned summary", "next": "C3" },
-      { "guard": "executor failed structurally", "next": "C8" }
+      {
+        "guard": "kind == chunked-digest",
+        "next": "D0"
+      },
+      {
+        "guard": "kind != chunked-digest AND executor returned summary",
+        "next": "C3"
+      },
+      {
+        "guard": "executor failed structurally",
+        "next": "C8"
+      }
     ]
   },
   {
     "id": "C3",
     "name": "WriteAnchorFromKind",
     "moduleRef": "A21",
-    "description": "Append assistant message with summary===true holding the digest",
+    "description": "追加 助手 訊息 使用 summary===true holding digest",
     "actions": [
       "Append Anchor message to stream",
       "Record kind metadata"
@@ -131,15 +155,24 @@
     "id": "C4",
     "name": "VerifyAfterCompact",
     "moduleRef": "A22",
-    "description": "Re-estimate prompt size against per-request budget",
+    "description": "Re-estimate 提示 size against 依-請求 budget",
     "actions": [
       "Call estimateMsgsTokenCount(currentMsgs)",
       "Compare against model per-request budget"
     ],
     "transitions": [
-      { "guard": "estimate <= budget", "next": "C5" },
-      { "guard": "estimate > budget AND verify_after_compact enabled", "next": "C8" },
-      { "guard": "estimate > budget AND verify_after_compact disabled", "next": "C5" }
+      {
+        "guard": "estimate <= budget",
+        "next": "C5"
+      },
+      {
+        "guard": "estimate > budget AND verify_after_compact enabled",
+        "next": "C8"
+      },
+      {
+        "guard": "estimate > budget AND verify_after_compact disabled",
+        "next": "C5"
+      }
     ]
   },
   {
@@ -147,7 +180,7 @@
     "name": "FinaliseSuccess",
     "moduleRef": "A2",
     "type": "final",
-    "description": "Compaction succeeded and verified; runloop continues",
+    "description": "壓縮 succeeded 與 verified; runloop continues",
     "actions": [
       "Emit telemetry: compaction.succeeded kind=K verified=true",
       "Return success to runloop"
@@ -157,7 +190,7 @@
     "id": "C8",
     "name": "EscalateToNextKind",
     "moduleRef": "A21",
-    "description": "Current kind failed verify-after-compact or structurally; advance",
+    "description": "Current kind failed verify-after-compact 或 structurally; advance",
     "actions": [
       "Emit telemetry: compaction.kind_failed kind=K reason=verified-too-large|structural",
       "kindIndex += 1"
@@ -169,7 +202,7 @@
     "name": "TerminalUnrecoverable",
     "moduleRef": "A24",
     "type": "final",
-    "description": "All kinds exhausted; raise structured error to runloop",
+    "description": "All kinds exhausted; raise structured 錯誤 到 runloop",
     "actions": [
       "Raise E_OVERFLOW_UNRECOVERABLE",
       "Include hint: an individual round exceeds digest per-chunk floor"
@@ -179,7 +212,7 @@
     "id": "D0",
     "name": "ChunkedDigestStart",
     "moduleRef": "A23",
-    "description": "Enter chunked-digest path",
+    "description": "Enter chunked-digest 路徑",
     "actions": [
       "Identify system prompt and trailing unfinished round (excluded)",
       "Identify closed rounds (user msg + assistant with all tool_calls resolved)"
@@ -190,21 +223,27 @@
     "id": "D1",
     "name": "SplitIntoChunks",
     "moduleRef": "A231",
-    "description": "Group rounds into chunks of ~chunked_digest_chunk_target_tokens",
+    "description": "Group rounds 進入 分塊 的 ~chunkeddigest分塊目標tokens",
     "actions": [
       "Walk rounds, accumulate until chunk ~= target tokens, emit chunk, repeat",
       "Compute N = number of chunks"
     ],
     "transitions": [
-      { "guard": "N <= chunked_digest_max_chunks", "next": "D2" },
-      { "guard": "N > chunked_digest_max_chunks", "next": "D9" }
+      {
+        "guard": "N <= chunked_digest_max_chunks",
+        "next": "D2"
+      },
+      {
+        "guard": "N > chunked_digest_max_chunks",
+        "next": "D9"
+      }
     ]
   },
   {
     "id": "D2",
     "name": "DigestChunkLoop",
     "moduleRef": "A232",
-    "description": "For k = 1..N, request digest of chunk k under framing prompt",
+    "description": "供 k = 1..N, 請求 digest 的 分塊 k under framing 提示",
     "actions": [
       "Build [digest_so_far, chunk_k, framing_prompt]",
       "Call Digesting LLM",
@@ -216,18 +255,27 @@
     "id": "D3",
     "name": "ValidateDigestResponse",
     "moduleRef": "A232",
-    "description": "Check response shape and absence of tool_calls",
+    "description": "Check 回應 shape 與 absence 的 工具calls",
     "transitions": [
-      { "guard": "response is valid JSON digest, no tool_calls", "next": "D4" },
-      { "guard": "response contains tool_call AND retryCount < 2", "next": "D31" },
-      { "guard": "response contains tool_call AND retryCount >= 2", "next": "D8" }
+      {
+        "guard": "response is valid JSON digest, no tool_calls",
+        "next": "D4"
+      },
+      {
+        "guard": "response contains tool_call AND retryCount < 2",
+        "next": "D31"
+      },
+      {
+        "guard": "response contains tool_call AND retryCount >= 2",
+        "next": "D8"
+      }
     ]
   },
   {
     "id": "D31",
     "name": "RetryWithStricterFraming",
     "moduleRef": "A232",
-    "description": "Re-issue chunk k with stricter framing prompt",
+    "description": "Re-issue 分塊 k 使用 stricter framing 提示",
     "actions": [
       "retryCount += 1",
       "Build with stricter framing variant"
@@ -238,21 +286,27 @@
     "id": "D4",
     "name": "MergeDigest",
     "moduleRef": "A232",
-    "description": "Merge digest_chunk_k into digest_so_far",
+    "description": "合併 digest分塊k 進入 digestsofar",
     "actions": [
       "digest_so_far := merge(digest_so_far, digest_chunk_k)",
       "k += 1"
     ],
     "transitions": [
-      { "guard": "k <= N", "next": "D2" },
-      { "guard": "k > N", "next": "D5" }
+      {
+        "guard": "k <= N",
+        "next": "D2"
+      },
+      {
+        "guard": "k > N",
+        "next": "D5"
+      }
     ]
   },
   {
     "id": "D5",
     "name": "FinaliseDigestAnchor",
     "moduleRef": "A233",
-    "description": "Write merged digest as Anchor; re-attach trailing unfinished round",
+    "description": "Write merged digest 作為 Anchor; re-attach trailing unfinished round",
     "actions": [
       "Append assistant message with summary===true holding merged digest",
       "Re-append original triggering user request after Anchor"
@@ -264,7 +318,7 @@
     "name": "RaiseDigestToolCallError",
     "moduleRef": "A23",
     "type": "final",
-    "description": "Digesting LLM persistently emitted tool_calls despite framing",
+    "description": "Digesting LLM persistently emitted 工具calls despite framing",
     "actions": [
       "Emit telemetry: chunked_digest.tool_call_failure",
       "Raise E_DIGEST_TOOL_CALL"
@@ -275,7 +329,7 @@
     "name": "RaiseDigestTooLarge",
     "moduleRef": "A23",
     "type": "final",
-    "description": "Round set exceeds chunked_digest_max_chunks even at target chunk size",
+    "description": "Round set exceeds chunkeddigestmax分塊 even 於 目標 分塊 size",
     "actions": [
       "Emit telemetry: chunked_digest.too_large",
       "Raise E_DIGEST_TOO_LARGE"

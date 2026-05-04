@@ -1,7 +1,7 @@
 {
-  "diagram_title": "Bound tool outputs and digest oversized history",
+  "diagram_title": "Bound 工具 outputs 與 digest oversized history",
   "node_reference": "A0",
-  "description": "Prevent any single tool result or accumulated history from exceeding the active model's per-request budget. Tool self-bounding caps individual results; chunked-digest compaction handles multi-round accumulated history; verify-after-compact ensures every kind's success actually reduces the prompt below budget.",
+  "description": "Prevent any single 工具 結果 或 accumulated history 來自 exceeding active 模型's 依-請求 budget. 工具 self-bounding caps individual 結果; chunked-digest 壓縮 handles multi-round accumulated history; verify-after-compact ensures every kind's success actually reduces 提示 below budget.",
   "icoms": {
     "inputs": [
       "tool invocation request",
@@ -38,12 +38,25 @@
       "id": "A1",
       "name": "Bound Tool Output",
       "parent": "A0",
-      "description": "Variable-size tools enforce ctx.outputBudget on their own output before returning to the runtime; truncation hint is appended in plain language so AI knows what tool args to adjust for other slices.",
+      "description": "Variable-size tools enforce ctx.輸出budget 在 their own 輸出 before returning 到 runtime; truncation hint 是 appended 在 plain language so AI knows what 工具 args 到 adjust 供 其他 slices.",
       "icoms": {
-        "inputs": ["tool args", "external resource (file/stdout/HTTP body/subsession transcript)"],
-        "controls": ["ctx.outputBudget", "DD-3 hint anchor token", "DD-4 semantic boundary per tool"],
-        "outputs": ["bounded result string", "trailing truncation hint when sliced"],
-        "mechanisms": ["per-tool slicer", "estimateTokenCount"]
+        "inputs": [
+          "tool args",
+          "external resource (file/stdout/HTTP body/subsession transcript)"
+        ],
+        "controls": [
+          "ctx.outputBudget",
+          "DD-3 hint anchor token",
+          "DD-4 semantic boundary per tool"
+        ],
+        "outputs": [
+          "bounded result string",
+          "trailing truncation hint when sliced"
+        ],
+        "mechanisms": [
+          "per-tool slicer",
+          "estimateTokenCount"
+        ]
       },
       "decomposition": "A1"
     },
@@ -51,12 +64,28 @@
       "id": "A2",
       "name": "Compact Session With Verification",
       "parent": "A0",
-      "description": "Extended SessionCompaction.run: walks KIND_CHAIN, runs verify-after-compact per kind, escalates on still-too-large, falls through to chunked-digest as terminal kind.",
+      "description": "Extended Session壓縮.執行: walks KIND CHAIN, runs verify-after-compact 依 kind, escalates 在 still-too-large, falls through 到 chunked-digest 作為 終止 kind.",
       "icoms": {
-        "inputs": ["session state", "current message stream", "observed condition"],
-        "controls": ["DD-5 KIND_CHAIN ordering", "DD-9 verify lives inside run", "model per-request budget"],
-        "outputs": ["new Anchor", "E_OVERFLOW_UNRECOVERABLE on exhaustion", "kind-by-kind telemetry"],
-        "mechanisms": ["existing kind handlers", "tryChunkedDigest", "verifyAfterCompact"]
+        "inputs": [
+          "session state",
+          "current message stream",
+          "observed condition"
+        ],
+        "controls": [
+          "DD-5 KIND_CHAIN ordering",
+          "DD-9 verify lives inside run",
+          "model per-request budget"
+        ],
+        "outputs": [
+          "new Anchor",
+          "E_OVERFLOW_UNRECOVERABLE on exhaustion",
+          "kind-by-kind telemetry"
+        ],
+        "mechanisms": [
+          "existing kind handlers",
+          "tryChunkedDigest",
+          "verifyAfterCompact"
+        ]
       },
       "decomposition": "A2"
     },
@@ -64,12 +93,24 @@
       "id": "A3",
       "name": "Configure Output Budget Defaults",
       "parent": "A0",
-      "description": "Compute per-call ctx.outputBudget by reading active model context and tweaks.cfg overrides; supply to tool framework on every dispatch.",
+      "description": "Compute 依-呼叫 ctx.輸出budget 由 reading active 模型 上下文 與 tweaks.cfg overrides; supply 到 工具 framework 在 every 派發.",
       "icoms": {
-        "inputs": ["active model.limit.context", "tweaks.cfg keys", "tool name"],
-        "controls": ["DD-2 default formula", "DD-10 ratio-or-absolute parsing"],
-        "outputs": ["ctx.outputBudget number"],
-        "mechanisms": ["tweaks.cfg parser", "model registry"]
+        "inputs": [
+          "active model.limit.context",
+          "tweaks.cfg keys",
+          "tool name"
+        ],
+        "controls": [
+          "DD-2 default formula",
+          "DD-10 ratio-or-absolute parsing"
+        ],
+        "outputs": [
+          "ctx.outputBudget number"
+        ],
+        "mechanisms": [
+          "tweaks.cfg parser",
+          "model registry"
+        ]
       },
       "decomposition": null
     },
@@ -77,84 +118,162 @@
       "id": "A11",
       "name": "Estimate Natural Output Size",
       "parent": "A1",
-      "description": "Tool runs its read/exec/fetch as usual and estimates token count of the would-be output before serialising the response.",
+      "description": "工具 runs its read/exec/fetch 作為 usual 與 estimates token count 的 would-是 輸出 before serialising 回應.",
       "icoms": {
-        "inputs": ["tool args", "external resource"],
-        "controls": ["estimator stability"],
-        "outputs": ["natural output bytes/string", "estimated token count"],
-        "mechanisms": ["existing read/exec/fetch primitives", "estimateTokenCount"]
+        "inputs": [
+          "tool args",
+          "external resource"
+        ],
+        "controls": [
+          "estimator stability"
+        ],
+        "outputs": [
+          "natural output bytes/string",
+          "estimated token count"
+        ],
+        "mechanisms": [
+          "existing read/exec/fetch primitives",
+          "estimateTokenCount"
+        ]
       }
     },
     {
       "id": "A12",
       "name": "Decide Pass-Through Or Slice",
       "parent": "A1",
-      "description": "If estimated tokens ≤ ctx.outputBudget, pass through unchanged. Otherwise enter slice path.",
+      "description": "If estimated tokens ≤ ctx.輸出budget, pass through unchanged. Otherwise enter slice 路徑.",
       "icoms": {
-        "inputs": ["estimated token count", "ctx.outputBudget"],
-        "controls": ["DD-1 result shape unchanged"],
-        "outputs": ["decision (pass-through / slice)"],
-        "mechanisms": ["comparison"]
+        "inputs": [
+          "estimated token count",
+          "ctx.outputBudget"
+        ],
+        "controls": [
+          "DD-1 result shape unchanged"
+        ],
+        "outputs": [
+          "decision (pass-through / slice)"
+        ],
+        "mechanisms": [
+          "comparison"
+        ]
       }
     },
     {
       "id": "A13",
       "name": "Cut On Semantic Boundary",
       "parent": "A1",
-      "description": "Per-tool slicer cuts at line / paragraph / message / match boundary, never mid-token-mid-byte. apply_patch raises hard error rather than slice.",
+      "description": "依-工具 slicer cuts 於 line / paragraph / 訊息 / 比對 boundary, never mid-token-mid-byte. applypatch raises hard 錯誤 rather than slice.",
       "icoms": {
-        "inputs": ["natural output", "ctx.outputBudget"],
-        "controls": ["DD-4 per-tool semantic unit"],
-        "outputs": ["standalone-useful slice"],
-        "mechanisms": ["per-tool slicer (read=line, grep=match, etc.)"]
+        "inputs": [
+          "natural output",
+          "ctx.outputBudget"
+        ],
+        "controls": [
+          "DD-4 per-tool semantic unit"
+        ],
+        "outputs": [
+          "standalone-useful slice"
+        ],
+        "mechanisms": [
+          "per-tool slicer (read=line, grep=match, etc.)"
+        ]
       }
     },
     {
       "id": "A14",
       "name": "Append Truncation Hint",
       "parent": "A1",
-      "description": "Append plain-language hint with literal anchor token, fraction, exact arg adjustment.",
+      "description": "追加 plain-language hint 使用 literal anchor token, fraction, exact arg adjustment.",
       "icoms": {
-        "inputs": ["slice", "tool name", "fraction info", "tool args"],
-        "controls": ["DD-3 hint format and anchor token", "session locale"],
-        "outputs": ["final result string with trailing hint"],
-        "mechanisms": ["hint formatter"]
+        "inputs": [
+          "slice",
+          "tool name",
+          "fraction info",
+          "tool args"
+        ],
+        "controls": [
+          "DD-3 hint format and anchor token",
+          "session locale"
+        ],
+        "outputs": [
+          "final result string with trailing hint"
+        ],
+        "mechanisms": [
+          "hint formatter"
+        ]
       }
     },
     {
       "id": "A21",
       "name": "Walk KIND_CHAIN",
       "parent": "A2",
-      "description": "Iterate narrative → replay-tail → low-cost-server → llm-agent → chunked-digest, calling each kind handler in order.",
+      "description": "Iterate narrative → replay-tail → low-cost-伺服器 → LLM-agent → chunked-digest, calling each kind handler 在 order.",
       "icoms": {
-        "inputs": ["observed condition", "current message stream"],
-        "controls": ["DD-5 chain ordering", "cost-monotonicity"],
-        "outputs": ["per-kind result (success/failure)"],
-        "mechanisms": ["existing kind handlers", "tryChunkedDigest"]
+        "inputs": [
+          "observed condition",
+          "current message stream"
+        ],
+        "controls": [
+          "DD-5 chain ordering",
+          "cost-monotonicity"
+        ],
+        "outputs": [
+          "per-kind result (success/failure)"
+        ],
+        "mechanisms": [
+          "existing kind handlers",
+          "tryChunkedDigest"
+        ]
       }
     },
     {
       "id": "A22",
       "name": "Verify After Compact",
       "parent": "A2",
-      "description": "After each kind reports success, re-estimate resulting prompt size; treat as failed if still over budget.",
+      "description": "After each kind reports success, re-estimate resulting 提示 size; 視為 作為 failed if still over budget.",
       "icoms": {
-        "inputs": ["resulting message stream", "model per-request budget"],
-        "controls": ["DD-9 verify inside run", "tweaks.verify_after_compact toggle"],
-        "outputs": ["verified-success or escalation signal"],
-        "mechanisms": ["estimateMsgsTokenCount"]
+        "inputs": [
+          "resulting message stream",
+          "model per-request budget"
+        ],
+        "controls": [
+          "DD-9 verify inside run",
+          "tweaks.verify_after_compact toggle"
+        ],
+        "outputs": [
+          "verified-success or escalation signal"
+        ],
+        "mechanisms": [
+          "estimateMsgsTokenCount"
+        ]
       }
     },
     {
       "id": "A23",
       "name": "Run Chunked-Digest",
       "parent": "A2",
-      "description": "Split history at round boundaries, walk model through chunk-by-chunk digestion under framing prompt that re-roles AI as digester, finalise as Anchor.",
+      "description": "Split history 於 round boundaries, walk 模型 through 分塊-由-分塊 digestion under framing 提示 that re-roles AI 作為 digester, finalise 作為 Anchor.",
       "icoms": {
-        "inputs": ["round-aligned history", "framing prompt template"],
-        "controls": ["DD-6 round boundary only", "DD-7 framing forbids tool calls", "DD-8 normal Anchor output", "chunked_digest_max_chunks"],
-        "outputs": ["merged digest Anchor", "E_DIGEST_TOOL_CALL or E_DIGEST_TOO_LARGE on failure"],
-        "mechanisms": ["round splitter", "Digesting LLM", "framing prompt", "Anchor writer"]
+        "inputs": [
+          "round-aligned history",
+          "framing prompt template"
+        ],
+        "controls": [
+          "DD-6 round boundary only",
+          "DD-7 framing forbids tool calls",
+          "DD-8 normal Anchor output",
+          "chunked_digest_max_chunks"
+        ],
+        "outputs": [
+          "merged digest Anchor",
+          "E_DIGEST_TOOL_CALL or E_DIGEST_TOO_LARGE on failure"
+        ],
+        "mechanisms": [
+          "round splitter",
+          "Digesting LLM",
+          "framing prompt",
+          "Anchor writer"
+        ]
       },
       "decomposition": "A23"
     },
@@ -162,48 +281,89 @@
       "id": "A24",
       "name": "Surface Terminal Error",
       "parent": "A2",
-      "description": "When all kinds (including chunked-digest) fail verify-after-compact, raise E_OVERFLOW_UNRECOVERABLE up to runloop with hint that an individual round exceeds digest floor.",
+      "description": "When all kinds (including chunked-digest) fail verify-after-compact, raise EOVERFLOW UNRECOVERABLE up 到 runloop 使用 hint that individual round exceeds digest floor.",
       "icoms": {
-        "inputs": ["chain-exhausted state"],
-        "controls": ["DD-9 bounded by chain length", "AGENTS.md rule 1"],
-        "outputs": ["E_OVERFLOW_UNRECOVERABLE error"],
-        "mechanisms": ["error formatter"]
+        "inputs": [
+          "chain-exhausted state"
+        ],
+        "controls": [
+          "DD-9 bounded by chain length",
+          "AGENTS.md rule 1"
+        ],
+        "outputs": [
+          "E_OVERFLOW_UNRECOVERABLE error"
+        ],
+        "mechanisms": [
+          "error formatter"
+        ]
       }
     },
     {
       "id": "A231",
       "name": "Split History At Round Boundaries",
       "parent": "A23",
-      "description": "Identify (user msg + assistant msg with all tool_calls resolved) pairs; group into chunks of ~chunked_digest_chunk_target_tokens; exclude system prompt and unfinished trailing round.",
+      "description": "Identify (使用者 msg + 助手 msg 使用 all 工具calls 已解析) pairs; group 進入 分塊 的 ~chunkeddigest分塊目標tokens; exclude system 提示 與 unfinished trailing round.",
       "icoms": {
-        "inputs": ["full message stream", "chunked_digest_chunk_target_tokens"],
-        "controls": ["DD-6 round boundary only"],
-        "outputs": ["array of chunks; excluded suffix"],
-        "mechanisms": ["round detector"]
+        "inputs": [
+          "full message stream",
+          "chunked_digest_chunk_target_tokens"
+        ],
+        "controls": [
+          "DD-6 round boundary only"
+        ],
+        "outputs": [
+          "array of chunks; excluded suffix"
+        ],
+        "mechanisms": [
+          "round detector"
+        ]
       }
     },
     {
       "id": "A232",
       "name": "Digest Each Chunk",
       "parent": "A23",
-      "description": "For chunk k of N, build (digest_so_far, chunk_payload, framing_prompt) request, call LLM, validate response (must be JSON digest, no tool_calls), merge into digest_so_far.",
+      "description": "供 分塊 k 的 N, 建置 (digestsofar, 分塊payload, framing提示) 請求, 呼叫 LLM, validate 回應 (must 是 JSON digest, 無 工具calls), 合併 進入 digestsofar.",
       "icoms": {
-        "inputs": ["chunk k", "digest_so_far", "framing prompt"],
-        "controls": ["DD-7 forbid tool calls", "2-retry policy"],
-        "outputs": ["digest_chunk_k", "merged digest_so_far"],
-        "mechanisms": ["Digesting LLM", "JSON validator", "merger"]
+        "inputs": [
+          "chunk k",
+          "digest_so_far",
+          "framing prompt"
+        ],
+        "controls": [
+          "DD-7 forbid tool calls",
+          "2-retry policy"
+        ],
+        "outputs": [
+          "digest_chunk_k",
+          "merged digest_so_far"
+        ],
+        "mechanisms": [
+          "Digesting LLM",
+          "JSON validator",
+          "merger"
+        ]
       }
     },
     {
       "id": "A233",
       "name": "Finalise As Anchor",
       "parent": "A23",
-      "description": "After all chunks digested, write merged digest as assistant message with summary===true, append original triggering user request, return success.",
+      "description": "After all 分塊 digested, write merged digest 作為 助手 訊息 使用 summary===true, 追加 original triggering 使用者 請求, 返回 success.",
       "icoms": {
-        "inputs": ["merged digest", "original triggering user request"],
-        "controls": ["DD-8 normal Anchor shape"],
-        "outputs": ["new Anchor in message stream"],
-        "mechanisms": ["Anchor writer"]
+        "inputs": [
+          "merged digest",
+          "original triggering user request"
+        ],
+        "controls": [
+          "DD-8 normal Anchor shape"
+        ],
+        "outputs": [
+          "new Anchor in message stream"
+        ],
+        "mechanisms": [
+          "Anchor writer"
+        ]
       }
     }
   ]

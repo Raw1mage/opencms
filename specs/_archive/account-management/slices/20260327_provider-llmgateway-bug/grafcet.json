@@ -3,36 +3,54 @@
     "StepNumber": 0,
     "ModuleRef": "A1",
     "StepType": "initial",
-    "StepAction": "Draft supported provider registry contract",
+    "StepAction": "Draft supported Provider 註冊表 contract",
     "LinkInputType": [],
     "LinkInputNumber": [],
-    "LinkOutputNumber": [1],
+    "LinkOutputNumber": [
+      1
+    ],
     "LinkOutputType": "track",
-    "Condition": ["planning_started"],
+    "Condition": [
+      "planningstarted"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 1,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "Refactor backend provider universe to start from registry",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2],
+    "StepAction": "Refactor 後端 Provider universe 到 start 來自 註冊表",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2
+    ],
     "LinkOutputType": "track",
-    "Condition": ["registry_approved"],
+    "Condition": [
+      "註冊表approved"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Align provider consumers and validate unsupported providers remain hidden",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [1],
+    "StepAction": "Align Provider consumers 與 validate unsupported Provider remain hidden",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      1
+    ],
     "LinkOutputNumber": [],
     "LinkOutputType": "track",
-    "Condition": ["backend_alignment_complete"],
+    "Condition": [
+      "後端alignment完成"
+    ],
     "SubGrafcet": []
   }
 ]

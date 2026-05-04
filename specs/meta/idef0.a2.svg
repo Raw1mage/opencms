@@ -1,66 +1,60 @@
-<svg width="1282.3" height="905.8" viewBox="-241.1 -210.0 1282.3 905.8" xmlns="http://www.w3.org/2000/svg">
+<svg width="1480.3" height="905.8" viewBox="-281.1 -210.0 1480.3 905.8" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
 <marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
 </defs>
-<rect x="-241.1" y="-210.0" width="1282.3" height="905.8" fill="white" />
-<rect x="130.0" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A21" />
-<text x="230.0" y="151.2" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >A21</text>
-<text x="230.0" y="184.1" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >UPDATE</text>
-<text x="230.0" y="217.8" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >CROSS-CUTTING</text>
-<text x="230.0" y="251.6" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >INDEX</text>
-<rect x="470.0" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A22" />
-<text x="570.0" y="166.7" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >A22</text>
-<text x="570.0" y="200.9" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >PROJECT LIVING</text>
-<text x="570.0" y="236.6" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >SPECS AS WIKI</text>
-<rect x="130.0" y="450.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A23" />
-<text x="230.0" y="496.7" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >A23</text>
-<text x="230.0" y="530.9" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >APPEND</text>
-<text x="230.0" y="566.6" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >EVENT LOG</text>
-<rect x="470.0" y="450.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A24" />
-<text x="570.0" y="481.2" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >A24</text>
-<text x="570.0" y="514.1" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >REFRESH GLOBAL</text>
-<text x="570.0" y="547.8" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >SNAPSHOT</text>
-<text x="570.0" y="581.6" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >ON DEMAND</text>
-<rect x="40.0" y="0.0" width="720.0" height="685.8" stroke="black" fill="none" stroke-width="2" />
-<rect x="232.0" y="-200.0" width="336.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
-<text x="400.0" y="-174.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
-<text x="400.0" y="-144.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >MAINTAIN ARCHITECTURE</text>
-<text x="400.0" y="-114.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >DOCUMENTATION</text>
-<line x1="232.0" y1="-200.0" x2="40.0" y2="0.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="568.0" y1="-200.0" x2="760.0" y2="0.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="232.0" y1="-90.0" x2="40.0" y2="685.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="568.0" y1="-90.0" x2="760.0" y2="685.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<path d="M 330.0 200.0 L 470.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="a2m1" data-waypoints="330.0,200.0 470.0,200.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 670.0 226.7 L 700.0 226.7 Q 710.0 226.7 710.0 236.7 L 710.0 310.0 Q 710.0 320.0 700.0 320.0 L 100.0 320.0 Q 90.0 320.0 90.0 330.0 L 90.0 520.0 Q 90.0 530.0 100.0 530.0 L 130.0 530.0" stroke="black" stroke-width="1.2" data-arrow-id="a2m2" data-waypoints="670.0,226.7 710.0,226.7 710.0,320.0 90.0,320.0 90.0,530.0 130.0,530.0" marker-end="url(#arrow)" fill="none" />
+<rect x="-281.1" y="-210.0" width="1480.3" height="905.8" fill="white" />
+<rect x="130.0" y="120.0" width="259.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A21" />
+<text x="259.5" y="162.3" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >A21</text>
+<text x="259.5" y="200.9" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >更新 CROSS-CUTTING</text>
+<text x="259.5" y="242.1" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >INDEX</text>
+<rect x="529.0" y="120.0" width="259.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A22" />
+<text x="658.5" y="158.0" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >A22</text>
+<text x="658.5" y="200.8" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >專案 LIVING</text>
+<text x="658.5" y="247.7" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >SPECS 作為 WIKI</text>
+<rect x="130.0" y="450.0" width="259.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A23" />
+<text x="259.5" y="510.9" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >A23</text>
+<text x="259.5" y="555.2" text-anchor="middle" font-size="26" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >追加 事件 記錄</text>
+<rect x="529.0" y="450.0" width="259.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A24" />
+<text x="658.5" y="490.9" text-anchor="middle" font-size="21" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >A24</text>
+<text x="658.5" y="530.9" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >刷新 全域 SNAPSHOT</text>
+<text x="658.5" y="574.0" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >在 DEMAND</text>
+<rect x="40.0" y="0.0" width="838.0" height="685.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="291.0" y="-200.0" width="336.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="459.0" y="-174.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
+<text x="459.0" y="-144.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >MAINTAIN ARCHITECTURE</text>
+<text x="459.0" y="-114.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >DOCUMENTATION</text>
+<line x1="291.0" y1="-200.0" x2="40.0" y2="0.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="627.0" y1="-200.0" x2="878.0" y2="0.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="291.0" y1="-90.0" x2="40.0" y2="685.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="627.0" y1="-90.0" x2="878.0" y2="685.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 389.0 200.0 L 529.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="a2m1" data-waypoints="389.0,200.0 529.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 788.0 226.7 L 818.0 226.7 Q 828.0 226.7 828.0 236.7 L 828.0 310.0 Q 828.0 320.0 818.0 320.0 L 100.0 320.0 Q 90.0 320.0 90.0 330.0 L 90.0 520.0 Q 90.0 530.0 100.0 530.0 L 130.0 530.0" stroke="black" stroke-width="1.2" data-arrow-id="a2m2" data-waypoints="788.0,226.7 828.0,226.7 828.0,320.0 90.0,320.0 90.0,530.0 130.0,530.0" marker-end="url(#arrow)" fill="none" />
 <path d="M -10.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="a2in1" data-waypoints="-10.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
-<path d="M -10.0 80.0 L 413.3 80.0 Q 423.3 80.0 423.3 90.0 L 423.3 163.3 Q 423.3 173.3 433.3 173.3 L 470.0 173.3" stroke="black" stroke-width="1.2" data-arrow-id="a2in2" data-waypoints="-10.0,80.0 423.3,80.0 423.3,173.3 470.0,173.3" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 414.2 L 230.0 450.0" stroke="black" stroke-width="1.2" data-arrow-id="a2c3" data-waypoints="230.0,414.2 230.0,450.0" marker-end="url(#arrow)" fill="none" />
-<path d="M -10.0 400.0 L 413.3 400.0 Q 423.3 400.0 423.3 410.0 L 423.3 520.0 Q 423.3 530.0 433.3 530.0 L 470.0 530.0" stroke="black" stroke-width="1.2" data-arrow-id="a2in4" data-waypoints="-10.0,400.0 423.3,400.0 423.3,530.0 470.0,530.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 570.0 645.8 L 570.0 610.0" stroke="black" stroke-width="1.2" data-arrow-id="a2mch4" data-waypoints="570.0,645.8 570.0,610.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 173.3 L 366.7 173.3 Q 376.7 173.3 376.7 163.3 L 376.7 50.0 Q 376.7 40.0 386.7 40.0 L 810.0 40.0" stroke="black" stroke-width="1.2" data-arrow-id="a2out1" data-waypoints="330.0,173.3 376.7,173.3 376.7,40.0 810.0,40.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 670.0 173.3 L 810.0 173.3" stroke="black" stroke-width="1.2" data-arrow-id="a2out2" data-waypoints="670.0,173.3 810.0,173.3" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 530.0 L 366.7 530.0 Q 376.7 530.0 376.7 520.0 L 376.7 370.0 Q 376.7 360.0 386.7 360.0 L 810.0 360.0" stroke="black" stroke-width="1.2" data-arrow-id="a2out3" data-waypoints="330.0,530.0 376.7,530.0 376.7,360.0 810.0,360.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 670.0 530.0 L 810.0 530.0" stroke="black" stroke-width="1.2" data-arrow-id="a2out4" data-waypoints="670.0,530.0 810.0,530.0" marker-end="url(#arrow)" fill="none" />
-<text x="224.0" y="444.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2c3">filename convention</text>
-<text x="236.0" y="444.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2c3">event_YYYYMMDD_&lt;topic&gt;.md</text>
-<text x="570.0" y="661.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2mch4">miatdiagram skill</text>
-<text x="400.0" y="195.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2m1">updated index +</text>
-<text x="400.0" y="212.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2m1">sync checkpoint</text>
-<text x="570.0" y="338.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2m2" >wiki update event</text>
+<path d="M -10.0 80.0 L 472.3 80.0 Q 482.3 80.0 482.3 90.0 L 482.3 163.3 Q 482.3 173.3 492.3 173.3 L 529.0 173.3" stroke="black" stroke-width="1.2" data-arrow-id="a2in2" data-waypoints="-10.0,80.0 482.3,80.0 482.3,173.3 529.0,173.3" marker-end="url(#arrow)" fill="none" />
+<path d="M 259.5 414.2 L 259.5 450.0" stroke="black" stroke-width="1.2" data-arrow-id="a2c3" data-waypoints="259.5,414.2 259.5,450.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -10.0 400.0 L 472.3 400.0 Q 482.3 400.0 482.3 410.0 L 482.3 520.0 Q 482.3 530.0 492.3 530.0 L 529.0 530.0" stroke="black" stroke-width="1.2" data-arrow-id="a2in4" data-waypoints="-10.0,400.0 482.3,400.0 482.3,530.0 529.0,530.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 658.5 645.8 L 658.5 610.0" stroke="black" stroke-width="1.2" data-arrow-id="a2mch4" data-waypoints="658.5,645.8 658.5,610.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 389.0 173.3 L 425.7 173.3 Q 435.7 173.3 435.7 163.3 L 435.7 50.0 Q 435.7 40.0 445.7 40.0 L 928.0 40.0" stroke="black" stroke-width="1.2" data-arrow-id="a2out1" data-waypoints="389.0,173.3 435.7,173.3 435.7,40.0 928.0,40.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 788.0 173.3 L 928.0 173.3" stroke="black" stroke-width="1.2" data-arrow-id="a2out2" data-waypoints="788.0,173.3 928.0,173.3" marker-end="url(#arrow)" fill="none" />
+<path d="M 389.0 530.0 L 425.7 530.0 Q 435.7 530.0 435.7 520.0 L 435.7 370.0 Q 435.7 360.0 445.7 360.0 L 928.0 360.0" stroke="black" stroke-width="1.2" data-arrow-id="a2out3" data-waypoints="389.0,530.0 435.7,530.0 435.7,360.0 928.0,360.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 788.0 530.0 L 928.0 530.0" stroke="black" stroke-width="1.2" data-arrow-id="a2out4" data-waypoints="788.0,530.0 928.0,530.0" marker-end="url(#arrow)" fill="none" />
+<text x="253.5" y="444.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2c3">filename convention</text>
+<text x="265.5" y="444.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2c3">事件YYYYMMDD &lt;topic&gt;.md</text>
+<text x="658.5" y="661.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2mch4">miatdiagram 技能</text>
+<text x="459.0" y="195.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2m1">updated index +</text>
+<text x="459.0" y="212.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2m1">sync checkpoint</text>
+<text x="658.5" y="338.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2m2" >wiki 更新 事件</text>
 <text x="-14.0" y="191.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2in1">cross-cutting</text>
 <text x="-14.0" y="217.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2in1">change PR</text>
 <text x="-14.0" y="71.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2in2">specs/&lt;slug&gt;/</text>
 <text x="-14.0" y="97.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2in2">reaching living</text>
-<text x="-14.0" y="378.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2in4">explicit</text>
-<text x="-14.0" y="404.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2in4">global-architecture</text>
-<text x="-14.0" y="430.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2in4">refresh request</text>
-<text x="814.0" y="31.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out1">current</text>
-<text x="814.0" y="57.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out1">architecture.md</text>
-<text x="814.0" y="164.3" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out2">current</text>
-<text x="814.0" y="190.3" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out2">per-topic wiki</text>
-<text x="814.0" y="351.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out3">appended</text>
-<text x="814.0" y="377.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out3">event entry</text>
-<text x="814.0" y="521.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out4">regenerated</text>
-<text x="814.0" y="547.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out4">global snapshot</text>
+<text x="-14.0" y="391.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2in4">explicit 全域</text>
+<text x="-14.0" y="417.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2in4">-architecture 刷新 請求</text>
+<text x="932.0" y="31.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out1">current</text>
+<text x="932.0" y="57.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out1">architecture.md</text>
+<text x="932.0" y="177.3" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out2">current 依 topic wiki</text>
+<text x="932.0" y="364.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out3">appended 事件 項目</text>
+<text x="932.0" y="521.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out4">regenerated</text>
+<text x="932.0" y="547.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out4">全域 snapshot</text>
 </svg>

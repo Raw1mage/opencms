@@ -41,6 +41,7 @@ import { useDialog } from "../context/dialog"
 import { useI18n } from "../context/i18n"
 import { BasicTool } from "./basic-tool"
 import { GenericTool } from "./basic-tool"
+import { linkifyFileReferences } from "./file-path-link"
 import { ToolRegistry, getTool, registerTool, type ToolProps, type ToolComponent } from "./tool-registry"
 import { hasSvgBlockOutput, SvgBlockTool } from "./diagram-tool"
 import { Button } from "./button"
@@ -1100,7 +1101,7 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
   const data = useData()
   const i18n = useI18n()
   const part = props.part as TextPart
-  const displayText = () => (part.text ?? "").trim()
+  const displayText = () => linkifyFileReferences((part.text ?? "").trim(), data.directory)
   const throttledText = createThrottledValue(displayText)
   const [copied, setCopied] = createSignal(false)
   const truncatedPrefix = () => (part as unknown as { truncatedPrefix?: number }).truncatedPrefix ?? 0
@@ -1992,29 +1993,33 @@ ToolRegistry.register({
   render(props) {
     const filePath = () => String(props.input.path ?? "")
     const title = () => String(props.input.title ?? filePath().split("/").pop() ?? "File")
+    const openAction = (
+      <Show when={filePath()}>
+        <button
+          data-component="tool-fileview-link"
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            window.dispatchEvent(new CustomEvent("opencode:open-file", { detail: { path: filePath() } }))
+          }}
+          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-border-base hover:bg-white/5 transition-colors text-12-regular text-text-dimmed-2 cursor-pointer"
+        >
+          <Icon name="folder" size="small" />
+          <span>Open</span>
+        </button>
+      </Show>
+    )
     return (
       <BasicTool
         {...props}
         icon="folder"
+        hideDetails
         trigger={{
           title: "File Viewer",
           subtitle: title(),
+          action: openAction,
         }}
-      >
-        <Show when={filePath()}>
-          <div data-component="tool-fileview-link" class="mt-2 px-2">
-            <button
-              onClick={() => {
-                window.dispatchEvent(new CustomEvent("opencode:open-file", { detail: { path: filePath() } }))
-              }}
-              class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-border-base hover:bg-white/5 transition-colors text-12-regular text-text-dimmed-2 cursor-pointer"
-            >
-              <Icon name="folder" size="small" />
-              <span class="truncate max-w-[300px]">{title()}</span>
-            </button>
-          </div>
-        </Show>
-      </BasicTool>
+      />
     )
   },
 })

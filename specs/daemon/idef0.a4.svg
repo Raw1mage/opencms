@@ -1,74 +1,70 @@
-<svg width="2352.6" height="767.8" viewBox="-538.3 -165.8 2352.6 767.8" xmlns="http://www.w3.org/2000/svg">
+<svg width="2171.3" height="745.8" viewBox="-321.1 -165.8 2171.3 745.8" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
 <marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
 </defs>
-<rect x="-538.3" y="-165.8" width="2352.6" height="767.8" fill="white" />
-<rect x="130.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A41" />
-<text x="230.0" y="153.9" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A41" >A41</text>
-<text x="230.0" y="181.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A41" >RECEIVE RESTART_SELF</text>
-<text x="230.0" y="207.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A41" >MCP CALL</text>
-<rect x="598.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A42" />
-<text x="698.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A42" >A42</text>
-<text x="698.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A42" >RESOLVE RESTART</text>
-<text x="698.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A42" >RUNTIME MODE</text>
-<rect x="946.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A43" />
-<text x="1046.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A43" >A43</text>
-<text x="1046.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A43" >SMART DETECT</text>
-<text x="1046.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A43" >DIRTY LAYERS</text>
-<rect x="130.0" y="370.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A44" />
-<text x="230.0" y="402.4" text-anchor="middle" font-size="13" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A44" >A44</text>
-<text x="230.0" y="431.0" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A44" >REBUILD AND INSTALL</text>
-<text x="230.0" y="459.1" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A44" >DIRTY LAYERS</text>
-<rect x="598.0" y="370.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A45" />
-<text x="698.0" y="399.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A45" >A45</text>
-<text x="698.0" y="431.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A45" >HAND OFF TO</text>
-<text x="698.0" y="462.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A45" >SELF TERMINATION</text>
-<rect x="946.0" y="370.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A46" />
-<text x="1046.0" y="402.4" text-anchor="middle" font-size="13" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A46" >A46</text>
-<text x="1046.0" y="431.0" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A46" >REPORT FAILURE</text>
-<text x="1046.0" y="459.1" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A46" >WITH ERROR LOG PATH</text>
-<rect x="40.0" y="44.2" width="1196.0" height="525.8" stroke="black" fill="none" stroke-width="2" />
-<rect x="466.0" y="-155.8" width="344.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
-<text x="638.0" y="-129.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >A4</text>
-<text x="638.0" y="-99.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >RESTART SELF THROUGH</text>
-<text x="638.0" y="-69.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >WEBCTL PIPELINE</text>
-<line x1="466.0" y1="-155.8" x2="40.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="810.0" y1="-155.8" x2="1236.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="466.0" y1="-45.8" x2="40.0" y2="570.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="810.0" y1="-45.8" x2="1236.0" y2="570.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<path d="M 330.0 180.0 L 598.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a4f1" data-waypoints="330.0,180.0 598.0,180.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 798.0 180.0 L 946.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a4f2" data-waypoints="798.0,180.0 946.0,180.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 410.0 L 598.0 410.0" stroke="black" stroke-width="1.2" data-arrow-id="a4f4ok" data-waypoints="330.0,410.0 598.0,410.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1146.0 180.0 L 1176.0 180.0 Q 1186.0 180.0 1186.0 190.0 L 1186.0 270.0 Q 1186.0 280.0 1176.0 280.0 L 100.0 280.0 Q 90.0 280.0 90.0 290.0 L 90.0 420.0 Q 90.0 430.0 100.0 430.0 L 130.0 430.0" stroke="black" stroke-width="1.2" data-arrow-id="a4f3" data-waypoints="1146.0,180.0 1186.0,180.0 1186.0,280.0 90.0,280.0 90.0,430.0 130.0,430.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 450.0 L 454.0 450.0 Q 464.0 450.0 464.0 440.0 L 464.0 330.0 Q 464.0 320.0 474.0 320.0 L 886.7 320.0 Q 896.7 320.0 896.7 330.0 L 896.7 420.0 Q 896.7 430.0 906.7 430.0 L 946.0 430.0" stroke="black" stroke-width="1.2" data-arrow-id="a4f4err" data-waypoints="330.0,450.0 464.0,450.0 464.0,320.0 896.7,320.0 896.7,430.0 946.0,430.0" marker-end="url(#arrow)" fill="none" />
+<rect x="-321.1" y="-165.8" width="2171.3" height="745.8" fill="white" />
+<rect x="130.0" y="120.0" width="304.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A41" />
+<text x="282.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A41" >A41</text>
+<text x="282.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A41" >RECEIVE</text>
+<text x="282.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A41" >RESTARTSELF MCP 呼叫</text>
+<rect x="644.0" y="120.0" width="304.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A42" />
+<text x="796.0" y="165.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A42" >A42</text>
+<text x="796.0" y="197.8" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A42" >解析 RESTART RUNTIME MODE</text>
+<rect x="1095.0" y="120.0" width="304.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A43" />
+<text x="1247.0" y="165.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A43" >A43</text>
+<text x="1247.0" y="197.8" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A43" >SMART DETECT DIRTY LAYERS</text>
+<rect x="130.0" y="370.0" width="304.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A44" />
+<text x="282.0" y="399.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A44" >A44</text>
+<text x="282.0" y="431.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A44" >REBUILD 與 INSTALL</text>
+<text x="282.0" y="462.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A44" >DIRTY LAYERS</text>
+<rect x="644.0" y="370.0" width="304.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A45" />
+<text x="796.0" y="399.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A45" >A45</text>
+<text x="796.0" y="431.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A45" >HAND OFF 到 SELF</text>
+<text x="796.0" y="462.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A45" >TERMINATION</text>
+<rect x="1095.0" y="370.0" width="304.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A46" />
+<text x="1247.0" y="399.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A46" >A46</text>
+<text x="1247.0" y="431.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A46" >REPORT FAILURE</text>
+<text x="1247.0" y="462.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A46" >使用 錯誤 記錄 路徑</text>
+<rect x="40.0" y="44.2" width="1449.0" height="525.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="592.5" y="-155.8" width="344.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
+<text x="764.5" y="-129.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >A4</text>
+<text x="764.5" y="-99.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >RESTART SELF THROUGH</text>
+<text x="764.5" y="-69.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >WEBCTL PIPELINE</text>
+<line x1="592.5" y1="-155.8" x2="40.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="936.5" y1="-155.8" x2="1489.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="592.5" y1="-45.8" x2="40.0" y2="570.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="936.5" y1="-45.8" x2="1489.0" y2="570.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 434.0 180.0 L 644.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a4f1" data-waypoints="434.0,180.0 644.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 948.0 180.0 L 1095.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a4f2" data-waypoints="948.0,180.0 1095.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 434.0 410.0 L 644.0 410.0" stroke="black" stroke-width="1.2" data-arrow-id="a4f4ok" data-waypoints="434.0,410.0 644.0,410.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1399.0 180.0 L 1429.0 180.0 Q 1439.0 180.0 1439.0 190.0 L 1439.0 270.0 Q 1439.0 280.0 1429.0 280.0 L 100.0 280.0 Q 90.0 280.0 90.0 290.0 L 90.0 420.0 Q 90.0 430.0 100.0 430.0 L 130.0 430.0" stroke="black" stroke-width="1.2" data-arrow-id="a4f3" data-waypoints="1399.0,180.0 1439.0,180.0 1439.0,280.0 90.0,280.0 90.0,430.0 130.0,430.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 434.0 450.0 L 529.0 450.0 Q 539.0 450.0 539.0 440.0 L 539.0 330.0 Q 539.0 320.0 549.0 320.0 L 1036.0 320.0 Q 1046.0 320.0 1046.0 330.0 L 1046.0 420.0 Q 1046.0 430.0 1056.0 430.0 L 1095.0 430.0" stroke="black" stroke-width="1.2" data-arrow-id="a4f4err" data-waypoints="434.0,450.0 539.0,450.0 539.0,320.0 1046.0,320.0 1046.0,430.0 1095.0,430.0" marker-end="url(#arrow)" fill="none" />
 <path d="M -10.0 180.0 L 130.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a4in1" data-waypoints="-10.0,180.0 130.0,180.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a4c1" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 698.0 84.2 L 698.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a4c2" data-waypoints="698.0,84.2 698.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1046.0 84.2 L 1046.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a4c3" data-waypoints="1046.0,84.2 1046.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 525.8 L 230.0 490.0" stroke="black" stroke-width="1.2" data-arrow-id="a4m1" data-waypoints="230.0,525.8 230.0,490.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 698.0 334.2 L 698.0 370.0" stroke="black" stroke-width="1.2" data-arrow-id="a4c4" data-waypoints="698.0,334.2 698.0,370.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 798.0 430.0 L 837.3 430.0 Q 847.3 430.0 847.3 440.0 L 847.3 520.0 Q 847.3 530.0 857.3 530.0 L 1286.0 530.0" stroke="black" stroke-width="1.2" data-arrow-id="a4out1" data-waypoints="798.0,430.0 847.3,430.0 847.3,530.0 1286.0,530.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1146.0 430.0 L 1286.0 430.0" stroke="black" stroke-width="1.2" data-arrow-id="a4out2" data-waypoints="1146.0,430.0 1286.0,430.0" marker-end="url(#arrow)" fill="none" />
-<text x="230.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4c1">AGENTS.md Daemon Lifecycle Authority</text>
-<text x="698.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4c2">isGatewayDaemon Plus Targets List</text>
-<text x="1046.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4c3">Content Fingerprint Of Source Layers</text>
-<text x="230.0" y="541.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4m1">webctl.sh restart --graceful Plus compileGatewayForSelfUpdate</text>
-<text x="692.0" y="364.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4c4">300ms setTimeout</text>
-<text x="704.0" y="364.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4c4">Then process.exit(0)</text>
-<text x="464.0" y="175.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4f1">POST /api/v2/global/web/restart</text>
-<text x="464.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4f1">With JWT</text>
-<text x="872.0" y="175.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4f2">Gateway-Daemon</text>
-<text x="872.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4f2">Or Legacy Branch</text>
-<text x="464.0" y="405.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4f4ok">Build Success Plus</text>
-<text x="464.0" y="422.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4f4ok">Installed Artifacts</text>
-<text x="698.0" y="298.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4f3" >Dirty Layer Set</text>
-<text x="434.0" y="340.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4f4err" >webctl Non-Zero Exit</text>
-<text x="-14.0" y="184.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4in1">system-manager:restart_self Tool Invocation</text>
-<text x="1290.0" y="482.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4out1">Daemon Removed</text>
-<text x="1290.0" y="508.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4out1">Discovery, Gateway</text>
-<text x="1290.0" y="534.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4out1">Will Self-Heal /</text>
-<text x="1290.0" y="560.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4out1">200 OK Response</text>
-<text x="1290.0" y="586.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4out1">Before Exit</text>
-<text x="1290.0" y="434.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4out2">WEB_RESTART_FAILED With txid And errorLogPath</text>
+<path d="M 282.0 84.2 L 282.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a4c1" data-waypoints="282.0,84.2 282.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 796.0 84.2 L 796.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a4c2" data-waypoints="796.0,84.2 796.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1247.0 84.2 L 1247.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a4c3" data-waypoints="1247.0,84.2 1247.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 282.0 525.8 L 282.0 490.0" stroke="black" stroke-width="1.2" data-arrow-id="a4m1" data-waypoints="282.0,525.8 282.0,490.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 796.0 334.2 L 796.0 370.0" stroke="black" stroke-width="1.2" data-arrow-id="a4c4" data-waypoints="796.0,334.2 796.0,370.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 948.0 430.0 L 987.0 430.0 Q 997.0 430.0 997.0 440.0 L 997.0 520.0 Q 997.0 530.0 1007.0 530.0 L 1539.0 530.0" stroke="black" stroke-width="1.2" data-arrow-id="a4out1" data-waypoints="948.0,430.0 997.0,430.0 997.0,530.0 1539.0,530.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1399.0 430.0 L 1539.0 430.0" stroke="black" stroke-width="1.2" data-arrow-id="a4out2" data-waypoints="1399.0,430.0 1539.0,430.0" marker-end="url(#arrow)" fill="none" />
+<text x="282.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4c1">AGENTS.md Daemon Lifecycle Authority</text>
+<text x="796.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4c2">是Gatewaydaemon Plus Targets 清單</text>
+<text x="1247.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4c3">Content Fingerprint 的 來源 Layers</text>
+<text x="282.0" y="541.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4m1">webctl.sh restart --graceful Plus compileGateway供self更新</text>
+<text x="790.0" y="364.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4c4">300ms setTimeout</text>
+<text x="802.0" y="364.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4c4">Then process.exit(0)</text>
+<text x="539.0" y="180.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4f1"><tspan x="539.0" dy="0">POST</tspan><tspan x="539.0" dy="16.0">/api/v2/全域/web/restart</tspan><tspan x="539.0" dy="16.0">使用 JWT</tspan></text>
+<text x="1021.5" y="175.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4f2">Gateway-Daemon</text>
+<text x="1021.5" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4f2">或 Legacy Branch</text>
+<text x="539.0" y="410.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4f4ok"><tspan x="539.0" dy="0">建置</tspan><tspan x="539.0" dy="16.0">Success Plus</tspan><tspan x="539.0" dy="16.0">Installed Artifacts</tspan></text>
+<text x="796.0" y="298.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4f3" >Dirty Layer Set</text>
+<text x="618.7" y="312.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4f4err" >webctl Non-Zero Exit</text>
+<text x="-14.0" y="171.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4in1">system-manager:restartself</text>
+<text x="-14.0" y="197.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4in1">工具 Invocation</text>
+<text x="1543.0" y="508.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4out1">Daemon Removed Discovery,</text>
+<text x="1543.0" y="534.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4out1">Gateway Will Self-Heal /</text>
+<text x="1543.0" y="560.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4out1">200 OK 回應 Before Exit</text>
+<text x="1543.0" y="421.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4out2">WEB RESTART FAILED 使</text>
+<text x="1543.0" y="447.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a4out2">用 txid 與 錯誤記錄路徑</text>
 </svg>

@@ -1,7 +1,7 @@
 {
-  "diagram_title": "Manage AI context as bounded resource",
+  "diagram_title": "Manage AI 上下文 作為 bounded resource",
   "node_reference": "A0",
-  "description": "Provide bounded-context resource management to the AI runloop. Five layers: per-tool output bounding (L2), hybrid-LLM compaction (L1), context visibility to AI (L3), voluntary self-summarize (L4), and human/AI override (L5).",
+  "description": "Provide bounded-上下文 resource management 到 AI runloop. Five layers: 依-工具 輸出 bounding (L2), hybrid-LLM 壓縮 (L1), 上下文 visibility 到 AI (L3), voluntary self-summarize (L4), 與 human/AI override (L5).",
   "icoms": {
     "inputs": [
       "session.id",
@@ -42,180 +42,341 @@
       "id": "A1",
       "name": "Build bounded prompt (5-zone)",
       "parent": "A0",
-      "description": "Assemble [system, anchor, pinned_zone, journal, current_round]. Append-only inter-compaction. Cache placement law (DD-1).",
+      "description": "組裝 [system, anchor, 已釘選zone, journal, currentround]. 追加-僅 inter-壓縮. 快取 placement law (DD-1).",
       "icoms": {
-        "inputs": ["session state", "current Memory", "ContextMarkers from recent assistant messages"],
-        "controls": ["DD-1 zone order", "DD-4 pinned envelope shape"],
-        "outputs": ["5-zone prompt", "ContextStatus block in system"],
-        "mechanisms": ["C1 PromptBuilder", "C5 ContextStatusBuilder"]
+        "inputs": [
+          "session state",
+          "current Memory",
+          "ContextMarkers from recent assistant messages"
+        ],
+        "controls": [
+          "DD-1 zone order",
+          "DD-4 pinned envelope shape"
+        ],
+        "outputs": [
+          "5-zone prompt",
+          "ContextStatus block in system"
+        ],
+        "mechanisms": [
+          "C1 PromptBuilder",
+          "C5 ContextStatusBuilder"
+        ]
       }
     },
     {
       "id": "A11",
       "name": "Parse ContextMarkers (pre-prompt-build)",
       "parent": "A1",
-      "description": "Walk recent assistant messages; extract pin/drop/recall markers; route to Memory & Compactor.",
+      "description": "Walk recent 助手 messages; 取出 釘選/drop/recall markers; 路由 到 Memory & Compactor.",
       "icoms": {
-        "inputs": ["recent N assistant messages"],
-        "controls": ["DD-15 metadata schema"],
-        "outputs": ["pin → PinnedZoneEntry append", "drop → drop set for next compaction", "recall → journal-tail append"],
-        "mechanisms": ["C4 OverrideParser"]
+        "inputs": [
+          "recent N assistant messages"
+        ],
+        "controls": [
+          "DD-15 metadata schema"
+        ],
+        "outputs": [
+          "pin → PinnedZoneEntry append",
+          "drop → drop set for next compaction",
+          "recall → journal-tail append"
+        ],
+        "mechanisms": [
+          "C4 OverrideParser"
+        ]
       }
     },
     {
       "id": "A12",
       "name": "Materialise pinned_zone as user-message envelopes",
       "parent": "A1",
-      "description": "DD-4 (closes G-1). Wrap each pinned tool_result as user-role text message. Original tool_call/tool_result pair stays adjacent in journal.",
+      "description": "DD-4 (closes G-1). Wrap each 已釘選 工具結果 作為 使用者-role 文字 訊息. Original 工具呼叫/工具結果 pair stays adjacent 在 journal.",
       "icoms": {
-        "inputs": ["pin set", "original tool_results from journal"],
-        "controls": ["DD-4 envelope format", "DD-5 pinned_zone cap"],
-        "outputs": ["pinned_zone array of user messages"],
-        "mechanisms": ["C1 PromptBuilder", "C2 Memory"]
+        "inputs": [
+          "pin set",
+          "original tool_results from journal"
+        ],
+        "controls": [
+          "DD-4 envelope format",
+          "DD-5 pinned_zone cap"
+        ],
+        "outputs": [
+          "pinned_zone array of user messages"
+        ],
+        "mechanisms": [
+          "C1 PromptBuilder",
+          "C2 Memory"
+        ]
       }
     },
     {
       "id": "A13",
       "name": "Inject ContextStatus into system message",
       "parent": "A1",
-      "description": "R-5. Compute total/used/remaining/anchor-cover/journal-depth/pinned-tokens; embed in system role.",
+      "description": "R-5. Compute total/used/remaining/anchor-cover/journal-depth/已釘選-tokens; embed 在 system role.",
       "icoms": {
-        "inputs": ["session state snapshot"],
-        "controls": ["R-5"],
-        "outputs": ["ContextStatus block (DD-S2 mechanism TBD)"],
-        "mechanisms": ["C5 ContextStatusBuilder"]
+        "inputs": [
+          "session state snapshot"
+        ],
+        "controls": [
+          "R-5"
+        ],
+        "outputs": [
+          "ContextStatus block (DD-S2 mechanism TBD)"
+        ],
+        "mechanisms": [
+          "C5 ContextStatusBuilder"
+        ]
       }
     },
     {
       "id": "A2",
       "name": "Bound per-tool output (Layer 2)",
       "parent": "A0",
-      "description": "Variable-size tools cap their own output to ctx.outputBudget. R-1, DD-2.",
+      "description": "Variable-size tools cap their own 輸出 到 ctx.輸出budget. R-1, DD-2.",
       "icoms": {
-        "inputs": ["tool invocation", "tool natural output"],
-        "controls": ["DD-2 outputBudget formula", "tweaks.cfg knobs"],
-        "outputs": ["bounded tool_result", "TruncationHint when sliced"],
-        "mechanisms": ["C6 ToolFramework"]
+        "inputs": [
+          "tool invocation",
+          "tool natural output"
+        ],
+        "controls": [
+          "DD-2 outputBudget formula",
+          "tweaks.cfg knobs"
+        ],
+        "outputs": [
+          "bounded tool_result",
+          "TruncationHint when sliced"
+        ],
+        "mechanisms": [
+          "C6 ToolFramework"
+        ]
       }
     },
     {
       "id": "A21",
       "name": "Compute outputBudget per invocation",
       "parent": "A2",
-      "description": "outputBudget = min(round(model.contextWindow * contextRatio), absoluteCap), floor by minimumFloor.",
+      "description": "輸出budget = min(round(模型.上下文window * 上下文ratio), absoluteCap), floor 由 minimumFloor.",
       "icoms": {
-        "inputs": ["model.contextWindow"],
-        "controls": ["DD-2 formula"],
-        "outputs": ["ctx.outputBudget"],
-        "mechanisms": ["C6 ToolFramework", "C8 TweaksConfig"]
+        "inputs": [
+          "model.contextWindow"
+        ],
+        "controls": [
+          "DD-2 formula"
+        ],
+        "outputs": [
+          "ctx.outputBudget"
+        ],
+        "mechanisms": [
+          "C6 ToolFramework",
+          "C8 TweaksConfig"
+        ]
       }
     },
     {
       "id": "A22",
       "name": "Slice tool output on natural boundary + emit hint",
       "parent": "A2",
-      "description": "Each tool implements slice on tool-natural boundary (line, match, page). Append natural-language TruncationHint with next-slice args.",
+      "description": "Each 工具 implements slice 在 工具-natural boundary (line, 比對, page). 追加 natural-language TruncationHint 使用 下一個-slice args.",
       "icoms": {
-        "inputs": ["tool natural output", "outputBudget"],
-        "controls": ["R-1 byte-identity for natural-fit outputs"],
-        "outputs": ["tool_result string ≤ outputBudget tokens"],
-        "mechanisms": ["C6 ToolFramework"]
+        "inputs": [
+          "tool natural output",
+          "outputBudget"
+        ],
+        "controls": [
+          "R-1 byte-identity for natural-fit outputs"
+        ],
+        "outputs": [
+          "tool_result string ≤ outputBudget tokens"
+        ],
+        "mechanisms": [
+          "C6 ToolFramework"
+        ]
       }
     },
     {
       "id": "A3",
       "name": "Compact context (Layer 1: hybrid-LLM)",
       "parent": "A0",
-      "description": "Bounded-input recursive compaction. Phase 1 (normal) + Phase 2 (fail-safe) + internal chunk-and-merge mode. R-2/R-3, DD-3.",
+      "description": "Bounded-輸入 recursive 壓縮. Phase 1 (normal) + Phase 2 (fail-safe) + internal 分塊-與-合併 mode. R-2/R-3, DD-3.",
       "icoms": {
-        "inputs": ["prior_anchor", "journal_unpinned", "drop set", "(Phase 2) pinned_zone"],
-        "controls": ["DD-3 single kind", "DD-9 bounded chain, no Phase 3", "DD-11 provider-agnostic anchor"],
-        "outputs": ["new Anchor", "CompactionEvent", "(Phase 2) cleared pinned_zone"],
-        "mechanisms": ["C3 HybridCompactor", "EXT-LLM"]
+        "inputs": [
+          "prior_anchor",
+          "journal_unpinned",
+          "drop set",
+          "(Phase 2) pinned_zone"
+        ],
+        "controls": [
+          "DD-3 single kind",
+          "DD-9 bounded chain, no Phase 3",
+          "DD-11 provider-agnostic anchor"
+        ],
+        "outputs": [
+          "new Anchor",
+          "CompactionEvent",
+          "(Phase 2) cleared pinned_zone"
+        ],
+        "mechanisms": [
+          "C3 HybridCompactor",
+          "EXT-LLM"
+        ]
       }
     },
     {
       "id": "A31",
       "name": "Phase 1 LLM_compact (single-pass or chunk-and-merge)",
       "parent": "A3",
-      "description": "Normal path. Internal mode chosen by input-size check.",
+      "description": "Normal 路徑. Internal mode chosen 由 輸入-size check.",
       "icoms": {
-        "inputs": ["LLMCompactRequest{phase:1, strict:false}"],
-        "controls": ["targetTokens = round(context * 0.30)", "30s timeout"],
-        "outputs": ["new anchor body (Markdown only, v1 header)"],
-        "mechanisms": ["C3 HybridCompactor", "EXT-LLM"]
+        "inputs": [
+          "LLMCompactRequest{phase:1, strict:false}"
+        ],
+        "controls": [
+          "targetTokens = round(context * 0.30)",
+          "30s timeout"
+        ],
+        "outputs": [
+          "new anchor body (Markdown only, v1 header)"
+        ],
+        "mechanisms": [
+          "C3 HybridCompactor",
+          "EXT-LLM"
+        ]
       }
     },
     {
       "id": "A32",
       "name": "Phase 2 fail-safe (absorb pinned_zone)",
       "parent": "A3",
-      "description": "Triggered when post-Phase-1 prompt still over budget OR pinned_zone over cap (DD-5).",
+      "description": "Triggered when post-Phase-1 提示 still over budget OR 已釘選zone over cap (DD-5).",
       "icoms": {
-        "inputs": ["LLMCompactRequest{phase:2, strict:true, pinnedZone, journalAll}"],
-        "controls": ["compaction.phase2.maxAnchorTokens = 5000", "no Phase 3"],
-        "outputs": ["new anchor (compact)", "pinned_zone reset to empty", "phase2_fired event", "or E_OVERFLOW_UNRECOVERABLE"],
-        "mechanisms": ["C3 HybridCompactor"]
+        "inputs": [
+          "LLMCompactRequest{phase:2, strict:true, pinnedZone, journalAll}"
+        ],
+        "controls": [
+          "compaction.phase2.maxAnchorTokens = 5000",
+          "no Phase 3"
+        ],
+        "outputs": [
+          "new anchor (compact)",
+          "pinned_zone reset to empty",
+          "phase2_fired event",
+          "or E_OVERFLOW_UNRECOVERABLE"
+        ],
+        "mechanisms": [
+          "C3 HybridCompactor"
+        ]
       }
     },
     {
       "id": "A33",
       "name": "Sanity-check + retry + fallback ladder (DD-6)",
       "parent": "A3",
-      "description": "Closes G-3. Sanity check → 1 retry → optional alternate provider → graceful degradation (keep prior anchor + truncate journal).",
+      "description": "Closes G-3. Sanity check → 1 重試 → optional alternate Provider → graceful degradation (keep prior anchor + truncate journal).",
       "icoms": {
-        "inputs": ["LLM_compact response"],
-        "controls": ["DD-6 ladder", "compaction.llmTimeoutMs = 30000", "compaction.fallbackProvider"],
-        "outputs": ["validated anchor OR error event + fallback anchor"],
-        "mechanisms": ["C3 HybridCompactor"]
+        "inputs": [
+          "LLM_compact response"
+        ],
+        "controls": [
+          "DD-6 ladder",
+          "compaction.llmTimeoutMs = 30000",
+          "compaction.fallbackProvider"
+        ],
+        "outputs": [
+          "validated anchor OR error event + fallback anchor"
+        ],
+        "mechanisms": [
+          "C3 HybridCompactor"
+        ]
       }
     },
     {
       "id": "A4",
       "name": "Apply AI/human overrides (Layer 5)",
       "parent": "A0",
-      "description": "Pin / drop / recall semantics. R-7, DD-7, DD-15.",
+      "description": "釘選 / drop / recall semantics. R-7, DD-7, DD-15.",
       "icoms": {
-        "inputs": ["ContextMarkers from assistant metadata", "admin/TUI clicks"],
-        "controls": ["DD-7 recall semantics", "DD-15 metadata channel"],
-        "outputs": ["PinnedZoneEntry append", "drop set for compaction", "journal-tail recall append"],
-        "mechanisms": ["C4 OverrideParser", "C2 Memory", "C10 AdminOverrideUI"]
+        "inputs": [
+          "ContextMarkers from assistant metadata",
+          "admin/TUI clicks"
+        ],
+        "controls": [
+          "DD-7 recall semantics",
+          "DD-15 metadata channel"
+        ],
+        "outputs": [
+          "PinnedZoneEntry append",
+          "drop set for compaction",
+          "journal-tail recall append"
+        ],
+        "mechanisms": [
+          "C4 OverrideParser",
+          "C2 Memory",
+          "C10 AdminOverrideUI"
+        ]
       }
     },
     {
       "id": "A41",
       "name": "Recall message from disk",
       "parent": "A4",
-      "description": "Read original content from on-disk message stream (full, untruncated). Idempotent. Cross-session via sessionId param.",
+      "description": "Read original content 來自 在-磁碟 訊息 串流 (full, untruncated). Idempotent. Cross-Session 透過 Sessionid param.",
       "icoms": {
-        "inputs": ["recall marker {sessionId?, msgId}"],
-        "controls": ["DD-7 idempotency", "DD-8 cross-session"],
-        "outputs": ["wrapped user-message appended to journal tail"],
-        "mechanisms": ["C2 Memory", "EXT-DISK"]
+        "inputs": [
+          "recall marker {sessionId?, msgId}"
+        ],
+        "controls": [
+          "DD-7 idempotency",
+          "DD-8 cross-session"
+        ],
+        "outputs": [
+          "wrapped user-message appended to journal tail"
+        ],
+        "mechanisms": [
+          "C2 Memory",
+          "EXT-DISK"
+        ]
       }
     },
     {
       "id": "A5",
       "name": "Voluntary self-summarize (Layer 4)",
       "parent": "A0",
-      "description": "AI invokes compact_now tool to trigger compaction before harness gate. R-6, DD-14.",
+      "description": "AI invokes compactnow 工具 到 trigger 壓縮 before harness gate. R-6, DD-14.",
       "icoms": {
-        "inputs": ["tool_call compact_now({reason})"],
-        "controls": ["DD-14 tool-call mechanism"],
-        "outputs": ["same as A3 outputs", "tool_result with post-compaction status"],
-        "mechanisms": ["C7 CompactNowTool", "C3 HybridCompactor"]
+        "inputs": [
+          "tool_call compact_now({reason})"
+        ],
+        "controls": [
+          "DD-14 tool-call mechanism"
+        ],
+        "outputs": [
+          "same as A3 outputs",
+          "tool_result with post-compaction status"
+        ],
+        "mechanisms": [
+          "C7 CompactNowTool",
+          "C3 HybridCompactor"
+        ]
       }
     },
     {
       "id": "A6",
       "name": "Emit telemetry (per compaction)",
       "parent": "A0",
-      "description": "R-13. Synchronous CompactionEvent before runloop continues.",
+      "description": "R-13. Synchronous 壓縮事件 before runloop continues.",
       "icoms": {
-        "inputs": ["compaction event details"],
-        "controls": ["R-13 schema in data-schema.json"],
-        "outputs": ["CompactionEvent JSON to telemetry stream"],
-        "mechanisms": ["C9 TelemetryEmitter"]
+        "inputs": [
+          "compaction event details"
+        ],
+        "controls": [
+          "R-13 schema in data-schema.json"
+        ],
+        "outputs": [
+          "CompactionEvent JSON to telemetry stream"
+        ],
+        "mechanisms": [
+          "C9 TelemetryEmitter"
+        ]
       }
     }
   ]

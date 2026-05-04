@@ -33,7 +33,7 @@
     "LinkOutputType": "divergence_or",
     "Condition": [
       "ok",
-      "error"
+      "錯誤"
     ],
     "SubGrafcet": []
   },
@@ -41,7 +41,7 @@
     "StepNumber": 2,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Complete",
+    "StepAction": "完成",
     "LinkInputType": [
       "convergence_or"
     ],
@@ -72,7 +72,7 @@
     ],
     "LinkOutputType": "convergence_or",
     "Condition": [
-      "retry"
+      "重試"
     ],
     "SubGrafcet": []
   }

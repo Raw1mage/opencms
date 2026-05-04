@@ -4,18 +4,18 @@
   "activities": [
     {
       "id": "A1",
-      "title": "Persist Session State",
+      "title": "持久化 Session 狀態",
       "decomposition": {
-        "diagram_title": "Persist Session State",
+        "diagram_title": "持久化 Session 狀態",
         "node_reference": "A1",
         "activities": [
           {
             "id": "A11",
-            "title": "Route Storage Tier"
+            "title": "路由 儲存 Tier"
           },
           {
             "id": "A12",
-            "title": "Write Sqlite Backend"
+            "title": "Write Sqlite 後端"
           },
           {
             "id": "A13",
@@ -23,11 +23,11 @@
           },
           {
             "id": "A14",
-            "title": "Drain Legacy In Background"
+            "title": "Drain Legacy 在 Background"
           },
           {
             "id": "A15",
-            "title": "Verify Integrity And Migrations"
+            "title": "Verify Integrity 與 Migrations"
           }
         ],
         "arrows": [
@@ -35,13 +35,13 @@
             "id": "a1_in_msg",
             "source": "EXTERNAL",
             "target": "A11:input",
-            "label": "Message Write Or Read Request"
+            "label": "訊息 Write 或 Read 請求"
           },
           {
             "id": "a1_ctrl_dd13",
             "source": "EXTERNAL",
             "target": "A11:control",
-            "label": "DD-13 No Silent Reroute Rule"
+            "label": "DD-13 無 靜默 Reroute Rule"
           },
           {
             "id": "a1_mech_router",
@@ -89,13 +89,13 @@
             "id": "a1_mech_dream",
             "source": "EXTERNAL",
             "target": "A14:mechanism",
-            "label": "storage/dreaming.ts DreamingWorker"
+            "label": "storage/dreaming.ts dreamingworker"
           },
           {
             "id": "a1_ctrl_idle",
             "source": "EXTERNAL",
             "target": "A14:control",
-            "label": "IDLE_THRESHOLD_MS 5000"
+            "label": "IDLE THRESHOLD MS 5000"
           },
           {
             "id": "a1_dream_to_sqlite",
@@ -107,40 +107,40 @@
             "id": "a1_sqlite_to_integrity",
             "source": "A12:output",
             "target": "A15:input",
-            "label": "First Open Or Migration Pending"
+            "label": "First Open 或 Migration 待處理"
           },
           {
             "id": "a1_mech_integrity",
             "source": "EXTERNAL",
             "target": "A15:mechanism",
-            "label": "storage/integrity.ts PRAGMA integrity_check"
+            "label": "storage/integrity.ts PRAGMA integritycheck"
           },
           {
             "id": "a1_integrity_event",
             "source": "A15:output",
             "target": "EXTERNAL",
-            "label": "session.storage.corrupted Bus Event"
+            "label": "Session.儲存.corrupted Bus 事件"
           },
           {
             "id": "a1_out_persisted",
             "source": "A12:output",
             "target": "EXTERNAL",
-            "label": "Persisted Message Or Loaded Slice"
+            "label": "Persisted 訊息 或 已載入 Slice"
           },
           {
             "id": "a1_out_legacy_read",
             "source": "A13:output",
             "target": "EXTERNAL",
-            "label": "Loaded Legacy Slice"
+            "label": "已載入 Legacy Slice"
           }
         ]
       }
     },
     {
       "id": "A2",
-      "title": "Refresh Capability Layer",
+      "title": "刷新 Capability Layer",
       "decomposition": {
-        "diagram_title": "Refresh Capability Layer",
+        "diagram_title": "刷新 Capability Layer",
         "node_reference": "A2",
         "activities": [
           {
@@ -153,7 +153,7 @@
           },
           {
             "id": "A23",
-            "title": "Bump Epoch Registry"
+            "title": "Bump Epoch 註冊表"
           },
           {
             "id": "A24",
@@ -161,7 +161,7 @@
           },
           {
             "id": "A25",
-            "title": "Invalidate Capability Cache"
+            "title": "Invalidate Capability 快取"
           }
         ],
         "arrows": [
@@ -169,7 +169,7 @@
             "id": "a2_in_signal",
             "source": "EXTERNAL",
             "target": "A21:input",
-            "label": "Trigger Signal (Resume / Switch / Reload / Tool / Mtime / Boot)"
+            "label": "Trigger Signal (Resume / Switch / 重載 / 工具 / Mtime / Boot)"
           },
           {
             "id": "a2_ctrl_triggers",
@@ -193,13 +193,13 @@
             "id": "a2_ctrl_rate",
             "source": "EXTERNAL",
             "target": "A22:control",
-            "label": "REBIND_RATE_LIMIT 5 Per 1000ms"
+            "label": "REBIND RATE LIMIT 5 依 1000ms"
           },
           {
             "id": "a2_rate_storm",
             "source": "A22:output",
             "target": "EXTERNAL",
-            "label": "session.rebind_storm Anomaly Event"
+            "label": "Session.rebindstorm 異常事件"
           },
           {
             "id": "a2_rate_to_bump",
@@ -217,19 +217,19 @@
             "id": "a2_bump_event",
             "source": "A23:output",
             "target": "EXTERNAL",
-            "label": "session.rebind Workflow Event"
+            "label": "Session.rebind 工作流程 事件"
           },
           {
             "id": "a2_bump_to_reinject",
             "source": "A23:output",
             "target": "A24:input",
-            "label": "New Epoch (Session Idle)"
+            "label": "New Epoch (Session 閒置)"
           },
           {
             "id": "a2_bump_to_invalidate",
             "source": "A23:output",
             "target": "A25:input",
-            "label": "New Epoch (Cache Key)"
+            "label": "New Epoch (快取 Key)"
           },
           {
             "id": "a2_ctrl_busy",
@@ -247,7 +247,7 @@
             "id": "a2_out_snapshot",
             "source": "A24:output",
             "target": "EXTERNAL",
-            "label": "Layers + Pinned + Missing Skills + Failures"
+            "label": "Layers + 已釘選 + 缺失 技能 + Failures"
           },
           {
             "id": "a2_mech_loader",
@@ -259,37 +259,37 @@
             "id": "a2_out_invalidated",
             "source": "A25:output",
             "target": "EXTERNAL",
-            "label": "Cache Miss On Next Lookup"
+            "label": "快取 Miss 在 下一個 Lookup"
           }
         ]
       }
     },
     {
       "id": "A3",
-      "title": "Cache Http Polls"
+      "title": "快取 Http Polls"
     },
     {
       "id": "A4",
-      "title": "Stream Frontend Updates",
+      "title": "串流 前端 Updates",
       "decomposition": {
-        "diagram_title": "Stream Frontend Updates",
+        "diagram_title": "串流 前端 Updates",
         "node_reference": "A4",
         "activities": [
           {
             "id": "A41",
-            "title": "Hydrate Tail On Attach"
+            "title": "Hydrate Tail 在 Attach"
           },
           {
             "id": "A42",
-            "title": "Subscribe SSE Stream"
+            "title": "Subscribe SSE 串流"
           },
           {
             "id": "A43",
-            "title": "Load Older Slice On Scroll"
+            "title": "Load Older Slice 在 Scroll"
           },
           {
             "id": "A44",
-            "title": "Reduce Append Versus Rebuild"
+            "title": "Reduce 追加 Versus Rebuild"
           },
           {
             "id": "A45",
@@ -301,19 +301,19 @@
             "id": "a4_in_route",
             "source": "EXTERNAL",
             "target": "A41:input",
-            "label": "Session Route Entered"
+            "label": "Session 路由 Entered"
           },
           {
             "id": "a4_ctrl_tail",
             "source": "EXTERNAL",
             "target": "A41:control",
-            "label": "session_tail_mobile / session_tail_desktop"
+            "label": "Sessiontail行動版 / Sessiontaildesktop"
           },
           {
             "id": "a4_mech_sync",
             "source": "EXTERNAL",
             "target": "A41:mechanism",
-            "label": "context/sync.tsx fetchSessionMeta"
+            "label": "context/sync.tsx fetchSessionmeta"
           },
           {
             "id": "a4_tail_to_sse",
@@ -331,13 +331,13 @@
             "id": "a4_ctrl_after",
             "source": "EXTERNAL",
             "target": "A42:control",
-            "label": "Events After Subscription Only"
+            "label": "事件 After Subscription 僅"
           },
           {
             "id": "a4_sse_to_reduce",
             "source": "A42:output",
             "target": "A44:input",
-            "label": "PartUpdated Or Rebuild Event"
+            "label": "PartUpdated 或 Rebuild 事件"
           },
           {
             "id": "a4_in_scroll",
@@ -373,7 +373,7 @@
             "id": "a4_ctrl_prefix",
             "source": "EXTERNAL",
             "target": "A44:control",
-            "label": "Prefix-Match Heuristic"
+            "label": "前綴-比對 Heuristic"
           },
           {
             "id": "a4_reduce_to_fold",
@@ -385,7 +385,7 @@
             "id": "a4_ctrl_caps",
             "source": "EXTERNAL",
             "target": "A45:control",
-            "label": "part_inline_cap_kb 64 / Stream 500KB Hard Cap"
+            "label": "partinlinecapkb 64 / 串流 500KB Hard Cap"
           },
           {
             "id": "a4_mech_fold",
@@ -404,7 +404,7 @@
     },
     {
       "id": "A5",
-      "title": "Submit User Message"
+      "title": "Submit 使用者 訊息"
     },
     {
       "id": "A6",
@@ -416,25 +416,25 @@
       "id": "x_in_user",
       "source": "EXTERNAL",
       "target": "A5:input",
-      "label": "User Prompt + Attachments"
+      "label": "使用者 提示 + 附件"
     },
     {
       "id": "x_ctrl_tweaks",
       "source": "EXTERNAL",
       "target": "A1:control",
-      "label": "tweaks.cfg Storage Keys"
+      "label": "tweaks.cfg 儲存 Keys"
     },
     {
       "id": "x_ctrl_tweaks_cache",
       "source": "EXTERNAL",
       "target": "A3:control",
-      "label": "tweaks.cfg Cache + RateLimit Keys"
+      "label": "tweaks.cfg 快取 + RateLimit Keys"
     },
     {
       "id": "x_ctrl_tweaks_ui",
       "source": "EXTERNAL",
       "target": "A6:control",
-      "label": "ui_freshness_threshold_sec / hard_timeout_sec"
+      "label": "uifreshnessthresholdsec / hardtimeoutsec"
     },
     {
       "id": "x_mech_post",
@@ -446,25 +446,25 @@
       "id": "x_submit_to_persist",
       "source": "A5:output",
       "target": "A1:input",
-      "label": "User Message Record"
+      "label": "使用者 訊息 記錄"
     },
     {
       "id": "x_submit_to_runloop",
       "source": "A5:output",
       "target": "EXTERNAL",
-      "label": "Dispatch To Runloop"
+      "label": "派發 到 Runloop"
     },
     {
       "id": "x_persist_to_cache",
       "source": "A1:output",
       "target": "A3:input",
-      "label": "Updated Message Or Session State"
+      "label": "Updated 訊息 或 Session 狀態"
     },
     {
       "id": "x_bus_to_cache",
       "source": "EXTERNAL",
       "target": "A3:input",
-      "label": "Session.Event.Updated / MessageV2.Event.*"
+      "label": "Session.事件.Updated / 訊息v2.事件.*"
     },
     {
       "id": "x_mech_cache",
@@ -476,19 +476,19 @@
       "id": "x_cache_to_stream",
       "source": "A3:output",
       "target": "A4:input",
-      "label": "200 Body Or 304 Not Modified"
+      "label": "200 Body 或 304 不 Modified"
     },
     {
       "id": "x_rebind_to_capability",
       "source": "EXTERNAL",
       "target": "A2:input",
-      "label": "Trigger From Boot / Resume / Switch / Reload / Tool / Mtime"
+      "label": "Trigger 來自 Boot / Resume / Switch / 重載 / 工具 / Mtime"
     },
     {
       "id": "x_capability_to_persist",
       "source": "A2:output",
       "target": "A1:control",
-      "label": "Pinned Skills + Mandatory Skills Snapshot"
+      "label": "已釘選技能 + 必要 技能 Snapshot"
     },
     {
       "id": "x_capability_to_cache",
@@ -500,7 +500,7 @@
       "id": "x_stream_to_fresh",
       "source": "A4:output",
       "target": "A6:input",
-      "label": "receivedAt Stamp Per Store Entry"
+      "label": "已收到於 Stamp 依 Store 項目"
     },
     {
       "id": "x_mech_fresh",
@@ -524,13 +524,13 @@
       "id": "x_fresh_to_rebind",
       "source": "A6:output",
       "target": "A2:input",
-      "label": "Idle Boundary -> session_resume Trigger"
+      "label": "閒置 Boundary -> Sessionresume Trigger"
     },
     {
       "id": "x_persist_out",
       "source": "A1:output",
       "target": "EXTERNAL",
-      "label": "Persisted Snapshot To Disk"
+      "label": "Persisted Snapshot 到 磁碟"
     },
     {
       "id": "x_stream_out",

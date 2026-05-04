@@ -1,11 +1,11 @@
 {
-  "diagram_title": "Continuous Orchestration Context",
+  "diagram_title": "Continuous Orchestration 上下文",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A1",
-      "title": "Coordinate Continuous Task Execution",
-      "description": "Dispatch subagent work without blocking the parent turn and resume the orchestrator from completion evidence.",
+      "title": "Coordinate Continuous 任務 Execution",
+      "description": "派發 子代理 work 不 blocking 父層 回合 與 resume 協調器 來自 completion evidence.",
       "decomposition": null
     }
   ],
@@ -14,28 +14,28 @@
       "id": "AR1",
       "source": "EXTERNAL",
       "target": "A1:input",
-      "label": "Task Delegation Request",
+      "label": "任務 Delegation 請求",
       "type": "input"
     },
     {
       "id": "AR2",
       "source": "EXTERNAL",
       "target": "A1:control",
-      "label": "Planner Contract And Runtime Policies",
+      "label": "Planner Contract 與 Runtime Policies",
       "type": "control"
     },
     {
       "id": "AR3",
       "source": "A1:output",
       "target": "EXTERNAL",
-      "label": "Dispatch Metadata And Continuation Outcomes",
+      "label": "派發 Metadata 與 延續 Outcomes",
       "type": "output"
     },
     {
       "id": "AR4",
       "source": "EXTERNAL",
       "target": "A1:mechanism",
-      "label": "Task Worker Bus Session Queue UI",
+      "label": "任務 worker Bus Session 排入佇列 UI",
       "type": "mechanism"
     }
   ]

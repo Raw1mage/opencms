@@ -3,108 +3,176 @@
     "StepNumber": 0,
     "ModuleRef": "A1",
     "StepType": "initial",
-    "StepAction": "Idle Awaiting Operator Input",
+    "StepAction": "閒置 Awaiting Operator 輸入",
     "LinkInputType": [],
-    "LinkInputNumber": [7],
-    "LinkOutputNumber": [1, 3],
+    "LinkInputNumber": [
+      7
+    ],
+    "LinkOutputNumber": [
+      1,
+      3
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["logout_triggered", "llm_request_triggered"],
+    "Condition": [
+      "logouttriggered",
+      "LLM請求triggered"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 1,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "POST Refresh Token To Revoke Endpoint",
+    "StepAction": "POST 刷新 Token 到 Revoke Endpoint",
     "LinkInputType": [],
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2, 8],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2,
+      8
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["revoke_ok", "revoke_failed"],
+    "Condition": [
+      "revokeok",
+      "revokefailed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Clear Local Account Entry",
+    "StepAction": "Clear Local 帳號 項目",
     "LinkInputType": [],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [7],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      7
+    ],
     "LinkOutputType": "track",
-    "Condition": ["teardown_done"],
+    "Condition": [
+      "teardowndone"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Resolve Provider For Request",
+    "StepAction": "解析 Provider 供 請求",
     "LinkInputType": [],
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [4, 9],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      4,
+      9
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["explicit_provider_pick", "auto_provider_pick"],
+    "Condition": [
+      "explicitProviderpick",
+      "autoProviderpick"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 4,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Bypass disabled_providers Filter For Explicit",
+    "StepAction": "Bypass disabledProvider Filter 供 Explicit",
     "LinkInputType": [],
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [5],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      5
+    ],
     "LinkOutputType": "track",
-    "Condition": ["provider_resolved"],
+    "Condition": [
+      "Provider已解析"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 5,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "Attach Context Window Headers To Request",
-    "LinkInputType": ["convergence_or"],
-    "LinkInputNumber": [4, 10],
-    "LinkOutputNumber": [6],
+    "StepAction": "Attach 上下文 Window Headers 到 請求",
+    "LinkInputType": [
+      "convergence_or"
+    ],
+    "LinkInputNumber": [
+      4,
+      10
+    ],
+    "LinkOutputNumber": [
+      6
+    ],
     "LinkOutputType": "track",
-    "Condition": ["headers_attached"],
+    "Condition": [
+      "headersattached"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 6,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Resolve Effort Variant Applying xhigh If Opus 4.7",
+    "StepAction": "解析 Effort Variant Applying xhigh If Opus 4.7",
     "LinkInputType": [],
-    "LinkInputNumber": [5],
-    "LinkOutputNumber": [7],
+    "LinkInputNumber": [
+      5
+    ],
+    "LinkOutputNumber": [
+      7
+    ],
     "LinkOutputType": "track",
-    "Condition": ["request_dispatched"],
+    "Condition": [
+      "請求dispatched"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 7,
     "ModuleRef": "A5",
     "StepType": "normal",
-    "StepAction": "Emit Log And Return To Idle",
-    "LinkInputType": ["convergence_or"],
-    "LinkInputNumber": [2, 6, 8, 11],
-    "LinkOutputNumber": [0],
+    "StepAction": "發出 記錄 與 返回 到 閒置",
+    "LinkInputType": [
+      "convergence_or"
+    ],
+    "LinkInputNumber": [
+      2,
+      6,
+      8,
+      11
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["cycle_complete"],
+    "Condition": [
+      "cycle完成"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 8,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Fail Closed Preserve Local State Throw Error",
+    "StepAction": "Fail Closed Preserve Local 狀態 Throw 錯誤",
     "LinkInputType": [],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [7],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      7
+    ],
     "LinkOutputType": "track",
-    "Condition": ["error_surfaced"],
+    "Condition": [
+      "錯誤surfaced"
+    ],
     "SubGrafcet": []
   },
   {
@@ -113,34 +181,54 @@
     "StepType": "normal",
     "StepAction": "Apply Auto Hidden Filter Skip disabled Provider",
     "LinkInputType": [],
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [10, 11],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      10,
+      11
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["auto_provider_found", "no_provider_available"],
+    "Condition": [
+      "autoProviderfound",
+      "無Provideravailable"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 10,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Continue With Auto Resolved Provider",
+    "StepAction": "繼續 使用 Auto 已解析 Provider",
     "LinkInputType": [],
-    "LinkInputNumber": [9],
-    "LinkOutputNumber": [5],
+    "LinkInputNumber": [
+      9
+    ],
+    "LinkOutputNumber": [
+      5
+    ],
     "LinkOutputType": "track",
-    "Condition": ["auto_resolved"],
+    "Condition": [
+      "auto已解析"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 11,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Surface No Provider Error",
+    "StepAction": "Surface 無 Provider 錯誤",
     "LinkInputType": [],
-    "LinkInputNumber": [9],
-    "LinkOutputNumber": [7],
+    "LinkInputNumber": [
+      9
+    ],
+    "LinkOutputNumber": [
+      7
+    ],
     "LinkOutputType": "track",
-    "Condition": ["error_to_operator"],
+    "Condition": [
+      "錯誤到operator"
+    ],
     "SubGrafcet": []
   }
 ]

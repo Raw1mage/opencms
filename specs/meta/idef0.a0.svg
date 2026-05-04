@@ -1,65 +1,62 @@
-<svg width="1734.9" height="705.8" viewBox="-475.4 -165.8 1734.9 705.8" xmlns="http://www.w3.org/2000/svg">
+<svg width="1497.4" height="705.8" viewBox="-319.7 -165.8 1497.4 705.8" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
 <marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
 </defs>
-<rect x="-475.4" y="-165.8" width="1734.9" height="705.8" fill="white" />
-<rect x="130.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
-<text x="230.0" y="151.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
-<text x="230.0" y="181.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >DRIVE PLAN</text>
-<text x="230.0" y="211.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >BUILDER LIFECYCLE</text>
-<rect x="454.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
-<text x="554.0" y="155.3" text-anchor="middle" font-size="11" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
-<text x="554.0" y="181.1" text-anchor="middle" font-size="13" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >MAINTAIN ARCHITECTURE</text>
-<text x="554.0" y="205.4" text-anchor="middle" font-size="13" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >DOCUMENTATION</text>
-<rect x="130.0" y="330.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
-<text x="230.0" y="359.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >A3</text>
-<text x="230.0" y="391.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >MANAGE XDG AND</text>
-<text x="230.0" y="422.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >SYSTEM CONFIG</text>
-<rect x="454.0" y="330.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
-<text x="554.0" y="359.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >A4</text>
-<text x="554.0" y="391.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >TUNE RUNTIME</text>
-<text x="554.0" y="422.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >KNOBS VIA TWEAKS</text>
-<rect x="80.0" y="44.2" width="624.0" height="485.8" stroke="black" fill="none" stroke-width="2" />
-<rect x="272.0" y="-155.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
-<text x="392.0" y="-115.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >A0</text>
-<text x="392.0" y="-83.0" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >GOVERN PROJECT META</text>
-<line x1="272.0" y1="-155.8" x2="80.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="512.0" y1="-155.8" x2="704.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="272.0" y1="-45.8" x2="80.0" y2="530.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="512.0" y1="-45.8" x2="704.0" y2="530.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<path d="M 330.0 160.0 L 454.0 160.0" stroke="black" stroke-width="1.2" data-arrow-id="a0m1" data-waypoints="330.0,160.0 454.0,160.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 370.0 L 454.0 370.0" stroke="black" stroke-width="1.2" data-arrow-id="a0m3" data-waypoints="330.0,370.0 454.0,370.0" marker-end="url(#arrow)" fill="none" />
+<rect x="-319.7" y="-165.8" width="1497.4" height="705.8" fill="white" />
+<rect x="130.0" y="120.0" width="237.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="248.5" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
+<text x="248.5" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >DRIVE 規劃</text>
+<text x="248.5" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >BUILDER LIFECYCLE</text>
+<rect x="491.0" y="120.0" width="237.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="609.5" y="151.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
+<text x="609.5" y="181.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >MAINTAIN ARCHITECTURE</text>
+<text x="609.5" y="211.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >DOCUMENTATION</text>
+<rect x="130.0" y="330.0" width="237.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="248.5" y="359.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >A3</text>
+<text x="248.5" y="391.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >MANAGE XDG</text>
+<text x="248.5" y="422.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >與 SYSTEM 設定</text>
+<rect x="491.0" y="330.0" width="237.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
+<text x="609.5" y="359.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >A4</text>
+<text x="609.5" y="391.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >TUNE RUNTIME</text>
+<text x="609.5" y="422.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >KNOBS 透過 TWEAKS</text>
+<rect x="80.0" y="44.2" width="698.0" height="485.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="309.0" y="-155.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="429.0" y="-118.4" text-anchor="middle" font-size="21" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >A0</text>
+<text x="429.0" y="-78.4" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >GOVERN 專案 META</text>
+<line x1="309.0" y1="-155.8" x2="80.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="549.0" y1="-155.8" x2="778.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="309.0" y1="-45.8" x2="80.0" y2="530.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="549.0" y1="-45.8" x2="778.0" y2="530.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 367.0 160.0 L 491.0 160.0" stroke="black" stroke-width="1.2" data-arrow-id="a0m1" data-waypoints="367.0,160.0 491.0,160.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 367.0 370.0 L 491.0 370.0" stroke="black" stroke-width="1.2" data-arrow-id="a0m3" data-waypoints="367.0,370.0 491.0,370.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 30.0 180.0 L 130.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a0i1" data-waypoints="30.0,180.0 130.0,180.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 654.0 180.0 L 754.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a0m2" data-waypoints="654.0,180.0 754.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 728.0 180.0 L 828.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a0m2" data-waypoints="728.0,180.0 828.0,180.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 30.0 390.0 L 130.0 390.0" stroke="black" stroke-width="1.2" data-arrow-id="a0i3" data-waypoints="30.0,390.0 130.0,390.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 294.2 L 230.0 330.0" stroke="black" stroke-width="1.2" data-arrow-id="a0c3" data-waypoints="230.0,294.2 230.0,330.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 554.0 294.2 L 554.0 330.0" stroke="black" stroke-width="1.2" data-arrow-id="a0i4" data-waypoints="554.0,294.2 554.0,330.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 654.0 390.0 L 754.0 390.0" stroke="black" stroke-width="1.2" data-arrow-id="a0o4" data-waypoints="654.0,390.0 754.0,390.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 200.0 L 382.0 200.0 Q 392.0 200.0 392.0 210.0 L 392.0 270.0 Q 392.0 280.0 402.0 280.0 L 754.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="a0o1" data-waypoints="330.0,200.0 392.0,200.0 392.0,280.0 754.0,280.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 410.0 L 382.0 410.0 Q 392.0 410.0 392.0 420.0 L 392.0 480.0 Q 392.0 490.0 402.0 490.0 L 754.0 490.0" stroke="black" stroke-width="1.2" data-arrow-id="a0o3" data-waypoints="330.0,410.0 392.0,410.0 392.0,490.0 754.0,490.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A1_control" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 554.0 84.2 L 554.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A2_control" data-waypoints="554.0,84.2 554.0,120.0" marker-end="url(#arrow)" fill="none" />
-<text x="230.0" y="288.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0c3">no-silent-fallback enumeration</text>
-<text x="548.0" y="324.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0i4">/etc/opencode/tweaks.cfg</text>
-<text x="560.0" y="324.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0i4">or OPENCODE_TWEAKS_PATH</text>
-<text x="230.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0c1">SKILL.md + AGENTS.md rule set、backup whitelist gate satisfied → plan may enter implementing</text>
-<text x="548.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0i2">Architecture Sync checkpoint、plan-builder</text>
-<text x="560.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0i2">phase summary triggers docs/events/ append</text>
-<text x="392.0" y="155.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0m1">spec reaching</text>
-<text x="392.0" y="172.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0m1">living state</text>
-<text x="392.0" y="365.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0m3">merged</text>
-<text x="392.0" y="382.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0m3">Config.Info</text>
+<path d="M 248.5 294.2 L 248.5 330.0" stroke="black" stroke-width="1.2" data-arrow-id="a0c3" data-waypoints="248.5,294.2 248.5,330.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 609.5 294.2 L 609.5 330.0" stroke="black" stroke-width="1.2" data-arrow-id="a0i4" data-waypoints="609.5,294.2 609.5,330.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 728.0 390.0 L 828.0 390.0" stroke="black" stroke-width="1.2" data-arrow-id="a0o4" data-waypoints="728.0,390.0 828.0,390.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 367.0 200.0 L 419.0 200.0 Q 429.0 200.0 429.0 210.0 L 429.0 270.0 Q 429.0 280.0 439.0 280.0 L 828.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="a0o1" data-waypoints="367.0,200.0 429.0,200.0 429.0,280.0 828.0,280.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 367.0 410.0 L 419.0 410.0 Q 429.0 410.0 429.0 420.0 L 429.0 480.0 Q 429.0 490.0 439.0 490.0 L 828.0 490.0" stroke="black" stroke-width="1.2" data-arrow-id="a0o3" data-waypoints="367.0,410.0 429.0,410.0 429.0,490.0 828.0,490.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 248.5 84.2 L 248.5 120.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A1_control" data-waypoints="248.5,84.2 248.5,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 609.5 84.2 L 609.5 120.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A2_control" data-waypoints="609.5,84.2 609.5,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="248.5" y="288.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0c3">無-靜默-fallback enumeration</text>
+<text x="603.5" y="324.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0i4">/etc/opencode/tweaks.cfg</text>
+<text x="615.5" y="324.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0i4">OPENCODE TWEAKS PATH</text>
+<text x="248.5" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0c1">SKILL.md + AGENTS.md rule set、backup whitelist gate satisfied → 規劃 may enter implementing</text>
+<text x="603.5" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0i2">Architecture Sync checkpoint、規劃-builder</text>
+<text x="615.5" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0i2">phase summary triggers docs/事件/ 追加</text>
+<text x="429.0" y="160.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0m1"><tspan x="429.0" dy="0">spec reaching</tspan><tspan x="429.0" dy="16.0">living</tspan><tspan x="429.0" dy="16.0">狀態</tspan></text>
+<text x="429.0" y="365.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0m3">merged</text>
+<text x="429.0" y="382.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0m3">設定.Info</text>
 <text x="26.0" y="171.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0i1">developer authors</text>
 <text x="26.0" y="197.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0i1">/ revises spec</text>
-<text x="758.0" y="171.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0m2">current wiki</text>
-<text x="758.0" y="197.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0m2">+ event log</text>
-<text x="26.0" y="381.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0i3">user edits XDG</text>
-<text x="26.0" y="407.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0i3">/ system files</text>
-<text x="758.0" y="381.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0o4">validated knob</text>
-<text x="758.0" y="407.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0o4">values to runtime</text>
-<text x="758.0" y="284.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0o1">lifecycle audit trail (.state.json.history)</text>
-<text x="758.0" y="468.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0o3">structured 503</text>
-<text x="758.0" y="494.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0o3">on config error</text>
-<text x="758.0" y="520.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0o3">/ runtime config</text>
+<text x="832.0" y="184.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0m2">current wiki + 事件 記錄</text>
+<text x="26.0" y="394.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0i3">使用者 edits XDG / system 檔案</text>
+<text x="832.0" y="381.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0o4">validated knob</text>
+<text x="832.0" y="407.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0o4">values 到 runtime</text>
+<text x="832.0" y="271.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0o1">lifecycle audit trail</text>
+<text x="832.0" y="297.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0o1">(.state.js在.history)</text>
+<text x="832.0" y="481.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0o3">structured 503 在 設</text>
+<text x="832.0" y="507.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a0o3">定 錯誤 / runtime 設定</text>
 </svg>

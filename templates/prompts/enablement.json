@@ -87,8 +87,7 @@
       "memory_read_graph",
       "memory_search_nodes",
       "memory_open_nodes"
-    ],
-    "beta_tool_mcp": ["newbeta", "syncback", "merge"]
+    ]
   },
   "skills": {
     "bundled_templates": [
@@ -233,10 +232,10 @@
       {
         "intent": "repo/worktree beta loop orchestration",
         "keywords": ["worktree", "beta", "syncback", "newbeta", "merge branch loop", "repo orchestration"],
-        "prefer": ["beta-tool MCP", "question"],
+        "prefer": ["bash", "question"],
         "fallback": ["bash", "question"],
         "notes": [
-          "Prefer beta-tool for project-aware local repo/worktree orchestration.",
+          "Use builder-native beta workflow or explicit git commands for project-aware local repo/worktree orchestration.",
           "Do not silently guess repo root, base branch, beta path, runtime policy, or merge target; use question when bounded clarification is needed."
         ]
       },

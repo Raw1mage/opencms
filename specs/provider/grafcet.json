@@ -3,168 +3,265 @@
     "StepNumber": 0,
     "ModuleRef": "A0",
     "StepType": "initial",
-    "StepAction": "idle_no_inflight",
+    "StepAction": "閒置無inflight",
     "LinkInputType": [],
-    "LinkInputNumber": [12],
+    "LinkInputNumber": [
+      12
+    ],
     "LinkOutputType": "track",
-    "LinkOutputNumber": [1],
-    "Condition": ["request_received"],
+    "LinkOutputNumber": [
+      1
+    ],
+    "Condition": [
+      "請求已收到"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 1,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "resolve_family_via_assertFamilyKey",
+    "StepAction": "解析family透過assertfamilykey",
     "LinkInputType": [],
-    "LinkInputNumber": [0],
+    "LinkInputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "LinkOutputNumber": [2],
-    "Condition": ["family_in_knownFamilies"],
+    "LinkOutputNumber": [
+      2
+    ],
+    "Condition": [
+      "family在knownfamilies"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "select_account_via_Auth_get_two_arg",
+    "StepAction": "select帳號透過驗證gettwoarg",
     "LinkInputType": [],
-    "LinkInputNumber": [1],
+    "LinkInputNumber": [
+      1
+    ],
     "LinkOutputType": "track",
-    "LinkOutputNumber": [3],
-    "Condition": ["accountId_present_and_active"],
+    "LinkOutputNumber": [
+      3
+    ],
+    "Condition": [
+      "帳號idpresent與active"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "instantiate_sdk_via_getSDK_family_accountId_model",
+    "StepAction": "instantiatesdk透過getSDK family帳號id模型",
     "LinkInputType": [],
-    "LinkInputNumber": [2],
+    "LinkInputNumber": [
+      2
+    ],
     "LinkOutputType": "track",
-    "LinkOutputNumber": [4],
-    "Condition": ["sdk_client_ready"],
+    "LinkOutputNumber": [
+      4
+    ],
+    "Condition": [
+      "sdkclient就緒"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 4,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "build_headers_buildHeaders_or_assembleBetas",
+    "StepAction": "建置headers建置headers或組裝betas",
     "LinkInputType": [],
-    "LinkInputNumber": [3],
+    "LinkInputNumber": [
+      3
+    ],
     "LinkOutputType": "track",
-    "LinkOutputNumber": [5],
-    "Condition": ["headers_finalized"],
+    "LinkOutputNumber": [
+      5
+    ],
+    "Condition": [
+      "headersfinalized"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 5,
     "ModuleRef": "A5",
     "StepType": "normal",
-    "StepAction": "transform_payload_apply_caching_or_skip_native",
+    "StepAction": "transformpayloadapplycaching或skipnative",
     "LinkInputType": [],
-    "LinkInputNumber": [4],
+    "LinkInputNumber": [
+      4
+    ],
     "LinkOutputType": "track",
-    "LinkOutputNumber": [6],
-    "Condition": ["payload_transform_complete"],
+    "LinkOutputNumber": [
+      6
+    ],
+    "Condition": [
+      "payloadtransform完成"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 6,
     "ModuleRef": "A61",
     "StepType": "normal",
-    "StepAction": "choose_transport_ws_or_http",
+    "StepAction": "choosetransportws或http",
     "LinkInputType": [],
-    "LinkInputNumber": [5],
+    "LinkInputNumber": [
+      5
+    ],
     "LinkOutputType": "divergence_or",
-    "LinkOutputNumber": [7, 8],
-    "Condition": ["ws_enabled_and_not_sticky_fallback", "http_or_ws_sticky_fallback"],
+    "LinkOutputNumber": [
+      7,
+      8
+    ],
+    "Condition": [
+      "ws已啟用與不stickyfallback",
+      "http或wsstickyfallback"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 7,
     "ModuleRef": "A62",
     "StepType": "normal",
-    "StepAction": "dispatch_via_websocket_upgrade_responses_websockets_2026_02_06",
+    "StepAction": "派發透過websocketupgraderesponseswebsockets20260206",
     "LinkInputType": [],
-    "LinkInputNumber": [6],
+    "LinkInputNumber": [
+      6
+    ],
     "LinkOutputType": "track",
-    "LinkOutputNumber": [9],
-    "Condition": ["ws_handshake_ok"],
+    "LinkOutputNumber": [
+      9
+    ],
+    "Condition": [
+      "wshandshakeok"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 8,
     "ModuleRef": "A62",
     "StepType": "normal",
-    "StepAction": "dispatch_via_http_post_text_event_stream",
+    "StepAction": "派發透過httppost文字事件串流",
     "LinkInputType": [],
-    "LinkInputNumber": [6],
+    "LinkInputNumber": [
+      6
+    ],
     "LinkOutputType": "convergence_or",
-    "LinkOutputNumber": [9],
-    "Condition": ["http_response_opened"],
+    "LinkOutputNumber": [
+      9
+    ],
+    "Condition": [
+      "http回應opened"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 9,
     "ModuleRef": "A63",
     "StepType": "normal",
-    "StepAction": "stream_chunks_classify_errors",
-    "LinkInputType": ["convergence_or"],
-    "LinkInputNumber": [7, 8],
+    "StepAction": "串流分塊classify錯誤",
+    "LinkInputType": [
+      "convergence_or"
+    ],
+    "LinkInputNumber": [
+      7,
+      8
+    ],
     "LinkOutputType": "divergence_or",
-    "LinkOutputNumber": [10, 11, 13],
-    "Condition": ["chunk_completion_frame", "rate_limit_or_quota_hit", "continuation_invalidated_or_4xx5xx"],
+    "LinkOutputNumber": [
+      10,
+      11,
+      13
+    ],
+    "Condition": [
+      "分塊completionframe",
+      "ratelimit或配額hit",
+      "延續invalidated或4xx5xx"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 10,
     "ModuleRef": "A65",
     "StepType": "normal",
-    "StepAction": "update_token_usage_and_rate_limit_telemetry",
+    "StepAction": "更新tokenusage與ratelimittelemetry",
     "LinkInputType": [],
-    "LinkInputNumber": [9],
+    "LinkInputNumber": [
+      9
+    ],
     "LinkOutputType": "convergence_or",
-    "LinkOutputNumber": [12],
-    "Condition": ["telemetry_committed"],
+    "LinkOutputNumber": [
+      12
+    ],
+    "Condition": [
+      "telemetrycommitted"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 11,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "rotate_account_or_backoff_via_rotation3d",
+    "StepAction": "rotate帳號或backoff透過輪替3d",
     "LinkInputType": [],
-    "LinkInputNumber": [9],
+    "LinkInputNumber": [
+      9
+    ],
     "LinkOutputType": "track",
-    "LinkOutputNumber": [12],
-    "Condition": ["candidate_pool_exhausted_or_backoff_done"],
+    "LinkOutputNumber": [
+      12
+    ],
+    "Condition": [
+      "candidatepoolexhausted或backoffdone"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 12,
     "ModuleRef": "A0",
     "StepType": "normal",
-    "StepAction": "return_to_idle_release_inflight",
-    "LinkInputType": ["convergence_or"],
-    "LinkInputNumber": [10, 11, 13],
+    "StepAction": "返回到閒置releaseinflight",
+    "LinkInputType": [
+      "convergence_or"
+    ],
+    "LinkInputNumber": [
+      10,
+      11,
+      13
+    ],
     "LinkOutputType": "track",
-    "LinkOutputNumber": [0],
-    "Condition": ["1"],
+    "LinkOutputNumber": [
+      0
+    ],
+    "Condition": [
+      "1"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 13,
     "ModuleRef": "A64",
     "StepType": "normal",
-    "StepAction": "emit_continuation_invalidated_bus_event_and_evict_cache",
+    "StepAction": "發出延續invalidatedbus事件與evict快取",
     "LinkInputType": [],
-    "LinkInputNumber": [9],
+    "LinkInputNumber": [
+      9
+    ],
     "LinkOutputType": "convergence_or",
-    "LinkOutputNumber": [12],
-    "Condition": ["bus_event_emitted_and_cache_evicted"],
+    "LinkOutputNumber": [
+      12
+    ],
+    "Condition": [
+      "bus事件emitted與快取evicted"
+    ],
     "SubGrafcet": []
   }
 ]

@@ -2,151 +2,227 @@
   {
     "StepNumber": 0,
     "StepType": "initial",
-    "StepAction": "account_storage_idle",
+    "StepAction": "帳號儲存閒置",
     "ModuleRef": "A0",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [11],
-    "LinkOutputNumber": [1],
-    "Condition": ["auth_set_invoked_by_cli_tui_or_route"],
+    "LinkInputNumber": [
+      11
+    ],
+    "LinkOutputNumber": [
+      1
+    ],
+    "Condition": [
+      "驗證setinvoked由clitui或路由"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 1,
     "StepType": "normal",
-    "StepAction": "resolve_canonical_provider_key",
+    "StepAction": "解析canonicalProviderkey",
     "ModuleRef": "A11",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2],
-    "Condition": ["family_is_known_via_resolveProviderOrSelf"],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2
+    ],
+    "Condition": [
+      "family是known透過解析Provider或self"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "StepType": "normal",
-    "StepAction": "validate_credential_shape_and_branch",
+    "StepAction": "validatecredentialshape與branch",
     "ModuleRef": "A12",
     "LinkInputType": [],
     "LinkOutputType": "divergence_or",
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [3, 4],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      3,
+      4
+    ],
     "Condition": [
-      "info_type_equals_api",
-      "info_type_equals_oauth"
+      "infotypeequalsapi",
+      "infotypeequalsoauth"
     ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "StepType": "normal",
-    "StepAction": "scan_existing_for_apikey_match",
+    "StepAction": "掃描existing供apikey比對",
     "ModuleRef": "A13",
     "LinkInputType": [],
     "LinkOutputType": "convergence_or",
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [6],
-    "Condition": ["apikey_dedup_done"],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      6
+    ],
+    "Condition": [
+      "apikeydedupdone"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 4,
     "StepType": "normal",
-    "StepAction": "run_identity_chain_email_username_tokenhash",
+    "StepAction": "執行身分chainemailusernametokenhash",
     "ModuleRef": "A12",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [5],
-    "Condition": ["identity_slug_resolved"],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      5
+    ],
+    "Condition": [
+      "身分slug已解析"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 5,
     "StepType": "normal",
-    "StepAction": "dedup_by_base_token_or_email_collision",
+    "StepAction": "dedup由basetoken或emailcollision",
     "ModuleRef": "A13",
     "LinkInputType": [],
     "LinkOutputType": "convergence_or",
-    "LinkInputNumber": [4],
-    "LinkOutputNumber": [6],
-    "Condition": ["oauth_dedup_done"],
+    "LinkInputNumber": [
+      4
+    ],
+    "LinkOutputNumber": [
+      6
+    ],
+    "Condition": [
+      "oauthdedupdone"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 6,
     "StepType": "normal",
-    "StepAction": "decide_update_existing_or_generate_id",
+    "StepAction": "decide更新existing或generateid",
     "ModuleRef": "A14",
-    "LinkInputType": ["convergence_or"],
+    "LinkInputType": [
+      "convergence_or"
+    ],
     "LinkOutputType": "divergence_or",
-    "LinkInputNumber": [3, 5],
-    "LinkOutputNumber": [7, 8],
+    "LinkInputNumber": [
+      3,
+      5
+    ],
+    "LinkOutputNumber": [
+      7,
+      8
+    ],
     "Condition": [
-      "existing_record_found",
-      "no_match_generate_new_id_with_suffix"
+      "existing記錄found",
+      "無比對generatenewid使用suffix"
     ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 7,
     "StepType": "normal",
-    "StepAction": "patch_existing_record_in_place",
+    "StepAction": "patchexisting記錄在place",
     "ModuleRef": "A15",
     "LinkInputType": [],
     "LinkOutputType": "convergence_or",
-    "LinkInputNumber": [6],
-    "LinkOutputNumber": [9],
-    "Condition": ["account_update_persisted"],
+    "LinkInputNumber": [
+      6
+    ],
+    "LinkOutputNumber": [
+      9
+    ],
+    "Condition": [
+      "帳號更新persisted"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 8,
     "StepType": "normal",
-    "StepAction": "account_add_under_mutex",
+    "StepAction": "帳號addundermutex",
     "ModuleRef": "A15",
     "LinkInputType": [],
     "LinkOutputType": "convergence_or",
-    "LinkInputNumber": [6],
-    "LinkOutputNumber": [9],
-    "Condition": ["accounts_json_atomic_write_ok"],
+    "LinkInputNumber": [
+      6
+    ],
+    "LinkOutputNumber": [
+      9
+    ],
+    "Condition": [
+      "帳號jsonatomicwriteok"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 9,
     "StepType": "normal",
-    "StepAction": "normalize_identity_and_strip_managed_apps",
+    "StepAction": "normalize身分與移除managedapps",
     "ModuleRef": "A3",
-    "LinkInputType": ["convergence_or"],
+    "LinkInputType": [
+      "convergence_or"
+    ],
     "LinkOutputType": "track",
-    "LinkInputNumber": [7, 8],
-    "LinkOutputNumber": [10],
-    "Condition": ["normalize_report_emitted_or_noop"],
+    "LinkInputNumber": [
+      7,
+      8
+    ],
+    "LinkOutputNumber": [
+      10
+    ],
+    "Condition": [
+      "normalizereportemitted或noop"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 10,
     "StepType": "normal",
-    "StepAction": "publish_account_added_bus_event",
+    "StepAction": "發布帳號addedbus事件",
     "ModuleRef": "A16",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [9],
-    "LinkOutputNumber": [11],
-    "Condition": ["bus_account_added_published"],
+    "LinkInputNumber": [
+      9
+    ],
+    "LinkOutputNumber": [
+      11
+    ],
+    "Condition": [
+      "bus帳號addedpublished"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 11,
     "StepType": "normal",
-    "StepAction": "return_account_record_to_caller",
+    "StepAction": "返回帳號記錄到caller",
     "ModuleRef": "A1",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [10],
-    "LinkOutputNumber": [0],
-    "Condition": ["caller_received_account_id_idle_again"],
+    "LinkInputNumber": [
+      10
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
+    "Condition": [
+      "caller已收到帳號id閒置again"
+    ],
     "SubGrafcet": []
   }
 ]

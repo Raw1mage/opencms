@@ -3,180 +3,280 @@
     "StepNumber": 0,
     "ModuleRef": "A1",
     "StepType": "initial",
-    "StepAction": "Gateway splice loop serving authenticated clients to per-user daemon at steady state",
+    "StepAction": "Gateway splice loop serving authenticated clients 到 依-使用者 daemon 於 steady 狀態",
     "LinkInputType": [],
-    "LinkInputNumber": [13],
-    "LinkOutputNumber": [1],
+    "LinkInputNumber": [
+      13
+    ],
+    "LinkOutputNumber": [
+      1
+    ],
     "LinkOutputType": "track",
-    "Condition": ["restart_self MCP tool invoked by AI"],
+    "Condition": [
+      "restartself MCP 工具 invoked 由 AI"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 1,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Daemon route /api/v2/global/web/restart receives JWT-authenticated POST with targets and reason",
+    "StepAction": "Daemon 路由 /api/v2/全域/web/restart receives JWT-authenticated POST 使用 targets 與 reason",
     "LinkInputType": [],
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2
+    ],
     "LinkOutputType": "track",
-    "Condition": ["JWT verified and body parsed"],
+    "Condition": [
+      "JWT verified 與 body parsed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "resolveRestartRuntimeMode classifies runtime as gateway-daemon or legacy",
+    "StepAction": "解析restartruntimemode classifies runtime 作為 Gateway-daemon 或 legacy",
     "LinkInputType": [],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [3],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      3
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["isGatewayDaemon true and targets includes gateway", "isGatewayDaemon true and targets excludes gateway", "legacy mode dev-source dev-standalone or service"],
+    "Condition": [
+      "是Gatewaydaemon true 與 targets includes Gateway",
+      "是Gatewaydaemon true 與 targets excludes Gateway",
+      "legacy mode 開發-來源 開發-standalone 或 service"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Branch dispatched: gateway-target compileGatewayForSelfUpdate, daemon/frontend-target spawn webctl.sh restart --graceful with OPENCODE_RESTART_TXID, legacy spawn webctl.sh restart --graceful",
+    "StepAction": "Branch dispatched: Gateway-目標 compileGateway供self更新, daemon/前端-目標 啟動 webctl.sh restart --graceful 使用 OPENCODE RESTART TXID, legacy 啟動 webctl.sh restart --graceful",
     "LinkInputType": [],
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [4],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      4
+    ],
     "LinkOutputType": "track",
-    "Condition": ["worker spawned with OPENCODE_RESTART_ERROR_LOG_FILE set"],
+    "Condition": [
+      "worker spawned 使用 OPENCODE RESTART ERROR LOG FILE set"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 4,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "webctl.sh do_restart fingerprints daemon source, frontend bundle, and gateway C binary against installed artifacts",
+    "StepAction": "webctl.sh dorestart fingerprints daemon 來源, 前端 Bundle, 與 Gateway C binary against installed artifacts",
     "LinkInputType": [],
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [5],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      5
+    ],
     "LinkOutputType": "track",
-    "Condition": ["dirty layer set computed"],
+    "Condition": [
+      "dirty layer set computed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 5,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Rebuild and install only dirty layers via do_build_binary, do_build_frontend, do_compile_gateway",
+    "StepAction": "Rebuild 與 install 僅 dirty layers 透過 do建置binary, do建置前端, docompileGateway",
     "LinkInputType": [],
-    "LinkInputNumber": [4],
-    "LinkOutputNumber": [6],
+    "LinkInputNumber": [
+      4
+    ],
+    "LinkOutputNumber": [
+      6
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["all builds exit zero", "any build exits non-zero"],
+    "Condition": [
+      "all builds exit zero",
+      "any 建置 exits non-zero"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 6,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Worker exits zero, route handler responds 200 with mode=controlled_restart and recoveryDeadlineMs=30000",
+    "StepAction": "worker exits zero, 路由 handler responds 200 使用 mode=controlledrestart 與 recoveryDeadlineMs=30000",
     "LinkInputType": [],
-    "LinkInputNumber": [5],
-    "LinkOutputNumber": [7],
+    "LinkInputNumber": [
+      5
+    ],
+    "LinkOutputNumber": [
+      7
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["targets did not include gateway", "targets included gateway and SelfUpdate.runActions succeeded"],
+    "Condition": [
+      "targets did 不 include Gateway",
+      "targets included Gateway 與 self更新.執行actions succeeded"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 7,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Daemon path: setTimeout 300ms, then Daemon.removeDiscovery unlinks daemon.json daemon.pid daemon.sock and process.exit(0)",
+    "StepAction": "Daemon 路徑: setTimeout 300ms, then Daemon.removeDiscovery unlinks daemon.js在 daemon.pid daemon.sock 與 process.exit(0)",
     "LinkInputType": [],
-    "LinkInputNumber": [6],
-    "LinkOutputNumber": [9],
+    "LinkInputNumber": [
+      6
+    ],
+    "LinkOutputNumber": [
+      9
+    ],
     "LinkOutputType": "convergence_or",
-    "Condition": ["daemon process terminated"],
+    "Condition": [
+      "daemon process terminated"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 8,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Gateway path: schedule restart-service opencode-gateway.service after 300ms, systemd respawns gateway binary causing 3-5s downtime for all users",
+    "StepAction": "Gateway 路徑: schedule restart-service opencode-gateway.service after 300ms, systemd respawns Gateway binary causing 3-5s downtime 供 all users",
     "LinkInputType": [],
-    "LinkInputNumber": [6],
-    "LinkOutputNumber": [9],
+    "LinkInputNumber": [
+      6
+    ],
+    "LinkOutputNumber": [
+      9
+    ],
     "LinkOutputType": "convergence_or",
-    "Condition": ["systemd reports opencode-gateway active running"],
+    "Condition": [
+      "systemd reports opencode-Gateway active 執行中"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 9,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Next authenticated request hits gateway find_or_create_daemon and detects stale daemon.json or missing socket",
-    "LinkInputType": ["convergence_or"],
-    "LinkInputNumber": [7, 8],
-    "LinkOutputNumber": [10],
+    "StepAction": "下一個 authenticated 請求 hits Gateway find或createdaemon 與 detects stale daemon.js在 或 缺失 socket",
+    "LinkInputType": [
+      "convergence_or"
+    ],
+    "LinkInputNumber": [
+      7,
+      8
+    ],
+    "LinkOutputNumber": [
+      10
+    ],
     "LinkOutputType": "track",
-    "Condition": ["adopt probe failed"],
+    "Condition": [
+      "adopt 探測 failed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 10,
     "ModuleRef": "A5",
     "StepType": "normal",
-    "StepAction": "Self-heal escalation: read daemon.lock JSON, validate /proc/<pid> uid match, SIGTERM, 1s waitpid, SIGKILL, unlink socket path",
+    "StepAction": "Self-heal escalation: read daemon.lock JSON, validate /程序/<pid> uid 比對, SIGTERM, 1s waitpid, SIGKILL, unlink socket 路徑",
     "LinkInputType": [],
-    "LinkInputNumber": [9],
-    "LinkOutputNumber": [11],
+    "LinkInputNumber": [
+      9
+    ],
+    "LinkOutputNumber": [
+      11
+    ],
     "LinkOutputType": "track",
-    "Condition": ["orphan-cleanup result exited or killed logged"],
+    "Condition": [
+      "orphan-cleanup 結果 exited 或 killed logged"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 11,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "Gateway re-creates /run/user/<uid>/opencode mode 0700, parses OPENCODE_BIN argv, fork+setsid+initgroups+setgid+setuid+execvp daemon",
+    "StepAction": "Gateway re-creates /執行/使用者/<uid>/opencode mode 0700, parses OPENCODE BIN argv, fork+setsid+initgroups+setgid+setuid+execvp daemon",
     "LinkInputType": [],
-    "LinkInputNumber": [10],
-    "LinkOutputNumber": [12],
+    "LinkInputNumber": [
+      10
+    ],
+    "LinkOutputNumber": [
+      12
+    ],
     "LinkOutputType": "track",
-    "Condition": ["forked daemon child pid logged"],
+    "Condition": [
+      "forked daemon child pid logged"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 12,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "New daemon Server.listenUnix binds socket and writes daemon.json daemon.pid via Daemon.writeDiscovery",
+    "StepAction": "New daemon 伺服器.listenUnix binds socket 與 writes daemon.js在 daemon.pid 透過 Daemon.writeDiscovery",
     "LinkInputType": [],
-    "LinkInputNumber": [11],
-    "LinkOutputNumber": [13],
+    "LinkInputNumber": [
+      11
+    ],
+    "LinkOutputNumber": [
+      13
+    ],
     "LinkOutputType": "convergence_or",
-    "Condition": ["/api/v2/global/health probe returns 200"],
+    "Condition": [
+      "/api/v2/全域/健康 探測 返回 200"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 13,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Gateway resumes splice proxy to fresh daemon, client SSE reconnect absorbs the 503 window, system back to steady state",
-    "LinkInputType": ["convergence_or"],
-    "LinkInputNumber": [12, 14],
-    "LinkOutputNumber": [0],
+    "StepAction": "Gateway resumes splice proxy 到 fresh daemon, client SSE reconnect absorbs 503 window, system 回到 到 steady 狀態",
+    "LinkInputType": [
+      "convergence_or"
+    ],
+    "LinkInputNumber": [
+      12,
+      14
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["bidirectional splice established"],
+    "Condition": [
+      "bidirectional splice established"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 14,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Build failure path: route handler returns WEB_RESTART_FAILED with webctlExit, txid, errorLogPath, or RESTART_LOCK_BUSY 409 if stderr matches already in progress; previous daemon version keeps running",
+    "StepAction": "建置 failure 路徑: 路由 handler 返回 WEB RESTART FAILED 使用 webctlExit, txid, 錯誤記錄路徑, 或 RESTART LOCK BUSY 409 if stderr matches already 在 progress; previous daemon version keeps 執行中",
     "LinkInputType": [],
-    "LinkInputNumber": [5],
-    "LinkOutputNumber": [13],
+    "LinkInputNumber": [
+      5
+    ],
+    "LinkOutputNumber": [
+      13
+    ],
     "LinkOutputType": "convergence_or",
-    "Condition": ["AI reads errorLogPath, fixes source, re-invokes restart_self"],
+    "Condition": [
+      "AI reads 錯誤記錄路徑, fixes 來源, re-invokes restartself"
+    ],
     "SubGrafcet": []
   }
 ]

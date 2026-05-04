@@ -6,9 +6,15 @@
     "ModuleRef": "mcp/app-store.ts:McpAppStore",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [11],
-    "LinkOutputNumber": [1],
-    "Condition": ["userInstallsApp || /api/v2/mcp/store/apps POST"],
+    "LinkInputNumber": [
+      11
+    ],
+    "LinkOutputNumber": [
+      1
+    ],
+    "Condition": [
+      "使用者installsapp || /api/v2/mcp/store/apps POST"
+    ],
     "SubGrafcet": []
   },
   {
@@ -18,33 +24,53 @@
     "ModuleRef": "mcp/app-store.ts:addApp",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2],
-    "Condition": ["manifestPathResolved"],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2
+    ],
+    "Condition": [
+      "Manifest路徑已解析"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "StepType": "normal",
-    "StepAction": "RegisterManifest",
+    "StepAction": "註冊Manifest",
     "ModuleRef": "mcp/manifest.ts:load+infer / mcp/app-store.ts:buildEntry",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [3],
-    "Condition": ["zodValidatePass && bindMountLintPass"],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      3
+    ],
+    "Condition": [
+      "zodValidatePass && bindMountLintPass"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "StepType": "normal",
-    "StepAction": "FirstToolsCallTriggersConnect",
+    "StepAction": "firsttools呼叫triggersconnect",
     "ModuleRef": "mcp/index.ts:tools+connectMcpApps",
     "LinkInputType": [],
     "LinkOutputType": "divergence_or",
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [4, 5],
-    "Condition": ["entry.transport == 'stdio'", "entry.transport == 'streamable-http' || 'sse'"],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      4,
+      5
+    ],
+    "Condition": [
+      "項目.transport == 'stdio'",
+      "項目.transport == 'streamable-http' || 'sse'"
+    ],
     "SubGrafcet": []
   },
   {
@@ -54,9 +80,15 @@
     "ModuleRef": "mcp/index.ts:create(type=local) StdioClientTransport",
     "LinkInputType": [],
     "LinkOutputType": "convergence_or",
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [6],
-    "Condition": ["spawnOk && initializeHandshakeOk"],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      6
+    ],
+    "Condition": [
+      "啟動ok && initializeHandshakeOk"
+    ],
     "SubGrafcet": []
   },
   {
@@ -66,81 +98,133 @@
     "ModuleRef": "mcp/index.ts:create(type=remote) parseUnixSocketUrl + Bun fetch unix:",
     "LinkInputType": [],
     "LinkOutputType": "convergence_or",
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [6],
-    "Condition": ["streamableHttpOk || sseFallbackOk"],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      6
+    ],
+    "Condition": [
+      "streamableHttpOk || ssefallbackok"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 6,
     "StepType": "normal",
-    "StepAction": "ClientReady",
+    "StepAction": "client就緒",
     "ModuleRef": "mcp/index.ts:status[clientName]='connected' + tools() cache",
-    "LinkInputType": ["convergence_or"],
+    "LinkInputType": [
+      "convergence_or"
+    ],
     "LinkOutputType": "track",
-    "LinkInputNumber": [4, 5],
-    "LinkOutputNumber": [7],
-    "Condition": ["listToolsOk && enablementSnapshotInjected"],
+    "LinkInputNumber": [
+      4,
+      5
+    ],
+    "LinkOutputNumber": [
+      7
+    ],
+    "Condition": [
+      "清單toolsok && enablementSnapshotInjected"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 7,
     "StepType": "normal",
-    "StepAction": "DispatchToolCall",
+    "StepAction": "派發工具呼叫",
     "ModuleRef": "mcp/index.ts:convertMcpTool.execute + IncomingDispatcher.before",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [6, 8],
-    "LinkOutputNumber": [8],
-    "Condition": ["modelInvokesTool && argsValidate (relaxed token pattern)"],
+    "LinkInputNumber": [
+      6,
+      8
+    ],
+    "LinkOutputNumber": [
+      8
+    ],
+    "Condition": [
+      "模型invokes工具 && argsValidate (relaxed token pattern)"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 8,
     "StepType": "normal",
-    "StepAction": "StreamResponseAndAfterHook",
+    "StepAction": "串流回應與afterhook",
     "ModuleRef": "mcp/index.ts:client.callTool + IncomingDispatcher.after",
     "LinkInputType": [],
     "LinkOutputType": "divergence_or",
-    "LinkInputNumber": [7],
-    "LinkOutputNumber": [7, 9],
-    "Condition": ["nextToolCallArrives", "noPendingCall"],
+    "LinkInputNumber": [
+      7
+    ],
+    "LinkOutputNumber": [
+      7,
+      9
+    ],
+    "Condition": [
+      "下一個工具呼叫arrives",
+      "無待處理呼叫"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 9,
     "StepType": "normal",
-    "StepAction": "IdleWaiting",
+    "StepAction": "閒置waiting",
     "ModuleRef": "mcp/index.ts:lastUsedAt (proposed)",
     "LinkInputType": [],
     "LinkOutputType": "divergence_or",
-    "LinkInputNumber": [8],
-    "LinkOutputNumber": [7, 10],
-    "Condition": ["modelResumesToolUse", "now - lastUsedAt > tweaks.mcp.idle_unload_ms (proposed)"],
+    "LinkInputNumber": [
+      8
+    ],
+    "LinkOutputNumber": [
+      7,
+      10
+    ],
+    "Condition": [
+      "模型resumes工具use",
+      "now - lastused於 > tweaks.mcp.閒置unloadms (proposed)"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 10,
     "StepType": "normal",
-    "StepAction": "IdleSweepNoOpToday",
+    "StepAction": "閒置sweep無optoday",
     "ModuleRef": "mcp/index.ts:mcpAppsInitialized boolean (pinned for lifetime)",
     "LinkInputType": [],
     "LinkOutputType": "divergence_or",
-    "LinkInputNumber": [9],
-    "LinkOutputNumber": [9, 11],
-    "Condition": ["proposalNotShipped (stay pinned)", "proposalShipped && inflight==0 (unload)"],
+    "LinkInputNumber": [
+      9
+    ],
+    "LinkOutputNumber": [
+      9,
+      11
+    ],
+    "Condition": [
+      "proposal不已交付 (stay 已釘選)",
+      "proposal已交付 && inflight==0 (unload)"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 11,
     "StepType": "normal",
-    "StepAction": "UnloadAndEmitBusEvent",
+    "StepAction": "unload與發出bus事件",
     "ModuleRef": "(proposed) mcp/index.ts disconnect + Bus.publish('mcp.app.unloaded')",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [10],
-    "LinkOutputNumber": [0],
-    "Condition": ["clientClosed && status[clientName] cleared"],
+    "LinkInputNumber": [
+      10
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
+    "Condition": [
+      "clientClosed && 狀態[clientName] cleared"
+    ],
     "SubGrafcet": []
   }
 ]

@@ -3,7 +3,7 @@
     "StepNumber": 0,
     "ModuleRef": "A0",
     "StepType": "initial",
-    "StepAction": "Idle: await assistant turn completion or tool call or GC tick",
+    "StepAction": "閒置: 等待 助手 回合 completion 或 工具 呼叫 或 GC tick",
     "LinkInputType": [],
     "LinkInputNumber": [],
     "LinkOutputNumber": [
@@ -12,8 +12,8 @@
     ],
     "LinkOutputType": "divergence_or",
     "Condition": [
-      "assistant_finish_stop",
-      "model_called_reread_attachment"
+      "助手完成stop",
+      "模型calledreread附件"
     ],
     "SubGrafcet": []
   },
@@ -21,7 +21,7 @@
     "StepNumber": 1,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Locate parent user message + its image attachment_ref parts",
+    "StepAction": "Locate 父層 使用者 訊息 + its image 附件ref parts",
     "LinkInputType": "divergence_or",
     "LinkInputNumber": [
       0
@@ -31,7 +31,7 @@
     ],
     "LinkOutputType": "divergence_or",
     "Condition": [
-      "attachments_listed"
+      "附件listed"
     ],
     "SubGrafcet": []
   },
@@ -39,7 +39,7 @@
     "StepNumber": 2,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "For each part: check dehydrated flag and mime",
+    "StepAction": "供 each part: check dehydrated flag 與 mime",
     "LinkInputType": "divergence_or",
     "LinkInputNumber": [
       1
@@ -50,8 +50,8 @@
     ],
     "LinkOutputType": "divergence_or",
     "Condition": [
-      "image_mime AND NOT dehydrated AND finish=stop",
-      "non_image_mime OR already_dehydrated OR finish_error"
+      "imagemime AND NOT dehydrated AND 完成=stop",
+      "nonimagemime OR alreadydehydrated OR 完成錯誤"
     ],
     "SubGrafcet": []
   },
@@ -59,7 +59,7 @@
     "StepNumber": 3,
     "ModuleRef": "A11",
     "StepType": "normal",
-    "StepAction": "Extract annotation from assistant response text (≤ 4000 chars)",
+    "StepAction": "取出 annotation 來自 助手 回應 文字 (≤ 4000 chars)",
     "LinkInputType": "divergence_or",
     "LinkInputNumber": [
       2
@@ -69,7 +69,7 @@
     ],
     "LinkOutputType": "track",
     "Condition": [
-      "annotation_extracted"
+      "annotation已取出"
     ],
     "SubGrafcet": []
   },
@@ -77,7 +77,7 @@
     "StepNumber": 5,
     "ModuleRef": "A13",
     "StepType": "normal",
-    "StepAction": "Session.updatePart: set dehydrated=true + annotation (repo_path / sha256 unchanged; no binary move)",
+    "StepAction": "Session.更新part: set dehydrated=true + annotation (repo路徑 / sha256 unchanged; 無 binary move)",
     "LinkInputType": "track",
     "LinkInputNumber": [
       3
@@ -87,7 +87,7 @@
     ],
     "LinkOutputType": "track",
     "Condition": [
-      "part_rewritten"
+      "partrewritten"
     ],
     "SubGrafcet": []
   },
@@ -95,7 +95,7 @@
     "StepNumber": 6,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Emit telemetry attachment.dehydrated; loop to next attachment or return idle",
+    "StepAction": "發出 telemetry 附件.dehydrated; loop 到 下一個 附件 或 返回 閒置",
     "LinkInputType": "track",
     "LinkInputNumber": [
       5
@@ -105,7 +105,7 @@
     ],
     "LinkOutputType": "track",
     "Condition": [
-      "all_attachments_processed"
+      "all附件processed"
     ],
     "SubGrafcet": []
   },
@@ -123,7 +123,7 @@
     ],
     "LinkOutputType": "divergence_or",
     "Condition": [
-      "lookup_complete"
+      "lookup完成"
     ],
     "SubGrafcet": []
   },
@@ -131,7 +131,7 @@
     "StepNumber": 21,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Branch on file presence",
+    "StepAction": "Branch 在 檔案 presence",
     "LinkInputType": "divergence_or",
     "LinkInputNumber": [
       20
@@ -142,15 +142,15 @@
     ],
     "LinkOutputType": "divergence_or",
     "Condition": [
-      "bytes_returned",
-      "file_missing_or_gcd"
+      "位元組returned",
+      "檔案缺失或gcd"
     ]
   },
   {
     "StepNumber": 22,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Return tool result {type:'image', url:'data:...', est_tokens, byte_size}; emit attachment.rereaded telemetry",
+    "StepAction": "返回 工具 結果 {type:'image', url:'data:...', esttokens, bytesize}; 發出 附件.rereaded telemetry",
     "LinkInputType": "divergence_or",
     "LinkInputNumber": [
       21
@@ -160,14 +160,14 @@
     ],
     "LinkOutputType": "track",
     "Condition": [
-      "return_to_idle"
+      "返回到閒置"
     ]
   },
   {
     "StepNumber": 23,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Return tool error {error:'attachment_expired', message:'...'}",
+    "StepAction": "返回 工具 錯誤 {錯誤:'附件expired', 訊息:'...'}",
     "LinkInputType": "divergence_or",
     "LinkInputNumber": [
       21
@@ -177,7 +177,7 @@
     ],
     "LinkOutputType": "track",
     "Condition": [
-      "return_to_idle"
+      "返回到閒置"
     ]
   }
 ]

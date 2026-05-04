@@ -3,39 +3,55 @@
     "StepNumber": 0,
     "ModuleRef": "A1",
     "StepType": "initial",
-    "StepAction": "Idle: await turn boundary",
+    "StepAction": "閒置: 等待 回合 boundary",
     "LinkInputType": [],
     "LinkInputNumber": [],
-    "LinkOutputNumber": [1],
+    "LinkOutputNumber": [
+      1
+    ],
     "LinkOutputType": "track",
-    "Condition": ["user_turn_arrived"],
+    "Condition": [
+      "使用者回合arrived"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 1,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Resolve CapabilityLayer for current (sessionID, RebindEpoch)",
+    "StepAction": "解析 CapabilityLayer 供 current (SessionID, RebindEpoch)",
     "LinkInputType": "track",
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["capability_lookup_done"],
+    "Condition": [
+      "capabilitylookupdone"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Branch on cache + fallback outcome",
+    "StepAction": "Branch 在 快取 + fallback outcome",
     "LinkInputType": "track",
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [3, 4, 5],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      3,
+      4,
+      5
+    ],
     "LinkOutputType": "divergence_or",
     "Condition": [
-      "cache_hit OR same_account_fallback_ok",
-      "cross_account_fallback_attempted",
-      "no_fallback_available"
+      "快取hit OR same帳號fallbackok",
+      "cross帳號fallbackattempted",
+      "無fallbackavailable"
     ],
     "SubGrafcet": []
   },
@@ -43,72 +59,109 @@
     "StepNumber": 3,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Proceed to PromptAssembly with resolved CapabilityLayer entry",
+    "StepAction": "Proceed 到 提示assembly 使用 已解析 CapabilityLayer 項目",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [10],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      10
+    ],
     "LinkOutputType": "track",
-    "Condition": ["capability_layer_ready"],
+    "Condition": [
+      "capabilitylayer就緒"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 4,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Throw CrossAccountRebindError; surface to runloop and user",
+    "StepAction": "Throw cross帳號rebind錯誤; surface 到 runloop 與 使用者",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [99],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      99
+    ],
     "LinkOutputType": "track",
-    "Condition": ["error_propagated"],
+    "Condition": [
+      "錯誤propagated"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 5,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Throw generic capability-layer error (no fallback at all)",
+    "StepAction": "Throw generic capability-layer 錯誤 (無 fallback 於 all)",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [99],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      99
+    ],
     "LinkOutputType": "track",
-    "Condition": ["error_propagated"],
+    "Condition": [
+      "錯誤propagated"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 10,
     "ModuleRef": "A11",
     "StepType": "normal",
-    "StepAction": "Build Static System Block (concat L1+L2+L3c+L5+L6+L7+L8); compute hash",
+    "StepAction": "建置 Static System 區塊 (concat L1+L2+L3c+L5+L6+L7+L8); compute hash",
     "LinkInputType": "track",
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [11],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      11
+    ],
     "LinkOutputType": "divergence_and",
-    "Condition": ["static_block_built"],
+    "Condition": [
+      "static區塊built"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 11,
     "ModuleRef": "A12",
     "StepType": "normal",
-    "StepAction": "Build Context Preface (T1 slow-first then T2 decay-tier)",
+    "StepAction": "建置 上下文 Preface (T1 slow-first then T2 decay-tier)",
     "LinkInputType": "divergence_and",
-    "LinkInputNumber": [10],
-    "LinkOutputNumber": [12],
+    "LinkInputNumber": [
+      10
+    ],
+    "LinkOutputNumber": [
+      12
+    ],
     "LinkOutputType": "convergence_and",
-    "Condition": ["preface_built"],
+    "Condition": [
+      "prefacebuilt"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 12,
     "ModuleRef": "A13",
     "StepType": "normal",
-    "StepAction": "Fan out plugin hooks (chat.system.transform + chat.context.transform)",
+    "StepAction": "Fan out plugin hooks (chat.system.transform + chat.上下文.transform)",
     "LinkInputType": "convergence_and",
-    "LinkInputNumber": [10, 11],
-    "LinkOutputNumber": [13],
+    "LinkInputNumber": [
+      10,
+      11
+    ],
+    "LinkOutputNumber": [
+      13
+    ],
     "LinkOutputType": "track",
-    "Condition": ["hooks_settled"],
+    "Condition": [
+      "hookssettled"
+    ],
     "SubGrafcet": []
   },
   {
@@ -117,71 +170,109 @@
     "StepType": "normal",
     "StepAction": "Place BP1 (system tail), BP2 (T1 tail), BP3 (T2 tail), BP4 (final non-system tail); skip BP3 if T2 empty",
     "LinkInputType": "track",
-    "LinkInputNumber": [12],
-    "LinkOutputNumber": [14],
+    "LinkInputNumber": [
+      12
+    ],
+    "LinkOutputNumber": [
+      14
+    ],
     "LinkOutputType": "track",
-    "Condition": ["breakpoints_placed"],
+    "Condition": [
+      "breakpointsplaced"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 14,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Send to LLM provider; await response",
+    "StepAction": "Send 到 LLM Provider; 等待 回應",
     "LinkInputType": "track",
-    "LinkInputNumber": [13],
-    "LinkOutputNumber": [15],
+    "LinkInputNumber": [
+      13
+    ],
+    "LinkOutputNumber": [
+      15
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["response_received"],
+    "Condition": [
+      "回應已收到"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 15,
     "ModuleRef": "A5",
     "StepType": "normal",
-    "StepAction": "Branch on response: normal completion vs ContextOverflowError",
+    "StepAction": "Branch 在 回應: normal completion vs 上下文overflow錯誤",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [14],
-    "LinkOutputNumber": [16, 30],
+    "LinkInputNumber": [
+      14
+    ],
+    "LinkOutputNumber": [
+      16,
+      30
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["response_ok", "context_overflow_thrown"],
+    "Condition": [
+      "回應ok",
+      "上下文overflowthrown"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 16,
     "ModuleRef": "A5",
     "StepType": "normal",
-    "StepAction": "Emit prompt.cache.{system,preface.t1,preface.t2}.{hit,miss} from response headers",
+    "StepAction": "發出 提示.快取.{system,preface.t1,preface.t2}.{hit,miss} 來自 回應 headers",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [15],
-    "LinkOutputNumber": [17],
+    "LinkInputNumber": [
+      15
+    ],
+    "LinkOutputNumber": [
+      17
+    ],
     "LinkOutputType": "track",
-    "Condition": ["telemetry_emitted"],
+    "Condition": [
+      "telemetryemitted"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 17,
     "ModuleRef": "A34",
     "StepType": "normal",
-    "StepAction": "Update lastSystemBlockHashes rolling window (size 3)",
+    "StepAction": "更新 lastsystem區塊hashes rolling window (size 3)",
     "LinkInputType": "track",
-    "LinkInputNumber": [16],
-    "LinkOutputNumber": [18],
+    "LinkInputNumber": [
+      16
+    ],
+    "LinkOutputNumber": [
+      18
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["rolling_window_updated"],
+    "Condition": [
+      "rollingwindowupdated"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 18,
     "ModuleRef": "A34",
     "StepType": "normal",
-    "StepAction": "shouldCacheAwareCompact diagnostic: branch on churn vs growth",
+    "StepAction": "should快取awarecompact diagnostic: branch 在 churn vs growth",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [17],
-    "LinkOutputNumber": [19, 20, 0],
+    "LinkInputNumber": [
+      17
+    ],
+    "LinkOutputNumber": [
+      19,
+      20,
+      0
+    ],
     "LinkOutputType": "divergence_or",
     "Condition": [
-      "kind = system-prefix-churn (skip compaction)",
+      "kind = system-前綴-churn (skip 壓縮)",
       "kind = conversation-growth AND tail > 40K",
       "kind = neither"
     ],
@@ -191,62 +282,92 @@
     "StepNumber": 19,
     "ModuleRef": "A5",
     "StepType": "normal",
-    "StepAction": "Emit compaction.cache_miss_diagnosis {kind:'system-prefix-churn'}; do not compact",
+    "StepAction": "發出 壓縮.快取missdiagnosis {kind:'system-前綴-churn'}; do 不 compact",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [18],
-    "LinkOutputNumber": [0],
+    "LinkInputNumber": [
+      18
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["return_to_idle"],
+    "Condition": [
+      "返回到閒置"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 20,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Enter compaction pipeline (cache-aware path)",
+    "StepAction": "Enter 壓縮 pipeline (快取-aware 路徑)",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [18],
-    "LinkOutputNumber": [31],
+    "LinkInputNumber": [
+      18
+    ],
+    "LinkOutputNumber": [
+      31
+    ],
     "LinkOutputType": "track",
-    "Condition": ["compaction_entry"],
+    "Condition": [
+      "壓縮項目"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 30,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Enter compaction pipeline (overflow path) on ContextOverflowError",
+    "StepAction": "Enter 壓縮 pipeline (overflow 路徑) 在 上下文overflow錯誤",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [15],
-    "LinkOutputNumber": [31],
+    "LinkInputNumber": [
+      15
+    ],
+    "LinkOutputNumber": [
+      31
+    ],
     "LinkOutputType": "convergence_or",
-    "Condition": ["compaction_entry"],
+    "Condition": [
+      "壓縮項目"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 31,
     "ModuleRef": "A32",
     "StepType": "normal",
-    "StepAction": "Idle gate: scan last 2 messages for unmatched tool_use",
+    "StepAction": "閒置 gate: 掃描 last 2 messages 供 unmatched 工具use",
     "LinkInputType": "convergence_or",
-    "LinkInputNumber": [20, 30],
-    "LinkOutputNumber": [32],
+    "LinkInputNumber": [
+      20,
+      30
+    ],
+    "LinkOutputNumber": [
+      32
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["scan_complete"],
+    "Condition": [
+      "掃描完成"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 32,
     "ModuleRef": "A32",
     "StepType": "normal",
-    "StepAction": "Branch on cleanliness",
+    "StepAction": "Branch 在 cleanliness",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [31],
-    "LinkOutputNumber": [33, 40],
+    "LinkInputNumber": [
+      31
+    ],
+    "LinkOutputNumber": [
+      33,
+      40
+    ],
     "LinkOutputType": "divergence_or",
     "Condition": [
-      "tail_clean (all tool_use matched)",
-      "tail_unclean (dangling tool_use)"
+      "tailclean (all 工具use matched)",
+      "tailunclean (dangling 工具use)"
     ],
     "SubGrafcet": []
   },
@@ -254,72 +375,109 @@
     "StepNumber": 33,
     "ModuleRef": "A5",
     "StepType": "normal",
-    "StepAction": "Emit compaction.idle.deferred {reason:'unclean-tail'}",
+    "StepAction": "發出 壓縮.閒置.deferred {reason:'unclean-tail'}",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [32],
-    "LinkOutputNumber": [0],
+    "LinkInputNumber": [
+      32
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["return_to_idle"],
+    "Condition": [
+      "返回到閒置"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 40,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Run kindChain (narrative → replay-tail → low-cost-server → llm-agent)",
+    "StepAction": "執行 kindChain (narrative → replay-tail → low-cost-伺服器 → LLM-agent)",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [32],
-    "LinkOutputNumber": [41],
+    "LinkInputNumber": [
+      32
+    ],
+    "LinkOutputNumber": [
+      41
+    ],
     "LinkOutputType": "track",
-    "Condition": ["kind_chain_produced_summary"],
+    "Condition": [
+      "kindchainproducedsummary"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 41,
     "ModuleRef": "A33",
     "StepType": "normal",
-    "StepAction": "Scan compacted span for skill name references; pinForAnchor matched skills; build skillSnapshot",
+    "StepAction": "掃描 compacted span 供 技能 name references; 釘選供anchor matched 技能; 建置 技能snapshot",
     "LinkInputType": "track",
-    "LinkInputNumber": [40],
-    "LinkOutputNumber": [42],
+    "LinkInputNumber": [
+      40
+    ],
+    "LinkOutputNumber": [
+      42
+    ],
     "LinkOutputType": "track",
-    "Condition": ["skill_binding_done"],
+    "Condition": [
+      "技能bindingdone"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 42,
     "ModuleRef": "A31",
     "StepType": "normal",
-    "StepAction": "Sanitize anchor body: wrap <prior_context source=\"{kind}\"> + soften imperative-leading lines",
+    "StepAction": "Sanitize anchor body: wrap <prior上下文 來源=\"{kind}\"> + soften imperative-leading lines",
     "LinkInputType": "track",
-    "LinkInputNumber": [41],
-    "LinkOutputNumber": [43],
+    "LinkInputNumber": [
+      41
+    ],
+    "LinkOutputNumber": [
+      43
+    ],
     "LinkOutputType": "track",
-    "Condition": ["anchor_body_sanitized"],
+    "Condition": [
+      "anchorbodysanitized"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 43,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Append anchor message to message-stream (summary=true, metadata.skillSnapshot, metadata.pinnedByAnchor)",
+    "StepAction": "追加 anchor 訊息 到 訊息-串流 (summary=true, metadata.技能snapshot, metadata.已釘選由anchor)",
     "LinkInputType": "track",
-    "LinkInputNumber": [42],
-    "LinkOutputNumber": [0],
+    "LinkInputNumber": [
+      42
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["anchor_persisted"],
+    "Condition": [
+      "anchorpersisted"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 99,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Surface error to runloop / user; await retry",
+    "StepAction": "Surface 錯誤 到 runloop / 使用者; 等待 重試",
     "LinkInputType": "convergence_or",
-    "LinkInputNumber": [4, 5],
-    "LinkOutputNumber": [0],
+    "LinkInputNumber": [
+      4,
+      5
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["user_initiated_retry"],
+    "Condition": [
+      "使用者initiated重試"
+    ],
     "SubGrafcet": []
   }
 ]

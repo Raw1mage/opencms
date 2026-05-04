@@ -1,117 +1,138 @@
 {
-  "diagram_title": "Shared Context Structure — Functional Decomposition",
+  "diagram_title": "Shared 上下文 Structure — Functional Decomposition",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A0",
-      "title": "Manage Session Shared Context",
-      "description": "Maintain a structured, incrementally-updated knowledge surface per main session, serving subagent injection, compaction summary, and session recovery",
+      "title": "Manage Session Shared 上下文",
+      "description": "Maintain structured, incrementally-updated knowledge surface 依 main Session, serving 子代理 injection, 壓縮 summary, 與 Session recovery",
       "decomposition": {
-        "activities": ["A1", "A2", "A3", "A4"]
+        "activities": [
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ]
       }
     },
     {
       "id": "A1",
-      "title": "Update Context From Turn",
-      "description": "Process completed assistant turn tool parts and text to incrementally append new knowledge into the shared context space",
+      "title": "更新 上下文 來自 回合",
+      "description": "Process 已完成 助手 回合 工具 parts 與 文字 到 incrementally 追加 new knowledge 進入 shared 上下文 space",
       "decomposition": {
-        "activities": ["A11", "A12", "A13", "A14"]
+        "activities": [
+          "A11",
+          "A12",
+          "A13",
+          "A14"
+        ]
       }
     },
     {
       "id": "A11",
-      "title": "Extract Tool Knowledge",
-      "description": "Walk tool parts from the completed turn; map each tool type (read/edit/write/glob/grep/bash/task) to files[] and actions[] entries",
+      "title": "取出 工具 Knowledge",
+      "description": "Walk 工具 parts 來自 已完成 回合; map each 工具 type (read/edit/write/glob/grep/bash/任務) 到 檔案[] 與 actions[] entries",
       "decomposition": null
     },
     {
       "id": "A12",
-      "title": "Extract Text Insights",
-      "description": "Apply heuristic regex patterns to assistant text to populate goal, discoveries, and currentState fields without LLM call",
+      "title": "取出 文字 Insights",
+      "description": "Apply heuristic regex patterns 到 助手 文字 到 populate goal, discoveries, 與 current狀態 fields 不 LLM 呼叫",
       "decomposition": null
     },
     {
       "id": "A13",
-      "title": "Deduplicate File Entries",
-      "description": "Merge file entries sharing the same path; upgrade operation rank (read→edit→write) and preserve latest metadata",
+      "title": "Deduplicate 檔案 Entries",
+      "description": "合併 檔案 entries sharing same 路徑; upgrade operation rank (read→edit→write) 與 preserve latest metadata",
       "decomposition": null
     },
     {
       "id": "A14",
       "title": "Enforce Budget Limit",
-      "description": "Estimate token size of space; if exceeding budget, invoke consolidate to compress oldest entries",
+      "description": "Estimate token size 的 space; if exceeding budget, invoke consolidate 到 壓縮 oldest entries",
       "decomposition": null
     },
     {
       "id": "A2",
-      "title": "Inject Context Into Subagent",
-      "description": "Synchronously snapshot the shared context space and prepend it to the subagent's first user message before dispatch",
+      "title": "Inject 上下文 進入 子代理",
+      "description": "Synchronously snapshot shared 上下文 space 與 prepend it 到 子代理's first 使用者 訊息 before 派發",
       "decomposition": {
-        "activities": ["A21", "A22"]
+        "activities": [
+          "A21",
+          "A22"
+        ]
       }
     },
     {
       "id": "A21",
-      "title": "Generate Context Snapshot",
-      "description": "Serialize the shared context space into a formatted text block wrapped in <shared_context> tags",
+      "title": "Generate 上下文 Snapshot",
+      "description": "Serialize shared 上下文 space 進入 formatted 文字 區塊 wrapped 在 <shared上下文> tags",
       "decomposition": null
     },
     {
       "id": "A22",
-      "title": "Seed Subagent Message",
-      "description": "Create synthetic user message containing snapshot + task prompt text, insert into subagent session before dispatch",
+      "title": "Seed 子代理 訊息",
+      "description": "Create 合成 使用者 訊息 containing snapshot + 任務 提示 文字, insert 進入 子代理 Session before 派發",
       "decomposition": null
     },
     {
       "id": "A3",
-      "title": "Compact With Shared Context",
-      "description": "Use shared context snapshot as compaction summary, replacing LLM compaction agent call; serves both idle and overflow paths",
+      "title": "Compact 使用 Shared 上下文",
+      "description": "Use shared 上下文 snapshot 作為 壓縮 summary, replacing LLM 壓縮 agent 呼叫; serves both 閒置 與 overflow 路徑",
       "decomposition": {
-        "activities": ["A31", "A32", "A33"]
+        "activities": [
+          "A31",
+          "A32",
+          "A33"
+        ]
       }
     },
     {
       "id": "A31",
-      "title": "Evaluate Compaction Eligibility",
-      "description": "Inspect budget utilization against configurable threshold; decide whether to compact or skip",
+      "title": "Evaluate 壓縮 Eligibility",
+      "description": "Inspect budget utilization against configurable threshold; decide whether 到 compact 或 skip",
       "decomposition": null
     },
     {
       "id": "A32",
-      "title": "Write Compaction Summary",
-      "description": "Create summary message from snapshot, mark old messages as compacted, publish Compacted event",
+      "title": "Write 壓縮 Summary",
+      "description": "Create summary 訊息 來自 snapshot, mark old messages 作為 compacted, 發布 Compacted 事件",
       "decomposition": null
     },
     {
       "id": "A33",
-      "title": "Emit Continue Prompt",
-      "description": "In auto mode, append synthetic continue message so session resumes from shared context",
+      "title": "發出 繼續 提示",
+      "description": "在 auto mode, 追加 合成 繼續 訊息 so Session resumes 來自 shared 上下文",
       "decomposition": null
     },
     {
       "id": "A4",
       "title": "Consolidate Oversize Space",
-      "description": "Compress the shared context space when it exceeds its own token budget by merging old entries and trimming low-priority items",
+      "description": "壓縮 shared 上下文 space when it exceeds its own token budget 由 merging old entries 與 trimming low-優先序 items",
       "decomposition": {
-        "activities": ["A41", "A42", "A43"]
+        "activities": [
+          "A41",
+          "A42",
+          "A43"
+        ]
       }
     },
     {
       "id": "A41",
       "title": "Trim Old Actions",
-      "description": "Keep only the most recent 20 action entries; discard older ones",
+      "description": "Keep 僅 most recent 20 action entries; discard older ones",
       "decomposition": null
     },
     {
       "id": "A42",
-      "title": "Collapse Directory Files",
-      "description": "When a directory has more than 5 file entries, merge them into a single summary entry",
+      "title": "Collapse Directory 檔案",
+      "description": "When directory has more than 5 檔案 entries, 合併 them 進入 single summary 項目",
       "decomposition": null
     },
     {
       "id": "A43",
       "title": "Prune Oldest Discoveries",
-      "description": "Keep only the most recent 10 discovery entries; remove oldest if still over budget",
+      "description": "Keep 僅 most recent 10 discovery entries; remove oldest if still over budget",
       "decomposition": null
     }
   ],
@@ -120,28 +141,28 @@
       "id": "AR1",
       "source": "EXTERNAL",
       "target": "A1:input",
-      "label": "Completed Assistant Turn (parts + text)",
+      "label": "已完成 助手 回合 (parts + 文字)",
       "type": "input"
     },
     {
       "id": "AR2",
       "source": "EXTERNAL",
       "target": "A0:control",
-      "label": "Config (sharedContext, budget, threshold)",
+      "label": "設定 (shared上下文, budget, threshold)",
       "type": "control"
     },
     {
       "id": "AR3",
       "source": "EXTERNAL",
       "target": "A0:control",
-      "label": "Session Identity (main vs sub)",
+      "label": "Session 身分 (main vs sub)",
       "type": "control"
     },
     {
       "id": "AR4",
       "source": "EXTERNAL",
       "target": "A0:mechanism",
-      "label": "Storage Layer (read/write JSON)",
+      "label": "儲存 Layer (read/write JSON)",
       "type": "mechanism"
     },
     {
@@ -162,21 +183,21 @@
       "id": "AR7",
       "source": "A2:output",
       "target": "EXTERNAL",
-      "label": "Seeded Subagent Session",
+      "label": "Seeded 子代理 Session",
       "type": "output"
     },
     {
       "id": "AR8",
       "source": "A1:output",
       "target": "A3:input",
-      "label": "Updated Space (for compaction)",
+      "label": "Updated Space (供 壓縮)",
       "type": "output"
     },
     {
       "id": "AR9",
       "source": "A3:output",
       "target": "EXTERNAL",
-      "label": "Compacted Session (summary message + Compacted event)",
+      "label": "Compacted Session (summary 訊息 + Compacted 事件)",
       "type": "output"
     },
     {
@@ -197,14 +218,14 @@
       "id": "AR12",
       "source": "EXTERNAL",
       "target": "A2:input",
-      "label": "Task Dispatch Request",
+      "label": "任務 派發 請求",
       "type": "input"
     },
     {
       "id": "AR13",
       "source": "EXTERNAL",
       "target": "A3:input",
-      "label": "Overflow Compaction Trigger",
+      "label": "Overflow 壓縮 Trigger",
       "type": "input"
     },
     {
@@ -218,14 +239,14 @@
       "id": "AR15",
       "source": "EXTERNAL",
       "target": "A1:control",
-      "label": "Main Session Guard (!parentID)",
+      "label": "Main Session Guard (!父層ID)",
       "type": "control"
     },
     {
       "id": "AR16",
       "source": "EXTERNAL",
       "target": "A2:control",
-      "label": "Continuation Guard (!session_id)",
+      "label": "延續 Guard (!Sessionid)",
       "type": "control"
     },
     {

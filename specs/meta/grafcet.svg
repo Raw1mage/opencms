@@ -1,173 +1,162 @@
-<svg width="2280" height="1540" viewBox="-760.0 -40.0 2280.0 1540.0" xmlns="http://www.w3.org/2000/svg">
-<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker></defs>
-<rect x="-760.0" y="-40.0" width="2280.0" height="1540.0" fill="white" />
-<rect x="360.0" y="80.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<rect x="365.0" y="85.0" width="70.0" height="50.0" stroke="black" stroke-width="1" fill="none" />
-<text x="400" y="115.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">0</text>
-<line x1="440" y1="110.0" x2="480.0" y2="110.0" stroke="black" />
-<rect x="480.0" y="64.0" width="160.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="560.0" y="102.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">no_spec_</text>
-<text x="560.0" y="126.00000000000001" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">in_flight</text>
-<line x1="400" y1="140.0" x2="400" y2="220" stroke="black" />
-<line x1="380" y1="180.0" x2="420" y2="180.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="184.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">plan_init_invoked_for_new_slug_OR_legacy_plans_touched</text>
-<rect x="360.0" y="220.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="255.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">1</text>
-<line x1="440" y1="250.0" x2="480.0" y2="250.0" stroke="black" />
-<rect x="480.0" y="204.0" width="160.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="560.0" y="242.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">propose_</text>
-<text x="560.0" y="266.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">state</text>
-<line x1="400" y1="280.0" x2="400" y2="360" stroke="black" />
-<line x1="380" y1="320.0" x2="420" y2="320.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="324.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">proposal_md_AND_state_json_written_state==proposed</text>
-<rect x="360.0" y="360.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="395.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">2</text>
-<line x1="440" y1="390.0" x2="480.0" y2="390.0" stroke="black" />
-<rect x="480.0" y="344.0" width="160.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="560.0" y="382.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">design_</text>
-<text x="560.0" y="405.99999999999994" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">state</text>
-<line x1="400" y1="420.0" x2="400" y2="500" stroke="black" />
-<line x1="380" y1="460.0" x2="420" y2="460.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="464.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">spec_md_design_md_idef0_grafcet_c4_sequence_data_schema_present_AND_validate_passes</text>
-<rect x="360.0" y="500.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="535.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">3</text>
-<line x1="440" y1="530.0" x2="480.0" y2="530.0" stroke="black" />
-<rect x="480.0" y="484.0" width="160.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="560.0" y="522.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">plan_</text>
-<text x="560.0" y="546.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">state</text>
-<line x1="400" y1="560.0" x2="400" y2="640" stroke="black" />
-<line x1="380" y1="600.0" x2="420" y2="600.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="604.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">tasks_md_handoff_md_test_vectors_errors_observability_present</text>
-<rect x="360.0" y="640.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="675.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">4</text>
-<line x1="440" y1="670.0" x2="480.0" y2="670.0" stroke="black" />
-<rect x="480.0" y="624.0" width="160.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="560.0" y="662.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">implement_</text>
-<text x="560.0" y="686.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">state</text>
-<line x1="400" y1="700" x2="400" y2="740" stroke="black" />
-<line x1="160.0" y1="740" x2="1240.0" y2="740" stroke="black" stroke-width="1.5" />
-<line x1="200.0" y1="740" x2="200.0" y2="780" stroke="black" />
-<line x1="180.0" y1="780" x2="220.0" y2="780" stroke="black" stroke-width="2" />
-<text x="176.0" y="784" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">all_tasks_checked_AND_sync_clean</text>
-<line x1="200.0" y1="780" x2="200.0" y2="820" stroke="black" marker-end="url(#arrow)" />
-<line x1="1200.0" y1="740" x2="1200.0" y2="780" stroke="black" />
-<line x1="1180.0" y1="780" x2="1220.0" y2="780" stroke="black" stroke-width="2" />
-<text x="1224.0" y="784" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">plan_abandoned_or_refactor_requested</text>
-<line x1="1200.0" y1="780" x2="1200.0" y2="820" stroke="black" marker-end="url(#arrow)" />
-<rect x="160.0" y="820.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="200.0" y="855.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">5</text>
-<line x1="240.0" y1="850.0" x2="280.0" y2="850.0" stroke="black" />
-<rect x="280.0" y="804.0" width="160.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="360.0" y="842.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">verify_</text>
-<text x="360.0" y="866.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">state</text>
-<line x1="200.0" y1="880.0" x2="200.0" y2="960" stroke="black" />
-<line x1="180.0" y1="920.0" x2="220.0" y2="920.0" stroke="black" stroke-width="2" />
-<text x="224.0" y="924.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">validation_evidence_attached_AND_tests_pass</text>
-<rect x="160.0" y="960.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="200.0" y="995.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">6</text>
-<line x1="240.0" y1="990.0" x2="280.0" y2="990.0" stroke="black" />
-<rect x="280.0" y="944.0" width="160.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="360.0" y="970.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">live_state_</text>
-<text x="360.0" y="994.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">sync_</text>
-<text x="360.0" y="1017.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">checkpoint</text>
-<line x1="200.0" y1="1020" x2="200.0" y2="1060" stroke="black" />
-<line x1="-440.0" y1="1060" x2="840.0" y2="1060" stroke="black" stroke-width="1.5" />
-<line x1="-400.0" y1="1060" x2="-400.0" y2="1100" stroke="black" />
-<line x1="-420.0" y1="1100" x2="-380.0" y2="1100" stroke="black" stroke-width="2" />
-<text x="-424.0" y="1104" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">mode==amend</text>
-<line x1="-400.0" y1="1100" x2="-400.0" y2="1140" stroke="black" marker-end="url(#arrow)" />
-<line x1="0.0" y1="1060" x2="0.0" y2="1100" stroke="black" />
-<line x1="-20.0" y1="1100" x2="20.0" y2="1100" stroke="black" stroke-width="2" />
-<text x="-24.0" y="1104" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">mode==revise_or_extend</text>
-<line x1="0.0" y1="1100" x2="0.0" y2="1140" stroke="black" marker-end="url(#arrow)" />
-<line x1="400.0" y1="1060" x2="400.0" y2="1100" stroke="black" />
-<line x1="380.0" y1="1100" x2="420.0" y2="1100" stroke="black" stroke-width="2" />
-<text x="424.0" y="1104" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">mode==refactor</text>
-<line x1="400.0" y1="1100" x2="400.0" y2="1140" stroke="black" marker-end="url(#arrow)" />
-<line x1="800.0" y1="1060" x2="800.0" y2="1100" stroke="black" />
-<line x1="780.0" y1="1100" x2="820.0" y2="1100" stroke="black" stroke-width="2" />
-<text x="824.0" y="1104" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">mode==archive</text>
-<line x1="800.0" y1="1100" x2="800.0" y2="1140" stroke="black" marker-end="url(#arrow)" />
-<rect x="-440.0" y="1140.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-400.0" y="1175.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">7</text>
-<line x1="-360.0" y1="1170.0" x2="-320.0" y2="1170.0" stroke="black" />
-<rect x="-320.0" y="1124.0" width="160.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="-240.0" y="1150.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">amend_</text>
-<text x="-240.0" y="1174.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">inline_</text>
-<text x="-240.0" y="1198.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">delta</text>
-<line x1="-400.0" y1="1200.0" x2="-400.0" y2="1280" stroke="black" />
-<line x1="-420.0" y1="1240.0" x2="-380.0" y2="1240.0" stroke="black" stroke-width="2" />
-<text x="-376.0" y="1244.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">inline_delta_marker_added_AND_state_remains_living</text>
-<rect x="-440.0" y="1280.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-400.0" y="1315.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">11</text>
-<line x1="-360.0" y1="1310.0" x2="-320.0" y2="1310.0" stroke="black" />
-<rect x="-320.0" y="1264.0" width="160.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="-240.0" y="1290.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">spec_</text>
-<text x="-240.0" y="1314.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">at_</text>
-<text x="-240.0" y="1338.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">rest</text>
-<line x1="-400.0" y1="1340.0" x2="-400.0" y2="1420" stroke="black" />
-<line x1="-420.0" y1="1380.0" x2="-380.0" y2="1380.0" stroke="black" stroke-width="2" />
-<text x="-376.0" y="1384.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">1</text>
-<rect x="-40.0" y="1140.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="0.0" y="1175.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">8</text>
-<line x1="40.0" y1="1170.0" x2="80.0" y2="1170.0" stroke="black" />
-<rect x="80.0" y="1124.0" width="160.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="160.0" y="1150.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">revise_or_</text>
-<text x="160.0" y="1174.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">extend_back_</text>
-<text x="160.0" y="1198.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">to_designed</text>
-<line x1="0.0" y1="1200.0" x2="0.0" y2="1280" stroke="black" />
-<line x1="-20.0" y1="1240.0" x2="20.0" y2="1240.0" stroke="black" stroke-width="2" />
-<text x="24.0" y="1244.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">state_set_designed_AND_revise_or_extend_history_entry_appended</text>
-<rect x="360.0" y="1140.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400.0" y="1175.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">9</text>
-<line x1="440.0" y1="1170.0" x2="480.0" y2="1170.0" stroke="black" />
-<rect x="480.0" y="1124.0" width="160.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="560.0" y="1150.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">refactor_</text>
-<text x="560.0" y="1174.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">snapshot_</text>
-<text x="560.0" y="1198.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">and_reset</text>
-<line x1="400.0" y1="1200.0" x2="400.0" y2="1280" stroke="black" />
-<line x1="380.0" y1="1240.0" x2="420.0" y2="1240.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="1244.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">history_refactor_YYYY_MM_DD_created_AND_artifacts_reset_to_proposed_skeleton</text>
-<rect x="760.0" y="1140.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="800.0" y="1175.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">10</text>
-<line x1="840.0" y1="1170.0" x2="880.0" y2="1170.0" stroke="black" />
-<rect x="880.0" y="1124.0" width="160.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="960.0" y="1162.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">archive_</text>
-<text x="960.0" y="1186.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">state</text>
-<line x1="800.0" y1="1200.0" x2="800.0" y2="1280" stroke="black" />
-<line x1="780.0" y1="1240.0" x2="820.0" y2="1240.0" stroke="black" stroke-width="2" />
-<text x="824.0" y="1244.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">state_set_archived_AND_optional_move_to_archive_folder_done</text>
-<rect x="1160.0" y="820.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="1200.0" y="855.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">12</text>
-<line x1="1240.0" y1="850.0" x2="1280.0" y2="850.0" stroke="black" />
-<rect x="1280.0" y="804.0" width="160.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="1360.0" y="830.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">abandon_</text>
-<text x="1360.0" y="854.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">or_</text>
-<text x="1360.0" y="877.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">rollback</text>
-<line x1="1200.0" y1="880.0" x2="1200.0" y2="960" stroke="black" />
-<line x1="1180.0" y1="920.0" x2="1220.0" y2="920.0" stroke="black" stroke-width="2" />
-<text x="1224.0" y="924.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">plan_rollback_refactor_or_explicit_abandon_recorded_in_history</text>
-<line x1="-400.0" y1="1420" x2="-400.0" y2="1420.0" stroke="black" />
-<line x1="-400.0" y1="1420.0" x2="-680.0" y2="1420.0" stroke="black" />
-<line x1="-680.0" y1="1420.0" x2="-680.0" y2="40.0" stroke="black" />
-<line x1="-680.0" y1="40.0" x2="400" y2="40.0" stroke="black" />
-<line x1="400" y1="40.0" x2="400" y2="80.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="0.0" y1="1280" x2="0.0" y2="1300.0" stroke="black" />
-<line x1="0.0" y1="1300.0" x2="-520.0" y2="1300.0" stroke="black" />
-<line x1="-520.0" y1="1300.0" x2="-520.0" y2="346.0" stroke="black" />
-<line x1="-520.0" y1="346.0" x2="400" y2="346.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="400.0" y1="1280" x2="400.0" y2="1320.0" stroke="black" />
-<line x1="400.0" y1="1320.0" x2="-600.0" y2="1320.0" stroke="black" />
-<line x1="-600.0" y1="1320.0" x2="-600.0" y2="206.0" stroke="black" />
-<line x1="-600.0" y1="206.0" x2="400" y2="206.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="800.0" y1="1280" x2="800.0" y2="1280" stroke="black" />
-<line x1="800.0" y1="1280" x2="800.0" y2="1280" stroke="black" />
-<line x1="800.0" y1="1280" x2="800.0" y2="1260.0" stroke="black" />
-<line x1="800.0" y1="1260.0" x2="-400.0" y2="1260.0" stroke="black" />
-<line x1="-400.0" y1="1260.0" x2="-400.0" y2="1280.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="1200.0" y1="960" x2="1200.0" y2="960" stroke="black" />
-<line x1="1200.0" y1="960" x2="1200.0" y2="960" stroke="black" />
-<line x1="1200.0" y1="960" x2="1200.0" y2="1260.0" stroke="black" />
-<line x1="1200.0" y1="1260.0" x2="-400.0" y2="1260.0" stroke="black" />
-<line x1="-400.0" y1="1260.0" x2="-400.0" y2="1280.0" stroke="black" marker-end="url(#arrow)" />
+<svg xmlns="http://www.w3.org/2000/svg" width="1724" height="1767" viewBox="-38.00 -1.92 86.18 88.36" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="-38.00" y="-1.92" width="86.18" height="88.36" fill="white"/>
+<path class="edge edge-arrow" d="M 20.00 50.96 L 20.00 52.46 Q 20.00 52.96 19.50 52.96 L -27.50 52.96 Q -28.00 52.96 -28.00 53.46 L -28.00 72.86 Q -28.00 73.36 -27.50 73.36 L 19.50 73.36 Q 20.00 73.36 20.00 73.86 L 20.00 75.36"/>
+<path class="edge" d="M 20.00 7.08 L 20.00 11.16"/>
+<path class="edge edge-arrow" d="M 20.00 11.16 L 20.00 13.24"/>
+<path class="edge" d="M 20.00 16.24 L 20.00 20.32"/>
+<path class="edge edge-arrow" d="M 20.00 20.32 L 20.00 22.40"/>
+<path class="edge" d="M 20.00 25.40 L 20.00 27.48"/>
+<path class="edge edge-arrow" d="M 20.00 27.48 L 20.00 29.56"/>
+<path class="edge" d="M 20.00 32.56 L 20.00 34.64"/>
+<path class="edge edge-arrow" d="M 20.00 34.64 L 20.00 36.72"/>
+<path class="edge" d="M 20.00 39.72 L 20.00 41.80"/>
+<path class="edge edge-arrow" d="M 10.00 41.80 L 10.00 43.30 Q 10.00 43.80 10.00 44.30 L 10.00 45.88"/>
+<path class="edge edge-arrow" d="M 30.00 41.80 L 30.00 43.30 Q 30.00 43.80 30.00 44.30 L 30.00 45.88"/>
+<path class="edge" d="M 10.00 48.88 L 10.00 50.96"/>
+<path class="edge edge-arrow" d="M 10.00 50.96 L 10.00 53.04"/>
+<path class="edge" d="M 10.00 56.04 L 10.00 58.12"/>
+<path class="edge edge-arrow" d="M -10.00 58.12 L -10.00 59.62 Q -10.00 60.12 -10.00 60.62 L -10.00 62.20"/>
+<path class="edge edge-arrow" d="M 0.00 58.12 L 0.00 59.62 Q 0.00 60.12 0.00 60.62 L 0.00 62.20"/>
+<path class="edge edge-arrow" d="M 20.00 58.12 L 20.00 59.62 Q 20.00 60.12 20.00 60.62 L 20.00 62.20"/>
+<path class="edge edge-arrow" d="M 30.00 58.12 L 30.00 59.62 Q 30.00 60.12 30.00 60.62 L 30.00 62.20"/>
+<path class="edge" d="M -10.00 65.20 L -10.00 73.28"/>
+<path class="edge" d="M 10.00 73.28 L 20.00 73.28"/>
+<path class="edge" d="M 20.00 73.28 L 20.00 73.36"/>
+<path class="edge" d="M 0.00 65.20 L 0.00 67.28"/>
+<path class="edge" d="M 0.00 67.28 L 0.00 69.28"/>
+<path class="edge" d="M 0.00 69.28 L -30.00 69.28"/>
+<path class="edge" d="M -30.00 69.28 L -30.00 20.40"/>
+<path class="edge" d="M -30.00 20.40 L 20.00 20.40"/>
+<path class="edge" d="M 20.00 65.20 L 20.00 71.28"/>
+<path class="edge" d="M 20.00 71.28 L 20.00 73.28"/>
+<path class="edge" d="M 20.00 75.28 L -32.00 75.28"/>
+<path class="edge" d="M -32.00 75.28 L -32.00 11.24"/>
+<path class="edge" d="M -32.00 11.24 L 20.00 11.24"/>
+<path class="edge" d="M 30.00 65.20 L 30.00 73.28"/>
+<path class="edge" d="M 20.00 78.36 L 20.00 80.44"/>
+<path class="edge edge-arrow" d="M 20.00 80.44 L 20.00 81.94 Q 20.00 82.44 19.50 82.44 L -33.50 82.44 Q -34.00 82.44 -34.00 81.94 L -34.00 2.58 Q -34.00 2.08 -33.50 2.08 L 19.50 2.08 Q 20.00 2.08 20.00 2.58 L 20.00 4.08"/>
+<path class="edge" d="M 30.00 48.88 L 20.50 48.88 Q 20.00 48.88 20.00 49.38 L 20.00 50.96"/>
+<rect class="step" x="18.00" y="4.08" width="4.00" height="3.00"/>
+<rect class="step-inner" x="18.25" y="4.33" width="3.50" height="2.50"/>
+<text class="label" x="20.00" y="5.58">0</text>
+<rect class="step" x="18.00" y="13.24" width="4.00" height="3.00"/>
+<text class="label" x="20.00" y="14.74">1</text>
+<rect class="step" x="18.00" y="22.40" width="4.00" height="3.00"/>
+<text class="label" x="20.00" y="23.90">2</text>
+<rect class="step" x="18.00" y="29.56" width="4.00" height="3.00"/>
+<text class="label" x="20.00" y="31.06">3</text>
+<rect class="step" x="18.00" y="36.72" width="4.00" height="3.00"/>
+<text class="label" x="20.00" y="38.22">4</text>
+<rect class="step" x="8.00" y="45.88" width="4.00" height="3.00"/>
+<text class="label" x="10.00" y="47.38">5</text>
+<rect class="step" x="8.00" y="53.04" width="4.00" height="3.00"/>
+<text class="label" x="10.00" y="54.54">6</text>
+<rect class="step" x="-12.00" y="62.20" width="4.00" height="3.00"/>
+<text class="label" x="-10.00" y="63.70">7</text>
+<rect class="step" x="-2.00" y="62.20" width="4.00" height="3.00"/>
+<text class="label" x="0.00" y="63.70">8</text>
+<rect class="step" x="18.00" y="62.20" width="4.00" height="3.00"/>
+<text class="label" x="20.00" y="63.70">9</text>
+<rect class="step" x="28.00" y="62.20" width="4.00" height="3.00"/>
+<text class="label" x="30.00" y="63.70">10</text>
+<rect class="step" x="18.00" y="75.36" width="4.00" height="3.00"/>
+<text class="label" x="20.00" y="76.86">11</text>
+<rect class="step" x="28.00" y="45.88" width="4.00" height="3.00"/>
+<text class="label" x="30.00" y="47.38">12</text>
+<line class="assoc" x1="22.00" y1="5.58" x2="23.00" y2="5.58"/>
+<rect class="action" x="23.00" y="4.00" width="11.18" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="28.59" y="5.17"><tspan x="28.59" dy="0">無spec在</tspan><tspan x="28.59" dy="0.82">flight</tspan></text>
+<line class="assoc" x1="22.00" y1="14.74" x2="23.00" y2="14.74"/>
+<rect class="action" x="23.00" y="13.16" width="11.18" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="28.59" y="14.74"><tspan x="28.59" dy="0">propose狀態</tspan></text>
+<line class="assoc" x1="22.00" y1="23.90" x2="23.00" y2="23.90"/>
+<rect class="action" x="23.00" y="22.32" width="11.18" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="28.59" y="23.90"><tspan x="28.59" dy="0">design狀態</tspan></text>
+<line class="assoc" x1="22.00" y1="31.06" x2="23.00" y2="31.06"/>
+<rect class="action" x="23.00" y="29.48" width="11.18" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="28.59" y="30.65"><tspan x="28.59" dy="0">規劃</tspan><tspan x="28.59" dy="0.82">狀態</tspan></text>
+<line class="assoc" x1="22.00" y1="38.22" x2="23.00" y2="38.22"/>
+<rect class="action" x="23.00" y="36.64" width="11.18" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="28.59" y="38.22"><tspan x="28.59" dy="0">implement狀態</tspan></text>
+<line class="assoc" x1="12.00" y1="47.38" x2="13.00" y2="47.38"/>
+<rect class="action" x="13.00" y="45.80" width="11.18" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="18.59" y="47.38"><tspan x="18.59" dy="0">verify狀態</tspan></text>
+<line class="assoc" x1="12.00" y1="54.54" x2="13.00" y2="54.54"/>
+<rect class="action" x="13.00" y="52.96" width="11.18" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="18.59" y="54.13"><tspan x="18.59" dy="0">live狀態</tspan><tspan x="18.59" dy="0.82">synccheckpoint</tspan></text>
+<line class="assoc" x1="-8.00" y1="63.70" x2="-7.00" y2="63.70"/>
+<rect class="action" x="-7.00" y="62.12" width="11.18" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="-1.41" y="63.70"><tspan x="-1.41" dy="0">amendinlinedelta</tspan></text>
+<line class="assoc" x1="2.00" y1="63.70" x2="3.00" y2="63.70"/>
+<rect class="action" x="3.00" y="62.12" width="11.18" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="8.59" y="62.88"><tspan x="8.59" dy="0">revise或</tspan><tspan x="8.59" dy="0.82">extend回到</tspan><tspan x="8.59" dy="0.82">到designed</tspan></text>
+<line class="assoc" x1="22.00" y1="63.70" x2="23.00" y2="63.70"/>
+<rect class="action" x="23.00" y="62.12" width="11.18" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="28.59" y="63.70"><tspan x="28.59" dy="0">refactorsnapshot與reset</tspan></text>
+<line class="assoc" x1="32.00" y1="63.70" x2="33.00" y2="63.70"/>
+<rect class="action" x="33.00" y="62.12" width="11.18" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="38.59" y="63.70"><tspan x="38.59" dy="0">archive狀態</tspan></text>
+<line class="assoc" x1="22.00" y1="76.86" x2="23.00" y2="76.86"/>
+<rect class="action" x="23.00" y="75.28" width="11.18" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="28.59" y="76.45"><tspan x="28.59" dy="0">spec於</tspan><tspan x="28.59" dy="0.82">rest</tspan></text>
+<line class="assoc" x1="32.00" y1="47.38" x2="33.00" y2="47.38"/>
+<rect class="action" x="33.00" y="45.80" width="11.18" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="38.59" y="46.97"><tspan x="38.59" dy="0">abandon或</tspan><tspan x="38.59" dy="0.82">rollback</tspan></text>
+<line class="gate" x1="18.00" y1="11.16" x2="22.00" y2="11.16"/>
+<line class="gate" x1="18.00" y1="20.32" x2="22.00" y2="20.32"/>
+<line class="gate" x1="19.00" y1="27.48" x2="21.00" y2="27.48"/>
+<text class="gate-label" x="21.40" y="27.48">specmddesignmdidef0grafcetc4sequencedataschemapresentAND validatepasses</text>
+<line class="gate" x1="19.00" y1="34.64" x2="21.00" y2="34.64"/>
+<text class="gate-label" x="21.40" y="34.64">tasksmdhandoffmdtestvectors錯誤observabilitypresent</text>
+<line class="gate" x1="6.00" y1="41.80" x2="34.00" y2="41.80"/>
+<line class="gate" x1="9.00" y1="50.96" x2="11.00" y2="50.96"/>
+<text class="gate-label" x="11.40" y="50.96">validationevidenceattachedAND testspass</text>
+<line class="gate" x1="-14.00" y1="58.12" x2="34.00" y2="58.12"/>
+<line class="gate" x1="-12.00" y1="73.28" x2="32.00" y2="73.28"/>
+<line class="gate" x1="-1.00" y1="67.28" x2="1.00" y2="67.28"/>
+<text class="gate-label" x="1.40" y="67.28">狀態setdesignedAND revise或extendhistory項目appended</text>
+<line class="gate" x1="19.00" y1="71.28" x2="21.00" y2="71.28"/>
+<text class="gate-label" x="21.40" y="71.28">historyrefactorYYYY MM DD createdAND artifactsreset到proposedskeleton</text>
+<line class="gate" x1="19.00" y1="80.44" x2="21.00" y2="80.44"/>
+<text class="gate-label" x="21.40" y="80.44">1</text>
+<line class="gate" x1="24.00" y1="50.96" x2="26.00" y2="50.96"/>
+<text class="gate-label" x="26.40" y="50.96">規劃rollbackrefactor或explicitabandonrecorded在history</text>
+<line class="gate" x1="19.00" y1="9.16" x2="21.00" y2="9.16"/>
+<text class="gate-label" x="21.40" y="9.16">規劃initinvoked供newslugOR legacyplanstouched</text>
+<line class="gate" x1="19.00" y1="18.32" x2="21.00" y2="18.32"/>
+<text class="gate-label" x="21.40" y="18.32">proposalmdAND 狀態jsonwritten狀態==proposed</text>
+<line class="gate" x1="9.00" y1="43.80" x2="11.00" y2="43.80"/>
+<text class="gate-label-left" x="8.60" y="43.80">alltaskscheckedAND syncclean</text>
+<line class="gate" x1="29.00" y1="43.80" x2="31.00" y2="43.80"/>
+<text class="gate-label" x="31.40" y="43.80">規劃abandoned或refactorrequested</text>
+<line class="gate" x1="-11.00" y1="60.12" x2="-9.00" y2="60.12"/>
+<text class="gate-label-left" x="-11.40" y="60.12">mode==amend</text>
+<line class="gate" x1="-1.00" y1="60.12" x2="1.00" y2="60.12"/>
+<text class="gate-label-left" x="-1.40" y="60.12">mode==revise或extend</text>
+<line class="gate" x1="19.00" y1="60.12" x2="21.00" y2="60.12"/>
+<text class="gate-label" x="21.40" y="60.12">mode==refactor</text>
+<line class="gate" x1="29.00" y1="60.12" x2="31.00" y2="60.12"/>
+<text class="gate-label" x="31.40" y="60.12">mode==archive</text>
+<line class="gate" x1="-11.00" y1="71.28" x2="-9.00" y2="71.28"/>
+<text class="gate-label-left" x="-11.40" y="71.28">inlinedeltamarkeraddedAND 狀態remainsliving</text>
+<line class="gate" x1="29.00" y1="71.28" x2="31.00" y2="71.28"/>
+<text class="gate-label" x="31.40" y="71.28">狀態setarchivedAND optionalmove到archivefolderdone</text>
+<line class="flyover-mask" x1="-29.00" y1="69.28" x2="-27.00" y2="69.28"/>
+<path class="flyover" d="M -29.00 69.28 Q -28.00 68.28 -27.00 69.28"/>
+<circle class="junction" cx="20.00" cy="73.36" r="0.22"/>
+<circle class="junction" cx="20.00" cy="75.28" r="0.22"/>
+<circle class="junction" cx="20.00" cy="11.24" r="0.22"/>
+<circle class="junction" cx="20.00" cy="20.40" r="0.22"/>
+<circle class="junction" cx="20.00" cy="73.28" r="0.22"/>
 </svg>

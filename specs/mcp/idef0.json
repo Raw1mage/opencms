@@ -1,5 +1,5 @@
 {
-  "diagram_title": "Provide MCP Tool Surface",
+  "diagram_title": "Provide MCP 工具 Surface",
   "node_reference": "A0",
   "activities": [
     {
@@ -11,19 +11,19 @@
         "activities": [
           {
             "id": "A11",
-            "title": "Read Mcp Json File"
+            "title": "Read Mcp Json 檔案"
           },
           {
             "id": "A12",
-            "title": "Validate Against Manifest Schema"
+            "title": "Validate Against Manifest schema"
           },
           {
             "id": "A13",
-            "title": "Infer Manifest From Source Tree"
+            "title": "Infer Manifest 來自 來源 Tree"
           },
           {
             "id": "A14",
-            "title": "Merge System And User Tiers"
+            "title": "合併 System 與 使用者 Tiers"
           }
         ],
         "arrows": [
@@ -31,37 +31,37 @@
             "id": "a1in1",
             "source": "EXTERNAL",
             "target": "A11:input",
-            "label": "App Directory Path"
+            "label": "App Directory 路徑"
           },
           {
             "id": "a1in2",
             "source": "EXTERNAL",
             "target": "A14:input",
-            "label": "/etc/opencode/mcp-apps.json (system)"
+            "label": "/etc/opencode/mcp-apps.js在 (system)"
           },
           {
             "id": "a1in3",
             "source": "EXTERNAL",
             "target": "A14:input",
-            "label": "~/.config/opencode/mcp-apps.json (user)"
+            "label": "~/.config/opencode/mcp-apps.js在 (使用者)"
           },
           {
             "id": "a1c1",
             "source": "EXTERNAL",
             "target": "A12:control",
-            "label": "Zod McpAppManifest.Schema"
+            "label": "Zod mcpappManifest.schema"
           },
           {
             "id": "a1c2",
             "source": "EXTERNAL",
             "target": "A14:control",
-            "label": "System-Tier Wins On Id Collision"
+            "label": "System-Tier Wins 在 Id Collision"
           },
           {
             "id": "a1f1",
             "source": "A11:output",
             "target": "A12:input",
-            "label": "Raw mcp.json Bytes"
+            "label": "Raw mcp.js在 位元組"
           },
           {
             "id": "a1f2",
@@ -79,13 +79,13 @@
             "id": "a1f4",
             "source": "A12:output",
             "target": "A14:input",
-            "label": "Validated McpAppManifest"
+            "label": "Validated mcpappManifest"
           },
           {
             "id": "a1err",
             "source": "A12:output",
             "target": "EXTERNAL",
-            "label": "McpManifestNotFoundError (no silent fallback)"
+            "label": "mcpManifest不found錯誤 (無 靜默 fallback)"
           },
           {
             "id": "a1out",
@@ -98,14 +98,14 @@
     },
     {
       "id": "A2",
-      "title": "Register Tool Catalog",
+      "title": "註冊 工具 Catalog",
       "decomposition": {
-        "diagram_title": "Register Tool Catalog",
+        "diagram_title": "註冊 工具 Catalog",
         "node_reference": "A2",
         "activities": [
           {
             "id": "A21",
-            "title": "Probe Tools Via Throwaway Stdio"
+            "title": "探測 Tools 透過 Throwaway Stdio"
           },
           {
             "id": "A22",
@@ -113,11 +113,11 @@
           },
           {
             "id": "A23",
-            "title": "Build App Store Entry"
+            "title": "建置 App Store 項目"
           },
           {
             "id": "A24",
-            "title": "Persist Managed App State"
+            "title": "持久化 Managed App 狀態"
           }
         ],
         "arrows": [
@@ -125,55 +125,55 @@
             "id": "a2in1",
             "source": "EXTERNAL",
             "target": "A21:input",
-            "label": "Resolved Command And Env"
+            "label": "已解析 Command 與 Env"
           },
           {
             "id": "a2c1",
             "source": "EXTERNAL",
             "target": "A22:control",
-            "label": "Allowed Host Regex /run/user/<uid>/opencode/sockets/*"
+            "label": "Allowed Host Regex /執行/使用者/<uid>/opencode/sockets/*"
           },
           {
             "id": "a2c2",
             "source": "EXTERNAL",
             "target": "A23:control",
-            "label": "McpAppStore.AppEntry Shape (incl. modelProcess)"
+            "label": "McpAppStore.app項目 Shape (incl. 模型process)"
           },
           {
             "id": "a2c3",
             "source": "EXTERNAL",
             "target": "A24:control",
-            "label": "BUILTIN_CATALOG (currently empty)"
+            "label": "BUILTIN CATALOG (currently empty)"
           },
           {
             "id": "a2f1",
             "source": "A21:output",
             "target": "A23:input",
-            "label": "tools/list Snapshot"
+            "label": "tools/清單 Snapshot"
           },
           {
             "id": "a2f2",
             "source": "A22:output",
             "target": "A23:input",
-            "label": "Lint Verdict (pass | bind_mount_forbidden)"
+            "label": "Lint Verdict (pass | bindmountforbidden)"
           },
           {
             "id": "a2f3",
             "source": "A23:output",
             "target": "A24:input",
-            "label": "Persisted Entry Record"
+            "label": "Persisted 項目 記錄"
           },
           {
             "id": "a2out1",
             "source": "A24:output",
             "target": "EXTERNAL",
-            "label": "managed-apps.json (FSM State)"
+            "label": "managed-apps.js在 (FSM 狀態)"
           },
           {
             "id": "a2out2",
             "source": "A23:output",
             "target": "EXTERNAL",
-            "label": "mcp-apps.json Tier File (via sudoWrapper for system)"
+            "label": "mcp-apps.js在 Tier 檔案 (透過 sudoWrapper 供 system)"
           }
         ]
       }
@@ -184,15 +184,15 @@
     },
     {
       "id": "A4",
-      "title": "Dispatch Tool Call"
+      "title": "派發 工具 呼叫"
     },
     {
       "id": "A5",
-      "title": "Synchronize Enablement Registry"
+      "title": "Synchronize Enablement 註冊表"
     },
     {
       "id": "A6",
-      "title": "Unload Idle Apps (Proposed Seam)"
+      "title": "Unload 閒置 Apps (Proposed Seam)"
     }
   ],
   "arrows": [
@@ -200,31 +200,31 @@
       "id": "m_in1",
       "source": "EXTERNAL",
       "target": "A1:input",
-      "label": "App Directory + mcp-apps.json"
+      "label": "App Directory + mcp-apps.js在"
     },
     {
       "id": "m_in2",
       "source": "EXTERNAL",
       "target": "A4:input",
-      "label": "Model Tool Call (name + args)"
+      "label": "模型 工具 呼叫 (name + args)"
     },
     {
       "id": "m_in3",
       "source": "EXTERNAL",
       "target": "A3:input",
-      "label": "OAuth Tokens (gauth.json)"
+      "label": "OAuth Tokens (gauth.js在)"
     },
     {
       "id": "m_c1",
       "source": "EXTERNAL",
       "target": "A1:control",
-      "label": "McpAppManifest.Schema"
+      "label": "mcpappManifest.schema"
     },
     {
       "id": "m_c2",
       "source": "EXTERNAL",
       "target": "A2:control",
-      "label": "Bind-Mount Policy + AGENTS.md No-Silent-Fallback"
+      "label": "Bind-Mount Policy + AGENTS.md 無-靜默-fallback"
     },
     {
       "id": "m_c3",
@@ -236,7 +236,7 @@
       "id": "m_c4",
       "source": "EXTERNAL",
       "target": "A4:control",
-      "label": "relaxTokenFieldsForDispatcher + IncomingDispatcher Rules"
+      "label": "relaxtokenfields供dispatcher + IncomingDispatcher Rules"
     },
     {
       "id": "m_c5",
@@ -248,19 +248,19 @@
       "id": "m_c6",
       "source": "EXTERNAL",
       "target": "A6:control",
-      "label": "tweaks.cfg mcp.idle_unload_ms (proposed)"
+      "label": "tweaks.cfg mcp.閒置unloadms (proposed)"
     },
     {
       "id": "m_mech1",
       "source": "EXTERNAL",
       "target": "A3:control",
-      "label": "Bun fetch unix:{socketPath} + parseUnixSocketUrl"
+      "label": "Bun fetch unix:{socket路徑} + 解析unixsocketurl"
     },
     {
       "id": "m_mech2",
       "source": "EXTERNAL",
       "target": "A4:control",
-      "label": "AI SDK dynamicTool + experimental_repairToolCall"
+      "label": "AI SDK dynamic工具 + experimentalrepair工具呼叫"
     },
     {
       "id": "m12",
@@ -272,7 +272,7 @@
       "id": "m23",
       "source": "A2:output",
       "target": "A3:input",
-      "label": "App Entry (command | url, transport)"
+      "label": "App 項目 (command | url, transport)"
     },
     {
       "id": "m34",
@@ -284,7 +284,7 @@
       "id": "m45",
       "source": "A4:output",
       "target": "A5:input",
-      "label": "Active Tool Names"
+      "label": "Active 工具 Names"
     },
     {
       "id": "m25",
@@ -296,13 +296,13 @@
       "id": "m5_out",
       "source": "A5:output",
       "target": "A4:control",
-      "label": "enablement.json Snapshot Into LLM Prompt"
+      "label": "enablement.js在 Snapshot 進入 LLM 提示"
     },
     {
       "id": "m_idle1",
       "source": "A4:output",
       "target": "A6:input",
-      "label": "lastUsedAt Signal (proposed wiring)"
+      "label": "lastused於 Signal (proposed wiring)"
     },
     {
       "id": "m_idle2",
@@ -314,19 +314,19 @@
       "id": "m_out1",
       "source": "A4:output",
       "target": "EXTERNAL",
-      "label": "Tool Result To Runloop (session/llm.ts)"
+      "label": "工具 結果 到 Runloop (session/llm.ts)"
     },
     {
       "id": "m_out2",
       "source": "A4:output",
       "target": "EXTERNAL",
-      "label": "Direct Render Side Channel (.opencode/mcp-output)"
+      "label": "Direct 渲染 Side 通道 (.opencode/mcp-輸出)"
     },
     {
       "id": "m_out3",
       "source": "A6:output",
       "target": "EXTERNAL",
-      "label": "mcp.app.unloaded Bus Event (proposed)"
+      "label": "mcp.app.unloaded Bus 事件 (proposed)"
     }
   ]
 }

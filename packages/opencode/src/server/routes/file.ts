@@ -177,6 +177,44 @@ export const FileRoutes = lazy(() =>
       },
     )
     .get(
+      "/file/stat",
+      describeRoute({
+        summary: "Stat file",
+        description:
+          "Lightweight mtime/size probe for an open file viewer to detect on-disk changes without re-reading content. Used by the SPA to poll the active file tab.",
+        operationId: "file.stat",
+        responses: {
+          200: {
+            description: "File stat",
+            content: {
+              "application/json": {
+                schema: resolver(
+                  z.object({
+                    mtime: z.number(),
+                    size: z.number(),
+                  }),
+                ),
+              },
+            },
+          },
+        },
+      }),
+      validator(
+        "query",
+        z.object({
+          path: z.string(),
+        }),
+      ),
+      async (c) => {
+        const reqPath = c.req.valid("query").path
+        const fs = await import("fs/promises")
+        const path = await import("path")
+        const resolved = path.isAbsolute(reqPath) ? reqPath : path.resolve(Instance.directory, reqPath)
+        const stat = await fs.stat(resolved)
+        return c.json({ mtime: stat.mtimeMs, size: stat.size })
+      },
+    )
+    .get(
       "/file/content",
       describeRoute({
         summary: "Read file",

@@ -1,22 +1,22 @@
 {
-  "diagram_title": "plan-builder — Spec Lifecycle Management",
+  "diagram_title": "規劃-builder — Spec Lifecycle Management",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A1",
-      "title": "Manage Spec State",
+      "title": "Manage Spec 狀態",
       "description": "讀寫 .state.json、推斷狀態、執行合法狀態轉換",
       "decomposition": null
     },
     {
       "id": "A2",
-      "title": "Validate State-Aware Artifacts",
+      "title": "Validate 狀態-Aware Artifacts",
       "description": "依當前 state 驗證對應 artifact 集合的結構與完整性",
       "decomposition": null
     },
     {
       "id": "A3",
-      "title": "Migrate Legacy Plan",
+      "title": "Migrate Legacy 規劃",
       "description": "偵測 legacy plans/<slug>/ 並 on-touch 搬移到 specs/<slug>/，保留 git history 與快照",
       "decomposition": null
     },
@@ -44,28 +44,28 @@
       "id": "AR1",
       "source": "EXTERNAL",
       "target": "A1:input",
-      "label": "User Spec Path",
+      "label": "使用者 Spec 路徑",
       "type": "input"
     },
     {
       "id": "AR2",
       "source": "EXTERNAL",
       "target": "A1:control",
-      "label": "State Transition Rules",
+      "label": "狀態 Transition Rules",
       "type": "control"
     },
     {
       "id": "AR3",
       "source": "A1:output",
       "target": "A2:input",
-      "label": "Current State",
+      "label": "Current 狀態",
       "type": "output"
     },
     {
       "id": "AR4",
       "source": "A1:output",
       "target": "EXTERNAL",
-      "label": "Updated .state.json",
+      "label": "Updated .state.js在",
       "type": "output"
     },
     {
@@ -79,7 +79,7 @@
       "id": "AR6",
       "source": "EXTERNAL",
       "target": "A2:control",
-      "label": "State × Artifact Requirement Matrix",
+      "label": "狀態 × Artifact Requirement Matrix",
       "type": "control"
     },
     {
@@ -100,14 +100,14 @@
       "id": "AR9",
       "source": "EXTERNAL",
       "target": "A3:input",
-      "label": "Legacy plans/<slug>/ Path",
+      "label": "Legacy plans/<slug>/ 路徑",
       "type": "input"
     },
     {
       "id": "AR10",
       "source": "EXTERNAL",
       "target": "A3:control",
-      "label": "State Inference Rules + No Silent Fallback",
+      "label": "狀態 Inference Rules + 無 靜默 fallback",
       "type": "control"
     },
     {
@@ -128,7 +128,7 @@
       "id": "AR13",
       "source": "EXTERNAL",
       "target": "A4:input",
-      "label": "User Requirement Wording",
+      "label": "使用者 Requirement Wording",
       "type": "input"
     },
     {
@@ -184,14 +184,14 @@
       "id": "AR21",
       "source": "A1:output",
       "target": "A6:input",
-      "label": "Spec Ready for Archive",
+      "label": "Spec 就緒 供 Archive",
       "type": "input"
     },
     {
       "id": "AR22",
       "source": "EXTERNAL",
       "target": "A6:control",
-      "label": "Archive Policy (keep-in-place vs move-to-archive)",
+      "label": "Archive Policy (keep-在-place vs move-到-archive)",
       "type": "control"
     },
     {

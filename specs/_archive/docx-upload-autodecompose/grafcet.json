@@ -3,180 +3,283 @@
     "StepNumber": 0,
     "ModuleRef": "A0",
     "StepType": "initial",
-    "StepAction": "wait for incoming Office upload",
+    "StepAction": "wait 供 incoming Office 上傳",
     "LinkInputType": [],
     "LinkInputNumber": [],
-    "LinkOutputNumber": [1],
+    "LinkOutputNumber": [
+      1
+    ],
     "LinkOutputType": "track",
-    "Condition": ["upload_arrived"],
+    "Condition": [
+      "上傳arrived"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 1,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "validate upload (receive bytes, detect mime, compute cache key, resolve cache hit)",
+    "StepAction": "validate 上傳 (receive 位元組, detect mime, compute 快取 key, 解析 快取 hit)",
     "LinkInputType": "track",
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["validation_complete"],
+    "Condition": [
+      "validation完成"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "branch on cache verdict",
+    "StepAction": "branch 在 快取 verdict",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [3, 4, 5],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      3,
+      4,
+      5
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["verdict == hit", "verdict == fresh", "verdict == regen"],
+    "Condition": [
+      "verdict == hit",
+      "verdict == fresh",
+      "verdict == regen"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "short-circuit: reuse existing manifest at incoming/<stem>/manifest.json",
+    "StepAction": "short-circuit: reuse existing Manifest 於 incoming/<stem>/manifest.js在",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [9],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      9
+    ],
     "LinkOutputType": "track",
-    "Condition": ["manifest_loaded"],
+    "Condition": [
+      "Manifest已載入"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 4,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "decompose into a fresh incoming/<stem>/ (no prior dir)",
+    "StepAction": "decompose 進入 fresh incoming/<stem>/ (無 prior dir)",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [6],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      6
+    ],
     "LinkOutputType": "track",
-    "Condition": ["decompose_dispatched"],
+    "Condition": [
+      "decomposedispatched"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 5,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "rename prior incoming/<stem>/ to incoming/<stem>-<old-timestamp>/ (regen with sha drift)",
+    "StepAction": "rename prior incoming/<stem>/ 到 incoming/<stem>-<old-timestamp>/ (regen 使用 sha drift)",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [6],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      6
+    ],
     "LinkOutputType": "track",
-    "Condition": ["prior_dir_renamed"],
+    "Condition": [
+      "priordirrenamed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 6,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "run format-specific decomposer FAST PHASE (docxmcp extract_all returns outline+template+manifest skeleton; or legacy scanner; or unsupported writer); for docx: spawn detached background child via double-fork before fast phase returns",
+    "StepAction": "執行 format-specific decomposer FAST PHASE (docxmcp 取出all 返回 outline+template+Manifest skeleton; 或 legacy scanner; 或 unsupported writer); 供 docx: 啟動 detached background child 透過 double-fork before fast phase 返回",
     "LinkInputType": "convergence_or",
-    "LinkInputNumber": [4, 5],
-    "LinkOutputNumber": [7],
+    "LinkInputNumber": [
+      4,
+      5
+    ],
+    "LinkOutputNumber": [
+      7
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["fast_phase_returned"],
-    "SubGrafcet": ["A21", "A22", "A23"]
+    "Condition": [
+      "fastphasereturned"
+    ],
+    "SubGrafcet": [
+      "A21",
+      "A22",
+      "A23"
+    ]
   },
   {
     "StepNumber": 7,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "branch on decompose outcome",
+    "StepAction": "branch 在 decompose outcome",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [6],
-    "LinkOutputNumber": [8, 11],
+    "LinkInputNumber": [
+      6
+    ],
+    "LinkOutputNumber": [
+      8,
+      11
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["status in (ok, unsupported)", "status == failed"],
+    "Condition": [
+      "狀態 在 (ok, unsupported)",
+      "狀態 == failed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 8,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "publish FAST bundle to incoming/<stem>/ (outline + template + manifest skeleton + _PENDING markers); for docx, also start the polling loop (parallel branch — runs concurrently with steps 9 and 10 below; converges back via background_status flip; see steps 12-15)",
+    "StepAction": "發布 FAST Bundle 到 incoming/<stem>/ (outline + template + Manifest skeleton + PENDING markers); 供 docx, also start polling loop (平行 branch — runs concurrently 使用 steps 9 與 10 below; converges 回到 透過 background狀態 flip; see steps 12-15)",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [7],
-    "LinkOutputNumber": [9, 12],
+    "LinkInputNumber": [
+      7
+    ],
+    "LinkOutputNumber": [
+      9,
+      12
+    ],
     "LinkOutputType": "divergence_and",
-    "Condition": ["fast_tree_published"],
+    "Condition": [
+      "fasttreepublished"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 9,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "compose plain-language routing hint from manifest (apply >4 fold rule)",
+    "StepAction": "compose plain-language routing hint 來自 Manifest (apply >4 fold rule)",
     "LinkInputType": "convergence_or",
-    "LinkInputNumber": [3, 8, 11],
-    "LinkOutputNumber": [10],
+    "LinkInputNumber": [
+      3,
+      8,
+      11
+    ],
+    "LinkOutputNumber": [
+      10
+    ],
     "LinkOutputType": "track",
-    "Condition": ["hint_composed"],
+    "Condition": [
+      "hintcomposed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 10,
     "ModuleRef": "A0",
     "StepType": "normal",
-    "StepAction": "decorate user message with routing hint and emit telemetry; release message to AI",
+    "StepAction": "decorate 使用者 訊息 使用 routing hint 與 發出 telemetry; release 訊息 到 AI",
     "LinkInputType": "track",
-    "LinkInputNumber": [9],
-    "LinkOutputNumber": [0],
+    "LinkInputNumber": [
+      9
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["message_released"],
+    "Condition": [
+      "訊息released"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 11,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "write failure.md with one-line plain reason; emit failure manifest",
+    "StepAction": "write failure.md 使用 單次-line plain reason; 發出 failure Manifest",
     "LinkInputType": "divergence_or",
-    "LinkInputNumber": [7],
-    "LinkOutputNumber": [9],
+    "LinkInputNumber": [
+      7
+    ],
+    "LinkOutputNumber": [
+      9
+    ],
     "LinkOutputType": "track",
-    "Condition": ["failure_recorded"],
+    "Condition": [
+      "failurerecorded"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 12,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "[parallel branch] background detached child writes body.md + chapters/ + tables/ + media/ inside docxmcp container; rewrites manifest{bg:done} when finished; removes _PENDING markers",
+    "StepAction": "[平行 branch] background detached child writes body.md + chapters/ + tables/ + media/ inside docxmcp container; rewrites Manifest{bg:done} when finished; removes PENDING markers",
     "LinkInputType": "divergence_and",
-    "LinkInputNumber": [8],
-    "LinkOutputNumber": [14],
+    "LinkInputNumber": [
+      8
+    ],
+    "LinkOutputNumber": [
+      14
+    ],
     "LinkOutputType": "track",
-    "Condition": ["background_finished_or_failed"],
+    "Condition": [
+      "backgroundfinished或failed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 13,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "[parallel branch] polling loop calls extract_all_collect(wait=0) every 5 s; bundle producer ships incremental files; loop publishes them into incoming/<stem>/; stops when manifest.bg != running OR 180 s safety cap",
+    "StepAction": "[平行 branch] polling loop calls 取出allcollect(wait=0) every 5 s; Bundle producer ships incremental 檔案; loop publishes them 進入 incoming/<stem>/; stops when Manifest.bg != 執行中 OR 180 s safety cap",
     "LinkInputType": "divergence_and",
-    "LinkInputNumber": [8],
-    "LinkOutputNumber": [14],
+    "LinkInputNumber": [
+      8
+    ],
+    "LinkOutputNumber": [
+      14
+    ],
     "LinkOutputType": "track",
-    "Condition": ["polling_loop_terminated"],
+    "Condition": [
+      "pollingloopterminated"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 14,
     "ModuleRef": "A0",
     "StepType": "normal",
-    "StepAction": "background + polling parallel branches converge; incoming/<stem>/ now reflects final state (or stable failure / safety-cap state); telemetry receives final outcome",
+    "StepAction": "background + polling 平行 branches converge; incoming/<stem>/ now reflects final 狀態 (或 stable failure / safety-cap 狀態); telemetry receives final outcome",
     "LinkInputType": "convergence_and",
-    "LinkInputNumber": [12, 13],
-    "LinkOutputNumber": [0],
+    "LinkInputNumber": [
+      12,
+      13
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["all_branches_complete"],
+    "Condition": [
+      "allbranches完成"
+    ],
     "SubGrafcet": []
   }
 ]

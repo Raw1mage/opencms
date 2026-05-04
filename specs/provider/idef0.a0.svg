@@ -1,80 +1,80 @@
-<svg width="3503.4" height="751.6" viewBox="-1109.7 -165.8 3503.4 751.6" xmlns="http://www.w3.org/2000/svg">
+<svg width="1757.0" height="751.6" viewBox="-264.0 -165.8 1757.0 751.6" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
 <marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
 </defs>
-<rect x="-1109.7" y="-165.8" width="3503.4" height="751.6" fill="white" />
-<rect x="130.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
-<text x="230.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
-<text x="230.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >RESOLVE</text>
-<text x="230.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >PROVIDER FAMILY</text>
-<rect x="446.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
-<text x="546.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
-<text x="546.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >SELECT ACCOUNT</text>
-<text x="546.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >IDENTITY</text>
-<rect x="914.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
-<text x="1014.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >A3</text>
-<text x="1014.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >INSTANTIATE</text>
-<text x="1014.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >SDK CLIENT</text>
-<rect x="130.0" y="380.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
-<text x="230.0" y="409.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >A4</text>
-<text x="230.0" y="441.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >BUILD REQUEST</text>
-<text x="230.0" y="472.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >HEADERS</text>
-<rect x="446.0" y="380.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A5" />
-<text x="546.0" y="409.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >A5</text>
-<text x="546.0" y="441.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >TRANSFORM</text>
-<text x="546.0" y="472.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >REQUEST PAYLOAD</text>
-<rect x="914.0" y="380.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A6" />
-<text x="1014.0" y="409.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >A6</text>
-<text x="1014.0" y="441.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >DISPATCH AND</text>
-<text x="1014.0" y="472.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >STREAM RESPONSE</text>
-<rect x="40.0" y="44.2" width="1204.0" height="531.6" stroke="black" fill="none" stroke-width="2" />
-<rect x="522.0" y="-155.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
-<text x="642.0" y="-114.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >A0</text>
-<text x="642.0" y="-84.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >ROUTE PROVIDER REQUEST</text>
-<line x1="522.0" y1="-155.8" x2="40.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="762.0" y1="-155.8" x2="1244.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="522.0" y1="-45.8" x2="40.0" y2="575.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="762.0" y1="-45.8" x2="1244.0" y2="575.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<path d="M 330.0 180.0 L 446.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="g_a1_a2" data-waypoints="330.0,180.0 446.0,180.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 646.0 180.0 L 914.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="g_a2_a3" data-waypoints="646.0,180.0 914.0,180.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 646.0 440.0 L 914.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="g_a5_a6" data-waypoints="646.0,440.0 914.0,440.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1114.0 200.0 L 1144.0 200.0 Q 1154.0 200.0 1154.0 210.0 L 1154.0 280.0 Q 1154.0 290.0 1144.0 290.0 L 100.0 290.0 Q 90.0 290.0 90.0 300.0 L 90.0 430.0 Q 90.0 440.0 100.0 440.0 L 130.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="g_a3_a4" data-waypoints="1114.0,200.0 1154.0,200.0 1154.0,290.0 90.0,290.0 90.0,440.0 130.0,440.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1114.0 160.0 L 1184.0 160.0 Q 1194.0 160.0 1194.0 170.0 L 1194.0 320.0 Q 1194.0 330.0 1184.0 330.0 L 398.0 330.0 Q 388.0 330.0 388.0 340.0 L 388.0 430.0 Q 388.0 440.0 398.0 440.0 L 446.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="g_a3_a5" data-waypoints="1114.0,160.0 1194.0,160.0 1194.0,330.0 388.0,330.0 388.0,440.0 446.0,440.0" marker-end="url(#arrow)" fill="none" />
+<rect x="-264.0" y="-165.8" width="1757.0" height="751.6" fill="white" />
+<rect x="130.0" y="120.0" width="214.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="237.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
+<text x="237.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >解析 PROVIDER</text>
+<text x="237.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >FAMILY</text>
+<rect x="460.0" y="120.0" width="214.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="567.0" y="162.9" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
+<text x="567.0" y="201.5" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >SELECT 帳號 身分</text>
+<rect x="845.0" y="120.0" width="214.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="952.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >A3</text>
+<text x="952.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >INSTANTIATE</text>
+<text x="952.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >SDK CLIENT</text>
+<rect x="130.0" y="380.0" width="214.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
+<text x="237.0" y="424.0" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >A4</text>
+<text x="237.0" y="459.7" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >建置 請求 HEADERS</text>
+<rect x="460.0" y="380.0" width="214.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A5" />
+<text x="567.0" y="409.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >A5</text>
+<text x="567.0" y="441.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >TRANSFORM</text>
+<text x="567.0" y="472.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >請求 PAYLOAD</text>
+<rect x="845.0" y="380.0" width="214.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A6" />
+<text x="952.0" y="422.9" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >A6</text>
+<text x="952.0" y="461.5" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >派發 與 串流 回應</text>
+<rect x="40.0" y="44.2" width="1149.0" height="531.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="494.5" y="-155.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="614.5" y="-117.9" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >A0</text>
+<text x="614.5" y="-79.3" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >路由 PROVIDER 請求</text>
+<line x1="494.5" y1="-155.8" x2="40.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="734.5" y1="-155.8" x2="1189.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="494.5" y1="-45.8" x2="40.0" y2="575.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="734.5" y1="-45.8" x2="1189.0" y2="575.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 344.0 180.0 L 460.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="g_a1_a2" data-waypoints="344.0,180.0 460.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 674.0 180.0 L 845.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="g_a2_a3" data-waypoints="674.0,180.0 845.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 674.0 440.0 L 845.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="g_a5_a6" data-waypoints="674.0,440.0 845.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1059.0 200.0 L 1089.0 200.0 Q 1099.0 200.0 1099.0 210.0 L 1099.0 280.0 Q 1099.0 290.0 1089.0 290.0 L 100.0 290.0 Q 90.0 290.0 90.0 300.0 L 90.0 430.0 Q 90.0 440.0 100.0 440.0 L 130.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="g_a3_a4" data-waypoints="1059.0,200.0 1099.0,200.0 1099.0,290.0 90.0,290.0 90.0,440.0 130.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1059.0 160.0 L 1129.0 160.0 Q 1139.0 160.0 1139.0 170.0 L 1139.0 320.0 Q 1139.0 330.0 1129.0 330.0 L 412.0 330.0 Q 402.0 330.0 402.0 340.0 L 402.0 430.0 Q 402.0 440.0 412.0 440.0 L 460.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="g_a3_a5" data-waypoints="1059.0,160.0 1139.0,160.0 1139.0,330.0 402.0,330.0 402.0,440.0 460.0,440.0" marker-end="url(#arrow)" fill="none" />
 <path d="M -10.0 180.0 L 130.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="g_in_req" data-waypoints="-10.0,180.0 130.0,180.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="g_ctl_bootguard" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 275.8 L 230.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="g_mech_registry" data-waypoints="230.0,275.8 230.0,240.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1014.0 84.2 L 1014.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="g_ctl_modelapi" data-waypoints="1014.0,84.2 1014.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1014.0 275.8 L 1014.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="g_mech_getsdk" data-waypoints="1014.0,275.8 1014.0,240.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 344.2 L 230.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="g_a2_a4" data-waypoints="230.0,344.2 230.0,380.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1014.0 344.2 L 1014.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="g_a4_a6" data-waypoints="1014.0,344.2 1014.0,380.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1014.0 535.8 L 1014.0 500.0" stroke="black" stroke-width="1.2" data-arrow-id="g_mech_transports" data-waypoints="1014.0,535.8 1014.0,500.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1114.0 440.0 L 1294.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="g_out_stream" data-waypoints="1114.0,440.0 1294.0,440.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 546.0 344.2 L 546.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="g_fb_invalidate" data-waypoints="546.0,344.2 546.0,380.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 546.0 84.2 L 546.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A2_control" data-waypoints="546.0,84.2 546.0,120.0" marker-end="url(#arrow)" fill="none" />
-<text x="230.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_ctl_bootguard">Migration boot guard (.migration-state.json version=1)</text>
-<text x="224.0" y="256.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_mech_registry">Provider.providers registry</text>
-<text x="236.0" y="256.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_mech_registry">database (provider.ts)</text>
-<text x="1014.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_ctl_modelapi">model.api.npm switch (AI-SDK adapter selection)</text>
-<text x="1008.0" y="256.0" font-size="10" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_mech_getsdk">getSDK(family, accountId,</text>
-<text x="1020.0" y="256.0" font-size="10" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_mech_getsdk">model) cache (provider.ts L2115)</text>
-<text x="224.0" y="374.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_a2_a4">AuthContext token + accountId</text>
-<text x="236.0" y="374.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_a2_a4">for header injection</text>
-<text x="1008.0" y="374.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_a4_a6">Final request headers</text>
-<text x="1020.0" y="374.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_a4_a6">(HTTP or WS variant)</text>
-<text x="1014.0" y="551.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_mech_transports">WebSocket transport adapter / HTTP fetch</text>
-<text x="540.0" y="374.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_fb_invalidate">Continuation-invalidated →</text>
-<text x="552.0" y="374.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_fb_invalidate">cache breakpoint eviction</text>
-<text x="540.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_ctl_accountsjson">accounts.json under ~/.config/opencode/、Quota-exhaustion</text>
-<text x="552.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_ctl_accountsjson">signal (rotation3d candidate switch trigger)</text>
-<text x="388.0" y="180.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_a1_a2"><tspan x="388.0" dy="0">Family +</tspan><tspan x="388.0" dy="16.0">Info{api.npm</tspan><tspan x="388.0" dy="16.0">api.url}</tspan></text>
-<text x="780.0" y="180.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_a2_a3"><tspan x="780.0" dy="0">(family</tspan><tspan x="780.0" dy="16.0">accountId</tspan><tspan x="780.0" dy="16.0">AuthContext)</tspan></text>
-<text x="780.0" y="435.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_a5_a6">Transformed payload (cache</text>
-<text x="780.0" y="452.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_a5_a6">breakpoints applied or skipped)</text>
-<text x="546.0" y="308.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_a3_a4" >SDK client + sdk.getModel handle</text>
-<text x="1014.0" y="322.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_a3_a5" >ProviderTransform binding (subscription/native flag)</text>
-<text x="-14.0" y="158.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_in_req">Provider request</text>
-<text x="-14.0" y="184.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_in_req">(model, providerId,</text>
-<text x="-14.0" y="210.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_in_req">prompt, tools)</text>
-<text x="1298.0" y="444.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_out_stream">Streamed AI-SDK output to runloop / session / Token usage + rate-limit metrics to telemetry bus</text>
+<path d="M 237.0 84.2 L 237.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="g_ctl_bootguard" data-waypoints="237.0,84.2 237.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 237.0 275.8 L 237.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="g_mech_registry" data-waypoints="237.0,275.8 237.0,240.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 952.0 84.2 L 952.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="g_ctl_modelapi" data-waypoints="952.0,84.2 952.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 952.0 275.8 L 952.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="g_mech_getsdk" data-waypoints="952.0,275.8 952.0,240.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 237.0 344.2 L 237.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="g_a2_a4" data-waypoints="237.0,344.2 237.0,380.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 952.0 344.2 L 952.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="g_a4_a6" data-waypoints="952.0,344.2 952.0,380.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 952.0 535.8 L 952.0 500.0" stroke="black" stroke-width="1.2" data-arrow-id="g_mech_transports" data-waypoints="952.0,535.8 952.0,500.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1059.0 440.0 L 1239.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="g_out_stream" data-waypoints="1059.0,440.0 1239.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 567.0 344.2 L 567.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="g_fb_invalidate" data-waypoints="567.0,344.2 567.0,380.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 567.0 84.2 L 567.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A2_control" data-waypoints="567.0,84.2 567.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="237.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_ctl_bootguard">Migration boot guard (.migration-state.js在 version=1)</text>
+<text x="231.0" y="256.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_mech_registry">Provider.Provider 註冊表</text>
+<text x="243.0" y="256.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_mech_registry">database (provider.ts)</text>
+<text x="952.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_ctl_modelapi">模型.api.npm switch (AI-SDK adapter selection)</text>
+<text x="946.0" y="256.0" font-size="11" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_mech_getsdk">getSDK(family, 帳號id, 模型)</text>
+<text x="958.0" y="256.0" font-size="11" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_mech_getsdk">快取 (provider.ts L2115)</text>
+<text x="231.0" y="374.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_a2_a4">驗證上下文 token + 帳號id</text>
+<text x="243.0" y="374.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_a2_a4">供 header injection</text>
+<text x="946.0" y="374.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_a4_a6">Final 請求 headers</text>
+<text x="958.0" y="374.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_a4_a6">(HTTP 或 WS variant)</text>
+<text x="952.0" y="551.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_mech_transports">WebSocket transport adapter / HTTP fetch</text>
+<text x="561.0" y="374.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_fb_invalidate">延續-invalidated → 快取</text>
+<text x="573.0" y="374.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_fb_invalidate">breakpoint eviction</text>
+<text x="561.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_ctl_accountsjson">accounts.js在 under ~/.config/opencode</text>
+<text x="573.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_ctl_accountsjson">配額-exhaustion signal (輪替3d candidate switch trigger)</text>
+<text x="402.0" y="180.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_a1_a2"><tspan x="402.0" dy="0">Family +</tspan><tspan x="402.0" dy="16.0">Info{api.npm</tspan><tspan x="402.0" dy="16.0">api.url}</tspan></text>
+<text x="759.5" y="180.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_a2_a3"><tspan x="759.5" dy="0">(family</tspan><tspan x="759.5" dy="16.0">帳號id</tspan><tspan x="759.5" dy="16.0">驗證上下文)</tspan></text>
+<text x="759.5" y="440.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_a5_a6"><tspan x="759.5" dy="0">Transformed</tspan><tspan x="759.5" dy="16.0">payload (快取</tspan><tspan x="759.5" dy="16.0">breakpoints</tspan><tspan x="759.5" dy="16.0">applied 或 skipped)</tspan></text>
+<text x="567.0" y="308.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_a3_a4" >SDK client + sdk.get模型 handle</text>
+<text x="952.0" y="322.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_a3_a5" >Providertransform binding (subscription/native flag)</text>
+<text x="-14.0" y="158.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_in_req">Provider 請求 (</text>
+<text x="-14.0" y="184.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_in_req">模型, Providerid,</text>
+<text x="-14.0" y="210.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_in_req">提示, tools)</text>
+<text x="1243.0" y="392.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_out_stream">Streamed AI-SDK 輸</text>
+<text x="1243.0" y="418.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_out_stream">出 到 runloop /</text>
+<text x="1243.0" y="444.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_out_stream">Session / Token usage</text>
+<text x="1243.0" y="470.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_out_stream">+ rate-limit metrics</text>
+<text x="1243.0" y="496.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="g_out_stream">到 telemetry bus</text>
 </svg>

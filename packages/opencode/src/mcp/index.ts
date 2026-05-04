@@ -259,15 +259,13 @@ export namespace MCP {
         }
 
         if (!dispatch) return rawResult
-        return IncomingDispatcher.after({ result: rawResult, ctx: dispatch.ctx }).catch(
-          (err) => {
-            log.warn("incoming.dispatcher.after threw, returning raw mcp result", {
-              tool: mcpTool.name,
-              error: err instanceof Error ? err.message : String(err),
-            })
-            return rawResult
-          },
-        )
+        return IncomingDispatcher.after({ result: rawResult, ctx: dispatch.ctx }).catch((err) => {
+          log.warn("incoming.dispatcher.after threw, returning raw mcp result", {
+            tool: mcpTool.name,
+            error: err instanceof Error ? err.message : String(err),
+          })
+          return rawResult
+        })
       },
     })
   }
@@ -533,7 +531,7 @@ export namespace MCP {
         ? new URL(unixSocketPath.httpPath || "/", "http://docxmcp.local")
         : new URL(mcp.url)
       const customFetch = unixSocketPath
-        ? ((url, init) => fetch(url as any, { ...(init ?? {}), unix: unixSocketPath.socketPath } as any)) as FetchLike
+        ? (((url, init) => fetch(url as any, { ...(init ?? {}), unix: unixSocketPath.socketPath } as any)) as FetchLike)
         : undefined
 
       const transports: Array<{ name: string; transport: TransportWithAuth }> = [
@@ -763,12 +761,10 @@ export namespace MCP {
     return result
   }
 
+  const RETIRED_SERVER_APP_IDS = new Set(["beta-tool", "refacting-merger", "gcp-grounding"])
+
   /** Metadata for built-in MCP servers — shown in app market cards */
   const SERVER_META: Record<string, { description: string; icon: string }> = {
-    "beta-tool": {
-      description: "Experimental tools for testing new capabilities before they are promoted to stable.",
-      icon: "🧪",
-    },
     fetch: {
       description: "HTTP fetch tool for retrieving web content, APIs, and remote resources.",
       icon: "🌐",
@@ -818,6 +814,7 @@ export namespace MCP {
 
     for (const [key, mcp] of Object.entries(config)) {
       if (!isMcpConfigured(mcp)) continue
+      if (RETIRED_SERVER_APP_IDS.has(key)) continue
       const serverStatus = s.status[key] ?? { status: "disabled" as const }
       const meta = SERVER_META[key] ?? { description: `MCP server: ${key}`, icon: "📦" }
       const isConnected = serverStatus.status === "connected"
@@ -954,7 +951,7 @@ export namespace MCP {
         return null
       }
 
-      const data = await res.json() as { access_token: string; expires_in: number }
+      const data = (await res.json()) as { access_token: string; expires_in: number }
       const updated = {
         ...JSON.parse(await fs.readFile(gauthPath, "utf-8")),
         access_token: data.access_token,
@@ -962,15 +959,23 @@ export namespace MCP {
         updated_at: Date.now(),
       }
       await fs.writeFile(gauthPath, JSON.stringify(updated, null, 2))
-      log.info("google token auto-refreshed", { path: gauthPath, expiresAt: new Date(updated.expires_at).toISOString() })
+      log.info("google token auto-refreshed", {
+        path: gauthPath,
+        expiresAt: new Date(updated.expires_at).toISOString(),
+      })
       return data.access_token
     } catch (err) {
-      log.warn("google token refresh error", { path: gauthPath, error: err instanceof Error ? err.message : String(err) })
+      log.warn("google token refresh error", {
+        path: gauthPath,
+        error: err instanceof Error ? err.message : String(err),
+      })
       return null
     }
   }
 
-  async function resolveAuthEnv(manifest: { auth?: { type: string; provider?: string; tokenEnv?: string; refreshTokenEnv?: string } }): Promise<Record<string, string>> {
+  async function resolveAuthEnv(manifest: {
+    auth?: { type: string; provider?: string; tokenEnv?: string; refreshTokenEnv?: string }
+  }): Promise<Record<string, string>> {
     if (!manifest.auth || manifest.auth.type === "none") return {}
 
     const auth = manifest.auth as { type: string; provider?: string; tokenEnv?: string; refreshTokenEnv?: string }
@@ -986,10 +991,10 @@ export namespace MCP {
         "gauth.json",
       )
       let globalConfigPath: string | undefined
-      try { globalConfigPath = path.join(Global.Path.config, "gauth.json") } catch {}
-      const candidates = globalConfigPath
-        ? [globalConfigPath, xdgFallback]
-        : [xdgFallback]
+      try {
+        globalConfigPath = path.join(Global.Path.config, "gauth.json")
+      } catch {}
+      const candidates = globalConfigPath ? [globalConfigPath, xdgFallback] : [xdgFallback]
       for (const gauthPath of candidates) {
         try {
           const content = await fs.readFile(gauthPath, "utf-8")
@@ -1229,7 +1234,12 @@ export namespace MCP {
       for (const mcpTool of toolsResult.tools) {
         const sanitizedClientName = clientName.replace(/[^a-zA-Z0-9_-]/g, "_")
         const sanitizedToolName = mcpTool.name.replace(/[^a-zA-Z0-9_-]/g, "_")
-        result[sanitizedClientName + "_" + sanitizedToolName] = await convertMcpTool(mcpTool, client, timeout, clientName)
+        result[sanitizedClientName + "_" + sanitizedToolName] = await convertMcpTool(
+          mcpTool,
+          client,
+          timeout,
+          clientName,
+        )
       }
     }
 

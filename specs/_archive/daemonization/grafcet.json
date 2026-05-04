@@ -3,83 +3,136 @@
     "StepNumber": 0,
     "ModuleRef": "A1",
     "StepType": "initial",
-    "StepAction": "Listen for TCP connection on gateway port",
+    "StepAction": "Listen 供 TCP connection 在 Gateway port",
     "LinkInputType": [],
     "LinkInputNumber": [],
-    "LinkOutputNumber": [1],
+    "LinkOutputNumber": [
+      1
+    ],
     "LinkOutputType": "track",
-    "Condition": ["TCP connection accepted (accept4)"],
+    "Condition": [
+      "TCP connection accepted (accept4)"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 1,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Allocate PendingRequest buffer and register fd to epoll as EPOLL_PENDING",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2],
+    "StepAction": "Allocate 待處理請求 buffer 與 註冊 fd 到 epoll 作為 EPOLL PENDING",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2
+    ],
     "LinkOutputType": "track",
-    "Condition": ["fd registered and non-blocking"],
+    "Condition": [
+      "fd 已註冊 與 non-blocking"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Accumulate HTTP bytes on EPOLLIN until header complete or limit reached",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [3, 4, 5],
+    "StepAction": "Accumulate HTTP 位元組 在 EPOLLIN 直到 header 完成 或 limit reached",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      3,
+      4,
+      5
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["header complete with POST /auth/login", "header complete with JWT cookie", "header complete without JWT (serve login)", "timeout or oversize (reject)"],
+    "Condition": [
+      "header 完成 使用 POST /驗證/登入",
+      "header 完成 使用 JWT cookie",
+      "header 完成 不 JWT (serve 登入)",
+      "timeout 或 oversize (reject)"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "Check rate limit then spawn PAM auth thread",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [6, 7],
+    "StepAction": "Check 速率限制 then 啟動 PAM 驗證 thread",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      6,
+      7
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["PAM success: issue JWT cookie", "PAM fail or rate limited: reject"],
+    "Condition": [
+      "PAM success: issue JWT cookie",
+      "PAM fail 或 速率限制ed: reject"
+    ],
     "SubGrafcet": [
       {
         "StepNumber": 30,
         "ModuleRef": "A2.1",
         "StepType": "initial",
-        "StepAction": "Check per-IP failure count against sliding window",
+        "StepAction": "Check 依-IP failure count against sliding window",
         "LinkInputType": [],
         "LinkInputNumber": [],
-        "LinkOutputNumber": [31, 32],
+        "LinkOutputNumber": [
+          31,
+          32
+        ],
         "LinkOutputType": "divergence_or",
-        "Condition": ["under limit", "over limit"],
+        "Condition": [
+          "under limit",
+          "over limit"
+        ],
         "SubGrafcet": []
       },
       {
         "StepNumber": 31,
         "ModuleRef": "A2.2",
         "StepType": "normal",
-        "StepAction": "Spawn pthread for pam_authenticate + pam_acct_mgmt",
-        "LinkInputType": ["divergence_or"],
-        "LinkInputNumber": [30],
+        "StepAction": "啟動 pthread 供 pam驗證 + pamacctmgmt",
+        "LinkInputType": [
+          "divergence_or"
+        ],
+        "LinkInputNumber": [
+          30
+        ],
         "LinkOutputNumber": [],
         "LinkOutputType": "track",
-        "Condition": ["thread completes and signals main loop via eventfd"],
+        "Condition": [
+          "thread completes 與 signals main loop 透過 eventfd"
+        ],
         "SubGrafcet": []
       },
       {
         "StepNumber": 32,
         "ModuleRef": "A2.1",
         "StepType": "normal",
-        "StepAction": "Return 429 Too Many Requests without entering PAM",
-        "LinkInputType": ["divergence_or"],
-        "LinkInputNumber": [30],
+        "StepAction": "返回 429 Too Many Requests 不 entering PAM",
+        "LinkInputType": [
+          "divergence_or"
+        ],
+        "LinkInputNumber": [
+          30
+        ],
         "LinkOutputNumber": [],
         "LinkOutputType": "track",
-        "Condition": ["response sent"],
+        "Condition": [
+          "回應 sent"
+        ],
         "SubGrafcet": []
       }
     ]
@@ -88,95 +141,153 @@
     "StepNumber": 4,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Decode JWT, validate sub + exp + signature, resolve uid via getpwnam",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [8, 9],
+    "StepAction": "Decode JWT, validate sub + exp + signature, 解析 uid 透過 getpwnam",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      8,
+      9
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["identity verified and daemon resolved", "JWT invalid or daemon unavailable"],
+    "Condition": [
+      "身分 verified 與 daemon 已解析",
+      "JWT invalid 或 daemon unavailable"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 5,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Serve login page (no JWT present)",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [2],
+    "StepAction": "Serve 登入 page (無 JWT present)",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      2
+    ],
     "LinkOutputNumber": [],
     "LinkOutputType": "track",
-    "Condition": ["response sent, fd closed"],
+    "Condition": [
+      "回應 sent, fd closed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 6,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "Sign JWT with file-backed secret, set HttpOnly cookie, redirect",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [3],
+    "StepAction": "Sign JWT 使用 檔案-backed secret, set http僅 cookie, 重新導向",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      3
+    ],
     "LinkOutputNumber": [],
     "LinkOutputType": "track",
-    "Condition": ["cookie set, fd closed"],
+    "Condition": [
+      "cookie set, fd closed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 7,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "Return auth failure response and increment per-IP failure counter",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [3],
+    "StepAction": "返回 驗證 failure 回應 與 increment 依-IP failure counter",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      3
+    ],
     "LinkOutputNumber": [],
     "LinkOutputType": "track",
-    "Condition": ["response sent, fd closed"],
+    "Condition": [
+      "回應 sent, fd closed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 8,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Ensure daemon running: try adopt from discovery, else spawn with detected runtime path",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [4],
-    "LinkOutputNumber": [10, 11],
+    "StepAction": "Ensure daemon 執行中: try adopt 來自 discovery, else 啟動 使用 detected runtime 路徑",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      4
+    ],
+    "LinkOutputNumber": [
+      10,
+      11
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["daemon ready with connectable socket", "daemon startup failed or timed out"],
+    "Condition": [
+      "daemon 就緒 使用 connectable socket",
+      "daemon startup failed 或 timed out"
+    ],
     "SubGrafcet": [
       {
         "StepNumber": 80,
         "ModuleRef": "A4.4",
         "StepType": "initial",
-        "StepAction": "Detect runtime path: /run/user/<uid>/ or XDG_RUNTIME_DIR or /tmp/opencode-<uid>/",
+        "StepAction": "Detect runtime 路徑: /執行/使用者/<uid>/ 或 XDG RUNTIME DIR 或 /tmp/opencode-<uid>/",
         "LinkInputType": [],
         "LinkInputNumber": [],
-        "LinkOutputNumber": [81],
+        "LinkOutputNumber": [
+          81
+        ],
         "LinkOutputType": "track",
-        "Condition": ["path selected and logged"],
+        "Condition": [
+          "路徑 selected 與 logged"
+        ],
         "SubGrafcet": []
       },
       {
         "StepNumber": 81,
         "ModuleRef": "A4.1",
         "StepType": "normal",
-        "StepAction": "Read daemon.json, verify PID alive, probe socket connectable",
-        "LinkInputType": ["track"],
-        "LinkInputNumber": [80],
-        "LinkOutputNumber": [82, 83],
+        "StepAction": "Read daemon.js在, verify PID alive, 探測 socket connectable",
+        "LinkInputType": [
+          "track"
+        ],
+        "LinkInputNumber": [
+          80
+        ],
+        "LinkOutputNumber": [
+          82,
+          83
+        ],
         "LinkOutputType": "divergence_or",
-        "Condition": ["adopt succeeded", "adopt failed: cleanup stale state"],
+        "Condition": [
+          "adopt succeeded",
+          "adopt failed: cleanup stale 狀態"
+        ],
         "SubGrafcet": []
       },
       {
         "StepNumber": 82,
         "ModuleRef": "A4.1",
         "StepType": "normal",
-        "StepAction": "Set daemon state to READY (adopted)",
-        "LinkInputType": ["divergence_or"],
-        "LinkInputNumber": [81],
+        "StepAction": "Set daemon 狀態 到 READY (adopted)",
+        "LinkInputType": [
+          "divergence_or"
+        ],
+        "LinkInputNumber": [
+          81
+        ],
         "LinkOutputNumber": [],
         "LinkOutputType": "track",
-        "Condition": ["daemon adopted"],
+        "Condition": [
+          "daemon adopted"
+        ],
         "SubGrafcet": []
       },
       {
@@ -184,23 +295,37 @@
         "ModuleRef": "A4.2",
         "StepType": "normal",
         "StepAction": "fork + setgid + setuid + execvp(opencode serve --unix-socket)",
-        "LinkInputType": ["divergence_or"],
-        "LinkInputNumber": [81],
-        "LinkOutputNumber": [84],
+        "LinkInputType": [
+          "divergence_or"
+        ],
+        "LinkInputNumber": [
+          81
+        ],
+        "LinkOutputNumber": [
+          84
+        ],
         "LinkOutputType": "track",
-        "Condition": ["child forked"],
+        "Condition": [
+          "child forked"
+        ],
         "SubGrafcet": []
       },
       {
         "StepNumber": 84,
         "ModuleRef": "A4.3",
         "StepType": "normal",
-        "StepAction": "Poll socket readiness within timeout, check for premature child exit",
-        "LinkInputType": ["track"],
-        "LinkInputNumber": [83],
+        "StepAction": "Poll socket readiness within timeout, check 供 premature child exit",
+        "LinkInputType": [
+          "track"
+        ],
+        "LinkInputNumber": [
+          83
+        ],
         "LinkOutputNumber": [],
         "LinkOutputType": "track",
-        "Condition": ["socket connectable or timeout/child-exit failure"],
+        "Condition": [
+          "socket connectable 或 timeout/child-exit failure"
+        ],
         "SubGrafcet": []
       }
     ]
@@ -209,60 +334,94 @@
     "StepNumber": 9,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Clear stale JWT cookie and redirect to login",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [4],
+    "StepAction": "Clear stale JWT cookie 與 重新導向 到 登入",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      4
+    ],
     "LinkOutputNumber": [],
     "LinkOutputType": "track",
-    "Condition": ["response sent, fd closed"],
+    "Condition": [
+      "回應 sent, fd closed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 10,
     "ModuleRef": "A5",
     "StepType": "normal",
-    "StepAction": "Connect to daemon socket, alloc Connection, create pipes, register EpollCtx (SPLICE_CLIENT + SPLICE_DAEMON)",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [8],
-    "LinkOutputNumber": [12],
+    "StepAction": "Connect 到 daemon socket, alloc Connection, create pipes, 註冊 EpollCtx (SPLICE CLIENT + SPLICE DAEMON)",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      8
+    ],
+    "LinkOutputNumber": [
+      12
+    ],
     "LinkOutputType": "track",
-    "Condition": ["splice proxy established, initial request forwarded"],
+    "Condition": [
+      "splice proxy established, initial 請求 forwarded"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 11,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "Return daemon unavailable error to client",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [8],
+    "StepAction": "返回 daemon unavailable 錯誤 到 client",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      8
+    ],
     "LinkOutputNumber": [],
     "LinkOutputType": "track",
-    "Condition": ["error response sent, fd closed"],
+    "Condition": [
+      "錯誤 回應 sent, fd closed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 12,
     "ModuleRef": "A5",
     "StepType": "normal",
-    "StepAction": "Run directional splice on EPOLLIN based on EpollCtx.type",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [10],
-    "LinkOutputNumber": [13],
+    "StepAction": "執行 directional splice 在 EPOLLIN based 在 EpollCtx.type",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      10
+    ],
+    "LinkOutputNumber": [
+      13
+    ],
     "LinkOutputType": "track",
-    "Condition": ["EPOLLHUP or EPOLLERR or splice error detected"],
+    "Condition": [
+      "EPOLLHUP 或 EPOLLERR 或 splice 錯誤 detected"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 13,
     "ModuleRef": "A6",
     "StepType": "normal",
-    "StepAction": "EPOLL_CTL_DEL both fds, close all fds and pipes, set closed flag, decrement g_nconns, release slot",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [12],
+    "StepAction": "EPOLL CTL DEL both fds, close all fds 與 pipes, set closed flag, decrement gnconns, release slot",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      12
+    ],
     "LinkOutputNumber": [],
     "LinkOutputType": "track",
-    "Condition": ["connection fully cleaned up"],
+    "Condition": [
+      "connection fully cleaned up"
+    ],
     "SubGrafcet": []
   }
 ]

@@ -3,65 +3,92 @@
     "id": "S0",
     "name": "Entry",
     "type": "initial",
-    "description": "run() called with RunInput",
-    "actions": ["Parse RunInput", "Look up KIND_CHAIN[observed] and INJECT_CONTINUE[observed]"]
+    "description": "run() called 使用 執行輸入",
+    "actions": [
+      "Parse RunInput",
+      "Look up KIND_CHAIN[observed] and INJECT_CONTINUE[observed]"
+    ]
   },
   {
     "id": "S1",
     "name": "CooldownCheck",
-    "description": "Consult Cooldown.shouldThrottle(sid, step, threshold)",
-    "actions": ["Read Memory.lastCompactedAt", "Compare step - lastRound vs threshold"]
+    "description": "Consult Cooldown.shouldThrottle(sid, 步驟, threshold)",
+    "actions": [
+      "Read Memory.lastCompactedAt",
+      "Compare step - lastRound vs threshold"
+    ]
   },
   {
     "id": "S2",
     "name": "AttemptKind",
-    "description": "Try the next kind in KIND_CHAIN (entered repeatedly until a kind succeeds or chain exhausted)",
-    "actions": ["Pick next kind from chain", "Evaluate kind's availability predicate", "Invoke kind's executor if available"]
+    "description": "Try 下一個 kind 在 KIND CHAIN (entered repeatedly 直到 kind succeeds 或 chain exhausted)",
+    "actions": [
+      "Pick next kind from chain",
+      "Evaluate kind's availability predicate",
+      "Invoke kind's executor if available"
+    ]
   },
   {
     "id": "S3",
     "name": "WriteAnchor",
-    "description": "Executor returned summary text; write Anchor to message stream",
-    "actions": ["Append assistant message with summary:true", "Append part of type 'compaction' with kind metadata"]
+    "description": "Executor returned summary 文字; write Anchor 到 訊息 串流",
+    "actions": [
+      "Append assistant message with summary:true",
+      "Append part of type 'compaction' with kind metadata"
+    ]
   },
   {
     "id": "S4",
     "name": "MaybeInjectContinue",
-    "description": "Conditional branch based on INJECT_CONTINUE[observed]",
-    "actions": ["If injectContinue: append synthetic user message with text 'Continue if you have next steps...'"]
+    "description": "Conditional branch based 在 INJECT CONTINUE[observed]",
+    "actions": [
+      "If injectContinue: append synthetic user message with text 'Continue if you have next steps...'"
+    ]
   },
   {
     "id": "S5",
     "name": "MarkCompacted",
-    "description": "Update Memory.lastCompactedAt for cooldown",
-    "actions": ["Memory.markCompacted(sid, {round: step, timestamp: now})"]
+    "description": "更新 Memory.lastcompacted於 供 cooldown",
+    "actions": [
+      "Memory.markCompacted(sid, {round: step, timestamp: now})"
+    ]
   },
   {
     "id": "S6",
     "name": "SuccessExit",
     "type": "final",
-    "description": "Return 'continue' to caller",
-    "actions": ["log.info kind=<chosen> succeeded"]
+    "description": "返回 '繼續' 到 caller",
+    "actions": [
+      "log.info kind=<chosen> succeeded"
+    ]
   },
   {
     "id": "S7",
     "name": "ChainExhausted",
-    "description": "All kinds in chain failed or were unavailable",
-    "actions": ["log.warn 'all kinds exhausted for observed=<...>'"]
+    "description": "All kinds 在 chain failed 或 were unavailable",
+    "actions": [
+      "log.warn 'all kinds exhausted for observed=<...>'"
+    ]
   },
   {
     "id": "S8",
     "name": "StopExit",
     "type": "final",
-    "description": "Return 'stop' to caller",
-    "actions": ["No anchor written", "Cooldown not updated"]
+    "description": "返回 'stop' 到 caller",
+    "actions": [
+      "No anchor written",
+      "Cooldown not updated"
+    ]
   },
   {
     "id": "S9",
     "name": "ThrottledExit",
     "type": "final",
-    "description": "Return 'continue' immediately; cooldown blocked execution",
-    "actions": ["log.info 'compaction throttled by cooldown'", "Skip kind chain"]
+    "description": "返回 '繼續' immediately; cooldown blocked execution",
+    "actions": [
+      "log.info 'compaction throttled by cooldown'",
+      "Skip kind chain"
+    ]
   },
   {
     "id": "T01",
@@ -69,7 +96,7 @@
     "from": "S0",
     "to": "S1",
     "condition": "always",
-    "description": "Initial entry"
+    "description": "Initial 項目"
   },
   {
     "id": "T19",
@@ -93,7 +120,7 @@
     "from": "S2",
     "to": "S3",
     "condition": "kind executor returned summary text",
-    "description": "Kind succeeded; proceed to anchor write"
+    "description": "Kind succeeded; proceed 到 anchor write"
   },
   {
     "id": "T22",
@@ -101,7 +128,7 @@
     "from": "S2",
     "to": "S2",
     "condition": "kind unavailable OR returned null AND chain has more entries",
-    "description": "Self-loop: try next kind. Each transition emits log.info with attempted kind and reason for falling through (AGENTS.md rule 1)."
+    "description": "Self-loop: try 下一個 kind. Each transition emits 記錄.info 使用 attempted kind 與 reason 供 falling through (AGENTS.md rule 1)."
   },
   {
     "id": "T27",
@@ -109,7 +136,7 @@
     "from": "S2",
     "to": "S7",
     "condition": "chain exhausted (all kinds tried, none succeeded)",
-    "description": "No kind worked"
+    "description": "無 kind worked"
   },
   {
     "id": "T34",
@@ -117,7 +144,7 @@
     "from": "S3",
     "to": "S4",
     "condition": "anchor written",
-    "description": "Proceed to optional Continue injection"
+    "description": "Proceed 到 optional 繼續 injection"
   },
   {
     "id": "T45",
@@ -133,7 +160,7 @@
     "from": "S5",
     "to": "S6",
     "condition": "always",
-    "description": "Success path complete"
+    "description": "Success 路徑 完成"
   },
   {
     "id": "T78",
@@ -141,6 +168,6 @@
     "from": "S7",
     "to": "S8",
     "condition": "always",
-    "description": "Chain exhaustion → stop result"
+    "description": "Chain exhaustion → stop 結果"
   }
 ]

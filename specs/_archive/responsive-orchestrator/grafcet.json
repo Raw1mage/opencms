@@ -3,360 +3,571 @@
     "StepNumber": 0,
     "ModuleRef": "A1",
     "StepType": "initial",
-    "StepAction": "ParentRunloopIdle (waiting for tool_use)",
+    "StepAction": "父層runloop閒置 (waiting 供 工具use)",
     "LinkInputType": [],
-    "LinkInputNumber": [4],
-    "LinkOutputNumber": [1],
+    "LinkInputNumber": [
+      4
+    ],
+    "LinkOutputNumber": [
+      1
+    ],
     "LinkOutputType": "track",
-    "Condition": ["llm_emits_task_tool_use"],
+    "Condition": [
+      "LLMemits任務工具use"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 1,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "AllocateJobIdAndChildSession",
+    "StepAction": "allocate工作id與childSession",
     "LinkInputType": [],
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2
+    ],
     "LinkOutputType": "track",
-    "Condition": ["allocation_done"],
+    "Condition": [
+      "allocationdone"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "SpawnWorkerAndRegister(jobId, childSessionID)",
+    "StepAction": "啟動worker與註冊(工作id, childSessionID)",
     "LinkInputType": [],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [3, 100],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      3,
+      100
+    ],
     "LinkOutputType": "divergence_and",
-    "Condition": ["worker_running"],
+    "Condition": [
+      "worker執行中"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "ReturnDispatchedStubResultToLLM",
+    "StepAction": "返回dispatchedstub結果到LLM",
     "LinkInputType": [],
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [4],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      4
+    ],
     "LinkOutputType": "track",
-    "Condition": ["stub_returned"],
+    "Condition": [
+      "stubreturned"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 4,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "AssistantTurnConcludes; SessionIdle; AcceptUserInput",
+    "StepAction": "助手回合concludes; Session閒置; accept使用者輸入",
     "LinkInputType": [],
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [0],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["next_user_or_synthetic_message"],
+    "Condition": [
+      "下一個使用者或合成訊息"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 100,
     "ModuleRef": "A2",
     "StepType": "initial",
-    "StepAction": "SubagentRunloopBootstrap",
+    "StepAction": "子代理runloopbootstrap",
     "LinkInputType": [],
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [101],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      101
+    ],
     "LinkOutputType": "track",
-    "Condition": ["bootstrap_complete"],
+    "Condition": [
+      "bootstrap完成"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 101,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "PreFlightAccountCheck (pinned identity, rate-limit marker)",
-    "LinkInputType": ["convergence_or"],
-    "LinkInputNumber": [100, 110],
-    "LinkOutputNumber": [102, 120],
+    "StepAction": "preflight帳號check (已釘選 身分, rate-limit marker)",
+    "LinkInputType": [
+      "convergence_or"
+    ],
+    "LinkInputNumber": [
+      100,
+      110
+    ],
+    "LinkOutputNumber": [
+      102,
+      120
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["account_ok", "account_rate_limited"],
+    "Condition": [
+      "帳號ok",
+      "帳號ratelimited"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 102,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "RunOneLLMTurn",
+    "StepAction": "執行單次LLMTurn",
     "LinkInputType": [],
-    "LinkInputNumber": [101],
-    "LinkOutputNumber": [103, 121],
+    "LinkInputNumber": [
+      101
+    ],
+    "LinkOutputNumber": [
+      103,
+      121
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["turn_completed", "turn_failed_429"],
+    "Condition": [
+      "回合已完成",
+      "回合failed429"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 103,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "PostTurnQuotaCheck (DD-4)",
+    "StepAction": "post回合配額check (DD-4)",
     "LinkInputType": [],
-    "LinkInputNumber": [102],
-    "LinkOutputNumber": [104, 130],
+    "LinkInputNumber": [
+      102
+    ],
+    "LinkOutputNumber": [
+      104,
+      130
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["quota_above_red_line", "quota_below_red_line"],
+    "Condition": [
+      "配額aboveredline",
+      "配額belowredline"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 104,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "EvaluateContinuation (more tool calls? more reasoning?)",
+    "StepAction": "evaluate延續 (more 工具 calls? more reasoning?)",
     "LinkInputType": [],
-    "LinkInputNumber": [103],
-    "LinkOutputNumber": [110, 140],
+    "LinkInputNumber": [
+      103
+    ],
+    "LinkOutputNumber": [
+      110,
+      140
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["needs_another_turn", "task_complete"],
+    "Condition": [
+      "needsanother回合",
+      "任務完成"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 110,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "LoopBackToPreFlight",
+    "StepAction": "loop回到到preflight",
     "LinkInputType": [],
-    "LinkInputNumber": [104],
-    "LinkOutputNumber": [101],
+    "LinkInputNumber": [
+      104
+    ],
+    "LinkOutputNumber": [
+      101
+    ],
     "LinkOutputType": "track",
-    "Condition": ["ready_for_next_turn"],
+    "Condition": [
+      "就緒供下一個回合"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 120,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "EmitRateLimitEscalationEvent + WaitForModelUpdateSignal(timeout=subagent_escalation_wait_ms)",
-    "LinkInputType": ["convergence_or"],
-    "LinkInputNumber": [101, 121],
-    "LinkOutputNumber": [122, 141],
+    "StepAction": "發出ratelimitescalation事件 + wait供模型更新signal(timeout=子代理escalationwaitms)",
+    "LinkInputType": [
+      "convergence_or"
+    ],
+    "LinkInputNumber": [
+      101,
+      121
+    ],
+    "LinkOutputNumber": [
+      122,
+      141
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["new_model_received", "wait_timeout_or_escalation_cap"],
+    "Condition": [
+      "new模型已收到",
+      "waittimeout或escalationcap"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 121,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "Catch429ErrorFromLLM",
+    "StepAction": "catch429錯誤來自LLM",
     "LinkInputType": [],
-    "LinkInputNumber": [102],
-    "LinkOutputNumber": [120],
+    "LinkInputNumber": [
+      102
+    ],
+    "LinkOutputNumber": [
+      120
+    ],
     "LinkOutputType": "track",
-    "Condition": ["error_classified_429"],
+    "Condition": [
+      "錯誤classified429"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 122,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "ApplyNewModel",
+    "StepAction": "applynew模型",
     "LinkInputType": [],
-    "LinkInputNumber": [120],
-    "LinkOutputNumber": [101],
+    "LinkInputNumber": [
+      120
+    ],
+    "LinkOutputNumber": [
+      101
+    ],
     "LinkOutputType": "track",
-    "Condition": ["model_applied"],
+    "Condition": [
+      "模型applied"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 130,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "InjectWrapUpInstructionToOwnContext + RunOneSummaryTurn (DD-5)",
+    "StepAction": "injectwrapupinstruction到own上下文 + 執行單次summary回合 (DD-5)",
     "LinkInputType": [],
-    "LinkInputNumber": [103],
-    "LinkOutputNumber": [142],
+    "LinkInputNumber": [
+      103
+    ],
+    "LinkOutputNumber": [
+      142
+    ],
     "LinkOutputType": "track",
-    "Condition": ["summary_completed_or_summary_failed"],
+    "Condition": [
+      "summary已完成或summaryfailed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 140,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "WriteFinishStop ToDisk",
+    "StepAction": "write完成stop 到磁碟",
     "LinkInputType": [],
-    "LinkInputNumber": [104],
-    "LinkOutputNumber": [199],
+    "LinkInputNumber": [
+      104
+    ],
+    "LinkOutputNumber": [
+      199
+    ],
     "LinkOutputType": "track",
-    "Condition": ["disk_write_done"],
+    "Condition": [
+      "磁碟writedone"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 141,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "WriteFinishRateLimited ToDisk (with errorDetail)",
+    "StepAction": "write完成ratelimited 到磁碟 (使用 錯誤detail)",
     "LinkInputType": [],
-    "LinkInputNumber": [120],
-    "LinkOutputNumber": [199],
+    "LinkInputNumber": [
+      120
+    ],
+    "LinkOutputNumber": [
+      199
+    ],
     "LinkOutputType": "track",
-    "Condition": ["disk_write_done"],
+    "Condition": [
+      "磁碟writedone"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 142,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "WriteFinishQuotaLow ToDisk (with summary)",
+    "StepAction": "write完成配額low 到磁碟 (使用 summary)",
     "LinkInputType": [],
-    "LinkInputNumber": [130],
-    "LinkOutputNumber": [199],
+    "LinkInputNumber": [
+      130
+    ],
+    "LinkOutputNumber": [
+      199
+    ],
     "LinkOutputType": "track",
-    "Condition": ["disk_write_done"],
+    "Condition": [
+      "磁碟writedone"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 150,
     "ModuleRef": "A5",
     "StepType": "normal",
-    "StepAction": "AbortSignalReceivedFromCancelTool",
+    "StepAction": "abortsignal已收到來自cancel工具",
     "LinkInputType": [],
     "LinkInputNumber": [],
-    "LinkOutputNumber": [151],
+    "LinkOutputNumber": [
+      151
+    ],
     "LinkOutputType": "track",
-    "Condition": ["abort_signal_observed"],
+    "Condition": [
+      "abortsignalobserved"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 151,
     "ModuleRef": "A5",
     "StepType": "normal",
-    "StepAction": "WriteFinishCancelled ToDisk (DD-6 single authority)",
+    "StepAction": "write完成cancelled 到磁碟 (DD-6 single authority)",
     "LinkInputType": [],
-    "LinkInputNumber": [150],
-    "LinkOutputNumber": [199],
+    "LinkInputNumber": [
+      150
+    ],
+    "LinkOutputNumber": [
+      199
+    ],
     "LinkOutputType": "track",
-    "Condition": ["disk_write_done"],
+    "Condition": [
+      "磁碟writedone"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 199,
     "ModuleRef": "A2",
     "StepType": "final",
-    "StepAction": "WorkerProcessExit",
-    "LinkInputType": ["convergence_or"],
-    "LinkInputNumber": [140, 141, 142, 151],
-    "LinkOutputNumber": [200],
+    "StepAction": "workerprocessexit",
+    "LinkInputType": [
+      "convergence_or"
+    ],
+    "LinkInputNumber": [
+      140,
+      141,
+      142,
+      151
+    ],
+    "LinkOutputNumber": [
+      200
+    ],
     "LinkOutputType": "track",
-    "Condition": ["process_exited"],
+    "Condition": [
+      "processexited"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 200,
     "ModuleRef": "A3",
     "StepType": "initial",
-    "StepAction": "BackgroundWatcherPolling (watchdog A/B/C every WATCHDOG_INTERVAL_MS)",
-    "LinkInputType": ["convergence_or"],
-    "LinkInputNumber": [2, 199],
-    "LinkOutputNumber": [201, 202, 203],
+    "StepAction": "BackgroundWatcherPolling (看門狗 /B/C every WATCHDOG INTERVAL MS)",
+    "LinkInputType": [
+      "convergence_or"
+    ],
+    "LinkInputNumber": [
+      2,
+      199
+    ],
+    "LinkOutputNumber": [
+      201,
+      202,
+      203
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["disk_terminal_observed", "proc_dead_observed", "silence_threshold_exceeded"],
+    "Condition": [
+      "磁碟終止observed",
+      "程序已死亡observed",
+      "silencethresholdexceeded"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 201,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "ReadDiskTerminalFinishAndPayload",
+    "StepAction": "read磁碟終止完成與payload",
     "LinkInputType": [],
-    "LinkInputNumber": [200],
-    "LinkOutputNumber": [210],
+    "LinkInputNumber": [
+      200
+    ],
+    "LinkOutputNumber": [
+      210
+    ],
     "LinkOutputType": "track",
-    "Condition": ["payload_loaded"],
+    "Condition": [
+      "payload已載入"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 202,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "SynthesizeWorkerDeadFinish",
+    "StepAction": "synthesizeworker已死亡完成",
     "LinkInputType": [],
-    "LinkInputNumber": [200],
-    "LinkOutputNumber": [210],
+    "LinkInputNumber": [
+      200
+    ],
+    "LinkOutputNumber": [
+      210
+    ],
     "LinkOutputType": "track",
-    "Condition": ["finish_synthesized"],
+    "Condition": [
+      "完成synthesized"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 203,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "KillWorkerAndSynthesizeSilentKillFinish",
+    "StepAction": "終止worker與synthesize靜默終止完成",
     "LinkInputType": [],
-    "LinkInputNumber": [200],
-    "LinkOutputNumber": [210],
+    "LinkInputNumber": [
+      200
+    ],
+    "LinkOutputNumber": [
+      210
+    ],
     "LinkOutputType": "track",
-    "Condition": ["kill_done"],
+    "Condition": [
+      "終止done"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 210,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "EmitTaskCompletedEvent (Bus)",
-    "LinkInputType": ["convergence_or"],
-    "LinkInputNumber": [201, 202, 203],
-    "LinkOutputNumber": [300],
+    "StepAction": "發出任務已完成事件 (Bus)",
+    "LinkInputType": [
+      "convergence_or"
+    ],
+    "LinkInputNumber": [
+      201,
+      202,
+      203
+    ],
+    "LinkOutputNumber": [
+      300
+    ],
     "LinkOutputType": "track",
-    "Condition": ["event_published"],
+    "Condition": [
+      "事件published"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 300,
     "ModuleRef": "A4",
     "StepType": "initial",
-    "StepAction": "TaskResultInjectorReceivesEvent",
+    "StepAction": "任務結果injectorreceives事件",
     "LinkInputType": [],
-    "LinkInputNumber": [210],
-    "LinkOutputNumber": [301, 310],
+    "LinkInputNumber": [
+      210
+    ],
+    "LinkOutputNumber": [
+      301,
+      310
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["parent_session_exists", "parent_session_missing"],
+    "Condition": [
+      "父層Sessionexists",
+      "父層Session缺失"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 301,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "BuildSyntheticUserMessage(<task_result>...)",
+    "StepAction": "建置合成使用者訊息(<任務結果>...)",
     "LinkInputType": [],
-    "LinkInputNumber": [300],
-    "LinkOutputNumber": [302],
+    "LinkInputNumber": [
+      300
+    ],
+    "LinkOutputNumber": [
+      302
+    ],
     "LinkOutputType": "track",
-    "Condition": ["message_built"],
+    "Condition": [
+      "訊息built"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 302,
     "ModuleRef": "A4",
     "StepType": "normal",
-    "StepAction": "AppendToParentSessionAndWakeRunloop",
+    "StepAction": "追加到父層Session與wakerunloop",
     "LinkInputType": [],
-    "LinkInputNumber": [301],
-    "LinkOutputNumber": [4],
+    "LinkInputNumber": [
+      301
+    ],
+    "LinkOutputNumber": [
+      4
+    ],
     "LinkOutputType": "track",
-    "Condition": ["appended_and_woken"],
+    "Condition": [
+      "appended與woken"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 310,
     "ModuleRef": "A4",
     "StepType": "final",
-    "StepAction": "LogDroppedResultAndEmitTelemetry (R3 mitigation)",
+    "StepAction": "記錄dropped結果與發出telemetry (R3 mitigation)",
     "LinkInputType": [],
-    "LinkInputNumber": [300],
+    "LinkInputNumber": [
+      300
+    ],
     "LinkOutputNumber": [],
     "LinkOutputType": "track",
-    "Condition": ["dropped"],
+    "Condition": [
+      "dropped"
+    ],
     "SubGrafcet": []
   }
 ]

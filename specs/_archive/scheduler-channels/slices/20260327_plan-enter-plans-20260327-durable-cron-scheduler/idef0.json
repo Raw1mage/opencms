@@ -1,23 +1,23 @@
 {
-  "diagram_title": "Durable Cron Scheduler Consolidation",
+  "diagram_title": "Durable Cron 排程器 Consolidation",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A1",
-      "title": "Consolidate Scheduler Baseline",
-      "description": "Normalize current cron durability truth from specs, architecture, and runtime event evidence.",
+      "title": "Consolidate 排程器 Baseline",
+      "description": "Normalize current cron durability truth 來自 specs, architecture, 與 runtime 事件 evidence.",
       "decomposition": null
     },
     {
       "id": "A2",
       "title": "Harden Runtime Evidence",
-      "description": "Define and execute regression plus live validation around daemon lifecycle and heartbeat execution proof.",
+      "description": "Define 與 execute regression plus live validation around daemon lifecycle 與 heartbeat execution proof.",
       "decomposition": null
     },
     {
       "id": "A3",
-      "title": "Sync Durable Scheduler Documentation",
-      "description": "Write event and architecture verification so future work inherits an accurate scheduler baseline.",
+      "title": "Sync Durable 排程器 Documentation",
+      "description": "Write 事件 與 architecture verification so future work inherits accurate 排程器 baseline.",
       "decomposition": null
     }
   ],
@@ -26,14 +26,14 @@
       "id": "AR1",
       "source": "EXTERNAL",
       "target": "A1:input",
-      "label": "Plan Intent",
+      "label": "規劃 Intent",
       "type": "input"
     },
     {
       "id": "AR2",
       "source": "EXTERNAL",
       "target": "A1:control",
-      "label": "Architecture And Event Evidence",
+      "label": "Architecture 與 事件 Evidence",
       "type": "control"
     },
     {
@@ -61,28 +61,28 @@
       "id": "AR6",
       "source": "A3:output",
       "target": "EXTERNAL",
-      "label": "Execution-Ready Plan Package",
+      "label": "Execution-就緒 規劃 Package",
       "type": "output"
     },
     {
       "id": "AR7",
       "source": "EXTERNAL",
       "target": "A1:mechanism",
-      "label": "Planner Artifacts And Cron Modules",
+      "label": "Planner Artifacts 與 Cron Modules",
       "type": "mechanism"
     },
     {
       "id": "AR8",
       "source": "EXTERNAL",
       "target": "A2:mechanism",
-      "label": "Cron Tests And Web Runtime",
+      "label": "Cron Tests 與 Web Runtime",
       "type": "mechanism"
     },
     {
       "id": "AR9",
       "source": "EXTERNAL",
       "target": "A3:mechanism",
-      "label": "Event Log And Architecture SSOT",
+      "label": "事件 記錄 與 Architecture SSOT",
       "type": "mechanism"
     }
   ]

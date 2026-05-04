@@ -1,23 +1,23 @@
 {
-  "diagram_title": "Build-Mode Quiz Guard Admission — IDEF0 Context",
+  "diagram_title": "建置-Mode Quiz Guard Admission — IDEF0 上下文",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A1",
       "title": "Prepare Admission Answer Key",
-      "description": "Read approved mission and mainline authority metadata to produce the expected quiz answers.",
+      "description": "Read approved mission 與 mainline authority metadata 到 produce expected quiz answers.",
       "decomposition": null
     },
     {
       "id": "A2",
       "title": "Evaluate Quiz Admission",
-      "description": "Ask the model structured build-admission questions and compare answers against the expected key.",
+      "description": "Ask 模型 structured 建置-admission questions 與 compare answers against expected key.",
       "decomposition": null
     },
     {
       "id": "A3",
-      "title": "Route Build Entry Outcome",
-      "description": "Admit build, allow one reflection retry, or stop and ask the user based on evaluation result.",
+      "title": "路由 建置 項目 Outcome",
+      "description": "Admit 建置, allow 單次 reflection 重試, 或 stop 與 ask 使用者 based 在 evaluation 結果.",
       "decomposition": null
     }
   ],
@@ -33,7 +33,7 @@
       "id": "AR2",
       "source": "EXTERNAL",
       "target": "A1:control",
-      "label": "Authoritative Mainline Context",
+      "label": "Authoritative Mainline 上下文",
       "type": "control"
     },
     {
@@ -47,21 +47,21 @@
       "id": "AR4",
       "source": "EXTERNAL",
       "target": "A2:control",
-      "label": "Quiz Schema And Retry Policy",
+      "label": "Quiz schema 與 重試 Policy",
       "type": "control"
     },
     {
       "id": "AR5",
       "source": "EXTERNAL",
       "target": "A2:mechanism",
-      "label": "LLM Build Agent",
+      "label": "LLM 建置 Agent",
       "type": "mechanism"
     },
     {
       "id": "AR6",
       "source": "A2:output",
       "target": "A3:input",
-      "label": "Quiz Evaluation Result",
+      "label": "Quiz Evaluation 結果",
       "type": "output"
     },
     {
@@ -75,14 +75,14 @@
       "id": "AR8",
       "source": "A3:output",
       "target": "EXTERNAL",
-      "label": "Build Admission Decision",
+      "label": "建置 Admission Decision",
       "type": "output"
     },
     {
       "id": "AR9",
       "source": "EXTERNAL",
       "target": "A3:mechanism",
-      "label": "Workflow Runner",
+      "label": "工作流程 runner",
       "type": "mechanism"
     }
   ]

@@ -1,29 +1,29 @@
 {
-  "diagram_title": "Telemetry Context Sidebar Optimization — Functional Decomposition",
+  "diagram_title": "Telemetry 上下文 Sidebar Optimization — Functional Decomposition",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A1",
-      "title": "Define Context Card Contract",
-      "description": "Freeze the three-card information architecture and ordering rules for the context sidebar.",
+      "title": "Define 上下文 Card Contract",
+      "description": "Freeze three-card information architecture 與 ordering rules 供 上下文 sidebar.",
       "decomposition": null
     },
     {
       "id": "A2",
-      "title": "Render Context Cards",
-      "description": "Refactor SessionContextTab to present summary, breakdown, and prompt content as cards aligned with telemetry cards.",
+      "title": "渲染 上下文 Cards",
+      "description": "Refactor Session上下文tab 到 present summary, breakdown, 與 提示 content 作為 cards aligned 使用 telemetry cards.",
       "decomposition": null
     },
     {
       "id": "A3",
-      "title": "Persist Context Card Order",
-      "description": "Reuse or extend layout-state persistence so card drag order survives sidebar reopening.",
+      "title": "持久化 上下文 Card Order",
+      "description": "Reuse 或 extend layout-狀態 persistence so card drag order survives sidebar reopening.",
       "decomposition": null
     },
     {
       "id": "A4",
       "title": "Validate Sidebar Experience",
-      "description": "Verify rendering, ordering, and type-safety for the optimized context sidebar.",
+      "description": "Verify rendering, ordering, 與 type-safety 供 optimized 上下文 sidebar.",
       "decomposition": null
     }
   ],
@@ -32,14 +32,14 @@
       "id": "AR1",
       "source": "EXTERNAL",
       "target": "A1:input",
-      "label": "User Requirement For Context Sidebar Optimization",
+      "label": "使用者 Requirement 供 上下文 Sidebar Optimization",
       "type": "input"
     },
     {
       "id": "AR2",
       "source": "EXTERNAL",
       "target": "A1:control",
-      "label": "Plan Driver And Project Constraints",
+      "label": "規劃 Driver 與 專案 Constraints",
       "type": "control"
     },
     {
@@ -53,14 +53,14 @@
       "id": "AR4",
       "source": "EXTERNAL",
       "target": "A2:input",
-      "label": "Existing Context Metrics And Telemetry Data",
+      "label": "Existing 上下文 Metrics 與 Telemetry Data",
       "type": "input"
     },
     {
       "id": "AR5",
       "source": "EXTERNAL",
       "target": "A2:mechanism",
-      "label": "SessionContextTab And Telemetry Card Components",
+      "label": "Session上下文tab 與 Telemetry Card Components",
       "type": "mechanism"
     },
     {
@@ -74,42 +74,42 @@
       "id": "AR7",
       "source": "EXTERNAL",
       "target": "A3:control",
-      "label": "Status Sidebar Drag Pattern",
+      "label": "狀態 Sidebar Drag Pattern",
       "type": "control"
     },
     {
       "id": "AR8",
       "source": "EXTERNAL",
       "target": "A3:mechanism",
-      "label": "Layout Store And Drag Drop Utilities",
+      "label": "Layout Store 與 Drag Drop Utilities",
       "type": "mechanism"
     },
     {
       "id": "AR9",
       "source": "A3:output",
       "target": "A4:input",
-      "label": "Reorderable Context Sidebar",
+      "label": "Reorderable 上下文 Sidebar",
       "type": "input"
     },
     {
       "id": "AR10",
       "source": "EXTERNAL",
       "target": "A4:control",
-      "label": "Validation Commands And Acceptance Checks",
+      "label": "Validation Commands 與 Acceptance Checks",
       "type": "control"
     },
     {
       "id": "AR11",
       "source": "EXTERNAL",
       "target": "A4:mechanism",
-      "label": "Typecheck And Targeted UI Tests",
+      "label": "Typecheck 與 Targeted UI Tests",
       "type": "mechanism"
     },
     {
       "id": "AR12",
       "source": "A4:output",
       "target": "EXTERNAL",
-      "label": "Execution Ready Context Sidebar Plan",
+      "label": "Execution 就緒 上下文 Sidebar 規劃",
       "type": "output"
     }
   ]

@@ -1,160 +1,395 @@
 {
-  "diagram_title": "Govern Project Meta",
+  "diagram_title": "Govern 專案 Meta",
   "node_reference": "A0",
-  "description": "Dev-time / meta layer of opencode: plan-builder skill (seven-state lifecycle + seven change modes), architecture documentation (architecture.md index + per-topic wiki + global-architecture snapshot + docs/events/), XDG/system config management with no-silent-fallback enumeration, and tweaks.cfg runtime knobs. Shipped (live as of 2026-05-04).",
+  "description": "開發-time / meta layer 的 opencode: 規劃-builder 技能 (seven-狀態 lifecycle + seven change modes), architecture documentation (architecture.md index + 依 topic wiki + 全域-architecture snapshot + docs/事件/), XDG/system 設定 management 使用 無-靜默-fallback enumeration, 與 tweaks.cfg runtime knobs. 已交付 (live 作為 的 2026-05-04).",
   "activities": [
     {
       "id": "A1",
-      "title": "Drive Plan Builder Lifecycle",
-      "description": "~/projects/skills/plan-builder/. SKILL.md judgment + 9 bun-executed scripts. Drives specs/<slug>/.state.json across proposed → designed → planned → implementing → verified → living → archived, applying change modes (new / promote / amend / revise / extend / refactor / sync / archive).",
+      "title": "Drive 規劃 Builder Lifecycle",
+      "description": "~/projects/技能/規劃-builder/. SKILL.md judgment + 9 bun-executed scripts. Drives specs/<slug>/.state.js在 across proposed → designed → planned → implementing → verified → living → archived, applying change modes (new / promote / amend / revise / extend / refactor / sync / archive).",
       "decomposition": {
-        "diagram_title": "Drive Plan Builder Lifecycle",
+        "diagram_title": "Drive 規劃 Builder Lifecycle",
         "node_reference": "A1",
         "activities": [
           {
             "id": "A11",
-            "title": "Initialize Or Migrate Spec",
-            "description": "plan-init.ts creates specs/<slug>/proposal.md + .state.json. plan-migrate.ts (and ensureNewFormat() on every script entry) does on-touch peaceful migration from legacy plans/<slug>/ via inferState + cp snapshot to .archive/pre-migration-YYYYMMDD/ + git mv (preserves history)."
+            "title": "Initialize 或 Migrate Spec",
+            "description": "plan-init.ts creates specs/<slug>/proposal.md + .state.js在. plan-migrate.ts (與 ensureNewFormat() 在 every script 項目) does 在-touch peaceful migration 來自 legacy plans/<slug>/ 透過 infer狀態 + cp snapshot 到 .archive/pre-migration-YYYYMMDD/ + git mv (preserves history)."
           },
           {
             "id": "A12",
-            "title": "Validate State Artifacts",
-            "description": "plan-validate.ts is state-aware: checks only artifacts required for current state. Missing future-state artifacts are not blockers. plan-gaps.ts produces code-independence readiness report."
+            "title": "Validate 狀態 Artifacts",
+            "description": "plan-validate.ts 是 狀態-aware: checks 僅 artifacts required 供 current 狀態. 缺失 future-狀態 artifacts 是 不 blockers. plan-gaps.ts produces code-independence readiness report."
           },
           {
             "id": "A13",
-            "title": "Promote Or Apply Mode",
-            "description": "plan-promote.ts handles forward state advance plus non-forward modes. amend (living→living), revise/extend (living→designed), refactor (living→proposed, auto-snapshot to .history/refactor-YYYY-MM-DD/), archive (living→archived). plan-rollback-refactor.ts reverses refactor."
+            "title": "Promote 或 Apply Mode",
+            "description": "plan-promote.ts handles forward 狀態 advance plus non-forward modes. amend (living→living), revise/extend (living→designed), refactor (living→proposed, auto-snapshot 到 .history/refactor-YYYY-MM-DD/), archive (living→archived). plan-rollback-refactor.ts reverses refactor."
           },
           {
             "id": "A14",
             "title": "Sync Drift Detection",
-            "description": "plan-sync.ts diffs git changes against data-schema.json fields, errors.md codes, test-vectors.json cases. Drift warned not blocked (exit 0). beta-workflow invokes after every task checkbox toggle. Even clean runs append {mode:sync, result:clean} to .state.json.history."
+            "description": "plan-sync.ts diffs git changes against data-schema.js在 fields, errors.md codes, test-vectors.js在 cases. Drift warned 不 blocked (exit 0). beta-工作流程 invokes after every 任務 checkbox toggle. Even clean runs 追加 {mode:sync, 結果:clean} 到 .state.js在.history."
           }
         ],
         "arrows": [
-          {"id": "a1in1", "source": "EXTERNAL", "target": "A11:input", "label": "operator slug + intent OR legacy plans/<slug>/ touch"},
-          {"id": "a1c1", "source": "EXTERNAL", "target": "A11:control", "label": "schemas/state.schema.json + inferState table"},
-          {"id": "a1m1", "source": "A11:output", "target": "A12:input", "label": "specs/<slug>/ skeleton + .state.json"},
-          {"id": "a1c2", "source": "EXTERNAL", "target": "A12:control", "label": "state-keyed required-artifact list"},
-          {"id": "a1m2", "source": "A12:output", "target": "A13:input", "label": "validation report"},
-          {"id": "a1c3", "source": "EXTERNAL", "target": "A13:control", "label": "mode classifier (objective rules)"},
-          {"id": "a1m3", "source": "A13:output", "target": "A14:input", "label": "advanced state + history entry"},
-          {"id": "a1c4", "source": "EXTERNAL", "target": "A14:control", "label": "git diff + data-schema/errors/test-vectors"},
-          {"id": "a1mch4", "source": "EXTERNAL", "target": "A14:mechanism", "label": "beta-workflow runner hook"},
-          {"id": "a1out1", "source": "A14:output", "target": "EXTERNAL", "label": "drift warnings + audit-trail entry"},
-          {"id": "a1out2", "source": "A13:output", "target": "EXTERNAL", "label": "promoted/archived spec package"}
+          {
+            "id": "a1in1",
+            "source": "EXTERNAL",
+            "target": "A11:input",
+            "label": "operator slug + intent OR legacy plans/<slug>/ touch"
+          },
+          {
+            "id": "a1c1",
+            "source": "EXTERNAL",
+            "target": "A11:control",
+            "label": "schemas/state.schema.js在 + infer狀態 表"
+          },
+          {
+            "id": "a1m1",
+            "source": "A11:output",
+            "target": "A12:input",
+            "label": "specs/<slug>/ skeleton + .state.js在"
+          },
+          {
+            "id": "a1c2",
+            "source": "EXTERNAL",
+            "target": "A12:control",
+            "label": "狀態-keyed required-artifact 清單"
+          },
+          {
+            "id": "a1m2",
+            "source": "A12:output",
+            "target": "A13:input",
+            "label": "validation report"
+          },
+          {
+            "id": "a1c3",
+            "source": "EXTERNAL",
+            "target": "A13:control",
+            "label": "mode classifier (objective rules)"
+          },
+          {
+            "id": "a1m3",
+            "source": "A13:output",
+            "target": "A14:input",
+            "label": "advanced 狀態 + history 項目"
+          },
+          {
+            "id": "a1c4",
+            "source": "EXTERNAL",
+            "target": "A14:control",
+            "label": "git diff + data-schema/錯誤/test-vectors"
+          },
+          {
+            "id": "a1mch4",
+            "source": "EXTERNAL",
+            "target": "A14:mechanism",
+            "label": "beta-工作流程 runner hook"
+          },
+          {
+            "id": "a1out1",
+            "source": "A14:output",
+            "target": "EXTERNAL",
+            "label": "drift warnings + audit-trail 項目"
+          },
+          {
+            "id": "a1out2",
+            "source": "A13:output",
+            "target": "EXTERNAL",
+            "label": "promoted/archived spec package"
+          }
         ]
       }
     },
     {
       "id": "A2",
       "title": "Maintain Architecture Documentation",
-      "description": "specs/architecture.md (~126KB cross-cutting index), per-topic wiki entries (compaction.md, session.md, provider.md, attachments.md, agent-runtime.md, meta.md), specs/_archive/global-architecture/ IDEF0+GRAFCET reverse-engineering snapshot (67 activities, 66 GRAFCET steps, 100% traceability), docs/events/event_YYYYMMDD_<topic>.md narrative log.",
+      "description": "specs/architecture.md (~126KB cross-cutting index), 依 topic wiki entries (compaction.md, session.md, provider.md, attachments.md, agent-runtime.md, meta.md), specs/archive/全域-architecture/ IDEF0+GRAFCET reverse-engineering snapshot (67 activities, 66 GRAFCET steps, 100% traceability), docs/事件/事件YYYYMMDD <topic>.md narrative 記錄.",
       "decomposition": {
         "diagram_title": "Maintain Architecture Documentation",
         "node_reference": "A2",
         "activities": [
           {
             "id": "A21",
-            "title": "Update Cross-Cutting Index",
-            "description": "specs/architecture.md is no longer subsystem-authoritative — it is the index pointing to per-topic wiki entries. Architecture Sync checkpoints record 'Verified (No doc changes)' or link to updated topic file."
+            "title": "更新 Cross-Cutting Index",
+            "description": "specs/architecture.md 是 無 longer subsystem-authoritative — it 是 index pointing 到 依 topic wiki entries. Architecture Sync checkpoints 記錄 'Verified (無 doc changes)' 或 link 到 updated topic 檔案."
           },
           {
             "id": "A22",
-            "title": "Project Living Specs As Wiki",
-            "description": "Each living-state package's source-of-truth claim is folded into specs/<topic>.md. Legacy folders remain under specs/<slug>/ until peacefully migrated to specs/_archive/."
+            "title": "專案 Living Specs 作為 Wiki",
+            "description": "Each living-狀態 package's 來源-的-truth claim 是 folded 進入 specs/<topic>.md. Legacy folders remain under specs/<slug>/ 直到 peacefully migrated 到 specs/archive/."
           },
           {
             "id": "A23",
-            "title": "Append Event Log",
-            "description": "docs/events/event_YYYYMMDD_<topic>.md narrative for incidents and architectural shifts. plan-builder phase summary ritual writes phase-boundary entries during implementing."
+            "title": "追加 事件 記錄",
+            "description": "docs/事件/事件YYYYMMDD <topic>.md narrative 供 incidents 與 architectural shifts. 規劃-builder phase summary ritual writes phase-boundary entries during implementing."
           },
           {
             "id": "A24",
-            "title": "Refresh Global Snapshot On Demand",
-            "description": "specs/_archive/global-architecture/ is one-shot reverse engineering via miatdiagram skill. NOT regenerated per-change; updated only when user explicitly asks for a fresh codebase-wide snapshot."
+            "title": "刷新 全域 Snapshot 在 Demand",
+            "description": "specs/archive/全域-architecture/ 是 單次-回合 reverse engineering 透過 miatdiagram 技能. NOT regenerated 依-change; updated 僅 when 使用者 explicitly asks 供 fresh codebase-wide snapshot."
           }
         ],
         "arrows": [
-          {"id": "a2in1", "source": "EXTERNAL", "target": "A21:input", "label": "cross-cutting change PR"},
-          {"id": "a2m1", "source": "A21:output", "target": "A22:input", "label": "updated index + sync checkpoint"},
-          {"id": "a2in2", "source": "EXTERNAL", "target": "A22:input", "label": "specs/<slug>/ reaching living"},
-          {"id": "a2m2", "source": "A22:output", "target": "A23:input", "label": "wiki update event"},
-          {"id": "a2c3", "source": "EXTERNAL", "target": "A23:control", "label": "filename convention event_YYYYMMDD_<topic>.md"},
-          {"id": "a2in4", "source": "EXTERNAL", "target": "A24:input", "label": "explicit global-architecture refresh request"},
-          {"id": "a2mch4", "source": "EXTERNAL", "target": "A24:mechanism", "label": "miatdiagram skill"},
-          {"id": "a2out1", "source": "A21:output", "target": "EXTERNAL", "label": "current architecture.md"},
-          {"id": "a2out2", "source": "A22:output", "target": "EXTERNAL", "label": "current per-topic wiki"},
-          {"id": "a2out3", "source": "A23:output", "target": "EXTERNAL", "label": "appended event entry"},
-          {"id": "a2out4", "source": "A24:output", "target": "EXTERNAL", "label": "regenerated global snapshot"}
+          {
+            "id": "a2in1",
+            "source": "EXTERNAL",
+            "target": "A21:input",
+            "label": "cross-cutting change PR"
+          },
+          {
+            "id": "a2m1",
+            "source": "A21:output",
+            "target": "A22:input",
+            "label": "updated index + sync checkpoint"
+          },
+          {
+            "id": "a2in2",
+            "source": "EXTERNAL",
+            "target": "A22:input",
+            "label": "specs/<slug>/ reaching living"
+          },
+          {
+            "id": "a2m2",
+            "source": "A22:output",
+            "target": "A23:input",
+            "label": "wiki 更新 事件"
+          },
+          {
+            "id": "a2c3",
+            "source": "EXTERNAL",
+            "target": "A23:control",
+            "label": "filename convention 事件YYYYMMDD <topic>.md"
+          },
+          {
+            "id": "a2in4",
+            "source": "EXTERNAL",
+            "target": "A24:input",
+            "label": "explicit 全域-architecture 刷新 請求"
+          },
+          {
+            "id": "a2mch4",
+            "source": "EXTERNAL",
+            "target": "A24:mechanism",
+            "label": "miatdiagram 技能"
+          },
+          {
+            "id": "a2out1",
+            "source": "A21:output",
+            "target": "EXTERNAL",
+            "label": "current architecture.md"
+          },
+          {
+            "id": "a2out2",
+            "source": "A22:output",
+            "target": "EXTERNAL",
+            "label": "current 依 topic wiki"
+          },
+          {
+            "id": "a2out3",
+            "source": "A23:output",
+            "target": "EXTERNAL",
+            "label": "appended 事件 項目"
+          },
+          {
+            "id": "a2out4",
+            "source": "A24:output",
+            "target": "EXTERNAL",
+            "label": "regenerated 全域 snapshot"
+          }
         ]
       }
     },
     {
       "id": "A3",
-      "title": "Manage XDG And System Config",
-      "description": "Global.Path resolves XDG with OPENCODE_DATA_HOME pin (auto-set on NODE_ENV=test to per-pid tmpdir). Config.get() loadFile→LKG snapshot fallback (~/.local/state/opencode/config-lkg.json) with HTTP 503 not 500, structured body, no raw config text. loadSplit() isolates main/providers/mcp parse failures. providerAvailability derived from accounts.json + providers.json override; legacy disabled_providers read for one cycle. AGENTS.md backup whitelist mandatory before plan implementation; restore never automatic.",
+      "title": "Manage XDG 與 System 設定",
+      "description": "全域.路徑 resolves XDG 使用 OPENCODE DATA HOME 釘選 (auto-set 在 NODE ENV=test 到 依 pid tmpdir). 設定.get() load檔案→LKG snapshot fallback (~/.local/state/opencode/config-lkg.js在) 使用 HTTP 503 不 500, structured body, 無 raw 設定 文字. loadSplit() isolates main/Provider/mcp 解析 failures. Provideravailability derived 來自 accounts.js在 + providers.js在 override; legacy disabledProvider read 供 單次 cycle. AGENTS.md backup whitelist 必要 before 規劃 implementation; restore never automatic.",
       "decomposition": {
-        "diagram_title": "Manage XDG And System Config",
+        "diagram_title": "Manage XDG 與 System 設定",
         "node_reference": "A3",
         "activities": [
           {
             "id": "A31",
-            "title": "Resolve XDG Paths",
-            "description": "Global.Path in src/global/index.ts. Honours XDG_*_HOME; OPENCODE_DATA_HOME pins all four under <root>/{config,data,state,cache}. NODE_ENV=test auto-pins to per-pid tmpdir to prevent the 2026-04-18 accounts.json wipe recurring."
+            "title": "解析 XDG 路徑",
+            "description": "全域.路徑 在 src/global/index.ts. Honours XDG *HOME; OPENCODE DATA HOME pins all four under <root>/{設定,data,狀態,快取}. NODE ENV=test auto-pins 到 依 pid tmpdir 到 prevent 2026-04-18 accounts.js在 wipe recurring."
           },
           {
             "id": "A32",
-            "title": "Load Config With LKG Fallback",
-            "description": "config.ts loadFile() throws JsonError → log.warn + read config-lkg.json (atomic-rename written on every successful load) → return {config, configStale:true}. server/app.ts onError converts ConfigJsonError/ConfigInvalidError to HTTP 503 with {code, path, line, column, hint} body."
+            "title": "Load 設定 使用 LKG fallback",
+            "description": "config.ts loadFile() 拋出 json錯誤 → 記錄.warn + read config-lkg.js在 (atomic-rename written 在 every successful load) → 返回 {設定, 設定stale:true}. server/app.ts 在錯誤 converts 設定json錯誤/設定invalid錯誤 到 HTTP 503 使用 {code, 路徑, line, column, hint} body."
           },
           {
             "id": "A33",
-            "title": "Section-Isolate Sub-File Loads",
-            "description": "loadSplit({main, providers, mcp}). opencode.json must succeed (or LKG); providers.json failure → empty override + log.warn; mcp.json failure → MCP disabled + log.warn (lazy connect means daemon still boots)."
+            "title": "Section-Isolate Sub-檔案 Loads",
+            "description": "loadSplit({main, Provider, mcp}). opencode.js在 must succeed (或 LKG); providers.js在 failure → empty override + 記錄.warn; mcp.js在 failure → MCP disabled + 記錄.warn (lazy connect means daemon still boots)."
           },
           {
             "id": "A34",
             "title": "Backup Whitelist Snapshot",
-            "description": "Before plan implementation / first edit / first test command: snapshot whitelist (accounts.json mandatory + opencode/managed-apps/gauth/mcp/mcp-auth/openai-codex-accounts/models/providers/AGENTS + legacy ~/.local/share/opencode/accounts.json) to ~/.config/opencode.bak-YYYYMMDD-HHMM-<slug>/. Restore is never automatic — user requests explicitly."
+            "description": "Before 規劃 implementation / first edit / first test command: snapshot whitelist (accounts.js在 必要 + opencode/managed-apps/gauth/mcp/mcp-驗證/openai-codex-帳號/模型/Provider/AGENTS + legacy ~/.local/share/opencode/accounts.js在) 到 ~/.config/opencode.bak-YYYYMMDD-HHMM-<slug>/. Restore 是 never automatic — 使用者 requests explicitly."
           }
         ],
         "arrows": [
-          {"id": "a3in1", "source": "EXTERNAL", "target": "A31:input", "label": "process env (XDG_*, OPENCODE_DATA_HOME, NODE_ENV)"},
-          {"id": "a3m1", "source": "A31:output", "target": "A32:input", "label": "resolved Global.Path.user"},
-          {"id": "a3in2", "source": "EXTERNAL", "target": "A32:input", "label": "opencode.json on disk"},
-          {"id": "a3c2", "source": "EXTERNAL", "target": "A32:control", "label": "AGENTS.md rule 1 (no silent fallback)"},
-          {"id": "a3m2", "source": "A32:output", "target": "A33:input", "label": "main config tree"},
-          {"id": "a3in3", "source": "EXTERNAL", "target": "A33:input", "label": "providers.json + mcp.json"},
-          {"id": "a3m3", "source": "A33:output", "target": "EXTERNAL", "label": "merged Config.Info"},
-          {"id": "a3in4", "source": "EXTERNAL", "target": "A34:input", "label": "plan slug + execution gate firing"},
-          {"id": "a3c4", "source": "EXTERNAL", "target": "A34:control", "label": "AGENTS.md backup whitelist policy"},
-          {"id": "a3out1", "source": "A32:output", "target": "EXTERNAL", "label": "HTTP 503 structured error or live config"},
-          {"id": "a3out2", "source": "A34:output", "target": "EXTERNAL", "label": "backup folder path (printed on completion)"}
+          {
+            "id": "a3in1",
+            "source": "EXTERNAL",
+            "target": "A31:input",
+            "label": "process env (XDG *, OPENCODE DATA HOME, NODE ENV)"
+          },
+          {
+            "id": "a3m1",
+            "source": "A31:output",
+            "target": "A32:input",
+            "label": "已解析 全域.路徑.使用者"
+          },
+          {
+            "id": "a3in2",
+            "source": "EXTERNAL",
+            "target": "A32:input",
+            "label": "opencode.js在 在 磁碟"
+          },
+          {
+            "id": "a3c2",
+            "source": "EXTERNAL",
+            "target": "A32:control",
+            "label": "AGENTS.md rule 1 (無 靜默 fallback)"
+          },
+          {
+            "id": "a3m2",
+            "source": "A32:output",
+            "target": "A33:input",
+            "label": "main 設定 tree"
+          },
+          {
+            "id": "a3in3",
+            "source": "EXTERNAL",
+            "target": "A33:input",
+            "label": "providers.js在 + mcp.js在"
+          },
+          {
+            "id": "a3m3",
+            "source": "A33:output",
+            "target": "EXTERNAL",
+            "label": "merged 設定.Info"
+          },
+          {
+            "id": "a3in4",
+            "source": "EXTERNAL",
+            "target": "A34:input",
+            "label": "規劃 slug + execution gate firing"
+          },
+          {
+            "id": "a3c4",
+            "source": "EXTERNAL",
+            "target": "A34:control",
+            "label": "AGENTS.md backup whitelist policy"
+          },
+          {
+            "id": "a3out1",
+            "source": "A32:output",
+            "target": "EXTERNAL",
+            "label": "HTTP 503 structured 錯誤 或 live 設定"
+          },
+          {
+            "id": "a3out2",
+            "source": "A34:output",
+            "target": "EXTERNAL",
+            "label": "backup folder 路徑 (printed 在 completion)"
+          }
         ]
       }
     },
     {
       "id": "A4",
-      "title": "Tune Runtime Knobs Via tweaks",
-      "description": "/etc/opencode/tweaks.cfg INI-style operator tunables. Tweaks namespace at packages/opencode/src/config/tweaks.ts loadEffective() at module init. Missing file→defaults+log.info; invalid value→per-key default+log.warn; unknown key→log.warn skip; OPENCODE_TWEAKS_PATH env override. Cross-key invariants enforced (INV-7 tail_window_kb<=part_inline_cap_kb; ui_freshness_threshold_sec<hard_timeout; tool_output_budget_context_ratio<=1)."
+      "title": "Tune Runtime Knobs 透過 tweaks",
+      "description": "/etc/opencode/tweaks.cfg INI-style operator tunables. Tweaks namespace 於 packages/opencode/src/config/tweaks.ts loadEffective() 於 module init. 缺失 檔案→defaults+記錄.info; invalid value→依-key default+記錄.warn; unknown key→記錄.warn skip; OPENCODE TWEAKS PATH env override. Cross-key invariants enforced (INV-7 tailwindowkb<=partinlinecapkb; uifreshnessthresholdsec<hardtimeout; 工具輸出budget上下文ratio<=1)."
     }
   ],
   "arrows": [
-    {"id": "a0i1", "source": "EXTERNAL", "target": "A1:input", "label": "developer authors / revises spec"},
-    {"id": "a0c1", "source": "EXTERNAL", "target": "A1:control", "label": "SKILL.md + AGENTS.md rule set"},
-    {"id": "a0m1", "source": "A1:output", "target": "A2:input", "label": "spec reaching living state"},
-    {"id": "a0i2", "source": "EXTERNAL", "target": "A2:control", "label": "Architecture Sync checkpoint"},
-    {"id": "a0m2", "source": "A2:output", "target": "EXTERNAL", "label": "current wiki + event log"},
-    {"id": "a0i3", "source": "EXTERNAL", "target": "A3:input", "label": "user edits XDG / system files"},
-    {"id": "a0c3", "source": "EXTERNAL", "target": "A3:control", "label": "no-silent-fallback enumeration"},
-    {"id": "a0m3", "source": "A3:output", "target": "A4:input", "label": "merged Config.Info"},
-    {"id": "a0i4", "source": "EXTERNAL", "target": "A4:control", "label": "/etc/opencode/tweaks.cfg or OPENCODE_TWEAKS_PATH"},
-    {"id": "a0o4", "source": "A4:output", "target": "EXTERNAL", "label": "validated knob values to runtime"},
-    {"id": "a0fb1", "source": "A3:output", "target": "A1:control", "label": "backup whitelist gate satisfied → plan may enter implementing"},
-    {"id": "a0fb2", "source": "A1:output", "target": "A2:control", "label": "plan-builder phase summary triggers docs/events/ append"},
-    {"id": "a0o1", "source": "A1:output", "target": "EXTERNAL", "label": "lifecycle audit trail (.state.json.history)"},
-    {"id": "a0o3", "source": "A3:output", "target": "EXTERNAL", "label": "structured 503 on config error / runtime config"}
+    {
+      "id": "a0i1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "developer authors / revises spec"
+    },
+    {
+      "id": "a0c1",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "SKILL.md + AGENTS.md rule set"
+    },
+    {
+      "id": "a0m1",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "spec reaching living 狀態"
+    },
+    {
+      "id": "a0i2",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "Architecture Sync checkpoint"
+    },
+    {
+      "id": "a0m2",
+      "source": "A2:output",
+      "target": "EXTERNAL",
+      "label": "current wiki + 事件 記錄"
+    },
+    {
+      "id": "a0i3",
+      "source": "EXTERNAL",
+      "target": "A3:input",
+      "label": "使用者 edits XDG / system 檔案"
+    },
+    {
+      "id": "a0c3",
+      "source": "EXTERNAL",
+      "target": "A3:control",
+      "label": "無-靜默-fallback enumeration"
+    },
+    {
+      "id": "a0m3",
+      "source": "A3:output",
+      "target": "A4:input",
+      "label": "merged 設定.Info"
+    },
+    {
+      "id": "a0i4",
+      "source": "EXTERNAL",
+      "target": "A4:control",
+      "label": "/etc/opencode/tweaks.cfg 或 OPENCODE TWEAKS PATH"
+    },
+    {
+      "id": "a0o4",
+      "source": "A4:output",
+      "target": "EXTERNAL",
+      "label": "validated knob values 到 runtime"
+    },
+    {
+      "id": "a0fb1",
+      "source": "A3:output",
+      "target": "A1:control",
+      "label": "backup whitelist gate satisfied → 規劃 may enter implementing"
+    },
+    {
+      "id": "a0fb2",
+      "source": "A1:output",
+      "target": "A2:control",
+      "label": "規劃-builder phase summary triggers docs/事件/ 追加"
+    },
+    {
+      "id": "a0o1",
+      "source": "A1:output",
+      "target": "EXTERNAL",
+      "label": "lifecycle audit trail (.state.js在.history)"
+    },
+    {
+      "id": "a0o3",
+      "source": "A3:output",
+      "target": "EXTERNAL",
+      "label": "structured 503 在 設定 錯誤 / runtime 設定"
+    }
   ]
 }

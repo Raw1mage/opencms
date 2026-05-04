@@ -1,52 +1,50 @@
-<svg width="2864.0" height="635.8" viewBox="-984.0 -165.8 2864.0 635.8" xmlns="http://www.w3.org/2000/svg">
+<svg width="2667.4" height="635.8" viewBox="-929.7 -165.8 2667.4 635.8" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
 <marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
 </defs>
-<rect x="-984.0" y="-165.8" width="2864.0" height="635.8" fill="white" />
+<rect x="-929.7" y="-165.8" width="2667.4" height="635.8" fill="white" />
 <rect x="130.0" y="120.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A41" />
 <text x="230.0" y="143.9" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A41" >A41</text>
-<text x="230.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A41" >ASSEMBLE FAMILY</text>
+<text x="230.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A41" >組裝 FAMILY</text>
 <text x="230.0" y="197.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A41" >FINGERPRINT</text>
-<rect x="566.0" y="120.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A42" />
-<text x="666.0" y="143.9" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A42" >A42</text>
-<text x="666.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A42" >INJECT ACCOUNT</text>
-<text x="666.0" y="197.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A42" >ROUTING HEADERS</text>
+<rect x="478.0" y="120.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A42" />
+<text x="578.0" y="143.9" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A42" >A42</text>
+<text x="578.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A42" >INJECT 帳號</text>
+<text x="578.0" y="197.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A42" >ROUTING HEADERS</text>
 <rect x="130.0" y="320.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A43" />
 <text x="230.0" y="345.3" text-anchor="middle" font-size="11" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A43" >A43</text>
 <text x="230.0" y="371.1" text-anchor="middle" font-size="13" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A43" >ADD TRANSPORT-SPECIFIC</text>
 <text x="230.0" y="395.4" text-anchor="middle" font-size="13" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A43" >HEADERS</text>
-<rect x="40.0" y="44.2" width="816.0" height="415.8" stroke="black" fill="none" stroke-width="2" />
-<rect x="328.0" y="-155.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
-<text x="448.0" y="-113.8" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >A4</text>
-<text x="448.0" y="-86.6" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >BUILD REQUEST HEADERS</text>
-<line x1="328.0" y1="-155.8" x2="40.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="568.0" y1="-155.8" x2="856.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="328.0" y1="-45.8" x2="40.0" y2="460.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="568.0" y1="-45.8" x2="856.0" y2="460.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<path d="M 330.0 170.0 L 566.0 170.0" stroke="black" stroke-width="1.2" data-arrow-id="a41_to_a42" data-waypoints="330.0,170.0 566.0,170.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 766.0 170.0 L 796.0 170.0 Q 806.0 170.0 806.0 180.0 L 806.0 260.0 Q 806.0 270.0 796.0 270.0 L 100.0 270.0 Q 90.0 270.0 90.0 280.0 L 90.0 360.0 Q 90.0 370.0 100.0 370.0 L 130.0 370.0" stroke="black" stroke-width="1.2" data-arrow-id="a42_to_a43" data-waypoints="766.0,170.0 806.0,170.0 806.0,270.0 90.0,270.0 90.0,370.0 130.0,370.0" marker-end="url(#arrow)" fill="none" />
+<rect x="40.0" y="44.2" width="728.0" height="415.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="284.0" y="-155.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
+<text x="404.0" y="-113.8" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >A4</text>
+<text x="404.0" y="-86.6" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >建置 請求 HEADERS</text>
+<line x1="284.0" y1="-155.8" x2="40.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="524.0" y1="-155.8" x2="768.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="284.0" y1="-45.8" x2="40.0" y2="460.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="524.0" y1="-45.8" x2="768.0" y2="460.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 330.0 170.0 L 478.0 170.0" stroke="black" stroke-width="1.2" data-arrow-id="a41_to_a42" data-waypoints="330.0,170.0 478.0,170.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 678.0 170.0 L 708.0 170.0 Q 718.0 170.0 718.0 180.0 L 718.0 260.0 Q 718.0 270.0 708.0 270.0 L 100.0 270.0 Q 90.0 270.0 90.0 280.0 L 90.0 360.0 Q 90.0 370.0 100.0 370.0 L 130.0 370.0" stroke="black" stroke-width="1.2" data-arrow-id="a42_to_a43" data-waypoints="678.0,170.0 718.0,170.0 718.0,270.0 90.0,270.0 90.0,370.0 130.0,370.0" marker-end="url(#arrow)" fill="none" />
 <path d="M -10.0 170.0 L 130.0 170.0" stroke="black" stroke-width="1.2" data-arrow-id="a41_in_options" data-waypoints="-10.0,170.0 130.0,170.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a41_ctl_betaorder" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 230.0 255.8 L 230.0 220.0" stroke="black" stroke-width="1.2" data-arrow-id="a41_mech_assemble" data-waypoints="230.0,255.8 230.0,220.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 666.0 84.2 L 666.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a42_ctl_account" data-waypoints="666.0,84.2 666.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 666.0 255.8 L 666.0 220.0" stroke="black" stroke-width="1.2" data-arrow-id="a42_mech_buildHeaders" data-waypoints="666.0,255.8 666.0,220.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 578.0 84.2 L 578.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a42_ctl_account" data-waypoints="578.0,84.2 578.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 578.0 255.8 L 578.0 220.0" stroke="black" stroke-width="1.2" data-arrow-id="a42_mech_buildHeaders" data-waypoints="578.0,255.8 578.0,220.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 230.0 284.2 L 230.0 320.0" stroke="black" stroke-width="1.2" data-arrow-id="a43_ctl_transport" data-waypoints="230.0,284.2 230.0,320.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 370.0 L 906.0 370.0" stroke="black" stroke-width="1.2" data-arrow-id="a43_out_headers" data-waypoints="330.0,370.0 906.0,370.0" marker-end="url(#arrow)" fill="none" />
-<text x="230.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a41_ctl_betaorder">Upstream push order (claude ZR1, codex CODEX_CLI_VERSION)</text>
-<text x="224.0" y="236.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a41_mech_assemble">assembleBetas</text>
-<text x="236.0" y="236.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a41_mech_assemble">buildCodexUserAgent / ORIGINATOR</text>
-<text x="660.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a42_ctl_account">AuthContext + accountId</text>
-<text x="672.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a42_ctl_account">(TitleCase ChatGPT-Account-Id)</text>
-<text x="660.0" y="236.0" font-size="11" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a42_mech_buildHeaders">buildHeaders(options)</text>
-<text x="672.0" y="236.0" font-size="11" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a42_mech_buildHeaders">single entry (HTTP + WS)</text>
-<text x="224.0" y="314.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a43_ctl_transport">isWebSocket flag (transport-ws.ts</text>
+<path d="M 330.0 370.0 L 818.0 370.0" stroke="black" stroke-width="1.2" data-arrow-id="a43_out_headers" data-waypoints="330.0,370.0 818.0,370.0" marker-end="url(#arrow)" fill="none" />
+<text x="230.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a41_ctl_betaorder">Upstream push order (claude ZR1, codex CODEX CLI VERSION)</text>
+<text x="224.0" y="236.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a41_mech_assemble">組裝betas / 建置codex使用者agent</text>
+<text x="236.0" y="236.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a41_mech_assemble">ORIGINATOR</text>
+<text x="572.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a42_ctl_account">驗證上下文 + 帳號id (TitleCase</text>
+<text x="584.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a42_ctl_account">ChatGPT-帳號-Id)</text>
+<text x="572.0" y="236.0" font-size="11" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a42_mech_buildHeaders">建置headers(options)</text>
+<text x="584.0" y="236.0" font-size="11" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a42_mech_buildHeaders">single 項目 (HTTP + WS)</text>
+<text x="224.0" y="314.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a43_ctl_transport">是websocket flag (transport-ws.ts</text>
 <text x="236.0" y="314.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a43_ctl_transport">L580 vs provider.ts L222)</text>
-<text x="448.0" y="165.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a41_to_a42">Base headers +</text>
-<text x="448.0" y="182.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a41_to_a42">anthropic-beta / User-Agent</text>
-<text x="666.0" y="288.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a42_to_a43" >Headers with auth + account routing</text>
-<text x="-14.0" y="148.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a41_in_options">HeaderOptions</text>
-<text x="-14.0" y="174.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a41_in_options">(model, provider,</text>
-<text x="-14.0" y="200.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a41_in_options">flags)</text>
-<text x="910.0" y="374.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a43_out_headers">Final headers (HTTP: Accept text/event-stream; WS: OpenAI-Beta responses_websockets)</text>
+<text x="404.0" y="170.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a41_to_a42"><tspan x="404.0" dy="0">Base headers +</tspan><tspan x="404.0" dy="16.0">anthropic-beta /</tspan><tspan x="404.0" dy="16.0">使用者-Agent</tspan></text>
+<text x="578.0" y="288.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a42_to_a43" >Headers 使用 驗證 + 帳號 routing</text>
+<text x="-14.0" y="161.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a41_in_options">HeaderOptions (模型</text>
+<text x="-14.0" y="187.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a41_in_options">, Provider, flags)</text>
+<text x="822.0" y="374.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a43_out_headers">Final headers (HTTP: Accept 文字/事件-串流; WS: OpenAI-Beta responseswebsockets)</text>
 </svg>

@@ -1,0 +1,133 @@
+<svg width="1302" height="1306" viewBox="-185.6 -26.0 1302.4 1306.0" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker></defs>
+<rect x="-185.6" y="-26.0" width="1302.4" height="1306.0" fill="white" />
+<rect x="380.0" y="80.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<rect x="385.0" y="85.0" width="30.0" height="30.0" stroke="black" stroke-width="1" fill="none" />
+<text x="400" y="105.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">0</text>
+<line x1="420.0" y1="100.0" x2="460.0" y2="100.0" stroke="black" />
+<rect x="460.0" y="54.0" width="331.2" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="625.6" y="80.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">閒置 — epoch uninitialized</text>
+<text x="625.6" y="104.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">(0), 無 capability-</text>
+<text x="625.6" y="127.99999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">layer 快取 供 Session</text>
+<line x1="400" y1="120.0" x2="400" y2="200.0" stroke="black" />
+<line x1="380" y1="160.0" x2="420" y2="160.0" stroke="black" stroke-width="2" />
+<text x="424.0" y="164.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">rebindtrigger已收到</text>
+<rect x="380.0" y="200.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="400" y="225.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">1</text>
+<line x1="420.0" y1="220.0" x2="460.0" y2="220.0" stroke="black" />
+<rect x="460.0" y="174.0" width="331.2" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="625.6" y="200.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Validate 速率限</text>
+<text x="625.6" y="224.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">制 (≤5 bumps/</text>
+<text x="625.6" y="248.00000000000003" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">sec/Session)</text>
+<line x1="400" y1="240.0" x2="400" y2="280.0" stroke="black" />
+<line x1="114.4" y1="280.0" x2="685.6" y2="280.0" stroke="black" stroke-width="1.5" />
+<line x1="154.4" y1="280.0" x2="154.4" y2="320.0" stroke="black" />
+<line x1="134.4" y1="320.0" x2="174.4" y2="320.0" stroke="black" stroke-width="2" />
+<text x="130.4" y="324.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">rateok</text>
+<line x1="154.4" y1="320.0" x2="154.4" y2="360.0" stroke="black" />
+<line x1="645.6" y1="280.0" x2="645.6" y2="320.0" stroke="black" />
+<line x1="625.6" y1="320.0" x2="665.6" y2="320.0" stroke="black" stroke-width="2" />
+<text x="669.6000000000001" y="324.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">rateexceeded</text>
+<line x1="645.6" y1="320.0" x2="645.6" y2="360.0" stroke="black" marker-end="url(#arrow)" />
+<rect x="625.6" y="360.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="645.6" y="385.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">7</text>
+<line x1="665.6" y1="380.0" x2="705.6" y2="380.0" stroke="black" />
+<rect x="705.6" y="334.0" width="331.2" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="871.2" y="360.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">發出 Session.rebindstorm 異常 (異</text>
+<text x="871.2" y="384.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">常flags=[rebindstorm]); reject</text>
+<text x="871.2" y="408.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">bump; keep existing epoch + 快取</text>
+<line x1="645.6" y1="400.0" x2="645.6" y2="480.0" stroke="black" />
+<line x1="625.6" y1="440.0" x2="665.6" y2="440.0" stroke="black" stroke-width="2" />
+<text x="669.6000000000001" y="444.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">異常recordedresumeactive</text>
+<rect x="625.6" y="480.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="645.6" y="505.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">5</text>
+<line x1="665.6" y1="500.0" x2="705.6" y2="500.0" stroke="black" />
+<rect x="705.6" y="454.0" width="331.2" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="871.2" y="480.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Active — Session uses cached</text>
+<text x="871.2" y="504.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">capability layer 供 LLM rounds</text>
+<text x="871.2" y="528.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">(快取 hit), 無 磁碟 I/O 依 round</text>
+<line x1="645.6" y1="520.0" x2="645.6" y2="560.0" stroke="black" />
+<line x1="525.6" y1="560.0" x2="765.6" y2="560.0" stroke="black" stroke-width="1.5" />
+<line x1="565.6" y1="560.0" x2="565.6" y2="600.0" stroke="black" />
+<line x1="545.6" y1="600.0" x2="585.6" y2="600.0" stroke="black" stroke-width="2" />
+<text x="541.6" y="604.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">下一個rebindtrigger已收到</text>
+<line x1="565.6" y1="600.0" x2="565.6" y2="640.0" stroke="black" />
+<line x1="725.6" y1="560.0" x2="725.6" y2="600.0" stroke="black" />
+<line x1="705.6" y1="600.0" x2="745.6" y2="600.0" stroke="black" stroke-width="2" />
+<text x="749.6000000000001" y="604.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">Sessionended</text>
+<line x1="725.6" y1="600.0" x2="725.6" y2="640.0" stroke="black" />
+<line x1="525.6" y1="640.0" x2="765.6" y2="640.0" stroke="black" stroke-width="1.5" />
+<line x1="565.6" y1="640.0" x2="565.6" y2="640.0" stroke="black" />
+<line x1="725.6" y1="640.0" x2="725.6" y2="640.0" stroke="black" />
+<line x1="645.6" y1="640.0" x2="645.6" y2="680.0" stroke="black" marker-end="url(#arrow)" />
+<rect x="625.6" y="680.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="645.6" y="705.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">6</text>
+<line x1="665.6" y1="700.0" x2="705.6" y2="700.0" stroke="black" />
+<rect x="705.6" y="654.0" width="331.2" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="871.2" y="680.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">終止 — Session closed,</text>
+<text x="871.2" y="704.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">epoch + 快取 entries GC&#x27;d</text>
+<text x="871.2" y="727.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">使用 Session teardown</text>
+<line x1="114.4" y1="720.0" x2="685.6" y2="720.0" stroke="black" stroke-width="1.5" />
+<line x1="154.4" y1="360.0" x2="154.4" y2="720.0" stroke="black" />
+<line x1="645.6" y1="720.0" x2="645.6" y2="720.0" stroke="black" />
+<line x1="400" y1="720.0" x2="400" y2="760.0" stroke="black" marker-end="url(#arrow)" />
+<rect x="380.0" y="760.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="400" y="785.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">2</text>
+<line x1="420.0" y1="780.0" x2="460.0" y2="780.0" stroke="black" />
+<rect x="460.0" y="734.0" width="331.2" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="625.6" y="760.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Bump epoch (N → N+1), clear</text>
+<text x="625.6" y="784.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">capability-layer 快取 供</text>
+<text x="625.6" y="807.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Session, 發出 Session.rebind 事件</text>
+<line x1="400" y1="800.0" x2="400" y2="880.0" stroke="black" />
+<line x1="380" y1="840.0" x2="420" y2="840.0" stroke="black" stroke-width="2" />
+<text x="424.0" y="844.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">epochbumped快取cleared</text>
+<rect x="380.0" y="880.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="400" y="905.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">3</text>
+<line x1="420.0" y1="900.0" x2="460.0" y2="900.0" stroke="black" />
+<rect x="460.0" y="854.0" width="331.2" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="625.6" y="880.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Reinject capability layers (read</text>
+<text x="625.6" y="904.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">AGENTS.md + driver + 技能 content +</text>
+<text x="625.6" y="927.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">enablement, fill 快取 於 new epoch)</text>
+<line x1="400" y1="920.0" x2="400" y2="960.0" stroke="black" />
+<line x1="114.4" y1="960.0" x2="685.6" y2="960.0" stroke="black" stroke-width="1.5" />
+<line x1="154.4" y1="960.0" x2="154.4" y2="1000.0" stroke="black" />
+<line x1="134.4" y1="1000.0" x2="174.4" y2="1000.0" stroke="black" stroke-width="2" />
+<text x="130.4" y="1004.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">reinjectsuccess</text>
+<line x1="154.4" y1="1000.0" x2="154.4" y2="1040.0" stroke="black" marker-end="url(#arrow)" />
+<line x1="645.6" y1="960.0" x2="645.6" y2="1000.0" stroke="black" />
+<line x1="625.6" y1="1000.0" x2="665.6" y2="1000.0" stroke="black" stroke-width="2" />
+<text x="669.6000000000001" y="1004.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">reinjectfailure</text>
+<line x1="645.6" y1="1000.0" x2="645.6" y2="1040.0" stroke="black" marker-end="url(#arrow)" />
+<rect x="134.4" y="1040.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="154.4" y="1065.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">4</text>
+<line x1="174.4" y1="1060.0" x2="214.4" y2="1060.0" stroke="black" />
+<rect x="214.4" y="1014.0" width="331.2" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="380.0" y="1040.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">發出 capabilitylayer.refreshed</text>
+<text x="380.0" y="1064.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">事件 (epoch, layers, 已釘選技</text>
+<text x="380.0" y="1088.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">能) → SSE 到 UI dashboard</text>
+<line x1="154.4" y1="1080.0" x2="154.4" y2="1160.0" stroke="black" />
+<line x1="134.4" y1="1120.0" x2="174.4" y2="1120.0" stroke="black" stroke-width="2" />
+<text x="178.4" y="1124.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">事件emitted</text>
+<rect x="625.6" y="1040.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
+<text x="645.6" y="1065.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">8</text>
+<line x1="665.6" y1="1060.0" x2="705.6" y2="1060.0" stroke="black" />
+<rect x="705.6" y="1014.0" width="331.2" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
+<text x="871.2" y="1040.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">發出 capabilitylayer.刷新failed 異常</text>
+<text x="871.2" y="1064.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">; retain previous epoch&#x27;s 快取 (do</text>
+<text x="871.2" y="1088.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">不 overwrite 使用 partial reinject)</text>
+<line x1="645.6" y1="1080.0" x2="645.6" y2="1160.0" stroke="black" />
+<line x1="625.6" y1="1120.0" x2="665.6" y2="1120.0" stroke="black" stroke-width="2" />
+<text x="669.6000000000001" y="1124.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">failurerecordedprev快取kept</text>
+<line x1="154.4" y1="1160.0" x2="154.4" y2="1160.0" stroke="black" />
+<line x1="154.4" y1="1160.0" x2="54.40000000000001" y2="1160.0" stroke="black" />
+<line x1="54.40000000000001" y1="1160.0" x2="54.40000000000001" y2="456.0" stroke="black" />
+<line x1="54.40000000000001" y1="456.0" x2="645.6" y2="456.0" stroke="black" marker-end="url(#arrow)" />
+<line x1="565.6" y1="640.0" x2="565.6" y2="660.0" stroke="black" />
+<line x1="565.6" y1="660.0" x2="-105.6" y2="660.0" stroke="black" />
+<line x1="-105.6" y1="660.0" x2="-105.6" y2="176.0" stroke="black" />
+<line x1="-105.6" y1="176.0" x2="400" y2="176.0" stroke="black" marker-end="url(#arrow)" />
+<line x1="645.6" y1="1160.0" x2="645.6" y2="1200.0" stroke="black" />
+<line x1="645.6" y1="1200.0" x2="-25.599999999999987" y2="1200.0" stroke="black" />
+<line x1="-25.599999999999987" y1="1200.0" x2="-25.599999999999987" y2="456.0" stroke="black" />
+<line x1="-25.599999999999987" y1="456.0" x2="645.6" y2="456.0" stroke="black" marker-end="url(#arrow)" />
+</svg>

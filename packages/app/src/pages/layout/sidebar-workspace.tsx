@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from "@solidjs/router"
-import { createEffect, createMemo, createSignal, For, Show, type Accessor, type JSX } from "solid-js"
+import { createEffect, createMemo, createResource, createSignal, For, Show, type Accessor, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createSortable } from "@thisbeyond/solid-dnd"
 import { createMediaQuery } from "@solid-primitives/media"
@@ -14,6 +14,7 @@ import { Spinner } from "@opencode-ai/ui/spinner"
 import { Tooltip } from "@opencode-ai/ui/tooltip"
 import { type Session } from "@opencode-ai/sdk/v2/client"
 import { type LocalProject } from "@/context/layout"
+import { useGlobalSDK } from "@/context/global-sdk"
 import { useGlobalSync } from "@/context/global-sync"
 import { useLanguage } from "@/context/language"
 import { NewSessionItem, SessionItem, SessionSkeleton } from "./sidebar-items"
@@ -53,6 +54,17 @@ export type WorkspaceSidebarContext = {
   showResetWorkspaceDialog: (root: string, directory: string) => void
   showDeleteWorkspaceDialog: (root: string, directory: string) => void
   setScrollContainerRef: (el: HTMLDivElement | undefined, mobile?: boolean) => void
+}
+
+type ClaudeNativeSession = {
+  sourceSessionID: string
+  transcriptPath: string
+  title: string
+  time: { created: number; updated: number }
+  importedSessionID?: string
+  currentLineCount: number
+  importedLineCount?: number
+  hasNewContent: boolean
 }
 
 export const WorkspaceDragOverlay = (props: {
@@ -239,6 +251,7 @@ const WorkspaceActions = (props: {
 
 const WorkspaceSessionList = (props: {
   slug: Accessor<string>
+  directory: string
   mobile?: boolean
   ctx: WorkspaceSidebarContext
   projectLabel?: Accessor<string>
@@ -251,6 +264,8 @@ const WorkspaceSessionList = (props: {
   loadMore: () => Promise<void>
   language: ReturnType<typeof useLanguage>
 }): JSX.Element => {
+  const navigate = useNavigate()
+  const globalSDK = useGlobalSDK()
   // Persisted state for date group collapsing
   const [dateGroupExpanded, setDateGroupExpanded] = persisted(
     Persist.global("sidebar.dateGroups.expanded"),
@@ -265,10 +280,61 @@ const WorkspaceSessionList = (props: {
 
   // Management mode toggle
   const [managementMode, setManagementMode] = createSignal(false)
+  const [sessionTab, setSessionTab] = persisted(
+    Persist.global("sidebar.sessionList.tab"),
+    createStore({ value: "opencode" as "opencode" | "claude" }),
+  )
+  const [refreshVersion, setRefreshVersion] = createSignal(0)
+  const [importingSource, setImportingSource] = createSignal<string | undefined>()
+  const [importError, setImportError] = createSignal<string | undefined>()
+  const [claudeSessions] = createResource(
+    () => ({ directory: props.directory, refresh: refreshVersion() }),
+    async ({ directory }) => {
+      const url = new URL("/api/v2/session/import/claude", globalSDK.url)
+      url.searchParams.set("directory", directory)
+      const response = await globalSDK.fetch(url)
+      if (!response.ok) throw new Error(`Failed to load Claude sessions (${response.status})`)
+      return (await response.json()) as ClaudeNativeSession[]
+    },
+  )
+  const activeSessions = createMemo(() => (sessionTab.value === "claude" ? [] : props.sessions()))
+  const activeAllSessions = createMemo(() => (sessionTab.value === "claude" ? [] : props.allSessions()))
+  const activeChildren = createMemo(() =>
+    sessionTab.value === "claude" ? new Map<string, string[]>() : props.children(),
+  )
+  const activeLoading = createMemo(() => (sessionTab.value === "claude" ? claudeSessions.loading : props.loading()))
+  const activeHasMore = createMemo(() => (sessionTab.value === "claude" ? false : props.hasMore()))
+
+  const importClaudeSession = async (row: ClaudeNativeSession) => {
+    setImportError(undefined)
+    setImportingSource(row.sourceSessionID)
+    try {
+      const response = await globalSDK.fetch(new URL("/api/v2/session/import/claude", globalSDK.url), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          directory: props.directory,
+          sourceSessionID: row.sourceSessionID,
+          transcriptPath: row.transcriptPath,
+        }),
+      })
+      if (!response.ok) {
+        const body = await response.json().catch(() => undefined)
+        throw new Error(body?.message ?? `Failed to import Claude session (${response.status})`)
+      }
+      const body = (await response.json()) as { sessionID: string }
+      navigate(`/${props.slug()}/session/${body.sessionID}`)
+      setRefreshVersion((value) => value + 1)
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setImportingSource(undefined)
+    }
+  }
 
   const sessionGroups = createMemo(() => {
-    const sessions = props.sessions()
-    const byID = new Map(props.allSessions().map((session) => [session.id, session]))
+    const sessions = activeSessions()
+    const byID = new Map(activeAllSessions().map((session) => [session.id, session]))
     const now = new Date()
     const today = now.toDateString()
     const groups: { key: string; label: string; rows: { session: Session; label: string; child: boolean }[] }[] = []
@@ -286,7 +352,7 @@ const WorkspaceSessionList = (props: {
                 year: "numeric",
               })
               .replace(/,/g, "")
-      const children = (props.children().get(root.id) ?? [])
+      const children = (activeChildren().get(root.id) ?? [])
         .map((id) => byID.get(id))
         .filter((session): session is Session => !!session)
         .sort((a, b) => (a.time.created ?? 0) - (b.time.created ?? 0))
@@ -334,7 +400,7 @@ const WorkspaceSessionList = (props: {
   return (
     <nav class="flex flex-col gap-1 px-2">
       <div class="flex items-center justify-end gap-2 px-2 pt-1 pb-2">
-        <Show when={props.showNew()}>
+        <Show when={props.showNew() && sessionTab.value === "opencode"}>
           <div class="flex-1 min-w-0">
             <NewSessionItem
               slug={props.slug()}
@@ -362,10 +428,84 @@ const WorkspaceSessionList = (props: {
           </Tooltip>
         </div>
       </div>
-      <Show when={props.loading()}>
+      <div class="px-2 pb-2 flex items-center gap-1">
+        <button
+          type="button"
+          class="rounded-md px-2 py-1 text-12-medium transition-colors"
+          classList={{
+            "bg-surface-interactive-base text-text-strong": sessionTab.value === "opencode",
+            "text-text-weak hover:text-text-base": sessionTab.value !== "opencode",
+          }}
+          onClick={() => setSessionTab("value", "opencode")}
+        >
+          OpenCode
+        </button>
+        <button
+          type="button"
+          class="rounded-md px-2 py-1 text-12-medium transition-colors"
+          classList={{
+            "bg-surface-interactive-base text-text-strong": sessionTab.value === "claude",
+            "text-text-weak hover:text-text-base": sessionTab.value !== "claude",
+          }}
+          onClick={() => setSessionTab("value", "claude")}
+        >
+          Claude
+        </button>
+        <Show when={sessionTab.value === "claude"}>
+          <button
+            type="button"
+            class="ml-auto rounded-md px-2 py-1 text-12-medium text-text-weak hover:text-text-base"
+            onClick={() => setRefreshVersion((value) => value + 1)}
+          >
+            Refresh
+          </button>
+        </Show>
+      </div>
+      <Show when={activeLoading()}>
         <SessionSkeleton />
       </Show>
-      <For each={sessionGroups()}>
+      <Show when={sessionTab.value === "claude" && claudeSessions.error}>
+        <div class="px-4 py-2 text-12-regular text-warning">
+          {claudeSessions.error instanceof Error ? claudeSessions.error.message : "Failed to load Claude sessions"}
+        </div>
+      </Show>
+      <Show when={sessionTab.value === "claude" && importError()}>
+        <div class="px-4 py-2 text-12-regular text-warning">{importError()}</div>
+      </Show>
+      <Show
+        when={
+          !activeLoading() &&
+          (sessionTab.value === "claude" ? (claudeSessions() ?? []).length === 0 : sessionGroups().length === 0)
+        }
+      >
+        <div class="px-4 py-2 text-12-regular text-text-weak">
+          {sessionTab.value === "claude" ? "No Claude sessions in this project." : "No sessions yet."}
+        </div>
+      </Show>
+      <Show when={sessionTab.value === "claude"}>
+        <For each={claudeSessions() ?? []}>
+          {(row) => (
+            <button
+              type="button"
+              class="flex w-full items-center gap-2 rounded-md px-4 py-2 text-left text-13-regular text-text-base hover:bg-surface-interactive-base disabled:opacity-60"
+              disabled={!!importingSource()}
+              onClick={() => importClaudeSession(row)}
+            >
+              <Icon name="code" size="small" class="shrink-0 text-text-weak" />
+              <span
+                class="size-2 rounded-full bg-green-500 shrink-0"
+                classList={{ invisible: !row.hasNewContent }}
+                title="New content since last import"
+              />
+              <span class="min-w-0 flex-1 truncate">{row.title}</span>
+              <span class="shrink-0 text-11-regular text-text-weak">
+                {importingSource() === row.sourceSessionID ? "Importing" : row.importedSessionID ? "Sync" : "Import"}
+              </span>
+            </button>
+          )}
+        </For>
+      </Show>
+      <For each={sessionTab.value === "claude" ? [] : sessionGroups()}>
         {(group) => {
           const expanded = () => isDateGroupExpanded(group.key)
           return (
@@ -395,7 +535,7 @@ const WorkspaceSessionList = (props: {
                       }
 
                       // Only show if parent is expanded
-                      const parentExpanded = () => parentId ? isSessionExpanded(parentId) : true
+                      const parentExpanded = () => (parentId ? isSessionExpanded(parentId) : true)
 
                       return (
                         <Show when={parentExpanded()}>
@@ -408,7 +548,7 @@ const WorkspaceSessionList = (props: {
                               mobile={props.mobile}
                               dense
                               popover={managementMode()}
-                              children={props.children()}
+                              children={activeChildren()}
                               sidebarExpanded={props.ctx.sidebarExpanded}
                               sidebarHovering={props.ctx.sidebarHovering}
                               nav={props.ctx.nav}
@@ -423,7 +563,7 @@ const WorkspaceSessionList = (props: {
                     }
 
                     // This is a main session
-                    const hasChildren = (props.children().get(row.session.id)?.length ?? 0) > 0
+                    const hasChildren = (activeChildren().get(row.session.id)?.length ?? 0) > 0
                     const childrenExpanded = () => isSessionExpanded(row.session.id)
 
                     return (
@@ -434,17 +574,17 @@ const WorkspaceSessionList = (props: {
                             class="shrink-0 flex items-center justify-center w-5 h-8 text-text-weak hover:text-text-base transition-colors cursor-pointer"
                             aria-label={childrenExpanded() ? "Collapse" : "Expand"}
                             onClick={(e: MouseEvent) => {
-                              if (typeof localStorage !== "undefined" && localStorage.getItem("opencode:debug:sidebar") === "1")
+                              if (
+                                typeof localStorage !== "undefined" &&
+                                localStorage.getItem("opencode:debug:sidebar") === "1"
+                              )
                                 console.log("[Chevron clicked]", row.session.id, row.session.title)
                               e.preventDefault()
                               e.stopPropagation()
                               toggleSessionChildren(row.session.id)
                             }}
                           >
-                            <Icon
-                              name={childrenExpanded() ? "chevron-down" : "chevron-right"}
-                              size="small"
-                            />
+                            <Icon name={childrenExpanded() ? "chevron-down" : "chevron-right"} size="small" />
                           </button>
                         </Show>
                         <div
@@ -461,7 +601,7 @@ const WorkspaceSessionList = (props: {
                             mobile={props.mobile}
                             dense
                             popover={managementMode()}
-                            children={props.children()}
+                            children={activeChildren()}
                             sidebarExpanded={props.ctx.sidebarExpanded}
                             sidebarHovering={props.ctx.sidebarHovering}
                             nav={props.ctx.nav}
@@ -480,7 +620,7 @@ const WorkspaceSessionList = (props: {
           )
         }}
       </For>
-      <Show when={props.hasMore()}>
+      <Show when={activeHasMore()}>
         <div class="relative w-full py-1">
           <Button
             variant="ghost"
@@ -646,6 +786,7 @@ export const SortableWorkspace = (props: {
         <Collapsible.Content>
           <WorkspaceSessionList
             slug={slug}
+            directory={props.directory}
             mobile={props.mobile}
             ctx={props.ctx}
             projectLabel={() =>
@@ -697,6 +838,7 @@ export const LocalWorkspace = (props: {
     >
       <WorkspaceSessionList
         slug={slug}
+        directory={props.project.worktree}
         mobile={props.mobile}
         ctx={props.ctx}
         projectLabel={() => props.project.name || getFilename(props.project.worktree)}

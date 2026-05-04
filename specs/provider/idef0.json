@@ -1,13 +1,13 @@
 {
-  "diagram_title": "Route Provider Request",
+  "diagram_title": "路由 Provider 請求",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A1",
-      "title": "Resolve Provider Family",
-      "description": "Validate family key against the registry shape and load the family's provider module (AI-SDK adapter or self-built). Anchors: provider/registry-shape.ts assertFamilyKey; provider.ts mergeProvider L1092.",
+      "title": "解析 Provider Family",
+      "description": "Validate family key against 註冊表 shape 與 load family's Provider module (AI-SDK adapter 或 self-built). Anchors: provider/registry-shape.ts assertFamilyKey; provider.ts 合併Provider L1092.",
       "decomposition": {
-        "diagram_title": "Resolve Provider Family",
+        "diagram_title": "解析 Provider Family",
         "node_reference": "A1",
         "activities": [
           {
@@ -20,7 +20,7 @@
           },
           {
             "id": "A13",
-            "title": "Reject Per-Account Slug"
+            "title": "Reject 依-帳號 Slug"
           }
         ],
         "arrows": [
@@ -28,14 +28,14 @@
             "id": "a11_in_id",
             "source": "EXTERNAL",
             "target": "A11:input",
-            "label": "Incoming providerId",
+            "label": "Incoming Providerid",
             "type": "input"
           },
           {
             "id": "a11_ctl_known",
             "source": "EXTERNAL",
             "target": "A11:control",
-            "label": "knownFamilies set (Account.knownFamilies includeStorage:true)",
+            "label": "knownFamilies set (帳號.knownFamilies include儲存:true)",
             "type": "control"
           },
           {
@@ -49,14 +49,14 @@
             "id": "a11_to_a13",
             "source": "A11:output",
             "target": "A13:input",
-            "label": "Suspected per-account slug (codex-subscription-<x>)",
+            "label": "Suspected 依-帳號 slug (codex-subscription-<x>)",
             "type": "input"
           },
           {
             "id": "a13_out_err",
             "source": "A13:output",
             "target": "EXTERNAL",
-            "label": "RegistryShapeError thrown",
+            "label": "註冊表shape錯誤 thrown",
             "type": "output"
           },
           {
@@ -70,21 +70,21 @@
             "id": "a12_ctl_db",
             "source": "EXTERNAL",
             "target": "A12:control",
-            "label": "database registration (provider.ts L1218 / L1343 / L1459-L1605)",
+            "label": "database 註冊 (provider.ts L1218 / L1343 / L1459-L1605)",
             "type": "control"
           },
           {
             "id": "a12_mech_loaders",
             "source": "EXTERNAL",
             "target": "A12:mechanism",
-            "label": "CUSTOM_LOADERS + AI-SDK adapters (custom-loaders-def.ts, provider.ts switch)",
+            "label": "CUSTOM LOADERS + AI-SDK adapters (custom-loaders-def.ts, provider.ts switch)",
             "type": "mechanism"
           },
           {
             "id": "a12_out_family",
             "source": "A12:output",
             "target": "EXTERNAL",
-            "label": "Resolved family + Info{api.npm}",
+            "label": "已解析 family + Info{api.npm}",
             "type": "output"
           }
         ]
@@ -92,23 +92,23 @@
     },
     {
       "id": "A2",
-      "title": "Select Account Identity",
-      "description": "Resolve (family, accountId) tuple via Auth.get; reject unknown family or no-active-account. Anchors: auth/index.ts L94; account/index.ts knownFamilies L272 / getActive L757.",
+      "title": "Select 帳號 身分",
+      "description": "解析 (family, 帳號id) tuple 透過 驗證.get; reject unknown family 或 無-active-帳號. Anchors: auth/index.ts L94; account/index.ts knownFamilies L272 / getActive L757.",
       "decomposition": {
-        "diagram_title": "Select Account Identity",
+        "diagram_title": "Select 帳號 身分",
         "node_reference": "A2",
         "activities": [
           {
             "id": "A21",
-            "title": "Lookup Active Account For Family"
+            "title": "Lookup Active 帳號 供 Family"
           },
           {
             "id": "A22",
-            "title": "Authenticate Tuple"
+            "title": "驗證 Tuple"
           },
           {
             "id": "A23",
-            "title": "Refresh OAuth Token If Stale"
+            "title": "刷新 OAuth Token If Stale"
           }
         ],
         "arrows": [
@@ -116,56 +116,56 @@
             "id": "a21_in_family",
             "source": "EXTERNAL",
             "target": "A21:input",
-            "label": "Resolved family",
+            "label": "已解析 family",
             "type": "input"
           },
           {
             "id": "a21_ctl_storage",
             "source": "EXTERNAL",
             "target": "A21:control",
-            "label": "accounts.json families.<family>.accounts (Storage L114)",
+            "label": "accounts.js在 families.<family>.帳號 (儲存 L114)",
             "type": "control"
           },
           {
             "id": "a21_mech_getActive",
             "source": "EXTERNAL",
             "target": "A21:mechanism",
-            "label": "Account.getActive(family) (L757)",
+            "label": "帳號.getActive(family) (L757)",
             "type": "mechanism"
           },
           {
             "id": "a21_to_a22",
             "source": "A21:output",
             "target": "A22:input",
-            "label": "(family, accountId)",
+            "label": "(family, 帳號id)",
             "type": "input"
           },
           {
             "id": "a22_mech_authget",
             "source": "EXTERNAL",
             "target": "A22:mechanism",
-            "label": "Auth.get(family, accountId) (auth/index.ts L94)",
+            "label": "驗證.get(family, 帳號id) (auth/index.ts L94)",
             "type": "mechanism"
           },
           {
             "id": "a22_ctl_errors",
             "source": "EXTERNAL",
             "target": "A22:control",
-            "label": "UnknownFamilyError / NoActiveAccountError (no silent fallback)",
+            "label": "unknownfamily錯誤 / 無active帳號錯誤 (無 靜默 fallback)",
             "type": "control"
           },
           {
             "id": "a22_to_a23",
             "source": "A22:output",
             "target": "A23:input",
-            "label": "AuthRecord (token, expiresAt)",
+            "label": "驗證記錄 (token, expires於)",
             "type": "input"
           },
           {
             "id": "a23_out_authctx",
             "source": "A23:output",
             "target": "EXTERNAL",
-            "label": "AuthContext (token, originator scope)",
+            "label": "驗證上下文 (token, originator scope)",
             "type": "output"
           }
         ]
@@ -174,23 +174,23 @@
     {
       "id": "A3",
       "title": "Instantiate SDK Client",
-      "description": "Cache-keyed (family, accountId) SDK creation via getSDK; selects AI-SDK adapter by model.api.npm or self-built path (codex / claude-cli). Anchors: provider.ts getSDK L2115; codex-provider package; claude-provider package."
+      "description": "快取-keyed (family, 帳號id) SDK creation 透過 getSDK; selects AI-SDK adapter 由 模型.api.npm 或 self-built 路徑 (codex / claude-cli). Anchors: provider.ts getSDK L2115; codex-Provider package; claude-Provider package."
     },
     {
       "id": "A4",
-      "title": "Build Request Headers",
-      "description": "Compose headers including authorization, originator, account routing, fingerprint betas, transport-specific add-ons. Anchors: codex-provider headers.ts buildHeaders; claude-provider protocol.ts assembleBetas L232.",
+      "title": "建置 請求 Headers",
+      "description": "Compose headers including authorization, originator, 帳號 routing, fingerprint betas, transport-specific add-ons. Anchors: codex-Provider headers.ts 建置headers; claude-Provider protocol.ts 組裝betas L232.",
       "decomposition": {
-        "diagram_title": "Build Request Headers",
+        "diagram_title": "建置 請求 Headers",
         "node_reference": "A4",
         "activities": [
           {
             "id": "A41",
-            "title": "Assemble Family Fingerprint"
+            "title": "組裝 Family Fingerprint"
           },
           {
             "id": "A42",
-            "title": "Inject Account Routing Headers"
+            "title": "Inject 帳號 Routing Headers"
           },
           {
             "id": "A43",
@@ -202,63 +202,63 @@
             "id": "a41_in_options",
             "source": "EXTERNAL",
             "target": "A41:input",
-            "label": "HeaderOptions (model, provider, flags)",
+            "label": "HeaderOptions (模型, Provider, flags)",
             "type": "input"
           },
           {
             "id": "a41_ctl_betaorder",
             "source": "EXTERNAL",
             "target": "A41:control",
-            "label": "Upstream push order (claude ZR1, codex CODEX_CLI_VERSION)",
+            "label": "Upstream push order (claude ZR1, codex CODEX CLI VERSION)",
             "type": "control"
           },
           {
             "id": "a41_mech_assemble",
             "source": "EXTERNAL",
             "target": "A41:mechanism",
-            "label": "assembleBetas / buildCodexUserAgent / ORIGINATOR",
+            "label": "組裝betas / 建置codex使用者agent / ORIGINATOR",
             "type": "mechanism"
           },
           {
             "id": "a41_to_a42",
             "source": "A41:output",
             "target": "A42:input",
-            "label": "Base headers + anthropic-beta / User-Agent",
+            "label": "Base headers + anthropic-beta / 使用者-Agent",
             "type": "input"
           },
           {
             "id": "a42_ctl_account",
             "source": "EXTERNAL",
             "target": "A42:control",
-            "label": "AuthContext + accountId (TitleCase ChatGPT-Account-Id)",
+            "label": "驗證上下文 + 帳號id (TitleCase ChatGPT-帳號-Id)",
             "type": "control"
           },
           {
             "id": "a42_mech_buildHeaders",
             "source": "EXTERNAL",
             "target": "A42:mechanism",
-            "label": "buildHeaders(options) single entry (HTTP + WS)",
+            "label": "建置headers(options) single 項目 (HTTP + WS)",
             "type": "mechanism"
           },
           {
             "id": "a42_to_a43",
             "source": "A42:output",
             "target": "A43:input",
-            "label": "Headers with auth + account routing",
+            "label": "Headers 使用 驗證 + 帳號 routing",
             "type": "input"
           },
           {
             "id": "a43_ctl_transport",
             "source": "EXTERNAL",
             "target": "A43:control",
-            "label": "isWebSocket flag (transport-ws.ts L580 vs provider.ts L222)",
+            "label": "是websocket flag (transport-ws.ts L580 vs provider.ts L222)",
             "type": "control"
           },
           {
             "id": "a43_out_headers",
             "source": "A43:output",
             "target": "EXTERNAL",
-            "label": "Final headers (HTTP: Accept text/event-stream; WS: OpenAI-Beta responses_websockets)",
+            "label": "Final headers (HTTP: Accept 文字/事件-串流; WS: OpenAI-Beta responseswebsockets)",
             "type": "output"
           }
         ]
@@ -266,15 +266,15 @@
     },
     {
       "id": "A5",
-      "title": "Transform Request Payload",
-      "description": "Apply provider transform pipeline; place cache breakpoints (anthropic) or skip caching (codex/claude-cli native). Anchors: provider/transform.ts ProviderTransform L252; native opt-out L397; codex-compaction.ts buildContextManagement."
+      "title": "Transform 請求 Payload",
+      "description": "Apply Provider transform pipeline; place 快取 breakpoints (anthropic) 或 skip caching (codex/claude-cli native). Anchors: provider/transform.ts Providertransform L252; native opt-out L397; codex-compaction.ts 建置上下文management."
     },
     {
       "id": "A6",
-      "title": "Dispatch And Stream Response",
-      "description": "Send via WS or HTTP, stream chunks, classify errors, update token usage and rate-limit telemetry, optionally fall back HTTP on WS failure. Anchors: codex-provider transport-ws.ts; provider.ts HTTP path L222; error.ts; rotation3d telemetry.",
+      "title": "派發 與 串流 回應",
+      "description": "Send 透過 WS 或 HTTP, 串流 分塊, classify 錯誤, 更新 token usage 與 rate-limit telemetry, optionally fall 回到 HTTP 在 WS failure. Anchors: codex-Provider transport-ws.ts; provider.ts HTTP 路徑 L222; error.ts; 輪替3d telemetry.",
       "decomposition": {
-        "diagram_title": "Dispatch And Stream Response",
+        "diagram_title": "派發 與 串流 回應",
         "node_reference": "A6",
         "activities": [
           {
@@ -283,19 +283,19 @@
           },
           {
             "id": "A62",
-            "title": "Open Connection And Send Payload"
+            "title": "Open Connection 與 Send Payload"
           },
           {
             "id": "A63",
-            "title": "Stream And Classify Chunks"
+            "title": "串流 與 Classify 分塊"
           },
           {
             "id": "A64",
-            "title": "Recover On Continuation Invalidated"
+            "title": "Recover 在 延續 Invalidated"
           },
           {
             "id": "A65",
-            "title": "Update Usage And Rate-Limit Telemetry"
+            "title": "更新 Usage 與 Rate-Limit Telemetry"
           }
         ],
         "arrows": [
@@ -317,28 +317,28 @@
             "id": "a61_to_a62",
             "source": "A61:output",
             "target": "A62:input",
-            "label": "Transport choice (WS or HTTP)",
+            "label": "Transport choice (WS 或 HTTP)",
             "type": "input"
           },
           {
             "id": "a62_mech_transport",
             "source": "EXTERNAL",
             "target": "A62:mechanism",
-            "label": "transport-ws.ts upgrade (WS_BETA_HEADER) / fetch POST",
+            "label": "transport-ws.ts upgrade (WS BETA HEADER) / fetch POST",
             "type": "mechanism"
           },
           {
             "id": "a62_to_a63",
             "source": "A62:output",
             "target": "A63:input",
-            "label": "Synthetic Response (text/event-stream)",
+            "label": "合成 回應 (文字/事件-串流)",
             "type": "input"
           },
           {
             "id": "a63_ctl_errors",
             "source": "EXTERNAL",
             "target": "A63:control",
-            "label": "WrappedWebsocketErrorEvent / HTTP status classifier (error.ts)",
+            "label": "wrappedwebsocket錯誤事件 / HTTP 狀態 classifier (error.ts)",
             "type": "control"
           },
           {
@@ -352,42 +352,42 @@
             "id": "a63_to_a64",
             "source": "A63:output",
             "target": "A64:input",
-            "label": "continuation-invalidated marker / 4xx-5xx",
+            "label": "延續-invalidated marker / 4xx-5xx",
             "type": "input"
           },
           {
             "id": "a64_ctl_bus",
             "source": "EXTERNAL",
             "target": "A64:control",
-            "label": "Bus event channel",
+            "label": "Bus 事件 通道",
             "type": "control"
           },
           {
             "id": "a64_out_event",
             "source": "A64:output",
             "target": "EXTERNAL",
-            "label": "ContinuationInvalidated bus event + cache eviction",
+            "label": "延續invalidated bus 事件 + 快取 eviction",
             "type": "output"
           },
           {
             "id": "a63_to_a65",
             "source": "A63:output",
             "target": "A65:input",
-            "label": "Completion frames (usage, rate_limits)",
+            "label": "Completion frames (usage, ratelimits)",
             "type": "input"
           },
           {
             "id": "a65_mech_telemetry",
             "source": "EXTERNAL",
             "target": "A65:mechanism",
-            "label": "rotation3d quota tracker; [WS-RATE-LIMITS] logger",
+            "label": "輪替3d 配額 tracker; [WS-RATE-LIMITS] logger",
             "type": "mechanism"
           },
           {
             "id": "a65_out_stream",
             "source": "A65:output",
             "target": "EXTERNAL",
-            "label": "Streamed AI-SDK output + telemetry",
+            "label": "Streamed AI-SDK 輸出 + telemetry",
             "type": "output"
           }
         ]
@@ -399,21 +399,21 @@
       "id": "g_in_req",
       "source": "EXTERNAL",
       "target": "A1:input",
-      "label": "Provider request (model, providerId, prompt, tools)",
+      "label": "Provider 請求 (模型, Providerid, 提示, tools)",
       "type": "input"
     },
     {
       "id": "g_ctl_bootguard",
       "source": "EXTERNAL",
       "target": "A1:control",
-      "label": "Migration boot guard (.migration-state.json version=1)",
+      "label": "Migration boot guard (.migration-state.js在 version=1)",
       "type": "control"
     },
     {
       "id": "g_mech_registry",
       "source": "EXTERNAL",
       "target": "A1:mechanism",
-      "label": "Provider.providers registry + database (provider.ts)",
+      "label": "Provider.Provider 註冊表 + database (provider.ts)",
       "type": "mechanism"
     },
     {
@@ -427,63 +427,63 @@
       "id": "g_ctl_accountsjson",
       "source": "EXTERNAL",
       "target": "A2:control",
-      "label": "accounts.json under ~/.config/opencode/",
+      "label": "accounts.js在 under ~/.config/opencode/",
       "type": "control"
     },
     {
       "id": "g_a2_a3",
       "source": "A2:output",
       "target": "A3:input",
-      "label": "(family, accountId, AuthContext)",
+      "label": "(family, 帳號id, 驗證上下文)",
       "type": "input"
     },
     {
       "id": "g_ctl_modelapi",
       "source": "EXTERNAL",
       "target": "A3:control",
-      "label": "model.api.npm switch (AI-SDK adapter selection)",
+      "label": "模型.api.npm switch (AI-SDK adapter selection)",
       "type": "control"
     },
     {
       "id": "g_mech_getsdk",
       "source": "EXTERNAL",
       "target": "A3:mechanism",
-      "label": "getSDK(family, accountId, model) cache (provider.ts L2115)",
+      "label": "getSDK(family, 帳號id, 模型) 快取 (provider.ts L2115)",
       "type": "mechanism"
     },
     {
       "id": "g_a3_a4",
       "source": "A3:output",
       "target": "A4:input",
-      "label": "SDK client + sdk.getModel handle",
+      "label": "SDK client + sdk.get模型 handle",
       "type": "input"
     },
     {
       "id": "g_a3_a5",
       "source": "A3:output",
       "target": "A5:input",
-      "label": "ProviderTransform binding (subscription/native flag)",
+      "label": "Providertransform binding (subscription/native flag)",
       "type": "input"
     },
     {
       "id": "g_a2_a4",
       "source": "A2:output",
       "target": "A4:control",
-      "label": "AuthContext token + accountId for header injection",
+      "label": "驗證上下文 token + 帳號id 供 header injection",
       "type": "control"
     },
     {
       "id": "g_a4_a6",
       "source": "A4:output",
       "target": "A6:control",
-      "label": "Final request headers (HTTP or WS variant)",
+      "label": "Final 請求 headers (HTTP 或 WS variant)",
       "type": "control"
     },
     {
       "id": "g_a5_a6",
       "source": "A5:output",
       "target": "A6:input",
-      "label": "Transformed payload (cache breakpoints applied or skipped)",
+      "label": "Transformed payload (快取 breakpoints applied 或 skipped)",
       "type": "input"
     },
     {
@@ -497,28 +497,28 @@
       "id": "g_out_stream",
       "source": "A6:output",
       "target": "EXTERNAL",
-      "label": "Streamed AI-SDK output to runloop / session",
+      "label": "Streamed AI-SDK 輸出 到 runloop / Session",
       "type": "output"
     },
     {
       "id": "g_out_telemetry",
       "source": "A6:output",
       "target": "EXTERNAL",
-      "label": "Token usage + rate-limit metrics to telemetry bus",
+      "label": "Token usage + rate-limit metrics 到 telemetry bus",
       "type": "output"
     },
     {
       "id": "g_fb_quota",
       "source": "A6:output",
       "target": "A2:control",
-      "label": "Quota-exhaustion signal (rotation3d candidate switch trigger)",
+      "label": "配額-exhaustion signal (輪替3d candidate switch trigger)",
       "type": "control"
     },
     {
       "id": "g_fb_invalidate",
       "source": "A6:output",
       "target": "A5:control",
-      "label": "Continuation-invalidated → cache breakpoint eviction",
+      "label": "延續-invalidated → 快取 breakpoint eviction",
       "type": "control"
     }
   ]

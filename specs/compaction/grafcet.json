@@ -2,13 +2,19 @@
   {
     "StepNumber": 0,
     "StepType": "initial",
-    "StepAction": "AwaitNextRunloopIteration",
+    "StepAction": "等待下一個runloopiteration",
     "ModuleRef": "A0",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [12],
-    "LinkOutputNumber": [1],
-    "Condition": ["runloop_iteration_started"],
+    "LinkInputNumber": [
+      12
+    ],
+    "LinkOutputNumber": [
+      1
+    ],
+    "Condition": [
+      "runloopiterationstarted"
+    ],
     "SubGrafcet": []
   },
   {
@@ -18,141 +24,228 @@
     "ModuleRef": "A1",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2],
-    "Condition": ["derive_observed_done"],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2
+    ],
+    "Condition": [
+      "deriveobserveddone"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "StepType": "normal",
-    "StepAction": "CheckCooldownAndIdleTail",
+    "StepAction": "checkcooldown與閒置tail",
     "ModuleRef": "A11",
     "LinkInputType": [],
     "LinkOutputType": "divergence_or",
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [3, 12],
-    "Condition": ["observed != null && cooldown_clear && tail_clean", "observed == null || cooldown_active || (observed == idle && tail_unclean)"],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      3,
+      12
+    ],
+    "Condition": [
+      "observed != null && cooldownclear && tailclean",
+      "observed == null || cooldownactive || (observed == 閒置 && tailunclean)"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "StepType": "normal",
-    "StepAction": "ResolveKindChain",
+    "StepAction": "解析kindchain",
     "ModuleRef": "A2",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [4],
-    "Condition": ["chain_resolved"],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      4
+    ],
+    "Condition": [
+      "chain已解析"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 4,
     "StepType": "normal",
-    "StepAction": "TryNextKindInChain",
+    "StepAction": "try下一個kind在chain",
     "ModuleRef": "A3",
     "LinkInputType": [],
     "LinkOutputType": "divergence_or",
-    "LinkInputNumber": [3, 5],
-    "LinkOutputNumber": [5, 6, 11],
-    "Condition": ["attempt.ok && !(local && truncated && paid_remaining)", "attempt.failed || local_truncated_escalate", "chain_exhausted"],
+    "LinkInputNumber": [
+      3,
+      5
+    ],
+    "LinkOutputNumber": [
+      5,
+      6,
+      11
+    ],
+    "Condition": [
+      "attempt.ok && !(local && truncated && paidremaining)",
+      "attempt.failed || localtruncatedescalate",
+      "chainexhausted"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 5,
     "StepType": "normal",
-    "StepAction": "AdvanceToNextChainIndex",
+    "StepAction": "advance到下一個chainindex",
     "ModuleRef": "A35",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [4],
-    "LinkOutputNumber": [4],
-    "Condition": ["index_incremented"],
+    "LinkInputNumber": [
+      4
+    ],
+    "LinkOutputNumber": [
+      4
+    ],
+    "Condition": [
+      "indexincremented"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 6,
     "StepType": "normal",
-    "StepAction": "BranchOnAnchorWriter",
+    "StepAction": "branch在anchorwriter",
     "ModuleRef": "A3",
     "LinkInputType": [],
     "LinkOutputType": "divergence_and",
-    "LinkInputNumber": [4],
-    "LinkOutputNumber": [7, 8],
-    "Condition": ["anchor_written_inline || anchor_pending"],
+    "LinkInputNumber": [
+      4
+    ],
+    "LinkOutputNumber": [
+      7,
+      8
+    ],
+    "Condition": [
+      "anchorwritteninline || anchor待處理"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 7,
     "StepType": "normal",
-    "StepAction": "WriteSanitizedAnchorMessage",
+    "StepAction": "writesanitizedanchor訊息",
     "ModuleRef": "A4",
     "LinkInputType": [],
     "LinkOutputType": "convergence_and",
-    "LinkInputNumber": [6],
-    "LinkOutputNumber": [9],
-    "Condition": ["anchor_persisted && telemetry_emitted"],
+    "LinkInputNumber": [
+      6
+    ],
+    "LinkOutputNumber": [
+      9
+    ],
+    "Condition": [
+      "anchorpersisted && telemetryemitted"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 8,
     "StepType": "normal",
-    "StepAction": "EmitCompactionStartedAndKindTelemetry",
+    "StepAction": "發出壓縮started與kindtelemetry",
     "ModuleRef": "A7",
     "LinkInputType": [],
     "LinkOutputType": "convergence_and",
-    "LinkInputNumber": [6],
-    "LinkOutputNumber": [9],
-    "Condition": ["anchor_persisted && telemetry_emitted"],
+    "LinkInputNumber": [
+      6
+    ],
+    "LinkOutputNumber": [
+      9
+    ],
+    "Condition": [
+      "anchorpersisted && telemetryemitted"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 9,
     "StepType": "normal",
-    "StepAction": "InjectSyntheticContinueIfAllowed",
+    "StepAction": "inject合成繼續ifallowed",
     "ModuleRef": "A5",
-    "LinkInputType": ["convergence_and"],
+    "LinkInputType": [
+      "convergence_and"
+    ],
     "LinkOutputType": "track",
-    "LinkInputNumber": [7, 8],
-    "LinkOutputNumber": [10],
-    "Condition": ["INJECT_CONTINUE[observed] applied or skipped"],
+    "LinkInputNumber": [
+      7,
+      8
+    ],
+    "LinkOutputNumber": [
+      10
+    ],
+    "Condition": [
+      "INJECT CONTINUE[observed] applied 或 skipped"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 10,
     "StepType": "normal",
-    "StepAction": "ApplyCacheLayoutAndStaticSystem",
+    "StepAction": "apply快取layout與staticsystem",
     "ModuleRef": "A6",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [9],
-    "LinkOutputNumber": [12],
-    "Condition": ["bp1_bp2_bp3_bp4_placed && hash_recorded"],
+    "LinkInputNumber": [
+      9
+    ],
+    "LinkOutputNumber": [
+      12
+    ],
+    "Condition": [
+      "bp1bp2bp3bp4placed && hashrecorded"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 11,
     "StepType": "normal",
-    "StepAction": "AbortWithStopVerdict",
+    "StepAction": "abort使用stopverdict",
     "ModuleRef": "A36",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [4],
-    "LinkOutputNumber": [12],
-    "Condition": ["chain_exhausted_logged"],
+    "LinkInputNumber": [
+      4
+    ],
+    "LinkOutputNumber": [
+      12
+    ],
+    "Condition": [
+      "chainexhaustedlogged"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 12,
     "StepType": "normal",
-    "StepAction": "ReturnVerdictToRunloop",
+    "StepAction": "返回verdict到runloop",
     "ModuleRef": "A0",
-    "LinkInputType": ["convergence_or"],
+    "LinkInputType": [
+      "convergence_or"
+    ],
     "LinkOutputType": "track",
-    "LinkInputNumber": [2, 10, 11],
-    "LinkOutputNumber": [0],
-    "Condition": ["runloop_resumed"],
+    "LinkInputNumber": [
+      2,
+      10,
+      11
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
+    "Condition": [
+      "runloopresumed"
+    ],
     "SubGrafcet": []
   }
 ]

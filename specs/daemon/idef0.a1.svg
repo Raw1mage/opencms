@@ -1,88 +1,84 @@
-<svg width="1742.3" height="717.6" viewBox="-241.1 -165.8 1742.3 717.6" xmlns="http://www.w3.org/2000/svg">
+<svg width="1927.7" height="717.6" viewBox="-326.9 -165.8 1927.7 717.6" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
 <marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
 </defs>
-<rect x="-241.1" y="-165.8" width="1742.3" height="717.6" fill="white" />
-<rect x="130.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A11" />
-<text x="230.0" y="155.3" text-anchor="middle" font-size="11" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >A11</text>
-<text x="230.0" y="181.1" text-anchor="middle" font-size="13" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >ACCEPT TCP CONNECTION</text>
-<text x="230.0" y="205.4" text-anchor="middle" font-size="13" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >ON PORT 1080</text>
-<rect x="518.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A12" />
-<text x="618.0" y="155.3" text-anchor="middle" font-size="11" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >A12</text>
-<text x="618.0" y="181.1" text-anchor="middle" font-size="13" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >BUFFER PENDING REQUEST</text>
-<text x="618.0" y="205.4" text-anchor="middle" font-size="13" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >UNTIL HEADER COMPLETE</text>
-<rect x="930.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A13" />
-<text x="1030.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A13" >A13</text>
-<text x="1030.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A13" >AUTHENTICATE</text>
-<text x="1030.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A13" >VIA PAM PTHREAD</text>
-<rect x="130.0" y="340.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A14" />
-<text x="230.0" y="369.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A14" >A14</text>
-<text x="230.0" y="401.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A14" >ISSUE AND VERIFY</text>
-<text x="230.0" y="432.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A14" >JWT COOKIE</text>
-<rect x="518.0" y="340.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A15" />
-<text x="618.0" y="369.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A15" >A15</text>
-<text x="618.0" y="401.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A15" >DISPATCH GATEWAY</text>
-<text x="618.0" y="432.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A15" >OWNED ROUTES</text>
-<rect x="930.0" y="340.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A16" />
-<text x="1030.0" y="369.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A16" >A16</text>
-<text x="1030.0" y="401.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A16" >SPLICE BYTES TO</text>
-<text x="1030.0" y="432.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A16" >DAEMON SOCKET</text>
-<rect x="40.0" y="44.2" width="1180.0" height="497.6" stroke="black" fill="none" stroke-width="2" />
-<rect x="498.0" y="-155.8" width="264.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
-<text x="630.0" y="-129.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
-<text x="630.0" y="-99.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >ROUTE HTTP</text>
-<text x="630.0" y="-69.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >THROUGH GATEWAY</text>
-<line x1="498.0" y1="-155.8" x2="40.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="762.0" y1="-155.8" x2="1220.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="498.0" y1="-45.8" x2="40.0" y2="541.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="762.0" y1="-45.8" x2="1220.0" y2="541.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<path d="M 330.0 180.0 L 518.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a1f1" data-waypoints="330.0,180.0 518.0,180.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 718.0 180.0 L 930.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a1f2" data-waypoints="718.0,180.0 930.0,180.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 400.0 L 518.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="a1f4" data-waypoints="330.0,400.0 518.0,400.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 718.0 380.0 L 930.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="a1f5" data-waypoints="718.0,380.0 930.0,380.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1130.0 180.0 L 1160.0 180.0 Q 1170.0 180.0 1170.0 190.0 L 1170.0 280.0 Q 1170.0 290.0 1160.0 290.0 L 100.0 290.0 Q 90.0 290.0 90.0 300.0 L 90.0 390.0 Q 90.0 400.0 100.0 400.0 L 130.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="a1f3" data-waypoints="1130.0,180.0 1170.0,180.0 1170.0,290.0 90.0,290.0 90.0,400.0 130.0,400.0" marker-end="url(#arrow)" fill="none" />
+<rect x="-326.9" y="-165.8" width="1927.7" height="717.6" fill="white" />
+<rect x="130.0" y="120.0" width="220.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A11" />
+<text x="240.0" y="152.4" text-anchor="middle" font-size="13" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >A11</text>
+<text x="240.0" y="181.0" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >ACCEPT TCP CONNECTION</text>
+<text x="240.0" y="209.1" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >在 PORT 1080</text>
+<rect x="518.0" y="120.0" width="220.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A12" />
+<text x="628.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >A12</text>
+<text x="628.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >BUFFER 待處理 請求</text>
+<text x="628.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >直到 HEADER 完成</text>
+<rect x="924.0" y="120.0" width="220.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A13" />
+<text x="1034.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A13" >A13</text>
+<text x="1034.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A13" >驗證 透過</text>
+<text x="1034.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A13" >PAM PTHREAD</text>
+<rect x="130.0" y="340.0" width="220.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A14" />
+<text x="240.0" y="369.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A14" >A14</text>
+<text x="240.0" y="401.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A14" >ISSUE 與 VERIFY</text>
+<text x="240.0" y="432.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A14" >JWT COOKIE</text>
+<rect x="518.0" y="340.0" width="220.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A15" />
+<text x="628.0" y="369.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A15" >A15</text>
+<text x="628.0" y="401.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A15" >派發 GATEWAY</text>
+<text x="628.0" y="432.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A15" >OWNED 路由</text>
+<rect x="924.0" y="340.0" width="220.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A16" />
+<text x="1034.0" y="369.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A16" >A16</text>
+<text x="1034.0" y="401.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A16" >SPLICE 位元組 到</text>
+<text x="1034.0" y="432.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A16" >DAEMON SOCKET</text>
+<rect x="40.0" y="44.2" width="1194.0" height="497.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="510.0" y="-155.8" width="254.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="637.0" y="-129.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
+<text x="637.0" y="-99.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >路由 HTTP</text>
+<text x="637.0" y="-69.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >THROUGH GATEWAY</text>
+<line x1="510.0" y1="-155.8" x2="40.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="764.0" y1="-155.8" x2="1234.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="510.0" y1="-45.8" x2="40.0" y2="541.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="764.0" y1="-45.8" x2="1234.0" y2="541.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 350.0 180.0 L 518.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a1f1" data-waypoints="350.0,180.0 518.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 738.0 180.0 L 924.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a1f2" data-waypoints="738.0,180.0 924.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 350.0 400.0 L 518.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="a1f4" data-waypoints="350.0,400.0 518.0,400.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 738.0 380.0 L 924.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="a1f5" data-waypoints="738.0,380.0 924.0,380.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1144.0 180.0 L 1174.0 180.0 Q 1184.0 180.0 1184.0 190.0 L 1184.0 280.0 Q 1184.0 290.0 1174.0 290.0 L 100.0 290.0 Q 90.0 290.0 90.0 300.0 L 90.0 390.0 Q 90.0 400.0 100.0 400.0 L 130.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="a1f3" data-waypoints="1144.0,180.0 1184.0,180.0 1184.0,290.0 90.0,290.0 90.0,400.0 130.0,400.0" marker-end="url(#arrow)" fill="none" />
 <path d="M -10.0 180.0 L 130.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a1in1" data-waypoints="-10.0,180.0 130.0,180.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a1in2" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 275.8 L 230.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a1in3" data-waypoints="230.0,275.8 230.0,240.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 618.0 84.2 L 618.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a1mc1" data-waypoints="618.0,84.2 618.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1030.0 84.2 L 1030.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a1mc2" data-waypoints="1030.0,84.2 1030.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1030.0 275.8 L 1030.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a1mc3" data-waypoints="1030.0,275.8 1030.0,240.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 304.2 L 230.0 340.0" stroke="black" stroke-width="1.2" data-arrow-id="a1mc4" data-waypoints="230.0,304.2 230.0,340.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 618.0 304.2 L 618.0 340.0" stroke="black" stroke-width="1.2" data-arrow-id="a1mc5" data-waypoints="618.0,304.2 618.0,340.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 718.0 420.0 L 814.0 420.0 Q 824.0 420.0 824.0 430.0 L 824.0 491.8 Q 824.0 501.8 834.0 501.8 L 1270.0 501.8" stroke="black" stroke-width="1.2" data-arrow-id="a1f6" data-waypoints="718.0,420.0 824.0,420.0 824.0,501.8 1270.0,501.8" marker-end="url(#arrow)" fill="none" />
-<path d="M 1030.0 495.8 L 1030.0 460.0" stroke="black" stroke-width="1.2" data-arrow-id="a1mc6" data-waypoints="1030.0,495.8 1030.0,460.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1030.0 304.2 L 1030.0 340.0" stroke="black" stroke-width="1.2" data-arrow-id="a1f7" data-waypoints="1030.0,304.2 1030.0,340.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1130.0 400.0 L 1270.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="a1out1" data-waypoints="1130.0,400.0 1270.0,400.0" marker-end="url(#arrow)" fill="none" />
-<text x="230.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1in2">epoll EpollCtx Discriminated Union</text>
-<text x="224.0" y="256.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1in3">opencode-gateway</text>
-<text x="236.0" y="256.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1in3">Single Process</text>
-<text x="618.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1mc1">MAX_CONNS=1024 Cap And 30s No-Progress Timeout</text>
-<text x="1030.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1mc2">google-bindings.json And /etc/pam.d Stack</text>
-<text x="1024.0" y="256.0" font-size="11" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1mc3">PAM Worker Pthread</text>
-<text x="1036.0" y="256.0" font-size="11" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1mc3">Plus eventfd AUTH_NOTIFY</text>
-<text x="224.0" y="334.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1mc4">/run/opencode-gateway</text>
-<text x="236.0" y="334.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1mc4">jwt.key HMAC-SHA256 Secret</text>
-<text x="612.0" y="334.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1mc5">/etc/opencode/web_routes.conf</text>
-<text x="624.0" y="334.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1mc5">Longest Prefix Table</text>
-<text x="1024.0" y="476.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1mc6">splice(2) Zero-Copy</text>
-<text x="1036.0" y="476.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1mc6">SPLICE_CLIENT SPLICE_DAEMON</text>
-<text x="1024.0" y="334.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1f7">Daemon Discovery</text>
-<text x="1036.0" y="334.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1f7">File daemon.json</text>
-<text x="424.0" y="175.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1f1">Accepted</text>
-<text x="424.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1f1">Connection Slot</text>
-<text x="824.0" y="175.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1f2">Parsed HTTP Header</text>
-<text x="824.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1f2">With Cookie</text>
-<text x="424.0" y="395.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1f4">Authenticated Request</text>
-<text x="424.0" y="412.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1f4">With UID Claim</text>
-<text x="824.0" y="375.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1f5">Routed Request Targeting</text>
-<text x="824.0" y="392.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1f5">Per-User Daemon</text>
-<text x="618.0" y="282.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1f3" >PAM Verdict And UID</text>
-<text x="-14.0" y="171.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1in1">Browser TCP</text>
-<text x="-14.0" y="197.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1in1">Stream From Nginx</text>
-<text x="1274.0" y="492.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1f6">Login HTML Or</text>
-<text x="1274.0" y="518.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1f6">Health 200 Response</text>
-<text x="1274.0" y="378.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1out1">Bidirectional</text>
-<text x="1274.0" y="404.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1out1">Bytes To Per-User</text>
-<text x="1274.0" y="430.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1out1">Daemon Socket</text>
+<path d="M 240.0 84.2 L 240.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a1in2" data-waypoints="240.0,84.2 240.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 240.0 275.8 L 240.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a1in3" data-waypoints="240.0,275.8 240.0,240.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 628.0 84.2 L 628.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a1mc1" data-waypoints="628.0,84.2 628.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1034.0 84.2 L 1034.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a1mc2" data-waypoints="1034.0,84.2 1034.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1034.0 275.8 L 1034.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="a1mc3" data-waypoints="1034.0,275.8 1034.0,240.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 240.0 304.2 L 240.0 340.0" stroke="black" stroke-width="1.2" data-arrow-id="a1mc4" data-waypoints="240.0,304.2 240.0,340.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 628.0 304.2 L 628.0 340.0" stroke="black" stroke-width="1.2" data-arrow-id="a1mc5" data-waypoints="628.0,304.2 628.0,340.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 738.0 420.0 L 821.0 420.0 Q 831.0 420.0 831.0 430.0 L 831.0 491.8 Q 831.0 501.8 841.0 501.8 L 1284.0 501.8" stroke="black" stroke-width="1.2" data-arrow-id="a1f6" data-waypoints="738.0,420.0 831.0,420.0 831.0,501.8 1284.0,501.8" marker-end="url(#arrow)" fill="none" />
+<path d="M 1034.0 495.8 L 1034.0 460.0" stroke="black" stroke-width="1.2" data-arrow-id="a1mc6" data-waypoints="1034.0,495.8 1034.0,460.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1034.0 304.2 L 1034.0 340.0" stroke="black" stroke-width="1.2" data-arrow-id="a1f7" data-waypoints="1034.0,304.2 1034.0,340.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1144.0 400.0 L 1284.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="a1out1" data-waypoints="1144.0,400.0 1284.0,400.0" marker-end="url(#arrow)" fill="none" />
+<text x="240.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1in2">epoll EpollCtx Discriminated Union</text>
+<text x="234.0" y="256.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1in3">opencode-Gateway</text>
+<text x="246.0" y="256.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1in3">Single Process</text>
+<text x="628.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1mc1">MAX CONNS=1024 Cap 與 30s 無進展 Timeout</text>
+<text x="1034.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1mc2">google-bindings.js在 與 /etc/pam.d Stack</text>
+<text x="1028.0" y="256.0" font-size="11" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1mc3">PAM worker Pthread</text>
+<text x="1040.0" y="256.0" font-size="11" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1mc3">Plus eventfd AUTH NOTIFY</text>
+<text x="234.0" y="334.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1mc4">/執行/opencode-Gateway</text>
+<text x="246.0" y="334.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1mc4">JWT.key HMAC-SHA256 Secret</text>
+<text x="622.0" y="334.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1mc5">/etc/opencode/web</text>
+<text x="634.0" y="334.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1mc5">routes.conf Longest 前綴 表</text>
+<text x="1028.0" y="476.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1mc6">splice(2) Zero-Copy</text>
+<text x="1040.0" y="476.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1mc6">SPLICE CLIENT SPLICE DAEMON</text>
+<text x="1028.0" y="334.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1f7">Daemon Discovery</text>
+<text x="1040.0" y="334.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1f7">檔案 daemon.js在</text>
+<text x="434.0" y="175.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1f1">Accepted</text>
+<text x="434.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1f1">Connection Slot</text>
+<text x="831.0" y="180.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1f2"><tspan x="831.0" dy="0">Parsed HTTP</tspan><tspan x="831.0" dy="16.0">Header</tspan><tspan x="831.0" dy="16.0">使用 cookie</tspan></text>
+<text x="434.0" y="395.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1f4">Authenticated</text>
+<text x="434.0" y="412.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1f4">請求 使用 UID Claim</text>
+<text x="831.0" y="375.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1f5">Routed 請求 Targeting</text>
+<text x="831.0" y="392.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1f5">依-使用者 Daemon</text>
+<text x="637.0" y="282.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1f3" >PAM Verdict 與 UID</text>
+<text x="-14.0" y="184.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1in1">Browser TCP 串流 來自 Nginx</text>
+<text x="1288.0" y="505.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1f6">登入 HTML 或 健康 200 回應</text>
+<text x="1288.0" y="391.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1out1">Bidirectional 位元組 到</text>
+<text x="1288.0" y="417.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1out1">依-使用者 Daemon Socket</text>
 </svg>

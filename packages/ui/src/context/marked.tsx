@@ -467,9 +467,36 @@ export const { use: useMarked, provider: MarkedProvider } = createSimpleContext(
     const jsParser = marked.use(
       {
         renderer: {
-          link({ href, title, text }) {
+          link(token) {
+            const { href, title, text, tokens } = token as {
+              href: string
+              title?: string | null
+              text: string
+              tokens?: unknown[]
+            }
+            const inner =
+              tokens && (this as any).parser ? (this as any).parser.parseInline(tokens) : text
+            if (href.startsWith("opencode-file://")) {
+              try {
+                const url = new URL(href)
+                const encodedPath = `${url.host}${url.pathname}`
+                const decodedPath = decodeURIComponent(encodedPath)
+                const escapePath = decodedPath
+                  .replace(/&/g, "&amp;")
+                  .replace(/"/g, "&quot;")
+                  .replace(/</g, "&lt;")
+                  .replace(/>/g, "&gt;")
+                const line = url.searchParams.get("line")
+                const column = url.searchParams.get("column")
+                const lineAttr = line ? ` data-fileview-line="${line}"` : ""
+                const columnAttr = column ? ` data-fileview-column="${column}"` : ""
+                return `<a href="#" class="fileview-link" data-fileview-path="${escapePath}"${lineAttr}${columnAttr}>${inner}</a>`
+              } catch {
+                // fall through to default external-link rendering
+              }
+            }
             const titleAttr = title ? ` title="${title}"` : ""
-            return `<a href="${href}"${titleAttr} class="external-link" target="_blank" rel="noopener noreferrer">${text}</a>`
+            return `<a href="${href}"${titleAttr} class="external-link" target="_blank" rel="noopener noreferrer">${inner}</a>`
           },
         },
       },

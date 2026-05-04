@@ -1,170 +1,162 @@
-<svg width="1850" height="2260" viewBox="-376.8 -40.0 1850.4 2260.0" xmlns="http://www.w3.org/2000/svg">
-<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker></defs>
-<rect x="-376.8" y="-40.0" width="1850.4" height="2260.0" fill="white" />
-<rect x="360.0" y="80.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<rect x="365.0" y="85.0" width="70.0" height="50.0" stroke="black" stroke-width="1" fill="none" />
-<text x="400" y="115.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">0</text>
-<line x1="440" y1="110.0" x2="480.0" y2="110.0" stroke="black" />
-<rect x="480.0000000000001" y="80.0" width="336.8" height="60.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="648.4000000000001" y="114.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">idleAwaitingUpload</text>
-<line x1="400" y1="140.0" x2="400" y2="220" stroke="black" />
-<line x1="380" y1="180.0" x2="420" y2="180.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="184.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">uploadRequestReceived</text>
-<rect x="360.0" y="220.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="255.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">1</text>
-<line x1="440" y1="250.0" x2="480.0" y2="250.0" stroke="black" />
-<rect x="480.0000000000001" y="220.0" width="336.8" height="60.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="648.4000000000001" y="254.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">parseMultipartAndDetectMime</text>
-<line x1="400" y1="280" x2="400" y2="320" stroke="black" />
-<line x1="-216.79999999999995" y1="320" x2="728.4000000000001" y2="320" stroke="black" stroke-width="1.5" />
-<line x1="-176.79999999999995" y1="320" x2="-176.79999999999995" y2="360" stroke="black" />
-<line x1="-196.79999999999995" y1="360" x2="-156.79999999999995" y2="360" stroke="black" stroke-width="2" />
-<text x="-200.79999999999995" y="364" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">mime.startsWith(&#x27;image/&#x27;)</text>
-<line x1="-176.79999999999995" y1="360" x2="-176.79999999999995" y2="400" stroke="black" marker-end="url(#arrow)" />
-<line x1="688.4000000000001" y1="320" x2="688.4000000000001" y2="360" stroke="black" />
-<line x1="668.4000000000001" y1="360" x2="708.4000000000001" y2="360" stroke="black" stroke-width="2" />
-<text x="712.4000000000001" y="364" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">!mime.startsWith(&#x27;image/&#x27;)</text>
-<line x1="688.4000000000001" y1="360" x2="688.4000000000001" y2="400" stroke="black" marker-end="url(#arrow)" />
-<rect x="-216.79999999999995" y="400.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-176.79999999999995" y="435.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">2</text>
-<line x1="-136.79999999999995" y1="430.0" x2="-96.79999999999995" y2="430.0" stroke="black" />
-<rect x="-96.79999999999997" y="400.0" width="336.8" height="60.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="71.60000000000004" y="434.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">writeImageToSessionXdg</text>
-<line x1="-176.79999999999995" y1="460.0" x2="-176.79999999999995" y2="540" stroke="black" />
-<line x1="-196.79999999999995" y1="500.0" x2="-156.79999999999995" y2="500.0" stroke="black" stroke-width="2" />
-<text x="-152.79999999999995" y="504.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">sessionPathWriteOk</text>
-<rect x="648.4000000000001" y="400.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="688.4000000000001" y="435.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">3</text>
-<line x1="728.4000000000001" y1="430.0" x2="768.4000000000001" y2="430.0" stroke="black" />
-<rect x="768.4000000000001" y="400.0" width="336.8" height="60.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="936.8000000000001" y="434.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">sanitizeAndLandInIncoming</text>
-<line x1="688.4000000000001" y1="460" x2="688.4000000000001" y2="500" stroke="black" />
-<line x1="360.0" y1="500" x2="1016.8000000000001" y2="500" stroke="black" stroke-width="1.5" />
-<line x1="400.0" y1="500" x2="400.0" y2="540" stroke="black" />
-<line x1="380.0" y1="540" x2="420.0" y2="540" stroke="black" stroke-width="2" />
-<text x="376.0" y="544" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">isOfficeMime(classifyOffice)</text>
-<line x1="400.0" y1="540" x2="400.0" y2="580" stroke="black" marker-end="url(#arrow)" />
-<line x1="976.8000000000001" y1="500" x2="976.8000000000001" y2="540" stroke="black" />
-<line x1="956.8000000000001" y1="540" x2="996.8000000000001" y2="540" stroke="black" stroke-width="2" />
-<text x="1000.8000000000002" y="544" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">!isOfficeMime</text>
-<line x1="976.8000000000001" y1="540" x2="976.8000000000001" y2="580" stroke="black" marker-end="url(#arrow)" />
-<rect x="360.0" y="580.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400.0" y="615.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">4</text>
-<line x1="440.0" y1="610.0" x2="480.0" y2="610.0" stroke="black" />
-<rect x="480.0000000000001" y="580.0" width="336.8" height="60.0" stroke="black" stroke-width="1.2" fill="white" />
-<line x1="492.0" y1="580.0" x2="492.0" y2="640.0" stroke="black" />
-<line x1="804.8000000000001" y1="580.0" x2="804.8000000000001" y2="640.0" stroke="black" />
-<text x="648.4000000000001" y="614.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">runDocxAutoDecompose</text>
-<line x1="400.0" y1="640.0" x2="400.0" y2="720" stroke="black" />
-<line x1="380.0" y1="680.0" x2="420.0" y2="680.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="684.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">routingHintRendered</text>
-<rect x="936.8000000000001" y="580.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="976.8000000000001" y="615.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">5</text>
-<line x1="1016.8000000000001" y1="610.0" x2="1056.8000000000002" y2="610.0" stroke="black" />
-<rect x="1056.8" y="580.0" width="336.8" height="60.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="1225.2" y="614.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">writeIncomingFileAndAppendHistory</text>
-<line x1="976.8000000000001" y1="640.0" x2="976.8000000000001" y2="720" stroke="black" />
-<line x1="956.8000000000001" y1="680.0" x2="996.8000000000001" y2="680.0" stroke="black" stroke-width="2" />
-<text x="1000.8000000000002" y="684.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">jsonlAppendedSourceUpload</text>
-<line x1="360.0" y1="720" x2="1016.8000000000001" y2="720" stroke="black" stroke-width="1.5" />
-<line x1="400.0" y1="720" x2="400.0" y2="720" stroke="black" />
-<line x1="976.8000000000001" y1="720" x2="976.8000000000001" y2="720" stroke="black" />
-<line x1="688.4000000000001" y1="720" x2="688.4000000000001" y2="760" stroke="black" marker-end="url(#arrow)" />
-<line x1="-216.79999999999995" y1="760" x2="728.4000000000001" y2="760" stroke="black" stroke-width="1.5" />
-<line x1="-176.79999999999995" y1="540" x2="-176.79999999999995" y2="760" stroke="black" />
-<line x1="688.4000000000001" y1="760" x2="688.4000000000001" y2="760" stroke="black" />
-<line x1="400" y1="760" x2="400" y2="800" stroke="black" marker-end="url(#arrow)" />
-<rect x="360.0" y="800.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="835.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">6</text>
-<line x1="440" y1="830.0" x2="480.0" y2="830.0" stroke="black" />
-<rect x="480.0000000000001" y="800.0" width="336.8" height="60.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="648.4000000000001" y="834.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">emitAttachmentRefPart</text>
-<line x1="400" y1="860.0" x2="400" y2="940" stroke="black" />
-<line x1="380" y1="900.0" x2="420" y2="900.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="904.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">attachmentRefPersisted</text>
-<rect x="360.0" y="940.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="975.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">7</text>
-<line x1="440" y1="970.0" x2="480.0" y2="970.0" stroke="black" />
-<rect x="480.0000000000001" y="940.0" width="336.8" height="60.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="648.4000000000001" y="974.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">buildAttachedImagesInventoryBlock</text>
-<line x1="400" y1="1000.0" x2="400" y2="1080" stroke="black" />
-<line x1="380" y1="1040.0" x2="420" y2="1040.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="1044.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">sessionHasImageAttachment</text>
-<rect x="360.0" y="1080.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="1115.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">8</text>
-<line x1="440" y1="1110.0" x2="480.0" y2="1110.0" stroke="black" />
-<rect x="480.0000000000001" y="1080.0" width="336.8" height="60.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="648.4000000000001" y="1114.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">assemblePrefaceTrailingExtras</text>
-<line x1="400" y1="1140.0" x2="400" y2="1220" stroke="black" />
-<line x1="380" y1="1180.0" x2="420" y2="1180.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="1184.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">prefaceReadyForLlm</text>
-<rect x="360.0" y="1220.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="1255.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">9</text>
-<line x1="440" y1="1250.0" x2="480.0" y2="1250.0" stroke="black" />
-<rect x="480.0000000000001" y="1220.0" width="336.8" height="60.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="648.4000000000001" y="1254.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">awaitAiDecision</text>
-<line x1="400" y1="1280" x2="400" y2="1320" stroke="black" />
-<line x1="279.99999999999994" y1="1320" x2="728.4000000000001" y2="1320" stroke="black" stroke-width="1.5" />
-<line x1="319.99999999999994" y1="1320" x2="319.99999999999994" y2="1360" stroke="black" />
-<line x1="299.99999999999994" y1="1360" x2="340.0" y2="1360" stroke="black" stroke-width="2" />
-<text x="296.0" y="1364" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">aiCallsRereadAttachment</text>
-<line x1="319.99999999999994" y1="1360" x2="319.99999999999994" y2="1400" stroke="black" marker-end="url(#arrow)" />
-<line x1="688.4000000000001" y1="1320" x2="688.4000000000001" y2="1360" stroke="black" />
-<line x1="668.4000000000001" y1="1360" x2="708.4000000000001" y2="1360" stroke="black" stroke-width="2" />
-<text x="712.4000000000001" y="1364" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">aiSkipsReread</text>
-<line x1="688.4000000000001" y1="1360" x2="688.4000000000001" y2="1400" stroke="black" />
-<rect x="279.99999999999994" y="1400.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="319.99999999999994" y="1435.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">10</text>
-<line x1="360.0" y1="1430.0" x2="400.0" y2="1430.0" stroke="black" />
-<rect x="400.0000000000001" y="1400.0" width="336.8" height="60.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="568.4000000000001" y="1434.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">voucherFilenameViaRereadTool</text>
-<line x1="319.99999999999994" y1="1460.0" x2="319.99999999999994" y2="1540" stroke="black" />
-<line x1="299.99999999999994" y1="1500.0" x2="340.0" y2="1500.0" stroke="black" stroke-width="2" />
-<text x="344.0" y="1504.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">filenameMatchesAttachmentRef</text>
-<rect x="279.99999999999994" y="1540.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="319.99999999999994" y="1575.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">11</text>
-<line x1="360.0" y1="1570.0" x2="400.0" y2="1570.0" stroke="black" />
-<rect x="400.0000000000001" y="1540.0" width="336.8" height="60.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="568.4000000000001" y="1574.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">appendActiveImageRefsWithFifoCap</text>
-<line x1="319.99999999999994" y1="1600.0" x2="319.99999999999994" y2="1680" stroke="black" />
-<line x1="299.99999999999994" y1="1640.0" x2="340.0" y2="1640.0" stroke="black" stroke-width="2" />
-<text x="344.0" y="1644.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">setActiveImageRefsCommitted</text>
-<rect x="279.99999999999994" y="1680.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="319.99999999999994" y="1715.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">12</text>
-<line x1="360.0" y1="1710.0" x2="400.0" y2="1710.0" stroke="black" />
-<rect x="400.0000000000001" y="1680.0" width="336.8" height="60.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="568.4000000000001" y="1714.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">loadBytesAndInlineInBp4Trailing</text>
-<line x1="319.99999999999994" y1="1740.0" x2="319.99999999999994" y2="1820" stroke="black" />
-<line x1="299.99999999999994" y1="1780.0" x2="340.0" y2="1780.0" stroke="black" stroke-width="2" />
-<text x="344.0" y="1784.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">imageBytesInlinedInTrailingExtras</text>
-<line x1="279.99999999999994" y1="1820" x2="728.4000000000001" y2="1820" stroke="black" stroke-width="1.5" />
-<line x1="319.99999999999994" y1="1820" x2="319.99999999999994" y2="1820" stroke="black" />
-<line x1="688.4000000000001" y1="1400" x2="688.4000000000001" y2="1820" stroke="black" />
-<line x1="400" y1="1820" x2="400" y2="1860" stroke="black" marker-end="url(#arrow)" />
-<rect x="360.0" y="1860.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="1895.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">13</text>
-<line x1="440" y1="1890.0" x2="480.0" y2="1890.0" stroke="black" />
-<rect x="480.0000000000001" y="1860.0" width="336.8" height="60.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="648.4000000000001" y="1894.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">streamAssistantTurn</text>
-<line x1="400" y1="1920.0" x2="400" y2="2000" stroke="black" />
-<line x1="380" y1="1960.0" x2="420" y2="1960.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="1964.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">stepFinishEmitted</text>
-<rect x="360.0" y="2000.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="2035.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">14</text>
-<line x1="440" y1="2030.0" x2="480.0" y2="2030.0" stroke="black" />
-<rect x="480.0000000000001" y="2000.0" width="336.8" height="60.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="648.4000000000001" y="2034.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">drainActiveImageRefs</text>
-<line x1="400" y1="2060.0" x2="400" y2="2140" stroke="black" />
-<line x1="380" y1="2100.0" x2="420" y2="2100.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="2104.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">activeImageRefsCleared</text>
-<line x1="400" y1="2140" x2="400" y2="2140.0" stroke="black" />
-<line x1="400" y1="2140.0" x2="-296.79999999999995" y2="2140.0" stroke="black" />
-<line x1="-296.79999999999995" y1="2140.0" x2="-296.79999999999995" y2="40.0" stroke="black" />
-<line x1="-296.79999999999995" y1="40.0" x2="400" y2="40.0" stroke="black" />
-<line x1="400" y1="40.0" x2="400" y2="80.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="688.4000000000001" y1="1400" x2="688.4000000000001" y2="1400" stroke="black" />
-<line x1="688.4000000000001" y1="1400" x2="688.4000000000001" y2="1400" stroke="black" />
-<line x1="688.4000000000001" y1="1400" x2="688.4000000000001" y2="1840.0" stroke="black" />
-<line x1="688.4000000000001" y1="1840.0" x2="400" y2="1840.0" stroke="black" />
-<line x1="400" y1="1840.0" x2="400" y2="1860.0" stroke="black" marker-end="url(#arrow)" />
+<svg xmlns="http://www.w3.org/2000/svg" width="1308" height="2260" viewBox="-4.00 -1.92 65.39 113.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="-4.00" y="-1.92" width="65.39" height="113.00" fill="white"/>
+<path class="edge edge-arrow" d="M 20.00 90.76 L 29.50 90.76 Q 30.00 90.76 30.00 91.26 L 30.00 92.84"/>
+<path class="edge" d="M 20.00 7.08 L 20.00 9.16"/>
+<path class="edge edge-arrow" d="M 20.00 9.16 L 20.00 11.24"/>
+<path class="edge" d="M 20.00 14.24 L 20.00 16.32"/>
+<path class="edge edge-arrow" d="M 10.00 16.32 L 10.00 17.82 Q 10.00 18.32 10.00 18.82 L 10.00 20.40"/>
+<path class="edge edge-arrow" d="M 30.00 16.32 L 30.00 17.82 Q 30.00 18.32 30.00 18.82 L 30.00 20.40"/>
+<path class="edge" d="M 10.00 23.40 L 10.00 26.98 Q 10.00 27.48 9.50 27.48 L 2.50 27.48 Q 2.00 27.48 2.00 27.98 L 2.00 34.14 Q 2.00 34.64 2.50 34.64 L 9.50 34.64 Q 10.00 34.64 10.00 35.14 L 10.00 36.64"/>
+<path class="edge edge-arrow" d="M 25.00 36.64 L 20.50 36.64 Q 20.00 36.64 20.00 37.14 L 20.00 38.72"/>
+<path class="edge" d="M 30.00 23.40 L 30.00 25.48"/>
+<path class="edge edge-arrow" d="M 20.00 25.48 L 20.00 26.98 Q 20.00 27.48 20.00 27.98 L 20.00 29.56"/>
+<path class="edge edge-arrow" d="M 40.00 25.48 L 40.00 26.98 Q 40.00 27.48 40.00 27.98 L 40.00 29.56"/>
+<path class="edge" d="M 20.00 32.56 L 20.00 36.64"/>
+<path class="edge" d="M 40.00 32.56 L 40.00 36.64"/>
+<path class="edge" d="M 20.00 41.72 L 20.00 43.80"/>
+<path class="edge edge-arrow" d="M 20.00 43.80 L 20.00 45.88"/>
+<path class="edge" d="M 20.00 48.88 L 20.00 50.96"/>
+<path class="edge edge-arrow" d="M 20.00 50.96 L 20.00 53.04"/>
+<path class="edge" d="M 20.00 56.04 L 20.00 58.12"/>
+<path class="edge edge-arrow" d="M 20.00 58.12 L 20.00 60.20"/>
+<path class="edge" d="M 20.00 63.20 L 20.00 65.28"/>
+<path class="edge edge-arrow" d="M 10.00 65.28 L 10.00 66.78 Q 10.00 67.28 10.00 67.78 L 10.00 69.36"/>
+<path class="edge" d="M 30.00 65.28 L 30.00 68.78 Q 30.00 69.28 30.00 69.78 L 30.00 90.76"/>
+<path class="edge" d="M 10.00 72.36 L 10.00 74.44"/>
+<path class="edge edge-arrow" d="M 10.00 74.44 L 10.00 76.52"/>
+<path class="edge" d="M 10.00 79.52 L 10.00 81.60"/>
+<path class="edge edge-arrow" d="M 10.00 81.60 L 10.00 83.68"/>
+<path class="edge" d="M 10.00 86.68 L 10.00 90.76"/>
+<path class="edge" d="M 30.00 95.84 L 30.00 97.92"/>
+<path class="edge edge-arrow" d="M 30.00 97.92 L 30.00 100.00"/>
+<path class="edge" d="M 30.00 103.00 L 30.00 105.08"/>
+<path class="edge edge-arrow" d="M 30.00 105.08 L 30.00 106.58 Q 30.00 107.08 29.50 107.08 L 0.50 107.08 Q 0.00 107.08 0.00 106.58 L 0.00 2.58 Q 0.00 2.08 0.50 2.08 L 19.50 2.08 Q 20.00 2.08 20.00 2.58 L 20.00 4.08"/>
+<rect class="step" x="18.00" y="4.08" width="4.00" height="3.00"/>
+<rect class="step-inner" x="18.25" y="4.33" width="3.50" height="2.50"/>
+<text class="label" x="20.00" y="5.58">0</text>
+<rect class="step" x="18.00" y="11.24" width="4.00" height="3.00"/>
+<text class="label" x="20.00" y="12.74">1</text>
+<rect class="step" x="8.00" y="20.40" width="4.00" height="3.00"/>
+<text class="label" x="10.00" y="21.90">2</text>
+<rect class="step" x="28.00" y="20.40" width="4.00" height="3.00"/>
+<text class="label" x="30.00" y="21.90">3</text>
+<rect class="step" x="18.00" y="29.56" width="4.00" height="3.00"/>
+<text class="label" x="20.00" y="31.06">4</text>
+<rect class="step" x="38.00" y="29.56" width="4.00" height="3.00"/>
+<text class="label" x="40.00" y="31.06">5</text>
+<rect class="step" x="18.00" y="38.72" width="4.00" height="3.00"/>
+<text class="label" x="20.00" y="40.22">6</text>
+<rect class="step" x="18.00" y="45.88" width="4.00" height="3.00"/>
+<text class="label" x="20.00" y="47.38">7</text>
+<rect class="step" x="18.00" y="53.04" width="4.00" height="3.00"/>
+<text class="label" x="20.00" y="54.54">8</text>
+<rect class="step" x="18.00" y="60.20" width="4.00" height="3.00"/>
+<text class="label" x="20.00" y="61.70">9</text>
+<rect class="step" x="8.00" y="69.36" width="4.00" height="3.00"/>
+<text class="label" x="10.00" y="70.86">10</text>
+<rect class="step" x="8.00" y="76.52" width="4.00" height="3.00"/>
+<text class="label" x="10.00" y="78.02">11</text>
+<rect class="step" x="8.00" y="83.68" width="4.00" height="3.00"/>
+<text class="label" x="10.00" y="85.18">12</text>
+<rect class="step" x="28.00" y="92.84" width="4.00" height="3.00"/>
+<text class="label" x="30.00" y="94.34">13</text>
+<rect class="step" x="28.00" y="100.00" width="4.00" height="3.00"/>
+<text class="label" x="30.00" y="101.50">14</text>
+<line class="assoc" x1="22.00" y1="5.58" x2="23.00" y2="5.58"/>
+<rect class="action" x="23.00" y="4.00" width="14.39" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="30.20" y="5.58"><tspan x="30.20" dy="0">閒置awaiting上傳</tspan></text>
+<line class="assoc" x1="22.00" y1="12.74" x2="23.00" y2="12.74"/>
+<rect class="action" x="23.00" y="11.16" width="14.39" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="30.20" y="11.92"><tspan x="30.20" dy="0">解析</tspan><tspan x="30.20" dy="0.82">multipart與</tspan><tspan x="30.20" dy="0.82">detectmime</tspan></text>
+<line class="assoc" x1="12.00" y1="21.90" x2="13.00" y2="21.90"/>
+<rect class="action" x="13.00" y="20.32" width="14.39" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="20.20" y="21.49"><tspan x="20.20" dy="0">writeimage到</tspan><tspan x="20.20" dy="0.82">Sessionxdg</tspan></text>
+<line class="assoc" x1="32.00" y1="21.90" x2="33.00" y2="21.90"/>
+<rect class="action" x="33.00" y="20.32" width="14.39" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="40.20" y="21.08"><tspan x="40.20" dy="0">sanitize與</tspan><tspan x="40.20" dy="0.82">land在</tspan><tspan x="40.20" dy="0.82">incoming</tspan></text>
+<line class="assoc" x1="22.00" y1="31.06" x2="23.00" y2="31.06"/>
+<rect class="action" x="23.00" y="29.48" width="14.39" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="30.20" y="31.06"><tspan x="30.20" dy="0">執行docxautodecompose</tspan></text>
+<line class="assoc" x1="42.00" y1="31.06" x2="43.00" y2="31.06"/>
+<rect class="action" x="43.00" y="29.48" width="14.39" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="50.20" y="30.65"><tspan x="50.20" dy="0">writeincoming檔</tspan><tspan x="50.20" dy="0.82">案與追加history</tspan></text>
+<line class="assoc" x1="22.00" y1="40.22" x2="23.00" y2="40.22"/>
+<rect class="action" x="23.00" y="38.64" width="14.39" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="30.20" y="39.81"><tspan x="30.20" dy="0">發出附件</tspan><tspan x="30.20" dy="0.82">refpart</tspan></text>
+<line class="assoc" x1="22.00" y1="47.38" x2="23.00" y2="47.38"/>
+<rect class="action" x="23.00" y="45.80" width="14.39" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="30.20" y="47.38"><tspan x="30.20" dy="0">建置attachedimagesinventory區塊</tspan></text>
+<line class="assoc" x1="22.00" y1="54.54" x2="23.00" y2="54.54"/>
+<rect class="action" x="23.00" y="52.96" width="14.39" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="30.20" y="54.54"><tspan x="30.20" dy="0">組裝prefacetrailingextras</tspan></text>
+<line class="assoc" x1="22.00" y1="61.70" x2="23.00" y2="61.70"/>
+<rect class="action" x="23.00" y="60.12" width="14.39" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="30.20" y="61.70"><tspan x="30.20" dy="0">等待aidecision</tspan></text>
+<line class="assoc" x1="12.00" y1="70.86" x2="13.00" y2="70.86"/>
+<rect class="action" x="13.00" y="69.28" width="14.39" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="20.20" y="70.45"><tspan x="20.20" dy="0">voucherfilename透</tspan><tspan x="20.20" dy="0.82">過reread工具</tspan></text>
+<line class="assoc" x1="12.00" y1="78.02" x2="13.00" y2="78.02"/>
+<rect class="action" x="13.00" y="76.44" width="14.39" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="20.20" y="77.20"><tspan x="20.20" dy="0">追加</tspan><tspan x="20.20" dy="0.82">activeimagerefs使</tspan><tspan x="20.20" dy="0.82">用fifocap</tspan></text>
+<line class="assoc" x1="12.00" y1="85.18" x2="13.00" y2="85.18"/>
+<rect class="action" x="13.00" y="83.60" width="14.39" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="20.20" y="84.36"><tspan x="20.20" dy="0">load位元組與</tspan><tspan x="20.20" dy="0.82">inline在</tspan><tspan x="20.20" dy="0.82">bp4trailing</tspan></text>
+<line class="assoc" x1="32.00" y1="94.34" x2="33.00" y2="94.34"/>
+<rect class="action" x="33.00" y="92.76" width="14.39" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="40.20" y="93.52"><tspan x="40.20" dy="0">串流</tspan><tspan x="40.20" dy="0.82">助手</tspan><tspan x="40.20" dy="0.82">回合</tspan></text>
+<line class="assoc" x1="32.00" y1="101.50" x2="33.00" y2="101.50"/>
+<rect class="action" x="33.00" y="99.92" width="14.39" height="3.16" rx="0.45" ry="0.45"/>
+<text class="action-label" x="40.20" y="101.50"><tspan x="40.20" dy="0">drainActiveImageRefs</tspan></text>
+<line class="gate" x1="19.00" y1="9.16" x2="21.00" y2="9.16"/>
+<text class="gate-label" x="21.40" y="9.16">上傳請求已收到</text>
+<line class="gate" x1="6.00" y1="16.32" x2="34.00" y2="16.32"/>
+<line class="gate" x1="8.00" y1="36.64" x2="42.00" y2="36.64"/>
+<line class="gate" x1="16.00" y1="25.48" x2="44.00" y2="25.48"/>
+<line class="gate" x1="19.00" y1="43.80" x2="21.00" y2="43.80"/>
+<text class="gate-label" x="21.40" y="43.80">附件refpersisted</text>
+<line class="gate" x1="19.00" y1="50.96" x2="21.00" y2="50.96"/>
+<text class="gate-label" x="21.40" y="50.96">Sessionhasimage附件</text>
+<line class="gate" x1="19.00" y1="58.12" x2="21.00" y2="58.12"/>
+<text class="gate-label" x="21.40" y="58.12">preface就緒供LLM</text>
+<line class="gate" x1="6.00" y1="65.28" x2="34.00" y2="65.28"/>
+<line class="gate" x1="9.00" y1="74.44" x2="11.00" y2="74.44"/>
+<text class="gate-label" x="11.40" y="74.44">filenamematches附件ref</text>
+<line class="gate" x1="9.00" y1="81.60" x2="11.00" y2="81.60"/>
+<text class="gate-label" x="11.40" y="81.60">setActiveImageRefsCommitted</text>
+<line class="gate" x1="8.00" y1="90.76" x2="32.00" y2="90.76"/>
+<line class="gate" x1="29.00" y1="97.92" x2="31.00" y2="97.92"/>
+<text class="gate-label" x="31.40" y="97.92">步驟完成emitted</text>
+<line class="gate" x1="29.00" y1="105.08" x2="31.00" y2="105.08"/>
+<text class="gate-label" x="31.40" y="105.08">activeImageRefsCleared</text>
+<line class="gate" x1="9.00" y1="18.32" x2="11.00" y2="18.32"/>
+<text class="gate-label-left" x="8.60" y="18.32">mime.starts使用(&#x27;image/&#x27;)</text>
+<line class="gate" x1="29.00" y1="18.32" x2="31.00" y2="18.32"/>
+<text class="gate-label" x="31.40" y="18.32">!mime.starts使用(&#x27;image/&#x27;)</text>
+<line class="gate" x1="9.00" y1="34.64" x2="11.00" y2="34.64"/>
+<text class="gate-label-left" x="8.60" y="34.64">Session路徑writeok</text>
+<line class="gate" x1="19.00" y1="27.48" x2="21.00" y2="27.48"/>
+<text class="gate-label-left" x="18.60" y="27.48">是officemime(classifyOffice)</text>
+<line class="gate" x1="39.00" y1="27.48" x2="41.00" y2="27.48"/>
+<text class="gate-label" x="41.40" y="27.48">!是officemime</text>
+<line class="gate" x1="19.00" y1="34.64" x2="21.00" y2="34.64"/>
+<text class="gate-label-left" x="18.60" y="34.64">routingHintRendered</text>
+<line class="gate" x1="39.00" y1="34.64" x2="41.00" y2="34.64"/>
+<text class="gate-label" x="41.40" y="34.64">jsonlappended來源上傳</text>
+<line class="gate" x1="9.00" y1="67.28" x2="11.00" y2="67.28"/>
+<text class="gate-label-left" x="8.60" y="67.28">aicallsreread附件</text>
+<line class="gate" x1="29.00" y1="67.28" x2="31.00" y2="67.28"/>
+<text class="gate-label" x="31.40" y="67.28">aiSkipsReread</text>
+<line class="gate" x1="9.00" y1="88.76" x2="11.00" y2="88.76"/>
+<text class="gate-label-left" x="8.60" y="88.76">image位元組inlined在trailingextras</text>
 </svg>

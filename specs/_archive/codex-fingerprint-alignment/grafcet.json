@@ -1,16 +1,155 @@
 [
-  { "id": "S0", "label": "Initial (designed state, no code change yet)", "initial": true, "actions": [], "transitionsOut": [{ "to": "S1", "condition": "user approves designed → implementing for Phase 1" }] },
-  { "id": "S1", "label": "Phase 1 implementing — WS inline hotfix", "actions": ["Edit transport-ws.ts: inline 補 User-Agent + TitleCase ChatGPT-Account-Id"], "transitionsOut": [{ "to": "S2", "condition": "ws_ua_present && account_id_titlecase && unit tests green" }] },
-  { "id": "S2", "label": "Phase 1 verified (beta soak initial)", "actions": ["跑 headers.test.ts + transport-ws 整合", "beta worktree 部署 daemon"], "transitionsOut": [{ "to": "S3", "condition": "Phase 1 beta 初步正常（無回歸）→ 開始 Phase 3" }] },
-  { "id": "S3", "label": "Phase 3 implementing — submodule + version bump", "actions": ["git submodule checkout rust-v0.125.0-alpha.1", "update CODEX_CLI_VERSION", "run upstream diff 盤點 client.rs / default_client.rs"], "transitionsOut": [{ "to": "S4", "condition": "submodule_on_tag && cli_version_updated && unit tests green" }] },
-  { "id": "S4", "label": "Phase 1+3 beta soak", "actions": ["beta daemon running", "operator 手動查 OpenAI 官網後台 ×2"], "transitionsOut": [
-    { "to": "S5", "condition": "beta_verified（連續兩次 < 1%）" },
-    { "to": "S3", "condition": "beta 觀察 ≥ 1% → 回 Phase 3 盤點差異，可能升級為 revise mode" }
-  ]},
-  { "id": "S5", "label": "Phase 1+3 fetched back to main", "actions": ["fetch-back commit", "docs/events 留痕"], "transitionsOut": [{ "to": "S6", "condition": "fetched_back && 使用者同意進入 Phase 2" }] },
-  { "id": "S6", "label": "Phase 2 implementing — unify through buildHeaders", "actions": ["擴充 BuildHeadersOptions isWebSocket", "transport-ws.ts 改呼叫 buildHeaders", "新增 transport-ws.test.ts"], "transitionsOut": [{ "to": "S7", "condition": "headers_unified && unit tests green" }] },
-  { "id": "S7", "label": "Phase 2 verified (beta)", "actions": ["unit test 全綠", "beta regression check"], "transitionsOut": [{ "to": "S8", "condition": "Phase 2 無回歸 → 啟 Phase 4" }] },
-  { "id": "S8", "label": "Phase 4 implementing — x-client-request-id + Accept", "actions": ["buildHeaders 新增 conversationId 參數", "加 x-client-request-id header", "加 Accept: text/event-stream"], "transitionsOut": [{ "to": "S9", "condition": "x_client_request_id_present && accept_sse_present && unit tests green" }] },
-  { "id": "S9", "label": "Phase 4 verified (beta)", "actions": ["unit test 更新", "beta 二次 soak（視需要）"], "transitionsOut": [{ "to": "S10", "condition": "（選擇性）fetched_back" }] },
-  { "id": "S10", "label": "All phases fetched back; ready for verified promotion", "actions": ["最終 fetch-back", "promote plan to verified"], "transitionsOut": [] }
+  {
+    "id": "S0",
+    "label": "Initial (designed 狀態, 無 code change yet)",
+    "initial": true,
+    "actions": [],
+    "transitionsOut": [
+      {
+        "to": "S1",
+        "condition": "user approves designed → implementing for Phase 1"
+      }
+    ]
+  },
+  {
+    "id": "S1",
+    "label": "Phase 1 implementing — WS inline hotfix",
+    "actions": [
+      "Edit transport-ws.ts: inline 補 User-Agent + TitleCase ChatGPT-Account-Id"
+    ],
+    "transitionsOut": [
+      {
+        "to": "S2",
+        "condition": "ws_ua_present && account_id_titlecase && unit tests green"
+      }
+    ]
+  },
+  {
+    "id": "S2",
+    "label": "Phase 1 verified (beta soak initial)",
+    "actions": [
+      "跑 headers.test.ts + transport-ws 整合",
+      "beta worktree 部署 daemon"
+    ],
+    "transitionsOut": [
+      {
+        "to": "S3",
+        "condition": "Phase 1 beta 初步正常（無回歸）→ 開始 Phase 3"
+      }
+    ]
+  },
+  {
+    "id": "S3",
+    "label": "Phase 3 implementing — submodule + version bump",
+    "actions": [
+      "git submodule checkout rust-v0.125.0-alpha.1",
+      "update CODEX_CLI_VERSION",
+      "run upstream diff 盤點 client.rs / default_client.rs"
+    ],
+    "transitionsOut": [
+      {
+        "to": "S4",
+        "condition": "submodule_on_tag && cli_version_updated && unit tests green"
+      }
+    ]
+  },
+  {
+    "id": "S4",
+    "label": "Phase 1+3 beta soak",
+    "actions": [
+      "beta daemon running",
+      "operator 手動查 OpenAI 官網後台 ×2"
+    ],
+    "transitionsOut": [
+      {
+        "to": "S5",
+        "condition": "beta_verified（連續兩次 < 1%）"
+      },
+      {
+        "to": "S3",
+        "condition": "beta 觀察 ≥ 1% → 回 Phase 3 盤點差異，可能升級為 revise mode"
+      }
+    ]
+  },
+  {
+    "id": "S5",
+    "label": "Phase 1+3 fetched 回到 到 main",
+    "actions": [
+      "fetch-back commit",
+      "docs/events 留痕"
+    ],
+    "transitionsOut": [
+      {
+        "to": "S6",
+        "condition": "fetched_back && 使用者同意進入 Phase 2"
+      }
+    ]
+  },
+  {
+    "id": "S6",
+    "label": "Phase 2 implementing — unify through 建置headers",
+    "actions": [
+      "擴充 BuildHeadersOptions isWebSocket",
+      "transport-ws.ts 改呼叫 buildHeaders",
+      "新增 transport-ws.test.ts"
+    ],
+    "transitionsOut": [
+      {
+        "to": "S7",
+        "condition": "headers_unified && unit tests green"
+      }
+    ]
+  },
+  {
+    "id": "S7",
+    "label": "Phase 2 verified (beta)",
+    "actions": [
+      "unit test 全綠",
+      "beta regression check"
+    ],
+    "transitionsOut": [
+      {
+        "to": "S8",
+        "condition": "Phase 2 無回歸 → 啟 Phase 4"
+      }
+    ]
+  },
+  {
+    "id": "S8",
+    "label": "Phase 4 implementing — x-client-請求-id + Accept",
+    "actions": [
+      "buildHeaders 新增 conversationId 參數",
+      "加 x-client-request-id header",
+      "加 Accept: text/event-stream"
+    ],
+    "transitionsOut": [
+      {
+        "to": "S9",
+        "condition": "x_client_request_id_present && accept_sse_present && unit tests green"
+      }
+    ]
+  },
+  {
+    "id": "S9",
+    "label": "Phase 4 verified (beta)",
+    "actions": [
+      "unit test 更新",
+      "beta 二次 soak（視需要）"
+    ],
+    "transitionsOut": [
+      {
+        "to": "S10",
+        "condition": "（選擇性）fetched_back"
+      }
+    ]
+  },
+  {
+    "id": "S10",
+    "label": "All phases fetched 回到; 就緒 供 verified promotion",
+    "actions": [
+      "最終 fetch-back",
+      "promote plan to verified"
+    ],
+    "transitionsOut": []
+  }
 ]

@@ -1,11 +1,11 @@
 {
-  "diagram_title": "System Context",
+  "diagram_title": "System 上下文",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A1",
       "title": "Deliver Core Function",
-      "description": "Top-priority function derived from user requirement",
+      "description": "Top-優先序 function derived 來自 使用者 requirement",
       "decomposition": null
     }
   ],
@@ -14,14 +14,14 @@
       "id": "AR1",
       "source": "EXTERNAL",
       "target": "A1:input",
-      "label": "Primary Request",
+      "label": "Primary 請求",
       "type": "input"
     },
     {
       "id": "AR2",
       "source": "EXTERNAL",
       "target": "A1:control",
-      "label": "Policy And Constraints",
+      "label": "Policy 與 Constraints",
       "type": "control"
     },
     {

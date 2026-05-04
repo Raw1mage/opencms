@@ -3,12 +3,16 @@
     "StepNumber": 0,
     "ModuleRef": "A1",
     "StepType": "initial",
-    "StepAction": "Load Scheduler Evidence",
+    "StepAction": "Load 排程器 Evidence",
     "LinkInputType": [],
     "LinkInputNumber": [],
-    "LinkOutputNumber": [1],
+    "LinkOutputNumber": [
+      1
+    ],
     "LinkOutputType": "track",
-    "Condition": ["planning_started"],
+    "Condition": [
+      "planningstarted"
+    ],
     "SubGrafcet": []
   },
   {
@@ -16,47 +20,80 @@
     "ModuleRef": "A1",
     "StepType": "normal",
     "StepAction": "Consolidate Current Baseline",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2, 4],
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2,
+      4
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["baseline_aligned", "scope_conflict_detected"],
+    "Condition": [
+      "baselinealigned",
+      "scopeconflictdetected"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "Run Hardening Validation",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [3, 4],
+    "StepAction": "執行 Hardening Validation",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      3,
+      4
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["runtime_evidence_present", "runtime_evidence_missing"],
+    "Condition": [
+      "runtimeevidencepresent",
+      "runtimeevidence缺失"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Sync Planner And Event Docs",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [2],
+    "StepAction": "Sync Planner 與 事件 Docs",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      2
+    ],
     "LinkOutputNumber": [],
     "LinkOutputType": "track",
-    "Condition": ["docs_synced"],
+    "Condition": [
+      "docssynced"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 4,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "Stop For Replanning",
-    "LinkInputType": ["convergence_or"],
-    "LinkInputNumber": [1, 2],
+    "StepAction": "Stop 供 Replanning",
+    "LinkInputType": [
+      "convergence_or"
+    ],
+    "LinkInputNumber": [
+      1,
+      2
+    ],
     "LinkOutputNumber": [],
     "LinkOutputType": "track",
-    "Condition": ["user_decision_needed_or_runtime_failure"],
+    "Condition": [
+      "使用者decisionneeded或runtimefailure"
+    ],
     "SubGrafcet": []
   }
 ]

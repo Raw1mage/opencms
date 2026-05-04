@@ -1,255 +1,399 @@
 [
-    {
-        "StepNumber": 0,
+  {
+    "StepNumber": 0,
+    "StepType": "initial",
+    "StepAction": "閒置awaiting上傳",
+    "ModuleRef": "packages/opencode/src/server/routes/session.ts (upload route)",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [
+      14
+    ],
+    "LinkOutputNumber": [
+      1
+    ],
+    "Condition": [
+      "上傳請求已收到"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "StepType": "normal",
+    "StepAction": "解析multipart與detectmime",
+    "ModuleRef": "packages/opencode/src/session/user-message-parts.ts (buildUserMessageAttachmentRefPart ~L290)",
+    "LinkInputType": [],
+    "LinkOutputType": "divergence_or",
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2,
+      3
+    ],
+    "Condition": [
+      "mime.starts使用('image/')",
+      "!mime.starts使用('image/')"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "StepType": "normal",
+    "StepAction": "writeimage到Sessionxdg",
+    "ModuleRef": "packages/opencode/src/incoming/session-paths.ts (SessionIncomingPaths.tryLandInSession)",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      6
+    ],
+    "Condition": [
+      "Session路徑writeok"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "StepType": "normal",
+    "StepAction": "sanitize與land在incoming",
+    "ModuleRef": "packages/opencode/src/incoming/paths.ts (IncomingPaths.sanitize, tryLandInIncoming)",
+    "LinkInputType": [],
+    "LinkOutputType": "divergence_or",
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      4,
+      5
+    ],
+    "Condition": [
+      "是officemime(classifyOffice)",
+      "!是officemime"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "StepType": "sub_grafcet",
+    "StepAction": "執行docxautodecompose",
+    "ModuleRef": "packages/opencode/src/incoming/decompose-hook.ts (landOfficeUpload)",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      6
+    ],
+    "Condition": [
+      "routingHintRendered"
+    ],
+    "SubGrafcet": [
+      {
+        "StepNumber": 40,
         "StepType": "initial",
-        "StepAction": "idleAwaitingUpload",
-        "ModuleRef": "packages/opencode/src/server/routes/session.ts (upload route)",
-        "LinkInputType": [],
-        "LinkOutputType": "track",
-        "LinkInputNumber": [14],
-        "LinkOutputNumber": [1],
-        "Condition": ["uploadRequestReceived"],
-        "SubGrafcet": []
-    },
-    {
-        "StepNumber": 1,
-        "StepType": "normal",
-        "StepAction": "parseMultipartAndDetectMime",
-        "ModuleRef": "packages/opencode/src/session/user-message-parts.ts (buildUserMessageAttachmentRefPart ~L290)",
+        "StepAction": "lookupManifest快取",
+        "ModuleRef": "packages/opencode/src/incoming/manifest.ts (lookupCache)",
         "LinkInputType": [],
         "LinkOutputType": "divergence_or",
-        "LinkInputNumber": [0],
-        "LinkOutputNumber": [2, 3],
-        "Condition": ["mime.startsWith('image/')", "!mime.startsWith('image/')"],
+        "LinkInputNumber": [
+          45
+        ],
+        "LinkOutputNumber": [
+          41,
+          44
+        ],
+        "Condition": [
+          "快取miss",
+          "快取hit"
+        ],
         "SubGrafcet": []
-    },
-    {
-        "StepNumber": 2,
+      },
+      {
+        "StepNumber": 41,
         "StepType": "normal",
-        "StepAction": "writeImageToSessionXdg",
-        "ModuleRef": "packages/opencode/src/incoming/session-paths.ts (SessionIncomingPaths.tryLandInSession)",
+        "StepAction": "呼叫取出allfastphase",
+        "ModuleRef": "packages/opencode/src/incoming/decompose-hook.ts (extract_all MCP call)",
         "LinkInputType": [],
         "LinkOutputType": "track",
-        "LinkInputNumber": [1],
-        "LinkOutputNumber": [6],
-        "Condition": ["sessionPathWriteOk"],
+        "LinkInputNumber": [
+          40
+        ],
+        "LinkOutputNumber": [
+          42
+        ],
+        "Condition": [
+          "fastphasedone或timeout30s"
+        ],
         "SubGrafcet": []
-    },
-    {
-        "StepNumber": 3,
+      },
+      {
+        "StepNumber": 42,
         "StepType": "normal",
-        "StepAction": "sanitizeAndLandInIncoming",
-        "ModuleRef": "packages/opencode/src/incoming/paths.ts (IncomingPaths.sanitize, tryLandInIncoming)",
-        "LinkInputType": [],
-        "LinkOutputType": "divergence_or",
-        "LinkInputNumber": [1],
-        "LinkOutputNumber": [4, 5],
-        "Condition": ["isOfficeMime(classifyOffice)", "!isOfficeMime"],
-        "SubGrafcet": []
-    },
-    {
-        "StepNumber": 4,
-        "StepType": "sub_grafcet",
-        "StepAction": "runDocxAutoDecompose",
-        "ModuleRef": "packages/opencode/src/incoming/decompose-hook.ts (landOfficeUpload)",
+        "StepAction": "writeoutline與待處理markers",
+        "ModuleRef": "packages/opencode/src/incoming/decompose-hook.ts (chapters/tables/media _PENDING.md)",
         "LinkInputType": [],
         "LinkOutputType": "track",
-        "LinkInputNumber": [3],
-        "LinkOutputNumber": [6],
-        "Condition": ["routingHintRendered"],
-        "SubGrafcet": [
-            {
-                "StepNumber": 40,
-                "StepType": "initial",
-                "StepAction": "lookupManifestCache",
-                "ModuleRef": "packages/opencode/src/incoming/manifest.ts (lookupCache)",
-                "LinkInputType": [],
-                "LinkOutputType": "divergence_or",
-                "LinkInputNumber": [45],
-                "LinkOutputNumber": [41, 44],
-                "Condition": ["cacheMiss", "cacheHit"],
-                "SubGrafcet": []
-            },
-            {
-                "StepNumber": 41,
-                "StepType": "normal",
-                "StepAction": "callExtractAllFastPhase",
-                "ModuleRef": "packages/opencode/src/incoming/decompose-hook.ts (extract_all MCP call)",
-                "LinkInputType": [],
-                "LinkOutputType": "track",
-                "LinkInputNumber": [40],
-                "LinkOutputNumber": [42],
-                "Condition": ["fastPhaseDoneOrTimeout30s"],
-                "SubGrafcet": []
-            },
-            {
-                "StepNumber": 42,
-                "StepType": "normal",
-                "StepAction": "writeOutlineAndPendingMarkers",
-                "ModuleRef": "packages/opencode/src/incoming/decompose-hook.ts (chapters/tables/media _PENDING.md)",
-                "LinkInputType": [],
-                "LinkOutputType": "track",
-                "LinkInputNumber": [41],
-                "LinkOutputNumber": [43],
-                "Condition": ["bundleStaged"],
-                "SubGrafcet": []
-            },
-            {
-                "StepNumber": 43,
-                "StepType": "normal",
-                "StepAction": "pollExtractAllCollectLoop",
-                "ModuleRef": "packages/opencode/src/incoming/poll-loop.ts (startPollLoop, 5s cycle, 180s cap)",
-                "LinkInputType": [],
-                "LinkOutputType": "track",
-                "LinkInputNumber": [42],
-                "LinkOutputNumber": [44],
-                "Condition": ["pollComplete || elapsed>=180s"],
-                "SubGrafcet": []
-            },
-            {
-                "StepNumber": 44,
-                "StepType": "normal",
-                "StepAction": "renderOfficeRoutingHint",
-                "ModuleRef": "packages/opencode/src/incoming/routing-hint.ts (renderOfficeRoutingHint, DD-7)",
-                "LinkInputType": ["convergence_or"],
-                "LinkOutputType": "track",
-                "LinkInputNumber": [40, 43],
-                "LinkOutputNumber": [45],
-                "Condition": ["hintBuilt"],
-                "SubGrafcet": []
-            },
-            {
-                "StepNumber": 45,
-                "StepType": "normal",
-                "StepAction": "emitDecomposedRefAndHint",
-                "ModuleRef": "packages/opencode/src/incoming/decompose-hook.ts (return path)",
-                "LinkInputType": [],
-                "LinkOutputType": "track",
-                "LinkInputNumber": [44],
-                "LinkOutputNumber": [40],
-                "Condition": ["1"],
-                "SubGrafcet": []
-            }
-        ]
-    },
-    {
-        "StepNumber": 5,
+        "LinkInputNumber": [
+          41
+        ],
+        "LinkOutputNumber": [
+          43
+        ],
+        "Condition": [
+          "Bundlestaged"
+        ],
+        "SubGrafcet": []
+      },
+      {
+        "StepNumber": 43,
         "StepType": "normal",
-        "StepAction": "writeIncomingFileAndAppendHistory",
-        "ModuleRef": "packages/opencode/src/incoming/history.ts (IncomingHistory.appendEntry)",
+        "StepAction": "poll取出allcollectloop",
+        "ModuleRef": "packages/opencode/src/incoming/poll-loop.ts (startPollLoop, 5s cycle, 180s cap)",
         "LinkInputType": [],
         "LinkOutputType": "track",
-        "LinkInputNumber": [3],
-        "LinkOutputNumber": [6],
-        "Condition": ["jsonlAppendedSourceUpload"],
+        "LinkInputNumber": [
+          42
+        ],
+        "LinkOutputNumber": [
+          44
+        ],
+        "Condition": [
+          "poll完成 || elapsed>=180s"
+        ],
         "SubGrafcet": []
-    },
-    {
-        "StepNumber": 6,
+      },
+      {
+        "StepNumber": 44,
         "StepType": "normal",
-        "StepAction": "emitAttachmentRefPart",
-        "ModuleRef": "packages/opencode/src/session/user-message-parts.ts (buildUserMessageAttachmentRefPart)",
-        "LinkInputType": ["convergence_or"],
+        "StepAction": "渲染officeroutinghint",
+        "ModuleRef": "packages/opencode/src/incoming/routing-hint.ts (renderOfficeRoutingHint, DD-7)",
+        "LinkInputType": [
+          "convergence_or"
+        ],
         "LinkOutputType": "track",
-        "LinkInputNumber": [2, 4, 5],
-        "LinkOutputNumber": [7],
-        "Condition": ["attachmentRefPersisted"],
+        "LinkInputNumber": [
+          40,
+          43
+        ],
+        "LinkOutputNumber": [
+          45
+        ],
+        "Condition": [
+          "hintBuilt"
+        ],
         "SubGrafcet": []
-    },
-    {
-        "StepNumber": 7,
+      },
+      {
+        "StepNumber": 45,
         "StepType": "normal",
-        "StepAction": "buildAttachedImagesInventoryBlock",
-        "ModuleRef": "packages/opencode/src/session/attached-images-inventory.ts (buildAttachedImagesInventory)",
+        "StepAction": "發出decomposedref與hint",
+        "ModuleRef": "packages/opencode/src/incoming/decompose-hook.ts (return path)",
         "LinkInputType": [],
         "LinkOutputType": "track",
-        "LinkInputNumber": [6],
-        "LinkOutputNumber": [8],
-        "Condition": ["sessionHasImageAttachment"],
+        "LinkInputNumber": [
+          44
+        ],
+        "LinkOutputNumber": [
+          40
+        ],
+        "Condition": [
+          "1"
+        ],
         "SubGrafcet": []
-    },
-    {
-        "StepNumber": 8,
-        "StepType": "normal",
-        "StepAction": "assemblePrefaceTrailingExtras",
-        "ModuleRef": "packages/opencode/src/session/llm.ts (~L620 trailingExtras assembly)",
-        "LinkInputType": [],
-        "LinkOutputType": "track",
-        "LinkInputNumber": [7],
-        "LinkOutputNumber": [9],
-        "Condition": ["prefaceReadyForLlm"],
-        "SubGrafcet": []
-    },
-    {
-        "StepNumber": 9,
-        "StepType": "normal",
-        "StepAction": "awaitAiDecision",
-        "ModuleRef": "packages/opencode/src/session/llm.ts (LLM streaming loop)",
-        "LinkInputType": [],
-        "LinkOutputType": "divergence_or",
-        "LinkInputNumber": [8],
-        "LinkOutputNumber": [10, 13],
-        "Condition": ["aiCallsRereadAttachment", "aiSkipsReread"],
-        "SubGrafcet": []
-    },
-    {
-        "StepNumber": 10,
-        "StepType": "normal",
-        "StepAction": "voucherFilenameViaRereadTool",
-        "ModuleRef": "packages/opencode/src/tool/reread-attachment.ts (RereadAttachmentTool.execute)",
-        "LinkInputType": [],
-        "LinkOutputType": "track",
-        "LinkInputNumber": [9],
-        "LinkOutputNumber": [11],
-        "Condition": ["filenameMatchesAttachmentRef"],
-        "SubGrafcet": []
-    },
-    {
-        "StepNumber": 11,
-        "StepType": "normal",
-        "StepAction": "appendActiveImageRefsWithFifoCap",
-        "ModuleRef": "packages/opencode/src/session/active-image-refs.ts (addOnReread, ACTIVE_IMAGE_REFS_DEFAULT_MAX=3)",
-        "LinkInputType": [],
-        "LinkOutputType": "track",
-        "LinkInputNumber": [10],
-        "LinkOutputNumber": [12],
-        "Condition": ["setActiveImageRefsCommitted"],
-        "SubGrafcet": []
-    },
-    {
-        "StepNumber": 12,
-        "StepType": "normal",
-        "StepAction": "loadBytesAndInlineInBp4Trailing",
-        "ModuleRef": "packages/opencode/src/tool/attachment.ts + session/llm.ts activeImageBlocks (~L620-L755)",
-        "LinkInputType": [],
-        "LinkOutputType": "convergence_or",
-        "LinkInputNumber": [11],
-        "LinkOutputNumber": [13],
-        "Condition": ["imageBytesInlinedInTrailingExtras"],
-        "SubGrafcet": []
-    },
-    {
-        "StepNumber": 13,
-        "StepType": "normal",
-        "StepAction": "streamAssistantTurn",
-        "ModuleRef": "packages/opencode/src/session/processor.ts (assistant streaming)",
-        "LinkInputType": ["convergence_or"],
-        "LinkOutputType": "track",
-        "LinkInputNumber": [9, 12],
-        "LinkOutputNumber": [14],
-        "Condition": ["stepFinishEmitted"],
-        "SubGrafcet": []
-    },
-    {
-        "StepNumber": 14,
-        "StepType": "normal",
-        "StepAction": "drainActiveImageRefs",
-        "ModuleRef": "packages/opencode/src/session/processor.ts (~L1153 drainAfterAssistant)",
-        "LinkInputType": [],
-        "LinkOutputType": "track",
-        "LinkInputNumber": [13],
-        "LinkOutputNumber": [0],
-        "Condition": ["activeImageRefsCleared"],
-        "SubGrafcet": []
-    }
+      }
+    ]
+  },
+  {
+    "StepNumber": 5,
+    "StepType": "normal",
+    "StepAction": "writeincoming檔案與追加history",
+    "ModuleRef": "packages/opencode/src/incoming/history.ts (IncomingHistory.appendEntry)",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      6
+    ],
+    "Condition": [
+      "jsonlappended來源上傳"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "StepType": "normal",
+    "StepAction": "發出附件refpart",
+    "ModuleRef": "packages/opencode/src/session/user-message-parts.ts (buildUserMessageAttachmentRefPart)",
+    "LinkInputType": [
+      "convergence_or"
+    ],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [
+      2,
+      4,
+      5
+    ],
+    "LinkOutputNumber": [
+      7
+    ],
+    "Condition": [
+      "附件refpersisted"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "StepType": "normal",
+    "StepAction": "建置attachedimagesinventory區塊",
+    "ModuleRef": "packages/opencode/src/session/attached-images-inventory.ts (buildAttachedImagesInventory)",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [
+      6
+    ],
+    "LinkOutputNumber": [
+      8
+    ],
+    "Condition": [
+      "Sessionhasimage附件"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 8,
+    "StepType": "normal",
+    "StepAction": "組裝prefacetrailingextras",
+    "ModuleRef": "packages/opencode/src/session/llm.ts (~L620 trailingExtras assembly)",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [
+      7
+    ],
+    "LinkOutputNumber": [
+      9
+    ],
+    "Condition": [
+      "preface就緒供LLM"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 9,
+    "StepType": "normal",
+    "StepAction": "等待aidecision",
+    "ModuleRef": "packages/opencode/src/session/llm.ts (LLM streaming loop)",
+    "LinkInputType": [],
+    "LinkOutputType": "divergence_or",
+    "LinkInputNumber": [
+      8
+    ],
+    "LinkOutputNumber": [
+      10,
+      13
+    ],
+    "Condition": [
+      "aicallsreread附件",
+      "aiSkipsReread"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 10,
+    "StepType": "normal",
+    "StepAction": "voucherfilename透過reread工具",
+    "ModuleRef": "packages/opencode/src/tool/reread-attachment.ts (RereadAttachmentTool.execute)",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [
+      9
+    ],
+    "LinkOutputNumber": [
+      11
+    ],
+    "Condition": [
+      "filenamematches附件ref"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 11,
+    "StepType": "normal",
+    "StepAction": "追加activeimagerefs使用fifocap",
+    "ModuleRef": "packages/opencode/src/session/active-image-refs.ts (addOnReread, ACTIVE_IMAGE_REFS_DEFAULT_MAX=3)",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [
+      10
+    ],
+    "LinkOutputNumber": [
+      12
+    ],
+    "Condition": [
+      "setActiveImageRefsCommitted"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 12,
+    "StepType": "normal",
+    "StepAction": "load位元組與inline在bp4trailing",
+    "ModuleRef": "packages/opencode/src/tool/attachment.ts + session/llm.ts activeImageBlocks (~L620-L755)",
+    "LinkInputType": [],
+    "LinkOutputType": "convergence_or",
+    "LinkInputNumber": [
+      11
+    ],
+    "LinkOutputNumber": [
+      13
+    ],
+    "Condition": [
+      "image位元組inlined在trailingextras"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 13,
+    "StepType": "normal",
+    "StepAction": "串流助手回合",
+    "ModuleRef": "packages/opencode/src/session/processor.ts (assistant streaming)",
+    "LinkInputType": [
+      "convergence_or"
+    ],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [
+      9,
+      12
+    ],
+    "LinkOutputNumber": [
+      14
+    ],
+    "Condition": [
+      "步驟完成emitted"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 14,
+    "StepType": "normal",
+    "StepAction": "drainActiveImageRefs",
+    "ModuleRef": "packages/opencode/src/session/processor.ts (~L1153 drainAfterAssistant)",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [
+      13
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
+    "Condition": [
+      "activeImageRefsCleared"
+    ],
+    "SubGrafcet": []
+  }
 ]

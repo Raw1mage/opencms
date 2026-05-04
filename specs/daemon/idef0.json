@@ -1,37 +1,37 @@
 {
-  "diagram_title": "Operate Gateway And Daemon Process",
+  "diagram_title": "Operate Gateway 與 Daemon Process",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A1",
-      "title": "Route HTTP Through Gateway",
+      "title": "路由 HTTP Through Gateway",
       "decomposition": {
-        "diagram_title": "Route HTTP Through Gateway",
+        "diagram_title": "路由 HTTP Through Gateway",
         "node_reference": "A1",
         "activities": [
           {
             "id": "A11",
-            "title": "Accept TCP Connection On Port 1080"
+            "title": "Accept TCP Connection 在 Port 1080"
           },
           {
             "id": "A12",
-            "title": "Buffer Pending Request Until Header Complete"
+            "title": "Buffer 待處理 請求 直到 Header 完成"
           },
           {
             "id": "A13",
-            "title": "Authenticate Via PAM Pthread"
+            "title": "驗證 透過 PAM Pthread"
           },
           {
             "id": "A14",
-            "title": "Issue And Verify JWT Cookie"
+            "title": "Issue 與 Verify JWT cookie"
           },
           {
             "id": "A15",
-            "title": "Dispatch Gateway Owned Routes"
+            "title": "派發 Gateway Owned 路由"
           },
           {
             "id": "A16",
-            "title": "Splice Bytes To Daemon Socket"
+            "title": "Splice 位元組 到 Daemon Socket"
           }
         ],
         "arrows": [
@@ -39,7 +39,7 @@
             "id": "a1in1",
             "source": "EXTERNAL",
             "target": "A11:input",
-            "label": "Browser TCP Stream From Nginx"
+            "label": "Browser TCP 串流 來自 Nginx"
           },
           {
             "id": "a1in2",
@@ -51,13 +51,13 @@
             "id": "a1in3",
             "source": "EXTERNAL",
             "target": "A11:mechanism",
-            "label": "opencode-gateway Single Process"
+            "label": "opencode-Gateway Single Process"
           },
           {
             "id": "a1mc1",
             "source": "EXTERNAL",
             "target": "A12:control",
-            "label": "MAX_CONNS=1024 Cap And 30s No-Progress Timeout"
+            "label": "MAX CONNS=1024 Cap 與 30s 無進展 Timeout"
           },
           {
             "id": "a1f1",
@@ -69,87 +69,87 @@
             "id": "a1f2",
             "source": "A12:output",
             "target": "A13:input",
-            "label": "Parsed HTTP Header With Cookie"
+            "label": "Parsed HTTP Header 使用 cookie"
           },
           {
             "id": "a1mc2",
             "source": "EXTERNAL",
             "target": "A13:control",
-            "label": "google-bindings.json And /etc/pam.d Stack"
+            "label": "google-bindings.js在 與 /etc/pam.d Stack"
           },
           {
             "id": "a1mc3",
             "source": "EXTERNAL",
             "target": "A13:mechanism",
-            "label": "PAM Worker Pthread Plus eventfd AUTH_NOTIFY"
+            "label": "PAM worker Pthread Plus eventfd AUTH NOTIFY"
           },
           {
             "id": "a1f3",
             "source": "A13:output",
             "target": "A14:input",
-            "label": "PAM Verdict And UID"
+            "label": "PAM Verdict 與 UID"
           },
           {
             "id": "a1mc4",
             "source": "EXTERNAL",
             "target": "A14:control",
-            "label": "/run/opencode-gateway/jwt.key HMAC-SHA256 Secret"
+            "label": "/執行/opencode-Gateway/JWT.key HMAC-SHA256 Secret"
           },
           {
             "id": "a1f4",
             "source": "A14:output",
             "target": "A15:input",
-            "label": "Authenticated Request With UID Claim"
+            "label": "Authenticated 請求 使用 UID Claim"
           },
           {
             "id": "a1mc5",
             "source": "EXTERNAL",
             "target": "A15:control",
-            "label": "/etc/opencode/web_routes.conf Longest Prefix Table"
+            "label": "/etc/opencode/web routes.conf Longest 前綴 表"
           },
           {
             "id": "a1f5",
             "source": "A15:output",
             "target": "A16:input",
-            "label": "Routed Request Targeting Per-User Daemon"
+            "label": "Routed 請求 Targeting 依-使用者 Daemon"
           },
           {
             "id": "a1f6",
             "source": "A15:output",
             "target": "EXTERNAL",
-            "label": "Login HTML Or Health 200 Response"
+            "label": "登入 HTML 或 健康 200 回應"
           },
           {
             "id": "a1mc6",
             "source": "EXTERNAL",
             "target": "A16:mechanism",
-            "label": "splice(2) Zero-Copy SPLICE_CLIENT SPLICE_DAEMON"
+            "label": "splice(2) Zero-Copy SPLICE CLIENT SPLICE DAEMON"
           },
           {
             "id": "a1f7",
             "source": "EXTERNAL",
             "target": "A16:control",
-            "label": "Daemon Discovery File daemon.json"
+            "label": "Daemon Discovery 檔案 daemon.js在"
           },
           {
             "id": "a1out1",
             "source": "A16:output",
             "target": "EXTERNAL",
-            "label": "Bidirectional Bytes To Per-User Daemon Socket"
+            "label": "Bidirectional 位元組 到 依-使用者 Daemon Socket"
           }
         ]
       }
     },
     {
       "id": "A2",
-      "title": "Spawn Per-User Daemon",
+      "title": "啟動 依-使用者 Daemon",
       "decomposition": {
-        "diagram_title": "Spawn Per-User Daemon",
+        "diagram_title": "啟動 依-使用者 Daemon",
         "node_reference": "A2",
         "activities": [
           {
             "id": "A21",
-            "title": "Resolve Runtime Directory For UID"
+            "title": "解析 Runtime Directory 供 UID"
           },
           {
             "id": "A22",
@@ -157,15 +157,15 @@
           },
           {
             "id": "A23",
-            "title": "Parse OPENCODE_BIN Argv"
+            "title": "解析 OPENCODE BIN Argv"
           },
           {
             "id": "A24",
-            "title": "Fork And Drop Privileges Via setuid"
+            "title": "Fork 與 Drop Privileges 透過 setuid"
           },
           {
             "id": "A25",
-            "title": "Bind Unix Socket And Write Discovery"
+            "title": "Bind Unix Socket 與 Write Discovery"
           }
         ],
         "arrows": [
@@ -173,25 +173,25 @@
             "id": "a2in1",
             "source": "EXTERNAL",
             "target": "A21:input",
-            "label": "find_or_create_daemon Request With UID"
+            "label": "find或createdaemon 請求 使用 UID"
           },
           {
             "id": "a2c1",
             "source": "EXTERNAL",
             "target": "A21:control",
-            "label": "Order /run/user/<uid>, XDG_RUNTIME_DIR, /tmp/opencode-<uid>"
+            "label": "Order /執行/使用者/<uid>, XDG RUNTIME DIR, /tmp/opencode-<uid>"
           },
           {
             "id": "a2f1",
             "source": "A21:output",
             "target": "A22:input",
-            "label": "Resolved Runtime Path"
+            "label": "已解析 Runtime 路徑"
           },
           {
             "id": "a2c2",
             "source": "EXTERNAL",
             "target": "A22:control",
-            "label": "chown <uid>:<gid> chmod 0700 As Root"
+            "label": "chown <uid>:<gid> chmod 0700 作為 Root"
           },
           {
             "id": "a2f2",
@@ -203,19 +203,19 @@
             "id": "a2in2",
             "source": "EXTERNAL",
             "target": "A23:input",
-            "label": "OPENCODE_BIN Env String"
+            "label": "OPENCODE BIN Env String"
           },
           {
             "id": "a2c3",
             "source": "EXTERNAL",
             "target": "A23:control",
-            "label": "parse_opencode_argv Forbids sh -c"
+            "label": "解析opencodeargv Forbids sh -c"
           },
           {
             "id": "a2f3",
             "source": "A23:output",
             "target": "A24:control",
-            "label": "Argv Array For execvp"
+            "label": "Argv Array 供 execvp"
           },
           {
             "id": "a2m1",
@@ -227,25 +227,25 @@
             "id": "a2f4",
             "source": "A24:output",
             "target": "A25:input",
-            "label": "Per-User Daemon Process"
+            "label": "依-使用者 Daemon Process"
           },
           {
             "id": "a2c4",
             "source": "EXTERNAL",
             "target": "A25:control",
-            "label": "Server.listenUnix --unix-socket=<path>"
+            "label": "伺服器.listenUnix --unix-socket=<路徑>"
           },
           {
             "id": "a2out1",
             "source": "A25:output",
             "target": "EXTERNAL",
-            "label": "daemon.sock daemon.pid daemon.json In XDG Runtime Dir"
+            "label": "daemon.sock daemon.pid daemon.js在 在 XDG Runtime Dir"
           },
           {
             "id": "a2out2",
             "source": "A24:output",
             "target": "EXTERNAL",
-            "label": "SIGCHLD Exit Status Logged"
+            "label": "SIGCHLD Exit 狀態 Logged"
           }
         ]
       }
@@ -263,11 +263,11 @@
         "activities": [
           {
             "id": "A41",
-            "title": "Receive restart_self MCP Call"
+            "title": "Receive restartself MCP 呼叫"
           },
           {
             "id": "A42",
-            "title": "Resolve Restart Runtime Mode"
+            "title": "解析 Restart Runtime Mode"
           },
           {
             "id": "A43",
@@ -275,15 +275,15 @@
           },
           {
             "id": "A44",
-            "title": "Rebuild And Install Dirty Layers"
+            "title": "Rebuild 與 Install Dirty Layers"
           },
           {
             "id": "A45",
-            "title": "Hand Off To Self Termination"
+            "title": "Hand Off 到 Self Termination"
           },
           {
             "id": "A46",
-            "title": "Report Failure With Error Log Path"
+            "title": "Report Failure 使用 錯誤 記錄 路徑"
           }
         ],
         "arrows": [
@@ -291,7 +291,7 @@
             "id": "a4in1",
             "source": "EXTERNAL",
             "target": "A41:input",
-            "label": "system-manager:restart_self Tool Invocation"
+            "label": "system-manager:restartself 工具 Invocation"
           },
           {
             "id": "a4c1",
@@ -303,25 +303,25 @@
             "id": "a4f1",
             "source": "A41:output",
             "target": "A42:input",
-            "label": "POST /api/v2/global/web/restart With JWT"
+            "label": "POST /api/v2/全域/web/restart 使用 JWT"
           },
           {
             "id": "a4c2",
             "source": "EXTERNAL",
             "target": "A42:control",
-            "label": "isGatewayDaemon Plus Targets List"
+            "label": "是Gatewaydaemon Plus Targets 清單"
           },
           {
             "id": "a4f2",
             "source": "A42:output",
             "target": "A43:input",
-            "label": "Gateway-Daemon Or Legacy Branch"
+            "label": "Gateway-Daemon 或 Legacy Branch"
           },
           {
             "id": "a4c3",
             "source": "EXTERNAL",
             "target": "A43:control",
-            "label": "Content Fingerprint Of Source Layers"
+            "label": "Content Fingerprint 的 來源 Layers"
           },
           {
             "id": "a4f3",
@@ -333,13 +333,13 @@
             "id": "a4m1",
             "source": "EXTERNAL",
             "target": "A44:mechanism",
-            "label": "webctl.sh restart --graceful Plus compileGatewayForSelfUpdate"
+            "label": "webctl.sh restart --graceful Plus compileGateway供self更新"
           },
           {
             "id": "a4f4ok",
             "source": "A44:output",
             "target": "A45:input",
-            "label": "Build Success Plus Installed Artifacts"
+            "label": "建置 Success Plus Installed Artifacts"
           },
           {
             "id": "a4f4err",
@@ -363,13 +363,13 @@
             "id": "a4out2",
             "source": "A46:output",
             "target": "EXTERNAL",
-            "label": "WEB_RESTART_FAILED With txid And errorLogPath"
+            "label": "WEB RESTART FAILED 使用 txid 與 錯誤記錄路徑"
           },
           {
             "id": "a4out3",
             "source": "A45:output",
             "target": "EXTERNAL",
-            "label": "200 OK Response Before Exit"
+            "label": "200 OK 回應 Before Exit"
           }
         ]
       }
@@ -380,11 +380,11 @@
     },
     {
       "id": "A6",
-      "title": "Onboard Multi-User Sessions"
+      "title": "Onboard Multi-使用者 Session"
     },
     {
       "id": "A7",
-      "title": "Enforce Daemon Spawn Denylist"
+      "title": "Enforce Daemon 啟動 Denylist"
     }
   ],
   "arrows": [
@@ -392,61 +392,61 @@
       "id": "m1",
       "source": "EXTERNAL",
       "target": "A1:input",
-      "label": "Browser HTTPS Request Via Nginx"
+      "label": "Browser HTTPS 請求 透過 Nginx"
     },
     {
       "id": "m2",
       "source": "EXTERNAL",
       "target": "A1:control",
-      "label": "/etc/opencode/opencode.cfg EnvironmentFile"
+      "label": "/etc/opencode/opencode.cfg environment檔案"
     },
     {
       "id": "m3",
       "source": "EXTERNAL",
       "target": "A1:mechanism",
-      "label": "opencode-gateway.service Running As Root"
+      "label": "opencode-gateway.service 執行中 作為 Root"
     },
     {
       "id": "m4",
       "source": "A1:output",
       "target": "A3:input",
-      "label": "find_or_create_daemon UID Lookup"
+      "label": "find或createdaemon UID Lookup"
     },
     {
       "id": "m5",
       "source": "A3:output",
       "target": "A2:input",
-      "label": "Adopt Failed, Spawn Required"
+      "label": "Adopt Failed, 啟動 Required"
     },
     {
       "id": "m6",
       "source": "A3:output",
       "target": "A1:control",
-      "label": "Adopted daemon.sock Path"
+      "label": "Adopted daemon.sock 路徑"
     },
     {
       "id": "m7",
       "source": "A2:output",
       "target": "A3:input",
-      "label": "New Discovery File Triple"
+      "label": "New Discovery 檔案 Triple"
     },
     {
       "id": "m8",
       "source": "A3:output",
       "target": "EXTERNAL",
-      "label": "daemon.lock JSON PID In ~/.config/opencode/"
+      "label": "daemon.lock JSON PID 在 ~/.config/opencode/"
     },
     {
       "id": "m9",
       "source": "EXTERNAL",
       "target": "A3:control",
-      "label": "process.kill(pid,0) Liveness Plus /proc/<pid>/uid Check"
+      "label": "process.終止(pid,0) Liveness Plus /程序/<pid>/uid Check"
     },
     {
       "id": "m10",
       "source": "EXTERNAL",
       "target": "A4:input",
-      "label": "AI Calls system-manager:restart_self"
+      "label": "AI Calls system-manager:restartself"
     },
     {
       "id": "m11",
@@ -464,13 +464,13 @@
       "id": "m13",
       "source": "A4:output",
       "target": "EXTERNAL",
-      "label": "errorLogPath Or 200 Accepted Response"
+      "label": "錯誤記錄路徑 或 200 Accepted 回應"
     },
     {
       "id": "m14",
       "source": "A1:output",
       "target": "A5:input",
-      "label": "Adopt Probe Found Stale Or Mismatched Holder"
+      "label": "Adopt 探測 Found Stale 或 Mismatched Holder"
     },
     {
       "id": "m15",
@@ -482,61 +482,61 @@
       "id": "m16",
       "source": "A5:output",
       "target": "A2:input",
-      "label": "Cleared Lock And Socket Path Ready"
+      "label": "Cleared Lock 與 Socket 路徑 就緒"
     },
     {
       "id": "m17",
       "source": "A5:output",
       "target": "EXTERNAL",
-      "label": "orphan-detected And orphan-cleanup Log Lines"
+      "label": "orphan-detected 與 orphan-cleanup 記錄 Lines"
     },
     {
       "id": "m18",
       "source": "EXTERNAL",
       "target": "A6:input",
-      "label": "First Login For System Account"
+      "label": "First 登入 供 System 帳號"
     },
     {
       "id": "m19",
       "source": "EXTERNAL",
       "target": "A6:control",
-      "label": "/etc/opencode/google-bindings.json Mapping"
+      "label": "/etc/opencode/google-bindings.js在 Mapping"
     },
     {
       "id": "m20",
       "source": "A6:output",
       "target": "A2:control",
-      "label": "Authorized UID For Spawn"
+      "label": "Authorized UID 供 啟動"
     },
     {
       "id": "m21",
       "source": "A6:output",
       "target": "EXTERNAL",
-      "label": "Login Redirect Clears localStorage On User Switch"
+      "label": "登入 重新導向 Clears localStorage 在 使用者 Switch"
     },
     {
       "id": "m22",
       "source": "EXTERNAL",
       "target": "A7:input",
-      "label": "AI Bash Tool Command"
+      "label": "AI Bash 工具 Command"
     },
     {
       "id": "m23",
       "source": "EXTERNAL",
       "target": "A7:control",
-      "label": "DAEMON_SPAWN_DENYLIST Four Regex Rules In tool/bash.ts"
+      "label": "DAEMON SPAWN DENYLIST Four Regex Rules 在 tool/bash.ts"
     },
     {
       "id": "m24",
       "source": "A7:output",
       "target": "EXTERNAL",
-      "label": "FORBIDDEN_DAEMON_SPAWN Throw Plus denylist-block Log"
+      "label": "FORBIDDEN DAEMON SPAWN Throw Plus denylist-區塊 記錄"
     },
     {
       "id": "m25",
       "source": "A7:output",
       "target": "A4:control",
-      "label": "Forces AI To Use restart_self Path"
+      "label": "Forces AI 到 Use restartself 路徑"
     }
   ]
 }

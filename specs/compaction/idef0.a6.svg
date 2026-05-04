@@ -1,54 +1,52 @@
-<svg width="1250.9" height="750.0" viewBox="-235.4 -170.0 1250.9 750.0" xmlns="http://www.w3.org/2000/svg">
+<svg width="1518.0" height="750.0" viewBox="-334.0 -170.0 1518.0 750.0" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
 <marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
 </defs>
-<rect x="-235.4" y="-170.0" width="1250.9" height="750.0" fill="white" />
-<rect x="130.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A61" />
-<text x="230.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A61" >A61</text>
-<text x="230.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A61" >BUILD STATIC</text>
-<text x="230.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A61" >SYSTEM BLOCK</text>
-<rect x="490.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A62" />
-<text x="590.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A62" >A62</text>
-<text x="590.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A62" >EMIT CONTEXT</text>
-<text x="590.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A62" >PREFACE PARTS</text>
-<rect x="130.0" y="370.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A63" />
-<text x="230.0" y="399.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A63" >A63</text>
-<text x="230.0" y="431.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A63" >PLACE CACHE</text>
-<text x="230.0" y="462.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A63" >BREAKPOINTS</text>
-<rect x="490.0" y="370.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A64" />
-<text x="590.0" y="399.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A64" >A64</text>
-<text x="590.0" y="431.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A64" >RECORD SYSTEM</text>
-<text x="590.0" y="462.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A64" >BLOCK HASH</text>
-<rect x="0.0" y="40.0" width="780.0" height="530.0" stroke="black" fill="none" stroke-width="2" />
-<rect x="218.0" y="-160.0" width="344.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A6" />
-<text x="390.0" y="-134.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >A6</text>
-<text x="390.0" y="-104.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >APPLY CACHE LAYOUT</text>
-<text x="390.0" y="-74.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >AND STATIC SYSTEM</text>
-<line x1="218.0" y1="-160.0" x2="0.0" y2="40.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="562.0" y1="-160.0" x2="780.0" y2="40.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="218.0" y1="-50.0" x2="0.0" y2="570.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="562.0" y1="-50.0" x2="780.0" y2="570.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<path d="M 690.0 180.0 L 720.0 180.0 Q 730.0 180.0 730.0 190.0 L 730.0 310.0 Q 730.0 320.0 720.0 320.0 L 100.0 320.0 Q 90.0 320.0 90.0 330.0 L 90.0 400.0 Q 90.0 410.0 100.0 410.0 L 130.0 410.0" stroke="black" stroke-width="1.2" data-arrow-id="a6_out_preface" data-waypoints="690.0,180.0 730.0,180.0 730.0,320.0 90.0,320.0 90.0,410.0 130.0,410.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 160.0 L 400.0 160.0 Q 410.0 160.0 410.0 170.0 L 410.0 420.0 Q 410.0 430.0 420.0 430.0 L 490.0 430.0" stroke="black" stroke-width="1.2" data-arrow-id="a6_out_hash_in" data-waypoints="330.0,160.0 410.0,160.0 410.0,430.0 490.0,430.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 200.0 L 360.0 200.0 Q 370.0 200.0 370.0 210.0 L 370.0 270.0 Q 370.0 280.0 360.0 280.0 L 60.0 280.0 Q 50.0 280.0 50.0 290.0 L 50.0 440.0 Q 50.0 450.0 60.0 450.0 L 130.0 450.0" stroke="black" stroke-width="1.2" data-arrow-id="a6_out_block" data-waypoints="330.0,200.0 370.0,200.0 370.0,280.0 50.0,280.0 50.0,450.0 130.0,450.0" marker-end="url(#arrow)" fill="none" />
+<rect x="-334.0" y="-170.0" width="1518.0" height="750.0" fill="white" />
+<rect x="130.0" y="120.0" width="235.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A61" />
+<text x="247.5" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A61" >A61</text>
+<text x="247.5" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A61" >建置 STATIC</text>
+<text x="247.5" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A61" >SYSTEM 區塊</text>
+<rect x="525.0" y="120.0" width="235.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A62" />
+<text x="642.5" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A62" >A62</text>
+<text x="642.5" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A62" >發出 上下文</text>
+<text x="642.5" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A62" >PREFACE PARTS</text>
+<rect x="130.0" y="370.0" width="235.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A63" />
+<text x="247.5" y="399.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A63" >A63</text>
+<text x="247.5" y="431.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A63" >PLACE 快取</text>
+<text x="247.5" y="462.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A63" >BREAKPOINTS</text>
+<rect x="525.0" y="370.0" width="235.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A64" />
+<text x="642.5" y="415.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A64" >A64</text>
+<text x="642.5" y="447.8" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A64" >記錄 SYSTEM 區塊 HASH</text>
+<rect x="0.0" y="40.0" width="850.0" height="530.0" stroke="black" fill="none" stroke-width="2" />
+<rect x="262.5" y="-160.0" width="325.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A6" />
+<text x="425.0" y="-134.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >A6</text>
+<text x="425.0" y="-104.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >APPLY 快取 LAYOUT</text>
+<text x="425.0" y="-74.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >與 STATIC SYSTEM</text>
+<line x1="262.5" y1="-160.0" x2="0.0" y2="40.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="587.5" y1="-160.0" x2="850.0" y2="40.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="262.5" y1="-50.0" x2="0.0" y2="570.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="587.5" y1="-50.0" x2="850.0" y2="570.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 760.0 180.0 L 790.0 180.0 Q 800.0 180.0 800.0 190.0 L 800.0 310.0 Q 800.0 320.0 790.0 320.0 L 100.0 320.0 Q 90.0 320.0 90.0 330.0 L 90.0 400.0 Q 90.0 410.0 100.0 410.0 L 130.0 410.0" stroke="black" stroke-width="1.2" data-arrow-id="a6_out_preface" data-waypoints="760.0,180.0 800.0,180.0 800.0,320.0 90.0,320.0 90.0,410.0 130.0,410.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 365.0 160.0 L 435.0 160.0 Q 445.0 160.0 445.0 170.0 L 445.0 420.0 Q 445.0 430.0 455.0 430.0 L 525.0 430.0" stroke="black" stroke-width="1.2" data-arrow-id="a6_out_hash_in" data-waypoints="365.0,160.0 445.0,160.0 445.0,430.0 525.0,430.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 365.0 200.0 L 395.0 200.0 Q 405.0 200.0 405.0 210.0 L 405.0 270.0 Q 405.0 280.0 395.0 280.0 L 60.0 280.0 Q 50.0 280.0 50.0 290.0 L 50.0 440.0 Q 50.0 450.0 60.0 450.0 L 130.0 450.0" stroke="black" stroke-width="1.2" data-arrow-id="a6_out_block" data-waypoints="365.0,200.0 405.0,200.0 405.0,280.0 50.0,280.0 50.0,450.0 130.0,450.0" marker-end="url(#arrow)" fill="none" />
 <path d="M -50.0 180.0 L 130.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a6_in_tuple" data-waypoints="-50.0,180.0 130.0,180.0" marker-end="url(#arrow)" fill="none" />
-<path d="M -50.0 80.0 L 440.0 80.0 Q 450.0 80.0 450.0 90.0 L 450.0 170.0 Q 450.0 180.0 460.0 180.0 L 490.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a6_in_dynamic" data-waypoints="-50.0,80.0 450.0,80.0 450.0,180.0 490.0,180.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 334.2 L 230.0 370.0" stroke="black" stroke-width="1.2" data-arrow-id="a6_ctrl_provider" data-waypoints="230.0,334.2 230.0,370.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 430.0 L 360.0 430.0 Q 370.0 430.0 370.0 440.0 L 370.0 520.0 Q 370.0 530.0 380.0 530.0 L 830.0 530.0" stroke="black" stroke-width="1.2" data-arrow-id="a6_out_msgs" data-waypoints="330.0,430.0 370.0,430.0 370.0,530.0 830.0,530.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 690.0 430.0 L 830.0 430.0" stroke="black" stroke-width="1.2" data-arrow-id="a6_out_hash" data-waypoints="690.0,430.0 830.0,430.0" marker-end="url(#arrow)" fill="none" />
-<text x="224.0" y="364.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a6_ctrl_provider">Provider</text>
-<text x="236.0" y="364.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a6_ctrl_provider">Family</text>
-<text x="590.0" y="312.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a6_out_preface" >Context Preface Parts</text>
-<text x="440.0" y="348.3" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a6_out_hash_in" >Static Block Bytes</text>
-<text x="230.0" y="298.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a6_out_block" >Static System Block</text>
+<path d="M -50.0 80.0 L 475.0 80.0 Q 485.0 80.0 485.0 90.0 L 485.0 170.0 Q 485.0 180.0 495.0 180.0 L 525.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a6_in_dynamic" data-waypoints="-50.0,80.0 485.0,80.0 485.0,180.0 525.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 247.5 334.2 L 247.5 370.0" stroke="black" stroke-width="1.2" data-arrow-id="a6_ctrl_provider" data-waypoints="247.5,334.2 247.5,370.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 365.0 430.0 L 395.0 430.0 Q 405.0 430.0 405.0 440.0 L 405.0 520.0 Q 405.0 530.0 415.0 530.0 L 900.0 530.0" stroke="black" stroke-width="1.2" data-arrow-id="a6_out_msgs" data-waypoints="365.0,430.0 405.0,430.0 405.0,530.0 900.0,530.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 760.0 430.0 L 900.0 430.0" stroke="black" stroke-width="1.2" data-arrow-id="a6_out_hash" data-waypoints="760.0,430.0 900.0,430.0" marker-end="url(#arrow)" fill="none" />
+<text x="241.5" y="364.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a6_ctrl_provider">Provider</text>
+<text x="253.5" y="364.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a6_ctrl_provider">Family</text>
+<text x="642.5" y="312.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a6_out_preface" >上下文 Preface Parts</text>
+<text x="475.0" y="348.3" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a6_out_hash_in" >Static 區塊 位元組</text>
+<text x="247.5" y="298.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a6_out_block" >Static System 區塊</text>
 <text x="-54.0" y="171.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a6_in_tuple">L1 L2 L3c L5</text>
 <text x="-54.0" y="197.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a6_in_tuple">L6 L7 L8 Tuple</text>
-<text x="-54.0" y="71.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a6_in_dynamic">Cwd Skills Date</text>
+<text x="-54.0" y="71.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a6_in_dynamic">Cwd 技能 Date</text>
 <text x="-54.0" y="97.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a6_in_dynamic">Routing Inputs</text>
-<text x="834.0" y="521.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a6_out_msgs">Messages With</text>
-<text x="834.0" y="547.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a6_out_msgs">BP1 To BP4</text>
-<text x="834.0" y="421.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a6_out_hash">Recorded System</text>
-<text x="834.0" y="447.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a6_out_hash">Block Hash</text>
-<path d="M 440.0,344.1 L 439.4,344.5 L 438.8,345.0 L 438.1,345.4 L 437.5,345.8 L 436.9,346.2 L 436.3,346.6 L 435.6,346.9 L 435.0,347.1 L 434.4,347.3 L 433.8,347.5 L 433.1,347.6 L 432.5,347.6 L 431.9,347.6 L 431.3,347.5 L 430.6,347.3 L 430.0,347.1 L 429.4,346.9 L 428.8,346.6 L 428.1,346.2 L 427.5,345.8 L 426.9,345.4 L 426.3,345.0 L 425.6,344.5 L 425.0,344.1 L 424.4,343.6 L 423.8,343.2 L 423.1,342.7 L 422.5,342.3 L 421.9,342.0 L 421.3,341.6 L 420.6,341.3 L 420.0,341.1 L 419.4,340.9 L 418.8,340.7 L 418.1,340.6 L 417.5,340.6 L 416.9,340.6 L 416.3,340.7 L 415.6,340.9 L 415.0,341.1 L 414.4,341.3 L 413.8,341.6 L 413.1,342.0 L 412.5,342.3 L 411.9,342.7 L 411.3,343.2 L 410.6,343.6 L 410.0,344.1" stroke="red" stroke-width="0.8" fill="none" opacity="0.5" />
+<text x="904.0" y="534.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a6_out_msgs">Messages 使用 BP1 到 BP4</text>
+<text x="904.0" y="421.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a6_out_hash">Recorded System</text>
+<text x="904.0" y="447.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a6_out_hash">區塊 Hash</text>
+<path d="M 475.0,344.1 L 474.4,344.5 L 473.8,345.0 L 473.1,345.4 L 472.5,345.8 L 471.9,346.2 L 471.3,346.6 L 470.6,346.9 L 470.0,347.1 L 469.4,347.3 L 468.8,347.5 L 468.1,347.6 L 467.5,347.6 L 466.9,347.6 L 466.3,347.5 L 465.6,347.3 L 465.0,347.1 L 464.4,346.9 L 463.8,346.6 L 463.1,346.2 L 462.5,345.8 L 461.9,345.4 L 461.3,345.0 L 460.6,344.5 L 460.0,344.1 L 459.4,343.6 L 458.8,343.2 L 458.1,342.7 L 457.5,342.3 L 456.9,342.0 L 456.3,341.6 L 455.6,341.3 L 455.0,341.1 L 454.4,340.9 L 453.8,340.7 L 453.1,340.6 L 452.5,340.6 L 451.9,340.6 L 451.3,340.7 L 450.6,340.9 L 450.0,341.1 L 449.4,341.3 L 448.8,341.6 L 448.1,342.0 L 447.5,342.3 L 446.9,342.7 L 446.3,343.2 L 445.6,343.6 L 445.0,344.1" stroke="red" stroke-width="0.8" fill="none" opacity="0.5" />
 </svg>

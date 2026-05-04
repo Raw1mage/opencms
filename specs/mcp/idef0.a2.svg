@@ -1,57 +1,54 @@
-<svg width="1252.6" height="754.8" viewBox="-258.3 -165.8 1252.6 754.8" xmlns="http://www.w3.org/2000/svg">
+<svg width="1369.4" height="745.8" viewBox="-309.7 -165.8 1369.4 745.8" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
 <marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
 </defs>
-<rect x="-258.3" y="-165.8" width="1252.6" height="754.8" fill="white" />
-<rect x="130.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A21" />
-<text x="230.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >A21</text>
-<text x="230.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >PROBE TOOLS VIA</text>
-<text x="230.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >THROWAWAY STDIO</text>
-<rect x="446.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A22" />
-<text x="546.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >A22</text>
-<text x="546.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >LINT BIND</text>
-<text x="546.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >MOUNT POLICY</text>
-<rect x="130.0" y="370.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A23" />
-<text x="230.0" y="399.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >A23</text>
-<text x="230.0" y="431.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >BUILD APP</text>
-<text x="230.0" y="462.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >STORE ENTRY</text>
-<rect x="446.0" y="370.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A24" />
-<text x="546.0" y="399.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >A24</text>
-<text x="546.0" y="431.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >PERSIST MANAGED</text>
-<text x="546.0" y="462.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >APP STATE</text>
-<rect x="0.0" y="44.2" width="736.0" height="525.8" stroke="black" fill="none" stroke-width="2" />
-<rect x="248.0" y="-155.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
-<text x="368.0" y="-114.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
-<text x="368.0" y="-84.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >REGISTER TOOL CATALOG</text>
-<line x1="248.0" y1="-155.8" x2="0.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="488.0" y1="-155.8" x2="736.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="248.0" y1="-45.8" x2="0.0" y2="570.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="488.0" y1="-45.8" x2="736.0" y2="570.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<path d="M 330.0 410.0 L 446.0 410.0" stroke="black" stroke-width="1.2" data-arrow-id="a2f3" data-waypoints="330.0,410.0 446.0,410.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 646.0 180.0 L 676.0 180.0 Q 686.0 180.0 686.0 190.0 L 686.0 310.0 Q 686.0 320.0 676.0 320.0 L 100.0 320.0 Q 90.0 320.0 90.0 330.0 L 90.0 400.0 Q 90.0 410.0 100.0 410.0 L 130.0 410.0" stroke="black" stroke-width="1.2" data-arrow-id="a2f2" data-waypoints="646.0,180.0 686.0,180.0 686.0,320.0 90.0,320.0 90.0,410.0 130.0,410.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 180.0 L 378.0 180.0 Q 388.0 180.0 388.0 190.0 L 388.0 270.0 Q 388.0 280.0 378.0 280.0 L 60.0 280.0 Q 50.0 280.0 50.0 290.0 L 50.0 440.0 Q 50.0 450.0 60.0 450.0 L 130.0 450.0" stroke="black" stroke-width="1.2" data-arrow-id="a2f1" data-waypoints="330.0,180.0 388.0,180.0 388.0,280.0 50.0,280.0 50.0,450.0 130.0,450.0" marker-end="url(#arrow)" fill="none" />
+<rect x="-309.7" y="-165.8" width="1369.4" height="745.8" fill="white" />
+<rect x="130.0" y="120.0" width="219.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A21" />
+<text x="239.5" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >A21</text>
+<text x="239.5" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >探測 TOOLS 透過</text>
+<text x="239.5" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A21" >THROWAWAY STDIO</text>
+<rect x="441.0" y="120.0" width="219.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A22" />
+<text x="550.5" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >A22</text>
+<text x="550.5" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >LINT BIND</text>
+<text x="550.5" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A22" >MOUNT POLICY</text>
+<rect x="130.0" y="370.0" width="219.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A23" />
+<text x="239.5" y="415.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >A23</text>
+<text x="239.5" y="447.8" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A23" >建置 APP STORE 項目</text>
+<rect x="441.0" y="370.0" width="219.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A24" />
+<text x="550.5" y="399.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >A24</text>
+<text x="550.5" y="431.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >持久化 MANAGED</text>
+<text x="550.5" y="462.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A24" >APP 狀態</text>
+<rect x="0.0" y="44.2" width="750.0" height="525.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="255.0" y="-155.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="375.0" y="-118.4" text-anchor="middle" font-size="21" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
+<text x="375.0" y="-78.4" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >註冊 工具 CATALOG</text>
+<line x1="255.0" y1="-155.8" x2="0.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="495.0" y1="-155.8" x2="750.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="255.0" y1="-45.8" x2="0.0" y2="570.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="495.0" y1="-45.8" x2="750.0" y2="570.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 349.0 410.0 L 441.0 410.0" stroke="black" stroke-width="1.2" data-arrow-id="a2f3" data-waypoints="349.0,410.0 441.0,410.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 660.0 180.0 L 690.0 180.0 Q 700.0 180.0 700.0 190.0 L 700.0 310.0 Q 700.0 320.0 690.0 320.0 L 100.0 320.0 Q 90.0 320.0 90.0 330.0 L 90.0 400.0 Q 90.0 410.0 100.0 410.0 L 130.0 410.0" stroke="black" stroke-width="1.2" data-arrow-id="a2f2" data-waypoints="660.0,180.0 700.0,180.0 700.0,320.0 90.0,320.0 90.0,410.0 130.0,410.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 349.0 180.0 L 385.0 180.0 Q 395.0 180.0 395.0 190.0 L 395.0 270.0 Q 395.0 280.0 385.0 280.0 L 60.0 280.0 Q 50.0 280.0 50.0 290.0 L 50.0 440.0 Q 50.0 450.0 60.0 450.0 L 130.0 450.0" stroke="black" stroke-width="1.2" data-arrow-id="a2f1" data-waypoints="349.0,180.0 395.0,180.0 395.0,280.0 50.0,280.0 50.0,450.0 130.0,450.0" marker-end="url(#arrow)" fill="none" />
 <path d="M -50.0 180.0 L 130.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a2in1" data-waypoints="-50.0,180.0 130.0,180.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 546.0 84.2 L 546.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a2c1" data-waypoints="546.0,84.2 546.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 334.2 L 230.0 370.0" stroke="black" stroke-width="1.2" data-arrow-id="a2c2" data-waypoints="230.0,334.2 230.0,370.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 546.0 334.2 L 546.0 370.0" stroke="black" stroke-width="1.2" data-arrow-id="a2c3" data-waypoints="546.0,334.2 546.0,370.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 646.0 430.0 L 786.0 430.0" stroke="black" stroke-width="1.2" data-arrow-id="a2out1" data-waypoints="646.0,430.0 786.0,430.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 450.0 L 378.0 450.0 Q 388.0 450.0 388.0 460.0 L 388.0 520.0 Q 388.0 530.0 398.0 530.0 L 786.0 530.0" stroke="black" stroke-width="1.2" data-arrow-id="a2out2" data-waypoints="330.0,450.0 388.0,450.0 388.0,530.0 786.0,530.0" marker-end="url(#arrow)" fill="none" />
-<text x="546.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2c1">Allowed Host Regex /run/user/&lt;uid&gt;/opencode/sockets/*</text>
-<text x="224.0" y="364.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2c2">McpAppStore.AppEntry</text>
-<text x="236.0" y="364.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2c2">Shape (incl. modelProcess)</text>
-<text x="540.0" y="364.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2c3">BUILTIN_CATALOG</text>
-<text x="552.0" y="364.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2c3">(currently empty)</text>
-<text x="388.0" y="405.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2f3">Persisted</text>
-<text x="388.0" y="422.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2f3">Entry Record</text>
-<text x="230.0" y="312.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2f2" >Lint Verdict (pass | bind_mount_forbidden)</text>
-<text x="230.0" y="272.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2f1" >tools/list Snapshot</text>
-<text x="-54.0" y="171.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2in1">Resolved</text>
-<text x="-54.0" y="197.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2in1">Command And Env</text>
-<text x="790.0" y="421.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out1">managed-apps.json</text>
-<text x="790.0" y="447.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out1">(FSM State)</text>
-<text x="790.0" y="495.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out2">mcp-apps.json</text>
-<text x="790.0" y="521.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out2">Tier File (via</text>
-<text x="790.0" y="547.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out2">sudoWrapper</text>
-<text x="790.0" y="573.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out2">for system)</text>
+<path d="M 550.5 84.2 L 550.5 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a2c1" data-waypoints="550.5,84.2 550.5,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 239.5 334.2 L 239.5 370.0" stroke="black" stroke-width="1.2" data-arrow-id="a2c2" data-waypoints="239.5,334.2 239.5,370.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 550.5 334.2 L 550.5 370.0" stroke="black" stroke-width="1.2" data-arrow-id="a2c3" data-waypoints="550.5,334.2 550.5,370.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 660.0 430.0 L 800.0 430.0" stroke="black" stroke-width="1.2" data-arrow-id="a2out1" data-waypoints="660.0,430.0 800.0,430.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 349.0 450.0 L 385.0 450.0 Q 395.0 450.0 395.0 460.0 L 395.0 520.0 Q 395.0 530.0 405.0 530.0 L 800.0 530.0" stroke="black" stroke-width="1.2" data-arrow-id="a2out2" data-waypoints="349.0,450.0 395.0,450.0 395.0,530.0 800.0,530.0" marker-end="url(#arrow)" fill="none" />
+<text x="550.5" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2c1">Allowed Host Regex /執行/使用者/&lt;uid&gt;/opencode/sockets/*</text>
+<text x="233.5" y="364.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2c2">McpAppStore.app項目</text>
+<text x="245.5" y="364.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2c2">Shape (incl. 模型process)</text>
+<text x="544.5" y="364.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2c3">BUILTIN CATALOG</text>
+<text x="556.5" y="364.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2c3">(currently empty)</text>
+<text x="395.0" y="405.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2f3">Persisted</text>
+<text x="395.0" y="422.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2f3">項目 記錄</text>
+<text x="550.5" y="312.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2f2" >Lint Verdict (pass | bindmountforbidden)</text>
+<text x="239.5" y="298.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2f1" >tools/清單 Snapshot</text>
+<text x="-54.0" y="184.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2in1">已解析 Command 與 Env</text>
+<text x="804.0" y="421.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out1">managed-apps.js</text>
+<text x="804.0" y="447.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out1">在 (FSM 狀態)</text>
+<text x="804.0" y="508.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out2">mcp-apps.js在 Tier</text>
+<text x="804.0" y="534.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out2">檔案 (透過 sudoWrapper</text>
+<text x="804.0" y="560.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a2out2">供 system)</text>
 </svg>

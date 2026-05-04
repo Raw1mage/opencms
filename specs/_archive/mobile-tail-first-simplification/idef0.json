@@ -1,67 +1,137 @@
 {
   "schema": "idef0/v1",
-  "diagram_title": "Mobile Tail-First Session Lifecycle",
+  "diagram_title": "行動版 Tail-First Session Lifecycle",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A0",
       "name": "Display session to user",
-      "inputs": ["session-id", "platform (mobile/desktop)"],
-      "controls": ["tweaks.cfg (tail + cap sizes)"],
-      "outputs": ["rendered message list", "live-updating UI"],
-      "mechanisms": ["client browser", "opencode server", "SSE transport"]
+      "inputs": [
+        "session-id",
+        "platform (mobile/desktop)"
+      ],
+      "controls": [
+        "tweaks.cfg (tail + cap sizes)"
+      ],
+      "outputs": [
+        "rendered message list",
+        "live-updating UI"
+      ],
+      "mechanisms": [
+        "client browser",
+        "opencode server",
+        "SSE transport"
+      ]
     },
     {
       "id": "A1",
       "parent": "A0",
       "name": "Load initial tail",
-      "inputs": ["session-id", "tail size N"],
-      "controls": ["platform tail tweak"],
-      "outputs": ["store populated with last N messages"],
-      "mechanisms": ["GET /session/:id/message?limit=N"]
+      "inputs": [
+        "session-id",
+        "tail size N"
+      ],
+      "controls": [
+        "platform tail tweak"
+      ],
+      "outputs": [
+        "store populated with last N messages"
+      ],
+      "mechanisms": [
+        "GET /session/:id/message?limit=N"
+      ]
     },
     {
       "id": "A2",
       "parent": "A0",
       "name": "Apply SSE live events",
-      "inputs": ["live SSE event stream"],
-      "controls": ["event-reducer rules", "store cap"],
-      "outputs": ["updated store", "live-streaming set updated"],
-      "mechanisms": ["EventSource subscription", "event-reducer"]
+      "inputs": [
+        "live SSE event stream"
+      ],
+      "controls": [
+        "event-reducer rules",
+        "store cap"
+      ],
+      "outputs": [
+        "updated store",
+        "live-streaming set updated"
+      ],
+      "mechanisms": [
+        "EventSource subscription",
+        "event-reducer"
+      ]
     },
     {
       "id": "A3",
       "parent": "A0",
       "name": "Load older on explicit scroll-up",
-      "inputs": ["oldest-stored messageID", "user scroll gesture"],
-      "controls": ["scroll-spy sentinel", "gesture gate"],
-      "outputs": ["older messages prepended to store"],
-      "mechanisms": ["GET /session/:id/message?limit=N&before=<id>"]
+      "inputs": [
+        "oldest-stored messageID",
+        "user scroll gesture"
+      ],
+      "controls": [
+        "scroll-spy sentinel",
+        "gesture gate"
+      ],
+      "outputs": [
+        "older messages prepended to store"
+      ],
+      "mechanisms": [
+        "GET /session/:id/message?limit=N&before=<id>"
+      ]
     },
     {
       "id": "A4",
       "parent": "A0",
       "name": "Enforce store cap (LRU)",
-      "inputs": ["store mutation event"],
-      "controls": ["platform cap tweak", "live-streaming set"],
-      "outputs": ["store <= cap, no live-streaming messages evicted"],
-      "mechanisms": ["evictToCap() helper"]
+      "inputs": [
+        "store mutation event"
+      ],
+      "controls": [
+        "platform cap tweak",
+        "live-streaming set"
+      ],
+      "outputs": [
+        "store <= cap, no live-streaming messages evicted"
+      ],
+      "mechanisms": [
+        "evictToCap() helper"
+      ]
     },
     {
       "id": "A5",
       "parent": "A0",
       "name": "Fetch full part on expand",
-      "inputs": ["msgID", "partID"],
-      "controls": ["truncatedPrefix > 0"],
-      "outputs": ["single part rebuilt in place"],
-      "mechanisms": ["GET /session/:id/message/:msgID/part/:partID"]
+      "inputs": [
+        "msgID",
+        "partID"
+      ],
+      "controls": [
+        "truncatedPrefix > 0"
+      ],
+      "outputs": [
+        "single part rebuilt in place"
+      ],
+      "mechanisms": [
+        "GET /session/:id/message/:msgID/part/:partID"
+      ]
     }
   ],
   "traceability": {
-    "A1": ["R1"],
-    "A2": ["R2"],
-    "A3": ["R3"],
-    "A4": ["R4"],
-    "A5": ["R5"]
+    "A1": [
+      "R1"
+    ],
+    "A2": [
+      "R2"
+    ],
+    "A3": [
+      "R3"
+    ],
+    "A4": [
+      "R4"
+    ],
+    "A5": [
+      "R5"
+    ]
   }
 }

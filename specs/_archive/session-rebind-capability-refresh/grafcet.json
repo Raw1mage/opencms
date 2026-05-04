@@ -3,108 +3,186 @@
     "StepNumber": 0,
     "ModuleRef": "A1",
     "StepType": "initial",
-    "StepAction": "Idle — epoch uninitialized (0), no capability-layer cache for session",
+    "StepAction": "閒置 — epoch uninitialized (0), 無 capability-layer 快取 供 Session",
     "LinkInputType": [],
     "LinkInputNumber": [],
-    "LinkOutputNumber": [1],
+    "LinkOutputNumber": [
+      1
+    ],
     "LinkOutputType": "track",
-    "Condition": ["rebind_trigger_received"],
+    "Condition": [
+      "rebindtrigger已收到"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 1,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Validate rate limit (≤5 bumps/sec/session)",
-    "LinkInputType": ["convergence_or", "convergence_or"],
-    "LinkInputNumber": [0, 5],
-    "LinkOutputNumber": [2, 7],
+    "StepAction": "Validate 速率限制 (≤5 bumps/sec/Session)",
+    "LinkInputType": [
+      "convergence_or",
+      "convergence_or"
+    ],
+    "LinkInputNumber": [
+      0,
+      5
+    ],
+    "LinkOutputNumber": [
+      2,
+      7
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["rate_ok", "rate_exceeded"],
+    "Condition": [
+      "rateok",
+      "rateexceeded"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Bump epoch (N → N+1), clear capability-layer cache for session, emit session.rebind event",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [3],
+    "StepAction": "Bump epoch (N → N+1), clear capability-layer 快取 供 Session, 發出 Session.rebind 事件",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      3
+    ],
     "LinkOutputType": "track",
-    "Condition": ["epoch_bumped_cache_cleared"],
+    "Condition": [
+      "epochbumped快取cleared"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "Reinject capability layers (read AGENTS.md + driver + skill content + enablement, fill cache at new epoch)",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [4, 8],
+    "StepAction": "Reinject capability layers (read AGENTS.md + driver + 技能 content + enablement, fill 快取 於 new epoch)",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      4,
+      8
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["reinject_success", "reinject_failure"],
+    "Condition": [
+      "reinjectsuccess",
+      "reinjectfailure"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 4,
     "ModuleRef": "A6",
     "StepType": "normal",
-    "StepAction": "Emit capability_layer.refreshed event (epoch, layers, pinnedSkills) → SSE to UI dashboard",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [5],
+    "StepAction": "發出 capabilitylayer.refreshed 事件 (epoch, layers, 已釘選技能) → SSE 到 UI dashboard",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      5
+    ],
     "LinkOutputType": "track",
-    "Condition": ["event_emitted"],
+    "Condition": [
+      "事件emitted"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 5,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Active — session uses cached capability layer for LLM rounds (cache hit), no disk I/O per round",
-    "LinkInputType": ["convergence_or", "convergence_or", "convergence_or"],
-    "LinkInputNumber": [4, 7, 8],
-    "LinkOutputNumber": [1, 6],
+    "StepAction": "Active — Session uses cached capability layer 供 LLM rounds (快取 hit), 無 磁碟 I/O 依 round",
+    "LinkInputType": [
+      "convergence_or",
+      "convergence_or",
+      "convergence_or"
+    ],
+    "LinkInputNumber": [
+      4,
+      7,
+      8
+    ],
+    "LinkOutputNumber": [
+      1,
+      6
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["next_rebind_trigger_received", "session_ended"],
+    "Condition": [
+      "下一個rebindtrigger已收到",
+      "Sessionended"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 6,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Terminal — session closed, epoch + cache entries GC'd with session teardown",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [5],
+    "StepAction": "終止 — Session closed, epoch + 快取 entries GC'd 使用 Session teardown",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      5
+    ],
     "LinkOutputNumber": [],
     "LinkOutputType": "track",
-    "Condition": ["terminal"],
+    "Condition": [
+      "終止"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 7,
     "ModuleRef": "A6",
     "StepType": "normal",
-    "StepAction": "Emit session.rebind_storm anomaly (anomalyFlags=[rebind_storm]); reject bump; keep existing epoch + cache",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [5],
+    "StepAction": "發出 Session.rebindstorm 異常 (異常flags=[rebindstorm]); reject bump; keep existing epoch + 快取",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      5
+    ],
     "LinkOutputType": "track",
-    "Condition": ["anomaly_recorded_resume_active"],
+    "Condition": [
+      "異常recordedresumeactive"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 8,
     "ModuleRef": "A6",
     "StepType": "normal",
-    "StepAction": "Emit capability_layer.refresh_failed anomaly; retain previous epoch's cache (do not overwrite with partial reinject)",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [5],
+    "StepAction": "發出 capabilitylayer.刷新failed 異常; retain previous epoch's 快取 (do 不 overwrite 使用 partial reinject)",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      5
+    ],
     "LinkOutputType": "track",
-    "Condition": ["failure_recorded_prev_cache_kept"],
+    "Condition": [
+      "failurerecordedprev快取kept"
+    ],
     "SubGrafcet": []
   }
 ]

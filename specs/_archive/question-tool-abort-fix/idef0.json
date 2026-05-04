@@ -1,12 +1,12 @@
 {
-  "diagram_title": "Question tool abort lifecycle",
+  "diagram_title": "問題 工具 abort lifecycle",
   "node_reference": "A0",
   "parent_reference": null,
   "standard": "IEEE 1320.1-1998 / FIPS 183 (IDEF0)",
   "activities": [
     {
       "id": "A1",
-      "label": "Ask question with stream abort binding",
+      "label": "Ask 問題 使用 串流 abort binding",
       "description": "LLM 呼叫 question tool；Question.ask 註冊 pending + 若 abort signal 已 aborted 則立即拒絕",
       "inputs": [
         "LLM tool call params (questions array)",
@@ -29,7 +29,7 @@
     },
     {
       "id": "A2",
-      "label": "Render QuestionDock with content-hashed cache",
+      "label": "渲染 問題dock 使用 content-hashed 快取",
       "description": "Webapp 接 question.asked 後 mount QuestionDock；以 sessionID + hash(questions) 回填先前輸入",
       "inputs": [
         "Bus: question.asked payload",
@@ -50,7 +50,7 @@
     },
     {
       "id": "A3",
-      "label": "Resolve manually (reply or reject)",
+      "label": "解析 manually (reply 或 reject)",
       "description": "使用者送出 Submit / Dismiss；HTTP 路由 /question.reply 或 /question.reject 呼叫 Question.reply/reject",
       "inputs": [
         "user action (submit/dismiss)",
@@ -71,7 +71,7 @@
     },
     {
       "id": "A4",
-      "label": "Cancel stream with reason telemetry",
+      "label": "Cancel 串流 使用 reason telemetry",
       "description": "任一 caller（manual stop / rate-limit fallback / monitor / instance dispose）呼叫 cancel(reason)，AbortController abort(reason) 散播訊號",
       "inputs": [
         "sessionID",
@@ -93,7 +93,7 @@
     },
     {
       "id": "A5",
-      "label": "Stream abort handler (auto-reject pending)",
+      "label": "串流 abort handler (auto-reject 待處理)",
       "description": "Question.ask 內部 abort handler 收到 signal，執行 delete + publish rejected + reject promise",
       "inputs": [
         "signal.reason",
@@ -113,9 +113,29 @@
     }
   ],
   "relationships": [
-    { "from": "A1", "to": "A2", "kind": "triggers", "via": "Bus: question.asked" },
-    { "from": "A2", "to": "A3", "kind": "produces-input", "via": "user submit" },
-    { "from": "A4", "to": "A5", "kind": "triggers", "via": "AbortSignal.abort" },
-    { "from": "A5", "to": "A2", "kind": "unmounts", "via": "Bus: question.rejected" }
+    {
+      "from": "A1",
+      "to": "A2",
+      "kind": "triggers",
+      "via": "Bus: question.asked"
+    },
+    {
+      "from": "A2",
+      "to": "A3",
+      "kind": "produces-input",
+      "via": "user submit"
+    },
+    {
+      "from": "A4",
+      "to": "A5",
+      "kind": "triggers",
+      "via": "AbortSignal.abort"
+    },
+    {
+      "from": "A5",
+      "to": "A2",
+      "kind": "unmounts",
+      "via": "Bus: question.rejected"
+    }
   ]
 }

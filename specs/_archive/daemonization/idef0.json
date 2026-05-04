@@ -4,161 +4,245 @@
   "activities": [
     {
       "id": "A1",
-      "title": "Accept and Buffer HTTP Request",
-      "description": "Non-blocking accept, per-connection read buffer, accumulate until complete HTTP header.",
+      "title": "Accept 與 Buffer HTTP 請求",
+      "description": "Non-blocking accept, 依-connection read buffer, accumulate 直到 完成 HTTP header.",
       "decomposition": [
         {
           "id": "A1.1",
           "title": "Accept Connection",
-          "description": "accept4() with SOCK_CLOEXEC, set non-blocking, allocate PendingRequest, register to epoll."
+          "description": "accept4() 使用 SOCK CLOEXEC, set non-blocking, allocate 待處理請求, 註冊 到 epoll."
         },
         {
           "id": "A1.2",
           "title": "Accumulate HTTP Data",
-          "description": "On EPOLLIN for pending fd, read available bytes into per-connection buffer until \\r\\n\\r\\n detected."
+          "description": "在 EPOLLIN 供 待處理 fd, read available 位元組 進入 依-connection buffer 直到 \\r\\n\\r\\n detected."
         },
         {
           "id": "A1.3",
-          "title": "Enforce Request Limits",
-          "description": "Reject oversized (>8KB header) or timed-out (>30s) requests with 400/408 response."
+          "title": "Enforce 請求 Limits",
+          "description": "Reject oversized (>8KB header) 或 timed-out (>30s) requests 使用 400/408 回應."
         }
       ]
     },
     {
       "id": "A2",
-      "title": "Authenticate User",
-      "description": "PAM auth in dedicated thread, JWT signing, login rate limiting.",
+      "title": "驗證 使用者",
+      "description": "PAM 驗證 在 dedicated thread, JWT signing, 登入 速率限制ing.",
       "decomposition": [
         {
           "id": "A2.1",
           "title": "Check Rate Limit",
-          "description": "Per-IP sliding window: >5 failures in 60s → 429 without entering PAM."
+          "description": "依-IP sliding window: >5 failures 在 60s → 429 不 entering PAM."
         },
         {
           "id": "A2.2",
-          "title": "Spawn Auth Thread",
-          "description": "pthread for PAM authenticate + pam_acct_mgmt. Communicates result via eventfd/pipe."
+          "title": "啟動 驗證 Thread",
+          "description": "pthread 供 PAM 驗證 + pamacctmgmt. Communicates 結果 透過 eventfd/pipe."
         },
         {
           "id": "A2.3",
-          "title": "Issue JWT Cookie",
-          "description": "On PAM success, sign JWT with file-backed secret (sub + exp), set HttpOnly cookie."
+          "title": "Issue JWT cookie",
+          "description": "在 PAM success, sign JWT 使用 檔案-backed secret (sub + exp), set http僅 cookie."
         }
       ]
     },
     {
       "id": "A3",
-      "title": "Validate Identity and Route",
-      "description": "Decode JWT claims, verify sub + exp, resolve target daemon by identity.",
+      "title": "Validate 身分 與 路由",
+      "description": "Decode JWT claims, verify sub + exp, 解析 目標 daemon 由 身分.",
       "decomposition": [
         {
           "id": "A3.1",
-          "title": "Decode and Verify JWT",
-          "description": "Base64url decode payload, validate sub + exp, HMAC signature check with file-backed secret."
+          "title": "Decode 與 Verify JWT",
+          "description": "Base64url decode payload, validate sub + exp, HMAC signature check 使用 檔案-backed secret."
         },
         {
           "id": "A3.2",
-          "title": "Resolve User Identity",
-          "description": "sub → getpwnam() → uid. Reject if user not found."
+          "title": "解析 使用者 身分",
+          "description": "sub → getpwnam() → uid. Reject if 使用者 不 found."
         },
         {
           "id": "A3.3",
-          "title": "Select Target Daemon",
-          "description": "find_or_create_daemon(username) → registry lookup by uid → adopt or spawn."
+          "title": "Select 目標 Daemon",
+          "description": "find或createdaemon(username) → 註冊表 lookup 由 uid → adopt 或 啟動."
         }
       ]
     },
     {
       "id": "A4",
       "title": "Manage Daemon Lifecycle",
-      "description": "Discovery-first adopt, fork+setuid spawn, readiness wait, stale cleanup.",
+      "description": "Discovery-first adopt, fork+setuid 啟動, readiness wait, stale cleanup.",
       "decomposition": [
         {
           "id": "A4.1",
-          "title": "Try Adopt from Discovery",
-          "description": "Read daemon.json, verify PID alive, probe socket connectable. Adopt or cleanup stale state."
+          "title": "Try Adopt 來自 Discovery",
+          "description": "Read daemon.js在, verify PID alive, 探測 socket connectable. Adopt 或 cleanup stale 狀態."
         },
         {
           "id": "A4.2",
-          "title": "Spawn Per-User Daemon",
-          "description": "fork → initgroups → setgid → setuid → execvp(opencode serve --unix-socket). No sh -c."
+          "title": "啟動 依-使用者 Daemon",
+          "description": "fork → initgroups → setgid → setuid → execvp(opencode serve --unix-socket). 無 sh -c."
         },
         {
           "id": "A4.3",
-          "title": "Wait for Readiness",
+          "title": "Wait 供 Readiness",
           "description": "Poll socket existence + connectability within timeout. Handle child exit before readiness."
         },
         {
           "id": "A4.4",
-          "title": "Detect Runtime Path",
-          "description": "Check /run/user/<uid>/ → $XDG_RUNTIME_DIR → /tmp/opencode-<uid>/. Log selected path."
+          "title": "Detect Runtime 路徑",
+          "description": "Check /執行/使用者/<uid>/ → $XDG RUNTIME DIR → /tmp/opencode-<uid>/. 記錄 selected 路徑."
         }
       ]
     },
     {
       "id": "A5",
-      "title": "Establish and Run Splice Proxy",
-      "description": "Connect to daemon Unix socket, create pipe pairs, register to epoll with tagged context, splice bidirectionally.",
+      "title": "Establish 與 執行 Splice Proxy",
+      "description": "Connect 到 daemon Unix socket, create pipe pairs, 註冊 到 epoll 使用 tagged 上下文, splice bidirectionally.",
       "decomposition": [
         {
           "id": "A5.1",
-          "title": "Connect and Allocate",
-          "description": "connect_unix(socket_path), alloc Connection slot, create pipe pairs, set non-blocking."
+          "title": "Connect 與 Allocate",
+          "description": "connectunix(socket路徑), alloc Connection slot, create pipe pairs, set non-blocking."
         },
         {
           "id": "A5.2",
-          "title": "Register with Tagged Context",
-          "description": "Create EpollCtx for client_fd (SPLICE_CLIENT) and daemon_fd (SPLICE_DAEMON), register to epoll."
+          "title": "註冊 使用 Tagged 上下文",
+          "description": "Create EpollCtx 供 clientfd (SPLICE CLIENT) 與 daemonfd (SPLICE DAEMON), 註冊 到 epoll."
         },
         {
           "id": "A5.3",
-          "title": "Forward Initial Request",
-          "description": "Send buffered HTTP request bytes to daemon_fd."
+          "title": "Forward Initial 請求",
+          "description": "Send buffered HTTP 請求 位元組 到 daemonfd."
         },
         {
           "id": "A5.4",
-          "title": "Run Directional Splice",
-          "description": "On EPOLLIN: check EpollCtx.type → splice only in triggered direction. On HUP/ERR: close."
+          "title": "執行 Directional Splice",
+          "description": "在 EPOLLIN: check EpollCtx.type → splice 僅 在 triggered direction. 在 HUP/ERR: close."
         }
       ]
     },
     {
       "id": "A6",
       "title": "Manage Connection Lifecycle",
-      "description": "Proper cleanup: EPOLL_CTL_DEL, close fds, release slot, decrement counter, guard in-flight events.",
+      "description": "Proper cleanup: EPOLL CTL DEL, close fds, release slot, decrement counter, guard 在-flight 事件.",
       "decomposition": [
         {
           "id": "A6.1",
-          "title": "Deregister from epoll",
-          "description": "EPOLL_CTL_DEL for both client_fd and daemon_fd before closing."
+          "title": "Deregister 來自 epoll",
+          "description": "EPOLL CTL DEL 供 both clientfd 與 daemonfd before closing."
         },
         {
           "id": "A6.2",
-          "title": "Close and Release",
-          "description": "Close all fds (client, daemon, pipe pairs), release connection slot, decrement g_nconns."
+          "title": "Close 與 Release",
+          "description": "Close all fds (client, daemon, pipe pairs), release connection slot, decrement gnconns."
         },
         {
           "id": "A6.3",
-          "title": "Guard In-Flight Events",
-          "description": "Set closed flag on Connection. Same-round epoll events check flag and skip if set."
+          "title": "Guard 在-Flight 事件",
+          "description": "Set closed flag 在 Connection. Same-round epoll 事件 check flag 與 skip if set."
         }
       ]
     }
   ],
   "arrows": [
-    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "TCP Connection", "type": "input" },
-    { "id": "AR2", "source": "EXTERNAL", "target": "A1:control", "label": "Buffer Size and Timeout Limits", "type": "control" },
-    { "id": "AR3", "source": "A1:output", "target": "A2:input", "label": "Complete HTTP Login Request", "type": "output" },
-    { "id": "AR4", "source": "A1:output", "target": "A3:input", "label": "Complete HTTP Request with JWT Cookie", "type": "output" },
-    { "id": "AR5", "source": "EXTERNAL", "target": "A2:control", "label": "Rate Limit Policy", "type": "control" },
-    { "id": "AR6", "source": "EXTERNAL", "target": "A2:mechanism", "label": "PAM Service and JWT Secret File", "type": "mechanism" },
-    { "id": "AR7", "source": "A2:output", "target": "EXTERNAL", "label": "JWT Cookie Response", "type": "output" },
-    { "id": "AR8", "source": "A3:output", "target": "A4:input", "label": "Verified Identity needing Daemon", "type": "output" },
-    { "id": "AR9", "source": "EXTERNAL", "target": "A4:mechanism", "label": "Discovery File and Daemon Registry", "type": "mechanism" },
-    { "id": "AR10", "source": "EXTERNAL", "target": "A4:control", "label": "Timeout and Fail Fast Rules", "type": "control" },
-    { "id": "AR11", "source": "A4:output", "target": "A5:input", "label": "Ready Daemon Socket Path", "type": "output" },
-    { "id": "AR12", "source": "A3:output", "target": "A5:input", "label": "Buffered Request Bytes", "type": "output" },
-    { "id": "AR13", "source": "A5:output", "target": "A6:input", "label": "Connection Termination Signal", "type": "output" },
-    { "id": "AR14", "source": "EXTERNAL", "target": "A5:mechanism", "label": "epoll and splice Kernel APIs", "type": "mechanism" }
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "TCP Connection",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "Buffer Size 與 Timeout Limits",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "完成 HTTP 登入 請求",
+      "type": "output"
+    },
+    {
+      "id": "AR4",
+      "source": "A1:output",
+      "target": "A3:input",
+      "label": "完成 HTTP 請求 使用 JWT cookie",
+      "type": "output"
+    },
+    {
+      "id": "AR5",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "Rate Limit Policy",
+      "type": "control"
+    },
+    {
+      "id": "AR6",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "label": "PAM Service 與 JWT Secret 檔案",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR7",
+      "source": "A2:output",
+      "target": "EXTERNAL",
+      "label": "JWT cookie 回應",
+      "type": "output"
+    },
+    {
+      "id": "AR8",
+      "source": "A3:output",
+      "target": "A4:input",
+      "label": "Verified 身分 needing Daemon",
+      "type": "output"
+    },
+    {
+      "id": "AR9",
+      "source": "EXTERNAL",
+      "target": "A4:mechanism",
+      "label": "Discovery 檔案 與 Daemon 註冊表",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR10",
+      "source": "EXTERNAL",
+      "target": "A4:control",
+      "label": "Timeout 與 Fail Fast Rules",
+      "type": "control"
+    },
+    {
+      "id": "AR11",
+      "source": "A4:output",
+      "target": "A5:input",
+      "label": "就緒 Daemon Socket 路徑",
+      "type": "output"
+    },
+    {
+      "id": "AR12",
+      "source": "A3:output",
+      "target": "A5:input",
+      "label": "Buffered 請求 位元組",
+      "type": "output"
+    },
+    {
+      "id": "AR13",
+      "source": "A5:output",
+      "target": "A6:input",
+      "label": "Connection Termination Signal",
+      "type": "output"
+    },
+    {
+      "id": "AR14",
+      "source": "EXTERNAL",
+      "target": "A5:mechanism",
+      "label": "epoll 與 splice Kernel APIs",
+      "type": "mechanism"
+    }
   ]
 }

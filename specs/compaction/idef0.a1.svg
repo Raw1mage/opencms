@@ -1,80 +1,76 @@
-<svg width="1940.0" height="790.0" viewBox="-424.0 -210.0 1940.0 790.0" xmlns="http://www.w3.org/2000/svg">
+<svg width="1814.6" height="790.0" viewBox="-328.3 -210.0 1814.6 790.0" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
 <marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
 </defs>
-<rect x="-424.0" y="-210.0" width="1940.0" height="790.0" fill="white" />
-<rect x="130.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A11" />
-<text x="230.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >A11</text>
-<text x="230.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >CHECK COOLDOWN</text>
-<text x="230.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >WINDOW</text>
-<rect x="446.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A12" />
-<text x="546.0" y="151.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >A12</text>
-<text x="546.0" y="181.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >DETECT MANUAL</text>
-<text x="546.0" y="211.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >COMPACTION REQUEST</text>
-<rect x="762.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A13" />
-<text x="862.0" y="152.4" text-anchor="middle" font-size="13" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A13" >A13</text>
-<text x="862.0" y="181.0" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A13" >DETECT CONTINUATION</text>
-<text x="862.0" y="209.1" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A13" >INVALIDATION</text>
-<rect x="130.0" y="410.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A14" />
-<text x="230.0" y="439.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A14" >A14</text>
-<text x="230.0" y="471.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A14" >DETECT</text>
-<text x="230.0" y="502.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A14" >IDENTITY DRIFT</text>
-<rect x="446.0" y="410.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A15" />
-<text x="546.0" y="439.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A15" >A15</text>
-<text x="546.0" y="471.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A15" >DETECT TOKEN</text>
-<text x="546.0" y="502.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A15" >PRESSURE</text>
-<rect x="762.0" y="410.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A16" />
-<text x="862.0" y="439.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A16" >A16</text>
-<text x="862.0" y="471.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A16" >DIAGNOSE CACHE</text>
-<text x="862.0" y="502.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A16" >MISS KIND</text>
-<rect x="40.0" y="0.0" width="1012.0" height="570.0" stroke="black" fill="none" stroke-width="2" />
-<rect x="414.0" y="-200.0" width="264.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
-<text x="546.0" y="-174.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
-<text x="546.0" y="-144.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >EVALUATE TRIGGER</text>
-<text x="546.0" y="-114.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >CONDITION</text>
-<line x1="414.0" y1="-200.0" x2="40.0" y2="0.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="678.0" y1="-200.0" x2="1052.0" y2="0.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="414.0" y1="-90.0" x2="40.0" y2="570.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="678.0" y1="-90.0" x2="1052.0" y2="570.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<path d="M 330.0 200.0 L 446.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_out_proceed" data-waypoints="330.0,200.0 446.0,200.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 646.0 200.0 L 762.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_out_manual" data-waypoints="646.0,200.0 762.0,200.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 490.0 L 446.0 490.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_out_drift" data-waypoints="330.0,490.0 446.0,490.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 646.0 490.0 L 762.0 490.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_out_overflow" data-waypoints="646.0,490.0 762.0,490.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 962.0 180.0 L 992.0 180.0 Q 1002.0 180.0 1002.0 190.0 L 1002.0 310.0 Q 1002.0 320.0 992.0 320.0 L 100.0 320.0 Q 90.0 320.0 90.0 330.0 L 90.0 440.0 Q 90.0 450.0 100.0 450.0 L 130.0 450.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_out_ci" data-waypoints="962.0,180.0 1002.0,180.0 1002.0,320.0 90.0,320.0 90.0,450.0 130.0,450.0" marker-end="url(#arrow)" fill="none" />
+<rect x="-328.3" y="-210.0" width="1814.6" height="790.0" fill="white" />
+<rect x="130.0" y="120.0" width="222.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A11" />
+<text x="241.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >A11</text>
+<text x="241.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >CHECK COOLDOWN</text>
+<text x="241.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >WINDOW</text>
+<rect x="468.0" y="120.0" width="222.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A12" />
+<text x="579.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >A12</text>
+<text x="579.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >DETECT MANUAL</text>
+<text x="579.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >壓縮 請求</text>
+<rect x="806.0" y="120.0" width="222.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A13" />
+<text x="917.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A13" >A13</text>
+<text x="917.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A13" >DETECT 延續</text>
+<text x="917.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A13" >INVALIDATION</text>
+<rect x="130.0" y="410.0" width="222.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A14" />
+<text x="241.0" y="454.0" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A14" >A14</text>
+<text x="241.0" y="489.7" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A14" >DETECT 身分 DRIFT</text>
+<rect x="468.0" y="410.0" width="222.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A15" />
+<text x="579.0" y="439.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A15" >A15</text>
+<text x="579.0" y="471.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A15" >DETECT TOKEN</text>
+<text x="579.0" y="502.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A15" >PRESSURE</text>
+<rect x="806.0" y="410.0" width="222.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A16" />
+<text x="917.0" y="439.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A16" >A16</text>
+<text x="917.0" y="471.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A16" >DIAGNOSE 快</text>
+<text x="917.0" y="502.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A16" >取 MISS KIND</text>
+<rect x="40.0" y="0.0" width="1078.0" height="570.0" stroke="black" fill="none" stroke-width="2" />
+<rect x="447.0" y="-200.0" width="264.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="579.0" y="-174.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
+<text x="579.0" y="-144.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >EVALUATE TRIGGER</text>
+<text x="579.0" y="-114.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >CONDITION</text>
+<line x1="447.0" y1="-200.0" x2="40.0" y2="0.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="711.0" y1="-200.0" x2="1118.0" y2="0.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="447.0" y1="-90.0" x2="40.0" y2="570.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="711.0" y1="-90.0" x2="1118.0" y2="570.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 352.0 200.0 L 468.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_out_proceed" data-waypoints="352.0,200.0 468.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 690.0 200.0 L 806.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_out_manual" data-waypoints="690.0,200.0 806.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 352.0 490.0 L 468.0 490.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_out_drift" data-waypoints="352.0,490.0 468.0,490.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 690.0 490.0 L 806.0 490.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_out_overflow" data-waypoints="690.0,490.0 806.0,490.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1028.0 180.0 L 1058.0 180.0 Q 1068.0 180.0 1068.0 190.0 L 1068.0 310.0 Q 1068.0 320.0 1058.0 320.0 L 100.0 320.0 Q 90.0 320.0 90.0 330.0 L 90.0 440.0 Q 90.0 450.0 100.0 450.0 L 130.0 450.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_out_ci" data-waypoints="1028.0,180.0 1068.0,180.0 1068.0,320.0 90.0,320.0 90.0,450.0 130.0,450.0" marker-end="url(#arrow)" fill="none" />
 <path d="M -10.0 160.0 L 130.0 160.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_in_msgs" data-waypoints="-10.0,160.0 130.0,160.0" marker-end="url(#arrow)" fill="none" />
 <path d="M -10.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_in_anchor" data-waypoints="-10.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_ctrl_cooldown_ms" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M -10.0 78.2 L 378.0 78.2 Q 388.0 78.2 388.0 88.2 L 388.0 150.0 Q 388.0 160.0 398.0 160.0 L 446.0 160.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_in_compact_req" data-waypoints="-10.0,78.2 388.0,78.2 388.0,160.0 446.0,160.0" marker-end="url(#arrow)" fill="none" />
-<path d="M -10.0 40.0 L 694.0 40.0 Q 704.0 40.0 704.0 50.0 L 704.0 150.0 Q 704.0 160.0 714.0 160.0 L 762.0 160.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_in_invalidated" data-waypoints="-10.0,40.0 704.0,40.0 704.0,160.0 762.0,160.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 241.0 84.2 L 241.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_ctrl_cooldown_ms" data-waypoints="241.0,84.2 241.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -10.0 78.2 L 400.0 78.2 Q 410.0 78.2 410.0 88.2 L 410.0 150.0 Q 410.0 160.0 420.0 160.0 L 468.0 160.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_in_compact_req" data-waypoints="-10.0,78.2 410.0,78.2 410.0,160.0 468.0,160.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -10.0 40.0 L 738.0 40.0 Q 748.0 40.0 748.0 50.0 L 748.0 150.0 Q 748.0 160.0 758.0 160.0 L 806.0 160.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_in_invalidated" data-waypoints="-10.0,40.0 748.0,40.0 748.0,160.0 806.0,160.0" marker-end="url(#arrow)" fill="none" />
 <path d="M -10.0 490.0 L 130.0 490.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_in_pinned" data-waypoints="-10.0,490.0 130.0,490.0" marker-end="url(#arrow)" fill="none" />
-<path d="M -10.0 360.0 L 378.0 360.0 Q 388.0 360.0 388.0 370.0 L 388.0 440.0 Q 388.0 450.0 398.0 450.0 L 446.0 450.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_in_tokens" data-waypoints="-10.0,360.0 388.0,360.0 388.0,450.0 446.0,450.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 546.0 374.2 L 546.0 410.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_ctrl_tweaks" data-waypoints="546.0,374.2 546.0,410.0" marker-end="url(#arrow)" fill="none" />
-<path d="M -10.0 280.0 L 694.0 280.0 Q 704.0 280.0 704.0 290.0 L 704.0 440.0 Q 704.0 450.0 714.0 450.0 L 762.0 450.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_in_hashes" data-waypoints="-10.0,280.0 704.0,280.0 704.0,450.0 762.0,450.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 962.0 470.0 L 1102.0 470.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_out_observed" data-waypoints="962.0,470.0 1102.0,470.0" marker-end="url(#arrow)" fill="none" />
-<text x="224.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_ctrl_cooldown_ms">Cooldown</text>
-<text x="236.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_ctrl_cooldown_ms">Window Ms</text>
-<text x="546.0" y="368.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_ctrl_tweaks">Compaction Tweaks Cfg</text>
-<text x="388.0" y="195.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_proceed">Cooldown</text>
-<text x="388.0" y="212.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_proceed">Cleared Flag</text>
-<text x="704.0" y="195.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_manual">Manual Or</text>
-<text x="704.0" y="212.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_manual">Overflow Tag</text>
-<text x="388.0" y="485.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_drift">Provider</text>
-<text x="388.0" y="502.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_drift">Switched Tag</text>
-<text x="704.0" y="485.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_overflow">Overflow Or</text>
-<text x="704.0" y="502.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_overflow">Stall Tag</text>
-<text x="546.0" y="312.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_ci" >Continuation Invalidated Tag</text>
+<path d="M -10.0 360.0 L 400.0 360.0 Q 410.0 360.0 410.0 370.0 L 410.0 440.0 Q 410.0 450.0 420.0 450.0 L 468.0 450.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_in_tokens" data-waypoints="-10.0,360.0 410.0,360.0 410.0,450.0 468.0,450.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 579.0 374.2 L 579.0 410.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_ctrl_tweaks" data-waypoints="579.0,374.2 579.0,410.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -10.0 280.0 L 738.0 280.0 Q 748.0 280.0 748.0 290.0 L 748.0 440.0 Q 748.0 450.0 758.0 450.0 L 806.0 450.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_in_hashes" data-waypoints="-10.0,280.0 748.0,280.0 748.0,450.0 806.0,450.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1028.0 470.0 L 1168.0 470.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_out_observed" data-waypoints="1028.0,470.0 1168.0,470.0" marker-end="url(#arrow)" fill="none" />
+<text x="235.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_ctrl_cooldown_ms">Cooldown</text>
+<text x="247.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_ctrl_cooldown_ms">Window Ms</text>
+<text x="579.0" y="368.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_ctrl_tweaks">壓縮 Tweaks Cfg</text>
+<text x="410.0" y="195.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_proceed">Cooldown</text>
+<text x="410.0" y="212.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_proceed">Cleared Flag</text>
+<text x="748.0" y="195.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_manual">Manual 或</text>
+<text x="748.0" y="212.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_manual">Overflow Tag</text>
+<text x="410.0" y="485.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_drift">Provider</text>
+<text x="410.0" y="502.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_drift">Switched Tag</text>
+<text x="748.0" y="485.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_overflow">Overflow 或</text>
+<text x="748.0" y="502.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_overflow">Stall Tag</text>
+<text x="579.0" y="312.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_ci" >延續 Invalidated Tag</text>
 <text x="-14.0" y="164.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_in_msgs">Session Messages</text>
 <text x="-14.0" y="204.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_in_anchor">Most Recent Anchor Time</text>
-<text x="-14.0" y="69.2" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_in_compact_req">Compaction</text>
-<text x="-14.0" y="95.2" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_in_compact_req">Request Part</text>
-<text x="-14.0" y="44.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_in_invalidated">ContinuationInvalidatedAt Timestamp</text>
-<text x="-14.0" y="481.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_in_pinned">Pinned Provider</text>
-<text x="-14.0" y="507.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_in_pinned">And Account</text>
-<text x="-14.0" y="351.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_in_tokens">Last Assistant</text>
-<text x="-14.0" y="377.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_in_tokens">Token Counts</text>
+<text x="-14.0" y="82.2" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_in_compact_req">壓縮 請求 Part</text>
+<text x="-14.0" y="44.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_in_invalidated">延續invalidated於 Timestamp</text>
+<text x="-14.0" y="494.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_in_pinned">已釘選 Provider 與 帳號</text>
+<text x="-14.0" y="364.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_in_tokens">Last 助手 Token Counts</text>
 <text x="-14.0" y="271.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_in_hashes">Recent System</text>
-<text x="-14.0" y="297.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_in_hashes">Block Hashes</text>
-<text x="1106.0" y="461.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_observed">Observed</text>
-<text x="1106.0" y="487.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_observed">Condition</text>
+<text x="-14.0" y="297.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_in_hashes">區塊 Hashes</text>
+<text x="1172.0" y="461.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_observed">Observed</text>
+<text x="1172.0" y="487.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="a1_out_observed">Condition</text>
 </svg>

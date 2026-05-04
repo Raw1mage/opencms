@@ -2,145 +2,230 @@
   {
     "StepNumber": 0,
     "StepType": "initial",
-    "StepAction": "admin_panel_idle",
+    "StepAction": "管理面板閒置",
     "ModuleRef": "A0",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [11],
-    "LinkOutputNumber": [1],
-    "Condition": ["operator_opens_DialogAppMarket_from_layout_L1065"],
+    "LinkInputNumber": [
+      11
+    ],
+    "LinkOutputNumber": [
+      1
+    ],
+    "Condition": [
+      "operatoropens對話框appmarket來自layoutl1065"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 1,
     "StepType": "normal",
-    "StepAction": "fetch_market_catalog",
+    "StepAction": "fetchmarketcatalog",
     "ModuleRef": "A1",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2],
-    "Condition": ["GET_mcp_market_returned_MarketApp_array"],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2
+    ],
+    "Condition": [
+      "GET mcpmarketreturnedMarketApparray"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "StepType": "normal",
-    "StepAction": "render_unified_card_grid",
+    "StepAction": "渲染unifiedcardgrid",
     "ModuleRef": "A1",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [3],
-    "Condition": ["operator_selects_app_or_clicks_add"],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      3
+    ],
+    "Condition": [
+      "operatorselectsapp或clicksadd"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "StepType": "normal",
-    "StepAction": "classify_kind_branch",
+    "StepAction": "classifykindbranch",
     "ModuleRef": "A2",
     "LinkInputType": [],
     "LinkOutputType": "divergence_or",
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [4, 5, 6],
-    "Condition": ["kind==mcp_server", "kind==managed_app", "kind==mcp_app"],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      4,
+      5,
+      6
+    ],
+    "Condition": [
+      "kind==mcp伺服器",
+      "kind==managedapp",
+      "kind==mcpapp"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 4,
     "StepType": "normal",
-    "StepAction": "connect_mcp_server",
+    "StepAction": "connectmcp伺服器",
     "ModuleRef": "A21",
     "LinkInputType": [],
     "LinkOutputType": "convergence_or",
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [7],
-    "Condition": ["server_status_connected"],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      7
+    ],
+    "Condition": [
+      "伺服器狀態connected"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 5,
     "StepType": "normal",
-    "StepAction": "install_managed_app",
+    "StepAction": "installmanagedapp",
     "ModuleRef": "A22",
     "LinkInputType": [],
     "LinkOutputType": "convergence_or",
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [7],
-    "Condition": ["managed_app_install_succeeded_AND_runtimeStatus_set"],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      7
+    ],
+    "Condition": [
+      "managedappinstallsucceededAND runtime狀態set"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 6,
     "StepType": "normal",
-    "StepAction": "preview_and_register_store_app",
+    "StepAction": "preview與註冊storeapp",
     "ModuleRef": "A24",
     "LinkInputType": [],
     "LinkOutputType": "convergence_or",
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [7],
-    "Condition": ["preview_ok_AND_addApp_or_cloneAndRegister_persisted"],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      7
+    ],
+    "Condition": [
+      "previewokAND addapp或clone與註冊persisted"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 7,
     "StepType": "normal",
-    "StepAction": "configure_app_settings",
+    "StepAction": "configureappsettings",
     "ModuleRef": "A3",
-    "LinkInputType": ["convergence_or"],
+    "LinkInputType": [
+      "convergence_or"
+    ],
     "LinkOutputType": "divergence_or",
-    "LinkInputNumber": [4, 5, 6],
-    "LinkOutputNumber": [8, 9],
-    "Condition": ["needs_oauth==true", "needs_oauth==false"],
+    "LinkInputNumber": [
+      4,
+      5,
+      6
+    ],
+    "LinkOutputNumber": [
+      8,
+      9
+    ],
+    "Condition": [
+      "needsoauth==true",
+      "needsoauth==false"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 8,
     "StepType": "normal",
-    "StepAction": "authorize_oauth_popup",
+    "StepAction": "authorizeoauthpopup",
     "ModuleRef": "A4",
     "LinkInputType": [],
     "LinkOutputType": "convergence_or",
-    "LinkInputNumber": [7],
-    "LinkOutputNumber": [10],
-    "Condition": ["oauth_callback_persisted_token_AND_managed_app_updated_emitted"],
+    "LinkInputNumber": [
+      7
+    ],
+    "LinkOutputNumber": [
+      10
+    ],
+    "Condition": [
+      "oauthcallbackpersistedtokenAND managedappupdatedemitted"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 9,
     "StepType": "normal",
-    "StepAction": "enable_app_directly",
+    "StepAction": "enableappdirectly",
     "ModuleRef": "A2",
     "LinkInputType": [],
     "LinkOutputType": "convergence_or",
-    "LinkInputNumber": [7],
-    "LinkOutputNumber": [10],
-    "Condition": ["enabled_flag_set_true"],
+    "LinkInputNumber": [
+      7
+    ],
+    "LinkOutputNumber": [
+      10
+    ],
+    "Condition": [
+      "已啟用flagsettrue"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 10,
     "StepType": "normal",
-    "StepAction": "refetch_and_show_status_pill",
+    "StepAction": "refetch與show狀態pill",
     "ModuleRef": "A1",
-    "LinkInputType": ["convergence_or"],
+    "LinkInputType": [
+      "convergence_or"
+    ],
     "LinkOutputType": "track",
-    "LinkInputNumber": [8, 9],
-    "LinkOutputNumber": [11],
-    "Condition": ["status_pill_in_{connected,ready,enabled}"],
+    "LinkInputNumber": [
+      8,
+      9
+    ],
+    "LinkOutputNumber": [
+      11
+    ],
+    "Condition": [
+      "狀態pill在{connected,就緒,已啟用}"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 11,
     "StepType": "normal",
-    "StepAction": "wait_or_uninstall",
+    "StepAction": "wait或uninstall",
     "ModuleRef": "A5",
     "LinkInputType": [],
     "LinkOutputType": "track",
-    "LinkInputNumber": [10],
-    "LinkOutputNumber": [0],
-    "Condition": ["dialog_closed_or_uninstall_completed"],
+    "LinkInputNumber": [
+      10
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
+    "Condition": [
+      "對話框closed或uninstall已完成"
+    ],
     "SubGrafcet": []
   }
 ]

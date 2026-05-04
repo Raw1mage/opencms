@@ -1,80 +1,224 @@
 {
-  "diagram_title": "Codex WebSocket Transport — Context",
+  "diagram_title": "Codex WebSocket Transport — 上下文",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A1",
       "title": "Manage Transport Selection",
-      "description": "Session-scoped WS/HTTP decision, fallback logic, disable_websockets flag",
+      "description": "Session-scoped WS/HTTP decision, fallback logic, disablewebsockets flag",
       "decomposition": "A1"
     },
     {
       "id": "A2",
       "title": "Manage WS Connection",
-      "description": "Connect, cache, reconnect, account-aware lifecycle",
+      "description": "Connect, 快取, reconnect, 帳號-aware lifecycle",
       "decomposition": "A2"
     },
     {
       "id": "A3",
-      "title": "Handle WS Message Pump",
-      "description": "Bidirectional frame I/O with WsStream abstraction",
+      "title": "Handle WS 訊息 Pump",
+      "description": "Bidirectional frame I/O 使用 ws串流 abstraction",
       "decomposition": "A3"
     },
     {
       "id": "A4",
-      "title": "Parse WS Events",
-      "description": "Frame → typed event classification and error detection",
+      "title": "解析 WS 事件",
+      "description": "Frame → typed 事件 classification 與 錯誤 detection",
       "decomposition": "A4"
     },
     {
       "id": "A5",
-      "title": "Map Response Events",
-      "description": "ResponsesStreamEvent → ResponseEvent (shared SSE/WS)",
+      "title": "Map 回應 事件",
+      "description": "responses串流事件 → 回應事件 (shared SSE/WS)",
       "decomposition": "A5"
     },
     {
       "id": "A6",
-      "title": "Execute WS Request",
-      "description": "Send request, stream response, return to AI SDK",
+      "title": "Execute WS 請求",
+      "description": "Send 請求, 串流 回應, 返回 到 AI SDK",
       "decomposition": "A6"
     },
     {
       "id": "A7",
       "title": "Handle Prewarm",
-      "description": "V2 generate=false optimization for next-turn latency",
+      "description": "V2 generate=false optimization 供 下一個-回合 latency",
       "decomposition": "A7"
     },
     {
       "id": "A8",
-      "title": "Handle Errors Recovery",
-      "description": "Retry, fallback, auth recovery, cache eviction",
+      "title": "Handle 錯誤 Recovery",
+      "description": "重試, fallback, 驗證 recovery, 快取 eviction",
       "decomposition": "A8"
     }
   ],
   "arrows": [
-    {"id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "User Prompt", "type": "input"},
-    {"id": "AR2", "source": "EXTERNAL", "target": "A1:input", "label": "Session State", "type": "input"},
-    {"id": "AR3", "source": "EXTERNAL", "target": "A1:input", "label": "Account Credentials", "type": "input"},
-    {"id": "AR4", "source": "EXTERNAL", "target": "A1:control", "label": "Codex API Protocol", "type": "control"},
-    {"id": "AR5", "source": "EXTERNAL", "target": "A1:control", "label": "Rate Limit Policy", "type": "control"},
-    {"id": "AR6", "source": "EXTERNAL", "target": "A1:control", "label": "Auth Policy", "type": "control"},
-    {"id": "AR7", "source": "A1:output", "target": "A6:input", "label": "Transport Decision", "type": "output"},
-    {"id": "AR8", "source": "A1:output", "target": "A2:input", "label": "WS Connect Request", "type": "output"},
-    {"id": "AR9", "source": "A2:output", "target": "A6:input", "label": "WS Connection Handle", "type": "output"},
-    {"id": "AR10", "source": "A2:output", "target": "A3:input", "label": "WsStream Instance", "type": "output"},
-    {"id": "AR11", "source": "A3:output", "target": "A4:input", "label": "Raw WS Frames", "type": "output"},
-    {"id": "AR12", "source": "A4:output", "target": "A5:input", "label": "Typed Stream Events", "type": "output"},
-    {"id": "AR13", "source": "A4:output", "target": "A8:input", "label": "Error Events", "type": "output"},
-    {"id": "AR14", "source": "A5:output", "target": "A6:input", "label": "Response Events", "type": "output"},
-    {"id": "AR15", "source": "A6:output", "target": "EXTERNAL", "label": "Streaming Response Events", "type": "output"},
-    {"id": "AR16", "source": "A6:output", "target": "EXTERNAL", "label": "Token Usage", "type": "output"},
-    {"id": "AR17", "source": "A8:output", "target": "EXTERNAL", "label": "Error Signals", "type": "output"},
-    {"id": "AR18", "source": "A8:output", "target": "A1:input", "label": "Fallback Signal", "type": "output"},
-    {"id": "AR19", "source": "A7:output", "target": "A6:input", "label": "Prewarm Response ID", "type": "output"},
-    {"id": "AR20", "source": "EXTERNAL", "target": "A2:mechanism", "label": "WebSocket Runtime", "type": "mechanism"},
-    {"id": "AR21", "source": "EXTERNAL", "target": "A6:mechanism", "label": "AI SDK", "type": "mechanism"},
-    {"id": "AR22", "source": "EXTERNAL", "target": "A1:mechanism", "label": "HTTP Fallback Transport", "type": "mechanism"},
-    {"id": "AR23", "source": "A6:output", "target": "A7:input", "label": "Connection State", "type": "output"},
-    {"id": "AR24", "source": "A5:output", "target": "A6:input", "label": "Completed Event", "type": "output"}
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "使用者 提示",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "Session 狀態",
+      "type": "input"
+    },
+    {
+      "id": "AR3",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "帳號 Credentials",
+      "type": "input"
+    },
+    {
+      "id": "AR4",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "Codex API Protocol",
+      "type": "control"
+    },
+    {
+      "id": "AR5",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "Rate Limit Policy",
+      "type": "control"
+    },
+    {
+      "id": "AR6",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "驗證 Policy",
+      "type": "control"
+    },
+    {
+      "id": "AR7",
+      "source": "A1:output",
+      "target": "A6:input",
+      "label": "Transport Decision",
+      "type": "output"
+    },
+    {
+      "id": "AR8",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "WS Connect 請求",
+      "type": "output"
+    },
+    {
+      "id": "AR9",
+      "source": "A2:output",
+      "target": "A6:input",
+      "label": "WS Connection Handle",
+      "type": "output"
+    },
+    {
+      "id": "AR10",
+      "source": "A2:output",
+      "target": "A3:input",
+      "label": "ws串流 Instance",
+      "type": "output"
+    },
+    {
+      "id": "AR11",
+      "source": "A3:output",
+      "target": "A4:input",
+      "label": "Raw WS Frames",
+      "type": "output"
+    },
+    {
+      "id": "AR12",
+      "source": "A4:output",
+      "target": "A5:input",
+      "label": "Typed 串流 事件",
+      "type": "output"
+    },
+    {
+      "id": "AR13",
+      "source": "A4:output",
+      "target": "A8:input",
+      "label": "錯誤 事件",
+      "type": "output"
+    },
+    {
+      "id": "AR14",
+      "source": "A5:output",
+      "target": "A6:input",
+      "label": "回應 事件",
+      "type": "output"
+    },
+    {
+      "id": "AR15",
+      "source": "A6:output",
+      "target": "EXTERNAL",
+      "label": "Streaming 回應 事件",
+      "type": "output"
+    },
+    {
+      "id": "AR16",
+      "source": "A6:output",
+      "target": "EXTERNAL",
+      "label": "Token Usage",
+      "type": "output"
+    },
+    {
+      "id": "AR17",
+      "source": "A8:output",
+      "target": "EXTERNAL",
+      "label": "錯誤 Signals",
+      "type": "output"
+    },
+    {
+      "id": "AR18",
+      "source": "A8:output",
+      "target": "A1:input",
+      "label": "fallback Signal",
+      "type": "output"
+    },
+    {
+      "id": "AR19",
+      "source": "A7:output",
+      "target": "A6:input",
+      "label": "Prewarm 回應 ID",
+      "type": "output"
+    },
+    {
+      "id": "AR20",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "label": "WebSocket Runtime",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR21",
+      "source": "EXTERNAL",
+      "target": "A6:mechanism",
+      "label": "AI SDK",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR22",
+      "source": "EXTERNAL",
+      "target": "A1:mechanism",
+      "label": "HTTP fallback Transport",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR23",
+      "source": "A6:output",
+      "target": "A7:input",
+      "label": "Connection 狀態",
+      "type": "output"
+    },
+    {
+      "id": "AR24",
+      "source": "A5:output",
+      "target": "A6:input",
+      "label": "已完成 事件",
+      "type": "output"
+    }
   ]
 }

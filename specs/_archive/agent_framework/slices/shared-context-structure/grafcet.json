@@ -3,71 +3,109 @@
     "StepNumber": 0,
     "ModuleRef": "A0",
     "StepType": "initial",
-    "StepAction": "Await First Assistant Turn Completion",
+    "StepAction": "等待 First 助手 回合 Completion",
     "LinkInputType": [],
     "LinkInputNumber": [],
-    "LinkOutputNumber": [1],
+    "LinkOutputNumber": [
+      1
+    ],
     "LinkOutputType": "track",
-    "Condition": ["session.created AND !session.parentID"],
+    "Condition": [
+      "Session.created AND !Session.父層ID"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 1,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Update Context From Turn",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2],
+    "StepAction": "更新 上下文 來自 回合",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2
+    ],
     "LinkOutputType": "track",
-    "Condition": ["assistant.turn.completed AND config.sharedContext !== false"],
+    "Condition": [
+      "助手.回合.已完成 AND config.shared上下文 !== false"
+    ],
     "SubGrafcet": [
       {
         "StepNumber": 10,
         "ModuleRef": "A11",
         "StepType": "initial",
-        "StepAction": "Extract Tool Knowledge From Parts",
+        "StepAction": "取出 工具 Knowledge 來自 Parts",
         "LinkInputType": [],
         "LinkInputNumber": [],
-        "LinkOutputNumber": [11],
+        "LinkOutputNumber": [
+          11
+        ],
         "LinkOutputType": "track",
-        "Condition": ["parts.length > 0"],
+        "Condition": [
+          "parts.length > 0"
+        ],
         "SubGrafcet": []
       },
       {
         "StepNumber": 11,
         "ModuleRef": "A12",
         "StepType": "normal",
-        "StepAction": "Extract Text Insights Via Heuristics",
-        "LinkInputType": ["track"],
-        "LinkInputNumber": [10],
-        "LinkOutputNumber": [12],
+        "StepAction": "取出 文字 Insights 透過 Heuristics",
+        "LinkInputType": [
+          "track"
+        ],
+        "LinkInputNumber": [
+          10
+        ],
+        "LinkOutputNumber": [
+          12
+        ],
         "LinkOutputType": "track",
-        "Condition": ["tool.extraction.complete"],
+        "Condition": [
+          "工具.extraction.完成"
+        ],
         "SubGrafcet": []
       },
       {
         "StepNumber": 12,
         "ModuleRef": "A13",
         "StepType": "normal",
-        "StepAction": "Deduplicate File Entries By Path",
-        "LinkInputType": ["track"],
-        "LinkInputNumber": [11],
-        "LinkOutputNumber": [13],
+        "StepAction": "Deduplicate 檔案 Entries 由 路徑",
+        "LinkInputType": [
+          "track"
+        ],
+        "LinkInputNumber": [
+          11
+        ],
+        "LinkOutputNumber": [
+          13
+        ],
         "LinkOutputType": "track",
-        "Condition": ["text.extraction.complete"],
+        "Condition": [
+          "文字.extraction.完成"
+        ],
         "SubGrafcet": []
       },
       {
         "StepNumber": 13,
         "ModuleRef": "A14",
         "StepType": "normal",
-        "StepAction": "Check Budget And Consolidate If Needed",
-        "LinkInputType": ["track"],
-        "LinkInputNumber": [12],
+        "StepAction": "Check Budget 與 Consolidate If Needed",
+        "LinkInputType": [
+          "track"
+        ],
+        "LinkInputNumber": [
+          12
+        ],
         "LinkOutputNumber": [],
         "LinkOutputType": "track",
-        "Condition": ["dedup.complete"],
+        "Condition": [
+          "dedup.完成"
+        ],
         "SubGrafcet": []
       }
     ]
@@ -76,24 +114,42 @@
     "StepNumber": 2,
     "ModuleRef": "A0",
     "StepType": "normal",
-    "StepAction": "Evaluate Turn Boundary Actions",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [3, 5, 7],
+    "StepAction": "Evaluate 回合 Boundary Actions",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      3,
+      5,
+      7
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["update.complete AND space.persisted"],
+    "Condition": [
+      "更新.完成 AND space.persisted"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Evaluate Idle Compaction At Turn Boundary",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [4],
+    "StepAction": "Evaluate 閒置 壓縮 於 回合 Boundary",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      4
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["turn.hasCompletedTaskDispatch"],
+    "Condition": [
+      "回合.has已完成任務派發"
+    ],
     "SubGrafcet": [
       {
         "StepNumber": 30,
@@ -102,45 +158,70 @@
         "StepAction": "Evaluate Budget Utilization Against Threshold",
         "LinkInputType": [],
         "LinkInputNumber": [],
-        "LinkOutputNumber": [31, 32],
+        "LinkOutputNumber": [
+          31,
+          32
+        ],
         "LinkOutputType": "divergence_or",
-        "Condition": ["task.dispatch.detected"],
+        "Condition": [
+          "任務.派發.detected"
+        ],
         "SubGrafcet": []
       },
       {
         "StepNumber": 31,
         "ModuleRef": "A3",
         "StepType": "normal",
-        "StepAction": "Skip Compaction (Utilization Below Threshold)",
-        "LinkInputType": ["divergence_or"],
-        "LinkInputNumber": [30],
+        "StepAction": "Skip 壓縮 (Utilization Below Threshold)",
+        "LinkInputType": [
+          "divergence_or"
+        ],
+        "LinkInputNumber": [
+          30
+        ],
         "LinkOutputNumber": [],
         "LinkOutputType": "track",
-        "Condition": ["utilization < threshold OR !budget.auto OR snapshot.empty"],
+        "Condition": [
+          "utilization < threshold OR !budget.auto OR snapshot.empty"
+        ],
         "SubGrafcet": []
       },
       {
         "StepNumber": 32,
         "ModuleRef": "A32",
         "StepType": "normal",
-        "StepAction": "Execute Compaction With Shared Context Summary (Sync)",
-        "LinkInputType": ["divergence_or"],
-        "LinkInputNumber": [30],
-        "LinkOutputNumber": [33],
+        "StepAction": "Execute 壓縮 使用 Shared 上下文 Summary (Sync)",
+        "LinkInputType": [
+          "divergence_or"
+        ],
+        "LinkInputNumber": [
+          30
+        ],
+        "LinkOutputNumber": [
+          33
+        ],
         "LinkOutputType": "track",
-        "Condition": ["utilization >= threshold AND budget.auto AND snapshot.nonEmpty"],
+        "Condition": [
+          "utilization >= threshold AND budget.auto AND snapshot.nonEmpty"
+        ],
         "SubGrafcet": []
       },
       {
         "StepNumber": 33,
         "ModuleRef": "A33",
         "StepType": "normal",
-        "StepAction": "Emit Continue Prompt For Auto Mode",
-        "LinkInputType": ["track"],
-        "LinkInputNumber": [32],
+        "StepAction": "發出 繼續 提示 供 Auto Mode",
+        "LinkInputType": [
+          "track"
+        ],
+        "LinkInputNumber": [
+          32
+        ],
         "LinkOutputNumber": [],
         "LinkOutputType": "track",
-        "Condition": ["compaction.complete AND auto === true"],
+        "Condition": [
+          "壓縮.完成 AND auto === true"
+        ],
         "SubGrafcet": []
       }
     ]
@@ -149,35 +230,53 @@
     "StepNumber": 4,
     "ModuleRef": "A2",
     "StepType": "normal",
-    "StepAction": "Inject Snapshot Into Subagent During Task Tool (Sync)",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [8],
+    "StepAction": "Inject Snapshot 進入 子代理 During 任務 工具 (Sync)",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      8
+    ],
     "LinkOutputType": "track",
-    "Condition": ["task.tool.executing AND !params.session_id AND snapshot.nonEmpty"],
+    "Condition": [
+      "任務.工具.executing AND !params.Sessionid AND snapshot.nonEmpty"
+    ],
     "SubGrafcet": [
       {
         "StepNumber": 40,
         "ModuleRef": "A21",
         "StepType": "initial",
-        "StepAction": "Generate Formatted Context Snapshot",
+        "StepAction": "Generate Formatted 上下文 Snapshot",
         "LinkInputType": [],
         "LinkInputNumber": [],
-        "LinkOutputNumber": [41],
+        "LinkOutputNumber": [
+          41
+        ],
         "LinkOutputType": "track",
-        "Condition": ["space.files.length > 0 OR space.actions.length > 0"],
+        "Condition": [
+          "space.檔案.length > 0 OR space.actions.length > 0"
+        ],
         "SubGrafcet": []
       },
       {
         "StepNumber": 41,
         "ModuleRef": "A22",
         "StepType": "normal",
-        "StepAction": "Create Synthetic Seed Message In Subagent Session",
-        "LinkInputType": ["track"],
-        "LinkInputNumber": [40],
+        "StepAction": "Create 合成 Seed 訊息 在 子代理 Session",
+        "LinkInputType": [
+          "track"
+        ],
+        "LinkInputNumber": [
+          40
+        ],
         "LinkOutputNumber": [],
         "LinkOutputType": "track",
-        "Condition": ["snapshot.generated"],
+        "Condition": [
+          "snapshot.generated"
+        ],
         "SubGrafcet": []
       }
     ]
@@ -186,48 +285,82 @@
     "StepNumber": 5,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "Handle Overflow Compaction With Shared Context",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [6],
+    "StepAction": "Handle Overflow 壓縮 使用 Shared 上下文",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      6
+    ],
     "LinkOutputType": "track",
-    "Condition": ["overflow.triggered AND snapshot.nonEmpty"],
+    "Condition": [
+      "overflow.triggered AND snapshot.nonEmpty"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 6,
     "ModuleRef": "A32",
     "StepType": "normal",
-    "StepAction": "Write Summary And Publish Compacted Event",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [5],
-    "LinkOutputNumber": [8],
+    "StepAction": "Write Summary 與 發布 Compacted 事件",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      5
+    ],
+    "LinkOutputNumber": [
+      8
+    ],
     "LinkOutputType": "track",
-    "Condition": ["overflow.snapshot.ready"],
+    "Condition": [
+      "overflow.snapshot.就緒"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 7,
     "ModuleRef": "A0",
     "StepType": "normal",
-    "StepAction": "Fallback To Existing Compaction Agent",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [8],
+    "StepAction": "fallback 到 Existing 壓縮 Agent",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      8
+    ],
     "LinkOutputType": "track",
-    "Condition": ["overflow.triggered AND snapshot.empty"],
+    "Condition": [
+      "overflow.triggered AND snapshot.empty"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 8,
     "ModuleRef": "A0",
     "StepType": "normal",
-    "StepAction": "Return To Await Next Turn",
-    "LinkInputType": ["convergence_or"],
-    "LinkInputNumber": [4, 6, 7],
-    "LinkOutputNumber": [1],
+    "StepAction": "返回 到 等待 下一個 回合",
+    "LinkInputType": [
+      "convergence_or"
+    ],
+    "LinkInputNumber": [
+      4,
+      6,
+      7
+    ],
+    "LinkOutputNumber": [
+      1
+    ],
     "LinkOutputType": "track",
-    "Condition": ["event.handled"],
+    "Condition": [
+      "事件.handled"
+    ],
     "SubGrafcet": []
   }
 ]

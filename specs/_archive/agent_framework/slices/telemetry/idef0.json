@@ -1,29 +1,29 @@
 {
-  "diagram_title": "Telemetry Planning Workflow",
+  "diagram_title": "Telemetry Planning 工作流程",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A1",
       "title": "Define Telemetry Requirements",
-      "description": "Map user intent for prompt-block (A111) and round/session (A112) telemetry to runtime files and data fields.",
+      "description": "Map 使用者 intent 供 提示-區塊 (111) 與 round/Session (112) telemetry 到 runtime 檔案 與 data fields.",
       "decomposition": "A11,A12,A13"
     },
     {
       "id": "A11",
-      "title": "Plan Prompt Block Telemetry (A111)",
-      "description": "Document block source, names, inject policy, estimated tokens/length, correlation IDs, and dedicated telemetry entry points that feed `session/telemetry.ts` (the authoritative sink) while keeping `session/monitor.ts` downstream.",
+      "title": "規劃 提示 區塊 Telemetry (111)",
+      "description": "Document 區塊 來源, names, inject policy, estimated tokens/length, correlation IDs, 與 dedicated telemetry 項目 points that feed `session/telemetry.ts` ( authoritative sink) while keeping `session/monitor.ts` downstream.",
       "decomposition": null
     },
     {
       "id": "A12",
-      "title": "Plan Round/Session Usage Telemetry (A112)",
-      "description": "Define instrumentation around processor.ts/compaction.ts with sessionId, roundIndex, requestId, provider/account metadata, token breakdowns, and compaction states.",
+      "title": "規劃 Round/Session Usage Telemetry (112)",
+      "description": "Define instrumentation around processor.ts/compaction.ts 使用 Sessionid, roundIndex, 請求id, Provider/帳號 metadata, token breakdowns, 與 壓縮 states.",
       "decomposition": null
     },
     {
       "id": "A13",
       "title": "Validation, Handoff & Sidebar Consumption",
-      "description": "Align diagrams, tasks, validation plans, and sidebar consumption so telemetry instrumentation (via `session/telemetry.ts`) can be executed with baseline/after evidence, fail-fast controls, and a UI card taxonomy that consumes `session/monitor.ts` outputs.",
+      "description": "Align diagrams, tasks, validation plans, 與 sidebar consumption so telemetry instrumentation (透過 `session/telemetry.ts`) can 是 executed 使用 baseline/after evidence, fail-fast controls, 與 UI card taxonomy that consumes `session/monitor.ts` outputs.",
       "decomposition": null
     }
   ],
@@ -32,7 +32,7 @@
       "id": "AR1",
       "source": "EXTERNAL",
       "target": "A1:input",
-      "label": "Telemetry Request (A111/A112 intent)",
+      "label": "Telemetry 請求 (111/112 intent)",
       "type": "input"
     },
     {
@@ -46,7 +46,7 @@
       "id": "AR3",
       "source": "A1:output",
       "target": "EXTERNAL",
-      "label": "Telemetry plan with traceability to A111/A112",
+      "label": "Telemetry 規劃 使用 traceability 到 111/112",
       "type": "output"
     },
     {
@@ -60,21 +60,21 @@
       "id": "AR5",
       "source": "A11:output",
       "target": "A12:input",
-      "label": "Prompt block data definitions feed round/session telemetry assumptions",
+      "label": "提示 區塊 data definitions feed round/Session telemetry assumptions",
       "type": "input"
     },
     {
       "id": "AR6",
       "source": "A12:output",
       "target": "A13:input",
-      "label": "Telemetry fields and validation checkpoints",
+      "label": "Telemetry fields 與 validation checkpoints",
       "type": "input"
     },
     {
       "id": "AR7",
       "source": "A13:output",
       "target": "EXTERNAL",
-      "label": "Execution-ready plans / diagrams / tasks",
+      "label": "Execution-就緒 plans / diagrams / tasks",
       "type": "output"
     }
   ]

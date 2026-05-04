@@ -3,254 +3,442 @@
     "StepNumber": 0,
     "ModuleRef": "A0",
     "StepType": "initial",
-    "StepAction": "Idle — no App management request pending",
+    "StepAction": "閒置 — 無 App management 請求 待處理",
     "LinkInputType": [],
     "LinkInputNumber": [],
-    "LinkOutputNumber": [1, 20, 30, 40],
+    "LinkOutputNumber": [
+      1,
+      20,
+      30,
+      40
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["provision_needed", "install_request", "lifecycle_command", "runtime_startup"],
+    "Condition": [
+      "provisionneeded",
+      "install請求",
+      "lifecyclecommand",
+      "runtimestartup"
+    ],
     "SubGrafcet": []
   },
-
   {
     "StepNumber": 1,
     "ModuleRef": "A11",
     "StepType": "normal",
-    "StepAction": "Create opencode system account",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [2, 90],
+    "StepAction": "Create opencode system 帳號",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2,
+      90
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["account_created", "account_creation_failed"],
+    "Condition": [
+      "帳號created",
+      "帳號creationfailed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "ModuleRef": "A12",
     "StepType": "normal",
-    "StepAction": "Establish directory hierarchy with correct ownership",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [3],
+    "StepAction": "Establish directory hierarchy 使用 correct ownership",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      3
+    ],
     "LinkOutputType": "track",
-    "Condition": ["directories_ready"],
+    "Condition": [
+      "directories就緒"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "ModuleRef": "A13",
     "StepType": "normal",
-    "StepAction": "Configure gateway to run daemon as opencode user",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [2],
-    "LinkOutputNumber": [4],
+    "StepAction": "Configure Gateway 到 執行 daemon 作為 opencode 使用者",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      4
+    ],
     "LinkOutputType": "track",
-    "Condition": ["gateway_configured"],
+    "Condition": [
+      "Gatewayconfigured"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 4,
     "ModuleRef": "A14",
     "StepType": "normal",
-    "StepAction": "Migrate /tmp dependencies to system directories",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [3],
-    "LinkOutputNumber": [0],
+    "StepAction": "Migrate /tmp dependencies 到 system directories",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      3
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["migration_complete"],
+    "Condition": [
+      "migration完成"
+    ],
     "SubGrafcet": []
   },
-
   {
     "StepNumber": 20,
     "ModuleRef": "A21",
     "StepType": "normal",
-    "StepAction": "Resolve source type (GitHub URL vs local path)",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [21, 22],
+    "StepAction": "解析 來源 type (GitHub URL vs local 路徑)",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      21,
+      22
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["source_is_github", "source_is_local"],
+    "Condition": [
+      "來源是github",
+      "來源是local"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 21,
     "ModuleRef": "A22",
     "StepType": "normal",
-    "StepAction": "Clone remote repository to /opt/opencode-apps/<id>/",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [20],
-    "LinkOutputNumber": [23, 91],
+    "StepAction": "Clone remote repository 到 /opt/opencode-apps/<id>/",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      20
+    ],
+    "LinkOutputNumber": [
+      23,
+      91
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["clone_succeeded", "clone_failed"],
+    "Condition": [
+      "clonesucceeded",
+      "clonefailed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 22,
     "ModuleRef": "A23",
     "StepType": "normal",
-    "StepAction": "Verify local path exists and passes path traversal check",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [20],
-    "LinkOutputNumber": [23, 92],
+    "StepAction": "Verify local 路徑 exists 與 passes 路徑 traversal check",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      20
+    ],
+    "LinkOutputNumber": [
+      23,
+      92
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["path_valid", "path_rejected"],
+    "Condition": [
+      "路徑valid",
+      "路徑rejected"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 23,
     "ModuleRef": "A31",
     "StepType": "normal",
-    "StepAction": "Read mcp.json from App directory",
-    "LinkInputType": ["convergence_or"],
-    "LinkInputNumber": [21, 22],
-    "LinkOutputNumber": [24, 25],
+    "StepAction": "Read mcp.js在 來自 App directory",
+    "LinkInputType": [
+      "convergence_or"
+    ],
+    "LinkInputNumber": [
+      21,
+      22
+    ],
+    "LinkOutputNumber": [
+      24,
+      25
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["manifest_found", "manifest_not_found"],
+    "Condition": [
+      "Manifestfound",
+      "Manifest不found"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 24,
     "ModuleRef": "A33",
     "StepType": "normal",
-    "StepAction": "Validate manifest against Zod schema",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [23],
-    "LinkOutputNumber": [26, 93],
+    "StepAction": "Validate Manifest against Zod schema",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      23
+    ],
+    "LinkOutputNumber": [
+      26,
+      93
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["schema_valid", "schema_invalid"],
+    "Condition": [
+      "schemavalid",
+      "schemainvalid"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 25,
     "ModuleRef": "A32",
     "StepType": "normal",
-    "StepAction": "Infer manifest from project files (package.json, pyproject.toml, etc.)",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [23],
-    "LinkOutputNumber": [24, 94],
+    "StepAction": "Infer Manifest 來自 專案 檔案 (package.js在, pyproject.toml, etc.)",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      23
+    ],
+    "LinkOutputNumber": [
+      24,
+      94
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["inference_succeeded", "inference_failed"],
+    "Condition": [
+      "inferencesucceeded",
+      "inferencefailed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 26,
     "ModuleRef": "A24",
     "StepType": "normal",
-    "StepAction": "Install runtime dependencies if dependency files detected",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [24],
-    "LinkOutputNumber": [27],
+    "StepAction": "Install runtime dependencies if dependency 檔案 detected",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      24
+    ],
+    "LinkOutputNumber": [
+      27
+    ],
     "LinkOutputType": "track",
-    "Condition": ["dependencies_resolved"],
+    "Condition": [
+      "dependencies已解析"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 27,
     "ModuleRef": "A34",
     "StepType": "normal",
-    "StepAction": "Probe App via stdio spawn and tools/list handshake (30s timeout)",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [26],
-    "LinkOutputNumber": [28, 95],
+    "StepAction": "探測 App 透過 stdio 啟動 與 tools/清單 handshake (30s timeout)",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      26
+    ],
+    "LinkOutputNumber": [
+      28,
+      95
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["probe_succeeded", "probe_failed"],
+    "Condition": [
+      "探測succeeded",
+      "探測failed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 28,
     "ModuleRef": "A41",
     "StepType": "normal",
-    "StepAction": "Persist App registration to mcp-apps.json",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [27],
-    "LinkOutputNumber": [29],
+    "StepAction": "持久化 App 註冊 到 mcp-apps.js在",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      27
+    ],
+    "LinkOutputNumber": [
+      29
+    ],
     "LinkOutputType": "track",
-    "Condition": ["registration_persisted"],
+    "Condition": [
+      "註冊persisted"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 29,
     "ModuleRef": "A56",
     "StepType": "normal",
-    "StepAction": "Report installation result to caller (id, name, tools, status)",
-    "LinkInputType": ["track"],
-    "LinkInputNumber": [28],
-    "LinkOutputNumber": [0],
+    "StepAction": "Report installation 結果 到 caller (id, name, tools, 狀態)",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      28
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["result_delivered"],
+    "Condition": [
+      "結果delivered"
+    ],
     "SubGrafcet": []
   },
-
   {
     "StepNumber": 30,
     "ModuleRef": "A43",
     "StepType": "normal",
     "StepAction": "Receive lifecycle command (enable/disable/remove)",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [31, 32, 33],
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      31,
+      32,
+      33
+    ],
     "LinkOutputType": "divergence_or",
-    "Condition": ["command_is_enable", "command_is_disable", "command_is_remove"],
+    "Condition": [
+      "command是enable",
+      "command是disable",
+      "command是remove"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 31,
     "ModuleRef": "A51",
     "StepType": "normal",
-    "StepAction": "Launch stdio transport and connect MCP client",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [30],
-    "LinkOutputNumber": [34],
+    "StepAction": "Launch stdio transport 與 connect MCP client",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      30
+    ],
+    "LinkOutputNumber": [
+      34
+    ],
     "LinkOutputType": "track",
-    "Condition": ["app_connected"],
+    "Condition": [
+      "appconnected"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 32,
     "ModuleRef": "A43",
     "StepType": "normal",
-    "StepAction": "Disconnect stdio transport and set state to disabled",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [30],
-    "LinkOutputNumber": [34],
+    "StepAction": "Disconnect stdio transport 與 set 狀態 到 disabled",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      30
+    ],
+    "LinkOutputNumber": [
+      34
+    ],
     "LinkOutputType": "track",
-    "Condition": ["app_disabled"],
+    "Condition": [
+      "appdisabled"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 33,
     "ModuleRef": "A43",
     "StepType": "normal",
-    "StepAction": "Disconnect transport and remove entry from mcp-apps.json",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [30],
-    "LinkOutputNumber": [34],
+    "StepAction": "Disconnect transport 與 remove 項目 來自 mcp-apps.js在",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      30
+    ],
+    "LinkOutputNumber": [
+      34
+    ],
     "LinkOutputType": "track",
-    "Condition": ["app_removed"],
+    "Condition": [
+      "appremoved"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 34,
     "ModuleRef": "A43",
     "StepType": "normal",
-    "StepAction": "Emit Bus event and update UI state",
-    "LinkInputType": ["convergence_or"],
-    "LinkInputNumber": [31, 32, 33],
-    "LinkOutputNumber": [0],
+    "StepAction": "發出 Bus 事件 與 更新 UI 狀態",
+    "LinkInputType": [
+      "convergence_or"
+    ],
+    "LinkInputNumber": [
+      31,
+      32,
+      33
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["state_change_published"],
+    "Condition": [
+      "狀態changepublished"
+    ],
     "SubGrafcet": []
   },
-
   {
     "StepNumber": 40,
     "ModuleRef": "A42",
     "StepType": "normal",
-    "StepAction": "Load and merge two-tier mcp-apps.json (system priority)",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [0],
-    "LinkOutputNumber": [41, 42],
+    "StepAction": "Load 與 合併 two-tier mcp-apps.js在 (system 優先序)",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      41,
+      42
+    ],
     "LinkOutputType": "divergence_and",
     "Condition": [],
     "SubGrafcet": []
@@ -259,109 +447,181 @@
     "StepNumber": 41,
     "ModuleRef": "A51",
     "StepType": "normal",
-    "StepAction": "Launch each enabled App via stdio and register tools to session pool",
-    "LinkInputType": ["divergence_and"],
-    "LinkInputNumber": [40],
-    "LinkOutputNumber": [43],
+    "StepAction": "Launch each 已啟用 App 透過 stdio 與 註冊 tools 到 Session pool",
+    "LinkInputType": [
+      "divergence_and"
+    ],
+    "LinkInputNumber": [
+      40
+    ],
+    "LinkOutputNumber": [
+      43
+    ],
     "LinkOutputType": "track",
-    "Condition": ["all_enabled_apps_processed"],
+    "Condition": [
+      "all已啟用appsprocessed"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 42,
     "ModuleRef": "A54",
     "StepType": "normal",
-    "StepAction": "Inject disabled App catalog into system prompt for AI on-demand activation",
-    "LinkInputType": ["divergence_and"],
-    "LinkInputNumber": [40],
-    "LinkOutputNumber": [43],
+    "StepAction": "Inject disabled App catalog 進入 system 提示 供 AI 在-demand activation",
+    "LinkInputType": [
+      "divergence_and"
+    ],
+    "LinkInputNumber": [
+      40
+    ],
+    "LinkOutputNumber": [
+      43
+    ],
     "LinkOutputType": "track",
-    "Condition": ["prompt_catalog_injected"],
+    "Condition": [
+      "提示cataloginjected"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 43,
     "ModuleRef": "A53",
     "StepType": "normal",
-    "StepAction": "Merge launched App tools with existing MCP server tools into unified session pool",
-    "LinkInputType": ["convergence_and"],
-    "LinkInputNumber": [41, 42],
-    "LinkOutputNumber": [0],
+    "StepAction": "合併 launched App tools 使用 existing MCP 伺服器 tools 進入 unified Session pool",
+    "LinkInputType": [
+      "convergence_and"
+    ],
+    "LinkInputNumber": [
+      41,
+      42
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["runtime_ready"],
+    "Condition": [
+      "runtime就緒"
+    ],
     "SubGrafcet": []
   },
-
   {
     "StepNumber": 90,
     "ModuleRef": "A11",
     "StepType": "normal",
-    "StepAction": "Report system account creation failure",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [1],
-    "LinkOutputNumber": [0],
+    "StepAction": "Report system 帳號 creation failure",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["error_reported"],
+    "Condition": [
+      "錯誤reported"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 91,
     "ModuleRef": "A22",
     "StepType": "normal",
-    "StepAction": "Report clone failure (network, auth, not found)",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [21],
-    "LinkOutputNumber": [0],
+    "StepAction": "Report clone failure (network, 驗證, 不 found)",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      21
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["error_reported"],
+    "Condition": [
+      "錯誤reported"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 92,
     "ModuleRef": "A23",
     "StepType": "normal",
-    "StepAction": "Report path validation failure (not found, traversal blocked)",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [22],
-    "LinkOutputNumber": [0],
+    "StepAction": "Report 路徑 validation failure (不 found, traversal blocked)",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      22
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["error_reported"],
+    "Condition": [
+      "錯誤reported"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 93,
     "ModuleRef": "A33",
     "StepType": "normal",
-    "StepAction": "Report manifest schema validation error with Zod details",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [24],
-    "LinkOutputNumber": [0],
+    "StepAction": "Report Manifest schema validation 錯誤 使用 Zod details",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      24
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["error_reported"],
+    "Condition": [
+      "錯誤reported"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 94,
     "ModuleRef": "A32",
     "StepType": "normal",
-    "StepAction": "Report manifest inference failure — user must provide command",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [25],
-    "LinkOutputNumber": [0],
+    "StepAction": "Report Manifest inference failure — 使用者 must provide command",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      25
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["error_reported"],
+    "Condition": [
+      "錯誤reported"
+    ],
     "SubGrafcet": []
   },
   {
     "StepNumber": 95,
     "ModuleRef": "A34",
     "StepType": "normal",
-    "StepAction": "Report probe failure (command not found, timeout, protocol error)",
-    "LinkInputType": ["divergence_or"],
-    "LinkInputNumber": [27],
-    "LinkOutputNumber": [0],
+    "StepAction": "Report 探測 failure (command 不 found, timeout, protocol 錯誤)",
+    "LinkInputType": [
+      "divergence_or"
+    ],
+    "LinkInputNumber": [
+      27
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
     "LinkOutputType": "track",
-    "Condition": ["error_reported"],
+    "Condition": [
+      "錯誤reported"
+    ],
     "SubGrafcet": []
   }
 ]

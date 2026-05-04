@@ -1,470 +1,470 @@
 {
-    "diagram_title": "Process Attachment Lifecycle",
-    "node_reference": "A0",
-    "activities": [
-        {
-            "id": "A1",
-            "title": "Receive Upload",
-            "decomposition": {
-                "diagram_title": "Receive Upload",
-                "node_reference": "A1",
-                "activities": [
-                    {
-                        "id": "A11",
-                        "title": "Parse Multipart Body"
-                    },
-                    {
-                        "id": "A12",
-                        "title": "Detect Mime Type"
-                    },
-                    {
-                        "id": "A13",
-                        "title": "Sanitize Filename"
-                    },
-                    {
-                        "id": "A14",
-                        "title": "Build Attachment Ref Part"
-                    }
-                ],
-                "arrows": [
-                    {
-                        "id": "a1_in_bytes",
-                        "source": "EXTERNAL",
-                        "target": "A11:input",
-                        "label": "Multipart HTTP Body"
-                    },
-                    {
-                        "id": "a1_ctrl_route",
-                        "source": "EXTERNAL",
-                        "target": "A11:control",
-                        "label": "Server Upload Route Config"
-                    },
-                    {
-                        "id": "a1_to_mime",
-                        "source": "A11:output",
-                        "target": "A12:input",
-                        "label": "Raw File Buffer"
-                    },
-                    {
-                        "id": "a1_mime_ctrl",
-                        "source": "EXTERNAL",
-                        "target": "A12:control",
-                        "label": "Mime Detection Rules"
-                    },
-                    {
-                        "id": "a1_to_san",
-                        "source": "A12:output",
-                        "target": "A13:input",
-                        "label": "Classified Buffer Plus Mime"
-                    },
-                    {
-                        "id": "a1_san_ctrl",
-                        "source": "EXTERNAL",
-                        "target": "A13:control",
-                        "label": "IncomingPaths Sanitize Policy DD-12"
-                    },
-                    {
-                        "id": "a1_to_part",
-                        "source": "A13:output",
-                        "target": "A14:input",
-                        "label": "Sanitized Filename Plus Buffer"
-                    },
-                    {
-                        "id": "a1_part_ctrl",
-                        "source": "EXTERNAL",
-                        "target": "A14:control",
-                        "label": "userAttachmentMaxBytes Threshold"
-                    },
-                    {
-                        "id": "a1_out_ref",
-                        "source": "A14:output",
-                        "target": "EXTERNAL",
-                        "label": "Pending AttachmentRef Plus Buffer"
-                    }
-                ]
-            }
-        },
-        {
-            "id": "A2",
-            "title": "Store Attachment",
-            "decomposition": {
-                "diagram_title": "Store Attachment",
-                "node_reference": "A2",
-                "activities": [
-                    {
-                        "id": "A21",
-                        "title": "Route By Mime"
-                    },
-                    {
-                        "id": "A22",
-                        "title": "Write Image Path"
-                    },
-                    {
-                        "id": "A23",
-                        "title": "Land In Incoming"
-                    },
-                    {
-                        "id": "A24",
-                        "title": "Persist Attachment Blob"
-                    },
-                    {
-                        "id": "A25",
-                        "title": "Append History Journal"
-                    }
-                ],
-                "arrows": [
-                    {
-                        "id": "a2_in_ref",
-                        "source": "EXTERNAL",
-                        "target": "A21:input",
-                        "label": "Pending AttachmentRef Plus Buffer"
-                    },
-                    {
-                        "id": "a2_route_ctrl",
-                        "source": "EXTERNAL",
-                        "target": "A21:control",
-                        "label": "isImage Predicate buildUserMessageAttachmentRefPart"
-                    },
-                    {
-                        "id": "a2_to_img",
-                        "source": "A21:output",
-                        "target": "A22:input",
-                        "label": "Image Branch Buffer"
-                    },
-                    {
-                        "id": "a2_img_ctrl",
-                        "source": "EXTERNAL",
-                        "target": "A22:control",
-                        "label": "SessionIncomingPaths.tryLandInSession"
-                    },
-                    {
-                        "id": "a2_img_out",
-                        "source": "A22:output",
-                        "target": "EXTERNAL",
-                        "label": "Session Attachments File Path"
-                    },
-                    {
-                        "id": "a2_to_inc",
-                        "source": "A21:output",
-                        "target": "A23:input",
-                        "label": "Office Or PDF Branch Buffer"
-                    },
-                    {
-                        "id": "a2_inc_ctrl",
-                        "source": "EXTERNAL",
-                        "target": "A23:control",
-                        "label": "tryLandInIncoming Plus nextConflictName"
-                    },
-                    {
-                        "id": "a2_inc_to_hist",
-                        "source": "A23:output",
-                        "target": "A25:input",
-                        "label": "Repo Path Plus sha256"
-                    },
-                    {
-                        "id": "a2_hist_ctrl",
-                        "source": "EXTERNAL",
-                        "target": "A25:control",
-                        "label": "IncomingHistory.appendEntry source-kind enum"
-                    },
-                    {
-                        "id": "a2_hist_out",
-                        "source": "A25:output",
-                        "target": "EXTERNAL",
-                        "label": "Per-File jsonl History Line"
-                    },
-                    {
-                        "id": "a2_fb_to_blob",
-                        "source": "A21:output",
-                        "target": "A24:input",
-                        "label": "Fallback Inline Buffer"
-                    },
-                    {
-                        "id": "a2_blob_ctrl",
-                        "source": "EXTERNAL",
-                        "target": "A24:control",
-                        "label": "upsertAttachmentBlob legacy schema"
-                    },
-                    {
-                        "id": "a2_blob_out",
-                        "source": "A24:output",
-                        "target": "EXTERNAL",
-                        "label": "AttachmentBlob Row content column"
-                    }
-                ]
-            }
-        },
-        {
-            "id": "A3",
-            "title": "Track Active Image Refs",
-            "decomposition": {
-                "diagram_title": "Track Active Image Refs",
-                "node_reference": "A3",
-                "activities": [
-                    {
-                        "id": "A31",
-                        "title": "Initialize Active Set"
-                    },
-                    {
-                        "id": "A32",
-                        "title": "Apply FIFO Cap"
-                    },
-                    {
-                        "id": "A33",
-                        "title": "Drain After Assistant"
-                    }
-                ],
-                "arrows": [
-                    {
-                        "id": "a3_in_voucher",
-                        "source": "EXTERNAL",
-                        "target": "A31:input",
-                        "label": "Voucher Filename From RereadAttachmentTool"
-                    },
-                    {
-                        "id": "a3_init_ctrl",
-                        "source": "EXTERNAL",
-                        "target": "A31:control",
-                        "label": "addOnReread Helper"
-                    },
-                    {
-                        "id": "a3_to_cap",
-                        "source": "A31:output",
-                        "target": "A32:input",
-                        "label": "Candidate Active Set"
-                    },
-                    {
-                        "id": "a3_cap_ctrl",
-                        "source": "EXTERNAL",
-                        "target": "A32:control",
-                        "label": "ACTIVE_IMAGE_REFS_DEFAULT_MAX = 3"
-                    },
-                    {
-                        "id": "a3_cap_out",
-                        "source": "A32:output",
-                        "target": "EXTERNAL",
-                        "label": "execution.activeImageRefs Persisted"
-                    },
-                    {
-                        "id": "a3_in_finish",
-                        "source": "EXTERNAL",
-                        "target": "A33:input",
-                        "label": "step-finish Event"
-                    },
-                    {
-                        "id": "a3_drain_ctrl",
-                        "source": "EXTERNAL",
-                        "target": "A33:control",
-                        "label": "drainAfterAssistant processor.ts L1153"
-                    },
-                    {
-                        "id": "a3_drain_out",
-                        "source": "A33:output",
-                        "target": "EXTERNAL",
-                        "label": "Cleared activeImageRefs"
-                    }
-                ]
-            }
-        },
-        {
-            "id": "A4",
-            "title": "Reread Attachment By AI"
-        },
-        {
-            "id": "A5",
-            "title": "Auto Decompose Docx",
-            "decomposition": {
-                "diagram_title": "Auto Decompose Docx",
-                "node_reference": "A5",
-                "activities": [
-                    {
-                        "id": "A51",
-                        "title": "Lookup Manifest Cache"
-                    },
-                    {
-                        "id": "A52",
-                        "title": "Run Fast Phase Extract"
-                    },
-                    {
-                        "id": "A53",
-                        "title": "Spawn Background Worker"
-                    },
-                    {
-                        "id": "A54",
-                        "title": "Poll Extract All Collect"
-                    },
-                    {
-                        "id": "A55",
-                        "title": "Render Routing Hint"
-                    }
-                ],
-                "arrows": [
-                    {
-                        "id": "a5_in_office",
-                        "source": "EXTERNAL",
-                        "target": "A51:input",
-                        "label": "Office Mime Buffer Plus sha256"
-                    },
-                    {
-                        "id": "a5_cache_ctrl",
-                        "source": "EXTERNAL",
-                        "target": "A51:control",
-                        "label": "manifest.lookupCache DD-12"
-                    },
-                    {
-                        "id": "a5_cache_out_hit",
-                        "source": "A51:output",
-                        "target": "A55:input",
-                        "label": "Cache Hit Manifest Status"
-                    },
-                    {
-                        "id": "a5_cache_out_miss",
-                        "source": "A51:output",
-                        "target": "A52:input",
-                        "label": "Cache Miss Buffer"
-                    },
-                    {
-                        "id": "a5_fast_ctrl",
-                        "source": "EXTERNAL",
-                        "target": "A52:control",
-                        "label": "docxmcp extract_all 30s timeout"
-                    },
-                    {
-                        "id": "a5_fast_to_bg",
-                        "source": "A52:output",
-                        "target": "A53:input",
-                        "label": "Outline Plus Template Plus Manifest"
-                    },
-                    {
-                        "id": "a5_bg_ctrl",
-                        "source": "EXTERNAL",
-                        "target": "A53:control",
-                        "label": "Detached Child Process Handle"
-                    },
-                    {
-                        "id": "a5_bg_to_poll",
-                        "source": "A53:output",
-                        "target": "A54:input",
-                        "label": "Worker pid Plus Job Token"
-                    },
-                    {
-                        "id": "a5_poll_ctrl",
-                        "source": "EXTERNAL",
-                        "target": "A54:control",
-                        "label": "startPollLoop 5s Cycle 180s Cap"
-                    },
-                    {
-                        "id": "a5_poll_to_hint",
-                        "source": "A54:output",
-                        "target": "A55:input",
-                        "label": "Final Manifest Plus Bundle Tree"
-                    },
-                    {
-                        "id": "a5_hint_ctrl",
-                        "source": "EXTERNAL",
-                        "target": "A55:control",
-                        "label": "renderOfficeRoutingHint DD-7"
-                    },
-                    {
-                        "id": "a5_hint_out",
-                        "source": "A55:output",
-                        "target": "EXTERNAL",
-                        "label": "Routing Hint Text Block To AI"
-                    },
-                    {
-                        "id": "a5_fast_out_imm",
-                        "source": "A52:output",
-                        "target": "A55:input",
-                        "label": "Pending Markers Manifest"
-                    }
-                ]
-            }
-        }
-    ],
-    "arrows": [
-        {
-            "id": "m1_request",
+  "diagram_title": "Process 附件 Lifecycle",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Receive 上傳",
+      "decomposition": {
+        "diagram_title": "Receive 上傳",
+        "node_reference": "A1",
+        "activities": [
+          {
+            "id": "A11",
+            "title": "解析 Multipart Body"
+          },
+          {
+            "id": "A12",
+            "title": "Detect Mime Type"
+          },
+          {
+            "id": "A13",
+            "title": "Sanitize Filename"
+          },
+          {
+            "id": "A14",
+            "title": "建置 附件 Ref Part"
+          }
+        ],
+        "arrows": [
+          {
+            "id": "a1_in_bytes",
             "source": "EXTERNAL",
-            "target": "A1:input",
-            "label": "User HTTP Upload Request"
-        },
-        {
-            "id": "m2_session_ctx",
+            "target": "A11:input",
+            "label": "Multipart HTTP Body"
+          },
+          {
+            "id": "a1_ctrl_route",
             "source": "EXTERNAL",
-            "target": "A1:control",
-            "label": "Session ID Plus Project Root"
-        },
-        {
-            "id": "m3_ref_to_store",
-            "source": "A1:output",
-            "target": "A2:input",
-            "label": "Pending AttachmentRef Plus Buffer"
-        },
-        {
-            "id": "m4_tweaks",
+            "target": "A11:control",
+            "label": "伺服器 上傳 路由 設定"
+          },
+          {
+            "id": "a1_to_mime",
+            "source": "A11:output",
+            "target": "A12:input",
+            "label": "Raw 檔案 Buffer"
+          },
+          {
+            "id": "a1_mime_ctrl",
             "source": "EXTERNAL",
-            "target": "A2:control",
-            "label": "Tweaks userAttachmentMaxBytes"
-        },
-        {
-            "id": "m5_paths_out",
-            "source": "A2:output",
+            "target": "A12:control",
+            "label": "Mime Detection Rules"
+          },
+          {
+            "id": "a1_to_san",
+            "source": "A12:output",
+            "target": "A13:input",
+            "label": "Classified Buffer Plus Mime"
+          },
+          {
+            "id": "a1_san_ctrl",
+            "source": "EXTERNAL",
+            "target": "A13:control",
+            "label": "incoming路徑 Sanitize Policy DD-12"
+          },
+          {
+            "id": "a1_to_part",
+            "source": "A13:output",
+            "target": "A14:input",
+            "label": "Sanitized Filename Plus Buffer"
+          },
+          {
+            "id": "a1_part_ctrl",
+            "source": "EXTERNAL",
+            "target": "A14:control",
+            "label": "使用者附件max位元組 Threshold"
+          },
+          {
+            "id": "a1_out_ref",
+            "source": "A14:output",
             "target": "EXTERNAL",
-            "label": "Final AttachmentRef Part With repo_path Or session_path"
-        },
-        {
-            "id": "m6_image_to_track",
-            "source": "A2:output",
-            "target": "A3:input",
-            "label": "Image AttachmentRef Announced In Inventory"
-        },
-        {
-            "id": "m7_office_to_dec",
-            "source": "A2:output",
-            "target": "A5:input",
-            "label": "Office Mime Path Plus sha256"
-        },
-        {
-            "id": "m8_inventory_to_ai",
-            "source": "A3:output",
-            "target": "A4:control",
-            "label": "attached_images Inventory Block"
-        },
-        {
-            "id": "m9_ai_voucher",
+            "label": "待處理 附件ref Plus Buffer"
+          }
+        ]
+      }
+    },
+    {
+      "id": "A2",
+      "title": "Store 附件",
+      "decomposition": {
+        "diagram_title": "Store 附件",
+        "node_reference": "A2",
+        "activities": [
+          {
+            "id": "A21",
+            "title": "路由 由 Mime"
+          },
+          {
+            "id": "A22",
+            "title": "Write Image 路徑"
+          },
+          {
+            "id": "A23",
+            "title": "Land 在 Incoming"
+          },
+          {
+            "id": "A24",
+            "title": "持久化 附件 Blob"
+          },
+          {
+            "id": "A25",
+            "title": "追加 History Journal"
+          }
+        ],
+        "arrows": [
+          {
+            "id": "a2_in_ref",
             "source": "EXTERNAL",
-            "target": "A4:input",
-            "label": "AI Reread Tool Call"
-        },
-        {
-            "id": "m10_voucher_to_track",
-            "source": "A4:output",
-            "target": "A3:input",
-            "label": "setActiveImageRefs Filename"
-        },
-        {
-            "id": "m11_active_to_preface",
-            "source": "A3:output",
+            "target": "A21:input",
+            "label": "待處理 附件ref Plus Buffer"
+          },
+          {
+            "id": "a2_route_ctrl",
+            "source": "EXTERNAL",
+            "target": "A21:control",
+            "label": "是image Predicate 建置使用者訊息附件refpart"
+          },
+          {
+            "id": "a2_to_img",
+            "source": "A21:output",
+            "target": "A22:input",
+            "label": "Image Branch Buffer"
+          },
+          {
+            "id": "a2_img_ctrl",
+            "source": "EXTERNAL",
+            "target": "A22:control",
+            "label": "Sessionincoming路徑.tryland在Session"
+          },
+          {
+            "id": "a2_img_out",
+            "source": "A22:output",
             "target": "EXTERNAL",
-            "label": "Active Image Blocks In trailingExtras BP4"
-        },
-        {
-            "id": "m12_dec_to_ai",
-            "source": "A5:output",
+            "label": "Session 附件 檔案 路徑"
+          },
+          {
+            "id": "a2_to_inc",
+            "source": "A21:output",
+            "target": "A23:input",
+            "label": "Office 或 PDF Branch Buffer"
+          },
+          {
+            "id": "a2_inc_ctrl",
+            "source": "EXTERNAL",
+            "target": "A23:control",
+            "label": "tryland在incoming Plus 下一個conflictname"
+          },
+          {
+            "id": "a2_inc_to_hist",
+            "source": "A23:output",
+            "target": "A25:input",
+            "label": "Repo 路徑 Plus sha256"
+          },
+          {
+            "id": "a2_hist_ctrl",
+            "source": "EXTERNAL",
+            "target": "A25:control",
+            "label": "IncomingHistory.追加項目 來源-kind enum"
+          },
+          {
+            "id": "a2_hist_out",
+            "source": "A25:output",
             "target": "EXTERNAL",
-            "label": "Routing Hint Plus Decomposed incoming Tree"
-        },
-        {
-            "id": "m13_drain_signal",
+            "label": "依-檔案 jsonl History Line"
+          },
+          {
+            "id": "a2_fb_to_blob",
+            "source": "A21:output",
+            "target": "A24:input",
+            "label": "fallback Inline Buffer"
+          },
+          {
+            "id": "a2_blob_ctrl",
             "source": "EXTERNAL",
-            "target": "A3:control",
-            "label": "step-finish Event Bus Signal"
-        },
-        {
-            "id": "m14_tweaks_inline",
+            "target": "A24:control",
+            "label": "upsert附件blob legacy schema"
+          },
+          {
+            "id": "a2_blob_out",
+            "source": "A24:output",
+            "target": "EXTERNAL",
+            "label": "附件blob Row content column"
+          }
+        ]
+      }
+    },
+    {
+      "id": "A3",
+      "title": "Track Active Image Refs",
+      "decomposition": {
+        "diagram_title": "Track Active Image Refs",
+        "node_reference": "A3",
+        "activities": [
+          {
+            "id": "A31",
+            "title": "Initialize Active Set"
+          },
+          {
+            "id": "A32",
+            "title": "Apply FIFO Cap"
+          },
+          {
+            "id": "A33",
+            "title": "Drain After 助手"
+          }
+        ],
+        "arrows": [
+          {
+            "id": "a3_in_voucher",
             "source": "EXTERNAL",
-            "target": "A3:control",
-            "label": "attachment_inline_enabled Plus active_set_max"
-        }
-    ]
+            "target": "A31:input",
+            "label": "Voucher Filename 來自 reread附件工具"
+          },
+          {
+            "id": "a3_init_ctrl",
+            "source": "EXTERNAL",
+            "target": "A31:control",
+            "label": "add在reread Helper"
+          },
+          {
+            "id": "a3_to_cap",
+            "source": "A31:output",
+            "target": "A32:input",
+            "label": "Candidate Active Set"
+          },
+          {
+            "id": "a3_cap_ctrl",
+            "source": "EXTERNAL",
+            "target": "A32:control",
+            "label": "ACTIVE IMAGE REFS DEFAULT MAX = 3"
+          },
+          {
+            "id": "a3_cap_out",
+            "source": "A32:output",
+            "target": "EXTERNAL",
+            "label": "execution.activeImageRefs Persisted"
+          },
+          {
+            "id": "a3_in_finish",
+            "source": "EXTERNAL",
+            "target": "A33:input",
+            "label": "步驟-完成 事件"
+          },
+          {
+            "id": "a3_drain_ctrl",
+            "source": "EXTERNAL",
+            "target": "A33:control",
+            "label": "drainafter助手 processor.ts L1153"
+          },
+          {
+            "id": "a3_drain_out",
+            "source": "A33:output",
+            "target": "EXTERNAL",
+            "label": "Cleared activeImageRefs"
+          }
+        ]
+      }
+    },
+    {
+      "id": "A4",
+      "title": "Reread 附件 由 AI"
+    },
+    {
+      "id": "A5",
+      "title": "Auto Decompose Docx",
+      "decomposition": {
+        "diagram_title": "Auto Decompose Docx",
+        "node_reference": "A5",
+        "activities": [
+          {
+            "id": "A51",
+            "title": "Lookup Manifest 快取"
+          },
+          {
+            "id": "A52",
+            "title": "執行 Fast Phase 取出"
+          },
+          {
+            "id": "A53",
+            "title": "啟動 Background worker"
+          },
+          {
+            "id": "A54",
+            "title": "Poll 取出 All Collect"
+          },
+          {
+            "id": "A55",
+            "title": "渲染 Routing Hint"
+          }
+        ],
+        "arrows": [
+          {
+            "id": "a5_in_office",
+            "source": "EXTERNAL",
+            "target": "A51:input",
+            "label": "Office Mime Buffer Plus sha256"
+          },
+          {
+            "id": "a5_cache_ctrl",
+            "source": "EXTERNAL",
+            "target": "A51:control",
+            "label": "Manifest.lookup快取 DD-12"
+          },
+          {
+            "id": "a5_cache_out_hit",
+            "source": "A51:output",
+            "target": "A55:input",
+            "label": "快取 Hit Manifest 狀態"
+          },
+          {
+            "id": "a5_cache_out_miss",
+            "source": "A51:output",
+            "target": "A52:input",
+            "label": "快取 Miss Buffer"
+          },
+          {
+            "id": "a5_fast_ctrl",
+            "source": "EXTERNAL",
+            "target": "A52:control",
+            "label": "docxmcp 取出all 30s timeout"
+          },
+          {
+            "id": "a5_fast_to_bg",
+            "source": "A52:output",
+            "target": "A53:input",
+            "label": "Outline Plus Template Plus Manifest"
+          },
+          {
+            "id": "a5_bg_ctrl",
+            "source": "EXTERNAL",
+            "target": "A53:control",
+            "label": "Detached Child Process Handle"
+          },
+          {
+            "id": "a5_bg_to_poll",
+            "source": "A53:output",
+            "target": "A54:input",
+            "label": "worker pid Plus 工作 Token"
+          },
+          {
+            "id": "a5_poll_ctrl",
+            "source": "EXTERNAL",
+            "target": "A54:control",
+            "label": "startPollLoop 5s Cycle 180s Cap"
+          },
+          {
+            "id": "a5_poll_to_hint",
+            "source": "A54:output",
+            "target": "A55:input",
+            "label": "Final Manifest Plus Bundle Tree"
+          },
+          {
+            "id": "a5_hint_ctrl",
+            "source": "EXTERNAL",
+            "target": "A55:control",
+            "label": "渲染officeroutinghint DD-7"
+          },
+          {
+            "id": "a5_hint_out",
+            "source": "A55:output",
+            "target": "EXTERNAL",
+            "label": "Routing Hint 文字 區塊 到 AI"
+          },
+          {
+            "id": "a5_fast_out_imm",
+            "source": "A52:output",
+            "target": "A55:input",
+            "label": "待處理 Markers Manifest"
+          }
+        ]
+      }
+    }
+  ],
+  "arrows": [
+    {
+      "id": "m1_request",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "使用者 HTTP 上傳 請求"
+    },
+    {
+      "id": "m2_session_ctx",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "Session ID Plus 專案 Root"
+    },
+    {
+      "id": "m3_ref_to_store",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "待處理 附件ref Plus Buffer"
+    },
+    {
+      "id": "m4_tweaks",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "Tweaks 使用者附件max位元組"
+    },
+    {
+      "id": "m5_paths_out",
+      "source": "A2:output",
+      "target": "EXTERNAL",
+      "label": "Final 附件ref Part 使用 repo路徑 或 Session路徑"
+    },
+    {
+      "id": "m6_image_to_track",
+      "source": "A2:output",
+      "target": "A3:input",
+      "label": "Image 附件ref Announced 在 Inventory"
+    },
+    {
+      "id": "m7_office_to_dec",
+      "source": "A2:output",
+      "target": "A5:input",
+      "label": "Office Mime 路徑 Plus sha256"
+    },
+    {
+      "id": "m8_inventory_to_ai",
+      "source": "A3:output",
+      "target": "A4:control",
+      "label": "attachedimages Inventory 區塊"
+    },
+    {
+      "id": "m9_ai_voucher",
+      "source": "EXTERNAL",
+      "target": "A4:input",
+      "label": "AI Reread 工具 呼叫"
+    },
+    {
+      "id": "m10_voucher_to_track",
+      "source": "A4:output",
+      "target": "A3:input",
+      "label": "setActiveImageRefs Filename"
+    },
+    {
+      "id": "m11_active_to_preface",
+      "source": "A3:output",
+      "target": "EXTERNAL",
+      "label": "Active Image 區塊 在 trailingExtras BP4"
+    },
+    {
+      "id": "m12_dec_to_ai",
+      "source": "A5:output",
+      "target": "EXTERNAL",
+      "label": "Routing Hint Plus Decomposed incoming Tree"
+    },
+    {
+      "id": "m13_drain_signal",
+      "source": "EXTERNAL",
+      "target": "A3:control",
+      "label": "步驟-完成 事件 Bus Signal"
+    },
+    {
+      "id": "m14_tweaks_inline",
+      "source": "EXTERNAL",
+      "target": "A3:control",
+      "label": "附件inline已啟用 Plus activesetmax"
+    }
+  ]
 }

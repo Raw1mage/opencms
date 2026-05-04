@@ -1,74 +1,68 @@
-<svg width="1646.3" height="871.8" viewBox="-201.1 -171.8 1646.3 871.8" xmlns="http://www.w3.org/2000/svg">
+<svg width="1537.0" height="871.8" viewBox="-214.0 -171.8 1537.0 871.8" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
 <marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
 </defs>
-<rect x="-201.1" y="-171.8" width="1646.3" height="871.8" fill="white" />
+<rect x="-214.0" y="-171.8" width="1537.0" height="871.8" fill="white" />
 <rect x="130.0" y="120.0" width="200.0" height="200.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
-<text x="230.0" y="178.0" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
-<text x="230.0" y="220.8" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >RECEIVE</text>
-<text x="230.0" y="267.7" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >UPLOAD</text>
-<rect x="518.0" y="120.0" width="200.0" height="200.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
-<text x="618.0" y="178.0" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
-<text x="618.0" y="220.8" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >STORE</text>
-<text x="618.0" y="267.7" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >ATTACHMENT</text>
-<rect x="914.0" y="120.0" width="200.0" height="200.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
-<text x="1014.0" y="179.4" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >A3</text>
-<text x="1014.0" y="220.9" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >TRACK ACTIVE</text>
-<text x="1014.0" y="265.9" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >IMAGE REFS</text>
+<text x="230.0" y="173.6" text-anchor="middle" font-size="26" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
+<text x="230.0" y="220.8" text-anchor="middle" font-size="28" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >RECEIVE</text>
+<text x="230.0" y="273.3" text-anchor="middle" font-size="28" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >上傳</text>
+<rect x="457.0" y="120.0" width="200.0" height="200.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="557.0" y="199.9" text-anchor="middle" font-size="26" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
+<text x="557.0" y="247.0" text-anchor="middle" font-size="28" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >STORE 附件</text>
+<rect x="779.0" y="120.0" width="200.0" height="200.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="879.0" y="179.4" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >A3</text>
+<text x="879.0" y="220.9" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >TRACK ACTIVE</text>
+<text x="879.0" y="265.9" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >IMAGE REFS</text>
 <rect x="130.0" y="410.0" width="200.0" height="200.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
-<text x="230.0" y="446.9" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >A4</text>
-<text x="230.0" y="488.4" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >REREAD</text>
-<text x="230.0" y="533.4" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >ATTACHMENT</text>
-<text x="230.0" y="578.4" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >BY AI</text>
-<rect x="518.0" y="410.0" width="200.0" height="200.0" stroke="black" fill="white" stroke-width="1.5" data-id="A5" />
-<text x="618.0" y="446.9" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >A5</text>
-<text x="618.0" y="488.4" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >AUTO</text>
-<text x="618.0" y="533.4" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >DECOMPOSE</text>
-<text x="618.0" y="578.4" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >DOCX</text>
-<rect x="80.0" y="38.2" width="1084.0" height="651.8" stroke="black" fill="none" stroke-width="2" />
-<rect x="482.0" y="-161.8" width="280.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
-<text x="622.0" y="-135.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >A0</text>
-<text x="622.0" y="-105.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >PROCESS ATTACHMENT</text>
-<text x="622.0" y="-75.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >LIFECYCLE</text>
-<line x1="482.0" y1="-161.8" x2="80.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="762.0" y1="-161.8" x2="1164.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="482.0" y1="-51.8" x2="80.0" y2="690.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="762.0" y1="-51.8" x2="1164.0" y2="690.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<path d="M 330.0 220.0 L 518.0 220.0" stroke="black" stroke-width="1.2" data-arrow-id="m3_ref_to_store" data-waypoints="330.0,220.0 518.0,220.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 718.0 170.0 L 914.0 170.0" stroke="black" stroke-width="1.2" data-arrow-id="m6_image_to_track" data-waypoints="718.0,170.0 914.0,170.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 510.0 L 382.7 510.0 Q 392.7 510.0 392.7 520.0 L 392.7 640.0 Q 392.7 650.0 402.7 650.0 L 838.7 650.0 Q 848.7 650.0 848.7 640.0 L 848.7 263.3 Q 848.7 253.3 858.7 253.3 L 914.0 253.3" stroke="black" stroke-width="1.2" data-arrow-id="m10_voucher_to_track" data-waypoints="330.0,510.0 392.7,510.0 392.7,650.0 848.7,650.0 848.7,253.3 914.0,253.3" marker-end="url(#arrow)" fill="none" />
-<path d="M 718.0 270.0 L 773.3 270.0 Q 783.3 270.0 783.3 280.0 L 783.3 350.0 Q 783.3 360.0 773.3 360.0 L 465.3 360.0 Q 455.3 360.0 455.3 370.0 L 455.3 500.0 Q 455.3 510.0 465.3 510.0 L 518.0 510.0" stroke="black" stroke-width="1.2" data-arrow-id="m7_office_to_dec" data-waypoints="718.0,270.0 783.3,270.0 783.3,360.0 455.3,360.0 455.3,510.0 518.0,510.0" marker-end="url(#arrow)" fill="none" />
+<text x="230.0" y="463.6" text-anchor="middle" font-size="26" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >A4</text>
+<text x="230.0" y="510.8" text-anchor="middle" font-size="28" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >REREAD 附</text>
+<text x="230.0" y="563.3" text-anchor="middle" font-size="28" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >件 由 AI</text>
+<rect x="457.0" y="410.0" width="200.0" height="200.0" stroke="black" fill="white" stroke-width="1.5" data-id="A5" />
+<text x="557.0" y="446.9" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >A5</text>
+<text x="557.0" y="488.4" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >AUTO</text>
+<text x="557.0" y="533.4" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >DECOMPOSE</text>
+<text x="557.0" y="578.4" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >DOCX</text>
+<rect x="80.0" y="38.2" width="949.0" height="651.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="434.5" y="-161.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="554.5" y="-120.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >A0</text>
+<text x="554.5" y="-90.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >PROCESS 附件 LIFECYCLE</text>
+<line x1="434.5" y1="-161.8" x2="80.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="674.5" y1="-161.8" x2="1029.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="434.5" y1="-51.8" x2="80.0" y2="690.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="674.5" y1="-51.8" x2="1029.0" y2="690.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 330.0 220.0 L 457.0 220.0" stroke="black" stroke-width="1.2" data-arrow-id="m3_ref_to_store" data-waypoints="330.0,220.0 457.0,220.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 657.0 170.0 L 779.0 170.0" stroke="black" stroke-width="1.2" data-arrow-id="m6_image_to_track" data-waypoints="657.0,170.0 779.0,170.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 510.0 L 362.3 510.0 Q 372.3 510.0 372.3 520.0 L 372.3 640.0 Q 372.3 650.0 382.3 650.0 L 728.3 650.0 Q 738.3 650.0 738.3 640.0 L 738.3 263.3 Q 738.3 253.3 748.3 253.3 L 779.0 253.3" stroke="black" stroke-width="1.2" data-arrow-id="m10_voucher_to_track" data-waypoints="330.0,510.0 372.3,510.0 372.3,650.0 738.3,650.0 738.3,253.3 779.0,253.3" marker-end="url(#arrow)" fill="none" />
+<path d="M 657.0 270.0 L 687.7 270.0 Q 697.7 270.0 697.7 280.0 L 697.7 350.0 Q 697.7 360.0 687.7 360.0 L 424.7 360.0 Q 414.7 360.0 414.7 370.0 L 414.7 500.0 Q 414.7 510.0 424.7 510.0 L 457.0 510.0" stroke="black" stroke-width="1.2" data-arrow-id="m7_office_to_dec" data-waypoints="657.0,270.0 697.7,270.0 697.7,360.0 414.7,360.0 414.7,510.0 457.0,510.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 30.0 220.0 L 130.0 220.0" stroke="black" stroke-width="1.2" data-arrow-id="m1_request" data-waypoints="30.0,220.0 130.0,220.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="m2_session_ctx" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 618.0 84.2 L 618.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="m4_tweaks" data-waypoints="618.0,84.2 618.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 718.0 220.0 L 773.3 220.0 Q 783.3 220.0 783.3 210.0 L 783.3 88.2 Q 783.3 78.2 793.3 78.2 L 1214.0 78.2" stroke="black" stroke-width="1.2" data-arrow-id="m5_paths_out" data-waypoints="718.0,220.0 783.3,220.0 783.3,78.2 1214.0,78.2" marker-end="url(#arrow)" fill="none" />
+<path d="M 557.0 84.2 L 557.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="m4_tweaks" data-waypoints="557.0,84.2 557.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 657.0 220.0 L 687.7 220.0 Q 697.7 220.0 697.7 210.0 L 697.7 88.2 Q 697.7 78.2 707.7 78.2 L 1079.0 78.2" stroke="black" stroke-width="1.2" data-arrow-id="m5_paths_out" data-waypoints="657.0,220.0 697.7,220.0 697.7,78.2 1079.0,78.2" marker-end="url(#arrow)" fill="none" />
 <path d="M 230.0 374.2 L 230.0 410.0" stroke="black" stroke-width="1.2" data-arrow-id="m8_inventory_to_ai" data-waypoints="230.0,374.2 230.0,410.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 30.0 510.0 L 130.0 510.0" stroke="black" stroke-width="1.2" data-arrow-id="m9_ai_voucher" data-waypoints="30.0,510.0 130.0,510.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1114.0 220.0 L 1214.0 220.0" stroke="black" stroke-width="1.2" data-arrow-id="m11_active_to_preface" data-waypoints="1114.0,220.0 1214.0,220.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 718.0 510.0 L 1214.0 510.0" stroke="black" stroke-width="1.2" data-arrow-id="m12_dec_to_ai" data-waypoints="718.0,510.0 1214.0,510.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1014.0 84.2 L 1014.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A3_control" data-waypoints="1014.0,84.2 1014.0,120.0" marker-end="url(#arrow)" fill="none" />
-<text x="230.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m2_session_ctx">Session ID Plus Project Root</text>
-<text x="618.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m4_tweaks">Tweaks userAttachmentMaxBytes</text>
-<text x="230.0" y="368.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m8_inventory_to_ai">attached_images Inventory Block</text>
-<text x="1008.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m13_drain_signal">step-finish Event Bus Signal</text>
-<text x="1020.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m13_drain_signal">attachment_inline_enabled Plus active_set_max</text>
-<text x="424.0" y="215.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m3_ref_to_store">Pending AttachmentRef</text>
-<text x="424.0" y="232.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m3_ref_to_store">Plus Buffer</text>
-<text x="816.0" y="165.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m6_image_to_track">Image AttachmentRef</text>
-<text x="816.0" y="182.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m6_image_to_track">Announced In Inventory</text>
-<text x="622.0" y="668.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m10_voucher_to_track" >setActiveImageRefs Filename</text>
-<text x="622.0" y="378.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m7_office_to_dec" >Office Mime Path Plus sha256</text>
-<text x="26.0" y="211.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m1_request">User HTTP</text>
-<text x="26.0" y="237.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m1_request">Upload Request</text>
-<text x="1218.0" y="56.2" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m5_paths_out">Final AttachmentRef</text>
-<text x="1218.0" y="82.2" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m5_paths_out">Part With repo_path</text>
-<text x="1218.0" y="108.2" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m5_paths_out">Or session_path</text>
-<text x="26.0" y="514.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m9_ai_voucher">AI Reread Tool Call</text>
-<text x="1218.0" y="198.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m11_active_to_preface">Active Image</text>
-<text x="1218.0" y="224.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m11_active_to_preface">Blocks In</text>
-<text x="1218.0" y="250.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m11_active_to_preface">trailingExtras BP4</text>
-<text x="1218.0" y="488.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m12_dec_to_ai">Routing Hint</text>
-<text x="1218.0" y="514.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m12_dec_to_ai">Plus Decomposed</text>
-<text x="1218.0" y="540.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m12_dec_to_ai">incoming Tree</text>
+<path d="M 979.0 220.0 L 1079.0 220.0" stroke="black" stroke-width="1.2" data-arrow-id="m11_active_to_preface" data-waypoints="979.0,220.0 1079.0,220.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 657.0 510.0 L 1079.0 510.0" stroke="black" stroke-width="1.2" data-arrow-id="m12_dec_to_ai" data-waypoints="657.0,510.0 1079.0,510.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 879.0 84.2 L 879.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A3_control" data-waypoints="879.0,84.2 879.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="230.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m2_session_ctx">Session ID Plus 專案 Root</text>
+<text x="557.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m4_tweaks">Tweaks 使用者附件max位元組</text>
+<text x="230.0" y="368.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m8_inventory_to_ai">attachedimages Inventory 區塊</text>
+<text x="873.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m13_drain_signal">步驟-完成 事件 Bus Signal</text>
+<text x="885.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m13_drain_signal">附件inline已啟用 Plus activesetmax</text>
+<text x="393.5" y="215.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m3_ref_to_store">待處理 附件ref</text>
+<text x="393.5" y="232.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m3_ref_to_store">Plus Buffer</text>
+<text x="718.0" y="170.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m6_image_to_track"><tspan x="718.0" dy="0">Image 附件ref</tspan><tspan x="718.0" dy="16.0">Announced</tspan><tspan x="718.0" dy="16.0">在 Inventory</tspan></text>
+<text x="554.5" y="668.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m10_voucher_to_track" >setActiveImageRefs Filename</text>
+<text x="554.5" y="378.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m7_office_to_dec" >Office Mime 路徑 Plus sha256</text>
+<text x="26.0" y="224.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m1_request">使用者 HTTP 上傳 請求</text>
+<text x="1083.0" y="56.2" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m5_paths_out">Final 附件ref</text>
+<text x="1083.0" y="82.2" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m5_paths_out">Part 使用 repo路</text>
+<text x="1083.0" y="108.2" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m5_paths_out">徑 或 Session路徑</text>
+<text x="26.0" y="514.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m9_ai_voucher">AI Reread 工具 呼叫</text>
+<text x="1083.0" y="211.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m11_active_to_preface">Active Image 區塊 在</text>
+<text x="1083.0" y="237.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m11_active_to_preface">trailingExtras BP4</text>
+<text x="1083.0" y="488.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m12_dec_to_ai">Routing Hint</text>
+<text x="1083.0" y="514.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m12_dec_to_ai">Plus Decomposed</text>
+<text x="1083.0" y="540.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="m12_dec_to_ai">incoming Tree</text>
 </svg>

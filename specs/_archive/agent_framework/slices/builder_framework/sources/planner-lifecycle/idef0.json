@@ -5,31 +5,31 @@
     {
       "id": "A1",
       "title": "Separate Artifact Lifecycles",
-      "description": "Define distinct repository semantics for active plans, formalized specs, and global architecture knowledge.",
+      "description": "Define distinct repository semantics 供 active plans, formalized specs, 與 全域 architecture knowledge.",
       "decomposition": null
     },
     {
       "id": "A2",
-      "title": "Refactor Planner Runtime Paths",
-      "description": "Move active planner path construction and plan-tool behavior from specs-root assumptions to plans-root behavior.",
+      "title": "Refactor Planner Runtime 路徑",
+      "description": "Move active planner 路徑 construction 與 規劃-工具 behavior 來自 specs-root assumptions 到 plans-root behavior.",
       "decomposition": null
     },
     {
       "id": "A3",
-      "title": "Rewrite Prompt Contracts",
-      "description": "Update prompts, skills, templates, and AGENTS rules to align with the new lifecycle semantics.",
+      "title": "Rewrite 提示 Contracts",
+      "description": "更新 prompts, 技能, templates, 與 AGENTS rules 到 align 使用 new lifecycle semantics.",
       "decomposition": null
     },
     {
       "id": "A4",
       "title": "Triaged Legacy Packages",
-      "description": "Classify existing dated packages under specs by implementation status and route them to the correct destination.",
+      "description": "Classify existing dated packages under specs 由 implementation 狀態 與 路由 them 到 correct destination.",
       "decomposition": null
     },
     {
       "id": "A5",
       "title": "Validate Lifecycle Integrity",
-      "description": "Verify runtime, documentation, and migration rules remain consistent without silent fallback or auto-promotion.",
+      "description": "Verify runtime, documentation, 與 migration rules remain consistent 不 靜默 fallback 或 auto-promotion.",
       "decomposition": null
     }
   ],
@@ -38,14 +38,14 @@
       "id": "AR1",
       "source": "EXTERNAL",
       "target": "A1:input",
-      "label": "User Repository Organization Requirement",
+      "label": "使用者 Repository Organization Requirement",
       "type": "input"
     },
     {
       "id": "AR2",
       "source": "EXTERNAL",
       "target": "A1:control",
-      "label": "Fail Fast And No Fallback Policy",
+      "label": "Fail Fast 與 無 fallback Policy",
       "type": "control"
     },
     {
@@ -73,14 +73,14 @@
       "id": "AR6",
       "source": "EXTERNAL",
       "target": "A2:mechanism",
-      "label": "Planner Runtime And Session Code",
+      "label": "Planner Runtime 與 Session Code",
       "type": "mechanism"
     },
     {
       "id": "AR7",
       "source": "EXTERNAL",
       "target": "A3:mechanism",
-      "label": "Prompt Templates Skills And AGENTS Files",
+      "label": "提示 Templates 技能 與 AGENTS 檔案",
       "type": "mechanism"
     },
     {
@@ -94,14 +94,14 @@
       "id": "AR9",
       "source": "A2:output",
       "target": "A5:input",
-      "label": "Runtime Path Refactor",
+      "label": "Runtime 路徑 Refactor",
       "type": "output"
     },
     {
       "id": "AR10",
       "source": "A3:output",
       "target": "A5:input",
-      "label": "Prompt Contract Rewrite",
+      "label": "提示 Contract Rewrite",
       "type": "output"
     },
     {
@@ -115,7 +115,7 @@
       "id": "AR12",
       "source": "A5:output",
       "target": "EXTERNAL",
-      "label": "Execution Ready Refactor Plan",
+      "label": "Execution 就緒 Refactor 規劃",
       "type": "output"
     }
   ]

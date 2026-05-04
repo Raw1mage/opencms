@@ -157,6 +157,16 @@ export function createFileTreeStore(options: TreeStoreOptions) {
     return out
   }
 
+  const refreshLoaded = () => {
+    const targets: string[] = []
+    for (const [dir, state] of Object.entries(tree.dir)) {
+      if (!state?.loaded) continue
+      if (!state.expanded) continue
+      targets.push(dir)
+    }
+    return Promise.all(targets.map((dir) => listDir(dir, { force: true })))
+  }
+
   return {
     listDir,
     expandDir,
@@ -165,6 +175,7 @@ export function createFileTreeStore(options: TreeStoreOptions) {
     children,
     node: (path: string) => tree.node[path],
     isLoaded: (path: string) => Boolean(tree.dir[path]?.loaded),
+    refreshLoaded,
     reset,
   }
 }
