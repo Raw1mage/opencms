@@ -12,7 +12,7 @@
 <defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
 <rect x="-6.00" y="-2.00" width="52.25" height="107.00" fill="white"/>
 <path class="edge edge-arrow" d="M 21.75 48.00 L 21.75 52.00"/>
-<path class="edge edge-arrow" d="M 21.75 64.00 L 21.75 65.50 Q 21.75 66.00 21.75 66.50 L 21.75 72.00"/>
+<path class="edge edge-arrow" d="M 21.75 64.00 L 21.75 72.00"/>
 <path class="edge" d="M 21.75 7.00 L 21.75 9.00"/>
 <path class="edge edge-arrow" d="M 21.75 9.00 L 21.75 11.00"/>
 <path class="edge" d="M 21.75 14.00 L 21.75 16.00"/>
@@ -20,8 +20,8 @@
 <path class="edge" d="M 21.75 21.00 L 21.75 23.00"/>
 <path class="edge edge-arrow" d="M 21.75 23.00 L 21.75 25.00"/>
 <path class="edge edge-arrow" d="M 21.75 28.00 L 21.75 30.00"/>
-<path class="edge edge-arrow" d="M 10.00 30.00 L 10.00 31.50 Q 10.00 32.00 10.00 32.50 L 10.00 34.00"/>
-<path class="edge edge-arrow" d="M 33.50 30.00 L 33.50 31.50 Q 33.50 32.00 33.50 32.50 L 33.50 34.00"/>
+<path class="edge edge-arrow" d="M 10.00 30.00 L 10.00 34.00"/>
+<path class="edge edge-arrow" d="M 33.50 30.00 L 33.50 34.00"/>
 <path class="edge edge-arrow" d="M 10.00 37.00 L 10.00 41.00"/>
 <path class="edge edge-arrow" d="M 21.75 41.00 L 21.75 43.00"/>
 <path class="edge edge-arrow" d="M 33.50 37.00 L 33.50 41.00"/>
@@ -146,12 +146,9 @@
 <line class="flyover-mask" x1="1.00" y1="70.00" x2="3.00" y2="70.00"/>
 <path class="flyover" d="M 1.00 70.00 Q 2.00 69.00 3.00 70.00"/>
 <circle class="junction" cx="21.75" cy="50.00" r="0.22"/>
-<circle class="junction" cx="21.75" cy="66.00" r="0.22"/>
 <circle class="junction" cx="21.75" cy="68.00" r="0.22"/>
 <circle class="junction" cx="21.75" cy="70.00" r="0.22"/>
 <circle class="junction" cx="2.00" cy="68.00" r="0.22"/>
-<circle class="junction" cx="21.75" cy="79.00" r="0.22"/>
 <circle class="junction" cx="21.75" cy="81.00" r="0.22"/>
-<circle class="junction" cx="21.75" cy="90.00" r="0.22"/>
 <circle class="junction" cx="21.75" cy="92.00" r="0.22"/>
 </svg>

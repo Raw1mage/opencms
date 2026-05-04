@@ -14,13 +14,13 @@
 <path class="edge" d="M 21.06 7.00 L 21.06 9.00"/>
 <path class="edge edge-arrow" d="M 21.06 9.00 L 21.06 11.00"/>
 <path class="edge edge-arrow" d="M 21.06 14.00 L 21.06 16.00"/>
-<path class="edge edge-arrow" d="M 10.00 16.00 L 10.00 17.50 Q 10.00 18.00 10.00 18.50 L 10.00 20.00"/>
-<path class="edge edge-arrow" d="M 32.12 16.00 L 32.12 17.50 Q 32.12 18.00 32.12 18.50 L 32.12 20.00"/>
+<path class="edge edge-arrow" d="M 10.00 16.00 L 10.00 20.00"/>
+<path class="edge edge-arrow" d="M 32.12 16.00 L 32.12 20.00"/>
 <path class="edge edge-arrow" d="M 10.00 23.00 L 10.00 36.00"/>
 <path class="edge edge-arrow" d="M 21.06 36.00 L 21.06 38.00"/>
 <path class="edge edge-arrow" d="M 32.12 23.00 L 32.12 25.00"/>
-<path class="edge edge-arrow" d="M 21.06 25.00 L 21.06 26.50 Q 21.06 27.00 21.06 27.50 L 21.06 29.00"/>
-<path class="edge edge-arrow" d="M 43.18 25.00 L 43.18 26.50 Q 43.18 27.00 43.18 27.50 L 43.18 29.00"/>
+<path class="edge edge-arrow" d="M 21.06 25.00 L 21.06 29.00"/>
+<path class="edge edge-arrow" d="M 43.18 25.00 L 43.18 29.00"/>
 <path class="edge edge-arrow" d="M 21.06 32.00 L 21.06 36.00"/>
 <path class="edge edge-arrow" d="M 43.18 32.00 L 43.18 36.00"/>
 <path class="edge" d="M 21.06 41.00 L 21.06 43.00"/>
@@ -32,7 +32,7 @@
 <path class="edge" d="M 21.06 62.00 L 21.06 64.00"/>
 <path class="edge" d="M 21.06 64.00 L 21.06 66.00"/>
 <path class="edge edge-arrow" d="M 21.06 66.00 L 21.06 68.00"/>
-<path class="edge edge-arrow" d="M 21.06 64.00 L 31.62 64.00 Q 32.12 64.00 32.12 64.50 L 32.12 86.50 Q 32.12 87.00 32.12 87.50 L 32.12 89.00"/>
+<path class="edge edge-arrow" d="M 21.06 64.00 L 31.62 64.00 Q 32.12 64.00 32.12 64.50 L 32.12 89.00"/>
 <path class="edge edge-arrow" d="M 21.06 89.00 L 21.06 91.00"/>
 <path class="edge" d="M 21.06 71.00 L 21.06 73.00"/>
 <path class="edge edge-arrow" d="M 21.06 73.00 L 21.06 75.00"/>

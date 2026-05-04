@@ -18,10 +18,10 @@
 <path class="edge edge-arrow" d="M 23.50 16.00 L 23.50 18.00"/>
 <path class="edge" d="M 23.50 21.00 L 23.50 23.00"/>
 <path class="edge edge-arrow" d="M 23.50 30.00 L 23.50 32.00"/>
-<path class="edge edge-arrow" d="M 0.00 32.00 L 0.00 33.50 Q 0.00 34.00 0.00 34.50 L 0.00 36.00"/>
-<path class="edge edge-arrow" d="M 11.75 32.00 L 11.75 33.50 Q 11.75 34.00 11.75 34.50 L 11.75 36.00"/>
-<path class="edge edge-arrow" d="M 35.25 32.00 L 35.25 33.50 Q 35.25 34.00 35.25 34.50 L 35.25 36.00"/>
-<path class="edge edge-arrow" d="M 47.00 32.00 L 47.00 33.50 Q 47.00 34.00 47.00 34.50 L 47.00 36.00"/>
+<path class="edge edge-arrow" d="M 0.00 32.00 L 0.00 36.00"/>
+<path class="edge edge-arrow" d="M 11.75 32.00 L 11.75 36.00"/>
+<path class="edge edge-arrow" d="M 35.25 32.00 L 35.25 36.00"/>
+<path class="edge edge-arrow" d="M 47.00 32.00 L 47.00 36.00"/>
 <path class="edge" d="M 0.00 39.00 L 0.00 43.00"/>
 <path class="edge edge-arrow" d="M 0.00 43.00 L 0.00 47.00"/>
 <path class="edge" d="M 0.00 50.00 L 0.00 54.00"/>
@@ -31,7 +31,7 @@
 <path class="edge" d="M 11.75 39.00 L 11.75 41.00"/>
 <path class="edge" d="M 11.75 41.00 L 11.75 43.00"/>
 <path class="edge edge-arrow" d="M 11.75 43.00 L 11.75 47.00"/>
-<path class="edge edge-arrow" d="M 11.75 41.00 L 70.00 41.00 Q 70.50 41.00 70.50 41.50 L 70.50 66.50 Q 70.50 67.00 70.50 67.50 L 70.50 69.00"/>
+<path class="edge edge-arrow" d="M 11.75 41.00 L 70.00 41.00 Q 70.50 41.00 70.50 41.50 L 70.50 69.00"/>
 <path class="edge edge-arrow" d="M 11.75 50.00 L 11.75 69.00"/>
 <path class="edge" d="M 35.25 39.00 L -7.50 39.00 Q -8.00 39.00 -8.00 39.50 L -8.00 42.50 Q -8.00 43.00 -7.50 43.00 L 35.25 43.00"/>
 <path class="edge edge-arrow" d="M 35.25 43.00 L 35.25 47.00"/>
@@ -42,8 +42,8 @@
 <path class="edge" d="M -10.00 78.00 L -10.00 25.00"/>
 <path class="edge" d="M -10.00 25.00 L 23.50 25.00"/>
 <path class="edge edge-arrow" d="M 47.00 39.00 L 47.00 41.00"/>
-<path class="edge edge-arrow" d="M 23.50 41.00 L 23.50 42.50 Q 23.50 43.00 23.50 43.50 L 23.50 47.00"/>
-<path class="edge edge-arrow" d="M 58.75 41.00 L 58.75 42.50 Q 58.75 43.00 58.75 43.50 L 58.75 47.00"/>
+<path class="edge edge-arrow" d="M 23.50 41.00 L 23.50 47.00"/>
+<path class="edge edge-arrow" d="M 58.75 41.00 L 58.75 47.00"/>
 <path class="edge edge-arrow" d="M 47.00 41.00 L 47.00 44.50 Q 47.00 45.00 46.50 45.00 L -11.50 45.00 Q -12.00 45.00 -12.00 44.50 L -12.00 2.50 Q -12.00 2.00 -11.50 2.00 L 23.00 2.00 Q 23.50 2.00 23.50 2.50 L 23.50 4.00"/>
 <path class="edge" d="M 23.50 50.00 L 23.50 52.00"/>
 <path class="edge" d="M 23.50 52.00 L 23.50 56.00"/>
@@ -175,7 +175,6 @@
 <line class="flyover-mask" x1="-11.00" y1="45.00" x2="-9.00" y2="45.00"/>
 <path class="flyover" d="M -11.00 45.00 Q -10.00 44.00 -9.00 45.00"/>
 <circle class="junction" cx="23.50" cy="25.00" r="0.22"/>
-<circle class="junction" cx="23.50" cy="43.00" r="0.22"/>
 <circle class="junction" cx="-10.00" cy="56.00" r="0.22"/>
 <circle class="junction" cx="-10.00" cy="60.00" r="0.22"/>
 <circle class="branch-junction" cx="11.75" cy="41.00" r="0.28"/>
