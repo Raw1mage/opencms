@@ -30,15 +30,15 @@
 <path class="edge" d="M 21.06 55.00 L 21.06 57.00"/>
 <path class="edge edge-arrow" d="M 21.06 57.00 L 21.06 59.00"/>
 <path class="edge" d="M 21.06 62.00 L 21.06 64.00"/>
-<path class="edge" d="M 21.06 64.00 L 10.50 64.00 Q 10.00 64.00 10.00 64.50 L 10.00 66.00"/>
-<path class="edge edge-arrow" d="M 10.00 66.00 L 10.00 68.00"/>
-<path class="edge edge-arrow" d="M 21.06 64.00 L 21.06 89.00"/>
+<path class="edge" d="M 21.06 64.00 L 21.06 66.00"/>
+<path class="edge edge-arrow" d="M 21.06 66.00 L 21.06 68.00"/>
+<path class="edge edge-arrow" d="M 21.06 64.00 L 31.62 64.00 Q 32.12 64.00 32.12 64.50 L 32.12 86.50 Q 32.12 87.00 32.12 87.50 L 32.12 89.00"/>
 <path class="edge edge-arrow" d="M 21.06 89.00 L 21.06 91.00"/>
-<path class="edge" d="M 10.00 71.00 L 10.00 73.00"/>
-<path class="edge edge-arrow" d="M 10.00 73.00 L 10.00 75.00"/>
-<path class="edge" d="M 10.00 78.00 L 10.00 80.00"/>
-<path class="edge edge-arrow" d="M 10.00 80.00 L 10.00 82.00"/>
-<path class="edge edge-arrow" d="M 10.00 85.00 L 10.00 89.00"/>
+<path class="edge" d="M 21.06 71.00 L 21.06 73.00"/>
+<path class="edge edge-arrow" d="M 21.06 73.00 L 21.06 75.00"/>
+<path class="edge" d="M 21.06 78.00 L 21.06 80.00"/>
+<path class="edge edge-arrow" d="M 21.06 80.00 L 21.06 82.00"/>
+<path class="edge edge-arrow" d="M 21.06 85.00 L 21.06 89.00"/>
 <path class="edge" d="M 21.06 94.00 L 21.06 96.00"/>
 <path class="edge edge-arrow" d="M 21.06 96.00 L 21.06 98.00"/>
 <path class="edge" d="M 21.06 101.00 L 21.06 103.00"/>
@@ -64,12 +64,12 @@
 <text class="label" x="21.06" y="53.50">8</text>
 <rect class="step" x="19.06" y="59.00" width="4.00" height="3.00"/>
 <text class="label" x="21.06" y="60.50">9</text>
-<rect class="step" x="8.00" y="68.00" width="4.00" height="3.00"/>
-<text class="label" x="10.00" y="69.50">10</text>
-<rect class="step" x="8.00" y="75.00" width="4.00" height="3.00"/>
-<text class="label" x="10.00" y="76.50">11</text>
-<rect class="step" x="8.00" y="82.00" width="4.00" height="3.00"/>
-<text class="label" x="10.00" y="83.50">12</text>
+<rect class="step" x="19.06" y="68.00" width="4.00" height="3.00"/>
+<text class="label" x="21.06" y="69.50">10</text>
+<rect class="step" x="19.06" y="75.00" width="4.00" height="3.00"/>
+<text class="label" x="21.06" y="76.50">11</text>
+<rect class="step" x="19.06" y="82.00" width="4.00" height="3.00"/>
+<text class="label" x="21.06" y="83.50">12</text>
 <rect class="step" x="19.06" y="91.00" width="4.00" height="3.00"/>
 <text class="label" x="21.06" y="92.50">13</text>
 <rect class="step" x="19.06" y="98.00" width="4.00" height="3.00"/>
@@ -104,15 +104,15 @@
 <line class="assoc" x1="23.06" y1="60.50" x2="24.06" y2="60.50"/>
 <rect class="action" x="24.06" y="59.07" width="5.06" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="26.59" y="59.68"><tspan x="26.59" dy="0">等待</tspan><tspan x="26.59" dy="0.82">aide</tspan><tspan x="26.59" dy="0.82">cision</tspan></text>
-<line class="assoc" x1="12.00" y1="69.50" x2="13.00" y2="69.50"/>
-<rect class="action" x="13.00" y="68.07" width="5.06" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="15.53" y="68.68"><tspan x="15.53" dy="0">voucherfi</tspan><tspan x="15.53" dy="0.82">lename透過</tspan><tspan x="15.53" dy="0.82">reread工具</tspan></text>
-<line class="assoc" x1="12.00" y1="76.50" x2="13.00" y2="76.50"/>
-<rect class="action" x="13.00" y="75.07" width="5.06" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="15.53" y="75.68"><tspan x="15.53" dy="0">追加active</tspan><tspan x="15.53" dy="0.82">imagerefs使</tspan><tspan x="15.53" dy="0.82">用fifocap</tspan></text>
-<line class="assoc" x1="12.00" y1="83.50" x2="13.00" y2="83.50"/>
-<rect class="action" x="13.00" y="82.07" width="5.06" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="15.53" y="82.68"><tspan x="15.53" dy="0">load位元組與</tspan><tspan x="15.53" dy="0.82">inline在</tspan><tspan x="15.53" dy="0.82">bp4trailing</tspan></text>
+<line class="assoc" x1="23.06" y1="69.50" x2="24.06" y2="69.50"/>
+<rect class="action" x="24.06" y="68.07" width="5.06" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="26.59" y="68.68"><tspan x="26.59" dy="0">voucherfi</tspan><tspan x="26.59" dy="0.82">lename透過</tspan><tspan x="26.59" dy="0.82">reread工具</tspan></text>
+<line class="assoc" x1="23.06" y1="76.50" x2="24.06" y2="76.50"/>
+<rect class="action" x="24.06" y="75.07" width="5.06" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="26.59" y="75.68"><tspan x="26.59" dy="0">追加active</tspan><tspan x="26.59" dy="0.82">imagerefs使</tspan><tspan x="26.59" dy="0.82">用fifocap</tspan></text>
+<line class="assoc" x1="23.06" y1="83.50" x2="24.06" y2="83.50"/>
+<rect class="action" x="24.06" y="82.07" width="5.06" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="26.59" y="82.68"><tspan x="26.59" dy="0">load位元組與</tspan><tspan x="26.59" dy="0.82">inline在</tspan><tspan x="26.59" dy="0.82">bp4trailing</tspan></text>
 <line class="assoc" x1="23.06" y1="92.50" x2="24.06" y2="92.50"/>
 <rect class="action" x="24.06" y="91.07" width="5.06" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="26.59" y="92.50"><tspan x="26.59" dy="0">串流助手回合</tspan></text>
@@ -130,13 +130,13 @@
 <text class="gate-label" x="22.46" y="50.00"><tspan x="22.46" dy="0">Sessionhasimage附件</tspan></text>
 <line class="gate" x1="20.06" y1="57.00" x2="22.06" y2="57.00"/>
 <text class="gate-label" x="22.46" y="57.00"><tspan x="22.46" dy="0">preface就緒供LLM</tspan></text>
-<line class="gate" x1="9.00" y1="66.00" x2="11.00" y2="66.00"/>
-<text class="gate-label" x="11.40" y="66.00"><tspan x="11.40" dy="0">aicallsreread附件</tspan></text>
-<line class="gate" x1="8.00" y1="89.00" x2="23.06" y2="89.00"/>
-<line class="gate" x1="9.00" y1="73.00" x2="11.00" y2="73.00"/>
-<text class="gate-label" x="11.40" y="72.66"><tspan x="11.40" dy="0">filenamemat</tspan><tspan x="11.40" dy="0.68">ches附件ref</tspan></text>
-<line class="gate" x1="9.00" y1="80.00" x2="11.00" y2="80.00"/>
-<text class="gate-label" x="11.40" y="79.32"><tspan x="11.40" dy="0">setActive</tspan><tspan x="11.40" dy="0.68">ImageRefs</tspan><tspan x="11.40" dy="0.68">Committed</tspan></text>
+<line class="gate" x1="20.06" y1="66.00" x2="22.06" y2="66.00"/>
+<text class="gate-label" x="22.46" y="66.00"><tspan x="22.46" dy="0">aicallsreread附件</tspan></text>
+<line class="gate" x1="19.06" y1="89.00" x2="34.12" y2="89.00"/>
+<line class="gate" x1="20.06" y1="73.00" x2="22.06" y2="73.00"/>
+<text class="gate-label-left" x="19.66" y="73.00"><tspan x="19.66" dy="0">filenamematches附件ref</tspan></text>
+<line class="gate" x1="20.06" y1="80.00" x2="22.06" y2="80.00"/>
+<text class="gate-label-left" x="19.66" y="80.00"><tspan x="19.66" dy="0">setActiveImageRefsCommitted</tspan></text>
 <line class="gate" x1="20.06" y1="96.00" x2="22.06" y2="96.00"/>
 <text class="gate-label" x="22.46" y="96.00"><tspan x="22.46" dy="0">步驟完成emitted</tspan></text>
 <line class="gate" x1="20.06" y1="103.00" x2="22.06" y2="103.00"/>
@@ -155,9 +155,9 @@
 <text class="gate-label-left" x="19.66" y="34.00"><tspan x="19.66" dy="0">routingHintRendered</tspan></text>
 <line class="gate" x1="42.18" y1="34.00" x2="44.18" y2="34.00"/>
 <text class="gate-label-left" x="41.78" y="34.00"><tspan x="41.78" dy="0">jsonlappended來源上傳</tspan></text>
+<line class="gate" x1="31.12" y1="87.00" x2="33.12" y2="87.00"/>
+<text class="gate-label-left" x="30.72" y="87.00"><tspan x="30.72" dy="0">aiSkipsReread</tspan></text>
 <line class="gate" x1="20.06" y1="87.00" x2="22.06" y2="87.00"/>
-<text class="gate-label-left" x="19.66" y="87.00"><tspan x="19.66" dy="0">aiSkipsReread</tspan></text>
-<line class="gate" x1="9.00" y1="87.00" x2="11.00" y2="87.00"/>
-<text class="gate-label-left" x="8.60" y="86.32"><tspan x="8.60" dy="0">image位元組</tspan><tspan x="8.60" dy="0.68">inlined在</tspan><tspan x="8.60" dy="0.68">trailingextras</tspan></text>
+<text class="gate-label-left" x="19.66" y="87.00"><tspan x="19.66" dy="0">image位元組inlined在trailingextras</tspan></text>
 <circle class="branch-junction" cx="21.06" cy="64.00" r="0.28"/>
 </svg>

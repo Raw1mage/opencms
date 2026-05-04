@@ -17,11 +17,11 @@
 <path class="edge" d="M 23.31 14.00 L 23.31 16.00"/>
 <path class="edge edge-arrow" d="M 23.31 16.00 L 23.31 18.00"/>
 <path class="edge" d="M 23.31 21.00 L 23.31 23.00"/>
-<path class="edge" d="M 23.31 23.00 L 10.50 23.00 Q 10.00 23.00 10.00 23.50 L 10.00 25.00"/>
-<path class="edge edge-arrow" d="M 10.00 25.00 L 10.00 27.00"/>
+<path class="edge" d="M 23.31 23.00 L 23.31 25.00"/>
+<path class="edge edge-arrow" d="M 23.31 25.00 L 23.31 27.00"/>
 <path class="edge edge-arrow" d="M 23.31 23.00 L 49.43 23.00 Q 49.93 23.00 49.93 23.50 L 49.93 76.50 Q 49.93 77.00 49.93 77.50 L 49.93 79.00"/>
 <path class="edge edge-arrow" d="M 23.31 79.00 L 23.31 81.00"/>
-<path class="edge" d="M 10.00 30.00 L 22.81 30.00 Q 23.31 30.00 23.31 30.50 L 23.31 32.00"/>
+<path class="edge" d="M 23.31 30.00 L 23.31 32.00"/>
 <path class="edge edge-arrow" d="M 23.31 39.00 L 23.31 41.00"/>
 <path class="edge edge-arrow" d="M 10.00 41.00 L 10.00 42.50 Q 10.00 43.00 10.00 43.50 L 10.00 45.00"/>
 <path class="edge edge-arrow" d="M 23.31 41.00 L 23.31 42.50 Q 23.31 43.00 23.31 43.50 L 23.31 45.00"/>
@@ -52,8 +52,8 @@
 <text class="label" x="23.31" y="12.50">1</text>
 <rect class="step" x="21.31" y="18.00" width="4.00" height="3.00"/>
 <text class="label" x="23.31" y="19.50">2</text>
-<rect class="step" x="8.00" y="27.00" width="4.00" height="3.00"/>
-<text class="label" x="10.00" y="28.50">3</text>
+<rect class="step" x="21.31" y="27.00" width="4.00" height="3.00"/>
+<text class="label" x="23.31" y="28.50">3</text>
 <rect class="step" x="21.31" y="36.00" width="4.00" height="3.00"/>
 <text class="label" x="23.31" y="37.50">4</text>
 <rect class="step" x="8.00" y="45.00" width="4.00" height="3.00"/>
@@ -81,9 +81,9 @@
 <line class="assoc" x1="25.31" y1="19.50" x2="26.31" y2="19.50"/>
 <rect class="action" x="26.31" y="18.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="29.96" y="19.09"><tspan x="29.96" dy="0">checkcooldown與</tspan><tspan x="29.96" dy="0.82">閒置tail</tspan></text>
-<line class="assoc" x1="12.00" y1="28.50" x2="13.00" y2="28.50"/>
-<rect class="action" x="13.00" y="27.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="16.66" y="28.50"><tspan x="16.66" dy="0">解析kindchain</tspan></text>
+<line class="assoc" x1="25.31" y1="28.50" x2="26.31" y2="28.50"/>
+<rect class="action" x="26.31" y="27.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="29.96" y="28.50"><tspan x="29.96" dy="0">解析kindchain</tspan></text>
 <line class="assoc" x1="25.31" y1="37.50" x2="26.31" y2="37.50"/>
 <rect class="action" x="26.31" y="36.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="29.96" y="37.09"><tspan x="29.96" dy="0">try下一個</tspan><tspan x="29.96" dy="0.82">kind在chain</tspan></text>
@@ -115,8 +115,8 @@
 <text class="gate-label" x="24.71" y="9.00"><tspan x="24.71" dy="0">runloopiterationstarted</tspan></text>
 <line class="gate" x1="22.31" y1="16.00" x2="24.31" y2="16.00"/>
 <text class="gate-label" x="24.71" y="16.00"><tspan x="24.71" dy="0">deriveobserveddone</tspan></text>
-<line class="gate" x1="9.00" y1="25.00" x2="11.00" y2="25.00"/>
-<text class="gate-label" x="11.40" y="25.00"><tspan x="11.40" dy="0">observed != null &amp;&amp; cooldownclear &amp;&amp; tailclean</tspan></text>
+<line class="gate" x1="22.31" y1="25.00" x2="24.31" y2="25.00"/>
+<text class="gate-label" x="24.71" y="25.00"><tspan x="24.71" dy="0">observed != null &amp;&amp; cooldownclear &amp;&amp; tailclean</tspan></text>
 <line class="gate" x1="21.31" y1="78.85" x2="51.93" y2="78.85"/>
 <line class="gate" x1="21.31" y1="79.15" x2="51.93" y2="79.15"/>
 <line class="gate" x1="22.31" y1="32.00" x2="24.31" y2="32.00"/>
