@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1740" height="2720" viewBox="-32.00 -2.00 87.00 136.00" role="img">
+<svg xmlns="http://www.w3.org/2000/svg" width="1760" height="2720" viewBox="-32.00 -2.00 88.00 136.00" role="img">
 <style>
 .step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
 .action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
@@ -10,7 +10,7 @@
 .action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
 </style>
 <defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
-<rect x="-32.00" y="-2.00" width="87.00" height="136.00" fill="white"/>
+<rect x="-32.00" y="-2.00" width="88.00" height="136.00" fill="white"/>
 <path class="edge" d="M 10.00 104.00 L 10.00 105.50 Q 10.00 106.00 10.00 106.50 L 10.00 110.00"/>
 <path class="edge" d="M 20.00 7.00 L 20.00 11.00"/>
 <path class="edge edge-arrow" d="M 20.00 11.00 L 20.00 15.00"/>
@@ -33,9 +33,7 @@
 <path class="edge edge-arrow" d="M 10.00 75.00 L 10.00 77.00"/>
 <path class="edge" d="M 10.00 69.00 L 10.00 71.00"/>
 <path class="edge" d="M 10.00 71.00 L 10.00 75.00"/>
-<path class="edge" d="M 10.00 71.00 L 50.00 71.00"/>
-<path class="edge" d="M 50.00 71.00 L 50.00 108.00"/>
-<path class="edge" d="M 50.00 108.00 L 10.00 108.00"/>
+<path class="edge" d="M 10.00 71.00 L 49.50 71.00 Q 50.00 71.00 50.00 71.50 L 50.00 107.50 Q 50.00 108.00 50.00 108.50 L 50.00 110.00"/>
 <path class="edge edge-arrow" d="M 10.00 110.00 L 10.00 112.00"/>
 <path class="edge" d="M 40.00 69.00 L 40.00 86.00"/>
 <path class="edge edge-arrow" d="M 20.00 86.00 L 20.00 88.00"/>
@@ -44,7 +42,7 @@
 <path class="edge" d="M 20.00 91.00 L 20.00 93.00"/>
 <path class="edge" d="M 20.00 93.00 L 10.50 93.00 Q 10.00 93.00 10.00 93.50 L 10.00 95.00"/>
 <path class="edge edge-arrow" d="M 10.00 95.00 L 10.00 99.00"/>
-<path class="edge" d="M 20.00 93.00 L 20.00 107.50 Q 20.00 108.00 20.00 108.50 L 20.00 110.00"/>
+<path class="edge" d="M 20.00 93.00 L 20.00 110.00"/>
 <path class="edge" d="M 10.00 102.00 L 10.00 104.00"/>
 <path class="edge" d="M 0.00 104.00 L 0.00 110.00"/>
 <path class="edge" d="M 0.00 110.00 L -24.00 110.00"/>
@@ -148,7 +146,7 @@
 <line class="gate" x1="8.00" y1="55.00" x2="32.00" y2="55.00"/>
 <line class="gate" x1="-4.00" y1="62.00" x2="44.00" y2="62.00"/>
 <line class="gate" x1="-2.00" y1="75.00" x2="32.00" y2="75.00"/>
-<line class="gate" x1="8.00" y1="110.00" x2="22.00" y2="110.00"/>
+<line class="gate" x1="8.00" y1="110.00" x2="52.00" y2="110.00"/>
 <line class="gate" x1="8.00" y1="86.00" x2="42.00" y2="86.00"/>
 <line class="gate" x1="9.00" y1="95.00" x2="11.00" y2="95.00"/>
 <text class="gate-label" x="11.40" y="95.00">是子代理會話 &amp;&amp; 配額低於紅線 -&gt; 下一回合收尾</text>
@@ -185,7 +183,7 @@
 <line class="gate" x1="9.00" y1="84.00" x2="11.00" y2="84.00"/>
 <text class="gate-label-left" x="8.60" y="84.00">工具結果已提交</text>
 <line class="gate" x1="19.00" y1="108.00" x2="21.00" y2="108.00"/>
-<text class="gate-label" x="21.40" y="108.00">無配額觸發</text>
+<text class="gate-label-left" x="18.60" y="108.00">無配額觸發</text>
 <line class="gate" x1="-1.00" y1="106.00" x2="1.00" y2="106.00"/>
 <text class="gate-label-left" x="-1.40" y="106.00">已啟用 &amp;&amp; (下一個可執行待辦!=空 || 補充啟用規劃)</text>
 <line class="gate" x1="9.00" y1="108.00" x2="11.00" y2="108.00"/>
@@ -194,8 +192,6 @@
 <text class="gate-label-left" x="-1.40" y="119.00">下一個使用者訊息</text>
 <line class="gate" x1="19.00" y1="119.00" x2="21.00" y2="119.00"/>
 <text class="gate-label" x="21.40" y="119.00">排程心跳派發到期工作</text>
-<circle class="junction" cx="10.00" cy="108.00" r="0.22"/>
-<circle class="junction" cx="20.00" cy="108.00" r="0.22"/>
 <circle class="junction" cx="-28.00" cy="121.00" r="0.22"/>
 <circle class="branch-junction" cx="10.00" cy="71.00" r="0.28"/>
 <circle class="branch-junction" cx="20.00" cy="93.00" r="0.28"/>
