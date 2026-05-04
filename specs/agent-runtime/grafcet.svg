@@ -137,11 +137,11 @@
 <rect class="action" x="23.00" y="123.07" width="4.15" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="25.07" y="123.68"><tspan x="25.07" dy="0">排程器派發</tspan><tspan x="25.07" dy="0.82">工作並注入</tspan><tspan x="25.07" dy="0.82">合成使用者</tspan></text>
 <line class="gate" x1="19.00" y1="11.00" x2="21.00" y2="11.00"/>
-<text class="gate-label" x="21.40" y="11.00">使用者訊息已收到</text>
+<text class="gate-label" x="21.40" y="11.00"><tspan x="21.40" dy="0">使用者訊息已收到</tspan></text>
 <line class="gate" x1="19.00" y1="22.00" x2="21.00" y2="22.00"/>
-<text class="gate-label" x="21.40" y="22.00">使用者文字已取出</text>
+<text class="gate-label" x="21.40" y="22.00"><tspan x="21.40" dy="0">使用者文字已取出</tspan></text>
 <line class="gate" x1="19.00" y1="33.00" x2="21.00" y2="33.00"/>
-<text class="gate-label" x="21.40" y="33.00">技能已解析 &amp;&amp; 釘選完成</text>
+<text class="gate-label" x="21.40" y="33.00"><tspan x="21.40" dy="0">技能已解析 &amp;&amp; 釘選完成</tspan></text>
 <line class="gate" x1="6.00" y1="42.00" x2="34.00" y2="42.00"/>
 <line class="gate" x1="8.00" y1="55.00" x2="32.00" y2="55.00"/>
 <line class="gate" x1="-4.00" y1="62.00" x2="44.00" y2="62.00"/>
@@ -149,49 +149,49 @@
 <line class="gate" x1="8.00" y1="110.00" x2="52.00" y2="110.00"/>
 <line class="gate" x1="8.00" y1="86.00" x2="42.00" y2="86.00"/>
 <line class="gate" x1="9.00" y1="95.00" x2="11.00" y2="95.00"/>
-<text class="gate-label" x="11.40" y="95.00">是子代理會話 &amp;&amp; 配額低於紅線 -&gt; 下一回合收尾</text>
+<text class="gate-label-left" x="8.60" y="95.00"><tspan x="8.60" dy="0">是子代理會話 &amp;&amp; 配額低於紅線 -&gt; 下一回合收尾</tspan></text>
 <line class="gate" x1="-4.00" y1="104.00" x2="14.00" y2="104.00"/>
 <line class="gate" x1="-4.00" y1="117.00" x2="24.00" y2="117.00"/>
 <line class="gate" x1="19.00" y1="128.00" x2="21.00" y2="128.00"/>
-<text class="gate-label" x="21.40" y="128.00">工作已派發 &amp;&amp; 合成訊息已種入</text>
+<text class="gate-label" x="21.40" y="128.00"><tspan x="21.40" dy="0">工作已派發 &amp;&amp; 合成訊息已種入</tspan></text>
 <line class="gate" x1="9.00" y1="44.00" x2="11.00" y2="44.00"/>
-<text class="gate-label-left" x="8.60" y="44.00">工作流程自主已啟用 == 是</text>
+<text class="gate-label-left" x="8.60" y="44.00"><tspan x="8.60" dy="0">工作流程自主已啟用 == 是</tspan></text>
 <line class="gate" x1="29.00" y1="44.00" x2="31.00" y2="44.00"/>
-<text class="gate-label" x="31.40" y="44.00">工作流程自主已啟用 == 否</text>
+<text class="gate-label" x="31.40" y="44.00"><tspan x="31.40" dy="0">工作流程自主已啟用 == 否</tspan></text>
 <line class="gate" x1="9.00" y1="53.00" x2="11.00" y2="53.00"/>
-<text class="gate-label-left" x="8.60" y="53.00">父層ID==空 &amp;&amp; 下一個可執行待辦!=空</text>
+<text class="gate-label-left" x="8.60" y="53.00"><tspan x="8.60" dy="0">父層ID==空 &amp;&amp; 下一個可執行待辦!=空</tspan></text>
 <line class="gate" x1="29.00" y1="53.00" x2="31.00" y2="53.00"/>
-<text class="gate-label" x="31.40" y="53.00">單次回合就緒</text>
+<text class="gate-label" x="31.40" y="53.00"><tspan x="31.40" dy="0">單次回合就緒</tspan></text>
 <line class="gate" x1="-1.00" y1="64.00" x2="1.00" y2="64.00"/>
-<text class="gate-label-left" x="-1.40" y="64.00">工具呼叫任務派發</text>
+<text class="gate-label-left" x="-1.40" y="64.00"><tspan x="-1.40" dy="0">工具呼叫任務派發</tspan></text>
 <line class="gate" x1="9.00" y1="64.00" x2="11.00" y2="64.00"/>
-<text class="gate-label-left" x="8.60" y="64.00">工具呼叫問題</text>
+<text class="gate-label-left" x="8.60" y="64.00"><tspan x="8.60" dy="0">工具呼叫問題</tspan></text>
 <line class="gate" x1="39.00" y1="64.00" x2="41.00" y2="64.00"/>
-<text class="gate-label" x="41.40" y="64.00">助手完成無工具</text>
+<text class="gate-label" x="41.40" y="64.00"><tspan x="41.40" dy="0">助手完成無工具</tspan></text>
 <line class="gate" x1="29.00" y1="64.00" x2="31.00" y2="64.00"/>
-<text class="gate-label" x="31.40" y="64.00">工具呼叫其他平行</text>
+<text class="gate-label" x="31.40" y="64.00"><tspan x="31.40" dy="0">工具呼叫其他平行</tspan></text>
 <line class="gate" x1="-1.00" y1="73.00" x2="1.00" y2="73.00"/>
-<text class="gate-label-left" x="-1.40" y="73.00">已派發==是 &amp;&amp; 父層回合已返回</text>
+<text class="gate-label-left" x="-1.40" y="73.00"><tspan x="-1.40" dy="0">已派發==是 &amp;&amp; 父層回合已返回</tspan></text>
 <line class="gate" x1="9.00" y1="73.00" x2="11.00" y2="73.00"/>
-<text class="gate-label-left" x="8.60" y="73.00">回覆已收到或已解析</text>
+<text class="gate-label-left" x="8.60" y="73.00"><tspan x="8.60" dy="0">回覆已收到或已解析</tspan></text>
 <line class="gate" x1="49.00" y1="108.00" x2="51.00" y2="108.00"/>
-<text class="gate-label" x="51.40" y="108.00">中止訊號已觸發</text>
+<text class="gate-label" x="51.40" y="108.00"><tspan x="51.40" dy="0">中止訊號已觸發</tspan></text>
 <line class="gate" x1="39.00" y1="84.00" x2="41.00" y2="84.00"/>
-<text class="gate-label" x="41.40" y="84.00">助手乾淨完成</text>
+<text class="gate-label" x="41.40" y="84.00"><tspan x="41.40" dy="0">助手乾淨完成</tspan></text>
 <line class="gate" x1="29.00" y1="73.00" x2="31.00" y2="73.00"/>
-<text class="gate-label" x="31.40" y="73.00">所有工具結果就緒</text>
+<text class="gate-label" x="31.40" y="73.00"><tspan x="31.40" dy="0">所有工具結果就緒</tspan></text>
 <line class="gate" x1="9.00" y1="84.00" x2="11.00" y2="84.00"/>
-<text class="gate-label-left" x="8.60" y="84.00">工具結果已提交</text>
+<text class="gate-label-left" x="8.60" y="84.00"><tspan x="8.60" dy="0">工具結果已提交</tspan></text>
 <line class="gate" x1="19.00" y1="108.00" x2="21.00" y2="108.00"/>
-<text class="gate-label-left" x="18.60" y="108.00">無配額觸發</text>
+<text class="gate-label-left" x="18.60" y="108.00"><tspan x="18.60" dy="0">無配額觸發</tspan></text>
 <line class="gate" x1="-1.00" y1="106.00" x2="1.00" y2="106.00"/>
-<text class="gate-label-left" x="-1.40" y="106.00">已啟用 &amp;&amp; (下一個可執行待辦!=空 || 補充啟用規劃)</text>
+<text class="gate-label-left" x="-1.40" y="106.00"><tspan x="-1.40" dy="0">已啟用 &amp;&amp; (下一個可執行待辦!=空 || 補充啟用規劃)</tspan></text>
 <line class="gate" x1="9.00" y1="108.00" x2="11.00" y2="108.00"/>
-<text class="gate-label" x="11.40" y="108.00">停止：子代理會話或未啟用或待辦完成</text>
+<text class="gate-label-left" x="8.60" y="107.66"><tspan x="8.60" dy="0">停止：子代理會話</tspan><tspan x="8.60" dy="0.68">或未啟用或待辦完成</tspan></text>
 <line class="gate" x1="-1.00" y1="119.00" x2="1.00" y2="119.00"/>
-<text class="gate-label-left" x="-1.40" y="119.00">下一個使用者訊息</text>
+<text class="gate-label-left" x="-1.40" y="119.00"><tspan x="-1.40" dy="0">下一個使用者訊息</tspan></text>
 <line class="gate" x1="19.00" y1="119.00" x2="21.00" y2="119.00"/>
-<text class="gate-label" x="21.40" y="119.00">排程心跳派發到期工作</text>
+<text class="gate-label" x="21.40" y="119.00"><tspan x="21.40" dy="0">排程心跳派發到期工作</tspan></text>
 <circle class="junction" cx="-28.00" cy="121.00" r="0.22"/>
 <circle class="branch-junction" cx="10.00" cy="71.00" r="0.28"/>
 <circle class="branch-junction" cx="20.00" cy="93.00" r="0.28"/>
