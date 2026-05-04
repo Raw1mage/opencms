@@ -243,7 +243,29 @@ SSE.
 to pre-plan baseline. Flag = 1 enables soft-stale (`≥15 s`) and
 hard-stale (`≥60 s`) UI states.
 
-### Wire payload: file-diff metadata only
+### Subagent context dispatch: stream-anchor rebind, no Codex fork
+
+Child sessions (`session.parentID != null`) receive a bounded
+`parentMessagePrefix` instead of the parent's full history. Priority
+order in `prompt.ts` (~L948):
+
+1. **Stream-anchor rebind** — `applyStreamAnchorRebind` scans the
+   parent's filtered message stream for the most recent compaction
+   anchor and slices from there. The anchor message itself contains
+   the compacted summary text; no separate checkpoint file is read.
+   `parentContextSource = "checkpoint"`.
+2. **Recent history** — last `PARENT_CONTEXT_MAX_ROUNDS` (10) user→
+   assistant rounds when no anchor exists.
+   `parentContextSource = "recent_history"`.
+3. **None** — logged when the parent stream is empty.
+
+Codex `previous_response_id` fork dispatch was attempted and reverted
+(commit `1b50e1d40`, 2026-04-10): the Responses API continuation chain
+is per-WS-connection, so child WS connections always failed with
+`previous_response_not_found`. Codex subagents now use the same
+stream-anchor path as every other provider; the legacy
+`codexForkResponseId` / `isForkSeed` symbols no longer exist in the
+codebase.
 
 `Snapshot.FileDiff` no longer carries `before` / `after` bodies on
 any persisted, wire, or render path. `summary.diffs[]` entries are
@@ -307,6 +329,9 @@ Capability layer + rebind:
   rate limit (`REBIND_RATE_LIMIT` at L226), `bumpEpoch` (L132),
   bus subscription (L67–73).
 - `packages/opencode/src/session/capability-layer.ts` — reinject path.
+- `packages/opencode/src/session/prompt.ts` —
+  `applyStreamAnchorRebind` (L559); subagent `parentMessagePrefix`
+  dispatch (L948).
 - `packages/opencode/src/session/capability-layer-loader.ts` —
   cache-aware loader.
 - `packages/opencode/src/tool/refresh-capability-layer.ts` —

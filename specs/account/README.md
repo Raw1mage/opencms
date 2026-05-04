@@ -172,6 +172,22 @@ apps (Gmail, Google Calendar) store OAuth tokens in `gauth.json`, not
 incorrectly surface as LLM providers in the Model Manager. The
 stripper closes that hole on every read.
 
+### Manual pin bypasses pre-flight cooldown
+
+The pre-flight rotation gate at `session/processor.ts:404` only fires
+for **auto-resolved** account selection. When the operator pinned an
+account explicitly (`explicitAccountId`) or the session has an
+execution-pinned identity (`sessionExecution`), the gate is skipped:
+`sessionPinnedAccountId = explicitAccountId ?? sessionExecution`, and
+the rotation branch only runs `if (!sessionPinnedAccountId && accountId)`
+(L450). Stale persisted cooldowns in `rotation-state.json` therefore
+cannot silently override an explicit pin — a real upstream 429 still
+classifies via `RateLimitJudge` mid-stream, but the request actually
+goes out first. The sibling gate in `session/llm.ts:354` shares the
+same `!sessionPinnedAccountId` guard.
+`packages/opencode/test/session/preflight-cooldown-guard.test.ts` is the
+trip-wire regression covering this contract.
+
 ### Async deletion (no UI freeze)
 
 The TUI dialogs (`dialog-account.tsx`, `dialog-admin.tsx`) treat
@@ -181,6 +197,16 @@ listener on the backend. The freeze the legacy spec called out is
 gone; remove is fast because it is synchronous local-only writes
 plus an async `Bus.publish(AccountRemoved)`. Codex revoke is the one
 exception that does block on a network round-trip (by design).
+
+### No-account providers (FreeToUse)
+
+Some providers (e.g. `ollama`) have no account dimension at all. The
+webapp's `dialog-select-model.tsx` derives `selectedProviderUsesFreeToUseLabel`
+from `usesFreeToUseAccountLabel(...)` and renders the middle account
+column as `FreeToUse` instead of treating empty rows as a configuration
+error. Submission paths pass `accountID: undefined` for these providers
+rather than synthesising a placeholder account, so the runtime
+account-less contract is preserved end-to-end.
 
 ### Bus events
 

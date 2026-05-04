@@ -181,6 +181,18 @@ This snapshot stays in `specs/_archive/global-architecture/` as historical
 reference. Live updates flow into per-topic wiki entries; the IDEF0 /
 GRAFCET artifacts are not regenerated on every change.
 
+### `refs/` — upstream + research submodules
+
+`refs/` carries read-only git submodules used as architectural reference
+or fingerprint source. Active entries include `refs/codex` (pinned to
+`rust-v0.125.0-alpha.1` for codex-rs protocol parity, see
+[provider.md](../provider/README.md)), `refs/claude-code` (anthropic CLI
+fingerprint source), `refs/openspec`, and `refs/agentmemory`
+(`rohitg00/agentmemory`, added 2026-04-30 as research input for a future
+knowledge-management layer; no production code consumes it yet).
+Submodules under `refs/` are never modified in-tree; integration ideas
+are recorded in `docs/events/` rather than vendored.
+
 ### `docs/events/` — change log
 
 Per-event narrative records of significant decisions, incidents, and
