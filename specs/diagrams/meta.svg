@@ -45,7 +45,7 @@
 <path class="edge edge-arrow" d="M 0.79 68.00 L 0.79 78.00"/>
 <path class="edge" d="M 0.79 83.00 L 0.79 85.00"/>
 <path class="edge edge-arrow" d="M 0.79 85.00 L 0.79 86.50 Q 0.79 87.00 0.29 87.00 L -23.50 87.00 Q -24.00 87.00 -24.00 86.50 L -24.00 2.50 Q -24.00 2.00 -23.50 2.00 L 21.87 2.00 Q 22.37 2.00 22.37 2.50 L 22.37 4.00"/>
-<path class="edge" d="M 33.16 48.00 L 1.29 48.00 Q 0.79 48.00 0.79 48.50 L 0.79 52.00"/>
+<path class="edge" d="M 33.16 48.00 L 33.16 51.50 Q 33.16 52.00 32.66 52.00 L 0.79 52.00"/>
 <rect class="step" x="20.37" y="4.00" width="4.00" height="3.00"/>
 <rect class="step-inner" x="20.62" y="4.25" width="3.50" height="2.50"/>
 <text class="label" x="22.37" y="5.50">0</text>
@@ -132,7 +132,7 @@
 <line class="gate" x1="-0.21" y1="85.00" x2="1.79" y2="85.00"/>
 <text class="gate-label" x="2.19" y="85.00"><tspan x="2.19" dy="0">1</tspan></text>
 <line class="gate" x1="-0.21" y1="52.00" x2="1.79" y2="52.00"/>
-<text class="gate-label" x="2.19" y="52.00"><tspan x="2.19" dy="0">規劃rollbackrefactor或explicitabandonrecorded在history</tspan></text>
+<text class="gate-label" x="2.19" y="52.68"><tspan x="2.19" dy="0">規劃rollbackrefactor或explicitabandonrecorded在history</tspan></text>
 <line class="gate" x1="10.58" y1="43.00" x2="12.58" y2="43.00"/>
 <text class="gate-label-left" x="10.18" y="43.00"><tspan x="10.18" dy="0">alltaskscheckedAND syncclean</tspan></text>
 <line class="gate" x1="32.16" y1="43.00" x2="34.16" y2="43.00"/>
