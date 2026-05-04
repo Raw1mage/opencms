@@ -126,13 +126,13 @@
 <line class="gate" x1="-14.00" y1="59.00" x2="37.16" y2="59.00"/>
 <line class="gate" x1="-12.00" y1="76.00" x2="2.79" y2="76.00"/>
 <line class="gate" x1="21.37" y1="68.00" x2="23.37" y2="68.00"/>
-<text class="gate-label-left" x="20.97" y="67.66"><tspan x="20.97" dy="0">狀態setdesignedAND revise或</tspan><tspan x="20.97" dy="0.68">extendhistory項目appended</tspan></text>
+<text class="gate-label" x="23.77" y="67.32"><tspan x="23.77" dy="0">狀態setdesignedAND</tspan><tspan x="23.77" dy="0.68">revise或extendhis</tspan><tspan x="23.77" dy="0.68">tory項目appended</tspan></text>
 <line class="gate" x1="32.16" y1="72.00" x2="34.16" y2="72.00"/>
-<text class="gate-label-left" x="31.76" y="71.66"><tspan x="31.76" dy="0">historyrefactorYYYY MM DD createdAND</tspan><tspan x="31.76" dy="0.68">artifactsreset到proposedskeleton</tspan></text>
+<text class="gate-label-left" x="31.76" y="71.32"><tspan x="31.76" dy="0">historyrefactorYYYY MM</tspan><tspan x="31.76" dy="0.68">DD createdAND artifacts</tspan><tspan x="31.76" dy="0.68">reset到proposedskeleton</tspan></text>
 <line class="gate" x1="-0.21" y1="83.00" x2="1.79" y2="83.00"/>
 <text class="gate-label" x="2.19" y="83.00"><tspan x="2.19" dy="0">1</tspan></text>
 <line class="gate" x1="-0.21" y1="50.00" x2="1.79" y2="50.00"/>
-<text class="gate-label-left" x="-0.61" y="49.66"><tspan x="-0.61" dy="0">規劃rollbackrefactor或expli</tspan><tspan x="-0.61" dy="0.68">citabandonrecorded在history</tspan></text>
+<text class="gate-label-left" x="-0.61" y="49.32"><tspan x="-0.61" dy="0">規劃rollbackrefactor或</tspan><tspan x="-0.61" dy="0.68">explicitabandonre</tspan><tspan x="-0.61" dy="0.68">corded在history</tspan></text>
 <line class="gate" x1="10.58" y1="43.00" x2="12.58" y2="43.00"/>
 <text class="gate-label-left" x="10.18" y="43.00"><tspan x="10.18" dy="0">alltaskscheckedAND syncclean</tspan></text>
 <line class="gate" x1="32.16" y1="43.00" x2="34.16" y2="43.00"/>
@@ -146,9 +146,9 @@
 <line class="gate" x1="-0.21" y1="61.00" x2="1.79" y2="61.00"/>
 <text class="gate-label-left" x="-0.61" y="61.00"><tspan x="-0.61" dy="0">mode==archive</tspan></text>
 <line class="gate" x1="-11.00" y1="74.00" x2="-9.00" y2="74.00"/>
-<text class="gate-label-left" x="-11.40" y="73.66"><tspan x="-11.40" dy="0">inlinedeltamarkeradde</tspan><tspan x="-11.40" dy="0.68">dAND 狀態remainsliving</tspan></text>
+<text class="gate-label-left" x="-11.40" y="73.32"><tspan x="-11.40" dy="0">inlinedeltamar</tspan><tspan x="-11.40" dy="0.68">keraddedAND 狀態</tspan><tspan x="-11.40" dy="0.68">remainsliving</tspan></text>
 <line class="gate" x1="-0.21" y1="74.00" x2="1.79" y2="74.00"/>
-<text class="gate-label-left" x="-0.61" y="73.66"><tspan x="-0.61" dy="0">狀態setarchivedAND option</tspan><tspan x="-0.61" dy="0.68">almove到archivefolderdone</tspan></text>
+<text class="gate-label-left" x="-0.61" y="73.32"><tspan x="-0.61" dy="0">狀態setarchivedAND</tspan><tspan x="-0.61" dy="0.68">optionalmove到</tspan><tspan x="-0.61" dy="0.68">archivefolderdone</tspan></text>
 <line class="flyover-mask" x1="-19.00" y1="70.00" x2="-17.00" y2="70.00"/>
 <path class="flyover" d="M -19.00 70.00 Q -18.00 69.00 -17.00 70.00"/>
 <circle class="junction" cx="22.37" cy="11.00" r="0.22"/>

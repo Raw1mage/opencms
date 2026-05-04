@@ -146,7 +146,7 @@
 <line class="gate" x1="7.95" y1="92.00" x2="51.75" y2="92.00"/>
 <line class="gate" x1="7.95" y1="72.00" x2="41.80" y2="72.00"/>
 <line class="gate" x1="8.95" y1="81.00" x2="10.95" y2="81.00"/>
-<text class="gate-label" x="11.35" y="80.66"><tspan x="11.35" dy="0">是子代理會話 &amp;&amp; 配額低</tspan><tspan x="11.35" dy="0.68">於紅線 -&gt; 下一回合收尾</tspan></text>
+<text class="gate-label" x="11.35" y="80.32"><tspan x="11.35" dy="0">是子代理會話 &amp;&amp;</tspan><tspan x="11.35" dy="0.68">配額低於紅線 -</tspan><tspan x="11.35" dy="0.68">&gt; 下一回合收尾</tspan></text>
 <line class="gate" x1="-4.00" y1="88.00" x2="13.95" y2="88.00"/>
 <line class="gate" x1="-4.00" y1="99.00" x2="23.90" y2="99.00"/>
 <line class="gate" x1="18.90" y1="110.00" x2="20.90" y2="110.00"/>
@@ -168,7 +168,7 @@
 <line class="gate" x1="28.85" y1="52.00" x2="30.85" y2="52.00"/>
 <text class="gate-label-left" x="28.45" y="52.00"><tspan x="28.45" dy="0">工具呼叫其他平行</tspan></text>
 <line class="gate" x1="-1.00" y1="61.00" x2="1.00" y2="61.00"/>
-<text class="gate-label-left" x="-1.40" y="60.66"><tspan x="-1.40" dy="0">已派發==是 &amp;&amp;</tspan><tspan x="-1.40" dy="0.68">父層回合已返回</tspan></text>
+<text class="gate-label-left" x="-1.40" y="60.32"><tspan x="-1.40" dy="0">已派發==是</tspan><tspan x="-1.40" dy="0.68">&amp;&amp; 父層回</tspan><tspan x="-1.40" dy="0.68">合已返回</tspan></text>
 <line class="gate" x1="8.95" y1="61.00" x2="10.95" y2="61.00"/>
 <text class="gate-label-left" x="8.55" y="61.00"><tspan x="8.55" dy="0">回覆已收到或已解析</tspan></text>
 <line class="gate" x1="48.75" y1="90.00" x2="50.75" y2="90.00"/>
@@ -182,9 +182,9 @@
 <line class="gate" x1="18.90" y1="90.00" x2="20.90" y2="90.00"/>
 <text class="gate-label-left" x="18.50" y="90.00"><tspan x="18.50" dy="0">無配額觸發</tspan></text>
 <line class="gate" x1="-1.00" y1="90.00" x2="1.00" y2="90.00"/>
-<text class="gate-label-left" x="-1.40" y="89.66"><tspan x="-1.40" dy="0">已啟用 &amp;&amp; (下一個可執行待</tspan><tspan x="-1.40" dy="0.68">辦!=空 || 補充啟用規劃)</tspan></text>
+<text class="gate-label-left" x="-1.40" y="89.32"><tspan x="-1.40" dy="0">已啟用 &amp;&amp; (下一個</tspan><tspan x="-1.40" dy="0.68">可執行待辦!=空</tspan><tspan x="-1.40" dy="0.68">|| 補充啟用規劃)</tspan></text>
 <line class="gate" x1="8.95" y1="90.00" x2="10.95" y2="90.00"/>
-<text class="gate-label-left" x="8.55" y="89.66"><tspan x="8.55" dy="0">停止：子代理會話</tspan><tspan x="8.55" dy="0.68">或未啟用或待辦完成</tspan></text>
+<text class="gate-label-left" x="8.55" y="89.32"><tspan x="8.55" dy="0">停止：子代理</tspan><tspan x="8.55" dy="0.68">會話或未啟用</tspan><tspan x="8.55" dy="0.68">或待辦完成</tspan></text>
 <line class="gate" x1="-1.00" y1="101.00" x2="1.00" y2="101.00"/>
 <text class="gate-label-left" x="-1.40" y="101.00"><tspan x="-1.40" dy="0">下一個使用者訊息</tspan></text>
 <line class="gate" x1="18.90" y1="101.00" x2="20.90" y2="101.00"/>

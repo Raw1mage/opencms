@@ -125,21 +125,21 @@
 <line class="gate" x1="44.25" y1="99.00" x2="46.25" y2="99.00"/>
 <text class="gate-label-left" x="43.85" y="99.00"><tspan x="43.85" dy="0">clientClosed &amp;&amp; 狀態[clientName] cleared</tspan></text>
 <line class="gate" x1="9.00" y1="32.00" x2="11.00" y2="32.00"/>
-<text class="gate-label-left" x="8.60" y="31.66"><tspan x="8.60" dy="0">項目.transport</tspan><tspan x="8.60" dy="0.68">== &#x27;stdio&#x27;</tspan></text>
+<text class="gate-label-left" x="8.60" y="31.32"><tspan x="8.60" dy="0">項目.</tspan><tspan x="8.60" dy="0.68">transport</tspan><tspan x="8.60" dy="0.68">== &#x27;stdio&#x27;</tspan></text>
 <line class="gate" x1="32.50" y1="32.00" x2="34.50" y2="32.00"/>
 <text class="gate-label-left" x="32.10" y="32.00"><tspan x="32.10" dy="0">項目.transport == &#x27;streamable-http&#x27; || &#x27;sse&#x27;</tspan></text>
 <line class="gate" x1="9.00" y1="39.00" x2="11.00" y2="39.00"/>
-<text class="gate-label-left" x="8.60" y="38.66"><tspan x="8.60" dy="0">啟動ok &amp;&amp; initia</tspan><tspan x="8.60" dy="0.68">lizeHandshakeOk</tspan></text>
+<text class="gate-label-left" x="8.60" y="38.32"><tspan x="8.60" dy="0">啟動ok &amp;&amp;</tspan><tspan x="8.60" dy="0.68">initialize</tspan><tspan x="8.60" dy="0.68">HandshakeOk</tspan></text>
 <line class="gate" x1="32.50" y1="39.00" x2="34.50" y2="39.00"/>
 <text class="gate-label-left" x="32.10" y="39.00"><tspan x="32.10" dy="0">streamableHttpOk || ssefallbackok</tspan></text>
 <line class="gate" x1="9.00" y1="66.00" x2="11.00" y2="66.00"/>
-<text class="gate-label-left" x="8.60" y="65.66"><tspan x="8.60" dy="0">下一個工具呼</tspan><tspan x="8.60" dy="0.68">叫arrives</tspan></text>
+<text class="gate-label-left" x="8.60" y="65.32"><tspan x="8.60" dy="0">下一個工</tspan><tspan x="8.60" dy="0.68">具呼叫</tspan><tspan x="8.60" dy="0.68">arrives</tspan></text>
 <line class="gate" x1="20.75" y1="66.00" x2="22.75" y2="66.00"/>
 <text class="gate-label-left" x="20.35" y="66.00"><tspan x="20.35" dy="0">無待處理呼叫</tspan></text>
 <line class="gate" x1="9.00" y1="79.00" x2="11.00" y2="79.00"/>
-<text class="gate-label-left" x="8.60" y="78.66"><tspan x="8.60" dy="0">模型resumes工</tspan><tspan x="8.60" dy="0.68">具use</tspan></text>
+<text class="gate-label-left" x="8.60" y="78.32"><tspan x="8.60" dy="0">模型</tspan><tspan x="8.60" dy="0.68">resumes工</tspan><tspan x="8.60" dy="0.68">具use</tspan></text>
 <line class="gate" x1="32.50" y1="79.00" x2="34.50" y2="79.00"/>
-<text class="gate-label-left" x="32.10" y="78.66"><tspan x="32.10" dy="0">now - lastused於 &gt; tweaks.</tspan><tspan x="32.10" dy="0.68">mcp.閒置unloadms (proposed)</tspan></text>
+<text class="gate-label-left" x="32.10" y="78.32"><tspan x="32.10" dy="0">now - lastused於 &gt;</tspan><tspan x="32.10" dy="0.68">tweaks.mcp.閒置</tspan><tspan x="32.10" dy="0.68">unloadms (proposed)</tspan></text>
 <line class="gate" x1="20.75" y1="90.00" x2="22.75" y2="90.00"/>
 <text class="gate-label-left" x="20.35" y="90.00"><tspan x="20.35" dy="0">proposal不已交付 (stay 已釘選)</tspan></text>
 <line class="gate" x1="44.25" y1="90.00" x2="46.25" y2="90.00"/>

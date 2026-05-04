@@ -113,11 +113,11 @@
 <line class="gate" x1="20.60" y1="80.00" x2="22.60" y2="80.00"/>
 <text class="gate-label" x="23.00" y="80.00"><tspan x="23.00" dy="0">caller已收到帳號id閒置again</tspan></text>
 <line class="gate" x1="9.00" y1="25.00" x2="11.00" y2="25.00"/>
-<text class="gate-label-left" x="8.60" y="24.66"><tspan x="8.60" dy="0">infotype</tspan><tspan x="8.60" dy="0.68">equalsapi</tspan></text>
+<text class="gate-label-left" x="8.60" y="24.32"><tspan x="8.60" dy="0">infoty</tspan><tspan x="8.60" dy="0.68">peequa</tspan><tspan x="8.60" dy="0.68">lsapi</tspan></text>
 <line class="gate" x1="32.20" y1="25.00" x2="34.20" y2="25.00"/>
 <text class="gate-label-left" x="31.80" y="25.00"><tspan x="31.80" dy="0">infotypeequalsoauth</tspan></text>
 <line class="gate" x1="9.00" y1="39.00" x2="11.00" y2="39.00"/>
-<text class="gate-label-left" x="8.60" y="38.66"><tspan x="8.60" dy="0">apikeyd</tspan><tspan x="8.60" dy="0.68">edupdone</tspan></text>
+<text class="gate-label-left" x="8.60" y="38.32"><tspan x="8.60" dy="0">apike</tspan><tspan x="8.60" dy="0.68">ydedu</tspan><tspan x="8.60" dy="0.68">pdone</tspan></text>
 <line class="gate" x1="32.20" y1="39.00" x2="34.20" y2="39.00"/>
 <text class="gate-label-left" x="31.80" y="39.00"><tspan x="31.80" dy="0">oauthdedupdone</tspan></text>
 <line class="gate" x1="9.00" y1="50.00" x2="11.00" y2="50.00"/>

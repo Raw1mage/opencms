@@ -141,7 +141,7 @@
 <line class="gate" x1="0.75" y1="43.00" x2="2.75" y2="43.00"/>
 <text class="gate-label" x="3.15" y="42.32"><tspan x="3.15" dy="0">httppost2xx &amp;&amp; 訊息appended</tspan></text>
 <line class="gate" x1="0.75" y1="54.00" x2="2.75" y2="54.00"/>
-<text class="gate-label" x="3.15" y="53.66"><tspan x="3.15" dy="0">runloopstarted</tspan><tspan x="3.15" dy="0.68">&amp;&amp; 串流open</tspan></text>
+<text class="gate-label" x="3.15" y="53.32"><tspan x="3.15" dy="0">runloops</tspan><tspan x="3.15" dy="0.68">tarted &amp;&amp;</tspan><tspan x="3.15" dy="0.68">串流open</tspan></text>
 <line class="gate" x1="-12.00" y1="69.00" x2="39.00" y2="69.00"/>
 <line class="gate" x1="-11.00" y1="43.00" x2="-9.00" y2="43.00"/>
 <text class="gate-label" x="-8.60" y="42.32"><tspan x="-8.60" dy="0">underratelimit</tspan></text>
@@ -167,13 +167,13 @@
 <line class="gate" x1="12.50" y1="67.00" x2="14.50" y2="67.00"/>
 <text class="gate-label-left" x="12.10" y="67.00"><tspan x="12.10" dy="0">ratelimitedstorm</tspan></text>
 <line class="gate" x1="-11.00" y1="67.00" x2="-9.00" y2="67.00"/>
-<text class="gate-label-left" x="-11.40" y="66.66"><tspan x="-11.40" dy="0">reinject返回</tspan><tspan x="-11.40" dy="0.68">或Sessionbusy</tspan></text>
+<text class="gate-label-left" x="-11.40" y="66.32"><tspan x="-11.40" dy="0">reinject返</tspan><tspan x="-11.40" dy="0.68">回或Sessi</tspan><tspan x="-11.40" dy="0.68">onbusy</tspan></text>
 <line class="gate" x1="36.00" y1="67.00" x2="38.00" y2="67.00"/>
 <text class="gate-label-left" x="35.60" y="67.00"><tspan x="35.60" dy="0">timelinerendered</tspan></text>
 <line class="gate" x1="47.75" y1="43.00" x2="49.75" y2="43.00"/>
 <text class="gate-label" x="50.15" y="43.00"><tspan x="50.15" dy="0">stalethresholdcrossed</tspan></text>
 <line class="gate" x1="59.50" y1="43.00" x2="61.50" y2="43.00"/>
-<text class="gate-label" x="61.90" y="42.66"><tspan x="61.90" dy="0">hardstalethr</tspan><tspan x="61.90" dy="0.68">esholdcrossed</tspan></text>
+<text class="gate-label" x="61.90" y="42.32"><tspan x="61.90" dy="0">hardstal</tspan><tspan x="61.90" dy="0.68">ethresho</tspan><tspan x="61.90" dy="0.68">ldcrossed</tspan></text>
 <line class="gate" x1="36.00" y1="43.00" x2="38.00" y2="43.00"/>
 <text class="gate-label" x="38.40" y="43.00"><tspan x="38.40" dy="0">Session路由left</tspan></text>
 <line class="flyover-mask" x1="-19.00" y1="45.00" x2="-17.00" y2="45.00"/>

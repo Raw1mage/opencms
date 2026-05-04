@@ -133,15 +133,15 @@
 <line class="gate" x1="22.31" y1="86.00" x2="24.31" y2="86.00"/>
 <text class="gate-label" x="24.71" y="86.00"><tspan x="24.71" dy="0">runloopresumed</tspan></text>
 <line class="gate" x1="22.31" y1="77.00" x2="24.31" y2="77.00"/>
-<text class="gate-label-left" x="21.91" y="76.66"><tspan x="21.91" dy="0">observed == null || cooldownactive</tspan><tspan x="21.91" dy="0.68">|| (observed == 閒置 &amp;&amp; tailunclean)</tspan></text>
+<text class="gate-label-left" x="21.91" y="76.32"><tspan x="21.91" dy="0">observed == null ||</tspan><tspan x="21.91" dy="0.68">cooldownactive || (obse</tspan><tspan x="21.91" dy="0.68">rved == 閒置 &amp;&amp; tailunclean)</tspan></text>
 <line class="gate" x1="9.00" y1="43.00" x2="11.00" y2="43.00"/>
-<text class="gate-label" x="11.40" y="42.32"><tspan x="11.40" dy="0">attempt.ok &amp;&amp; !(local &amp;&amp; truncated &amp;&amp; paidremaining)</tspan></text>
+<text class="gate-label" x="11.40" y="42.32"><tspan x="11.40" dy="0">attempt.ok &amp;&amp;</tspan><tspan x="11.40" dy="0.68">!(local &amp;&amp; truncated</tspan><tspan x="11.40" dy="0.68">&amp;&amp; paidremaining)</tspan></text>
 <line class="gate" x1="22.31" y1="43.00" x2="24.31" y2="43.00"/>
-<text class="gate-label" x="24.71" y="43.34"><tspan x="24.71" dy="0">attempt.failed ||</tspan><tspan x="24.71" dy="0.68">localtruncatedescalate</tspan></text>
+<text class="gate-label" x="24.71" y="42.32"><tspan x="24.71" dy="0">attempt.failed</tspan><tspan x="24.71" dy="0.68">|| localtrunc</tspan><tspan x="24.71" dy="0.68">atedescalate</tspan></text>
 <line class="gate" x1="35.62" y1="43.00" x2="37.62" y2="43.00"/>
 <text class="gate-label" x="38.02" y="43.00"><tspan x="38.02" dy="0">chainexhausted</tspan></text>
 <line class="gate" x1="22.31" y1="54.00" x2="24.31" y2="54.00"/>
-<text class="gate-label" x="24.71" y="53.66"><tspan x="24.71" dy="0">anchorwritteninline</tspan><tspan x="24.71" dy="0.68">|| anchor待處理</tspan></text>
+<text class="gate-label" x="24.71" y="53.32"><tspan x="24.71" dy="0">anchorwritt</tspan><tspan x="24.71" dy="0.68">eninline ||</tspan><tspan x="24.71" dy="0.68">anchor待處理</tspan></text>
 <line class="gate" x1="22.31" y1="61.00" x2="24.31" y2="61.00"/>
 <text class="gate-label" x="24.71" y="60.66"><tspan x="24.71" dy="0">anchorpersisted &amp;&amp;</tspan><tspan x="24.71" dy="0.68">telemetryemitted</tspan></text>
 <circle class="junction" cx="23.31" cy="34.00" r="0.22"/>

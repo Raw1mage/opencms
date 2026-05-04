@@ -136,7 +136,7 @@
 <line class="gate" x1="9.00" y1="73.00" x2="11.00" y2="73.00"/>
 <text class="gate-label" x="11.40" y="72.66"><tspan x="11.40" dy="0">filenamemat</tspan><tspan x="11.40" dy="0.68">ches附件ref</tspan></text>
 <line class="gate" x1="9.00" y1="80.00" x2="11.00" y2="80.00"/>
-<text class="gate-label" x="11.40" y="79.66"><tspan x="11.40" dy="0">setActiveImag</tspan><tspan x="11.40" dy="0.68">eRefsCommitted</tspan></text>
+<text class="gate-label" x="11.40" y="79.32"><tspan x="11.40" dy="0">setActive</tspan><tspan x="11.40" dy="0.68">ImageRefs</tspan><tspan x="11.40" dy="0.68">Committed</tspan></text>
 <line class="gate" x1="20.06" y1="96.00" x2="22.06" y2="96.00"/>
 <text class="gate-label" x="22.46" y="96.00"><tspan x="22.46" dy="0">步驟完成emitted</tspan></text>
 <line class="gate" x1="20.06" y1="103.00" x2="22.06" y2="103.00"/>
@@ -148,7 +148,7 @@
 <line class="gate" x1="9.00" y1="34.00" x2="11.00" y2="34.00"/>
 <text class="gate-label-left" x="8.60" y="33.66"><tspan x="8.60" dy="0">Session路</tspan><tspan x="8.60" dy="0.68">徑writeok</tspan></text>
 <line class="gate" x1="20.06" y1="27.00" x2="22.06" y2="27.00"/>
-<text class="gate-label-left" x="19.66" y="26.66"><tspan x="19.66" dy="0">是officemime(c</tspan><tspan x="19.66" dy="0.68">lassifyOffice)</tspan></text>
+<text class="gate-label-left" x="19.66" y="26.32"><tspan x="19.66" dy="0">是officemi</tspan><tspan x="19.66" dy="0.68">me(classi</tspan><tspan x="19.66" dy="0.68">fyOffice)</tspan></text>
 <line class="gate" x1="42.18" y1="27.00" x2="44.18" y2="27.00"/>
 <text class="gate-label-left" x="41.78" y="27.00"><tspan x="41.78" dy="0">!是officemime</tspan></text>
 <line class="gate" x1="20.06" y1="34.00" x2="22.06" y2="34.00"/>
@@ -158,6 +158,6 @@
 <line class="gate" x1="20.06" y1="87.00" x2="22.06" y2="87.00"/>
 <text class="gate-label-left" x="19.66" y="87.00"><tspan x="19.66" dy="0">aiSkipsReread</tspan></text>
 <line class="gate" x1="9.00" y1="87.00" x2="11.00" y2="87.00"/>
-<text class="gate-label-left" x="8.60" y="86.66"><tspan x="8.60" dy="0">image位元組inlined在</tspan><tspan x="8.60" dy="0.68">trailingextras</tspan></text>
+<text class="gate-label-left" x="8.60" y="86.32"><tspan x="8.60" dy="0">image位元組</tspan><tspan x="8.60" dy="0.68">inlined在</tspan><tspan x="8.60" dy="0.68">trailingextras</tspan></text>
 <circle class="branch-junction" cx="21.06" cy="64.00" r="0.28"/>
 </svg>
