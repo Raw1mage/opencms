@@ -236,9 +236,9 @@ projected into the new shape and rewritten on first touch.
 
 ### Related entries
 
-- [session.md](./session.md) — runloop, identity, capability layer.
-- [provider.md](./provider.md) — codex server-side compaction;
+- [session.md](../session/README.md) — runloop, identity, capability layer.
+- [provider.md](../provider/README.md) — codex server-side compaction;
   fingerprint-aware caching.
-- [attachments.md](./attachments.md) — big-content boundary handling
+- [attachments.md](../attachments/README.md) — big-content boundary handling
   (R6 in the old `compaction-improvements` spec is implemented in the
   attachment subsystem).

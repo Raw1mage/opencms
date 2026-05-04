@@ -84,7 +84,7 @@ For `mcp-app` (store apps): `GET /store/apps`, `POST /store/apps`
     daemon).
   - System wins on `id` collision.
 - **Standard MCP servers** — declared in `mcp.json`, surfaced via
-  `MCP.serverApps()`. Runtime side documented in [mcp.md](./mcp.md).
+  `MCP.serverApps()`. Runtime side documented in [mcp.md](../mcp/README.md).
 
 `managed-apps.json` is on the AGENTS.md backup whitelist — operator
 state worth preserving across resets.
@@ -161,14 +161,14 @@ Persistence:
 
 ### Related entries
 
-- [mcp.md](./mcp.md) — MCP runtime: how connected / installed apps
+- [mcp.md](../mcp/README.md) — MCP runtime: how connected / installed apps
   actually run as tool surfaces, transports, idle-unload (proposed),
   tool-direct-render (proposed).
-- [webapp.md](./webapp.md) — the Admin Panel chrome that hosts this
+- [webapp.md](../webapp/README.md) — the Admin Panel chrome that hosts this
   dialog.
-- [daemon.md](./daemon.md) — per-user daemon that owns
+- [daemon.md](../daemon/README.md) — per-user daemon that owns
   `managed-apps.json` and `mcp-apps.json` and serves `/api/v2/mcp/*`.
-- [meta.md](./meta.md) — `/etc/opencode/mcp-apps.json` system-tier
+- [meta.md](../meta/README.md) — `/etc/opencode/mcp-apps.json` system-tier
   config surface and the sudo wrapper.
-- [session.md](./session.md) — how installed app tools are exposed
+- [session.md](../session/README.md) — how installed app tools are exposed
   to the AI inside a session.

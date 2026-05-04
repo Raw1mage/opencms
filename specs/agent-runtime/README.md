@@ -267,7 +267,7 @@ Scheduler & cron:
 
 ### Related entries
 
-- [compaction.md](./compaction.md) — subagent path through compaction (`deriveObservedCondition` does not skip subagents); rebind-checkpoint semantics that interact with task-tool re-dispatch.
-- [session.md](./session.md) — runloop, identity, capability layer, workflow shape (`workflow.autonomous.enabled`).
-- [mcp.md](./mcp.md) — `skill-finder` / `mcp-finder` MCPs that surface skills to the registry that `mandatory-skills.ts` then pins.
+- [compaction.md](../compaction/README.md) — subagent path through compaction (`deriveObservedCondition` does not skip subagents); rebind-checkpoint semantics that interact with task-tool re-dispatch.
+- [session.md](../session/README.md) — runloop, identity, capability layer, workflow shape (`workflow.autonomous.enabled`).
+- [mcp.md](../mcp/README.md) — `skill-finder` / `mcp-finder` MCPs that surface skills to the registry that `mandatory-skills.ts` then pins.
 - [architecture.md](./architecture.md) — `## plan-builder Skill Lifecycle` for how new specs supersede legacy folders like `agent_framework` and `scheduler-channels`.

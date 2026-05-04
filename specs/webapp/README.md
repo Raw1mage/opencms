@@ -33,7 +33,7 @@ documentation site (Starlight). The webapp itself ships only as
 
 ### Build / dev flow
 
-`webctl.sh` orchestrates the full lifecycle (see [daemon.md](./daemon.md)
+`webctl.sh` orchestrates the full lifecycle (see [daemon.md](../daemon/README.md)
 for the full subcommand list). Webapp-specific verbs:
 
 - `webctl.sh dev-start` — spawn dev backend
@@ -60,7 +60,7 @@ and splices bytes at L4. For the canonical opencode webapp, it
 forks a per-uid `bun` daemon and splices to its Unix socket
 (`$XDG_RUNTIME_DIR/opencode/daemon.sock`); for sibling webapps it
 splices to a registered TCP `host:port`. Full splice / auth detail
-lives in [daemon.md](./daemon.md).
+lives in [daemon.md](../daemon/README.md).
 
 Sibling webapps (`/cisopro`, `/linebot`, `/cecelearn`,
 `/lifecollection`, `/warroom`, etc.) use a two-layer system:
@@ -100,9 +100,9 @@ The webapp surfaces a "三合一管理界面" (per project AGENTS.md § main
   request / unknown). Quota hints render in `format: "admin"` (full)
   vs `format: "footer"` (compact) per `quota-hint-cache.ts`.
 - **Account management** — multi-account view backed by the global
-  `accounts.json` (see [account.md](./account.md)).
+  `accounts.json` (see [account.md](../account/README.md)).
 - **App Market** — installer / catalog; see
-  [app-market.md](./app-market.md).
+  [app-market.md](../app-market/README.md).
 
 ### Rich rendering and voice input
 
@@ -183,10 +183,10 @@ Tests: `packages/app/src/utils/speech.test.ts` and
 
 ### Related entries
 
-- [daemon.md](./daemon.md) — gateway, splice, per-user daemon
+- [daemon.md](../daemon/README.md) — gateway, splice, per-user daemon
   lifecycle, `webctl.sh` verbs.
-- [meta.md](./meta.md) — `/etc/opencode/` configuration surface.
-- [session.md](./session.md) — session UI client, SSE/sync, prompt
+- [meta.md](../meta/README.md) — `/etc/opencode/` configuration surface.
+- [session.md](../session/README.md) — session UI client, SSE/sync, prompt
   input, file-tab system.
-- [app-market.md](./app-market.md) — App Market dialog inside the
+- [app-market.md](../app-market/README.md) — App Market dialog inside the
   Admin Panel.

@@ -385,13 +385,13 @@ operator to redo the OAuth flow.
 
 ### Related entries
 
-- [provider.md](./provider.md) — the binding partner; account ↔
+- [provider.md](../provider/README.md) — the binding partner; account ↔
   provider dispatch, fingerprint-aware caching, codex-side compaction.
-- [session.md](./session.md) — rebind on identity change (account
+- [session.md](../session/README.md) — rebind on identity change (account
   switch invalidates LLM continuation; runloop reissues with new
   account headers).
-- [compaction.md](./compaction.md) — `rebind` and
+- [compaction.md](../compaction/README.md) — `rebind` and
   `continuation-invalidated` observed conditions are the narrative
   anchor for account-switch driven compactions.
-- [daemon.md](./daemon.md) — gateway-managed user dirs, per-user
+- [daemon.md](../daemon/README.md) — gateway-managed user dirs, per-user
   daemon lifecycle, PAM authority and the Google compatibility path.

@@ -425,17 +425,17 @@ Tests (representative):
 
 ### Related entries
 
-- [compaction.md](./compaction.md) — runloop, anchors, idle gate;
+- [compaction.md](../compaction/README.md) — runloop, anchors, idle gate;
   `provider-switched` observed value coordinates with the rebind
   epoch path described here.
-- [provider.md](./provider.md) — provider/account boundary; the
+- [provider.md](../provider/README.md) — provider/account boundary; the
   pre-loop switch detector is the call-site that bumps epoch with
   `trigger=provider_switch` before `compactWithSharedContext`.
-- [account.md](./account.md) — admin-panel account-switch flow that
+- [account.md](../account/README.md) — admin-panel account-switch flow that
   the ghost-responses bug is suspected to interact with.
-- [attachments.md](./attachments.md) — oversized attachment blobs
+- [attachments.md](../attachments/README.md) — oversized attachment blobs
   live in the per-session SQLite namespace via
   `upsertAttachmentBlob` / `getAttachmentBlob`; the wire-payload
   metadata-only contract for diffs is the same shape applied here.
-- [agent-runtime.md](./agent-runtime.md) — capability-layer / lane
+- [agent-runtime.md](../agent-runtime/README.md) — capability-layer / lane
   policy is the agent surface that `RebindEpoch` invalidates.

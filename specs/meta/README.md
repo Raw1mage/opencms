@@ -476,18 +476,18 @@ no-silent-fallback / `living`-state principles.
 
 ### Related entries
 
-- [daemon.md](./daemon.md) — daemon lifecycle, gateway ownership,
+- [daemon.md](../daemon/README.md) — daemon lifecycle, gateway ownership,
   `system-manager:restart_self` (this entry pending; the relevant
   policy currently lives in `AGENTS.md` "Daemon Lifecycle Authority")
-- [mcp.md](./mcp.md) — MCP subsystem; `mcp.json` parse-failure
+- [mcp.md](../mcp/README.md) — MCP subsystem; `mcp.json` parse-failure
   isolation in this entry's Phase 3 narrative
-- [account.md](./account.md) — `accounts.json` schema, multi-account
+- [account.md](../account/README.md) — `accounts.json` schema, multi-account
   rotation; provider availability in this entry's Phase 2 narrative
   derives from it
-- [provider.md](./provider.md) — `provider.ts::initState`, registry-first
+- [provider.md](../provider/README.md) — `provider.ts::initState`, registry-first
   provider universe; consumes the availability API documented here
-- [session.md](./session.md) — runloop and how it consumes the merged
+- [session.md](../session/README.md) — runloop and how it consumes the merged
   `Config.Info`
-- [compaction.md](./compaction.md) — for tunables flowing through
+- [compaction.md](../compaction/README.md) — for tunables flowing through
   `tweaks.cfg` (compaction pinned-zone token ratios, tool output
   budget)

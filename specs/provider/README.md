@@ -149,7 +149,7 @@ isolated, never shared via module-global mutable state.
 Caching is **disabled** in `ProviderTransform` for the codex native
 provider (`transform.ts:397`) because Codex handles caching server-
 side via prompt cache continuity and (optionally) inline
-`context_management`. See [compaction.md](./compaction.md) for the
+`context_management`. See [compaction.md](../compaction/README.md) for the
 `/responses/compact` low-cost-server kind.
 
 ### Codex header builder — single entry for HTTP + WS
@@ -441,12 +441,12 @@ Marker written to
 
 ### Related entries
 
-- [account.md](./account.md) — auth side, account storage,
+- [account.md](../account/README.md) — auth side, account storage,
   rotation3d.
-- [session.md](./session.md) — runloop, identity, capability layer
+- [session.md](../session/README.md) — runloop, identity, capability layer
   (rebind/capability-refresh consumers of provider boundary).
-- [compaction.md](./compaction.md) — codex `/responses/compact`
+- [compaction.md](../compaction/README.md) — codex `/responses/compact`
   low-cost-server kind; fingerprint-aware caching gate; static
   system block + cache breakpoints.
-- [attachments.md](./attachments.md) — attachment subsystem
+- [attachments.md](../attachments/README.md) — attachment subsystem
   consumes the provider transform pipeline.

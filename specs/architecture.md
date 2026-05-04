@@ -109,9 +109,10 @@ Launched 2026-04-18 to supersede the legacy `planner` skill (see `docs/events/ev
 - Subagent completion resume is **collection-gated, not workflow-gated**: `packages/opencode/src/bus/subscribers/pending-notice-appender.ts` appends the pending notice and enqueues a critical `task_completion` / `task_failure` resume so the main agent always gets a turn to drain completed delegated work, then immediately asks `resumePendingContinuations` to resume that parent session instead of waiting for the next 5s supervisor heartbeat. `packages/opencode/src/session/workflow-runner.ts` lets these completion resumes bypass autorun disabled / workflow completed / blocked / waiting-user stop gates; only technical hard gates such as busy, retry, in-flight, kill-switch, and active supervisor lease can delay collection. After the result is collected into the system prompt, the AI decides in that turn whether to continue or stop.
 - The `packages/opencode/src/server/routes/session.ts` `/session/:sessionID/autonomous` route is the explicit runtime switch for this policy surface: it respects `body.enabled`, clears queued continuations when disabling, and only enqueues synthetic continuation messages when autorun is enabled.
 - Privileged self-update is a dedicated gateway-daemon path, not general shell privilege escalation. `packages/opencode/src/server/self-update.ts` probes `sudo -n -v` and only executes fixed argv actions for installing `/etc/opencode/webctl.sh`, installing `/usr/local/bin/opencode-gateway`, syncing `/usr/local/share/opencode/frontend`, and restarting `opencode-gateway.service`; every action is audited to `~/.local/state/opencode/self-update-audit.jsonl`. In `packages/opencode/src/server/routes/global.ts`, `/global/web/restart` with `targets:["gateway"]` uses this path in gateway-daemon mode: compile gateway from the resolved repo source, install fixed artifacts via non-interactive sudo, return the accepted response, then schedule the service restart. Non-sudoer daemons fail fast instead of attempting best-effort fallback.
-- **Verbal arm / disarm** (specs/_archive/autonomous-opt-in/ Phase 4-6, 2026-04-23): `packages/opencode/src/session/autorun/detector.ts` scans each ingested user message for configured trigger / disarm phrases (loaded from `/etc/opencode/tweaks.cfg` keys `autorun_trigger_phrases` / `autorun_disarm_phrases`, pipe-separated). A match flips `workflow.autonomous.enabled` via `Session.updateAutonomous`. `packages/opencode/src/session/autorun/observer.ts` subscribes to `KillSwitchChanged` and sweeps every armed root session to disarmed on activation. `packages/opencode/src/session/autorun/refill.ts` materializes the next phase of a session's active `specs/<slug>/tasks.md` (state=implementing, discovered under `Instance.directory/specs/*`) when an armed session drains its todolist; if no refill candidate, the session disarms with `stopReason: plan_drained`. The UI toggle removed in 2026-03-21 is not reintroduced — verbal trigger is the sole user-driven arm path.
+- **Verbal arm / disarm** (specs/\_archive/autonomous-opt-in/ Phase 4-6, 2026-04-23): `packages/opencode/src/session/autorun/detector.ts` scans each ingested user message for configured trigger / disarm phrases (loaded from `/etc/opencode/tweaks.cfg` keys `autorun_trigger_phrases` / `autorun_disarm_phrases`, pipe-separated). A match flips `workflow.autonomous.enabled` via `Session.updateAutonomous`. `packages/opencode/src/session/autorun/observer.ts` subscribes to `KillSwitchChanged` and sweeps every armed root session to disarmed on activation. `packages/opencode/src/session/autorun/refill.ts` materializes the next phase of a session's active `specs/<slug>/tasks.md` (state=implementing, discovered under `Instance.directory/specs/*`) when an armed session drains its todolist; if no refill candidate, the session disarms with `stopReason: plan_drained`. The UI toggle removed in 2026-03-21 is not reintroduced — verbal trigger is the sole user-driven arm path.
 - Autonomous continuation no longer depends on `packages/opencode/src/session/prompt/runner.txt` or a completion-verify prompt contract. Armed sessions now enqueue only a minimal resume signal, and `packages/opencode/src/session/workflow-runner.ts` stops immediately when no actionable todo exists instead of hardcoding an "update the todolist" prompt.
 - `packages/mcp/system-manager/src/index.ts` session/dialog tools are DB-backed through the daemon session API boundary: session metadata/search/subagent listing/export/handover use `/api/v2/session` and `/api/v2/session/:id`, while dialog reads use `/api/v2/session/:id/message`. These routes resolve through `Session.listGlobal` / `Session.get` / `Session.messages` and the `MessageV2` `StorageRouter`, so the MCP tool does not read `storage/session/<sid>/info.json` or legacy message directories as a fallback. Undo/redo-style session mutations use `/session/:id/revert` and `/session/:id/unrevert` rather than editing session metadata files directly.
+- Claude Code native takeover is an explicit adapter boundary, not a storage fallback. `packages/opencode/src/session/claude-import.ts` reads project-scoped Claude JSONL transcripts from the supported Claude Code project transcript convention or an explicit transcript path, deterministically normalizes user/assistant text plus bounded tool evidence, and fails fast on unsupported blocks. `packages/opencode/src/server/routes/session.ts` exposes `GET /session/import/claude` for project-scoped native transcript rows and `POST /session/import/claude` for idempotent import/delta sync. Imported takeover sessions are written only through `Session.createNext`, `Session.updateMessage`, and `Session.updatePart`, preserving Bus events and `MessageV2` storage-router authority.
 
 ### Tool Self-Bounding (Layer 2 of context-management subsystem, 2026-04-29)
 
@@ -239,7 +240,7 @@ truncate AND a paid kind remains in the chain, run() escalates
 provider-switched / manual all map to `false`. The 2026-04-27 infinite
 loop bug is structurally extinct.
 
-Phase A edge cleanup (2026-05-01, specs/_archive/compaction-improvements):
+Phase A edge cleanup (2026-05-01, specs/\_archive/compaction-improvements):
 provider-switched compaction now exposes `SessionCompaction.kindChainFor`
 for tests and uses `narrative → replay-tail`, preserving the no-paid-kind
 rule while avoiding silent narrative-only failure. The prompt runloop
@@ -251,7 +252,7 @@ it logs the boundary state and stops before spawning another model round
 instead of throwing `No user message found in stream`.
 
 Phase B context-budget surfacing (2026-05-01,
-specs/_archive/compaction-improvements): prompt assembly appends a cache-safe
+specs/\_archive/compaction-improvements): prompt assembly appends a cache-safe
 `<context_budget>` text envelope to the latest user message passed to the
 model. The envelope uses only the most recent non-empty server-confirmed
 assistant usage snapshot (`tokens.input`, `cache.read`) and labels status
@@ -261,7 +262,7 @@ self-heal nudges carry the same envelope, and subagent sessions inherit the
 same assembly path for their own session-local budget.
 
 Phase C trigger inventory and codex routing (2026-05-01,
-specs/_archive/compaction-improvements): `deriveObservedCondition` is now backed by
+specs/\_archive/compaction-improvements): `deriveObservedCondition` is now backed by
 an explicit `TRIGGER_INVENTORY` precedence contract including
 `stall-recovery` and `predicted-cache-miss`. Stall recovery compacts after
 consecutive empty high-context assistant rounds without injecting a
@@ -278,7 +279,7 @@ compact_threshold }]`; the standalone `/responses/compact` hook remains kind
 `low-cost-server`.
 
 Phase D/E big-content boundary and telemetry (2026-05-01,
-specs/_archive/compaction-improvements): oversized boundary payloads are routed by
+specs/\_archive/compaction-improvements): oversized boundary payloads are routed by
 session-scoped reference instead of being injected raw into the next model
 context. `MessageV2.AttachmentRefPart` (`type: "attachment_ref"`) is the
 message-stream pointer, while raw bytes live behind `SessionStorage.Router`
@@ -374,7 +375,7 @@ Implementation history in `docs/events/`.
 
 ### Hybrid-LLM Compaction (Phase 2 of context-management subsystem, 2026-04-29)
 
-`hybrid_llm` (specs/_archive/tool-output-chunking/, refactor 2026-04-29) is a background enrichment post-step for `overflow / cache-aware / manual` triggers when `compaction_enable_hybrid_llm` is enabled. The foreground chain first commits a fast anchor (`narrative / replay-tail / low-cost-server / llm-agent`, provider-aware as described above); after success, `scheduleHybridEnrichment` may upgrade that anchor asynchronously. Maintenance triggers (`idle / rebind / continuation-invalidated / provider-switched`) are untouched — they don't need a paid LLM call.
+`hybrid_llm` (specs/\_archive/tool-output-chunking/, refactor 2026-04-29) is a background enrichment post-step for `overflow / cache-aware / manual` triggers when `compaction_enable_hybrid_llm` is enabled. The foreground chain first commits a fast anchor (`narrative / replay-tail / low-cost-server / llm-agent`, provider-aware as described above); after success, `scheduleHybridEnrichment` may upgrade that anchor asynchronously. Maintenance triggers (`idle / rebind / continuation-invalidated / provider-switched`) are untouched — they don't need a paid LLM call.
 
 - **`SessionCompaction.Hybrid` namespace** (in `packages/opencode/src/session/compaction.ts`): types mirror `specs/_archive/tool-output-chunking/data-schema.json` (`Anchor` / `JournalEntry` / `PinnedZoneEntry` / `ContextMarkers` / `ContextStatus` / `LLMCompactRequest` / `CompactionEvent` / `ErrorCode`). Pure functions for validation + envelope wrapping + payload construction.
 - **`Memory.Hybrid` accessors** (in `memory.ts`): selectors over the message stream — `getAnchorMessage` / `getJournalMessages` / `getPinnedToolMessages` / `recallMessage`. INV-10 single-source-of-truth preserved.
@@ -472,14 +473,14 @@ Legacy all-in-one `opencode.json` continues to work unchanged — the split file
 
 - `packages/opencode/src/provider/transform.ts` Anthropic branch returns the `xhigh` variant (budget `min(32_000, model.limit.output - 1)`) for models whose id matches `claude-opus-4-N` with `N >= 7`, or whose `release_date >= "2026-03-19"`. Mirrors the OpenAI `xhigh` gate pattern.
 
-### Codex family rotation rule (plans/codex-rotation-hotfix, 2026-04-18; superseded in part by specs/_archive/provider-account-decoupling 2026-05-03)
+### Codex family rotation rule (plans/codex-rotation-hotfix, 2026-04-18; superseded in part by specs/\_archive/provider-account-decoupling 2026-05-03)
 
 - Codex and openai share the ChatGPT subscription `wham/usage` endpoint. `RateLimitJudge.getBackoffStrategy` returns `"cockpit"` for both families; `fetchCockpitBackoff` treats them identically via the `COCKPIT_WHAM_USAGE_FAMILIES` set. The pure helper `evaluateWhamUsageQuota` drives per-candidate `isQuotaLimited` inside `rotation3d.buildFallbackCandidates`, so a codex account that drained its 5H or weekly window is skipped instead of blindly retried.
 - ~~`rotation3d.enforceCodexFamilyOnly`~~ **deleted 2026-05-03 by `specs/_archive/provider-account-decoupling/` DD-5.** Rotation comparisons are now pure equality on family-form `providerId`. Same-family containment is enforced structurally (registry only holds family entries; per-account state lives under `providers[family].accounts[accountId]`), not by a string-shape gate. Codex follows the same rotation policy as every other family.
 - When `findFallback` returns null and the current vector is codex, `session/llm.ts::handleRateLimitFallback` throws `CodexFamilyExhausted` (NamedError defined in `rate-limit-judge.ts`). `session/processor.ts` wraps each in-catch-block `handleRateLimitFallback` call with a local try/catch that surfaces the error via `MessageV2.fromError` and sets session state to idle; the preflight call in the outer try block bubbles the throw into the existing catch-fallthrough path.
 - `account/rotation/backoff.ts::parseRateLimitReason` adds passive message-pattern guards for codex 5H / response-time-window / weekly-usage strings as a belt-and-suspenders when cockpit is unreachable, mapping them to `QUOTA_EXHAUSTED`.
 
-### Provider / Family / Account Naming (specs/_archive/provider-account-decoupling, 2026-05-03)
+### Provider / Family / Account Naming (specs/\_archive/provider-account-decoupling, 2026-05-03)
 
 Three orthogonal dimensions are addressed throughout the dispatch chain:
 
@@ -935,7 +936,7 @@ restart to apply changes (same model as `opencode.cfg`).
 
 ## Question Tool Abort Lifecycle
 
-Runtime SSOT for the `question` tool / `Question.ask` state machine. Added 2026-04-19 alongside [specs/_archive/question-tool-abort-fix/](question-tool-abort-fix/).
+Runtime SSOT for the `question` tool / `Question.ask` state machine. Added 2026-04-19 alongside [specs/\_archive/question-tool-abort-fix/](question-tool-abort-fix/).
 
 ### Overview
 
@@ -1343,6 +1344,7 @@ The earlier description below (layout / layered model / dispatcher boundary / to
 **Carrier**: `MessageV2.AttachmentRefPart` carries `repo_path` + `sha256` for new refs; legacy refs (no `repo_path`) keep going through the `attachments` table. Both readable indefinitely; no schema migration required.
 
 **Dispatcher boundary (`packages/opencode/src/incoming/dispatcher.ts`)** — post HTTP-transport rewrite:
+
 - `before(toolName, args, appId, sessionID)` — scans args for project-relative paths, multipart-POSTs each to the app's `/files` endpoint (resolved from mcp-apps.json's `transport` + `url`; for `unix://` URLs the dispatcher uses Bun's `{unix: socketPath}` fetch option), records the returned tokens, and rewrites the path → token in the args.
 - `after(result, ctx)` — looks for `structuredContent.bundle_tar_b64` in the mcp tool's result; if present, base64-decode → `tar -xf` into `<projectRoot>/<sourceDir>/<stem>/`. Best-effort `DELETE /files/{token}` for every token issued in `before()`.
 - The previous bind-mount mechanics — hard-link cache, EXDEV cross-fs fallback, manifest sha integrity — were retired in the cutover. `breakHardLinkBeforeWrite` is now a no-op stub kept for ABI compatibility; tools no longer call it.
@@ -1354,6 +1356,7 @@ The earlier description below (layout / layered model / dispatcher boundary / to
 **Decisions worth knowing system-wide (post-cutover):**
 
 From `specs/_archive/repo-incoming-attachments/`:
+
 - DD-1 fail-fast on no `session.project.path`.
 - DD-2 jsonl history per file at `incoming/.history/<filename>.jsonl`.
 - DD-12 filename sanitize (NFC + control strip + 256-byte cap).
@@ -1362,6 +1365,7 @@ From `specs/_archive/repo-incoming-attachments/`:
 - DD-17 new uploads live in repo + JSON metadata in `AttachmentRefPart` (`repo_path` + `sha256`); legacy `attachments` table untouched and remains readable.
 
 From `specs/_archive/docxmcp-http-transport/`:
+
 - DD-1 transport: MCP Streamable HTTP framing carried over Unix domain socket.
 - DD-2 file API: multipart raw bytes (no base64), token returned.
 - DD-3 token format `tok_<32-char-base32>`.
@@ -1399,13 +1403,13 @@ upload  → <repo>/incoming/<filename>.<ext>     [repo persistent layer]
 
 **The contract for a new mcp app:**
 
-| | Required / recommended | What |
-|---|---|---|
-| 1 | **must** | Implement the bundle producer in the call_tool wrapper: snapshot token_dir before call, diff after, tar+b64 new/touched files into `structuredContent.bundle_tar_b64`. Reference impl: `docxmcp/bin/mcp_server.py` `_pre_snapshot` / `_maybe_build_bundle`. |
-| 2 | **should** | First-call auto-decompose to a documented convention dir under token_dir (docxmcp uses `unpacked/`). Idempotent: skip if convention dir already exists so AI's edits are not overwritten. |
-| 3 | **should** | Tool descriptions mention the convention dir name and that decomposed files appear at `incoming/<stem>/<convention>/...` on host. AI then knows to use plain `read` on those paths. |
-| 4 | **must** | Bundle producer excludes the original upload (only ships NEW files) so the host bundle stays small. |
-| 5 | **must not** | Use any host bind mount for data interchange. The bundle path is the only sanctioned IPC for files going host ← container. |
+|     | Required / recommended | What                                                                                                                                                                                                                                                        |
+| --- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **must**               | Implement the bundle producer in the call_tool wrapper: snapshot token_dir before call, diff after, tar+b64 new/touched files into `structuredContent.bundle_tar_b64`. Reference impl: `docxmcp/bin/mcp_server.py` `_pre_snapshot` / `_maybe_build_bundle`. |
+| 2   | **should**             | First-call auto-decompose to a documented convention dir under token_dir (docxmcp uses `unpacked/`). Idempotent: skip if convention dir already exists so AI's edits are not overwritten.                                                                   |
+| 3   | **should**             | Tool descriptions mention the convention dir name and that decomposed files appear at `incoming/<stem>/<convention>/...` on host. AI then knows to use plain `read` on those paths.                                                                         |
+| 4   | **must**               | Bundle producer excludes the original upload (only ships NEW files) so the host bundle stays small.                                                                                                                                                         |
+| 5   | **must not**           | Use any host bind mount for data interchange. The bundle path is the only sanctioned IPC for files going host ← container.                                                                                                                                  |
 
 **Why the pattern matters**: AI works in two modes against any uploaded
 file — (i) read/inspect (use `bash` directly; mcp adds nothing), (ii)
@@ -1416,5 +1420,6 @@ synchronously with the first tool call, so subsequent edits and reads
 are plain filesystem ops with no container round-trip.
 
 **Reference implementation (docxmcp)**:
+
 - `bin/mcp_server.py` — `_ensure_decomposed` (convention=`unpacked/`, zipfile.extractall + lxml pretty-print), `_pre_snapshot` / `_maybe_build_bundle` (snapshot+diff+tar+b64).
 - `packages/opencode/src/incoming/dispatcher.ts` — `after()` decodes `structuredContent.bundle_tar_b64`, untars to `<projectRoot>/<sourceDir>/<stem>/`.

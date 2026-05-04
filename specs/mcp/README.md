@@ -366,14 +366,14 @@ written.
 
 ### Related entries
 
-- [agent-runtime.md](./agent-runtime.md) — `skill-finder` /
+- [agent-runtime.md](../agent-runtime/README.md) — `skill-finder` /
   `mcp-finder` for tool-surface expansion; the mandatory-skills layer
   that pins newly-discovered capabilities into the registry that
   feeds enablement.
-- [attachments.md](./attachments.md) — repo-incoming-attachments
+- [attachments.md](../attachments/README.md) — repo-incoming-attachments
   pipeline; docxmcp consumer side. The `docx-upload-autodecompose`
   flow (fast outline + background body) lives there.
-- [session.md](./session.md) — runloop integration of MCP tools via
+- [session.md](../session/README.md) — runloop integration of MCP tools via
   `resolve-tools.ts`.
 - [architecture.md](./architecture.md) — system-wide MCP overview;
   `## Managed App Registry (MCP Apps)` and `## Incoming Attachments

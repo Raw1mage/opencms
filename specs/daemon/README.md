@@ -448,10 +448,10 @@ that document.
 
 ### Related entries
 
-- [meta.md](./meta.md) — config-management surface; `opencode.cfg`,
+- [meta.md](../meta/README.md) — config-management surface; `opencode.cfg`,
   `tweaks.cfg`, `mcp-apps.json`, the SYSTEM.md / AGENTS.md split.
-- [webapp.md](./webapp.md) — web frontend; served through the gateway
+- [webapp.md](../webapp/README.md) — web frontend; served through the gateway
   via `/etc/opencode/web_routes.conf` and `OPENCODE_FRONTEND_PATH`.
-- [provider.md](./provider.md) — provider runtime; lives inside the
+- [provider.md](../provider/README.md) — provider runtime; lives inside the
   per-user daemon process and depends on the daemon lifecycle
   authority defined here for any "restart provider" semantics.

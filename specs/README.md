@@ -11,17 +11,17 @@ preserved under `_archive/` for history.
 
 | Entry | What it covers |
 |---|---|
-| [compaction](./compaction.md) | Context reduction, KV-cache hardening, anchor / journal / pinned-zone, idle gate, hybrid LLM compaction, codex server-side compaction. |
-| [session](./session.md) | Session storage (SQLite), capability layer / rebind, HTTP poll cache, frontend lazyload, mobile tail-first, dialog stream. |
-| [provider](./provider.md) | Provider abstraction (anthropic, codex, openai, gemini-cli, google-api), fingerprint alignment, account-decoupling boundary, lmv2 envelope. |
-| [account](./account.md) | Account model, accounts.json, multi-account auth, OAuth flows, family-normalization, multi-user gateway model. |
-| [attachments](./attachments.md) | Image / docx / repo-tracked attachment lifecycle, AI opt-in re-read, docxmcp HTTP-over-unix-socket transport. |
-| [mcp](./mcp.md) | MCP framework, McpAppManifest + ManagedAppRegistry split, idle unload (proposed), Direct Render TODO. |
-| [agent-runtime](./agent-runtime.md) | Agent loop & autonomy, subagent dispatch & quota, mandatory skills preload, question tool, scheduler / heartbeat. |
-| [daemon](./daemon.md) | C gateway + per-user bun daemon, `webctl.sh`, `restart_self`, daemon.lock, DAEMON_SPAWN_DENYLIST. |
-| [webapp](./webapp.md) | SolidJS SPA, Admin Panel `/admin`, route registration, voice input, rich rendering. |
-| [app-market](./app-market.md) | Three-kind unified install surface (mcp-server / managed-app / mcp-app), Admin Panel installer. |
-| [meta](./meta.md) | plan-builder skill, architecture documentation flow, config management (XDG, /etc/opencode/, tweaks.cfg). |
+| [compaction](./compaction/README.md) | Context reduction, KV-cache hardening, anchor / journal / pinned-zone, idle gate, hybrid LLM compaction, codex server-side compaction. |
+| [session](./session/README.md) | Session storage (SQLite), capability layer / rebind, HTTP poll cache, frontend lazyload, mobile tail-first, dialog stream. |
+| [provider](./provider/README.md) | Provider abstraction (anthropic, codex, openai, gemini-cli, google-api), fingerprint alignment, account-decoupling boundary, lmv2 envelope. |
+| [account](./account/README.md) | Account model, accounts.json, multi-account auth, OAuth flows, family-normalization, multi-user gateway model. |
+| [attachments](./attachments/README.md) | Image / docx / repo-tracked attachment lifecycle, AI opt-in re-read, docxmcp HTTP-over-unix-socket transport. |
+| [mcp](./mcp/README.md) | MCP framework, McpAppManifest + ManagedAppRegistry split, idle unload (proposed), Direct Render TODO. |
+| [agent-runtime](./agent-runtime/README.md) | Agent loop & autonomy, subagent dispatch & quota, mandatory skills preload, question tool, scheduler / heartbeat. |
+| [daemon](./daemon/README.md) | C gateway + per-user bun daemon, `webctl.sh`, `restart_self`, daemon.lock, DAEMON_SPAWN_DENYLIST. |
+| [webapp](./webapp/README.md) | SolidJS SPA, Admin Panel `/admin`, route registration, voice input, rich rendering. |
+| [app-market](./app-market/README.md) | Three-kind unified install surface (mcp-server / managed-app / mcp-app), Admin Panel installer. |
+| [meta](./meta/README.md) | plan-builder skill, architecture documentation flow, config management (XDG, /etc/opencode/, tweaks.cfg). |
 
 ## Index / cross-cutting
 

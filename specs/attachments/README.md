@@ -301,17 +301,17 @@ cost bounded.
 
 ### Related entries
 
-- [compaction.md](./compaction.md) — big-content boundary handling
+- [compaction.md](../compaction/README.md) — big-content boundary handling
   (R6 in the legacy `compaction-improvements` spec) is implemented in
   this subsystem, not the compaction runloop. Image binary in
   trailing extras (BP4 zone) is specifically positioned to preserve
   Phase B BP1/BP2/BP3 cache locality across turns.
-- [mcp.md](./mcp.md) — `docxmcp` is an MCP app; the
+- [mcp.md](../mcp/README.md) — `docxmcp` is an MCP app; the
   HTTP-over-Unix-socket transport, container mount discipline, and
   the Direct Render Protocol (TODO) live in MCP territory. The
   attachment subsystem only consumes the docxmcp tools via
   `MCP.execute` from `decompose-hook.ts` and the dispatcher.
-- [session.md](./session.md) — `attachment_ref` parts ride on
+- [session.md](../session/README.md) — `attachment_ref` parts ride on
   `MessageV2` user messages; the session schema's
   `execution.activeImageRefs` queue is the per-turn handoff between
   voucher tool and preface assembly.
