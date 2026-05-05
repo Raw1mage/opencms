@@ -32,16 +32,65 @@ Routing must be cleaned up first. Stub placement (originally Phase 2.x / 3.x) is
 - [ ] 2.8 Resolve every entry in 2.7 by fixing the root layer (ports first, then channel allocation, then detour, then bus). NO stub edits during this phase.
 - [ ] 2.9 Re-render all 11 figures; confirm zero entries remaining in `routing_defects.jsonl`. Lock as routing baseline.
 
-## 2b. Stub placement → L4 (depends on 2 complete)
+## 2b. Big-Batch Refactor (DD-19~25, planned 2026-05-06)
 
-User directive: "Stub越後放越好。移到L4就對了。沒有完整的走線，Stub沒有放置的依據。"
+**Scope**: Implements DD-19 through DD-25 in a single coordinated refactor. Earlier sub-phases (2.1-2.6) were defect closures; 2b is the architecture cleanup the user authorized.
 
-- [ ] 2b.1 Remove `object_gap_slots[stub:Tx]` reservation block from L1 `plan_global_grid` (lines ~1223-1274). L1 no longer pre-reserves stub slots.
-- [ ] 2b.2 Remove ConditionStub creation block from L3 `route_control_edges` (lines ~3737-3795). L3 returns route geometry only.
-- [ ] 2b.3 Remove stub re-snap fallback from L5 `compact_layout_y_lanes` (lines ~2258-2295). L5 only projects already-placed stubs through `project_y`.
-- [ ] 2b.4 Add `place_condition_stubs_post_routing(layout_model)` invoked at start of L4 `detect_layout_violations`. Inputs: finalized routes from L3. Output: tuple of ConditionStub placed at neighbor-edge midpoint, snapped only to avoid box/wide-gate-bar overlap.
-- [ ] 2b.5 Stub label-height inflation moves from L5 (lines ~1948-1995) to L4 (after stub placement, before violation detection). L5 reads stub heights as fixed input.
-- [ ] 2b.6 Smoke test: render all 11 figures; assert 0 floating stubs (every stub center lies on its `neighbor_edge` route geometry); assert 0 stub-on-bar overlaps.
+User directive 2026-05-06: "你可以更新plan把L1~L6該做的事再整理一遍，然後一次做一票大工程".
+
+### 2b.A — Eliminate `track` Gate type (DD-19)
+
+- [ ] 2b.A.1 In `arrange_transition_gates`, when `gate_key.startswith("transition:")`, do NOT create a Gate object. Skip and let the transition flow as direct step→target/converge edge.
+- [ ] 2b.A.2 In `route_control_edges`, when transition has no Gate (gate_key is "transition:Tn"), produce ONE direct edge `edge:T<id>:direct` from source step output to target step input (or target's gate-input port if target has converge).
+- [ ] 2b.A.3 Update `_gate_type` enum / signature to drop "track" — only 4 values remain.
+- [ ] 2b.A.4 L6 `emit_layout_svg` no longer emits Gate bars for type=track (because no such Gate exists). The condition bar appears via L4 stub.
+- [ ] 2b.A.5 Smoke: render all 11 figures; spine connections (T1, T2, T3 etc. in account/agent-runtime) still show condition bars, sourced from L4 stubs.
+
+### 2b.B — L4 Stub Layer (DD-20, DD-21)
+
+- [ ] 2b.B.1 Remove `object_gap_slots[stub:Tx]` reservation block from L1 `plan_global_grid`. L1 no longer pre-reserves stub slots.
+- [ ] 2b.B.2 Remove ConditionStub center calc from L3 `route_control_edges`. L3 returns route geometry only.
+- [ ] 2b.B.3 Remove stub re-snap fallback from L5 `compact_layout_y_lanes`. L5 only projects through equal-spacing rule.
+- [ ] 2b.B.4 Add new function `place_transition_stubs(layout_model) -> LayoutModel` invoked AFTER `route_control_edges` and BEFORE `detect_layout_violations`. For each transition that needs a stub (formerly track gates + converge arms + diverge arms), find its drop segment in the route and create a ConditionStub bound to it.
+- [ ] 2b.B.5 Stub center is left UNSET (None) at this point — only `bound_edge_id` and `drop_segment_index` are set. L5 fills in y via equal-spacing.
+- [ ] 2b.B.6 Smoke: render all 11 figures; every visible 2u-wide bar with a condition label is a ConditionStub in `layout_model.condition_stubs`.
+
+### 2b.C — L5 Equal-Spacing Universal Rule (DD-21)
+
+- [ ] 2b.C.1 Replace dense_remap heuristic with strict equal-spacing: for each gap_row, list all occupants (boxes-edges, gates, stubs, channels, route lanes), assign each to the next 2u slot in a single sorted pass.
+- [ ] 2b.C.2 For each drop segment, list occupants (start endpoint, stubs, end endpoint), enforce 2u between adjacent. Stub.center.y = (slot_index_of_stub + 1) * 2u from start endpoint.
+- [ ] 2b.C.3 Remove `channel_only_pullup` heuristic — channels are full participants in equal-spacing now.
+- [ ] 2b.C.4 Smoke: agent-runtime gap_row 9 still produces 2u-2u-2u; meta T17 stub now at midpoint of (33.16, 48)→(33.16, 74) drop = y=61 (was y=72).
+
+### 2b.D — L1 Fixpoint Iteration (DD-23, DD-25)
+
+- [ ] 2b.D.1 Wrap `plan_global_grid`'s placement loop in iteration: `while constraints_changed and iter_count < 10`.
+- [ ] 2b.D.2 First pass collects "south-detour-required" set: every cross-row transition where source col != target col gets a constraint on source col's downstream rows.
+- [ ] 2b.D.3 Second pass: when laying out row N+1, check if row N's column has a south-detour constraint. If yes, reserve detour lane in row N+1's gap (push next box down by 2u).
+- [ ] 2b.D.4 Detect convergence: same constraint set as previous iteration → stop.
+- [ ] 2b.D.5 Add `_drop_first_constraint(transition)` enforcing source-gate edge starts with south drop in source col (DD-25).
+- [ ] 2b.D.6 Smoke: meta T12 (was T17 — depends on figure) source-gate edge starts with south drop, no longer goes north-first.
+
+### 2b.E — L3 Hard Gate (DD-24)
+
+- [ ] 2b.E.1 In `run_repair_loop`, after detour pass + violation re-check, if hard violations remain (cross-box, cross-bar, north-first-detected), trigger L1 re-iteration with violation as new constraint.
+- [ ] 2b.E.2 Cap re-iterations at 5; on cap exceeded, raise `GrafcetSemanticError` with violation list. Do NOT return broken layout as warnings.
+- [ ] 2b.E.3 L4 (new) and L5 (equal-spacing) must NOT introduce new hard violations; if they do, pre-existing tagging from DD-11 reverts.
+- [ ] 2b.E.4 Smoke: any current `Warning: GRAF_LAYOUT_VIOLATION` in the regen logs becomes either a successful render OR a hard error — never a warning + broken figure.
+
+### 2b.F — Bus Convention (DD-22, partial — already in 80% commit)
+
+- [x] 2b.F.1 `_right_lane_x` helper added (commit a049284 in drawmiat).
+- [x] 2b.F.2 Routing uses `_right_lane_x` for `is_bypass and not is_feedback`.
+- [ ] 2b.F.3 Verify all 11 figures' forward bypasses use right bus. Currently `_right_lane_x` may not trigger because most forward bypasses use `_branch_rail` helpers with different column logic.
+- [ ] 2b.F.4 Audit `_branch_rail*` family: for forward bypass cases inside, switch to right_lane_x.
+
+### 2b.G — Final Verification
+
+- [ ] 2b.G.1 Re-render all 11 figures.
+- [ ] 2b.G.2 No `GRAF_LAYOUT_VIOLATION` warnings in any figure's render log.
+- [ ] 2b.G.3 Visual checklist: no stub on horizontal segment, no bar overlapping route, no route on box edge, no north-first source-gate, no track Gate object.
+- [ ] 2b.G.4 Lock as new baseline; commit.
 
 ## 3. L4 new violation checks + L5 cooperation
 

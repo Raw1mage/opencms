@@ -4,14 +4,14 @@
 
 `grafcet_renderer.py` is a 4000+ line single-file Python module that produces SVG diagrams from JSON grafcet step descriptions.
 
-**Layer model — authoritative as of 2026-05-05 (user directive):**
+**Layer model — authoritative as of 2026-05-06 (refined from user clarifications):**
 
-- **L1 — Box & Gate**: place step boxes, action boxes, gates (incl. simplification rule, branch anchors, ports w/ exit_dir).
-- **L2 — Routing**: build all edge routes from finalized port positions (no stub work).
-- **L3 — Routing Validation**: detect routing-only violations (cross-box, cross-bar, channel collision); feed back to L2 if needed.
-- **L4 — Stub**: place ConditionStubs **after** routing is validated; stub center derives from finalized route geometry. Sole layer responsible for stub center + alignment.
-- **L5 — Balance**: grouping → remapping → compaction → refit. Operates on Y; never re-places stubs.
-- **L6 — Text**: text/label rendering, wrap, alignment cluster locking.
+- **L1 — Box & Gate**: place step+number box pairs and gates. Gate taxonomy: only 4 types (and/or × diverge/converge), all with N≥2 ports distributed evenly on bar. **1-in-1-out transitions are NOT Gates — they are transition stubs handled by L4.** L1 must run as **fixpoint iteration** (not single-pass) — when walk encounters a backward reference, backtrack to the affected object and re-walk forward with new constraint until no new constraints emerge.
+- **L2 — Routing**: build all edge routes from finalized port positions. Bus convention: forward bypass uses RIGHT bus (`_right_lane_x`), feedback uses LEFT bus (`_lane_x`). Source-gate edge for cross-row transitions must drop SOUTH first (within source column), then turn east/west — never north-first.
+- **L3 — Routing Validation**: hard gate. Detects cross-box / cross-bar / channel collisions / wrong-direction routes. **No warnings — must repair (loop back to L2/L1 with constraint) or fail render.** Currently the repair_loop returns warnings + broken SVG; that is a defect.
+- **L4 — Stub**: place ALL transition stubs (the short bar with condition label) — both ConditionStubs (multi-arm diverge/converge) and former-track-gate bars (1-in-1-out). Stub belongs to a specific edge; center derives from L5 equal-spacing, not from neighbor-line midpoint heuristic.
+- **L5 — Balance**: grouping → remapping → compaction → refit. **Universal rule: 2u between adjacent objects on the same drop / channel.** "Stub at midpoint of drop" is a CONSEQUENCE of equal-spacing applied to a single-stub-on-drop case — it is never a primary rule. Multi-occupant drops apply equal-spacing to all occupants.
+- **L6 — Text**: text/label rendering, wrap, alignment cluster locking. Junction circle filled/hollow per L4-validated topology.
 
 This re-numbering supersedes the historical "L1 placement / L2 gate arrange / L3 routing / L4 violation / L5 compaction / L6 emit" model. In the historical model, stub placement was scattered across L1 (slot reservation), L3 (center from route midpoint), and L5 (re-snap fallback) — that is exactly the source of the recurring stub regressions ("修復點放在錯的 Layer"). Under the new model stub is one layer with one responsibility.
 
@@ -77,6 +77,31 @@ User has reported 23 distinct defects (D-01 to D-23) across nine grafcet figures
 - **DD-17** — Open question O-4 (debug log activation): opt-in via `OPENCODE_GRAFCET_DEBUG=1`; off by default. (2026-05-05)
 
 - **DD-18** — Open question O-5 (CI baselines): redo all baselines as part of this overhaul's verification phase; lock new baselines after Phase 7 visual review. (2026-05-05)
+
+- **DD-19** — **Gate taxonomy is closed: 4 types only** (`and_diverge`, `or_diverge`, `and_converge`, `or_converge`), all with arity N≥2 on the multi-side. The historical `track` type is illegal — 1-in-1-out transitions must NOT be modelled as Gate objects. They are condition stubs handled by L4. When `_gate_key` returns `f"transition:{tid}"`, that transition has NO Gate; routing produces a direct edge from source step to target's gate-input port (or to target step input if target has no gate), and L4 places a stub bar on the route's vertical drop segment. (2026-05-06)
+
+- **DD-20** — **Stub placement universal rule**: stubs live on a vertical drop (input or output drop line) between an originating endpoint and a terminating endpoint. Originating/terminating endpoints are: box edge midpoint (top for input drop, bottom for output drop) or gate port position. Stub center is the result of L5's equal-spacing applied to all occupants of that drop. There is no separate "midpoint" rule; midpoint emerges naturally when there is only one stub on the drop. (2026-05-06)
+
+- **DD-21** — **L5 Universal Equal-Spacing Rule**: every adjacent pair of objects on the same drop / channel must be exactly 2u apart. This applies uniformly across stubs, gate bars, junctions, route channel lanes, box edges. L5 grouping/remapping/compaction/refit serves only this rule; it does not invent geometry. The "stub at midpoint of drop" outcome user sees is a degenerate case of equal-spacing applied to a 3-element drop (start endpoint + stub + end endpoint). (2026-05-06)
+
+- **DD-22** — **Bus convention**: forward bypass routes use the RIGHT bus (`_right_lane_x`); feedback routes use the LEFT bus (`_lane_x`). Right bus column = `max(action_box.right) + (2.0 + slot * 2u) * ROUTE_LANE_GAP`. Left bus column = `min(step_box.left) - (2.0 + slot * 2u) * ROUTE_LANE_GAP`. (2026-05-06)
+
+- **DD-23** — **L1 fixpoint iteration**: L1 is not a single forward pass. The pipeline:
+  1. First pass: walk objects in semantic order, place box+number pair per row, place gate per cross-row transition.
+  2. Constraint collection: for every cross-row transition, compute the source-column drop length needed to reach target column / converge bar.
+  3. Backtrack-and-replay: when constraint says "row N column C must allow a south detour lane", the affected row/column gets re-walked with the new constraint; downstream rows shift to make space.
+  4. Iterate until no new constraints emerge. Hard cap at 10 iterations; failure raises explicit error.
+  
+  This replaces the current single-pass L1 which cannot anticipate cross-row routing space. (2026-05-06)
+
+- **DD-24** — **L3 hard gate**: the `run_repair_loop` must NOT return a layout with unresolved hard violations as warnings. If post-detour validation still has cross-box / cross-bar / wrong-direction violations, the repair loop either:
+  - Triggers L1 re-iteration with the violation as new constraint
+  - Triggers L2 re-routing with alternative bus / anchor
+  - After max iterations, raises `GrafcetSemanticError` and refuses to render
+  
+  Current behavior of returning a "warning + broken SVG" is a defect being closed by this DD. (2026-05-06)
+
+- **DD-25** — **Forward-source-gate drop-first rule**: any source-gate edge for a forward (target row > source row) transition must drop SOUTH from the source step's bottom (or anchor) BEFORE turning east/west. North-first geometry is forbidden — it indicates the route helper picked the wrong entry strategy. L2 enforces this; L3 validates. (2026-05-06)
 
 ## Risks / Trade-offs
 
