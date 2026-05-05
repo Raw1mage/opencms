@@ -34,13 +34,13 @@
 <path class="edge" d="M 2.00 66.00 L 2.00 50.00"/>
 <path class="edge" d="M 2.00 50.00 L 21.75 50.00"/>
 <path class="edge edge-arrow" d="M 21.75 73.00 L 21.75 75.00"/>
-<path class="edge" d="M 21.75 75.00 L 21.75 77.00"/>
-<path class="edge" d="M 21.75 77.00 L 2.00 77.00"/>
+<path class="edge" d="M 10.00 75.00 L 10.00 77.00"/>
+<path class="edge" d="M 10.00 77.00 L 2.00 77.00"/>
 <path class="edge" d="M 2.00 77.00 L 2.00 66.00"/>
 <path class="edge edge-arrow" d="M 33.50 75.00 L 33.50 79.00"/>
 <path class="edge edge-arrow" d="M 33.50 82.00 L 33.50 84.00"/>
-<path class="edge" d="M 33.50 84.00 L 33.50 86.00"/>
-<path class="edge" d="M 33.50 86.00 L 0.00 86.00"/>
+<path class="edge" d="M 21.75 84.00 L 21.75 86.00"/>
+<path class="edge" d="M 21.75 86.00 L 0.00 86.00"/>
 <path class="edge" d="M 0.00 86.00 L 0.00 68.00"/>
 <path class="edge" d="M 0.00 68.00 L 21.75 68.00"/>
 <path class="edge edge-arrow" d="M 45.25 84.00 L 45.25 88.00"/>
@@ -120,8 +120,8 @@
 <line class="gate" x1="20.75" y1="57.00" x2="22.75" y2="57.00"/>
 <text class="gate-label" x="23.15" y="57.00"><tspan x="23.15" dy="0">模型invokes工具 &amp;&amp; argsValidate (relaxed token pattern)</tspan></text>
 <line class="gate" x1="7.75" y1="64.00" x2="35.75" y2="64.00"/>
-<line class="gate" x1="17.75" y1="75.00" x2="37.50" y2="75.00"/>
-<line class="gate" x1="29.50" y1="84.00" x2="49.25" y2="84.00"/>
+<line class="gate" x1="6.00" y1="75.00" x2="37.50" y2="75.00"/>
+<line class="gate" x1="17.75" y1="84.00" x2="49.25" y2="84.00"/>
 <line class="gate" x1="44.25" y1="93.00" x2="46.25" y2="93.00"/>
 <text class="gate-label-left" x="43.85" y="93.00"><tspan x="43.85" dy="0">clientClosed &amp;&amp; 狀態[clientName] cleared</tspan></text>
 <line class="gate" x1="9.00" y1="32.00" x2="11.00" y2="32.00"/>
@@ -136,14 +136,14 @@
 <text class="gate-label-left" x="10.35" y="85.00"><tspan x="10.35" dy="0">下一個工具呼叫arrives</tspan></text>
 <line class="gate" x1="30.75" y1="66.00" x2="32.75" y2="66.00"/>
 <text class="gate-label" x="33.15" y="66.00"><tspan x="33.15" dy="0">無待處理呼叫</tspan></text>
-<line class="gate" x1="20.75" y1="96.00" x2="22.75" y2="96.00"/>
-<text class="gate-label-left" x="20.35" y="96.00"><tspan x="20.35" dy="0">模型resumes工具use</tspan></text>
+<line class="gate" x1="9.00" y1="96.00" x2="11.00" y2="96.00"/>
+<text class="gate-label-left" x="8.60" y="96.00"><tspan x="8.60" dy="0">模型resumes工具use</tspan></text>
 <line class="gate" x1="32.50" y1="77.00" x2="34.50" y2="77.00"/>
 <text class="gate-label-left" x="32.10" y="77.68"><tspan x="32.10" dy="0">now - lastused於 &gt; tweaks.mcp.閒置unloadms (proposed)</tspan></text>
-<line class="gate" x1="32.50" y1="107.00" x2="34.50" y2="107.00"/>
-<text class="gate-label-left" x="32.10" y="107.00"><tspan x="32.10" dy="0">proposal不已交付 (stay 已釘選)</tspan></text>
+<line class="gate" x1="20.75" y1="107.00" x2="22.75" y2="107.00"/>
+<text class="gate-label-left" x="20.35" y="107.00"><tspan x="20.35" dy="0">proposal不已交付 (stay 已釘選)</tspan></text>
 <line class="gate" x1="44.25" y1="86.00" x2="46.25" y2="86.00"/>
-<text class="gate-label-left" x="43.85" y="86.68"><tspan x="43.85" dy="0">proposal已交付 &amp;&amp; inflight==0 (unload)</tspan></text>
+<text class="gate-label-left" x="43.85" y="86.00"><tspan x="43.85" dy="0">proposal已交付 &amp;&amp; inflight==0 (unload)</tspan></text>
 <line class="flyover-mask" x1="1.00" y1="68.00" x2="3.00" y2="68.00"/>
 <path class="flyover" d="M 1.00 68.00 Q 2.00 67.00 3.00 68.00"/>
 <circle class="junction" cx="21.75" cy="50.00" r="0.22"/>
