@@ -44,7 +44,7 @@
 <path class="edge edge-arrow" d="M 47.00 39.00 L 47.00 41.00"/>
 <path class="edge edge-arrow" d="M 23.50 41.00 L 23.50 49.00"/>
 <path class="edge edge-arrow" d="M 58.75 41.00 L 58.75 49.00"/>
-<path class="edge edge-arrow" d="M 47.00 41.00 L 47.00 42.50 Q 47.00 43.00 46.50 43.00 L -9.50 43.00 Q -10.00 43.00 -10.00 42.50 L -10.00 2.50 Q -10.00 2.00 -9.50 2.00 L 23.00 2.00 Q 23.50 2.00 23.50 2.50 L 23.50 4.00"/>
+<path class="edge edge-arrow" d="M 47.00 41.00 L 47.00 44.50 Q 47.00 45.00 46.50 45.00 L -9.50 45.00 Q -10.00 45.00 -10.00 44.50 L -10.00 2.50 Q -10.00 2.00 -9.50 2.00 L 23.00 2.00 Q 23.50 2.00 23.50 2.50 L 23.50 4.00"/>
 <path class="edge" d="M 23.50 52.00 L 23.50 54.00"/>
 <path class="edge" d="M 23.50 54.00 L 23.50 58.00"/>
 <path class="edge" d="M 23.50 58.00 L -8.00 58.00"/>
@@ -135,12 +135,12 @@
 <text class="gate-label" x="24.90" y="23.00"><tspan x="24.90" dy="0">tail已載入或304</tspan></text>
 <line class="gate" x1="-4.00" y1="32.00" x2="51.00" y2="32.00"/>
 <line class="gate" x1="-1.00" y1="43.00" x2="1.00" y2="43.00"/>
-<text class="gate-label" x="1.40" y="42.32"><tspan x="1.40" dy="0">httppost2xx &amp;&amp; 訊息appended</tspan></text>
+<text class="gate-label" x="1.40" y="42.32"><tspan x="1.40" dy="0">httppost2xx</tspan><tspan x="1.40" dy="0.68">&amp;&amp; 訊息</tspan><tspan x="1.40" dy="0.68">appended</tspan></text>
 <line class="gate" x1="-1.00" y1="56.00" x2="1.00" y2="56.00"/>
 <text class="gate-label" x="1.40" y="55.32"><tspan x="1.40" dy="0">runloops</tspan><tspan x="1.40" dy="0.68">tarted &amp;&amp;</tspan><tspan x="1.40" dy="0.68">串流open</tspan></text>
 <line class="gate" x1="-2.00" y1="71.00" x2="72.50" y2="71.00"/>
 <line class="gate" x1="10.75" y1="45.00" x2="12.75" y2="45.00"/>
-<text class="gate-label" x="13.15" y="45.00"><tspan x="13.15" dy="0">underratelimit</tspan></text>
+<text class="gate-label" x="13.15" y="44.32"><tspan x="13.15" dy="0">underratelimit</tspan></text>
 <line class="gate" x1="34.25" y1="47.00" x2="36.25" y2="47.00"/>
 <text class="gate-label" x="36.65" y="47.00"><tspan x="36.65" dy="0">olderslicereturned或empty</tspan></text>
 <line class="gate" x1="10.75" y1="78.00" x2="12.75" y2="78.00"/>
@@ -167,13 +167,13 @@
 <line class="gate" x1="34.25" y1="69.00" x2="36.25" y2="69.00"/>
 <text class="gate-label-left" x="33.85" y="69.00"><tspan x="33.85" dy="0">timelinerendered</tspan></text>
 <line class="gate" x1="22.50" y1="43.00" x2="24.50" y2="43.00"/>
-<text class="gate-label-left" x="22.10" y="41.64"><tspan x="22.10" dy="0">staleth</tspan><tspan x="22.10" dy="0.68">reshold</tspan><tspan x="22.10" dy="0.68">crossed</tspan></text>
+<text class="gate-label" x="24.90" y="43.00"><tspan x="24.90" dy="0">stalethresholdcrossed</tspan></text>
 <line class="gate" x1="57.75" y1="43.00" x2="59.75" y2="43.00"/>
-<text class="gate-label-left" x="57.35" y="43.68"><tspan x="57.35" dy="0">hardstalethresholdcrossed</tspan></text>
-<line class="gate" x1="46.00" y1="42.00" x2="48.00" y2="42.00"/>
-<text class="gate-label" x="48.40" y="42.00"><tspan x="48.40" dy="0">Session路由left</tspan></text>
-<line class="flyover-mask" x1="-9.00" y1="43.00" x2="-7.00" y2="43.00"/>
-<path class="flyover" d="M -9.00 43.00 Q -8.00 42.00 -7.00 43.00"/>
+<text class="gate-label" x="60.15" y="42.32"><tspan x="60.15" dy="0">hardstal</tspan><tspan x="60.15" dy="0.68">ethresho</tspan><tspan x="60.15" dy="0.68">ldcrossed</tspan></text>
+<line class="gate" x1="46.00" y1="43.00" x2="48.00" y2="43.00"/>
+<text class="gate-label" x="48.40" y="43.00"><tspan x="48.40" dy="0">Session路由left</tspan></text>
+<line class="flyover-mask" x1="-9.00" y1="45.00" x2="-7.00" y2="45.00"/>
+<path class="flyover" d="M -9.00 45.00 Q -8.00 44.00 -7.00 45.00"/>
 <circle class="junction" cx="23.50" cy="25.00" r="0.22"/>
 <circle class="junction" cx="-8.00" cy="58.00" r="0.22"/>
 <circle class="junction" cx="-8.00" cy="62.00" r="0.22"/>
