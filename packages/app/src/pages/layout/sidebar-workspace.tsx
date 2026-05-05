@@ -305,7 +305,7 @@ const WorkspaceSessionList = (props: {
   const activeLoading = createMemo(() => (sessionTab.value === "claude" ? claudeSessions.loading : props.loading()))
   const activeHasMore = createMemo(() => (sessionTab.value === "claude" ? false : props.hasMore()))
 
-  const importClaudeSession = async (row: ClaudeNativeSession) => {
+  const openClaudeSession = async (row: ClaudeNativeSession) => {
     setImportError(undefined)
     setImportingSource(row.sourceSessionID)
     try {
@@ -489,7 +489,8 @@ const WorkspaceSessionList = (props: {
               type="button"
               class="flex w-full items-center gap-2 rounded-md px-4 py-2 text-left text-13-regular text-text-base hover:bg-surface-interactive-base disabled:opacity-60"
               disabled={!!importingSource()}
-              onClick={() => importClaudeSession(row)}
+              aria-label={`Open Claude session ${row.title}`}
+              onClick={() => openClaudeSession(row)}
             >
               <Icon name="code" size="small" class="shrink-0 text-text-weak" />
               <span
@@ -498,9 +499,9 @@ const WorkspaceSessionList = (props: {
                 title="New content since last import"
               />
               <span class="min-w-0 flex-1 truncate">{row.title}</span>
-              <span class="shrink-0 text-11-regular text-text-weak">
-                {importingSource() === row.sourceSessionID ? "Importing" : row.importedSessionID ? "Sync" : "Import"}
-              </span>
+              <Show when={importingSource() === row.sourceSessionID}>
+                <Spinner class="size-[13px] shrink-0 text-text-weak" />
+              </Show>
             </button>
           )}
         </For>

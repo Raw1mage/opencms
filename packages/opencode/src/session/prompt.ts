@@ -882,7 +882,6 @@ export namespace SessionPrompt {
     }
   }
 
-
   async function runLoop(
     sessionID: string,
     options?: {
@@ -1282,6 +1281,28 @@ export namespace SessionPrompt {
             sessionID,
             step,
           })
+          // Hotfix 2026-05-05 — empty-response compaction was silently
+          // dropping the user's most recent question. After compaction
+          // commits its anchor (summary=1), `filterCompacted` truncates
+          // context at the anchor; any message older than it (including
+          // the unanswered user turn that just triggered the empty
+          // response) becomes invisible to the next iteration's LLM
+          // call. The model then saw only the compacted history + the
+          // PostCompaction follow-up ("todos done, wrap up if no further
+          // work implied") and produced a wrap-up reply, swallowing the
+          // user's question entirely.
+          //
+          // Strategy: snapshot the unanswered user message + parts,
+          // run compaction, then re-write the user message with a fresh
+          // ULID. The new id is monotonically larger than the anchor's
+          // id (time-ordered ULID), so filterCompacted picks it up.
+          // Delete the originals after the replay is durable so the UI
+          // doesn't render duplicates and the empty assistant doesn't
+          // dangle.
+          const replayUserFull = msgs.findLast((m) => m.info.id === lastUser.id)
+          const replayUserInfo = replayUserFull ? ({ ...replayUserFull.info } as MessageV2.User) : undefined
+          const replayUserParts = replayUserFull ? replayUserFull.parts.map((p) => ({ ...p }) as MessageV2.Part) : []
+          const emptyAssistantID = lastAssistant.id
           try {
             const result = await SessionCompaction.run({
               sessionID,
@@ -1289,6 +1310,40 @@ export namespace SessionPrompt {
               step,
             })
             log.info("self-heal: empty-response compaction returned", { sessionID, step, result })
+            if (replayUserInfo) {
+              try {
+                const newUserID = Identifier.ascending("message")
+                const newUser: MessageV2.User = {
+                  ...replayUserInfo,
+                  id: newUserID,
+                  time: { created: Date.now() },
+                }
+                await Session.updateMessage(newUser)
+                for (const part of replayUserParts) {
+                  await Session.updatePart({
+                    ...part,
+                    id: Identifier.ascending("part"),
+                    messageID: newUserID,
+                  } as MessageV2.Part)
+                }
+                await Session.removeMessage({ sessionID, messageID: emptyAssistantID })
+                await Session.removeMessage({ sessionID, messageID: replayUserInfo.id })
+                log.info("self-heal: replayed user message after anchor", {
+                  sessionID,
+                  step,
+                  originalUserID: replayUserInfo.id,
+                  newUserID,
+                  emptyAssistantID,
+                  partCount: replayUserParts.length,
+                })
+              } catch (replayErr) {
+                log.error("self-heal: replay-after-compact failed; user message may be hidden behind anchor", {
+                  sessionID,
+                  step,
+                  error: replayErr instanceof Error ? replayErr.message : String(replayErr),
+                })
+              }
+            }
             // Whether it succeeded or fell through, the runloop should
             // re-evaluate with the new (potentially smaller) stream.
             continue

@@ -1426,6 +1426,45 @@ export default function Page() {
     return active
   })
 
+  const mobileFilePaneContent = () => (
+    <div class="flex h-full min-h-0 flex-col bg-background-stronger">
+      <div class="shrink-0 flex items-center justify-between gap-3 border-b border-border-weak-base px-4 py-2">
+        <div class="min-w-0 flex-1 text-12-medium text-text-base truncate">
+          {activeFileTab() ? file.pathFromTab(activeFileTab()!) : language.t("session.files.selectToOpen")}
+        </div>
+        <Button type="button" variant="secondary" class="h-8 px-3 shrink-0" onClick={view().filePane.close}>
+          {language.t("common.close")}
+        </Button>
+      </div>
+      <Tabs value={activeTab()} onChange={openTab} class="flex min-h-0 flex-1 flex-col">
+        <Tabs.Content value="empty" class="flex-1 min-h-0 overflow-auto contain-strict">
+          <Show when={activeTab() === "empty"}>
+            <div class="h-full px-6 pb-42 flex flex-col items-center justify-center text-center gap-6">
+              <Mark class="w-14 opacity-10" />
+              <div class="text-14-regular text-text-weak max-w-56">{language.t("session.files.selectToOpen")}</div>
+            </div>
+          </Show>
+        </Tabs.Content>
+        <Show when={activeFileTab()} keyed>
+          {(tab) => (
+            <FileTabContent
+              tab={tab}
+              activeTab={activeTab}
+              tabs={tabs}
+              view={view}
+              handoffFiles={() => handoff.session.get(sessionKey())?.files}
+              file={file}
+              comments={comments}
+              language={language}
+              codeComponent={codeComponent}
+              addCommentToContext={addCommentToContext}
+            />
+          )}
+        </Show>
+      </Tabs>
+    </div>
+  )
+
   const desktopFilePaneOpen = createMemo(() => isDesktop() && view().filePane.opened())
   const desktopToolSidebarOpen = createMemo(() => isDesktop() && layout.fileTree.opened())
   const desktopSidePanelOpen = createMemo(() => desktopFilePaneOpen() || desktopToolSidebarOpen())
@@ -1920,16 +1959,7 @@ export default function Page() {
                 <Show when={messagesReady()} fallback={<SessionLoadingFallback />}>
                   <MessageTimeline
                     mobileChanges={mobileChanges()}
-                    mobileFallback={reviewContent({
-                      diffStyle: "unified",
-                      classes: {
-                        root: "pb-6",
-                        header: "px-4",
-                        container: "px-4",
-                      },
-                      loadingClass: "px-4 py-4 text-text-weak",
-                      emptyClass: "h-full pb-30 flex flex-col items-center justify-center text-center gap-6",
-                    })}
+                    mobileFallback={mobileFilePaneContent()}
                     scroll={ui.scroll}
                     onResumeScroll={resumeScroll}
                     setScrollRef={setScrollRef}

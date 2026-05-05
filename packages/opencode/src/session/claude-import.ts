@@ -98,8 +98,8 @@ export namespace ClaudeImport {
     return path.join(Global.Path.home, ".claude", "projects", projectKey(directory))
   }
 
-  function metadataKey(sourceSessionID: string) {
-    return ["session_import", Instance.project.id, sourceSessionID]
+  function metadataKey(sourceSessionID: string, directory = Instance.directory) {
+    return ["session_import", Instance.project.id, projectKey(directory), sourceSessionID]
   }
 
   function timestampMs(value: string | undefined, fallback: number) {
@@ -196,7 +196,11 @@ export namespace ClaudeImport {
     return { transcriptPath, lines: parsed }
   }
 
-  async function readTranscriptSummary(transcriptPath: string, sourceSessionID: string) {
+  async function readTranscriptSummary(
+    transcriptPath: string,
+    sourceSessionID: string,
+    directory = Instance.directory,
+  ) {
     const stat = await fs.stat(transcriptPath)
     const raw = await fs.readFile(transcriptPath, "utf8")
     const lines = raw.split(/\r?\n/).filter((line) => line.trim().length > 0)
@@ -216,9 +220,9 @@ export namespace ClaudeImport {
         continue
       }
     }
-    const metadata = await Storage.read<SourceMetadata & { sessionID?: string }>(metadataKey(sourceSessionID)).catch(
-      () => undefined,
-    )
+    const metadata = await Storage.read<SourceMetadata & { sessionID?: string }>(
+      metadataKey(sourceSessionID, directory),
+    ).catch(() => undefined)
     return {
       sourceSessionID,
       transcriptPath,
@@ -248,32 +252,33 @@ export namespace ClaudeImport {
     const rows = await Promise.all(
       entries
         .filter((entry) => entry.endsWith(".jsonl"))
-        .map((entry) => readTranscriptSummary(path.join(transcriptDir, entry), entry.slice(0, -".jsonl".length))),
+        .map((entry) =>
+          readTranscriptSummary(path.join(transcriptDir, entry), entry.slice(0, -".jsonl".length), directory),
+        ),
     )
     return rows.sort((a, b) => b.time.updated - a.time.updated || b.sourceSessionID.localeCompare(a.sourceSessionID))
   }
 
-  async function existingImportedSession(sourceSessionID: string) {
-    const metadata = await Storage.read<SourceMetadata & { sessionID?: string }>(metadataKey(sourceSessionID)).catch(
-      () => undefined,
-    )
+  async function existingImportedSession(sourceSessionID: string, directory = Instance.directory) {
+    const metadata = await Storage.read<SourceMetadata & { sessionID?: string }>(
+      metadataKey(sourceSessionID, directory),
+    ).catch(() => undefined)
     if (!metadata?.sessionID) return undefined
     return Session.get(metadata.sessionID).catch(() => undefined)
   }
 
-  async function writeSourceMetadata(sessionID: string, metadata: SourceMetadata) {
-    await Storage.write(metadataKey(metadata.sourceSessionID), { ...metadata, sessionID })
+  async function writeSourceMetadata(sessionID: string, metadata: SourceMetadata, directory = Instance.directory) {
+    await Storage.write(metadataKey(metadata.sourceSessionID, directory), { ...metadata, sessionID })
   }
 
   export async function importTranscript(input: Input): Promise<Result> {
     const parsed = await readTranscript(input)
-    const existing = await existingImportedSession(input.sourceSessionID)
+    const directory = input.directory ?? Instance.directory
+    const existing = await existingImportedSession(input.sourceSessionID, directory)
     const previous = await Storage.read<SourceMetadata & { sessionID?: string }>(
-      metadataKey(input.sourceSessionID),
+      metadataKey(input.sourceSessionID, directory),
     ).catch(() => undefined)
-    const session =
-      existing ??
-      (await Session.createNext({ directory: input.directory ?? Instance.directory, title: "Claude takeover" }))
+    const session = existing ?? (await Session.createNext({ directory, title: "Claude takeover" }))
     let appended = 0
     let parentID: string | undefined
     const start = previous?.sessionID === session.id ? previous.lineCount : 0
@@ -308,7 +313,7 @@ export namespace ClaudeImport {
           providerId: "claude-cli",
           mode: "import",
           agent: "claude",
-          path: { cwd: line.cwd ?? input.directory ?? Instance.directory, root: input.directory ?? Instance.directory },
+          path: { cwd: line.cwd ?? directory, root: directory },
           cost: 0,
           tokens: {
             input: line.message?.usage?.input_tokens ?? 0,
@@ -328,7 +333,6 @@ export namespace ClaudeImport {
         messageID,
         type: "text",
         text,
-        synthetic: true,
         metadata: {
           sourceProvider: "claude-code",
           sourceSessionID: input.sourceSessionID,
@@ -347,12 +351,16 @@ export namespace ClaudeImport {
         model: { providerId: "claude-cli", modelID: "claude-native-transcript" },
       })
     })
-    await writeSourceMetadata(session.id, {
-      provider: "claude-code",
-      sourceSessionID: input.sourceSessionID,
-      transcriptPath: parsed.transcriptPath,
-      lineCount: parsed.lines.length,
-    })
+    await writeSourceMetadata(
+      session.id,
+      {
+        provider: "claude-code",
+        sourceSessionID: input.sourceSessionID,
+        transcriptPath: parsed.transcriptPath,
+        lineCount: parsed.lines.length,
+      },
+      directory,
+    )
 
     return { sessionID: session.id, imported: !existing, appended, sourceSessionID: input.sourceSessionID }
   }

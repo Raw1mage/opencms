@@ -129,6 +129,27 @@ function setDevStats(value: {
   ;(globalThis as { __OPENCODE_GLOBAL_SYNC_STATS?: typeof value }).__OPENCODE_GLOBAL_SYNC_STATS = value
 }
 
+function isSessionScopedEvent(event: { type?: string; properties?: unknown } | undefined) {
+  if (!event) return false
+  const props = event.properties as Record<string, unknown> | undefined
+  if (!props) return false
+  if (typeof props.sessionID === "string") return true
+  if (typeof props.parentSessionID === "string") return true
+  if (
+    typeof props.info === "object" &&
+    props.info &&
+    typeof (props.info as { sessionID?: unknown }).sessionID === "string"
+  )
+    return true
+  if (
+    typeof props.part === "object" &&
+    props.part &&
+    typeof (props.part as { sessionID?: unknown }).sessionID === "string"
+  )
+    return true
+  return false
+}
+
 function createGlobalSync() {
   const globalSDK = useGlobalSDK()
   const platform = usePlatform()
@@ -505,7 +526,7 @@ function createGlobalSync() {
             })
         },
       })
-    } else {
+    } else if (!isSessionScopedEvent(event)) {
       // Fallback broadcast: normalization mismatch between SSE directory
       // and child store key (symlinks, trailing slashes, encoding).
       for (const [dir, child] of Object.entries(children.children)) {

@@ -410,7 +410,7 @@ export function applyDirectoryEvent(input: {
 
       // Delta-aware streaming: when delta is present and part.text is stripped,
       // append delta to the existing stored part instead of replacing it wholesale.
-      if (delta && parts && ("type" in part) && (part.type === "text" || part.type === "reasoning")) {
+      if (delta && parts && "type" in part && (part.type === "text" || part.type === "reasoning")) {
         const result = Binary.search(parts, part.id, (p) => p.id)
         if (result.found) {
           const existing = parts[result.index]
@@ -453,7 +453,7 @@ export function applyDirectoryEvent(input: {
         }
         // Part not found yet — fall through to insertion with reconstructed text
         if (!("text" in part) || typeof (part as any).text !== "string") {
-          (part as any).text = delta
+          ;(part as any).text = delta
         }
       }
 

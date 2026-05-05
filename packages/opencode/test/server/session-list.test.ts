@@ -303,6 +303,9 @@ describe("session.list", () => {
 
         const messages = await Session.messages({ sessionID: firstBody.sessionID })
         expect(messages.map((msg) => msg.info.role)).toEqual(["user", "assistant"])
+        const textParts = messages.flatMap((msg) => msg.parts).filter((part) => part.type === "text")
+        expect(textParts.length).toBe(2)
+        expect(textParts.some((part) => part.synthetic === true)).toBe(false)
         expect(messages[1].parts.map((part) => (part.type === "text" ? part.text : "")).join("\n")).toContain(
           "Runtime evidence",
         )
@@ -324,6 +327,70 @@ describe("session.list", () => {
         expect(secondBody.sessionID).toBe(firstBody.sessionID)
         expect(secondBody.imported).toBe(false)
         expect(secondBody.appended).toBe(1)
+      },
+    })
+  })
+
+  test("keeps Claude import metadata isolated by directory", async () => {
+    await Instance.provide({
+      directory: projectRoot,
+      fn: async () => {
+        const app = Server.App()
+        const otherDir = path.join(projectRoot, "..", `__claude_import_other_${process.pid}`)
+        const sourceSessionID = `claude-shared-source-${process.pid}`
+        const firstTranscript = path.join(os.tmpdir(), `opencode-test-claude-import-first-${process.pid}.jsonl`)
+        const secondTranscript = path.join(os.tmpdir(), `opencode-test-claude-import-second-${process.pid}.jsonl`)
+        await fs.writeFile(
+          firstTranscript,
+          JSON.stringify({ message: { role: "user", content: "First workspace transcript." } }) + "\n",
+        )
+        await fs.writeFile(
+          secondTranscript,
+          JSON.stringify({ message: { role: "user", content: "Second workspace transcript." } }) + "\n",
+        )
+
+        const first = await app.request("/session/import/claude", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ directory: projectRoot, sourceSessionID, transcriptPath: firstTranscript }),
+        })
+        if (Flag.OPENCODE_SERVER_PASSWORD) {
+          expect(first.status).toBe(401)
+          return
+        }
+        expect(first.status).toBe(200)
+        const firstBody = (await first.json()) as { sessionID: string; imported: boolean; appended: number }
+        expect(firstBody.imported).toBe(true)
+        expect(firstBody.appended).toBe(1)
+
+        const second = await app.request("/session/import/claude", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ directory: otherDir, sourceSessionID, transcriptPath: secondTranscript }),
+        })
+        expect(second.status).toBe(200)
+        const secondBody = (await second.json()) as { sessionID: string; imported: boolean; appended: number }
+        expect(secondBody.imported).toBe(true)
+        expect(secondBody.appended).toBe(1)
+        expect(secondBody.sessionID).not.toBe(firstBody.sessionID)
+
+        const firstMessages = await Session.messages({ sessionID: firstBody.sessionID })
+        const secondMessages = await Session.messages({ sessionID: secondBody.sessionID })
+        expect(
+          firstMessages
+            .map((msg) => msg.parts.map((part) => (part.type === "text" ? part.text : "")).join("\n"))
+            .join("\n"),
+        ).toContain("First workspace transcript.")
+        expect(
+          firstMessages
+            .map((msg) => msg.parts.map((part) => (part.type === "text" ? part.text : "")).join("\n"))
+            .join("\n"),
+        ).not.toContain("Second workspace transcript.")
+        expect(
+          secondMessages
+            .map((msg) => msg.parts.map((part) => (part.type === "text" ? part.text : "")).join("\n"))
+            .join("\n"),
+        ).toContain("Second workspace transcript.")
       },
     })
   })

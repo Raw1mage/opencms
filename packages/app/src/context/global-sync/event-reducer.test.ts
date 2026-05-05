@@ -3,10 +3,7 @@ import type { Message, Part, PermissionRequest, Project, QuestionRequest, Sessio
 import { createStore } from "solid-js/store"
 import type { State } from "./types"
 import { applyDirectoryEvent, applyGlobalEvent } from "./event-reducer"
-import {
-  resetFrontendTweaksForTesting,
-  setFrontendTweaksForTesting,
-} from "../frontend-tweaks"
+import { resetFrontendTweaksForTesting, setFrontendTweaksForTesting } from "../frontend-tweaks"
 
 const rootSession = (input: { id: string; parentID?: string; archived?: number }) =>
   ({
@@ -574,7 +571,9 @@ describe("applyDirectoryEvent", () => {
             promptSummary: {
               sessionID: "ses_1",
               promptId: "prompt_1",
-              blocks: [{ key: "agent_prompt", name: "代理提詞", chars: 10, tokens: 5, injected: true, policy: "always_on" }],
+              blocks: [
+                { key: "agent_prompt", name: "代理提詞", chars: 10, tokens: 5, injected: true, policy: "always_on" },
+              ],
               timestamp: 10,
             },
             roundSummary: {
@@ -757,7 +756,9 @@ describe("frontend-session-lazyload: rebuild heuristic + tail-window", () => {
     const partID = "prt_r3"
     const [store, setStore] = createStore(
       baseState({
-        part: { [messageID]: [{ id: partID, sessionID, messageID, type: "text", text: "alpha-content-original" } as Part] },
+        part: {
+          [messageID]: [{ id: partID, sessionID, messageID, type: "text", text: "alpha-content-original" } as Part],
+        },
       }),
     )
 
@@ -765,7 +766,13 @@ describe("frontend-session-lazyload: rebuild heuristic + tail-window", () => {
       event: {
         type: "message.part.updated",
         properties: {
-          part: { id: partID, sessionID, messageID, type: "text", text: "OMEGA-entirely-different-and-longer-text" } as Part,
+          part: {
+            id: partID,
+            sessionID,
+            messageID,
+            type: "text",
+            text: "OMEGA-entirely-different-and-longer-text",
+          } as Part,
         },
       },
       store,
@@ -985,4 +992,3 @@ describe("session-ui-freshness: client receivedAt stamping (Phase 1)", () => {
     expect(entry.receivedAt).not.toBe(entry.updatedAt)
   })
 })
-
