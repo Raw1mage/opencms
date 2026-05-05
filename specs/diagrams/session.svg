@@ -31,7 +31,7 @@
 <path class="edge" d="M 27.00 39.00 L 27.00 41.00"/>
 <path class="edge" d="M 27.00 41.00 L 27.00 45.00"/>
 <path class="edge edge-arrow" d="M 27.00 45.00 L 27.00 51.00"/>
-<path class="edge edge-arrow" d="M 27.00 41.00 L 38.25 41.00 Q 38.75 41.00 38.75 41.50 L 38.75 73.00"/>
+<path class="edge edge-arrow" d="M 27.00 41.00 L 38.25 41.00 Q 38.75 41.00 38.75 41.50 L 38.75 70.50 Q 38.75 71.00 38.25 71.00 L 29.50 71.00 Q 29.00 71.00 29.00 71.50 L 29.00 73.00"/>
 <path class="edge edge-arrow" d="M 27.00 54.00 L 27.00 73.00"/>
 <path class="edge" d="M -8.25 39.00 L -8.25 47.00"/>
 <path class="edge edge-arrow" d="M -8.25 47.00 L -8.25 51.00"/>
@@ -161,7 +161,7 @@
 <line class="gate" x1="-21.00" y1="71.00" x2="-19.00" y2="71.00"/>
 <text class="gate-label-left" x="-21.40" y="70.32"><tspan x="-21.40" dy="0">訊息已</tspan><tspan x="-21.40" dy="0.68">完成或</tspan><tspan x="-21.40" dy="0.68">aborted</tspan></text>
 <line class="gate" x1="37.75" y1="71.00" x2="39.75" y2="71.00"/>
-<text class="gate-label-left" x="37.35" y="71.00"><tspan x="37.35" dy="0">ratelimitedstorm</tspan></text>
+<text class="gate-label-left" x="37.35" y="70.32"><tspan x="37.35" dy="0">ratelimitedstorm</tspan></text>
 <line class="gate" x1="26.00" y1="71.00" x2="28.00" y2="71.00"/>
 <text class="gate-label-left" x="25.60" y="71.00"><tspan x="25.60" dy="0">reinject返回或Sessionbusy</tspan></text>
 <line class="gate" x1="-9.25" y1="71.00" x2="-7.25" y2="71.00"/>

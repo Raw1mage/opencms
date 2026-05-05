@@ -50,7 +50,10 @@
 <path class="edge" d="M 29.85 110.00 L 38.30 110.00"/>
 <path class="edge" d="M 38.30 110.00 L 38.30 130.61"/>
 <path class="edge" d="M 38.30 130.61 L 29.85 130.61"/>
+<path class="edge" d="M 29.85 128.00 L 29.85 126.00"/>
 <path class="edge" d="M 29.85 130.61 L 29.85 128.61"/>
+<path class="edge" d="M 29.85 126.00 L 21.90 126.00"/>
+<path class="edge edge-arrow" d="M 21.90 126.00 L 21.90 128.00"/>
 <path class="edge edge-arrow" d="M 19.90 116.00 L 19.90 118.00"/>
 <path class="edge" d="M 19.90 118.00 L -23.50 118.00 Q -24.00 118.00 -24.00 117.50 L -24.00 61.50 Q -24.00 61.00 -23.50 61.00 L 19.90 61.00"/>
 <path class="edge edge-arrow" d="M 19.90 133.00 L 19.90 135.00"/>
@@ -192,7 +195,7 @@
 <line class="gate" x1="-25.00" y1="89.50" x2="-23.00" y2="89.50"/>
 <text class="gate-label" x="-22.60" y="89.50"><tspan x="-22.60" dy="0">已啟用 &amp;&amp; (下一個可執行待辦!=空 || 補充啟用規劃)</tspan></text>
 <line class="gate" x1="18.90" y1="126.00" x2="20.90" y2="126.00"/>
-<text class="gate-label" x="21.30" y="125.32"><tspan x="21.30" dy="0">停止：子代理</tspan><tspan x="21.30" dy="0.68">會話或未啟用</tspan><tspan x="21.30" dy="0.68">或待辦完成</tspan></text>
+<text class="gate-label" x="22.70" y="125.32"><tspan x="22.70" dy="0">停止：子代理</tspan><tspan x="22.70" dy="0.68">會話或未啟用</tspan><tspan x="22.70" dy="0.68">或待辦完成</tspan></text>
 <line class="gate" x1="5.95" y1="137.00" x2="7.95" y2="137.00"/>
 <text class="gate-label-left" x="5.55" y="137.00"><tspan x="5.55" dy="0">下一個使用者訊息</tspan></text>
 <line class="gate" x1="28.85" y1="137.00" x2="30.85" y2="137.00"/>
