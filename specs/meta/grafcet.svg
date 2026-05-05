@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1459" height="1784" viewBox="-28.00 -2.00 72.95 89.17" role="img">
+<svg xmlns="http://www.w3.org/2000/svg" width="1459" height="1860" viewBox="-28.00 -2.00 72.95 93.00" role="img">
 <style>
 .step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
 .action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
@@ -10,10 +10,10 @@
 .action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
 </style>
 <defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
-<rect x="-28.00" y="-2.00" width="72.95" height="89.17" fill="white"/>
+<rect x="-28.00" y="-2.00" width="72.95" height="93.00" fill="white"/>
 <path class="edge edge-arrow" d="M 22.37 9.00 L 22.37 13.00"/>
 <path class="edge edge-arrow" d="M 22.37 18.00 L 22.37 22.00"/>
-<path class="edge edge-arrow" d="M 0.79 52.00 L -17.50 52.00 Q -18.00 52.00 -18.00 52.50 L -18.00 75.50 Q -18.00 76.00 -17.50 76.00 L 0.29 76.00 Q 0.79 76.00 0.79 76.50 L 0.79 78.00"/>
+<path class="edge edge-arrow" d="M 0.79 52.00 L -17.50 52.00 Q -18.00 52.00 -18.00 52.50 L -18.00 77.50 Q -18.00 78.00 -17.50 78.00 L 0.29 78.00 Q 0.79 78.00 0.79 78.50 L 0.79 80.00"/>
 <path class="edge" d="M 22.37 7.00 L 22.37 9.00"/>
 <path class="edge" d="M 22.37 16.00 L 22.37 18.00"/>
 <path class="edge" d="M 22.37 25.00 L 22.37 27.00"/>
@@ -30,18 +30,20 @@
 <path class="edge edge-arrow" d="M 22.37 61.00 L 22.37 65.00"/>
 <path class="edge edge-arrow" d="M 33.16 61.00 L 33.16 65.00"/>
 <path class="edge edge-arrow" d="M 0.79 61.00 L 0.79 65.00"/>
-<path class="edge edge-arrow" d="M -10.00 68.00 L -10.00 76.00"/>
+<path class="edge edge-arrow" d="M -10.00 68.00 L -10.00 78.00"/>
 <path class="edge" d="M 22.37 68.00 L 22.37 70.00"/>
-<path class="edge" d="M 22.37 70.00 L -20.00 70.00"/>
-<path class="edge" d="M -20.00 70.00 L -20.00 20.00"/>
+<path class="edge" d="M 22.37 70.00 L 22.37 72.00"/>
+<path class="edge" d="M 22.37 72.00 L -20.00 72.00"/>
+<path class="edge" d="M -20.00 72.00 L -20.00 20.00"/>
 <path class="edge" d="M -20.00 20.00 L 22.37 20.00"/>
 <path class="edge" d="M 33.16 68.00 L 33.16 72.00"/>
-<path class="edge" d="M 33.16 72.00 L -22.00 72.00"/>
-<path class="edge" d="M -22.00 72.00 L -22.00 11.00"/>
+<path class="edge" d="M 33.16 72.00 L 33.16 74.00"/>
+<path class="edge" d="M 33.16 74.00 L -22.00 74.00"/>
+<path class="edge" d="M -22.00 74.00 L -22.00 11.00"/>
 <path class="edge" d="M -22.00 11.00 L 22.37 11.00"/>
-<path class="edge edge-arrow" d="M 0.79 68.00 L 0.79 76.00"/>
-<path class="edge" d="M 0.79 81.00 L 0.79 83.00"/>
-<path class="edge edge-arrow" d="M 0.79 83.00 L -23.50 83.00 Q -24.00 83.00 -24.00 82.50 L -24.00 2.50 Q -24.00 2.00 -23.50 2.00 L 21.87 2.00 Q 22.37 2.00 22.37 2.50 L 22.37 4.00"/>
+<path class="edge edge-arrow" d="M 0.79 68.00 L 0.79 78.00"/>
+<path class="edge" d="M 0.79 83.00 L 0.79 85.00"/>
+<path class="edge edge-arrow" d="M 0.79 85.00 L 0.79 86.50 Q 0.79 87.00 0.29 87.00 L -23.50 87.00 Q -24.00 87.00 -24.00 86.50 L -24.00 2.50 Q -24.00 2.00 -23.50 2.00 L 21.87 2.00 Q 22.37 2.00 22.37 2.50 L 22.37 4.00"/>
 <path class="edge" d="M 33.16 48.00 L 33.16 51.50 Q 33.16 52.00 32.66 52.00 L 0.79 52.00"/>
 <rect class="step" x="20.37" y="4.00" width="4.00" height="3.00"/>
 <rect class="step-inner" x="20.62" y="4.25" width="3.50" height="2.50"/>
@@ -66,8 +68,8 @@
 <text class="label" x="33.16" y="66.50">9</text>
 <rect class="step" x="-1.21" y="65.00" width="4.00" height="3.00"/>
 <text class="label" x="0.79" y="66.50">10</text>
-<rect class="step" x="-1.21" y="78.00" width="4.00" height="3.00"/>
-<text class="label" x="0.79" y="79.50">11</text>
+<rect class="step" x="-1.21" y="80.00" width="4.00" height="3.00"/>
+<text class="label" x="0.79" y="81.50">11</text>
 <rect class="step" x="31.16" y="45.00" width="4.00" height="3.00"/>
 <text class="label" x="33.16" y="46.50">12</text>
 <line class="assoc" x1="24.37" y1="5.50" x2="25.37" y2="5.50"/>
@@ -103,9 +105,9 @@
 <line class="assoc" x1="2.79" y1="66.50" x2="3.79" y2="66.50"/>
 <rect class="action" x="3.79" y="65.07" width="4.79" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="6.18" y="66.09"><tspan x="6.18" dy="0">archi</tspan><tspan x="6.18" dy="0.82">ve狀態</tspan></text>
-<line class="assoc" x1="2.79" y1="79.50" x2="3.79" y2="79.50"/>
-<rect class="action" x="3.79" y="78.07" width="4.79" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="6.18" y="79.50"><tspan x="6.18" dy="0">spec於rest</tspan></text>
+<line class="assoc" x1="2.79" y1="81.50" x2="3.79" y2="81.50"/>
+<rect class="action" x="3.79" y="80.07" width="4.79" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="6.18" y="81.50"><tspan x="6.18" dy="0">spec於rest</tspan></text>
 <line class="assoc" x1="35.16" y1="46.50" x2="36.16" y2="46.50"/>
 <rect class="action" x="36.16" y="45.07" width="4.79" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="38.55" y="46.09"><tspan x="38.55" dy="0">abandon或</tspan><tspan x="38.55" dy="0.82">rollback</tspan></text>
@@ -121,13 +123,13 @@
 <line class="gate" x1="10.58" y1="50.00" x2="12.58" y2="50.00"/>
 <text class="gate-label" x="12.98" y="50.00"><tspan x="12.98" dy="0">validationevidenceattachedAND testspass</tspan></text>
 <line class="gate" x1="-14.00" y1="61.00" x2="37.16" y2="61.00"/>
-<line class="gate" x1="-12.00" y1="76.00" x2="2.79" y2="76.00"/>
+<line class="gate" x1="-12.00" y1="78.00" x2="2.79" y2="78.00"/>
 <line class="gate" x1="21.37" y1="70.00" x2="23.37" y2="70.00"/>
 <text class="gate-label" x="23.77" y="69.32"><tspan x="23.77" dy="0">狀態setdesignedAND</tspan><tspan x="23.77" dy="0.68">revise或extendhis</tspan><tspan x="23.77" dy="0.68">tory項目appended</tspan></text>
 <line class="gate" x1="32.16" y1="72.00" x2="34.16" y2="72.00"/>
 <text class="gate-label-left" x="31.76" y="72.68"><tspan x="31.76" dy="0">historyrefactorYYYY MM DD createdAND artifactsreset到proposedskeleton</tspan></text>
-<line class="gate" x1="-0.21" y1="83.00" x2="1.79" y2="83.00"/>
-<text class="gate-label" x="2.19" y="83.00"><tspan x="2.19" dy="0">1</tspan></text>
+<line class="gate" x1="-0.21" y1="85.00" x2="1.79" y2="85.00"/>
+<text class="gate-label" x="2.19" y="85.00"><tspan x="2.19" dy="0">1</tspan></text>
 <line class="gate" x1="-0.21" y1="52.00" x2="1.79" y2="52.00"/>
 <text class="gate-label" x="2.19" y="52.68"><tspan x="2.19" dy="0">規劃rollbackrefactor或explicitabandonrecorded在history</tspan></text>
 <line class="gate" x1="10.58" y1="43.00" x2="12.58" y2="43.00"/>
@@ -142,14 +144,14 @@
 <text class="gate-label-left" x="31.76" y="63.00"><tspan x="31.76" dy="0">mode==refactor</tspan></text>
 <line class="gate" x1="-0.21" y1="63.00" x2="1.79" y2="63.00"/>
 <text class="gate-label-left" x="-0.61" y="63.00"><tspan x="-0.61" dy="0">mode==archive</tspan></text>
-<line class="gate" x1="-11.00" y1="74.00" x2="-9.00" y2="74.00"/>
-<text class="gate-label-left" x="-11.40" y="73.32"><tspan x="-11.40" dy="0">inlinedeltamar</tspan><tspan x="-11.40" dy="0.68">keraddedAND 狀態</tspan><tspan x="-11.40" dy="0.68">remainsliving</tspan></text>
-<line class="gate" x1="-0.21" y1="74.00" x2="1.79" y2="74.00"/>
-<text class="gate-label-left" x="-2.01" y="73.32"><tspan x="-2.01" dy="0">狀態setarchivedAND</tspan><tspan x="-2.01" dy="0.68">optionalmove到</tspan><tspan x="-2.01" dy="0.68">archivefolderdone</tspan></text>
-<line class="flyover-mask" x1="-19.00" y1="70.00" x2="-17.00" y2="70.00"/>
+<line class="gate" x1="-11.00" y1="76.00" x2="-9.00" y2="76.00"/>
+<text class="gate-label-left" x="-11.40" y="75.32"><tspan x="-11.40" dy="0">inlinedeltamar</tspan><tspan x="-11.40" dy="0.68">keraddedAND 狀態</tspan><tspan x="-11.40" dy="0.68">remainsliving</tspan></text>
+<line class="gate" x1="-0.21" y1="76.00" x2="1.79" y2="76.00"/>
+<text class="gate-label-left" x="-0.61" y="75.32"><tspan x="-0.61" dy="0">狀態setarchivedAND</tspan><tspan x="-0.61" dy="0.68">optionalmove到</tspan><tspan x="-0.61" dy="0.68">archivefolderdone</tspan></text>
 <line class="flyover-mask" x1="-19.00" y1="72.00" x2="-17.00" y2="72.00"/>
-<path class="flyover" d="M -19.00 70.00 Q -18.00 69.00 -17.00 70.00"/>
+<line class="flyover-mask" x1="-19.00" y1="74.00" x2="-17.00" y2="74.00"/>
 <path class="flyover" d="M -19.00 72.00 Q -18.00 71.00 -17.00 72.00"/>
+<path class="flyover" d="M -19.00 74.00 Q -18.00 73.00 -17.00 74.00"/>
 <circle class="junction" cx="22.37" cy="11.00" r="0.22"/>
 <circle class="junction" cx="22.37" cy="20.00" r="0.22"/>
 </svg>
