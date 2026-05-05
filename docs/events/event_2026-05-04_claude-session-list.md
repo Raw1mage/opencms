@@ -40,6 +40,7 @@ User wants a Claude session list to monitor the development/progress of Claude-s
 - UI refinement: Claude native rows do not expose an `Import` / `Sync` action label. Selecting the session row itself runs the deterministic import/delta sync and opens the mapped OpenCode session; a spinner is shown only while that row is opening.
 - Blank-open fix: imported Claude transcript text must render as normal conversation content, not runtime-only synthetic text.
 - Cross-session contamination fix: session-scoped live events must never be broadcast to every workspace store when the SSE directory key cannot be matched exactly.
+- Takeover compaction revision: large Claude native transcripts need import-time anchor support so takeover opens with a compact LLM-visible context while raw messages remain visible for UI/audit.
 
 ## Debug Checkpoints
 
@@ -61,6 +62,8 @@ User wants a Claude session list to monitor the development/progress of Claude-s
 - Cross-session contamination baseline: after a Claude row import/open, the user observed unrelated drawmiat debug discussion in the Claude discussion session and another session showing this session's live thinking/status. The relevant boundary is frontend live event routing, not transcript normalization.
 - Cross-session root cause: `packages/app/src/context/global-sync.tsx` delivered SSE events to an exact directory child store when possible, but fell back to broadcasting unmatched directory events to every child store. For `message.updated`, `message.part.updated`, `session.status`, `session.active-child.updated`, and related session-scoped events, that fallback can inject one session's live messages/status into unrelated workspace stores.
 - Cross-session implementation: added session-scoped event detection in `global-sync.tsx`; unmatched directory events are still broadcast only for non-session-scoped workspace/system events, while session-scoped events are dropped and recovered by normal hydration instead of contaminating other sessions.
+- Takeover compaction baseline: existing OpenCode compaction uses the message stream as SSOT. Anchors are assistant messages with `summary: true` and a `compaction` marker part; `MessageV2.filterCompacted` truncates at the latest compaction part; `Memory.read` derives the rolled-up memory from the latest summary anchor and post-anchor turns. Claude import previously wrote ordinary user/assistant messages and metadata only, so large transcripts remained raw LLM-visible history until normal runloop compaction happened.
+- Takeover compaction implementation: Phase 6 adds deterministic import-time takeover anchors in `packages/opencode/src/session/claude-import.ts`. Large imports write a normal assistant summary message plus `compaction` marker part, store source line-range metadata for idempotency, and avoid `SessionCompaction.run` so no synthetic continue message is injected during import.
 
 ## Verification
 
@@ -74,10 +77,14 @@ User wants a Claude session list to monitor the development/progress of Claude-s
 - Blank-open validation: `OPENCODE_SERVER_PASSWORD= bun test --timeout 15000 packages/opencode/test/server/session-list.test.ts` passed (11 tests, 54 assertions), including a regression assertion that imported Claude text parts are not synthetic. `packages/app` `bun run typecheck` passed.
 - Cross-session validation: `packages/app` `bun run typecheck` passed after routing fix. `bun test src/context/global-sync/event-reducer.test.ts` still has two pre-existing lazyload expectation failures (`4KB` expected vs current live streaming `16x` OOM cap behavior); these are unrelated to the routing change and existed after reducer guards were removed.
 - Post-restart validation: after the user restarted the runtime, a new session became usable again, providing live confirmation that the frontend bundle/runtime recovered with the cross-session routing/import fixes applied.
+- Takeover compaction planning validation: read `packages/opencode/src/session/compaction.ts`, `memory.ts`, `prompt.ts`, `claude-import.ts`, `message-v2.ts`, `session/index.ts`, and focused Claude import tests. Subagent exploration was attempted but failed before producing evidence due provider init failure; main-session read pass supplied the planning evidence.
+- Takeover compaction implementation validation: `OPENCODE_SERVER_PASSWORD= bun test --timeout 15000 packages/opencode/test/server/session-list.test.ts` passed (12 tests, 67 assertions), covering large transcript anchor creation, no-op reimport idempotency, delta anchor refresh, and `MessageV2.filterCompacted` visibility.
+- Takeover compaction artifact validation: `jq empty plans/20260504_claude_session_list/phase6_takeover_anchor_idef0.json` and `jq empty plans/20260504_claude_session_list/phase6_takeover_anchor_grafcet.json` passed; XDG whitelist backup files `accounts.json` and `AGENTS.md` were present under `~/.config/opencode.bak-20260505-claude-takeover-anchor/`.
 - Baseline note: running the same focused test with the ambient `OPENCODE_SERVER_PASSWORD` set failed existing auth-guard expectations because the local in-process app returned 200 instead of the guarded 401 path; rerun with the env unset isolates the existing test contract.
 - `packages/opencode` typecheck: `bun run typecheck` failed on existing baseline errors outside this slice, including `src/cli/cmd/*` arity errors, `src/server/routes/session.ts` existing line 2620/2682 diagnostics, `src/session/message-v2.ts` model field diagnostics, and `src/share/share-next.ts` attachment/file-part type diagnostics.
-- Architecture Sync: Updated `specs/architecture.md` Tool Surface Runtime section to record the Claude Code native takeover adapter boundary, route contract, deterministic normalization rule, and write-through-session-API storage authority.
+- Architecture Sync: Updated `specs/architecture.md` Tool Surface Runtime section to record the Claude Code native takeover adapter boundary, route contract, deterministic normalization rule, write-through-session-API storage authority, and import-time message-stream anchor extension.
 
 ## Backup
 
 - XDG whitelist backup: `~/.config/opencode.bak-20260504-1008-claude-session-list/`.
+- XDG whitelist backup for takeover anchor revision: `~/.config/opencode.bak-20260505-claude-takeover-anchor/`.

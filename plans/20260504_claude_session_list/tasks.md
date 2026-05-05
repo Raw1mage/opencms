@@ -31,3 +31,12 @@
 - [x] 5.5 Wire sidebar Claude tab click to import/delta then navigate to the mapped OpenCode session.
 - [x] 5.6 Add focused tests/typecheck and update event/architecture sync.
 - [x] 5.7 Add deterministic new-content indicator contract (`currentLineCount`, `importedLineCount`, `hasNewContent`) and sidebar green dot.
+
+## 6. Claude takeover compaction anchor
+
+- [x] 6.1 Reconcile existing message-stream anchor contract with Claude import/delta metadata.
+- [x] 6.2 Add deterministic takeover anchor summary builder and taxonomy.
+- [x] 6.3 Persist takeover anchors as normal assistant summary messages during import/delta sync.
+- [x] 6.4 Extend metadata for idempotent anchor line-range tracking.
+- [x] 6.5 Add focused tests for large transcript anchor creation, no-op reimport, delta refresh, and `filterCompacted` visibility.
+- [x] 6.6 Update event/architecture docs and validation evidence.

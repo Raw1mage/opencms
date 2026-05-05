@@ -6,6 +6,8 @@ Add a read-only Claude session list for monitoring active and recent Claude-rela
 
 Revision 2026-05-04: extend the project-scoped Claude sidebar tab from monitoring existing OpenCode-format Claude sessions to deterministic takeover import of Claude Code native transcripts. Clicking a Claude-native row must import or delta-sync the transcript into an OpenCode session before navigating.
 
+Revision 2026-05-05: add takeover compaction/anchor support so large imported Claude Code transcripts enter OpenCode with a compact LLM-visible context while preserving raw transcript messages for UI and audit.
+
 ## MVP Behavior
 
 1. Backend exposes or reuses a session listing endpoint that returns session metadata from the authoritative session store.
@@ -56,6 +58,43 @@ Prefer extending `GET /api/v2/session` with an optional query parameter such as 
 - Idempotency: persist source metadata on the imported OpenCode session/messages so repeated clicks can append only new transcript lines or return the existing mapped session when no delta exists.
 - Storage authority: use OpenCode session APIs (`Session.createNext`, `Session.updateMessage`, `Session.updatePart`) so Bus events and storage router invariants remain intact.
 
+## Claude Takeover Compaction / Anchor Contract
+
+### Existing Evidence
+
+- The compaction SSOT is the message stream. Anchors are assistant messages with `summary: true`.
+- `MessageV2.filterCompacted(MessageV2.stream(sessionID))` truncates LLM-visible history at the latest anchor.
+- `Memory.read(sessionID)` derives memory by reading the latest anchor and post-anchor finished turns; it does not read a sidecar compaction file.
+- `SessionCompaction.run(...)` writes anchors through `compactWithSharedContext(...)`, but it is driven by runloop observed conditions and active model context. Claude import currently writes ordinary messages/parts only.
+- Claude import metadata currently tracks source transcript line count and mapped OpenCode session ID, but not the source line range represented by the latest anchor.
+
+### Required Behavior
+
+1. Import/delta sync may create a takeover anchor when raw imported transcript volume crosses a configurable threshold or when the imported line range advances beyond the last takeover anchor.
+2. The takeover anchor must be an ordinary assistant summary message, not a sidecar file and not a separate storage namespace.
+3. The anchor text must include:
+   - source provider/session/path and imported line range;
+   - current user intent/task state inferred deterministically from imported text;
+   - decisions and open issues if visible in transcript text;
+   - bounded tool evidence summary;
+   - next-action handoff hints for OpenCode takeover.
+4. Raw imported user/assistant messages remain in the session for UI/audit visibility; only LLM-visible history is shortened by the latest anchor.
+5. Repeated import with no new lines must not create duplicate anchors.
+6. Delta import with new lines must either append raw messages only (below threshold) or append raw messages plus a new superseding anchor (above threshold / line-range advanced).
+
+### Implementation Slices
+
+1. Add deterministic `ClaudeImportAnchor` helpers inside `packages/opencode/src/session/claude-import.ts` or a focused sibling module.
+2. Extend source metadata with latest takeover anchor line range / anchor message ID.
+3. Add an import-time anchor writer using `Session.updateMessage` / `Session.updatePart` with `summary: true` and `mode: "compaction"` or an explicit takeover mode compatible with existing filters.
+4. Add focused tests that verify `MessageV2.filterCompacted` returns the takeover anchor plus post-anchor delta, and that unchanged re-imports are idempotent.
+
+### Validation Plan Addendum
+
+- Focused server tests in `packages/opencode/test/server/session-list.test.ts` for large transcript anchor creation, idempotent no-op reimport, and delta anchor refresh.
+- Direct `MessageV2.filterCompacted` assertion on the imported session to prove raw pre-anchor transcript is hidden from LLM-visible context.
+- `packages/app` typecheck only if UI fields are added; backend-only slice should not require UI changes.
+
 ## Validation Plan
 
 - Unit-test provider/session filter classification if a new classifier is added.
@@ -66,3 +105,5 @@ Prefer extending `GET /api/v2/session` with an optional query parameter such as 
 ## XDG Backup
 
 Pre-plan whitelist backup created at `~/.config/opencode.bak-20260504-1008-claude-session-list/`.
+
+Revision 2026-05-05 whitelist backup created at `~/.config/opencode.bak-20260505-claude-takeover-anchor/`.

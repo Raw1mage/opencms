@@ -14,11 +14,21 @@ const SourceMetadata = z.object({
   sourceSessionID: z.string(),
   transcriptPath: z.string(),
   lineCount: z.number().int().nonnegative(),
+  takeoverAnchor: z
+    .object({
+      messageID: z.string(),
+      lineStart: z.number().int().positive(),
+      lineEnd: z.number().int().nonnegative(),
+    })
+    .optional(),
 })
 
 type SourceMetadata = z.infer<typeof SourceMetadata>
 
 export namespace ClaudeImport {
+  const TAKEOVER_ANCHOR_LINE_THRESHOLD = 20
+  const TAKEOVER_ANCHOR_TEXT_LIMIT = 1200
+
   export const Input = z.object({
     directory: z.string().optional(),
     sourceSessionID: z.string().min(1),
@@ -83,6 +93,13 @@ export namespace ClaudeImport {
         cache_creation_input_tokens?: number
       }
     }
+  }
+
+  type ImportedEntry = {
+    role: "user" | "assistant"
+    lineNumber: number
+    text: string
+    evidence: string[]
   }
 
   function projectKey(directory: string) {
@@ -168,6 +185,115 @@ export namespace ClaudeImport {
     }
 
     return { text: text.join("\n\n").trim(), evidence }
+  }
+
+  function excerpt(value: string, limit = TAKEOVER_ANCHOR_TEXT_LIMIT) {
+    const compact = value.replace(/\s+/g, " ").trim()
+    return compact.length > limit ? `${compact.slice(0, limit - 1)}…` : compact
+  }
+
+  function lastText(entries: ImportedEntry[], role: "user" | "assistant") {
+    for (let index = entries.length - 1; index >= 0; index--) {
+      const entry = entries[index]
+      if (entry.role === role && entry.text.trim()) return entry
+    }
+    return undefined
+  }
+
+  function buildTakeoverAnchorText(input: {
+    sourceSessionID: string
+    transcriptPath: string
+    lineStart: number
+    lineEnd: number
+    entries: ImportedEntry[]
+  }) {
+    const user = lastText(input.entries, "user")
+    const assistant = lastText(input.entries, "assistant")
+    const evidence = input.entries.flatMap((entry) => entry.evidence).slice(-8)
+    const firstLine = input.entries.at(0)?.lineNumber ?? input.lineStart
+    const lastLine = input.entries.at(-1)?.lineNumber ?? input.lineEnd
+
+    return [
+      "# Claude Takeover Anchor",
+      "",
+      `Source: claude-code ${input.sourceSessionID}`,
+      `Transcript: ${input.transcriptPath}`,
+      `Covered lines: ${input.lineStart}-${input.lineEnd}`,
+      `Imported message lines: ${firstLine}-${lastLine}`,
+      "",
+      "## Current User Intent",
+      user ? `- line ${user.lineNumber}: ${excerpt(user.text)}` : "- No user text found in imported range.",
+      "",
+      "## Latest Assistant State",
+      assistant
+        ? `- line ${assistant.lineNumber}: ${excerpt(assistant.text)}`
+        : "- No assistant text found in imported range.",
+      "",
+      "## Runtime Evidence",
+      ...(evidence.length
+        ? evidence.map((item) => `- ${excerpt(item, 240)}`)
+        : ["- No bounded tool evidence in imported range."]),
+      "",
+      "## Takeover Handoff",
+      "- Continue from the latest user intent and assistant state above.",
+      "- Treat raw pre-anchor transcript messages as audit trail; use this anchor as the compact LLM-visible baseline.",
+    ].join("\n")
+  }
+
+  async function writeTakeoverAnchor(input: {
+    sessionID: string
+    directory: string
+    sourceSessionID: string
+    transcriptPath: string
+    lineStart: number
+    lineEnd: number
+    entries: ImportedEntry[]
+    parentID: string | undefined
+  }) {
+    if (input.lineEnd < TAKEOVER_ANCHOR_LINE_THRESHOLD) return undefined
+    if (!input.parentID) return undefined
+
+    const now = Date.now()
+    const messageID = Identifier.ascending("message")
+    await Session.updateMessage({
+      id: messageID,
+      sessionID: input.sessionID,
+      role: "assistant",
+      time: { created: now, completed: now },
+      parentID: input.parentID,
+      modelID: "claude-native-transcript-anchor",
+      providerId: "claude-cli",
+      mode: "compaction",
+      agent: "claude-import",
+      path: { cwd: input.directory, root: input.directory },
+      summary: true,
+      cost: 0,
+      tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+      finish: "stop",
+    })
+    await Session.updatePart({
+      id: Identifier.ascending("part"),
+      sessionID: input.sessionID,
+      messageID,
+      type: "text",
+      text: buildTakeoverAnchorText(input),
+      metadata: {
+        sourceProvider: "claude-code",
+        sourceSessionID: input.sourceSessionID,
+        sourceLineStart: input.lineStart,
+        sourceLineEnd: input.lineEnd,
+        takeoverAnchor: true,
+        excludeFromModel: false,
+      },
+    } satisfies MessageV2.TextPart)
+    await Session.updatePart({
+      id: Identifier.ascending("part"),
+      sessionID: input.sessionID,
+      messageID,
+      type: "compaction",
+      auto: false,
+    } satisfies MessageV2.CompactionPart)
+    return { messageID, lineStart: input.lineStart, lineEnd: input.lineEnd }
   }
 
   async function readTranscript(input: Input) {
@@ -282,6 +408,7 @@ export namespace ClaudeImport {
     let appended = 0
     let parentID: string | undefined
     const start = previous?.sessionID === session.id ? previous.lineCount : 0
+    const importedEntries: ImportedEntry[] = []
 
     for (let index = start; index < parsed.lines.length; index++) {
       const line = parsed.lines[index]
@@ -291,6 +418,7 @@ export namespace ClaudeImport {
       const evidence = normalized.evidence.length ? `\n\nRuntime evidence:\n- ${normalized.evidence.join("\n- ")}` : ""
       const text = `${normalized.text}${evidence}`.trim()
       if (!text) continue
+      importedEntries.push({ role, lineNumber: index + 1, text: normalized.text, evidence: normalized.evidence })
       const messageID = Identifier.ascending("message")
       const created = timestampMs(line.timestamp, Date.now() + index)
       if (role === "user") {
@@ -344,6 +472,22 @@ export namespace ClaudeImport {
       appended++
     }
 
+    const previousAnchor = previous?.sessionID === session.id ? previous.takeoverAnchor : undefined
+    const shouldWriteAnchor =
+      parsed.lines.length >= TAKEOVER_ANCHOR_LINE_THRESHOLD && previousAnchor?.lineEnd !== parsed.lines.length
+    const takeoverAnchor = shouldWriteAnchor
+      ? await writeTakeoverAnchor({
+          sessionID: session.id,
+          directory,
+          sourceSessionID: input.sourceSessionID,
+          transcriptPath: parsed.transcriptPath,
+          lineStart: 1,
+          lineEnd: parsed.lines.length,
+          entries: importedEntries.length ? importedEntries : [],
+          parentID,
+        })
+      : previousAnchor
+
     await Session.update(session.id, (draft) => {
       draft.title = draft.title === "Claude takeover" ? `Claude takeover ${input.sourceSessionID}` : draft.title
       draft.execution = Session.nextExecutionIdentity({
@@ -358,6 +502,7 @@ export namespace ClaudeImport {
         sourceSessionID: input.sourceSessionID,
         transcriptPath: parsed.transcriptPath,
         lineCount: parsed.lines.length,
+        takeoverAnchor,
       },
       directory,
     )

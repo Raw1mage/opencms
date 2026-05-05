@@ -1,0 +1,68 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A21",
+    "StepType": "initial",
+    "StepAction": "等待 Claude takeover import request",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["request contains sourceSessionID and directory"]
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A21",
+    "StepType": "normal",
+    "StepAction": "讀取 explicit transcript path 或 project-scoped Claude JSONL",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["transcript file exists and JSONL parses"]
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A22",
+    "StepType": "normal",
+    "StepAction": "deterministically normalize supported blocks and bounded evidence",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3],
+    "LinkOutputType": "track",
+    "Condition": ["all imported blocks supported"]
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A23",
+    "StepType": "normal",
+    "StepAction": "write raw imported OpenCode messages and parts",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4, 5],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["line range exceeds anchor threshold", "line range unchanged or below threshold"]
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A24",
+    "StepType": "normal",
+    "StepAction": "build deterministic takeover anchor summary",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["anchor text and metadata generated"]
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A25",
+    "StepType": "normal",
+    "StepAction": "commit metadata and optional assistant summary anchor",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [3, 4],
+    "LinkOutputNumber": [],
+    "LinkOutputType": "track",
+    "Condition": ["session metadata persisted"]
+  }
+]

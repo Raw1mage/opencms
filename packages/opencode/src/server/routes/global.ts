@@ -16,6 +16,7 @@ import { Tweaks } from "../../config/tweaks"
 import { errors } from "../error"
 import { WebAuth } from "../web-auth"
 import { SelfUpdate } from "../self-update"
+import { RestartHandover } from "../restart-handover"
 
 const log = Log.create({ service: "server" })
 
@@ -507,6 +508,8 @@ export const GlobalRoutes = lazy(() =>
                     mode: z.literal("controlled_restart"),
                     runtimeMode: z.enum(["dev-source", "dev-standalone", "service", "gateway-daemon", "unknown"]),
                     probePath: z.literal("/api/v2/global/health"),
+                    txid: z.string(),
+                    handoverPath: z.string(),
                     recommendedInitialDelayMs: z.number(),
                     fallbackReloadAfterMs: z.number(),
                     recoveryDeadlineMs: z.number(),
@@ -525,6 +528,9 @@ export const GlobalRoutes = lazy(() =>
           .object({
             targets: z.array(z.enum(["daemon", "frontend", "gateway"])).optional(),
             reason: z.string().max(500).optional(),
+            sessionID: z.string().optional(),
+            handover: z.string().max(4000).optional(),
+            txid: z.string().max(120).optional(),
           })
           .partial()
           .optional(),
@@ -533,7 +539,13 @@ export const GlobalRoutes = lazy(() =>
         const runtimeMode = resolveRestartRuntimeMode()
         const body =
           (c.req.valid("json" as never) as
-            | { targets?: Array<"daemon" | "frontend" | "gateway">; reason?: string }
+            | {
+                targets?: Array<"daemon" | "frontend" | "gateway">
+                reason?: string
+                sessionID?: string
+                handover?: string
+                txid?: string
+              }
             | undefined) ?? {}
         const targets = body.targets ?? []
         const wantsGateway = targets.includes("gateway")
@@ -543,9 +555,19 @@ export const GlobalRoutes = lazy(() =>
         // safe-daemon-restart RESTART-001 v2.
         if (isGatewayDaemon()) {
           const webctlPath = resolveWebctlPath()
-          const txid = `web-${Date.now()}-${process.pid}`
+          const txid = body.txid ?? `web-${Date.now()}-${process.pid}`
           const runtimeTmp = process.env.XDG_RUNTIME_DIR || "/tmp"
           const errorLogPath = path.join(runtimeTmp, `opencode-web-restart-${txid}.error.log`)
+          const handover = await RestartHandover.write({
+            txid,
+            runtimeMode: "gateway-daemon",
+            targets,
+            reason: body.reason,
+            sessionID: body.sessionID,
+            handover: body.handover,
+            errorLogPath,
+            webctlPath,
+          })
 
           if (wantsGateway) {
             const repoRoot = resolveSelfUpdateRepoRoot()
@@ -608,6 +630,8 @@ export const GlobalRoutes = lazy(() =>
               mode: "controlled_restart",
               runtimeMode: "gateway-daemon",
               probePath: "/api/v2/global/health",
+              txid,
+              handoverPath: handover.path,
               recommendedInitialDelayMs: 1000,
               fallbackReloadAfterMs: 5000,
               recoveryDeadlineMs: 30000,
@@ -690,6 +714,8 @@ export const GlobalRoutes = lazy(() =>
             mode: "controlled_restart",
             runtimeMode: "gateway-daemon",
             probePath: "/api/v2/global/health",
+            txid,
+            handoverPath: handover.path,
             recommendedInitialDelayMs: 1000,
             fallbackReloadAfterMs: 5000,
             recoveryDeadlineMs: 30000,
@@ -698,9 +724,19 @@ export const GlobalRoutes = lazy(() =>
 
         // Legacy mode: use webctl.sh restart
         const webctlPath = resolveWebctlPath()
-        const txid = `web-${Date.now()}-${process.pid}`
+        const txid = body.txid ?? `web-${Date.now()}-${process.pid}`
         const runtimeTmp = process.env.XDG_RUNTIME_DIR || "/tmp"
         const errorLogPath = path.join(runtimeTmp, `opencode-web-restart-${txid}.error.log`)
+        const handover = await RestartHandover.write({
+          txid,
+          runtimeMode,
+          targets,
+          reason: body.reason,
+          sessionID: body.sessionID,
+          handover: body.handover,
+          errorLogPath,
+          webctlPath,
+        })
         const exists = await Bun.file(webctlPath).exists()
         if (!exists) {
           log.error("web restart rejected: control script missing", { webctlPath })
@@ -760,6 +796,7 @@ export const GlobalRoutes = lazy(() =>
           runtimeMode,
           probePath: "/api/v2/global/health",
           txid,
+          handoverPath: handover.path,
           recommendedInitialDelayMs,
           fallbackReloadAfterMs,
           recoveryDeadlineMs,

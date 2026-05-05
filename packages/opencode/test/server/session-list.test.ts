@@ -6,6 +6,7 @@ import { Instance } from "../../src/project/instance"
 import { Server } from "../../src/server/server"
 import { Session } from "../../src/session"
 import { ClaudeImport } from "../../src/session/claude-import"
+import { MessageV2 } from "../../src/session/message-v2"
 import { Log } from "../../src/util/log"
 import { Flag } from "../../src/flag/flag"
 
@@ -327,6 +328,83 @@ describe("session.list", () => {
         expect(secondBody.sessionID).toBe(firstBody.sessionID)
         expect(secondBody.imported).toBe(false)
         expect(secondBody.appended).toBe(1)
+      },
+    })
+  })
+
+  test("writes takeover anchor for large Claude Code transcript and keeps import idempotent", async () => {
+    await Instance.provide({
+      directory: projectRoot,
+      fn: async () => {
+        const app = Server.App()
+        const transcriptPath = path.join(os.tmpdir(), `opencode-test-claude-import-anchor-${process.pid}.jsonl`)
+        const lines = Array.from({ length: 20 }, (_, index) => {
+          const role = index % 2 === 0 ? "user" : "assistant"
+          return JSON.stringify({
+            timestamp: `2026-05-04T10:00:${String(index).padStart(2, "0")}.000Z`,
+            cwd: projectRoot,
+            message: {
+              role,
+              model: role === "assistant" ? "claude-sonnet-4" : undefined,
+              content: [{ type: "text", text: `${role} takeover line ${index + 1}` }],
+            },
+          })
+        })
+        await fs.writeFile(transcriptPath, lines.join("\n") + "\n")
+
+        const first = await app.request("/session/import/claude", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ directory: projectRoot, sourceSessionID: "claude-anchor", transcriptPath }),
+        })
+        if (Flag.OPENCODE_SERVER_PASSWORD) {
+          expect(first.status).toBe(401)
+          return
+        }
+        expect(first.status).toBe(200)
+        const firstBody = (await first.json()) as { sessionID: string; imported: boolean; appended: number }
+        expect(firstBody.appended).toBe(20)
+
+        const messages = await Session.messages({ sessionID: firstBody.sessionID })
+        const anchors = messages.filter((msg) => msg.info.role === "assistant" && msg.info.summary === true)
+        expect(anchors.length).toBe(1)
+        expect(anchors[0].parts.some((part) => part.type === "compaction")).toBe(true)
+        expect(anchors[0].parts.map((part) => (part.type === "text" ? part.text : "")).join("\n")).toContain(
+          "Claude Takeover Anchor",
+        )
+
+        const filtered = await MessageV2.filterCompacted(MessageV2.stream(firstBody.sessionID))
+        expect(filtered.messages.map((msg) => msg.info.id)).toEqual([anchors[0].info.id])
+
+        const second = await app.request("/session/import/claude", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ directory: projectRoot, sourceSessionID: "claude-anchor", transcriptPath }),
+        })
+        expect(second.status).toBe(200)
+        const secondBody = (await second.json()) as { sessionID: string; imported: boolean; appended: number }
+        expect(secondBody.sessionID).toBe(firstBody.sessionID)
+        expect(secondBody.appended).toBe(0)
+        const unchanged = await Session.messages({ sessionID: firstBody.sessionID })
+        expect(unchanged.filter((msg) => msg.info.role === "assistant" && msg.info.summary === true).length).toBe(1)
+
+        await fs.appendFile(
+          transcriptPath,
+          JSON.stringify({
+            timestamp: "2026-05-04T10:00:21.000Z",
+            message: { role: "user", content: [{ type: "text", text: "new takeover delta" }] },
+          }) + "\n",
+        )
+        const third = await app.request("/session/import/claude", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ directory: projectRoot, sourceSessionID: "claude-anchor", transcriptPath }),
+        })
+        expect(third.status).toBe(200)
+        const thirdBody = (await third.json()) as { sessionID: string; imported: boolean; appended: number }
+        expect(thirdBody.appended).toBe(1)
+        const refreshed = await Session.messages({ sessionID: firstBody.sessionID })
+        expect(refreshed.filter((msg) => msg.info.role === "assistant" && msg.info.summary === true).length).toBe(2)
       },
     })
   })

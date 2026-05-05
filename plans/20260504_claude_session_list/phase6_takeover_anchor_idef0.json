@@ -1,0 +1,74 @@
+{
+  "diagram_title": "Claude Takeover Compaction Anchor",
+  "node_reference": "A2",
+  "activities": [
+    {
+      "id": "A21",
+      "title": "Read Transcript",
+      "description": "Read explicit Claude Code JSONL transcript lines for a project-scoped source session.",
+      "decomposition": null
+    },
+    {
+      "id": "A22",
+      "title": "Normalize Transcript",
+      "description": "Convert supported user and assistant blocks into OpenCode text messages plus bounded tool evidence.",
+      "decomposition": null
+    },
+    {
+      "id": "A23",
+      "title": "Write Messages",
+      "description": "Persist imported raw messages and parts through Session APIs.",
+      "decomposition": null
+    },
+    {
+      "id": "A24",
+      "title": "Build Anchor",
+      "description": "Derive deterministic takeover summary text and source line range metadata.",
+      "decomposition": null
+    },
+    {
+      "id": "A25",
+      "title": "Commit Anchor",
+      "description": "Write an assistant summary message into the same message stream for filterCompacted.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "I1", "source": "EXTERNAL", "target": "A21:input", "label": "Claude JSONL transcript", "type": "input" },
+    {
+      "id": "C1",
+      "source": "EXTERNAL",
+      "target": "A22:control",
+      "label": "Supported block contract",
+      "type": "control"
+    },
+    {
+      "id": "C2",
+      "source": "EXTERNAL",
+      "target": "A24:control",
+      "label": "Anchor threshold and idempotency rule",
+      "type": "control"
+    },
+    {
+      "id": "O1",
+      "source": "A25:output",
+      "target": "EXTERNAL",
+      "label": "Imported session with latest anchor",
+      "type": "output"
+    },
+    {
+      "id": "M1",
+      "source": "EXTERNAL",
+      "target": "A23:mechanism",
+      "label": "Session.updateMessage / Session.updatePart",
+      "type": "mechanism"
+    },
+    {
+      "id": "M2",
+      "source": "EXTERNAL",
+      "target": "A25:mechanism",
+      "label": "Message stream anchor contract",
+      "type": "mechanism"
+    }
+  ]
+}

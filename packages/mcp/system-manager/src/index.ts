@@ -64,6 +64,55 @@ async function pathExists(targetPath: string) {
   }
 }
 
+function restartHandoverPath(txid: string) {
+  const safe = txid.replace(/[^a-zA-Z0-9_.-]/g, "-")
+  return path.join(XDG_STATE_HOME, "opencode", "restart-handover", `${safe}.json`)
+}
+
+function redactRestartText(value: string | undefined, maxLength: number) {
+  if (!value) return undefined
+  return value.replace(/(api[_-]?key|token|secret|password)\s*[:=]\s*\S+/gi, "$1=<redacted>").slice(0, maxLength)
+}
+
+async function writeRestartHandoverPreflight(input: {
+  txid: string
+  targets?: string[]
+  reason?: string
+  sessionID?: string
+  handover?: string
+}) {
+  const target = restartHandoverPath(input.txid)
+  const tmp = `${target}.tmp-${process.pid}`
+  await fs.mkdir(path.dirname(target), { recursive: true })
+  await fs.writeFile(
+    tmp,
+    JSON.stringify(
+      {
+        schemaVersion: 1,
+        checkpointID: input.txid,
+        txid: input.txid,
+        status: "tool-preflight",
+        createdAt: new Date().toISOString(),
+        pid: process.pid,
+        runtimeMode: "unknown",
+        targets: input.targets ?? [],
+        reason: redactRestartText(input.reason, 500),
+        sessionID: input.sessionID,
+        handover: redactRestartText(input.handover, 4000),
+        validationNextSteps: [
+          "This preflight checkpoint was written before calling /global/web/restart.",
+          "If the socket closes, do not infer restart success; probe health and inspect restart logs.",
+        ],
+      },
+      null,
+      2,
+    ) + "\n",
+    { mode: 0o600 },
+  )
+  await fs.rename(tmp, target)
+  return target
+}
+
 function inferInlineImageMimeType(targetPath: string, mediaType?: string) {
   const inferred = INLINE_IMAGE_MIME_BY_EXT[path.extname(targetPath).toLowerCase()]
   const explicit = mediaType?.trim().toLowerCase()
@@ -801,6 +850,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description:
                 "Short human-readable reason (stored in gateway log and restart event log). Example: 'applied auth middleware rewrite'.",
               maxLength: 500,
+            },
+            sessionID: {
+              type: "string",
+              description:
+                "Optional active session id to persist into the restart handover checkpoint so a fresh runtime can recover the caller context after reconnect.",
+            },
+            handover: {
+              type: "string",
+              description:
+                "Optional concise continuation note persisted before restart. Do not include secrets or full transcripts.",
+              maxLength: 4000,
             },
           },
         },
@@ -1801,19 +1861,39 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       // handles the actual rebuild+restart orchestration via webctl.sh.
       // This tool exists so AI has a sanctioned path (vs. running webctl.sh
       // directly, which execute_command will deny).
-      const { targets, reason } = args as {
+      const { targets, reason, sessionID, handover } = args as {
         targets?: Array<"daemon" | "frontend" | "gateway">
         reason?: string
+        sessionID?: string
+        handover?: string
       }
       const baseUrl = await getServerApiBaseUrl()
+      const txid = `mcp-web-${Date.now()}-${process.pid}`
+      const preflightPath = await writeRestartHandoverPreflight({ txid, targets, reason, sessionID, handover })
       const body: Record<string, unknown> = {}
+      body.txid = txid
       if (targets && targets.length > 0) body.targets = targets
       if (reason) body.reason = reason
-      const res = await serverFetch(`${baseUrl}/global/web/restart`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(body),
-      })
+      if (sessionID) body.sessionID = sessionID
+      if (handover) body.handover = handover
+      let res: Response
+      try {
+        res = await serverFetch(`${baseUrl}/global/web/restart`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        })
+      } catch (error: any) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `restart_self status unknown (txid=${txid}): ${error?.message ?? String(error)}\nPreflight handover checkpoint: ${preflightPath}\nDo not infer restart success from this socket error; reconnect and probe /api/v2/global/health.`,
+            },
+          ],
+          isError: true,
+        }
+      }
       const payload = (await res.json().catch(() => ({}))) as Record<string, unknown>
       if (!res.ok) {
         const msg =
@@ -1835,12 +1915,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
       }
       const mode = typeof payload.runtimeMode === "string" ? payload.runtimeMode : "unknown"
-      const txid = typeof payload.txid === "string" ? payload.txid : "(no txid)"
+      const responseTxid = typeof payload.txid === "string" ? payload.txid : txid
+      const handoverPath =
+        typeof payload.handoverPath === "string"
+          ? `\nHandover checkpoint: ${payload.handoverPath}`
+          : `\nPreflight handover checkpoint: ${preflightPath}`
       return {
         content: [
           {
             type: "text",
-            text: `restart_self scheduled (mode=${mode}, txid=${txid}). The daemon will self-terminate after webctl finishes; the gateway will respawn a fresh daemon on the next request. Expect a brief window of 503/reconnect.`,
+            text: `restart_self scheduled (mode=${mode}, txid=${responseTxid}). The daemon will self-terminate after webctl finishes; the gateway will respawn a fresh daemon on the next request. Expect a brief window of 503/reconnect.${handoverPath}`,
           },
         ],
       }
