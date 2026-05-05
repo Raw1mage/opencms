@@ -25,15 +25,17 @@
 <path class="edge" d="M 24.36 42.00 L 24.36 44.00"/>
 <path class="edge edge-arrow" d="M 24.36 44.00 L 24.36 46.00"/>
 <path class="edge edge-arrow" d="M 24.36 49.00 L 24.36 51.00"/>
-<path class="edge edge-arrow" d="M 10.00 51.00 L 10.00 55.00"/>
-<path class="edge edge-arrow" d="M 38.72 51.00 L 38.72 55.00"/>
+<path class="edge edge-arrow" d="M 24.36 51.00 L 24.36 52.50 Q 24.36 53.00 23.86 53.00 L 10.50 53.00 Q 10.00 53.00 10.00 53.50 L 10.00 55.00"/>
+<path class="edge" d="M 24.36 53.00 L 38.72 53.00"/>
+<path class="edge edge-arrow" d="M 38.72 53.00 L 38.72 55.00"/>
 <path class="edge edge-arrow" d="M 10.00 58.00 L 10.00 62.00"/>
 <path class="edge edge-arrow" d="M 24.36 62.00 L 24.36 64.00"/>
 <path class="edge edge-arrow" d="M 38.72 58.00 L 38.72 62.00"/>
 <path class="edge edge-arrow" d="M 24.36 67.00 L 24.36 69.00"/>
-<path class="edge edge-arrow" d="M 10.00 69.00 L 10.00 73.00"/>
-<path class="edge edge-arrow" d="M 24.36 69.00 L 24.36 73.00"/>
-<path class="edge edge-arrow" d="M 38.72 69.00 L 38.72 73.00"/>
+<path class="edge edge-arrow" d="M 24.36 69.00 L 24.36 70.50 Q 24.36 71.00 23.86 71.00 L 10.50 71.00 Q 10.00 71.00 10.00 71.50 L 10.00 73.00"/>
+<path class="edge" d="M 24.36 71.00 L 24.36 73.00"/>
+<path class="edge" d="M 24.36 71.00 L 38.72 71.00"/>
+<path class="edge edge-arrow" d="M 38.72 71.00 L 38.72 73.00"/>
 <path class="edge edge-arrow" d="M 10.00 76.00 L 10.00 82.00"/>
 <path class="edge" d="M 24.36 76.00 L 24.36 78.00"/>
 <path class="edge" d="M 24.36 87.00 L 24.36 89.00"/>
@@ -110,43 +112,44 @@
 <line class="assoc" x1="40.72" y1="74.50" x2="41.72" y2="74.50"/>
 <rect class="action" x="41.72" y="73.07" width="8.36" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="45.90" y="74.09"><tspan x="45.90" dy="0">發出延續invalidate</tspan><tspan x="45.90" dy="0.82">dbus事件與evict快取</tspan></text>
-<line class="gate" x1="23.36" y1="9.00" x2="25.36" y2="9.00"/>
+<circle class="junction" cx="24.36" cy="9.00" r="0.18"/>
 <text class="gate-label" x="25.76" y="9.00"><tspan x="25.76" dy="0">請求已收到</tspan></text>
-<line class="gate" x1="23.36" y1="16.00" x2="25.36" y2="16.00"/>
+<circle class="junction" cx="24.36" cy="16.00" r="0.18"/>
 <text class="gate-label" x="25.76" y="16.00"><tspan x="25.76" dy="0">family在knownfamilies</tspan></text>
-<line class="gate" x1="23.36" y1="23.00" x2="25.36" y2="23.00"/>
+<circle class="junction" cx="24.36" cy="23.00" r="0.18"/>
 <text class="gate-label" x="25.76" y="23.00"><tspan x="25.76" dy="0">帳號idpresent與active</tspan></text>
-<line class="gate" x1="23.36" y1="30.00" x2="25.36" y2="30.00"/>
+<circle class="junction" cx="24.36" cy="30.00" r="0.18"/>
 <text class="gate-label" x="25.76" y="30.00"><tspan x="25.76" dy="0">sdkclient就緒</tspan></text>
-<line class="gate" x1="23.36" y1="37.00" x2="25.36" y2="37.00"/>
+<circle class="junction" cx="24.36" cy="37.00" r="0.18"/>
 <text class="gate-label" x="25.76" y="37.00"><tspan x="25.76" dy="0">headersfinalized</tspan></text>
-<line class="gate" x1="23.36" y1="44.00" x2="25.36" y2="44.00"/>
+<circle class="junction" cx="24.36" cy="44.00" r="0.18"/>
 <text class="gate-label" x="25.76" y="44.00"><tspan x="25.76" dy="0">payloadtransform完成</tspan></text>
 <line class="gate" x1="6.00" y1="51.00" x2="42.72" y2="51.00"/>
 <line class="gate" x1="8.00" y1="62.00" x2="40.72" y2="62.00"/>
 <line class="gate" x1="6.00" y1="69.00" x2="42.72" y2="69.00"/>
 <line class="gate" x1="8.00" y1="82.00" x2="26.36" y2="82.00"/>
-<line class="gate" x1="23.36" y1="89.00" x2="25.36" y2="89.00"/>
+<circle class="junction" cx="24.36" cy="89.00" r="0.18"/>
 <text class="gate-label" x="25.76" y="89.00"><tspan x="25.76" dy="0">1</tspan></text>
-<line class="gate" x1="37.72" y1="78.00" x2="39.72" y2="78.00"/>
+<circle class="junction" cx="38.72" cy="78.00" r="0.18"/>
 <text class="gate-label" x="40.12" y="78.00"><tspan x="40.12" dy="0">bus事件emitted與快取evicted</tspan></text>
-<line class="gate" x1="9.00" y1="53.00" x2="11.00" y2="53.00"/>
-<text class="gate-label-left" x="8.60" y="52.32"><tspan x="8.60" dy="0">ws已啟用與</tspan><tspan x="8.60" dy="0.68">不sticky</tspan><tspan x="8.60" dy="0.68">fallback</tspan></text>
-<line class="gate" x1="37.72" y1="53.00" x2="39.72" y2="53.00"/>
-<text class="gate-label-left" x="37.32" y="53.00"><tspan x="37.32" dy="0">http或wsstickyfallback</tspan></text>
+<line class="gate" x1="23.36" y1="53.00" x2="25.36" y2="53.00"/>
+<text class="gate-label" x="25.76" y="52.32"><tspan x="25.76" dy="0">ws已啟用與不stickyfallback</tspan></text>
+<line class="gate" x1="23.36" y1="53.00" x2="25.36" y2="53.00"/>
+<text class="gate-label" x="25.76" y="53.68"><tspan x="25.76" dy="0">http或wsstickyfallback</tspan></text>
 <line class="gate" x1="9.00" y1="60.00" x2="11.00" y2="60.00"/>
 <text class="gate-label-left" x="8.60" y="60.00"><tspan x="8.60" dy="0">wshandshakeok</tspan></text>
 <line class="gate" x1="37.72" y1="60.00" x2="39.72" y2="60.00"/>
 <text class="gate-label-left" x="37.32" y="60.00"><tspan x="37.32" dy="0">http回應opened</tspan></text>
-<line class="gate" x1="9.00" y1="71.00" x2="11.00" y2="71.00"/>
-<text class="gate-label" x="11.40" y="71.00"><tspan x="11.40" dy="0">分塊completionframe</tspan></text>
 <line class="gate" x1="23.36" y1="71.00" x2="25.36" y2="71.00"/>
-<text class="gate-label" x="25.76" y="71.00"><tspan x="25.76" dy="0">ratelimit或配額hit</tspan></text>
-<line class="gate" x1="37.72" y1="71.00" x2="39.72" y2="71.00"/>
-<text class="gate-label" x="40.12" y="71.00"><tspan x="40.12" dy="0">延續invalidated或4xx5xx</tspan></text>
+<text class="gate-label" x="25.76" y="70.32"><tspan x="25.76" dy="0">分塊completionframe</tspan></text>
+<line class="gate" x1="23.36" y1="71.00" x2="25.36" y2="71.00"/>
+<text class="gate-label" x="25.76" y="71.68"><tspan x="25.76" dy="0">ratelimit或配額hit</tspan></text>
+<line class="gate" x1="23.36" y1="71.00" x2="25.36" y2="71.00"/>
+<text class="gate-label" x="28.56" y="70.32"><tspan x="28.56" dy="0">延續invalidated或4xx5xx</tspan></text>
 <line class="gate" x1="9.00" y1="80.00" x2="11.00" y2="80.00"/>
 <text class="gate-label-left" x="8.60" y="79.32"><tspan x="8.60" dy="0">teleme</tspan><tspan x="8.60" dy="0.68">trycom</tspan><tspan x="8.60" dy="0.68">mitted</tspan></text>
 <line class="gate" x1="23.36" y1="80.00" x2="25.36" y2="80.00"/>
 <text class="gate-label-left" x="22.96" y="79.32"><tspan x="22.96" dy="0">candidatepoo</tspan><tspan x="22.96" dy="0.68">lexhausted或</tspan><tspan x="22.96" dy="0.68">backoffdone</tspan></text>
 <circle class="junction" cx="24.36" cy="78.00" r="0.22"/>
+<circle class="junction" cx="24.36" cy="71.00" r="0.22"/>
 </svg>

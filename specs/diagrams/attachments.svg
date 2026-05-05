@@ -14,13 +14,15 @@
 <path class="edge" d="M 21.06 7.00 L 21.06 9.00"/>
 <path class="edge edge-arrow" d="M 21.06 9.00 L 21.06 11.00"/>
 <path class="edge edge-arrow" d="M 21.06 14.00 L 21.06 16.00"/>
-<path class="edge edge-arrow" d="M 10.00 16.00 L 10.00 20.00"/>
-<path class="edge edge-arrow" d="M 32.12 16.00 L 32.12 20.00"/>
+<path class="edge edge-arrow" d="M 21.06 16.00 L 21.06 17.50 Q 21.06 18.00 20.56 18.00 L 10.50 18.00 Q 10.00 18.00 10.00 18.50 L 10.00 20.00"/>
+<path class="edge" d="M 21.06 18.00 L 32.12 18.00"/>
+<path class="edge edge-arrow" d="M 32.12 18.00 L 32.12 20.00"/>
 <path class="edge edge-arrow" d="M 10.00 23.00 L 10.00 36.00"/>
 <path class="edge edge-arrow" d="M 21.06 36.00 L 21.06 38.00"/>
 <path class="edge edge-arrow" d="M 32.12 23.00 L 32.12 25.00"/>
-<path class="edge edge-arrow" d="M 21.06 25.00 L 21.06 29.00"/>
-<path class="edge edge-arrow" d="M 43.18 25.00 L 43.18 29.00"/>
+<path class="edge edge-arrow" d="M 32.12 25.00 L 32.12 26.50 Q 32.12 27.00 31.62 27.00 L 21.56 27.00 Q 21.06 27.00 21.06 27.50 L 21.06 29.00"/>
+<path class="edge" d="M 32.12 27.00 L 43.18 27.00"/>
+<path class="edge edge-arrow" d="M 43.18 27.00 L 43.18 29.00"/>
 <path class="edge edge-arrow" d="M 21.06 32.00 L 21.06 36.00"/>
 <path class="edge edge-arrow" d="M 43.18 32.00 L 43.18 36.00"/>
 <path class="edge" d="M 21.06 41.00 L 21.06 43.00"/>
@@ -119,38 +121,38 @@
 <line class="assoc" x1="23.06" y1="99.50" x2="24.06" y2="99.50"/>
 <rect class="action" x="24.06" y="98.07" width="5.06" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="26.59" y="99.09"><tspan x="26.59" dy="0">drainActiv</tspan><tspan x="26.59" dy="0.82">eImageRefs</tspan></text>
-<line class="gate" x1="20.06" y1="9.00" x2="22.06" y2="9.00"/>
+<circle class="junction" cx="21.06" cy="9.00" r="0.18"/>
 <text class="gate-label" x="22.46" y="9.00"><tspan x="22.46" dy="0">上傳請求已收到</tspan></text>
 <line class="gate" x1="6.00" y1="16.00" x2="36.12" y2="16.00"/>
 <line class="gate" x1="8.00" y1="36.00" x2="45.18" y2="36.00"/>
 <line class="gate" x1="17.06" y1="25.00" x2="47.18" y2="25.00"/>
-<line class="gate" x1="20.06" y1="43.00" x2="22.06" y2="43.00"/>
+<circle class="junction" cx="21.06" cy="43.00" r="0.18"/>
 <text class="gate-label" x="22.46" y="43.00"><tspan x="22.46" dy="0">附件refpersisted</tspan></text>
-<line class="gate" x1="20.06" y1="50.00" x2="22.06" y2="50.00"/>
+<circle class="junction" cx="21.06" cy="50.00" r="0.18"/>
 <text class="gate-label" x="22.46" y="50.00"><tspan x="22.46" dy="0">Sessionhasimage附件</tspan></text>
-<line class="gate" x1="20.06" y1="57.00" x2="22.06" y2="57.00"/>
+<circle class="junction" cx="21.06" cy="57.00" r="0.18"/>
 <text class="gate-label" x="22.46" y="57.00"><tspan x="22.46" dy="0">preface就緒供LLM</tspan></text>
-<line class="gate" x1="20.06" y1="66.00" x2="22.06" y2="66.00"/>
+<circle class="junction" cx="21.06" cy="66.00" r="0.18"/>
 <text class="gate-label" x="22.46" y="66.00"><tspan x="22.46" dy="0">aicallsreread附件</tspan></text>
 <line class="gate" x1="19.06" y1="89.00" x2="34.12" y2="89.00"/>
-<line class="gate" x1="20.06" y1="73.00" x2="22.06" y2="73.00"/>
+<circle class="junction" cx="21.06" cy="73.00" r="0.18"/>
 <text class="gate-label-left" x="19.66" y="73.00"><tspan x="19.66" dy="0">filenamematches附件ref</tspan></text>
-<line class="gate" x1="20.06" y1="80.00" x2="22.06" y2="80.00"/>
+<circle class="junction" cx="21.06" cy="80.00" r="0.18"/>
 <text class="gate-label-left" x="19.66" y="80.00"><tspan x="19.66" dy="0">setActiveImageRefsCommitted</tspan></text>
-<line class="gate" x1="20.06" y1="96.00" x2="22.06" y2="96.00"/>
+<circle class="junction" cx="21.06" cy="96.00" r="0.18"/>
 <text class="gate-label" x="22.46" y="96.00"><tspan x="22.46" dy="0">步驟完成emitted</tspan></text>
-<line class="gate" x1="20.06" y1="103.00" x2="22.06" y2="103.00"/>
+<circle class="junction" cx="21.06" cy="103.00" r="0.18"/>
 <text class="gate-label" x="22.46" y="103.00"><tspan x="22.46" dy="0">activeImageRefsCleared</tspan></text>
-<line class="gate" x1="9.00" y1="18.00" x2="11.00" y2="18.00"/>
-<text class="gate-label-left" x="8.60" y="17.66"><tspan x="8.60" dy="0">mime.starts使</tspan><tspan x="8.60" dy="0.68">用(&#x27;image/&#x27;)</tspan></text>
-<line class="gate" x1="31.12" y1="18.00" x2="33.12" y2="18.00"/>
-<text class="gate-label-left" x="30.72" y="18.00"><tspan x="30.72" dy="0">!mime.starts使用(&#x27;image/&#x27;)</tspan></text>
+<line class="gate" x1="20.06" y1="18.00" x2="22.06" y2="18.00"/>
+<text class="gate-label" x="22.46" y="17.32"><tspan x="22.46" dy="0">mime.starts使用(&#x27;image/&#x27;)</tspan></text>
+<line class="gate" x1="20.06" y1="18.00" x2="22.06" y2="18.00"/>
+<text class="gate-label" x="22.46" y="18.68"><tspan x="22.46" dy="0">!mime.starts使用(&#x27;image/&#x27;)</tspan></text>
 <line class="gate" x1="9.00" y1="34.00" x2="11.00" y2="34.00"/>
 <text class="gate-label-left" x="8.60" y="33.66"><tspan x="8.60" dy="0">Session路</tspan><tspan x="8.60" dy="0.68">徑writeok</tspan></text>
-<line class="gate" x1="20.06" y1="27.00" x2="22.06" y2="27.00"/>
-<text class="gate-label-left" x="19.66" y="26.32"><tspan x="19.66" dy="0">是officemi</tspan><tspan x="19.66" dy="0.68">me(classi</tspan><tspan x="19.66" dy="0.68">fyOffice)</tspan></text>
-<line class="gate" x1="42.18" y1="27.00" x2="44.18" y2="27.00"/>
-<text class="gate-label-left" x="41.78" y="27.00"><tspan x="41.78" dy="0">!是officemime</tspan></text>
+<line class="gate" x1="31.12" y1="27.00" x2="33.12" y2="27.00"/>
+<text class="gate-label" x="33.52" y="26.32"><tspan x="33.52" dy="0">是officemime(classifyOffice)</tspan></text>
+<line class="gate" x1="31.12" y1="27.00" x2="33.12" y2="27.00"/>
+<text class="gate-label" x="33.52" y="27.68"><tspan x="33.52" dy="0">!是officemime</tspan></text>
 <line class="gate" x1="20.06" y1="34.00" x2="22.06" y2="34.00"/>
 <text class="gate-label-left" x="19.66" y="34.00"><tspan x="19.66" dy="0">routingHintRendered</tspan></text>
 <line class="gate" x1="42.18" y1="34.00" x2="44.18" y2="34.00"/>
