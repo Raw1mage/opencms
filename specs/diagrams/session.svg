@@ -170,8 +170,8 @@
 <text class="gate-label-left" x="22.10" y="41.64"><tspan x="22.10" dy="0">staleth</tspan><tspan x="22.10" dy="0.68">reshold</tspan><tspan x="22.10" dy="0.68">crossed</tspan></text>
 <line class="gate" x1="57.75" y1="43.00" x2="59.75" y2="43.00"/>
 <text class="gate-label-left" x="57.35" y="43.68"><tspan x="57.35" dy="0">hardstalethresholdcrossed</tspan></text>
-<line class="gate" x1="46.00" y1="52.00" x2="48.00" y2="52.00"/>
-<text class="gate-label" x="48.40" y="52.00"><tspan x="48.40" dy="0">Session路由left</tspan></text>
+<line class="gate" x1="46.00" y1="42.00" x2="48.00" y2="42.00"/>
+<text class="gate-label" x="48.40" y="42.00"><tspan x="48.40" dy="0">Session路由left</tspan></text>
 <line class="flyover-mask" x1="-9.00" y1="43.00" x2="-7.00" y2="43.00"/>
 <path class="flyover" d="M -9.00 43.00 Q -8.00 42.00 -7.00 43.00"/>
 <circle class="junction" cx="23.50" cy="25.00" r="0.22"/>

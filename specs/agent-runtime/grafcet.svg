@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1395" height="2520" viewBox="-14.00 -2.00 69.75 126.00" role="img">
+<svg xmlns="http://www.w3.org/2000/svg" width="1395" height="2320" viewBox="-14.00 -2.00 69.75 116.00" role="img">
 <style>
 .step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
 .action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
@@ -10,7 +10,7 @@
 .action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
 </style>
 <defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
-<rect x="-14.00" y="-2.00" width="69.75" height="126.00" fill="white"/>
+<rect x="-14.00" y="-2.00" width="69.75" height="116.00" fill="white"/>
 <path class="edge edge-arrow" d="M 19.90 88.00 L 19.90 92.00"/>
 <path class="edge" d="M 19.90 7.00 L 19.90 9.00"/>
 <path class="edge edge-arrow" d="M 19.90 9.00 L 19.90 11.00"/>
@@ -181,12 +181,12 @@
 <text class="gate-label-left" x="8.55" y="70.00"><tspan x="8.55" dy="0">工具結果已提交</tspan></text>
 <line class="gate" x1="28.85" y1="90.00" x2="30.85" y2="90.00"/>
 <text class="gate-label" x="31.25" y="90.00"><tspan x="31.25" dy="0">無配額觸發</tspan></text>
-<line class="gate" x1="-9.00" y1="81.50" x2="-7.00" y2="81.50"/>
-<text class="gate-label" x="-6.60" y="80.82"><tspan x="-6.60" dy="0">已啟用 &amp;&amp; (下一個</tspan><tspan x="-6.60" dy="0.68">可執行待辦!=空</tspan><tspan x="-6.60" dy="0.68">|| 補充啟用規劃)</tspan></text>
+<line class="gate" x1="-9.00" y1="65.50" x2="-7.00" y2="65.50"/>
+<text class="gate-label" x="-6.60" y="65.50"><tspan x="-6.60" dy="0">已啟用 &amp;&amp; (下一個可執行待辦!=空 || 補充啟用規劃)</tspan></text>
 <line class="gate" x1="18.90" y1="90.00" x2="20.90" y2="90.00"/>
 <text class="gate-label" x="21.30" y="89.32"><tspan x="21.30" dy="0">停止：子代理</tspan><tspan x="21.30" dy="0.68">會話或未啟用</tspan><tspan x="21.30" dy="0.68">或待辦完成</tspan></text>
-<line class="gate" x1="8.95" y1="120.00" x2="10.95" y2="120.00"/>
-<text class="gate-label-left" x="8.55" y="120.00"><tspan x="8.55" dy="0">下一個使用者訊息</tspan></text>
+<line class="gate" x1="8.95" y1="100.00" x2="10.95" y2="100.00"/>
+<text class="gate-label-left" x="8.55" y="100.00"><tspan x="8.55" dy="0">下一個使用者訊息</tspan></text>
 <line class="gate" x1="28.85" y1="101.00" x2="30.85" y2="101.00"/>
 <text class="gate-label" x="31.25" y="101.00"><tspan x="31.25" dy="0">排程心跳派發到期工作</tspan></text>
 <circle class="junction" cx="19.90" cy="43.00" r="0.22"/>
