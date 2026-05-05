@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1479" height="2360" viewBox="-18.00 -2.00 73.93 118.00" role="img">
+<svg xmlns="http://www.w3.org/2000/svg" width="1479" height="2400" viewBox="-18.00 -2.00 73.93 120.00" role="img">
 <style>
 .step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
 .action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
@@ -10,47 +10,45 @@
 .action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
 </style>
 <defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
-<rect x="-18.00" y="-2.00" width="73.93" height="118.00" fill="white"/>
-<path class="edge edge-arrow" d="M 23.31 42.00 L 23.31 46.00"/>
+<rect x="-18.00" y="-2.00" width="73.93" height="120.00" fill="white"/>
+<path class="edge edge-arrow" d="M 23.31 44.00 L 23.31 48.00"/>
 <path class="edge" d="M 23.31 7.00 L 23.31 11.00"/>
 <path class="edge edge-arrow" d="M 23.31 11.00 L 23.31 15.00"/>
 <path class="edge" d="M 23.31 18.00 L 23.31 22.00"/>
 <path class="edge edge-arrow" d="M 23.31 22.00 L 23.31 26.00"/>
 <path class="edge" d="M 23.31 29.00 L 23.31 31.00"/>
-<path class="edge edge-arrow" d="M 23.31 31.00 L 23.31 35.00"/>
-<path class="edge" d="M 23.31 32.00 L 51.93 32.00"/>
-<path class="edge" d="M 51.93 32.00 L 51.93 35.61"/>
-<path class="edge" d="M 51.93 35.61 L 23.31 35.61"/>
-<path class="edge" d="M 23.31 35.61 L 23.31 35.00"/>
-<path class="edge" d="M 23.31 35.00 L 49.93 35.00"/>
-<path class="edge" d="M 49.93 35.00 L 49.93 103.00"/>
-<path class="edge edge-arrow" d="M 49.93 103.00 L 23.31 103.00"/>
-<path class="edge" d="M 23.31 38.00 L 23.31 42.00"/>
-<path class="edge edge-arrow" d="M 23.31 49.00 L 23.31 51.00"/>
-<path class="edge edge-arrow" d="M 10.00 51.00 L 10.00 55.00"/>
-<path class="edge edge-arrow" d="M 23.31 51.00 L 23.31 55.00"/>
-<path class="edge edge-arrow" d="M 36.62 51.00 L 36.62 55.00"/>
-<path class="edge" d="M 10.00 58.00 L 10.00 60.00"/>
+<path class="edge" d="M 23.31 31.00 L 23.31 33.00"/>
+<path class="edge edge-arrow" d="M 23.31 33.00 L 23.31 37.00"/>
+<path class="edge edge-arrow" d="M 23.31 31.00 L 49.43 31.00 Q 49.93 31.00 49.93 31.50 L 49.93 105.00"/>
+<path class="edge edge-arrow" d="M 23.31 105.00 L 23.31 107.00"/>
+<path class="edge" d="M 23.31 40.00 L 23.31 44.00"/>
+<path class="edge edge-arrow" d="M 23.31 51.00 L 23.31 53.00"/>
+<path class="edge edge-arrow" d="M 10.00 53.00 L 10.00 57.00"/>
+<path class="edge edge-arrow" d="M 23.31 53.00 L 23.31 57.00"/>
+<path class="edge edge-arrow" d="M 36.62 53.00 L 36.62 57.00"/>
 <path class="edge" d="M 10.00 60.00 L 10.00 62.00"/>
-<path class="edge" d="M 10.00 62.00 L -4.00 62.00"/>
-<path class="edge" d="M -4.00 62.00 L -4.00 44.00"/>
-<path class="edge" d="M -4.00 44.00 L 23.31 44.00"/>
-<path class="edge edge-arrow" d="M 23.31 58.00 L 23.31 64.00"/>
-<path class="edge edge-arrow" d="M 10.00 64.00 L 10.00 68.00"/>
-<path class="edge edge-arrow" d="M 23.31 64.00 L 23.31 64.50 Q 23.31 65.00 23.81 65.00 L 26.26 65.00 Q 26.76 65.00 26.76 65.50 L 26.76 68.11 Q 26.76 68.61 26.26 68.61 L 23.61 68.61 Q 23.31 68.61 23.31 68.31 L 23.31 68.00"/>
-<path class="edge edge-arrow" d="M 10.00 71.00 L 10.00 79.00"/>
-<path class="edge edge-arrow" d="M 23.31 79.00 L 23.31 81.00"/>
-<path class="edge" d="M 23.31 71.00 L 23.31 72.00"/>
-<path class="edge" d="M 23.31 72.00 L 26.76 72.00"/>
-<path class="edge" d="M 26.76 72.00 L 26.76 79.61"/>
-<path class="edge" d="M 26.76 79.61 L 23.31 79.61"/>
-<path class="edge" d="M 23.31 84.00 L 23.31 88.00"/>
-<path class="edge edge-arrow" d="M 23.31 88.00 L 23.31 92.00"/>
-<path class="edge edge-arrow" d="M 23.31 95.00 L 23.31 95.50 Q 23.31 96.00 23.81 96.00 L 51.43 96.00 Q 51.93 96.00 51.93 96.50 L 51.93 103.11 Q 51.93 103.61 51.43 103.61 L 23.61 103.61 Q 23.31 103.61 23.31 103.31 L 23.31 103.00"/>
-<path class="edge" d="M 23.31 103.61 L 23.31 105.00"/>
-<path class="edge edge-arrow" d="M 36.62 58.00 L 36.62 103.00"/>
-<path class="edge" d="M 23.31 108.00 L 23.31 110.00"/>
-<path class="edge edge-arrow" d="M 23.31 110.00 L 23.31 111.50 Q 23.31 112.00 22.81 112.00 L -13.50 112.00 Q -14.00 112.00 -14.00 111.50 L -14.00 2.50 Q -14.00 2.00 -13.50 2.00 L 22.81 2.00 Q 23.31 2.00 23.31 2.50 L 23.31 4.00"/>
+<path class="edge" d="M 10.00 62.00 L 10.00 64.00"/>
+<path class="edge" d="M 10.00 64.00 L -4.00 64.00"/>
+<path class="edge" d="M -4.00 64.00 L -4.00 46.00"/>
+<path class="edge" d="M -4.00 46.00 L 23.31 46.00"/>
+<path class="edge edge-arrow" d="M 23.31 60.00 L 23.31 66.00"/>
+<path class="edge edge-arrow" d="M 10.00 66.00 L 10.00 70.00"/>
+<path class="edge edge-arrow" d="M 23.31 66.00 L 23.31 66.50 Q 23.31 67.00 23.81 67.00 L 26.26 67.00 Q 26.76 67.00 26.76 67.50 L 26.76 70.11 Q 26.76 70.61 26.26 70.61 L 23.61 70.61 Q 23.31 70.61 23.31 70.31 L 23.31 70.00"/>
+<path class="edge edge-arrow" d="M 10.00 73.00 L 10.00 81.00"/>
+<path class="edge edge-arrow" d="M 23.31 81.00 L 23.31 83.00"/>
+<path class="edge" d="M 23.31 73.00 L 23.31 74.00"/>
+<path class="edge" d="M 23.31 74.00 L 26.76 74.00"/>
+<path class="edge" d="M 26.76 74.00 L 26.76 81.61"/>
+<path class="edge" d="M 26.76 81.61 L 23.31 81.61"/>
+<path class="edge" d="M 23.31 86.00 L 23.31 90.00"/>
+<path class="edge edge-arrow" d="M 23.31 90.00 L 23.31 94.00"/>
+<path class="edge" d="M 23.31 97.00 L 23.31 98.00"/>
+<path class="edge" d="M 23.31 98.00 L 26.76 98.00"/>
+<path class="edge" d="M 26.76 98.00 L 26.76 105.61"/>
+<path class="edge" d="M 26.76 105.61 L 23.31 105.61"/>
+<path class="edge edge-arrow" d="M 36.62 60.00 L 36.62 105.00"/>
+<path class="edge" d="M 23.31 110.00 L 23.31 112.00"/>
+<path class="edge edge-arrow" d="M 23.31 112.00 L 23.31 113.50 Q 23.31 114.00 22.81 114.00 L -13.50 114.00 Q -14.00 114.00 -14.00 113.50 L -14.00 2.50 Q -14.00 2.00 -13.50 2.00 L 22.81 2.00 Q 23.31 2.00 23.31 2.50 L 23.31 4.00"/>
 <rect class="step" x="21.31" y="4.00" width="4.00" height="3.00"/>
 <rect class="step-inner" x="21.56" y="4.25" width="3.50" height="2.50"/>
 <text class="label" x="23.31" y="5.50">0</text>
@@ -58,26 +56,26 @@
 <text class="label" x="23.31" y="16.50">1</text>
 <rect class="step" x="21.31" y="26.00" width="4.00" height="3.00"/>
 <text class="label" x="23.31" y="27.50">2</text>
-<rect class="step" x="21.31" y="35.00" width="4.00" height="3.00"/>
-<text class="label" x="23.31" y="36.50">3</text>
-<rect class="step" x="21.31" y="46.00" width="4.00" height="3.00"/>
-<text class="label" x="23.31" y="47.50">4</text>
-<rect class="step" x="8.00" y="55.00" width="4.00" height="3.00"/>
-<text class="label" x="10.00" y="56.50">5</text>
-<rect class="step" x="21.31" y="55.00" width="4.00" height="3.00"/>
-<text class="label" x="23.31" y="56.50">6</text>
-<rect class="step" x="8.00" y="68.00" width="4.00" height="3.00"/>
-<text class="label" x="10.00" y="69.50">7</text>
-<rect class="step" x="21.31" y="68.00" width="4.00" height="3.00"/>
-<text class="label" x="23.31" y="69.50">8</text>
-<rect class="step" x="21.31" y="81.00" width="4.00" height="3.00"/>
-<text class="label" x="23.31" y="82.50">9</text>
-<rect class="step" x="21.31" y="92.00" width="4.00" height="3.00"/>
-<text class="label" x="23.31" y="93.50">10</text>
-<rect class="step" x="34.62" y="55.00" width="4.00" height="3.00"/>
-<text class="label" x="36.62" y="56.50">11</text>
-<rect class="step" x="21.31" y="105.00" width="4.00" height="3.00"/>
-<text class="label" x="23.31" y="106.50">12</text>
+<rect class="step" x="21.31" y="37.00" width="4.00" height="3.00"/>
+<text class="label" x="23.31" y="38.50">3</text>
+<rect class="step" x="21.31" y="48.00" width="4.00" height="3.00"/>
+<text class="label" x="23.31" y="49.50">4</text>
+<rect class="step" x="8.00" y="57.00" width="4.00" height="3.00"/>
+<text class="label" x="10.00" y="58.50">5</text>
+<rect class="step" x="21.31" y="57.00" width="4.00" height="3.00"/>
+<text class="label" x="23.31" y="58.50">6</text>
+<rect class="step" x="8.00" y="70.00" width="4.00" height="3.00"/>
+<text class="label" x="10.00" y="71.50">7</text>
+<rect class="step" x="21.31" y="70.00" width="4.00" height="3.00"/>
+<text class="label" x="23.31" y="71.50">8</text>
+<rect class="step" x="21.31" y="83.00" width="4.00" height="3.00"/>
+<text class="label" x="23.31" y="84.50">9</text>
+<rect class="step" x="21.31" y="94.00" width="4.00" height="3.00"/>
+<text class="label" x="23.31" y="95.50">10</text>
+<rect class="step" x="34.62" y="57.00" width="4.00" height="3.00"/>
+<text class="label" x="36.62" y="58.50">11</text>
+<rect class="step" x="21.31" y="107.00" width="4.00" height="3.00"/>
+<text class="label" x="23.31" y="108.50">12</text>
 <line class="assoc" x1="25.31" y1="5.50" x2="26.31" y2="5.50"/>
 <rect class="action" x="26.31" y="4.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="29.96" y="4.68"><tspan x="29.96" dy="0">等待下一個</tspan><tspan x="29.96" dy="0.82">runloopi</tspan><tspan x="29.96" dy="0.82">teration</tspan></text>
@@ -87,74 +85,71 @@
 <line class="assoc" x1="25.31" y1="27.50" x2="26.31" y2="27.50"/>
 <rect class="action" x="26.31" y="26.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="29.96" y="27.09"><tspan x="29.96" dy="0">checkcooldown與</tspan><tspan x="29.96" dy="0.82">閒置tail</tspan></text>
-<line class="assoc" x1="25.31" y1="36.50" x2="26.31" y2="36.50"/>
-<rect class="action" x="26.31" y="35.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="29.96" y="36.50"><tspan x="29.96" dy="0">解析kindchain</tspan></text>
-<line class="assoc" x1="25.31" y1="47.50" x2="26.31" y2="47.50"/>
-<rect class="action" x="26.31" y="46.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="29.96" y="47.09"><tspan x="29.96" dy="0">try下一個</tspan><tspan x="29.96" dy="0.82">kind在chain</tspan></text>
-<line class="assoc" x1="12.00" y1="56.50" x2="13.00" y2="56.50"/>
-<rect class="action" x="13.00" y="55.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="16.66" y="56.09"><tspan x="16.66" dy="0">advance到下一</tspan><tspan x="16.66" dy="0.82">個chainindex</tspan></text>
-<line class="assoc" x1="25.31" y1="56.50" x2="26.31" y2="56.50"/>
-<rect class="action" x="26.31" y="55.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="29.96" y="56.09"><tspan x="29.96" dy="0">branch在</tspan><tspan x="29.96" dy="0.82">anchorwriter</tspan></text>
-<line class="assoc" x1="12.00" y1="69.50" x2="13.00" y2="69.50"/>
-<rect class="action" x="13.00" y="68.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="16.66" y="69.09"><tspan x="16.66" dy="0">writesanitiz</tspan><tspan x="16.66" dy="0.82">edanchor訊息</tspan></text>
-<line class="assoc" x1="25.31" y1="69.50" x2="26.31" y2="69.50"/>
-<rect class="action" x="26.31" y="68.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="29.96" y="69.09"><tspan x="29.96" dy="0">發出壓縮started與</tspan><tspan x="29.96" dy="0.82">kindtelemetry</tspan></text>
-<line class="assoc" x1="25.31" y1="82.50" x2="26.31" y2="82.50"/>
-<rect class="action" x="26.31" y="81.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="29.96" y="82.09"><tspan x="29.96" dy="0">inject合成繼</tspan><tspan x="29.96" dy="0.82">續ifallowed</tspan></text>
-<line class="assoc" x1="25.31" y1="93.50" x2="26.31" y2="93.50"/>
-<rect class="action" x="26.31" y="92.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="29.96" y="92.68"><tspan x="29.96" dy="0">apply快取</tspan><tspan x="29.96" dy="0.82">layout與</tspan><tspan x="29.96" dy="0.82">staticsystem</tspan></text>
-<line class="assoc" x1="38.62" y1="56.50" x2="39.62" y2="56.50"/>
-<rect class="action" x="39.62" y="55.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="43.27" y="56.09"><tspan x="43.27" dy="0">abort使用</tspan><tspan x="43.27" dy="0.82">stopverdict</tspan></text>
-<line class="assoc" x1="25.31" y1="106.50" x2="26.31" y2="106.50"/>
-<rect class="action" x="26.31" y="105.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="29.96" y="106.09"><tspan x="29.96" dy="0">返回verdict到</tspan><tspan x="29.96" dy="0.82">runloop</tspan></text>
+<line class="assoc" x1="25.31" y1="38.50" x2="26.31" y2="38.50"/>
+<rect class="action" x="26.31" y="37.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="29.96" y="38.50"><tspan x="29.96" dy="0">解析kindchain</tspan></text>
+<line class="assoc" x1="25.31" y1="49.50" x2="26.31" y2="49.50"/>
+<rect class="action" x="26.31" y="48.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="29.96" y="49.09"><tspan x="29.96" dy="0">try下一個</tspan><tspan x="29.96" dy="0.82">kind在chain</tspan></text>
+<line class="assoc" x1="12.00" y1="58.50" x2="13.00" y2="58.50"/>
+<rect class="action" x="13.00" y="57.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="16.66" y="58.09"><tspan x="16.66" dy="0">advance到下一</tspan><tspan x="16.66" dy="0.82">個chainindex</tspan></text>
+<line class="assoc" x1="25.31" y1="58.50" x2="26.31" y2="58.50"/>
+<rect class="action" x="26.31" y="57.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="29.96" y="58.09"><tspan x="29.96" dy="0">branch在</tspan><tspan x="29.96" dy="0.82">anchorwriter</tspan></text>
+<line class="assoc" x1="12.00" y1="71.50" x2="13.00" y2="71.50"/>
+<rect class="action" x="13.00" y="70.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="16.66" y="71.09"><tspan x="16.66" dy="0">writesanitiz</tspan><tspan x="16.66" dy="0.82">edanchor訊息</tspan></text>
+<line class="assoc" x1="25.31" y1="71.50" x2="26.31" y2="71.50"/>
+<rect class="action" x="26.31" y="70.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="29.96" y="71.09"><tspan x="29.96" dy="0">發出壓縮started與</tspan><tspan x="29.96" dy="0.82">kindtelemetry</tspan></text>
+<line class="assoc" x1="25.31" y1="84.50" x2="26.31" y2="84.50"/>
+<rect class="action" x="26.31" y="83.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="29.96" y="84.09"><tspan x="29.96" dy="0">inject合成繼</tspan><tspan x="29.96" dy="0.82">續ifallowed</tspan></text>
+<line class="assoc" x1="25.31" y1="95.50" x2="26.31" y2="95.50"/>
+<rect class="action" x="26.31" y="94.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="29.96" y="94.68"><tspan x="29.96" dy="0">apply快取</tspan><tspan x="29.96" dy="0.82">layout與</tspan><tspan x="29.96" dy="0.82">staticsystem</tspan></text>
+<line class="assoc" x1="38.62" y1="58.50" x2="39.62" y2="58.50"/>
+<rect class="action" x="39.62" y="57.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="43.27" y="58.09"><tspan x="43.27" dy="0">abort使用</tspan><tspan x="43.27" dy="0.82">stopverdict</tspan></text>
+<line class="assoc" x1="25.31" y1="108.50" x2="26.31" y2="108.50"/>
+<rect class="action" x="26.31" y="107.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="29.96" y="108.09"><tspan x="29.96" dy="0">返回verdict到</tspan><tspan x="29.96" dy="0.82">runloop</tspan></text>
 <line class="gate" x1="22.31" y1="11.00" x2="24.31" y2="11.00"/>
 <text class="gate-label" x="24.71" y="11.00"><tspan x="24.71" dy="0">runloopiterationstarted</tspan></text>
 <line class="gate" x1="22.31" y1="22.00" x2="24.31" y2="22.00"/>
 <text class="gate-label" x="24.71" y="22.00"><tspan x="24.71" dy="0">deriveobserveddone</tspan></text>
-<circle class="branch-junction" cx="23.31" cy="31.00" r="0.28"/>
-<line class="gate" x1="22.31" y1="42.00" x2="24.31" y2="42.00"/>
-<text class="gate-label" x="24.71" y="42.00"><tspan x="24.71" dy="0">chain已解析</tspan></text>
-<line class="gate" x1="6.00" y1="51.00" x2="40.62" y2="51.00"/>
-<line class="gate" x1="9.00" y1="60.00" x2="11.00" y2="60.00"/>
-<text class="gate-label" x="11.40" y="60.00"><tspan x="11.40" dy="0">indexincremented</tspan></text>
-<line class="gate" x1="8.00" y1="63.85" x2="25.31" y2="63.85"/>
-<line class="gate" x1="8.00" y1="64.15" x2="25.31" y2="64.15"/>
-<line class="gate" x1="8.00" y1="78.85" x2="25.31" y2="78.85"/>
-<line class="gate" x1="8.00" y1="79.15" x2="25.31" y2="79.15"/>
-<line class="gate" x1="22.31" y1="88.00" x2="24.31" y2="88.00"/>
-<text class="gate-label-left" x="21.91" y="88.00"><tspan x="21.91" dy="0">INJECT CONTINUE[observed] applied 或 skipped</tspan></text>
-<line class="gate" x1="21.31" y1="102.85" x2="51.93" y2="102.85"/>
-<line class="gate" x1="21.31" y1="103.15" x2="51.93" y2="103.15"/>
-<line class="gate" x1="22.31" y1="110.00" x2="24.31" y2="110.00"/>
-<text class="gate-label" x="24.71" y="110.00"><tspan x="24.71" dy="0">runloopresumed</tspan></text>
 <line class="gate" x1="22.31" y1="33.00" x2="24.31" y2="33.00"/>
-<text class="gate-label-left" x="21.91" y="33.00"><tspan x="21.91" dy="0">observed != null &amp;&amp; cooldownclear &amp;&amp; tailclean</tspan></text>
-<line class="gate" x1="22.31" y1="101.00" x2="24.31" y2="101.00"/>
-<text class="gate-label-left" x="21.91" y="101.00"><tspan x="21.91" dy="0">observed == null || cooldownactive || (observed == 閒置 &amp;&amp; tailunclean)</tspan></text>
-<line class="gate" x1="9.00" y1="53.00" x2="11.00" y2="53.00"/>
-<text class="gate-label" x="11.40" y="52.32"><tspan x="11.40" dy="0">attempt.ok &amp;&amp;</tspan><tspan x="11.40" dy="0.68">!(local &amp;&amp; truncated</tspan><tspan x="11.40" dy="0.68">&amp;&amp; paidremaining)</tspan></text>
-<line class="gate" x1="22.31" y1="53.00" x2="24.31" y2="53.00"/>
-<text class="gate-label" x="24.71" y="52.32"><tspan x="24.71" dy="0">attempt.failed</tspan><tspan x="24.71" dy="0.68">|| localtrunc</tspan><tspan x="24.71" dy="0.68">atedescalate</tspan></text>
-<line class="gate" x1="35.62" y1="53.00" x2="37.62" y2="53.00"/>
-<text class="gate-label" x="38.02" y="53.00"><tspan x="38.02" dy="0">chainexhausted</tspan></text>
-<line class="gate" x1="22.31" y1="66.00" x2="24.31" y2="66.00"/>
-<text class="gate-label-left" x="21.91" y="65.32"><tspan x="21.91" dy="0">anchorwritt</tspan><tspan x="21.91" dy="0.68">eninline ||</tspan><tspan x="21.91" dy="0.68">anchor待處理</tspan></text>
-<line class="gate" x1="22.31" y1="77.00" x2="24.31" y2="77.00"/>
-<text class="gate-label-left" x="21.91" y="76.66"><tspan x="21.91" dy="0">anchorpersisted &amp;&amp;</tspan><tspan x="21.91" dy="0.68">telemetryemitted</tspan></text>
-<line class="gate" x1="22.31" y1="101.00" x2="24.31" y2="101.00"/>
-<text class="gate-label-left" x="20.51" y="101.00"><tspan x="20.51" dy="0">bp1bp2bp3bp</tspan><tspan x="20.51" dy="0.68">4placed &amp;&amp;</tspan><tspan x="20.51" dy="0.68">hashrecorded</tspan></text>
-<circle class="junction" cx="23.31" cy="44.00" r="0.22"/>
-<circle class="branch-junction" cx="23.31" cy="32.00" r="0.22"/>
-<circle class="junction" cx="23.31" cy="79.61" r="0.22"/>
-<circle class="junction" cx="23.31" cy="103.61" r="0.22"/>
+<text class="gate-label" x="24.71" y="33.00"><tspan x="24.71" dy="0">observed != null &amp;&amp; cooldownclear &amp;&amp; tailclean</tspan></text>
+<line class="gate" x1="21.31" y1="104.85" x2="51.93" y2="104.85"/>
+<line class="gate" x1="21.31" y1="105.15" x2="51.93" y2="105.15"/>
+<line class="gate" x1="22.31" y1="44.00" x2="24.31" y2="44.00"/>
+<text class="gate-label" x="24.71" y="44.00"><tspan x="24.71" dy="0">chain已解析</tspan></text>
+<line class="gate" x1="6.00" y1="53.00" x2="40.62" y2="53.00"/>
+<line class="gate" x1="9.00" y1="62.00" x2="11.00" y2="62.00"/>
+<text class="gate-label" x="11.40" y="62.00"><tspan x="11.40" dy="0">indexincremented</tspan></text>
+<line class="gate" x1="8.00" y1="65.85" x2="25.31" y2="65.85"/>
+<line class="gate" x1="8.00" y1="66.15" x2="25.31" y2="66.15"/>
+<line class="gate" x1="8.00" y1="80.85" x2="25.31" y2="80.85"/>
+<line class="gate" x1="8.00" y1="81.15" x2="25.31" y2="81.15"/>
+<line class="gate" x1="22.31" y1="90.00" x2="24.31" y2="90.00"/>
+<text class="gate-label-left" x="21.91" y="90.00"><tspan x="21.91" dy="0">INJECT CONTINUE[observed] applied 或 skipped</tspan></text>
+<line class="gate" x1="22.31" y1="112.00" x2="24.31" y2="112.00"/>
+<text class="gate-label" x="24.71" y="112.00"><tspan x="24.71" dy="0">runloopresumed</tspan></text>
+<line class="gate" x1="22.31" y1="103.00" x2="24.31" y2="103.00"/>
+<text class="gate-label-left" x="21.91" y="103.00"><tspan x="21.91" dy="0">observed == null || cooldownactive || (observed == 閒置 &amp;&amp; tailunclean)</tspan></text>
+<line class="gate" x1="9.00" y1="55.00" x2="11.00" y2="55.00"/>
+<text class="gate-label" x="11.40" y="54.32"><tspan x="11.40" dy="0">attempt.ok &amp;&amp;</tspan><tspan x="11.40" dy="0.68">!(local &amp;&amp; truncated</tspan><tspan x="11.40" dy="0.68">&amp;&amp; paidremaining)</tspan></text>
+<line class="gate" x1="22.31" y1="55.00" x2="24.31" y2="55.00"/>
+<text class="gate-label" x="24.71" y="54.32"><tspan x="24.71" dy="0">attempt.failed</tspan><tspan x="24.71" dy="0.68">|| localtrunc</tspan><tspan x="24.71" dy="0.68">atedescalate</tspan></text>
+<line class="gate" x1="35.62" y1="55.00" x2="37.62" y2="55.00"/>
+<text class="gate-label" x="38.02" y="55.00"><tspan x="38.02" dy="0">chainexhausted</tspan></text>
+<line class="gate" x1="22.31" y1="68.00" x2="24.31" y2="68.00"/>
+<text class="gate-label-left" x="21.91" y="67.32"><tspan x="21.91" dy="0">anchorwritt</tspan><tspan x="21.91" dy="0.68">eninline ||</tspan><tspan x="21.91" dy="0.68">anchor待處理</tspan></text>
+<line class="gate" x1="22.31" y1="79.00" x2="24.31" y2="79.00"/>
+<text class="gate-label-left" x="21.91" y="78.66"><tspan x="21.91" dy="0">anchorpersisted &amp;&amp;</tspan><tspan x="21.91" dy="0.68">telemetryemitted</tspan></text>
+<circle class="junction" cx="23.31" cy="46.00" r="0.22"/>
+<circle class="junction" cx="23.31" cy="105.61" r="0.22"/>
+<circle class="junction" cx="23.31" cy="81.61" r="0.22"/>
+<circle class="branch-junction" cx="23.31" cy="31.00" r="0.28"/>
 </svg>
