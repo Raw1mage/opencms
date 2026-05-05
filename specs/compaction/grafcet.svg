@@ -27,15 +27,11 @@
 <path class="edge edge-arrow" d="M 23.31 41.00 L 23.31 45.00"/>
 <path class="edge edge-arrow" d="M 36.62 41.00 L 36.62 45.00"/>
 <path class="edge" d="M 10.00 48.00 L 10.00 50.00"/>
-<path class="edge" d="M 10.00 49.38 L 41.07 49.38"/>
-<path class="edge" d="M 41.07 49.38 L 41.07 54.62"/>
-<path class="edge" d="M 41.07 54.62 L 10.00 54.62"/>
-<path class="edge" d="M 10.00 54.62 L 10.00 56.00"/>
+<path class="edge" d="M 10.00 50.00 L 10.00 56.00"/>
 <path class="edge" d="M 10.00 56.00 L 2.00 56.00"/>
 <path class="edge" d="M 2.00 56.00 L 2.00 34.00"/>
 <path class="edge" d="M 2.00 34.00 L 23.31 34.00"/>
 <path class="edge edge-arrow" d="M 23.31 48.00 L 23.31 52.00"/>
-<path class="edge" d="M 10.00 52.00 L 10.00 54.62"/>
 <path class="edge" d="M 10.00 56.00 L 10.00 58.00"/>
 <path class="edge edge-arrow" d="M 36.62 52.00 L 36.62 58.00"/>
 <path class="edge edge-arrow" d="M 10.00 61.00 L 10.00 65.00"/>
@@ -44,11 +40,7 @@
 <path class="edge" d="M 23.31 70.00 L 23.31 72.00"/>
 <path class="edge edge-arrow" d="M 23.31 72.00 L 23.31 74.00"/>
 <path class="edge edge-arrow" d="M 23.31 77.00 L 23.31 81.00"/>
-<path class="edge" d="M 36.62 48.00 L 36.62 49.38"/>
-<path class="edge" d="M 41.07 49.38 L 48.93 49.38"/>
-<path class="edge" d="M 48.93 49.38 L 48.93 67.62"/>
-<path class="edge" d="M 48.93 67.62 L 36.62 67.62"/>
-<path class="edge edge-arrow" d="M 36.62 67.62 L 36.62 81.00"/>
+<path class="edge edge-arrow" d="M 36.62 48.00 L 36.62 48.88 Q 36.62 49.38 37.12 49.38 L 48.43 49.38 Q 48.93 49.38 48.93 49.88 L 48.93 67.12 Q 48.93 67.62 48.43 67.62 L 37.12 67.62 Q 36.62 67.62 36.62 68.12 L 36.62 81.00"/>
 <path class="edge" d="M 23.31 86.00 L 23.31 88.00"/>
 <path class="edge edge-arrow" d="M 23.31 88.00 L 23.31 89.50 Q 23.31 90.00 22.81 90.00 L 0.50 90.00 Q 0.00 90.00 0.00 89.50 L 0.00 2.50 Q 0.00 2.00 0.50 2.00 L 22.81 2.00 Q 23.31 2.00 23.31 2.50 L 23.31 4.00"/>
 <rect class="step" x="21.31" y="4.00" width="4.00" height="3.00"/>
@@ -151,10 +143,6 @@
 <line class="gate" x1="22.31" y1="66.00" x2="24.31" y2="66.00"/>
 <text class="gate-label" x="24.71" y="66.00"><tspan x="24.71" dy="0">anchorpersisted &amp;&amp; telemetryemitted</tspan></text>
 <circle class="junction" cx="23.31" cy="34.00" r="0.22"/>
-<circle class="junction" cx="10.00" cy="49.38" r="0.22"/>
-<circle class="junction" cx="36.62" cy="49.38" r="0.22"/>
-<circle class="junction" cx="41.07" cy="49.38" r="0.22"/>
-<circle class="junction" cx="10.00" cy="54.62" r="0.22"/>
 <circle class="junction" cx="10.00" cy="56.00" r="0.22"/>
 <circle class="branch-junction" cx="23.31" cy="23.00" r="0.28"/>
 </svg>
