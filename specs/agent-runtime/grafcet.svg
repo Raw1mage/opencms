@@ -149,7 +149,7 @@
 <line class="gate" x1="7.95" y1="72.00" x2="41.80" y2="72.00"/>
 <line class="gate" x1="18.90" y1="81.00" x2="20.90" y2="81.00"/>
 <text class="gate-label-left" x="18.50" y="81.00"><tspan x="18.50" dy="0">是子代理會話 &amp;&amp; 配額低於紅線 -&gt; 下一回合收尾</tspan></text>
-<line class="gate" x1="15.90" y1="88.00" x2="23.90" y2="88.00"/>
+<circle class="branch-junction" cx="19.90" cy="88.00" r="0.28"/>
 <line class="gate" x1="15.90" y1="101.00" x2="23.90" y2="101.00"/>
 <line class="gate" x1="18.90" y1="112.00" x2="20.90" y2="112.00"/>
 <text class="gate-label" x="21.30" y="112.00"><tspan x="21.30" dy="0">工作已派發 &amp;&amp; 合成訊息已種入</tspan></text>
