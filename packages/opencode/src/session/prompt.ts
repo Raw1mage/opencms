@@ -293,6 +293,26 @@ function withContextBudgetEnvelope(input: {
   return next
 }
 
+/**
+ * Pure gate for the empty-response self-heal compaction at line ~1279.
+ *
+ * Returns `overflowSuspected=true` only when the last well-formed turn was
+ * already past the configured floor (default 0.8 — matches the 80-85%
+ * codex silent-overflow window the original 2026-04-29 hotfix targeted).
+ * Below that floor the empty round is most likely a transient SSE/network
+ * blip and the runloop should fall through to the cheap nudge path
+ * instead of paying for destructive compaction.
+ */
+export function evaluateEmptyResponseGate(input: {
+  used: number
+  window: number
+  floor: number
+}): { overflowSuspected: boolean; ratio: number } {
+  if (!Number.isFinite(input.window) || input.window <= 0) return { overflowSuspected: false, ratio: 0 }
+  const ratio = input.used / input.window
+  return { overflowSuspected: ratio >= input.floor, ratio }
+}
+
 function findContextBudgetSource(messages: MessageV2.WithParts[]): MessageV2.Assistant | undefined {
   for (let i = messages.length - 1; i >= 0; i--) {
     const info = messages[i].info
@@ -1276,7 +1296,43 @@ export namespace SessionPrompt {
         // Subagents do not auto-compact (DD-12: parent owns context
         // management); they keep the legacy retry-nudge path so a real
         // transient blink still self-heals without disturbing parent.
-        if (emptyRoundCount === 1 && !session.parentID) {
+        //
+        // Storm-prevention gate (2026-05-05): the original hotfix targeted
+        // codex silent overflow ("empirical data shows the dominant cause
+        // of an empty packet from codex is silent server-side context
+        // overflow — the dialog hits ~80-85% of nominal context"). Without
+        // a usage gate, ANY transient SSE blip / network 5xx / model burp
+        // at low context also fires destructive compaction, producing the
+        // observed storm pattern (~83% of compactions in long sessions
+        // traceable to empty rounds rather than real pressure). Only
+        // compact when the last well-formed turn was already past the
+        // configured floor (default 0.8 — matches the original 80-85%
+        // window). Below that floor, fall through to the nudge path so a
+        // genuine transient still self-heals without burning context.
+        let overflowSuspected = false
+        let probeRatio = 0
+        const emptyResponseFloor = Tweaks.compactionSync().emptyResponseFloor
+        if (contextBudgetSource) {
+          const probeModel = await Provider.getModel(
+            contextBudgetSource.providerId ?? lastUser.model.providerId,
+            contextBudgetSource.modelID ?? lastUser.model.modelID,
+          ).catch(() => undefined)
+          const gate = evaluateEmptyResponseGate({
+            used: contextBudgetSource.tokens?.input ?? 0,
+            window: probeModel?.limit.input ?? probeModel?.limit.context ?? 0,
+            floor: emptyResponseFloor,
+          })
+          overflowSuspected = gate.overflowSuspected
+          probeRatio = gate.ratio
+          log.info("self-heal: empty round usage probe", {
+            sessionID,
+            step,
+            ratio: Number(probeRatio.toFixed(3)),
+            floor: emptyResponseFloor,
+            overflowSuspected,
+          })
+        }
+        if (emptyRoundCount === 1 && !session.parentID && overflowSuspected) {
           log.info("self-heal: empty round 1 — triggering empty-response compaction", {
             sessionID,
             step,

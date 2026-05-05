@@ -202,6 +202,7 @@ export namespace Tweaks {
     stallRecoveryConsecutiveEmpty: number
     quotaPressureThreshold: number
     codexServerPriorityRatio: number
+    emptyResponseFloor: number
   }
 
   export interface SessionStorageConfig {
@@ -317,6 +318,7 @@ export namespace Tweaks {
     stallRecoveryConsecutiveEmpty: 2,
     quotaPressureThreshold: 0.1,
     codexServerPriorityRatio: 0.7,
+    emptyResponseFloor: 0.8,
   }
 
   const SESSION_STORAGE_DEFAULTS: SessionStorageConfig = {
@@ -915,6 +917,11 @@ export namespace Tweaks {
     if (cmpCodexServerPriorityRaw !== undefined) {
       const v = parseRatio(cmpCodexServerPriorityRaw, "compaction_codex_server_priority_ratio")
       if (v !== undefined) compaction.codexServerPriorityRatio = v
+    }
+    const cmpEmptyResponseFloorRaw = parsed.get("compaction_empty_response_floor")
+    if (cmpEmptyResponseFloorRaw !== undefined) {
+      const v = parseRatio(cmpEmptyResponseFloorRaw, "compaction_empty_response_floor")
+      if (v !== undefined) compaction.emptyResponseFloor = v
     }
 
     const sessionStorage: SessionStorageConfig = { ...SESSION_STORAGE_DEFAULTS }
