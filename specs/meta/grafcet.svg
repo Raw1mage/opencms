@@ -44,9 +44,9 @@
 <path class="edge edge-arrow" d="M 0.79 64.00 L 0.79 76.00"/>
 <path class="edge" d="M 0.79 81.00 L 0.79 83.00"/>
 <path class="edge edge-arrow" d="M 0.79 83.00 L 0.79 84.50 Q 0.79 85.00 0.29 85.00 L -21.50 85.00 Q -22.00 85.00 -22.00 84.50 L -22.00 2.50 Q -22.00 2.00 -21.50 2.00 L 21.87 2.00 Q 22.37 2.00 22.37 2.50 L 22.37 4.00"/>
-<path class="edge" d="M 33.16 48.00 L 33.16 54.38"/>
-<path class="edge" d="M 33.16 54.38 L 42.95 54.38"/>
-<path class="edge" d="M 42.95 54.38 L 42.95 66.00"/>
+<path class="edge" d="M 33.16 48.00 L 33.16 49.00"/>
+<path class="edge" d="M 33.16 49.00 L 42.95 49.00"/>
+<path class="edge" d="M 42.95 49.00 L 42.95 66.00"/>
 <path class="edge" d="M 42.95 66.00 L 33.16 66.00"/>
 <path class="edge" d="M 33.16 72.00 L 33.16 76.00"/>
 <rect class="step" x="20.37" y="4.00" width="4.00" height="3.00"/>

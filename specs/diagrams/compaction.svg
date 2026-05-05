@@ -40,7 +40,7 @@
 <path class="edge" d="M 23.31 70.00 L 23.31 72.00"/>
 <path class="edge edge-arrow" d="M 23.31 72.00 L 23.31 74.00"/>
 <path class="edge edge-arrow" d="M 23.31 77.00 L 23.31 81.00"/>
-<path class="edge edge-arrow" d="M 36.62 48.00 L 36.62 50.88 Q 36.62 51.38 37.12 51.38 L 48.43 51.38 Q 48.93 51.38 48.93 51.88 L 48.93 67.12 Q 48.93 67.62 48.43 67.62 L 37.12 67.62 Q 36.62 67.62 36.62 68.12 L 36.62 81.00"/>
+<path class="edge edge-arrow" d="M 36.62 48.00 L 36.62 48.50 Q 36.62 49.00 37.12 49.00 L 48.43 49.00 Q 48.93 49.00 48.93 49.50 L 48.93 67.12 Q 48.93 67.62 48.43 67.62 L 37.12 67.62 Q 36.62 67.62 36.62 68.12 L 36.62 81.00"/>
 <path class="edge" d="M 23.31 86.00 L 23.31 88.00"/>
 <path class="edge edge-arrow" d="M 23.31 88.00 L 23.31 89.50 Q 23.31 90.00 22.81 90.00 L 0.50 90.00 Q 0.00 90.00 0.00 89.50 L 0.00 2.50 Q 0.00 2.00 0.50 2.00 L 22.81 2.00 Q 23.31 2.00 23.31 2.50 L 23.31 4.00"/>
 <rect class="step" x="21.31" y="4.00" width="4.00" height="3.00"/>
@@ -139,7 +139,7 @@
 <line class="gate" x1="35.62" y1="43.00" x2="37.62" y2="43.00"/>
 <text class="gate-label" x="38.02" y="43.00"><tspan x="38.02" dy="0">chainexhausted</tspan></text>
 <line class="gate" x1="22.31" y1="51.00" x2="24.31" y2="51.00"/>
-<text class="gate-label" x="24.71" y="50.32"><tspan x="24.71" dy="0">anchorwritt</tspan><tspan x="24.71" dy="0.68">eninline ||</tspan><tspan x="24.71" dy="0.68">anchor待處理</tspan></text>
+<text class="gate-label" x="24.71" y="51.00"><tspan x="24.71" dy="0">anchorwritteninline || anchor待處理</tspan></text>
 <line class="gate" x1="22.31" y1="63.00" x2="24.31" y2="63.00"/>
 <text class="gate-label" x="24.71" y="62.66"><tspan x="24.71" dy="0">anchorpersisted &amp;&amp;</tspan><tspan x="24.71" dy="0.68">telemetryemitted</tspan></text>
 <circle class="junction" cx="23.31" cy="34.00" r="0.22"/>
