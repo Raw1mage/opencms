@@ -20,9 +20,8 @@
 <path class="edge" d="M 21.75 21.00 L 21.75 23.00"/>
 <path class="edge edge-arrow" d="M 21.75 23.00 L 21.75 25.00"/>
 <path class="edge edge-arrow" d="M 21.75 28.00 L 21.75 30.00"/>
-<path class="edge edge-arrow" d="M 21.75 30.00 L 21.75 31.50 Q 21.75 32.00 21.25 32.00 L 10.50 32.00 Q 10.00 32.00 10.00 32.50 L 10.00 34.00"/>
-<path class="edge" d="M 21.75 32.00 L 33.50 32.00"/>
-<path class="edge edge-arrow" d="M 33.50 32.00 L 33.50 34.00"/>
+<path class="edge edge-arrow" d="M 10.00 30.00 L 10.00 34.00"/>
+<path class="edge edge-arrow" d="M 33.50 30.00 L 33.50 34.00"/>
 <path class="edge edge-arrow" d="M 10.00 37.00 L 10.00 41.00"/>
 <path class="edge edge-arrow" d="M 21.75 41.00 L 21.75 43.00"/>
 <path class="edge edge-arrow" d="M 33.50 37.00 L 33.50 41.00"/>
@@ -122,10 +121,10 @@
 <line class="gate" x1="17.75" y1="84.00" x2="25.75" y2="84.00"/>
 <circle class="junction" cx="21.75" cy="93.00" r="0.18"/>
 <text class="gate-label" x="23.15" y="93.00"><tspan x="23.15" dy="0">clientClosed &amp;&amp; 狀態[clientName] cleared</tspan></text>
-<line class="gate" x1="20.75" y1="32.00" x2="22.75" y2="32.00"/>
-<text class="gate-label" x="23.15" y="31.32"><tspan x="23.15" dy="0">項目.transport == &#x27;stdio&#x27;</tspan></text>
-<line class="gate" x1="20.75" y1="32.00" x2="22.75" y2="32.00"/>
-<text class="gate-label" x="23.15" y="32.68"><tspan x="23.15" dy="0">項目.transport == &#x27;streamable-http&#x27; || &#x27;sse&#x27;</tspan></text>
+<line class="gate" x1="9.00" y1="32.00" x2="11.00" y2="32.00"/>
+<text class="gate-label-left" x="8.60" y="31.32"><tspan x="8.60" dy="0">項目.</tspan><tspan x="8.60" dy="0.68">transport</tspan><tspan x="8.60" dy="0.68">== &#x27;stdio&#x27;</tspan></text>
+<line class="gate" x1="32.50" y1="32.00" x2="34.50" y2="32.00"/>
+<text class="gate-label-left" x="32.10" y="32.00"><tspan x="32.10" dy="0">項目.transport == &#x27;streamable-http&#x27; || &#x27;sse&#x27;</tspan></text>
 <line class="gate" x1="9.00" y1="39.00" x2="11.00" y2="39.00"/>
 <text class="gate-label-left" x="8.60" y="38.32"><tspan x="8.60" dy="0">啟動ok &amp;&amp;</tspan><tspan x="8.60" dy="0.68">initialize</tspan><tspan x="8.60" dy="0.68">HandshakeOk</tspan></text>
 <line class="gate" x1="32.50" y1="39.00" x2="34.50" y2="39.00"/>
