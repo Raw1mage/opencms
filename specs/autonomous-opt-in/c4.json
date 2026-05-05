@@ -1,0 +1,133 @@
+{
+  "diagram_title": "autonomous-opt-in C4 Component View",
+  "level": "component",
+  "systems": [
+    {
+      "id": "SYS1",
+      "name": "opencode",
+      "description": "Self-hosted Claude-Code-derivative CLI/server/TUI/webapp bundle; this spec modifies its autonomous runloop gating behaviour"
+    }
+  ],
+  "containers": [
+    {
+      "id": "CT1",
+      "systemRef": "SYS1",
+      "name": "opencode runtime (packages/opencode)",
+      "description": "Bun server process hosting session workflow, runloop, storage, and tool dispatch"
+    },
+    {
+      "id": "CT2",
+      "systemRef": "SYS1",
+      "name": "plan-builder skill scripts",
+      "description": "Bun-executed TypeScript scripts under ~/.claude/skills/plan-builder/scripts/"
+    },
+    {
+      "id": "CT3",
+      "systemRef": "SYS1",
+      "name": "user environment",
+      "description": "Shell, TUI, webapp; source of trigger signals and plan-builder invocations"
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "containerRef": "CT1",
+      "name": "workflow-runner",
+      "description": "planAutonomousNextAction / enqueueAutonomousContinue / inspectPendingContinuationResumability / shouldInterruptAutonomousRun",
+      "moduleRef": "A3"
+    },
+    {
+      "id": "C2",
+      "containerRef": "CT1",
+      "name": "autorun-gate",
+      "description": "New helper isAutorunArmed(sessionID) that reads Storage + validates R1-R3 preconditions",
+      "moduleRef": "A3"
+    },
+    {
+      "id": "C3",
+      "containerRef": "CT1",
+      "name": "arm-intent-detector",
+      "description": "Message-ingest-time regex scan of tweaks.cfg phrase list; emits arm signal when match + R1 + R2 hold",
+      "moduleRef": "A1"
+    },
+    {
+      "id": "C4",
+      "containerRef": "CT1",
+      "name": "session-spec-binding-store",
+      "description": "Storage key namespace [session_active_spec, sessionID] with write/read/invalidate ops",
+      "moduleRef": "A2"
+    },
+    {
+      "id": "C5",
+      "containerRef": "CT1",
+      "name": "autorun-flag-store",
+      "description": "Storage key namespace [autorun_armed, sessionID] with atomic flip and Bus event emit",
+      "moduleRef": "A3"
+    },
+    {
+      "id": "C6",
+      "containerRef": "CT1",
+      "name": "tweaks-cfg-reader",
+      "description": "Existing TweaksConfig loader extended with autorun.trigger_phrases and autorun.demote_on_disarm keys",
+      "moduleRef": "A1"
+    },
+    {
+      "id": "C7",
+      "containerRef": "CT1",
+      "name": "todolist-refill",
+      "description": "Parser+materializer that reads bound spec tasks.md next unchecked phase and calls TodoWrite tool",
+      "moduleRef": "A4"
+    },
+    {
+      "id": "C8",
+      "containerRef": "CT1",
+      "name": "disarm-observer",
+      "description": "Bus subscriber that watches user-message / blocker / abort events and flips autorun flag via C5",
+      "moduleRef": "A5"
+    },
+    {
+      "id": "C9",
+      "containerRef": "CT2",
+      "name": "plan-promote-script",
+      "description": "Extended with --session flag; writes C4 binding; invokes MCP question tool after promotion",
+      "moduleRef": "A1"
+    },
+    {
+      "id": "C10",
+      "containerRef": "CT2",
+      "name": "plan-write-scripts",
+      "description": "plan-amend/revise/extend/refactor/sync scripts share a r6-demote.ts helper that checks state and demotes",
+      "moduleRef": "A6"
+    },
+    {
+      "id": "C11",
+      "containerRef": "CT2",
+      "name": "r6-demote-helper",
+      "description": "Shared scripts/lib/r6-demote.ts: if state=implementing, demote to planned + disarm before caller's operation",
+      "moduleRef": "A6"
+    },
+    {
+      "id": "C12",
+      "containerRef": "CT3",
+      "name": "mcp-question-tool",
+      "description": "Already-registered MCP tool invoked by plan-promote-script for R3b arming question",
+      "moduleRef": "A1"
+    }
+  ],
+  "relationships": [
+    { "from": "C1", "to": "C2", "description": "consults before pumping continuation" },
+    { "from": "C2", "to": "C4", "description": "reads session spec binding" },
+    { "from": "C2", "to": "C5", "description": "reads autorun armed flag" },
+    { "from": "C3", "to": "C6", "description": "loads trigger phrase list" },
+    { "from": "C3", "to": "C4", "description": "verifies binding exists" },
+    { "from": "C3", "to": "C5", "description": "flips armed flag on successful match" },
+    { "from": "C7", "to": "C4", "description": "reads bound spec slug" },
+    { "from": "C7", "to": "C1", "description": "returns refilled todolist to runner decision" },
+    { "from": "C8", "to": "C5", "description": "flips armed flag to false on interruption" },
+    { "from": "C9", "to": "C4", "description": "writes session spec binding" },
+    { "from": "C9", "to": "C12", "description": "invokes MCP question tool for R3b" },
+    { "from": "C12", "to": "C5", "description": "user answer flips armed flag via plan-promote return path" },
+    { "from": "C10", "to": "C11", "description": "calls pre-check on entry" },
+    { "from": "C11", "to": "C5", "description": "forces disarm when demotion triggers" }
+  ]
+}

@@ -1,0 +1,128 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "autonomous-opt-in data contracts",
+  "description": "All new/modified data shapes introduced by autonomous-opt-in. Storage keys, config keys, and tool invocation payloads.",
+  "definitions": {
+    "SessionActiveSpec": {
+      "description": "Storage key: ['session_active_spec', sessionID]. Value is the active spec slug, or absent if not bound.",
+      "type": "object",
+      "properties": {
+        "slug": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "boundAt": { "type": "string", "format": "date-time" },
+        "boundBy": { "type": "string", "description": "script name that wrote binding, e.g. 'plan-promote'" }
+      },
+      "required": ["slug", "boundAt", "boundBy"],
+      "additionalProperties": false
+    },
+    "AutorunArmed": {
+      "description": "Storage key: ['autorun_armed', sessionID]. Value records current flag + reason history (last entry is authoritative).",
+      "type": "object",
+      "properties": {
+        "armed": { "type": "boolean" },
+        "reason": { "type": "string", "description": "reason for most recent flag change" },
+        "changedAt": { "type": "string", "format": "date-time" },
+        "history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "armed": { "type": "boolean" },
+              "reason": { "type": "string" },
+              "at": { "type": "string", "format": "date-time" }
+            },
+            "required": ["armed", "reason", "at"]
+          }
+        }
+      },
+      "required": ["armed", "reason", "changedAt", "history"],
+      "additionalProperties": false
+    },
+    "TweaksAutorunConfig": {
+      "description": "New keys under /etc/opencode/tweaks.cfg namespace 'autorun'. Defaults apply when key absent.",
+      "type": "object",
+      "properties": {
+        "trigger_phrases": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "default": [
+            "start building",
+            "go building",
+            "start implementation",
+            "開始實作",
+            "執行計畫",
+            "execute the plan"
+          ]
+        },
+        "demote_on_disarm": {
+          "type": "boolean",
+          "default": false,
+          "description": "When true, disarm also demotes .state.json implementing->planned. Default false per Q4."
+        }
+      },
+      "additionalProperties": false
+    },
+    "ArmingQuestionInvocation": {
+      "description": "MCP question tool shape invoked by plan-promote-script at --to planned / --to implementing",
+      "type": "object",
+      "properties": {
+        "question": {
+          "type": "string",
+          "const": "Start autonomous build now?"
+        },
+        "header": { "type": "string", "maxLength": 12 },
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": { "type": "string" },
+              "description": { "type": "string" }
+            },
+            "required": ["label", "description"]
+          }
+        },
+        "multiSelect": { "type": "boolean", "const": false }
+      },
+      "required": ["question", "options", "multiSelect"]
+    },
+    "AutorunBusEvent": {
+      "description": "Bus event shapes emitted on arm state changes",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "autorun.armed",
+            "autorun.disarmed",
+            "autorun.refill",
+            "autorun.refill_exhausted",
+            "autorun.demoted_by_edit",
+            "autorun.arm_refused",
+            "autorun.completed"
+          ]
+        },
+        "sessionID": { "type": "string" },
+        "slug": { "type": "string", "description": "bound spec slug (if applicable)" },
+        "reason": { "type": "string" },
+        "at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["type", "sessionID", "at"]
+    },
+    "R6DemotionHistoryEntry": {
+      "description": "Appended to .state.json.history when plan edit triggers implementing->planned demotion",
+      "type": "object",
+      "properties": {
+        "from": { "type": "string", "const": "implementing" },
+        "to": { "type": "string", "const": "planned" },
+        "at": { "type": "string", "format": "date-time" },
+        "by": { "type": "string", "description": "script name or 'file-watcher'" },
+        "mode": { "type": "string", "const": "revise" },
+        "reason": { "type": "string", "description": "human-readable reason, e.g. 'plan edit during implementing forces re-review'" },
+        "trigger_script": { "type": "string", "description": "which plan-builder script (amend/revise/extend/refactor/sync) triggered the demotion" }
+      },
+      "required": ["from", "to", "at", "by", "mode", "reason"]
+    }
+  }
+}

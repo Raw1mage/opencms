@@ -1,0 +1,248 @@
+[
+  {
+    "id": "TV-R0-1",
+    "requirement": "R0",
+    "scenario": "chat-only session never pumps",
+    "given": {
+      "session": { "id": "S_chat", "parentID": null },
+      "binding": null,
+      "armed": { "armed": false },
+      "todos": [],
+      "userMessage": "What does this function do?"
+    },
+    "when": "planAutonomousNextAction invoked after assistant turn completes",
+    "then": {
+      "result": { "type": "stop", "reason": "not_armed" },
+      "sideEffects": {
+        "syntheticMessageEnqueued": false,
+        "llmRoundsConsumed": 0
+      }
+    }
+  },
+  {
+    "id": "TV-R1-1",
+    "requirement": "R1",
+    "scenario": "arm refused: no spec bound",
+    "given": {
+      "session": { "id": "S1" },
+      "binding": null,
+      "userMessage": "start building"
+    },
+    "when": "arm-intent-detector processes message",
+    "then": {
+      "armed": false,
+      "logWarn": "autorun arm refused: no active spec binding",
+      "busEvent": "autorun.arm_refused"
+    }
+  },
+  {
+    "id": "TV-R1-2",
+    "requirement": "R1",
+    "scenario": "arm refused: state=designed",
+    "given": {
+      "session": { "id": "S1" },
+      "binding": { "slug": "foo" },
+      "specState": "designed",
+      "userMessage": "start building"
+    },
+    "when": "arm-intent-detector processes message",
+    "then": {
+      "armed": false,
+      "logWarn": "autorun arm refused: state=designed not in {planned, implementing}"
+    }
+  },
+  {
+    "id": "TV-R2-1",
+    "requirement": "R2",
+    "scenario": "arm refused: empty todolist",
+    "given": {
+      "session": { "id": "S1" },
+      "binding": { "slug": "foo" },
+      "specState": "planned",
+      "todos": [],
+      "userMessage": "start building"
+    },
+    "when": "arm-intent-detector processes message",
+    "then": {
+      "armed": false,
+      "logWarn": "autorun arm refused: no actionable todo",
+      "hint": "suggest plan-promote --to implementing to materialize phase 1 tasks"
+    }
+  },
+  {
+    "id": "TV-R3a-1",
+    "requirement": "R3",
+    "scenario": "verbal trigger exact match (English)",
+    "given": {
+      "session": { "id": "S1" },
+      "binding": { "slug": "foo" },
+      "specState": "planned",
+      "todos": [{ "id": "1.1", "status": "pending" }],
+      "triggerPhrases": ["start building", "開始實作"],
+      "userMessage": "OK, let's start building this now"
+    },
+    "when": "arm-intent-detector processes message",
+    "then": {
+      "armed": true,
+      "armReason": "verbal:start building",
+      "busEvent": "autorun.armed"
+    }
+  },
+  {
+    "id": "TV-R3a-2",
+    "requirement": "R3",
+    "scenario": "verbal trigger exact match (Chinese)",
+    "given": {
+      "session": { "id": "S1" },
+      "binding": { "slug": "foo" },
+      "specState": "implementing",
+      "todos": [{ "id": "2.1", "status": "in_progress" }],
+      "triggerPhrases": ["start building", "開始實作"],
+      "userMessage": "好，開始實作吧"
+    },
+    "when": "arm-intent-detector processes message",
+    "then": {
+      "armed": true,
+      "armReason": "verbal:開始實作"
+    }
+  },
+  {
+    "id": "TV-R3b-1",
+    "requirement": "R3",
+    "scenario": "question answered yes arms",
+    "given": {
+      "session": { "id": "S1" },
+      "binding": { "slug": "foo" },
+      "specState": "implementing",
+      "todos": [{ "id": "1.1", "status": "pending" }]
+    },
+    "when": "plan-promote invokes MCP question, user selects 'Yes — arm autorun'",
+    "then": {
+      "armed": true,
+      "armReason": "question_yes"
+    }
+  },
+  {
+    "id": "TV-R3b-2",
+    "requirement": "R3",
+    "scenario": "question answered no keeps idle",
+    "given": {
+      "session": { "id": "S1" },
+      "binding": { "slug": "foo" },
+      "specState": "implementing"
+    },
+    "when": "user selects 'No — stay idle'",
+    "then": {
+      "armed": false
+    }
+  },
+  {
+    "id": "TV-R4-1",
+    "requirement": "R4",
+    "scenario": "phase rollover during armed execution",
+    "given": {
+      "session": { "id": "S1" },
+      "binding": { "slug": "foo" },
+      "specState": "implementing",
+      "armed": { "armed": true },
+      "todos": [{ "id": "1.1", "status": "completed" }, { "id": "1.2", "status": "completed" }],
+      "tasksMd": "## 1. Phase One\n- [x] 1.1\n- [x] 1.2\n## 2. Phase Two\n- [ ] 2.1 do thing\n- [ ] 2.2 do another"
+    },
+    "when": "planAutonomousNextAction sees no actionable todo and armed==true",
+    "then": {
+      "refillInvoked": true,
+      "newTodos": [{ "id": "2.1", "status": "pending" }, { "id": "2.2", "status": "pending" }],
+      "armed": true,
+      "busEvent": "autorun.refill"
+    }
+  },
+  {
+    "id": "TV-R4-2",
+    "requirement": "R4",
+    "scenario": "plan fully drained ends autorun",
+    "given": {
+      "session": { "id": "S1" },
+      "armed": { "armed": true },
+      "todos": [{ "id": "2.1", "status": "completed" }],
+      "tasksMd": "## 1. Phase One\n- [x] 1.1\n## 2. Phase Two\n- [x] 2.1"
+    },
+    "when": "refill attempts to find next unchecked phase",
+    "then": {
+      "refillInvoked": true,
+      "refillEmpty": true,
+      "armed": false,
+      "armReason": "plan_drained",
+      "busEvent": "autorun.completed",
+      "runnerResult": { "type": "stop", "reason": "plan_drained" }
+    }
+  },
+  {
+    "id": "TV-R5-1",
+    "requirement": "R5",
+    "scenario": "user message during armed execution disarms",
+    "given": {
+      "session": { "id": "S1" },
+      "armed": { "armed": true }
+    },
+    "when": "non-synthetic user message arrives on the Bus",
+    "then": {
+      "armed": false,
+      "armReason": "user_message",
+      "specStateChanged": false,
+      "busEvent": "autorun.disarmed"
+    }
+  },
+  {
+    "id": "TV-R5-2",
+    "requirement": "R5",
+    "scenario": "killswitch activation disarms",
+    "given": {
+      "session": { "id": "S1" },
+      "armed": { "armed": true }
+    },
+    "when": "KillSwitchService emits active=true",
+    "then": {
+      "armed": false,
+      "armReason": "killswitch"
+    }
+  },
+  {
+    "id": "TV-R6-1",
+    "requirement": "R6",
+    "scenario": "plan-amend during implementing demotes and disarms",
+    "given": {
+      "session": { "id": "S1" },
+      "binding": { "slug": "foo" },
+      "specState": "implementing",
+      "armed": { "armed": true }
+    },
+    "when": "user runs `bun plan-promote specs/foo --mode amend --reason ...`",
+    "then": {
+      "r6DemoteFired": true,
+      "historyAppended": { "from": "implementing", "to": "planned", "mode": "revise", "trigger_script": "plan-promote(amend)" },
+      "specStateAfter": "planned",
+      "armed": false,
+      "armReason": "plan_edit_demotion",
+      "amendAppliedAfterDemote": true
+    }
+  },
+  {
+    "id": "TV-R6-2",
+    "requirement": "R6",
+    "scenario": "checkbox toggle does NOT demote",
+    "given": {
+      "session": { "id": "S1" },
+      "binding": { "slug": "foo" },
+      "specState": "implementing",
+      "armed": { "armed": true },
+      "tasksMdBefore": "## 1. Phase\n- [ ] 1.1 do X",
+      "tasksMdAfter": "## 1. Phase\n- [x] 1.1 do X"
+    },
+    "when": "agent toggles checkbox and plan-sync.ts runs",
+    "then": {
+      "specStateAfter": "implementing",
+      "armed": true,
+      "syncResult": "clean_or_checkbox_only"
+    }
+  }
+]

@@ -1,0 +1,90 @@
+[
+  {
+    "id": "P1",
+    "name": "Arm via plan-promote + MCP question (R3b)",
+    "description": "User promotes spec to implementing; plan-builder asks permission; user confirms; runtime arms",
+    "participants": [
+      { "id": "USER", "name": "User" },
+      { "id": "C9", "name": "plan-promote-script", "componentRef": "C9" },
+      { "id": "C12", "name": "mcp-question-tool", "componentRef": "C12" },
+      { "id": "C4", "name": "session-spec-binding-store", "componentRef": "C4" },
+      { "id": "C5", "name": "autorun-flag-store", "componentRef": "C5" },
+      { "id": "C1", "name": "workflow-runner", "componentRef": "C1" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "USER", "to": "C9", "label": "bun plan-promote specs/foo --to implementing --session S1", "componentRef": "C9" },
+      { "id": "MSG2", "from": "C9", "to": "C4", "label": "writeBinding(S1, 'foo')", "componentRef": "C4" },
+      { "id": "MSG3", "from": "C9", "to": "C12", "label": "question('Start autonomous build now?', ['Yes', 'No'])", "componentRef": "C12" },
+      { "id": "MSG4", "from": "C12", "to": "USER", "label": "render question UI", "componentRef": "C12" },
+      { "id": "MSG5", "from": "USER", "to": "C12", "label": "answer 'Yes'", "componentRef": "C12" },
+      { "id": "MSG6", "from": "C12", "to": "C9", "label": "return answer", "componentRef": "C9" },
+      { "id": "MSG7", "from": "C9", "to": "C5", "label": "armFlag(S1, true, reason='question_yes')", "componentRef": "C5" },
+      { "id": "MSG8", "from": "C5", "to": "C1", "label": "publish autorun.armed event", "componentRef": "C1" }
+    ]
+  },
+  {
+    "id": "P2",
+    "name": "Arm via verbal trigger (R3a)",
+    "description": "User types a configured trigger phrase; runtime recognizes, validates preconditions, arms",
+    "participants": [
+      { "id": "USER", "name": "User" },
+      { "id": "C3", "name": "arm-intent-detector", "componentRef": "C3" },
+      { "id": "C6", "name": "tweaks-cfg-reader", "componentRef": "C6" },
+      { "id": "C4", "name": "session-spec-binding-store", "componentRef": "C4" },
+      { "id": "C5", "name": "autorun-flag-store", "componentRef": "C5" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "USER", "to": "C3", "label": "message 'start building'", "componentRef": "C3" },
+      { "id": "MSG2", "from": "C3", "to": "C6", "label": "getTriggerPhrases()", "componentRef": "C6" },
+      { "id": "MSG3", "from": "C6", "to": "C3", "label": "['start building', ...]", "componentRef": "C3" },
+      { "id": "MSG4", "from": "C3", "to": "C4", "label": "readBinding(S1)", "componentRef": "C4" },
+      { "id": "MSG5", "from": "C4", "to": "C3", "label": "slug='foo'", "componentRef": "C3" },
+      { "id": "MSG6", "from": "C3", "to": "C3", "label": "read specs/foo/.state.json; confirm state in {planned, implementing}", "componentRef": "C3" },
+      { "id": "MSG7", "from": "C3", "to": "C3", "label": "confirm Todo.nextActionableTodo(S1) != null", "componentRef": "C3" },
+      { "id": "MSG8", "from": "C3", "to": "C5", "label": "armFlag(S1, true, reason='verbal:start building')", "componentRef": "C5" }
+    ]
+  },
+  {
+    "id": "P3",
+    "name": "Disarm on user interjection (R5)",
+    "description": "Armed session pumping continuations; user sends a message; runtime disarms before next pump",
+    "participants": [
+      { "id": "USER", "name": "User" },
+      { "id": "C1", "name": "workflow-runner", "componentRef": "C1" },
+      { "id": "C8", "name": "disarm-observer", "componentRef": "C8" },
+      { "id": "C5", "name": "autorun-flag-store", "componentRef": "C5" },
+      { "id": "C2", "name": "autorun-gate", "componentRef": "C2" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "USER", "to": "C1", "label": "non-synthetic message", "componentRef": "C1" },
+      { "id": "MSG2", "from": "C1", "to": "C8", "label": "emit user-message Bus event", "componentRef": "C8" },
+      { "id": "MSG3", "from": "C8", "to": "C5", "label": "armFlag(S1, false, reason='user_message')", "componentRef": "C5" },
+      { "id": "MSG4", "from": "C5", "to": "C8", "label": "publish autorun.disarmed event", "componentRef": "C8" },
+      { "id": "MSG5", "from": "C1", "to": "C2", "label": "isAutorunArmed(S1)?", "componentRef": "C2" },
+      { "id": "MSG6", "from": "C2", "to": "C1", "label": "false", "componentRef": "C1" },
+      { "id": "MSG7", "from": "C1", "to": "C1", "label": "return {type:stop, reason:not_armed}", "componentRef": "C1" }
+    ]
+  },
+  {
+    "id": "P4",
+    "name": "Plan edit during implementing forces demote + disarm (R6)",
+    "description": "User runs plan-amend while session is armed and state=implementing; helper demotes before amend applies",
+    "participants": [
+      { "id": "USER", "name": "User" },
+      { "id": "C10", "name": "plan-write-scripts", "componentRef": "C10" },
+      { "id": "C11", "name": "r6-demote-helper", "componentRef": "C11" },
+      { "id": "C5", "name": "autorun-flag-store", "componentRef": "C5" },
+      { "id": "C1", "name": "workflow-runner", "componentRef": "C1" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "USER", "to": "C10", "label": "bun plan-promote specs/foo --mode amend", "componentRef": "C10" },
+      { "id": "MSG2", "from": "C10", "to": "C11", "label": "preCheck(specs/foo)", "componentRef": "C11" },
+      { "id": "MSG3", "from": "C11", "to": "C11", "label": "read .state.json.state === 'implementing'", "componentRef": "C11" },
+      { "id": "MSG4", "from": "C11", "to": "C11", "label": "append history {mode:'revise', from:'implementing', to:'planned'}", "componentRef": "C11" },
+      { "id": "MSG5", "from": "C11", "to": "C5", "label": "armFlag(S1, false, reason='plan_edit_demotion')", "componentRef": "C5" },
+      { "id": "MSG6", "from": "C11", "to": "C10", "label": "return ok", "componentRef": "C10" },
+      { "id": "MSG7", "from": "C10", "to": "C10", "label": "apply amend operation against planned state", "componentRef": "C10" },
+      { "id": "MSG8", "from": "C5", "to": "C1", "label": "publish autorun.demoted_by_edit event", "componentRef": "C1" }
+    ]
+  }
+]
