@@ -32,14 +32,11 @@
 <path class="edge" d="M 11.75 41.00 L 11.75 45.00"/>
 <path class="edge edge-arrow" d="M 11.75 45.00 L 11.75 51.00"/>
 <path class="edge" d="M 11.75 39.00 L 11.75 36.00"/>
-<path class="edge" d="M 11.75 34.00 L 70.50 34.00"/>
-<path class="edge edge-arrow" d="M 70.50 34.00 L 70.50 73.00"/>
+<path class="edge" d="M 11.75 35.00 L 70.50 35.00"/>
+<path class="edge edge-arrow" d="M 70.50 35.00 L 70.50 73.00"/>
 <path class="edge edge-arrow" d="M 11.75 54.00 L 11.75 73.00"/>
-<path class="edge" d="M 35.25 39.00 L 35.25 48.38"/>
-<path class="edge" d="M 35.25 48.38 L 65.20 48.38"/>
-<path class="edge" d="M 65.20 48.38 L 65.20 43.00"/>
-<path class="edge" d="M 65.20 43.00 L 35.25 43.00"/>
-<path class="edge" d="M 35.25 48.38 L 35.25 51.00"/>
+<path class="edge" d="M 35.25 39.00 L 35.25 38.69 Q 35.25 38.38 35.56 38.38 L 64.70 38.38 Q 65.20 38.38 65.20 38.88 L 65.20 43.12 Q 65.20 43.62 64.70 43.62 L 35.75 43.62 Q 35.25 43.62 35.25 44.12 L 35.25 47.00"/>
+<path class="edge edge-arrow" d="M 35.25 47.00 L 35.25 51.00"/>
 <path class="edge edge-arrow" d="M 35.25 54.00 L 35.25 73.00"/>
 <path class="edge" d="M 11.75 78.00 L 11.75 80.00"/>
 <path class="edge" d="M 11.75 80.00 L 11.75 82.00"/>
@@ -160,9 +157,9 @@
 <line class="gate" x1="10.75" y1="34.00" x2="12.75" y2="34.00"/>
 <text class="gate-label-left" x="10.35" y="34.00"><tspan x="10.35" dy="0">rebindtriggerobserved</tspan></text>
 <line class="gate" x1="34.25" y1="34.00" x2="36.25" y2="34.00"/>
-<text class="gate-label-left" x="33.85" y="33.32"><tspan x="33.85" dy="0">scrollupSentinelhit</tspan></text>
+<text class="gate-label-left" x="33.85" y="34.00"><tspan x="33.85" dy="0">scrollupSentinelhit</tspan></text>
 <line class="gate" x1="46.00" y1="34.00" x2="48.00" y2="34.00"/>
-<text class="gate-label-left" x="45.60" y="33.32"><tspan x="45.60" dy="0">閒置freshnesstick</tspan></text>
+<text class="gate-label-left" x="45.60" y="34.00"><tspan x="45.60" dy="0">閒置freshnesstick</tspan></text>
 <line class="gate" x1="-1.00" y1="71.00" x2="1.00" y2="71.00"/>
 <text class="gate-label-left" x="-1.40" y="70.32"><tspan x="-1.40" dy="0">訊息已</tspan><tspan x="-1.40" dy="0.68">完成或</tspan><tspan x="-1.40" dy="0.68">aborted</tspan></text>
 <line class="gate" x1="69.50" y1="71.00" x2="71.50" y2="71.00"/>
@@ -174,14 +171,13 @@
 <line class="gate" x1="22.50" y1="43.00" x2="24.50" y2="43.00"/>
 <text class="gate-label-left" x="22.10" y="43.00"><tspan x="22.10" dy="0">stalethresholdcrossed</tspan></text>
 <line class="gate" x1="57.75" y1="43.00" x2="59.75" y2="43.00"/>
-<text class="gate-label-left" x="57.35" y="42.32"><tspan x="57.35" dy="0">hardstalethresholdcrossed</tspan></text>
+<text class="gate-label-left" x="57.35" y="41.64"><tspan x="57.35" dy="0">hardstal</tspan><tspan x="57.35" dy="0.68">ethresho</tspan><tspan x="57.35" dy="0.68">ldcrossed</tspan></text>
 <line class="gate" x1="46.00" y1="45.00" x2="48.00" y2="45.00"/>
 <text class="gate-label" x="48.40" y="45.00"><tspan x="48.40" dy="0">Session路由left</tspan></text>
 <line class="flyover-mask" x1="-9.00" y1="49.00" x2="-7.00" y2="49.00"/>
 <path class="flyover" d="M -9.00 49.00 Q -8.00 48.00 -7.00 49.00"/>
 <circle class="junction" cx="23.50" cy="25.00" r="0.22"/>
-<circle class="junction" cx="11.75" cy="34.00" r="0.22"/>
-<circle class="junction" cx="35.25" cy="48.38" r="0.22"/>
+<circle class="junction" cx="11.75" cy="35.00" r="0.22"/>
 <circle class="junction" cx="-8.00" cy="60.00" r="0.22"/>
 <circle class="junction" cx="-8.00" cy="64.00" r="0.22"/>
 <circle class="branch-junction" cx="11.75" cy="41.00" r="0.28"/>
