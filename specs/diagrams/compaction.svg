@@ -143,6 +143,6 @@
 <line class="gate" x1="22.31" y1="63.00" x2="24.31" y2="63.00"/>
 <text class="gate-label" x="24.71" y="62.66"><tspan x="24.71" dy="0">anchorpersisted &amp;&amp;</tspan><tspan x="24.71" dy="0.68">telemetryemitted</tspan></text>
 <circle class="junction" cx="23.31" cy="34.00" r="0.22"/>
-<circle class="junction" cx="10.00" cy="56.00" r="0.22"/>
+<circle class="branch-junction" cx="10.00" cy="56.00" r="0.22"/>
 <circle class="branch-junction" cx="23.31" cy="23.00" r="0.28"/>
 </svg>
