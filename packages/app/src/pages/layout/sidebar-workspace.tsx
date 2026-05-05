@@ -65,6 +65,11 @@ type ClaudeNativeSession = {
   currentLineCount: number
   importedLineCount?: number
   hasNewContent: boolean
+  userMessageCount: number
+  assistantMessageCount: number
+  firstUserPreview?: string
+  lastUserPreview?: string
+  looksEmpty: boolean
 }
 
 export const WorkspaceDragOverlay = (props: {
@@ -323,6 +328,7 @@ const WorkspaceSessionList = (props: {
         throw new Error(body?.message ?? `Failed to import Claude session (${response.status})`)
       }
       const body = (await response.json()) as { sessionID: string }
+      setSessionTab("value", "opencode")
       navigate(`/${props.slug()}/session/${body.sessionID}`)
       setRefreshVersion((value) => value + 1)
     } catch (error) {
@@ -487,20 +493,35 @@ const WorkspaceSessionList = (props: {
           {(row) => (
             <button
               type="button"
-              class="flex w-full items-center gap-2 rounded-md px-4 py-2 text-left text-13-regular text-text-base hover:bg-surface-interactive-base disabled:opacity-60"
+              class="flex w-full items-start gap-2 rounded-md px-4 py-2 text-left text-13-regular hover:bg-surface-interactive-base disabled:opacity-60"
+              classList={{
+                "text-text-base": !row.looksEmpty,
+                "text-text-weak opacity-60": row.looksEmpty,
+              }}
               disabled={!!importingSource()}
               aria-label={`Open Claude session ${row.title}`}
+              title={row.looksEmpty ? "Empty transcript (no user messages)" : undefined}
               onClick={() => openClaudeSession(row)}
             >
-              <Icon name="code" size="small" class="shrink-0 text-text-weak" />
+              <Icon name="code" size="small" class="shrink-0 mt-0.5 text-text-weak" />
               <span
-                class="size-2 rounded-full bg-green-500 shrink-0"
+                class="size-2 rounded-full bg-green-500 shrink-0 mt-1.5"
                 classList={{ invisible: !row.hasNewContent }}
                 title="New content since last import"
               />
-              <span class="min-w-0 flex-1 truncate">{row.title}</span>
+              <div class="min-w-0 flex-1 flex flex-col gap-0.5">
+                <div class="flex items-center gap-2">
+                  <span class="min-w-0 flex-1 truncate">{row.title}</span>
+                  <span class="shrink-0 text-11-regular text-text-weak tabular-nums">
+                    {row.userMessageCount}/{row.userMessageCount + row.assistantMessageCount}
+                  </span>
+                </div>
+                <Show when={row.firstUserPreview}>
+                  <span class="text-11-regular text-text-weak truncate">{row.firstUserPreview}</span>
+                </Show>
+              </div>
               <Show when={importingSource() === row.sourceSessionID}>
-                <Spinner class="size-[13px] shrink-0 text-text-weak" />
+                <Spinner class="size-[13px] shrink-0 text-text-weak mt-0.5" />
               </Show>
             </button>
           )}

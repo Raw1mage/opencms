@@ -8,6 +8,9 @@ import { usePermission } from "@/context/permission"
 import { DirtyCountBubble } from "@/components/dirty-count-bubble"
 import { base64Encode } from "@opencode-ai/util/encode"
 import { Avatar } from "@opencode-ai/ui/avatar"
+import { Button } from "@opencode-ai/ui/button"
+import { useDialog } from "@opencode-ai/ui/context/dialog"
+import { Dialog } from "@opencode-ai/ui/dialog"
 import { DropdownMenu } from "@opencode-ai/ui/dropdown-menu"
 import { HoverCard } from "@opencode-ai/ui/hover-card"
 import { Icon } from "@opencode-ai/ui/icon"
@@ -268,6 +271,7 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
   const notification = useNotification()
   const permission = usePermission()
   const globalSync = useGlobalSync()
+  const dialog = useDialog()
   const unseenCount = createMemo(() => notification.session.unseenCount(props.session.id))
   const hasError = createMemo(() => notification.session.unseenHasError(props.session.id))
   const [sessionStore, setSessionStore] = globalSync.child(props.session.directory)
@@ -486,9 +490,7 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
       })
   }
 
-  const deleteSession = async () => {
-    const confirmed = window.confirm(`${language.t("common.delete")} "${props.session.title}"?`)
-    if (!confirmed) return
+  const performDelete = async () => {
     await globalSDK.client.session
       .delete({
         directory: props.session.directory,
@@ -511,6 +513,33 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
           description: String((err as { message?: string })?.message ?? err),
         })
       })
+  }
+
+  const deleteSession = () => {
+    dialog.show(() => (
+      <Dialog title={language.t("session.delete.title")} fit>
+        <div class="flex flex-col gap-4 pl-6 pr-2.5 pb-3">
+          <span class="text-14-regular text-text-strong">
+            {language.t("session.delete.confirm", { name: props.session.title })}
+          </span>
+          <div class="flex justify-end gap-2">
+            <Button variant="ghost" size="large" onClick={() => dialog.close()}>
+              {language.t("common.cancel")}
+            </Button>
+            <Button
+              variant="primary"
+              size="large"
+              onClick={async () => {
+                dialog.close()
+                await performDelete()
+              }}
+            >
+              {language.t("session.delete.button")}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+    ))
   }
 
   return (

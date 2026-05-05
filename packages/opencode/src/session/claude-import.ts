@@ -53,6 +53,11 @@ export namespace ClaudeImport {
     currentLineCount: z.number().int().nonnegative(),
     importedLineCount: z.number().int().nonnegative().optional(),
     hasNewContent: z.boolean(),
+    userMessageCount: z.number().int().nonnegative(),
+    assistantMessageCount: z.number().int().nonnegative(),
+    firstUserPreview: z.string().optional(),
+    lastUserPreview: z.string().optional(),
+    looksEmpty: z.boolean(),
   })
   export type NativeSession = z.infer<typeof NativeSession>
 
@@ -117,6 +122,50 @@ export namespace ClaudeImport {
 
   function metadataKey(sourceSessionID: string, directory = Instance.directory) {
     return ["session_import", Instance.project.id, projectKey(directory), sourceSessionID]
+  }
+
+  // Reverse marker keyed on the OpenCode session id. Written when import
+  // first creates the takeover session; checked by existingImportedSession
+  // to confirm the metadata pointer truly belongs to a Claude import target
+  // (and not to an unrelated user session whose id collided / got reused).
+  function importTargetKey(sessionID: string) {
+    return ["claude_import_target", Instance.project.id, sessionID]
+  }
+
+  function deriveTitleFromLines(lines: ClaudeLine[], sourceSessionID: string): string {
+    const fallback = `Claude ${sourceSessionID}`
+    let aiTitle: string | undefined
+    let summary: string | undefined
+    let lastPrompt: string | undefined
+    let firstUserText: string | undefined
+    for (const line of lines) {
+      const l = line as ClaudeLine & {
+        type?: string
+        aiTitle?: string
+        summary?: string
+        lastPrompt?: string
+      }
+      if (!aiTitle && l.type === "ai-title" && typeof l.aiTitle === "string" && l.aiTitle.trim()) {
+        aiTitle = l.aiTitle.trim()
+        break
+      }
+      if (!summary && l.type === "summary" && typeof l.summary === "string" && l.summary.trim()) {
+        summary = l.summary.trim()
+      }
+      if (!lastPrompt && l.type === "last-prompt" && typeof l.lastPrompt === "string" && l.lastPrompt.trim()) {
+        lastPrompt = l.lastPrompt.trim()
+      }
+      if (!firstUserText && (l.message?.role ?? l.role) === "user" && l.type !== "attachment") {
+        try {
+          const normalized = normalizeContent(l, 0)
+          if (normalized.text) firstUserText = normalized.text
+        } catch {
+          // ignore unsupported blocks for title derivation
+        }
+      }
+    }
+    const titleSource = aiTitle ?? summary ?? lastPrompt ?? firstUserText ?? fallback
+    return (titleSource.split("\n")[0] ?? fallback).slice(0, 80) || fallback
   }
 
   function timestampMs(value: string | undefined, fallback: number) {
@@ -193,6 +242,11 @@ export namespace ClaudeImport {
     return sanitized
   }
 
+  // Claude evolves block types over time (image, server_tool_use,
+  // web_search_tool_result, etc.). Unknown blocks used to throw, killing the
+  // entire import for one ignorable line. We now degrade them to evidence
+  // entries — caller can still tell something was there but the rest of
+  // the transcript imports cleanly.
   function normalizeContent(line: ClaudeLine, lineNumber: number) {
     const content = line.message?.content
     const blocks = Array.isArray(content) ? content : content === undefined ? [] : [content]
@@ -204,10 +258,13 @@ export namespace ClaudeImport {
         text.push(block)
         continue
       }
-      if (!block || typeof block !== "object" || !("type" in block)) {
-        throw new ImportError("CLAUDE_UNSUPPORTED_BLOCK", "Claude transcript contains an unsupported content block", {
-          lineNumber,
-        })
+      if (!block || typeof block !== "object") {
+        evidence.push(`unsupported block (line ${lineNumber}): non-object`)
+        continue
+      }
+      if (!("type" in block)) {
+        evidence.push(`unsupported block (line ${lineNumber}): no type`)
+        continue
       }
       if (block.type === "text") {
         if (block.text) text.push(block.text)
@@ -226,10 +283,7 @@ export namespace ClaudeImport {
         evidence.push(compactToolResult(block.content, block.is_error))
         continue
       }
-      throw new ImportError("CLAUDE_UNSUPPORTED_BLOCK", "Claude transcript contains an unsupported content block", {
-        lineNumber,
-        type: (block as { type?: string }).type,
-      })
+      evidence.push(`unsupported block (line ${lineNumber}): type=${(block as { type?: string }).type}`)
     }
 
     return { text: sanitizeImportedText(text.join("\n\n")), evidence }
@@ -257,7 +311,6 @@ export namespace ClaudeImport {
   }) {
     const user = lastText(input.entries, "user")
     const assistant = lastText(input.entries, "assistant")
-    const evidence = input.entries.flatMap((entry) => entry.evidence).slice(-8)
     const firstLine = input.entries.at(0)?.lineNumber ?? input.lineStart
     const lastLine = input.entries.at(-1)?.lineNumber ?? input.lineEnd
 
@@ -276,11 +329,6 @@ export namespace ClaudeImport {
       assistant
         ? `- line ${assistant.lineNumber}: ${excerpt(assistant.text)}`
         : "- No assistant text found in imported range.",
-      "",
-      "## Runtime Evidence",
-      ...(evidence.length
-        ? evidence.map((item) => `- ${excerpt(item, 240)}`)
-        : ["- No bounded tool evidence in imported range."]),
       "",
       "## Takeover Handoff",
       "- Continue from the latest user intent and assistant state above.",
@@ -370,30 +418,115 @@ export namespace ClaudeImport {
     return { transcriptPath, lines: parsed }
   }
 
+  // Cap how many bytes we'll scan per transcript when building the listing
+  // summary. The largest field-observed transcript is ~100 MB; reading them
+  // all on every list request blocks the daemon for seconds. 5 MB covers
+  // roughly the first ~5k lines of a typical Claude session, enough for
+  // ai-title, first user preview, and an approximate count.
+  const SUMMARY_SCAN_CAP_BYTES = 5_000_000
+
+  async function readCapped(transcriptPath: string, cap: number): Promise<{ raw: string; truncated: boolean }> {
+    const fd = await fs.open(transcriptPath, "r")
+    try {
+      const stat = await fd.stat()
+      if (stat.size <= cap) {
+        const raw = await fd.readFile({ encoding: "utf8" })
+        return { raw, truncated: false }
+      }
+      const buffer = Buffer.alloc(cap)
+      await fd.read(buffer, 0, cap, 0)
+      return { raw: buffer.toString("utf8"), truncated: true }
+    } finally {
+      await fd.close()
+    }
+  }
+
   async function readTranscriptSummary(
     transcriptPath: string,
     sourceSessionID: string,
     directory = Instance.directory,
   ) {
     const stat = await fs.stat(transcriptPath)
-    const raw = await fs.readFile(transcriptPath, "utf8")
-    const lines = raw.split(/\r?\n/).filter((line) => line.trim().length > 0)
-    let title = `Claude ${sourceSessionID}`
+    const { raw, truncated } = await readCapped(transcriptPath, SUMMARY_SCAN_CAP_BYTES)
+    // When truncated mid-line the trailing partial line is unparseable; drop it
+    // so the rest of the loop's try/catch isn't swallowing a guaranteed error.
+    const splitLines = raw.split(/\r?\n/)
+    if (truncated && splitLines.length > 0) splitLines.pop()
+    const lines = splitLines.filter((line) => line.trim().length > 0)
+    const fallback = `Claude ${sourceSessionID}`
+    let aiTitle: string | undefined
+    let lastPrompt: string | undefined
+    let summary: string | undefined
+    let firstUserText: string | undefined
+    let lastUserText: string | undefined
+    let userMessageCount = 0
+    let assistantMessageCount = 0
     let created = stat.birthtimeMs || stat.ctimeMs || stat.mtimeMs
+    let createdSet = false
     for (let index = 0; index < lines.length; index++) {
       try {
-        const line = JSON.parse(lines[index]) as ClaudeLine
-        if (index === 0) created = timestampMs(line.timestamp, created)
+        const line = JSON.parse(lines[index]) as ClaudeLine & {
+          type?: string
+          aiTitle?: string
+          lastPrompt?: string
+          summary?: string
+        }
+        if (!createdSet && line.timestamp) {
+          created = timestampMs(line.timestamp, created)
+          createdSet = true
+        }
+        if (!aiTitle && line.type === "ai-title" && typeof line.aiTitle === "string" && line.aiTitle.trim()) {
+          aiTitle = line.aiTitle.trim()
+          continue
+        }
+        if (!lastPrompt && line.type === "last-prompt" && typeof line.lastPrompt === "string" && line.lastPrompt.trim()) {
+          lastPrompt = line.lastPrompt.trim()
+          continue
+        }
+        if (!summary && line.type === "summary" && typeof line.summary === "string" && line.summary.trim()) {
+          summary = line.summary.trim()
+          continue
+        }
         const role = line.message?.role ?? line.role
-        if (role === "user") {
-          const normalized = normalizeContent(line, index + 1)
-          if (normalized.text) title = normalized.text.split("\n")[0]?.slice(0, 80) || title
-          break
+        if (line.type === "attachment") continue
+        if (role === "user" || role === "assistant") {
+          let text: string | undefined
+          try {
+            const normalized = normalizeContent(line, index + 1)
+            if (normalized.text) text = normalized.text
+          } catch {
+            // unsupported block — still counts toward message tally
+          }
+          if (role === "user") {
+            // Only count substantive user prompts (not empty / pure-preface
+            // / pure tool-result evidence) so noise transcripts surface as
+            // empty in the UI.
+            if (text) {
+              userMessageCount++
+              if (!firstUserText) firstUserText = text
+              lastUserText = text
+            }
+          } else {
+            if (text) assistantMessageCount++
+          }
         }
       } catch {
         continue
       }
     }
+    const titleSource = aiTitle ?? summary ?? lastPrompt ?? firstUserText ?? fallback
+    const title = (titleSource.split("\n")[0] ?? fallback).slice(0, 80) || fallback
+    const previewLimit = 120
+    const firstUserPreview = firstUserText ? firstUserText.replace(/\s+/g, " ").trim().slice(0, previewLimit) : undefined
+    const lastUserPreview =
+      lastUserText && lastUserText !== firstUserText
+        ? lastUserText.replace(/\s+/g, " ").trim().slice(0, previewLimit)
+        : undefined
+    // Only call a transcript "empty" when we scanned it in full and found
+    // zero substantive user messages. If the scan was capped we can't prove
+    // emptiness — default to non-empty so the UI never grays out a session
+    // that may have content past the cap.
+    const looksEmpty = !truncated && userMessageCount === 0
     const metadata = await Storage.read<SourceMetadata & { sessionID?: string }>(
       metadataKey(sourceSessionID, directory),
     ).catch(() => undefined)
@@ -406,6 +539,11 @@ export namespace ClaudeImport {
       currentLineCount: lines.length,
       importedLineCount: metadata?.lineCount,
       hasNewContent: metadata ? lines.length > metadata.lineCount : false,
+      userMessageCount,
+      assistantMessageCount,
+      firstUserPreview,
+      lastUserPreview,
+      looksEmpty,
     } satisfies NativeSession
   }
 
@@ -438,11 +576,26 @@ export namespace ClaudeImport {
       metadataKey(sourceSessionID, directory),
     ).catch(() => undefined)
     if (!metadata?.sessionID) return undefined
-    return Session.get(metadata.sessionID).catch(() => undefined)
+    const session = await Session.get(metadata.sessionID).catch(() => undefined)
+    if (!session) return undefined
+    // Safety check: never append to a session that wasn't created by Claude
+    // import. Stale or corrupt metadata pointing at a real user session
+    // would otherwise inject transcript messages into the user's own work.
+    // Primary signal: the reverse marker stamped at create time. Fallback:
+    // legacy "Claude takeover" title prefix for sessions imported before
+    // the marker was introduced.
+    const marker = await Storage.read(importTargetKey(metadata.sessionID)).catch(() => undefined)
+    if (marker) return session
+    if (session.title?.startsWith("Claude takeover")) return session
+    return undefined
   }
 
   async function writeSourceMetadata(sessionID: string, metadata: SourceMetadata, directory = Instance.directory) {
     await Storage.write(metadataKey(metadata.sourceSessionID, directory), { ...metadata, sessionID })
+  }
+
+  async function writeImportTargetMarker(sessionID: string) {
+    await Storage.write(importTargetKey(sessionID), { createdAt: Date.now() })
   }
 
   export async function importTranscript(input: Input): Promise<Result> {
@@ -452,7 +605,9 @@ export namespace ClaudeImport {
     const previous = await Storage.read<SourceMetadata & { sessionID?: string }>(
       metadataKey(input.sourceSessionID, directory),
     ).catch(() => undefined)
-    const session = existing ?? (await Session.createNext({ directory, title: "Claude takeover" }))
+    const claudeTitle = deriveTitleFromLines(parsed.lines, input.sourceSessionID)
+    const session = existing ?? (await Session.createNext({ directory, title: claudeTitle }))
+    if (!existing) await writeImportTargetMarker(session.id)
     let appended = 0
     let parentID: string | undefined
     const start = previous?.sessionID === session.id ? previous.lineCount : 0
@@ -463,8 +618,13 @@ export namespace ClaudeImport {
       const role = line.message?.role ?? line.role
       if (role !== "user" && role !== "assistant") continue
       const normalized = normalizeContent(line, index + 1)
-      const evidence = normalized.evidence.length ? `\n\nRuntime evidence:\n- ${normalized.evidence.join("\n- ")}` : ""
-      const text = `${normalized.text}${evidence}`.trim()
+      // Drop runtime evidence (tool_use / tool_result summaries). User-facing
+      // value is the turn-by-turn dialog; tool noise just clutters the
+      // imported transcript without aiding post-hoc understanding. As a side
+      // effect, user-role tool_result lines (text-empty by construction) are
+      // skipped entirely now, which collapses the duplicated "回覆" rows the
+      // UI previously emitted between every assistant reply.
+      const text = normalized.text.trim()
       if (!text) continue
       importedEntries.push({ role, lineNumber: index + 1, text: normalized.text, evidence: normalized.evidence })
       const messageID = Identifier.ascending("message")
@@ -537,7 +697,11 @@ export namespace ClaudeImport {
       : previousAnchor
 
     await Session.update(session.id, (draft) => {
-      draft.title = draft.title === "Claude takeover" ? `Claude takeover ${input.sourceSessionID}` : draft.title
+      // Backfill: legacy imports created before deriveTitleFromLines existed
+      // still have the raw "Claude takeover" placeholder. Upgrade them to the
+      // derived AI title on next import. User-edited titles (anything else)
+      // are preserved.
+      if (draft.title === "Claude takeover") draft.title = claudeTitle
       draft.execution = Session.nextExecutionIdentity({
         current: draft.execution,
         model: { providerId: "claude-cli", modelID: "claude-native-transcript" },

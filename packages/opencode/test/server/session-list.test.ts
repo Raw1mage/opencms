@@ -295,9 +295,11 @@ describe("session.list", () => {
         const textParts = messages.flatMap((msg) => msg.parts).filter((part) => part.type === "text")
         expect(textParts.length).toBe(2)
         expect(textParts.some((part) => part.synthetic === true)).toBe(false)
-        expect(messages[1].parts.map((part) => (part.type === "text" ? part.text : "")).join("\n")).toContain(
-          "Runtime evidence",
-        )
+        // Evidence is now stripped — only the turn-by-turn dialog text remains.
+        const assistantText = messages[1].parts.map((part) => (part.type === "text" ? part.text : "")).join("\n")
+        expect(assistantText).toBe("I inspected it.")
+        expect(assistantText).not.toContain("Runtime evidence")
+        expect(assistantText).not.toContain("tool_use")
 
         await fs.appendFile(
           transcriptPath,
@@ -685,7 +687,7 @@ describe("session.list", () => {
     }
   })
 
-  test("fails fast for unsupported Claude transcript blocks", async () => {
+  test("degrades unsupported Claude transcript blocks to evidence", async () => {
     await Instance.provide({
       directory: projectRoot,
       fn: async () => {
@@ -694,7 +696,13 @@ describe("session.list", () => {
         await fs.writeFile(
           transcriptPath,
           JSON.stringify({
-            message: { role: "assistant", content: [{ type: "image", source: "unsupported" }] },
+            message: {
+              role: "assistant",
+              content: [
+                { type: "image", source: "unsupported" },
+                { type: "text", text: "but this should still come through" },
+              ],
+            },
           }) + "\n",
         )
         const response = await app.request("/session/import/claude", {
@@ -706,9 +714,10 @@ describe("session.list", () => {
           expect(response.status).toBe(401)
           return
         }
-        expect(response.status).toBe(400)
-        const body = (await response.json()) as { code: string }
-        expect(body.code).toBe("CLAUDE_UNSUPPORTED_BLOCK")
+        expect(response.status).toBe(200)
+        const body = (await response.json()) as { sessionID: string; appended: number }
+        expect(body.sessionID).toBeTruthy()
+        expect(body.appended).toBeGreaterThan(0)
       },
     })
   })
