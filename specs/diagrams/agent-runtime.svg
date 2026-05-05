@@ -56,7 +56,7 @@
 <path class="edge edge-arrow" d="M 19.90 116.00 L 19.90 118.00"/>
 <path class="edge" d="M 19.90 118.00 L -23.50 118.00 Q -24.00 118.00 -24.00 117.50 L -24.00 61.50 Q -24.00 61.00 -23.50 61.00 L 19.90 61.00"/>
 <path class="edge edge-arrow" d="M 19.90 133.00 L 19.90 135.00"/>
-<path class="edge edge-arrow" d="M 9.95 135.00 L 9.95 138.50 Q 9.95 139.00 9.45 139.00 L -27.50 139.00 Q -28.00 139.00 -28.00 138.50 L -28.00 2.50 Q -28.00 2.00 -27.50 2.00 L 19.40 2.00 Q 19.90 2.00 19.90 2.50 L 19.90 4.00"/>
+<path class="edge edge-arrow" d="M 6.95 135.00 L 6.95 138.50 Q 6.95 139.00 6.45 139.00 L -27.50 139.00 Q -28.00 139.00 -28.00 138.50 L -28.00 2.50 Q -28.00 2.00 -27.50 2.00 L 19.40 2.00 Q 19.90 2.00 19.90 2.50 L 19.90 4.00"/>
 <path class="edge edge-arrow" d="M 29.85 135.00 L 29.85 141.00"/>
 <path class="edge" d="M 29.85 144.00 L 29.85 146.00"/>
 <path class="edge" d="M 29.85 146.00 L 29.85 148.00"/>
@@ -195,8 +195,8 @@
 <text class="gate-label" x="-22.60" y="89.50"><tspan x="-22.60" dy="0">已啟用 &amp;&amp; (下一個可執行待辦!=空 || 補充啟用規劃)</tspan></text>
 <line class="gate" x1="18.90" y1="126.00" x2="20.90" y2="126.00"/>
 <text class="gate-label" x="21.30" y="125.32"><tspan x="21.30" dy="0">停止：子代理</tspan><tspan x="21.30" dy="0.68">會話或未啟用</tspan><tspan x="21.30" dy="0.68">或待辦完成</tspan></text>
-<line class="gate" x1="8.95" y1="137.00" x2="10.95" y2="137.00"/>
-<text class="gate-label-left" x="8.55" y="137.00"><tspan x="8.55" dy="0">下一個使用者訊息</tspan></text>
+<line class="gate" x1="5.95" y1="137.00" x2="7.95" y2="137.00"/>
+<text class="gate-label-left" x="5.55" y="137.00"><tspan x="5.55" dy="0">下一個使用者訊息</tspan></text>
 <line class="gate" x1="28.85" y1="137.00" x2="30.85" y2="137.00"/>
 <text class="gate-label-left" x="28.45" y="137.00"><tspan x="28.45" dy="0">排程心跳派發到期工作</tspan></text>
 <circle class="junction" cx="19.90" cy="61.00" r="0.22"/>

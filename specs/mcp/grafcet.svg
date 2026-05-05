@@ -34,13 +34,13 @@
 <path class="edge" d="M 2.00 68.00 L 2.00 50.00"/>
 <path class="edge" d="M 2.00 50.00 L 21.75 50.00"/>
 <path class="edge edge-arrow" d="M 21.75 73.00 L 21.75 75.00"/>
-<path class="edge" d="M 10.00 75.00 L 10.00 79.00"/>
-<path class="edge" d="M 10.00 79.00 L 2.00 79.00"/>
+<path class="edge" d="M 7.00 75.00 L 7.00 79.00"/>
+<path class="edge" d="M 7.00 79.00 L 2.00 79.00"/>
 <path class="edge" d="M 2.00 79.00 L 2.00 68.00"/>
 <path class="edge edge-arrow" d="M 33.50 75.00 L 33.50 81.00"/>
 <path class="edge edge-arrow" d="M 33.50 84.00 L 33.50 86.00"/>
-<path class="edge" d="M 21.75 86.00 L 21.75 90.00"/>
-<path class="edge" d="M 21.75 90.00 L 0.00 90.00"/>
+<path class="edge" d="M 18.75 86.00 L 18.75 90.00"/>
+<path class="edge" d="M 18.75 90.00 L 0.00 90.00"/>
 <path class="edge" d="M 0.00 90.00 L 0.00 68.00"/>
 <path class="edge" d="M 0.00 68.00 L 2.00 68.00"/>
 <path class="edge" d="M 11.75 68.00 L 21.75 68.00"/>
@@ -137,12 +137,12 @@
 <text class="gate-label-left" x="10.35" y="65.32"><tspan x="10.35" dy="0">下一個工</tspan><tspan x="10.35" dy="0.68">具呼叫</tspan><tspan x="10.35" dy="0.68">arrives</tspan></text>
 <line class="gate" x1="30.75" y1="66.00" x2="32.75" y2="66.00"/>
 <text class="gate-label-left" x="30.35" y="65.32"><tspan x="30.35" dy="0">無待處理呼叫</tspan></text>
-<line class="gate" x1="9.00" y1="77.00" x2="11.00" y2="77.00"/>
-<text class="gate-label-left" x="8.60" y="76.32"><tspan x="8.60" dy="0">模型</tspan><tspan x="8.60" dy="0.68">resumes工</tspan><tspan x="8.60" dy="0.68">具use</tspan></text>
+<line class="gate" x1="6.00" y1="77.00" x2="8.00" y2="77.00"/>
+<text class="gate-label-left" x="5.60" y="76.32"><tspan x="5.60" dy="0">模型</tspan><tspan x="5.60" dy="0.68">resumes工</tspan><tspan x="5.60" dy="0.68">具use</tspan></text>
 <line class="gate" x1="32.50" y1="77.00" x2="34.50" y2="77.00"/>
-<text class="gate-label-left" x="32.10" y="76.32"><tspan x="32.10" dy="0">now - lastused於 &gt;</tspan><tspan x="32.10" dy="0.68">tweaks.mcp.閒置</tspan><tspan x="32.10" dy="0.68">unloadms (proposed)</tspan></text>
-<line class="gate" x1="20.75" y1="88.00" x2="22.75" y2="88.00"/>
-<text class="gate-label-left" x="20.35" y="88.00"><tspan x="20.35" dy="0">proposal不已交付 (stay 已釘選)</tspan></text>
+<text class="gate-label-left" x="32.10" y="77.00"><tspan x="32.10" dy="0">now - lastused於 &gt; tweaks.mcp.閒置unloadms (proposed)</tspan></text>
+<line class="gate" x1="17.75" y1="88.00" x2="19.75" y2="88.00"/>
+<text class="gate-label-left" x="17.35" y="88.00"><tspan x="17.35" dy="0">proposal不已交付 (stay 已釘選)</tspan></text>
 <line class="gate" x1="44.25" y1="88.00" x2="46.25" y2="88.00"/>
 <text class="gate-label-left" x="43.85" y="88.00"><tspan x="43.85" dy="0">proposal已交付 &amp;&amp; inflight==0 (unload)</tspan></text>
 <line class="flyover-mask" x1="1.00" y1="68.00" x2="3.00" y2="68.00"/>
