@@ -44,11 +44,7 @@
 <path class="edge edge-arrow" d="M 0.79 64.00 L 0.79 76.00"/>
 <path class="edge" d="M 0.79 81.00 L 0.79 83.00"/>
 <path class="edge edge-arrow" d="M 0.79 83.00 L 0.79 84.50 Q 0.79 85.00 0.29 85.00 L -21.50 85.00 Q -22.00 85.00 -22.00 84.50 L -22.00 2.50 Q -22.00 2.00 -21.50 2.00 L 21.87 2.00 Q 22.37 2.00 22.37 2.50 L 22.37 4.00"/>
-<path class="edge" d="M 33.16 48.00 L 33.16 49.00"/>
-<path class="edge" d="M 33.16 49.00 L 42.95 49.00"/>
-<path class="edge" d="M 42.95 49.00 L 42.95 66.00"/>
-<path class="edge" d="M 42.95 66.00 L 33.16 66.00"/>
-<path class="edge" d="M 33.16 72.00 L 33.16 76.00"/>
+<path class="edge edge-arrow" d="M 33.16 48.00 L 33.16 48.50 Q 33.16 49.00 33.66 49.00 L 42.45 49.00 Q 42.95 49.00 42.95 49.50 L 42.95 72.12 Q 42.95 72.62 42.45 72.62 L 33.66 72.62 Q 33.16 72.62 33.16 73.12 L 33.16 76.00"/>
 <rect class="step" x="20.37" y="4.00" width="4.00" height="3.00"/>
 <rect class="step-inner" x="20.62" y="4.25" width="3.50" height="2.50"/>
 <text class="label" x="22.37" y="5.50">0</text>
@@ -131,7 +127,7 @@
 <line class="gate" x1="21.37" y1="66.00" x2="23.37" y2="66.00"/>
 <text class="gate-label" x="23.77" y="65.32"><tspan x="23.77" dy="0">狀態setdesignedAND</tspan><tspan x="23.77" dy="0.68">revise或extendhis</tspan><tspan x="23.77" dy="0.68">tory項目appended</tspan></text>
 <line class="gate" x1="32.16" y1="70.00" x2="34.16" y2="70.00"/>
-<text class="gate-label" x="34.56" y="69.32"><tspan x="34.56" dy="0">historyrefactorYYYY MM</tspan><tspan x="34.56" dy="0.68">DD createdAND artifacts</tspan><tspan x="34.56" dy="0.68">reset到proposedskeleton</tspan></text>
+<text class="gate-label-left" x="31.76" y="69.32"><tspan x="31.76" dy="0">historyrefactorYYYY MM</tspan><tspan x="31.76" dy="0.68">DD createdAND artifacts</tspan><tspan x="31.76" dy="0.68">reset到proposedskeleton</tspan></text>
 <line class="gate" x1="-0.21" y1="83.00" x2="1.79" y2="83.00"/>
 <text class="gate-label" x="2.19" y="83.00"><tspan x="2.19" dy="0">1</tspan></text>
 <line class="gate" x1="10.58" y1="43.00" x2="12.58" y2="43.00"/>
@@ -154,6 +150,4 @@
 <text class="gate-label-left" x="31.76" y="74.00"><tspan x="31.76" dy="0">規劃rollbackrefactor或explicitabandonrecorded在history</tspan></text>
 <circle class="junction" cx="22.37" cy="11.00" r="0.22"/>
 <circle class="junction" cx="22.37" cy="20.00" r="0.22"/>
-<circle class="junction" cx="33.16" cy="66.00" r="0.22"/>
-<circle class="branch-junction" cx="33.16" cy="72.00" r="0.22"/>
 </svg>

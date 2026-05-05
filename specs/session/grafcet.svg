@@ -31,8 +31,8 @@
 <path class="edge" d="M 11.75 39.00 L 11.75 41.00"/>
 <path class="edge" d="M 11.75 41.00 L 11.75 45.00"/>
 <path class="edge edge-arrow" d="M 11.75 45.00 L 11.75 51.00"/>
-<path class="edge" d="M 11.75 43.00 L 70.50 43.00"/>
-<path class="edge edge-arrow" d="M 70.50 43.00 L 70.50 73.00"/>
+<path class="edge" d="M 11.75 42.00 L 70.50 42.00"/>
+<path class="edge edge-arrow" d="M 70.50 42.00 L 70.50 73.00"/>
 <path class="edge edge-arrow" d="M 11.75 54.00 L 11.75 73.00"/>
 <path class="edge" d="M 35.25 39.00 L 35.25 39.50 Q 35.25 40.00 35.75 40.00 L 64.70 40.00 Q 65.20 40.00 65.20 40.50 L 65.20 43.12 Q 65.20 43.62 64.70 43.62 L 35.75 43.62 Q 35.25 43.62 35.25 44.12 L 35.25 47.00"/>
 <path class="edge edge-arrow" d="M 35.25 47.00 L 35.25 51.00"/>
@@ -168,17 +168,17 @@
 <line class="gate" x1="34.25" y1="71.00" x2="36.25" y2="71.00"/>
 <text class="gate-label-left" x="33.85" y="71.00"><tspan x="33.85" dy="0">timelinerendered</tspan></text>
 <line class="gate" x1="22.50" y1="43.00" x2="24.50" y2="43.00"/>
-<text class="gate-label-left" x="22.10" y="42.32"><tspan x="22.10" dy="0">stalethresholdcrossed</tspan></text>
+<text class="gate-label-left" x="22.10" y="43.00"><tspan x="22.10" dy="0">stalethresholdcrossed</tspan></text>
 <line class="gate" x1="57.75" y1="43.00" x2="59.75" y2="43.00"/>
-<text class="gate-label-left" x="57.35" y="42.32"><tspan x="57.35" dy="0">hardstalethresholdcrossed</tspan></text>
+<text class="gate-label-left" x="57.35" y="43.00"><tspan x="57.35" dy="0">hardstalethresholdcrossed</tspan></text>
 <line class="gate" x1="46.00" y1="45.00" x2="48.00" y2="45.00"/>
 <text class="gate-label" x="48.40" y="45.00"><tspan x="48.40" dy="0">Session路由left</tspan></text>
-<line class="flyover-mask" x1="64.20" y1="43.00" x2="66.20" y2="43.00"/>
+<line class="flyover-mask" x1="64.20" y1="42.00" x2="66.20" y2="42.00"/>
 <line class="flyover-mask" x1="-9.00" y1="49.00" x2="-7.00" y2="49.00"/>
-<path class="flyover" d="M 64.20 43.00 Q 65.20 42.00 66.20 43.00"/>
+<path class="flyover" d="M 64.20 42.00 Q 65.20 41.00 66.20 42.00"/>
 <path class="flyover" d="M -9.00 49.00 Q -8.00 48.00 -7.00 49.00"/>
 <circle class="junction" cx="23.50" cy="25.00" r="0.22"/>
-<circle class="branch-junction" cx="11.75" cy="43.00" r="0.22"/>
+<circle class="branch-junction" cx="11.75" cy="42.00" r="0.22"/>
 <circle class="junction" cx="-8.00" cy="58.00" r="0.22"/>
 <circle class="junction" cx="-8.00" cy="62.00" r="0.22"/>
 <circle class="branch-junction" cx="11.75" cy="41.00" r="0.28"/>
