@@ -19,7 +19,11 @@
 <path class="edge" d="M 23.31 29.00 L 23.31 31.00"/>
 <path class="edge" d="M 23.31 31.00 L 23.31 33.00"/>
 <path class="edge edge-arrow" d="M 23.31 33.00 L 23.31 37.00"/>
-<path class="edge edge-arrow" d="M 23.31 31.00 L 49.43 31.00 Q 49.93 31.00 49.93 31.50 L 49.93 102.50 Q 49.93 103.00 49.43 103.00 L 25.81 103.00 Q 25.31 103.00 25.31 103.50 L 25.31 105.00"/>
+<path class="edge" d="M 23.31 32.00 L 48.93 32.00"/>
+<path class="edge" d="M 48.93 32.00 L 48.93 99.00"/>
+<path class="edge" d="M 48.93 99.00 L 23.31 99.00"/>
+<path class="edge" d="M 23.31 99.00 L 23.31 105.00"/>
+<path class="edge edge-arrow" d="M 23.31 105.00 L 25.31 105.00"/>
 <path class="edge edge-arrow" d="M 23.31 105.00 L 23.31 107.00"/>
 <path class="edge" d="M 23.31 40.00 L 23.31 44.00"/>
 <path class="edge edge-arrow" d="M 23.31 51.00 L 23.31 53.00"/>
@@ -43,9 +47,9 @@
 <path class="edge" d="M 23.31 86.00 L 23.31 90.00"/>
 <path class="edge edge-arrow" d="M 23.31 90.00 L 23.31 94.00"/>
 <path class="edge" d="M 23.31 97.00 L 23.31 98.00"/>
-<path class="edge" d="M 23.31 98.00 L 51.93 98.00"/>
-<path class="edge" d="M 51.93 98.00 L 51.93 105.61"/>
-<path class="edge" d="M 51.93 105.61 L 23.31 105.61"/>
+<path class="edge" d="M 23.31 98.00 L 26.76 98.00"/>
+<path class="edge" d="M 26.76 98.00 L 26.76 105.61"/>
+<path class="edge" d="M 26.76 105.61 L 23.31 105.61"/>
 <path class="edge edge-arrow" d="M 36.62 60.00 L 36.62 105.00"/>
 <path class="edge" d="M 23.31 110.00 L 23.31 112.00"/>
 <path class="edge edge-arrow" d="M 23.31 112.00 L 23.31 113.50 Q 23.31 114.00 22.81 114.00 L -13.50 114.00 Q -14.00 114.00 -14.00 113.50 L -14.00 2.50 Q -14.00 2.00 -13.50 2.00 L 22.81 2.00 Q 23.31 2.00 23.31 2.50 L 23.31 4.00"/>
@@ -149,7 +153,7 @@
 <line class="gate" x1="22.31" y1="79.00" x2="24.31" y2="79.00"/>
 <text class="gate-label-left" x="21.91" y="78.66"><tspan x="21.91" dy="0">anchorpersisted &amp;&amp;</tspan><tspan x="21.91" dy="0.68">telemetryemitted</tspan></text>
 <circle class="junction" cx="23.31" cy="46.00" r="0.22"/>
+<circle class="branch-junction" cx="23.31" cy="32.00" r="0.22"/>
 <circle class="junction" cx="23.31" cy="105.61" r="0.22"/>
 <circle class="junction" cx="23.31" cy="81.61" r="0.22"/>
-<circle class="branch-junction" cx="23.31" cy="31.00" r="0.28"/>
 </svg>
