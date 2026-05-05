@@ -145,6 +145,54 @@ export namespace ClaudeImport {
     return "tool_result completed"
   }
 
+  // Tags emitted by the live OpenCode preface / preloaded-context pipeline.
+  // A pure-preface user message (header + only these tags + scaffolding)
+  // collapses to "" via the cascade below and gets skipped by the appended-
+  // empty guard in importTranscript; partial pollution (e.g. an actual user
+  // prompt with a `<context_budget>` envelope appended) keeps the prompt and
+  // drops the envelope.
+  const PREFACE_TAGS = [
+    "context_budget",
+    "readme_summary",
+    "cwd_listing",
+    "pinned_skills",
+    "active_skills",
+    "summarized_skills",
+    "deferred-tools",
+    "deferred_tools",
+    "attached_images",
+    "attachment_ref",
+    "preloaded_context",
+    "env_context",
+    "skill_context",
+  ] as const
+
+  function stripTaggedBlock(text: string, tag: string) {
+    return text.replace(new RegExp(`\\n?\\s*<${tag}(?:\\s[^>]*)?>[\\s\\S]*?<\\/${tag}>\\s*`, "g"), "\n")
+  }
+
+  function sanitizeImportedText(text: string) {
+    let sanitized = text
+    // ENABLEMENT SNAPSHOT terminates at a blank line, any opening tag, or EOF
+    // — broader than the previous lookahead which only knew two siblings.
+    sanitized = sanitized.replace(
+      /\n?\[ENABLEMENT SNAPSHOT\][\s\S]*?(?=\n\s*\n|\n\s*<[A-Za-z_][A-Za-z0-9_-]*\b|$)/g,
+      "\n",
+    )
+    for (const tag of PREFACE_TAGS) {
+      sanitized = stripTaggedBlock(sanitized, tag)
+    }
+    // Structured `<skill name="..." state="...">…</skill>` blocks that escaped
+    // their parent envelope (e.g. truncated preface).
+    sanitized = sanitized.replace(/\n?\s*<skill\s+name="[^"]*"[^>]*>[\s\S]*?<\/skill>\s*/g, "\n")
+    sanitized = sanitized
+      .replace(/^## CONTEXT PREFACE — read but do not echo\s*$/gm, "")
+      .replace(/^Today's date: .*$/gm, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+    return sanitized
+  }
+
   function normalizeContent(line: ClaudeLine, lineNumber: number) {
     const content = line.message?.content
     const blocks = Array.isArray(content) ? content : content === undefined ? [] : [content]
@@ -184,7 +232,7 @@ export namespace ClaudeImport {
       })
     }
 
-    return { text: text.join("\n\n").trim(), evidence }
+    return { text: sanitizeImportedText(text.join("\n\n")), evidence }
   }
 
   function excerpt(value: string, limit = TAKEOVER_ANCHOR_TEXT_LIMIT) {

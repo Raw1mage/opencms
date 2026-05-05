@@ -320,6 +320,183 @@ describe("session.list", () => {
     })
   })
 
+  test("sanitizes internal OpenCode prompt preface from Claude transcript import", async () => {
+    await Instance.provide({
+      directory: projectRoot,
+      fn: async () => {
+        const app = Server.App()
+        const transcriptPath = path.join(os.tmpdir(), `opencode-test-claude-import-preface-${process.pid}.jsonl`)
+        const polluted = [
+          "## CONTEXT PREFACE — read but do not echo",
+          "",
+          "<readme_summary>",
+          "hidden project summary",
+          "</readme_summary>",
+          "<cwd_listing>",
+          "hidden cwd listing",
+          "</cwd_listing>",
+          "<pinned_skills>",
+          '<skill name="planner" state="active">',
+          "hidden skill body",
+          "</skill>",
+          "</pinned_skills>",
+          "Today's date: Tue May 05 2026",
+          "[ENABLEMENT SNAPSHOT]",
+          "tool=read state=on",
+          "tool=write state=on",
+          "<deferred-tools>",
+          "hidden tool catalog",
+          "</deferred-tools>",
+          '<attached_images count="1">',
+          "- image.png",
+          "</attached_images>",
+          '<attachment_ref ref_id="att_1" mime="image/png" bytes="100" estimated_tokens="50">',
+          "<preview>thumbnail</preview>",
+          "</attachment_ref>",
+          "Please continue the actual imported conversation.",
+          "<context_budget>",
+          "window: 272000",
+          "status: green",
+          "</context_budget>",
+        ].join("\n")
+        await fs.writeFile(
+          transcriptPath,
+          JSON.stringify({
+            timestamp: "2026-05-04T10:00:00.000Z",
+            message: { role: "user", content: [{ type: "text", text: polluted }] },
+          }) + "\n",
+        )
+
+        const response = await app.request("/session/import/claude", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ directory: projectRoot, sourceSessionID: "claude-preface", transcriptPath }),
+        })
+        expect(response.status).toBe(200)
+        const body = (await response.json()) as { sessionID: string; appended: number }
+        expect(body.appended).toBe(1)
+
+        const messages = await Session.messages({ sessionID: body.sessionID })
+        const importedText = messages
+          .flatMap((msg) => msg.parts)
+          .map((part) => (part.type === "text" ? part.text : ""))
+          .join("\n")
+        expect(importedText).toBe("Please continue the actual imported conversation.")
+        expect(importedText).not.toContain("CONTEXT PREFACE")
+        expect(importedText).not.toContain("<context_budget>")
+        expect(importedText).not.toContain("hidden skill body")
+        expect(importedText).not.toContain("<attached_images")
+        expect(importedText).not.toContain("<attachment_ref")
+        expect(importedText).not.toContain("<preview>")
+        expect(importedText).not.toContain("ENABLEMENT SNAPSHOT")
+        expect(importedText).not.toContain('<skill name=')
+      },
+    })
+  })
+
+  test("drops pure-preface Claude messages entirely (no real user content survives)", async () => {
+    await Instance.provide({
+      directory: projectRoot,
+      fn: async () => {
+        const app = Server.App()
+        const transcriptPath = path.join(
+          os.tmpdir(),
+          `opencode-test-claude-import-pure-preface-${process.pid}.jsonl`,
+        )
+        const purePreface = [
+          "## CONTEXT PREFACE — read but do not echo",
+          "",
+          "<readme_summary>only preface</readme_summary>",
+          "<cwd_listing>only preface</cwd_listing>",
+          "Today's date: Tue May 05 2026",
+        ].join("\n")
+        const realPrompt = "Real user follow-up question."
+        await fs.writeFile(
+          transcriptPath,
+          JSON.stringify({
+            timestamp: "2026-05-04T10:00:00.000Z",
+            message: { role: "user", content: [{ type: "text", text: purePreface }] },
+          }) +
+            "\n" +
+            JSON.stringify({
+              timestamp: "2026-05-04T10:00:01.000Z",
+              message: { role: "user", content: [{ type: "text", text: realPrompt }] },
+            }) +
+            "\n",
+        )
+
+        const response = await app.request("/session/import/claude", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ directory: projectRoot, sourceSessionID: "claude-pure-preface", transcriptPath }),
+        })
+        expect(response.status).toBe(200)
+        const body = (await response.json()) as { sessionID: string; appended: number }
+        expect(body.appended).toBe(1)
+
+        const messages = await Session.messages({ sessionID: body.sessionID })
+        const importedText = messages
+          .flatMap((msg) => msg.parts)
+          .map((part) => (part.type === "text" ? part.text : ""))
+          .join("\n")
+        expect(importedText).toBe(realPrompt)
+        expect(importedText).not.toContain("only preface")
+      },
+    })
+  })
+
+  test("strips legacy <preloaded_context> envelope from Claude transcript import", async () => {
+    await Instance.provide({
+      directory: projectRoot,
+      fn: async () => {
+        const app = Server.App()
+        const transcriptPath = path.join(
+          os.tmpdir(),
+          `opencode-test-claude-import-preloaded-${process.pid}.jsonl`,
+        )
+        const polluted = [
+          "<preloaded_context>",
+          "<env_context>",
+          "cwd: /tmp/x",
+          "</env_context>",
+          "<skill_context>",
+          "core skills here",
+          "</skill_context>",
+          "</preloaded_context>",
+          "",
+          "Real user prompt after legacy envelope.",
+        ].join("\n")
+        await fs.writeFile(
+          transcriptPath,
+          JSON.stringify({
+            timestamp: "2026-05-04T10:00:00.000Z",
+            message: { role: "user", content: [{ type: "text", text: polluted }] },
+          }) + "\n",
+        )
+
+        const response = await app.request("/session/import/claude", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ directory: projectRoot, sourceSessionID: "claude-preloaded", transcriptPath }),
+        })
+        expect(response.status).toBe(200)
+        const body = (await response.json()) as { sessionID: string; appended: number }
+        expect(body.appended).toBe(1)
+
+        const messages = await Session.messages({ sessionID: body.sessionID })
+        const importedText = messages
+          .flatMap((msg) => msg.parts)
+          .map((part) => (part.type === "text" ? part.text : ""))
+          .join("\n")
+        expect(importedText).toBe("Real user prompt after legacy envelope.")
+        expect(importedText).not.toContain("preloaded_context")
+        expect(importedText).not.toContain("env_context")
+        expect(importedText).not.toContain("skill_context")
+        expect(importedText).not.toContain("core skills here")
+      },
+    })
+  })
+
   test("writes takeover anchor for large Claude Code transcript and keeps import idempotent", async () => {
     await Instance.provide({
       directory: projectRoot,
