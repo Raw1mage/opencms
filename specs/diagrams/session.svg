@@ -48,10 +48,10 @@
 <path class="edge edge-arrow" d="M 58.75 41.00 L 58.75 51.00"/>
 <path class="edge edge-arrow" d="M 47.00 41.00 L 47.00 48.50 Q 47.00 49.00 46.50 49.00 L -9.50 49.00 Q -10.00 49.00 -10.00 48.50 L -10.00 2.50 Q -10.00 2.00 -9.50 2.00 L 23.00 2.00 Q 23.50 2.00 23.50 2.50 L 23.50 4.00"/>
 <path class="edge" d="M 23.50 54.00 L 23.50 56.00"/>
-<path class="edge" d="M 23.50 56.00 L 23.50 60.00"/>
-<path class="edge" d="M 23.50 60.00 L -8.00 60.00"/>
-<path class="edge" d="M 58.75 54.00 L 58.75 62.00"/>
-<path class="edge" d="M 58.75 62.00 L 58.75 64.00"/>
+<path class="edge" d="M 23.50 56.00 L 23.50 62.00"/>
+<path class="edge" d="M 23.50 62.00 L -8.00 62.00"/>
+<path class="edge" d="M 58.75 54.00 L 58.75 60.00"/>
+<path class="edge" d="M 58.75 60.00 L 58.75 64.00"/>
 <path class="edge" d="M 58.75 64.00 L -8.00 64.00"/>
 <rect class="step" x="21.50" y="4.00" width="4.00" height="3.00"/>
 <rect class="step-inner" x="21.75" y="4.25" width="3.50" height="2.50"/>
@@ -150,8 +150,8 @@
 <line class="gate" x1="19.50" y1="41.00" x2="62.75" y2="41.00"/>
 <line class="gate" x1="22.50" y1="56.00" x2="24.50" y2="56.00"/>
 <text class="gate-label" x="24.90" y="56.00"><tspan x="24.90" dy="0">tailrefreshed</tspan></text>
-<line class="gate" x1="57.75" y1="62.00" x2="59.75" y2="62.00"/>
-<text class="gate-label" x="60.15" y="62.00"><tspan x="60.15" dy="0">resumepostreturned</tspan></text>
+<line class="gate" x1="57.75" y1="60.00" x2="59.75" y2="60.00"/>
+<text class="gate-label" x="60.15" y="60.00"><tspan x="60.15" dy="0">resumepostreturned</tspan></text>
 <line class="gate" x1="-1.00" y1="34.00" x2="1.00" y2="34.00"/>
 <text class="gate-label-left" x="-1.40" y="33.32"><tspan x="-1.40" dy="0">使用者</tspan><tspan x="-1.40" dy="0.68">submi</tspan><tspan x="-1.40" dy="0.68">ts提示</tspan></text>
 <line class="gate" x1="10.75" y1="34.00" x2="12.75" y2="34.00"/>
@@ -178,7 +178,7 @@
 <path class="flyover" d="M -9.00 49.00 Q -8.00 48.00 -7.00 49.00"/>
 <circle class="junction" cx="23.50" cy="25.00" r="0.22"/>
 <circle class="junction" cx="11.75" cy="35.00" r="0.22"/>
-<circle class="junction" cx="-8.00" cy="60.00" r="0.22"/>
+<circle class="junction" cx="-8.00" cy="62.00" r="0.22"/>
 <circle class="junction" cx="-8.00" cy="64.00" r="0.22"/>
 <circle class="branch-junction" cx="11.75" cy="41.00" r="0.28"/>
 </svg>
