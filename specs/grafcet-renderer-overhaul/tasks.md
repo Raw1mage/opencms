@@ -2,6 +2,8 @@
 
 Phases run sequentially. Per plan-builder §16, each phase loads its own checklist into TodoWrite at boundary; the agent does not jump phases mid-stream.
 
+**Layer model (authoritative 2026-05-05):** L1 Box+Gate, L2 Routing, L3 Routing Validation, L4 Stub, L5 Balance, L6 Text. Phase numbering below uses the historical layer numbers in already-completed sub-tasks (kept for traceability) but new sub-tasks (2.7+, 2b) reference the new model.
+
 ## 1. L1 port refactor + branch anchor + step box sizing
 
 - [x] 1.1 Add `exit_dir: Literal["N","S","E","W"]` field to `Port` dataclass; default unset and emit warning if a port is consumed without exit_dir set
@@ -14,7 +16,11 @@ Phases run sequentially. Per plan-builder §16, each phase loads its own checkli
 - [x] 1.8 Move `simplified_gate_ids` computation from `emit_layout_svg` into `arrange_transition_gates`; expose on LayoutModel via the `simplified_gate_ids` field of the schema (DD-4).
 - [x] 1.9 Smoke test — agent-runtime / mcp / compaction / meta / session all render `status=ok` post-L1; visual review confirmed D-01/02/03/04/09/11/12/21 closed
 
-## 2. L3 routing collapse to route_from_anchor
+## 2. L3 routing cleanup (PRIORITY — user 2026-05-05)
+
+User directive: "最主要的問題是routing的程式還搞不清楚狀況，動不動就分叉合併穿越重疊。不先把routing整理清楚，stub的存在只是來添亂的"
+
+Routing must be cleaned up first. Stub placement (originally Phase 2.x / 3.x) is deferred to a NEW Phase 2b after routing is stable, because without complete clean routes there is no placement basis. "Stub越後放越好" — push to L4 (post-routing). Until 2 is done, do NOT iterate stub placement fixes.
 
 - [-] 2.1 Add `route_from_anchor(start_port, end_port, layout_model, lane_x_provider)` dispatcher — DEFERRED. Existing helpers now consume the corrected port positions (port.point on anchor, exit_drop=0 for diverge feedback) and produce correct routes. The full helper-collapse refactor remains beneficial for code health but no longer blocks defect closure.
 - [-] 2.2 Rewrite ternary — DEFERRED for the same reason.
@@ -22,6 +28,20 @@ Phases run sequentially. Per plan-builder §16, each phase loads its own checkli
 - [x] 2.4 Remove the `effective_gate_output_point` / `is_diverge_feedback` shim — done; routing reads `gate_output.point` which now comes from the BranchAnchor.
 - [ ] 2.5 Implement R-6.3 channel slot collision avoidance: when computing channel y, skip slots whose y equals any gate bar y in the gap.
 - [x] 2.6 Smoke test: render agent-runtime; T20 route confirmed `[(19.9, 88), (-8, 88), (-8, 43), (19.9, 43)]` — exits anchor west; T19 exits south through bar.
+- [ ] 2.7 RCA — re-render all 11 figures and enumerate concrete routing defects (split / merge / cross / overlap), one entry per case in `routing_defects.jsonl`. Classify by layer (port placement / channel y / detour / left-bus / right-bus).
+- [ ] 2.8 Resolve every entry in 2.7 by fixing the root layer (ports first, then channel allocation, then detour, then bus). NO stub edits during this phase.
+- [ ] 2.9 Re-render all 11 figures; confirm zero entries remaining in `routing_defects.jsonl`. Lock as routing baseline.
+
+## 2b. Stub placement → L4 (depends on 2 complete)
+
+User directive: "Stub越後放越好。移到L4就對了。沒有完整的走線，Stub沒有放置的依據。"
+
+- [ ] 2b.1 Remove `object_gap_slots[stub:Tx]` reservation block from L1 `plan_global_grid` (lines ~1223-1274). L1 no longer pre-reserves stub slots.
+- [ ] 2b.2 Remove ConditionStub creation block from L3 `route_control_edges` (lines ~3737-3795). L3 returns route geometry only.
+- [ ] 2b.3 Remove stub re-snap fallback from L5 `compact_layout_y_lanes` (lines ~2258-2295). L5 only projects already-placed stubs through `project_y`.
+- [ ] 2b.4 Add `place_condition_stubs_post_routing(layout_model)` invoked at start of L4 `detect_layout_violations`. Inputs: finalized routes from L3. Output: tuple of ConditionStub placed at neighbor-edge midpoint, snapped only to avoid box/wide-gate-bar overlap.
+- [ ] 2b.5 Stub label-height inflation moves from L5 (lines ~1948-1995) to L4 (after stub placement, before violation detection). L5 reads stub heights as fixed input.
+- [ ] 2b.6 Smoke test: render all 11 figures; assert 0 floating stubs (every stub center lies on its `neighbor_edge` route geometry); assert 0 stub-on-bar overlaps.
 
 ## 3. L4 new violation checks + L5 cooperation
 

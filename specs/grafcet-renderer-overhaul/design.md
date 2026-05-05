@@ -2,7 +2,20 @@
 
 ## Context
 
-`grafcet_renderer.py` is a 4000+ line single-file Python module that produces SVG diagrams from JSON grafcet step descriptions. It runs a six-layer pipeline (L1 placement → L2 gate arrangement → L3 routing → L4 violation detection → L5 compaction → L6 SVG emission). The module evolved through many bug-driven patches; the current state shows architectural strain: route helpers proliferate (one per topology corner case), L6 has logic that should live earlier, and L1 makes port placement decisions whose consequences L3 must later undo.
+`grafcet_renderer.py` is a 4000+ line single-file Python module that produces SVG diagrams from JSON grafcet step descriptions.
+
+**Layer model — authoritative as of 2026-05-05 (user directive):**
+
+- **L1 — Box & Gate**: place step boxes, action boxes, gates (incl. simplification rule, branch anchors, ports w/ exit_dir).
+- **L2 — Routing**: build all edge routes from finalized port positions (no stub work).
+- **L3 — Routing Validation**: detect routing-only violations (cross-box, cross-bar, channel collision); feed back to L2 if needed.
+- **L4 — Stub**: place ConditionStubs **after** routing is validated; stub center derives from finalized route geometry. Sole layer responsible for stub center + alignment.
+- **L5 — Balance**: grouping → remapping → compaction → refit. Operates on Y; never re-places stubs.
+- **L6 — Text**: text/label rendering, wrap, alignment cluster locking.
+
+This re-numbering supersedes the historical "L1 placement / L2 gate arrange / L3 routing / L4 violation / L5 compaction / L6 emit" model. In the historical model, stub placement was scattered across L1 (slot reservation), L3 (center from route midpoint), and L5 (re-snap fallback) — that is exactly the source of the recurring stub regressions ("修復點放在錯的 Layer"). Under the new model stub is one layer with one responsibility.
+
+The module evolved through many bug-driven patches; the current state shows architectural strain: route helpers proliferate (one per topology corner case), L6 has logic that should live earlier, and L1 makes port placement decisions whose consequences routing must later undo.
 
 User has reported 23 distinct defects (D-01 to D-23) across nine grafcet figures. Diagnostic walkthrough this session traced the recurring "feedback line emerges from gate side" symptom to a structural cause: **L1 places port positions that do not encode route intent, and L3 plays guessing games per route to compensate**. Every other reported defect class can be traced to a similar layer-of-concern leak.
 
