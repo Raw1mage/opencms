@@ -130,8 +130,8 @@
 <text class="gate-label-left" x="21.91" y="72.00"><tspan x="21.91" dy="0">INJECT CONTINUE[observed] applied 或 skipped</tspan></text>
 <line class="gate" x1="22.31" y1="88.00" x2="24.31" y2="88.00"/>
 <text class="gate-label" x="24.71" y="88.00"><tspan x="24.71" dy="0">runloopresumed</tspan></text>
-<line class="gate" x1="22.31" y1="82.00" x2="24.31" y2="82.00"/>
-<text class="gate-label-left" x="21.91" y="81.32"><tspan x="21.91" dy="0">observed == null ||</tspan><tspan x="21.91" dy="0.68">cooldownactive || (obse</tspan><tspan x="21.91" dy="0.68">rved == 閒置 &amp;&amp; tailunclean)</tspan></text>
+<line class="gate" x1="22.31" y1="79.00" x2="24.31" y2="79.00"/>
+<text class="gate-label-left" x="21.91" y="78.32"><tspan x="21.91" dy="0">observed == null ||</tspan><tspan x="21.91" dy="0.68">cooldownactive || (obse</tspan><tspan x="21.91" dy="0.68">rved == 閒置 &amp;&amp; tailunclean)</tspan></text>
 <line class="gate" x1="9.00" y1="43.00" x2="11.00" y2="43.00"/>
 <text class="gate-label" x="11.40" y="42.32"><tspan x="11.40" dy="0">attempt.ok &amp;&amp;</tspan><tspan x="11.40" dy="0.68">!(local &amp;&amp; truncated</tspan><tspan x="11.40" dy="0.68">&amp;&amp; paidremaining)</tspan></text>
 <line class="gate" x1="22.31" y1="43.00" x2="24.31" y2="43.00"/>
@@ -140,8 +140,8 @@
 <text class="gate-label" x="38.02" y="43.00"><tspan x="38.02" dy="0">chainexhausted</tspan></text>
 <line class="gate" x1="22.31" y1="50.00" x2="24.31" y2="50.00"/>
 <text class="gate-label" x="24.71" y="50.00"><tspan x="24.71" dy="0">anchorwritteninline || anchor待處理</tspan></text>
-<line class="gate" x1="22.31" y1="66.00" x2="24.31" y2="66.00"/>
-<text class="gate-label" x="24.71" y="66.00"><tspan x="24.71" dy="0">anchorpersisted &amp;&amp; telemetryemitted</tspan></text>
+<line class="gate" x1="22.31" y1="63.00" x2="24.31" y2="63.00"/>
+<text class="gate-label" x="24.71" y="62.66"><tspan x="24.71" dy="0">anchorpersisted &amp;&amp;</tspan><tspan x="24.71" dy="0.68">telemetryemitted</tspan></text>
 <circle class="junction" cx="23.31" cy="34.00" r="0.22"/>
 <circle class="junction" cx="10.00" cy="56.00" r="0.22"/>
 <circle class="branch-junction" cx="23.31" cy="23.00" r="0.28"/>
