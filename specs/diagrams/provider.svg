@@ -110,25 +110,25 @@
 <line class="assoc" x1="40.72" y1="74.50" x2="41.72" y2="74.50"/>
 <rect class="action" x="41.72" y="73.07" width="8.36" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="45.90" y="74.09"><tspan x="45.90" dy="0">發出延續invalidate</tspan><tspan x="45.90" dy="0.82">dbus事件與evict快取</tspan></text>
-<circle class="junction" cx="24.36" cy="9.00" r="0.18"/>
+<line class="gate" x1="23.36" y1="9.00" x2="25.36" y2="9.00"/>
 <text class="gate-label" x="25.76" y="9.00"><tspan x="25.76" dy="0">請求已收到</tspan></text>
-<circle class="junction" cx="24.36" cy="16.00" r="0.18"/>
+<line class="gate" x1="23.36" y1="16.00" x2="25.36" y2="16.00"/>
 <text class="gate-label" x="25.76" y="16.00"><tspan x="25.76" dy="0">family在knownfamilies</tspan></text>
-<circle class="junction" cx="24.36" cy="23.00" r="0.18"/>
+<line class="gate" x1="23.36" y1="23.00" x2="25.36" y2="23.00"/>
 <text class="gate-label" x="25.76" y="23.00"><tspan x="25.76" dy="0">帳號idpresent與active</tspan></text>
-<circle class="junction" cx="24.36" cy="30.00" r="0.18"/>
+<line class="gate" x1="23.36" y1="30.00" x2="25.36" y2="30.00"/>
 <text class="gate-label" x="25.76" y="30.00"><tspan x="25.76" dy="0">sdkclient就緒</tspan></text>
-<circle class="junction" cx="24.36" cy="37.00" r="0.18"/>
+<line class="gate" x1="23.36" y1="37.00" x2="25.36" y2="37.00"/>
 <text class="gate-label" x="25.76" y="37.00"><tspan x="25.76" dy="0">headersfinalized</tspan></text>
-<circle class="junction" cx="24.36" cy="44.00" r="0.18"/>
+<line class="gate" x1="23.36" y1="44.00" x2="25.36" y2="44.00"/>
 <text class="gate-label" x="25.76" y="44.00"><tspan x="25.76" dy="0">payloadtransform完成</tspan></text>
 <line class="gate" x1="6.00" y1="51.00" x2="42.72" y2="51.00"/>
 <line class="gate" x1="8.00" y1="62.00" x2="40.72" y2="62.00"/>
 <line class="gate" x1="6.00" y1="69.00" x2="42.72" y2="69.00"/>
 <line class="gate" x1="8.00" y1="82.00" x2="26.36" y2="82.00"/>
-<circle class="junction" cx="24.36" cy="89.00" r="0.18"/>
+<line class="gate" x1="23.36" y1="89.00" x2="25.36" y2="89.00"/>
 <text class="gate-label" x="25.76" y="89.00"><tspan x="25.76" dy="0">1</tspan></text>
-<circle class="junction" cx="38.72" cy="78.00" r="0.18"/>
+<line class="gate" x1="37.72" y1="78.00" x2="39.72" y2="78.00"/>
 <text class="gate-label" x="40.12" y="78.00"><tspan x="40.12" dy="0">bus事件emitted與快取evicted</tspan></text>
 <line class="gate" x1="9.00" y1="53.00" x2="11.00" y2="53.00"/>
 <text class="gate-label-left" x="8.60" y="52.32"><tspan x="8.60" dy="0">ws已啟用與</tspan><tspan x="8.60" dy="0.68">不sticky</tspan><tspan x="8.60" dy="0.68">fallback</tspan></text>

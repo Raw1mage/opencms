@@ -96,21 +96,21 @@
 <line class="assoc" x1="23.60" y1="76.50" x2="24.60" y2="76.50"/>
 <rect class="action" x="24.60" y="75.07" width="5.60" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="27.40" y="76.09"><tspan x="27.40" dy="0">返回帳號記</tspan><tspan x="27.40" dy="0.82">錄到caller</tspan></text>
-<circle class="junction" cx="21.60" cy="9.00" r="0.18"/>
+<line class="gate" x1="20.60" y1="9.00" x2="22.60" y2="9.00"/>
 <text class="gate-label" x="23.00" y="9.00"><tspan x="23.00" dy="0">驗證setinvoked由clitui或路由</tspan></text>
-<circle class="junction" cx="21.60" cy="16.00" r="0.18"/>
+<line class="gate" x1="20.60" y1="16.00" x2="22.60" y2="16.00"/>
 <text class="gate-label" x="23.00" y="16.00"><tspan x="23.00" dy="0">family是known透過解析Provider或self</tspan></text>
 <line class="gate" x1="6.00" y1="23.00" x2="37.20" y2="23.00"/>
 <line class="gate" x1="8.00" y1="41.00" x2="35.20" y2="41.00"/>
-<circle class="junction" cx="33.20" cy="32.00" r="0.18"/>
+<line class="gate" x1="32.20" y1="32.00" x2="34.20" y2="32.00"/>
 <text class="gate-label" x="34.60" y="32.00"><tspan x="34.60" dy="0">身分slug已解析</tspan></text>
 <line class="gate" x1="6.00" y1="48.00" x2="37.20" y2="48.00"/>
 <line class="gate" x1="8.00" y1="59.00" x2="35.20" y2="59.00"/>
-<circle class="junction" cx="21.60" cy="66.00" r="0.18"/>
+<line class="gate" x1="20.60" y1="66.00" x2="22.60" y2="66.00"/>
 <text class="gate-label" x="23.00" y="66.00"><tspan x="23.00" dy="0">normalizereportemitted或noop</tspan></text>
-<circle class="junction" cx="21.60" cy="73.00" r="0.18"/>
+<line class="gate" x1="20.60" y1="73.00" x2="22.60" y2="73.00"/>
 <text class="gate-label" x="23.00" y="73.00"><tspan x="23.00" dy="0">bus帳號addedpublished</tspan></text>
-<circle class="junction" cx="21.60" cy="80.00" r="0.18"/>
+<line class="gate" x1="20.60" y1="80.00" x2="22.60" y2="80.00"/>
 <text class="gate-label" x="23.00" y="80.00"><tspan x="23.00" dy="0">caller已收到帳號id閒置again</tspan></text>
 <line class="gate" x1="9.00" y1="25.00" x2="11.00" y2="25.00"/>
 <text class="gate-label-left" x="8.60" y="24.32"><tspan x="8.60" dy="0">infoty</tspan><tspan x="8.60" dy="0.68">peequa</tspan><tspan x="8.60" dy="0.68">lsapi</tspan></text>

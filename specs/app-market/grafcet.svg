@@ -18,18 +18,16 @@
 <path class="edge" d="M 19.56 21.00 L 19.56 23.00"/>
 <path class="edge edge-arrow" d="M 19.56 23.00 L 19.56 25.00"/>
 <path class="edge edge-arrow" d="M 19.56 28.00 L 19.56 30.00"/>
-<path class="edge edge-arrow" d="M 19.56 30.00 L 19.56 31.50 Q 19.56 32.00 19.06 32.00 L 10.50 32.00 Q 10.00 32.00 10.00 32.50 L 10.00 34.00"/>
-<path class="edge" d="M 19.56 32.00 L 19.56 34.00"/>
-<path class="edge" d="M 19.56 32.00 L 29.12 32.00"/>
-<path class="edge edge-arrow" d="M 29.12 32.00 L 29.12 34.00"/>
+<path class="edge edge-arrow" d="M 10.00 30.00 L 10.00 34.00"/>
+<path class="edge edge-arrow" d="M 19.56 30.00 L 19.56 34.00"/>
+<path class="edge edge-arrow" d="M 29.12 30.00 L 29.12 34.00"/>
 <path class="edge edge-arrow" d="M 10.00 37.00 L 10.00 41.00"/>
 <path class="edge edge-arrow" d="M 19.56 41.00 L 19.56 43.00"/>
 <path class="edge edge-arrow" d="M 19.56 37.00 L 19.56 41.00"/>
 <path class="edge edge-arrow" d="M 29.12 37.00 L 29.12 41.00"/>
 <path class="edge edge-arrow" d="M 19.56 46.00 L 19.56 48.00"/>
-<path class="edge edge-arrow" d="M 19.56 48.00 L 19.56 49.50 Q 19.56 50.00 19.06 50.00 L 10.50 50.00 Q 10.00 50.00 10.00 50.50 L 10.00 52.00"/>
-<path class="edge" d="M 19.56 50.00 L 29.12 50.00"/>
-<path class="edge edge-arrow" d="M 29.12 50.00 L 29.12 52.00"/>
+<path class="edge edge-arrow" d="M 10.00 48.00 L 10.00 52.00"/>
+<path class="edge edge-arrow" d="M 29.12 48.00 L 29.12 52.00"/>
 <path class="edge edge-arrow" d="M 10.00 55.00 L 10.00 59.00"/>
 <path class="edge edge-arrow" d="M 19.56 59.00 L 19.56 61.00"/>
 <path class="edge edge-arrow" d="M 29.12 55.00 L 29.12 59.00"/>
@@ -98,39 +96,38 @@
 <line class="assoc" x1="21.56" y1="69.50" x2="22.56" y2="69.50"/>
 <rect class="action" x="22.56" y="68.07" width="3.56" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="24.34" y="68.68"><tspan x="24.34" dy="0">wait或</tspan><tspan x="24.34" dy="0.82">unins</tspan><tspan x="24.34" dy="0.82">tall</tspan></text>
-<circle class="junction" cx="19.56" cy="9.00" r="0.18"/>
+<line class="gate" x1="18.56" y1="9.00" x2="20.56" y2="9.00"/>
 <text class="gate-label" x="20.96" y="8.32"><tspan x="20.96" dy="0">operatoropens對</tspan><tspan x="20.96" dy="0.68">話框appmarket來</tspan><tspan x="20.96" dy="0.68">自layoutl1065</tspan></text>
-<circle class="junction" cx="19.56" cy="16.00" r="0.18"/>
+<line class="gate" x1="18.56" y1="16.00" x2="20.56" y2="16.00"/>
 <text class="gate-label" x="20.96" y="16.00"><tspan x="20.96" dy="0">GET mcpmarketreturnedMarketApparray</tspan></text>
-<circle class="junction" cx="19.56" cy="23.00" r="0.18"/>
+<line class="gate" x1="18.56" y1="23.00" x2="20.56" y2="23.00"/>
 <text class="gate-label" x="20.96" y="23.00"><tspan x="20.96" dy="0">operatorselectsapp或clicksadd</tspan></text>
 <line class="gate" x1="6.00" y1="30.00" x2="33.12" y2="30.00"/>
 <line class="gate" x1="8.00" y1="41.00" x2="31.12" y2="41.00"/>
 <line class="gate" x1="6.00" y1="48.00" x2="33.12" y2="48.00"/>
 <line class="gate" x1="8.00" y1="59.00" x2="31.12" y2="59.00"/>
-<circle class="junction" cx="19.56" cy="66.00" r="0.18"/>
+<line class="gate" x1="18.56" y1="66.00" x2="20.56" y2="66.00"/>
 <text class="gate-label" x="20.96" y="66.00"><tspan x="20.96" dy="0">狀態pill在{connected,就緒,已啟用}</tspan></text>
-<circle class="junction" cx="19.56" cy="73.00" r="0.18"/>
+<line class="gate" x1="18.56" y1="73.00" x2="20.56" y2="73.00"/>
 <text class="gate-label" x="20.96" y="73.00"><tspan x="20.96" dy="0">對話框closed或uninstall已完成</tspan></text>
+<line class="gate" x1="9.00" y1="32.00" x2="11.00" y2="32.00"/>
+<text class="gate-label" x="11.40" y="32.00"><tspan x="11.40" dy="0">kind==mcp伺服器</tspan></text>
 <line class="gate" x1="18.56" y1="32.00" x2="20.56" y2="32.00"/>
-<text class="gate-label" x="20.96" y="31.32"><tspan x="20.96" dy="0">kind==mcp伺服器</tspan></text>
-<line class="gate" x1="18.56" y1="32.00" x2="20.56" y2="32.00"/>
-<text class="gate-label" x="20.96" y="32.68"><tspan x="20.96" dy="0">kind==managedapp</tspan></text>
-<line class="gate" x1="18.56" y1="32.00" x2="20.56" y2="32.00"/>
-<text class="gate-label" x="23.76" y="31.32"><tspan x="23.76" dy="0">kind==mcpapp</tspan></text>
+<text class="gate-label" x="20.96" y="32.00"><tspan x="20.96" dy="0">kind==managedapp</tspan></text>
+<line class="gate" x1="28.12" y1="32.00" x2="30.12" y2="32.00"/>
+<text class="gate-label" x="30.52" y="32.00"><tspan x="30.52" dy="0">kind==mcpapp</tspan></text>
 <line class="gate" x1="9.00" y1="39.00" x2="11.00" y2="39.00"/>
 <text class="gate-label" x="11.40" y="38.66"><tspan x="11.40" dy="0">伺服器狀態</tspan><tspan x="11.40" dy="0.68">connected</tspan></text>
 <line class="gate" x1="18.56" y1="39.00" x2="20.56" y2="39.00"/>
 <text class="gate-label" x="20.96" y="38.32"><tspan x="20.96" dy="0">managedappinst</tspan><tspan x="20.96" dy="0.68">allsucceededAND</tspan><tspan x="20.96" dy="0.68">runtime狀態set</tspan></text>
 <line class="gate" x1="28.12" y1="39.00" x2="30.12" y2="39.00"/>
 <text class="gate-label" x="30.52" y="38.32"><tspan x="30.52" dy="0">previewokAND</tspan><tspan x="30.52" dy="0.68">addapp或clone與</tspan><tspan x="30.52" dy="0.68">註冊persisted</tspan></text>
-<line class="gate" x1="18.56" y1="50.00" x2="20.56" y2="50.00"/>
-<text class="gate-label" x="20.96" y="49.32"><tspan x="20.96" dy="0">needsoauth==true</tspan></text>
-<line class="gate" x1="18.56" y1="50.00" x2="20.56" y2="50.00"/>
-<text class="gate-label" x="20.96" y="50.68"><tspan x="20.96" dy="0">needsoauth==false</tspan></text>
+<line class="gate" x1="9.00" y1="50.00" x2="11.00" y2="50.00"/>
+<text class="gate-label-left" x="8.60" y="49.32"><tspan x="8.60" dy="0">needs</tspan><tspan x="8.60" dy="0.68">oauth</tspan><tspan x="8.60" dy="0.68">==true</tspan></text>
+<line class="gate" x1="28.12" y1="50.00" x2="30.12" y2="50.00"/>
+<text class="gate-label-left" x="27.72" y="50.00"><tspan x="27.72" dy="0">needsoauth==false</tspan></text>
 <line class="gate" x1="9.00" y1="57.00" x2="11.00" y2="57.00"/>
 <text class="gate-label-left" x="8.60" y="56.32"><tspan x="8.60" dy="0">oauthcallbackpersi</tspan><tspan x="8.60" dy="0.68">stedtokenAND manage</tspan><tspan x="8.60" dy="0.68">dappupdatedemitted</tspan></text>
 <line class="gate" x1="28.12" y1="57.00" x2="30.12" y2="57.00"/>
 <text class="gate-label-left" x="27.72" y="57.00"><tspan x="27.72" dy="0">已啟用flagsettrue</tspan></text>
-<circle class="junction" cx="19.56" cy="32.00" r="0.22"/>
 </svg>

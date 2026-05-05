@@ -112,27 +112,27 @@
 <line class="assoc" x1="35.16" y1="46.50" x2="36.16" y2="46.50"/>
 <rect class="action" x="36.16" y="45.07" width="4.79" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="38.55" y="46.09"><tspan x="38.55" dy="0">abandon或</tspan><tspan x="38.55" dy="0.82">rollback</tspan></text>
-<circle class="junction" cx="22.37" cy="9.00" r="0.18"/>
+<line class="gate" x1="21.37" y1="9.00" x2="23.37" y2="9.00"/>
 <text class="gate-label" x="23.77" y="9.00"><tspan x="23.77" dy="0">規劃initinvoked供newslugOR legacyplanstouched</tspan></text>
-<circle class="junction" cx="22.37" cy="18.00" r="0.18"/>
+<line class="gate" x1="21.37" y1="18.00" x2="23.37" y2="18.00"/>
 <text class="gate-label" x="23.77" y="18.00"><tspan x="23.77" dy="0">proposalmdAND 狀態jsonwritten狀態==proposed</tspan></text>
-<circle class="junction" cx="22.37" cy="27.00" r="0.18"/>
+<line class="gate" x1="21.37" y1="27.00" x2="23.37" y2="27.00"/>
 <text class="gate-label-left" x="20.97" y="27.00"><tspan x="20.97" dy="0">specmddesignmdidef0grafcetc4sequencedataschemapresentAND validatepasses</tspan></text>
-<circle class="junction" cx="22.37" cy="34.00" r="0.18"/>
+<line class="gate" x1="21.37" y1="34.00" x2="23.37" y2="34.00"/>
 <text class="gate-label-left" x="20.97" y="34.00"><tspan x="20.97" dy="0">tasksmdhandoffmdtestvectors錯誤observabilitypresent</tspan></text>
 <line class="gate" x1="7.58" y1="41.00" x2="37.16" y2="41.00"/>
-<circle class="junction" cx="11.58" cy="50.00" r="0.18"/>
+<line class="gate" x1="10.58" y1="50.00" x2="12.58" y2="50.00"/>
 <text class="gate-label" x="12.98" y="50.00"><tspan x="12.98" dy="0">validationevidenceattachedAND testspass</tspan></text>
 <line class="gate" x1="-14.00" y1="61.00" x2="37.16" y2="61.00"/>
 <line class="gate" x1="-12.00" y1="78.00" x2="2.79" y2="78.00"/>
-<circle class="junction" cx="22.37" cy="70.00" r="0.18"/>
+<line class="gate" x1="21.37" y1="70.00" x2="23.37" y2="70.00"/>
 <text class="gate-label" x="23.77" y="69.32"><tspan x="23.77" dy="0">狀態setdesignedAND</tspan><tspan x="23.77" dy="0.68">revise或extendhis</tspan><tspan x="23.77" dy="0.68">tory項目appended</tspan></text>
-<circle class="junction" cx="33.16" cy="74.00" r="0.18"/>
+<line class="gate" x1="32.16" y1="74.00" x2="34.16" y2="74.00"/>
 <text class="gate-label-left" x="31.76" y="73.32"><tspan x="31.76" dy="0">historyrefactorYYYY MM</tspan><tspan x="31.76" dy="0.68">DD createdAND artifacts</tspan><tspan x="31.76" dy="0.68">reset到proposedskeleton</tspan></text>
-<circle class="junction" cx="0.79" cy="85.00" r="0.18"/>
+<line class="gate" x1="-0.21" y1="85.00" x2="1.79" y2="85.00"/>
 <text class="gate-label" x="2.19" y="85.00"><tspan x="2.19" dy="0">1</tspan></text>
-<circle class="junction" cx="33.16" cy="52.00" r="0.18"/>
-<text class="gate-label" x="34.56" y="51.32"><tspan x="34.56" dy="0">規劃rollbackrefactor或</tspan><tspan x="34.56" dy="0.68">explicitabandonre</tspan><tspan x="34.56" dy="0.68">corded在history</tspan></text>
+<line class="gate" x1="-0.21" y1="52.00" x2="1.79" y2="52.00"/>
+<text class="gate-label" x="2.19" y="52.68"><tspan x="2.19" dy="0">規劃rollbackrefactor或explicitabandonrecorded在history</tspan></text>
 <line class="gate" x1="10.58" y1="43.00" x2="12.58" y2="43.00"/>
 <text class="gate-label-left" x="10.18" y="43.00"><tspan x="10.18" dy="0">alltaskscheckedAND syncclean</tspan></text>
 <line class="gate" x1="32.16" y1="43.00" x2="34.16" y2="43.00"/>

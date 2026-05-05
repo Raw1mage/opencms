@@ -89,20 +89,20 @@
 <line class="assoc" x1="22.10" y1="62.50" x2="23.10" y2="62.50"/>
 <rect class="action" x="23.10" y="61.07" width="4.10" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="25.15" y="62.09"><tspan x="25.15" dy="0">返回到閒</tspan><tspan x="25.15" dy="0.82">置loop</tspan></text>
-<circle class="junction" cx="20.10" cy="9.00" r="0.18"/>
+<line class="gate" x1="19.10" y1="9.00" x2="21.10" y2="9.00"/>
 <text class="gate-label" x="21.50" y="9.00"><tspan x="21.50" dy="0">operatorrunswebctl開發start</tspan></text>
-<circle class="junction" cx="20.10" cy="16.00" r="0.18"/>
+<line class="gate" x1="19.10" y1="16.00" x2="21.10" y2="16.00"/>
 <text class="gate-label" x="21.50" y="16.00"><tspan x="21.50" dy="0">distemitted或開發伺服器listening</tspan></text>
-<circle class="junction" cx="20.10" cy="23.00" r="0.18"/>
+<line class="gate" x1="19.10" y1="23.00" x2="21.10" y2="23.00"/>
 <text class="gate-label" x="21.50" y="23.00"><tspan x="21.50" dy="0">web路由confreloaded透過SIGHUP</tspan></text>
-<circle class="junction" cx="20.10" cy="30.00" r="0.18"/>
+<line class="gate" x1="19.10" y1="30.00" x2="21.10" y2="30.00"/>
 <text class="gate-label" x="21.50" y="30.00"><tspan x="21.50" dy="0">oc jwtvalidAND AuthGatepassed</tspan></text>
 <line class="gate" x1="6.00" y1="37.00" x2="34.20" y2="37.00"/>
 <line class="gate" x1="8.00" y1="50.00" x2="22.10" y2="50.00"/>
-<circle class="junction" cx="30.20" cy="46.00" r="0.18"/>
+<line class="gate" x1="29.20" y1="46.00" x2="31.20" y2="46.00"/>
 <text class="gate-label" x="31.60" y="45.32"><tspan x="31.60" dy="0">語音buffer就</tspan><tspan x="31.60" dy="0.68">緒或分塊</tspan><tspan x="31.60" dy="0.68">available</tspan></text>
 <line class="gate" x1="18.10" y1="59.00" x2="32.20" y2="59.00"/>
-<circle class="junction" cx="20.10" cy="66.00" r="0.18"/>
+<line class="gate" x1="19.10" y1="66.00" x2="21.10" y2="66.00"/>
 <text class="gate-label" x="21.50" y="66.00"><tspan x="21.50" dy="0">1</tspan></text>
 <line class="gate" x1="9.00" y1="39.00" x2="11.00" y2="39.00"/>
 <text class="gate-label" x="11.40" y="39.00"><tspan x="11.40" dy="0">使用者opens管理</tspan></text>

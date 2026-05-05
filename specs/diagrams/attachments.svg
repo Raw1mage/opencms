@@ -119,27 +119,27 @@
 <line class="assoc" x1="23.06" y1="99.50" x2="24.06" y2="99.50"/>
 <rect class="action" x="24.06" y="98.07" width="5.06" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="26.59" y="99.09"><tspan x="26.59" dy="0">drainActiv</tspan><tspan x="26.59" dy="0.82">eImageRefs</tspan></text>
-<circle class="junction" cx="21.06" cy="9.00" r="0.18"/>
+<line class="gate" x1="20.06" y1="9.00" x2="22.06" y2="9.00"/>
 <text class="gate-label" x="22.46" y="9.00"><tspan x="22.46" dy="0">上傳請求已收到</tspan></text>
 <line class="gate" x1="6.00" y1="16.00" x2="36.12" y2="16.00"/>
 <line class="gate" x1="8.00" y1="36.00" x2="45.18" y2="36.00"/>
 <line class="gate" x1="17.06" y1="25.00" x2="47.18" y2="25.00"/>
-<circle class="junction" cx="21.06" cy="43.00" r="0.18"/>
+<line class="gate" x1="20.06" y1="43.00" x2="22.06" y2="43.00"/>
 <text class="gate-label" x="22.46" y="43.00"><tspan x="22.46" dy="0">附件refpersisted</tspan></text>
-<circle class="junction" cx="21.06" cy="50.00" r="0.18"/>
+<line class="gate" x1="20.06" y1="50.00" x2="22.06" y2="50.00"/>
 <text class="gate-label" x="22.46" y="50.00"><tspan x="22.46" dy="0">Sessionhasimage附件</tspan></text>
-<circle class="junction" cx="21.06" cy="57.00" r="0.18"/>
+<line class="gate" x1="20.06" y1="57.00" x2="22.06" y2="57.00"/>
 <text class="gate-label" x="22.46" y="57.00"><tspan x="22.46" dy="0">preface就緒供LLM</tspan></text>
-<circle class="junction" cx="21.06" cy="66.00" r="0.18"/>
+<line class="gate" x1="20.06" y1="66.00" x2="22.06" y2="66.00"/>
 <text class="gate-label" x="22.46" y="66.00"><tspan x="22.46" dy="0">aicallsreread附件</tspan></text>
 <line class="gate" x1="19.06" y1="89.00" x2="34.12" y2="89.00"/>
-<circle class="junction" cx="21.06" cy="73.00" r="0.18"/>
+<line class="gate" x1="20.06" y1="73.00" x2="22.06" y2="73.00"/>
 <text class="gate-label-left" x="19.66" y="73.00"><tspan x="19.66" dy="0">filenamematches附件ref</tspan></text>
-<circle class="junction" cx="21.06" cy="80.00" r="0.18"/>
+<line class="gate" x1="20.06" y1="80.00" x2="22.06" y2="80.00"/>
 <text class="gate-label-left" x="19.66" y="80.00"><tspan x="19.66" dy="0">setActiveImageRefsCommitted</tspan></text>
-<circle class="junction" cx="21.06" cy="96.00" r="0.18"/>
+<line class="gate" x1="20.06" y1="96.00" x2="22.06" y2="96.00"/>
 <text class="gate-label" x="22.46" y="96.00"><tspan x="22.46" dy="0">步驟完成emitted</tspan></text>
-<circle class="junction" cx="21.06" cy="103.00" r="0.18"/>
+<line class="gate" x1="20.06" y1="103.00" x2="22.06" y2="103.00"/>
 <text class="gate-label" x="22.46" y="103.00"><tspan x="22.46" dy="0">activeImageRefsCleared</tspan></text>
 <line class="gate" x1="9.00" y1="18.00" x2="11.00" y2="18.00"/>
 <text class="gate-label-left" x="8.60" y="17.66"><tspan x="8.60" dy="0">mime.starts使</tspan><tspan x="8.60" dy="0.68">用(&#x27;image/&#x27;)</tspan></text>

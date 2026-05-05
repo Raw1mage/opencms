@@ -96,19 +96,19 @@
 <line class="assoc" x1="21.56" y1="69.50" x2="22.56" y2="69.50"/>
 <rect class="action" x="22.56" y="68.07" width="3.56" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="24.34" y="68.68"><tspan x="24.34" dy="0">wait或</tspan><tspan x="24.34" dy="0.82">unins</tspan><tspan x="24.34" dy="0.82">tall</tspan></text>
-<circle class="junction" cx="19.56" cy="9.00" r="0.18"/>
+<line class="gate" x1="18.56" y1="9.00" x2="20.56" y2="9.00"/>
 <text class="gate-label" x="20.96" y="8.32"><tspan x="20.96" dy="0">operatoropens對</tspan><tspan x="20.96" dy="0.68">話框appmarket來</tspan><tspan x="20.96" dy="0.68">自layoutl1065</tspan></text>
-<circle class="junction" cx="19.56" cy="16.00" r="0.18"/>
+<line class="gate" x1="18.56" y1="16.00" x2="20.56" y2="16.00"/>
 <text class="gate-label" x="20.96" y="16.00"><tspan x="20.96" dy="0">GET mcpmarketreturnedMarketApparray</tspan></text>
-<circle class="junction" cx="19.56" cy="23.00" r="0.18"/>
+<line class="gate" x1="18.56" y1="23.00" x2="20.56" y2="23.00"/>
 <text class="gate-label" x="20.96" y="23.00"><tspan x="20.96" dy="0">operatorselectsapp或clicksadd</tspan></text>
 <line class="gate" x1="6.00" y1="30.00" x2="33.12" y2="30.00"/>
 <line class="gate" x1="8.00" y1="41.00" x2="31.12" y2="41.00"/>
 <line class="gate" x1="6.00" y1="48.00" x2="33.12" y2="48.00"/>
 <line class="gate" x1="8.00" y1="59.00" x2="31.12" y2="59.00"/>
-<circle class="junction" cx="19.56" cy="66.00" r="0.18"/>
+<line class="gate" x1="18.56" y1="66.00" x2="20.56" y2="66.00"/>
 <text class="gate-label" x="20.96" y="66.00"><tspan x="20.96" dy="0">狀態pill在{connected,就緒,已啟用}</tspan></text>
-<circle class="junction" cx="19.56" cy="73.00" r="0.18"/>
+<line class="gate" x1="18.56" y1="73.00" x2="20.56" y2="73.00"/>
 <text class="gate-label" x="20.96" y="73.00"><tspan x="20.96" dy="0">對話框closed或uninstall已完成</tspan></text>
 <line class="gate" x1="9.00" y1="32.00" x2="11.00" y2="32.00"/>
 <text class="gate-label" x="11.40" y="32.00"><tspan x="11.40" dy="0">kind==mcp伺服器</tspan></text>
