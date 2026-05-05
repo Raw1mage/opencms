@@ -1,18 +1,18 @@
-# OpenCode CMS
+# OpenCMS
 
-OpenCode CMS 是一套 **多帳號、多 Provider、多模型** 的 AI 編碼代理控制平面，將原本單機/單入口的 agent runtime 產品化為可持續操作的生產級系統。
+OpenCMS 是一套 **多帳號、多 Provider、多模型** 的 AI 編碼代理控制平面，將原本單機/單入口的 agent runtime 產品化為可持續操作的生產級系統。
 
 ---
 
 ## 系統全局架構 — IDEF0 功能分解
 
-以下 IDEF0 圖以 IEEE 1320.1 標準描述 OpenCode 的完整功能分解，從 A0 上下文圖逐層展開至 A1–A6 子系統。
+以下 IDEF0 圖以 IEEE 1320.1 標準描述 OpenCMS 的完整功能分解，從 A0 上下文圖逐層展開至 A1–A6 子系統。
 
-### A0 — 系統上下文（OpenCode CMS 全局）
+### A0 — 系統上下文（OpenCMS 全局）
 
-![A0 Context — OpenCode CMS Multi-Interface AI Agent Control Plane](specs/_archive/global-architecture/diagrams/opencode_a0_idef0.svg)
+![A0 Context — OpenCMS Multi-Interface AI Agent Control Plane](specs/_archive/global-architecture/diagrams/opencode_a0_idef0.svg)
 
-**A0 上下文圖**展示 OpenCode 的六大功能子系統及其資料流：
+**A0 上下文圖**展示 OpenCMS 的六大功能子系統及其資料流：
 
 | 子系統 | 職責 |
 |--------|------|
@@ -43,7 +43,7 @@ OpenCode CMS 是一套 **多帳號、多 Provider、多模型** 的 AI 編碼代
 
 ![A2 — Process AI Sessions](specs/_archive/global-architecture/diagrams/opencode_a2_idef0.svg)
 
-Session 是 OpenCode 的核心執行單元：
+Session 是 OpenCMS 的核心執行單元：
 
 - **A21 Create/Load Session**：綁定工作目錄、載入持久化歷史
 - **A22 Resolve Prompt**：組裝系統提示詞（規劃狀態、enablement flags、skill metadata、smart runner reminders）
@@ -163,7 +163,7 @@ Session 是 OpenCode 的核心執行單元：
 
 ## 行為流程 — GRAFCET 循序控制
 
-以下 GRAFCET 圖以 IEC 60848 標準描述 OpenCode 的兩個核心執行流程。
+以下 GRAFCET 圖以 IEC 60848 標準描述 OpenCMS 的兩個核心執行流程。
 
 ### Session 執行流程
 

@@ -1,10 +1,10 @@
-# OpenCode 專案開發指引
+# OpenCMS 專案開發指引
 
-本檔案僅定義 opencode 專案**特有**的規範。通用規則（Plan / Fallback / Continuation / Autonomous Agent 核心紀律 / Mandatory Skills / Debug Contract / Infrastructure）由 Global `~/.config/opencode/AGENTS.md` 提供，本檔不重複。
+本檔案僅定義 opencms 專案**特有**的規範。通用規則（Plan / Fallback / Continuation / Autonomous Agent 核心紀律 / Mandatory Skills / Debug Contract / Infrastructure）由 Global `~/.config/opencode/AGENTS.md` 提供，本檔不重複。
 
 ---
 
-## XDG Config 備份規則（opencode-specific）
+## XDG Config 備份規則（opencms-specific）
 
 **每次 plan 開跑前（或 beta-workflow admission 通過後、第一個程式碼編輯/測試指令前），必須備份 XDG 下的關鍵設定檔**。**只備份關鍵設定檔，不備份整個目錄** — 流水帳（log、checkpoint、snapshot、history、cache、node_modules、lock 檔、runtime state）會把備份撐到 GB 級、還原時也無意義。
 
@@ -35,11 +35,11 @@
 - **唯一例外**：純 read-only inspection（`git log` / `grep` / `cat`）不動任何 state，可略過；但只要進入 plan 實作階段就**不可跳過**。
 - **違規判定**：沒有 `opencode.bak-*-<plan-slug>/accounts.json` 存在的狀態下跑 `bun test` / `bun run ...` / 重啟 daemon，視為違規。
 
-> 本規則 opencode-specific：因為 opencode 的測試會直接修改本機 `~/.config/opencode/`，其他專案一般不會有這風險。
+> 本規則 opencms-specific：因為 opencms 的測試會直接修改本機 `~/.config/opencode/`，其他專案一般不會有這風險。
 
 ---
 
-## Daemon Lifecycle Authority（opencode-specific）
+## Daemon Lifecycle Authority（opencms-specific）
 
 **AI 禁止自行 spawn / kill / restart opencode daemon 或 gateway 行程。** 唯一合法的自重啟路徑是呼叫 `system-manager:restart_self` MCP tool（內部 POST `/api/v2/global/web/restart`，由 gateway + `webctl.sh` 負責 rebuild + install + restart 的 orchestration）。
 
@@ -107,7 +107,7 @@
 
 ## Prompt/Agent 維護邊界
 
-當任務是「開發 opencode 本身」時：
+當任務是「開發 opencms 本身」時：
 
 - **Global**: `~/.config/opencode/AGENTS.md` — 通用規範主體（所有專案共用）
 - **Project**: `<repo>/AGENTS.md` — 專案特有補充（本檔；**不得重複 global 內容**）
@@ -116,8 +116,8 @@
 ### 維護原則
 
 1. **Template 與 Runtime 需同步**：規範變更需同時更新 `templates/**` 與 runtime 對應檔案。
-2. **通用規則進 Global，opencode-specific 規則進 Project**：若發現新規則兩個地方都適用，放 Global；若僅 opencode 有意義（如 XDG 備份、webctl.sh 規則、rotation3d 細節），才進 Project。
-3. **Template 的 AGENTS.md 應鏡像 Global + 其 release 必要的 opencode 補充**，而非鏡像 Project。
+2. **通用規則進 Global，opencms-specific 規則進 Project**：若發現新規則兩個地方都適用，放 Global；若僅 opencms 有意義（如 XDG 備份、webctl.sh 規則、rotation3d 細節），才進 Project。
+3. **Template 的 AGENTS.md 應鏡像 Global + 其 release 必要的 opencms 補充**，而非鏡像 Project。
 4. **變更留痕**：記錄於 `docs/events/`。
 5. **Beta/Test 分支用後即刪**：`beta/*`、`test/*` 分支與其 worktree 僅作一次性實作/驗證面。測試完成且 merge/fetch-back 回 `main` 後，必須立即刪除；禁止長留已完成任務的 beta/test 分支，避免 stale branch 在後續被誤認為主線或被 branch-pointer 操作拉回。
 
