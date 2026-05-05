@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1456" height="3080" viewBox="-32.00 -2.00 72.80 154.00" role="img">
+<svg xmlns="http://www.w3.org/2000/svg" width="1486" height="3080" viewBox="-32.00 -2.00 74.30 154.00" role="img">
 <style>
 .step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
 .action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
@@ -10,7 +10,7 @@
 .action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
 </style>
 <defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
-<rect x="-32.00" y="-2.00" width="72.80" height="154.00" fill="white"/>
+<rect x="-32.00" y="-2.00" width="74.30" height="154.00" fill="white"/>
 <path class="edge edge-arrow" d="M 19.90 118.00 L 19.90 128.00"/>
 <path class="edge" d="M 19.90 7.00 L 19.90 11.00"/>
 <path class="edge edge-arrow" d="M 19.90 11.00 L 19.90 15.00"/>
@@ -33,16 +33,12 @@
 <path class="edge edge-arrow" d="M 9.95 85.00 L 9.95 87.00"/>
 <path class="edge" d="M 29.85 75.00 L 29.85 77.00"/>
 <path class="edge edge-arrow" d="M 29.85 77.00 L 29.85 85.00"/>
-<path class="edge" d="M 29.85 78.00 L 34.30 78.00"/>
-<path class="edge" d="M 34.30 78.00 L 34.30 128.61"/>
-<path class="edge" d="M 34.30 128.61 L 29.85 128.61"/>
-<path class="edge edge-arrow" d="M 29.85 128.61 L 29.85 128.00"/>
+<path class="edge" d="M 29.85 78.00 L 36.30 78.00"/>
+<path class="edge" d="M 36.30 78.00 L 36.30 128.61"/>
+<path class="edge" d="M 36.30 128.61 L 29.85 128.61"/>
+<path class="edge" d="M 29.85 128.61 L 29.85 128.00"/>
 <path class="edge edge-arrow" d="M 19.90 128.00 L 19.90 130.00"/>
-<path class="edge" d="M 19.90 75.00 L 19.90 76.00"/>
-<path class="edge" d="M 19.90 76.00 L 34.30 76.00"/>
-<path class="edge" d="M 34.30 76.00 L 34.30 78.00"/>
-<path class="edge" d="M 34.30 87.62 L 19.90 87.62"/>
-<path class="edge edge-arrow" d="M 19.90 87.62 L 19.90 100.00"/>
+<path class="edge edge-arrow" d="M 19.90 75.00 L 19.90 79.50 Q 19.90 80.00 20.40 80.00 L 33.80 80.00 Q 34.30 80.00 34.30 80.50 L 34.30 87.12 Q 34.30 87.62 33.80 87.62 L 20.40 87.62 Q 19.90 87.62 19.90 88.12 L 19.90 100.00"/>
 <path class="edge edge-arrow" d="M 19.90 100.00 L 19.90 102.00"/>
 <path class="edge edge-arrow" d="M 9.95 75.00 L 9.95 85.00"/>
 <path class="edge edge-arrow" d="M 9.95 90.00 L 9.95 100.00"/>
@@ -50,9 +46,11 @@
 <path class="edge" d="M 19.90 107.00 L 19.90 109.00"/>
 <path class="edge edge-arrow" d="M 19.90 109.00 L 19.90 113.00"/>
 <path class="edge" d="M 19.90 107.00 L 29.85 107.00"/>
-<path class="edge" d="M 29.85 107.00 L 29.85 108.00"/>
-<path class="edge" d="M 29.85 108.00 L 33.30 108.00"/>
-<path class="edge" d="M 33.30 108.00 L 33.30 128.61"/>
+<path class="edge" d="M 29.85 107.00 L 29.85 110.00"/>
+<path class="edge" d="M 29.85 110.00 L 38.30 110.00"/>
+<path class="edge" d="M 38.30 110.00 L 38.30 130.61"/>
+<path class="edge" d="M 38.30 130.61 L 29.85 130.61"/>
+<path class="edge" d="M 29.85 130.61 L 29.85 128.61"/>
 <path class="edge edge-arrow" d="M 19.90 116.00 L 19.90 118.00"/>
 <path class="edge" d="M 19.90 118.00 L -23.50 118.00 Q -24.00 118.00 -24.00 117.50 L -24.00 61.50 Q -24.00 61.00 -23.50 61.00 L 19.90 61.00"/>
 <path class="edge edge-arrow" d="M 19.90 133.00 L 19.90 135.00"/>
@@ -160,7 +158,7 @@
 <circle class="branch-junction" cx="19.90" cy="118.00" r="0.28"/>
 <line class="gate" x1="5.95" y1="135.00" x2="33.85" y2="135.00"/>
 <line class="gate" x1="28.85" y1="146.00" x2="30.85" y2="146.00"/>
-<text class="gate-label-left" x="28.45" y="146.00"><tspan x="28.45" dy="0">工作已派發 &amp;&amp; 合成訊息已種入</tspan></text>
+<text class="gate-label" x="31.25" y="146.00"><tspan x="31.25" dy="0">工作已派發 &amp;&amp; 合成訊息已種入</tspan></text>
 <line class="gate" x1="8.95" y1="44.00" x2="10.95" y2="44.00"/>
 <text class="gate-label-left" x="8.55" y="44.00"><tspan x="8.55" dy="0">工作流程自主已啟用 == 是</tspan></text>
 <line class="gate" x1="18.90" y1="44.00" x2="20.90" y2="44.00"/>
@@ -182,7 +180,7 @@
 <line class="gate" x1="28.85" y1="83.00" x2="30.85" y2="83.00"/>
 <text class="gate-label-left" x="28.45" y="83.00"><tspan x="28.45" dy="0">回覆已收到或已解析</tspan></text>
 <line class="gate" x1="28.85" y1="126.00" x2="30.85" y2="126.00"/>
-<text class="gate-label" x="35.45" y="125.32"><tspan x="35.45" dy="0">中止</tspan><tspan x="35.45" dy="0.68">訊號</tspan><tspan x="35.45" dy="0.68">已觸發</tspan></text>
+<text class="gate-label" x="31.25" y="125.32"><tspan x="31.25" dy="0">中止</tspan><tspan x="31.25" dy="0.68">訊號</tspan><tspan x="31.25" dy="0.68">已觸發</tspan></text>
 <line class="gate" x1="18.90" y1="98.00" x2="20.90" y2="98.00"/>
 <text class="gate-label-left" x="18.50" y="98.00"><tspan x="18.50" dy="0">助手乾淨完成</tspan></text>
 <line class="gate" x1="8.95" y1="83.00" x2="10.95" y2="83.00"/>
@@ -190,7 +188,7 @@
 <line class="gate" x1="8.95" y1="98.00" x2="10.95" y2="98.00"/>
 <text class="gate-label-left" x="8.55" y="98.00"><tspan x="8.55" dy="0">工具結果已提交</tspan></text>
 <line class="gate" x1="28.85" y1="126.00" x2="30.85" y2="126.00"/>
-<text class="gate-label" x="31.25" y="125.32"><tspan x="31.25" dy="0">無</tspan><tspan x="31.25" dy="0.68">配額</tspan><tspan x="31.25" dy="0.68">觸發</tspan></text>
+<text class="gate-label" x="35.45" y="125.32"><tspan x="35.45" dy="0">無</tspan><tspan x="35.45" dy="0.68">配額</tspan><tspan x="35.45" dy="0.68">觸發</tspan></text>
 <line class="gate" x1="-25.00" y1="89.50" x2="-23.00" y2="89.50"/>
 <text class="gate-label" x="-22.60" y="89.50"><tspan x="-22.60" dy="0">已啟用 &amp;&amp; (下一個可執行待辦!=空 || 補充啟用規劃)</tspan></text>
 <line class="gate" x1="18.90" y1="126.00" x2="20.90" y2="126.00"/>
@@ -199,11 +197,11 @@
 <text class="gate-label-left" x="5.55" y="137.00"><tspan x="5.55" dy="0">下一個使用者訊息</tspan></text>
 <line class="gate" x1="28.85" y1="137.00" x2="30.85" y2="137.00"/>
 <text class="gate-label-left" x="28.45" y="137.00"><tspan x="28.45" dy="0">排程心跳派發到期工作</tspan></text>
+<line class="flyover-mask" x1="35.30" y1="110.00" x2="37.30" y2="110.00"/>
+<path class="flyover" d="M 35.30 110.00 Q 36.30 109.00 37.30 110.00"/>
 <circle class="junction" cx="19.90" cy="61.00" r="0.22"/>
 <circle class="branch-junction" cx="29.85" cy="78.00" r="0.22"/>
-<circle class="junction" cx="34.30" cy="78.00" r="0.22"/>
-<circle class="branch-junction" cx="34.30" cy="87.62" r="0.22"/>
-<circle class="junction" cx="33.30" cy="128.61" r="0.22"/>
+<circle class="junction" cx="29.85" cy="128.61" r="0.22"/>
 <circle class="junction" cx="-28.00" cy="139.00" r="0.22"/>
 <circle class="branch-junction" cx="19.90" cy="107.00" r="0.28"/>
 </svg>
