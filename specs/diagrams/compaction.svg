@@ -19,7 +19,10 @@
 <path class="edge" d="M 23.31 29.00 L 23.31 31.00"/>
 <path class="edge" d="M 23.31 31.00 L 23.31 33.00"/>
 <path class="edge edge-arrow" d="M 23.31 33.00 L 23.31 37.00"/>
-<path class="edge edge-arrow" d="M 23.31 31.00 L 49.43 31.00 Q 49.93 31.00 49.93 31.50 L 49.93 105.00"/>
+<path class="edge" d="M 23.31 32.00 L 48.93 32.00"/>
+<path class="edge" d="M 48.93 32.00 L 48.93 99.00"/>
+<path class="edge" d="M 48.93 99.00 L 23.31 99.00"/>
+<path class="edge edge-arrow" d="M 23.31 99.00 L 23.31 105.00"/>
 <path class="edge edge-arrow" d="M 23.31 105.00 L 23.31 107.00"/>
 <path class="edge" d="M 23.31 40.00 L 23.31 44.00"/>
 <path class="edge edge-arrow" d="M 23.31 51.00 L 23.31 53.00"/>
@@ -149,7 +152,7 @@
 <line class="gate" x1="22.31" y1="79.00" x2="24.31" y2="79.00"/>
 <text class="gate-label-left" x="21.91" y="78.66"><tspan x="21.91" dy="0">anchorpersisted &amp;&amp;</tspan><tspan x="21.91" dy="0.68">telemetryemitted</tspan></text>
 <circle class="junction" cx="23.31" cy="46.00" r="0.22"/>
+<circle class="branch-junction" cx="23.31" cy="32.00" r="0.22"/>
 <circle class="junction" cx="23.31" cy="105.61" r="0.22"/>
 <circle class="junction" cx="23.31" cy="81.61" r="0.22"/>
-<circle class="branch-junction" cx="23.31" cy="31.00" r="0.28"/>
 </svg>

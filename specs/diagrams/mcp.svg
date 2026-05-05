@@ -145,8 +145,6 @@
 <text class="gate-label-left" x="17.35" y="88.00"><tspan x="17.35" dy="0">proposal不已交付 (stay 已釘選)</tspan></text>
 <line class="gate" x1="44.25" y1="88.00" x2="46.25" y2="88.00"/>
 <text class="gate-label-left" x="43.85" y="88.00"><tspan x="43.85" dy="0">proposal已交付 &amp;&amp; inflight==0 (unload)</tspan></text>
-<line class="flyover-mask" x1="1.00" y1="68.00" x2="3.00" y2="68.00"/>
-<path class="flyover" d="M 1.00 68.00 Q 2.00 67.00 3.00 68.00"/>
 <circle class="junction" cx="21.75" cy="50.00" r="0.22"/>
 <circle class="junction" cx="21.75" cy="68.00" r="0.22"/>
 <circle class="junction" cx="11.75" cy="68.00" r="0.22"/>
