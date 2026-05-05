@@ -29,10 +29,6 @@ describe("session.list", () => {
         })
 
         const response = await app.request(`/session`)
-        if (Flag.OPENCODE_SERVER_PASSWORD) {
-          expect(response.status).toBe(401)
-          return
-        }
         expect(response.status).toBe(200)
 
         const body = (await response.json()) as unknown[]
@@ -61,10 +57,6 @@ describe("session.list", () => {
         })
 
         const response = await app.request(`/session?directory=${encodeURIComponent(projectRoot)}`)
-        if (Flag.OPENCODE_SERVER_PASSWORD) {
-          expect(response.status).toBe(401)
-          return
-        }
         expect(response.status).toBe(200)
 
         const body = (await response.json()) as unknown[]
@@ -88,10 +80,6 @@ describe("session.list", () => {
         const child = await Session.create({ title: "child-session", parentID: root.id })
 
         const response = await app.request(`/session?roots=true`)
-        if (Flag.OPENCODE_SERVER_PASSWORD) {
-          expect(response.status).toBe(401)
-          return
-        }
         expect(response.status).toBe(200)
 
         const body = (await response.json()) as Array<{ id: string }>
