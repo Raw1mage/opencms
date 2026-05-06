@@ -249,6 +249,19 @@ class CodexLanguageModel implements LanguageModelV2 {
       const ct = response.headers.get("content-type") ?? ""
       if (ct.includes("application/json") || !ct.includes("text/event-stream")) {
         const errorBody = await response.text()
+        // API-tier OAuth revocation: refresh endpoint may still mint access tokens,
+        // but chatgpt.com/backend-api rejects them with code:"token_revoked" once
+        // the upstream user session/grant is killed. Clear creds and surface the
+        // same re-login signal as the refresh-tier path so the rotation layer and
+        // user see one consistent error class.
+        if (response.status === 401 && errorBody.includes('"token_revoked"')) {
+          const creds = this.options.credentials
+          creds.refresh = ""
+          creds.access = ""
+          creds.expires = 0
+          if (this.options.onTokenRefresh) await this.options.onTokenRefresh(creds)
+          throw new Error("codex auth: refresh_token revoked — re-login required")
+        }
         throw new Error(`Codex API error (${response.status}): ${errorBody.slice(0, 200)}`)
       }
     }
