@@ -392,10 +392,15 @@ export function selectBestFallback(
   purpose: RotationPurpose = "generic",
 ): FallbackCandidate | null {
   const sameProviderRotationGuard = getSameProviderRotationGuard()
-  // Check provider-level cooldown: if ANY account in this provider had a recent
-  // rotation, block all same-provider candidates. This prevents cascade burns
-  // (A→B→C→D in seconds) when a shared issue (e.g. stale token) causes every
-  // rotation attempt to fail immediately.
+  // Diagnostic-only: record whether any same-family rotation cooldown is
+  // armed for this provider. Historically this returned wait time was used
+  // as a hard filter that stripped every same-provider candidate for 5 min
+  // after any single rotation, which (with 30+ codex accounts) forced
+  // cross-family fallback even when healthy codex accounts were available.
+  // Cascade prevention is now owned exclusively by coalesce.ts's per-provider
+  // 5s min-interval guard; the +1000 same-family scoring bonus in
+  // scoreCandidateByStrategy enforces the "stay on the in-use provider"
+  // preference, with cross-family still selectable when same-family is empty.
   const sameProviderRotateWaitMs = sameProviderRotationGuard.getProviderWaitTime(current.providerId)
   let blockedBySameProviderGuard = 0
 
@@ -428,11 +433,6 @@ export function selectBestFallback(
       return false
     }
 
-    if (sameProviderRotateWaitMs > 0 && isSameProviderRotateCandidate) {
-      blockedBySameProviderGuard++
-      return false
-    }
-
     return (
       !c.isRateLimited &&
       meetsHealth &&
@@ -441,17 +441,6 @@ export function selectBestFallback(
     )
   })
 
-  if (sameProviderRotateWaitMs > 0) {
-    debugCheckpoint("rotation3d", "Same-provider rotate quota consumed; forcing cross-provider fallback", {
-      providerId: current.providerId,
-      current: makeKey(current),
-      waitMs: sameProviderRotateWaitMs,
-      blockedCandidates: blockedBySameProviderGuard,
-      totalCandidates: candidates.length,
-      triedCount: triedKeys?.size ?? 0,
-      purpose,
-    })
-  }
   if (!config.allowSameProviderFallback) {
     debugCheckpoint("rotation3d", "Same-provider fallback disabled; forcing cross-provider fallback", {
       providerId: current.providerId,
@@ -464,7 +453,7 @@ export function selectBestFallback(
   }
 
   if (available.length === 0) {
-    log.warn("No cross-provider fallback available; rotation stopped", {
+    log.warn("No fallback candidate available; rotation stopped", {
       current: makeKey(current),
       totalCandidates: candidates.length,
       triedCount: triedKeys?.size ?? 0,
@@ -472,17 +461,6 @@ export function selectBestFallback(
       sameProviderRotateWaitMs,
       blockedBySameProviderGuard,
     })
-    if (sameProviderRotateWaitMs > 0) {
-      debugCheckpoint("rotation3d", "No cross-provider fallback available; rotation stopped", {
-        providerId: current.providerId,
-        current: makeKey(current),
-        waitMs: sameProviderRotateWaitMs,
-        blockedCandidates: blockedBySameProviderGuard,
-        totalCandidates: candidates.length,
-        triedCount: triedKeys?.size ?? 0,
-        purpose,
-      })
-    }
     return null
   }
 
