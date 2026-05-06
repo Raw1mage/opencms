@@ -26,16 +26,16 @@ This phase ships the empty-turn LOG mechanism and a skeleton classifier returnin
 
 Replace Phase 1 stub with real classifier predicates per design.md DD-9. No behavior change for terminal users (recovery still pass-through except for to-be-added retry in Phase 3); only log entries get richer cause attribution.
 
-- [ ] 2.1 Implement `ws_truncation` predicate in classifier: matches when `wsFrameCount > 0 && !terminalEventReceived && wsCloseEvent === "onclose"` (selected from snapshot at WS-layer call site)
-- [ ] 2.2 Implement `ws_no_frames` predicate: matches when `wsFrameCount === 0` (regardless of close vs error)
-- [ ] 2.3 Implement `server_empty_output_with_reasoning` predicate: matches when `terminalEventType === "response.completed" && deltasObserved.text === 0 && (requestOptionsShape.hasReasoningEffort || requestOptionsShape.includeFields.includes("reasoning.encrypted_content"))`; populate `suspectParams` with the matched param names
-- [ ] 2.4 Implement `server_incomplete` predicate: matches when `terminalEventType === "response.incomplete" && deltasObserved.text === 0`; capture `incomplete_details.reason` into `serverErrorMessage`
-- [ ] 2.5 Implement `server_failed` predicate: matches when `terminalEventType === "response.failed" || terminalEventType === "error"`; capture verbatim message into `serverErrorMessage`
-- [ ] 2.6 Add request-options-shape extraction at A1 boundary: in `provider.ts`, after `buildResponsesApiRequest`, derive sanitized `requestOptionsShape` (hash `prompt_cache_key`, byte-size `instructions`, count `input` items + tools); thread through to WS transport so classifier can read it
-- [ ] 2.7 Update finish-reason mapping per DD-9 table: `unknown` for ws_*; `other` for server_empty_output_with_reasoning; `length` if max_output_tokens, else `other` for server_incomplete; `error` for server_failed
-- [ ] 2.8 Add classifier predicate ordering test: scenarios from spec.md `Cause-family classification covers every empty turn` Requirement → expected `(causeFamily, recoveryAction, suspectParams)` tuples; one test per scenario
-- [ ] 2.9 Add schema-drift unit test: assert `empty-turn-classifier.ts` `causeFamily` enum values exactly match the `enum` array in `data-schema.json` `causeFamily` property
-- [ ] 2.10 Update integration test to assert per-cause classification (uses synthetic SSE streams from `sse.test.ts` patterns)
+- [x] 2.1 Implement `ws_truncation` predicate in classifier: matches when `wsFrameCount > 0 && !terminalEventReceived && wsCloseEvent === "onclose"` (selected from snapshot at WS-layer call site)
+- [x] 2.2 Implement `ws_no_frames` predicate: matches when `wsFrameCount === 0` (regardless of close vs error)
+- [x] 2.3 Implement `server_empty_output_with_reasoning` predicate: matches when `terminalEventType === "response.completed" && deltasObserved.text === 0 && (requestOptionsShape.hasReasoningEffort || requestOptionsShape.includeFields.includes("reasoning.encrypted_content"))`; populate `suspectParams` with the matched param names
+- [x] 2.4 Implement `server_incomplete` predicate: matches when `terminalEventType === "response.incomplete" && deltasObserved.text === 0`; capture `incomplete_details.reason` into `serverErrorMessage`
+- [x] 2.5 Implement `server_failed` predicate: matches when `terminalEventType === "response.failed" || terminalEventType === "error"`; capture verbatim message into `serverErrorMessage`
+- [x] 2.6 Add request-options-shape extraction at A1 boundary: in `provider.ts`, after `buildResponsesApiRequest`, derive sanitized `requestOptionsShape` (hash `prompt_cache_key`, byte-size `instructions`, count `input` items + tools); thread through to WS transport so classifier can read it
+- [x] 2.7 Update finish-reason mapping per DD-9 table: `unknown` for ws_*; `other` for server_empty_output_with_reasoning; `length` if max_output_tokens, else `other` for server_incomplete; `error` for server_failed
+- [x] 2.8 Add classifier predicate ordering test: scenarios from spec.md `Cause-family classification covers every empty turn` Requirement → expected `(causeFamily, recoveryAction, suspectParams)` tuples; one test per scenario
+- [x] 2.9 Add schema-drift unit test: assert `empty-turn-classifier.ts` `causeFamily` enum values exactly match the `enum` array in `data-schema.json` `causeFamily` property
+- [x] 2.10 Update integration test to assert per-cause classification (uses synthetic SSE streams from `sse.test.ts` patterns)
 
 ## 3. Retry implementation (Phase 3)
 

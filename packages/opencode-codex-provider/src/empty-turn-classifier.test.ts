@@ -1,16 +1,17 @@
 /**
- * empty-turn-classifier.test.ts — Verify Phase 1 stub coverage.
+ * empty-turn-classifier.test.ts — Verify Phase 2 predicate ladder.
  *
  * Spec: codex-empty-turn-recovery
- * Phase 1 contract (DD-12): every input MUST return
- *   {causeFamily: "unclassified", recoveryAction: "pass-through-to-runloop-nudge", suspectParams: []}
- * Phase 2 will replace the stub with predicates per DD-9.
+ * Phase 2 contract (DD-9 mapping table): inputs match one of 6 cause families;
+ * the unclassified residue is the explicit fallback when no predicate matches.
  *
  * Covers:
- * - Stub returns unclassified for every snapshot variation
+ * - DD-9: each cause-family predicate selects the right family + action
+ * - INV-11: suspectParams truthfully reflects request body (B/C signal)
  * - INV-12: pure function (deterministic, no side effects)
  * - INV-13: causeFamily enum values match data-schema.json
  * - INV-14: recoveryAction enum closed; hard-error not present
+ * - Predicate ordering: server_* takes precedence over ws_* when terminal arrived
  * - buildClassificationPayload assembles all data-schema.json fields correctly
  */
 import { describe, test, expect } from "bun:test"
@@ -47,20 +48,27 @@ function baseSnapshot(overrides: Partial<EmptyTurnSnapshot> = {}): EmptyTurnSnap
   }
 }
 
-describe("Phase 1 stub: every input → unclassified + pass-through", () => {
-  const variations: { name: string; snap: EmptyTurnSnapshot }[] = [
-    { name: "fully empty (default)", snap: baseSnapshot() },
-    {
-      name: "ws_truncation pattern",
-      snap: baseSnapshot({ wsFrameCount: 5, terminalEventReceived: false, wsCloseCode: 1006 }),
-    },
-    {
-      name: "ws_no_frames pattern",
-      snap: baseSnapshot({ wsFrameCount: 0, terminalEventReceived: false, wsCloseCode: 1006 }),
-    },
-    {
-      name: "server_empty_output_with_reasoning pattern",
-      snap: baseSnapshot({
+describe("DD-9 predicate ladder per cause family", () => {
+  test("ws_truncation: frames received but no terminal event", () => {
+    const result = classifyEmptyTurn(
+      baseSnapshot({ wsFrameCount: 5, terminalEventReceived: false, wsCloseCode: 1006 }),
+    )
+    expect(result.causeFamily).toBe(CAUSE_FAMILY.WS_TRUNCATION)
+    expect(result.recoveryAction).toBe(RECOVERY_ACTION.RETRY_ONCE_THEN_SOFT_FAIL)
+    expect(result.suspectParams).toEqual([])
+  })
+
+  test("ws_no_frames: connection lost before any frame", () => {
+    const result = classifyEmptyTurn(
+      baseSnapshot({ wsFrameCount: 0, terminalEventReceived: false, wsCloseCode: 1006 }),
+    )
+    expect(result.causeFamily).toBe(CAUSE_FAMILY.WS_NO_FRAMES)
+    expect(result.recoveryAction).toBe(RECOVERY_ACTION.RETRY_ONCE_THEN_SOFT_FAIL)
+  })
+
+  test("server_empty_output_with_reasoning: completed + reasoning.effort", () => {
+    const result = classifyEmptyTurn(
+      baseSnapshot({
         wsFrameCount: 4,
         terminalEventReceived: true,
         terminalEventType: "response.completed",
@@ -68,42 +76,146 @@ describe("Phase 1 stub: every input → unclassified + pass-through", () => {
           ...baseSnapshot().requestOptionsShape,
           hasReasoningEffort: true,
           reasoningEffortValue: "high",
+        },
+      }),
+    )
+    expect(result.causeFamily).toBe(CAUSE_FAMILY.SERVER_EMPTY_OUTPUT_WITH_REASONING)
+    expect(result.recoveryAction).toBe(RECOVERY_ACTION.PASS_THROUGH_TO_RUNLOOP_NUDGE)
+    expect(result.suspectParams).toEqual(["reasoning.effort"])
+  })
+
+  test("server_empty_output_with_reasoning: completed + include encrypted_content", () => {
+    const result = classifyEmptyTurn(
+      baseSnapshot({
+        terminalEventReceived: true,
+        terminalEventType: "response.completed",
+        requestOptionsShape: {
+          ...baseSnapshot().requestOptionsShape,
           includeFields: ["reasoning.encrypted_content"],
         },
       }),
-    },
-    {
-      name: "server_incomplete pattern",
-      snap: baseSnapshot({
-        wsFrameCount: 3,
+    )
+    expect(result.causeFamily).toBe(CAUSE_FAMILY.SERVER_EMPTY_OUTPUT_WITH_REASONING)
+    expect(result.suspectParams).toEqual(["include.reasoning.encrypted_content"])
+  })
+
+  test("server_empty_output_with_reasoning: BOTH suspect params present (INV-11)", () => {
+    const result = classifyEmptyTurn(
+      baseSnapshot({
+        terminalEventReceived: true,
+        terminalEventType: "response.completed",
+        requestOptionsShape: {
+          ...baseSnapshot().requestOptionsShape,
+          hasReasoningEffort: true,
+          reasoningEffortValue: "medium",
+          includeFields: ["reasoning.encrypted_content"],
+        },
+      }),
+    )
+    expect(result.causeFamily).toBe(CAUSE_FAMILY.SERVER_EMPTY_OUTPUT_WITH_REASONING)
+    expect(result.suspectParams).toEqual([
+      "reasoning.effort",
+      "include.reasoning.encrypted_content",
+    ])
+  })
+
+  test("server_incomplete: response.incomplete arrived", () => {
+    const result = classifyEmptyTurn(
+      baseSnapshot({
         terminalEventReceived: true,
         terminalEventType: "response.incomplete",
         serverErrorMessage: "max_output_tokens",
       }),
-    },
-    {
-      name: "server_failed pattern",
-      snap: baseSnapshot({
-        wsFrameCount: 2,
+    )
+    expect(result.causeFamily).toBe(CAUSE_FAMILY.SERVER_INCOMPLETE)
+    expect(result.recoveryAction).toBe(RECOVERY_ACTION.PASS_THROUGH_TO_RUNLOOP_NUDGE)
+  })
+
+  test("server_failed: response.failed arrived", () => {
+    const result = classifyEmptyTurn(
+      baseSnapshot({
         terminalEventReceived: true,
         terminalEventType: "response.failed",
         serverErrorMessage: "Model overloaded",
       }),
-    },
-    {
-      name: "retry attempt",
-      snap: baseSnapshot({ wsFrameCount: 5, retryAttempted: true }),
-    },
-  ]
+    )
+    expect(result.causeFamily).toBe(CAUSE_FAMILY.SERVER_FAILED)
+    expect(result.recoveryAction).toBe(RECOVERY_ACTION.PASS_THROUGH_TO_RUNLOOP_NUDGE)
+  })
 
-  for (const v of variations) {
-    test(v.name, () => {
-      const result = classifyEmptyTurn(v.snap)
-      expect(result.causeFamily).toBe(CAUSE_FAMILY.UNCLASSIFIED)
-      expect(result.recoveryAction).toBe(RECOVERY_ACTION.PASS_THROUGH_TO_RUNLOOP_NUDGE)
-      expect(result.suspectParams).toEqual([])
-    })
-  }
+  test("server_failed: top-level error event arrived", () => {
+    const result = classifyEmptyTurn(
+      baseSnapshot({
+        terminalEventReceived: true,
+        terminalEventType: "error",
+        serverErrorMessage: "Internal server error",
+      }),
+    )
+    expect(result.causeFamily).toBe(CAUSE_FAMILY.SERVER_FAILED)
+  })
+
+  test("unclassified: empty turn matching none of the documented patterns (response.completed without suspect params)", () => {
+    const result = classifyEmptyTurn(
+      baseSnapshot({
+        wsFrameCount: 3,
+        terminalEventReceived: true,
+        terminalEventType: "response.completed",
+        // No reasoning.effort, no include — just clean empty
+      }),
+    )
+    expect(result.causeFamily).toBe(CAUSE_FAMILY.UNCLASSIFIED)
+    expect(result.recoveryAction).toBe(RECOVERY_ACTION.PASS_THROUGH_TO_RUNLOOP_NUDGE)
+    expect(result.suspectParams).toEqual([])
+  })
+})
+
+describe("Predicate ordering and precedence", () => {
+  test("server_failed wins over potential ws_truncation when terminal arrives", () => {
+    const result = classifyEmptyTurn(
+      baseSnapshot({
+        wsFrameCount: 5,
+        terminalEventReceived: true,
+        terminalEventType: "response.failed",
+      }),
+    )
+    expect(result.causeFamily).toBe(CAUSE_FAMILY.SERVER_FAILED)
+  })
+
+  test("server_incomplete wins over ws_no_frames when terminal arrives early", () => {
+    const result = classifyEmptyTurn(
+      baseSnapshot({
+        wsFrameCount: 1,
+        terminalEventReceived: true,
+        terminalEventType: "response.incomplete",
+      }),
+    )
+    expect(result.causeFamily).toBe(CAUSE_FAMILY.SERVER_INCOMPLETE)
+  })
+
+  test("server_empty_output_with_reasoning wins over unclassified when suspect params present", () => {
+    const result = classifyEmptyTurn(
+      baseSnapshot({
+        terminalEventReceived: true,
+        terminalEventType: "response.completed",
+        requestOptionsShape: {
+          ...baseSnapshot().requestOptionsShape,
+          hasReasoningEffort: true,
+          reasoningEffortValue: "low",
+        },
+      }),
+    )
+    expect(result.causeFamily).toBe(CAUSE_FAMILY.SERVER_EMPTY_OUTPUT_WITH_REASONING)
+  })
+
+  test("INV-11: suspectParams empty when no suspect params present (no false positive)", () => {
+    const result = classifyEmptyTurn(
+      baseSnapshot({
+        terminalEventReceived: true,
+        terminalEventType: "response.completed",
+      }),
+    )
+    expect(result.suspectParams).toEqual([])
+  })
 })
 
 describe("INV-12 pure function (deterministic)", () => {
@@ -152,6 +264,47 @@ describe("INV-13 / INV-14 enum stability", () => {
     expect(values).not.toContain("hard-error")
     expect(values).not.toContain("error")
     expect(values).not.toContain("throw")
+  })
+})
+
+describe("INV-13 schema-drift guard (task 2.9)", () => {
+  test("CAUSE_FAMILY values match data-schema.json causeFamily enum exactly", () => {
+    // Read schema from spec dir (relative to package root)
+    const fs = require("fs") as typeof import("fs")
+    const path = require("path") as typeof import("path")
+    // Walk up from src/ to repo root, then into specs/
+    const here = path.dirname(__filename ?? "")
+    const repoRoot = path.resolve(here, "..", "..", "..")
+    const schemaPath = path.join(
+      repoRoot,
+      "specs",
+      "codex-empty-turn-recovery",
+      "data-schema.json",
+    )
+    expect(fs.existsSync(schemaPath)).toBe(true)
+    const schema = JSON.parse(fs.readFileSync(schemaPath, "utf-8"))
+    const schemaCauseEnum = (schema.properties.causeFamily.enum as string[]).slice().sort()
+    const codeCauseEnum = Object.values(CAUSE_FAMILY).slice().sort()
+    expect(codeCauseEnum).toEqual(schemaCauseEnum)
+  })
+
+  test("RECOVERY_ACTION values match data-schema.json recoveryAction enum exactly", () => {
+    const fs = require("fs") as typeof import("fs")
+    const path = require("path") as typeof import("path")
+    const here = path.dirname(__filename ?? "")
+    const repoRoot = path.resolve(here, "..", "..", "..")
+    const schemaPath = path.join(
+      repoRoot,
+      "specs",
+      "codex-empty-turn-recovery",
+      "data-schema.json",
+    )
+    const schema = JSON.parse(fs.readFileSync(schemaPath, "utf-8"))
+    const schemaActionEnum = (schema.properties.recoveryAction.enum as string[]).slice().sort()
+    const codeActionEnum = Object.values(RECOVERY_ACTION).slice().sort()
+    expect(codeActionEnum).toEqual(schemaActionEnum)
+    // Bonus: explicitly assert hard-error not in schema either
+    expect(schemaActionEnum).not.toContain("hard-error")
   })
 })
 

@@ -248,15 +248,40 @@ export function mapResponseStream(
           state.emittedTextDeltas === 0 && state.emittedToolCalls.size === 0
         if (isEffectivelyEmpty && options.logContext) {
           try {
-            const transportSnapshot = options.getTransportSnapshot?.() ?? {
-              wsFrameCount: 0,
-              terminalEventReceived: state.finishReason !== undefined,
-              terminalEventType: null as EmptyTurnSnapshot["terminalEventType"],
-              wsCloseCode: null,
-              wsCloseReason: null,
-              serverErrorMessage: null,
-              deltasObserved: { text: 0, toolCallArguments: 0, reasoning: 0 } as DeltasObserved,
+            // Fallback snapshot when transport doesn't provide one
+            // (e.g., HTTP SSE fallback path). Derive terminalEventType
+            // from state.finishReason so the classifier can still
+            // discriminate server_* causes vs ws_* causes correctly.
+            const fallbackSnapshot = (): {
+              wsFrameCount: number
+              terminalEventReceived: boolean
+              terminalEventType: EmptyTurnSnapshot["terminalEventType"]
+              wsCloseCode: number | null
+              wsCloseReason: string | null
+              serverErrorMessage: string | null
+              deltasObserved: DeltasObserved
+            } => {
+              let terminalEventType: EmptyTurnSnapshot["terminalEventType"] = null
+              if (state.finishReason === "stop") terminalEventType = "response.completed"
+              else if (state.finishReason === "length") terminalEventType = "response.incomplete"
+              else if (state.finishReason === "error") terminalEventType = "response.failed"
+              return {
+                // HTTP path: can't observe frame count, but if we got
+                // a terminal event we know AT LEAST ONE frame arrived.
+                wsFrameCount: state.finishReason !== undefined ? 1 : 0,
+                terminalEventReceived: state.finishReason !== undefined,
+                terminalEventType,
+                wsCloseCode: null,
+                wsCloseReason: null,
+                serverErrorMessage: null,
+                deltasObserved: {
+                  text: state.emittedTextDeltas,
+                  toolCallArguments: state.emittedToolCalls.size,
+                  reasoning: 0,
+                },
+              }
             }
+            const transportSnapshot = options.getTransportSnapshot?.() ?? fallbackSnapshot()
             const snapshot: EmptyTurnSnapshot = {
               wsFrameCount: transportSnapshot.wsFrameCount,
               terminalEventReceived: transportSnapshot.terminalEventReceived,
@@ -301,11 +326,15 @@ export function mapResponseStream(
               retryAttempted: false,
               retryAlsoEmpty: null,
             }
-            // DD-9 finishReason mapping (Phase 1: stub returns
-            // pass-through-to-runloop-nudge → unknown for unclassified).
-            // Phase 2 will activate the per-cause mapping in this switch.
+            // DD-9 finishReason mapping per cause family.
+            // server_empty_output_with_reasoning: even though
+            // response.completed arrived (state.finishReason="stop"),
+            // demote to "other" so the runloop knows the success is
+            // illusory and the nudge engages.
             switch (classification.causeFamily) {
               case "server_empty_output_with_reasoning":
+                finishReason = "other"
+                break
               case "server_incomplete":
                 if (finishReason === "unknown") finishReason = "other"
                 break

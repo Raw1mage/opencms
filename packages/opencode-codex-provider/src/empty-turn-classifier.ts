@@ -139,17 +139,90 @@ export interface ClassificationResult {
 // ---------------------------------------------------------------------------
 
 /**
- * Phase 1 stub: every input → unclassified + pass-through.
+ * Predicate ladder per design.md DD-9 (Phase 2; replaces Phase 1 stub).
  *
+ * Order matters: scenarios are evaluated top-down, first match wins.
  * INV-12 (purity): no I/O, no global state, deterministic.
  * INV-04 (always log): caller must invoke appendEmptyTurnLog regardless
  * of the result returned here.
+ * INV-10 enforced at the call site (sse.ts flush block); the classifier
+ * itself does not check emittedTextDeltas — the caller does, and only
+ * invokes this function when the turn is effectively empty.
  *
- * Phase 2 (DD-12) replaces this stub with the predicate ladder per DD-9.
- * The Phase 2 implementation MUST preserve the shape of this return type
- * and MUST NOT add any side effects to this function.
+ * DD-9 mapping table is authoritative; data-schema.json mirrors it.
  */
-export function classifyEmptyTurn(_snapshot: EmptyTurnSnapshot): ClassificationResult {
+export function classifyEmptyTurn(snapshot: EmptyTurnSnapshot): ClassificationResult {
+  const { wsFrameCount, terminalEventReceived, terminalEventType, requestOptionsShape } = snapshot
+
+  // Order matters per DD-9 table. Predicates are mutually exclusive in
+  // shape but the ladder is explicit so reviewers can read the priority
+  // without inferring it from boolean logic.
+
+  // server_failed: response.failed or top-level error event arrived.
+  // Highest priority among server_* because it's the most specific.
+  if (terminalEventReceived && (terminalEventType === "response.failed" || terminalEventType === "error")) {
+    return {
+      causeFamily: CAUSE_FAMILY.SERVER_FAILED,
+      recoveryAction: RECOVERY_ACTION.PASS_THROUGH_TO_RUNLOOP_NUDGE,
+      suspectParams: [],
+    }
+  }
+
+  // server_incomplete: response.incomplete arrived (e.g., max_output_tokens).
+  if (terminalEventReceived && terminalEventType === "response.incomplete") {
+    return {
+      causeFamily: CAUSE_FAMILY.SERVER_INCOMPLETE,
+      recoveryAction: RECOVERY_ACTION.PASS_THROUGH_TO_RUNLOOP_NUDGE,
+      suspectParams: [],
+    }
+  }
+
+  // server_empty_output_with_reasoning: response.completed arrived but no
+  // deltas, AND request body included a known suspect parameter.
+  // Per OpenHands #2797: codex-subscription endpoint returns output: []
+  // (no streamed text either) when reasoning.effort or
+  // include: ["reasoning.encrypted_content"] are sent. D-3 audit signal.
+  if (terminalEventReceived && terminalEventType === "response.completed") {
+    const suspect: SuspectParam[] = []
+    if (requestOptionsShape.hasReasoningEffort) suspect.push("reasoning.effort")
+    if (requestOptionsShape.includeFields.includes("reasoning.encrypted_content")) {
+      suspect.push("include.reasoning.encrypted_content")
+    }
+    if (suspect.length > 0) {
+      return {
+        causeFamily: CAUSE_FAMILY.SERVER_EMPTY_OUTPUT_WITH_REASONING,
+        recoveryAction: RECOVERY_ACTION.PASS_THROUGH_TO_RUNLOOP_NUDGE,
+        suspectParams: suspect,
+      }
+    }
+    // response.completed with empty output but NO suspect params → falls
+    // through to unclassified. Future cause-family additions (extend mode)
+    // would target this gap.
+  }
+
+  // ws_no_frames: connection lost before any frame arrived.
+  if (wsFrameCount === 0) {
+    return {
+      causeFamily: CAUSE_FAMILY.WS_NO_FRAMES,
+      recoveryAction: RECOVERY_ACTION.RETRY_ONCE_THEN_SOFT_FAIL,
+      suspectParams: [],
+    }
+  }
+
+  // ws_truncation: frames received but no terminal event; matches the
+  // msg_dfe39162f fingerprint that motivated this spec.
+  if (wsFrameCount > 0 && !terminalEventReceived) {
+    return {
+      causeFamily: CAUSE_FAMILY.WS_TRUNCATION,
+      recoveryAction: RECOVERY_ACTION.RETRY_ONCE_THEN_SOFT_FAIL,
+      suspectParams: [],
+    }
+  }
+
+  // unclassified: empty turn matching none of the documented patterns.
+  // The streamStateSnapshot in the log entry (built by the caller) is
+  // the forensic record for triage of new cause-family proposals via
+  // extend mode.
   return {
     causeFamily: CAUSE_FAMILY.UNCLASSIFIED,
     recoveryAction: RECOVERY_ACTION.PASS_THROUGH_TO_RUNLOOP_NUDGE,

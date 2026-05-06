@@ -65,6 +65,17 @@
         "packages/opencode/src/plugin/codex-auth.ts"
       ],
       "commit": "9d09d63a37ea4beed18a4ccba895b405b66340d0"
+    },
+    {
+      "at": "2026-05-06T18:57:00.004Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode-codex-provider/src/sse.test.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode-codex-provider/src/sse.test.ts"
+      ],
+      "commit": "c97fb41e6e5903d17f7d4cdd4ea8c4ef5a9ef6b0"
     }
   ]
 }
