@@ -17,10 +17,10 @@ This phase ships the empty-turn LOG mechanism and a skeleton classifier returnin
 - [x] 1.7 Add monotonic `logSequence` counter in `empty-turn-log.ts` (process-scoped, starts at 0, increments per call); attach to every log entry and to classifier return value
 - [x] 1.8 Hook classifier in `sse.ts` flush block: if `state.emittedTextDeltas === 0 && state.emittedToolCalls.size === 0`, call `classifyEmptyTurn(...)`, emit log, and use returned recovery to set finishReason (Phase 1: always `unknown` since stub returns `pass-through-to-runloop-nudge`); attach classification to `finish.providerMetadata.openai.emptyTurnClassification`
 - [x] 1.9 Hook classifier in `transport-ws.ts` `ws.onclose` (replacing silent `endStream()` at line 422): if `state.status === "streaming"`, build wsState snapshot, call `classifyEmptyTurn(...)`, emit log, then `endStream()` with classification metadata threaded through to SSE flush via shared state; **first removal of the silent endStream pattern**
-- [ ] 1.10 Unit test `empty-turn-log.test.ts`: log entry validates against `data-schema.json` JSON Schema; logSequence is monotonic across calls; failure to write to disk does not throw
-- [ ] 1.11 Unit test `empty-turn-classifier.test.ts` (Phase 1 stub coverage): every input produces `unclassified` + `pass-through-to-runloop-nudge`; logSequence is attached
-- [ ] 1.12 Integration test using `sse.test.ts` truncation case: stream ends with no text/tool deltas → empty turn detected → log entry emitted → finish part carries classification metadata
-- [ ] 1.13 Smoke test (operator-driven): run live against codex backend for a short window; confirm `empty-turns.jsonl` accumulates entries; `tail -f` shows JSONL lines validating against schema
+- [x] 1.10 Unit test `empty-turn-log.test.ts`: log entry validates against `data-schema.json` JSON Schema; logSequence is monotonic across calls; failure to write to disk does not throw
+- [x] 1.11 Unit test `empty-turn-classifier.test.ts` (Phase 1 stub coverage): every input produces `unclassified` + `pass-through-to-runloop-nudge`; logSequence is attached
+- [x] 1.12 Integration test using `sse.test.ts` truncation case: stream ends with no text/tool deltas → empty turn detected → log entry emitted → finish part carries classification metadata
+- [!] 1.13 Smoke test (operator-driven): run live against codex backend for a short window; confirm `empty-turns.jsonl` accumulates entries; `tail -f` shows JSONL lines validating against schema (deferred — requires deployed daemon + live codex traffic; covered by Phase 4 task 4.4 A6 acceptance check; integration tests in 1.12 prove the contract)
 
 ## 2. Cause-family discrimination (Phase 2)
 
