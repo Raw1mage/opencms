@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="866" height="1480" viewBox="-2.00 -2.00 43.30 74.00" role="img">
+<svg xmlns="http://www.w3.org/2000/svg" width="1379" height="2040" viewBox="-30.00 -2.00 68.96 102.00" role="img">
 <style>
 .step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
 .action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
@@ -10,112 +10,112 @@
 .action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
 </style>
 <defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
-<rect x="-2.00" y="-2.00" width="43.30" height="74.00" fill="white"/>
-<path class="edge" d="M 20.10 7.00 L 20.10 9.00"/>
-<path class="edge edge-arrow" d="M 20.10 9.00 L 20.10 11.00"/>
-<path class="edge" d="M 20.10 14.00 L 20.10 16.00"/>
-<path class="edge edge-arrow" d="M 20.10 16.00 L 20.10 18.00"/>
-<path class="edge" d="M 20.10 21.00 L 20.10 23.00"/>
-<path class="edge edge-arrow" d="M 20.10 23.00 L 20.10 25.00"/>
-<path class="edge" d="M 20.10 28.00 L 20.10 30.00"/>
-<path class="edge edge-arrow" d="M 20.10 30.00 L 20.10 32.00"/>
-<path class="edge edge-arrow" d="M 20.10 35.00 L 20.10 37.00"/>
-<path class="edge edge-arrow" d="M 10.00 37.00 L 10.00 41.00"/>
-<path class="edge edge-arrow" d="M 20.10 37.00 L 20.10 41.00"/>
-<path class="edge edge-arrow" d="M 30.20 37.00 L 30.20 41.00"/>
-<path class="edge edge-arrow" d="M 10.00 44.00 L 10.00 50.00"/>
-<path class="edge edge-arrow" d="M 20.10 50.00 L 20.10 52.00"/>
-<path class="edge edge-arrow" d="M 20.10 44.00 L 20.10 50.00"/>
-<path class="edge" d="M 30.20 44.00 L 30.20 46.00"/>
-<path class="edge edge-arrow" d="M 30.20 46.00 L 30.20 52.00"/>
-<path class="edge edge-arrow" d="M 20.10 55.00 L 20.10 59.00"/>
-<path class="edge edge-arrow" d="M 20.10 59.00 L 20.10 61.00"/>
-<path class="edge edge-arrow" d="M 30.20 55.00 L 30.20 59.00"/>
-<path class="edge" d="M 20.10 64.00 L 20.10 66.00"/>
-<path class="edge edge-arrow" d="M 20.10 66.00 L 20.10 67.50 Q 20.10 68.00 19.60 68.00 L 2.50 68.00 Q 2.00 68.00 2.00 67.50 L 2.00 2.50 Q 2.00 2.00 2.50 2.00 L 19.60 2.00 Q 20.10 2.00 20.10 2.50 L 20.10 4.00"/>
-<rect class="step" x="18.10" y="4.00" width="4.00" height="3.00"/>
-<rect class="step-inner" x="18.35" y="4.25" width="3.50" height="2.50"/>
-<text class="label" x="20.10" y="5.50">0</text>
-<rect class="step" x="18.10" y="11.00" width="4.00" height="3.00"/>
-<text class="label" x="20.10" y="12.50">1</text>
-<rect class="step" x="18.10" y="18.00" width="4.00" height="3.00"/>
-<text class="label" x="20.10" y="19.50">2</text>
-<rect class="step" x="18.10" y="25.00" width="4.00" height="3.00"/>
-<text class="label" x="20.10" y="26.50">3</text>
-<rect class="step" x="18.10" y="32.00" width="4.00" height="3.00"/>
-<text class="label" x="20.10" y="33.50">4</text>
-<rect class="step" x="8.00" y="41.00" width="4.00" height="3.00"/>
-<text class="label" x="10.00" y="42.50">5</text>
-<rect class="step" x="18.10" y="41.00" width="4.00" height="3.00"/>
-<text class="label" x="20.10" y="42.50">6</text>
-<rect class="step" x="28.20" y="41.00" width="4.00" height="3.00"/>
-<text class="label" x="30.20" y="42.50">7</text>
-<rect class="step" x="18.10" y="52.00" width="4.00" height="3.00"/>
-<text class="label" x="20.10" y="53.50">8</text>
-<rect class="step" x="28.20" y="52.00" width="4.00" height="3.00"/>
-<text class="label" x="30.20" y="53.50">9</text>
-<rect class="step" x="18.10" y="61.00" width="4.00" height="3.00"/>
-<text class="label" x="20.10" y="62.50">10</text>
-<line class="assoc" x1="22.10" y1="5.50" x2="23.10" y2="5.50"/>
-<rect class="action" x="23.10" y="4.07" width="4.10" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="25.15" y="5.50"><tspan x="25.15" dy="0">閒置無前端</tspan></text>
-<line class="assoc" x1="22.10" y1="12.50" x2="23.10" y2="12.50"/>
-<rect class="action" x="23.10" y="11.07" width="4.10" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="25.15" y="12.09"><tspan x="25.15" dy="0">建置前端</tspan><tspan x="25.15" dy="0.82">Bundle</tspan></text>
-<line class="assoc" x1="22.10" y1="19.50" x2="23.10" y2="19.50"/>
-<rect class="action" x="23.10" y="18.07" width="4.10" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="25.15" y="18.68"><tspan x="25.15" dy="0">發布</tspan><tspan x="25.15" dy="0.82">Gate</tspan><tspan x="25.15" dy="0.82">way路由</tspan></text>
-<line class="assoc" x1="22.10" y1="26.50" x2="23.10" y2="26.50"/>
-<rect class="action" x="23.10" y="25.07" width="4.10" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="25.15" y="25.68"><tspan x="25.15" dy="0">serveaut</tspan><tspan x="25.15" dy="0.82">henticat</tspan><tspan x="25.15" dy="0.82">edSPA外殼</tspan></text>
-<line class="assoc" x1="22.10" y1="33.50" x2="23.10" y2="33.50"/>
-<rect class="action" x="23.10" y="32.07" width="4.10" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="25.15" y="32.68"><tspan x="25.15" dy="0">mountPr</tspan><tspan x="25.15" dy="0.82">ovider與</tspan><tspan x="25.15" dy="0.82">渲染路由</tspan></text>
-<line class="assoc" x1="12.00" y1="42.50" x2="13.00" y2="42.50"/>
-<rect class="action" x="13.00" y="41.07" width="4.10" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="15.05" y="41.68"><tspan x="15.05" dy="0">drive管</tspan><tspan x="15.05" dy="0.82">理面板</tspan><tspan x="15.05" dy="0.82">action</tspan></text>
-<line class="assoc" x1="22.10" y1="42.50" x2="23.10" y2="42.50"/>
-<rect class="action" x="23.10" y="41.07" width="4.10" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="25.15" y="41.68"><tspan x="25.15" dy="0">渲染豐富</tspan><tspan x="25.15" dy="0.82">markdo</tspan><tspan x="25.15" dy="0.82">wnlink</tspan></text>
-<line class="assoc" x1="32.20" y1="42.50" x2="33.20" y2="42.50"/>
-<rect class="action" x="33.20" y="41.07" width="4.10" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="35.25" y="41.68"><tspan x="35.25" dy="0">capture語</tspan><tspan x="35.25" dy="0.82">音透過</tspan><tspan x="35.25" dy="0.82">chosen路徑</tspan></text>
-<line class="assoc" x1="22.10" y1="53.50" x2="23.10" y2="53.50"/>
-<rect class="action" x="23.10" y="52.07" width="4.10" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="25.15" y="52.68"><tspan x="25.15" dy="0">wait供</tspan><tspan x="25.15" dy="0.82">下一個使</tspan><tspan x="25.15" dy="0.82">用者事件</tspan></text>
-<line class="assoc" x1="32.20" y1="53.50" x2="33.20" y2="53.50"/>
-<rect class="action" x="33.20" y="52.07" width="4.10" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="35.25" y="53.09"><tspan x="35.25" dy="0">delivertran</tspan><tspan x="35.25" dy="0.82">script到提示</tspan></text>
-<line class="assoc" x1="22.10" y1="62.50" x2="23.10" y2="62.50"/>
-<rect class="action" x="23.10" y="61.07" width="4.10" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="25.15" y="62.09"><tspan x="25.15" dy="0">返回到閒</tspan><tspan x="25.15" dy="0.82">置loop</tspan></text>
-<line class="gate" x1="19.10" y1="9.00" x2="21.10" y2="9.00"/>
-<text class="gate-label" x="21.50" y="9.00"><tspan x="21.50" dy="0">operatorrunswebctl開發start</tspan></text>
-<line class="gate" x1="19.10" y1="16.00" x2="21.10" y2="16.00"/>
-<text class="gate-label" x="21.50" y="16.00"><tspan x="21.50" dy="0">distemitted或開發伺服器listening</tspan></text>
-<line class="gate" x1="19.10" y1="23.00" x2="21.10" y2="23.00"/>
-<text class="gate-label" x="21.50" y="23.00"><tspan x="21.50" dy="0">web路由confreloaded透過SIGHUP</tspan></text>
-<line class="gate" x1="19.10" y1="30.00" x2="21.10" y2="30.00"/>
-<text class="gate-label" x="21.50" y="30.00"><tspan x="21.50" dy="0">oc jwtvalidAND AuthGatepassed</tspan></text>
-<line class="gate" x1="6.00" y1="37.00" x2="34.20" y2="37.00"/>
-<line class="gate" x1="8.00" y1="50.00" x2="22.10" y2="50.00"/>
-<line class="gate" x1="29.20" y1="46.00" x2="31.20" y2="46.00"/>
-<text class="gate-label" x="31.60" y="45.32"><tspan x="31.60" dy="0">語音buffer就</tspan><tspan x="31.60" dy="0.68">緒或分塊</tspan><tspan x="31.60" dy="0.68">available</tspan></text>
-<line class="gate" x1="18.10" y1="59.00" x2="32.20" y2="59.00"/>
-<line class="gate" x1="19.10" y1="66.00" x2="21.10" y2="66.00"/>
-<text class="gate-label" x="21.50" y="66.00"><tspan x="21.50" dy="0">1</tspan></text>
-<line class="gate" x1="9.00" y1="39.00" x2="11.00" y2="39.00"/>
-<text class="gate-label" x="11.40" y="39.00"><tspan x="11.40" dy="0">使用者opens管理</tspan></text>
-<line class="gate" x1="19.10" y1="39.00" x2="21.10" y2="39.00"/>
-<text class="gate-label" x="21.50" y="38.32"><tspan x="21.50" dy="0">使用者</tspan><tspan x="21.50" dy="0.68">clicks路</tspan><tspan x="21.50" dy="0.68">徑link</tspan></text>
-<line class="gate" x1="29.20" y1="39.00" x2="31.20" y2="39.00"/>
-<text class="gate-label" x="31.60" y="39.00"><tspan x="31.60" dy="0">使用者starts語音輸入</tspan></text>
-<line class="gate" x1="9.00" y1="48.00" x2="11.00" y2="48.00"/>
-<text class="gate-label-left" x="8.60" y="47.66"><tspan x="8.60" dy="0">對話框actioncom</tspan><tspan x="8.60" dy="0.68">mitted或closed</tspan></text>
-<line class="gate" x1="19.10" y1="48.00" x2="21.10" y2="48.00"/>
-<text class="gate-label-left" x="18.70" y="48.00"><tspan x="18.70" dy="0">檔案tabopened於line</tspan></text>
-<line class="gate" x1="19.10" y1="57.00" x2="21.10" y2="57.00"/>
-<text class="gate-label-left" x="18.70" y="57.00"><tspan x="18.70" dy="0">Session閒置或路由change</tspan></text>
-<line class="gate" x1="29.20" y1="57.00" x2="31.20" y2="57.00"/>
-<text class="gate-label-left" x="28.80" y="56.32"><tspan x="28.80" dy="0">apply語音transcri</tspan><tspan x="28.80" dy="0.68">ptsucceeded或</tspan><tspan x="28.80" dy="0.68">explicit錯誤surfaced</tspan></text>
+<rect x="-30.00" y="-2.00" width="68.96" height="102.00" fill="white"/>
+<path class="edge" d="M 19.32 7.00 L 19.32 11.00"/>
+<path class="edge edge-arrow" d="M 19.32 11.00 L 19.32 15.00"/>
+<path class="edge" d="M 19.32 18.00 L 19.32 22.00"/>
+<path class="edge edge-arrow" d="M 19.32 22.00 L 19.32 26.00"/>
+<path class="edge" d="M 19.32 29.00 L 19.32 33.00"/>
+<path class="edge edge-arrow" d="M 19.32 33.00 L 19.32 37.00"/>
+<path class="edge" d="M 19.32 40.00 L 19.32 44.00"/>
+<path class="edge edge-arrow" d="M 19.32 44.00 L 19.32 48.00"/>
+<path class="edge edge-arrow" d="M 19.32 51.00 L 19.32 53.00"/>
+<path class="edge edge-arrow" d="M 10.00 53.00 L 10.00 57.00"/>
+<path class="edge edge-arrow" d="M 19.32 53.00 L 19.32 57.00"/>
+<path class="edge edge-arrow" d="M 28.64 53.00 L 28.64 57.00"/>
+<path class="edge edge-arrow" d="M 10.00 60.00 L 10.00 72.00"/>
+<path class="edge edge-arrow" d="M 19.32 72.00 L 19.32 74.00"/>
+<path class="edge edge-arrow" d="M 19.32 60.00 L 19.32 72.00"/>
+<path class="edge" d="M 28.64 60.00 L 28.64 64.00"/>
+<path class="edge edge-arrow" d="M 28.64 64.00 L 28.64 74.00"/>
+<path class="edge edge-arrow" d="M 19.32 77.00 L 19.32 87.00"/>
+<path class="edge edge-arrow" d="M 19.32 87.00 L 19.32 89.00"/>
+<path class="edge edge-arrow" d="M 28.64 77.00 L 28.64 87.00"/>
+<path class="edge" d="M 19.32 92.00 L 19.32 94.00"/>
+<path class="edge edge-arrow" d="M 19.32 94.00 L 19.32 95.50 Q 19.32 96.00 18.82 96.00 L -25.50 96.00 Q -26.00 96.00 -26.00 95.50 L -26.00 2.50 Q -26.00 2.00 -25.50 2.00 L 18.82 2.00 Q 19.32 2.00 19.32 2.50 L 19.32 4.00"/>
+<rect class="step" x="17.32" y="4.00" width="4.00" height="3.00"/>
+<rect class="step-inner" x="17.57" y="4.25" width="3.50" height="2.50"/>
+<text class="label" x="19.32" y="5.50">0</text>
+<rect class="step" x="17.32" y="15.00" width="4.00" height="3.00"/>
+<text class="label" x="19.32" y="16.50">1</text>
+<rect class="step" x="17.32" y="26.00" width="4.00" height="3.00"/>
+<text class="label" x="19.32" y="27.50">2</text>
+<rect class="step" x="17.32" y="37.00" width="4.00" height="3.00"/>
+<text class="label" x="19.32" y="38.50">3</text>
+<rect class="step" x="17.32" y="48.00" width="4.00" height="3.00"/>
+<text class="label" x="19.32" y="49.50">4</text>
+<rect class="step" x="8.00" y="57.00" width="4.00" height="3.00"/>
+<text class="label" x="10.00" y="58.50">5</text>
+<rect class="step" x="17.32" y="57.00" width="4.00" height="3.00"/>
+<text class="label" x="19.32" y="58.50">6</text>
+<rect class="step" x="26.64" y="57.00" width="4.00" height="3.00"/>
+<text class="label" x="28.64" y="58.50">7</text>
+<rect class="step" x="17.32" y="74.00" width="4.00" height="3.00"/>
+<text class="label" x="19.32" y="75.50">8</text>
+<rect class="step" x="26.64" y="74.00" width="4.00" height="3.00"/>
+<text class="label" x="28.64" y="75.50">9</text>
+<rect class="step" x="17.32" y="89.00" width="4.00" height="3.00"/>
+<text class="label" x="19.32" y="90.50">10</text>
+<line class="assoc" x1="21.32" y1="5.50" x2="22.32" y2="5.50"/>
+<rect class="action" x="22.32" y="4.07" width="3.32" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="23.98" y="5.09"><tspan x="23.98" dy="0">閒置</tspan><tspan x="23.98" dy="0.82">無前端</tspan></text>
+<line class="assoc" x1="21.32" y1="16.50" x2="22.32" y2="16.50"/>
+<rect class="action" x="22.32" y="15.07" width="3.32" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="23.98" y="16.09"><tspan x="23.98" dy="0">建置前</tspan><tspan x="23.98" dy="0.82">端Bundle</tspan></text>
+<line class="assoc" x1="21.32" y1="27.50" x2="22.32" y2="27.50"/>
+<rect class="action" x="22.32" y="26.07" width="3.32" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="23.98" y="27.09"><tspan x="23.98" dy="0">發布</tspan><tspan x="23.98" dy="0.82">Gateway路由</tspan></text>
+<line class="assoc" x1="21.32" y1="38.50" x2="22.32" y2="38.50"/>
+<rect class="action" x="22.32" y="37.07" width="3.32" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="23.98" y="37.68"><tspan x="23.98" dy="0">serveauth</tspan><tspan x="23.98" dy="0.82">enticated</tspan><tspan x="23.98" dy="0.82">SPA外殼</tspan></text>
+<line class="assoc" x1="21.32" y1="49.50" x2="22.32" y2="49.50"/>
+<rect class="action" x="22.32" y="48.07" width="3.32" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="23.98" y="49.09"><tspan x="23.98" dy="0">mountProvider與</tspan><tspan x="23.98" dy="0.82">渲染路由</tspan></text>
+<line class="assoc" x1="12.00" y1="58.50" x2="13.00" y2="58.50"/>
+<rect class="action" x="13.00" y="57.07" width="3.32" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="14.66" y="58.09"><tspan x="14.66" dy="0">drive管理</tspan><tspan x="14.66" dy="0.82">面板action</tspan></text>
+<line class="assoc" x1="21.32" y1="58.50" x2="22.32" y2="58.50"/>
+<rect class="action" x="22.32" y="57.07" width="3.32" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="23.98" y="58.09"><tspan x="23.98" dy="0">渲染豐富</tspan><tspan x="23.98" dy="0.82">markdownlink</tspan></text>
+<line class="assoc" x1="30.64" y1="58.50" x2="31.64" y2="58.50"/>
+<rect class="action" x="31.64" y="57.07" width="3.32" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="33.30" y="57.68"><tspan x="33.30" dy="0">capture語</tspan><tspan x="33.30" dy="0.82">音透過</tspan><tspan x="33.30" dy="0.82">chosen路徑</tspan></text>
+<line class="assoc" x1="21.32" y1="75.50" x2="22.32" y2="75.50"/>
+<rect class="action" x="22.32" y="74.07" width="3.32" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="23.98" y="74.68"><tspan x="23.98" dy="0">wait供下</tspan><tspan x="23.98" dy="0.82">一個使</tspan><tspan x="23.98" dy="0.82">用者事件</tspan></text>
+<line class="assoc" x1="30.64" y1="75.50" x2="31.64" y2="75.50"/>
+<rect class="action" x="31.64" y="74.07" width="3.32" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="33.30" y="74.68"><tspan x="33.30" dy="0">delivertr</tspan><tspan x="33.30" dy="0.82">anscript到</tspan><tspan x="33.30" dy="0.82">提示</tspan></text>
+<line class="assoc" x1="21.32" y1="90.50" x2="22.32" y2="90.50"/>
+<rect class="action" x="22.32" y="89.07" width="3.32" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="23.98" y="90.09"><tspan x="23.98" dy="0">返回到</tspan><tspan x="23.98" dy="0.82">閒置loop</tspan></text>
+<line class="gate" x1="18.32" y1="11.00" x2="20.32" y2="11.00"/>
+<text class="gate-label" x="20.72" y="11.00"><tspan x="20.72" dy="0">operatorrunswebctl開發start</tspan></text>
+<line class="gate" x1="18.32" y1="22.00" x2="20.32" y2="22.00"/>
+<text class="gate-label" x="20.72" y="22.00"><tspan x="20.72" dy="0">distemitted或開發伺服器listening</tspan></text>
+<line class="gate" x1="18.32" y1="33.00" x2="20.32" y2="33.00"/>
+<text class="gate-label" x="20.72" y="33.00"><tspan x="20.72" dy="0">web路由confreloaded透過SIGHUP</tspan></text>
+<line class="gate" x1="18.32" y1="44.00" x2="20.32" y2="44.00"/>
+<text class="gate-label" x="20.72" y="44.00"><tspan x="20.72" dy="0">oc jwtvalidAND AuthGatepassed</tspan></text>
+<line class="gate" x1="6.00" y1="53.00" x2="32.64" y2="53.00"/>
+<line class="gate" x1="8.00" y1="72.00" x2="21.32" y2="72.00"/>
+<line class="gate" x1="27.64" y1="64.00" x2="29.64" y2="64.00"/>
+<text class="gate-label" x="30.04" y="63.66"><tspan x="30.04" dy="0">語音buffer就緒</tspan><tspan x="30.04" dy="0.68">或分塊available</tspan></text>
+<line class="gate" x1="17.32" y1="87.00" x2="30.64" y2="87.00"/>
+<line class="gate" x1="18.32" y1="94.00" x2="20.32" y2="94.00"/>
+<text class="gate-label" x="20.72" y="94.00"><tspan x="20.72" dy="0">1</tspan></text>
+<line class="gate" x1="9.00" y1="55.00" x2="11.00" y2="55.00"/>
+<text class="gate-label" x="11.40" y="55.00"><tspan x="11.40" dy="0">使用者opens管理</tspan></text>
+<line class="gate" x1="18.32" y1="55.00" x2="20.32" y2="55.00"/>
+<text class="gate-label" x="20.72" y="55.00"><tspan x="20.72" dy="0">使用者clicks路徑link</tspan></text>
+<line class="gate" x1="27.64" y1="55.00" x2="29.64" y2="55.00"/>
+<text class="gate-label" x="30.04" y="55.00"><tspan x="30.04" dy="0">使用者starts語音輸入</tspan></text>
+<line class="gate" x1="9.00" y1="70.00" x2="11.00" y2="70.00"/>
+<text class="gate-label-left" x="8.60" y="70.00"><tspan x="8.60" dy="0">對話框actioncommitted或closed</tspan></text>
+<line class="gate" x1="18.32" y1="70.00" x2="20.32" y2="70.00"/>
+<text class="gate-label-left" x="17.92" y="70.00"><tspan x="17.92" dy="0">檔案tabopened於line</tspan></text>
+<line class="gate" x1="18.32" y1="85.00" x2="20.32" y2="85.00"/>
+<text class="gate-label-left" x="17.92" y="85.00"><tspan x="17.92" dy="0">Session閒置或路由change</tspan></text>
+<line class="gate" x1="27.64" y1="85.00" x2="29.64" y2="85.00"/>
+<text class="gate-label-left" x="27.24" y="84.32"><tspan x="27.24" dy="0">apply語音</tspan><tspan x="27.24" dy="0.68">transcriptsucceeded或</tspan><tspan x="27.24" dy="0.68">explicit錯誤surfaced</tspan></text>
 </svg>

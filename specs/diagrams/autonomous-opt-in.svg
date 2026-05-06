@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1612" height="1040" viewBox="-6.00 -2.00 80.60 52.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="-6.00" y="-2.00" width="80.60" height="52.00" fill="white"/>
+<path class="edge edge-arrow" d="M 25.90 9.00 L 25.90 13.00"/>
+<path class="edge" d="M 25.90 7.00 L 25.90 9.00"/>
+<path class="edge edge-arrow" d="M 25.90 16.00 L 25.90 18.00"/>
+<path class="edge edge-arrow" d="M 41.80 18.00 L 41.80 22.00"/>
+<path class="edge edge-arrow" d="M 10.00 18.00 L 10.00 22.00"/>
+<path class="edge edge-arrow" d="M 25.90 18.00 L 25.90 22.00"/>
+<path class="edge edge-arrow" d="M 41.80 25.00 L 41.80 33.00"/>
+<path class="edge" d="M 25.90 33.00 L 25.90 37.00"/>
+<path class="edge" d="M 25.90 37.00 L 2.00 37.00"/>
+<path class="edge" d="M 2.00 37.00 L 2.00 11.00"/>
+<path class="edge" d="M 2.00 11.00 L 25.90 11.00"/>
+<path class="edge edge-arrow" d="M 57.70 33.00 L 57.70 39.00"/>
+<path class="edge" d="M 10.00 25.00 L 10.00 27.00"/>
+<path class="edge edge-arrow" d="M 10.00 27.00 L 10.00 30.50 Q 10.00 31.00 9.50 31.00 L -1.50 31.00 Q -2.00 31.00 -2.00 30.50 L -2.00 2.50 Q -2.00 2.00 -1.50 2.00 L 25.40 2.00 Q 25.90 2.00 25.90 2.50 L 25.90 4.00"/>
+<path class="edge" d="M 25.90 25.00 L 25.90 29.00"/>
+<path class="edge" d="M 25.90 29.00 L 25.90 31.00"/>
+<path class="edge" d="M 25.90 31.00 L 10.00 31.00"/>
+<path class="edge" d="M 57.70 42.00 L 57.70 44.00"/>
+<path class="edge" d="M 57.70 44.00 L 57.70 46.00"/>
+<path class="edge" d="M 57.70 46.00 L -2.00 46.00"/>
+<path class="edge" d="M -2.00 46.00 L -2.00 31.00"/>
+<rect class="step" x="23.90" y="4.00" width="4.00" height="3.00"/>
+<rect class="step-inner" x="24.15" y="4.25" width="3.50" height="2.50"/>
+<text class="label" x="25.90" y="5.50">0</text>
+<rect class="step" x="23.90" y="13.00" width="4.00" height="3.00"/>
+<text class="label" x="25.90" y="14.50">1</text>
+<rect class="step" x="39.80" y="22.00" width="4.00" height="3.00"/>
+<text class="label" x="41.80" y="23.50">2</text>
+<rect class="step" x="8.00" y="22.00" width="4.00" height="3.00"/>
+<text class="label" x="10.00" y="23.50">3</text>
+<rect class="step" x="23.90" y="22.00" width="4.00" height="3.00"/>
+<text class="label" x="25.90" y="23.50">4</text>
+<rect class="step" x="55.70" y="39.00" width="4.00" height="3.00"/>
+<text class="label" x="57.70" y="40.50">5</text>
+<line class="assoc" x1="27.90" y1="5.50" x2="28.90" y2="5.50"/>
+<rect class="action" x="28.90" y="4.07" width="9.90" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="33.85" y="5.09"><tspan x="33.85" dy="0">Session idle; runloop does not</tspan><tspan x="33.85" dy="0.82">pump autonomous continuations</tspan></text>
+<line class="assoc" x1="27.90" y1="14.50" x2="28.90" y2="14.50"/>
+<rect class="action" x="28.90" y="13.07" width="9.90" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="33.85" y="13.68"><tspan x="33.85" dy="0">Autorun armed; runloop</tspan><tspan x="33.85" dy="0.82">pumps continuation when</tspan><tspan x="33.85" dy="0.82">todolist has actionable items</tspan></text>
+<line class="assoc" x1="43.80" y1="23.50" x2="44.80" y2="23.50"/>
+<rect class="action" x="44.80" y="22.07" width="9.90" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="49.75" y="23.09"><tspan x="49.75" dy="0">Refill TodoWrite from tasks.md</tspan><tspan x="49.75" dy="0.82">next phase; log autorun.refill event</tspan></text>
+<line class="assoc" x1="12.00" y1="23.50" x2="13.00" y2="23.50"/>
+<rect class="action" x="13.00" y="22.07" width="9.90" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="17.95" y="22.68"><tspan x="17.95" dy="0">Disarm: flip autorun_armed to</tspan><tspan x="17.95" dy="0.82">false; log autorun.disarmed with</tspan><tspan x="17.95" dy="0.82">reason; .state.json unchanged</tspan></text>
+<line class="assoc" x1="27.90" y1="23.50" x2="28.90" y2="23.50"/>
+<rect class="action" x="28.90" y="22.07" width="9.90" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="33.85" y="22.68"><tspan x="33.85" dy="0">Demote .state.json implementing-</tspan><tspan x="33.85" dy="0.82">&gt;planned; flip autorun_armed to</tspan><tspan x="33.85" dy="0.82">false; log autorun.demoted_by_edit</tspan></text>
+<line class="assoc" x1="59.70" y1="40.50" x2="60.70" y2="40.50"/>
+<rect class="action" x="60.70" y="39.07" width="9.90" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="65.65" y="39.68"><tspan x="65.65" dy="0">Plan fully drained; flip autorun_</tspan><tspan x="65.65" dy="0.82">armed to false; emit autorun.completed;</tspan><tspan x="65.65" dy="0.82">return stop reason plan_drained</tspan></text>
+<line class="gate" x1="24.90" y1="9.00" x2="26.90" y2="9.00"/>
+<text class="gate-label" x="27.30" y="9.00"><tspan x="27.30" dy="0">arm_signal_received AND binding_valid AND state IN {planned, implementing} AND has_actionable_todo</tspan></text>
+<line class="gate" x1="6.00" y1="18.00" x2="45.80" y2="18.00"/>
+<line class="gate" x1="21.90" y1="33.00" x2="61.70" y2="33.00"/>
+<line class="gate" x1="9.00" y1="27.00" x2="11.00" y2="27.00"/>
+<text class="gate-label" x="11.40" y="27.00"><tspan x="11.40" dy="0">disarm_complete</tspan></text>
+<line class="gate" x1="24.90" y1="29.00" x2="26.90" y2="29.00"/>
+<text class="gate-label" x="27.30" y="29.00"><tspan x="27.30" dy="0">demotion_complete</tspan></text>
+<line class="gate" x1="56.70" y1="44.00" x2="58.70" y2="44.00"/>
+<text class="gate-label" x="59.10" y="44.00"><tspan x="59.10" dy="0">cleanup_complete</tspan></text>
+<line class="gate" x1="40.80" y1="20.00" x2="42.80" y2="20.00"/>
+<text class="gate-label" x="43.20" y="20.00"><tspan x="43.20" dy="0">todolist_drained AND plan_has_next_phase</tspan></text>
+<line class="gate" x1="9.00" y1="20.00" x2="11.00" y2="20.00"/>
+<text class="gate-label" x="11.40" y="20.00"><tspan x="11.40" dy="0">user_speaks OR blocker_fires OR abort_signal</tspan></text>
+<line class="gate" x1="24.90" y1="20.00" x2="26.90" y2="20.00"/>
+<text class="gate-label" x="27.30" y="20.00"><tspan x="27.30" dy="0">plan_edit_during_implementing</tspan></text>
+<line class="gate" x1="24.90" y1="35.00" x2="26.90" y2="35.00"/>
+<text class="gate-label-left" x="24.50" y="35.00"><tspan x="24.50" dy="0">refill_non_empty</tspan></text>
+<line class="gate" x1="56.70" y1="35.00" x2="58.70" y2="35.00"/>
+<text class="gate-label-left" x="56.30" y="35.00"><tspan x="56.30" dy="0">refill_empty</tspan></text>
+<circle class="junction" cx="25.90" cy="11.00" r="0.22"/>
+<circle class="junction" cx="10.00" cy="31.00" r="0.22"/>
+<circle class="junction" cx="-2.00" cy="31.00" r="0.22"/>
+</svg>

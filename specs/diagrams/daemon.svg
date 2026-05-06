@@ -1,140 +1,160 @@
-<svg width="950" height="2020" viewBox="200.0 -40.0 950.4 2020.0" xmlns="http://www.w3.org/2000/svg">
-<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker></defs>
-<rect x="200.0" y="-40.0" width="950.4" height="2020.0" fill="white" />
-<rect x="360.0" y="80.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<rect x="365.0" y="85.0" width="70.0" height="50.0" stroke="black" stroke-width="1" fill="none" />
-<text x="400" y="115.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">0</text>
-<line x1="440" y1="110.0" x2="480.0" y2="110.0" stroke="black" />
-<rect x="479.99999999999994" y="64.0" width="590.4" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="775.1999999999999" y="90.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Gateway splice loop serving</text>
-<text x="775.1999999999999" y="114.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">authenticated clients 到 依</text>
-<text x="775.1999999999999" y="138.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">-使用者 daemon 於 steady 狀態</text>
-<line x1="400" y1="140.0" x2="400" y2="220" stroke="black" />
-<line x1="380" y1="180.0" x2="420" y2="180.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="184.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">restartself MCP 工具 invoked 由 AI</text>
-<rect x="360.0" y="220.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="255.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">1</text>
-<line x1="440" y1="250.0" x2="480.0" y2="250.0" stroke="black" />
-<rect x="479.99999999999994" y="204.0" width="590.4" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="775.1999999999999" y="230.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Daemon 路由 /api/v2/全域/web/</text>
-<text x="775.1999999999999" y="254.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">restart receives JWT-authenticated</text>
-<text x="775.1999999999999" y="278.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">POST 使用 targets 與 reason</text>
-<line x1="400" y1="280.0" x2="400" y2="360" stroke="black" />
-<line x1="380" y1="320.0" x2="420" y2="320.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="324.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">JWT verified 與 body parsed</text>
-<rect x="360.0" y="360.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="395.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">2</text>
-<line x1="440" y1="390.0" x2="480.0" y2="390.0" stroke="black" />
-<rect x="479.99999999999994" y="344.0" width="590.4" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="775.1999999999999" y="370.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">解析restartruntimemode</text>
-<text x="775.1999999999999" y="394.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">classifies runtime 作為</text>
-<text x="775.1999999999999" y="418.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Gateway-daemon 或 legacy</text>
-<line x1="400" y1="420.0" x2="400" y2="500" stroke="black" />
-<line x1="380" y1="460.0" x2="420" y2="460.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="464.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">是Gatewaydaemon true 與 targets includes Gateway</text>
-<rect x="360.0" y="500.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="535.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">3</text>
-<line x1="440" y1="530.0" x2="480.0" y2="530.0" stroke="black" />
-<rect x="479.99999999999994" y="484.0" width="590.4" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="775.1999999999999" y="510.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Branch dispatched: Gateway-目標 compileGateway供self更新,</text>
-<text x="775.1999999999999" y="534.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">daemon/前端-目標 啟動 webctl.sh restart --graceful 使用 OPENCODE</text>
-<text x="775.1999999999999" y="558.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">RESTART TXID, legacy 啟動 webctl.sh restart --graceful</text>
-<line x1="400" y1="560.0" x2="400" y2="640" stroke="black" />
-<line x1="380" y1="600.0" x2="420" y2="600.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="604.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">worker spawned 使用 OPENCODE RESTART ERROR LOG FILE set</text>
-<rect x="360.0" y="640.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="675.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">4</text>
-<line x1="440" y1="670.0" x2="480.0" y2="670.0" stroke="black" />
-<rect x="479.99999999999994" y="624.0" width="590.4" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="775.1999999999999" y="650.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">webctl.sh dorestart fingerprints</text>
-<text x="775.1999999999999" y="674.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">daemon 來源, 前端 Bundle, 與 Gateway</text>
-<text x="775.1999999999999" y="697.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">C binary against installed artifacts</text>
-<line x1="400" y1="700.0" x2="400" y2="780" stroke="black" />
-<line x1="380" y1="740.0" x2="420" y2="740.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="744.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">dirty layer set computed</text>
-<rect x="360.0" y="780.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="815.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">5</text>
-<line x1="440" y1="810.0" x2="480.0" y2="810.0" stroke="black" />
-<rect x="479.99999999999994" y="764.0" width="590.4" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="775.1999999999999" y="790.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Rebuild 與 install 僅 dirty</text>
-<text x="775.1999999999999" y="814.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">layers 透過 do建置binary,</text>
-<text x="775.1999999999999" y="837.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">do建置前端, docompileGateway</text>
-<line x1="400" y1="840.0" x2="400" y2="920" stroke="black" />
-<line x1="380" y1="880.0" x2="420" y2="880.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="884.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">all builds exit zero</text>
-<rect x="360.0" y="920.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="955.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">6</text>
-<line x1="440" y1="950.0" x2="480.0" y2="950.0" stroke="black" />
-<rect x="479.99999999999994" y="904.0" width="590.4" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="775.1999999999999" y="930.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">worker exits zero, 路由 handler</text>
-<text x="775.1999999999999" y="954.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">responds 200 使用 mode=controlledrestart</text>
-<text x="775.1999999999999" y="977.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">與 recoveryDeadlineMs=30000</text>
-<line x1="400" y1="980.0" x2="400" y2="1060" stroke="black" />
-<line x1="380" y1="1020.0" x2="420" y2="1020.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="1024.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">targets did 不 include Gateway</text>
-<rect x="360.0" y="1060.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="1095.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">7</text>
-<line x1="440" y1="1090.0" x2="480.0" y2="1090.0" stroke="black" />
-<rect x="479.99999999999994" y="1044.0" width="590.4" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="775.1999999999999" y="1070.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Daemon 路徑: setTimeout 300ms, then Daemon.</text>
-<text x="775.1999999999999" y="1094.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">removeDiscovery unlinks daemon.js在 daemon.</text>
-<text x="775.1999999999999" y="1118.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">pid daemon.sock 與 process.exit(0)</text>
-<line x1="400" y1="1120.0" x2="400" y2="1200" stroke="black" />
-<line x1="380" y1="1160.0" x2="420" y2="1160.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="1164.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">daemon process terminated</text>
-<rect x="360.0" y="1200.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="1235.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">9</text>
-<line x1="440" y1="1230.0" x2="480.0" y2="1230.0" stroke="black" />
-<rect x="479.99999999999994" y="1184.0" width="590.4" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="775.1999999999999" y="1210.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">下一個 authenticated 請求 hits</text>
-<text x="775.1999999999999" y="1234.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Gateway find或createdaemon 與</text>
-<text x="775.1999999999999" y="1258.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">detects stale daemon.js在 或 缺失 socket</text>
-<line x1="400" y1="1260.0" x2="400" y2="1340" stroke="black" />
-<line x1="380" y1="1300.0" x2="420" y2="1300.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="1304.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">adopt 探測 failed</text>
-<rect x="360.0" y="1340.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="1375.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">10</text>
-<line x1="440" y1="1370.0" x2="480.0" y2="1370.0" stroke="black" />
-<rect x="479.99999999999994" y="1324.0" width="590.4" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="775.1999999999999" y="1350.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Self-heal escalation: read daemon.lock</text>
-<text x="775.1999999999999" y="1374.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">JSON, validate /程序/&lt;pid&gt; uid 比對, SIGTERM,</text>
-<text x="775.1999999999999" y="1398.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">1s waitpid, SIGKILL, unlink socket 路徑</text>
-<line x1="400" y1="1400.0" x2="400" y2="1480" stroke="black" />
-<line x1="380" y1="1440.0" x2="420" y2="1440.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="1444.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">orphan-cleanup 結果 exited 或 killed logged</text>
-<rect x="360.0" y="1480.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="1515.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">11</text>
-<line x1="440" y1="1510.0" x2="480.0" y2="1510.0" stroke="black" />
-<rect x="479.99999999999994" y="1464.0" width="590.4" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="775.1999999999999" y="1490.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Gateway re-creates /執行/使用者/&lt;uid&gt;/opencode</text>
-<text x="775.1999999999999" y="1514.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">mode 0700, parses OPENCODE BIN argv,</text>
-<text x="775.1999999999999" y="1538.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">fork+setsid+initgroups+setgid+setuid+execvp daemon</text>
-<line x1="400" y1="1540.0" x2="400" y2="1620" stroke="black" />
-<line x1="380" y1="1580.0" x2="420" y2="1580.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="1584.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">forked daemon child pid logged</text>
-<rect x="360.0" y="1620.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="1655.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">12</text>
-<line x1="440" y1="1650.0" x2="480.0" y2="1650.0" stroke="black" />
-<rect x="479.99999999999994" y="1604.0" width="590.4" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="775.1999999999999" y="1630.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">New daemon 伺服器.listenUnix binds</text>
-<text x="775.1999999999999" y="1654.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">socket 與 writes daemon.js在 daemon.</text>
-<text x="775.1999999999999" y="1678.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">pid 透過 Daemon.writeDiscovery</text>
-<line x1="400" y1="1680.0" x2="400" y2="1760" stroke="black" />
-<line x1="380" y1="1720.0" x2="420" y2="1720.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="1724.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">/api/v2/全域/健康 探測 返回 200</text>
-<rect x="360.0" y="1760.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="1795.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">13</text>
-<line x1="440" y1="1790.0" x2="480.0" y2="1790.0" stroke="black" />
-<rect x="479.99999999999994" y="1744.0" width="590.4" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="775.1999999999999" y="1770.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Gateway resumes splice proxy 到 fresh</text>
-<text x="775.1999999999999" y="1794.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">daemon, client SSE reconnect absorbs</text>
-<text x="775.1999999999999" y="1818.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">503 window, system 回到 到 steady 狀態</text>
-<line x1="400" y1="1820.0" x2="400" y2="1900" stroke="black" />
-<line x1="380" y1="1860.0" x2="420" y2="1860.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="1864.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">bidirectional splice established</text>
-<line x1="400" y1="1900" x2="400" y2="1900.0" stroke="black" />
-<line x1="400" y1="1900.0" x2="280" y2="1900.0" stroke="black" />
-<line x1="280" y1="1900.0" x2="280" y2="40.0" stroke="black" />
-<line x1="280" y1="40.0" x2="400" y2="40.0" stroke="black" />
-<line x1="400" y1="40.0" x2="400" y2="80.0" stroke="black" marker-end="url(#arrow)" />
+<svg xmlns="http://www.w3.org/2000/svg" width="1257" height="2220" viewBox="-2.00 -2.00 62.86 111.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="-2.00" y="-2.00" width="62.86" height="111.00" fill="white"/>
+<path class="edge" d="M 34.93 7.00 L 34.93 9.00"/>
+<path class="edge edge-arrow" d="M 34.93 9.00 L 34.93 11.00"/>
+<path class="edge" d="M 34.93 14.00 L 34.93 16.00"/>
+<path class="edge edge-arrow" d="M 34.93 16.00 L 34.93 18.00"/>
+<path class="edge" d="M 34.93 21.00 L 34.93 23.00"/>
+<path class="edge edge-arrow" d="M 34.93 23.00 L 34.93 25.00"/>
+<path class="edge" d="M 34.93 28.00 L 34.93 30.00"/>
+<path class="edge edge-arrow" d="M 34.93 30.00 L 34.93 32.00"/>
+<path class="edge" d="M 34.93 35.00 L 34.93 37.00"/>
+<path class="edge edge-arrow" d="M 34.93 37.00 L 34.93 39.00"/>
+<path class="edge edge-arrow" d="M 34.93 42.00 L 34.93 44.00"/>
+<path class="edge edge-arrow" d="M 34.93 44.00 L 34.93 48.00"/>
+<path class="edge edge-arrow" d="M 10.00 44.00 L 10.00 48.00"/>
+<path class="edge edge-arrow" d="M 34.93 51.00 L 34.93 57.00"/>
+<path class="edge edge-arrow" d="M 10.00 57.00 L 10.00 61.00"/>
+<path class="edge edge-arrow" d="M 34.93 57.00 L 34.93 61.00"/>
+<path class="edge edge-arrow" d="M 10.00 64.00 L 10.00 68.00"/>
+<path class="edge edge-arrow" d="M 34.93 68.00 L 34.93 70.00"/>
+<path class="edge edge-arrow" d="M 34.93 64.00 L 34.93 68.00"/>
+<path class="edge" d="M 34.93 73.00 L 34.93 75.00"/>
+<path class="edge edge-arrow" d="M 34.93 75.00 L 34.93 77.00"/>
+<path class="edge" d="M 34.93 80.00 L 34.93 82.00"/>
+<path class="edge edge-arrow" d="M 34.93 82.00 L 34.93 84.00"/>
+<path class="edge" d="M 34.93 87.00 L 34.93 89.00"/>
+<path class="edge edge-arrow" d="M 34.93 89.00 L 34.93 91.00"/>
+<path class="edge" d="M 34.93 94.00 L 34.93 96.00"/>
+<path class="edge edge-arrow" d="M 34.93 96.00 L 34.93 98.00"/>
+<path class="edge" d="M 34.93 101.00 L 34.93 103.00"/>
+<path class="edge edge-arrow" d="M 34.93 103.00 L 34.93 104.50 Q 34.93 105.00 34.43 105.00 L 2.50 105.00 Q 2.00 105.00 2.00 104.50 L 2.00 2.50 Q 2.00 2.00 2.50 2.00 L 34.43 2.00 Q 34.93 2.00 34.93 2.50 L 34.93 4.00"/>
+<path class="edge" d="M 10.00 51.00 L 10.00 53.00"/>
+<path class="edge" d="M 10.00 53.00 L 10.00 55.00"/>
+<path class="edge" d="M 10.00 55.00 L 2.00 55.00"/>
+<rect class="step" x="32.93" y="4.00" width="4.00" height="3.00"/>
+<rect class="step-inner" x="33.18" y="4.25" width="3.50" height="2.50"/>
+<text class="label" x="34.93" y="5.50">0</text>
+<rect class="step" x="32.93" y="11.00" width="4.00" height="3.00"/>
+<text class="label" x="34.93" y="12.50">1</text>
+<rect class="step" x="32.93" y="18.00" width="4.00" height="3.00"/>
+<text class="label" x="34.93" y="19.50">2</text>
+<rect class="step" x="32.93" y="25.00" width="4.00" height="3.00"/>
+<text class="label" x="34.93" y="26.50">3</text>
+<rect class="step" x="32.93" y="32.00" width="4.00" height="3.00"/>
+<text class="label" x="34.93" y="33.50">4</text>
+<rect class="step" x="32.93" y="39.00" width="4.00" height="3.00"/>
+<text class="label" x="34.93" y="40.50">5</text>
+<rect class="step" x="32.93" y="48.00" width="4.00" height="3.00"/>
+<text class="label" x="34.93" y="49.50">6</text>
+<rect class="step" x="8.00" y="61.00" width="4.00" height="3.00"/>
+<text class="label" x="10.00" y="62.50">7</text>
+<rect class="step" x="32.93" y="61.00" width="4.00" height="3.00"/>
+<text class="label" x="34.93" y="62.50">8</text>
+<rect class="step" x="32.93" y="70.00" width="4.00" height="3.00"/>
+<text class="label" x="34.93" y="71.50">9</text>
+<rect class="step" x="32.93" y="77.00" width="4.00" height="3.00"/>
+<text class="label" x="34.93" y="78.50">10</text>
+<rect class="step" x="32.93" y="84.00" width="4.00" height="3.00"/>
+<text class="label" x="34.93" y="85.50">11</text>
+<rect class="step" x="32.93" y="91.00" width="4.00" height="3.00"/>
+<text class="label" x="34.93" y="92.50">12</text>
+<rect class="step" x="32.93" y="98.00" width="4.00" height="3.00"/>
+<text class="label" x="34.93" y="99.50">13</text>
+<rect class="step" x="8.00" y="48.00" width="4.00" height="3.00"/>
+<text class="label" x="10.00" y="49.50">14</text>
+<line class="assoc" x1="36.93" y1="5.50" x2="37.93" y2="5.50"/>
+<rect class="action" x="37.93" y="4.07" width="18.93" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="47.39" y="5.09"><tspan x="47.39" dy="0">Gateway splice loop serving authenticated clients</tspan><tspan x="47.39" dy="0.82">到 依-使用者 daemon 於 steady 狀態</tspan></text>
+<line class="assoc" x1="36.93" y1="12.50" x2="37.93" y2="12.50"/>
+<rect class="action" x="37.93" y="11.07" width="18.93" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="47.39" y="12.09"><tspan x="47.39" dy="0">Daemon 路由 /api/v2/全域/web/restart receives</tspan><tspan x="47.39" dy="0.82">JWT-authenticated POST 使用 targets 與 reason</tspan></text>
+<line class="assoc" x1="36.93" y1="19.50" x2="37.93" y2="19.50"/>
+<rect class="action" x="37.93" y="18.07" width="18.93" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="47.39" y="19.09"><tspan x="47.39" dy="0">解析restartruntimemode classifies</tspan><tspan x="47.39" dy="0.82">runtime 作為 Gateway-daemon 或 legacy</tspan></text>
+<line class="assoc" x1="36.93" y1="26.50" x2="37.93" y2="26.50"/>
+<rect class="action" x="37.93" y="25.07" width="18.93" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="47.39" y="25.68"><tspan x="47.39" dy="0">Branch dispatched: Gateway-目標 compileGateway供self更新,</tspan><tspan x="47.39" dy="0.82">daemon/前端-目標 啟動 webctl.sh restart --graceful 使用</tspan><tspan x="47.39" dy="0.82">OPENCODE RESTART TXID, legacy 啟動 webctl.sh restart --graceful</tspan></text>
+<line class="assoc" x1="36.93" y1="33.50" x2="37.93" y2="33.50"/>
+<rect class="action" x="37.93" y="32.07" width="18.93" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="47.39" y="33.09"><tspan x="47.39" dy="0">webctl.sh dorestart fingerprints daemon 來源, 前端</tspan><tspan x="47.39" dy="0.82">Bundle, 與 Gateway C binary against installed artifacts</tspan></text>
+<line class="assoc" x1="36.93" y1="40.50" x2="37.93" y2="40.50"/>
+<rect class="action" x="37.93" y="39.07" width="18.93" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="47.39" y="40.09"><tspan x="47.39" dy="0">Rebuild 與 install 僅 dirty layers 透過 do建</tspan><tspan x="47.39" dy="0.82">置binary, do建置前端, docompileGateway</tspan></text>
+<line class="assoc" x1="36.93" y1="49.50" x2="37.93" y2="49.50"/>
+<rect class="action" x="37.93" y="48.07" width="18.93" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="47.39" y="49.09"><tspan x="47.39" dy="0">worker exits zero, 路由 handler responds 200 使用</tspan><tspan x="47.39" dy="0.82">mode=controlledrestart 與 recoveryDeadlineMs=30000</tspan></text>
+<line class="assoc" x1="12.00" y1="62.50" x2="13.00" y2="62.50"/>
+<rect class="action" x="13.00" y="61.07" width="18.93" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="22.46" y="62.09"><tspan x="22.46" dy="0">Daemon 路徑: setTimeout 300ms, then Daemon.removeDiscovery</tspan><tspan x="22.46" dy="0.82">unlinks daemon.js在 daemon.pid daemon.sock 與 process.exit(0)</tspan></text>
+<line class="assoc" x1="36.93" y1="62.50" x2="37.93" y2="62.50"/>
+<rect class="action" x="37.93" y="61.07" width="18.93" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="47.39" y="61.68"><tspan x="47.39" dy="0">Gateway 路徑: schedule restart-service opencode-</tspan><tspan x="47.39" dy="0.82">gateway.service after 300ms, systemd respawns</tspan><tspan x="47.39" dy="0.82">Gateway binary causing 3-5s downtime 供 all users</tspan></text>
+<line class="assoc" x1="36.93" y1="71.50" x2="37.93" y2="71.50"/>
+<rect class="action" x="37.93" y="70.07" width="18.93" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="47.39" y="71.09"><tspan x="47.39" dy="0">下一個 authenticated 請求 hits Gateway find或</tspan><tspan x="47.39" dy="0.82">createdaemon 與 detects stale daemon.js在 或 缺失 socket</tspan></text>
+<line class="assoc" x1="36.93" y1="78.50" x2="37.93" y2="78.50"/>
+<rect class="action" x="37.93" y="77.07" width="18.93" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="47.39" y="78.09"><tspan x="47.39" dy="0">Self-heal escalation: read daemon.lock JSON, validate /程序/</tspan><tspan x="47.39" dy="0.82">&lt;pid&gt; uid 比對, SIGTERM, 1s waitpid, SIGKILL, unlink socket 路徑</tspan></text>
+<line class="assoc" x1="36.93" y1="85.50" x2="37.93" y2="85.50"/>
+<rect class="action" x="37.93" y="84.07" width="18.93" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="47.39" y="85.09"><tspan x="47.39" dy="0">Gateway re-creates /執行/使用者/&lt;uid&gt;/opencode mode 0700, parses</tspan><tspan x="47.39" dy="0.82">OPENCODE BIN argv, fork+setsid+initgroups+setgid+setuid+execvp daemon</tspan></text>
+<line class="assoc" x1="36.93" y1="92.50" x2="37.93" y2="92.50"/>
+<rect class="action" x="37.93" y="91.07" width="18.93" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="47.39" y="92.09"><tspan x="47.39" dy="0">New daemon 伺服器.listenUnix binds socket 與 writes</tspan><tspan x="47.39" dy="0.82">daemon.js在 daemon.pid 透過 Daemon.writeDiscovery</tspan></text>
+<line class="assoc" x1="36.93" y1="99.50" x2="37.93" y2="99.50"/>
+<rect class="action" x="37.93" y="98.07" width="18.93" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="47.39" y="99.09"><tspan x="47.39" dy="0">Gateway resumes splice proxy 到 fresh daemon, client SSE</tspan><tspan x="47.39" dy="0.82">reconnect absorbs 503 window, system 回到 到 steady 狀態</tspan></text>
+<line class="assoc" x1="12.00" y1="49.50" x2="13.00" y2="49.50"/>
+<rect class="action" x="13.00" y="48.07" width="18.93" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="22.46" y="48.68"><tspan x="22.46" dy="0">建置 failure 路徑: 路由 handler 返回 WEB RESTART FAILED 使用</tspan><tspan x="22.46" dy="0.82">webctlExit, txid, 錯誤記錄路徑, 或 RESTART LOCK BUSY 409 if stderr</tspan><tspan x="22.46" dy="0.82">matches already 在 progress; previous daemon version keeps 執行中</tspan></text>
+<line class="gate" x1="33.93" y1="9.00" x2="35.93" y2="9.00"/>
+<text class="gate-label" x="36.33" y="9.00"><tspan x="36.33" dy="0">restartself MCP 工具 invoked 由 AI</tspan></text>
+<line class="gate" x1="33.93" y1="16.00" x2="35.93" y2="16.00"/>
+<text class="gate-label" x="36.33" y="16.00"><tspan x="36.33" dy="0">JWT verified 與 body parsed</tspan></text>
+<line class="gate" x1="33.93" y1="23.00" x2="35.93" y2="23.00"/>
+<text class="gate-label" x="36.33" y="23.00"><tspan x="36.33" dy="0">runtime mode classified as Gateway-daemon with/without Gateway target or legacy mode</tspan></text>
+<line class="gate" x1="33.93" y1="30.00" x2="35.93" y2="30.00"/>
+<text class="gate-label" x="36.33" y="30.00"><tspan x="36.33" dy="0">worker spawned 使用 OPENCODE RESTART ERROR LOG FILE set</tspan></text>
+<line class="gate" x1="33.93" y1="37.00" x2="35.93" y2="37.00"/>
+<text class="gate-label" x="36.33" y="37.00"><tspan x="36.33" dy="0">dirty layer set computed</tspan></text>
+<line class="gate" x1="6.00" y1="44.00" x2="38.93" y2="44.00"/>
+<line class="gate" x1="6.00" y1="57.00" x2="38.93" y2="57.00"/>
+<line class="gate" x1="8.00" y1="68.00" x2="36.93" y2="68.00"/>
+<line class="gate" x1="33.93" y1="75.00" x2="35.93" y2="75.00"/>
+<text class="gate-label" x="36.33" y="75.00"><tspan x="36.33" dy="0">adopt 探測 failed</tspan></text>
+<line class="gate" x1="33.93" y1="82.00" x2="35.93" y2="82.00"/>
+<text class="gate-label" x="36.33" y="82.00"><tspan x="36.33" dy="0">orphan-cleanup 結果 exited 或 killed logged</tspan></text>
+<line class="gate" x1="33.93" y1="89.00" x2="35.93" y2="89.00"/>
+<text class="gate-label" x="36.33" y="89.00"><tspan x="36.33" dy="0">forked daemon child pid logged</tspan></text>
+<line class="gate" x1="33.93" y1="96.00" x2="35.93" y2="96.00"/>
+<text class="gate-label" x="36.33" y="96.00"><tspan x="36.33" dy="0">/api/v2/全域/健康 探測 返回 200</tspan></text>
+<line class="gate" x1="33.93" y1="103.00" x2="35.93" y2="103.00"/>
+<text class="gate-label" x="36.33" y="103.00"><tspan x="36.33" dy="0">bidirectional splice established</tspan></text>
+<line class="gate" x1="9.00" y1="53.00" x2="11.00" y2="53.00"/>
+<text class="gate-label" x="11.40" y="53.00"><tspan x="11.40" dy="0">AI reads 錯誤記錄路徑, fixes 來源, re-invokes restartself</tspan></text>
+<line class="gate" x1="33.93" y1="46.00" x2="35.93" y2="46.00"/>
+<text class="gate-label-left" x="33.53" y="46.00"><tspan x="33.53" dy="0">all builds exit zero</tspan></text>
+<line class="gate" x1="9.00" y1="46.00" x2="11.00" y2="46.00"/>
+<text class="gate-label-left" x="8.60" y="46.00"><tspan x="8.60" dy="0">any 建置 exits non-zero</tspan></text>
+<line class="gate" x1="9.00" y1="59.00" x2="11.00" y2="59.00"/>
+<text class="gate-label-left" x="8.60" y="58.32"><tspan x="8.60" dy="0">targets did</tspan><tspan x="8.60" dy="0.68">不 include</tspan><tspan x="8.60" dy="0.68">Gateway</tspan></text>
+<line class="gate" x1="33.93" y1="59.00" x2="35.93" y2="59.00"/>
+<text class="gate-label-left" x="33.53" y="59.00"><tspan x="33.53" dy="0">targets included Gateway 與 self更新.執行actions succeeded</tspan></text>
+<line class="gate" x1="9.00" y1="66.00" x2="11.00" y2="66.00"/>
+<text class="gate-label-left" x="8.60" y="65.32"><tspan x="8.60" dy="0">daemon</tspan><tspan x="8.60" dy="0.68">process</tspan><tspan x="8.60" dy="0.68">terminated</tspan></text>
+<line class="gate" x1="33.93" y1="66.00" x2="35.93" y2="66.00"/>
+<text class="gate-label-left" x="33.53" y="66.00"><tspan x="33.53" dy="0">systemd reports opencode-Gateway active 執行中</tspan></text>
+<circle class="junction" cx="2.00" cy="55.00" r="0.22"/>
 </svg>
