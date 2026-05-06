@@ -106,6 +106,7 @@ export function createPathHelpers(scope: () => string) {
     const root = scope().replace(/\\/g, "/")
 
     let path = unquoteGitPath(decodeFilePath(stripQueryAndHash(stripFileProtocol(input)))).replace(/\\/g, "/")
+    const wasAbsolute = path.startsWith("/") || /^[A-Za-z]:/.test(path)
 
     const windows = /^[A-Za-z]:/.test(root)
     const canonRoot = windows ? root.toLowerCase() : root
@@ -123,6 +124,24 @@ export function createPathHelpers(scope: () => string) {
 
     if (path.startsWith("/") || path.startsWith("\\")) {
       path = path.slice(1)
+    }
+
+    // Strip workspace-basename prefix from genuinely relative inputs.
+    // The AI naturally cites paths as "opencode/specs/foo.svg" (project name
+    // prefix), but normalize otherwise returns that verbatim and file loads
+    // resolve to <workspace>/opencode/specs/... — a bogus path. Only apply
+    // when the original input was relative; absolute inputs that happen to
+    // contain a same-named subdirectory must not be mangled.
+    if (!wasAbsolute && path) {
+      const basename = root.replace(/\/+$/, "").split("/").pop()
+      if (basename && basename.length > 0) {
+        const prefix = `${basename}/`
+        const canon = windows ? path.toLowerCase() : path
+        const canonPrefix = windows ? prefix.toLowerCase() : prefix
+        if (canon.startsWith(canonPrefix)) {
+          path = path.slice(prefix.length)
+        }
+      }
     }
 
     return path

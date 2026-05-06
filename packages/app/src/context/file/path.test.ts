@@ -25,6 +25,19 @@ describe("file path helpers", () => {
     expect(unquoteGitPath("a/b/c.ts")).toBe("a/b/c.ts")
   })
 
+  test("strips workspace basename prefix from relative inputs", () => {
+    const path = createPathHelpers(() => "/home/pkcs12/projects/opencode")
+    // AI's natural project-name-prefixed style
+    expect(path.normalize("opencode/specs/diagrams/foo.svg")).toBe("specs/diagrams/foo.svg")
+    expect(path.tab("opencode/specs/diagrams/foo.svg")).toBe("file://specs/diagrams/foo.svg")
+    // Absolute paths with same-named nested subdirectory must NOT be mangled
+    expect(path.normalize("/home/pkcs12/projects/opencode/opencode/foo.ts")).toBe("opencode/foo.ts")
+    // Bare basename without a slash is left alone
+    expect(path.normalize("opencode")).toBe("opencode")
+    // Clean relative paths still work
+    expect(path.normalize("specs/diagrams/foo.svg")).toBe("specs/diagrams/foo.svg")
+  })
+
   test("normalizes Windows absolute paths with mixed separators", () => {
     const path = createPathHelpers(() => "C:\\repo")
     expect(path.normalize("C:\\repo\\src\\app.ts")).toBe("src/app.ts")
