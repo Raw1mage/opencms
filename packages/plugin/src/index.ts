@@ -47,7 +47,11 @@ export type AuthModelLoader = (sdk: any, modelID: string, options?: Record<strin
 
 export type AuthHook = {
   provider: string
-  loader?: (auth: () => Promise<Auth>, provider: Provider) => Promise<Record<string, any> & { getModel?: AuthModelLoader }>
+  loader?: (
+    auth: () => Promise<Auth>,
+    provider: Provider,
+    accountId?: string,
+  ) => Promise<Record<string, any> & { getModel?: AuthModelLoader }>
   methods: (
     | {
         type: "oauth"

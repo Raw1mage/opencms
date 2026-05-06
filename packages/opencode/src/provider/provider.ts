@@ -1764,7 +1764,7 @@ export namespace Provider {
           }
           // @spec specs/provider-account-decoupling DD-2 — pass family +
           // accountId explicitly; Auth.get is two-arg.
-          const accountOptions = await plugin.auth.loader(() => loadAuth(family, accountId), loaderView)
+          const accountOptions = await plugin.auth.loader(() => loadAuth(family, accountId), loaderView, accountId)
           debugCheckpoint("provider", "account loader end", { family, accountId, hasResult: !!accountOptions })
           if (accountOptions) {
             const { getModel: _acctGetModel, ...acctRest } = accountOptions as Record<string, any> & {

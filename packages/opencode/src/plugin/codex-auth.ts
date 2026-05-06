@@ -238,7 +238,7 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
     },
     auth: {
       provider: "codex",
-      async loader(getAuth, provider) {
+      async loader(getAuth, provider, accountRecordId) {
         const auth = await getAuth()
         if (auth.type !== "oauth") return {}
 
@@ -265,7 +265,11 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
           accountId: authWithAccount.accountId,
           async getModel(_sdk: any, modelID: string, options?: Record<string, any>) {
             const credentials = options as any
-            const persistAccountId = credentials?.accountId ?? authWithAccount.accountId
+            // Persist via the opencode account record id (post phase 2 family
+            // decoupling). Falling back to JWT chatgpt_account_id would route
+            // Auth.set to a UUID-keyed phantom family because the registry no
+            // longer maps UUID → per-account entry.
+            const persistAccountId = accountRecordId ?? credentials?.accountId ?? authWithAccount.accountId
             const provider = createCodex({
               credentials: isCodexCredentials(credentials)
                 ? credentials
