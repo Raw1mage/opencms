@@ -20,6 +20,8 @@ import { getCompactThreshold, getMaxOutput } from "./models.js"
 import { convertPrompt, convertTools } from "./convert.js"
 import { buildHeaders, buildClientMetadata } from "./headers.js"
 import { parseSSEStream, mapResponseStream, mapFinishReason } from "./sse.js"
+import type { RequestOptionsShape } from "./empty-turn-classifier.js"
+import { createHash } from "crypto"
 import { refreshTokenWithMutex } from "./auth.js"
 import { tryWsTransport, resetWsSession } from "./transport-ws.js"
 import type { CodexCredentials, ResponsesApiRequest, WindowState } from "./types.js"
@@ -193,7 +195,7 @@ class CodexLanguageModel implements LanguageModelV2 {
 
     // § 2.1.5  Try WebSocket transport first
     const wsSessionId = sessionId ?? this.window.conversationId
-    const wsEvents = await tryWsTransport({
+    const wsTransport = await tryWsTransport({
       sessionId: wsSessionId,
       accessToken: this.options.credentials.access!,
       accountId: accountId,
@@ -204,9 +206,38 @@ class CodexLanguageModel implements LanguageModelV2 {
       conversationId: this.window.conversationId,
     })
 
-    if (wsEvents) {
+    // Build classifier log context once (reused for WS + HTTP paths).
+    // spec codex-empty-turn-recovery: log payload assembly per data-schema.json.
+    const requestOptionsShape: RequestOptionsShape = {
+      store: (body as any).store === true,
+      hasReasoningEffort: !!(body as any).reasoning?.effort,
+      reasoningEffortValue: ((body as any).reasoning?.effort as string | undefined) ?? null,
+      includeFields: Array.isArray((body as any).include) ? ((body as any).include as string[]) : [],
+      hasTools: Array.isArray((body as any).tools) && (body as any).tools.length > 0,
+      toolCount: Array.isArray((body as any).tools) ? (body as any).tools.length : 0,
+      promptCacheKeyHash: createHash("sha256")
+        .update(String((body as any).prompt_cache_key ?? ""))
+        .digest("hex")
+        .slice(0, 16),
+      inputItemCount: Array.isArray((body as any).input) ? (body as any).input.length : 0,
+      instructionsByteSize: typeof (body as any).instructions === "string"
+        ? Buffer.byteLength((body as any).instructions, "utf-8")
+        : 0,
+    }
+    const logContext = {
+      sessionId: wsSessionId,
+      accountId: accountId ?? null,
+      modelId: this.modelId,
+      requestOptionsShape,
+    }
+
+    if (wsTransport) {
       // WS succeeded — map events to LMv2 stream
-      const { stream, responseIdPromise } = mapResponseStream(wsEvents)
+      const { events, getSnapshot } = wsTransport
+      const { stream, responseIdPromise } = mapResponseStream(events, {
+        logContext,
+        getTransportSnapshot: getSnapshot,
+      })
       // Capture response metadata asynchronously
       responseIdPromise.then((id) => {
         if (id) {
@@ -272,7 +303,7 @@ class CodexLanguageModel implements LanguageModelV2 {
 
     // Parse SSE → events → LMv2 stream
     const sseEvents = parseSSEStream(response.body)
-    const { stream, responseIdPromise } = mapResponseStream(sseEvents)
+    const { stream, responseIdPromise } = mapResponseStream(sseEvents, { logContext })
     responseIdPromise.then((id) => {
       if (id) (this as any)._lastResponseId = id
     })

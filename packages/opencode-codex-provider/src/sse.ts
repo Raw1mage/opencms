@@ -11,6 +11,14 @@ import type {
   LanguageModelV2Source,
 } from "@ai-sdk/provider"
 import type { ResponseStreamEvent, ResponseObject } from "./types.js"
+import {
+  classifyEmptyTurn,
+  buildClassificationPayload,
+  type EmptyTurnSnapshot,
+  type RequestOptionsShape,
+  type DeltasObserved,
+} from "./empty-turn-classifier.js"
+import { appendEmptyTurnLog, nextLogSequence } from "./empty-turn-log.js"
 
 // ---------------------------------------------------------------------------
 // § 1  SSE line parser → JSON events
@@ -101,11 +109,61 @@ interface ResponseUsageCapture {
 }
 
 /**
+ * Caller context required for empty-turn classifier integration
+ * (spec codex-empty-turn-recovery, design.md DD-4). When provided,
+ * the SSE flush block invokes the classifier on empty turns, emits
+ * a forensic log entry, and attaches classification metadata to the
+ * finish part's providerMetadata.openai.emptyTurnClassification.
+ *
+ * When omitted (e.g., test code without log path injection), the
+ * flush block emits the regular finish part with no classification —
+ * preserving the legacy behavior so existing call sites and tests
+ * continue to work unchanged.
+ */
+export interface MapResponseStreamOptions {
+  /**
+   * Caller-context fields baked into the log entry. The classifier
+   * itself is pure (INV-12) — these fields are NOT inputs to the
+   * causeFamily decision, only payload assembly.
+   */
+  logContext?: {
+    sessionId: string
+    messageId?: string
+    accountId: string | null
+    modelId: string
+    requestOptionsShape: RequestOptionsShape
+  }
+  /**
+   * Lazy snapshot of WS-layer observations at flush time. transport-ws.ts
+   * exposes its frameCount / terminalEventReceived / etc. via this getter
+   * so the SSE flush block can build a complete EmptyTurnSnapshot. When
+   * omitted (HTTP fallback path), the snapshot uses sse-layer-derived
+   * defaults (frameCount=0, terminalEventReceived from finishReason).
+   */
+  getTransportSnapshot?: () => {
+    wsFrameCount: number
+    terminalEventReceived: boolean
+    terminalEventType: EmptyTurnSnapshot["terminalEventType"]
+    wsCloseCode: number | null
+    wsCloseReason: string | null
+    serverErrorMessage: string | null
+    deltasObserved: DeltasObserved
+  }
+}
+
+/**
  * Transform Responses API events into LanguageModelV2StreamPart stream.
  * Returns the stream and a promise that resolves to the final response_id.
+ *
+ * When `options.logContext` is provided, empty turns (no text-delta and
+ * no tool-call emitted) trigger the empty-turn classifier per spec
+ * codex-empty-turn-recovery: log entry written to JSONL + bus, and
+ * classification metadata attached to the finish part. INV-01 holds —
+ * no exception ever escapes this function for empty-turn handling.
  */
 export function mapResponseStream(
   events: ReadableStream<ResponseStreamEvent>,
+  options: MapResponseStreamOptions = {},
 ): {
   stream: ReadableStream<LanguageModelV2StreamPart>
   responseIdPromise: Promise<string | undefined>
@@ -176,19 +234,107 @@ export function mapResponseStream(
         // the runloop's empty-response guard (prompt.ts §empty-round) engages
         // instead of silently exiting. See also: hotfix in prompt.ts that
         // treats "other" identically as a defense-in-depth.
-        const finishReason: LanguageModelV2FinishReason =
+        let finishReason: LanguageModelV2FinishReason =
           state.finishReason === "stop" && state.hasFunctionCall
             ? "tool-calls"
             : (state.finishReason ?? "unknown")
 
+        // Empty-turn classifier hook (spec codex-empty-turn-recovery, DD-4).
+        // INV-10: only classify when zero text emitted AND zero tool calls.
+        // INV-01/INV-05: this whole block must never throw — wrapped in try/catch
+        // and any failure logged as breadcrumb but never propagated.
+        let emptyTurnProviderMetadata: Record<string, unknown> | undefined
+        const isEffectivelyEmpty =
+          state.emittedTextDeltas === 0 && state.emittedToolCalls.size === 0
+        if (isEffectivelyEmpty && options.logContext) {
+          try {
+            const transportSnapshot = options.getTransportSnapshot?.() ?? {
+              wsFrameCount: 0,
+              terminalEventReceived: state.finishReason !== undefined,
+              terminalEventType: null as EmptyTurnSnapshot["terminalEventType"],
+              wsCloseCode: null,
+              wsCloseReason: null,
+              serverErrorMessage: null,
+              deltasObserved: { text: 0, toolCallArguments: 0, reasoning: 0 } as DeltasObserved,
+            }
+            const snapshot: EmptyTurnSnapshot = {
+              wsFrameCount: transportSnapshot.wsFrameCount,
+              terminalEventReceived: transportSnapshot.terminalEventReceived,
+              terminalEventType: transportSnapshot.terminalEventType,
+              wsCloseCode: transportSnapshot.wsCloseCode,
+              wsCloseReason: transportSnapshot.wsCloseReason,
+              serverErrorMessage: transportSnapshot.serverErrorMessage,
+              deltasObserved: transportSnapshot.deltasObserved,
+              requestOptionsShape: options.logContext.requestOptionsShape,
+              retryAttempted: false,
+            }
+            const classification = classifyEmptyTurn(snapshot)
+            const logSequence = nextLogSequence()
+            const classifierPayload = buildClassificationPayload(snapshot, classification)
+            appendEmptyTurnLog({
+              ...classifierPayload,
+              timestamp: new Date().toISOString(),
+              logSequence,
+              sessionId: options.logContext.sessionId,
+              messageId: options.logContext.messageId,
+              accountId: options.logContext.accountId,
+              providerId: "codex" as const,
+              modelId: options.logContext.modelId,
+              streamStateSnapshot: {
+                finishReasonAtFlush: state.finishReason ?? null,
+                openTextId: state.openTextId,
+                outputItemCount: state.outputItems.size,
+                responseId: state.responseId ?? null,
+                usage: {
+                  inputTokens: state.usage?.inputTokens ?? null,
+                  outputTokens: state.usage?.outputTokens ?? null,
+                  cachedTokens: state.usage?.cachedTokens ?? null,
+                  reasoningTokens: state.usage?.reasoningTokens ?? null,
+                },
+              },
+            })
+            emptyTurnProviderMetadata = {
+              causeFamily: classification.causeFamily,
+              recoveryAction: classification.recoveryAction,
+              suspectParams: classification.suspectParams,
+              logSequence,
+              retryAttempted: false,
+              retryAlsoEmpty: null,
+            }
+            // DD-9 finishReason mapping (Phase 1: stub returns
+            // pass-through-to-runloop-nudge → unknown for unclassified).
+            // Phase 2 will activate the per-cause mapping in this switch.
+            switch (classification.causeFamily) {
+              case "server_empty_output_with_reasoning":
+              case "server_incomplete":
+                if (finishReason === "unknown") finishReason = "other"
+                break
+              case "server_failed":
+                if (finishReason === "unknown") finishReason = "error"
+                break
+              // ws_truncation, ws_no_frames, unclassified → keep "unknown"
+            }
+          } catch (err) {
+            // INV-01 / INV-05: classifier path must never throw out of flush.
+            const reason = err instanceof Error ? err.message : String(err)
+            console.error(`[CODEX-EMPTY-TURN] classifier hook failed: ${reason}`)
+          }
+        }
+
         // Emit finish
+        const finishProviderMetadata: Record<string, unknown> = {}
+        if (state.responseId) finishProviderMetadata.responseId = state.responseId
+        if (emptyTurnProviderMetadata) {
+          finishProviderMetadata.emptyTurnClassification = emptyTurnProviderMetadata
+        }
         controller.enqueue({
           type: "finish",
           finishReason,
           usage: buildUsage(state.usage),
-          providerMetadata: state.responseId
-            ? { openai: { responseId: state.responseId } }
-            : undefined,
+          providerMetadata:
+            Object.keys(finishProviderMetadata).length > 0
+              ? { openai: finishProviderMetadata }
+              : undefined,
         } as LanguageModelV2StreamPart)
 
         resolveResponseId(state.responseId)
