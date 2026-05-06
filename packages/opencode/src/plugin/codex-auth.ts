@@ -26,6 +26,7 @@ import {
 import { createCodex } from "@opencode-ai/codex-provider/provider"
 import { isCodexCredentials } from "@opencode-ai/codex-provider/auth"
 import { setContinuationFilePath, invalidateContinuation } from "@opencode-ai/codex-provider/continuation"
+import { setEmptyTurnLogPath, setEmptyTurnLogBus } from "@opencode-ai/codex-provider/empty-turn-log"
 import type { TokenResponse, PkceCodes } from "@opencode-ai/codex-provider"
 import { Log } from "../util/log"
 import { Installation } from "../installation"
@@ -251,6 +252,35 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
 
         // Initialize continuation file path once
         setContinuationFilePath(path.join(Global.Path.state, "ws-continuation.json"))
+
+        // Initialize empty-turn forensic log path once. JSONL is the load-bearing
+        // evidence path per spec codex-empty-turn-recovery Decision D-2; bus
+        // mirror is non-load-bearing convenience per DD-2 / INV-06. The provider
+        // package never imports Global.Path / Bus directly (INV-16 — provider
+        // boundary discipline) — they are injected here at runtime initialization,
+        // matching the setContinuationFilePath pattern above.
+        setEmptyTurnLogPath(path.join(Global.Path.state, "codex", "empty-turns.jsonl"))
+        // Bus mirroring uses the generic GlobalBus EventEmitter directly so we
+        // don't need to define a typed BusEvent for what is intentionally a
+        // schemaless convenience channel (INV-06 — bus is non-load-bearing).
+        // Subscribers that want this signal can listen on GlobalBus "event"
+        // and filter on payload.type === "codex.emptyTurn".
+        try {
+          const { GlobalBus } = await import("../bus/global.js")
+          setEmptyTurnLogBus((channel: string, payload: unknown) => {
+            try {
+              GlobalBus.emit("event", {
+                directory: process.cwd(),
+                context: { directory: process.cwd() } as any,
+                payload: { type: channel, properties: payload },
+              })
+            } catch {
+              /* CET-002: bus publish failure is severity Low by design */
+            }
+          })
+        } catch {
+          /* If Bus module is unavailable in this runtime context, skip wiring */
+        }
 
         // Capture client for the onTokenRefresh closure below.
         const authClient = input.client

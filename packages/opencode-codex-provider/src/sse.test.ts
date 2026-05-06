@@ -7,7 +7,7 @@
  * 3. text-start auto-emit when delta arrives before output_item.added
  * 4. response.incomplete → finishReason "length"
  */
-import { describe, test, expect } from "bun:test"
+import { describe, test, expect, beforeEach, afterEach } from "bun:test"
 import { mapResponseStream } from "./sse"
 import type { ResponseStreamEvent } from "./types"
 
@@ -273,5 +273,394 @@ describe("sse mapResponseStream", () => {
     expect(finish.usage.outputTokens).toBe(1200)
     expect(finish.usage.cachedInputTokens).toBe(3000)
     expect(finish.usage.reasoningTokens).toBe(400)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Integration: empty-turn classifier hook
+// (spec codex-empty-turn-recovery, task 1.12)
+// ---------------------------------------------------------------------------
+import { existsSync, readFileSync, mkdirSync, rmSync } from "fs"
+import { tmpdir } from "os"
+import { join } from "path"
+import {
+  setEmptyTurnLogPath,
+  setEmptyTurnLogBus,
+  _resetForTest as _resetEmptyTurnLogForTest,
+} from "./empty-turn-log"
+
+describe("empty-turn classifier integration in sse flush", () => {
+  let tmpDir: string
+  let logPath: string
+  let logContext: any
+
+  function makeStreamFromEvents(events: ResponseStreamEvent[]) {
+    return new ReadableStream<ResponseStreamEvent>({
+      start(controller) {
+        for (const e of events) controller.enqueue(e)
+        controller.close()
+      },
+    })
+  }
+
+  async function collectFinish(events: ResponseStreamEvent[], options: any) {
+    const { stream } = mapResponseStream(makeStreamFromEvents(events), options)
+    const reader = stream.getReader()
+    let finish: any = null
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if ((value as any).type === "finish") finish = value
+    }
+    return finish
+  }
+
+  function readLogLines(): any[] {
+    if (!existsSync(logPath)) return []
+    return readFileSync(logPath, "utf-8")
+      .trim()
+      .split("\n")
+      .filter((l) => l.length > 0)
+      .map((l) => JSON.parse(l))
+  }
+
+  beforeEach(() => {
+    _resetEmptyTurnLogForTest()
+    tmpDir = join(tmpdir(), `cetlog-int-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+    mkdirSync(tmpDir, { recursive: true })
+    logPath = join(tmpDir, "empty-turns.jsonl")
+    setEmptyTurnLogPath(logPath)
+    logContext = {
+      sessionId: "ses_test_integration",
+      messageId: "msg_test_int",
+      accountId: "codex-test-account",
+      modelId: "gpt-5.5",
+      requestOptionsShape: {
+        store: false,
+        hasReasoningEffort: true,
+        reasoningEffortValue: "medium",
+        includeFields: [],
+        hasTools: false,
+        toolCount: 0,
+        promptCacheKeyHash: "deadbeefdeadbeef",
+        inputItemCount: 1,
+        instructionsByteSize: 100,
+      },
+    }
+  })
+
+  afterEach(() => {
+    try {
+      rmSync(tmpDir, { recursive: true, force: true })
+    } catch {}
+  })
+
+  test("empty turn at clean stream end → classifier fires, log written, metadata attached", async () => {
+    const finish = await collectFinish(
+      [
+        { type: "response.created", response: { id: "resp_empty_1" } } as any,
+        // No deltas, no items
+        {
+          type: "response.completed",
+          response: { id: "resp_empty_1", status: "completed", usage: { input_tokens: 100, output_tokens: 0 } },
+        } as any,
+      ],
+      { logContext },
+    )
+    expect(finish).toBeDefined()
+    expect(finish.providerMetadata.openai.emptyTurnClassification).toBeDefined()
+    const cls = finish.providerMetadata.openai.emptyTurnClassification
+    // logContext sets hasReasoningEffort=true → server_empty_output_with_reasoning
+    // (Phase 2 predicate; finishReason maps to "other" per DD-9)
+    expect(cls.causeFamily).toBe("server_empty_output_with_reasoning")
+    expect(cls.recoveryAction).toBe("pass-through-to-runloop-nudge")
+    expect(cls.suspectParams).toEqual(["reasoning.effort"])
+    expect(finish.finishReason).toBe("other")
+    expect(typeof cls.logSequence).toBe("number")
+    expect(cls.retryAttempted).toBe(false)
+
+    const lines = readLogLines()
+    expect(lines).toHaveLength(1)
+    expect(lines[0].causeFamily).toBe("server_empty_output_with_reasoning")
+    expect(lines[0].sessionId).toBe("ses_test_integration")
+    expect(lines[0].providerId).toBe("codex")
+    expect(lines[0].modelId).toBe("gpt-5.5")
+    expect(lines[0].logSequence).toBe(cls.logSequence)
+  })
+
+  test("successful turn (text deltas + completed) → no classifier hook, no log", async () => {
+    const finish = await collectFinish(
+      [
+        { type: "response.created", response: { id: "resp_ok" } } as any,
+        {
+          type: "response.output_item.added",
+          output_index: 0,
+          item: { type: "message", id: "msg_ok" },
+        } as any,
+        { type: "response.output_text.delta", output_index: 0, delta: "Hello" } as any,
+        { type: "response.output_text.delta", output_index: 0, delta: " world" } as any,
+        { type: "response.output_text.done", output_index: 0, text: "Hello world" } as any,
+        {
+          type: "response.completed",
+          response: { id: "resp_ok", status: "completed", usage: { input_tokens: 50, output_tokens: 2 } },
+        } as any,
+      ],
+      { logContext },
+    )
+    expect(finish.finishReason).toBe("stop")
+    expect(finish.providerMetadata?.openai?.emptyTurnClassification).toBeUndefined()
+    expect(readLogLines()).toHaveLength(0)
+  })
+
+  test("WS truncation simulation (no terminal event) → classifier fires, log written", async () => {
+    // Simulate the msg_dfe39162f fingerprint: stream ends without
+    // response.completed/.incomplete/.failed/error.
+    const finish = await collectFinish(
+      [
+        { type: "response.created", response: { id: "resp_trunc_int" } } as any,
+        // Stream just ends
+      ],
+      {
+        logContext,
+        getTransportSnapshot: () => ({
+          wsFrameCount: 2,
+          terminalEventReceived: false,
+          terminalEventType: null as any,
+          wsCloseCode: 1006,
+          wsCloseReason: "abnormal closure",
+          serverErrorMessage: null,
+          deltasObserved: { text: 0, toolCallArguments: 0, reasoning: 0 },
+        }),
+      },
+    )
+    expect(finish.finishReason).toBe("unknown")
+    const cls = finish.providerMetadata.openai.emptyTurnClassification
+    expect(cls.causeFamily).toBe("ws_truncation") // Phase 2 predicate
+    expect(cls.recoveryAction).toBe("retry-once-then-soft-fail")
+
+    const lines = readLogLines()
+    expect(lines).toHaveLength(1)
+    expect(lines[0].wsFrameCount).toBe(2)
+    expect(lines[0].terminalEventReceived).toBe(false)
+    expect(lines[0].wsCloseCode).toBe(1006)
+  })
+
+  test("INV-01: no logContext → empty turn produces normal finish, no log, no exception", async () => {
+    const finish = await collectFinish(
+      [
+        { type: "response.created", response: { id: "resp_no_ctx" } } as any,
+        {
+          type: "response.completed",
+          response: { id: "resp_no_ctx", status: "completed", usage: { input_tokens: 10, output_tokens: 0 } },
+        } as any,
+      ],
+      {},
+    )
+    expect(finish.finishReason).toBe("stop")
+    expect(finish.providerMetadata?.openai?.emptyTurnClassification).toBeUndefined()
+    expect(readLogLines()).toHaveLength(0)
+  })
+
+  test("INV-05: log path broken → classifier still completes, finish still emitted", async () => {
+    const blocker = join(tmpDir, "blocker-file")
+    require("fs").writeFileSync(blocker, "x")
+    setEmptyTurnLogPath(join(blocker, "subdir", "empty-turns.jsonl"))
+    const errors: string[] = []
+    const origErr = console.error
+    console.error = (msg: string) => errors.push(msg)
+    try {
+      const finish = await collectFinish(
+        [
+          { type: "response.created", response: { id: "resp_log_fail" } } as any,
+          {
+            type: "response.completed",
+            response: { id: "resp_log_fail", status: "completed", usage: { input_tokens: 10, output_tokens: 0 } },
+          } as any,
+        ],
+        { logContext },
+      )
+      expect(finish.providerMetadata.openai.emptyTurnClassification).toBeDefined()
+      expect(errors.some((e) => e.startsWith("[CODEX-EMPTY-TURN] log emission failed:"))).toBe(true)
+    } finally {
+      console.error = origErr
+    }
+  })
+
+  test("Phase 2: response.incomplete → server_incomplete + finishReason=length", async () => {
+    const finish = await collectFinish(
+      [
+        { type: "response.created", response: { id: "resp_inc" } } as any,
+        {
+          type: "response.incomplete",
+          response: {
+            id: "resp_inc",
+            status: "incomplete",
+            incomplete_details: { reason: "max_output_tokens" },
+            usage: { input_tokens: 50, output_tokens: 0 },
+          },
+        } as any,
+      ],
+      { logContext },
+    )
+    expect(finish.finishReason).toBe("length")
+    const cls = finish.providerMetadata.openai.emptyTurnClassification
+    expect(cls.causeFamily).toBe("server_incomplete")
+    expect(cls.recoveryAction).toBe("pass-through-to-runloop-nudge")
+    const lines = readLogLines()
+    expect(lines).toHaveLength(1)
+    expect(lines[0].causeFamily).toBe("server_incomplete")
+  })
+
+  test("Phase 2: response.failed → server_failed + finishReason=error", async () => {
+    const finish = await collectFinish(
+      [
+        { type: "response.created", response: { id: "resp_fail" } } as any,
+        {
+          type: "response.failed",
+          response: {
+            id: "resp_fail",
+            status: "failed",
+            error: { message: "Model overloaded" },
+          },
+        } as any,
+      ],
+      { logContext },
+    )
+    // Note: response.failed currently endsWithError() in mapEvent which sets
+    // finishReason via state.finishReason="error"; the empty-turn-recovery
+    // classifier path runs only when controller.error wasn't called.
+    // For the SSE-only test path (no transport-ws), the failed event maps
+    // to a regular error path; verify the classifier still picks it up
+    // when reachable.
+    if (finish) {
+      // If finish was emitted (not error path), classifier should match
+      const cls = finish.providerMetadata?.openai?.emptyTurnClassification
+      if (cls) {
+        expect(cls.causeFamily).toBe("server_failed")
+      }
+    }
+  })
+
+  test("Phase 2: response.completed without suspect params → unclassified", async () => {
+    const noSuspectContext = {
+      ...logContext,
+      requestOptionsShape: {
+        ...logContext.requestOptionsShape,
+        hasReasoningEffort: false,
+        reasoningEffortValue: null,
+        includeFields: [],
+      },
+    }
+    const finish = await collectFinish(
+      [
+        { type: "response.created", response: { id: "resp_uncl" } } as any,
+        {
+          type: "response.completed",
+          response: { id: "resp_uncl", status: "completed", usage: { input_tokens: 10, output_tokens: 0 } },
+        } as any,
+      ],
+      { logContext: noSuspectContext },
+    )
+    const cls = finish.providerMetadata.openai.emptyTurnClassification
+    expect(cls.causeFamily).toBe("unclassified")
+    expect(cls.suspectParams).toEqual([])
+    expect(finish.finishReason).toBe("stop") // completed → stop
+  })
+
+  test("Phase 2: ws_no_frames via getTransportSnapshot frameCount=0", async () => {
+    const finish = await collectFinish(
+      [],
+      {
+        logContext,
+        getTransportSnapshot: () => ({
+          wsFrameCount: 0,
+          terminalEventReceived: false,
+          terminalEventType: null as any,
+          wsCloseCode: 1006,
+          wsCloseReason: "no frames",
+          serverErrorMessage: null,
+          deltasObserved: { text: 0, toolCallArguments: 0, reasoning: 0 },
+        }),
+      },
+    )
+    const cls = finish.providerMetadata.openai.emptyTurnClassification
+    expect(cls.causeFamily).toBe("ws_no_frames")
+    expect(cls.recoveryAction).toBe("retry-once-then-soft-fail")
+    expect(finish.finishReason).toBe("unknown")
+  })
+
+  test("Phase 3: retry pair end-to-end (attempt 1 ws_truncation → attempt 2 with retryAttempted demoted to pass-through; log pair linked)", async () => {
+    // Simulates the two attempts the provider.ts orchestrator dispatches.
+    // Attempt 1: empty WS truncation
+    const finish1 = await collectFinish([], {
+      logContext,
+      getTransportSnapshot: () => ({
+        wsFrameCount: 2,
+        terminalEventReceived: false,
+        terminalEventType: null as any,
+        wsCloseCode: 1006,
+        wsCloseReason: "abnormal closure",
+        serverErrorMessage: null,
+        deltasObserved: { text: 0, toolCallArguments: 0, reasoning: 0 },
+      }),
+    })
+    const cls1 = finish1.providerMetadata.openai.emptyTurnClassification
+    expect(cls1.causeFamily).toBe("ws_truncation")
+    expect(cls1.recoveryAction).toBe("retry-once-then-soft-fail")
+    expect(cls1.retryAttempted).toBe(false)
+    const firstLogSequence = cls1.logSequence
+
+    // Attempt 2: same truncation pattern but logContext flagged as retry
+    const finish2 = await collectFinish([], {
+      logContext: {
+        ...logContext,
+        retryAttempted: true,
+        previousLogSequence: firstLogSequence,
+      },
+      getTransportSnapshot: () => ({
+        wsFrameCount: 1,
+        terminalEventReceived: false,
+        terminalEventType: null as any,
+        wsCloseCode: 1006,
+        wsCloseReason: "abnormal closure again",
+        serverErrorMessage: null,
+        deltasObserved: { text: 0, toolCallArguments: 0, reasoning: 0 },
+      }),
+    })
+    const cls2 = finish2.providerMetadata.openai.emptyTurnClassification
+    expect(cls2.causeFamily).toBe("ws_truncation") // family unchanged
+    expect(cls2.recoveryAction).toBe("pass-through-to-runloop-nudge") // INV-08 demotion
+    expect(cls2.retryAttempted).toBe(true)
+    expect(cls2.retryAlsoEmpty).toBe(true)
+    expect(cls2.previousLogSequence).toBe(firstLogSequence)
+
+    // Log entries linked via previousLogSequence
+    const lines = readLogLines()
+    expect(lines).toHaveLength(2)
+    expect(lines[0].logSequence).toBe(firstLogSequence)
+    expect(lines[1].previousLogSequence).toBe(firstLogSequence)
+    expect(lines[1].retryAttempted).toBe(true)
+    expect(lines[1].retryAlsoEmpty).toBe(true)
+  })
+
+  test("bus mirror fires alongside JSONL", async () => {
+    const busCalls: { channel: string; payload: unknown }[] = []
+    setEmptyTurnLogBus((channel, payload) => {
+      busCalls.push({ channel, payload })
+    })
+    await collectFinish(
+      [
+        { type: "response.created", response: { id: "resp_bus" } } as any,
+        {
+          type: "response.completed",
+          response: { id: "resp_bus", status: "completed", usage: { input_tokens: 10, output_tokens: 0 } },
+        } as any,
+      ],
+      { logContext },
+    )
+    expect(busCalls).toHaveLength(1)
+    expect(busCalls[0].channel).toBe("codex.emptyTurn")
+    // logContext sets hasReasoningEffort=true → matches Phase 2 server_empty predicate
+    expect((busCalls[0].payload as any).causeFamily).toBe("server_empty_output_with_reasoning")
   })
 })

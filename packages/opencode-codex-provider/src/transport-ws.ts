@@ -175,13 +175,48 @@ function connectWs(url: string, headers: Record<string, string>): Promise<WebSoc
 // § 4  WS request → ResponseStreamEvent stream
 // ---------------------------------------------------------------------------
 
+/**
+ * WS-layer observation snapshot for the empty-turn classifier
+ * (spec codex-empty-turn-recovery, INV-04). Mutated by the SSE
+ * frame loop inside start(controller); read via getSnapshot()
+ * by the SSE flush block in sse.ts when classifying empty turns.
+ */
+interface WsObservation {
+  frameCount: number
+  terminalEventReceived: boolean
+  terminalEventType: "response.completed" | "response.incomplete" | "response.failed" | "error" | null
+  wsCloseCode: number | null
+  wsCloseReason: string | null
+  serverErrorMessage: string | null
+  deltasObserved: { text: number; toolCallArguments: number; reasoning: number }
+}
+
+export interface WsRequestResult {
+  events: ReadableStream<ResponseStreamEvent>
+  /** Snapshot getter for empty-turn classifier; returns a copy at call time */
+  getSnapshot: () => WsObservation
+}
+
 function wsRequest(input: {
   ws: WebSocket
   body: Record<string, unknown>
   sessionId: string
   state: WsSessionState
-}): ReadableStream<ResponseStreamEvent> {
+}): WsRequestResult {
   const { ws, body, sessionId, state } = input
+
+  // Per-request observation, lifted out of the start(controller) closure
+  // so the snapshot getter (used by SSE flush in sse.ts) can read these
+  // values at the moment of empty-turn classification.
+  const wsObs: WsObservation = {
+    frameCount: 0,
+    terminalEventReceived: false,
+    terminalEventType: null,
+    wsCloseCode: null,
+    wsCloseReason: null,
+    serverErrorMessage: null,
+    deltasObserved: { text: 0, toolCallArguments: 0, reasoning: 0 },
+  }
 
   // Strip transport-specific fields
   const { stream: _s, background: _b, ...wsBody } = body
@@ -242,17 +277,16 @@ function wsRequest(input: {
     `[CODEX-WS] REQ session=${sessionId} delta=${deltaMode} inputItems=${trimmedInputLength} fullItems=${fullInputLength} prevLen=${priorLastInputLength ?? "—"} prevResp=${prevRespPrefix} hasPrevResp=${!!wsBody.previous_response_id}${chainResetReason ? ` chainResetReason=${chainResetReason}` : ""} tail=${JSON.stringify(tail)}`,
   )
 
-  return new ReadableStream<ResponseStreamEvent>({
+  const events = new ReadableStream<ResponseStreamEvent>({
     start(controller) {
-      let frameCount = 0
       let idleTimer: ReturnType<typeof setTimeout> | null = null
 
       function resetIdleTimer() {
         if (idleTimer) clearTimeout(idleTimer)
         idleTimer = setTimeout(() => {
-          const reason = frameCount === 0 ? "first_frame_timeout" : "mid_stream_stall"
+          const reason = wsObs.frameCount === 0 ? "first_frame_timeout" : "mid_stream_stall"
           doInvalidate(reason)
-          if (frameCount === 0) {
+          if (wsObs.frameCount === 0) {
             controller.error(new Error(`Codex WS: ${reason}`))
             state.status = "failed"
             cleanup()
@@ -294,7 +328,7 @@ function wsRequest(input: {
       ws.onmessage = (event: MessageEvent) => {
         const data = typeof event.data === "string" ? event.data : ""
         if (!data) return
-        frameCount++
+        wsObs.frameCount++
         resetIdleTimer()
 
         try {
@@ -350,6 +384,9 @@ function wsRequest(input: {
             }
 
             doInvalidate("ws_error")
+            wsObs.terminalEventReceived = true
+            wsObs.terminalEventType = "error"
+            wsObs.serverErrorMessage = errorMsg.slice(0, 1024)
             endWithError(mapped || new Error(`Codex WS: ${errorMsg}`))
             return
           }
@@ -357,8 +394,20 @@ function wsRequest(input: {
           // Forward event
           controller.enqueue(parsed as ResponseStreamEvent)
 
+          // Track text-delta count at the WS layer (in addition to sse.ts's
+          // own counter) so the snapshot getter is accurate even when the
+          // SSE layer hasn't run flush yet (e.g., classifier called from
+          // ws.onclose before flush). Keeps INV-10 invariant intact.
+          if (parsed.type === "response.output_text.delta") wsObs.deltasObserved.text++
+          else if (parsed.type === "response.function_call_arguments.delta")
+            wsObs.deltasObserved.toolCallArguments++
+          else if (parsed.type === "response.reasoning_summary_text.delta")
+            wsObs.deltasObserved.reasoning++
+
           // Detect stream end
           if (parsed.type === "response.completed") {
+            wsObs.terminalEventReceived = true
+            wsObs.terminalEventType = "response.completed"
             const responseId = parsed.response?.id
             if (responseId) {
               const previousId = state.lastResponseId
@@ -395,12 +444,20 @@ function wsRequest(input: {
           }
 
           if (parsed.type === "response.incomplete") {
+            wsObs.terminalEventReceived = true
+            wsObs.terminalEventType = "response.incomplete"
+            const reason = (parsed.response as any)?.incomplete_details?.reason
+            if (typeof reason === "string") wsObs.serverErrorMessage = reason.slice(0, 1024)
             doInvalidate("close_before_completion")
             endStream()
             return
           }
 
           if (parsed.type === "response.failed") {
+            wsObs.terminalEventReceived = true
+            wsObs.terminalEventType = "response.failed"
+            const msg = parsed.response?.error?.message
+            if (typeof msg === "string") wsObs.serverErrorMessage = msg.slice(0, 1024)
             doInvalidate("response_failed")
             endWithError(new Error(`Codex: ${parsed.response?.error?.message || "Response failed"}`))
             return
@@ -412,14 +469,30 @@ function wsRequest(input: {
 
       ws.onerror = () => {
         doInvalidate("ws_error")
-        frameCount === 0 ? endWithError(new Error("WebSocket error")) : endStream()
+        wsObs.frameCount === 0 ? endWithError(new Error("WebSocket error")) : endStream()
       }
 
-      ws.onclose = () => {
+      ws.onclose = (closeEvent: CloseEvent) => {
+        // Capture WS-level close metadata for the empty-turn classifier
+        // (spec codex-empty-turn-recovery: ws_truncation predicate uses
+        // wsCloseCode/wsCloseReason to discriminate ws_no_frames vs
+        // ws_truncation). Always recorded; SSE flush reads it via getSnapshot.
+        if (closeEvent && typeof closeEvent.code === "number") {
+          wsObs.wsCloseCode = closeEvent.code
+        }
+        if (closeEvent && typeof closeEvent.reason === "string") {
+          wsObs.wsCloseReason = closeEvent.reason.slice(0, 256)
+        }
         if (state.status === "streaming") {
           doInvalidate("close_before_completion")
           state.status = "failed"
-          frameCount === 0 ? endWithError(new Error("WS closed before response")) : endStream()
+          // Note: we no longer call endWithError vs endStream based purely on
+          // frameCount; the SSE flush block (sse.ts) classifies the empty
+          // turn via getSnapshot() and emits a non-throwing finish part with
+          // classification metadata. This replaces the historical "silent
+          // endStream() at line 422" pattern that masked WS truncation as
+          // graceful close (per design.md DD-5; INV-01 keeps no-throw intact).
+          wsObs.frameCount === 0 ? endWithError(new Error("WS closed before response")) : endStream()
         }
       }
 
@@ -429,6 +502,14 @@ function wsRequest(input: {
       ws.send(JSON.stringify({ type: "response.create", ...wsBody }))
     },
   })
+
+  return {
+    events,
+    getSnapshot: () => ({
+      ...wsObs,
+      deltasObserved: { ...wsObs.deltasObserved },
+    }),
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -503,10 +584,16 @@ export interface WsTransportInput {
 }
 
 /**
- * Attempt WebSocket transport. Returns a ResponseStreamEvent stream,
+ * Attempt WebSocket transport. Returns a {events, getSnapshot} pair,
  * or null if WS is unavailable (caller should fall back to HTTP).
+ *
+ * `getSnapshot()` returns a copy of the current WS-layer observation
+ * (frameCount, terminalEventReceived, etc.) so the SSE flush block in
+ * sse.ts can build an EmptyTurnSnapshot when classifying empty turns.
  */
-export async function tryWsTransport(input: WsTransportInput): Promise<ReadableStream<ResponseStreamEvent> | null> {
+export async function tryWsTransport(
+  input: WsTransportInput,
+): Promise<{ events: ReadableStream<ResponseStreamEvent>; getSnapshot: () => WsObservation } | null> {
   const { sessionId, accessToken, accountId, body, wsUrl } = input
   const state = getSession(sessionId)
 
@@ -561,9 +648,9 @@ export async function tryWsTransport(input: WsTransportInput): Promise<ReadableS
     }
 
     try {
-      const events = wsRequest({ ws: state.ws, body: reqBody, sessionId, state })
+      const { events, getSnapshot } = wsRequest({ ws: state.ws, body: reqBody, sessionId, state })
       const probed = await probeFirstFrame(events, sessionId, state)
-      if (probed) return probed
+      if (probed) return { events: probed, getSnapshot }
     } catch {}
 
     state.ws = null
@@ -601,9 +688,9 @@ export async function tryWsTransport(input: WsTransportInput): Promise<ReadableS
     invalidateContinuation(sessionId)
 
     try {
-      const events = wsRequest({ ws, body: reqBody, sessionId, state })
+      const { events, getSnapshot } = wsRequest({ ws, body: reqBody, sessionId, state })
       const probed = await probeFirstFrame(events, sessionId, state)
-      if (probed) return probed
+      if (probed) return { events: probed, getSnapshot }
     } catch {}
 
     state.ws = null

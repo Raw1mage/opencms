@@ -20,6 +20,8 @@ import { getCompactThreshold, getMaxOutput } from "./models.js"
 import { convertPrompt, convertTools } from "./convert.js"
 import { buildHeaders, buildClientMetadata } from "./headers.js"
 import { parseSSEStream, mapResponseStream, mapFinishReason } from "./sse.js"
+import type { RequestOptionsShape } from "./empty-turn-classifier.js"
+import { createHash } from "crypto"
 import { refreshTokenWithMutex } from "./auth.js"
 import { tryWsTransport, resetWsSession } from "./transport-ws.js"
 import type { CodexCredentials, ResponsesApiRequest, WindowState } from "./types.js"
@@ -193,7 +195,7 @@ class CodexLanguageModel implements LanguageModelV2 {
 
     // § 2.1.5  Try WebSocket transport first
     const wsSessionId = sessionId ?? this.window.conversationId
-    const wsEvents = await tryWsTransport({
+    const wsTransport = await tryWsTransport({
       sessionId: wsSessionId,
       accessToken: this.options.credentials.access!,
       accountId: accountId,
@@ -204,16 +206,143 @@ class CodexLanguageModel implements LanguageModelV2 {
       conversationId: this.window.conversationId,
     })
 
-    if (wsEvents) {
-      // WS succeeded — map events to LMv2 stream
-      const { stream, responseIdPromise } = mapResponseStream(wsEvents)
-      // Capture response metadata asynchronously
-      responseIdPromise.then((id) => {
-        if (id) {
-          // Store for providerMetadata access
-          (this as any)._lastResponseId = id
-        }
+    // Build classifier log context once (reused for WS + HTTP paths).
+    // spec codex-empty-turn-recovery: log payload assembly per data-schema.json.
+    const requestOptionsShape: RequestOptionsShape = {
+      store: (body as any).store === true,
+      hasReasoningEffort: !!(body as any).reasoning?.effort,
+      reasoningEffortValue: ((body as any).reasoning?.effort as string | undefined) ?? null,
+      includeFields: Array.isArray((body as any).include) ? ((body as any).include as string[]) : [],
+      hasTools: Array.isArray((body as any).tools) && (body as any).tools.length > 0,
+      toolCount: Array.isArray((body as any).tools) ? (body as any).tools.length : 0,
+      promptCacheKeyHash: createHash("sha256")
+        .update(String((body as any).prompt_cache_key ?? ""))
+        .digest("hex")
+        .slice(0, 16),
+      inputItemCount: Array.isArray((body as any).input) ? (body as any).input.length : 0,
+      instructionsByteSize: typeof (body as any).instructions === "string"
+        ? Buffer.byteLength((body as any).instructions, "utf-8")
+        : 0,
+    }
+    const logContext = {
+      sessionId: wsSessionId,
+      accountId: accountId ?? null,
+      modelId: this.modelId,
+      requestOptionsShape,
+    }
+
+    if (wsTransport) {
+      // WS succeeded — map events to LMv2 stream, wrapped with retry
+      // orchestrator (spec codex-empty-turn-recovery, DD-7 / Phase 3).
+      // The outer stream buffers the finish part of attempt 1; if the
+      // classifier selected retry-once-then-soft-fail, attempt 2 runs
+      // and its parts replace attempt 1's buffered finish. INV-08 cap:
+      // strictly one retry, enforced by classifier (snapshot.retryAttempted
+      // demotes any further retry action to pass-through).
+
+      const { events: events1, getSnapshot: getSnap1 } = wsTransport
+      const { stream: stream1, responseIdPromise } = mapResponseStream(events1, {
+        logContext,
+        getTransportSnapshot: getSnap1,
       })
+      responseIdPromise.then((id) => {
+        if (id) (this as any)._lastResponseId = id
+      })
+
+      // Capture state needed to dispatch a fresh WS attempt for retry.
+      const retryInput = {
+        sessionId: wsSessionId,
+        accessToken: this.options.credentials.access!,
+        accountId,
+        turnState: this.turnState,
+        body: body as unknown as Record<string, unknown>,
+        wsUrl: CODEX_WS_URL,
+        userAgent: this.options.userAgent,
+        conversationId: this.window.conversationId,
+      }
+
+      const stream = new ReadableStream<LanguageModelV2StreamPart>({
+        async start(controller) {
+          // Attempt 1: forward parts except finish; buffer the finish part.
+          let bufferedFinish: any = null
+          const reader1 = stream1.getReader()
+          try {
+            while (true) {
+              const { done, value } = await reader1.read()
+              if (done) break
+              if ((value as any).type === "finish") {
+                bufferedFinish = value
+              } else {
+                controller.enqueue(value)
+              }
+            }
+          } catch (err) {
+            // INV-01: never throw out of the empty-turn pipeline. If
+            // attempt 1 errored mid-stream, surface the buffered finish
+            // (if any) and close gracefully.
+            if (bufferedFinish) controller.enqueue(bufferedFinish)
+            controller.close()
+            return
+          } finally {
+            try {
+              reader1.releaseLock()
+            } catch {}
+          }
+
+          const cls = bufferedFinish?.providerMetadata?.openai?.emptyTurnClassification
+          const shouldRetry = cls?.recoveryAction === "retry-once-then-soft-fail"
+
+          if (!shouldRetry) {
+            if (bufferedFinish) controller.enqueue(bufferedFinish)
+            controller.close()
+            return
+          }
+
+          // DD-7 retry: attempt 2 with retryAttempted=true so the second
+          // classifier call demotes any further retry to pass-through.
+          let wsTransport2: Awaited<ReturnType<typeof tryWsTransport>> = null
+          try {
+            wsTransport2 = await tryWsTransport(retryInput)
+          } catch {
+            wsTransport2 = null
+          }
+          if (!wsTransport2) {
+            // WS gave up between attempts; soft-fail with attempt 1's finish.
+            if (bufferedFinish) controller.enqueue(bufferedFinish)
+            controller.close()
+            return
+          }
+          const { events: events2, getSnapshot: getSnap2 } = wsTransport2
+          const { stream: stream2 } = mapResponseStream(events2, {
+            logContext: {
+              ...logContext,
+              retryAttempted: true,
+              previousLogSequence: typeof cls.logSequence === "number" ? cls.logSequence : null,
+            },
+            getTransportSnapshot: getSnap2,
+          })
+          const reader2 = stream2.getReader()
+          try {
+            while (true) {
+              const { done, value } = await reader2.read()
+              if (done) break
+              controller.enqueue(value)
+            }
+          } catch {
+            // INV-01: even retry must not throw upward. If attempt 2
+            // errored before producing a finish part, fall back to
+            // attempt 1's buffered finish so the runloop sees a clean
+            // close (with classification metadata pointing to the retry).
+            if (bufferedFinish) controller.enqueue(bufferedFinish)
+          } finally {
+            try {
+              reader2.releaseLock()
+            } catch {}
+            controller.close()
+          }
+        },
+      })
+
       return { stream, request: { body } }
     }
 
@@ -272,7 +401,7 @@ class CodexLanguageModel implements LanguageModelV2 {
 
     // Parse SSE → events → LMv2 stream
     const sseEvents = parseSSEStream(response.body)
-    const { stream, responseIdPromise } = mapResponseStream(sseEvents)
+    const { stream, responseIdPromise } = mapResponseStream(sseEvents, { logContext })
     responseIdPromise.then((id) => {
       if (id) (this as any)._lastResponseId = id
     })
