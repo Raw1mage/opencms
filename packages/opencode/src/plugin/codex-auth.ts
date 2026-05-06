@@ -312,13 +312,30 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
           authorize: async () => {
             const pkce = await generatePKCE()
             const state = generateState()
-            const redirectUri = `http://localhost:${OAUTH_PORT}/auth/callback`
+            const { redirectUri } = await startOAuthServer()
             const authUrl = buildAuthorizeUrl(redirectUri, pkce, state)
+            const callbackPromise = waitForOAuthCallback(pkce, state)
             return {
               url: authUrl,
-              instructions: "Open the link above in any browser, login, then paste the callback URL here",
-              method: "code" as const,
-              async callback(pastedUrl: string) {
+              instructions:
+                "Open the link in any browser. The window closes automatically once login completes; if it doesn't (e.g. browser is on a different machine), paste the callback URL into the field below.",
+              method: "auto" as const,
+              callback: async () => {
+                try {
+                  const tokens = await callbackPromise
+                  return {
+                    type: "success" as const,
+                    refresh: tokens.refresh_token,
+                    access: tokens.access_token,
+                    expires: Date.now() + (tokens.expires_in ?? 3600) * 1000,
+                    accountId: extractAccountId(tokens),
+                  }
+                } catch (e) {
+                  log.error("codex browser auto callback failed", { error: String(e) })
+                  return { type: "failed" as const }
+                }
+              },
+              code: async (pastedUrl: string) => {
                 try {
                   let code = pastedUrl.trim()
                   try { const parsed = new URL(code); code = parsed.searchParams.get("code") ?? code } catch {}

@@ -129,27 +129,34 @@ export interface AuthIdentity {
   username?: string
 }
 
+type AuthOauthSuccessResult =
+  | ({
+      type: "success"
+      provider?: string
+    } & AuthIdentity &
+      (
+        | {
+            refresh: string
+            access: string
+            expires: number
+            accountId?: string
+          }
+        | { key: string }
+      ))
+  | {
+      type: "failed"
+    }
+
 export type AuthOuathResult = { url: string; instructions: string } & (
   | {
       method: "auto"
-      callback(): Promise<
-        | ({
-            type: "success"
-            provider?: string
-          } & AuthIdentity &
-            (
-              | {
-                  refresh: string
-                  access: string
-                  expires: number
-                  accountId?: string
-                }
-              | { key: string }
-            ))
-        | {
-            type: "failed"
-          }
-      >
+      callback(): Promise<AuthOauthSuccessResult>
+      /**
+       * Optional manual paste fallback. When provided, the UI surfaces a
+       * "paste callback URL" field alongside the auto-callback waiting state.
+       * Whichever path completes first wins.
+       */
+      code?(code: string): Promise<AuthOauthSuccessResult>
     }
   | {
       method: "code"

@@ -414,8 +414,56 @@ export function DialogConnectProvider(props: { provider: string; onBack?: () => 
       if (instructions?.includes(":")) {
         return instructions.split(":")[1]?.trim()
       }
-      return instructions
+      return undefined
     })
+
+    const [pasteStore, setPasteStore] = createStore({
+      value: "",
+      error: undefined as string | undefined,
+      submitting: false,
+    })
+
+    async function submitPaste(raw: string) {
+      let extracted = raw.trim()
+      try {
+        const url = new URL(extracted)
+        const codeParam = url.searchParams.get("code")
+        if (codeParam) extracted = codeParam
+      } catch {
+        // not a URL — submit as-is
+      }
+      const result = await globalSDK.client.provider.oauth
+        .callback({
+          providerId: props.provider,
+          method: store.methodIndex,
+          code: extracted,
+        })
+        .then((value) => (value.error ? { ok: false as const, error: value.error } : { ok: true as const }))
+        .catch((error) => ({ ok: false as const, error }))
+      if (!alive.value) return
+      if (result.ok) {
+        await complete()
+        return
+      }
+      setPasteStore("error", formatError(result.error, language.t("provider.connect.oauth.code.invalid")))
+    }
+
+    async function handlePasteSubmit(e: SubmitEvent) {
+      e.preventDefault()
+      const form = e.currentTarget as HTMLFormElement
+      const raw = ((new FormData(form).get("code") as string) ?? "").trim()
+      if (!raw) {
+        setPasteStore("error", language.t("provider.connect.oauth.code.required"))
+        return
+      }
+      setPasteStore("error", undefined)
+      setPasteStore("submitting", true)
+      try {
+        await submitPaste(raw)
+      } finally {
+        if (alive.value) setPasteStore("submitting", false)
+      }
+    }
 
     onMount(() => {
       void (async () => {
@@ -446,17 +494,42 @@ export function DialogConnectProvider(props: { provider: string; onBack?: () => 
           <Link href={store.authorization!.url}>{language.t("provider.connect.oauth.auto.visit.link")}</Link>
           {language.t("provider.connect.oauth.auto.visit.suffix", { provider: provider().name })}
         </div>
-        <TextField
-          label={language.t("provider.connect.oauth.auto.confirmationCode")}
-          class="font-mono"
-          value={code()}
-          readOnly
-          copyable
-        />
+        <TextField readOnly copyable value={store.authorization?.url ?? ""} />
+        <Show when={code()}>
+          <TextField
+            label={language.t("provider.connect.oauth.auto.confirmationCode")}
+            class="font-mono"
+            value={code()}
+            readOnly
+            copyable
+          />
+        </Show>
         <div class="text-14-regular text-text-base flex items-center gap-4">
           <Spinner />
           <span>{language.t("provider.connect.status.waiting")}</span>
         </div>
+        <Show when={store.authorization?.hasCodeFallback}>
+          <div class="flex flex-col gap-4 pt-2 border-t border-border-base">
+            <div class="text-14-regular text-text-dimmed">
+              If auto-callback doesn&apos;t fire (browser on a different machine, port forwarding blocked), paste the
+              callback URL from the browser&apos;s address bar:
+            </div>
+            <form onSubmit={handlePasteSubmit} class="flex flex-col items-start gap-4">
+              <TextField
+                type="text"
+                placeholder="http://localhost:1455/auth/callback?code=..."
+                name="code"
+                value={pasteStore.value}
+                onChange={(v) => setPasteStore("value", v)}
+                validationState={pasteStore.error ? "invalid" : undefined}
+                error={pasteStore.error}
+              />
+              <Button class="w-auto" type="submit" size="large" variant="primary" disabled={pasteStore.submitting}>
+                {language.t("common.submit")}
+              </Button>
+            </form>
+          </div>
+        </Show>
       </div>
     )
   }

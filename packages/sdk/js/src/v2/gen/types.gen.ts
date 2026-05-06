@@ -3322,6 +3322,7 @@ export type ProviderAuthAuthorization = {
   url: string
   method: "auto" | "code"
   instructions: string
+  hasCodeFallback?: boolean
 }
 
 export type McpStatusConnected = {

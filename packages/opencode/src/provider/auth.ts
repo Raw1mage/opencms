@@ -58,6 +58,12 @@ export namespace ProviderAuth {
       url: z.string(),
       method: z.union([z.literal("auto"), z.literal("code")]),
       instructions: z.string(),
+      /**
+       * When method is "auto", indicates the plugin also accepts a manual
+       * paste-callback-URL fallback. UI should render a paste field alongside
+       * the auto-callback waiting state.
+       */
+      hasCodeFallback: z.boolean().optional(),
     })
     .meta({
       ref: "ProviderAuthAuthorization",
@@ -79,6 +85,7 @@ export namespace ProviderAuth {
           url: result.url,
           method: result.method,
           instructions: result.instructions,
+          hasCodeFallback: result.method === "auto" && typeof (result as { code?: unknown }).code === "function",
         }
       }
     },
@@ -101,7 +108,14 @@ export namespace ProviderAuth {
       }
 
       if (match.method === "auto") {
-        result = await match.callback()
+        // Hybrid: if caller provided a code AND the auto match exposes a paste
+        // fallback, route to the manual exchange instead of long-polling for
+        // the local OAuth server callback.
+        if (input.code && typeof match.code === "function") {
+          result = await match.code(input.code)
+        } else {
+          result = await match.callback()
+        }
       }
 
       if (result?.type === "success") {
