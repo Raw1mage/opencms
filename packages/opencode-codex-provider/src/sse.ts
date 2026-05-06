@@ -84,6 +84,13 @@ interface StreamState {
   toolArgBuffer: Map<number, string>
   /** call_ids for which tool-call has been emitted — guards duplicate emission */
   emittedToolCalls: Set<string>
+  /**
+   * Count of response.output_text.delta events forwarded as text-delta parts.
+   * Used by the empty-turn classifier (spec codex-empty-turn-recovery, INV-10):
+   * a turn with emittedTextDeltas > 0 is NEVER classified as empty, even if
+   * the stream truncated before a terminal event.
+   */
+  emittedTextDeltas: number
 }
 
 interface ResponseUsageCapture {
@@ -112,6 +119,7 @@ export function mapResponseStream(
     openTextId: null,
     toolArgBuffer: new Map(),
     emittedToolCalls: new Set(),
+    emittedTextDeltas: 0,
   }
 
   let resolveResponseId: (id: string | undefined) => void
@@ -264,6 +272,9 @@ function mapEvent(event: ResponseStreamEvent, state: StreamState): LanguageModel
         parts.push({ type: "text-start", id } as LanguageModelV2StreamPart)
       }
       parts.push({ type: "text-delta", id: state.openTextId, delta } as LanguageModelV2StreamPart)
+      // empty-turn classifier signal (INV-10): any text emitted disqualifies
+      // this turn from empty classification, even if stream later truncates
+      state.emittedTextDeltas++
       break
     }
 

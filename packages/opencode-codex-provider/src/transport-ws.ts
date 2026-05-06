@@ -245,6 +245,12 @@ function wsRequest(input: {
   return new ReadableStream<ResponseStreamEvent>({
     start(controller) {
       let frameCount = 0
+      // empty-turn classifier signal (spec codex-empty-turn-recovery, INV-04):
+      // distinguishes ws_truncation (frames>0 + no terminal) from server_*
+      // causes (terminal arrived). Set true on response.completed /
+      // response.incomplete / response.failed / top-level error events.
+      let terminalEventReceived = false
+      let terminalEventType: string | null = null
       let idleTimer: ReturnType<typeof setTimeout> | null = null
 
       function resetIdleTimer() {
@@ -350,6 +356,8 @@ function wsRequest(input: {
             }
 
             doInvalidate("ws_error")
+            terminalEventReceived = true
+            terminalEventType = "error"
             endWithError(mapped || new Error(`Codex WS: ${errorMsg}`))
             return
           }
@@ -359,6 +367,8 @@ function wsRequest(input: {
 
           // Detect stream end
           if (parsed.type === "response.completed") {
+            terminalEventReceived = true
+            terminalEventType = "response.completed"
             const responseId = parsed.response?.id
             if (responseId) {
               const previousId = state.lastResponseId
@@ -395,12 +405,16 @@ function wsRequest(input: {
           }
 
           if (parsed.type === "response.incomplete") {
+            terminalEventReceived = true
+            terminalEventType = "response.incomplete"
             doInvalidate("close_before_completion")
             endStream()
             return
           }
 
           if (parsed.type === "response.failed") {
+            terminalEventReceived = true
+            terminalEventType = "response.failed"
             doInvalidate("response_failed")
             endWithError(new Error(`Codex: ${parsed.response?.error?.message || "Response failed"}`))
             return
