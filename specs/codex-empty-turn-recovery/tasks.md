@@ -53,12 +53,12 @@ Add the `retry-once-then-soft-fail` recovery action implementation. Concentrated
 
 ## 4. Documentation + acceptance check (Phase 4)
 
-- [ ] 4.1 Append paragraph to [specs/architecture.md](../architecture.md) describing empty-turn classifier path inside codex provider; reference spec slug + JSONL log location
-- [ ] 4.2 Document JSONL log path in operator runbook (or wherever logrotate config lives) per DD-3; suggest weekly rotation + 90-day retention as starting point
-- [ ] 4.3 Run all 7 spec.md Acceptance Checks A1-A7; record results in handoff.md validation evidence section
-- [ ] 4.4 24-hour smoke test against real codex backend with classifier active across all 3 phases; collect log distribution; verify (a) zero hard-error exits, (b) all six cause-family values appear OR are documented as not-yet-observed, (c) no exception escaped SSE pipeline (per A6)
-- [ ] 4.5 Capture log distribution snapshot in event log (`docs/events/event_<YYYYMMDD>_codex-empty-turn-distribution.md`); informs whether D-3 `extend` revision is needed for OpenHands B/C parameter omission
-- [ ] 4.6 Promote spec to `verified` once 4.3 + 4.4 + 4.5 evidence captured
+- [x] 4.1 Append paragraph to [specs/architecture.md](../architecture.md) describing empty-turn classifier path inside codex provider; reference spec slug + JSONL log location
+- [x] 4.2 Document JSONL log path in operator runbook (or wherever logrotate config lives) per DD-3; suggest weekly rotation + 90-day retention as starting point — see [docs/runbooks/codex-empty-turn-log-runbook.md](../../docs/runbooks/codex-empty-turn-log-runbook.md)
+- [x] 4.3 Run all 7 spec.md Acceptance Checks A1-A7; record results in handoff.md validation evidence section (A1-A5, A7 PASS via tests; A6 deferred to live deploy)
+- [!] 4.4 24-hour smoke test against real codex backend with classifier active across all 3 phases; collect log distribution; verify (a) zero hard-error exits, (b) all six cause-family values appear OR are documented as not-yet-observed, (c) no exception escaped SSE pipeline (per A6) — **DEFERRED** to operator after merge + daemon redeploy; out of build-agent scope
+- [!] 4.5 Capture log distribution snapshot in event log (`docs/events/event_<YYYYMMDD>_codex-empty-turn-distribution.md`); informs whether D-3 `extend` revision is needed for OpenHands B/C parameter omission — **DEFERRED**, blocked on 4.4
+- [!] 4.6 Promote spec to `verified` once 4.3 + 4.4 + 4.5 evidence captured — **DEFERRED**, blocked on 4.4 + 4.5; spec stays at `implementing` until live evidence captured
 
 ## Per-phase ship gates
 

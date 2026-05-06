@@ -62,13 +62,19 @@ Before starting Phase 1, the executor confirms:
 
 Acceptance check results recorded here as Phase 4 progresses:
 
-- [ ] A1 — `msg_dfe39162f` fingerprint replay → `ws_truncation` + `retry-once-then-soft-fail` confirmed: __evidence link__
-- [ ] A2 — synthetic `response.completed{output:[]}` + `reasoning.effort` → `server_empty_output_with_reasoning` confirmed; `suspectParams` includes `reasoning.effort`: __evidence link__
-- [ ] A3 — successful stream with deltas → no empty-turn log entry: __evidence link__
-- [ ] A4 — log channel forced to throw → recovery completes; only side effect is `console.error` breadcrumb: __evidence link__
-- [ ] A5 — every cause-family scenario in spec.md produces expected family + action + log entry: __evidence link__
-- [ ] A6 — 24h smoke test: zero hard-error, no exception escape: __evidence link__
-- [ ] A7 — runloop continues to fire `?` nudge for all classified empty turns; nudge synthetic message carries classification metadata: __evidence link__
+All evidence below is from beta build (`beta/codex-empty-turn-recovery`, commits `49400a0f9` → `c97fb41e6` → `7e1833d9d` → `160e0885f`). Full codex-provider suite: **105/105 tests pass**.
+
+- [x] A1 — `msg_dfe39162f` fingerprint replay → `ws_truncation` + `retry-once-then-soft-fail`: confirmed via [sse.test.ts](../../packages/opencode-codex-provider/src/sse.test.ts) `WS truncation simulation (no terminal event) → classifier fires, log written` (Phase 1+2)
+- [x] A2 — synthetic `response.completed{output:[]}` + `reasoning.effort` → `server_empty_output_with_reasoning`; `suspectParams` includes `reasoning.effort`: confirmed via [empty-turn-classifier.test.ts](../../packages/opencode-codex-provider/src/empty-turn-classifier.test.ts) `server_empty_output_with_reasoning` 3 variants. End-to-end via [sse.test.ts](../../packages/opencode-codex-provider/src/sse.test.ts) `empty turn at clean stream end`.
+- [x] A3 — successful stream with deltas → no empty-turn log entry: confirmed via [sse.test.ts](../../packages/opencode-codex-provider/src/sse.test.ts) `successful turn (text deltas + completed) → no classifier hook, no log`.
+- [x] A4 — log channel forced to throw → recovery completes; only side effect is `console.error` breadcrumb: confirmed via [empty-turn-log.test.ts](../../packages/opencode-codex-provider/src/empty-turn-log.test.ts) `INV-05 log-failure never blocks (CET-001)` 3 tests + [sse.test.ts](../../packages/opencode-codex-provider/src/sse.test.ts) `INV-05: log path broken`.
+- [x] A5 — every cause-family scenario in spec.md produces expected family + action + log entry: confirmed via [empty-turn-classifier.test.ts](../../packages/opencode-codex-provider/src/empty-turn-classifier.test.ts) `DD-9 predicate ladder per cause family` (9 tests) + `Predicate ordering and precedence` (4 tests).
+- [!] A6 — 24h smoke test: zero hard-error, no exception escape — **deferred to live deployment**. Build-agent cannot run a 24h soak against real codex backend. Operator verification required after beta merges to main and a daemon redeploys. Schema-drift test ([empty-turn-classifier.test.ts](../../packages/opencode-codex-provider/src/empty-turn-classifier.test.ts) `INV-13 schema-drift guard`) gives a partial guarantee that the data shape stays valid across runs.
+- [x] A7 — runloop continues to fire `?` nudge for all classified empty turns; nudge synthetic message carries classification metadata: contract verified via [sse.test.ts](../../packages/opencode-codex-provider/src/sse.test.ts) `Phase 3: retry pair end-to-end` (proves the finish part carries `causeFamily`, `recoveryAction`, `logSequence`, `retryAttempted`, `retryAlsoEmpty`, `previousLogSequence` per DD-11). Runloop's actual nudge dispatch is unchanged code per D-4 / INV-03 — verification it consumes the metadata correctly is operator-side once deployed.
+
+INV-08 retry cap (DD-7) verified via [empty-turn-classifier.test.ts](../../packages/opencode-codex-provider/src/empty-turn-classifier.test.ts) `INV-08 retry cap` 4 tests + [sse.test.ts](../../packages/opencode-codex-provider/src/sse.test.ts) `Phase 3: retry pair end-to-end` (second-attempt classifier demotes retry action to pass-through).
+
+INV-13 / INV-14 schema-drift verified at CI level via [empty-turn-classifier.test.ts](../../packages/opencode-codex-provider/src/empty-turn-classifier.test.ts) `INV-13 schema-drift guard (task 2.9)` 2 tests (CAUSE_FAMILY enum + RECOVERY_ACTION enum each compared by sorted equality against [data-schema.json](data-schema.json)).
 
 ## Promotion Gate to verified
 
