@@ -212,6 +212,56 @@ export function isScrollDebugEnabled() {
   return false // typeof window !== "undefined" && window.localStorage.getItem("opencode:scroll-debug") === "1"
 }
 
+export const SCROLL_INCIDENT_FLAG = "opencode:scroll-incident"
+
+export function isScrollIncidentCaptureEnabled() {
+  return typeof window !== "undefined" && window.localStorage.getItem(SCROLL_INCIDENT_FLAG) === "1"
+}
+
+let lastIncidentCapture = 0
+const INCIDENT_COOLDOWN_MS = 800
+
+export async function captureScrollIncident(kind: string, payload: Record<string, unknown>) {
+  if (!isScrollIncidentCaptureEnabled()) return
+  if (typeof window === "undefined") return
+  const now = Date.now()
+  if (now - lastIncidentCapture < INCIDENT_COOLDOWN_MS) return
+  lastIncidentCapture = now
+  const captureID = `scrollcap-${now}`
+  const capture: ScrollDebugEntry = {
+    time: now,
+    scope: "scroll-incident",
+    event: "anchor-incident",
+    marker: "OPENCODE_SCROLL_ANCHOR_INCIDENT",
+    captureID,
+    kind,
+    userAgent: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 240) : undefined,
+    visualViewportHeight: window.visualViewport?.height,
+    visualViewportOffsetTop: window.visualViewport?.offsetTop,
+    innerWidth: window.innerWidth,
+    innerHeight: window.innerHeight,
+    devicePixelRatio: window.devicePixelRatio,
+    url: window.location.href,
+    ...payload,
+  }
+  try {
+    const buffer = (window.__scrollDebugBuffer ??= [])
+    buffer.push(capture)
+    if (buffer.length > MAX_BUFFER) buffer.splice(0, buffer.length - MAX_BUFFER)
+    window.localStorage.setItem(
+      "opencode:scroll-incident:last",
+      JSON.stringify({ captureID, kind, time: now, payload }),
+    )
+  } catch {}
+  try {
+    await sendAutoCapture(capture)
+  } catch (error) {
+    if (typeof console !== "undefined") {
+      console.error("[scroll-incident] upload failed", error)
+    }
+  }
+}
+
 function ensureHelpers() {
   if (typeof window === "undefined") return
   window.__dumpScrollDebug ??= (options) => {

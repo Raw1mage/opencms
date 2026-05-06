@@ -1,7 +1,13 @@
 import { createEffect, on, onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
-import { isScrollDebugEnabled, pushScrollDebug, type ScrollDebugEntry } from "./scroll-debug"
+import {
+  captureScrollIncident,
+  isScrollDebugEnabled,
+  isScrollIncidentCaptureEnabled,
+  pushScrollDebug,
+  type ScrollDebugEntry,
+} from "./scroll-debug"
 
 export interface AutoScrollOptions {
   working: () => boolean
@@ -151,6 +157,14 @@ export function createAutoScroll(options: AutoScrollOptions) {
       stopRafLoop()
       setMode("free-reading", "circuit-breaker")
       debug("circuit-breaker-tripped", { hits: anchorHitTimes.length })
+      if (isScrollIncidentCaptureEnabled()) {
+        const el = scroll
+        void captureScrollIncident("circuit-breaker-tripped", {
+          hits: anchorHitTimes.length,
+          metrics: el ? metrics(el) : undefined,
+          mode: store.mode,
+        })
+      }
     }
   }
 
@@ -428,8 +442,28 @@ export function createAutoScroll(options: AutoScrollOptions) {
 
       markAuto(el)
 
+      let writeTrace: {
+        beforeWrite: { scrollTop: number; scrollHeight: number; clientHeight: number }
+        afterWrite: { scrollTop: number; scrollHeight: number; clientHeight: number }
+        target: number
+      } | undefined
       if (delta > 0) {
-        el.scrollTop = bottomScrollTop(el)
+        const target = bottomScrollTop(el)
+        const beforeWrite = {
+          scrollTop: el.scrollTop,
+          scrollHeight: el.scrollHeight,
+          clientHeight: el.clientHeight,
+        }
+        el.scrollTop = target
+        writeTrace = {
+          beforeWrite,
+          afterWrite: {
+            scrollTop: el.scrollTop,
+            scrollHeight: el.scrollHeight,
+            clientHeight: el.clientHeight,
+          },
+          target,
+        }
       }
 
       // Safety net: if we're far from bottom after the adjustment (or after
@@ -438,6 +472,39 @@ export function createAutoScroll(options: AutoScrollOptions) {
       // mean iOS anchor is fighting back every resize cycle.
       const remaining = distanceFromBottom(el)
       if (remaining > followThreshold()) {
+        if (isScrollIncidentCaptureEnabled()) {
+          let scrollerAnchor: string | undefined
+          let firstChildAnchor: string | undefined
+          let userMessageAnchor: string | undefined
+          let firstChildOuterHTML: string | undefined
+          try {
+            scrollerAnchor = getComputedStyle(el).overflowAnchor
+            const content = store.contentRef
+            const first = content?.firstElementChild as HTMLElement | undefined
+            firstChildAnchor = first ? getComputedStyle(first).overflowAnchor : undefined
+            firstChildOuterHTML = first ? first.outerHTML.slice(0, 240) : undefined
+            const userMsg = content?.querySelector<HTMLElement>('[id^="message-"]')
+            userMessageAnchor = userMsg ? getComputedStyle(userMsg).overflowAnchor : undefined
+          } catch {}
+          void captureScrollIncident("anchor-hit", {
+            delta,
+            remaining,
+            followThreshold: followThreshold(),
+            explicitFollow,
+            circuitBroken,
+            anchorHitsPriorToThis: anchorHitTimes.length,
+            writeTrace,
+            computedAnchors: {
+              scroller: scrollerAnchor,
+              firstContentChild: firstChildAnchor,
+              firstUserMessage: userMessageAnchor,
+            },
+            firstChildOuterHTML,
+            metrics: metrics(el),
+            lastScrollHeight,
+            mode: store.mode,
+          })
+        }
         recordAnchorHit()
         if (circuitBroken) {
           debug("resize-circuit-broken-snap", { delta, remaining })

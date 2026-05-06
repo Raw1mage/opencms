@@ -581,6 +581,23 @@ export const SettingsGeneral: Component = () => {
         )
     }
 
+    const SCROLL_INCIDENT_FLAG = "opencode:scroll-incident"
+    const readScrollIncidentFlag = () =>
+      typeof window !== "undefined" && window.localStorage.getItem(SCROLL_INCIDENT_FLAG) === "1"
+    const [scrollIncident, setScrollIncident] = createSignal(readScrollIncidentFlag())
+    const toggleScrollIncident = (checked: boolean) => {
+      if (typeof window === "undefined") return
+      if (checked) window.localStorage.setItem(SCROLL_INCIDENT_FLAG, "1")
+      else window.localStorage.removeItem(SCROLL_INCIDENT_FLAG)
+      setScrollIncident(checked)
+      showToast({
+        title: checked ? "Scroll incident capture ON" : "Scroll incident capture OFF",
+        description: checked
+          ? "Reproduce the jump-back bug. Captures land in scroll-capture-latest.json on the server."
+          : "No more captures will be sent.",
+      })
+    }
+
     return (
       <div class="flex flex-col gap-1">
         <h3 class="text-14-medium text-text-strong pb-2">Diagnostics</h3>
@@ -593,6 +610,15 @@ export const SettingsGeneral: Component = () => {
             <Button size="small" variant="secondary" onClick={sendDiagnostic}>
               Send snapshot
             </Button>
+          </SettingsRow>
+
+          <SettingsRow
+            title="Capture scroll incidents"
+            description="When ON, every anchor-hit during streaming POSTs a diagnostic payload (computed overflow-anchor, write trace, viewport metrics) to the server for RCA. Turn OFF when done."
+          >
+            <div data-action="settings-diagnostics-scroll-incident">
+              <Switch checked={scrollIncident()} onChange={toggleScrollIncident} />
+            </div>
           </SettingsRow>
         </div>
       </div>
