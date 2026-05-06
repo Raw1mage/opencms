@@ -41,15 +41,15 @@ Replace Phase 1 stub with real classifier predicates per design.md DD-9. No beha
 
 Add the `retry-once-then-soft-fail` recovery action implementation. Concentrated entirely in WS transport; no SSE-pipeline changes beyond receiving the second attempt's frames as if first.
 
-- [ ] 3.1 Factor WS open + frame-loop in `transport-ws.ts` into a callable function (preserve existing behavior; just enable invocation more than once)
-- [ ] 3.2 Add `state.retryCount: number` (starts at 0; max 1 per DD-7); add `state.previousLogSequence: number | null` to thread first-attempt log id into second attempt's classification call
-- [ ] 3.3 Implement retry dispatcher: when classifier returns `recoveryAction === "retry-once-then-soft-fail" && state.retryCount === 0`, increment retryCount, reopen WS with same body, re-enter frame loop; cap firmly at 1 (no exponential, no second retry)
-- [ ] 3.4 On second-attempt empty turn: classifier called with `retryAttempted: true`; recovery action becomes `pass-through-to-runloop-nudge` (the soft-fail half); log entry includes `retryAttempted: true, retryAlsoEmpty: true, previousLogSequence: <first-attempt-sequence>`
-- [ ] 3.5 Add `synthesize-from-deltas` recovery action implementation (DD-8 dormant): assemble accumulated text-delta payloads into a single text part; emit text-start + single text-delta + text-end; current cause-family logic does NOT select this, but the action must be operational for future use
-- [ ] 3.6 Update `providerMetadata.openai.emptyTurnClassification` shape per DD-11: include `retryAttempted`, `retryAlsoEmpty`, `logSequence`
-- [ ] 3.7 Unit test `retry-then-soft-fail-end-to-end.test.ts`: simulate WS truncation → retry → second attempt also empty → verify exactly one retry + soft-fail finish + two log entries linked via `previousLogSequence`
-- [ ] 3.8 Unit test `synthesize-from-deltas-dormant.test.ts`: directly invoke synthesize action with synthetic deltas; assert text-part assembly correctness; assert classifier never selects this action under any current cause-family scenario
-- [ ] 3.9 Re-run smoke test from 1.13; confirm retry-pair entries appear in JSONL when ws_truncation fires; confirm pair links via `previousLogSequence`
+- [x] 3.1 Factor WS open + frame-loop in `transport-ws.ts` into a callable function (preserve existing behavior; just enable invocation more than once)
+- [x] 3.2 Add `state.retryCount: number` (starts at 0; max 1 per DD-7); add `state.previousLogSequence: number | null` to thread first-attempt log id into second attempt's classification call
+- [x] 3.3 Implement retry dispatcher: when classifier returns `recoveryAction === "retry-once-then-soft-fail" && state.retryCount === 0`, increment retryCount, reopen WS with same body, re-enter frame loop; cap firmly at 1 (no exponential, no second retry)
+- [x] 3.4 On second-attempt empty turn: classifier called with `retryAttempted: true`; recovery action becomes `pass-through-to-runloop-nudge` (the soft-fail half); log entry includes `retryAttempted: true, retryAlsoEmpty: true, previousLogSequence: <first-attempt-sequence>`
+- [x] 3.5 Add `synthesize-from-deltas` recovery action implementation (DD-8 dormant): assemble accumulated text-delta payloads into a single text part; emit text-start + single text-delta + text-end; current cause-family logic does NOT select this, but the action must be operational for future use
+- [x] 3.6 Update `providerMetadata.openai.emptyTurnClassification` shape per DD-11: include `retryAttempted`, `retryAlsoEmpty`, `logSequence`
+- [x] 3.7 Unit test `retry-then-soft-fail-end-to-end.test.ts`: simulate WS truncation → retry → second attempt also empty → verify exactly one retry + soft-fail finish + two log entries linked via `previousLogSequence`
+- [x] 3.8 Unit test `synthesize-from-deltas-dormant.test.ts`: directly invoke synthesize action with synthetic deltas; assert text-part assembly correctness; assert classifier never selects this action under any current cause-family scenario
+- [x] 3.9 Re-run smoke test from 1.13; confirm retry-pair entries appear in JSONL when ws_truncation fires; confirm pair links via `previousLogSequence`
 
 ## 4. Documentation + acceptance check (Phase 4)
 

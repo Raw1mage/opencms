@@ -589,6 +589,60 @@ describe("empty-turn classifier integration in sse flush", () => {
     expect(finish.finishReason).toBe("unknown")
   })
 
+  test("Phase 3: retry pair end-to-end (attempt 1 ws_truncation → attempt 2 with retryAttempted demoted to pass-through; log pair linked)", async () => {
+    // Simulates the two attempts the provider.ts orchestrator dispatches.
+    // Attempt 1: empty WS truncation
+    const finish1 = await collectFinish([], {
+      logContext,
+      getTransportSnapshot: () => ({
+        wsFrameCount: 2,
+        terminalEventReceived: false,
+        terminalEventType: null as any,
+        wsCloseCode: 1006,
+        wsCloseReason: "abnormal closure",
+        serverErrorMessage: null,
+        deltasObserved: { text: 0, toolCallArguments: 0, reasoning: 0 },
+      }),
+    })
+    const cls1 = finish1.providerMetadata.openai.emptyTurnClassification
+    expect(cls1.causeFamily).toBe("ws_truncation")
+    expect(cls1.recoveryAction).toBe("retry-once-then-soft-fail")
+    expect(cls1.retryAttempted).toBe(false)
+    const firstLogSequence = cls1.logSequence
+
+    // Attempt 2: same truncation pattern but logContext flagged as retry
+    const finish2 = await collectFinish([], {
+      logContext: {
+        ...logContext,
+        retryAttempted: true,
+        previousLogSequence: firstLogSequence,
+      },
+      getTransportSnapshot: () => ({
+        wsFrameCount: 1,
+        terminalEventReceived: false,
+        terminalEventType: null as any,
+        wsCloseCode: 1006,
+        wsCloseReason: "abnormal closure again",
+        serverErrorMessage: null,
+        deltasObserved: { text: 0, toolCallArguments: 0, reasoning: 0 },
+      }),
+    })
+    const cls2 = finish2.providerMetadata.openai.emptyTurnClassification
+    expect(cls2.causeFamily).toBe("ws_truncation") // family unchanged
+    expect(cls2.recoveryAction).toBe("pass-through-to-runloop-nudge") // INV-08 demotion
+    expect(cls2.retryAttempted).toBe(true)
+    expect(cls2.retryAlsoEmpty).toBe(true)
+    expect(cls2.previousLogSequence).toBe(firstLogSequence)
+
+    // Log entries linked via previousLogSequence
+    const lines = readLogLines()
+    expect(lines).toHaveLength(2)
+    expect(lines[0].logSequence).toBe(firstLogSequence)
+    expect(lines[1].previousLogSequence).toBe(firstLogSequence)
+    expect(lines[1].retryAttempted).toBe(true)
+    expect(lines[1].retryAlsoEmpty).toBe(true)
+  })
+
   test("bus mirror fires alongside JSONL", async () => {
     const busCalls: { channel: string; payload: unknown }[] = []
     setEmptyTurnLogBus((channel, payload) => {

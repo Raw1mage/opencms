@@ -308,6 +308,93 @@ describe("INV-13 schema-drift guard (task 2.9)", () => {
   })
 })
 
+describe("INV-08 retry cap (DD-7)", () => {
+  test("retry attempt with ws_truncation pattern → recoveryAction demoted to pass-through", () => {
+    const result = classifyEmptyTurn(
+      baseSnapshot({
+        wsFrameCount: 3,
+        terminalEventReceived: false,
+        retryAttempted: true,
+      }),
+    )
+    expect(result.causeFamily).toBe(CAUSE_FAMILY.WS_TRUNCATION) // family unchanged
+    expect(result.recoveryAction).toBe(RECOVERY_ACTION.PASS_THROUGH_TO_RUNLOOP_NUDGE) // demoted
+  })
+
+  test("retry attempt with ws_no_frames pattern → demoted likewise", () => {
+    const result = classifyEmptyTurn(
+      baseSnapshot({ wsFrameCount: 0, retryAttempted: true }),
+    )
+    expect(result.causeFamily).toBe(CAUSE_FAMILY.WS_NO_FRAMES)
+    expect(result.recoveryAction).toBe(RECOVERY_ACTION.PASS_THROUGH_TO_RUNLOOP_NUDGE)
+  })
+
+  test("retry attempt with non-retry cause is unaffected (server_failed stays pass-through)", () => {
+    const result = classifyEmptyTurn(
+      baseSnapshot({
+        terminalEventReceived: true,
+        terminalEventType: "response.failed",
+        retryAttempted: true,
+      }),
+    )
+    expect(result.causeFamily).toBe(CAUSE_FAMILY.SERVER_FAILED)
+    expect(result.recoveryAction).toBe(RECOVERY_ACTION.PASS_THROUGH_TO_RUNLOOP_NUDGE)
+  })
+
+  test("first attempt (retryAttempted=false) still gets retry action for ws_truncation", () => {
+    const result = classifyEmptyTurn(
+      baseSnapshot({ wsFrameCount: 3, retryAttempted: false }),
+    )
+    expect(result.causeFamily).toBe(CAUSE_FAMILY.WS_TRUNCATION)
+    expect(result.recoveryAction).toBe(RECOVERY_ACTION.RETRY_ONCE_THEN_SOFT_FAIL)
+  })
+})
+
+describe("DD-8 dormant synthesize-from-deltas action", () => {
+  test("synthesizeTextFromDeltas returns empty array for empty input", () => {
+    const { synthesizeTextFromDeltas } = require("./empty-turn-classifier")
+    expect(synthesizeTextFromDeltas([])).toEqual([])
+  })
+
+  test("synthesizeTextFromDeltas combines deltas into text-start + text-delta + text-end", () => {
+    const { synthesizeTextFromDeltas } = require("./empty-turn-classifier")
+    const parts = synthesizeTextFromDeltas(["Hello", " ", "world"])
+    expect(parts).toHaveLength(3)
+    expect(parts[0].type).toBe("text-start")
+    expect(parts[1].type).toBe("text-delta")
+    expect(parts[1].delta).toBe("Hello world")
+    expect(parts[2].type).toBe("text-end")
+    // text-start id matches text-delta id matches text-end id
+    expect(parts[0].id).toBe(parts[1].id)
+    expect(parts[1].id).toBe(parts[2].id)
+  })
+
+  test("classifier never selects synthesize-from-deltas for any current scenario (DD-8 dormant)", () => {
+    // Walk every documented scenario; none should pick synthesize-from-deltas
+    const scenarios: EmptyTurnSnapshot[] = [
+      baseSnapshot(),
+      baseSnapshot({ wsFrameCount: 3 }),
+      baseSnapshot({ wsFrameCount: 0 }),
+      baseSnapshot({ terminalEventReceived: true, terminalEventType: "response.completed" }),
+      baseSnapshot({
+        terminalEventReceived: true,
+        terminalEventType: "response.completed",
+        requestOptionsShape: {
+          ...baseSnapshot().requestOptionsShape,
+          hasReasoningEffort: true,
+        },
+      }),
+      baseSnapshot({ terminalEventReceived: true, terminalEventType: "response.incomplete" }),
+      baseSnapshot({ terminalEventReceived: true, terminalEventType: "response.failed" }),
+      baseSnapshot({ retryAttempted: true, wsFrameCount: 5 }),
+    ]
+    for (const s of scenarios) {
+      const r = classifyEmptyTurn(s)
+      expect(r.recoveryAction).not.toBe(RECOVERY_ACTION.SYNTHESIZE_FROM_DELTAS)
+    }
+  })
+})
+
 describe("buildClassificationPayload assembly", () => {
   test("payload includes all snapshot fields + classification + retry context", () => {
     const snap = baseSnapshot({

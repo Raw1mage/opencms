@@ -132,6 +132,19 @@ export interface MapResponseStreamOptions {
     accountId: string | null
     modelId: string
     requestOptionsShape: RequestOptionsShape
+    /**
+     * Set true on the SECOND attempt of a retry-once-then-soft-fail
+     * recovery. Causes the classifier to demote retry actions to
+     * pass-through (INV-08 retry cap) and the log entry to record
+     * retryAttempted=true.
+     */
+    retryAttempted?: boolean
+    /**
+     * On retry attempt, the logSequence of the FIRST attempt's log
+     * entry. Enables join-by-pair forensic queries (M3/M4 metrics
+     * in observability.md).
+     */
+    previousLogSequence?: number | null
   }
   /**
    * Lazy snapshot of WS-layer observations at flush time. transport-ws.ts
@@ -282,6 +295,7 @@ export function mapResponseStream(
               }
             }
             const transportSnapshot = options.getTransportSnapshot?.() ?? fallbackSnapshot()
+            const retryAttempted = options.logContext.retryAttempted === true
             const snapshot: EmptyTurnSnapshot = {
               wsFrameCount: transportSnapshot.wsFrameCount,
               terminalEventReceived: transportSnapshot.terminalEventReceived,
@@ -291,11 +305,14 @@ export function mapResponseStream(
               serverErrorMessage: transportSnapshot.serverErrorMessage,
               deltasObserved: transportSnapshot.deltasObserved,
               requestOptionsShape: options.logContext.requestOptionsShape,
-              retryAttempted: false,
+              retryAttempted,
             }
             const classification = classifyEmptyTurn(snapshot)
             const logSequence = nextLogSequence()
-            const classifierPayload = buildClassificationPayload(snapshot, classification)
+            const classifierPayload = buildClassificationPayload(snapshot, classification, {
+              retryAlsoEmpty: retryAttempted ? true : null,
+              previousLogSequence: options.logContext.previousLogSequence ?? null,
+            })
             appendEmptyTurnLog({
               ...classifierPayload,
               timestamp: new Date().toISOString(),
@@ -323,8 +340,9 @@ export function mapResponseStream(
               recoveryAction: classification.recoveryAction,
               suspectParams: classification.suspectParams,
               logSequence,
-              retryAttempted: false,
-              retryAlsoEmpty: null,
+              retryAttempted,
+              retryAlsoEmpty: retryAttempted ? true : null,
+              previousLogSequence: options.logContext.previousLogSequence ?? null,
             }
             // DD-9 finishReason mapping per cause family.
             // server_empty_output_with_reasoning: even though

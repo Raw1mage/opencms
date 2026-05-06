@@ -152,6 +152,25 @@ export interface ClassificationResult {
  * DD-9 mapping table is authoritative; data-schema.json mirrors it.
  */
 export function classifyEmptyTurn(snapshot: EmptyTurnSnapshot): ClassificationResult {
+  const result = classifyEmptyTurnInner(snapshot)
+  // DD-7 hard cap on retry: if retry was already attempted and the
+  // classifier would still pick retry-once-then-soft-fail, demote to
+  // pass-through-to-runloop-nudge. Single source of truth for the cap
+  // lives in the classifier (INV-08) — the orchestrator just dispatches
+  // whatever action returns.
+  if (
+    snapshot.retryAttempted &&
+    result.recoveryAction === RECOVERY_ACTION.RETRY_ONCE_THEN_SOFT_FAIL
+  ) {
+    return {
+      ...result,
+      recoveryAction: RECOVERY_ACTION.PASS_THROUGH_TO_RUNLOOP_NUDGE,
+    }
+  }
+  return result
+}
+
+function classifyEmptyTurnInner(snapshot: EmptyTurnSnapshot): ClassificationResult {
   const { wsFrameCount, terminalEventReceived, terminalEventType, requestOptionsShape } = snapshot
 
   // Order matters per DD-9 table. Predicates are mutually exclusive in
@@ -233,6 +252,39 @@ export function classifyEmptyTurn(snapshot: EmptyTurnSnapshot): ClassificationRe
 // ---------------------------------------------------------------------------
 // § 5  Log payload assembly (helper; caller adds context fields)
 // ---------------------------------------------------------------------------
+
+/**
+ * DD-8 dormant action: synthesize LMv2 text parts from an array of
+ * accumulated delta payloads. NO current cause-family selects this
+ * action (Phase 3 / DD-12); it exists so a future cause-family
+ * extension (via extend mode) could select it without requiring
+ * fresh implementation.
+ *
+ * The hermes #5736 family is the canonical motivating case: codex
+ * returns response.completed{output:[]} despite text deltas having
+ * streamed. INV-10 prevents that case from being classified as empty
+ * in our pipeline (any emitted text disqualifies empty), so the
+ * action stays dormant. Implementation present + tested keeps the
+ * action vocabulary honest (INV-14) and ready for future use.
+ *
+ * Returns LMv2 stream-part-shaped objects as plain records; AI SDK
+ * type compatibility is structural so no import dependency leaks
+ * out of the classifier module.
+ */
+export function synthesizeTextFromDeltas(deltas: string[]): Array<
+  | { type: "text-start"; id: string }
+  | { type: "text-delta"; id: string; delta: string }
+  | { type: "text-end"; id: string }
+> {
+  if (deltas.length === 0) return []
+  const id = `synth_text_${Date.now()}_${Math.floor(Math.random() * 1e6)}`
+  const combined = deltas.join("")
+  return [
+    { type: "text-start", id },
+    { type: "text-delta", id, delta: combined },
+    { type: "text-end", id },
+  ]
+}
 
 /**
  * Fields the classifier + snapshot can produce by themselves. The caller
