@@ -275,12 +275,20 @@ export namespace Auth {
       const existingAccounts = await Account.list(providerKey)
       let existingAccountId: string | undefined
 
-      for (const [id, acc] of Object.entries(existingAccounts)) {
-        if (acc.type !== "subscription") continue
-        const existingBaseToken = parseBaseToken(acc.refreshToken)
-        if (existingBaseToken === baseToken) {
-          existingAccountId = id
-          break
+      // Targeted update by accountId path: when the caller addresses an existing
+      // account directly (token rotation persistence, dead-state clearing on
+      // upstream revoke), skip baseToken matching. Empty refresh would otherwise
+      // match nothing and fall through to phantom-account creation.
+      if (existingAccounts[providerId]) {
+        existingAccountId = providerId
+      } else {
+        for (const [id, acc] of Object.entries(existingAccounts)) {
+          if (acc.type !== "subscription") continue
+          const existingBaseToken = parseBaseToken(acc.refreshToken)
+          if (existingBaseToken === baseToken) {
+            existingAccountId = id
+            break
+          }
         }
       }
 
