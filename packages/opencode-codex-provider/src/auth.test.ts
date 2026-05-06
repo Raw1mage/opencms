@@ -52,9 +52,19 @@ describe("revokeRefreshToken", () => {
     await expect(revokeRefreshToken("rt")).resolves.toBeUndefined()
   })
 
-  test("throws on non-2xx (fail-closed)", async () => {
-    installFetch(new Response("{\"error\":\"invalid_token\"}", { status: 400 }))
-    await expect(revokeRefreshToken("rt")).rejects.toThrow(/Token revoke failed: HTTP 400/)
+  test("resolves on 4xx (token already dead — end state reached)", async () => {
+    installFetch(new Response("{\"error\":{\"message\":\"The refresh token has already been used\"}}", { status: 400 }))
+    await expect(revokeRefreshToken("rt")).resolves.toBeUndefined()
+  })
+
+  test("resolves on 401 (token already invalid)", async () => {
+    installFetch(new Response("{\"error\":\"invalid_token\"}", { status: 401 }))
+    await expect(revokeRefreshToken("rt")).resolves.toBeUndefined()
+  })
+
+  test("throws on 5xx (transient — fail-closed)", async () => {
+    installFetch(new Response("upstream down", { status: 503 }))
+    await expect(revokeRefreshToken("rt")).rejects.toThrow(/Token revoke failed: HTTP 503/)
   })
 
   test("throws on network error (fail-closed)", async () => {

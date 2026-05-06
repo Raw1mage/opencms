@@ -72,9 +72,18 @@ export async function refreshAccessToken(refreshToken: string): Promise<TokenRes
  *
  * Mirrors upstream codex-rs commit 22f7ef1cb7 (2026) — logout must notify the
  * OAuth edge before clearing local state, otherwise the backend token lives on
- * detached from any client record. Fail-closed is handled by the caller: this
- * helper throws on any non-2xx or network error so the caller can preserve
- * local credentials and surface the failure.
+ * detached from any client record.
+ *
+ * Outcome contract (parallel to refreshAccessToken):
+ *   • 2xx        → resolves (token revoked, RFC 7009 happy path)
+ *   • 4xx        → resolves (upstream confirms token is no longer usable —
+ *                   already-used, invalid_grant, expired. End state reached;
+ *                   nothing to preserve. Caller proceeds with local teardown.)
+ *   • 5xx / net  → throws (transient — caller should fail-closed and retry)
+ *
+ * The 4xx-as-success branch matters for revoking dead tokens (rotation race
+ * losers, already-used refresh) — without it admin-side account deletion
+ * gets stuck because there's no path to clear a corpse.
  *
  * Note: auth.openai.com diverges from RFC 7009 — the revoke endpoint rejects
  * application/x-www-form-urlencoded and requires application/json.
@@ -89,13 +98,11 @@ export async function revokeRefreshToken(refreshToken: string): Promise<void> {
       client_id: CLIENT_ID,
     }),
   })
-  if (!response.ok) {
-    const body = await response.text().catch(() => "")
-    // Truncate body in case upstream echoes the token or other sensitive data.
-    const snippet = body.slice(0, 200)
-    throw new Error(`Token revoke failed: HTTP ${response.status}${snippet ? ` — ${snippet}` : ""}`)
-  }
-  // 200/204 is a success per RFC 7009. No body content expected.
+  if (response.ok) return
+  if (response.status >= 400 && response.status < 500) return
+  const body = await response.text().catch(() => "")
+  const snippet = body.slice(0, 200)
+  throw new Error(`Token revoke failed: HTTP ${response.status}${snippet ? ` — ${snippet}` : ""}`)
 }
 
 // ---------------------------------------------------------------------------
