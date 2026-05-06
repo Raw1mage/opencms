@@ -31,7 +31,7 @@ describe("revokeRefreshToken", () => {
     globalThis.fetch = realFetch
   })
 
-  test("POSTs form-encoded token + token_type_hint=refresh_token to /oauth/revoke", async () => {
+  test("POSTs JSON token + token_type_hint=refresh_token to /oauth/revoke", async () => {
     const { calls } = installFetch(new Response(null, { status: 200 }))
 
     await revokeRefreshToken("refresh-abc123")
@@ -40,11 +40,11 @@ describe("revokeRefreshToken", () => {
     expect(calls[0].url).toBe("https://auth.openai.com/oauth/revoke")
     expect(calls[0].init?.method).toBe("POST")
     const headers = calls[0].init?.headers as Record<string, string>
-    expect(headers["Content-Type"]).toBe("application/x-www-form-urlencoded")
-    const body = new URLSearchParams(calls[0].init?.body as string)
-    expect(body.get("token")).toBe("refresh-abc123")
-    expect(body.get("token_type_hint")).toBe("refresh_token")
-    expect(body.get("client_id")).toBeTruthy()
+    expect(headers["Content-Type"]).toBe("application/json")
+    const body = JSON.parse(calls[0].init?.body as string)
+    expect(body.token).toBe("refresh-abc123")
+    expect(body.token_type_hint).toBe("refresh_token")
+    expect(body.client_id).toBeTruthy()
   })
 
   test("resolves on 204 (RFC 7009 compliant)", async () => {

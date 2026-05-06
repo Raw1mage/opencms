@@ -75,16 +75,19 @@ export async function refreshAccessToken(refreshToken: string): Promise<TokenRes
  * detached from any client record. Fail-closed is handled by the caller: this
  * helper throws on any non-2xx or network error so the caller can preserve
  * local credentials and surface the failure.
+ *
+ * Note: auth.openai.com diverges from RFC 7009 — the revoke endpoint rejects
+ * application/x-www-form-urlencoded and requires application/json.
  */
 export async function revokeRefreshToken(refreshToken: string): Promise<void> {
   const response = await fetch(`${ISSUER}/oauth/revoke`, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
       token: refreshToken,
       token_type_hint: "refresh_token",
       client_id: CLIENT_ID,
-    }).toString(),
+    }),
   })
   if (!response.ok) {
     const body = await response.text().catch(() => "")
