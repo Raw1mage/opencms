@@ -1,0 +1,107 @@
+[
+  {
+    "id": "P1",
+    "name": "WS truncation: ws.onclose mid-stream with frames-but-no-terminal",
+    "description": "Reproduces the msg_dfe39162f signature. Stream receives frames but never gets a terminal event; ws.onclose fires while state.status===streaming. Classifier picks ws_truncation + retry-once.",
+    "participants": [
+      { "id": "CODEX", "name": "Codex backend (chatgpt.com)" },
+      { "id": "C2", "name": "ws-transport", "componentRef": "C2" },
+      { "id": "C6", "name": "retry-dispatcher", "componentRef": "C6" },
+      { "id": "C3", "name": "sse-pipeline", "componentRef": "C3" },
+      { "id": "C4", "name": "empty-turn-classifier", "componentRef": "C4" },
+      { "id": "C5", "name": "empty-turn-logger", "componentRef": "C5" },
+      { "id": "C8", "name": "empty-turns-jsonl", "componentRef": "C8" },
+      { "id": "C7", "name": "runloop-empty-response-guard", "componentRef": "C7" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "C2", "to": "CODEX", "label": "ws.send(response.create body)", "componentRef": "C2" },
+      { "id": "MSG2", "from": "CODEX", "to": "C2", "label": "frame: response.created (frameCount=1)", "componentRef": "C2" },
+      { "id": "MSG3", "from": "CODEX", "to": "C2", "label": "frame: response.in_progress (frameCount=2)", "componentRef": "C2" },
+      { "id": "MSG4", "from": "CODEX", "to": "C2", "label": "ws.onclose (no terminal event ever arrived; frameCount=2; terminalEventReceived=false)", "componentRef": "C2" },
+      { "id": "MSG5", "from": "C2", "to": "C4", "label": "classifyEmptyTurn({frameCount:2, terminalEventReceived:false, ...})", "componentRef": "C4" },
+      { "id": "MSG6", "from": "C4", "to": "C5", "label": "emit log entry {causeFamily:ws_truncation, recoveryAction:retry-once-then-soft-fail, retryAttempted:false, logSequence:N}", "componentRef": "C5" },
+      { "id": "MSG7", "from": "C5", "to": "C8", "label": "appendJsonLine(...)", "componentRef": "C8" },
+      { "id": "MSG8", "from": "C4", "to": "C2", "label": "return {recoveryAction:retry-once-then-soft-fail, ...}", "componentRef": "C2" },
+      { "id": "MSG9", "from": "C2", "to": "C6", "label": "dispatchRetry(state, body)", "componentRef": "C6" },
+      { "id": "MSG10", "from": "C6", "to": "C2", "label": "reopen WS, re-enter frame loop (attempt 2; retryAttempted=true)", "componentRef": "C2" },
+      { "id": "MSG11", "from": "CODEX", "to": "C2", "label": "attempt 2 also closes mid-stream", "componentRef": "C2" },
+      { "id": "MSG12", "from": "C2", "to": "C4", "label": "classifyEmptyTurn({...,retryAttempted:true})", "componentRef": "C4" },
+      { "id": "MSG13", "from": "C4", "to": "C5", "label": "emit log entry {causeFamily:ws_truncation, recoveryAction:pass-through-to-runloop-nudge, retryAttempted:true, retryAlsoEmpty:true, previousLogSequence:N}", "componentRef": "C5" },
+      { "id": "MSG14", "from": "C5", "to": "C8", "label": "appendJsonLine(...)", "componentRef": "C8" },
+      { "id": "MSG15", "from": "C2", "to": "C3", "label": "endStream() with classification metadata", "componentRef": "C3" },
+      { "id": "MSG16", "from": "C3", "to": "C7", "label": "emit finish part {finishReason:unknown, providerMetadata.openai.emptyTurnClassification:{...}}", "componentRef": "C7" },
+      { "id": "MSG17", "from": "C7", "to": "C7", "label": "existing nudge logic fires (broad per D-4); synthetic ? message attaches classification metadata", "componentRef": "C7" }
+    ]
+  },
+  {
+    "id": "P2",
+    "name": "Server-side empty output with reasoning params (OpenHands B/C exposure)",
+    "description": "Codex returns response.completed normally but output is empty AND deltas were zero. Request body had reasoning.effort set. Classifier picks server_empty_output_with_reasoning + pass-through; suspectParams flagged for D-3 audit.",
+    "participants": [
+      { "id": "CODEX", "name": "Codex backend (chatgpt.com)" },
+      { "id": "C1", "name": "request-builder", "componentRef": "C1" },
+      { "id": "C2", "name": "ws-transport", "componentRef": "C2" },
+      { "id": "C3", "name": "sse-pipeline", "componentRef": "C3" },
+      { "id": "C4", "name": "empty-turn-classifier", "componentRef": "C4" },
+      { "id": "C5", "name": "empty-turn-logger", "componentRef": "C5" },
+      { "id": "C8", "name": "empty-turns-jsonl", "componentRef": "C8" },
+      { "id": "C7", "name": "runloop-empty-response-guard", "componentRef": "C7" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "C1", "to": "C2", "label": "build body with reasoning.effort=high; pass to transport", "componentRef": "C2" },
+      { "id": "MSG2", "from": "C2", "to": "CODEX", "label": "ws.send(body)", "componentRef": "C2" },
+      { "id": "MSG3", "from": "CODEX", "to": "C2", "label": "frames: response.created, response.in_progress (no deltas)", "componentRef": "C2" },
+      { "id": "MSG4", "from": "CODEX", "to": "C2", "label": "frame: response.completed { status:completed, output:[] }", "componentRef": "C2" },
+      { "id": "MSG5", "from": "C2", "to": "C3", "label": "feed frames; state.finishReason='stop'; emittedTextDeltas=0", "componentRef": "C3" },
+      { "id": "MSG6", "from": "C3", "to": "C4", "label": "flush block detects empty turn; classifyEmptyTurn({finishReason:stop, deltasObserved:{text:0,...}, requestOptionsShape:{hasReasoningEffort:true,...}})", "componentRef": "C4" },
+      { "id": "MSG7", "from": "C4", "to": "C4", "label": "match scenario 'server_empty_output_with_reasoning'; suspectParams=['reasoning.effort']", "componentRef": "C4" },
+      { "id": "MSG8", "from": "C4", "to": "C5", "label": "emit log entry {causeFamily:server_empty_output_with_reasoning, recoveryAction:pass-through-to-runloop-nudge, suspectParams:['reasoning.effort'], logSequence:N}", "componentRef": "C5" },
+      { "id": "MSG9", "from": "C5", "to": "C8", "label": "appendJsonLine(...)", "componentRef": "C8" },
+      { "id": "MSG10", "from": "C4", "to": "C3", "label": "return {recoveryAction:pass-through-to-runloop-nudge, ...}", "componentRef": "C3" },
+      { "id": "MSG11", "from": "C3", "to": "C7", "label": "emit finish part {finishReason:other, providerMetadata.openai.emptyTurnClassification:{...}}", "componentRef": "C7" },
+      { "id": "MSG12", "from": "C7", "to": "C7", "label": "nudge fires; ? synthetic message includes classification metadata for forensic correlation", "componentRef": "C7" }
+    ]
+  },
+  {
+    "id": "P3",
+    "name": "Successful turn (negative case): no empty-turn log emitted",
+    "description": "Normal turn with text deltas + response.completed. Verifies that classifier does NOT fire and no empty-turn log entry is written. Acceptance check A3.",
+    "participants": [
+      { "id": "CODEX", "name": "Codex backend (chatgpt.com)" },
+      { "id": "C2", "name": "ws-transport", "componentRef": "C2" },
+      { "id": "C3", "name": "sse-pipeline", "componentRef": "C3" },
+      { "id": "C4", "name": "empty-turn-classifier", "componentRef": "C4" },
+      { "id": "C5", "name": "empty-turn-logger", "componentRef": "C5" },
+      { "id": "C7", "name": "runloop-empty-response-guard", "componentRef": "C7" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "C2", "to": "CODEX", "label": "ws.send(body)", "componentRef": "C2" },
+      { "id": "MSG2", "from": "CODEX", "to": "C2", "label": "frames: response.created, response.output_item.added(message), response.output_text.delta * N", "componentRef": "C2" },
+      { "id": "MSG3", "from": "C2", "to": "C3", "label": "feed frames; emittedTextDeltas counter increments to N", "componentRef": "C3" },
+      { "id": "MSG4", "from": "CODEX", "to": "C2", "label": "frame: response.completed { status:completed }", "componentRef": "C2" },
+      { "id": "MSG5", "from": "C3", "to": "C3", "label": "flush block checks emittedTextDeltas > 0; SKIP classifier invocation", "componentRef": "C3" },
+      { "id": "MSG6", "from": "C3", "to": "C7", "label": "emit normal finish part {finishReason:stop}; no providerMetadata.emptyTurnClassification", "componentRef": "C7" }
+    ]
+  },
+  {
+    "id": "P4",
+    "name": "Log emission failure does not block recovery (resilience)",
+    "description": "Disk full / file handle error during JSONL append. Classifier swallows the error, emits console.error breadcrumb, completes recovery. Acceptance check A4.",
+    "participants": [
+      { "id": "C3", "name": "sse-pipeline", "componentRef": "C3" },
+      { "id": "C4", "name": "empty-turn-classifier", "componentRef": "C4" },
+      { "id": "C5", "name": "empty-turn-logger", "componentRef": "C5" },
+      { "id": "C8", "name": "empty-turns-jsonl", "componentRef": "C8" },
+      { "id": "C7", "name": "runloop-empty-response-guard", "componentRef": "C7" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "C3", "to": "C4", "label": "classifyEmptyTurn(...)", "componentRef": "C4" },
+      { "id": "MSG2", "from": "C4", "to": "C5", "label": "emit log entry", "componentRef": "C5" },
+      { "id": "MSG3", "from": "C5", "to": "C8", "label": "appendJsonLine(...) -> throws ENOSPC", "componentRef": "C8" },
+      { "id": "MSG4", "from": "C5", "to": "C5", "label": "swallow error; console.error('[CODEX-EMPTY-TURN] log emission failed: ENOSPC')", "componentRef": "C5" },
+      { "id": "MSG5", "from": "C5", "to": "C4", "label": "return as if logging succeeded", "componentRef": "C4" },
+      { "id": "MSG6", "from": "C4", "to": "C3", "label": "return {recoveryAction:..., logSequence:N}", "componentRef": "C3" },
+      { "id": "MSG7", "from": "C3", "to": "C7", "label": "emit finish part normally; recovery proceeds despite log failure", "componentRef": "C7" }
+    ]
+  }
+]

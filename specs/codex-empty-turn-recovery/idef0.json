@@ -1,0 +1,77 @@
+{
+  "diagram_title": "Recover Codex Empty Assistant Turn",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Build Codex Request Body",
+      "description": "Construct the Responses API request body (instructions, input, store, reasoning, include, tools, prompt_cache_key) from provider call inputs and provider options",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Stream Codex Response Frames",
+      "description": "Open WebSocket to chatgpt.com codex responses endpoint; transmit body; receive frames; track frameCount and terminalEventReceived; on premature close invoke classifier; on retry decision reopen connection once",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Translate SSE Events Into Stream Parts",
+      "description": "Map incoming codex SSE events into LanguageModelV2StreamPart sequence; accumulate emittedTextDeltas counter; in flush block detect empty turn and call classifier; emit finish part with classification metadata when present",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Classify Empty Turn Cause",
+      "description": "Pure-function classifier mapping observed stream state and request options shape into one of {ws_truncation, ws_no_frames, server_empty_output_with_reasoning, server_incomplete, server_failed, unclassified}; selects a non-blocking recovery action; returns suspectParams flagged for D-3 audit",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Persist Empty Turn Forensic Evidence",
+      "description": "Append one JSON line per classification to empty-turns.jsonl under XDG_STATE_HOME; mirror payload to bus channel codex.emptyTurn; swallow log failures with console.error breadcrumb so recovery never stalls on logging",
+      "decomposition": null
+    },
+    {
+      "id": "A6",
+      "title": "Augment Runloop Nudge With Classification",
+      "description": "Existing empty-response guard receives finish part with providerMetadata.openai.emptyTurnClassification; fires the broad question-mark nudge per Decision D-4 (no narrowing); attaches classification metadata to the synthetic nudge message for forensic correlation",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "provider call (modelId, messages, tools)", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A1:control", "label": "providerOptions (store, reasoningEffort, include)", "type": "control" },
+    { "id": "AR3", "source": "EXTERNAL", "target": "A1:mechanism", "label": "buildResponsesApiRequest in provider.ts", "type": "mechanism" },
+    { "id": "AR4", "source": "A1:output", "target": "A2:input", "label": "ResponsesApiRequest body", "type": "output" },
+    { "id": "AR5", "source": "A1:output", "target": "A4:control", "label": "requestOptionsShape (sanitized)", "type": "output" },
+
+    { "id": "AR6", "source": "EXTERNAL", "target": "A2:input", "label": "codex backend SSE frames", "type": "input" },
+    { "id": "AR7", "source": "EXTERNAL", "target": "A2:control", "label": "WS lifecycle events (onclose, onerror)", "type": "control" },
+    { "id": "AR8", "source": "EXTERNAL", "target": "A2:mechanism", "label": "WebSocket connection to chatgpt.com codex responses endpoint", "type": "mechanism" },
+    { "id": "AR9", "source": "A2:output", "target": "A3:input", "label": "parsed SSE event stream", "type": "output" },
+    { "id": "AR10", "source": "A2:output", "target": "A4:input", "label": "wsState snapshot (frameCount, terminalEventReceived, wsCloseCode) on premature close", "type": "output" },
+    { "id": "AR11", "source": "A4:output", "target": "A2:control", "label": "recoveryAction = retry-once-then-soft-fail (drives WS reopen)", "type": "output" },
+
+    { "id": "AR12", "source": "EXTERNAL", "target": "A3:control", "label": "AI SDK LanguageModelV2 protocol contract", "type": "control" },
+    { "id": "AR13", "source": "EXTERNAL", "target": "A3:mechanism", "label": "sse.ts event→stream-part mapping", "type": "mechanism" },
+    { "id": "AR14", "source": "A3:output", "target": "A4:input", "label": "streamStateSnapshot (finishReason, deltasObserved, openTextId, usage) on flush when empty", "type": "output" },
+    { "id": "AR15", "source": "A4:output", "target": "A3:control", "label": "classification result drives finishReason and providerMetadata payload", "type": "output" },
+    { "id": "AR16", "source": "A3:output", "target": "EXTERNAL", "label": "LanguageModelV2StreamPart sequence (text-delta, tool-call, finish) to AI SDK runloop", "type": "output" },
+    { "id": "AR17", "source": "A3:output", "target": "A6:input", "label": "finish part with providerMetadata.openai.emptyTurnClassification", "type": "output" },
+
+    { "id": "AR18", "source": "EXTERNAL", "target": "A4:control", "label": "cause-family enum and recovery-action enum (data-schema.json)", "type": "control" },
+    { "id": "AR19", "source": "EXTERNAL", "target": "A4:mechanism", "label": "empty-turn-classifier.ts pure function", "type": "mechanism" },
+    { "id": "AR20", "source": "A4:output", "target": "A5:input", "label": "classification payload {causeFamily, recoveryAction, suspectParams, logSequence, snapshots}", "type": "output" },
+
+    { "id": "AR21", "source": "EXTERNAL", "target": "A5:control", "label": "data-schema.json (log entry shape)", "type": "control" },
+    { "id": "AR22", "source": "EXTERNAL", "target": "A5:mechanism", "label": "empty-turn-log.ts; XDG_STATE_HOME filesystem; in-process Bus", "type": "mechanism" },
+    { "id": "AR23", "source": "A5:output", "target": "EXTERNAL", "label": "appended JSONL line in <state>/codex/empty-turns.jsonl (load-bearing evidence)", "type": "output" },
+    { "id": "AR24", "source": "A5:output", "target": "EXTERNAL", "label": "bus event on channel codex.emptyTurn (non-load-bearing)", "type": "output" },
+    { "id": "AR25", "source": "A5:output", "target": "EXTERNAL", "label": "console.error breadcrumb on log failure (fallback)", "type": "output" },
+
+    { "id": "AR26", "source": "EXTERNAL", "target": "A6:control", "label": "existing empty-response guard logic (broad nudge per D-4)", "type": "control" },
+    { "id": "AR27", "source": "EXTERNAL", "target": "A6:mechanism", "label": "opencode runloop", "type": "mechanism" },
+    { "id": "AR28", "source": "A6:output", "target": "EXTERNAL", "label": "synthetic question-mark message with classification metadata attached", "type": "output" }
+  ]
+}

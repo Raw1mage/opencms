@@ -1,0 +1,129 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A0",
+    "StepType": "initial",
+    "StepAction": "Idle; provider awaiting next assistant turn request",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["request_body_built AND ws_connection_opened"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "WS streaming; A2 receives codex frames, A3 emits text-delta and tool-call parts as deltas arrive; counters emittedTextDeltas and emittedToolCalls accumulate",
+    "LinkInputType": "track",
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2, 8],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "stream_ended AND emittedTextDeltas == 0 AND emittedToolCalls == 0",
+      "stream_ended AND (emittedTextDeltas > 0 OR emittedToolCalls > 0)"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Run classifier on streamStateSnapshot + requestOptionsShape; derive {causeFamily, recoveryAction, suspectParams, logSequence}",
+    "LinkInputType": "track",
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3],
+    "LinkOutputType": "track",
+    "Condition": ["classification_complete"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Persist log entry: append JSONL line to <state>/codex/empty-turns.jsonl AND publish bus event on codex.emptyTurn; on write failure swallow and emit console.error breadcrumb",
+    "LinkInputType": "track",
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["log_dispatch_attempted"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Apply recovery action selected by classifier",
+    "LinkInputType": "track",
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5, 6, 7],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "recoveryAction == retry-once-then-soft-fail AND retryAttempted == false",
+      "recoveryAction == synthesize-from-deltas",
+      "recoveryAction IN {pass-through-to-runloop-nudge, log-and-continue} OR retryAttempted == true"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Retry: WS reopens with same body; flip retryAttempted=true; cap at one attempt (DD-7); state.usage and counters reset for new attempt",
+    "LinkInputType": "track",
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["ws_reopened AND body_resent"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Synthesize text part from accumulated deltas (DORMANT: no current cause family selects this; reserved for future codex shape changes per DD-8)",
+    "LinkInputType": "track",
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [7],
+    "LinkOutputType": "track",
+    "Condition": ["synthesized_text_emitted"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A6",
+    "StepType": "normal",
+    "StepAction": "A3 emits finish part with providerMetadata.openai.emptyTurnClassification; A6 (runloop empty-response guard) fires broad question-mark nudge per D-4 and attaches classification metadata to the synthetic message",
+    "LinkInputType": "convergence_or",
+    "LinkInputNumber": [4, 5, 6],
+    "LinkOutputNumber": [9],
+    "LinkOutputType": "track",
+    "Condition": ["finish_with_classification_emitted AND nudge_dispatched"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 8,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Normal completion: emit finish part with finishReason in {stop, tool-calls, length}; classifier was NOT invoked; no empty-turn metadata attached",
+    "LinkInputType": "track",
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [9],
+    "LinkOutputType": "track",
+    "Condition": ["normal_finish_emitted"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 9,
+    "ModuleRef": "A0",
+    "StepType": "normal",
+    "StepAction": "Turn complete; runloop processes any nudge or normal finish; provider returns to idle",
+    "LinkInputType": "convergence_or",
+    "LinkInputNumber": [7, 8],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["session_ready_for_next_turn"],
+    "SubGrafcet": []
+  }
+]

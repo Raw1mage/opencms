@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "state": "planned",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-05-06T17:24:37.464Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-05-06T17:53:35.502Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Phase A+B artifacts complete: spec.md, design.md, data-schema.json, c4.json, sequence.json, idef0.json, grafcet.json all drafted; cause-family enum + log entry schema + recovery dispatch all defined; empty-turn classifier traceability A1-A6 wired through c4.json moduleRef and grafcet.json ModuleRef"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-05-06T18:01:24.059Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Phase planned artifacts complete: tasks.md (4 phases, 38 tasks with IDEF0-numbered IDs), handoff.md (Execution Contract / 13 Required Reads / 10 Stop Gates / Execution-Ready Checklist / Validation Evidence template), test-vectors.json (12 vectors covering A1-A7), errors.md (6 catalogued breadcrumbs CET-001..006, all non-throwing), observability.md (1 bus channel + 1 JSONL log + 7 derived metrics + recommended alerts/dashboards)"
+    }
+  ]
+}

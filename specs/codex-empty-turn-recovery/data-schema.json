@@ -1,0 +1,244 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opencode.local/specs/codex-empty-turn-recovery/data-schema.json",
+  "title": "Codex Empty-Turn Log Entry",
+  "description": "One JSONL line per empty-turn classification. Written by empty-turn-log.ts to <state>/codex/empty-turns.jsonl, mirrored to bus channel codex.emptyTurn.",
+  "schemaVersion": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "timestamp",
+    "logSequence",
+    "sessionId",
+    "messageId",
+    "accountId",
+    "providerId",
+    "modelId",
+    "causeFamily",
+    "recoveryAction",
+    "wsFrameCount",
+    "terminalEventReceived",
+    "deltasObserved",
+    "requestOptionsShape",
+    "streamStateSnapshot"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "Bump on any breaking change to this schema. Current: 1."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp when the classifier emitted this entry."
+    },
+    "logSequence": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Monotonic counter scoped to provider process lifetime. Mirrors the value attached to providerMetadata.openai.emptyTurnClassification.logSequence so forensic readers can join."
+    },
+    "sessionId": {
+      "type": "string",
+      "pattern": "^ses_[A-Za-z0-9]+$",
+      "description": "opencode session id."
+    },
+    "messageId": {
+      "type": "string",
+      "pattern": "^msg_[A-Za-z0-9]+$",
+      "description": "opencode message id of the assistant turn that landed empty."
+    },
+    "accountId": {
+      "type": ["string", "null"],
+      "description": "Codex account id assigned for this turn (may be null if the turn collapsed before account binding completed)."
+    },
+    "providerId": {
+      "type": "string",
+      "const": "codex"
+    },
+    "modelId": {
+      "type": "string",
+      "description": "Model id sent in the request body (e.g., 'gpt-5.5', 'gpt-5.3-codex')."
+    },
+    "causeFamily": {
+      "type": "string",
+      "enum": [
+        "ws_truncation",
+        "ws_no_frames",
+        "server_empty_output_with_reasoning",
+        "server_incomplete",
+        "server_failed",
+        "unclassified"
+      ],
+      "description": "Which cause family the classifier matched. Append-only enum; never remove or rename a value (per spec Requirement 'Cause-family enum is finite and append-only')."
+    },
+    "recoveryAction": {
+      "type": "string",
+      "enum": [
+        "retry-once-then-soft-fail",
+        "synthesize-from-deltas",
+        "pass-through-to-runloop-nudge",
+        "log-and-continue"
+      ],
+      "description": "Which recovery action the classifier selected. 'hard-error' is excluded by Decision D-1."
+    },
+    "wsFrameCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total WS frames received from codex before stream termination. Distinguishes ws_no_frames (==0) from ws_truncation (>0)."
+    },
+    "terminalEventReceived": {
+      "type": "boolean",
+      "description": "True iff one of {response.completed, response.incomplete, response.failed, error} was parsed during the stream."
+    },
+    "terminalEventType": {
+      "type": ["string", "null"],
+      "enum": ["response.completed", "response.incomplete", "response.failed", "error", null],
+      "description": "If terminalEventReceived is true, which event type. null otherwise."
+    },
+    "wsCloseCode": {
+      "type": ["integer", "null"],
+      "description": "WS close code from ws.onclose, when available. null if event was onerror."
+    },
+    "wsCloseReason": {
+      "type": ["string", "null"],
+      "maxLength": 256,
+      "description": "WS close reason string from ws.onclose, when available. Truncated to 256 chars."
+    },
+    "serverErrorMessage": {
+      "type": ["string", "null"],
+      "maxLength": 1024,
+      "description": "When causeFamily is server_failed or server_incomplete, the verbatim server message (truncated to 1024 chars). null otherwise."
+    },
+    "deltasObserved": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "toolCallArguments", "reasoning"],
+      "properties": {
+        "text": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of response.output_text.delta events received during the stream."
+        },
+        "toolCallArguments": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of response.function_call_arguments.delta events received."
+        },
+        "reasoning": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of response.reasoning_summary_text.delta events received."
+        }
+      },
+      "description": "Counts by event type. 'Empty turn' means text and toolCallArguments are both 0."
+    },
+    "requestOptionsShape": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["store", "hasReasoningEffort", "reasoningEffortValue", "includeFields", "hasTools", "toolCount", "promptCacheKeyHash", "inputItemCount", "instructionsByteSize", "suspectParams"],
+      "properties": {
+        "store": {
+          "type": "boolean",
+          "description": "Value of body.store sent in this request."
+        },
+        "hasReasoningEffort": {
+          "type": "boolean",
+          "description": "Whether body.reasoning.effort was set."
+        },
+        "reasoningEffortValue": {
+          "type": ["string", "null"],
+          "description": "Verbatim value of body.reasoning.effort, or null if unset."
+        },
+        "includeFields": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Verbatim list of body.include strings (e.g., ['reasoning.encrypted_content']). Empty array if unset."
+        },
+        "hasTools": {
+          "type": "boolean",
+          "description": "Whether body.tools was non-empty."
+        },
+        "toolCount": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of tool definitions in body.tools."
+        },
+        "promptCacheKeyHash": {
+          "type": "string",
+          "description": "SHA-256 hash (hex, first 16 chars) of body.prompt_cache_key. Sanitization: full key may contain account-derived bytes; we hash to enable correlation without leaking."
+        },
+        "inputItemCount": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of items in body.input array."
+        },
+        "instructionsByteSize": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Byte size of body.instructions string. Helps identify oversize-prompt patterns."
+        },
+        "suspectParams": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["reasoning.effort", "include.reasoning.encrypted_content", "prompt_cache_retention", "store"]
+          },
+          "description": "Subset of request parameters the classifier flagged as suspect for this cause family. Drives D-3 audit-before-omit decision: when a cause cluster correlates with specific suspectParams, that's the signal to extend the spec."
+        }
+      },
+      "description": "Sanitized shape of the request body. NOT the full body — only fields relevant to classification + audit. PII / token / full prompt content is NEVER logged."
+    },
+    "streamStateSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finishReasonAtFlush", "openTextId", "outputItemCount", "responseId", "usage"],
+      "properties": {
+        "finishReasonAtFlush": {
+          "type": ["string", "null"],
+          "description": "Value of state.finishReason when the classifier was invoked. null if no terminal event arrived."
+        },
+        "openTextId": {
+          "type": ["string", "null"],
+          "description": "Value of state.openTextId when classifier ran (indicates a text part was started but never closed)."
+        },
+        "outputItemCount": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "state.outputItems.size when classifier ran."
+        },
+        "responseId": {
+          "type": ["string", "null"],
+          "description": "Codex response id when classifier ran. null if no response.created/in_progress event arrived."
+        },
+        "usage": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "inputTokens": {"type": ["integer", "null"]},
+            "outputTokens": {"type": ["integer", "null"]},
+            "cachedTokens": {"type": ["integer", "null"]},
+            "reasoningTokens": {"type": ["integer", "null"]}
+          },
+          "description": "Verbatim state.usage when classifier ran. All-null indicates no usage event ever arrived."
+        }
+      },
+      "description": "Snapshot of internal SSE state at the moment of classification. Sufficient to forensically reconstruct what the parser saw."
+    },
+    "retryAttempted": {
+      "type": "boolean",
+      "default": false,
+      "description": "True iff this entry represents a turn where retry-once-then-soft-fail dispatched a retry. The retry's own attempt produces a separate log entry with retryAttempted=true."
+    },
+    "retryAlsoEmpty": {
+      "type": ["boolean", "null"],
+      "default": null,
+      "description": "If retryAttempted is true, whether the retry also landed empty. null if retryAttempted is false."
+    },
+    "previousLogSequence": {
+      "type": ["integer", "null"],
+      "description": "If this entry is the second attempt of a retry pair, the logSequence of the first attempt. Enables joining retry pairs in log analysis."
+    }
+  }
+}

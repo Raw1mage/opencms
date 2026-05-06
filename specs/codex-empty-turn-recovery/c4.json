@@ -1,0 +1,116 @@
+{
+  "diagram_title": "codex-empty-turn-recovery C4 Component View",
+  "level": "component",
+  "systems": [
+    {
+      "id": "SYS1",
+      "name": "opencode",
+      "description": "Self-hosted Claude-Code-derivative CLI/server/TUI/webapp bundle; this spec changes how the codex provider handles empty assistant turns"
+    }
+  ],
+  "containers": [
+    {
+      "id": "CT1",
+      "systemRef": "SYS1",
+      "name": "codex provider (packages/opencode-codex-provider)",
+      "description": "Standalone provider package implementing AI SDK LanguageModelV2 against Codex Responses API"
+    },
+    {
+      "id": "CT2",
+      "systemRef": "SYS1",
+      "name": "opencode runtime (packages/opencode)",
+      "description": "Bun server hosting session workflow, runloop with empty-response guard / ? nudge logic"
+    },
+    {
+      "id": "CT3",
+      "systemRef": "SYS1",
+      "name": "filesystem state",
+      "description": "XDG_STATE_HOME (~/.local/state/opencode) where empty-turns.jsonl is appended"
+    },
+    {
+      "id": "CT4",
+      "systemRef": "SYS1",
+      "name": "in-process bus",
+      "description": "Pub/sub bus inside opencode runtime; codex.emptyTurn channel surfaces classifications to optional consumers"
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "containerRef": "CT1",
+      "name": "request-builder",
+      "description": "buildResponsesApiRequest() in provider.ts; constructs Codex Responses body. No functional change in Phase 1; later may expose requestOptionsShape for audit logging.",
+      "moduleRef": "A1"
+    },
+    {
+      "id": "C2",
+      "containerRef": "CT1",
+      "name": "ws-transport",
+      "description": "transport-ws.ts; opens WS to chatgpt.com/backend-api/codex/responses, frames in/out. Tracks frameCount, terminalEventReceived. Replaces silent endStream() at line 422 with classifier call.",
+      "moduleRef": "A2"
+    },
+    {
+      "id": "C3",
+      "containerRef": "CT1",
+      "name": "sse-pipeline",
+      "description": "sse.ts; converts Codex SSE events to AI SDK LanguageModelV2StreamPart. Adds emittedTextDeltas counter. Flush block invokes classifier when no content was emitted.",
+      "moduleRef": "A3"
+    },
+    {
+      "id": "C4",
+      "containerRef": "CT1",
+      "name": "empty-turn-classifier",
+      "description": "NEW: empty-turn-classifier.ts; pure function (streamStateSnapshot, requestOptionsShape) -> {causeFamily, recoveryAction, suspectParams}. Single source of truth for cause-family discrimination per spec.md DD-9.",
+      "moduleRef": "A4"
+    },
+    {
+      "id": "C5",
+      "containerRef": "CT1",
+      "name": "empty-turn-logger",
+      "description": "NEW: empty-turn-log.ts; appends one JSON line to <state>/codex/empty-turns.jsonl per classification, mirrors to bus channel codex.emptyTurn. Failures swallowed with console.error breadcrumb (spec.md Forensic evidence preservation §3).",
+      "moduleRef": "A5"
+    },
+    {
+      "id": "C6",
+      "containerRef": "CT1",
+      "name": "retry-dispatcher",
+      "description": "Retry-once helper inside transport-ws.ts; for recoveryAction=retry-once-then-soft-fail, re-opens WS for the same body once. Caps at 1 retry per DD-7.",
+      "moduleRef": "A2"
+    },
+    {
+      "id": "C7",
+      "containerRef": "CT2",
+      "name": "runloop-empty-response-guard",
+      "description": "Existing ? nudge logic in opencode runloop. UNCHANGED in scope (D-4 keeps it broad). Reads providerMetadata.openai.emptyTurnClassification when present; passes through to nudge synthetic message.",
+      "moduleRef": "A6"
+    },
+    {
+      "id": "C8",
+      "containerRef": "CT3",
+      "name": "empty-turns-jsonl",
+      "description": "Append-only JSONL file at $XDG_STATE_HOME/opencode/codex/empty-turns.jsonl; load-bearing evidence path per D-2. External logrotate handles rotation per DD-3.",
+      "moduleRef": "A5"
+    },
+    {
+      "id": "C9",
+      "containerRef": "CT4",
+      "name": "bus-channel-codex-empty-turn",
+      "description": "In-process bus channel codex.emptyTurn; non-load-bearing convenience for live consumers. Subscribers may include future admin panel surface or telemetry shipper.",
+      "moduleRef": "A5"
+    }
+  ],
+  "relationships": [
+    { "from": "C2", "to": "C3", "description": "feeds parsed SSE frames into pipeline" },
+    { "from": "C2", "to": "C4", "description": "on ws.onclose with frames-but-no-terminal, calls classifier with WS-layer state (frameCount, terminalEventReceived, wsCloseCode)" },
+    { "from": "C2", "to": "C6", "description": "delegates retry dispatch when recoveryAction = retry-once-then-soft-fail" },
+    { "from": "C6", "to": "C2", "description": "re-enters WS open + frame-loop with same body; caps at 1 attempt" },
+    { "from": "C3", "to": "C4", "description": "in flush block, when emittedTextDeltas==0 && emittedToolCalls==0, calls classifier with SSE-layer state (finishReason, usage, deltas observed counts)" },
+    { "from": "C4", "to": "C5", "description": "after classification, hands payload to logger (always; D-2)" },
+    { "from": "C4", "to": "C3", "description": "returns {causeFamily, recoveryAction, suspectParams, logSequence} to flush block; flush emits finish part with classification in providerMetadata" },
+    { "from": "C5", "to": "C8", "description": "appends one JSONL line per classification; load-bearing path" },
+    { "from": "C5", "to": "C9", "description": "publishes same payload to bus; non-load-bearing convenience" },
+    { "from": "C3", "to": "C7", "description": "finish part with providerMetadata.openai.emptyTurnClassification reaches runloop" },
+    { "from": "C7", "to": "C7", "description": "fires ? nudge per existing logic (broad trigger, D-4); attaches classification metadata to nudge synthetic message" },
+    { "from": "C1", "to": "C2", "description": "passes built request body to WS transport for streaming" }
+  ]
+}

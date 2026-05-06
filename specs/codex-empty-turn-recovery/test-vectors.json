@@ -1,0 +1,415 @@
+[
+  {
+    "id": "TV-A1-ws-truncation-first-attempt",
+    "acceptance": "A1",
+    "scenario": "msg_dfe39162f fingerprint replay: WS receives frames but no terminal event; ws.onclose mid-stream; first attempt",
+    "given": {
+      "wsState": {
+        "frameCount": 2,
+        "terminalEventReceived": false,
+        "terminalEventType": null,
+        "wsCloseCode": 1006,
+        "wsCloseReason": "abnormal closure",
+        "retryCount": 0
+      },
+      "sseState": {
+        "emittedTextDeltas": 0,
+        "emittedToolCalls": [],
+        "finishReasonAtFlush": null,
+        "openTextId": null,
+        "outputItemCount": 0,
+        "responseId": "resp_abc123",
+        "usage": { "inputTokens": null, "outputTokens": null, "cachedTokens": null, "reasoningTokens": null }
+      },
+      "requestOptionsShape": {
+        "store": false,
+        "hasReasoningEffort": true,
+        "reasoningEffortValue": "medium",
+        "includeFields": [],
+        "hasTools": true,
+        "toolCount": 30,
+        "promptCacheKeyHash": "0123456789abcdef",
+        "inputItemCount": 1,
+        "instructionsByteSize": 38000,
+        "suspectParams": []
+      }
+    },
+    "when": "classifyEmptyTurn invoked from ws.onclose",
+    "then": {
+      "causeFamily": "ws_truncation",
+      "recoveryAction": "retry-once-then-soft-fail",
+      "suspectParams": [],
+      "logEntryWritten": true,
+      "logEntryFields": {
+        "causeFamily": "ws_truncation",
+        "recoveryAction": "retry-once-then-soft-fail",
+        "wsFrameCount": 2,
+        "terminalEventReceived": false,
+        "retryAttempted": false
+      }
+    }
+  },
+  {
+    "id": "TV-A1-ws-truncation-retry-also-empty",
+    "acceptance": "A1",
+    "scenario": "Retry attempt also produces empty turn; soft-fail half of retry-once-then-soft-fail",
+    "given": {
+      "wsState": {
+        "frameCount": 1,
+        "terminalEventReceived": false,
+        "terminalEventType": null,
+        "wsCloseCode": 1006,
+        "wsCloseReason": "abnormal closure",
+        "retryCount": 1
+      },
+      "sseState": {
+        "emittedTextDeltas": 0,
+        "emittedToolCalls": [],
+        "finishReasonAtFlush": null,
+        "openTextId": null,
+        "outputItemCount": 0,
+        "responseId": "resp_def456",
+        "usage": { "inputTokens": null, "outputTokens": null, "cachedTokens": null, "reasoningTokens": null }
+      },
+      "requestOptionsShape": {
+        "store": false,
+        "hasReasoningEffort": true,
+        "reasoningEffortValue": "medium",
+        "includeFields": [],
+        "hasTools": true,
+        "toolCount": 30,
+        "promptCacheKeyHash": "0123456789abcdef",
+        "inputItemCount": 1,
+        "instructionsByteSize": 38000,
+        "suspectParams": []
+      },
+      "previousLogSequence": 42
+    },
+    "when": "classifyEmptyTurn invoked from ws.onclose with retryAttempted=true",
+    "then": {
+      "causeFamily": "ws_truncation",
+      "recoveryAction": "pass-through-to-runloop-nudge",
+      "logEntryFields": {
+        "retryAttempted": true,
+        "retryAlsoEmpty": true,
+        "previousLogSequence": 42
+      },
+      "finishReasonEmitted": "unknown",
+      "thrownException": null
+    }
+  },
+  {
+    "id": "TV-A2-server-empty-output-with-reasoning",
+    "acceptance": "A2",
+    "scenario": "response.completed arrives with output:[] AND zero text deltas observed AND request body had reasoning.effort set",
+    "given": {
+      "wsState": {
+        "frameCount": 5,
+        "terminalEventReceived": true,
+        "terminalEventType": "response.completed",
+        "wsCloseCode": 1000,
+        "wsCloseReason": "normal closure",
+        "retryCount": 0
+      },
+      "sseState": {
+        "emittedTextDeltas": 0,
+        "emittedToolCalls": [],
+        "finishReasonAtFlush": "stop",
+        "openTextId": null,
+        "outputItemCount": 0,
+        "responseId": "resp_xyz789",
+        "usage": { "inputTokens": 12345, "outputTokens": 0, "cachedTokens": 8000, "reasoningTokens": 0 }
+      },
+      "requestOptionsShape": {
+        "store": false,
+        "hasReasoningEffort": true,
+        "reasoningEffortValue": "high",
+        "includeFields": ["reasoning.encrypted_content"],
+        "hasTools": true,
+        "toolCount": 30,
+        "promptCacheKeyHash": "fedcba9876543210",
+        "inputItemCount": 1,
+        "instructionsByteSize": 38000,
+        "suspectParams": []
+      }
+    },
+    "when": "classifyEmptyTurn invoked from sse.ts flush block",
+    "then": {
+      "causeFamily": "server_empty_output_with_reasoning",
+      "recoveryAction": "pass-through-to-runloop-nudge",
+      "suspectParams": ["reasoning.effort", "include.reasoning.encrypted_content"],
+      "finishReasonEmitted": "other",
+      "logEntryWritten": true,
+      "logEntryFields": {
+        "causeFamily": "server_empty_output_with_reasoning",
+        "suspectParams": ["reasoning.effort", "include.reasoning.encrypted_content"]
+      }
+    }
+  },
+  {
+    "id": "TV-A3-successful-turn-no-empty-log",
+    "acceptance": "A3",
+    "scenario": "Normal stream with text deltas + response.completed; classifier MUST NOT fire",
+    "given": {
+      "wsState": {
+        "frameCount": 12,
+        "terminalEventReceived": true,
+        "terminalEventType": "response.completed",
+        "wsCloseCode": 1000,
+        "wsCloseReason": "normal closure",
+        "retryCount": 0
+      },
+      "sseState": {
+        "emittedTextDeltas": 8,
+        "emittedToolCalls": [],
+        "finishReasonAtFlush": "stop",
+        "openTextId": null,
+        "outputItemCount": 1,
+        "responseId": "resp_normal_1",
+        "usage": { "inputTokens": 1500, "outputTokens": 300, "cachedTokens": 1200, "reasoningTokens": 100 }
+      },
+      "requestOptionsShape": {
+        "store": false,
+        "hasReasoningEffort": true,
+        "reasoningEffortValue": "medium",
+        "includeFields": [],
+        "hasTools": true,
+        "toolCount": 30,
+        "promptCacheKeyHash": "1111222233334444",
+        "inputItemCount": 1,
+        "instructionsByteSize": 38000,
+        "suspectParams": []
+      }
+    },
+    "when": "sse.ts flush block evaluates",
+    "then": {
+      "classifierInvoked": false,
+      "logEntryWritten": false,
+      "finishReasonEmitted": "stop",
+      "providerMetadataHasEmptyTurnClassification": false
+    }
+  },
+  {
+    "id": "TV-A4-log-failure-resilience",
+    "acceptance": "A4",
+    "scenario": "Disk full / file handle error during JSONL append; classifier MUST still complete recovery",
+    "given": {
+      "fault": "ENOSPC on file write to empty-turns.jsonl",
+      "wsState": {
+        "frameCount": 2,
+        "terminalEventReceived": false,
+        "terminalEventType": null,
+        "wsCloseCode": 1006,
+        "wsCloseReason": "abnormal closure",
+        "retryCount": 0
+      },
+      "sseState": {
+        "emittedTextDeltas": 0,
+        "emittedToolCalls": [],
+        "finishReasonAtFlush": null
+      }
+    },
+    "when": "classifyEmptyTurn invoked; log emission throws",
+    "then": {
+      "thrownException": null,
+      "consoleErrorBreadcrumb": "[CODEX-EMPTY-TURN] log emission failed: ENOSPC",
+      "recoveryProceeded": true,
+      "finishReasonEmitted": "unknown",
+      "providerMetadataPresent": true
+    }
+  },
+  {
+    "id": "TV-A5-server-incomplete-max-output-tokens",
+    "acceptance": "A5",
+    "scenario": "response.incomplete with reason=max_output_tokens AND zero text deltas",
+    "given": {
+      "wsState": {
+        "frameCount": 4,
+        "terminalEventReceived": true,
+        "terminalEventType": "response.incomplete"
+      },
+      "sseState": {
+        "emittedTextDeltas": 0,
+        "emittedToolCalls": [],
+        "finishReasonAtFlush": "length"
+      },
+      "incompleteDetailsReason": "max_output_tokens"
+    },
+    "when": "classifyEmptyTurn invoked",
+    "then": {
+      "causeFamily": "server_incomplete",
+      "recoveryAction": "pass-through-to-runloop-nudge",
+      "finishReasonEmitted": "length",
+      "logEntryFields": {
+        "serverErrorMessage": "max_output_tokens"
+      }
+    }
+  },
+  {
+    "id": "TV-A5-server-incomplete-other-reason",
+    "acceptance": "A5",
+    "scenario": "response.incomplete with reason!=max_output_tokens AND zero text deltas",
+    "given": {
+      "wsState": {
+        "frameCount": 3,
+        "terminalEventReceived": true,
+        "terminalEventType": "response.incomplete"
+      },
+      "sseState": {
+        "emittedTextDeltas": 0,
+        "emittedToolCalls": [],
+        "finishReasonAtFlush": "other"
+      },
+      "incompleteDetailsReason": "content_filter"
+    },
+    "when": "classifyEmptyTurn invoked",
+    "then": {
+      "causeFamily": "server_incomplete",
+      "recoveryAction": "pass-through-to-runloop-nudge",
+      "finishReasonEmitted": "other",
+      "logEntryFields": { "serverErrorMessage": "content_filter" }
+    }
+  },
+  {
+    "id": "TV-A5-server-failed",
+    "acceptance": "A5",
+    "scenario": "response.failed arrives with server error message",
+    "given": {
+      "wsState": {
+        "frameCount": 2,
+        "terminalEventReceived": true,
+        "terminalEventType": "response.failed"
+      },
+      "sseState": {
+        "emittedTextDeltas": 0,
+        "emittedToolCalls": [],
+        "finishReasonAtFlush": "error"
+      },
+      "serverErrorMessage": "Model overloaded; please retry"
+    },
+    "when": "classifyEmptyTurn invoked",
+    "then": {
+      "causeFamily": "server_failed",
+      "recoveryAction": "pass-through-to-runloop-nudge",
+      "finishReasonEmitted": "error",
+      "logEntryFields": { "serverErrorMessage": "Model overloaded; please retry" }
+    }
+  },
+  {
+    "id": "TV-A5-ws-no-frames",
+    "acceptance": "A5",
+    "scenario": "WS connection lost before any frame received",
+    "given": {
+      "wsState": {
+        "frameCount": 0,
+        "terminalEventReceived": false,
+        "wsCloseCode": 1006,
+        "wsCloseReason": "abnormal closure"
+      },
+      "sseState": {
+        "emittedTextDeltas": 0,
+        "emittedToolCalls": [],
+        "finishReasonAtFlush": null
+      }
+    },
+    "when": "classifyEmptyTurn invoked from ws.onclose",
+    "then": {
+      "causeFamily": "ws_no_frames",
+      "recoveryAction": "retry-once-then-soft-fail",
+      "finishReasonEmitted": "unknown"
+    }
+  },
+  {
+    "id": "TV-A5-unclassified",
+    "acceptance": "A5",
+    "scenario": "Empty turn matching none of the documented patterns",
+    "given": {
+      "wsState": {
+        "frameCount": 7,
+        "terminalEventReceived": true,
+        "terminalEventType": "response.completed"
+      },
+      "sseState": {
+        "emittedTextDeltas": 0,
+        "emittedToolCalls": [],
+        "finishReasonAtFlush": "stop"
+      },
+      "requestOptionsShape": {
+        "store": false,
+        "hasReasoningEffort": false,
+        "reasoningEffortValue": null,
+        "includeFields": [],
+        "hasTools": false,
+        "toolCount": 0,
+        "promptCacheKeyHash": "abcdef0123456789",
+        "inputItemCount": 1,
+        "instructionsByteSize": 1000,
+        "suspectParams": []
+      }
+    },
+    "when": "classifyEmptyTurn invoked",
+    "then": {
+      "causeFamily": "unclassified",
+      "recoveryAction": "pass-through-to-runloop-nudge",
+      "suspectParams": [],
+      "finishReasonEmitted": "unknown",
+      "logEntryWritten": true,
+      "logEntryFields": {
+        "causeFamily": "unclassified",
+        "streamStateSnapshotIncluded": true
+      }
+    }
+  },
+  {
+    "id": "TV-A7-nudge-receives-classification-metadata",
+    "acceptance": "A7",
+    "scenario": "Runloop nudge fires for empty turn with classification; nudge synthetic message MUST carry metadata",
+    "given": {
+      "finishPart": {
+        "type": "finish",
+        "finishReason": "unknown",
+        "providerMetadata": {
+          "openai": {
+            "responseId": "resp_xyz789",
+            "emptyTurnClassification": {
+              "causeFamily": "ws_truncation",
+              "recoveryAction": "pass-through-to-runloop-nudge",
+              "suspectParams": [],
+              "logSequence": 100,
+              "retryAttempted": true,
+              "retryAlsoEmpty": true
+            }
+          }
+        }
+      }
+    },
+    "when": "runloop empty-response guard processes finish part",
+    "then": {
+      "nudgeFired": true,
+      "nudgeSyntheticMessage": {
+        "text": "?\n<context_budget>...</context_budget>",
+        "providerMetadata": {
+          "openai": {
+            "emptyTurnClassification": {
+              "causeFamily": "ws_truncation",
+              "logSequence": 100
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "TV-INVARIANT-no-hard-error-ever",
+    "acceptance": "A6",
+    "scenario": "Invariant check: across all 11 test vectors above, no exception escapes SSE pipeline",
+    "given": { "executeAllAcceptanceVectors": true },
+    "when": "all vectors run end-to-end through provider stream",
+    "then": {
+      "thrownException": null,
+      "controllerErrorCalled": false,
+      "finishReasonsObserved": ["stop", "unknown", "other", "length", "error"],
+      "hardErrorObserved": false
+    }
+  }
+]
