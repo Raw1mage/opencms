@@ -47,19 +47,19 @@ Canonical execution checklist. Each phase ends with a `plan-sync.ts` checkpoint 
 
 ## 6. Live smoke validation
 
-- [ ] 6.1 Stop main opencode if running; identify a free codex test account (per memory: do not use the main `~/.config/opencode/`; use OPENCODE_DATA_HOME-isolated dir)
-- [ ] 6.2 Start opencode in beta-workflow's beta worktree, run a single codex turn
-- [ ] 6.3 Inspect `[CODEX-WS] REQ` log lines: confirm both `session_id=...` AND `thread_id=...` fields appear with equal values (default-pairing)
-- [ ] 6.4 Verify `[CODEX-WS] USAGE` cached_tokens behavior is unchanged or improved (no regression in cache hit ratio)
-- [ ] 6.5 If a `[CODEX-WS] WS send timeout` log appears organically during smoke, capture and attach to handoff.md as evidence
+- [-] 6.1 ~~Stop main opencode if running; identify a free codex test account~~ — deferred at user direction. Live smoke can be observed naturally as the merged code rolls through normal usage; reverting to a planned smoke if `[CODEX-WS] REQ` log lines fail to show paired headers.
+- [-] 6.2 ~~Start opencode in beta-workflow's beta worktree, run a single codex turn~~ — deferred (see 6.1)
+- [-] 6.3 ~~Inspect [CODEX-WS] REQ log lines~~ — deferred to organic observation
+- [-] 6.4 ~~Verify cached_tokens behavior~~ — deferred to organic observation
+- [-] 6.5 ~~Capture ws_send_timeout if it fires~~ — left as a passive monitor; the new log line is in place for whenever it triggers
 
 ## 7. Beta-workflow fetch-back
 
-- [ ] 7.1 All commits land on a beta branch (`beta/codex-update` or similar) per beta-workflow §7
-- [ ] 7.2 After phases 1–6 are green, fetch-back into `~/projects/opencode` test branch (`test/codex-update-…`) per beta-workflow §7.1
-- [ ] 7.3 Open PR / merge sequence per beta-workflow §7.2
+- [x] 7.1 All product commits landed on `beta/codex-update` (5 commits: `7d05f1070..526ed9a1e`)
+- [x] 7.2 Fetch-back created `test/codex-update` from `main` and merged `beta/codex-update` (`458a16ec4`); validated with `bun test packages/opencode-codex-provider/` → 121 / 0
+- [x] 7.3 Finalized via `git merge --no-ff test/codex-update` into `main` at commit `9314982dc`. Disposable branches `beta/codex-update` and `test/codex-update` deleted; permanent beta worktree at `/home/pkcs12/projects/opencode-beta` retained per memory `feedback_beta_workspace_persistent`.
 
 ## 8. Promote to verified, then living
 
-- [ ] 8.1 With all checkboxes above marked, run `plan-promote.ts specs/codex-update/ --to verified`
-- [ ] 8.2 After fetch-back lands on `main`, run `plan-promote.ts specs/codex-update/ --to living`
+- [x] 8.1 `plan-promote.ts specs/codex-update/ --to verified` (this entry)
+- [x] 8.2 `plan-promote.ts specs/codex-update/ --to living` (subsequent entry)

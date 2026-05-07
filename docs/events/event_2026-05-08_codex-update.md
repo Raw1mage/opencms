@@ -89,7 +89,36 @@ eed2453e5 feat(codex-provider): codex-update Phase 2 — prompt_cache_key source
 
 **Net change**: 6 source files + 4 test files modified; +295 / -19 lines (excluding spec).
 
-**Remaining (gated, awaiting user signoff)**:
-- Phase 6 — live smoke (requires real codex account turn; deferred until explicit go)
-- Phase 7 — fetch-back to test branch in mainRepo per beta-workflow §7.1
-- Phase 8 — promote `verified → living` after merge to `main`
+## Phase 6 — Live smoke (DEFERRED)
+
+User decision: defer to organic observation. The new log line `[CODEX-WS] WS send timeout …` is in place; the paired `session_id` / `thread_id` headers are emitted on every WS request. If anything looks wrong in production, revisit via `revise` mode.
+
+## Phase 7 — Fetch-back
+
+**Done**: 7.1, 7.2, 7.3
+
+- Fetch-back: `git checkout -b test/codex-update main && git merge --no-ff beta/codex-update` (merge commit `458a16ec4`)
+- Validation on `test/codex-update`: `bun test packages/opencode-codex-provider/` → 121 / 0
+- Concurrency surprise: while validation was in progress, user landed 4 unrelated commits on `test/codex-update` (working-cache reasoning channel, UI collapsible reasoning, app file tree refresh, L5 diagram regen) plus 16 dirty WT files. Per user direction "我全都要留。分別提交，全部合併", the dirty WT was committed in 3 narrow commits (`385d34098` paralysis detector, `28f23fde9` SDK regen, `7405786a5` L5 regen) and the entire `test/codex-update` was merged into `main`.
+- Finalize: `git merge --no-ff test/codex-update` into `main` at commit `9314982dc`. Bun test 121/0 post-merge.
+
+## Phase 8 — Promote spec to living
+
+**Done**: 8.1, 8.2
+
+- `implementing → verified` (validation evidence attached)
+- `verified → living` (codex-update is now current code state)
+- Disposable branches deleted: `beta/codex-update`, `test/codex-update`
+- Permanent beta worktree retained: `/home/pkcs12/projects/opencode-beta` (per memory `feedback_beta_workspace_persistent`)
+
+## Final state
+
+| | |
+|---|---|
+| spec state | `living` |
+| main HEAD | `9314982dc Finalize: merge test/codex-update into main` |
+| codex-update product commits | 5 (Phases 1–5) |
+| user's parallel commits absorbed | 4 prior + 3 narrowly-committed by Claude on user's behalf |
+| disposable branches | deleted |
+| beta worktree | retained (off-branch, detached HEAD at `526ed9a1e`) |
+| total tests | 121 pass / 0 fail |
