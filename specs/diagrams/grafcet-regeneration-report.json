@@ -1,121 +1,116 @@
 {
-  "total": 14,
-  "ok": 14,
-  "written": 14,
+  "total": 13,
+  "ok": 13,
+  "written": 13,
   "warnings": 0,
   "errors": 0,
-  "items": [
+  "excluded": [
+    "grafcet-renderer-overhaul"
+  ],
+  "entries": [
     {
-      "slug": "account",
+      "name": "account",
+      "input": "/home/pkcs12/projects/opencode/specs/account/grafcet.json",
+      "sibling_output": "/home/pkcs12/projects/opencode/specs/account/grafcet.svg",
+      "output": "/home/pkcs12/projects/opencode/specs/diagrams/account.svg",
       "status": "ok",
-      "ok": true,
-      "warnings": 0,
-      "errors": 0,
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/account.svg"
+      "diagnostics": []
     },
     {
-      "slug": "agent-runtime",
+      "name": "agent-runtime",
+      "input": "/home/pkcs12/projects/opencode/specs/agent-runtime/grafcet.json",
+      "sibling_output": "/home/pkcs12/projects/opencode/specs/agent-runtime/grafcet.svg",
+      "output": "/home/pkcs12/projects/opencode/specs/diagrams/agent-runtime.svg",
       "status": "ok",
-      "ok": true,
-      "warnings": 0,
-      "errors": 0,
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/agent-runtime.svg"
+      "diagnostics": []
     },
     {
-      "slug": "app-market",
+      "name": "app-market",
+      "input": "/home/pkcs12/projects/opencode/specs/app-market/grafcet.json",
+      "sibling_output": "/home/pkcs12/projects/opencode/specs/app-market/grafcet.svg",
+      "output": "/home/pkcs12/projects/opencode/specs/diagrams/app-market.svg",
       "status": "ok",
-      "ok": true,
-      "warnings": 0,
-      "errors": 0,
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/app-market.svg"
+      "diagnostics": []
     },
     {
-      "slug": "attachments",
+      "name": "attachments",
+      "input": "/home/pkcs12/projects/opencode/specs/attachments/grafcet.json",
+      "sibling_output": "/home/pkcs12/projects/opencode/specs/attachments/grafcet.svg",
+      "output": "/home/pkcs12/projects/opencode/specs/diagrams/attachments.svg",
       "status": "ok",
-      "ok": true,
-      "warnings": 0,
-      "errors": 0,
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/attachments.svg"
+      "diagnostics": []
     },
     {
-      "slug": "autonomous-opt-in",
+      "name": "autonomous-opt-in",
+      "input": "/home/pkcs12/projects/opencode/specs/autonomous-opt-in/grafcet.json",
+      "sibling_output": "/home/pkcs12/projects/opencode/specs/autonomous-opt-in/grafcet.svg",
+      "output": "/home/pkcs12/projects/opencode/specs/diagrams/autonomous-opt-in.svg",
       "status": "ok",
-      "ok": true,
-      "warnings": 0,
-      "errors": 0,
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/autonomous-opt-in.svg"
+      "diagnostics": []
     },
     {
-      "slug": "codex-empty-turn-recovery",
+      "name": "codex-empty-turn-recovery",
+      "input": "/home/pkcs12/projects/opencode/specs/codex-empty-turn-recovery/grafcet.json",
+      "sibling_output": "/home/pkcs12/projects/opencode/specs/codex-empty-turn-recovery/grafcet.svg",
+      "output": "/home/pkcs12/projects/opencode/specs/diagrams/codex-empty-turn-recovery.svg",
       "status": "ok",
-      "ok": true,
-      "warnings": 0,
-      "errors": 0,
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/codex-empty-turn-recovery.svg"
+      "diagnostics": []
     },
     {
-      "slug": "compaction",
+      "name": "compaction",
+      "input": "/home/pkcs12/projects/opencode/specs/compaction/grafcet.json",
+      "sibling_output": "/home/pkcs12/projects/opencode/specs/compaction/grafcet.svg",
+      "output": "/home/pkcs12/projects/opencode/specs/diagrams/compaction.svg",
       "status": "ok",
-      "ok": true,
-      "warnings": 0,
-      "errors": 0,
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/compaction.svg"
+      "diagnostics": []
     },
     {
-      "slug": "daemon",
+      "name": "daemon",
+      "input": "/home/pkcs12/projects/opencode/specs/daemon/grafcet.json",
+      "sibling_output": "/home/pkcs12/projects/opencode/specs/daemon/grafcet.svg",
+      "output": "/home/pkcs12/projects/opencode/specs/diagrams/daemon.svg",
       "status": "ok",
-      "ok": true,
-      "warnings": 0,
-      "errors": 0,
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/daemon.svg"
+      "diagnostics": []
     },
     {
-      "slug": "grafcet-renderer-overhaul",
+      "name": "mcp",
+      "input": "/home/pkcs12/projects/opencode/specs/mcp/grafcet.json",
+      "sibling_output": "/home/pkcs12/projects/opencode/specs/mcp/grafcet.svg",
+      "output": "/home/pkcs12/projects/opencode/specs/diagrams/mcp.svg",
       "status": "ok",
-      "ok": true,
-      "warnings": 0,
-      "errors": 0,
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/grafcet-renderer-overhaul.svg"
+      "diagnostics": []
     },
     {
-      "slug": "mcp",
+      "name": "meta",
+      "input": "/home/pkcs12/projects/opencode/specs/meta/grafcet.json",
+      "sibling_output": "/home/pkcs12/projects/opencode/specs/meta/grafcet.svg",
+      "output": "/home/pkcs12/projects/opencode/specs/diagrams/meta.svg",
       "status": "ok",
-      "ok": true,
-      "warnings": 0,
-      "errors": 0,
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/mcp.svg"
+      "diagnostics": []
     },
     {
-      "slug": "meta",
+      "name": "provider",
+      "input": "/home/pkcs12/projects/opencode/specs/provider/grafcet.json",
+      "sibling_output": "/home/pkcs12/projects/opencode/specs/provider/grafcet.svg",
+      "output": "/home/pkcs12/projects/opencode/specs/diagrams/provider.svg",
       "status": "ok",
-      "ok": true,
-      "warnings": 0,
-      "errors": 0,
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/meta.svg"
+      "diagnostics": []
     },
     {
-      "slug": "provider",
+      "name": "session",
+      "input": "/home/pkcs12/projects/opencode/specs/session/grafcet.json",
+      "sibling_output": "/home/pkcs12/projects/opencode/specs/session/grafcet.svg",
+      "output": "/home/pkcs12/projects/opencode/specs/diagrams/session.svg",
       "status": "ok",
-      "ok": true,
-      "warnings": 0,
-      "errors": 0,
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/provider.svg"
+      "diagnostics": []
     },
     {
-      "slug": "session",
+      "name": "webapp",
+      "input": "/home/pkcs12/projects/opencode/specs/webapp/grafcet.json",
+      "sibling_output": "/home/pkcs12/projects/opencode/specs/webapp/grafcet.svg",
+      "output": "/home/pkcs12/projects/opencode/specs/diagrams/webapp.svg",
       "status": "ok",
-      "ok": true,
-      "warnings": 0,
-      "errors": 0,
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/session.svg"
-    },
-    {
-      "slug": "webapp",
-      "status": "ok",
-      "ok": true,
-      "warnings": 0,
-      "errors": 0,
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/webapp.svg"
+      "diagnostics": []
     }
   ]
 }
