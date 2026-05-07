@@ -18,6 +18,10 @@ function isValidRelativePath(path: string) {
   return /\.[A-Za-z0-9_-]+$/.test(path)
 }
 
+function isSingleFileReferenceToken(candidate: string) {
+  return !/\s/.test(candidate.trim())
+}
+
 function encodeFileLink(path: string, line?: number, column?: number) {
   const params = new URLSearchParams()
   if (line) params.set("line", String(line))
@@ -70,6 +74,7 @@ export function linkifyFileReferences(text: string, workspaceRoot: string | unde
           if (part.startsWith("`") && part.endsWith("`")) {
             const inner = part.slice(1, -1).trim()
             if (!inner) return part
+            if (!isSingleFileReferenceToken(inner)) return part
             const ref = detectFileReference(inner, workspaceRoot)
             if (!ref) return part
             return `[${part}](${encodeFileLink(ref.path, ref.line, ref.column)})`

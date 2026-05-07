@@ -30,11 +30,27 @@ import { createResizeObserver } from "@solid-primitives/resize-observer"
 type Translator = (key: UiI18nKey, params?: UiI18nParams) => string
 
 const inlineImageExtensions = new Set([".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp"])
+const fileTabExtensions = new Set([".svg", ".md", ".markdown"])
 
-function inlineImagePathFromHref(href: string | null) {
+function opencodeFilePathFromHref(href: string | null) {
+  if (!href) return
+  const prefix = "opencode-file://"
+  if (!href.startsWith(prefix)) return
+  const value = href.slice(prefix.length).split(/[?#]/, 1)[0]
+  if (!value) return
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
+  }
+}
+
+function localPathFromHref(href: string | null) {
   if (!href) return
   let candidate = href.trim()
   if (!candidate) return
+  const opencodeFile = opencodeFilePathFromHref(candidate)
+  if (opencodeFile) return opencodeFile
   if (candidate.startsWith("file://")) {
     try {
       candidate = decodeURIComponent(new URL(candidate).pathname)
@@ -42,8 +58,23 @@ function inlineImagePathFromHref(href: string | null) {
       return
     }
   }
-  if (!candidate.startsWith("/")) return
-  const pathOnly = candidate.split(/[?#]/, 1)[0]
+  if (/^[a-z][a-z0-9+.-]*:/i.test(candidate)) return
+  return candidate.split(/[?#]/, 1)[0]
+}
+
+function fileTabPathFromHref(href: string | null) {
+  const pathOnly = localPathFromHref(href)
+  if (!pathOnly) return
+  const lower = pathOnly.toLowerCase()
+  if (opencodeFilePathFromHref(href)) return pathOnly
+  for (const ext of fileTabExtensions) {
+    if (lower.endsWith(ext)) return pathOnly
+  }
+}
+
+function inlineImagePathFromHref(href: string | null) {
+  const pathOnly = localPathFromHref(href)
+  if (!pathOnly?.startsWith("/")) return
   const lower = pathOnly.toLowerCase()
   for (const ext of inlineImageExtensions) {
     if (lower.endsWith(ext)) return pathOnly
@@ -235,6 +266,9 @@ export function SessionTurn(
     inlineImage?: {
       load: (path: string) => void | Promise<void>
       preview: (path: string) => InlineImagePreview | undefined
+    }
+    fileLink?: {
+      open: (path: string) => void | Promise<void>
     }
     classes?: {
       root?: string
@@ -635,7 +669,9 @@ export function SessionTurn(
           retrySeconds: store.retrySeconds,
           retryingLabel: i18n.t("ui.sessionTurn.retry.retrying"),
           retryInLabel:
-            store.retrySeconds > 0 ? i18n.t("ui.sessionTurn.retry.inSeconds", { seconds: store.retrySeconds }) : undefined,
+            store.retrySeconds > 0
+              ? i18n.t("ui.sessionTurn.retry.inSeconds", { seconds: store.retrySeconds })
+              : undefined,
         },
       })
       return
@@ -725,7 +761,15 @@ export function SessionTurn(
       if (!(target instanceof Element)) return
       const anchor = target.closest("a")
       if (!(anchor instanceof HTMLAnchorElement)) return
-      const imagePath = inlineImagePathFromHref(anchor.getAttribute("href"))
+      const href = anchor.getAttribute("href")
+      const filePath = fileTabPathFromHref(href)
+      if (filePath && props.fileLink) {
+        event.preventDefault()
+        void props.fileLink.open(filePath)
+        return
+      }
+
+      const imagePath = inlineImagePathFromHref(href)
       if (!imagePath) return
 
       event.preventDefault()

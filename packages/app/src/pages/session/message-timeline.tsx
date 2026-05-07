@@ -140,6 +140,7 @@ export function MessageTimeline(props: {
   onStatusLineChange?: (snapshot: StatusLineSnapshot | undefined) => void
   expanded: Record<string, boolean>
   onToggleExpanded: (id: string) => void
+  onOpenFileLink?: (path: string) => void | Promise<void>
 }) {
   const settings = useSettings()
   const sdk = useSDK()
@@ -182,10 +183,7 @@ export function MessageTimeline(props: {
       when={!props.mobileChanges}
       fallback={<div class="relative h-full overflow-hidden">{props.mobileFallback}</div>}
     >
-      <div
-        class="absolute inset-x-0 top-0 min-w-0"
-        style={{ bottom: "var(--prompt-height, 8rem)" }}
-      >
+      <div class="absolute inset-x-0 top-0 min-w-0" style={{ bottom: "var(--prompt-height, 8rem)" }}>
         <div
           class="absolute left-1/2 -translate-x-1/2 bottom-2 z-[60] pointer-events-none transition-all duration-200 ease-out"
           classList={{
@@ -461,6 +459,7 @@ export function MessageTimeline(props: {
                           load: (path) => file.load(path),
                           preview: inlineImagePreview,
                         }}
+                        fileLink={props.onOpenFileLink ? { open: props.onOpenFileLink } : undefined}
                         classes={{
                           root: "session-timeline-turn min-w-0 w-full relative",
                           content: "flex flex-col justify-between !overflow-visible",
