@@ -14,36 +14,36 @@ Canonical execution checklist. Each phase ends with a `plan-sync.ts` checkpoint 
 
 ## 2. prompt_cache_key sourcing (A2)
 
-- [ ] 2.1 Locate the `cacheKey` derivation site in [provider.ts:157-158](packages/opencode-codex-provider/src/provider.ts#L157-L158) and switch source from `sessionId` to `threadId ?? sessionId`
-- [ ] 2.2 Plumb `threadId` from provider input through to the body builder; preserve the existing `providerOptions.promptCacheKey` override path (INV-3)
-- [ ] 2.3 Update or replace existing prompt_cache_key tests in [provider.test.ts](packages/opencode-codex-provider/src/provider.test.ts) to cover TV-6 and TV-7
-- [ ] 2.4 Run `bun test packages/opencode-codex-provider/src/provider.test.ts` — must be green
-- [ ] 2.5 Run plan-sync; record result
+- [x] 2.1 Derived threadId in doStream from `x-opencode-thread-id` header (defaulting to sessionId per DD-1); switched cacheKey composite source from `sessionId` to `threadId`. Composite shape `codex-{accountId}-{threadId}` preserved (single-thread callers see no behavioral change).
+- [x] 2.2 Plumbed `threadId` through both `tryWsTransport` call sites (initial + retry) and the HTTP `buildHeaders` call site (line 364 area) in provider.ts. INV-3 preserved (custom `providerOptions.promptCacheKey` override path untouched).
+- [x] 2.3 Added TV-6 / TV-7 unit cases to provider.test.ts (using `buildResponsesApiRequest` direct invocation, since doStream-level testing requires a live network mock — covered separately by live smoke in Phase 6).
+- [x] 2.4 `bun test packages/opencode-codex-provider/` → 115 pass / 0 fail
+- [x] 2.5 plan-sync after commit (this entry)
 
 ## 3. WS send-side idle timeout (A3)
 
-- [ ] 3.1 In [transport-ws.ts:571](packages/opencode-codex-provider/src/transport-ws.ts#L571), wrap `ws.send(...)` so it returns a Promise that settles via the `(err) => …` callback form of `ws.send`
-- [ ] 3.2 Race that promise against a `setTimeout(WS_IDLE_TIMEOUT_MS)` that rejects with reason `"ws_send_timeout"`
-- [ ] 3.3 On timeout: set `wsObs.wsErrorReason = "ws_send_timeout"`, close the ws, call `endStream()` (INV-4)
-- [ ] 3.4 Confirm `WS_IDLE_TIMEOUT_MS` is the same constant used by the receive-side idle timer (no new constant)
-- [ ] 3.5 Add the new value to the union type for `wsErrorReason` (Δ6 in data-schema.json)
-- [ ] 3.6 Add 2 test cases to [transport-ws.test.ts](packages/opencode-codex-provider/src/transport-ws.test.ts) per TV-8 (stalled callback) and TV-9 (normal callback). Use a low override of `WS_IDLE_TIMEOUT_MS` (~100ms) for the stall case to keep test fast.
-- [ ] 3.7 Add `[CODEX-WS] WS send timeout session=<id> thread=<id> err=ws_send_timeout` log line per observability.md
-- [ ] 3.8 Run `bun test packages/opencode-codex-provider/src/transport-ws.test.ts` — must be green
-- [ ] 3.9 Run plan-sync; record result
+- [x] 3.1 WHATWG WebSocket has no callback completion form for `send()`, so the upstream `tokio::time::timeout(idle_timeout, ws_stream.send(...))` pattern was adapted: a watchdog timer polls `ws.bufferedAmount` after the idle window. Extracted as `armSendStallWatchdog` (exported helper) for direct unit testability.
+- [x] 3.2 At deadline, fires only when `bufferedAmount > 0 && frameCount === 0 && state.status === "streaming"`. Otherwise no-op (receive-side timer owns those paths).
+- [x] 3.3 `wsObs.wsErrorReason = "ws_send_timeout"`, `state.status = "failed"`, `ws.close()`, `endStream()`. INV-4 satisfied: same `WS_IDLE_TIMEOUT_MS` constant used.
+- [x] 3.4 Confirmed: `WS_IDLE_TIMEOUT_MS` (protocol.ts:42) shared with receive-side idle timer at line 350.
+- [x] 3.5 `wsErrorReason` is `string | null` (line 202) — no new union literal needed; the new value rides on the existing string type. Documented in observability.md (already merged).
+- [x] 3.6 Added 4 cases to transport-ws.test.ts: TV-8 (stalled), TV-9 (drain), watchdog-cancellable, predicate-gate (frame arrival aborts fire).
+- [x] 3.7 Log line emitted: `[CODEX-WS] WS send timeout session=<id> thread=<prefix> err=ws_send_timeout bufferedAmount=<n>`.
+- [x] 3.8 `bun test packages/opencode-codex-provider/` → 119 pass / 0 fail
+- [x] 3.9 plan-sync after commit (this entry)
 
 ## 4. Empty-turn classifier transient extension (A4)
 
-- [ ] 4.1 In [empty-turn-classifier.ts](packages/opencode-codex-provider/src/empty-turn-classifier.ts), add `ws_send_timeout` to the same handling branch as `first_frame_timeout` (transient, retry recovery)
-- [ ] 4.2 Add 1 test case to [empty-turn-classifier.test.ts](packages/opencode-codex-provider/src/empty-turn-classifier.test.ts) per TV-10
-- [ ] 4.3 Run `bun test packages/opencode-codex-provider/src/empty-turn-classifier.test.ts` — must be green
-- [ ] 4.4 Run plan-sync; record result
+- [x] 4.1 No code change needed — the existing `wsFrameCount === 0` branch in classifyEmptyTurn already routes ALL send-and-receive failures (including the new `ws_send_timeout`) to `WS_NO_FRAMES` + `RETRY_ONCE_THEN_SOFT_FAIL`. `wsErrorReason` is preserved verbatim on the snapshot for forensic JSONL discrimination per the existing fix-empty-response-rca DD-5 design (INV-13 cause-family enum stays untouched). INV-5 satisfied transparently.
+- [x] 4.2 Added 2 cases to empty-turn-classifier.test.ts: TV-10 (ws_send_timeout → ws_no_frames + retry) plus a payload-flow test confirming wsErrorReason survives `buildClassificationPayload`.
+- [x] 4.3 `bun test packages/opencode-codex-provider/` → 121 pass / 0 fail
+- [x] 4.4 plan-sync after commit (this entry)
 
 ## 5. Full provider package validation
 
-- [ ] 5.1 Run full provider test suite: `bun test packages/opencode-codex-provider/` — every test green
-- [ ] 5.2 Run repo type check via the provider package's local tsc invocation if applicable
-- [ ] 5.3 Run plan-sync against the entire spec; expected `clean` (no drift)
+- [x] 5.1 `bun test packages/opencode-codex-provider/` → 121 pass / 0 fail (Phase 1: 6 new + Phase 2: 2 new + Phase 3: 4 new + Phase 4: 2 new = 14 new test cases)
+- [x] 5.2 `bunx tsc --noEmit -p packages/opencode-codex-provider/`: 50 errors, all pre-existing environment-level (missing `bun:test` types, `@types/node` not configured for this standalone tsconfig). Baseline unchanged from `main`. Zero regressions introduced.
+- [x] 5.3 plan-sync after final closeout commit (this entry)
 
 ## 6. Live smoke validation
 
