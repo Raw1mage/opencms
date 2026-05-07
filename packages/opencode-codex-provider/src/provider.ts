@@ -154,9 +154,13 @@ class CodexLanguageModel implements LanguageModelV2 {
     const parentThreadId = requestHeaders?.["x-opencode-parent-session"] || undefined
     const subagentLabel = requestHeaders?.["x-opencode-subagent"] || undefined
 
-    // Stable prompt_cache_key per session (NOT per model instance)
-    const cacheKey = sessionId
-      ? `codex-${accountId || "default"}-${sessionId}`
+    // codex-update DD-1: thread_id distinct from session_id (upstream a98623511b).
+    // For single-thread callers (current opencode behavior) threadId defaults to
+    // sessionId, keeping the cache key stable. INV-3: prompt_cache_key follows
+    // thread_id; the composite preserves account namespacing.
+    const threadId = requestHeaders?.["x-opencode-thread-id"] ?? sessionId
+    const cacheKey = threadId
+      ? `codex-${accountId || "default"}-${threadId}`
       : this.window.conversationId
 
     // Update window conversationId to match session for lineage tracking
@@ -203,6 +207,7 @@ class CodexLanguageModel implements LanguageModelV2 {
       body: body as unknown as Record<string, unknown>,
       wsUrl: CODEX_WS_URL,
       userAgent: this.options.userAgent,
+      threadId: threadId ?? this.window.conversationId,
       conversationId: this.window.conversationId,
     })
 
@@ -258,6 +263,7 @@ class CodexLanguageModel implements LanguageModelV2 {
         body: body as unknown as Record<string, unknown>,
         wsUrl: CODEX_WS_URL,
         userAgent: this.options.userAgent,
+        threadId: threadId ?? this.window.conversationId,
         conversationId: this.window.conversationId,
       }
 
@@ -357,6 +363,7 @@ class CodexLanguageModel implements LanguageModelV2 {
       subagentLabel,
       installationId: this.options.installationId,
       sessionId: wsSessionId,
+      threadId: threadId ?? this.window.conversationId,
       userAgent: this.options.userAgent,
       conversationId: this.window.conversationId,
     })
