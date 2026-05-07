@@ -21,7 +21,9 @@ function validEntry(overrides: Partial<WorkingCache.EntryInput> = {}): WorkingCa
         id: "E1",
         path: "tool/read/result/1",
         kind: "tool-result",
-        mtimeMs: 1,
+        // freshness signal required after working-cache plan revision DD-12 / INV-6 —
+        // sha256 is sufficient on its own for tool-result evidence.
+        sha256: "0000000000000000000000000000000000000000000000000000000000000001",
       },
     ],
     createdAt: "2026-05-07T00:00:00.000Z",
