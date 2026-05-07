@@ -306,7 +306,8 @@ describe("WorkingCache", () => {
     const at3 = WorkingCache.explorationPostscript(3)
     expect(at3).toContain("[working-cache]")
     expect(at3).toContain("`cache-digest`")
-    expect(at3).toContain("Skip emission entirely if no reusable fact crystallised")
+    expect(at3).toContain("reasoning content")
+    expect(at3).toContain("Default to emitting")
   })
 
   test("validate rejects tool-result evidence missing freshness signal", () => {
