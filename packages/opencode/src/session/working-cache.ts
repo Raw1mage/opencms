@@ -415,33 +415,6 @@ export namespace WorkingCache {
     }
   }
 
-  export function renderForRecovery(entries: Entry[], maxTokens = 2000): string {
-    const blocks = entries.map((entry) => {
-      const lines: string[] = []
-      lines.push(`- ${entry.purpose} (${entry.operation ?? "summary"}; entry ${entry.id})`)
-      if (entry.summary) lines.push(`  Summary: ${entry.summary}`)
-      for (const fact of entry.facts) lines.push(`  Fact: ${fact.text} [evidence: ${fact.evidenceRefs.join(", ")}]`)
-      const lineage = [
-        ...entry.derivedFrom.map((id) => `derivedFrom:${id}`),
-        ...entry.supersedes.map((id) => `supersedes:${id}`),
-      ]
-      if (lineage.length > 0) lines.push(`  Lineage: ${lineage.join(", ")}`)
-      if (entry.unresolvedQuestions.length > 0) lines.push(`  Unresolved: ${entry.unresolvedQuestions.join("; ")}`)
-      return lines.join("\n")
-    })
-    const rendered = blocks.join("\n")
-    if (Token.estimate(rendered) <= maxTokens) return rendered
-    let kept: string[] = []
-    for (const block of blocks) {
-      const next = [...kept, block].join("\n")
-      if (Token.estimate(next) > maxTokens) break
-      kept.push(block)
-    }
-    if (kept.length === 0) {
-      reject("WORKING_CACHE_RENDER_OVER_BUDGET", undefined, "Working Cache recovery render exceeds budget")
-    }
-    return kept.join("\n")
-  }
 
   export async function record(input: EntryInput): Promise<Entry> {
     debugCheckpoint("working-cache.write", "start", {

@@ -103,23 +103,6 @@ describe("WorkingCache", () => {
     expect(selected.entries[0].derivedFrom).toEqual(["wc_read"])
   })
 
-  test("renderForRecovery includes evidence and lineage", () => {
-    const rendered = WorkingCache.renderForRecovery([
-      WorkingCache.validate(
-        validEntry({
-          id: "wc_modify",
-          operation: "modify",
-          derivedFrom: ["wc_read"],
-          supersedes: ["wc_read"],
-        }),
-      ),
-    ])
-
-    expect(rendered).toContain("evidence: E1")
-    expect(rendered).toContain("derivedFrom:wc_read")
-    expect(rendered).toContain("supersedes:wc_read")
-  })
-
   test("post-compaction provider emits manifest-form awareness", async () => {
     const { store } = createStore()
     WorkingCache.setStoreForTesting(store)
