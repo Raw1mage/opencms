@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "planned",
+  "state": "implementing",
   "profile": [],
   "history": [
     {
@@ -26,6 +26,22 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "tasks + handoff drafted; ready for beta-workflow execution"
+    },
+    {
+      "at": "2026-05-07T16:17:13.032Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "eecb3d4b3292dae4043b4d685d812c029756fe1c"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-05-07T16:17:23.533Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Phase 1 complete; first task checked"
     }
   ]
 }

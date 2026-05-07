@@ -4,13 +4,13 @@ Canonical execution checklist. Each phase ends with a `plan-sync.ts` checkpoint 
 
 ## 1. Header semantics — session_id / thread_id / x-client-request-id (A1)
 
-- [ ] 1.1 Extend `BuildHeadersOptions` in [headers.ts](packages/opencode-codex-provider/src/headers.ts) with `threadId?: string`; preserve all existing fields
-- [ ] 1.2 In `buildHeaders()`: emit `thread_id` header sourced from `options.threadId ?? options.sessionId` (only when at least one is present); keep `session_id` emission unchanged (INV-1)
-- [ ] 1.3 In `buildHeaders()`: switch `x-client-request-id` source from `options.conversationId` to `options.threadId ?? options.sessionId` (INV-2). Remove the `conversationId` parameter from `BuildHeadersOptions` since it has no remaining consumers — verify with grep first; if any caller still passes it, deprecate inline rather than remove.
-- [ ] 1.4 Add `threadId?: string` to the relevant request-input shape in [types.ts](packages/opencode-codex-provider/src/types.ts) (find via grep where buildHeaders callers live; minimal additive change)
-- [ ] 1.5 Add 5 test cases to [headers.test.ts](packages/opencode-codex-provider/src/headers.test.ts) per TV-1, TV-2, TV-3, TV-4, TV-5 (test-vectors.json)
-- [ ] 1.6 Run `bun test packages/opencode-codex-provider/src/headers.test.ts` — must be green
-- [ ] 1.7 Run `bun run /home/pkcs12/.claude/skills/plan-builder/scripts/plan-sync.ts specs/codex-update/`; record result
+- [x] 1.1 Extend `BuildHeadersOptions` in [headers.ts](packages/opencode-codex-provider/src/headers.ts) with `threadId?: string`; preserve all existing fields
+- [x] 1.2 In `buildHeaders()`: emit `thread_id` header sourced from `options.threadId ?? options.sessionId` (only when at least one is present); keep `session_id` emission unchanged (INV-1)
+- [x] 1.3 In `buildHeaders()`: switch `x-client-request-id` source — chain is `options.threadId ?? options.sessionId ?? options.conversationId`; `conversationId` deprecated in JSDoc but kept as tail-of-chain back-compat (caller in transport-ws.ts:747 still references the old field via WsTransportInput.conversationId; deprecation prevents silent breakage)
+- [x] 1.4 Threaded the new `threadId?: string` through `WsTransportInput` and the buildHeaders call site at transport-ws.ts:742; also added `sessionId: input.sessionId` to that call (was missing — `session_id` header was previously not emitted on the WS path). `types.ts` left untouched: WindowState.conversationId is window-lineage (separate concept) and out of scope per design.md.
+- [x] 1.5 Added 6 test cases to [headers.test.ts](packages/opencode-codex-provider/src/headers.test.ts) per TV-1..TV-5 plus a back-compat case for legacy `conversationId`
+- [x] 1.6 `bun test packages/opencode-codex-provider/` → 113 pass, 0 fail
+- [x] 1.7 plan-sync checkpoint + commit (this entry)
 
 ## 2. prompt_cache_key sourcing (A2)
 
