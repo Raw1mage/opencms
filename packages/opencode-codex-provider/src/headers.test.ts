@@ -61,3 +61,75 @@ describe("buildHeaders context-window lineage", () => {
     expect(headers["content-type"]).toBe("application/json")
   })
 })
+
+// codex-update plan §1: session_id / thread_id / x-client-request-id semantics
+// (upstream codex commit a98623511b — feat: add session_id #20437)
+describe("buildHeaders session_id / thread_id pairing (codex-update DD-1, DD-2, INV-1, INV-2)", () => {
+  test("TV-1: only sessionId provided → both session_id and thread_id emitted with equal values", () => {
+    const headers = buildHeaders({
+      accessToken: "tok",
+      sessionId: "S-uuid-aaaa",
+    })
+    expect(headers["session_id"]).toBe("S-uuid-aaaa")
+    expect(headers["thread_id"]).toBe("S-uuid-aaaa")
+    expect(headers["x-client-request-id"]).toBe("S-uuid-aaaa")
+  })
+
+  test("TV-2: both sessionId and threadId provided → headers carry distinct values", () => {
+    const headers = buildHeaders({
+      accessToken: "tok",
+      sessionId: "S-uuid-aaaa",
+      threadId: "T-uuid-bbbb",
+    })
+    expect(headers["session_id"]).toBe("S-uuid-aaaa")
+    expect(headers["thread_id"]).toBe("T-uuid-bbbb")
+    expect(headers["x-client-request-id"]).toBe("T-uuid-bbbb") // INV-2: x-client-request-id == thread_id
+  })
+
+  test("TV-3: neither sessionId nor threadId provided → both headers absent", () => {
+    const headers = buildHeaders({
+      accessToken: "tok",
+    })
+    expect(headers["session_id"]).toBeUndefined()
+    expect(headers["thread_id"]).toBeUndefined()
+    expect(headers["x-client-request-id"]).toBeUndefined()
+  })
+
+  test("TV-4: x-client-request-id sources from threadId, not sessionId, when both differ", () => {
+    const headers = buildHeaders({
+      accessToken: "tok",
+      sessionId: "S-uuid-aaaa",
+      threadId: "T-uuid-bbbb",
+    })
+    expect(headers["x-client-request-id"]).toBe("T-uuid-bbbb")
+    expect(headers["x-client-request-id"]).not.toBe("S-uuid-aaaa")
+  })
+
+  test("TV-5: x-client-request-id falls back to sessionId when threadId omitted", () => {
+    const headers = buildHeaders({
+      accessToken: "tok",
+      sessionId: "S-uuid-aaaa",
+    })
+    expect(headers["x-client-request-id"]).toBe("S-uuid-aaaa")
+  })
+
+  test("back-compat: legacy `conversationId` only supplies x-client-request-id when threadId/sessionId are absent", () => {
+    // Strict spec wording: x-client-request-id source is `threadId ?? sessionId`.
+    // Legacy callers passing `conversationId` only (no thread/session) keep working
+    // via a tail-of-chain fallback; threadId or sessionId always wins if either is set.
+    const legacyOnly = buildHeaders({
+      accessToken: "tok",
+      conversationId: "C-legacy",
+    })
+    expect(legacyOnly["x-client-request-id"]).toBe("C-legacy")
+    expect(legacyOnly["session_id"]).toBeUndefined()
+    expect(legacyOnly["thread_id"]).toBeUndefined()
+
+    const withSession = buildHeaders({
+      accessToken: "tok",
+      sessionId: "S-wins",
+      conversationId: "C-loses",
+    })
+    expect(withSession["x-client-request-id"]).toBe("S-wins")
+  })
+})

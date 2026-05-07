@@ -655,6 +655,9 @@ export interface WsTransportInput {
   body: Record<string, unknown>
   wsUrl: string
   userAgent?: string
+  /** Thread ID for upstream codex session/thread split (`a98623511b`). Defaults to conversationId or sessionId when omitted. */
+  threadId?: string
+  /** @deprecated since codex-update plan — prefer `threadId`. Kept for back-compat; mapped into headers via the threadId fallback chain. */
   conversationId?: string
 }
 
@@ -744,7 +747,8 @@ export async function tryWsTransport(
     accountId,
     turnState: input.turnState,
     userAgent: input.userAgent,
-    conversationId: input.conversationId,
+    sessionId: input.sessionId,
+    threadId: input.threadId ?? input.conversationId,
     isWebSocket: true,
   })
 
