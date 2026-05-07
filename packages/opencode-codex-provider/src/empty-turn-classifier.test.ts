@@ -92,9 +92,6 @@ describe("DD-9 predicate ladder per cause family", () => {
     })
     const result = classifyEmptyTurn(snapshot)
     const payload = buildClassificationPayload(snapshot, result, {
-      sessionId: "ses_test",
-      modelId: "gpt-5.4",
-      logSequence: 1,
       retryAlsoEmpty: null,
       previousLogSequence: null,
     })
