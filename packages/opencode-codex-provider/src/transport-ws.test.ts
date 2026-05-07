@@ -13,6 +13,7 @@
  */
 import { describe, expect, test } from "bun:test"
 import { buildHeaders } from "./headers"
+import { armSendStallWatchdog } from "./transport-ws"
 
 describe("buildHeaders({ isWebSocket: true }) fingerprint", () => {
   const base = {
@@ -104,5 +105,85 @@ describe("buildHeaders() HTTP path (Phase 4 additions)", () => {
   test("HTTP path does NOT emit OpenAI-Beta", () => {
     const h = buildHeaders(base)
     expect(h["OpenAI-Beta"]).toBeUndefined()
+  })
+})
+
+// codex-update plan §3: WS send-side idle timeout (DD-3, INV-4, INV-5)
+// Mirrors upstream codex commit 35aaa5d9fc — `tokio::time::timeout` around send.
+describe("armSendStallWatchdog (codex-update DD-3)", () => {
+  test("TV-8: stalled send (bufferedAmount stays > 0) fires onFire within timeout", async () => {
+    const fakeWs = { bufferedAmount: 4096 } // never drains
+    let fired = false
+    const timer = armSendStallWatchdog({
+      ws: fakeWs,
+      timeoutMs: 50,
+      shouldFire: () => fakeWs.bufferedAmount > 0,
+      onFire: () => {
+        fired = true
+      },
+    })
+    await new Promise((r) => setTimeout(r, 100))
+    expect(fired).toBe(true)
+    clearTimeout(timer)
+  })
+
+  test("TV-9: normal send (bufferedAmount drops to 0) does NOT fire onFire", async () => {
+    const fakeWs = { bufferedAmount: 1024 }
+    let fired = false
+    const timer = armSendStallWatchdog({
+      ws: fakeWs,
+      timeoutMs: 50,
+      shouldFire: () => fakeWs.bufferedAmount > 0,
+      onFire: () => {
+        fired = true
+      },
+    })
+    // Simulate the OS pump draining within the window.
+    setTimeout(() => {
+      fakeWs.bufferedAmount = 0
+    }, 10)
+    await new Promise((r) => setTimeout(r, 100))
+    expect(fired).toBe(false)
+    clearTimeout(timer)
+  })
+
+  test("watchdog can be cancelled before firing (cleanup path)", async () => {
+    const fakeWs = { bufferedAmount: 4096 }
+    let fired = false
+    const timer = armSendStallWatchdog({
+      ws: fakeWs,
+      timeoutMs: 50,
+      shouldFire: () => fakeWs.bufferedAmount > 0,
+      onFire: () => {
+        fired = true
+      },
+    })
+    clearTimeout(timer)
+    await new Promise((r) => setTimeout(r, 100))
+    expect(fired).toBe(false)
+  })
+
+  test("INV-5 alignment: shouldFire predicate gates onFire — even at deadline, predicate decides", async () => {
+    // Mirrors the inline gate in transport-ws.ts: bufferedAmount > 0 AND
+    // frameCount === 0 AND state === "streaming". If any becomes false at
+    // the deadline, no fire. Here we simulate frame arrival between arming
+    // and firing.
+    const fakeWs = { bufferedAmount: 4096 }
+    let frameCount = 0
+    let fired = false
+    const timer = armSendStallWatchdog({
+      ws: fakeWs,
+      timeoutMs: 50,
+      shouldFire: () => fakeWs.bufferedAmount > 0 && frameCount === 0,
+      onFire: () => {
+        fired = true
+      },
+    })
+    setTimeout(() => {
+      frameCount = 1 // a frame arrived; receive-side timer now owns the path
+    }, 10)
+    await new Promise((r) => setTimeout(r, 100))
+    expect(fired).toBe(false)
+    clearTimeout(timer)
   })
 })

@@ -238,6 +238,30 @@ export interface TransportSnapshot {
   deltasObserved: { text: number; toolCallArguments: number; reasoning: number }
 }
 
+/**
+ * Send-side stall watchdog (codex-update DD-3, mirrors codex commit 35aaa5d9fc).
+ *
+ * WHATWG WebSocket has no callback completion for `ws.send`; we approximate the
+ * Rust `tokio::time::timeout(idle_timeout, ws_stream.send(...))` by polling
+ * `ws.bufferedAmount` after the idle window. If `shouldFire()` returns true at
+ * the deadline (typically: bytes still queued AND no frames received AND state
+ * is still "streaming"), `onFire()` runs; otherwise the timer is a no-op.
+ *
+ * Exported for direct unit testing — `wsRequest` consumes it internally.
+ */
+export function armSendStallWatchdog(opts: {
+  ws: Pick<WebSocket, "bufferedAmount">
+  timeoutMs: number
+  shouldFire: () => boolean
+  onFire: () => void
+}): ReturnType<typeof setTimeout> {
+  return setTimeout(() => {
+    if (opts.shouldFire()) {
+      opts.onFire()
+    }
+  }, opts.timeoutMs)
+}
+
 export interface WsRequestResult {
   events: ReadableStream<ResponseStreamEvent>
   /** Snapshot getter for empty-turn classifier; returns a copy at call time */
@@ -350,8 +374,40 @@ function wsRequest(input: {
         }, WS_IDLE_TIMEOUT_MS)
       }
 
+      // codex-update Phase 3 (DD-3): send-side idle watchdog. Upstream Rust
+      // wraps `ws_stream.send(...)` in `tokio::time::timeout(idle_timeout, ...)`
+      // (codex commit 35aaa5d9fc). WHATWG WebSocket has no callback completion,
+      // so we approximate by polling `bufferedAmount` after the idle window;
+      // if bytes are still queued and the stream hasn't ended, the OS write
+      // pump is stalled and we abort with `ws_send_timeout` (INV-4: shared
+      // WS_IDLE_TIMEOUT_MS for both directions; INV-5: classifier transient).
+      let sendWatchdog: ReturnType<typeof setTimeout> | null = null
+
+      const armSendWatchdog = () => {
+        if (sendWatchdog) clearTimeout(sendWatchdog)
+        sendWatchdog = armSendStallWatchdog({
+          ws,
+          timeoutMs: WS_IDLE_TIMEOUT_MS,
+          shouldFire: () =>
+            ws.bufferedAmount > 0 && wsObs.frameCount === 0 && state.status === "streaming",
+          onFire: () => {
+            const threadIdHint = (state.lastResponseId ?? "—").slice(0, 12)
+            console.warn(
+              `[CODEX-WS] WS send timeout session=${sessionId} thread=${threadIdHint} err=ws_send_timeout bufferedAmount=${ws.bufferedAmount}`,
+            )
+            wsObs.wsErrorReason = "ws_send_timeout"
+            state.status = "failed"
+            try {
+              ws.close()
+            } catch {}
+            endStream()
+          },
+        })
+      }
+
       function cleanup() {
         if (idleTimer) clearTimeout(idleTimer)
+        if (sendWatchdog) clearTimeout(sendWatchdog)
         ws.onmessage = null
         ws.onerror = null
         ws.onclose = null
@@ -569,6 +625,7 @@ function wsRequest(input: {
       state.status = "streaming"
       resetIdleTimer()
       ws.send(JSON.stringify({ type: "response.create", ...wsBody }))
+      armSendWatchdog()
     },
   })
 
@@ -655,6 +712,9 @@ export interface WsTransportInput {
   body: Record<string, unknown>
   wsUrl: string
   userAgent?: string
+  /** Thread ID for upstream codex session/thread split (`a98623511b`). Defaults to conversationId or sessionId when omitted. */
+  threadId?: string
+  /** @deprecated since codex-update plan — prefer `threadId`. Kept for back-compat; mapped into headers via the threadId fallback chain. */
   conversationId?: string
 }
 
@@ -744,7 +804,8 @@ export async function tryWsTransport(
     accountId,
     turnState: input.turnState,
     userAgent: input.userAgent,
-    conversationId: input.conversationId,
+    sessionId: input.sessionId,
+    threadId: input.threadId ?? input.conversationId,
     isWebSocket: true,
   })
 

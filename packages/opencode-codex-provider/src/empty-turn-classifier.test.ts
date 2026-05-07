@@ -66,6 +66,40 @@ describe("DD-9 predicate ladder per cause family", () => {
     expect(result.recoveryAction).toBe(RECOVERY_ACTION.RETRY_ONCE_THEN_SOFT_FAIL)
   })
 
+  // codex-update plan §4 (TV-10): ws_send_timeout (introduced in Phase 3 send
+  // watchdog) is a sub-discrimination of ws_no_frames. The classifier already
+  // routes any frameCount=0 case to WS_NO_FRAMES + RETRY (INV-5); wsErrorReason
+  // is preserved on the snapshot for forensic JSONL discrimination only.
+  test("TV-10: ws_send_timeout classified as ws_no_frames + retry (INV-5)", () => {
+    const result = classifyEmptyTurn(
+      baseSnapshot({
+        wsFrameCount: 0,
+        terminalEventReceived: false,
+        wsErrorReason: "ws_send_timeout",
+      }),
+    )
+    expect(result.causeFamily).toBe(CAUSE_FAMILY.WS_NO_FRAMES)
+    expect(result.recoveryAction).toBe(RECOVERY_ACTION.RETRY_ONCE_THEN_SOFT_FAIL)
+  })
+
+  test("ws_send_timeout snapshot field survives through buildClassificationPayload", () => {
+    // Forensic discrimination relies on the JSONL log entry preserving the
+    // wsErrorReason verbatim. Confirm Phase 3's new value flows through.
+    const snapshot = baseSnapshot({
+      wsFrameCount: 0,
+      terminalEventReceived: false,
+      wsErrorReason: "ws_send_timeout",
+    })
+    const result = classifyEmptyTurn(snapshot)
+    const payload = buildClassificationPayload(snapshot, result, {
+      retryAlsoEmpty: null,
+      previousLogSequence: null,
+    })
+    expect(payload.wsErrorReason).toBe("ws_send_timeout")
+    expect(payload.causeFamily).toBe(CAUSE_FAMILY.WS_NO_FRAMES)
+    expect(payload.recoveryAction).toBe(RECOVERY_ACTION.RETRY_ONCE_THEN_SOFT_FAIL)
+  })
+
   test("server_empty_output_with_reasoning: completed + reasoning.effort", () => {
     const result = classifyEmptyTurn(
       baseSnapshot({
