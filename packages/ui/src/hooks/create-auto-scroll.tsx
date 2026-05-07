@@ -685,7 +685,15 @@ export function createAutoScroll(options: AutoScrollOptions) {
     contentRef: (el: HTMLElement | undefined) => setStore("contentRef", el),
     handleScroll,
     handleInteraction,
-    pause: () => {
+    pause: (force = false) => {
+      if (!force) {
+        const el = scroll
+        // Same boundary guard as handleWheel / handleTouchMove. The JSX-bound
+        // onWheel/onTouchMove handlers in the message timeline route through
+        // here via onAutoScrollUserIntent; phantom iOS gestures at the bottom
+        // boundary must not strand the user in free-reading.
+        if (el && (!canScroll(el) || distanceFromBottom(el) < threshold())) return
+      }
       stopRafLoop()
       stop(true)
     },

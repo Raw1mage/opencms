@@ -953,7 +953,7 @@ export default function Page() {
       return
     }
 
-    autoScroll.pause()
+    autoScroll.pause(true)
     scrollToMessage(msgs[targetIndex], "auto")
   }
 

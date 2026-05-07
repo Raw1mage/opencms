@@ -23,7 +23,7 @@ type NewInput = {
   setActiveMessage: (message: UserMessage | undefined) => void
   setTurnStart: (value: number) => void
   scheduleTurnBackfill: () => void
-  autoScroll: { pause: () => void; scrollToBottom: () => void }
+  autoScroll: { pause: (force?: boolean) => void; scrollToBottom: () => void }
   scroller: () => HTMLDivElement | undefined
   anchor: (id: string) => string
   scheduleScrollState: (el: HTMLDivElement) => void
@@ -168,7 +168,7 @@ export const useSessionHashScroll = (rawInput: NewInput | LegacyInput) => {
 
     const messageId = messageIdFromHash(hash)
     if (messageId) {
-      input.autoScroll.pause()
+      input.autoScroll.pause(true)
       const msg = messageById().get(messageId)
       if (msg) {
         scrollToMessage(msg, behavior)
@@ -179,7 +179,7 @@ export const useSessionHashScroll = (rawInput: NewInput | LegacyInput) => {
 
     const target = document.getElementById(hash)
     if (target) {
-      input.autoScroll.pause()
+      input.autoScroll.pause(true)
       scrollToElement(target, behavior)
       return
     }
@@ -245,7 +245,7 @@ export const useSessionHashScroll = (rawInput: NewInput | LegacyInput) => {
     if (!msg) return
 
     if (input.pendingMessage() === targetId) input.setPendingMessage(undefined)
-    input.autoScroll.pause()
+    input.autoScroll.pause(true)
     requestAnimationFrame(() => scrollToMessage(msg, "auto"))
   })
 
