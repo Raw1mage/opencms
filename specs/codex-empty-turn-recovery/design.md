@@ -186,9 +186,10 @@ Each phase is independently shippable. Phase 1 is the load-bearing one (D-2 evid
 
 - [packages/opencode-codex-provider/src/sse.ts](../../packages/opencode-codex-provider/src/sse.ts) — flush block invocation (DD-4); add `emittedTextDeltas` counter; emit classification in `finish.providerMetadata`
 - [packages/opencode-codex-provider/src/transport-ws.ts](../../packages/opencode-codex-provider/src/transport-ws.ts) — replace silent `endStream()` at line 422 with classifier call (DD-5); implement retry per DD-7
-- [packages/opencode-codex-provider/src/provider.ts](../../packages/opencode-codex-provider/src/provider.ts) — no functional change in Phase 1; later may add audit log of `requestOptionsShape` for post-hoc analysis
+- [packages/opencode-codex-provider/src/provider.ts](../../packages/opencode-codex-provider/src/provider.ts) — Phase 1 also: builds sanitized `requestOptionsShape` from request body, threads `logContext` + `getTransportSnapshot` into `mapResponseStream` for both WS and HTTP paths
+- [packages/opencode/src/plugin/codex-auth.ts](../../packages/opencode/src/plugin/codex-auth.ts) — opencode runtime injection point; calls `setEmptyTurnLogPath(<Global.Path.state>/codex/empty-turns.jsonl)` and `setEmptyTurnLogBus(...)` at provider initialization (mirrors the existing `setContinuationFilePath` pattern; preserves provider boundary INV-16 by keeping Global.Path / Bus imports out of the codex-provider package)
 - `packages/opencode-codex-provider/src/empty-turn-classifier.ts` — **new** — pure-function classifier (DD-1, DD-9, DD-10)
 - `packages/opencode-codex-provider/src/empty-turn-log.ts` — **new** — JSONL writer + bus emitter (DD-2, DD-3)
-- `packages/opencode-codex-provider/test/empty-turn-classifier.test.ts` — **new** — unit tests for every cause-family scenario from spec.md
-- `packages/opencode-codex-provider/test/empty-turn-log.test.ts` — **new** — unit tests for log emission + log-failure-doesn't-block-recovery
+- `packages/opencode-codex-provider/src/empty-turn-classifier.test.ts` — **new** — unit tests for every cause-family scenario from spec.md
+- `packages/opencode-codex-provider/src/empty-turn-log.test.ts` — **new** — unit tests for log emission + log-failure-doesn't-block-recovery
 - [specs/architecture.md](../architecture.md) — append paragraph on empty-turn classifier path + JSONL log location (DD-3)

@@ -51,6 +51,60 @@ export function createAutoScroll(options: AutoScrollOptions) {
     if (mode === "free-reading") explicitFollow = false
     setStore("mode", mode)
     debug("mode-change", { mode, reason, ...extra })
+    if (mode === "free-reading" && active() && isScrollIncidentCaptureEnabled()) {
+      captureFreeReadingFlip(reason, extra)
+    }
+  }
+
+  const captureFreeReadingFlip = (reason: string, extra: Record<string, unknown> = {}) => {
+    const el = scroll
+    if (!el) return
+    let scrollerAnchor: string | undefined
+    let firstChildAnchor: string | undefined
+    let userMessageAnchor: string | undefined
+    let firstChildOuterHTML: string | undefined
+    let messageRects: Array<Record<string, unknown>> = []
+    try {
+      scrollerAnchor = getComputedStyle(el).overflowAnchor
+      const content = store.contentRef
+      const first = content?.firstElementChild as HTMLElement | undefined
+      firstChildAnchor = first ? getComputedStyle(first).overflowAnchor : undefined
+      firstChildOuterHTML = first ? first.outerHTML.slice(0, 240) : undefined
+      const userMsg = content?.querySelector<HTMLElement>('[id^="message-"]')
+      userMessageAnchor = userMsg ? getComputedStyle(userMsg).overflowAnchor : undefined
+      const msgs = content?.querySelectorAll<HTMLElement>("[data-message-id]")
+      if (msgs) {
+        const tail = Array.from(msgs).slice(-4)
+        const scrollerRect = el.getBoundingClientRect()
+        messageRects = tail.map((m) => {
+          const r = m.getBoundingClientRect()
+          return {
+            messageID: m.dataset.messageId,
+            id: m.id || undefined,
+            relativeTop: r.top - scrollerRect.top,
+            relativeBottom: r.bottom - scrollerRect.top,
+            height: r.height,
+          }
+        })
+      }
+    } catch {}
+    void captureScrollIncident("mode-flip-free-reading", {
+      reason,
+      metrics: metrics(el),
+      explicitFollow,
+      circuitBroken,
+      anchorHitTimes: [...anchorHitTimes],
+      lastScrollHeight,
+      mode: store.mode,
+      computedAnchors: {
+        scroller: scrollerAnchor,
+        firstContentChild: firstChildAnchor,
+        firstUserMessage: userMessageAnchor,
+      },
+      firstChildOuterHTML,
+      messageRects,
+      ...extra,
+    })
   }
 
   const active = () => options.working() || settling
@@ -435,7 +489,13 @@ export function createAutoScroll(options: AutoScrollOptions) {
 
       if (distance > 1 && !explicitFollow) {
         stopRafLoop()
-        setMode("free-reading", "resize-away-from-bottom")
+        setMode("free-reading", "resize-away-from-bottom", {
+          delta,
+          distance,
+          followThreshold: followThreshold(),
+          newScrollHeight,
+          prevLastScrollHeight: newScrollHeight - delta,
+        })
         debug("resize-blocked-away-from-bottom", { delta, distance, ...metrics(el) })
         return
       }
@@ -517,7 +577,13 @@ export function createAutoScroll(options: AutoScrollOptions) {
           debug("resize-explicit-follow-snap", { delta, remaining, ...metrics(el) })
           return
         }
-        setMode("free-reading", "resize-remaining-away-from-bottom")
+        setMode("free-reading", "resize-remaining-away-from-bottom", {
+          delta,
+          remaining,
+          followThreshold: followThreshold(),
+          writeTrace,
+          anchorHitsAtFlip: anchorHitTimes.length,
+        })
         debug("resize-delta-blocked-snap", { delta, remaining, ...metrics(el) })
       } else {
         debug("resize-bottom-applied", { delta, ...metrics(el) })
