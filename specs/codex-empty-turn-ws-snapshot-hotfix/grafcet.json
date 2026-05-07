@@ -1,0 +1,18 @@
+{
+  "model": "codex-empty-turn-ws-snapshot-hotfix",
+  "steps": [
+    { "id": "S0", "name": "WS stream active", "initial": true },
+    { "id": "S1", "name": "Stream ended without terminal event" },
+    { "id": "S2", "name": "Snapshot normalized with wsFrameCount" },
+    { "id": "S3", "name": "Empty turn classified and logged" }
+  ],
+  "transitions": [
+    {
+      "from": "S0",
+      "to": "S1",
+      "condition": "terminalEventReceived == false && emittedTextDeltas == 0 && emittedToolCalls == 0"
+    },
+    { "from": "S1", "to": "S2", "condition": "typeof wsFrameCount == 'number'" },
+    { "from": "S2", "to": "S3", "condition": "causeFamily in ['ws_truncation', 'ws_no_frames']" }
+  ]
+}

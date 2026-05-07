@@ -1,0 +1,29 @@
+{
+  "model": "codex-empty-turn-ws-snapshot-hotfix",
+  "nodes": [
+    {
+      "id": "A0",
+      "name": "Restore WS empty-turn evidence classification",
+      "inputs": ["WS observation", "empty-turn stream flush"],
+      "controls": ["codex-empty-turn-recovery DD-9", "append-only JSONL policy"],
+      "outputs": ["classified JSONL evidence", "finish metadata"],
+      "mechanisms": ["transport-ws.ts", "sse.ts", "empty-turn-classifier.ts"]
+    },
+    {
+      "id": "A1",
+      "name": "Normalize WS snapshot contract",
+      "inputs": ["frameCount"],
+      "controls": ["MapResponseStreamOptions.getTransportSnapshot contract"],
+      "outputs": ["wsFrameCount"],
+      "mechanisms": ["transport-ws.ts getSnapshot"]
+    },
+    {
+      "id": "A2",
+      "name": "Classify empty turn",
+      "inputs": ["wsFrameCount", "terminalEventReceived", "deltasObserved"],
+      "controls": ["DD-9 cause-family table"],
+      "outputs": ["ws_truncation or ws_no_frames"],
+      "mechanisms": ["empty-turn-classifier.ts"]
+    }
+  ]
+}

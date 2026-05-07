@@ -1,0 +1,14 @@
+{
+  "vectors": [
+    {
+      "id": "TV-1",
+      "input": { "wsFrameCount": 2, "terminalEventReceived": false },
+      "expected": { "causeFamily": "ws_truncation", "recoveryAction": "retry-once-then-soft-fail" }
+    },
+    {
+      "id": "TV-2",
+      "input": { "wsFrameCount": 0, "terminalEventReceived": false },
+      "expected": { "causeFamily": "ws_no_frames", "recoveryAction": "retry-once-then-soft-fail" }
+    }
+  ]
+}

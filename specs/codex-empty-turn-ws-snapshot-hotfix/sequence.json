@@ -1,0 +1,23 @@
+{
+  "scenarios": [
+    {
+      "id": "P1",
+      "name": "WS truncation classified after snapshot normalization",
+      "messages": [
+        {
+          "id": "MSG1",
+          "from": "transport-ws.ts",
+          "to": "sse.ts",
+          "body": "getTransportSnapshot() returns wsFrameCount"
+        },
+        {
+          "id": "MSG2",
+          "from": "sse.ts",
+          "to": "empty-turn-classifier.ts",
+          "body": "classifyEmptyTurn({ wsFrameCount, terminalEventReceived:false })"
+        },
+        { "id": "MSG3", "from": "sse.ts", "to": "empty-turns.jsonl", "body": "append classified evidence" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "state": "planned",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-05-07T12:00:00Z",
+      "by": "codex-main-agent",
+      "mode": "new",
+      "reason": "Open hotfix plan for codex empty-turn WS snapshot field mismatch discovered from live JSONL evidence."
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-05-07T12:01:00Z",
+      "by": "codex-main-agent",
+      "mode": "promote",
+      "reason": "Design scope is bounded to restoring wsFrameCount evidence across transport-ws to sse boundary."
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-05-07T12:02:00Z",
+      "by": "codex-main-agent",
+      "mode": "promote",
+      "reason": "Implementation tasks and validation checks are ready for hotfix execution."
+    }
+  ]
+}

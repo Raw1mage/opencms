@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CodexEmptyTurnWsSnapshotHotfixEvidence",
+  "type": "object",
+  "required": ["sessionId", "logSequence", "terminalEventReceived", "wsFrameCount", "causeFamily"],
+  "properties": {
+    "sessionId": { "type": "string" },
+    "logSequence": { "type": "integer" },
+    "terminalEventReceived": { "type": "boolean" },
+    "wsFrameCount": { "type": "integer", "minimum": 0 },
+    "causeFamily": { "enum": ["ws_truncation", "ws_no_frames"] }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "systems": [{ "id": "C1", "name": "Codex Provider Package", "moduleRef": "A0" }],
+  "components": [
+    { "id": "C1.1", "name": "transport-ws.ts", "moduleRef": "A1" },
+    { "id": "C1.2", "name": "sse.ts", "moduleRef": "A2" },
+    { "id": "C1.3", "name": "empty-turn-classifier.ts", "moduleRef": "A2" }
+  ],
+  "relationships": [
+    { "from": "C1.1", "to": "C1.2", "description": "Provides normalized getTransportSnapshot() evidence" },
+    { "from": "C1.2", "to": "C1.3", "description": "Builds EmptyTurnSnapshot and requests cause-family classification" }
+  ]
+}
