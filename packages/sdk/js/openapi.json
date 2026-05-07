@@ -154,29 +154,23 @@
       }
     },
     "/api/v2/global/auth/logout": {
+      "get": {
+        "operationId": "global.auth.logout",
+        "summary": "Logout web session",
+        "description": "Invalidate current web auth session cookie and return control to the gateway/login shell.",
+        "responses": {
+          "303": {
+            "description": "Logout success; redirect to gateway root"
+          }
+        }
+      },
       "post": {
         "operationId": "global.auth.logout",
         "summary": "Logout web session",
-        "description": "Invalidate current web auth session cookie.",
+        "description": "Invalidate current web auth session cookie and return control to the gateway/login shell.",
         "responses": {
-          "200": {
-            "description": "Logout success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean",
-                      "const": true
-                    }
-                  },
-                  "required": [
-                    "ok"
-                  ]
-                }
-              }
-            }
+          "303": {
+            "description": "Logout success; redirect to gateway root"
           }
         }
       }
@@ -335,6 +329,12 @@
                       "type": "string",
                       "const": "/api/v2/global/health"
                     },
+                    "txid": {
+                      "type": "string"
+                    },
+                    "handoverPath": {
+                      "type": "string"
+                    },
                     "recommendedInitialDelayMs": {
                       "type": "number"
                     },
@@ -351,6 +351,8 @@
                     "mode",
                     "runtimeMode",
                     "probePath",
+                    "txid",
+                    "handoverPath",
                     "recommendedInitialDelayMs",
                     "fallbackReloadAfterMs",
                     "recoveryDeadlineMs"
@@ -384,6 +386,17 @@
                   "reason": {
                     "type": "string",
                     "maxLength": 500
+                  },
+                  "sessionID": {
+                    "type": "string"
+                  },
+                  "handover": {
+                    "type": "string",
+                    "maxLength": 4000
+                  },
+                  "txid": {
+                    "type": "string",
+                    "maxLength": 120
                   }
                 }
               }
@@ -4355,6 +4368,15 @@
               "type": "number"
             },
             "description": "Maximum number of sessions to return"
+          },
+          {
+            "in": "query",
+            "name": "providerFamily",
+            "schema": {
+              "type": "string",
+              "const": "claude"
+            },
+            "description": "Filter sessions by provider family"
           }
         ],
         "summary": "List sessions",
@@ -5333,6 +5355,192 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/SessionResumeRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/session/import/claude": {
+      "get": {
+        "operationId": "session.listClaudeImports",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "List Claude Code native transcripts",
+        "description": "Lists project-scoped Claude Code native transcript files available for deterministic takeover import.",
+        "responses": {
+          "200": {
+            "description": "Claude Code native transcript list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "sourceSessionID": {
+                        "type": "string"
+                      },
+                      "transcriptPath": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "time": {
+                        "type": "object",
+                        "properties": {
+                          "created": {
+                            "type": "number"
+                          },
+                          "updated": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "created",
+                          "updated"
+                        ]
+                      },
+                      "importedSessionID": {
+                        "type": "string"
+                      },
+                      "currentLineCount": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "importedLineCount": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "hasNewContent": {
+                        "type": "boolean"
+                      },
+                      "userMessageCount": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "assistantMessageCount": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "firstUserPreview": {
+                        "type": "string"
+                      },
+                      "lastUserPreview": {
+                        "type": "string"
+                      },
+                      "looksEmpty": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "sourceSessionID",
+                      "transcriptPath",
+                      "title",
+                      "time",
+                      "currentLineCount",
+                      "hasNewContent",
+                      "userMessageCount",
+                      "assistantMessageCount",
+                      "looksEmpty"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "session.importClaude",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Import Claude Code transcript",
+        "description": "Deterministically imports or delta-syncs a Claude Code native transcript into an OpenCode takeover session.",
+        "responses": {
+          "200": {
+            "description": "Successfully imported or synced Claude transcript",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sessionID": {
+                      "type": "string"
+                    },
+                    "imported": {
+                      "type": "boolean"
+                    },
+                    "appended": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "sourceSessionID": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "sessionID",
+                    "imported",
+                    "appended",
+                    "sourceSessionID"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "directory": {
+                    "type": "string"
+                  },
+                  "sourceSessionID": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "transcriptPath": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "sourceSessionID"
+                ]
               }
             }
           }
@@ -13881,6 +14089,9 @@
                     "description": "Duration in milliseconds",
                     "default": 5000,
                     "type": "number"
+                  },
+                  "emittedAt": {
+                    "type": "number"
                   }
                 },
                 "required": [
@@ -18934,6 +19145,429 @@
         }
       }
     },
+    "/api/v2/working-cache/index/{sessionID}": {
+      "get": {
+        "operationId": "workingCache.index",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sessionID",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "since_turn",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "exploration",
+                "modify",
+                "other"
+              ]
+            }
+          }
+        ],
+        "summary": "Working Cache awareness manifest",
+        "description": "Counts + topic labels + retrieval tool names for the requested session. Same content shape as the post-compaction manifest, on demand. No fact bodies, no hashes, no path enumeration.",
+        "responses": {
+          "200": {
+            "description": "Manifest",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "l2": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "byKind": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "byFileCount": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "total",
+                        "byKind",
+                        "byFileCount"
+                      ]
+                    },
+                    "l1": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "topics": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "total",
+                        "topics"
+                      ]
+                    },
+                    "retrieval": {
+                      "type": "object",
+                      "properties": {
+                        "raw": {
+                          "type": "string"
+                        },
+                        "digest": {
+                          "type": "string"
+                        },
+                        "index": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "raw",
+                        "digest",
+                        "index"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "l2",
+                    "l1",
+                    "retrieval"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/working-cache/raw/{sessionID}": {
+      "get": {
+        "operationId": "workingCache.raw",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sessionID",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "exploration",
+                "modify",
+                "other"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "hash",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          {
+            "in": "query",
+            "name": "turn_range_start",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "in": "query",
+            "name": "turn_range_end",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_body",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "summary": "Working Cache raw ledger query",
+        "description": "Returns the most recent L2 ledger entry matching the query, or { found: false } on miss. Optional include_body=1 inlines the original ToolPart.output from message storage; no payload duplication into L2.",
+        "responses": {
+          "200": {
+            "description": "Ledger pointer (with optional body)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "found": {
+                      "type": "boolean"
+                    },
+                    "toolCallID": {
+                      "type": "string"
+                    },
+                    "toolName": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "exploration",
+                        "modify",
+                        "other"
+                      ]
+                    },
+                    "argsSummary": {
+                      "type": "string"
+                    },
+                    "filePath": {
+                      "type": "string"
+                    },
+                    "outputHash": {
+                      "type": "string"
+                    },
+                    "mtimeMs": {
+                      "type": "number"
+                    },
+                    "turn": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "messageRef": {
+                      "type": "string"
+                    },
+                    "ageTurns": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "capturedAt": {
+                      "type": "string"
+                    },
+                    "body": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "found"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/working-cache/digest/{sessionID}": {
+      "get": {
+        "operationId": "workingCache.digest",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sessionID",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "topic",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entry_id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "evidence_path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Working Cache digest query",
+        "description": "Returns matching L1 digest entries; stale entries are omitted from `entries` and reported in `omitted` with their omission reason.",
+        "responses": {
+          "200": {
+            "description": "Digest entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "entries": {
+                      "type": "array",
+                      "items": {}
+                    },
+                    "omitted": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "entryID": {
+                            "type": "string"
+                          },
+                          "reason": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "entryID",
+                          "reason"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "entries",
+                    "omitted"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/find": {
       "get": {
         "operationId": "find.text",
@@ -19181,6 +19815,101 @@
                   "items": {
                     "$ref": "#/components/schemas/FileNode"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/file/directory": {
+      "post": {
+        "operationId": "file.createDirectory",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Create directory",
+        "description": "Create a directory at the specified path.",
+        "responses": {
+          "200": {
+            "description": "Created directory",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileDirectoryCreateResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "path"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/file/stat": {
+      "get": {
+        "operationId": "file.stat",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "summary": "Stat file",
+        "description": "Lightweight mtime/size probe for an open file viewer to detect on-disk changes without re-reading content. Used by the SPA to poll the active file tab.",
+        "responses": {
+          "200": {
+            "description": "File stat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mtime": {
+                      "type": "number"
+                    },
+                    "size": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "mtime",
+                    "size"
+                  ]
                 }
               }
             }
@@ -19771,29 +20500,23 @@
       }
     },
     "/global/auth/logout": {
+      "get": {
+        "operationId": "global.auth.logout",
+        "summary": "Logout web session",
+        "description": "Invalidate current web auth session cookie and return control to the gateway/login shell.",
+        "responses": {
+          "303": {
+            "description": "Logout success; redirect to gateway root"
+          }
+        }
+      },
       "post": {
         "operationId": "global.auth.logout",
         "summary": "Logout web session",
-        "description": "Invalidate current web auth session cookie.",
+        "description": "Invalidate current web auth session cookie and return control to the gateway/login shell.",
         "responses": {
-          "200": {
-            "description": "Logout success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean",
-                      "const": true
-                    }
-                  },
-                  "required": [
-                    "ok"
-                  ]
-                }
-              }
-            }
+          "303": {
+            "description": "Logout success; redirect to gateway root"
           }
         }
       }
@@ -19952,6 +20675,12 @@
                       "type": "string",
                       "const": "/api/v2/global/health"
                     },
+                    "txid": {
+                      "type": "string"
+                    },
+                    "handoverPath": {
+                      "type": "string"
+                    },
                     "recommendedInitialDelayMs": {
                       "type": "number"
                     },
@@ -19968,6 +20697,8 @@
                     "mode",
                     "runtimeMode",
                     "probePath",
+                    "txid",
+                    "handoverPath",
                     "recommendedInitialDelayMs",
                     "fallbackReloadAfterMs",
                     "recoveryDeadlineMs"
@@ -20001,6 +20732,17 @@
                   "reason": {
                     "type": "string",
                     "maxLength": 500
+                  },
+                  "sessionID": {
+                    "type": "string"
+                  },
+                  "handover": {
+                    "type": "string",
+                    "maxLength": 4000
+                  },
+                  "txid": {
+                    "type": "string",
+                    "maxLength": 120
                   }
                 }
               }
@@ -23972,6 +24714,15 @@
               "type": "number"
             },
             "description": "Maximum number of sessions to return"
+          },
+          {
+            "in": "query",
+            "name": "providerFamily",
+            "schema": {
+              "type": "string",
+              "const": "claude"
+            },
+            "description": "Filter sessions by provider family"
           }
         ],
         "summary": "List sessions",
@@ -24950,6 +25701,192 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/SessionResumeRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/session/import/claude": {
+      "get": {
+        "operationId": "session.listClaudeImports",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "List Claude Code native transcripts",
+        "description": "Lists project-scoped Claude Code native transcript files available for deterministic takeover import.",
+        "responses": {
+          "200": {
+            "description": "Claude Code native transcript list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "sourceSessionID": {
+                        "type": "string"
+                      },
+                      "transcriptPath": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "time": {
+                        "type": "object",
+                        "properties": {
+                          "created": {
+                            "type": "number"
+                          },
+                          "updated": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "created",
+                          "updated"
+                        ]
+                      },
+                      "importedSessionID": {
+                        "type": "string"
+                      },
+                      "currentLineCount": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "importedLineCount": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "hasNewContent": {
+                        "type": "boolean"
+                      },
+                      "userMessageCount": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "assistantMessageCount": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "firstUserPreview": {
+                        "type": "string"
+                      },
+                      "lastUserPreview": {
+                        "type": "string"
+                      },
+                      "looksEmpty": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "sourceSessionID",
+                      "transcriptPath",
+                      "title",
+                      "time",
+                      "currentLineCount",
+                      "hasNewContent",
+                      "userMessageCount",
+                      "assistantMessageCount",
+                      "looksEmpty"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "session.importClaude",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Import Claude Code transcript",
+        "description": "Deterministically imports or delta-syncs a Claude Code native transcript into an OpenCode takeover session.",
+        "responses": {
+          "200": {
+            "description": "Successfully imported or synced Claude transcript",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sessionID": {
+                      "type": "string"
+                    },
+                    "imported": {
+                      "type": "boolean"
+                    },
+                    "appended": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "sourceSessionID": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "sessionID",
+                    "imported",
+                    "appended",
+                    "sourceSessionID"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "directory": {
+                    "type": "string"
+                  },
+                  "sourceSessionID": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "transcriptPath": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "sourceSessionID"
+                ]
               }
             }
           }
@@ -33498,6 +34435,9 @@
                     "description": "Duration in milliseconds",
                     "default": 5000,
                     "type": "number"
+                  },
+                  "emittedAt": {
+                    "type": "number"
                   }
                 },
                 "required": [
@@ -38551,6 +39491,429 @@
         }
       }
     },
+    "/working-cache/index/{sessionID}": {
+      "get": {
+        "operationId": "workingCache.index",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sessionID",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "since_turn",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "exploration",
+                "modify",
+                "other"
+              ]
+            }
+          }
+        ],
+        "summary": "Working Cache awareness manifest",
+        "description": "Counts + topic labels + retrieval tool names for the requested session. Same content shape as the post-compaction manifest, on demand. No fact bodies, no hashes, no path enumeration.",
+        "responses": {
+          "200": {
+            "description": "Manifest",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "l2": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "byKind": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "byFileCount": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "total",
+                        "byKind",
+                        "byFileCount"
+                      ]
+                    },
+                    "l1": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "topics": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "total",
+                        "topics"
+                      ]
+                    },
+                    "retrieval": {
+                      "type": "object",
+                      "properties": {
+                        "raw": {
+                          "type": "string"
+                        },
+                        "digest": {
+                          "type": "string"
+                        },
+                        "index": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "raw",
+                        "digest",
+                        "index"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "l2",
+                    "l1",
+                    "retrieval"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/working-cache/raw/{sessionID}": {
+      "get": {
+        "operationId": "workingCache.raw",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sessionID",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "exploration",
+                "modify",
+                "other"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "hash",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          {
+            "in": "query",
+            "name": "turn_range_start",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "in": "query",
+            "name": "turn_range_end",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_body",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "summary": "Working Cache raw ledger query",
+        "description": "Returns the most recent L2 ledger entry matching the query, or { found: false } on miss. Optional include_body=1 inlines the original ToolPart.output from message storage; no payload duplication into L2.",
+        "responses": {
+          "200": {
+            "description": "Ledger pointer (with optional body)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "found": {
+                      "type": "boolean"
+                    },
+                    "toolCallID": {
+                      "type": "string"
+                    },
+                    "toolName": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "exploration",
+                        "modify",
+                        "other"
+                      ]
+                    },
+                    "argsSummary": {
+                      "type": "string"
+                    },
+                    "filePath": {
+                      "type": "string"
+                    },
+                    "outputHash": {
+                      "type": "string"
+                    },
+                    "mtimeMs": {
+                      "type": "number"
+                    },
+                    "turn": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "messageRef": {
+                      "type": "string"
+                    },
+                    "ageTurns": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "capturedAt": {
+                      "type": "string"
+                    },
+                    "body": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "found"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/working-cache/digest/{sessionID}": {
+      "get": {
+        "operationId": "workingCache.digest",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sessionID",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "topic",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entry_id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "evidence_path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Working Cache digest query",
+        "description": "Returns matching L1 digest entries; stale entries are omitted from `entries` and reported in `omitted` with their omission reason.",
+        "responses": {
+          "200": {
+            "description": "Digest entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "entries": {
+                      "type": "array",
+                      "items": {}
+                    },
+                    "omitted": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "entryID": {
+                            "type": "string"
+                          },
+                          "reason": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "entryID",
+                          "reason"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "entries",
+                    "omitted"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/find": {
       "get": {
         "operationId": "find.text",
@@ -38798,6 +40161,101 @@
                   "items": {
                     "$ref": "#/components/schemas/FileNode"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/file/directory": {
+      "post": {
+        "operationId": "file.createDirectory",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Create directory",
+        "description": "Create a directory at the specified path.",
+        "responses": {
+          "200": {
+            "description": "Created directory",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileDirectoryCreateResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "path"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/file/stat": {
+      "get": {
+        "operationId": "file.stat",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "summary": "Stat file",
+        "description": "Lightweight mtime/size probe for an open file viewer to detect on-disk changes without re-reading content. Used by the SPA to poll the active file tab.",
+        "responses": {
+          "200": {
+            "description": "File stat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mtime": {
+                      "type": "number"
+                    },
+                    "size": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "mtime",
+                    "size"
+                  ]
                 }
               }
             }
@@ -39699,6 +41157,258 @@
           "properties"
         ]
       },
+      "Event.session.storage.corrupted": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "session.storage.corrupted"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "integrityCheckOutput": {
+                "type": "string"
+              },
+              "dbPath": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "sessionID",
+              "integrityCheckOutput",
+              "dbPath",
+              "timestamp"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.session.storage.migration_started": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "session.storage.migration_started"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "legacyMessageCount": {
+                "type": "number"
+              },
+              "timestamp": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "sessionID",
+              "legacyMessageCount",
+              "timestamp"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.session.storage.migrated": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "session.storage.migrated"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "legacyMessageCount": {
+                "type": "number"
+              },
+              "sqliteRowCount": {
+                "type": "number"
+              },
+              "durationMs": {
+                "type": "number"
+              },
+              "timestamp": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "sessionID",
+              "legacyMessageCount",
+              "sqliteRowCount",
+              "durationMs",
+              "timestamp"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.session.storage.migration_failed": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "session.storage.migration_failed"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "stage": {
+                "type": "string",
+                "enum": [
+                  "read",
+                  "tmp_write",
+                  "integrity_check",
+                  "row_count",
+                  "rename",
+                  "legacy_delete"
+                ]
+              },
+              "error": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "sessionID",
+              "stage",
+              "error",
+              "timestamp"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.session.storage.legacy_debris_resolved": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "session.storage.legacy_debris_resolved"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "deletedAt": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "sessionID",
+              "deletedAt"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.session.storage.read_failed": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "session.storage.read_failed"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "operation": {
+                "type": "string"
+              },
+              "error": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "sessionID",
+              "operation",
+              "error",
+              "timestamp"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.session.storage.write_failed": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "session.storage.write_failed"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "operation": {
+                "type": "string"
+              },
+              "error": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "sessionID",
+              "operation",
+              "error",
+              "timestamp"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
       "FileDiff": {
         "type": "object",
         "properties": {
@@ -39859,6 +41569,10 @@
           },
           "variant": {
             "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "const": "context-preface"
           }
         },
         "required": [
@@ -40086,6 +41800,48 @@
           "data"
         ]
       },
+      "ParalysisDetectedError": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "const": "ParalysisDetectedError"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "message": {
+                "type": "string"
+              },
+              "detector": {
+                "type": "string",
+                "enum": [
+                  "signature",
+                  "narrative"
+                ]
+              },
+              "consecutiveRounds": {
+                "type": "number"
+              },
+              "similarity": {
+                "type": "number"
+              },
+              "samplePrefix": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "message",
+              "detector",
+              "consecutiveRounds"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "data"
+        ]
+      },
       "AssistantMessage": {
         "type": "object",
         "properties": {
@@ -40135,6 +41891,9 @@
               },
               {
                 "$ref": "#/components/schemas/APIError"
+              },
+              {
+                "$ref": "#/components/schemas/ParalysisDetectedError"
               }
             ]
           },
@@ -40689,6 +42448,85 @@
           "url"
         ]
       },
+      "AttachmentRefPart": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "sessionID": {
+            "type": "string"
+          },
+          "messageID": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "const": "attachment_ref"
+          },
+          "ref_id": {
+            "type": "string"
+          },
+          "mime": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "est_tokens": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "byte_size": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "preview": {
+            "type": "string"
+          },
+          "dimensions": {
+            "type": "object",
+            "properties": {
+              "w": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "h": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "w",
+              "h"
+            ]
+          },
+          "repo_path": {
+            "type": "string"
+          },
+          "session_path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "id",
+          "sessionID",
+          "messageID",
+          "type",
+          "ref_id",
+          "mime",
+          "est_tokens",
+          "byte_size"
+        ]
+      },
       "ToolStatePending": {
         "type": "object",
         "properties": {
@@ -41200,6 +43038,34 @@
           "time"
         ]
       },
+      "CompactionSkillSnapshot": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "summarized": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pinned": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "active",
+          "summarized",
+          "pinned"
+        ]
+      },
       "CompactionPart": {
         "type": "object",
         "properties": {
@@ -41221,6 +43087,20 @@
           },
           "auto": {
             "type": "boolean"
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {
+              "skillSnapshot": {
+                "$ref": "#/components/schemas/CompactionSkillSnapshot"
+              },
+              "pinnedByAnchor": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "required": [
@@ -41244,6 +43124,9 @@
           },
           {
             "$ref": "#/components/schemas/FilePart"
+          },
+          {
+            "$ref": "#/components/schemas/AttachmentRefPart"
           },
           {
             "$ref": "#/components/schemas/ToolPart"
@@ -41788,6 +43671,224 @@
           "properties"
         ]
       },
+      "Event.incoming.history.appended": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "incoming.history.appended"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "repoPath": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "upload",
+                  "upload-dedupe",
+                  "upload-conflict-rename",
+                  "tool:Write",
+                  "tool:Edit",
+                  "tool:Bash",
+                  "tool:mcp",
+                  "drift-detected",
+                  "bundle-published"
+                ]
+              },
+              "sha256": {
+                "type": "string"
+              },
+              "historyVersion": {
+                "type": "number"
+              },
+              "sessionId": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "repoPath",
+              "source",
+              "sha256",
+              "historyVersion",
+              "sessionId"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.incoming.dispatcher.http-upload-started": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "incoming.dispatcher.http-upload-started"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "appId": {
+                "type": "string"
+              },
+              "toolName": {
+                "type": "string"
+              },
+              "repoPath": {
+                "type": "string"
+              },
+              "sizeBytes": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "appId",
+              "toolName",
+              "repoPath",
+              "sizeBytes"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.incoming.dispatcher.http-upload-succeeded": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "incoming.dispatcher.http-upload-succeeded"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "appId": {
+                "type": "string"
+              },
+              "toolName": {
+                "type": "string"
+              },
+              "repoPath": {
+                "type": "string"
+              },
+              "token": {
+                "type": "string"
+              },
+              "sha256": {
+                "type": "string"
+              },
+              "sizeBytes": {
+                "type": "number"
+              },
+              "durationMs": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "appId",
+              "toolName",
+              "repoPath",
+              "token",
+              "sha256",
+              "sizeBytes",
+              "durationMs"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.incoming.dispatcher.http-upload-failed": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "incoming.dispatcher.http-upload-failed"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "appId": {
+                "type": "string"
+              },
+              "toolName": {
+                "type": "string"
+              },
+              "repoPath": {
+                "type": "string"
+              },
+              "errorCode": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "appId",
+              "toolName",
+              "repoPath",
+              "errorCode",
+              "message"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.incoming.dispatcher.bundle-published": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "incoming.dispatcher.bundle-published"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "appId": {
+                "type": "string"
+              },
+              "bundleRepoPath": {
+                "type": "string"
+              },
+              "sizeBytes": {
+                "type": "number"
+              },
+              "fromCache": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "appId",
+              "bundleRepoPath",
+              "sizeBytes",
+              "fromCache"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
       "PermissionAction": {
         "type": "string",
         "enum": [
@@ -41907,6 +44008,40 @@
           "cancelReason": {
             "type": "string",
             "maxLength": 500
+          },
+          "result": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "inline",
+                  "attachment_ref"
+                ]
+              },
+              "text": {
+                "type": "string"
+              },
+              "refID": {
+                "type": "string"
+              },
+              "byteSize": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "estTokens": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "preview": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ]
           }
         },
         "required": [
@@ -42101,6 +44236,12 @@
               },
               "continuationInvalidatedAt": {
                 "type": "number"
+              },
+              "activeImageRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
               }
             },
             "required": [
@@ -42344,6 +44485,9 @@
               "duration": {
                 "description": "Duration in milliseconds",
                 "default": 5000,
+                "type": "number"
+              },
+              "emittedAt": {
                 "type": "number"
               }
             },
@@ -42723,11 +44867,13 @@
             "type": "string"
           },
           "priority": {
-            "description": "Priority level of the task: high, medium, low",
+            "description": "Priority level of the task: high, medium, low (defaults to medium if omitted)",
+            "default": "medium",
             "type": "string"
           },
           "id": {
-            "description": "Unique identifier for the todo item",
+            "description": "Unique identifier for the todo item (auto-generated if omitted)",
+            "default": "todo_movri7fx_jgmjys",
             "type": "string"
           },
           "action": {
@@ -42784,9 +44930,7 @@
         },
         "required": [
           "content",
-          "status",
-          "priority",
-          "id"
+          "status"
         ]
       },
       "Event.todo.updated": {
@@ -43089,6 +45233,40 @@
               },
               "cancelReason": {
                 "type": "string"
+              },
+              "result": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "inline",
+                      "attachment_ref"
+                    ]
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "refID": {
+                    "type": "string"
+                  },
+                  "byteSize": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "estTokens": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "preview": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ]
               }
             },
             "required": [
@@ -43511,6 +45689,7 @@
               "mode": {
                 "type": "string",
                 "enum": [
+                  "auto",
                   "plugin",
                   "llm",
                   "hybrid_llm",
@@ -44139,6 +46318,89 @@
           "properties"
         ]
       },
+      "Event.incoming.decompose": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "incoming.decompose"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "mime": {
+                "type": "string"
+              },
+              "format": {
+                "type": "string",
+                "enum": [
+                  "docx",
+                  "doc",
+                  "xls",
+                  "ppt",
+                  "xlsx",
+                  "pptx"
+                ]
+              },
+              "byteSize": {
+                "type": "number"
+              },
+              "durationMs": {
+                "type": "number"
+              },
+              "cache": {
+                "type": "string",
+                "enum": [
+                  "hit",
+                  "miss"
+                ]
+              },
+              "cacheOutcome": {
+                "type": "string",
+                "enum": [
+                  "hit",
+                  "fresh",
+                  "regen"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ok",
+                  "failed",
+                  "unsupported"
+                ]
+              },
+              "reason": {
+                "type": "string"
+              },
+              "decomposer": {
+                "type": "string"
+              },
+              "stem": {
+                "type": "string"
+              },
+              "priorSibling": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "mime",
+              "format",
+              "byteSize",
+              "durationMs",
+              "cache",
+              "cacheOutcome",
+              "status",
+              "stem"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
       "Event.session.created": {
         "type": "object",
         "properties": {
@@ -44253,6 +46515,9 @@
                   },
                   {
                     "$ref": "#/components/schemas/APIError"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ParalysisDetectedError"
                   }
                 ]
               }
@@ -46098,6 +48363,27 @@
             "$ref": "#/components/schemas/Event.lsp.updated"
           },
           {
+            "$ref": "#/components/schemas/Event.session.storage.corrupted"
+          },
+          {
+            "$ref": "#/components/schemas/Event.session.storage.migration_started"
+          },
+          {
+            "$ref": "#/components/schemas/Event.session.storage.migrated"
+          },
+          {
+            "$ref": "#/components/schemas/Event.session.storage.migration_failed"
+          },
+          {
+            "$ref": "#/components/schemas/Event.session.storage.legacy_debris_resolved"
+          },
+          {
+            "$ref": "#/components/schemas/Event.session.storage.read_failed"
+          },
+          {
+            "$ref": "#/components/schemas/Event.session.storage.write_failed"
+          },
+          {
             "$ref": "#/components/schemas/Event.message.updated"
           },
           {
@@ -46135,6 +48421,21 @@
           },
           {
             "$ref": "#/components/schemas/Event.file.watcher.updated"
+          },
+          {
+            "$ref": "#/components/schemas/Event.incoming.history.appended"
+          },
+          {
+            "$ref": "#/components/schemas/Event.incoming.dispatcher.http-upload-started"
+          },
+          {
+            "$ref": "#/components/schemas/Event.incoming.dispatcher.http-upload-succeeded"
+          },
+          {
+            "$ref": "#/components/schemas/Event.incoming.dispatcher.http-upload-failed"
+          },
+          {
+            "$ref": "#/components/schemas/Event.incoming.dispatcher.bundle-published"
           },
           {
             "$ref": "#/components/schemas/Event.session.deleted"
@@ -46222,6 +48523,9 @@
           },
           {
             "$ref": "#/components/schemas/Event.command.executed"
+          },
+          {
+            "$ref": "#/components/schemas/Event.incoming.decompose"
           },
           {
             "$ref": "#/components/schemas/Event.session.created"
@@ -48079,10 +50383,6 @@
                     "description": "Enable lazy tool loading for primary agents (default: true)",
                     "type": "boolean"
                   },
-                  "promotion_threshold": {
-                    "description": "Heat score threshold for auto-promoting tools to always-present (default: 50)",
-                    "type": "number"
-                  },
                   "always_present": {
                     "description": "Additional tool IDs to always include without needing tool_loader",
                     "type": "array",
@@ -48518,6 +50818,36 @@
           "release_date"
         ]
       },
+      "AccountState": {
+        "type": "object",
+        "properties": {
+          "options": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "email": {
+            "type": "string"
+          },
+          "coolingDownUntil": {
+            "type": "number"
+          },
+          "cooldownReason": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "options"
+        ]
+      },
       "Provider": {
         "type": "object",
         "properties": {
@@ -48579,6 +50909,15 @@
             },
             "additionalProperties": {
               "$ref": "#/components/schemas/Model"
+            }
+          },
+          "accounts": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "$ref": "#/components/schemas/AccountState"
             }
           }
         },
@@ -48912,6 +51251,12 @@
               },
               "continuationInvalidatedAt": {
                 "type": "number"
+              },
+              "activeImageRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
               }
             },
             "required": [
@@ -49634,6 +51979,9 @@
           },
           "instructions": {
             "type": "string"
+          },
+          "hasCodeFallback": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -49778,6 +52126,34 @@
               "file",
               "directory"
             ]
+          },
+          "ignored": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "path",
+          "absolute",
+          "type",
+          "ignored"
+        ]
+      },
+      "FileDirectoryCreateResult": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "absolute": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "const": "directory"
           },
           "ignored": {
             "type": "boolean"

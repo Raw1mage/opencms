@@ -142,6 +142,74 @@ export type EventLspUpdated = {
   }
 }
 
+export type EventSessionStorageCorrupted = {
+  type: "session.storage.corrupted"
+  properties: {
+    sessionID: string
+    integrityCheckOutput: string
+    dbPath: string
+    timestamp: number
+  }
+}
+
+export type EventSessionStorageMigrationStarted = {
+  type: "session.storage.migration_started"
+  properties: {
+    sessionID: string
+    legacyMessageCount: number
+    timestamp: number
+  }
+}
+
+export type EventSessionStorageMigrated = {
+  type: "session.storage.migrated"
+  properties: {
+    sessionID: string
+    legacyMessageCount: number
+    sqliteRowCount: number
+    durationMs: number
+    timestamp: number
+  }
+}
+
+export type EventSessionStorageMigrationFailed = {
+  type: "session.storage.migration_failed"
+  properties: {
+    sessionID: string
+    stage: "read" | "tmp_write" | "integrity_check" | "row_count" | "rename" | "legacy_delete"
+    error: string
+    timestamp: number
+  }
+}
+
+export type EventSessionStorageLegacyDebrisResolved = {
+  type: "session.storage.legacy_debris_resolved"
+  properties: {
+    sessionID: string
+    deletedAt: number
+  }
+}
+
+export type EventSessionStorageReadFailed = {
+  type: "session.storage.read_failed"
+  properties: {
+    sessionID: string
+    operation: string
+    error: string
+    timestamp: number
+  }
+}
+
+export type EventSessionStorageWriteFailed = {
+  type: "session.storage.write_failed"
+  properties: {
+    sessionID: string
+    operation: string
+    error: string
+    timestamp: number
+  }
+}
+
 export type FileDiff = {
   file: string
   additions: number
@@ -189,6 +257,7 @@ export type UserMessage = {
     [key: string]: boolean
   }
   variant?: string
+  kind?: "context-preface"
 }
 
 export type ProviderAuthError = {
@@ -257,6 +326,17 @@ export type ApiError = {
   }
 }
 
+export type ParalysisDetectedError = {
+  name: "ParalysisDetectedError"
+  data: {
+    message: string
+    detector: "signature" | "narrative"
+    consecutiveRounds: number
+    similarity?: number
+    samplePrefix?: string
+  }
+}
+
 export type AssistantMessage = {
   id: string
   sessionID: string
@@ -273,6 +353,7 @@ export type AssistantMessage = {
     | StructuredOutputError
     | ContextOverflowError
     | ApiError
+    | ParalysisDetectedError
   parentID: string
   modelID: string
   providerId: string
@@ -426,6 +507,26 @@ export type FilePart = {
   source?: FilePartSource
 }
 
+export type AttachmentRefPart = {
+  id: string
+  sessionID: string
+  messageID: string
+  type: "attachment_ref"
+  ref_id: string
+  mime: string
+  filename?: string
+  est_tokens: number
+  byte_size: number
+  preview?: string
+  dimensions?: {
+    w: number
+    h: number
+  }
+  repo_path?: string
+  session_path?: string
+  sha256?: string
+}
+
 export type ToolStatePending = {
   status: "pending"
   input: {
@@ -571,12 +672,22 @@ export type RetryPart = {
   }
 }
 
+export type CompactionSkillSnapshot = {
+  active: Array<string>
+  summarized: Array<string>
+  pinned: Array<string>
+}
+
 export type CompactionPart = {
   id: string
   sessionID: string
   messageID: string
   type: "compaction" | "compaction-request"
   auto: boolean
+  metadata?: {
+    skillSnapshot?: CompactionSkillSnapshot
+    pinnedByAnchor?: Array<string>
+  }
 }
 
 export type Part =
@@ -584,6 +695,7 @@ export type Part =
   | SubtaskPart
   | ReasoningPart
   | FilePart
+  | AttachmentRefPart
   | ToolPart
   | StepStartPart
   | StepFinishPart
@@ -755,6 +867,70 @@ export type EventFileWatcherUpdated = {
   }
 }
 
+export type EventIncomingHistoryAppended = {
+  type: "incoming.history.appended"
+  properties: {
+    repoPath: string
+    source:
+      | "upload"
+      | "upload-dedupe"
+      | "upload-conflict-rename"
+      | "tool:Write"
+      | "tool:Edit"
+      | "tool:Bash"
+      | "tool:mcp"
+      | "drift-detected"
+      | "bundle-published"
+    sha256: string
+    historyVersion: number
+    sessionId: string | null
+  }
+}
+
+export type EventIncomingDispatcherHttpUploadStarted = {
+  type: "incoming.dispatcher.http-upload-started"
+  properties: {
+    appId: string
+    toolName: string
+    repoPath: string
+    sizeBytes: number
+  }
+}
+
+export type EventIncomingDispatcherHttpUploadSucceeded = {
+  type: "incoming.dispatcher.http-upload-succeeded"
+  properties: {
+    appId: string
+    toolName: string
+    repoPath: string
+    token: string
+    sha256: string
+    sizeBytes: number
+    durationMs: number
+  }
+}
+
+export type EventIncomingDispatcherHttpUploadFailed = {
+  type: "incoming.dispatcher.http-upload-failed"
+  properties: {
+    appId: string
+    toolName: string
+    repoPath: string
+    errorCode: string
+    message: string
+  }
+}
+
+export type EventIncomingDispatcherBundlePublished = {
+  type: "incoming.dispatcher.bundle-published"
+  properties: {
+    appId: string
+    bundleRepoPath: string
+    sizeBytes: number
+    fromCache: boolean
+  }
+}
+
 export type PermissionAction = "allow" | "deny" | "ask"
 
 export type PermissionRule = {
@@ -792,6 +968,14 @@ export type PendingSubagentNotice = {
     directive: "rotate-before-redispatch"
   }
   cancelReason?: string
+  result?: {
+    type: "inline" | "attachment_ref"
+    text?: string
+    refID?: string
+    byteSize?: number
+    estTokens?: number
+    preview?: string
+  }
 }
 
 export type Session = {
@@ -845,6 +1029,7 @@ export type Session = {
     revision: number
     updatedAt: number
     continuationInvalidatedAt?: number
+    activeImageRefs?: Array<string>
   }
   workflow?: {
     autonomous: {
@@ -924,6 +1109,7 @@ export type EventTuiToastShow = {
      * Duration in milliseconds
      */
     duration?: number
+    emittedAt?: number
   }
 }
 
@@ -1033,13 +1219,13 @@ export type Todo = {
    */
   status: string
   /**
-   * Priority level of the task: high, medium, low
+   * Priority level of the task: high, medium, low (defaults to medium if omitted)
    */
-  priority: string
+  priority?: string
   /**
-   * Unique identifier for the todo item
+   * Unique identifier for the todo item (auto-generated if omitted)
    */
-  id: string
+  id?: string
   /**
    * Structured planner metadata for autonomous session execution
    */
@@ -1133,6 +1319,14 @@ export type EventTaskCompleted = {
       directive: "rotate-before-redispatch"
     }
     cancelReason?: string
+    result?: {
+      type: "inline" | "attachment_ref"
+      text?: string
+      refID?: string
+      byteSize?: number
+      estTokens?: number
+      preview?: string
+    }
   }
 }
 
@@ -1248,7 +1442,7 @@ export type EventSessionCompactionStarted = {
   type: "session.compaction.started"
   properties: {
     sessionID: string
-    mode: "plugin" | "llm" | "hybrid_llm" | "hybrid_llm_background"
+    mode: "auto" | "plugin" | "llm" | "hybrid_llm" | "hybrid_llm_background"
   }
 }
 
@@ -1379,6 +1573,23 @@ export type EventCommandExecuted = {
   }
 }
 
+export type EventIncomingDecompose = {
+  type: "incoming.decompose"
+  properties: {
+    mime: string
+    format: "docx" | "doc" | "xls" | "ppt" | "xlsx" | "pptx"
+    byteSize: number
+    durationMs: number
+    cache: "hit" | "miss"
+    cacheOutcome: "hit" | "fresh" | "regen"
+    status: "ok" | "failed" | "unsupported"
+    reason?: string
+    decomposer?: string
+    stem: string
+    priorSibling?: string
+  }
+}
+
 export type EventSessionCreated = {
   type: "session.created"
   properties: {
@@ -1413,6 +1624,7 @@ export type EventSessionError = {
       | StructuredOutputError
       | ContextOverflowError
       | ApiError
+      | ParalysisDetectedError
   }
 }
 
@@ -1807,6 +2019,13 @@ export type Event =
   | EventCodexContinuationInvalidated
   | EventLspClientDiagnostics
   | EventLspUpdated
+  | EventSessionStorageCorrupted
+  | EventSessionStorageMigrationStarted
+  | EventSessionStorageMigrated
+  | EventSessionStorageMigrationFailed
+  | EventSessionStorageLegacyDebrisResolved
+  | EventSessionStorageReadFailed
+  | EventSessionStorageWriteFailed
   | EventMessageUpdated
   | EventMessageRemoved
   | EventMessagePartUpdated
@@ -1820,6 +2039,11 @@ export type Event =
   | EventQuestionRejected
   | EventFileEdited
   | EventFileWatcherUpdated
+  | EventIncomingHistoryAppended
+  | EventIncomingDispatcherHttpUploadStarted
+  | EventIncomingDispatcherHttpUploadSucceeded
+  | EventIncomingDispatcherHttpUploadFailed
+  | EventIncomingDispatcherBundlePublished
   | EventSessionDeleted
   | EventTuiProviderRefresh
   | EventTuiPromptAppend
@@ -1849,6 +2073,7 @@ export type Event =
   | EventMcpToolsChanged
   | EventMcpBrowserOpenFailed
   | EventCommandExecuted
+  | EventIncomingDecompose
   | EventSessionCreated
   | EventSessionUpdated
   | EventSessionDiff
@@ -2882,10 +3107,6 @@ export type Config = {
        */
       enabled?: boolean
       /**
-       * Heat score threshold for auto-promoting tools to always-present (default: 50)
-       */
-      promotion_threshold?: number
-      /**
        * Additional tool IDs to always include without needing tool_loader
        */
       always_present?: Array<string>
@@ -3008,6 +3229,17 @@ export type Model = {
   }
 }
 
+export type AccountState = {
+  options: {
+    [key: string]: unknown
+  }
+  active?: boolean
+  email?: string
+  coolingDownUntil?: number
+  cooldownReason?: string
+  displayName?: string
+}
+
 export type Provider = {
   id: string
   name: string
@@ -3024,6 +3256,9 @@ export type Provider = {
   cooldownReason?: string
   models: {
     [key: string]: Model
+  }
+  accounts?: {
+    [key: string]: AccountState
   }
 }
 
@@ -3125,6 +3360,7 @@ export type GlobalSession = {
     revision: number
     updatedAt: number
     continuationInvalidatedAt?: number
+    activeImageRefs?: Array<string>
   }
   workflow?: {
     autonomous: {
@@ -3371,6 +3607,14 @@ export type FileNode = {
   ignored: boolean
 }
 
+export type FileDirectoryCreateResult = {
+  name: string
+  path: string
+  absolute: string
+  type: "directory"
+  ignored: boolean
+}
+
 export type FileContent = {
   type: "text" | "binary"
   content: string
@@ -3527,16 +3771,12 @@ export type GlobalAuthLogoutData = {
   url: "/api/v2/global/auth/logout"
 }
 
-export type GlobalAuthLogoutResponses = {
-  /**
-   * Logout success
-   */
-  200: {
-    ok: true
-  }
+export type GlobalAuthLogout2Data = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v2/global/auth/logout"
 }
-
-export type GlobalAuthLogoutResponse = GlobalAuthLogoutResponses[keyof GlobalAuthLogoutResponses]
 
 export type GlobalEventData = {
   body?: never
@@ -3630,6 +3870,9 @@ export type GlobalWebRestartData = {
   body: {
     targets?: Array<"daemon" | "frontend" | "gateway">
     reason?: string
+    sessionID?: string
+    handover?: string
+    txid?: string
   }
   path?: never
   query?: never
@@ -3653,6 +3896,8 @@ export type GlobalWebRestartResponses = {
     mode: "controlled_restart"
     runtimeMode: "dev-source" | "dev-standalone" | "service" | "gateway-daemon" | "unknown"
     probePath: "/api/v2/global/health"
+    txid: string
+    handoverPath: string
     recommendedInitialDelayMs: number
     fallbackReloadAfterMs: number
     recoveryDeadlineMs: number
@@ -5160,6 +5405,10 @@ export type SessionListData = {
      * Maximum number of sessions to return
      */
     limit?: number
+    /**
+     * Filter sessions by provider family
+     */
+    providerFamily?: "claude"
   }
   url: "/api/v2/session"
 }
@@ -5646,6 +5895,78 @@ export type SessionResumeResponses = {
 }
 
 export type SessionResumeResponse2 = SessionResumeResponses[keyof SessionResumeResponses]
+
+export type SessionListClaudeImportsData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/session/import/claude"
+}
+
+export type SessionListClaudeImportsResponses = {
+  /**
+   * Claude Code native transcript list
+   */
+  200: Array<{
+    sourceSessionID: string
+    transcriptPath: string
+    title: string
+    time: {
+      created: number
+      updated: number
+    }
+    importedSessionID?: string
+    currentLineCount: number
+    importedLineCount?: number
+    hasNewContent: boolean
+    userMessageCount: number
+    assistantMessageCount: number
+    firstUserPreview?: string
+    lastUserPreview?: string
+    looksEmpty: boolean
+  }>
+}
+
+export type SessionListClaudeImportsResponse =
+  SessionListClaudeImportsResponses[keyof SessionListClaudeImportsResponses]
+
+export type SessionImportClaudeData = {
+  body: {
+    directory?: string
+    sourceSessionID: string
+    transcriptPath?: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/session/import/claude"
+}
+
+export type SessionImportClaudeErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type SessionImportClaudeError = SessionImportClaudeErrors[keyof SessionImportClaudeErrors]
+
+export type SessionImportClaudeResponses = {
+  /**
+   * Successfully imported or synced Claude transcript
+   */
+  200: {
+    sessionID: string
+    imported: boolean
+    appended: number
+    sourceSessionID: string
+  }
+}
+
+export type SessionImportClaudeResponse = SessionImportClaudeResponses[keyof SessionImportClaudeResponses]
 
 export type SessionAutonomousData = {
   body: {
@@ -8696,6 +9017,7 @@ export type TuiShowToastData = {
      * Duration in milliseconds
      */
     duration?: number
+    emittedAt?: number
   }
   path?: never
   query?: {
@@ -10612,6 +10934,153 @@ export type WebRouteToggleResponses = {
 
 export type WebRouteToggleResponse = WebRouteToggleResponses[keyof WebRouteToggleResponses]
 
+export type WorkingCacheIndexData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    since_turn?: number
+    kind?: "exploration" | "modify" | "other"
+  }
+  url: "/api/v2/working-cache/index/{sessionID}"
+}
+
+export type WorkingCacheIndexErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type WorkingCacheIndexError = WorkingCacheIndexErrors[keyof WorkingCacheIndexErrors]
+
+export type WorkingCacheIndexResponses = {
+  /**
+   * Manifest
+   */
+  200: {
+    l2: {
+      total: number
+      byKind: {
+        [key: string]: number
+      }
+      byFileCount: number
+    }
+    l1: {
+      total: number
+      topics: Array<string>
+    }
+    retrieval: {
+      raw: string
+      digest: string
+      index: string
+    }
+  }
+}
+
+export type WorkingCacheIndexResponse = WorkingCacheIndexResponses[keyof WorkingCacheIndexResponses]
+
+export type WorkingCacheRawData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    kind?: "exploration" | "modify" | "other"
+    path?: string
+    hash?: string
+    turn_range_start?: number
+    turn_range_end?: number
+    include_body?: boolean
+  }
+  url: "/api/v2/working-cache/raw/{sessionID}"
+}
+
+export type WorkingCacheRawErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type WorkingCacheRawError = WorkingCacheRawErrors[keyof WorkingCacheRawErrors]
+
+export type WorkingCacheRawResponses = {
+  /**
+   * Ledger pointer (with optional body)
+   */
+  200: {
+    found: boolean
+    toolCallID?: string
+    toolName?: string
+    kind?: "exploration" | "modify" | "other"
+    argsSummary?: string
+    filePath?: string
+    outputHash?: string
+    mtimeMs?: number
+    turn?: number
+    messageRef?: string
+    ageTurns?: number
+    capturedAt?: string
+    body?: string
+  }
+}
+
+export type WorkingCacheRawResponse = WorkingCacheRawResponses[keyof WorkingCacheRawResponses]
+
+export type WorkingCacheDigestData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    topic?: string
+    entry_id?: string
+    evidence_path?: string
+  }
+  url: "/api/v2/working-cache/digest/{sessionID}"
+}
+
+export type WorkingCacheDigestErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type WorkingCacheDigestError = WorkingCacheDigestErrors[keyof WorkingCacheDigestErrors]
+
+export type WorkingCacheDigestResponses = {
+  /**
+   * Digest entries
+   */
+  200: {
+    entries: Array<unknown>
+    omitted: Array<{
+      entryID: string
+      reason: string
+    }>
+  }
+}
+
+export type WorkingCacheDigestResponse = WorkingCacheDigestResponses[keyof WorkingCacheDigestResponses]
+
 export type FindTextData = {
   body?: never
   path?: never
@@ -10706,6 +11175,48 @@ export type FileListResponses = {
 }
 
 export type FileListResponse = FileListResponses[keyof FileListResponses]
+
+export type FileCreateDirectoryData = {
+  body: {
+    path: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/file/directory"
+}
+
+export type FileCreateDirectoryResponses = {
+  /**
+   * Created directory
+   */
+  200: FileDirectoryCreateResult
+}
+
+export type FileCreateDirectoryResponse = FileCreateDirectoryResponses[keyof FileCreateDirectoryResponses]
+
+export type FileStatData = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    path: string
+  }
+  url: "/api/v2/file/stat"
+}
+
+export type FileStatResponses = {
+  /**
+   * File stat
+   */
+  200: {
+    mtime: number
+    size: number
+  }
+}
+
+export type FileStatResponse = FileStatResponses[keyof FileStatResponses]
 
 export type FileReadData = {
   body?: never
@@ -11025,23 +11536,19 @@ export type GlobalAuthLogin2Responses = {
 
 export type GlobalAuthLogin2Response = GlobalAuthLogin2Responses[keyof GlobalAuthLogin2Responses]
 
-export type GlobalAuthLogout2Data = {
+export type GlobalAuthLogout3Data = {
   body?: never
   path?: never
   query?: never
   url: "/global/auth/logout"
 }
 
-export type GlobalAuthLogout2Responses = {
-  /**
-   * Logout success
-   */
-  200: {
-    ok: true
-  }
+export type GlobalAuthLogout4Data = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/global/auth/logout"
 }
-
-export type GlobalAuthLogout2Response = GlobalAuthLogout2Responses[keyof GlobalAuthLogout2Responses]
 
 export type GlobalEvent2Data = {
   body?: never
@@ -11136,6 +11643,9 @@ export type GlobalWebRestart2Data = {
   body: {
     targets?: Array<"daemon" | "frontend" | "gateway">
     reason?: string
+    sessionID?: string
+    handover?: string
+    txid?: string
   }
   path?: never
   query?: never
@@ -11159,6 +11669,8 @@ export type GlobalWebRestart2Responses = {
     mode: "controlled_restart"
     runtimeMode: "dev-source" | "dev-standalone" | "service" | "gateway-daemon" | "unknown"
     probePath: "/api/v2/global/health"
+    txid: string
+    handoverPath: string
     recommendedInitialDelayMs: number
     fallbackReloadAfterMs: number
     recoveryDeadlineMs: number
@@ -12668,6 +13180,10 @@ export type SessionList2Data = {
      * Maximum number of sessions to return
      */
     limit?: number
+    /**
+     * Filter sessions by provider family
+     */
+    providerFamily?: "claude"
   }
   url: "/session"
 }
@@ -13155,6 +13671,78 @@ export type SessionResume2Responses = {
 }
 
 export type SessionResume2Response = SessionResume2Responses[keyof SessionResume2Responses]
+
+export type SessionListClaudeImports2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/session/import/claude"
+}
+
+export type SessionListClaudeImports2Responses = {
+  /**
+   * Claude Code native transcript list
+   */
+  200: Array<{
+    sourceSessionID: string
+    transcriptPath: string
+    title: string
+    time: {
+      created: number
+      updated: number
+    }
+    importedSessionID?: string
+    currentLineCount: number
+    importedLineCount?: number
+    hasNewContent: boolean
+    userMessageCount: number
+    assistantMessageCount: number
+    firstUserPreview?: string
+    lastUserPreview?: string
+    looksEmpty: boolean
+  }>
+}
+
+export type SessionListClaudeImports2Response =
+  SessionListClaudeImports2Responses[keyof SessionListClaudeImports2Responses]
+
+export type SessionImportClaude2Data = {
+  body: {
+    directory?: string
+    sourceSessionID: string
+    transcriptPath?: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/session/import/claude"
+}
+
+export type SessionImportClaude2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type SessionImportClaude2Error = SessionImportClaude2Errors[keyof SessionImportClaude2Errors]
+
+export type SessionImportClaude2Responses = {
+  /**
+   * Successfully imported or synced Claude transcript
+   */
+  200: {
+    sessionID: string
+    imported: boolean
+    appended: number
+    sourceSessionID: string
+  }
+}
+
+export type SessionImportClaude2Response = SessionImportClaude2Responses[keyof SessionImportClaude2Responses]
 
 export type SessionAutonomous2Data = {
   body: {
@@ -16206,6 +16794,7 @@ export type TuiShowToast2Data = {
      * Duration in milliseconds
      */
     duration?: number
+    emittedAt?: number
   }
   path?: never
   query?: {
@@ -18122,6 +18711,153 @@ export type WebRouteToggle2Responses = {
 
 export type WebRouteToggle2Response = WebRouteToggle2Responses[keyof WebRouteToggle2Responses]
 
+export type WorkingCacheIndex2Data = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    since_turn?: number
+    kind?: "exploration" | "modify" | "other"
+  }
+  url: "/working-cache/index/{sessionID}"
+}
+
+export type WorkingCacheIndex2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type WorkingCacheIndex2Error = WorkingCacheIndex2Errors[keyof WorkingCacheIndex2Errors]
+
+export type WorkingCacheIndex2Responses = {
+  /**
+   * Manifest
+   */
+  200: {
+    l2: {
+      total: number
+      byKind: {
+        [key: string]: number
+      }
+      byFileCount: number
+    }
+    l1: {
+      total: number
+      topics: Array<string>
+    }
+    retrieval: {
+      raw: string
+      digest: string
+      index: string
+    }
+  }
+}
+
+export type WorkingCacheIndex2Response = WorkingCacheIndex2Responses[keyof WorkingCacheIndex2Responses]
+
+export type WorkingCacheRaw2Data = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    kind?: "exploration" | "modify" | "other"
+    path?: string
+    hash?: string
+    turn_range_start?: number
+    turn_range_end?: number
+    include_body?: boolean
+  }
+  url: "/working-cache/raw/{sessionID}"
+}
+
+export type WorkingCacheRaw2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type WorkingCacheRaw2Error = WorkingCacheRaw2Errors[keyof WorkingCacheRaw2Errors]
+
+export type WorkingCacheRaw2Responses = {
+  /**
+   * Ledger pointer (with optional body)
+   */
+  200: {
+    found: boolean
+    toolCallID?: string
+    toolName?: string
+    kind?: "exploration" | "modify" | "other"
+    argsSummary?: string
+    filePath?: string
+    outputHash?: string
+    mtimeMs?: number
+    turn?: number
+    messageRef?: string
+    ageTurns?: number
+    capturedAt?: string
+    body?: string
+  }
+}
+
+export type WorkingCacheRaw2Response = WorkingCacheRaw2Responses[keyof WorkingCacheRaw2Responses]
+
+export type WorkingCacheDigest2Data = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    topic?: string
+    entry_id?: string
+    evidence_path?: string
+  }
+  url: "/working-cache/digest/{sessionID}"
+}
+
+export type WorkingCacheDigest2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type WorkingCacheDigest2Error = WorkingCacheDigest2Errors[keyof WorkingCacheDigest2Errors]
+
+export type WorkingCacheDigest2Responses = {
+  /**
+   * Digest entries
+   */
+  200: {
+    entries: Array<unknown>
+    omitted: Array<{
+      entryID: string
+      reason: string
+    }>
+  }
+}
+
+export type WorkingCacheDigest2Response = WorkingCacheDigest2Responses[keyof WorkingCacheDigest2Responses]
+
 export type FindText2Data = {
   body?: never
   path?: never
@@ -18216,6 +18952,48 @@ export type FileList2Responses = {
 }
 
 export type FileList2Response = FileList2Responses[keyof FileList2Responses]
+
+export type FileCreateDirectory2Data = {
+  body: {
+    path: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/file/directory"
+}
+
+export type FileCreateDirectory2Responses = {
+  /**
+   * Created directory
+   */
+  200: FileDirectoryCreateResult
+}
+
+export type FileCreateDirectory2Response = FileCreateDirectory2Responses[keyof FileCreateDirectory2Responses]
+
+export type FileStat2Data = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    path: string
+  }
+  url: "/file/stat"
+}
+
+export type FileStat2Responses = {
+  /**
+   * File stat
+   */
+  200: {
+    mtime: number
+    size: number
+  }
+}
+
+export type FileStat2Response = FileStat2Responses[keyof FileStat2Responses]
 
 export type FileRead2Data = {
   body?: never
