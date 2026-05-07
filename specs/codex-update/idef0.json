@@ -1,0 +1,89 @@
+{
+  "diagram_title": "codex-update IDEF0 — Bring Provider to Upstream Parity",
+  "node_reference": "A0",
+  "version": "1.0",
+  "context": {
+    "viewpoint": "provider maintenance",
+    "purpose": "Mirror codex submodule range 5cc5f12ef..f7e8ff8e5 in packages/opencode-codex-provider/"
+  },
+  "activities": [
+    {
+      "id": "A0",
+      "name": "Bring codex provider to upstream parity",
+      "level": 0,
+      "inputs": [
+        "current provider source",
+        "codex submodule pinned at f7e8ff8e5"
+      ],
+      "outputs": [
+        "patched provider source",
+        "new + updated tests",
+        "live-smoke confirmation"
+      ],
+      "controls": [
+        "spec.md Requirements",
+        "design.md Decisions DD-1..DD-6",
+        "invariants.md INV-1..INV-7",
+        "AGENTS.md rule 1 (no silent fallback)"
+      ],
+      "mechanisms": [
+        "bun test runner",
+        "isolated XDG codex test account"
+      ]
+    },
+    {
+      "id": "A1",
+      "name": "Update header semantics (session_id + thread_id + x-client-request-id)",
+      "level": 1,
+      "parentRef": "A0",
+      "inputs": ["current headers.ts source", "build_session_headers reference (codex commit a98623511b)"],
+      "outputs": ["headers.ts emitting both ids", "5 new headers.test.ts cases (TV-1..TV-5)"],
+      "controls": ["DD-1", "DD-2", "INV-1", "INV-2"]
+    },
+    {
+      "id": "A2",
+      "name": "Update prompt_cache_key sourcing (thread-derived)",
+      "level": 1,
+      "parentRef": "A0",
+      "inputs": ["current provider.ts source"],
+      "outputs": ["provider.ts using threadId for default cache key", "2 new provider.test.ts cases (TV-6, TV-7)"],
+      "controls": ["DD-2", "INV-3"]
+    },
+    {
+      "id": "A3",
+      "name": "Add WS send-side idle timeout",
+      "level": 1,
+      "parentRef": "A0",
+      "inputs": ["current transport-ws.ts source", "upstream commit 35aaa5d9fc reference"],
+      "outputs": ["ws.send wrapped with timeout race", "ws_send_timeout reason in WS observer", "2 new transport-ws.test.ts cases (TV-8, TV-9)"],
+      "controls": ["DD-3", "INV-4"]
+    },
+    {
+      "id": "A4",
+      "name": "Extend empty-turn classifier transient set",
+      "level": 1,
+      "parentRef": "A0",
+      "inputs": ["current empty-turn-classifier.ts source"],
+      "outputs": ["classifier recognizes ws_send_timeout", "1 new empty-turn-classifier.test.ts case (TV-10)"],
+      "controls": ["INV-5"]
+    },
+    {
+      "id": "A5",
+      "name": "Document deferred features",
+      "level": 1,
+      "parentRef": "A0",
+      "inputs": ["upstream commits 2070d5bfd3, 5d6f23a27b, d927f61208"],
+      "outputs": ["DD-4, DD-5 in design.md with revisit triggers", "DEF-1, DEF-2 entries in data-schema.json"],
+      "controls": ["proposal.md OUT scope"]
+    },
+    {
+      "id": "A6",
+      "name": "Validate via tests + live smoke",
+      "level": 1,
+      "parentRef": "A0",
+      "inputs": ["patched provider source", "all new tests"],
+      "outputs": ["bun test green", "[CODEX-WS] REQ log line confirms both headers emitted on a real codex turn"],
+      "controls": ["spec.md Acceptance Checks"]
+    }
+  ]
+}

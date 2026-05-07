@@ -1,0 +1,178 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "codex-update wire shape additions",
+  "description": "Documents the field additions to provider request input and the resulting HTTP headers / WS request body. Only delta against current provider state is captured here; unchanged fields are out of scope.",
+  "definitions": {
+    "BuildHeadersOptionsDelta": {
+      "type": "object",
+      "description": "Additive option on packages/opencode-codex-provider/src/headers.ts BuildHeadersOptions. All existing fields preserved; only new field listed here.",
+      "properties": {
+        "threadId": {
+          "type": "string",
+          "description": "Per-thread identifier. Distinct from sessionId per upstream codex commit a98623511b. When omitted, defaults to sessionId so single-thread callers keep current wire behavior. Used as the value for the thread_id HTTP header, x-client-request-id HTTP header, and prompt_cache_key body field."
+        }
+      }
+    },
+    "EmittedHttpHeadersDelta": {
+      "type": "object",
+      "description": "Headers emitted by buildHeaders() that change as a result of this plan. Other headers unchanged.",
+      "properties": {
+        "session_id": {
+          "type": "string",
+          "description": "Unchanged; always sourced from sessionId option."
+        },
+        "thread_id": {
+          "type": "string",
+          "description": "NEW. Sourced from threadId option (defaults to sessionId). Mirrors upstream build_session_headers second argument."
+        },
+        "x-client-request-id": {
+          "type": "string",
+          "description": "CHANGED source. Was sourced from conversationId; now sourced from threadId (defaults to sessionId so default behavior unchanged). Aligns with upstream codex-rs/core/src/client.rs:871."
+        }
+      }
+    },
+    "WsErrorReasonAdditions": {
+      "type": "string",
+      "enum": [
+        "ws_send_timeout"
+      ],
+      "description": "NEW value added to the wsErrorReason union in transport-ws WS observer state. Existing values (first_frame_timeout, mid_stream_stall, etc.) preserved."
+    },
+    "EmptyTurnClassifierTransientReasons": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Existing transient-failure reason set in empty-turn-classifier.ts. ws_send_timeout is added to this set; other entries unchanged.",
+      "examples": [
+        ["first_frame_timeout", "mid_stream_stall", "ws_send_timeout"]
+      ]
+    }
+  },
+  "deltas": [
+    {
+      "id": "Δ1",
+      "kind": "field-add",
+      "target": "BuildHeadersOptions",
+      "field": "threadId",
+      "type": "string?",
+      "default": "sessionId",
+      "ref-decision": "DD-1"
+    },
+    {
+      "id": "Δ2",
+      "kind": "header-add",
+      "target": "outgoing HTTP headers",
+      "field": "thread_id",
+      "type": "string",
+      "source": "options.threadId ?? options.sessionId",
+      "ref-decision": "DD-1",
+      "ref-upstream": "a98623511b (#20437)"
+    },
+    {
+      "id": "Δ3",
+      "kind": "header-source-change",
+      "target": "outgoing HTTP headers",
+      "field": "x-client-request-id",
+      "from": "options.conversationId",
+      "to": "options.threadId ?? options.sessionId",
+      "ref-decision": "DD-2",
+      "ref-upstream": "a98623511b (#20437)"
+    },
+    {
+      "id": "Δ4",
+      "kind": "body-field-source-change",
+      "target": "ResponsesApiRequest body",
+      "field": "prompt_cache_key",
+      "from": "session-derived (provider.ts:158)",
+      "to": "thread-derived (defaults to session, no behavioral change for single-thread callers)",
+      "ref-decision": "DD-2",
+      "ref-upstream": "a98623511b (#20437)"
+    },
+    {
+      "id": "Δ5",
+      "kind": "behavior-add",
+      "target": "transport-ws ws.send()",
+      "behavior": "wrap with promise + idle-timeout race; on timeout, set wsErrorReason='ws_send_timeout' and abort",
+      "constant": "WS_IDLE_TIMEOUT_MS (existing, 30000)",
+      "ref-decision": "DD-3",
+      "ref-upstream": "35aaa5d9fc (#20751)"
+    },
+    {
+      "id": "Δ6",
+      "kind": "enum-extend",
+      "target": "wsErrorReason union",
+      "added-value": "ws_send_timeout",
+      "ref-decision": "DD-3"
+    },
+    {
+      "id": "Δ7",
+      "kind": "classifier-extend",
+      "target": "empty-turn-classifier transient-failure set",
+      "added-value": "ws_send_timeout",
+      "ref-decision": "DD-3"
+    }
+  ],
+  "no-change-fields": [
+    {
+      "field": "model",
+      "reason": "untouched upstream"
+    },
+    {
+      "field": "instructions",
+      "reason": "untouched upstream"
+    },
+    {
+      "field": "input",
+      "reason": "untouched upstream"
+    },
+    {
+      "field": "tools",
+      "reason": "untouched upstream"
+    },
+    {
+      "field": "tool_choice",
+      "reason": "untouched upstream"
+    },
+    {
+      "field": "parallel_tool_calls",
+      "reason": "untouched upstream"
+    },
+    {
+      "field": "reasoning",
+      "reason": "untouched upstream"
+    },
+    {
+      "field": "service_tier",
+      "reason": "upstream type changed enum→string but wire values identical; provider already uses string (types.ts:19)"
+    },
+    {
+      "field": "context_management",
+      "reason": "untouched upstream; backend handles compaction internally"
+    },
+    {
+      "field": "previous_response_id",
+      "reason": "untouched upstream"
+    },
+    {
+      "field": "client_metadata",
+      "reason": "untouched upstream"
+    }
+  ],
+  "deferred-features": [
+    {
+      "id": "DEF-1",
+      "feature": "response.processed outbound WS request",
+      "ref-upstream": "2070d5bfd3 (#21284)",
+      "ref-decision": "DD-5",
+      "reason": "server-flag-gated; no public way to detect activation; revisit when activation observed"
+    },
+    {
+      "id": "DEF-2",
+      "feature": "client-initiated /responses/compact",
+      "ref-upstream": "5d6f23a27b (#21249), d927f61208 (#20773)",
+      "ref-decision": "DD-4",
+      "reason": "provider relies on backend-internal compact via context_management body field; no client surface to integrate"
+    }
+  ]
+}

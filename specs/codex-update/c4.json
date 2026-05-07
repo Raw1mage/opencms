@@ -1,0 +1,105 @@
+{
+  "diagram_title": "codex-update C4 Component View",
+  "level": "component",
+  "systems": [
+    {
+      "id": "SYS1",
+      "name": "opencode",
+      "description": "Bundle that includes the codex provider package. This plan modifies the provider only."
+    },
+    {
+      "id": "SYS2",
+      "name": "ChatGPT backend (codex)",
+      "description": "External system. Receives Responses-API HTTP/WS calls. Provider mirrors the public interface; we don't run the codex CLI itself."
+    }
+  ],
+  "containers": [
+    {
+      "id": "CT1",
+      "systemRef": "SYS1",
+      "name": "codex provider package (packages/opencode-codex-provider)",
+      "description": "All changes in this plan land here. Six files touched: headers.ts, provider.ts, transport-ws.ts, types.ts, empty-turn-classifier.ts plus their tests."
+    },
+    {
+      "id": "CT2",
+      "systemRef": "SYS1",
+      "name": "opencode runtime (packages/opencode)",
+      "description": "Caller of the provider. Not modified by this plan; consumes the provider's existing public API which gains only one additive option (threadId)."
+    },
+    {
+      "id": "CT3",
+      "systemRef": "SYS2",
+      "name": "Responses API endpoints",
+      "description": "Public ChatGPT backend endpoints (HTTP /responses + WebSocket variant). Wire-format expectations updated per upstream codex commits in scope."
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "containerRef": "CT1",
+      "name": "headers.ts buildHeaders + buildClientMetadata",
+      "description": "A1: gains threadId option (defaults to sessionId); emits thread_id HTTP header alongside session_id; switches x-client-request-id source from conversationId to threadId. INV-1, INV-2 enforced here.",
+      "moduleRef": "A1"
+    },
+    {
+      "id": "C2",
+      "containerRef": "CT1",
+      "name": "provider.ts request body builder",
+      "description": "A2: prompt_cache_key sources from threadId (defaults to sessionId for unchanged single-thread behavior). Custom promptCacheKey override path preserved. INV-3 enforced here.",
+      "moduleRef": "A2"
+    },
+    {
+      "id": "C3",
+      "containerRef": "CT1",
+      "name": "transport-ws.ts ws.send wrapper + WS observer state",
+      "description": "A3: wraps ws.send(...) with promise + idle-timeout race using existing WS_IDLE_TIMEOUT_MS. On stall, sets wsErrorReason='ws_send_timeout' and aborts. INV-4 enforced here.",
+      "moduleRef": "A3"
+    },
+    {
+      "id": "C4",
+      "containerRef": "CT1",
+      "name": "empty-turn-classifier.ts",
+      "description": "A4: extends transient-failure reason set to include ws_send_timeout with retry recovery. INV-5 enforced here.",
+      "moduleRef": "A4"
+    },
+    {
+      "id": "C5",
+      "containerRef": "CT1",
+      "name": "types.ts request input shape",
+      "description": "Adds threadId?: string to the relevant input type (single additive field).",
+      "moduleRef": "A1"
+    }
+  ],
+  "relationships": [
+    {
+      "from": "CT2",
+      "to": "C1",
+      "label": "calls buildHeaders with sessionId/threadId options"
+    },
+    {
+      "from": "CT2",
+      "to": "C2",
+      "label": "calls provider with input including sessionId/threadId"
+    },
+    {
+      "from": "C2",
+      "to": "C3",
+      "label": "delegates WS sends through transport-ws"
+    },
+    {
+      "from": "C1",
+      "to": "CT3",
+      "label": "emits HTTP headers (session_id + thread_id + x-client-request-id) on every request"
+    },
+    {
+      "from": "C3",
+      "to": "CT3",
+      "label": "sends ws.send() frames; bounded by WS_IDLE_TIMEOUT_MS"
+    },
+    {
+      "from": "C3",
+      "to": "C4",
+      "label": "transmits wsErrorReason snapshot on stream end"
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A0",
+    "StepType": "initial",
+    "StepAction": "Idle; provider awaiting next request from opencode runtime",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track"
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Build headers: emit session_id (sessionId) AND thread_id (threadId default sessionId); set x-client-request-id from threadId (DD-1, DD-2, INV-1, INV-2)",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track"
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Build request body: prompt_cache_key sources from threadId (== sessionId by default); custom override preserved (INV-3)",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3],
+    "LinkOutputType": "track"
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "WS send wrapped with promise + WS_IDLE_TIMEOUT_MS race (DD-3, INV-4)",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4, 5],
+    "LinkOutputType": "select"
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Send callback resolved before timeout: enter receive-loop (existing flow); on success wsErrorReason=null and stream completes",
+    "LinkInputType": ["select"],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track"
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Timer fires before send callback: wsObs.wsErrorReason := 'ws_send_timeout'; abort ws; endStream",
+    "LinkInputType": ["select"],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track"
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Empty-turn classifier reads wsErrorReason snapshot; ws_send_timeout maps to category=transient with retry recovery (INV-5)",
+    "LinkInputType": ["track", "track"],
+    "LinkInputNumber": [4, 5],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track"
+  }
+]

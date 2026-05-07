@@ -1,0 +1,33 @@
+[
+  {
+    "id": "P1",
+    "name": "Happy path: normal codex turn with both headers emitted",
+    "description": "opencode runtime calls provider with sessionId only (no threadId). Provider sets threadId := sessionId per DD-1. headers: {session_id, thread_id, x-client-request-id} all carry the same UUID. body.prompt_cache_key carries the same UUID. ws.send resolves via callback under WS_IDLE_TIMEOUT_MS. Backend streams response.* events. wsErrorReason remains null at stream end.",
+    "actors": ["opencode runtime", "provider buildHeaders+request body", "transport-ws ws.send wrapper", "ChatGPT backend"],
+    "steps": [
+      "runtime → provider: build request with sessionId='S-uuid'",
+      "provider: threadId := sessionId (DD-1 default)",
+      "provider → ws: headers={session_id:S-uuid, thread_id:S-uuid, x-client-request-id:S-uuid, ...}; body.prompt_cache_key=S-uuid",
+      "ws.send(payload, callback) — resolves before WS_IDLE_TIMEOUT_MS",
+      "backend → ws: response.* event stream",
+      "ws → runtime: events forwarded; wsErrorReason=null at stream end"
+    ],
+    "componentRefs": ["C1", "C2", "C3", "CT3"]
+  },
+  {
+    "id": "P2",
+    "name": "Send stall: ws.send callback never fires within WS_IDLE_TIMEOUT_MS (DD-3)",
+    "description": "Provider issues request. ws.send(...) callback hangs. Send-side idle timer fires. Provider sets wsObs.wsErrorReason='ws_send_timeout', closes the ws, ends stream. Empty-turn classifier reads snapshot; ws_send_timeout maps to category=transient with retry recovery per INV-5. Runtime initiates retry through existing rotation/continuation flow.",
+    "actors": ["opencode runtime", "transport-ws ws.send wrapper", "WS_IDLE_TIMEOUT_MS timer", "empty-turn-classifier"],
+    "steps": [
+      "runtime → ws: issue request",
+      "ws: ws.send(payload, callback); start race timer (WS_IDLE_TIMEOUT_MS=30s)",
+      "timer fires before callback; reject promise with 'ws_send_timeout'",
+      "ws: wsObs.wsErrorReason := 'ws_send_timeout'; close ws; endStream()",
+      "ws → classifier: snapshot {wsErrorReason: 'ws_send_timeout', frameCount: 0}",
+      "classifier → runtime: category=transient, recovery=retry (INV-5)",
+      "runtime → ws: retry via rotation/continuation flow"
+    ],
+    "componentRefs": ["C3", "C4", "CT2"]
+  }
+]

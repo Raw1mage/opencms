@@ -1,0 +1,210 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "codex-update test vectors",
+  "description": "Concrete input/expected-output pairs per Requirement in spec.md. Each vector maps to a unit test in packages/opencode-codex-provider/src/*.test.ts.",
+  "vectors": [
+    {
+      "id": "TV-1",
+      "requirement": "Distinct session_id and thread_id headers",
+      "scenario": "caller supplies only sessionId",
+      "input": {
+        "buildHeadersOptions": {
+          "accessToken": "eyJ-fake",
+          "sessionId": "S-uuid-aaaa"
+        }
+      },
+      "expected": {
+        "headers": {
+          "session_id": "S-uuid-aaaa",
+          "thread_id": "S-uuid-aaaa"
+        }
+      },
+      "test-file": "headers.test.ts",
+      "test-name": "emits both session_id and thread_id with default-equality when only sessionId provided"
+    },
+    {
+      "id": "TV-2",
+      "requirement": "Distinct session_id and thread_id headers",
+      "scenario": "caller supplies both",
+      "input": {
+        "buildHeadersOptions": {
+          "accessToken": "eyJ-fake",
+          "sessionId": "S-uuid-aaaa",
+          "threadId": "T-uuid-bbbb"
+        }
+      },
+      "expected": {
+        "headers": {
+          "session_id": "S-uuid-aaaa",
+          "thread_id": "T-uuid-bbbb"
+        }
+      },
+      "test-file": "headers.test.ts",
+      "test-name": "emits distinct session_id and thread_id when both provided"
+    },
+    {
+      "id": "TV-3",
+      "requirement": "Distinct session_id and thread_id headers",
+      "scenario": "neither provided",
+      "input": {
+        "buildHeadersOptions": {
+          "accessToken": "eyJ-fake"
+        }
+      },
+      "expected": {
+        "headers-absent": ["session_id", "thread_id"]
+      },
+      "test-file": "headers.test.ts",
+      "test-name": "omits both session_id and thread_id when neither provided"
+    },
+    {
+      "id": "TV-4",
+      "requirement": "x-client-request-id sourced from threadId",
+      "scenario": "x-client-request-id reflects threadId",
+      "input": {
+        "buildHeadersOptions": {
+          "accessToken": "eyJ-fake",
+          "sessionId": "S-uuid-aaaa",
+          "threadId": "T-uuid-bbbb"
+        }
+      },
+      "expected": {
+        "headers": {
+          "x-client-request-id": "T-uuid-bbbb"
+        }
+      },
+      "test-file": "headers.test.ts",
+      "test-name": "x-client-request-id sources from threadId not sessionId"
+    },
+    {
+      "id": "TV-5",
+      "requirement": "x-client-request-id sourced from threadId",
+      "scenario": "fallback to sessionId when threadId omitted",
+      "input": {
+        "buildHeadersOptions": {
+          "accessToken": "eyJ-fake",
+          "sessionId": "S-uuid-aaaa"
+        }
+      },
+      "expected": {
+        "headers": {
+          "x-client-request-id": "S-uuid-aaaa"
+        }
+      },
+      "test-file": "headers.test.ts",
+      "test-name": "x-client-request-id falls back to sessionId when threadId omitted"
+    },
+    {
+      "id": "TV-6",
+      "requirement": "prompt_cache_key sources from threadId",
+      "scenario": "default cache key follows threadId (== sessionId)",
+      "input": {
+        "providerInput": {
+          "sessionId": "S-uuid-aaaa"
+        }
+      },
+      "expected": {
+        "body": {
+          "prompt_cache_key": "S-uuid-aaaa"
+        }
+      },
+      "test-file": "provider.test.ts",
+      "test-name": "prompt_cache_key sources from threadId (defaulting to sessionId)"
+    },
+    {
+      "id": "TV-7",
+      "requirement": "prompt_cache_key sources from threadId",
+      "scenario": "custom override wins",
+      "input": {
+        "providerInput": {
+          "sessionId": "S-uuid-aaaa",
+          "threadId": "T-uuid-bbbb",
+          "providerOptions": {
+            "promptCacheKey": "custom-key"
+          }
+        }
+      },
+      "expected": {
+        "body": {
+          "prompt_cache_key": "custom-key"
+        }
+      },
+      "test-file": "provider.test.ts",
+      "test-name": "prompt_cache_key explicit override wins over threadId default"
+    },
+    {
+      "id": "TV-8",
+      "requirement": "WebSocket send-side idle timeout",
+      "scenario": "stalled send aborts within idle timeout",
+      "input": {
+        "mock": {
+          "ws.send": "callback never invoked",
+          "WS_IDLE_TIMEOUT_MS": 100
+        }
+      },
+      "expected": {
+        "wsErrorReason": "ws_send_timeout",
+        "wsClosedWithin-ms": 150,
+        "frameCount": 0
+      },
+      "test-file": "transport-ws.test.ts",
+      "test-name": "ws_send_timeout fires when send callback never resolves"
+    },
+    {
+      "id": "TV-9",
+      "requirement": "WebSocket send-side idle timeout",
+      "scenario": "normal send completes well under timeout",
+      "input": {
+        "mock": {
+          "ws.send": "callback fires immediately",
+          "WS_IDLE_TIMEOUT_MS": 30000
+        }
+      },
+      "expected": {
+        "wsErrorReason": null,
+        "frameCount-greater-than": 0
+      },
+      "test-file": "transport-ws.test.ts",
+      "test-name": "no ws_send_timeout when callback fires promptly"
+    },
+    {
+      "id": "TV-10",
+      "requirement": "Empty-turn classifier recognizes ws_send_timeout",
+      "scenario": "ws_send_timeout classified as transient",
+      "input": {
+        "snapshot": {
+          "wsErrorReason": "ws_send_timeout",
+          "frameCount": 0,
+          "terminalEventReceived": false
+        }
+      },
+      "expected": {
+        "category": "transient",
+        "recovery": "retry"
+      },
+      "test-file": "empty-turn-classifier.test.ts",
+      "test-name": "ws_send_timeout categorized as transient with retry recovery"
+    },
+    {
+      "id": "TV-11",
+      "requirement": "No regression in existing wire format",
+      "scenario": "header set additive only",
+      "input": {
+        "buildHeadersOptions": {
+          "accessToken": "eyJ-fake",
+          "accountId": "A-id",
+          "sessionId": "S-uuid-aaaa",
+          "installationId": "I-id",
+          "userAgent": "opencode/1.0",
+          "isWebSocket": false
+        }
+      },
+      "expected": {
+        "headers-superset-of": ["authorization", "originator", "content-type", "Accept", "ChatGPT-Account-Id", "session_id", "User-Agent", "x-client-request-id"],
+        "header-added-vs-baseline": ["thread_id"]
+      },
+      "test-file": "headers.test.ts",
+      "test-name": "post-update header set is baseline plus thread_id"
+    }
+  ]
+}
