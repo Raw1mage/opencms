@@ -16,6 +16,9 @@ import {
   readSessionInfoViaApi,
   readSessionListViaApi,
   readSessionMessagesViaApi,
+  workingCacheDigestViaApi,
+  workingCacheIndexViaApi,
+  workingCacheRawViaApi,
 } from "./system-manager-http"
 
 const execAsync = promisify(exec)
@@ -779,6 +782,104 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               minimum: 1,
               maximum: 200,
               default: 50,
+            },
+          },
+          required: ["sessionID"],
+        },
+      },
+      // ── Working Cache recall (L1 digest + L2 raw ledger) ──────────────
+      // Plan reference: plans/20260507_working-cache-local-cache/ DD-10, DD-21, DD-22.
+      {
+        name: "recall_toolcall_index",
+        description:
+          "Refresh awareness of the Working Cache for the current session. Returns counts of L2 toolcall ledger entries (by tool kind), file count, and L1 digest topics. No fact bodies, no hashes, no path enumeration — drill in via `recall_toolcall_raw` or `recall_toolcall_digest` when a specific need arises.\n\nExample: `{ \"sessionID\": \"ses_xxx\" }` returns `{ l2: { total: 47, byKind: { read: 12, grep: 14, ... }, byFileCount: 18 }, l1: { total: 8, topics: [\"working-cache-l1-l2-design\", ...] }, retrieval: { ... } }`.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            sessionID: {
+              type: "string",
+              description: "Session whose Working Cache to inspect.",
+            },
+            since_turn: {
+              type: "integer",
+              minimum: 0,
+              description: "Optional — only count L2 ledger entries from this turn onward.",
+            },
+            kind: {
+              type: "string",
+              enum: ["exploration", "modify", "other"],
+              description: "Optional — narrow L2 counts to a single tool kind.",
+            },
+          },
+          required: ["sessionID"],
+        },
+      },
+      {
+        name: "recall_toolcall_raw",
+        description:
+          "Pull a previously-completed toolcall from the L2 raw ledger by file path / hash / kind / turn range. Default response is pointer-only ({ found, toolCallID, toolName, kind, filePath, outputHash, mtimeMs, turn, messageRef, ageTurns, capturedAt }). Set `include_body: true` to inline the original ToolPart.output without duplicating it into L2 — body is fetched on demand from message storage. Returns `{ found: false }` on miss (never throws).\n\nUseful when you need to verify what a previous Read/Grep returned without re-running the tool.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            sessionID: {
+              type: "string",
+              description: "Session whose Working Cache to query.",
+            },
+            kind: {
+              type: "string",
+              enum: ["exploration", "modify", "other"],
+              description: "Optional — restrict to a tool kind (e.g. exploration for read/grep/glob).",
+            },
+            path: {
+              type: "string",
+              description: "Optional — match a specific file path (e.g. \"packages/opencode/src/session/working-cache.ts\").",
+            },
+            hash: {
+              type: "string",
+              pattern: "^[0-9a-f]{64}$",
+              description: "Optional — match a specific output sha256 hash.",
+            },
+            turn_range_start: {
+              type: "integer",
+              minimum: 0,
+              description: "Optional — restrict to entries from this turn onward.",
+            },
+            turn_range_end: {
+              type: "integer",
+              minimum: 0,
+              description: "Optional — restrict to entries up to and including this turn.",
+            },
+            include_body: {
+              type: "boolean",
+              default: false,
+              description: "When true, inline the original ToolPart output text fetched from message storage. Use sparingly — adds the full payload to the response.",
+            },
+          },
+          required: ["sessionID"],
+        },
+      },
+      {
+        name: "recall_toolcall_digest",
+        description:
+          "Pull AI-authored digest entries from the L1 cache for the current session. Each entry carries `purpose`, `facts` (each with `evidenceRefs`), `evidence` (with file paths), lineage (`derivedFrom` / `supersedes`), and unresolved questions. Stale entries are omitted from `entries` and reported in `omitted` with the omission reason. Use this for orientation; modifying actions still require fresh evidence verification (read or `recall_toolcall_raw` with include_body before Edit/Write).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            sessionID: {
+              type: "string",
+              description: "Session whose Working Cache to query.",
+            },
+            topic: {
+              type: "string",
+              description: "Optional — substring match against entry purpose / summary (case-insensitive).",
+            },
+            entry_id: {
+              type: "string",
+              description: "Optional — fetch a specific entry by id.",
+            },
+            evidence_path: {
+              type: "string",
+              description: "Optional — fetch entries whose evidence cites this file path.",
             },
           },
           required: ["sessionID"],
@@ -1698,6 +1799,112 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               type: "text",
               text: JSON.stringify({ error: "session_not_accessible", sessionID, detail: String(e) }),
             },
+          ],
+        }
+      }
+    }
+
+    // ── Working Cache recall family ─────────────────────────────────────
+    if (name === "recall_toolcall_index") {
+      const { sessionID, since_turn, kind } = (args ?? {}) as {
+        sessionID: string
+        since_turn?: number
+        kind?: "exploration" | "modify" | "other"
+      }
+      if (!sessionID || typeof sessionID !== "string") {
+        return {
+          content: [{ type: "text", text: JSON.stringify({ error: "invalid_args", detail: "sessionID required" }) }],
+        }
+      }
+      try {
+        const baseUrl = await getServerApiBaseUrl()
+        const headers = await getServerRequestHeaders("GET")
+        const result = await workingCacheIndexViaApi({
+          fetchImpl: serverFetch as any,
+          baseUrl,
+          headers,
+          sessionID,
+          sinceTurn: since_turn,
+          kind,
+        })
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] }
+      } catch (err) {
+        return {
+          content: [
+            { type: "text", text: JSON.stringify({ error: "working_cache_index_failed", detail: String(err) }) },
+          ],
+        }
+      }
+    }
+
+    if (name === "recall_toolcall_raw") {
+      const { sessionID, kind, path: queryPath, hash, turn_range_start, turn_range_end, include_body } = (args ??
+        {}) as {
+        sessionID: string
+        kind?: "exploration" | "modify" | "other"
+        path?: string
+        hash?: string
+        turn_range_start?: number
+        turn_range_end?: number
+        include_body?: boolean
+      }
+      if (!sessionID || typeof sessionID !== "string") {
+        return {
+          content: [{ type: "text", text: JSON.stringify({ error: "invalid_args", detail: "sessionID required" }) }],
+        }
+      }
+      try {
+        const baseUrl = await getServerApiBaseUrl()
+        const headers = await getServerRequestHeaders("GET")
+        const result = await workingCacheRawViaApi({
+          fetchImpl: serverFetch as any,
+          baseUrl,
+          headers,
+          sessionID,
+          kind,
+          path: queryPath,
+          hash,
+          turnRangeStart: turn_range_start,
+          turnRangeEnd: turn_range_end,
+          includeBody: include_body === true,
+        })
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] }
+      } catch (err) {
+        return {
+          content: [{ type: "text", text: JSON.stringify({ error: "working_cache_raw_failed", detail: String(err) }) }],
+        }
+      }
+    }
+
+    if (name === "recall_toolcall_digest") {
+      const { sessionID, topic, entry_id, evidence_path } = (args ?? {}) as {
+        sessionID: string
+        topic?: string
+        entry_id?: string
+        evidence_path?: string
+      }
+      if (!sessionID || typeof sessionID !== "string") {
+        return {
+          content: [{ type: "text", text: JSON.stringify({ error: "invalid_args", detail: "sessionID required" }) }],
+        }
+      }
+      try {
+        const baseUrl = await getServerApiBaseUrl()
+        const headers = await getServerRequestHeaders("GET")
+        const result = await workingCacheDigestViaApi({
+          fetchImpl: serverFetch as any,
+          baseUrl,
+          headers,
+          sessionID,
+          topic,
+          entryID: entry_id,
+          evidencePath: evidence_path,
+        })
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] }
+      } catch (err) {
+        return {
+          content: [
+            { type: "text", text: JSON.stringify({ error: "working_cache_digest_failed", detail: String(err) }) },
           ],
         }
       }

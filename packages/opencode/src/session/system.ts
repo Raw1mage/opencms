@@ -1,9 +1,12 @@
 import { Ripgrep } from "../file/ripgrep"
 import { Instance } from "../project/instance"
 import { Global } from "../global"
+import { Log } from "../util/log"
 import path from "path"
 import fs from "fs/promises"
 import { existsSync, statSync } from "fs"
+
+const log = Log.create({ service: "system-prompt" })
 
 import PROMPT_CLAUDE_CODE from "./prompt/claude-code.txt"
 import PROMPT_ANTHROPIC from "./prompt/anthropic.txt"
@@ -114,8 +117,89 @@ export namespace SystemPrompt {
   }
 
   /**
+   * Extract sections from a bundled prompt that are explicitly marked as
+   * required-in-overrides via `<!-- @bundled-required -->` immediately after
+   * an H2 header. These sections must be present in any XDG override; if the
+   * override drifts and drops them, `loadPrompt` injects them back.
+   *
+   * The marker convention prevents the historical silent-shadow bug where
+   * an XDG override written months ago permanently hides every subsequent
+   * bundled prompt update. New canonical sections (e.g. Working Cache
+   * emission etiquette, capability routing) ship with the marker so they
+   * propagate even into stale overrides.
+   *
+   * Returns sections in document order. Each section body includes the H2
+   * heading itself and runs until the next H2 (or end of file).
+   */
+  function extractRequiredSections(text: string): Array<{ title: string; body: string }> {
+    const sections: Array<{ title: string; body: string }> = []
+    const lines = text.split("\n")
+    for (let i = 0; i < lines.length; i++) {
+      const headerMatch = lines[i].match(/^(##\s+.+?)\s*$/)
+      if (!headerMatch) continue
+      // Look ahead a few lines for the marker (allows blank line between header and marker).
+      let markerFound = false
+      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+        if (lines[j].includes("<!-- @bundled-required -->")) {
+          markerFound = true
+          break
+        }
+        if (lines[j].match(/^##\s+/)) break
+      }
+      if (!markerFound) continue
+      // Capture body until next H2 (or end of file).
+      let end = lines.length
+      for (let j = i + 1; j < lines.length; j++) {
+        if (lines[j].match(/^##\s+/)) {
+          end = j
+          break
+        }
+      }
+      sections.push({
+        title: headerMatch[1],
+        body: lines.slice(i, end).join("\n").trimEnd(),
+      })
+    }
+    return sections
+  }
+
+  /**
+   * Detect whether an XDG override is missing any `@bundled-required`
+   * sections from the current bundled prompt and, if so, return the
+   * augmented content with the missing sections appended at the end with
+   * an explicit drift marker. Original XDG content is preserved verbatim
+   * — this only adds, never modifies or removes.
+   *
+   * Returns the original content unchanged when no drift is detected.
+   */
+  function reconcileBundledRequired(
+    filename: string,
+    xdgContent: string,
+    bundledContent: string,
+  ): string {
+    const required = extractRequiredSections(bundledContent)
+    if (required.length === 0) return xdgContent
+    const missing = required.filter((section) => !xdgContent.includes(section.title))
+    if (missing.length === 0) return xdgContent
+    log.warn("XDG prompt override missing @bundled-required sections; injecting from bundled", {
+      file: filename,
+      missing: missing.map((s) => s.title),
+    })
+    const banner =
+      "<!-- ⚠️ The sections below are appended automatically because this XDG override\n" +
+      "     dropped @bundled-required content. Move them into the right place in this\n" +
+      "     file (or accept their location at the end) to silence this warning. -->"
+    return xdgContent.trimEnd() + "\n\n" + banner + "\n\n" + missing.map((s) => s.body).join("\n\n")
+  }
+
+  /**
    * Load a prompt from the user's config directory (~/.config/opencode/prompts/).
    * Uses in-memory caching with mtime check for performance.
+   *
+   * If the bundled prompt declares any `@bundled-required` sections that the
+   * XDG override is missing, those sections are reconciled into the loaded
+   * content (appended with a clear banner) so canonical bundled content can
+   * never be silently shadowed by a stale override.
    */
   async function loadPrompt(filename: string, internalContent: string): Promise<string> {
     const configPath = path.join(Global.Path.config, "prompts", filename)
@@ -129,9 +213,10 @@ export namespace SystemPrompt {
           return cached.content
         }
 
-        const content = await fs.readFile(configPath, "utf-8")
-        cache.set(filename, { content, mtime: stats.mtimeMs })
-        return content
+        const rawContent = await fs.readFile(configPath, "utf-8")
+        const reconciled = reconcileBundledRequired(filename, rawContent, internalContent)
+        cache.set(filename, { content: reconciled, mtime: stats.mtimeMs })
+        return reconciled
       }
       return internalContent
     } catch {

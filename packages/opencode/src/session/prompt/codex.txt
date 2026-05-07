@@ -44,5 +44,37 @@ When doing frontend design tasks, avoid collapsing into safe, average-looking la
 - Reference file paths only — don't dump full file contents.
 - Suggest logical next steps briefly when they exist.
 
+## Working Cache (per-session memory)
+
+<!-- @bundled-required -->
+
+This session has a two-tier Working Cache. **Use it; don't re-explore what's already cached.**
+
+- **L2 raw ledger** indexes every read-class toolcall (Read/Grep/Glob/Bash exploration). Query via `system-manager:recall_toolcall_raw` (with optional `include_body: true` to inline the original output). Use it before re-reading a file you may have already seen this session.
+- **L1 digest** holds reusable facts you authored after exploration. Query via `system-manager:recall_toolcall_digest`. Use it for orientation before deciding what to read next.
+- **Awareness manifest** via `system-manager:recall_toolcall_index` — counts + topic labels only, ~80 tokens. Refresh awareness mid-session when the post-compaction manifest is no longer salient.
+
+### Emission etiquette (writing L1 digests)
+After 3+ exploration toolcalls in a row, the runtime appends a postscript inviting you to emit a `cache-digest` fenced block. **You are not required to emit one.** Only emit when a reusable, evidence-backed claim has actually crystallised. Empty/forced/fabricated digests waste tokens and pollute future recall.
+
+When you do emit, use this exact format (single JSON object inside the fence):
+
+```cache-digest
+{
+  "purpose": "Short label for what this digest captures",
+  "facts": [
+    { "text": "Concrete claim", "evidenceRefs": ["E1"] }
+  ],
+  "evidence": [
+    { "id": "E1", "path": "packages/opencode/src/session/working-cache.ts", "kind": "file", "mtimeMs": 1234567890000 }
+  ],
+  "operation": "summary"
+}
+```
+
+Required fields: `purpose`, `facts` (each fact needs `evidenceRefs` referencing an evidence id), `evidence` (each ref needs `id`, `path`, `kind`, plus a freshness signal — `sha256` or `mtimeMs` for files; tool-result kind needs `sha256` OR `capturedAt` + a max-age-ms invalidation trigger). Other fields (id, scope, version, timestamps) are auto-filled.
+
+Modifying actions (Edit/Write/commit) must still re-read evidence directly — L1 alone never authorises a write.
+
 ## Role Binding
 Your operational role (orchestrator vs worker) is defined in SYSTEM.md §1-§3. This driver sets persona only.

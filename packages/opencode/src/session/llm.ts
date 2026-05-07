@@ -26,6 +26,7 @@ import { Flag } from "@/flag/flag"
 import { PermissionNext } from "@/permission/next"
 import { Auth } from "@/auth"
 import { Token } from "@/util/token"
+import { WorkingCache } from "./working-cache"
 
 import z from "zod"
 import { findFallback, type ModelVector, type FallbackStrategy, isVectorRateLimited } from "@/account/rotation3d"
@@ -1160,6 +1161,39 @@ export namespace LLM {
           )
         }
         RequestMonitor.get().recordRequest(input.model.providerId, accountId || "unknown", input.model.id, totalTokens)
+
+        // Working Cache L1 capture (plans/20260507_working-cache-local-cache/
+        // DD-8 / DD-9). Scan the assistant text for `cache-digest` fenced blocks
+        // and persist the parsed entries. Malformed blocks are logged but do not
+        // disrupt onFinish telemetry; the malformed text remains visible in the
+        // assistant message itself so the model can self-correct on next turn.
+        try {
+          const text = typeof event.text === "string" ? event.text : ""
+          if (text.includes("```cache-digest")) {
+            const blocks = WorkingCache.parseDigestBlocks(text, input.sessionID)
+            for (const block of blocks) {
+              if (block.entry) {
+                await WorkingCache.record(block.entry).catch((err) => {
+                  log.warn("working-cache.record failed", {
+                    sessionID: input.sessionID,
+                    error: err instanceof Error ? err.message : String(err),
+                  })
+                })
+              } else if (block.error) {
+                log.warn("working-cache.digest-block.malformed", {
+                  sessionID: input.sessionID,
+                  code: block.error.code,
+                  message: block.error.message,
+                })
+              }
+            }
+          }
+        } catch (err) {
+          log.warn("working-cache.parse failed", {
+            sessionID: input.sessionID,
+            error: err instanceof Error ? err.message : String(err),
+          })
+        }
       },
       async onError(error) {
         l.error("stream error", { error: serializeError(error) })

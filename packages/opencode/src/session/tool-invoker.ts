@@ -5,6 +5,7 @@ import { Tool } from "../tool/tool"
 import { ulid } from "ulid"
 import { debugCheckpoint } from "@/util/debug"
 import { SessionPrompt } from "./prompt"
+import { WorkingCache } from "./working-cache"
 
 const log = Log.create({ service: "tool-invoker" })
 
@@ -112,6 +113,27 @@ export namespace ToolInvoker {
         sessionID,
         callID,
       })
+
+      // Working Cache exploration-sequence depth + L1 postscript injection
+      // (plans/20260507_working-cache-local-cache/ DD-7 / DD-8). Tick the
+      // counter on every native toolcall (MCP tools have their own surface
+      // and don't tick the native counter). When depth crosses the threshold,
+      // append a single postscript inviting cache-digest emission to the next
+      // assistant turn.
+      const toolKind = Tool.kind(toolID)
+      const depth = WorkingCache.tickExplorationDepth(sessionID, toolKind)
+      if (toolKind === "exploration") {
+        const postscript = WorkingCache.explorationPostscript(depth)
+        if (postscript.length > 0 && typeof (result as any)?.output === "string") {
+          ;(result as any).output = (result as any).output + "\n" + postscript
+          debugCheckpoint("working-cache.exploration", "postscript-emit", {
+            sessionID,
+            tool: toolID,
+            callID,
+            depth,
+          })
+        }
+      }
 
       await Plugin.trigger(
         "tool.execute.after",
