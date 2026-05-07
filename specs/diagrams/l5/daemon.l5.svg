@@ -24,9 +24,9 @@
 <path class="edge edge-arrow" d="M 34.42 42.00 L 34.42 44.00"/>
 <path class="edge edge-arrow" d="M 34.42 44.00 L 34.42 48.00"/>
 <path class="edge edge-arrow" d="M 10.00 44.00 L 10.00 48.00"/>
-<path class="edge edge-arrow" d="M 34.42 51.00 L 34.42 57.00"/>
-<path class="edge edge-arrow" d="M 10.00 57.00 L 10.00 61.00"/>
-<path class="edge edge-arrow" d="M 34.42 57.00 L 34.42 61.00"/>
+<path class="edge edge-arrow" d="M 34.42 51.00 L 34.42 59.00"/>
+<path class="edge edge-arrow" d="M 10.00 59.00 L 10.00 61.00"/>
+<path class="edge edge-arrow" d="M 34.42 59.00 L 34.42 61.00"/>
 <path class="edge edge-arrow" d="M 10.00 64.00 L 10.00 68.00"/>
 <path class="edge edge-arrow" d="M 34.42 68.00 L 34.42 70.00"/>
 <path class="edge edge-arrow" d="M 34.42 64.00 L 34.42 68.00"/>
@@ -130,7 +130,7 @@
 <line class="gate" x1="33.42" y1="37.00" x2="35.42" y2="37.00"/>
 <text class="gate-label" x="35.82" y="37.00"><tspan x="35.82" dy="0">dirty layer set computed</tspan></text>
 <line class="gate" x1="6.00" y1="44.00" x2="38.42" y2="44.00"/>
-<line class="gate" x1="6.00" y1="57.00" x2="38.42" y2="57.00"/>
+<line class="gate" x1="6.00" y1="59.00" x2="38.42" y2="59.00"/>
 <line class="gate" x1="8.00" y1="68.00" x2="36.42" y2="68.00"/>
 <line class="gate" x1="33.42" y1="75.00" x2="35.42" y2="75.00"/>
 <text class="gate-label" x="35.82" y="75.00"><tspan x="35.82" dy="0">adopt 探測 failed</tspan></text>
@@ -148,10 +148,10 @@
 <text class="gate-label-left" x="33.02" y="46.00"><tspan x="33.02" dy="0">all builds exit zero</tspan></text>
 <line class="gate" x1="9.00" y1="46.00" x2="11.00" y2="46.00"/>
 <text class="gate-label-left" x="8.60" y="46.00"><tspan x="8.60" dy="0">any 建置 exits non-zero</tspan></text>
-<line class="gate" x1="9.00" y1="59.00" x2="11.00" y2="59.00"/>
-<text class="gate-label-left" x="8.60" y="58.32"><tspan x="8.60" dy="0">targets di</tspan><tspan x="8.60" dy="0.68">d 不 inclu</tspan><tspan x="8.60" dy="0.68">de Gateway</tspan></text>
-<line class="gate" x1="33.42" y1="59.00" x2="35.42" y2="59.00"/>
-<text class="gate-label-left" x="33.02" y="59.00"><tspan x="33.02" dy="0">targets included Gateway 與 self更新.執行actions succeeded</tspan></text>
+<line class="gate" x1="9.00" y1="57.00" x2="11.00" y2="57.00"/>
+<text class="gate-label-left" x="8.60" y="56.32"><tspan x="8.60" dy="0">targets di</tspan><tspan x="8.60" dy="0.68">d 不 inclu</tspan><tspan x="8.60" dy="0.68">de Gateway</tspan></text>
+<line class="gate" x1="33.42" y1="57.00" x2="35.42" y2="57.00"/>
+<text class="gate-label-left" x="33.02" y="57.00"><tspan x="33.02" dy="0">targets included Gateway 與 self更新.執行actions succeeded</tspan></text>
 <line class="gate" x1="9.00" y1="66.00" x2="11.00" y2="66.00"/>
 <text class="gate-label-left" x="8.60" y="65.32"><tspan x="8.60" dy="0">daemon p</tspan><tspan x="8.60" dy="0.68">rocess te</tspan><tspan x="8.60" dy="0.68">rminated</tspan></text>
 <line class="gate" x1="33.42" y1="66.00" x2="35.42" y2="66.00"/>
