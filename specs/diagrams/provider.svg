@@ -79,13 +79,13 @@
 <text class="action-label" x="27.14" y="19.09"><tspan x="27.14" dy="0">select帳號透過</tspan><tspan x="27.14" dy="0.82">驗證gettwoarg</tspan></text>
 <line class="assoc" x1="23.43" y1="26.50" x2="24.43" y2="26.50"/>
 <rect class="action" x="24.43" y="25.07" width="5.43" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="27.14" y="25.68"><tspan x="27.14" dy="0">instantiatesdk透</tspan><tspan x="27.14" dy="0.82">過getSDK family帳</tspan><tspan x="27.14" dy="0.82">號id模型</tspan></text>
+<text class="action-label" x="27.14" y="25.68"><tspan x="27.14" dy="0">instantiatesdk透</tspan><tspan x="27.14" dy="0.82">過getSDK famil</tspan><tspan x="27.14" dy="0.82">y帳號id模型</tspan></text>
 <line class="assoc" x1="23.43" y1="33.50" x2="24.43" y2="33.50"/>
 <rect class="action" x="24.43" y="32.07" width="5.43" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="27.14" y="32.68"><tspan x="27.14" dy="0">建置headers建</tspan><tspan x="27.14" dy="0.82">置headers或</tspan><tspan x="27.14" dy="0.82">組裝betas</tspan></text>
+<text class="action-label" x="27.14" y="33.09"><tspan x="27.14" dy="0">建置headers建置h</tspan><tspan x="27.14" dy="0.82">eaders或組裝betas</tspan></text>
 <line class="assoc" x1="23.43" y1="40.50" x2="24.43" y2="40.50"/>
 <rect class="action" x="24.43" y="39.07" width="5.43" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="27.14" y="40.09"><tspan x="27.14" dy="0">transformpayloadappl</tspan><tspan x="27.14" dy="0.82">ycaching或skipnative</tspan></text>
+<text class="action-label" x="27.14" y="39.68"><tspan x="27.14" dy="0">transformpayl</tspan><tspan x="27.14" dy="0.82">oadapplycachin</tspan><tspan x="27.14" dy="0.82">g或skipnative</tspan></text>
 <line class="assoc" x1="23.43" y1="47.50" x2="24.43" y2="47.50"/>
 <rect class="action" x="24.43" y="46.07" width="5.43" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="27.14" y="47.09"><tspan x="27.14" dy="0">choosetransp</tspan><tspan x="27.14" dy="0.82">ortws或http</tspan></text>
@@ -94,22 +94,22 @@
 <text class="action-label" x="15.71" y="55.68"><tspan x="15.71" dy="0">派發透過websock</tspan><tspan x="15.71" dy="0.82">etupgraderesponses</tspan><tspan x="15.71" dy="0.82">websockets20260206</tspan></text>
 <line class="assoc" x1="23.43" y1="56.50" x2="24.43" y2="56.50"/>
 <rect class="action" x="24.43" y="55.07" width="5.43" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="27.14" y="55.68"><tspan x="27.14" dy="0">派發透過</tspan><tspan x="27.14" dy="0.82">httppost文</tspan><tspan x="27.14" dy="0.82">字事件串流</tspan></text>
+<text class="action-label" x="27.14" y="56.09"><tspan x="27.14" dy="0">派發透過httppos</tspan><tspan x="27.14" dy="0.82">t文字事件串流</tspan></text>
 <line class="assoc" x1="23.43" y1="65.50" x2="24.43" y2="65.50"/>
 <rect class="action" x="24.43" y="64.07" width="5.43" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="27.14" y="65.09"><tspan x="27.14" dy="0">串流分塊</tspan><tspan x="27.14" dy="0.82">classify錯誤</tspan></text>
+<text class="action-label" x="27.14" y="65.09"><tspan x="27.14" dy="0">串流分塊c</tspan><tspan x="27.14" dy="0.82">lassify錯誤</tspan></text>
 <line class="assoc" x1="12.00" y1="74.50" x2="13.00" y2="74.50"/>
 <rect class="action" x="13.00" y="73.07" width="5.43" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="15.71" y="74.09"><tspan x="15.71" dy="0">更新tokenusage與</tspan><tspan x="15.71" dy="0.82">ratelimittelemetry</tspan></text>
 <line class="assoc" x1="23.43" y1="74.50" x2="24.43" y2="74.50"/>
 <rect class="action" x="24.43" y="73.07" width="5.43" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="27.14" y="73.68"><tspan x="27.14" dy="0">rotate帳號</tspan><tspan x="27.14" dy="0.82">或backoff透</tspan><tspan x="27.14" dy="0.82">過輪替3d</tspan></text>
+<text class="action-label" x="27.14" y="74.09"><tspan x="27.14" dy="0">rotate帳號或bac</tspan><tspan x="27.14" dy="0.82">koff透過輪替3d</tspan></text>
 <line class="assoc" x1="23.43" y1="83.50" x2="24.43" y2="83.50"/>
 <rect class="action" x="24.43" y="82.07" width="5.43" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="27.14" y="83.09"><tspan x="27.14" dy="0">返回到閒置</tspan><tspan x="27.14" dy="0.82">releaseinflight</tspan></text>
 <line class="assoc" x1="34.86" y1="74.50" x2="35.86" y2="74.50"/>
 <rect class="action" x="35.86" y="73.07" width="5.43" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="38.58" y="73.68"><tspan x="38.58" dy="0">發出延續</tspan><tspan x="38.58" dy="0.82">invalidatedbus事</tspan><tspan x="38.58" dy="0.82">件與evict快取</tspan></text>
+<text class="action-label" x="38.58" y="73.68"><tspan x="38.58" dy="0">發出延續inv</tspan><tspan x="38.58" dy="0.82">alidatedbus事</tspan><tspan x="38.58" dy="0.82">件與evict快取</tspan></text>
 <line class="gate" x1="20.43" y1="9.00" x2="22.43" y2="9.00"/>
 <text class="gate-label" x="22.83" y="9.00"><tspan x="22.83" dy="0">請求已收到</tspan></text>
 <line class="gate" x1="20.43" y1="16.00" x2="22.43" y2="16.00"/>
@@ -129,7 +129,7 @@
 <line class="gate" x1="20.43" y1="87.00" x2="22.43" y2="87.00"/>
 <text class="gate-label" x="22.83" y="87.00"><tspan x="22.83" dy="0">1</tspan></text>
 <line class="gate" x1="9.00" y1="53.00" x2="11.00" y2="53.00"/>
-<text class="gate-label-left" x="8.60" y="52.66"><tspan x="8.60" dy="0">ws已啟用與</tspan><tspan x="8.60" dy="0.68">不stickyfallback</tspan></text>
+<text class="gate-label-left" x="8.60" y="52.32"><tspan x="8.60" dy="0">ws已啟用</tspan><tspan x="8.60" dy="0.68">與不stick</tspan><tspan x="8.60" dy="0.68">yfallback</tspan></text>
 <line class="gate" x1="20.43" y1="53.00" x2="22.43" y2="53.00"/>
 <text class="gate-label-left" x="20.03" y="53.00"><tspan x="20.03" dy="0">http或wsstickyfallback</tspan></text>
 <line class="gate" x1="9.00" y1="60.00" x2="11.00" y2="60.00"/>

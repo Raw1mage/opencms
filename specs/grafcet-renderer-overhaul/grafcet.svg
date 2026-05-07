@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="397" height="1320" viewBox="10.00 -2.00 19.86 66.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="10.00" y="-2.00" width="19.86" height="66.00" fill="white"/>
+<path class="edge" d="M 20.00 7.00 L 20.00 9.00"/>
+<path class="edge edge-arrow" d="M 20.00 9.00 L 20.00 11.00"/>
+<path class="edge" d="M 20.00 14.00 L 20.00 16.00"/>
+<path class="edge edge-arrow" d="M 20.00 16.00 L 20.00 18.00"/>
+<path class="edge" d="M 20.00 21.00 L 20.00 23.00"/>
+<path class="edge edge-arrow" d="M 20.00 23.00 L 20.00 25.00"/>
+<path class="edge" d="M 20.00 28.00 L 20.00 30.00"/>
+<path class="edge edge-arrow" d="M 20.00 30.00 L 20.00 32.00"/>
+<path class="edge" d="M 20.00 35.00 L 20.00 37.00"/>
+<path class="edge edge-arrow" d="M 20.00 37.00 L 20.00 39.00"/>
+<path class="edge" d="M 20.00 42.00 L 20.00 44.00"/>
+<path class="edge edge-arrow" d="M 20.00 44.00 L 20.00 46.00"/>
+<path class="edge" d="M 20.00 49.00 L 20.00 51.00"/>
+<path class="edge edge-arrow" d="M 20.00 51.00 L 20.00 53.00"/>
+<path class="edge" d="M 20.00 56.00 L 20.00 58.00"/>
+<path class="edge edge-arrow" d="M 20.00 58.00 L 20.00 59.50 Q 20.00 60.00 19.50 60.00 L 14.50 60.00 Q 14.00 60.00 14.00 59.50 L 14.00 2.50 Q 14.00 2.00 14.50 2.00 L 19.50 2.00 Q 20.00 2.00 20.00 2.50 L 20.00 4.00"/>
+<rect class="step" x="18.00" y="4.00" width="4.00" height="3.00"/>
+<rect class="step-inner" x="18.25" y="4.25" width="3.50" height="2.50"/>
+<text class="label" x="20.00" y="5.50">0</text>
+<rect class="step" x="18.00" y="11.00" width="4.00" height="3.00"/>
+<text class="label" x="20.00" y="12.50">1</text>
+<rect class="step" x="18.00" y="18.00" width="4.00" height="3.00"/>
+<text class="label" x="20.00" y="19.50">2</text>
+<rect class="step" x="18.00" y="25.00" width="4.00" height="3.00"/>
+<text class="label" x="20.00" y="26.50">3</text>
+<rect class="step" x="18.00" y="32.00" width="4.00" height="3.00"/>
+<text class="label" x="20.00" y="33.50">4</text>
+<rect class="step" x="18.00" y="39.00" width="4.00" height="3.00"/>
+<text class="label" x="20.00" y="40.50">5</text>
+<rect class="step" x="18.00" y="46.00" width="4.00" height="3.00"/>
+<text class="label" x="20.00" y="47.50">6</text>
+<rect class="step" x="18.00" y="53.00" width="4.00" height="3.00"/>
+<text class="label" x="20.00" y="54.50">7</text>
+<line class="assoc" x1="22.00" y1="5.50" x2="23.00" y2="5.50"/>
+<rect class="action" x="23.00" y="4.07" width="2.86" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="24.43" y="5.09"><tspan x="24.43" dy="0">等待</tspan><tspan x="24.43" dy="0.82">呼叫</tspan></text>
+<line class="assoc" x1="22.00" y1="12.50" x2="23.00" y2="12.50"/>
+<rect class="action" x="23.00" y="11.07" width="2.86" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="24.43" y="12.50"><tspan x="24.43" dy="0">L1 placeLayout</tspan></text>
+<line class="assoc" x1="22.00" y1="19.50" x2="23.00" y2="19.50"/>
+<rect class="action" x="23.00" y="18.07" width="2.86" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="24.43" y="19.50"><tspan x="24.43" dy="0">L3 routeEdges</tspan></text>
+<line class="assoc" x1="22.00" y1="26.50" x2="23.00" y2="26.50"/>
+<rect class="action" x="23.00" y="25.07" width="2.86" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="24.43" y="25.68"><tspan x="24.43" dy="0">L4</tspan><tspan x="24.43" dy="0.82">detect</tspan><tspan x="24.43" dy="0.82">Violations</tspan></text>
+<line class="assoc" x1="22.00" y1="33.50" x2="23.00" y2="33.50"/>
+<rect class="action" x="23.00" y="32.07" width="2.86" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="24.43" y="32.68"><tspan x="24.43" dy="0">L5</tspan><tspan x="24.43" dy="0.82">compa</tspan><tspan x="24.43" dy="0.82">ctYLanes</tspan></text>
+<line class="assoc" x1="22.00" y1="40.50" x2="23.00" y2="40.50"/>
+<rect class="action" x="23.00" y="39.07" width="2.86" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="24.43" y="40.50"><tspan x="24.43" dy="0">L6 emitSVG</tspan></text>
+<line class="assoc" x1="22.00" y1="47.50" x2="23.00" y2="47.50"/>
+<rect class="action" x="23.00" y="46.07" width="2.86" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="24.43" y="47.09"><tspan x="24.43" dy="0">writeDebu</tspan><tspan x="24.43" dy="0.82">gLog (opt)</tspan></text>
+<line class="assoc" x1="22.00" y1="54.50" x2="23.00" y2="54.50"/>
+<rect class="action" x="23.00" y="53.07" width="2.86" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="24.43" y="54.09"><tspan x="24.43" dy="0">回</tspan><tspan x="24.43" dy="0.82">傳 SVG</tspan></text>
+<line class="gate" x1="19.00" y1="9.00" x2="21.00" y2="9.00"/>
+<text class="gate-label" x="21.40" y="9.00"><tspan x="21.40" dy="0">收到 grafcet json</tspan></text>
+<line class="gate" x1="19.00" y1="16.00" x2="21.00" y2="16.00"/>
+<text class="gate-label" x="21.40" y="15.66"><tspan x="21.40" dy="0">boxes/anchors/gates/ports/</tspan><tspan x="21.40" dy="0.68">simplified_gate_ids 完成</tspan></text>
+<line class="gate" x1="19.00" y1="23.00" x2="21.00" y2="23.00"/>
+<text class="gate-label" x="21.40" y="22.32"><tspan x="21.40" dy="0">所有 transition</tspan><tspan x="21.40" dy="0.68">完成 port-</tspan><tspan x="21.40" dy="0.68">walk routing</tspan></text>
+<line class="gate" x1="19.00" y1="30.00" x2="21.00" y2="30.00"/>
+<text class="gate-label" x="21.40" y="30.00"><tspan x="21.40" dy="0">violations 收集完成</tspan></text>
+<line class="gate" x1="19.00" y1="37.00" x2="21.00" y2="37.00"/>
+<text class="gate-label" x="21.40" y="36.32"><tspan x="21.40" dy="0">compaction 完</tspan><tspan x="21.40" dy="0.68">成且未引入</tspan><tspan x="21.40" dy="0.68">新 violation</tspan></text>
+<line class="gate" x1="19.00" y1="44.00" x2="21.00" y2="44.00"/>
+<text class="gate-label" x="21.40" y="44.00"><tspan x="21.40" dy="0">SVG 文字輸出完成</tspan></text>
+<line class="gate" x1="19.00" y1="51.00" x2="21.00" y2="51.00"/>
+<text class="gate-label" x="21.40" y="50.32"><tspan x="21.40" dy="0">OPENCODE_</tspan><tspan x="21.40" dy="0.68">GRAFCET_</tspan><tspan x="21.40" dy="0.68">DEBUG=1 才執行</tspan></text>
+<line class="gate" x1="19.00" y1="58.00" x2="21.00" y2="58.00"/>
+<text class="gate-label" x="21.40" y="58.00"><tspan x="21.40" dy="0">caller 已收到 SVG 字串</tspan></text>
+</svg>
