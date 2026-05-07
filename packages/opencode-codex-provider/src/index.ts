@@ -76,7 +76,7 @@ export {
 } from "./continuation.js"
 
 // WebSocket transport
-export { tryWsTransport, resetWsSession, closeWsSession } from "./transport-ws.js"
+export { tryWsTransport, resetWsSession, closeWsSession, armSendStallWatchdog } from "./transport-ws.js"
 export type { WsTransportInput } from "./transport-ws.js"
 
 // Provider (main entry)
