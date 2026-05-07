@@ -331,6 +331,7 @@ export interface MessageProps {
   parts: PartType[]
   shellToolDefaultOpen?: boolean
   editToolDefaultOpen?: boolean
+  reasoningDefaultOpen?: boolean
   showReasoningSummaries?: boolean
   queued?: boolean
 }
@@ -565,6 +566,7 @@ export function Message(props: MessageProps) {
             parts={props.parts}
             shellToolDefaultOpen={props.shellToolDefaultOpen}
             editToolDefaultOpen={props.editToolDefaultOpen}
+            reasoningDefaultOpen={props.reasoningDefaultOpen}
             showReasoningSummaries={props.showReasoningSummaries}
           />
         )}
@@ -578,9 +580,10 @@ function toolDefaultOpen(tool: string, shell = false, edit = false) {
   if (tool === "edit" || tool === "write" || tool === "apply_patch") return edit
 }
 
-function partDefaultOpen(part: PartType, shell = false, edit = false) {
-  if (part.type !== "tool") return
-  return toolDefaultOpen(part.tool, shell, edit)
+function partDefaultOpen(part: PartType, shell = false, edit = false, reasoning = false) {
+  if (part.type === "tool") return toolDefaultOpen(part.tool, shell, edit)
+  if (part.type === "reasoning") return reasoning
+  return undefined
 }
 
 const HIDDEN_TOOLS = new Set(["todowrite", "todoread"])
@@ -634,6 +637,7 @@ export function AssistantParts(props: {
   hideResponsePart?: boolean
   shellToolDefaultOpen?: boolean
   editToolDefaultOpen?: boolean
+  reasoningDefaultOpen?: boolean
 }) {
   const data = useData()
   const emptyParts: PartType[] = []
@@ -664,7 +668,12 @@ export function AssistantParts(props: {
         <Part
           part={entry.part}
           message={entry.message}
-          defaultOpen={partDefaultOpen(entry.part, props.shellToolDefaultOpen, props.editToolDefaultOpen)}
+          defaultOpen={partDefaultOpen(
+            entry.part,
+            props.shellToolDefaultOpen,
+            props.editToolDefaultOpen,
+            props.reasoningDefaultOpen,
+          )}
         />
       )}
     </For>
@@ -676,6 +685,7 @@ export function AssistantMessageDisplay(props: {
   parts: PartType[]
   shellToolDefaultOpen?: boolean
   editToolDefaultOpen?: boolean
+  reasoningDefaultOpen?: boolean
   showReasoningSummaries?: boolean
 }) {
   const emptyParts: PartType[] = []
@@ -690,7 +700,12 @@ export function AssistantMessageDisplay(props: {
         <Part
           part={part}
           message={props.message}
-          defaultOpen={partDefaultOpen(part, props.shellToolDefaultOpen, props.editToolDefaultOpen)}
+          defaultOpen={partDefaultOpen(
+            part,
+            props.shellToolDefaultOpen,
+            props.editToolDefaultOpen,
+            props.reasoningDefaultOpen,
+          )}
         />
       )}
     </For>
@@ -1146,10 +1161,14 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
 
 PART_MAPPING["reasoning"] = function ReasoningPartDisplay(props) {
   const data = useData()
+  const i18n = useI18n()
   const part = props.part as ReasoningPart
   const text = () => part.text.trim()
   const throttledText = createThrottledValue(text)
   const truncatedPrefix = () => (part as unknown as { truncatedPrefix?: number }).truncatedPrefix ?? 0
+  const streaming = () => isMessageStreaming(props.message)
+  const charCount = () => throttledText().length
+  const formatCount = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n))
 
   const handleRefetch = async () => {
     const expand = data.expandPart
@@ -1161,16 +1180,32 @@ PART_MAPPING["reasoning"] = function ReasoningPartDisplay(props) {
     })
   }
 
+  // Reasoning is collapsed by default — wraps content in BasicTool to reuse
+  // the same Collapsible primitive that drives `shellToolPartsExpanded` /
+  // `editToolPartsExpanded`. The user-controlled toggle is
+  // `settings.general.reasoningPartsExpanded`, surfaced via the
+  // `reasoningDefaultOpen` prop chain through Turn → MessageTimeline.
   return (
     <Show when={throttledText()}>
       <div data-component="reasoning-part">
-        <FoldableMarkdown
-          text={throttledText()}
-          cacheKey={part.id}
-          message={props.message}
-          truncatedPrefix={truncatedPrefix()}
-          onRefetch={handleRefetch}
-        />
+        <BasicTool
+          icon="brain"
+          defaultOpen={props.defaultOpen ?? false}
+          trigger={{
+            title: i18n.t("ui.reasoning.fold.label"),
+            subtitle: streaming()
+              ? i18n.t("ui.reasoning.fold.streaming")
+              : `${formatCount(charCount())} ${i18n.t("ui.reasoning.fold.chars")}`,
+          }}
+        >
+          <FoldableMarkdown
+            text={throttledText()}
+            cacheKey={part.id}
+            message={props.message}
+            truncatedPrefix={truncatedPrefix()}
+            onRefetch={handleRefetch}
+          />
+        </BasicTool>
       </div>
     </Show>
   )

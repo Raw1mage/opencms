@@ -415,6 +415,18 @@ export const SettingsGeneral: Component = () => {
             />
           </div>
         </SettingsRow>
+
+        <SettingsRow
+          title={language.t("settings.general.row.reasoningPartsExpanded.title")}
+          description={language.t("settings.general.row.reasoningPartsExpanded.description")}
+        >
+          <div data-action="settings-feed-reasoning-parts-expanded">
+            <Switch
+              checked={settings.general.reasoningPartsExpanded()}
+              onChange={(checked) => settings.general.setReasoningPartsExpanded(checked)}
+            />
+          </div>
+        </SettingsRow>
       </div>
     </div>
   )

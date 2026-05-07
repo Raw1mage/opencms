@@ -259,6 +259,7 @@ export function SessionTurn(
     lastUserMessageID?: string
     shellToolDefaultOpen?: boolean
     editToolDefaultOpen?: boolean
+    reasoningDefaultOpen?: boolean
     showReasoningSummaries?: boolean
     stepsExpanded?: boolean
     onStepsExpandedToggle?: () => void
@@ -1025,6 +1026,7 @@ export function SessionTurn(
                           hidden={hidden()}
                           shellToolDefaultOpen={props.shellToolDefaultOpen}
                           editToolDefaultOpen={props.editToolDefaultOpen}
+                          reasoningDefaultOpen={props.reasoningDefaultOpen}
                         />
                         {/* error card moved to a single render site at turn bottom (see below).
                             previously this site rendered an error card unconditionally and the

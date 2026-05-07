@@ -71,6 +71,10 @@ export const dict = {
 
   "ui.imagePreview.alt": "Image preview",
 
+  "ui.reasoning.fold.label": "Reasoning",
+  "ui.reasoning.fold.streaming": "thinking…",
+  "ui.reasoning.fold.chars": "chars",
+
   "ui.tool.read": "Read",
   "ui.tool.loaded": "Loaded",
   "ui.tool.list": "List",

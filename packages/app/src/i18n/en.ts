@@ -668,6 +668,9 @@ export const dict = {
     "Show edit/write/apply_patch details expanded in the session feed",
   "settings.general.row.reasoningSummaries.title": "Show reasoning summaries",
   "settings.general.row.reasoningSummaries.description": "Display model reasoning summaries in the timeline",
+  "settings.general.row.reasoningPartsExpanded.title": "Expand reasoning by default",
+  "settings.general.row.reasoningPartsExpanded.description":
+    "Show reasoning summaries expanded in the session feed (otherwise collapsed behind a one-line bar)",
 
   "settings.general.row.wayland.title": "Use native Wayland",
   "settings.general.row.wayland.description": "Disable X11 fallback on Wayland. Requires restart.",

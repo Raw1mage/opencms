@@ -75,6 +75,10 @@ export const dict = {
 
   "ui.imagePreview.alt": "圖片預覽",
 
+  "ui.reasoning.fold.label": "思考摘要",
+  "ui.reasoning.fold.streaming": "思考中…",
+  "ui.reasoning.fold.chars": "字元",
+
   "ui.tool.read": "讀取",
   "ui.tool.loaded": "已載入",
   "ui.tool.list": "清單",
