@@ -2,7 +2,9 @@
 
 This plan introduces **one** new error path. All other failures continue through the existing classifier and surface to opencode core unchanged.
 
-## New Errors
+## Error Catalogue
+
+### New Errors
 
 ### `ws_send_timeout`
 

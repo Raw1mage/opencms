@@ -1,6 +1,8 @@
 # Observability: codex-update
 
-## New Log Lines
+## Events
+
+### New Log Lines
 
 ### `[CODEX-WS] REQ ... thread_id=<...>`
 
@@ -32,7 +34,7 @@ New log line emitted when send-side idle timeout fires.
 - Recovery hint: `retry`
 - Same routing as `first_frame_timeout`
 
-## Metrics (no new ones)
+## Metrics
 
 This plan does not add any new metric. The existing transient-failure metric (counted by `wsErrorReason` value) absorbs `ws_send_timeout` automatically once the enum extends.
 

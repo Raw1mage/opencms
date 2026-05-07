@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "designed",
+  "state": "planned",
   "profile": [],
   "history": [
     {
@@ -18,6 +18,14 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "audit + decisions + spec + diagrams + invariants drafted"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-05-07T16:11:34.759Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "tasks + handoff drafted; ready for beta-workflow execution"
     }
   ]
 }
