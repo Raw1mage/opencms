@@ -115,6 +115,14 @@ export interface EmptyTurnSnapshot {
   wsCloseReason: string | null
   /** Verbatim server error message (server_failed / server_incomplete only) */
   serverErrorMessage: string | null
+  /**
+   * Verbatim WS-layer error reason (fix-empty-response-rca DD-5).
+   * Populated when the empty turn originated from ws.onerror,
+   * ws.onclose with frameCount=0, or first_frame_timeout. Null
+   * otherwise. Discriminates ws_no_frames sub-causes without
+   * churning the cause-family enum (INV-13 preserved).
+   */
+  wsErrorReason: string | null
   /** Counts by delta type observed during the stream */
   deltasObserved: DeltasObserved
   /** Sanitized request body shape */
@@ -300,6 +308,8 @@ export interface ClassificationLogPayload extends ClassificationResult {
   wsCloseCode: number | null
   wsCloseReason: string | null
   serverErrorMessage: string | null
+  /** fix-empty-response-rca DD-5: WS error reason populated for ws_no_frames sub-discrimination */
+  wsErrorReason: string | null
   deltasObserved: DeltasObserved
   requestOptionsShape: RequestOptionsShape
   retryAttempted: boolean
@@ -332,6 +342,7 @@ export function buildClassificationPayload(
     wsCloseCode: snapshot.wsCloseCode,
     wsCloseReason: snapshot.wsCloseReason,
     serverErrorMessage: snapshot.serverErrorMessage,
+    wsErrorReason: snapshot.wsErrorReason,
     deltasObserved: snapshot.deltasObserved,
     requestOptionsShape: snapshot.requestOptionsShape,
     retryAttempted: snapshot.retryAttempted,

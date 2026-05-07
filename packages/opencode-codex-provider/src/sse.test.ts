@@ -731,6 +731,7 @@ describe("WS snapshot boundary contract regression (codex-empty-turn-ws-snapshot
       wsCloseCode: 1006,
       wsCloseReason: "abnormal closure",
       serverErrorMessage: null,
+      wsErrorReason: null,
       deltasObserved: { text: 0, toolCallArguments: 0, reasoning: 0 },
     }
 
@@ -785,6 +786,7 @@ describe("WS snapshot boundary contract regression (codex-empty-turn-ws-snapshot
       wsCloseCode: 1006,
       wsCloseReason: "no frames received",
       serverErrorMessage: null,
+      wsErrorReason: null,
       deltasObserved: { text: 0, toolCallArguments: 0, reasoning: 0 },
     }
     const logContextLocal = {
