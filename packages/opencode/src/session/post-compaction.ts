@@ -2,6 +2,7 @@ import { Log } from "../util/log"
 import { Session } from "."
 import { Todo } from "./todo"
 import type { MessageV2 } from "./message-v2"
+import { WorkingCache } from "./working-cache"
 
 const log = Log.create({ service: "post-compaction" })
 
@@ -216,7 +217,29 @@ export namespace PostCompaction {
     },
   }
 
+  const WorkingCacheProvider: Provider = {
+    name: "working-cache",
+    async gather(sessionID) {
+      const selected = await WorkingCache.selectValid({ kind: "session", sessionID }, 5)
+      if (selected.entries.length === 0) return null
+      const rendered = WorkingCache.renderForRecovery(selected.entries, 2000)
+      const omitted =
+        selected.omitted.length > 0 ? `\n\nOmitted stale/invalid entries: ${selected.omitted.length}.` : ""
+      return {
+        title: "Working Cache (evidence-backed exploration digest)",
+        summaryBody:
+          rendered +
+          omitted +
+          "\n\nUse this as advisory recovered exploration context. Before editing code, re-read the cited evidence files.",
+        continueHint:
+          `Working Cache: ${selected.entries.length} valid exploration digest entries restored. ` +
+          "Use them as advisory context; do not skip read-before-write evidence checks.",
+      }
+    },
+  }
+
   // Eager registration. Keep alphabetic for stable diagnostics output.
   register(InFlightSubagentsProvider)
   register(TodolistProvider)
+  register(WorkingCacheProvider)
 }
