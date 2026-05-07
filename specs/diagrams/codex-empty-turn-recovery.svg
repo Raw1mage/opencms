@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1782" height="1520" viewBox="-14.00 -2.00 89.10 76.00" role="img">
+<svg xmlns="http://www.w3.org/2000/svg" width="1782" height="1680" viewBox="-14.00 -2.00 89.10 84.00" role="img">
 <style>
 .step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
 .action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
@@ -10,7 +10,7 @@
 .action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
 </style>
 <defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
-<rect x="-14.00" y="-2.00" width="89.10" height="76.00" fill="white"/>
+<rect x="-14.00" y="-2.00" width="89.10" height="84.00" fill="white"/>
 <path class="edge edge-arrow" d="M 49.40 9.00 L 49.40 13.00"/>
 <path class="edge" d="M 49.40 7.00 L 49.40 9.00"/>
 <path class="edge edge-arrow" d="M 49.40 16.00 L 49.40 18.00"/>
@@ -25,19 +25,19 @@
 <path class="edge edge-arrow" d="M 0.00 41.00 L 0.00 45.00"/>
 <path class="edge" d="M 24.70 41.00 L 24.70 43.00"/>
 <path class="edge edge-arrow" d="M 24.70 43.00 L 24.70 45.00"/>
-<path class="edge edge-arrow" d="M 24.70 41.00 L 47.90 41.00 Q 48.40 41.00 48.40 41.50 L 48.40 52.00"/>
-<path class="edge edge-arrow" d="M 24.70 52.00 L 24.70 54.00"/>
+<path class="edge edge-arrow" d="M 24.70 41.00 L 47.90 41.00 Q 48.40 41.00 48.40 41.50 L 48.40 60.00"/>
+<path class="edge edge-arrow" d="M 24.70 60.00 L 24.70 62.00"/>
 <path class="edge" d="M 0.00 48.00 L 0.00 50.00"/>
 <path class="edge" d="M 0.00 50.00 L 0.00 52.00"/>
 <path class="edge" d="M 0.00 52.00 L -6.00 52.00"/>
 <path class="edge" d="M -6.00 52.00 L -6.00 11.00"/>
 <path class="edge" d="M -6.00 11.00 L 49.40 11.00"/>
-<path class="edge edge-arrow" d="M 24.70 48.00 L 24.70 52.00"/>
-<path class="edge edge-arrow" d="M 24.70 57.00 L 24.70 61.00"/>
-<path class="edge edge-arrow" d="M 49.40 61.00 L 49.40 63.00"/>
-<path class="edge edge-arrow" d="M 49.40 25.00 L 49.40 26.50 Q 49.40 27.00 49.90 27.00 L 53.35 27.00 Q 53.85 27.00 53.85 27.50 L 53.85 54.12 Q 53.85 54.62 53.35 54.62 L 49.90 54.62 Q 49.40 54.62 49.40 55.12 L 49.40 61.00"/>
-<path class="edge" d="M 49.40 66.00 L 49.40 68.00"/>
-<path class="edge edge-arrow" d="M 49.40 68.00 L 49.40 69.50 Q 49.40 70.00 48.90 70.00 L -9.50 70.00 Q -10.00 70.00 -10.00 69.50 L -10.00 2.50 Q -10.00 2.00 -9.50 2.00 L 48.90 2.00 Q 49.40 2.00 49.40 2.50 L 49.40 4.00"/>
+<path class="edge edge-arrow" d="M 24.70 48.00 L 24.70 60.00"/>
+<path class="edge edge-arrow" d="M 24.70 65.00 L 24.70 69.00"/>
+<path class="edge edge-arrow" d="M 49.40 69.00 L 49.40 71.00"/>
+<path class="edge edge-arrow" d="M 49.40 25.00 L 49.40 26.50 Q 49.40 27.00 49.90 27.00 L 53.35 27.00 Q 53.85 27.00 53.85 27.50 L 53.85 62.12 Q 53.85 62.62 53.35 62.62 L 49.90 62.62 Q 49.40 62.62 49.40 63.12 L 49.40 69.00"/>
+<path class="edge" d="M 49.40 74.00 L 49.40 76.00"/>
+<path class="edge edge-arrow" d="M 49.40 76.00 L 49.40 77.50 Q 49.40 78.00 48.90 78.00 L -9.50 78.00 Q -10.00 78.00 -10.00 77.50 L -10.00 2.50 Q -10.00 2.00 -9.50 2.00 L 48.90 2.00 Q 49.40 2.00 49.40 2.50 L 49.40 4.00"/>
 <rect class="step" x="47.40" y="4.00" width="4.00" height="3.00"/>
 <rect class="step-inner" x="47.65" y="4.25" width="3.50" height="2.50"/>
 <text class="label" x="49.40" y="5.50">0</text>
@@ -53,12 +53,12 @@
 <text class="label" x="0.00" y="46.50">5</text>
 <rect class="step" x="22.70" y="45.00" width="4.00" height="3.00"/>
 <text class="label" x="24.70" y="46.50">6</text>
-<rect class="step" x="22.70" y="54.00" width="4.00" height="3.00"/>
-<text class="label" x="24.70" y="55.50">7</text>
+<rect class="step" x="22.70" y="62.00" width="4.00" height="3.00"/>
+<text class="label" x="24.70" y="63.50">7</text>
 <rect class="step" x="47.40" y="22.00" width="4.00" height="3.00"/>
 <text class="label" x="49.40" y="23.50">8</text>
-<rect class="step" x="47.40" y="63.00" width="4.00" height="3.00"/>
-<text class="label" x="49.40" y="64.50">9</text>
+<rect class="step" x="47.40" y="71.00" width="4.00" height="3.00"/>
+<text class="label" x="49.40" y="72.50">9</text>
 <line class="assoc" x1="51.40" y1="5.50" x2="52.40" y2="5.50"/>
 <rect class="action" x="52.40" y="4.07" width="18.70" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="61.75" y="5.50"><tspan x="61.75" dy="0">Idle; provider awaiting next assistant turn request</tspan></text>
@@ -80,15 +80,15 @@
 <line class="assoc" x1="26.70" y1="46.50" x2="27.70" y2="46.50"/>
 <rect class="action" x="27.70" y="45.07" width="18.70" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="37.05" y="45.68"><tspan x="37.05" dy="0">Synthesize text part from accumulated deltas</tspan><tspan x="37.05" dy="0.82">(DORMANT: no current cause family selects this;</tspan><tspan x="37.05" dy="0.82">reserved for future codex shape changes per DD-8)</tspan></text>
-<line class="assoc" x1="26.70" y1="55.50" x2="27.70" y2="55.50"/>
-<rect class="action" x="27.70" y="54.07" width="18.70" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="37.05" y="54.68"><tspan x="37.05" dy="0">A3 emits finish part with providerMetadata.openai.emptyTurnClassification;</tspan><tspan x="37.05" dy="0.82">A6 (runloop empty-response guard) fires broad question-mark nudge per</tspan><tspan x="37.05" dy="0.82">D-4 and attaches classification metadata to the synthetic message</tspan></text>
+<line class="assoc" x1="26.70" y1="63.50" x2="27.70" y2="63.50"/>
+<rect class="action" x="27.70" y="62.07" width="18.70" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="37.05" y="62.68"><tspan x="37.05" dy="0">A3 emits finish part with providerMetadata.openai.emptyTurnClassification;</tspan><tspan x="37.05" dy="0.82">A6 (runloop empty-response guard) fires broad question-mark nudge per</tspan><tspan x="37.05" dy="0.82">D-4 and attaches classification metadata to the synthetic message</tspan></text>
 <line class="assoc" x1="51.40" y1="23.50" x2="52.40" y2="23.50"/>
 <rect class="action" x="52.40" y="22.07" width="18.70" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="61.75" y="23.09"><tspan x="61.75" dy="0">Normal completion: emit finish part with finishReason in {stop, tool-calls,</tspan><tspan x="61.75" dy="0.82">length}; classifier was NOT invoked; no empty-turn metadata attached</tspan></text>
-<line class="assoc" x1="51.40" y1="64.50" x2="52.40" y2="64.50"/>
-<rect class="action" x="52.40" y="63.07" width="18.70" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="61.75" y="64.09"><tspan x="61.75" dy="0">Turn complete; runloop processes any nudge</tspan><tspan x="61.75" dy="0.82">or normal finish; provider returns to idle</tspan></text>
+<line class="assoc" x1="51.40" y1="72.50" x2="52.40" y2="72.50"/>
+<rect class="action" x="52.40" y="71.07" width="18.70" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="61.75" y="72.09"><tspan x="61.75" dy="0">Turn complete; runloop processes any nudge</tspan><tspan x="61.75" dy="0.82">or normal finish; provider returns to idle</tspan></text>
 <line class="gate" x1="48.40" y1="9.00" x2="50.40" y2="9.00"/>
 <text class="gate-label" x="50.80" y="9.00"><tspan x="50.80" dy="0">request_body_built AND ws_connection_opened</tspan></text>
 <line class="gate" x1="20.70" y1="18.00" x2="53.40" y2="18.00"/>
@@ -100,24 +100,24 @@
 <text class="gate-label" x="1.40" y="40.32"><tspan x="1.40" dy="0">recoveryAction == retry-once-then-soft-fail AND retryAttempted == false</tspan></text>
 <line class="gate" x1="23.70" y1="43.00" x2="25.70" y2="43.00"/>
 <text class="gate-label" x="26.10" y="43.00"><tspan x="26.10" dy="0">recoveryAction == synthesize-from-deltas</tspan></text>
-<line class="gate" x1="22.70" y1="52.00" x2="51.40" y2="52.00"/>
+<line class="gate" x1="22.70" y1="60.00" x2="51.40" y2="60.00"/>
 <line class="gate" x1="-1.00" y1="50.00" x2="1.00" y2="50.00"/>
 <text class="gate-label" x="1.40" y="50.00"><tspan x="1.40" dy="0">ws_reopened AND body_resent</tspan></text>
-<line class="gate" x1="22.70" y1="61.00" x2="51.40" y2="61.00"/>
-<line class="gate" x1="48.40" y1="68.00" x2="50.40" y2="68.00"/>
-<text class="gate-label" x="50.80" y="68.00"><tspan x="50.80" dy="0">session_ready_for_next_turn</tspan></text>
+<line class="gate" x1="22.70" y1="69.00" x2="51.40" y2="69.00"/>
+<line class="gate" x1="48.40" y1="76.00" x2="50.40" y2="76.00"/>
+<text class="gate-label" x="50.80" y="76.00"><tspan x="50.80" dy="0">session_ready_for_next_turn</tspan></text>
 <line class="gate" x1="23.70" y1="20.00" x2="25.70" y2="20.00"/>
 <text class="gate-label-left" x="23.30" y="20.00"><tspan x="23.30" dy="0">stream_ended AND emittedTextDeltas == 0 AND emittedToolCalls == 0</tspan></text>
 <line class="gate" x1="48.40" y1="20.00" x2="50.40" y2="20.00"/>
 <text class="gate-label-left" x="48.00" y="20.00"><tspan x="48.00" dy="0">stream_ended AND (emittedTextDeltas &gt; 0 OR emittedToolCalls &gt; 0)</tspan></text>
-<line class="gate" x1="47.40" y1="50.00" x2="49.40" y2="50.00"/>
-<text class="gate-label-left" x="47.00" y="49.32"><tspan x="47.00" dy="0">recoveryAction IN {pass-through-</tspan><tspan x="47.00" dy="0.68">to-runloop-nudge, log-and-continue}</tspan><tspan x="47.00" dy="0.68">OR retryAttempted == true</tspan></text>
-<line class="gate" x1="23.70" y1="50.00" x2="25.70" y2="50.00"/>
-<text class="gate-label-left" x="23.30" y="50.00"><tspan x="23.30" dy="0">synthesized_text_emitted</tspan></text>
-<line class="gate" x1="23.70" y1="59.00" x2="25.70" y2="59.00"/>
-<text class="gate-label-left" x="23.30" y="59.00"><tspan x="23.30" dy="0">finish_with_classification_emitted AND nudge_dispatched</tspan></text>
-<line class="gate" x1="48.40" y1="59.00" x2="50.40" y2="59.00"/>
-<text class="gate-label-left" x="48.00" y="59.00"><tspan x="48.00" dy="0">normal_finish_emitted</tspan></text>
+<line class="gate" x1="47.40" y1="58.00" x2="49.40" y2="58.00"/>
+<text class="gate-label-left" x="47.00" y="57.32"><tspan x="47.00" dy="0">recoveryAction IN {pass-through-</tspan><tspan x="47.00" dy="0.68">to-runloop-nudge, log-and-continue}</tspan><tspan x="47.00" dy="0.68">OR retryAttempted == true</tspan></text>
+<line class="gate" x1="23.70" y1="58.00" x2="25.70" y2="58.00"/>
+<text class="gate-label-left" x="23.30" y="58.00"><tspan x="23.30" dy="0">synthesized_text_emitted</tspan></text>
+<line class="gate" x1="23.70" y1="67.00" x2="25.70" y2="67.00"/>
+<text class="gate-label-left" x="23.30" y="67.00"><tspan x="23.30" dy="0">finish_with_classification_emitted AND nudge_dispatched</tspan></text>
+<line class="gate" x1="48.40" y1="67.00" x2="50.40" y2="67.00"/>
+<text class="gate-label-left" x="48.00" y="67.00"><tspan x="48.00" dy="0">normal_finish_emitted</tspan></text>
 <circle class="junction" cx="49.40" cy="11.00" r="0.22"/>
 <circle class="branch-junction" cx="24.70" cy="41.00" r="0.28"/>
 </svg>
