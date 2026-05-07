@@ -346,11 +346,12 @@ export function createAutoScroll(options: AutoScrollOptions) {
     const target = e.target instanceof Element ? e.target : undefined
     const nested = target?.closest("[data-scrollable]")
     if (el && nested && nested !== el && nestedConsumesVerticalScroll(nested)) return
-    // No scrollable area, or already at bottom: gesture cannot mean "I want to
+    // No scrollable area, or near the bottom: gesture cannot mean "I want to
     // read history". iOS rubber-band, address-bar collapse, and viewport
-    // jiggers fire wheel/touch events at the bottom boundary; respecting them
-    // strands the user in free-reading.
-    if (el && (!canScroll(el) || distanceFromBottom(el) < threshold())) return
+    // jiggers fire wheel/touch events at the bottom boundary with positive
+    // distanceFromBottom of a few dozen px; respecting them strands the user
+    // in free-reading. Width matches handleScroll's phantom-snap window.
+    if (el && (!canScroll(el) || distanceFromBottom(el) < 100)) return
     clearAuto()
     stop()
   }
@@ -378,11 +379,14 @@ export function createAutoScroll(options: AutoScrollOptions) {
       // overflow (short content) must let the gesture reach root, or
       // mobile history-lazyload never arms — user sees tail 30 only.
       if (el && nested && nested !== el && nestedConsumesVerticalScroll(nested)) return
-      // Same boundary guard as handleWheel: at the bottom of a scrollable
-      // page, iOS fires touchmove with deltaY > 10 from rubber-band bounce
-      // even though scrollTop never moves. Don't strand the user in
-      // free-reading on a phantom gesture.
-      if (el && (!canScroll(el) || distanceFromBottom(el) < threshold())) {
+      // Same boundary guard as handleWheel and handleScroll's phantom-snap:
+      // at/near the bottom of a scrollable page, iOS fires touchmove with
+      // deltaY > 10 from rubber-band bounce, address-bar collapse, and other
+      // viewport transitions, even when scrollTop never moves. A real "I want
+      // history" swipe will move scrollTop hundreds of px in one frame and
+      // re-trigger handleScroll where the user-stop branch (now post the
+      // phantom-snap window) will fire correctly.
+      if (el && (!canScroll(el) || distanceFromBottom(el) < 100)) {
         touchActive = false
         return
       }
