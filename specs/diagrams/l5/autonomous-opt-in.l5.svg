@@ -17,21 +17,21 @@
 <path class="edge edge-arrow" d="M 39.54 18.00 L 39.54 22.00"/>
 <path class="edge edge-arrow" d="M 10.00 18.00 L 10.00 22.00"/>
 <path class="edge edge-arrow" d="M 24.77 18.00 L 24.77 22.00"/>
-<path class="edge edge-arrow" d="M 39.54 25.00 L 39.54 31.00"/>
-<path class="edge" d="M 24.77 31.00 L 24.77 35.00"/>
+<path class="edge edge-arrow" d="M 39.54 25.00 L 39.54 33.00"/>
+<path class="edge" d="M 24.77 33.00 L 24.77 35.00"/>
 <path class="edge" d="M 24.77 35.00 L 2.00 35.00"/>
 <path class="edge" d="M 2.00 35.00 L 2.00 11.00"/>
 <path class="edge" d="M 2.00 11.00 L 24.77 11.00"/>
-<path class="edge edge-arrow" d="M 54.31 31.00 L 54.31 37.00"/>
+<path class="edge edge-arrow" d="M 54.31 33.00 L 54.31 37.00"/>
 <path class="edge" d="M 10.00 25.00 L 10.00 27.00"/>
-<path class="edge edge-arrow" d="M 10.00 27.00 L 10.00 28.50 Q 10.00 29.00 9.50 29.00 L -1.50 29.00 Q -2.00 29.00 -2.00 28.50 L -2.00 2.50 Q -2.00 2.00 -1.50 2.00 L 24.27 2.00 Q 24.77 2.00 24.77 2.50 L 24.77 4.00"/>
-<path class="edge" d="M 24.77 25.00 L 24.77 27.00"/>
-<path class="edge" d="M 24.77 27.00 L 24.77 29.00"/>
-<path class="edge" d="M 24.77 29.00 L 10.00 29.00"/>
+<path class="edge edge-arrow" d="M 10.00 27.00 L 10.00 30.50 Q 10.00 31.00 9.50 31.00 L -1.50 31.00 Q -2.00 31.00 -2.00 30.50 L -2.00 2.50 Q -2.00 2.00 -1.50 2.00 L 24.27 2.00 Q 24.77 2.00 24.77 2.50 L 24.77 4.00"/>
+<path class="edge" d="M 24.77 25.00 L 24.77 29.00"/>
+<path class="edge" d="M 24.77 29.00 L 24.77 31.00"/>
+<path class="edge" d="M 24.77 31.00 L 10.00 31.00"/>
 <path class="edge" d="M 54.31 40.00 L 54.31 42.00"/>
 <path class="edge" d="M 54.31 42.00 L 54.31 44.00"/>
 <path class="edge" d="M 54.31 44.00 L -2.00 44.00"/>
-<path class="edge" d="M -2.00 44.00 L -2.00 29.00"/>
+<path class="edge" d="M -2.00 44.00 L -2.00 31.00"/>
 <rect class="step" x="22.77" y="4.00" width="4.00" height="3.00"/>
 <rect class="step-inner" x="23.02" y="4.25" width="3.50" height="2.50"/>
 <text class="label" x="24.77" y="5.50">0</text>
@@ -66,11 +66,11 @@
 <line class="gate" x1="23.77" y1="9.00" x2="25.77" y2="9.00"/>
 <text class="gate-label" x="26.17" y="9.00"><tspan x="26.17" dy="0">arm_signal_received AND binding_valid AND state IN {planned, implementing} AND has_actionable_todo</tspan></text>
 <line class="gate" x1="6.00" y1="18.00" x2="43.54" y2="18.00"/>
-<line class="gate" x1="20.77" y1="31.00" x2="58.31" y2="31.00"/>
+<line class="gate" x1="20.77" y1="33.00" x2="58.31" y2="33.00"/>
 <line class="gate" x1="9.00" y1="27.00" x2="11.00" y2="27.00"/>
 <text class="gate-label" x="11.40" y="27.00"><tspan x="11.40" dy="0">disarm_complete</tspan></text>
-<line class="gate" x1="23.77" y1="27.00" x2="25.77" y2="27.00"/>
-<text class="gate-label" x="26.17" y="27.00"><tspan x="26.17" dy="0">demotion_complete</tspan></text>
+<line class="gate" x1="23.77" y1="29.00" x2="25.77" y2="29.00"/>
+<text class="gate-label" x="26.17" y="29.00"><tspan x="26.17" dy="0">demotion_complete</tspan></text>
 <line class="gate" x1="53.31" y1="42.00" x2="55.31" y2="42.00"/>
 <text class="gate-label" x="55.71" y="42.00"><tspan x="55.71" dy="0">cleanup_complete</tspan></text>
 <line class="gate" x1="38.54" y1="20.00" x2="40.54" y2="20.00"/>
@@ -79,11 +79,11 @@
 <text class="gate-label" x="11.40" y="20.00"><tspan x="11.40" dy="0">user_speaks OR blocker_fires OR abort_signal</tspan></text>
 <line class="gate" x1="23.77" y1="20.00" x2="25.77" y2="20.00"/>
 <text class="gate-label" x="26.17" y="20.00"><tspan x="26.17" dy="0">plan_edit_during_implementing</tspan></text>
-<line class="gate" x1="23.77" y1="33.00" x2="25.77" y2="33.00"/>
-<text class="gate-label-left" x="23.37" y="33.00"><tspan x="23.37" dy="0">refill_non_empty</tspan></text>
-<line class="gate" x1="53.31" y1="33.00" x2="55.31" y2="33.00"/>
-<text class="gate-label-left" x="52.91" y="33.00"><tspan x="52.91" dy="0">refill_empty</tspan></text>
+<line class="gate" x1="23.77" y1="35.00" x2="25.77" y2="35.00"/>
+<text class="gate-label-left" x="23.37" y="34.32"><tspan x="23.37" dy="0">refill_non_empty</tspan></text>
+<line class="gate" x1="53.31" y1="35.00" x2="55.31" y2="35.00"/>
+<text class="gate-label-left" x="52.91" y="35.00"><tspan x="52.91" dy="0">refill_empty</tspan></text>
 <circle class="junction" cx="24.77" cy="11.00" r="0.22"/>
-<circle class="junction" cx="10.00" cy="29.00" r="0.22"/>
-<circle class="junction" cx="-2.00" cy="29.00" r="0.22"/>
+<circle class="junction" cx="10.00" cy="31.00" r="0.22"/>
+<circle class="junction" cx="-2.00" cy="31.00" r="0.22"/>
 </svg>

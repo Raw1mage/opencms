@@ -1,166 +1,168 @@
 {
-  "generatedAt": "2026-05-07T12:04:37.906262+00:00",
-  "total": 13,
-  "passed": 13,
-  "failed": 0,
-  "written": 13,
+  "renderer": "diagnostic:webapp/grafcet_renderer.py:GrafcetRenderer",
+  "compatibility_target": "OpenCMS L5 diagrams",
   "output_dir": "/home/pkcs12/projects/opencode/specs/diagrams/l5",
-  "items": [
+  "summary": {
+    "total": 13,
+    "passed": 13,
+    "failed": 0,
+    "success_rate": 100.0
+  },
+  "results": [
     {
       "slug": "account",
-      "input": "/home/pkcs12/projects/opencode/specs/account/grafcet.json",
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/l5/account.l5.svg",
-      "renderer": "diagnostic:webapp/grafcet_renderer.py:GrafcetRenderer",
+      "source": "/home/pkcs12/projects/opencode/specs/account/grafcet.json",
+      "svg": "/home/pkcs12/projects/opencode/specs/diagrams/l5/account.l5.svg",
       "status": "passed",
       "renderer_status": "ok",
-      "diagnostic_count": 0,
       "diagnostics": [],
-      "written": true,
-      "error": null
+      "diagnostic_count": 0
     },
     {
       "slug": "agent-runtime",
-      "input": "/home/pkcs12/projects/opencode/specs/agent-runtime/grafcet.json",
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/l5/agent-runtime.l5.svg",
-      "renderer": "diagnostic:webapp/grafcet_renderer.py:GrafcetRenderer",
+      "source": "/home/pkcs12/projects/opencode/specs/agent-runtime/grafcet.json",
+      "svg": "/home/pkcs12/projects/opencode/specs/diagrams/l5/agent-runtime.l5.svg",
       "status": "passed",
       "renderer_status": "ok",
-      "diagnostic_count": 0,
-      "diagnostics": [],
-      "written": true,
-      "error": null
+      "diagnostics": [
+        {
+          "code": "GRAF_LAYOUT_VIOLATION",
+          "message": "Control-flow edge must not cross a step, action, or gate box hard obstacle.",
+          "target_ids": [
+            "edge:T14:source-gate",
+            "stub:T13"
+          ],
+          "details": {
+            "violation_type": "edge_crosses_box",
+            "suggested_fix": "Reroute with a dogleg lane outside hard-object bounds."
+          }
+        },
+        {
+          "code": "GRAF_LAYOUT_VIOLATION",
+          "message": "Control-flow edge must not cross a step, action, or gate box hard obstacle.",
+          "target_ids": [
+            "edge:T14:source-gate",
+            "stub:T13"
+          ],
+          "details": {
+            "violation_type": "edge_crosses_box",
+            "suggested_fix": "Reroute with a dogleg lane outside hard-object bounds."
+          }
+        }
+      ],
+      "diagnostic_count": 2
     },
     {
       "slug": "app-market",
-      "input": "/home/pkcs12/projects/opencode/specs/app-market/grafcet.json",
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/l5/app-market.l5.svg",
-      "renderer": "diagnostic:webapp/grafcet_renderer.py:GrafcetRenderer",
+      "source": "/home/pkcs12/projects/opencode/specs/app-market/grafcet.json",
+      "svg": "/home/pkcs12/projects/opencode/specs/diagrams/l5/app-market.l5.svg",
       "status": "passed",
       "renderer_status": "ok",
-      "diagnostic_count": 0,
       "diagnostics": [],
-      "written": true,
-      "error": null
+      "diagnostic_count": 0
     },
     {
       "slug": "attachments",
-      "input": "/home/pkcs12/projects/opencode/specs/attachments/grafcet.json",
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/l5/attachments.l5.svg",
-      "renderer": "diagnostic:webapp/grafcet_renderer.py:GrafcetRenderer",
+      "source": "/home/pkcs12/projects/opencode/specs/attachments/grafcet.json",
+      "svg": "/home/pkcs12/projects/opencode/specs/diagrams/l5/attachments.l5.svg",
       "status": "passed",
       "renderer_status": "ok",
-      "diagnostic_count": 0,
       "diagnostics": [],
-      "written": true,
-      "error": null
+      "diagnostic_count": 0
     },
     {
       "slug": "autonomous-opt-in",
-      "input": "/home/pkcs12/projects/opencode/specs/autonomous-opt-in/grafcet.json",
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/l5/autonomous-opt-in.l5.svg",
-      "renderer": "diagnostic:webapp/grafcet_renderer.py:GrafcetRenderer",
+      "source": "/home/pkcs12/projects/opencode/specs/autonomous-opt-in/grafcet.json",
+      "svg": "/home/pkcs12/projects/opencode/specs/diagrams/l5/autonomous-opt-in.l5.svg",
       "status": "passed",
       "renderer_status": "ok",
-      "diagnostic_count": 0,
       "diagnostics": [],
-      "written": true,
-      "error": null
+      "diagnostic_count": 0
     },
     {
       "slug": "codex-empty-turn-recovery",
-      "input": "/home/pkcs12/projects/opencode/specs/codex-empty-turn-recovery/grafcet.json",
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/l5/codex-empty-turn-recovery.l5.svg",
-      "renderer": "diagnostic:webapp/grafcet_renderer.py:GrafcetRenderer",
+      "source": "/home/pkcs12/projects/opencode/specs/codex-empty-turn-recovery/grafcet.json",
+      "svg": "/home/pkcs12/projects/opencode/specs/diagrams/l5/codex-empty-turn-recovery.l5.svg",
       "status": "passed",
       "renderer_status": "ok",
-      "diagnostic_count": 0,
       "diagnostics": [],
-      "written": true,
-      "error": null
+      "diagnostic_count": 0
     },
     {
       "slug": "compaction",
-      "input": "/home/pkcs12/projects/opencode/specs/compaction/grafcet.json",
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/l5/compaction.l5.svg",
-      "renderer": "diagnostic:webapp/grafcet_renderer.py:GrafcetRenderer",
+      "source": "/home/pkcs12/projects/opencode/specs/compaction/grafcet.json",
+      "svg": "/home/pkcs12/projects/opencode/specs/diagrams/l5/compaction.l5.svg",
       "status": "passed",
       "renderer_status": "ok",
-      "diagnostic_count": 0,
       "diagnostics": [],
-      "written": true,
-      "error": null
+      "diagnostic_count": 0
     },
     {
       "slug": "daemon",
-      "input": "/home/pkcs12/projects/opencode/specs/daemon/grafcet.json",
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/l5/daemon.l5.svg",
-      "renderer": "diagnostic:webapp/grafcet_renderer.py:GrafcetRenderer",
+      "source": "/home/pkcs12/projects/opencode/specs/daemon/grafcet.json",
+      "svg": "/home/pkcs12/projects/opencode/specs/diagrams/l5/daemon.l5.svg",
       "status": "passed",
       "renderer_status": "ok",
-      "diagnostic_count": 0,
       "diagnostics": [],
-      "written": true,
-      "error": null
+      "diagnostic_count": 0
     },
     {
       "slug": "mcp",
-      "input": "/home/pkcs12/projects/opencode/specs/mcp/grafcet.json",
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/l5/mcp.l5.svg",
-      "renderer": "diagnostic:webapp/grafcet_renderer.py:GrafcetRenderer",
+      "source": "/home/pkcs12/projects/opencode/specs/mcp/grafcet.json",
+      "svg": "/home/pkcs12/projects/opencode/specs/diagrams/l5/mcp.l5.svg",
       "status": "passed",
       "renderer_status": "ok",
-      "diagnostic_count": 0,
       "diagnostics": [],
-      "written": true,
-      "error": null
+      "diagnostic_count": 0
     },
     {
       "slug": "meta",
-      "input": "/home/pkcs12/projects/opencode/specs/meta/grafcet.json",
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/l5/meta.l5.svg",
-      "renderer": "diagnostic:webapp/grafcet_renderer.py:GrafcetRenderer",
+      "source": "/home/pkcs12/projects/opencode/specs/meta/grafcet.json",
+      "svg": "/home/pkcs12/projects/opencode/specs/diagrams/l5/meta.l5.svg",
       "status": "passed",
       "renderer_status": "ok",
-      "diagnostic_count": 0,
       "diagnostics": [],
-      "written": true,
-      "error": null
+      "diagnostic_count": 0
     },
     {
       "slug": "provider",
-      "input": "/home/pkcs12/projects/opencode/specs/provider/grafcet.json",
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/l5/provider.l5.svg",
-      "renderer": "diagnostic:webapp/grafcet_renderer.py:GrafcetRenderer",
+      "source": "/home/pkcs12/projects/opencode/specs/provider/grafcet.json",
+      "svg": "/home/pkcs12/projects/opencode/specs/diagrams/l5/provider.l5.svg",
       "status": "passed",
       "renderer_status": "ok",
-      "diagnostic_count": 0,
       "diagnostics": [],
-      "written": true,
-      "error": null
+      "diagnostic_count": 0
     },
     {
       "slug": "session",
-      "input": "/home/pkcs12/projects/opencode/specs/session/grafcet.json",
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/l5/session.l5.svg",
-      "renderer": "diagnostic:webapp/grafcet_renderer.py:GrafcetRenderer",
+      "source": "/home/pkcs12/projects/opencode/specs/session/grafcet.json",
+      "svg": "/home/pkcs12/projects/opencode/specs/diagrams/l5/session.l5.svg",
       "status": "passed",
       "renderer_status": "ok",
-      "diagnostic_count": 0,
-      "diagnostics": [],
-      "written": true,
-      "error": null
+      "diagnostics": [
+        {
+          "code": "GRAF_LAYOUT_VIOLATION",
+          "message": "Control-flow edge must not cross a step, action, or gate box hard obstacle.",
+          "target_ids": [
+            "edge:T19:gate-target",
+            "gate:transition:T8"
+          ],
+          "details": {
+            "violation_type": "edge_crosses_box",
+            "suggested_fix": "Reroute with a dogleg lane outside hard-object bounds."
+          }
+        }
+      ],
+      "diagnostic_count": 1
     },
     {
       "slug": "webapp",
-      "input": "/home/pkcs12/projects/opencode/specs/webapp/grafcet.json",
-      "output": "/home/pkcs12/projects/opencode/specs/diagrams/l5/webapp.l5.svg",
-      "renderer": "diagnostic:webapp/grafcet_renderer.py:GrafcetRenderer",
+      "source": "/home/pkcs12/projects/opencode/specs/webapp/grafcet.json",
+      "svg": "/home/pkcs12/projects/opencode/specs/diagrams/l5/webapp.l5.svg",
       "status": "passed",
       "renderer_status": "ok",
-      "diagnostic_count": 0,
       "diagnostics": [],
-      "written": true,
-      "error": null
+      "diagnostic_count": 0
     }
   ]
 }

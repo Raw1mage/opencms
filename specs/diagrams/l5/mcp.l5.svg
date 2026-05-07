@@ -31,14 +31,14 @@
 <path class="edge edge-arrow" d="M 20.00 62.00 L 20.00 64.00"/>
 <path class="edge" d="M 10.00 64.00 L 10.00 62.50 Q 10.00 62.00 9.50 62.00 L 2.50 62.00 Q 2.00 62.00 2.00 61.50 L 2.00 50.50 Q 2.00 50.00 2.50 50.00 L 20.00 50.00"/>
 <path class="edge edge-arrow" d="M 30.00 73.00 L 30.00 75.00"/>
-<path class="edge" d="M 20.00 75.00 L 20.00 79.00"/>
-<path class="edge" d="M 20.00 79.00 L 2.00 79.00"/>
-<path class="edge" d="M 2.00 79.00 L 2.00 62.00"/>
+<path class="edge" d="M 20.00 75.00 L 20.00 77.00"/>
+<path class="edge" d="M 20.00 77.00 L 2.00 77.00"/>
+<path class="edge" d="M 2.00 77.00 L 2.00 62.00"/>
 <path class="edge edge-arrow" d="M 40.00 75.00 L 40.00 81.00"/>
 <path class="edge edge-arrow" d="M 40.00 84.00 L 40.00 86.00"/>
-<path class="edge" d="M 30.00 86.00 L 30.00 90.00"/>
-<path class="edge" d="M 30.00 90.00 L 14.00 90.00"/>
-<path class="edge" d="M 14.00 90.00 L 14.00 68.00"/>
+<path class="edge" d="M 30.00 86.00 L 30.00 88.00"/>
+<path class="edge" d="M 30.00 88.00 L 14.00 88.00"/>
+<path class="edge" d="M 14.00 88.00 L 14.00 68.00"/>
 <path class="edge" d="M 14.00 68.00 L 30.00 68.00"/>
 <path class="edge edge-arrow" d="M 50.00 86.00 L 50.00 92.00"/>
 <path class="edge" d="M 50.00 95.00 L 50.00 97.00"/>
@@ -134,11 +134,11 @@
 <line class="gate" x1="29.00" y1="66.00" x2="31.00" y2="66.00"/>
 <text class="gate-label-left" x="28.60" y="66.00"><tspan x="28.60" dy="0">無待處理呼叫</tspan></text>
 <line class="gate" x1="19.00" y1="77.00" x2="21.00" y2="77.00"/>
-<text class="gate-label-left" x="18.60" y="76.32"><tspan x="18.60" dy="0">模型re</tspan><tspan x="18.60" dy="0.68">sumes工</tspan><tspan x="18.60" dy="0.68">具use</tspan></text>
+<text class="gate-label-left" x="18.60" y="76.32"><tspan x="18.60" dy="0">模型resumes工具use</tspan></text>
 <line class="gate" x1="39.00" y1="77.00" x2="41.00" y2="77.00"/>
 <text class="gate-label-left" x="38.60" y="77.00"><tspan x="38.60" dy="0">now - lastused於 &gt; tweaks.mcp.閒置unloadms (proposed)</tspan></text>
 <line class="gate" x1="29.00" y1="88.00" x2="31.00" y2="88.00"/>
-<text class="gate-label-left" x="28.60" y="88.00"><tspan x="28.60" dy="0">proposal不已交付 (stay 已釘選)</tspan></text>
+<text class="gate-label-left" x="28.60" y="87.32"><tspan x="28.60" dy="0">proposal不已交付 (stay 已釘選)</tspan></text>
 <line class="gate" x1="49.00" y1="88.00" x2="51.00" y2="88.00"/>
 <text class="gate-label-left" x="48.60" y="88.00"><tspan x="48.60" dy="0">proposal已交付 &amp;&amp; inflight==0 (unload)</tspan></text>
 <circle class="junction" cx="20.00" cy="50.00" r="0.22"/>
