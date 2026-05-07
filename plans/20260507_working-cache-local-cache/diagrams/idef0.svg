@@ -1,0 +1,88 @@
+<svg width="1582.3" height="841.8" viewBox="-241.1 -171.8 1582.3 841.8" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-241.1" y="-171.8" width="1582.3" height="841.8" fill="white" />
+<rect x="130.0" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="230.0" y="165.2" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
+<text x="230.0" y="200.9" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >INDEX TOOLCALL</text>
+<text x="230.0" y="238.4" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >LEDGER</text>
+<rect x="490.0" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="590.0" y="151.2" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
+<text x="590.0" y="184.1" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >CAPTURE</text>
+<text x="590.0" y="217.8" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >SYNTHESISED</text>
+<text x="590.0" y="251.6" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >DIGEST</text>
+<rect x="810.0" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="910.0" y="165.2" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >A3</text>
+<text x="910.0" y="200.9" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >RENDER CATCHUP</text>
+<text x="910.0" y="238.4" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >MANIFEST</text>
+<rect x="130.0" y="380.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
+<text x="230.0" y="425.2" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >A4</text>
+<text x="230.0" y="460.9" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >RETRIEVE</text>
+<text x="230.0" y="498.4" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >CACHE POINTERS</text>
+<rect x="490.0" y="380.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A5" />
+<text x="590.0" y="425.2" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >A5</text>
+<text x="590.0" y="460.9" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >VALIDATE CACHE</text>
+<text x="590.0" y="498.4" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >FRESHNESS</text>
+<rect x="40.0" y="38.2" width="1020.0" height="621.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="350.0" y="-161.8" width="400.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="550.0" y="-135.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >A0</text>
+<text x="550.0" y="-105.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >WORKING CACHE L1 L2</text>
+<text x="550.0" y="-75.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >FUNCTIONAL ARCHITECTURE</text>
+<line x1="350.0" y1="-161.8" x2="40.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="750.0" y1="-161.8" x2="1060.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="350.0" y1="-51.8" x2="40.0" y2="660.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="750.0" y1="-51.8" x2="1060.0" y2="660.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 330.0 200.0 L 400.0 200.0 Q 410.0 200.0 410.0 210.0 L 410.0 476.7 Q 410.0 486.7 420.0 486.7 L 490.0 486.7" stroke="black" stroke-width="1.2" data-arrow-id="AR7" data-waypoints="330.0,200.0 410.0,200.0 410.0,486.7 490.0,486.7" marker-end="url(#arrow)" fill="none" />
+<path d="M 690.0 420.0 L 760.0 420.0 Q 770.0 420.0 770.0 410.0 L 770.0 210.0 Q 770.0 200.0 780.0 200.0 L 810.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR9" data-waypoints="690.0,420.0 770.0,420.0 770.0,200.0 810.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 690.0 200.0 L 720.0 200.0 Q 730.0 200.0 730.0 210.0 L 730.0 320.0 Q 730.0 330.0 720.0 330.0 L 460.0 330.0 Q 450.0 330.0 450.0 340.0 L 450.0 423.3 Q 450.0 433.3 460.0 433.3 L 490.0 433.3" stroke="black" stroke-width="1.2" data-arrow-id="AR6" data-waypoints="690.0,200.0 730.0,200.0 730.0,330.0 450.0,330.0 450.0,433.3 490.0,433.3" marker-end="url(#arrow)" fill="none" />
+<path d="M 690.0 460.0 L 720.0 460.0 Q 730.0 460.0 730.0 470.0 L 730.0 571.8 Q 730.0 581.8 720.0 581.8 L 100.0 581.8 Q 90.0 581.8 90.0 571.8 L 90.0 470.0 Q 90.0 460.0 100.0 460.0 L 130.0 460.0" stroke="black" stroke-width="1.2" data-arrow-id="AR10" data-waypoints="690.0,460.0 730.0,460.0 730.0,581.8 90.0,581.8 90.0,460.0 130.0,460.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -10.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR1" data-waypoints="-10.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR2" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -10.0 78.2 L 360.0 78.2 Q 370.0 78.2 370.0 88.2 L 370.0 170.0 Q 370.0 180.0 380.0 180.0 L 490.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="AR4" data-waypoints="-10.0,78.2 370.0,78.2 370.0,180.0 490.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 590.0 344.2 L 590.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="AR8" data-waypoints="590.0,344.2 590.0,380.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 910.0 84.2 L 910.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR11" data-waypoints="910.0,84.2 910.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 344.2 L 230.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="AR12" data-waypoints="230.0,344.2 230.0,380.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1010.0 200.0 L 1110.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR13" data-waypoints="1010.0,200.0 1110.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 460.0 L 360.0 460.0 Q 370.0 460.0 370.0 470.0 L 370.0 610.0 Q 370.0 620.0 380.0 620.0 L 1110.0 620.0" stroke="black" stroke-width="1.2" data-arrow-id="AR14" data-waypoints="330.0,460.0 370.0,460.0 370.0,620.0 1110.0,620.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 690.0 500.0 L 1110.0 500.0" stroke="black" stroke-width="1.2" data-arrow-id="AR15" data-waypoints="690.0,500.0 1110.0,500.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 315.8 L 230.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="AR16" data-waypoints="230.0,315.8 230.0,280.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 590.0 315.8 L 590.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="AR17" data-waypoints="590.0,315.8 590.0,280.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 910.0 315.8 L 910.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="AR18" data-waypoints="910.0,315.8 910.0,280.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 575.8 L 230.0 540.0" stroke="black" stroke-width="1.2" data-arrow-id="AR19" data-waypoints="230.0,575.8 230.0,540.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 590.0 575.8 L 590.0 540.0" stroke="black" stroke-width="1.2" data-arrow-id="AR20" data-waypoints="590.0,575.8 590.0,540.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 590.0 84.2 L 590.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A2_control" data-waypoints="590.0,84.2 590.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="224.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR2">Tool Kind</text>
+<text x="236.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR2">Classification</text>
+<text x="584.0" y="374.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR8">Schema And</text>
+<text x="596.0" y="374.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR8">Freshness Rules</text>
+<text x="910.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR11">Compaction Boundary Event</text>
+<text x="230.0" y="338.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR12">Recall Tool Invocation</text>
+<text x="224.0" y="296.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR16">ToolInvoker</text>
+<text x="236.0" y="296.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR16">Post Hook</text>
+<text x="584.0" y="296.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR17">Turn End Fenced</text>
+<text x="596.0" y="296.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR17">Block Parser</text>
+<text x="910.0" y="331.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR18">PostCompaction Provider Registry</text>
+<text x="224.0" y="556.0" font-size="12" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR19">System Manager</text>
+<text x="236.0" y="556.0" font-size="12" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR19">Recall Toolcall Tools</text>
+<text x="584.0" y="556.0" font-size="12" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR20">WorkingCache Validator</text>
+<text x="596.0" y="556.0" font-size="12" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR20">And Storage Namespace</text>
+<text x="584.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR3">Exploration Sequence Depth Signal</text>
+<text x="596.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR3">Postscript Trigger Threshold</text>
+<text x="431.7" y="481.7" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR7">Candidate L2</text>
+<text x="431.7" y="498.7" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR7">Ledger Entry</text>
+<text x="800.0" y="405.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR9" >Validated Cache State</text>
+<text x="494.0" y="348.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR6" >Candidate L1 Entry</text>
+<text x="590.0" y="599.8" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR10" >Validated Retrieval Result</text>
+<text x="-14.0" y="191.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR1">Completed</text>
+<text x="-14.0" y="217.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR1">ToolPart Record</text>
+<text x="-14.0" y="69.2" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR4">Assistant Turn Text</text>
+<text x="-14.0" y="95.2" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR4">With Fenced Block</text>
+<text x="1114.0" y="191.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR13">Phase B Awareness</text>
+<text x="1114.0" y="217.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR13">Manifest</text>
+<text x="1114.0" y="611.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR14">Pointer Or</text>
+<text x="1114.0" y="637.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR14">Digest Response</text>
+<text x="1114.0" y="491.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR15">Omission Reason</text>
+<text x="1114.0" y="517.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR15">Or Reject Error</text>
+</svg>

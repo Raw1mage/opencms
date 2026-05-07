@@ -1,0 +1,201 @@
+{
+  "title": "Working Cache L1 L2 Three Operational Flows",
+  "participants": [
+    { "id": "P1", "name": "Agent", "componentRef": "C1" },
+    { "id": "P2", "name": "ToolInvoker", "componentRef": "C1" },
+    { "id": "P3", "name": "TurnEndParser", "componentRef": "C3" },
+    { "id": "P4", "name": "WorkingCache", "componentRef": "C4" },
+    { "id": "P5", "name": "Storage", "componentRef": "C5" },
+    { "id": "P6", "name": "PostCompactionProvider", "componentRef": "C6" },
+    { "id": "P7", "name": "RecallToolcallIndex", "componentRef": "C7" },
+    { "id": "P8", "name": "RecallToolcallRaw", "componentRef": "C8" },
+    { "id": "P9", "name": "RecallToolcallDigest", "componentRef": "C9" },
+    { "id": "P10", "name": "SessionMessageStorage", "componentRef": "C10" }
+  ],
+  "messages": [
+    {
+      "id": "MSG1",
+      "from": "P2",
+      "to": "P10",
+      "name": "writeToolPart(toolCallID, output)",
+      "requirementRef": "Auto-Index L2 Ledger",
+      "flow": "WriteFlow"
+    },
+    {
+      "id": "MSG2",
+      "from": "P2",
+      "to": "P4",
+      "name": "deriveLedgerEntry(toolCallID)",
+      "requirementRef": "Auto-Index L2 Ledger",
+      "flow": "WriteFlow"
+    },
+    {
+      "id": "MSG3",
+      "from": "P2",
+      "to": "P2",
+      "name": "tickExplorationDepth(toolKind)",
+      "requirementRef": "Behavioural Trigger for L1 Emission",
+      "flow": "WriteFlow"
+    },
+    {
+      "id": "MSG4",
+      "from": "P2",
+      "to": "P1",
+      "name": "appendPostscript(if depth >= threshold)",
+      "requirementRef": "Behavioural Trigger for L1 Emission",
+      "flow": "WriteFlow"
+    },
+    {
+      "id": "MSG5",
+      "from": "P1",
+      "to": "P3",
+      "name": "emitAssistantTurn(text with optional cache-digest block)",
+      "requirementRef": "Record Evidence-Backed L1 Digest",
+      "flow": "WriteFlow"
+    },
+    {
+      "id": "MSG6",
+      "from": "P3",
+      "to": "P4",
+      "name": "submitParsedDigest(payload)",
+      "requirementRef": "Record Evidence-Backed L1 Digest",
+      "flow": "WriteFlow"
+    },
+    {
+      "id": "MSG7",
+      "from": "P4",
+      "to": "P4",
+      "name": "validateSchemaAndFreshness(payload)",
+      "requirementRef": "Fail-Closed Validation",
+      "flow": "WriteFlow"
+    },
+    {
+      "id": "MSG8",
+      "from": "P4",
+      "to": "P5",
+      "name": "writeEntry(scopedEntry)",
+      "requirementRef": "Record Evidence-Backed L1 Digest",
+      "flow": "WriteFlow"
+    },
+    {
+      "id": "MSG9",
+      "from": "P6",
+      "to": "P4",
+      "name": "queryManifestCounts(sessionID)",
+      "requirementRef": "Catch-up Manifest at Phase B",
+      "flow": "ManifestFlow"
+    },
+    {
+      "id": "MSG10",
+      "from": "P4",
+      "to": "P10",
+      "name": "scanToolParts(sessionID)",
+      "requirementRef": "Catch-up Manifest at Phase B",
+      "flow": "ManifestFlow"
+    },
+    {
+      "id": "MSG11",
+      "from": "P4",
+      "to": "P5",
+      "name": "scanL1Entries(sessionID)",
+      "requirementRef": "Catch-up Manifest at Phase B",
+      "flow": "ManifestFlow"
+    },
+    {
+      "id": "MSG12",
+      "from": "P6",
+      "to": "P1",
+      "name": "renderManifestAddendum(counts, kinds, topics, toolNames)",
+      "requirementRef": "Catch-up Manifest at Phase B",
+      "flow": "ManifestFlow"
+    },
+    {
+      "id": "MSG13",
+      "from": "P1",
+      "to": "P7",
+      "name": "recall_toolcall_index({since_turn?, kind?})",
+      "requirementRef": "On-Demand Manifest Retrieval",
+      "flow": "RecallFlow"
+    },
+    {
+      "id": "MSG14",
+      "from": "P7",
+      "to": "P4",
+      "name": "queryManifestCounts(sessionID, filters)",
+      "requirementRef": "On-Demand Manifest Retrieval",
+      "flow": "RecallFlow"
+    },
+    {
+      "id": "MSG15",
+      "from": "P7",
+      "to": "P1",
+      "name": "returnManifest(l2, l1, retrieval)",
+      "requirementRef": "On-Demand Manifest Retrieval",
+      "flow": "RecallFlow"
+    },
+    {
+      "id": "MSG16",
+      "from": "P1",
+      "to": "P8",
+      "name": "recall_toolcall_raw({path?, hash?, include_body?})",
+      "requirementRef": "On-Demand Retrieval (L2)",
+      "flow": "RecallFlow"
+    },
+    {
+      "id": "MSG17",
+      "from": "P8",
+      "to": "P4",
+      "name": "lookupLedgerPointer(query)",
+      "requirementRef": "On-Demand Retrieval (L2)",
+      "flow": "RecallFlow"
+    },
+    {
+      "id": "MSG18",
+      "from": "P8",
+      "to": "P10",
+      "name": "fetchToolPartOutput(toolCallID) [if include_body]",
+      "requirementRef": "On-Demand Retrieval (L2)",
+      "flow": "RecallFlow"
+    },
+    {
+      "id": "MSG19",
+      "from": "P8",
+      "to": "P1",
+      "name": "returnPointerOrBody({found, pointer, body?})",
+      "requirementRef": "On-Demand Retrieval (L2)",
+      "flow": "RecallFlow"
+    },
+    {
+      "id": "MSG20",
+      "from": "P1",
+      "to": "P9",
+      "name": "recall_toolcall_digest({topic?, entry_id?})",
+      "requirementRef": "On-Demand Retrieval (L1)",
+      "flow": "RecallFlow"
+    },
+    {
+      "id": "MSG21",
+      "from": "P9",
+      "to": "P4",
+      "name": "selectValidEntries(query)",
+      "requirementRef": "On-Demand Retrieval (L1)",
+      "flow": "RecallFlow"
+    },
+    {
+      "id": "MSG22",
+      "from": "P4",
+      "to": "P5",
+      "name": "readEntries(scopeKey)",
+      "requirementRef": "On-Demand Retrieval (L1)",
+      "flow": "RecallFlow"
+    },
+    {
+      "id": "MSG23",
+      "from": "P9",
+      "to": "P1",
+      "name": "returnEntries({entries, omitted})",
+      "requirementRef": "On-Demand Retrieval (L1)",
+      "flow": "RecallFlow"
+    }
+  ]
+}

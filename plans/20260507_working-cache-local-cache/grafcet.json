@@ -1,0 +1,122 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "Wait for next tool result to commit to message storage",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["tool result committed to message storage"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Derive L2 ledger entry pointer and tick exploration sequence depth",
+    "LinkInputType": "track",
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2, 3],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["depth >= threshold", "depth < threshold"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Inject postscript on most recent tool result inviting cache-digest emission",
+    "LinkInputType": "divergence_or",
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["postscript appended to last tool result"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Continue without postscript when exploration depth has not crossed threshold",
+    "LinkInputType": "divergence_or",
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["depth below threshold confirmed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Scan assistant turn end for cache-digest fenced block",
+    "LinkInputType": "convergence_or",
+    "LinkInputNumber": [2, 3],
+    "LinkOutputNumber": [5, 9],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["fenced block detected", "no fenced block emitted"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Parse fenced block contents into candidate Entry payload",
+    "LinkInputType": "divergence_or",
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["candidate Entry payload assembled"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Validate schema, scope, evidence freshness, and freshness signal requirements",
+    "LinkInputType": "track",
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [7, 8],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["candidate Entry valid", "candidate Entry invalid or stale"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Persist L1 entry via WorkingCache record under session scope",
+    "LinkInputType": "divergence_or",
+    "LinkInputNumber": [6],
+    "LinkOutputNumber": [9],
+    "LinkOutputType": "track",
+    "Condition": ["entry persisted"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 8,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Reject candidate and surface explicit error for next turn",
+    "LinkInputType": "divergence_or",
+    "LinkInputNumber": [6],
+    "LinkOutputNumber": [9],
+    "LinkOutputType": "track",
+    "Condition": ["error surfaced via debug checkpoint"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 9,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Cycle complete and return to idle awaiting next tool result",
+    "LinkInputType": "convergence_or",
+    "LinkInputNumber": [4, 7, 8],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["session continues"],
+    "SubGrafcet": []
+  }
+]

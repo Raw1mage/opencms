@@ -1,0 +1,88 @@
+{
+  "diagram_title": "Working Cache L1 L2 Functional Architecture",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Index Toolcall Ledger",
+      "description": "Derive L2 LedgerEntry pointers from completed ToolPart records in session message storage; tick exploration sequence depth.",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Capture Synthesised Digest",
+      "description": "Inject postscript on exploration sequence completion; parse cache-digest fenced block from assistant turn into validated L1 Entry.",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Render Catchup Manifest",
+      "description": "Compose Phase B manifest for post-compaction recovery: counts, kinds, topic labels, retrieval tool names; bounded token budget.",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Retrieve Cache Pointers",
+      "description": "Serve recall_toolcall_index, recall_toolcall_raw with optional include_body, and recall_toolcall_digest queries during live turn.",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Validate Cache Freshness",
+      "description": "Apply schema and freshness rules across L1 and L2 retrieval paths; omit stale or invalid entries with explicit reason.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "Completed ToolPart Record", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A1:control", "label": "Tool Kind Classification", "type": "control" },
+    { "id": "AR3", "source": "A1", "target": "A2:control", "label": "Exploration Sequence Depth Signal", "type": "control" },
+    { "id": "AR4", "source": "EXTERNAL", "target": "A2:input", "label": "Assistant Turn Text With Fenced Block", "type": "input" },
+    { "id": "AR5", "source": "EXTERNAL", "target": "A2:control", "label": "Postscript Trigger Threshold", "type": "control" },
+    { "id": "AR6", "source": "A2", "target": "A5:input", "label": "Candidate L1 Entry", "type": "input" },
+    { "id": "AR7", "source": "A1", "target": "A5:input", "label": "Candidate L2 Ledger Entry", "type": "input" },
+    { "id": "AR8", "source": "EXTERNAL", "target": "A5:control", "label": "Schema And Freshness Rules", "type": "control" },
+    { "id": "AR9", "source": "A5", "target": "A3:input", "label": "Validated Cache State", "type": "input" },
+    { "id": "AR10", "source": "A5", "target": "A4:input", "label": "Validated Retrieval Result", "type": "input" },
+    { "id": "AR11", "source": "EXTERNAL", "target": "A3:control", "label": "Compaction Boundary Event", "type": "control" },
+    { "id": "AR12", "source": "EXTERNAL", "target": "A4:control", "label": "Recall Tool Invocation", "type": "control" },
+    { "id": "AR13", "source": "A3", "target": "EXTERNAL", "label": "Phase B Awareness Manifest", "type": "output" },
+    { "id": "AR14", "source": "A4", "target": "EXTERNAL", "label": "Pointer Or Digest Response", "type": "output" },
+    { "id": "AR15", "source": "A5", "target": "EXTERNAL", "label": "Omission Reason Or Reject Error", "type": "output" },
+    {
+      "id": "AR16",
+      "source": "EXTERNAL",
+      "target": "A1:mechanism",
+      "label": "ToolInvoker Post Hook",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR17",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "label": "Turn End Fenced Block Parser",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR18",
+      "source": "EXTERNAL",
+      "target": "A3:mechanism",
+      "label": "PostCompaction Provider Registry",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR19",
+      "source": "EXTERNAL",
+      "target": "A4:mechanism",
+      "label": "System Manager Recall Toolcall Tools",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR20",
+      "source": "EXTERNAL",
+      "target": "A5:mechanism",
+      "label": "WorkingCache Validator And Storage Namespace",
+      "type": "mechanism"
+    }
+  ]
+}

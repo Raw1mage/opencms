@@ -1,0 +1,13 @@
+# Errors — Working Cache / Local Cache
+
+| Code                                  | Tier     | Layer                       | Message                                                              | Recovery                                                                                |
+| ------------------------------------- | -------- | --------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `WORKING_CACHE_SCHEMA_INVALID`        | L1       | WorkingCache validation     | Cache entry failed schema validation.                                | Reject write/read entry; surface validation details in debug checkpoint.                |
+| `WORKING_CACHE_EVIDENCE_MISSING`      | L1       | WorkingCache validation     | Cache entry has no usable evidence references.                       | Omit from injection; require explicit digest repair.                                    |
+| `WORKING_CACHE_EVIDENCE_STALE`        | L1       | WorkingCache invalidation   | Evidence changed since entry was recorded.                           | Omit from automatic recovery; agent must re-read evidence or call `recall_toolcall`.    |
+| `WORKING_CACHE_SCOPE_UNRESOLVED`      | L1       | WorkingCache selection      | Current session scope cannot be resolved.                            | Fail closed; do not inject entries.                                                     |
+| `WORKING_CACHE_RENDER_OVER_BUDGET`    | L1 / L2  | PostCompaction provider     | Manifest render exceeds 120-token budget.                            | Drop the provider output rather than truncate; investigate manifest layout regression.  |
+| `WORKING_CACHE_DIGEST_BLOCK_MALFORMED`| L1       | turn-end parser             | `cache-digest` fenced block could not be parsed.                     | Surface explicit error in next turn so AI can correct format; do not silently drop.     |
+| `WORKING_CACHE_LEDGER_DERIVATION_FAILED` | L2    | ledger derivation           | L2 derivation failed for one or more `ToolPart` records.             | Surface explicit error; do not silently skip. Investigate corrupt message storage.      |
+| `WORKING_CACHE_RECALL_INVALID_ARGS`   | L1 / L2  | `system-manager:recall_toolcall_*` tools | `recall_toolcall_index` / `_raw` / `_digest` invoked with malformed arguments. | Tool returns explicit validation error; never substitutes a "best guess" lookup. |
+| `WORKING_CACHE_FRESHNESS_SIGNAL_MISSING` | L1    | freshness check             | `tool-result` / `subagent-result` evidence carries no freshness signal. | Reject entry write; require `max-age-ms` invalidation or capture timestamp.           |

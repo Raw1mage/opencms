@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opencode.local/schemas/working-cache.schema.json",
+  "title": "WorkingCacheSchemas",
+  "description": "Combined schema document for L1 WorkingCacheEntry (digest, persisted) and L2 LedgerEntry (raw ledger, derived).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["WorkingCacheEntry", "LedgerEntry"],
+  "properties": {
+    "WorkingCacheEntry": {
+      "title": "WorkingCacheEntry",
+      "description": "L1 digest entry. AI-authored, evidence-backed, persisted via Storage JSON namespace.",
+      "type": "object",
+      "required": ["id", "scope", "purpose", "facts", "evidence", "createdAt", "updatedAt", "version"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "version": { "type": "integer", "minimum": 1 },
+        "scope": {
+          "type": "object",
+          "required": ["kind"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "enum": ["session", "repo", "domain"] },
+            "sessionID": { "type": "string" },
+            "repoRoot": { "type": "string" },
+            "domain": { "type": "string" },
+            "planPath": { "type": "string" }
+          }
+        },
+        "operation": { "enum": ["explore", "read", "modify", "validate", "handoff", "summary"] },
+        "derivedFrom": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "supersedes": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "purpose": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string" },
+        "filesSearched": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "filesRead": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "facts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["text", "evidenceRefs"],
+            "additionalProperties": false,
+            "properties": {
+              "text": { "type": "string", "minLength": 1 },
+              "confidence": { "enum": ["low", "medium", "high"] },
+              "evidenceRefs": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+            }
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "path", "kind"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "path": { "type": "string", "minLength": 1 },
+              "lineStart": { "type": "integer", "minimum": 1 },
+              "lineEnd": { "type": "integer", "minimum": 1 },
+              "kind": { "enum": ["file", "event", "spec", "tool-result", "subagent-result"] },
+              "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+              "mtimeMs": { "type": "number" },
+              "capturedAt": { "type": "string", "format": "date-time" }
+            },
+            "allOf": [
+              {
+                "if": { "properties": { "kind": { "enum": ["tool-result", "subagent-result"] } } },
+                "then": {
+                  "anyOf": [
+                    { "required": ["capturedAt"] },
+                    { "required": ["sha256"] }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "invalidation": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "required": ["type", "value"],
+            "additionalProperties": false,
+            "properties": {
+              "type": { "enum": ["path-change", "hash-mismatch", "max-age-ms", "spec-state-change", "manual"] },
+              "value": {}
+            }
+          }
+        },
+        "unresolvedQuestions": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "expiration": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "policy": { "enum": ["deferred", "manual", "ttl", "superseded-only"] },
+            "expiresAt": { "type": "string", "format": "date-time" },
+            "reason": { "type": "string" }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "LedgerEntry": {
+      "title": "LedgerEntry",
+      "description": "L2 derived view over Session.messages ToolPart records. No payload duplication; pointers only.",
+      "type": "object",
+      "required": ["toolCallID", "toolName", "kind", "turn", "messageRef"],
+      "additionalProperties": false,
+      "properties": {
+        "toolCallID": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable identifier of the originating ToolPart in Session.messages."
+        },
+        "toolName": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Name of the tool invoked (Read, Grep, Glob, Bash, Edit, etc)."
+        },
+        "kind": {
+          "enum": ["exploration", "modify", "other"],
+          "description": "Classification used by exploration-sequence depth counter and recall filtering."
+        },
+        "argsSummary": {
+          "type": "string",
+          "description": "Compact human-readable summary of toolcall args. Never the raw output payload."
+        },
+        "filePath": {
+          "type": "string",
+          "description": "Resolved absolute or repo-relative file path when the tool operates on a single file."
+        },
+        "outputHash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "Optional sha256 of the output body or inspected file contents at capture time."
+        },
+        "mtimeMs": {
+          "type": "number",
+          "description": "Optional mtime in milliseconds of the inspected file at capture time."
+        },
+        "turn": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Logical turn index within the session at the time of toolcall."
+        },
+        "messageRef": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Pointer back to the source message in Session.messages storage."
+        },
+        "capturedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Wallclock timestamp when the ledger pointer was derived."
+        },
+        "ageTurns": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Computed at retrieval time: turns since this ledger entry was indexed."
+        }
+      }
+    }
+  }
+}

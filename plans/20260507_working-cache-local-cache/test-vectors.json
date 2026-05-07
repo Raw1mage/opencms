@@ -1,0 +1,202 @@
+{
+  "vectors": [
+    {
+      "id": "TV-1-valid-l1-entry",
+      "tier": "L1",
+      "input": {
+        "facts": [
+          {
+            "text": "PostCompaction providers inject recovery addenda.",
+            "evidenceRefs": ["E1"]
+          }
+        ],
+        "evidence": [
+          {
+            "id": "E1",
+            "path": "packages/opencode/src/session/post-compaction.ts",
+            "kind": "file",
+            "lineStart": 27,
+            "lineEnd": 81,
+            "mtimeMs": 1
+          }
+        ]
+      },
+      "expected": { "valid": true, "injectable": true }
+    },
+    {
+      "id": "TV-2-missing-evidence",
+      "tier": "L1",
+      "input": {
+        "facts": [{ "text": "A fact without evidence is unsafe.", "evidenceRefs": [] }],
+        "evidence": []
+      },
+      "expected": { "valid": false, "error": "WORKING_CACHE_EVIDENCE_MISSING" }
+    },
+    {
+      "id": "TV-3-stale-evidence",
+      "tier": "L1",
+      "input": {
+        "facts": [{ "text": "Evidence freshness must be checked.", "evidenceRefs": ["E1"] }],
+        "evidence": [
+          {
+            "id": "E1",
+            "path": "packages/opencode/src/session/prompt.ts",
+            "kind": "file",
+            "lineStart": 579,
+            "lineEnd": 593,
+            "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        ]
+      },
+      "expected": {
+        "valid": true,
+        "injectable": false,
+        "omissionReason": "WORKING_CACHE_EVIDENCE_STALE"
+      }
+    },
+    {
+      "id": "TV-4-tool-result-missing-freshness-signal",
+      "tier": "L1",
+      "input": {
+        "facts": [{ "text": "Result claim with no freshness signal.", "evidenceRefs": ["E1"] }],
+        "evidence": [
+          {
+            "id": "E1",
+            "path": "tool-call-output:tc_xyz",
+            "kind": "tool-result"
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "error": "WORKING_CACHE_FRESHNESS_SIGNAL_MISSING"
+      }
+    },
+    {
+      "id": "TV-5-malformed-cache-digest-block",
+      "tier": "L1",
+      "scenario": "AI emits a cache-digest fenced block missing required fields",
+      "input": {
+        "rawBlock": "```cache-digest\npurpose: missing facts and evidence\n```"
+      },
+      "expected": {
+        "valid": false,
+        "error": "WORKING_CACHE_DIGEST_BLOCK_MALFORMED",
+        "surfacedToNextTurn": true
+      }
+    },
+    {
+      "id": "TV-6-l2-ledger-derivation-from-toolpart",
+      "tier": "L2",
+      "scenario": "Derive a LedgerEntry from a completed Read toolpart in Session.messages",
+      "input": {
+        "toolPart": {
+          "toolCallID": "tc_31",
+          "toolName": "Read",
+          "args": { "filePath": "packages/opencode/src/session/working-cache.ts" },
+          "outputBytes": 12048,
+          "turn": 17,
+          "messageRef": "msg_72"
+        }
+      },
+      "expected": {
+        "valid": true,
+        "ledgerEntry": {
+          "toolCallID": "tc_31",
+          "toolName": "Read",
+          "kind": "exploration",
+          "filePath": "packages/opencode/src/session/working-cache.ts",
+          "turn": 17,
+          "messageRef": "msg_72"
+        },
+        "noPayloadDuplicated": true
+      }
+    },
+    {
+      "id": "TV-7-recall-toolcall-raw-miss",
+      "tier": "L2",
+      "scenario": "recall_toolcall_raw queries a path that was never read this session",
+      "input": {
+        "tool": "system-manager:recall_toolcall_raw",
+        "args": { "path": "packages/opencode/src/never-touched.ts" }
+      },
+      "expected": {
+        "response": { "found": false },
+        "isError": false
+      }
+    },
+    {
+      "id": "TV-8-recall-toolcall-raw-with-include-body",
+      "tier": "L2",
+      "scenario": "recall_toolcall_raw with include_body fetches body from Session.messages without L2 duplication",
+      "input": {
+        "tool": "system-manager:recall_toolcall_raw",
+        "args": {
+          "path": "packages/opencode/src/session/working-cache.ts",
+          "include_body": true
+        }
+      },
+      "expected": {
+        "response": {
+          "found": true,
+          "toolCallID": "tc_31",
+          "messageRef": "msg_72",
+          "bodyPresent": true
+        },
+        "bodySource": "Session.messages",
+        "l2PayloadDuplicated": false
+      }
+    },
+    {
+      "id": "TV-9-recall-toolcall-index-shape",
+      "tier": "Manifest",
+      "scenario": "recall_toolcall_index returns same content shape as post-compaction manifest",
+      "input": {
+        "tool": "system-manager:recall_toolcall_index",
+        "args": {}
+      },
+      "expected": {
+        "shapeMatches": "PostCompactionManifest",
+        "responseFields": ["l2", "l1", "retrieval"],
+        "noFactBodies": true,
+        "noHashes": true,
+        "noPathEnumeration": true
+      }
+    },
+    {
+      "id": "TV-10-recall-toolcall-digest-stale-omission",
+      "tier": "L1",
+      "scenario": "recall_toolcall_digest returns stale entries in omitted with explicit reason",
+      "input": {
+        "tool": "system-manager:recall_toolcall_digest",
+        "args": { "topic": "post-compaction-flow" }
+      },
+      "expected": {
+        "response": {
+          "entries": "non_stale_subset",
+          "omitted": [{ "entry_id": "*", "reason": "WORKING_CACHE_EVIDENCE_STALE" }]
+        }
+      }
+    },
+    {
+      "id": "TV-11-manifest-over-budget",
+      "tier": "Manifest",
+      "scenario": "Synthetic large session triggers manifest render exceeding 120 token budget",
+      "expected": {
+        "providerOutput": "dropped",
+        "error": "WORKING_CACHE_RENDER_OVER_BUDGET",
+        "fallbackProse": false
+      }
+    },
+    {
+      "id": "TV-12-modify-blocked-by-stale-l1",
+      "tier": "Cross-Tier",
+      "scenario": "AI tries to Edit a file based on a stale L1 entry without re-reading",
+      "expected": {
+        "blocked": true,
+        "reason": "modify_requires_fresh_evidence",
+        "remediation": "Read or recall_toolcall_raw with include_body before retrying Edit"
+      }
+    }
+  ]
+}

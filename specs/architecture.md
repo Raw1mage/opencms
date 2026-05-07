@@ -303,6 +303,44 @@ resolution, context-budget surfacing, and big-content boundary routing;
 callers emit these through existing debug checkpoints rather than a parallel
 telemetry bus.
 
+Working Cache MVP (2026-05-07, plans/20260507_working-cache-local-cache):
+`packages/opencode/src/session/working-cache.ts` adds an explicit,
+Storage-backed digest ledger for AI-extracted exploration facts. Entries are
+advisory, evidence-backed, and append-only: read/modify chains use
+`derivedFrom` and `supersedes`, recovery prefers latest valid modifying
+digests, and stale required evidence is omitted fail-closed rather than
+silently trusted. `packages/opencode/src/session/post-compaction.ts` registers
+a `WorkingCache` provider that restores valid session-scoped digests into the
+post-compaction follow-up addendum and synthetic continue hint. This cache does
+not archive raw tool output, does not replace message-stream anchors or formal
+spec/architecture docs, and still requires read-before-write evidence checks
+before code edits.
+
+Working Cache plan revised (2026-05-07, second pass): the plan package has been
+restructured into a two-tier model — L1 (the existing AI-authored digest
+described above) and L2 (a derived index over `Session.messages` ToolPart
+records, populated by a tool-invoker post-hook with no payload duplication).
+Retrieval is exposed through three sibling tools under the `system-manager:`
+namespace: `recall_toolcall_index` (manifest on demand), `recall_toolcall_raw`
+(L2 pointer with optional `include_body` server-side fetch from message
+storage), and `recall_toolcall_digest` (L1 entries). The post-compaction
+provider becomes a Phase B awareness manifest under a 120-token budget rather
+than a full-table render. Only L1 is shipped today; L2 and the retrieval tools
+remain in the plan package and ship in subsequent slices. Subagent ↔ parent
+cache promotion, repo/domain scopes, and memory-graph promotion are explicitly
+deferred. See `plans/20260507_working-cache-local-cache/design.md` for the
+authoritative current spec.
+
+Memory Graph MCP boundary (2026-05-07, same plan): `/memory` is an optional
+GraphRAG promotion/retrieval layer for canonical cross-session knowledge; it is
+not the primary Working Cache store. Local MCP environment values are normalized
+before launch: memory server commands are recognized for both npm-style
+`@modelcontextprotocol/server-memory` and installed `server-memory/dist/index.js`
+paths, and `$HOME` / `${HOME}` environment values are expanded before directory
+creation and stdio transport injection. Memory write failures must surface as
+explicit MCP/tool errors; an empty graph is not treated as proof of successful
+durable memory persistence.
+
 ### Subagent compaction (DD-12)
 
 Subagents use the same state-driven path as parents for rebind /
@@ -499,7 +537,7 @@ Empty assistant turns from the codex backend (whatever upstream cause: WS trunca
 - **Log emitter** lives in `packages/opencode-codex-provider/src/empty-turn-log.ts`. JSONL path + bus publisher are INJECTED by the runtime caller (`packages/opencode/src/plugin/codex-auth.ts::setEmptyTurnLogPath` + `setEmptyTurnLogBus`) — provider package never imports `Global.Path` / `Bus` directly (INV-16 boundary discipline; same pattern as `setContinuationFilePath`). Log-failure is silenced with a single `console.error("[CODEX-EMPTY-TURN] log emission failed: ...")` breadcrumb (CET-001).
 - **Hook sites**: SSE flush block (`packages/opencode-codex-provider/src/sse.ts`) when `state.emittedTextDeltas === 0 && state.emittedToolCalls.size === 0` (INV-10); replaces the historical silent `endStream()` at `transport-ws.ts:418-424` that masked WS truncation as graceful close.
 - **Retry orchestration** lives in `packages/opencode-codex-provider/src/provider.ts::doStream` (WS path only): wraps the AI SDK stream, buffers the finish part, and on `recoveryAction === "retry-once-then-soft-fail"` re-opens WS for attempt 2 with `retryAttempted: true` in logContext. INV-08 cap (max 1 retry) is enforced inside `classifyEmptyTurn` itself — `snapshot.retryAttempted` demotes any further retry action to `pass-through-to-runloop-nudge`. No third retry possible regardless of caller logic.
-- **DD-9 finishReason mapping** in sse.ts: `server_empty_output_with_reasoning` overrides `stop` → `other` (the success is illusory; runloop nudge engages); other server_* causes preserve their natural finishReason; ws_* and unclassified emit `unknown` to keep the broad nudge engaged per D-4.
+- **DD-9 finishReason mapping** in sse.ts: `server_empty_output_with_reasoning` overrides `stop` → `other` (the success is illusory; runloop nudge engages); other server*\* causes preserve their natural finishReason; ws*\* and unclassified emit `unknown` to keep the broad nudge engaged per D-4.
 - **Runloop nudge** (the existing `?` empty-response guard) is UNCHANGED in scope per D-4 / INV-03 — narrowing it would reduce the fault-tolerance surface. The nudge consumes `providerMetadata.openai.emptyTurnClassification` as opaque metadata to attach to the synthetic message for forensic correlation.
 - **Operator-side**: the JSONL is the sole source of truth for empty-turn metrics (M1-M7 in observability.md). External logrotate handles rotation per DD-3 — suggested weekly + 90-day retention. Audit threshold for D-3 `extend` mode revision (omit `reasoning.effort` for codex-subscription tier): `server_empty_output_with_reasoning` ≥ 5% of empty-turn cluster over a 7-day rolling window.
 

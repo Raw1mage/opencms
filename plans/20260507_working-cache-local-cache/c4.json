@@ -1,0 +1,94 @@
+{
+  "title": "Working Cache L1 L2 C4 Component Model",
+  "systems": [
+    {
+      "id": "S1",
+      "name": "OpenCode Agent Runtime",
+      "containers": [
+        {
+          "id": "C1",
+          "name": "Tool Invocation Runtime",
+          "moduleRef": "A1",
+          "path": "packages/opencode/src/session/tool-invoker.ts",
+          "responsibility": "Drives toolcalls; runs L2 post-hook to derive ledger pointers; tracks exploration sequence depth; injects postscript when threshold crossed."
+        },
+        {
+          "id": "C2",
+          "name": "Tool Definition Surface",
+          "moduleRef": "A1",
+          "path": "packages/opencode/src/tool/tool.ts",
+          "responsibility": "Carries kind metadata (exploration | modify | other) for every tool definition."
+        },
+        {
+          "id": "C3",
+          "name": "Turn End Fenced Block Parser",
+          "moduleRef": "A2",
+          "path": "packages/opencode/src/session/message-v2.ts",
+          "responsibility": "Scans assistant turn for cache-digest fenced blocks and routes parsed payload to validator."
+        },
+        {
+          "id": "C4",
+          "name": "Working Cache Module",
+          "moduleRef": "A5",
+          "path": "packages/opencode/src/session/working-cache.ts",
+          "responsibility": "Owns L1 Entry schema and validation; provides L2 LedgerEntry derivation function over Session.messages; enforces fail-closed evidence freshness."
+        },
+        {
+          "id": "C5",
+          "name": "Storage JSON Namespace",
+          "moduleRef": "A5",
+          "path": "packages/opencode/src/storage/storage.ts",
+          "responsibility": "Persists L1 Entry records under working_cache namespace. L2 reads from Session.messages directly without a sidecar store."
+        },
+        {
+          "id": "C6",
+          "name": "Post Compaction Provider",
+          "moduleRef": "A3",
+          "path": "packages/opencode/src/session/post-compaction.ts",
+          "responsibility": "Renders Phase B awareness manifest into compaction summary addendum; bounded ≤120 tokens regardless of cache size."
+        },
+        {
+          "id": "C7",
+          "name": "Recall Toolcall Index Tool",
+          "moduleRef": "A4",
+          "path": "packages/opencode/src/tool/system-manager/recall_toolcall_index.ts",
+          "responsibility": "Returns manifest shape on demand for mid-session awareness refresh."
+        },
+        {
+          "id": "C8",
+          "name": "Recall Toolcall Raw Tool",
+          "moduleRef": "A4",
+          "path": "packages/opencode/src/tool/system-manager/recall_toolcall_raw.ts",
+          "responsibility": "Returns L2 pointer record; with include_body flag fetches ToolPart output from Session.messages without duplicating into L2."
+        },
+        {
+          "id": "C9",
+          "name": "Recall Toolcall Digest Tool",
+          "moduleRef": "A4",
+          "path": "packages/opencode/src/tool/system-manager/recall_toolcall_digest.ts",
+          "responsibility": "Returns L1 digest entries; omits stale entries with explicit reason."
+        },
+        {
+          "id": "C10",
+          "name": "Session Message Storage",
+          "moduleRef": "A1",
+          "path": "packages/opencode/src/session/index.ts",
+          "responsibility": "Source of truth for raw ToolPart records; L2 derives over this; recall_toolcall_raw with include_body fetches body from here."
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    { "from": "C1", "to": "C2", "description": "consults tool.kind metadata to classify each toolcall as exploration / modify / other" },
+    { "from": "C1", "to": "C10", "description": "writes ToolPart records as toolcalls complete (existing path; L2 source of truth)" },
+    { "from": "C1", "to": "C4", "description": "triggers L2 ledger derivation hook on every read-class tool completion; manages exploration depth counter" },
+    { "from": "C3", "to": "C4", "description": "submits parsed cache-digest payload for L1 validation and persistence" },
+    { "from": "C4", "to": "C5", "description": "persists validated L1 Entry records under session-scoped working_cache namespace" },
+    { "from": "C4", "to": "C10", "description": "reads ToolPart records on demand to derive L2 LedgerEntry pointers" },
+    { "from": "C6", "to": "C4", "description": "queries manifest counts for L1 entries and L2 ledger size at compaction boundary" },
+    { "from": "C7", "to": "C4", "description": "queries manifest counts on demand mid-session" },
+    { "from": "C8", "to": "C4", "description": "queries L2 ledger pointers; optionally requests body fetch from Session.messages" },
+    { "from": "C8", "to": "C10", "description": "fetches ToolPart.output body when include_body flag is set; no payload duplication" },
+    { "from": "C9", "to": "C4", "description": "queries L1 entries with stale-evidence omission" }
+  ]
+}
