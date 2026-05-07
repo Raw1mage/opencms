@@ -344,7 +344,7 @@ export function SessionTurn(
     return msgParts.filter((part) => isAttachment(part)) as FilePart[]
   })
 
-  const stickyParts = createMemo(() => {
+  const userMessageParts = createMemo(() => {
     const msgParts = parts()
     if (msgParts.length === 0) return emptyParts
     if (attachmentParts().length === 0) return msgParts
@@ -704,7 +704,6 @@ export function SessionTurn(
   const responsePartId = createMemo(() => lastTextPart()?.id)
   const hasDiffs = createMemo(() => (message()?.summary?.diffs?.length ?? 0) > 0)
   const hideResponsePart = createMemo(() => !working() && !!responsePartId())
-  const stickyDisabled = createMemo(() => true)
 
   let renderStateLog = ""
   createEffect(() => {
@@ -746,7 +745,6 @@ export function SessionTurn(
   }
 
   const [rootRef, setRootRef] = createSignal<HTMLDivElement | undefined>()
-  const [stickyRef, setStickyRef] = createSignal<HTMLDivElement | undefined>()
   const [stepsRef, setStepsRef] = createSignal<HTMLDivElement | undefined>()
   const [summaryRef, setSummaryRef] = createSignal<HTMLDivElement | undefined>()
   const [expandedInlineImages, setExpandedInlineImages] = createSignal<string[]>([])
@@ -797,7 +795,6 @@ export function SessionTurn(
       messageID: props.messageID,
       working: working(),
       stepsExpanded: props.stepsExpanded,
-      stickyDisabled: stickyDisabled(),
       rectTop: rect.top,
       rectBottom: rect.bottom,
       rectHeight: rect.height,
@@ -810,35 +807,6 @@ export function SessionTurn(
     }
     pushScrollDebug(entry)
     console.debug("[scroll-debug]", entry)
-  }
-
-  const updateStickyHeight = (height: number) => {
-    const root = rootRef()
-    if (!root) return
-    if (stickyDisabled()) {
-      root.style.setProperty("--session-turn-sticky-height", "0px")
-      return
-    }
-    const next = Math.ceil(height)
-    root.style.setProperty("--session-turn-sticky-height", `${next}px`)
-    if (isScrollDebugEnabled()) {
-      const scroller = root?.closest(".session-scroller") as HTMLElement | null | undefined
-      const entry = {
-        time: Date.now(),
-        scope: "session-turn-sticky",
-        event: "sticky-height",
-        height: next,
-        stickyDisabled: stickyDisabled(),
-        working: working(),
-        stepsExpanded: props.stepsExpanded,
-        scrollTop: scroller?.scrollTop,
-        scrollHeight: scroller?.scrollHeight,
-        clientHeight: scroller?.clientHeight,
-        distanceFromBottom: scroller ? scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop : undefined,
-      }
-      pushScrollDebug(entry)
-      console.debug("[scroll-debug]", entry)
-    }
   }
 
   function duration() {
@@ -879,14 +847,6 @@ export function SessionTurn(
   }
 
   createResizeObserver(
-    () => stickyRef(),
-    ({ height }) => {
-      updateStickyHeight(height)
-      emitSectionMetrics("sticky", stickyRef())
-    },
-  )
-
-  createResizeObserver(
     () => stepsRef(),
     () => {
       emitSectionMetrics("steps", stepsRef())
@@ -903,14 +863,7 @@ export function SessionTurn(
   createEffect(() => {
     const root = rootRef()
     if (!root) return
-    const sticky = stickyRef()
-    if (!sticky) {
-      root.style.setProperty("--session-turn-sticky-height", "0px")
-      return
-    }
-    updateStickyHeight(sticky.getBoundingClientRect().height)
     queueMicrotask(() => {
-      emitSectionMetrics("sticky", stickyRef())
       emitSectionMetrics("steps", stepsRef())
       emitSectionMetrics("summary", summaryRef())
     })
@@ -1054,15 +1007,9 @@ export function SessionTurn(
                         <Message message={msg()} parts={attachmentParts()} queued={queued()} />
                       </div>
                     </Show>
-                    <div
-                      data-slot="session-turn-sticky"
-                      data-sticky-disabled={stickyDisabled() ? "true" : undefined}
-                      ref={setStickyRef}
-                    >
-                      {/* User Message */}
-                      <div data-slot="session-turn-message-content" aria-live="off">
-                        <Message message={msg()} parts={stickyParts()} queued={queued()} />
-                      </div>
+                    {/* User Message */}
+                    <div data-slot="session-turn-message-content" aria-live="off">
+                      <Message message={msg()} parts={userMessageParts()} queued={queued()} />
                     </div>
                     <SessionRetry status={status()} show={isLastUserMessage()} />
                     {/* Steps (always inline) */}

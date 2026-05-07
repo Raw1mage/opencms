@@ -1566,7 +1566,6 @@ export default function Page() {
       const blockCandidates = Array.from(
         el.querySelectorAll<HTMLElement>(
           [
-            '[data-slot="session-turn-sticky"]',
             '[data-slot="session-turn-collapsible-content-inner"]',
             '[data-slot="session-turn-summary-section"]',
             '[data-component="user-message"]',

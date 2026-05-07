@@ -37,7 +37,6 @@ let inflight: Promise<void> | undefined
 let recentSessionPage: ScrollDebugEntry[] = []
 let recentViewportBlocks: ScrollDebugEntry[] = []
 let recentTurnLayout: ScrollDebugEntry[] = []
-let recentTurnSticky: ScrollDebugEntry[] = []
 let lastAutoCapture = 0
 
 const AUTO_CAPTURE_COOLDOWN_MS = 2000
@@ -76,12 +75,6 @@ function recordRecent(entry: ScrollDebugEntry) {
   if (entry.scope === "session-turn-layout") {
     recentTurnLayout.push(entry)
     if (recentTurnLayout.length > 24) recentTurnLayout.splice(0, recentTurnLayout.length - 24)
-    return
-  }
-
-  if (entry.scope === "session-turn-sticky") {
-    recentTurnSticky.push(entry)
-    if (recentTurnSticky.length > 12) recentTurnSticky.splice(0, recentTurnSticky.length - 12)
   }
 }
 
@@ -164,22 +157,11 @@ function shouldAutoCapture(entry: ScrollDebugEntry) {
       messageID: item.messageID,
       working: item.working,
       stepsExpanded: item.stepsExpanded,
-      stickyDisabled: item.stickyDisabled,
       rectTop: item.rectTop,
       rectBottom: item.rectBottom,
       rectHeight: item.rectHeight,
       relativeTop: item.relativeTop,
       relativeBottom: item.relativeBottom,
-      scrollTop: item.scrollTop,
-      distanceFromBottom: item.distanceFromBottom,
-    })),
-    recentStickyMetrics: recentTurnSticky.slice(-4).map((item) => ({
-      time: item.time,
-      event: item.event,
-      height: item.height,
-      working: item.working,
-      stepsExpanded: item.stepsExpanded,
-      stickyDisabled: item.stickyDisabled,
       scrollTop: item.scrollTop,
       distanceFromBottom: item.distanceFromBottom,
     })),
