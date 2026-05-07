@@ -750,6 +750,16 @@ export namespace ProviderTransform {
         // https://v5.ai-sdk.dev/providers/ai-sdk-providers/perplexity
         return {}
 
+      case "@opencode-ai/codex-provider":
+        // Codex ReasoningEffort schema (refs/codex/codex-rs/protocol/src/protocol.rs):
+        //   "low" | "medium" | "high" | "xhigh"
+        // gpt-5.5 / gpt-5.4 / gpt-5.x-codex all advertise these four levels in
+        // refs/codex/codex-rs/models-manager/models.json. Provider sends them via
+        // body.reasoning.effort (see packages/opencode-codex-provider/src/provider.ts:93).
+        return Object.fromEntries(
+          [...WIDELY_SUPPORTED_EFFORTS, "xhigh"].map((effort) => [effort, { reasoningEffort: effort }]),
+        )
+
       case "@mymediset/sap-ai-provider":
       case "@jerome-benoit/sap-ai-provider-v2":
         if (model.api.id.includes("anthropic")) {

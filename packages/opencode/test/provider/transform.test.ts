@@ -1971,4 +1971,39 @@ describe("ProviderTransform.variants", () => {
       expect(result).toEqual({})
     })
   })
+
+  describe("@opencode-ai/codex-provider", () => {
+    test("gpt-5.5 exposes low/medium/high/xhigh reasoningEffort", () => {
+      const model = createMockModel({
+        id: "gpt-5.5",
+        providerId: "codex",
+        api: {
+          id: "gpt-5.5",
+          url: "https://chatgpt.com/backend-api/codex",
+          npm: "@opencode-ai/codex-provider",
+        },
+      })
+      const result = ProviderTransform.variants(model)
+      expect(Object.keys(result)).toEqual(["low", "medium", "high", "xhigh"])
+      expect(result.low).toEqual({ reasoningEffort: "low" })
+      expect(result.medium).toEqual({ reasoningEffort: "medium" })
+      expect(result.high).toEqual({ reasoningEffort: "high" })
+      expect(result.xhigh).toEqual({ reasoningEffort: "xhigh" })
+    })
+
+    test("non-reasoning codex model returns empty", () => {
+      const model = createMockModel({
+        id: "gpt-5.4-mini",
+        providerId: "codex",
+        api: {
+          id: "gpt-5.4-mini",
+          url: "https://chatgpt.com/backend-api/codex",
+          npm: "@opencode-ai/codex-provider",
+        },
+        capabilities: { reasoning: false },
+      })
+      const result = ProviderTransform.variants(model)
+      expect(result).toEqual({})
+    })
+  })
 })
