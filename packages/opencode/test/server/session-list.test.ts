@@ -7,6 +7,7 @@ import { Server } from "../../src/server/server"
 import { Session } from "../../src/session"
 import { ClaudeImport } from "../../src/session/claude-import"
 import { MessageV2 } from "../../src/session/message-v2"
+import { shouldReuseProviderSwitchAnchor } from "../../src/session/prompt"
 import { Log } from "../../src/util/log"
 import { Flag } from "../../src/flag/flag"
 
@@ -391,7 +392,7 @@ describe("session.list", () => {
         expect(importedText).not.toContain("<attachment_ref")
         expect(importedText).not.toContain("<preview>")
         expect(importedText).not.toContain("ENABLEMENT SNAPSHOT")
-        expect(importedText).not.toContain('<skill name=')
+        expect(importedText).not.toContain("<skill name=")
       },
     })
   })
@@ -401,10 +402,7 @@ describe("session.list", () => {
       directory: projectRoot,
       fn: async () => {
         const app = Server.App()
-        const transcriptPath = path.join(
-          os.tmpdir(),
-          `opencode-test-claude-import-pure-preface-${process.pid}.jsonl`,
-        )
+        const transcriptPath = path.join(os.tmpdir(), `opencode-test-claude-import-pure-preface-${process.pid}.jsonl`)
         const purePreface = [
           "## CONTEXT PREFACE — read but do not echo",
           "",
@@ -452,10 +450,7 @@ describe("session.list", () => {
       directory: projectRoot,
       fn: async () => {
         const app = Server.App()
-        const transcriptPath = path.join(
-          os.tmpdir(),
-          `opencode-test-claude-import-preloaded-${process.pid}.jsonl`,
-        )
+        const transcriptPath = path.join(os.tmpdir(), `opencode-test-claude-import-preloaded-${process.pid}.jsonl`)
         const polluted = [
           "<preloaded_context>",
           "<env_context>",
@@ -572,6 +567,70 @@ describe("session.list", () => {
         expect(thirdBody.appended).toBe(1)
         const refreshed = await Session.messages({ sessionID: firstBody.sessionID })
         expect(refreshed.filter((msg) => msg.info.role === "assistant" && msg.info.summary === true).length).toBe(2)
+      },
+    })
+  })
+
+  test("does not reuse stale Claude takeover anchor after a new user turn", async () => {
+    await Instance.provide({
+      directory: projectRoot,
+      fn: async () => {
+        const app = Server.App()
+        const transcriptPath = path.join(
+          os.tmpdir(),
+          `opencode-test-claude-import-anchor-fresh-user-${process.pid}.jsonl`,
+        )
+        const lines = Array.from({ length: 20 }, (_, index) => {
+          const role = index % 2 === 0 ? "user" : "assistant"
+          return JSON.stringify({
+            timestamp: `2026-05-04T10:01:${String(index).padStart(2, "0")}.000Z`,
+            cwd: projectRoot,
+            message: {
+              role,
+              model: role === "assistant" ? "claude-sonnet-4" : undefined,
+              content: [{ type: "text", text: `${role} stale handoff line ${index + 1}` }],
+            },
+          })
+        })
+        await fs.writeFile(transcriptPath, lines.join("\n") + "\n")
+
+        const response = await app.request("/session/import/claude", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ directory: projectRoot, sourceSessionID: "claude-anchor-fresh-user", transcriptPath }),
+        })
+        if (Flag.OPENCODE_SERVER_PASSWORD) {
+          expect(response.status).toBe(401)
+          return
+        }
+        expect(response.status).toBe(200)
+        const body = (await response.json()) as { sessionID: string }
+        const imported = await Session.messages({ sessionID: body.sessionID })
+        const anchorIndex = imported.findIndex((msg) => msg.info.role === "assistant" && msg.info.summary === true)
+        expect(anchorIndex).toBeGreaterThanOrEqual(0)
+        expect(shouldReuseProviderSwitchAnchor({ messages: imported, anchorIndex })).toBe(true)
+
+        const user = await Session.updateMessage({
+          id: "msg_test_provider_switch_user",
+          sessionID: body.sessionID,
+          role: "user",
+          time: { created: Date.now() },
+          agent: "build",
+          model: { providerId: "codex", modelID: "gpt-5.5" },
+        })
+        await Session.updatePart({
+          id: "prt_test_provider_switch_user",
+          sessionID: body.sessionID,
+          messageID: user.id,
+          type: "text",
+          text: "New live user request must win over imported takeover handoff.",
+        })
+
+        const withNewUser = await Session.messages({ sessionID: body.sessionID })
+        const stillAnchorIndex = withNewUser.findIndex(
+          (msg) => msg.info.role === "assistant" && msg.info.summary === true,
+        )
+        expect(shouldReuseProviderSwitchAnchor({ messages: withNewUser, anchorIndex: stillAnchorIndex })).toBe(false)
       },
     })
   })

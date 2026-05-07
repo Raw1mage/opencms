@@ -303,11 +303,10 @@ function withContextBudgetEnvelope(input: {
  * blip and the runloop should fall through to the cheap nudge path
  * instead of paying for destructive compaction.
  */
-export function evaluateEmptyResponseGate(input: {
-  used: number
-  window: number
-  floor: number
-}): { overflowSuspected: boolean; ratio: number } {
+export function evaluateEmptyResponseGate(input: { used: number; window: number; floor: number }): {
+  overflowSuspected: boolean
+  ratio: number
+} {
   if (!Number.isFinite(input.window) || input.window <= 0) return { overflowSuspected: false, ratio: 0 }
   const ratio = input.used / input.window
   return { overflowSuspected: ratio >= input.floor, ratio }
@@ -561,6 +560,22 @@ export function findMostRecentAnchorIndex(msgs: MessageV2.WithParts[]): number {
     }
   }
   return -1
+}
+
+function isTakeoverAnchorMessage(msg: MessageV2.WithParts | undefined): boolean {
+  if (!msg || msg.info.role !== "assistant") return false
+  return msg.parts.some(
+    (part) => part.type === "text" && (part as MessageV2.TextPart).metadata?.takeoverAnchor === true,
+  )
+}
+
+export function shouldReuseProviderSwitchAnchor(input: {
+  messages: MessageV2.WithParts[]
+  anchorIndex: number
+}): boolean {
+  const anchor = input.messages[input.anchorIndex]
+  if (!isTakeoverAnchorMessage(anchor)) return true
+  return !input.messages.slice(input.anchorIndex + 1).some((msg) => msg.info.role === "user")
 }
 
 /**
@@ -1099,7 +1114,13 @@ export namespace SessionPrompt {
           let snap: string | undefined
           const filtered = await MessageV2.filterCompacted(MessageV2.stream(sessionID))
           const anchorIdx = findMostRecentAnchorIndex(filtered.messages)
-          if (anchorIdx !== -1) {
+          const reuseAnchor =
+            anchorIdx !== -1 &&
+            shouldReuseProviderSwitchAnchor({
+              messages: filtered.messages,
+              anchorIndex: anchorIdx,
+            })
+          if (reuseAnchor) {
             const anchor = filtered.messages[anchorIdx]
             snap =
               anchor.parts
@@ -1116,7 +1137,7 @@ export namespace SessionPrompt {
               snap ??
               `[Provider switched from ${prevProvider} to ${nextProvider}. Previous conversation context was not recoverable. The user may re-state their request.]`,
             model,
-            auto: true,
+            auto: false,
           })
           log.info("provider switch compaction complete, entering main loop", { sessionID })
         }
