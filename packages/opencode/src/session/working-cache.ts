@@ -698,13 +698,10 @@ export namespace WorkingCache {
     if (depth < threshold) return ""
     return [
       "",
-      "[working-cache] Exploration sequence reached depth " + String(depth) + ".",
-      "If you formed a reusable claim from this exploration, emit a `cache-digest`",
-      "fenced block in your next response. Required fields: purpose, facts",
-      "(each with evidenceRefs), evidence (with id/path/kind plus sha256 or mtimeMs;",
-      "tool-result kind also requires sha256 OR capturedAt + max-age-ms).",
-      "Skip emission entirely if no reusable fact crystallised — empty/forced",
-      "blocks waste tokens.",
+      "[working-cache] Depth " + String(depth) + " reached. Note what you just figured out —",
+      "emit a `cache-digest` fenced block in your reasoning content (purpose + 1–3 facts",
+      "+ evidence refs). Default to emitting; skip only if exploration was a dead end.",
+      "Cost ~100 tokens, saves ~3K–10K on future re-derivation.",
     ].join("\n")
   }
 

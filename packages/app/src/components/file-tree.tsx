@@ -406,7 +406,14 @@ export default function FileTree(props: {
                   data-scope="filetree"
                   forceMount={false}
                   open={expanded()}
-                  onOpenChange={(open) => (open ? file.tree.expand(node.path) : file.tree.collapse(node.path))}
+                  onOpenChange={(open) => {
+                    if (open) {
+                      file.tree.expand(node.path)
+                    } else {
+                      void file.tree.refresh(node.path)
+                      file.tree.collapse(node.path)
+                    }
+                  }}
                 >
                   <Collapsible.Trigger>
                     <FileTreeNode

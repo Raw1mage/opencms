@@ -24,6 +24,7 @@ export interface Settings {
     releaseNotes: boolean
     shellToolPartsExpanded: boolean
     editToolPartsExpanded: boolean
+    reasoningPartsExpanded: boolean
     showReasoningSummaries: boolean
   }
   updates: {
@@ -47,6 +48,7 @@ const defaultSettings: Settings = {
     releaseNotes: true,
     shellToolPartsExpanded: false,
     editToolPartsExpanded: false,
+    reasoningPartsExpanded: false,
     showReasoningSummaries: false,
   },
   updates: {
@@ -138,6 +140,13 @@ export const { use: useSettings, provider: SettingsProvider } = createSimpleCont
         ),
         setEditToolPartsExpanded(value: boolean) {
           setStore("general", "editToolPartsExpanded", value)
+        },
+        reasoningPartsExpanded: withFallback(
+          () => store.general?.reasoningPartsExpanded,
+          defaultSettings.general.reasoningPartsExpanded,
+        ),
+        setReasoningPartsExpanded(value: boolean) {
+          setStore("general", "reasoningPartsExpanded", value)
         },
         showReasoningSummaries: withFallback(
           () => store.general?.showReasoningSummaries,

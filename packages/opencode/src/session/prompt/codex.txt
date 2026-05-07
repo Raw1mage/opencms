@@ -55,26 +55,30 @@ This session has a two-tier Working Cache. **Use it; don't re-explore what's alr
 - **Awareness manifest** via `system-manager:recall_toolcall_index` — counts + topic labels only, ~80 tokens. Refresh awareness mid-session when the post-compaction manifest is no longer salient.
 
 ### Emission etiquette (writing L1 digests)
-After 3+ exploration toolcalls in a row, the runtime appends a postscript inviting you to emit a `cache-digest` fenced block. **You are not required to emit one.** Only emit when a reusable, evidence-backed claim has actually crystallised. Empty/forced/fabricated digests waste tokens and pollute future recall.
 
-When you do emit, use this exact format (single JSON object inside the fence):
+You are already interpreting tool results to make decisions — that interpretation **IS** the digest content. Treat emission as **note-taking, not authoring**. The marginal cost is ~100 tokens; the marginal save (future-you avoiding re-derivation or re-read) is ~3,000–10,000 tokens. **Default to emitting** unless the exploration was a dead end (file not found, grep no hits, etc).
+
+The bar is not "I have a profound insight" — it's "would future-me (or a fresh session after compaction) want to know this without re-running the toolcall?" Most exploration sequences that reach the postscript threshold meet that bar.
+
+**Emit on the reasoning channel** (your `<reasoning>` content). The runtime parses both reasoning and visible text, but reasoning is hidden from the user-visible chat by default — so emission there is silent. If your provider has no reasoning channel, visible-text emission is fine too: the front-end renders `cache-digest` fenced blocks as a collapsed pill, not raw JSON.
+
+Format (single JSON object inside a fenced block):
 
 ```cache-digest
 {
-  "purpose": "Short label for what this digest captures",
+  "purpose": "Short label",
   "facts": [
     { "text": "Concrete claim", "evidenceRefs": ["E1"] }
   ],
   "evidence": [
     { "id": "E1", "path": "packages/opencode/src/session/working-cache.ts", "kind": "file", "mtimeMs": 1234567890000 }
-  ],
-  "operation": "summary"
+  ]
 }
 ```
 
-Required fields: `purpose`, `facts` (each fact needs `evidenceRefs` referencing an evidence id), `evidence` (each ref needs `id`, `path`, `kind`, plus a freshness signal — `sha256` or `mtimeMs` for files; tool-result kind needs `sha256` OR `capturedAt` + a max-age-ms invalidation trigger). Other fields (id, scope, version, timestamps) are auto-filled.
+Required: `purpose`, `facts` (each fact's `evidenceRefs` points at an evidence `id`), `evidence` (each ref: `id`, `path`, `kind`, plus `sha256` or `mtimeMs` for files; `tool-result` kind needs `sha256` OR `capturedAt` + max-age-ms trigger). Other fields auto-fill.
 
-Modifying actions (Edit/Write/commit) must still re-read evidence directly — L1 alone never authorises a write.
+Modifying actions (Edit/Write/commit) still re-read evidence directly — L1 alone never authorises a write.
 
 ## Role Binding
 Your operational role (orchestrator vs worker) is defined in SYSTEM.md §1-§3. This driver sets persona only.

@@ -54,6 +54,37 @@ describe("CodexLanguageModel request body", () => {
     expect(body.store).toBe(false)
   })
 
+  // codex-update plan §2: prompt_cache_key sources from thread_id (upstream
+  // a98623511b: prompt_cache_key = self.state.thread_id.to_string()).
+  // For single-thread callers (default) threadId == sessionId, so the existing
+  // composite cache key ("codex-{accountId}-{sessionId}") is preserved bit-for-bit;
+  // when an explicit threadId is supplied (multi-thread future use), the composite
+  // tracks threadId instead. INV-3.
+  test("TV-6: default cache key follows threadId (== sessionId by DD-1) — buildResponsesApiRequest plumbing", () => {
+    // doStream constructs `codex-{accountId}-{threadId}` where threadId defaults to
+    // sessionId. We verify the body field carries whatever the caller derived.
+    const body = buildResponsesApiRequest({
+      modelId: "gpt-5.4",
+      input: [],
+      promptCacheKey: "codex-acct_test123-S-uuid-aaaa",
+      window: { conversationId: "S-uuid-aaaa", generation: 0 },
+    })
+    expect(body.prompt_cache_key).toBe("codex-acct_test123-S-uuid-aaaa")
+  })
+
+  test("TV-7: explicit promptCacheKey override wins over threadId default", () => {
+    const body = buildResponsesApiRequest({
+      modelId: "gpt-5.4",
+      input: [],
+      promptCacheKey: "codex-acct_test123-S-uuid-aaaa",
+      window: { conversationId: "T-uuid-bbbb", generation: 0 },
+      providerOptions: {
+        promptCacheKey: "custom-key",
+      },
+    })
+    expect(body.prompt_cache_key).toBe("custom-key")
+  })
+
   test("buildResponsesApiRequest preserves provider options around Mode 1 shape", () => {
     const body = buildResponsesApiRequest({
       modelId: "gpt-5.4",

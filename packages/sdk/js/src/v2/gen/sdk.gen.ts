@@ -129,12 +129,16 @@ import type {
   ExperimentalSessionListResponses,
   ExperimentalUserDaemonList2Responses,
   ExperimentalUserDaemonListResponses,
+  FileCreateDirectory2Responses,
+  FileCreateDirectoryResponses,
   FileList2Responses,
   FileListResponses,
   FilePartInput,
   FilePartSource,
   FileRead2Responses,
   FileReadResponses,
+  FileStat2Responses,
+  FileStatResponses,
   FileStatus2Responses,
   FileStatusResponses,
   FindFiles2Responses,
@@ -147,8 +151,6 @@ import type {
   FormatterStatusResponses,
   GlobalAuthLogin2Responses,
   GlobalAuthLoginResponses,
-  GlobalAuthLogout2Responses,
-  GlobalAuthLogoutResponses,
   GlobalAuthSession2Responses,
   GlobalAuthSessionResponses,
   GlobalConfigGet2Responses,
@@ -425,11 +427,17 @@ import type {
   SessionGet2Responses,
   SessionGetErrors,
   SessionGetResponses,
+  SessionImportClaude2Errors,
+  SessionImportClaude2Responses,
+  SessionImportClaudeErrors,
+  SessionImportClaudeResponses,
   SessionInit2Errors,
   SessionInit2Responses,
   SessionInitErrors,
   SessionInitResponses,
   SessionList2Responses,
+  SessionListClaudeImports2Responses,
+  SessionListClaudeImportsResponses,
   SessionListResponses,
   SessionMemory2Errors,
   SessionMemory2Responses,
@@ -572,6 +580,18 @@ import type {
   WebRouteRemoveResponses,
   WebRouteToggle2Responses,
   WebRouteToggleResponses,
+  WorkingCacheDigest2Errors,
+  WorkingCacheDigest2Responses,
+  WorkingCacheDigestErrors,
+  WorkingCacheDigestResponses,
+  WorkingCacheIndex2Errors,
+  WorkingCacheIndex2Responses,
+  WorkingCacheIndexErrors,
+  WorkingCacheIndexResponses,
+  WorkingCacheRaw2Errors,
+  WorkingCacheRaw2Responses,
+  WorkingCacheRawErrors,
+  WorkingCacheRawResponses,
   WorkspaceActive2Errors,
   WorkspaceActive2Responses,
   WorkspaceActiveErrors,
@@ -723,10 +743,22 @@ export class Auth extends HeyApiClient {
   /**
    * Logout web session
    *
-   * Invalidate current web auth session cookie.
+   * Invalidate current web auth session cookie and return control to the gateway/login shell.
    */
   public logout<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
-    return (options?.client ?? this.client).post<GlobalAuthLogoutResponses, unknown, ThrowOnError>({
+    return (options?.client ?? this.client).get<unknown, unknown, ThrowOnError>({
+      url: "/api/v2/global/auth/logout",
+      ...options,
+    })
+  }
+
+  /**
+   * Logout web session
+   *
+   * Invalidate current web auth session cookie and return control to the gateway/login shell.
+   */
+  public logout2<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).post<unknown, unknown, ThrowOnError>({
       url: "/api/v2/global/auth/logout",
       ...options,
     })
@@ -782,10 +814,22 @@ export class Auth extends HeyApiClient {
   /**
    * Logout web session
    *
-   * Invalidate current web auth session cookie.
+   * Invalidate current web auth session cookie and return control to the gateway/login shell.
    */
-  public logout2<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
-    return (options?.client ?? this.client).post<GlobalAuthLogout2Responses, unknown, ThrowOnError>({
+  public logout3<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<unknown, unknown, ThrowOnError>({
+      url: "/global/auth/logout",
+      ...options,
+    })
+  }
+
+  /**
+   * Logout web session
+   *
+   * Invalidate current web auth session cookie and return control to the gateway/login shell.
+   */
+  public logout4<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).post<unknown, unknown, ThrowOnError>({
       url: "/global/auth/logout",
       ...options,
     })
@@ -933,6 +977,9 @@ export class Web extends HeyApiClient {
     parameters?: {
       targets?: Array<"daemon" | "frontend" | "gateway">
       reason?: string
+      sessionID?: string
+      handover?: string
+      txid?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -943,6 +990,9 @@ export class Web extends HeyApiClient {
           args: [
             { in: "body", key: "targets" },
             { in: "body", key: "reason" },
+            { in: "body", key: "sessionID" },
+            { in: "body", key: "handover" },
+            { in: "body", key: "txid" },
           ],
         },
       ],
@@ -968,6 +1018,9 @@ export class Web extends HeyApiClient {
     parameters?: {
       targets?: Array<"daemon" | "frontend" | "gateway">
       reason?: string
+      sessionID?: string
+      handover?: string
+      txid?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -978,6 +1031,9 @@ export class Web extends HeyApiClient {
           args: [
             { in: "body", key: "targets" },
             { in: "body", key: "reason" },
+            { in: "body", key: "sessionID" },
+            { in: "body", key: "handover" },
+            { in: "body", key: "txid" },
           ],
         },
       ],
@@ -4032,6 +4088,7 @@ export class Session2 extends HeyApiClient {
       start?: number
       search?: string
       limit?: number
+      providerFamily?: "claude"
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -4045,6 +4102,7 @@ export class Session2 extends HeyApiClient {
             { in: "query", key: "start" },
             { in: "query", key: "search" },
             { in: "query", key: "limit" },
+            { in: "query", key: "providerFamily" },
           ],
         },
       ],
@@ -4391,6 +4449,74 @@ export class Session2 extends HeyApiClient {
         ...params.headers,
       },
     })
+  }
+
+  /**
+   * List Claude Code native transcripts
+   *
+   * Lists project-scoped Claude Code native transcript files available for deterministic takeover import.
+   */
+  public listClaudeImports<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<SessionListClaudeImportsResponses, unknown, ThrowOnError>({
+      url: "/api/v2/session/import/claude",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Import Claude Code transcript
+   *
+   * Deterministically imports or delta-syncs a Claude Code native transcript into an OpenCode takeover session.
+   */
+  public importClaude<ThrowOnError extends boolean = false>(
+    parameters?: {
+      query_directory?: string
+      body_directory?: string
+      sourceSessionID?: string
+      transcriptPath?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            {
+              in: "query",
+              key: "query_directory",
+              map: "directory",
+            },
+            {
+              in: "body",
+              key: "body_directory",
+              map: "directory",
+            },
+            { in: "body", key: "sourceSessionID" },
+            { in: "body", key: "transcriptPath" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<SessionImportClaudeResponses, SessionImportClaudeErrors, ThrowOnError>(
+      {
+        url: "/api/v2/session/import/claude",
+        ...options,
+        ...params,
+        headers: {
+          "Content-Type": "application/json",
+          ...options?.headers,
+          ...params.headers,
+        },
+      },
+    )
   }
 
   /**
@@ -5170,6 +5296,7 @@ export class Session2 extends HeyApiClient {
       start?: number
       search?: string
       limit?: number
+      providerFamily?: "claude"
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -5183,6 +5310,7 @@ export class Session2 extends HeyApiClient {
             { in: "query", key: "start" },
             { in: "query", key: "search" },
             { in: "query", key: "limit" },
+            { in: "query", key: "providerFamily" },
           ],
         },
       ],
@@ -5521,6 +5649,76 @@ export class Session2 extends HeyApiClient {
     )
     return (options?.client ?? this.client).post<SessionResume2Responses, SessionResume2Errors, ThrowOnError>({
       url: "/session/{sessionID}/resume",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * List Claude Code native transcripts
+   *
+   * Lists project-scoped Claude Code native transcript files available for deterministic takeover import.
+   */
+  public listClaudeImports2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<SessionListClaudeImports2Responses, unknown, ThrowOnError>({
+      url: "/session/import/claude",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Import Claude Code transcript
+   *
+   * Deterministically imports or delta-syncs a Claude Code native transcript into an OpenCode takeover session.
+   */
+  public importClaude2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      query_directory?: string
+      body_directory?: string
+      sourceSessionID?: string
+      transcriptPath?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            {
+              in: "query",
+              key: "query_directory",
+              map: "directory",
+            },
+            {
+              in: "body",
+              key: "body_directory",
+              map: "directory",
+            },
+            { in: "body", key: "sourceSessionID" },
+            { in: "body", key: "transcriptPath" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      SessionImportClaude2Responses,
+      SessionImportClaude2Errors,
+      ThrowOnError
+    >({
+      url: "/session/import/claude",
       ...options,
       ...params,
       headers: {
@@ -8982,6 +9180,7 @@ export class Tui extends HeyApiClient {
       message?: string
       variant?: "info" | "success" | "warning" | "error"
       duration?: number
+      emittedAt?: number
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -8995,6 +9194,7 @@ export class Tui extends HeyApiClient {
             { in: "body", key: "message" },
             { in: "body", key: "variant" },
             { in: "body", key: "duration" },
+            { in: "body", key: "emittedAt" },
           ],
         },
       ],
@@ -9282,6 +9482,7 @@ export class Tui extends HeyApiClient {
       message?: string
       variant?: "info" | "success" | "warning" | "error"
       duration?: number
+      emittedAt?: number
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -9295,6 +9496,7 @@ export class Tui extends HeyApiClient {
             { in: "body", key: "message" },
             { in: "body", key: "variant" },
             { in: "body", key: "duration" },
+            { in: "body", key: "emittedAt" },
           ],
         },
       ],
@@ -12067,6 +12269,232 @@ export class WebRoute extends HeyApiClient {
   }
 }
 
+export class WorkingCache extends HeyApiClient {
+  /**
+   * Working Cache awareness manifest
+   *
+   * Counts + topic labels + retrieval tool names for the requested session. Same content shape as the post-compaction manifest, on demand. No fact bodies, no hashes, no path enumeration.
+   */
+  public index<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      since_turn?: number
+      kind?: "exploration" | "modify" | "other"
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "since_turn" },
+            { in: "query", key: "kind" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<WorkingCacheIndexResponses, WorkingCacheIndexErrors, ThrowOnError>({
+      url: "/api/v2/working-cache/index/{sessionID}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Working Cache raw ledger query
+   *
+   * Returns the most recent L2 ledger entry matching the query, or { found: false } on miss. Optional include_body=1 inlines the original ToolPart.output from message storage; no payload duplication into L2.
+   */
+  public raw<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      kind?: "exploration" | "modify" | "other"
+      path?: string
+      hash?: string
+      turn_range_start?: number
+      turn_range_end?: number
+      include_body?: boolean
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "kind" },
+            { in: "query", key: "path" },
+            { in: "query", key: "hash" },
+            { in: "query", key: "turn_range_start" },
+            { in: "query", key: "turn_range_end" },
+            { in: "query", key: "include_body" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<WorkingCacheRawResponses, WorkingCacheRawErrors, ThrowOnError>({
+      url: "/api/v2/working-cache/raw/{sessionID}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Working Cache digest query
+   *
+   * Returns matching L1 digest entries; stale entries are omitted from `entries` and reported in `omitted` with their omission reason.
+   */
+  public digest<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      topic?: string
+      entry_id?: string
+      evidence_path?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "topic" },
+            { in: "query", key: "entry_id" },
+            { in: "query", key: "evidence_path" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<WorkingCacheDigestResponses, WorkingCacheDigestErrors, ThrowOnError>({
+      url: "/api/v2/working-cache/digest/{sessionID}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Working Cache awareness manifest
+   *
+   * Counts + topic labels + retrieval tool names for the requested session. Same content shape as the post-compaction manifest, on demand. No fact bodies, no hashes, no path enumeration.
+   */
+  public index2<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      since_turn?: number
+      kind?: "exploration" | "modify" | "other"
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "since_turn" },
+            { in: "query", key: "kind" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<WorkingCacheIndex2Responses, WorkingCacheIndex2Errors, ThrowOnError>({
+      url: "/working-cache/index/{sessionID}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Working Cache raw ledger query
+   *
+   * Returns the most recent L2 ledger entry matching the query, or { found: false } on miss. Optional include_body=1 inlines the original ToolPart.output from message storage; no payload duplication into L2.
+   */
+  public raw2<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      kind?: "exploration" | "modify" | "other"
+      path?: string
+      hash?: string
+      turn_range_start?: number
+      turn_range_end?: number
+      include_body?: boolean
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "kind" },
+            { in: "query", key: "path" },
+            { in: "query", key: "hash" },
+            { in: "query", key: "turn_range_start" },
+            { in: "query", key: "turn_range_end" },
+            { in: "query", key: "include_body" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<WorkingCacheRaw2Responses, WorkingCacheRaw2Errors, ThrowOnError>({
+      url: "/working-cache/raw/{sessionID}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Working Cache digest query
+   *
+   * Returns matching L1 digest entries; stale entries are omitted from `entries` and reported in `omitted` with their omission reason.
+   */
+  public digest2<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      topic?: string
+      entry_id?: string
+      evidence_path?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "topic" },
+            { in: "query", key: "entry_id" },
+            { in: "query", key: "evidence_path" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<WorkingCacheDigest2Responses, WorkingCacheDigest2Errors, ThrowOnError>({
+      url: "/working-cache/digest/{sessionID}",
+      ...options,
+      ...params,
+    })
+  }
+}
+
 export class Find extends HeyApiClient {
   /**
    * Find text
@@ -12293,6 +12721,71 @@ export class File extends HeyApiClient {
   }
 
   /**
+   * Create directory
+   *
+   * Create a directory at the specified path.
+   */
+  public createDirectory<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      path?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "path" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<FileCreateDirectoryResponses, unknown, ThrowOnError>({
+      url: "/api/v2/file/directory",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Stat file
+   *
+   * Lightweight mtime/size probe for an open file viewer to detect on-disk changes without re-reading content. Used by the SPA to poll the active file tab.
+   */
+  public stat<ThrowOnError extends boolean = false>(
+    parameters: {
+      directory?: string
+      path: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "path" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<FileStatResponses, unknown, ThrowOnError>({
+      url: "/api/v2/file/stat",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
    * Read file
    *
    * Read the content of a specified file.
@@ -12366,6 +12859,71 @@ export class File extends HeyApiClient {
     )
     return (options?.client ?? this.client).get<FileList2Responses, unknown, ThrowOnError>({
       url: "/file",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Create directory
+   *
+   * Create a directory at the specified path.
+   */
+  public createDirectory2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      path?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "path" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<FileCreateDirectory2Responses, unknown, ThrowOnError>({
+      url: "/file/directory",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Stat file
+   *
+   * Lightweight mtime/size probe for an open file viewer to detect on-disk changes without re-reading content. Used by the SPA to poll the active file tab.
+   */
+  public stat2<ThrowOnError extends boolean = false>(
+    parameters: {
+      directory?: string
+      path: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "path" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<FileStat2Responses, unknown, ThrowOnError>({
+      url: "/file/stat",
       ...options,
       ...params,
     })
@@ -12991,6 +13549,11 @@ export class OpencodeClient extends HeyApiClient {
   private _webRoute?: WebRoute
   get webRoute(): WebRoute {
     return (this._webRoute ??= new WebRoute({ client: this.client }))
+  }
+
+  private _workingCache?: WorkingCache
+  get workingCache(): WorkingCache {
+    return (this._workingCache ??= new WorkingCache({ client: this.client }))
   }
 
   private _find?: Find

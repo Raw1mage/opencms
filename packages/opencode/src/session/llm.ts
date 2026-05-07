@@ -1163,14 +1163,35 @@ export namespace LLM {
         RequestMonitor.get().recordRequest(input.model.providerId, accountId || "unknown", input.model.id, totalTokens)
 
         // Working Cache L1 capture (plans/20260507_working-cache-local-cache/
-        // DD-8 / DD-9). Scan the assistant text for `cache-digest` fenced blocks
-        // and persist the parsed entries. Malformed blocks are logged but do not
-        // disrupt onFinish telemetry; the malformed text remains visible in the
-        // assistant message itself so the model can self-correct on next turn.
+        // DD-8 / DD-9). Scan BOTH the visible text and the reasoning content
+        // for `cache-digest` fenced blocks. Reasoning channel is preferred —
+        // codex / anthropic surface reasoning as a separate part type that
+        // front-end collapses by default, so emission there leaves the visible
+        // chat clean. Providers without reasoning fall back to text emission;
+        // front-end renders the fenced block as a collapsed pill.
         try {
-          const text = typeof event.text === "string" ? event.text : ""
-          if (text.includes("```cache-digest")) {
-            const blocks = WorkingCache.parseDigestBlocks(text, input.sessionID)
+          const sources: string[] = []
+          if (typeof event.text === "string" && event.text.length > 0) {
+            sources.push(event.text)
+          }
+          // event.response.messages[i].content[j] carries reasoning items as
+          // { type: "reasoning", text } per LanguageModelV2 — see
+          // packages/opencode-codex-provider/src/provider.ts ~line 472.
+          const responseMessages = (event as any)?.response?.messages
+          if (Array.isArray(responseMessages)) {
+            for (const m of responseMessages) {
+              const parts = m?.content
+              if (!Array.isArray(parts)) continue
+              for (const part of parts) {
+                if (part?.type === "reasoning" && typeof part.text === "string") {
+                  sources.push(part.text)
+                }
+              }
+            }
+          }
+          for (const source of sources) {
+            if (!source.includes("```cache-digest")) continue
+            const blocks = WorkingCache.parseDigestBlocks(source, input.sessionID)
             for (const block of blocks) {
               if (block.entry) {
                 await WorkingCache.record(block.entry).catch((err) => {

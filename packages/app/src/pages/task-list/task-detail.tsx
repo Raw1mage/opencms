@@ -668,6 +668,7 @@ function TaskSessionOutput(props: { sessionId: string }) {
             lastUserMessageID={lastUserMessageId()}
             shellToolDefaultOpen={settings.general.shellToolPartsExpanded()}
             editToolDefaultOpen={settings.general.editToolPartsExpanded()}
+            reasoningDefaultOpen={settings.general.reasoningPartsExpanded()}
             showReasoningSummaries={settings.general.showReasoningSummaries()}
           />
         )}

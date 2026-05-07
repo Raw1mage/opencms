@@ -20,13 +20,15 @@ export interface BuildHeadersOptions {
   subagentLabel?: string
   /** Installation UUID for analytics */
   installationId?: string
-  /** Session ID for correlation */
+  /** Session ID. Maps to upstream `session_id` header (codex `a98623511b`); shared across threads under a root session. */
   sessionId?: string
+  /** Thread ID — distinct from sessionId per upstream `a98623511b`. Sources `thread_id` AND `x-client-request-id`. Defaults to sessionId per DD-1 when omitted. */
+  threadId?: string
   /** User-Agent string */
   userAgent?: string
   /** Whether this is a WebSocket upgrade request */
   isWebSocket?: boolean
-  /** Conversation id used as x-client-request-id (upstream codex-rs behavior) */
+  /** @deprecated since codex-update plan — prefer `threadId`. Kept only as a back-compat fallback for `x-client-request-id` when neither threadId nor sessionId is set. */
   conversationId?: string
 }
 
@@ -53,8 +55,12 @@ export function buildHeaders(options: BuildHeadersOptions): Record<string, strin
     headers["x-codex-turn-state"] = options.turnState
   }
 
-  if (options.conversationId) {
-    headers["x-client-request-id"] = options.conversationId
+  // Upstream codex `a98623511b`: x-client-request-id sources from thread_id,
+  // not legacy conversation_id. Default chain per DD-1: threadId → sessionId.
+  // The `conversationId` tail is back-compat only; never overrides threadId/sessionId.
+  const requestIdValue = options.threadId ?? options.sessionId ?? options.conversationId
+  if (requestIdValue) {
+    headers["x-client-request-id"] = requestIdValue
   }
 
   // Context-window lineage (§6 of whitepaper; upstream codex-rs 9e19004bc2).
@@ -73,8 +79,15 @@ export function buildHeaders(options: BuildHeadersOptions): Record<string, strin
     headers["x-openai-subagent"] = options.subagentLabel
   }
 
+  // INV-1: session_id and thread_id always paired. Default-equality (threadId :=
+  // sessionId) per DD-1 keeps single-thread callers wire-compatible while exposing
+  // the upstream session/thread split for future sub-agent paths.
+  const effectiveThreadId = options.threadId ?? options.sessionId
   if (options.sessionId) {
     headers["session_id"] = options.sessionId
+  }
+  if (effectiveThreadId) {
+    headers["thread_id"] = effectiveThreadId
   }
 
   if (options.userAgent) {
