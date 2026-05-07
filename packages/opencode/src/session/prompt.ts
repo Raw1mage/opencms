@@ -1488,13 +1488,13 @@ export namespace SessionPrompt {
         break
       }
 
-      // Tool-call paralysis detectors — observability only (2026-05-03).
-      // Decision: log signal, do not intervene. Removed nudge injection
-      // (was: synthetic user message granting "ok to go") and hard-break
-      // (was: lastAssistant.error + finish=error). The plan-mode police
-      // that produced these loops were already removed, so we expect this
-      // signal to be rare. Re-introduce intervention only if telemetry
-      // shows a real runaway pattern.
+      // Tool-call paralysis detectors. Two-turn match → warn (early signal).
+      // Three-turn match → break the loop with ParalysisDetectedError so the
+      // user gets a stop signal instead of an unbounded retreat-narrative
+      // burn. Re-armed 2026-05-08 after observing 5694-round loop on a codex
+      // session whose narrative repetition went undetected (Detector B used
+      // to look at "text" parts only; codex emits the short summary on the
+      // "reasoning" channel since 5b5e04201).
       //
       //   Detector A — exact tool-call signature repetition.
       //   Detector B — narrative-only repetition (similar leading text).
@@ -1509,19 +1509,58 @@ export namespace SessionPrompt {
           }
         }
 
+        const sigOf = (m: MessageV2.WithParts): string => {
+          const tools = m.parts.filter((p) => p.type === "tool")
+          return tools
+            .map((p) => {
+              const tp = p as MessageV2.ToolPart
+              const input = (tp.state as { input?: unknown })?.input
+              const inputStr = input ? JSON.stringify(input) : ""
+              return `${tp.tool}:${inputStr.slice(0, 200)}`
+            })
+            .join("|")
+        }
+        // Pull narrative text from a real text part, falling back to the
+        // last reasoning part — codex provider routes the short summary
+        // ("我會先停止...") through reasoning since 5b5e04201, so without
+        // this fallback Detector B silently sees empty strings on codex
+        // sessions and never fires.
+        const leadingText = (m: MessageV2.WithParts): string => {
+          const textPart = m.parts.find(
+            (p) => p.type === "text" && !(p as { synthetic?: boolean }).synthetic,
+          ) as { text?: string } | undefined
+          let raw = textPart?.text ?? ""
+          if (!raw) {
+            const reasoningParts = m.parts.filter((p) => p.type === "reasoning") as Array<{ text?: string }>
+            const last = reasoningParts[reasoningParts.length - 1]
+            raw = last?.text ?? ""
+          }
+          return raw.toLowerCase().replace(/\s+/g, "").slice(0, 600)
+        }
+        const bigrams = (s: string): Set<string> => {
+          const out = new Set<string>()
+          for (let i = 0; i < s.length - 1; i++) out.add(s.slice(i, i + 2))
+          return out
+        }
+        const jaccard = (a: Set<string>, b: Set<string>): number => {
+          if (a.size === 0 || b.size === 0) return 0
+          let inter = 0
+          for (const x of a) if (b.has(x)) inter++
+          return inter / (a.size + b.size - inter)
+        }
+
+        const sigs = recentAssistants.map(sigOf)
+        const texts = recentAssistants.map(leadingText)
+
+        const sigPairsMatch = (a: number, b: number): boolean => !!sigs[a] && sigs[a] === sigs[b]
+        const narrativePairsMatch = (a: number, b: number): number => {
+          if (texts[a].length < 60 || texts[b].length < 60) return 0
+          return jaccard(bigrams(texts[a]), bigrams(texts[b]))
+        }
+
+        // 2-turn warn (early signal).
         if (recentAssistants.length >= 2) {
-          const sigs = recentAssistants.slice(0, 2).map((m) => {
-            const tools = m.parts.filter((p) => p.type === "tool")
-            return tools
-              .map((p) => {
-                const tp = p as MessageV2.ToolPart
-                const input = (tp.state as { input?: unknown })?.input
-                const inputStr = input ? JSON.stringify(input) : ""
-                return `${tp.tool}:${inputStr.slice(0, 200)}`
-              })
-              .join("|")
-          })
-          if (sigs[0] && sigs[0] === sigs[1]) {
+          if (sigPairsMatch(0, 1)) {
             const repeatedTool = recentAssistants[0].parts
               .filter((p) => p.type === "tool")
               .map((p) => (p as MessageV2.ToolPart).tool)[0]
@@ -1532,38 +1571,48 @@ export namespace SessionPrompt {
               repeatedTool,
             })
           }
+          const j01 = narrativePairsMatch(0, 1)
+          if (j01 > 0.5) {
+            log.warn("paralysis-observe: narrative repetition", {
+              sessionID,
+              step,
+              similarity01: j01.toFixed(2),
+              samplePrefix: texts[0].slice(0, 120),
+            })
+          }
         }
 
-        if (recentAssistants.length >= 2) {
-          const leadingText = (m: MessageV2.WithParts): string => {
-            const text = m.parts.find((p) => p.type === "text" && !(p as { synthetic?: boolean }).synthetic) as
-              | { text?: string }
-              | undefined
-            return (text?.text ?? "").toLowerCase().replace(/\s+/g, "").slice(0, 600)
-          }
-          const bigrams = (s: string): Set<string> => {
-            const out = new Set<string>()
-            for (let i = 0; i < s.length - 1; i++) out.add(s.slice(i, i + 2))
-            return out
-          }
-          const jaccard = (a: Set<string>, b: Set<string>): number => {
-            if (a.size === 0 || b.size === 0) return 0
-            let inter = 0
-            for (const x of a) if (b.has(x)) inter++
-            return inter / (a.size + b.size - inter)
-          }
-          const texts = recentAssistants.map(leadingText)
-          const longEnough = texts.every((t) => t.length >= 60)
-          if (longEnough) {
-            const j01 = jaccard(bigrams(texts[0]), bigrams(texts[1]))
-            if (j01 > 0.5) {
-              log.warn("paralysis-observe: narrative repetition", {
-                sessionID,
-                step,
-                similarity01: j01.toFixed(2),
-                samplePrefix: texts[0].slice(0, 120),
-              })
-            }
+        // 3-turn intervention — break with error.
+        if (recentAssistants.length >= 3) {
+          const sigTriple = sigPairsMatch(0, 1) && sigPairsMatch(1, 2)
+          const j01 = narrativePairsMatch(0, 1)
+          const j12 = narrativePairsMatch(1, 2)
+          const narrativeTriple = j01 > 0.5 && j12 > 0.5
+
+          if (sigTriple || narrativeTriple) {
+            const detector = sigTriple ? "signature" : "narrative"
+            const similarity = narrativeTriple ? Math.min(j01, j12) : undefined
+            const samplePrefix = narrativeTriple ? texts[0].slice(0, 120) : sigs[0].slice(0, 120)
+            log.warn("paralysis-break: 3-turn repetition, halting loop", {
+              sessionID,
+              step,
+              detector,
+              similarity,
+              samplePrefix,
+            })
+            lastAssistant.error = new MessageV2.ParalysisDetectedError({
+              message:
+                detector === "signature"
+                  ? "Loop halted: 3 consecutive turns issued the same tool call. The model is stuck — review the situation and resume manually."
+                  : "Loop halted: 3 consecutive turns repeated the same narrative without progress. The model is stuck in a retreat loop — review and resume manually.",
+              detector,
+              consecutiveRounds: 3,
+              similarity,
+              samplePrefix,
+            }).toObject()
+            lastAssistant.finish = "error"
+            await Session.updateMessage(lastAssistant)
+            break
           }
         }
       }

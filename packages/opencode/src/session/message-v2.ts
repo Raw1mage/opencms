@@ -181,6 +181,16 @@ export namespace MessageV2 {
     "ContextOverflowError",
     z.object({ message: z.string(), responseBody: z.string().optional() }),
   )
+  export const ParalysisDetectedError = NamedError.create(
+    "ParalysisDetectedError",
+    z.object({
+      message: z.string(),
+      detector: z.enum(["signature", "narrative"]),
+      consecutiveRounds: z.number(),
+      similarity: z.number().optional(),
+      samplePrefix: z.string().optional(),
+    }),
+  )
 
   export const OutputFormatText = z
     .object({
@@ -628,6 +638,7 @@ export namespace MessageV2 {
         StructuredOutputError.Schema,
         ContextOverflowError.Schema,
         APIError.Schema,
+        ParalysisDetectedError.Schema,
       ])
       .optional(),
     parentID: z.string(),
