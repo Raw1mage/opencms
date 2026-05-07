@@ -46,6 +46,8 @@ When doing frontend design tasks, avoid collapsing into safe, average-looking la
 
 ## Working Cache (per-session memory)
 
+<!-- @bundled-required -->
+
 This session has a two-tier Working Cache. **Use it; don't re-explore what's already cached.**
 
 - **L2 raw ledger** indexes every read-class toolcall (Read/Grep/Glob/Bash exploration). Query via `system-manager:recall_toolcall_raw` (with optional `include_body: true` to inline the original output). Use it before re-reading a file you may have already seen this session.
