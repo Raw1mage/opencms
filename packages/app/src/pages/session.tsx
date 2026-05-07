@@ -272,14 +272,14 @@ export default function Page() {
     if (!view().filePane.opened()) view().filePane.open()
   }
 
-  const openTab = (value: string, options?: { force?: boolean }) => {
+  const openTab = (value: string) => {
     const next = normalizeTab(value)
     tabs().open(next)
     tabs().setActive(next)
 
     const path = file.pathFromTab(next)
     if (!path) return
-    file.load(path, options?.force ? { force: true } : undefined)
+    file.load(path, { force: true })
     openFilePane()
   }
 
@@ -288,7 +288,7 @@ export default function Page() {
     if (!active) return
 
     const path = file.pathFromTab(active)
-    if (path) file.load(path)
+    if (path) file.load(path, { force: true })
   })
 
   // Active file tab freshness poll: while an active file tab is visible,
@@ -1904,7 +1904,7 @@ export default function Page() {
     const detail = (e as CustomEvent).detail as { path: string } | undefined
     if (!detail?.path) return
     const tabValue = `file://${detail.path}`
-    openTab(tabValue, { force: true })
+    openTab(tabValue)
   }
   window.addEventListener("opencode:open-file", handleOpenFile)
 
