@@ -529,6 +529,18 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
+        name: "get_session",
+        description:
+          "Read session metadata by sessionID, including title, directory, timestamps, parentID, and execution identity. Use this when the user asks what session/title/model/directory is currently associated with a specific session.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            sessionID: { type: "string" },
+          },
+          required: ["sessionID"],
+        },
+      },
+      {
         name: "get_favorites",
         description: "Get favorite and recent models.",
         inputSchema: { type: "object", properties: {} },
@@ -1080,6 +1092,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         errorPrefix: `Failed to rename session ${sessionID}`,
       })
       return { content: [{ type: "text", text: `Renamed session ${sessionID} to "${title}"` }] }
+    }
+
+    if (name === "get_session") {
+      const { sessionID } = args as { sessionID: string }
+      const info = await readSessionInfoFromDaemon(sessionID)
+      const dir = info.directory ?? ""
+      const dirBase64 = Buffer.from(dir).toString("base64")
+      const payload = {
+        id: info.id,
+        title: info.title ?? "(untitled)",
+        directory: dir,
+        url: dir ? `/${dirBase64}/session/${info.id}` : undefined,
+        parentID: info.parentID,
+        time: info.time,
+        execution: info.execution,
+      }
+      return { content: [{ type: "text", text: JSON.stringify(payload, null, 2) }] }
     }
 
     if (name === "get_favorites") {
