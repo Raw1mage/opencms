@@ -60,6 +60,54 @@ export namespace Tool {
   export type InferParameters<T extends Info> = T extends Info<infer P> ? z.infer<P> : never
   export type InferMetadata<T extends Info> = T extends Info<any, infer M> ? M : never
 
+  /**
+   * Working Cache classification (plans/20260507_working-cache-local-cache/ DD-1, DD-7).
+   * Drives the L2 ledger filter and the L1 exploration-sequence depth counter.
+   *
+   * - "exploration" — read-class tools that produce evidence (Read, Grep, Glob, codesearch,
+   *   webfetch, read_subsession, attachment). Counts toward exploration depth and is
+   *   indexed into the L2 ledger for future recall.
+   * - "modify" — tools that write to the repo or external state (Edit, Write,
+   *   apply_patch, NotebookEdit, scratchpad write paths, system-manager mutations).
+   *   Resets the exploration depth counter.
+   * - "other" — neutral tools that neither produce evidence nor reset the counter
+   *   (todowrite, batch, cancel-task, agent control). Does not affect L1 trigger.
+   *
+   * Bash is "exploration" by default since the majority of bash usage in this codebase
+   * is read-class (ls / grep / cat / git status). Explicit reclassification can be done
+   * later if the data shows otherwise.
+   */
+  export type Kind = "exploration" | "modify" | "other"
+
+  const TOOL_KIND_REGISTRY: Record<string, Kind> = {
+    read: "exploration",
+    glob: "exploration",
+    grep: "exploration",
+    codesearch: "exploration",
+    webfetch: "exploration",
+    bash: "exploration",
+    attachment: "exploration",
+    read_subsession: "exploration",
+    edit: "modify",
+    write: "modify",
+    apply_patch: "modify",
+    multiedit: "modify",
+    notebookedit: "modify",
+    scratchpad_write: "modify",
+    todowrite: "other",
+    batch: "other",
+    "cancel-task": "other",
+    task: "other",
+  }
+
+  /**
+   * Returns the Working Cache classification for a tool id. Unknown ids default to
+   * "other" so they neither poison the exploration counter nor get indexed as evidence.
+   */
+  export function kind(toolID: string): Kind {
+    return TOOL_KIND_REGISTRY[toolID] ?? "other"
+  }
+
   export function define<Parameters extends z.ZodType, Result extends Metadata>(
     id: string,
     init: Info<Parameters, Result>["init"] | Awaited<ReturnType<Info<Parameters, Result>["init"]>>,

@@ -63,7 +63,9 @@ export namespace Config {
   }
 
   function isMemoryServerCommand(command: string[]) {
-    return command.some((part) => part.includes("@modelcontextprotocol/server-memory"))
+    return command.some(
+      (part) => part.includes("@modelcontextprotocol/server-memory") || part.includes("server-memory/dist/index.js"),
+    )
   }
 
   function getLocalMemoryMcp(config: Info) {
@@ -526,8 +528,12 @@ export namespace Config {
     }
   }
 
-  let stateGetter: (() => Promise<{ config: Info; directories: string[]; deps: Promise<void>[]; configStale?: boolean }>) | undefined
-  let fallbackState: Promise<{ config: Info; directories: string[]; deps: Promise<void>[]; configStale?: boolean }> | undefined
+  let stateGetter:
+    | (() => Promise<{ config: Info; directories: string[]; deps: Promise<void>[]; configStale?: boolean }>)
+    | undefined
+  let fallbackState:
+    | Promise<{ config: Info; directories: string[]; deps: Promise<void>[]; configStale?: boolean }>
+    | undefined
 
   export function state() {
     if (typeof Instance.state === "function") {
@@ -1568,9 +1574,7 @@ export namespace Config {
             .min(0)
             .max(1)
             .optional()
-            .describe(
-              "@deprecated 2026-04-28: prune retired (see `prune` field). Silently ignored.",
-            ),
+            .describe("@deprecated 2026-04-28: prune retired (see `prune` field). Silently ignored."),
           targetPromptTokens: z
             .number()
             .int()

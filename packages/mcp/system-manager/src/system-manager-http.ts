@@ -205,3 +205,111 @@ export async function postSessionUnrevertViaApi(input: {
     throw new Error(`session_unrevert_http_${response.status}:${text.slice(0, 400)}`)
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Working Cache retrieval client (system-manager:recall_toolcall_* tools)
+// Plan reference: plans/20260507_working-cache-local-cache/ DD-10, DD-21, DD-22.
+// ─────────────────────────────────────────────────────────────────────────
+
+export async function workingCacheIndexViaApi(input: {
+  fetchImpl: FetchLike
+  baseUrl: string
+  headers: Headers
+  sessionID: string
+  sinceTurn?: number
+  kind?: "exploration" | "modify" | "other"
+}) {
+  input.headers.set("Accept", "application/json")
+  const params = new URLSearchParams()
+  if (typeof input.sinceTurn === "number") params.set("since_turn", String(input.sinceTurn))
+  if (input.kind) params.set("kind", input.kind)
+  const query = params.toString()
+  const response = await input.fetchImpl(
+    `${input.baseUrl}/working-cache/index/${encodeURIComponent(input.sessionID)}${query ? `?${query}` : ""}`,
+    { headers: input.headers },
+  )
+  if (!response.ok) {
+    const text = await readErrorText(response)
+    throw new Error(`working_cache_index_http_${response.status}:${text.slice(0, 400)}`)
+  }
+  return response.json() as Promise<{
+    l2: { total: number; byKind: Record<string, number>; byFileCount: number }
+    l1: { total: number; topics: string[] }
+    retrieval: { raw: string; digest: string; index: string }
+  }>
+}
+
+export async function workingCacheRawViaApi(input: {
+  fetchImpl: FetchLike
+  baseUrl: string
+  headers: Headers
+  sessionID: string
+  kind?: "exploration" | "modify" | "other"
+  path?: string
+  hash?: string
+  turnRangeStart?: number
+  turnRangeEnd?: number
+  includeBody?: boolean
+}) {
+  input.headers.set("Accept", "application/json")
+  const params = new URLSearchParams()
+  if (input.kind) params.set("kind", input.kind)
+  if (input.path) params.set("path", input.path)
+  if (input.hash) params.set("hash", input.hash)
+  if (typeof input.turnRangeStart === "number") params.set("turn_range_start", String(input.turnRangeStart))
+  if (typeof input.turnRangeEnd === "number") params.set("turn_range_end", String(input.turnRangeEnd))
+  if (input.includeBody) params.set("include_body", "1")
+  const query = params.toString()
+  const response = await input.fetchImpl(
+    `${input.baseUrl}/working-cache/raw/${encodeURIComponent(input.sessionID)}${query ? `?${query}` : ""}`,
+    { headers: input.headers },
+  )
+  if (!response.ok) {
+    const text = await readErrorText(response)
+    throw new Error(`working_cache_raw_http_${response.status}:${text.slice(0, 400)}`)
+  }
+  return response.json() as Promise<{
+    found: boolean
+    toolCallID?: string
+    toolName?: string
+    kind?: "exploration" | "modify" | "other"
+    argsSummary?: string
+    filePath?: string
+    outputHash?: string
+    mtimeMs?: number
+    turn?: number
+    messageRef?: string
+    ageTurns?: number
+    capturedAt?: string
+    body?: string
+  }>
+}
+
+export async function workingCacheDigestViaApi(input: {
+  fetchImpl: FetchLike
+  baseUrl: string
+  headers: Headers
+  sessionID: string
+  topic?: string
+  entryID?: string
+  evidencePath?: string
+}) {
+  input.headers.set("Accept", "application/json")
+  const params = new URLSearchParams()
+  if (input.topic) params.set("topic", input.topic)
+  if (input.entryID) params.set("entry_id", input.entryID)
+  if (input.evidencePath) params.set("evidence_path", input.evidencePath)
+  const query = params.toString()
+  const response = await input.fetchImpl(
+    `${input.baseUrl}/working-cache/digest/${encodeURIComponent(input.sessionID)}${query ? `?${query}` : ""}`,
+    { headers: input.headers },
+  )
+  if (!response.ok) {
+    const text = await readErrorText(response)
+    throw new Error(`working_cache_digest_http_${response.status}:${text.slice(0, 400)}`)
+  }
+  return response.json() as Promise<{
+    entries: Array<Record<string, unknown>>
+    omitted: Array<{ entryID: string; reason: string }>
+  }>
+}
