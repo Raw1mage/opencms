@@ -114,6 +114,27 @@ Preview, subject to designed-state refinement:
 - **D-3 (2026-05-07, user)** — **Do NOT block advancement on production JSONL data**. Proceed to `designed` based on analytical severity ranking (L1+L2 high, L3+L4 medium, L7 medium-runloop). Trade-off acknowledged: when production data eventually arrives, phase ordering may need revision (`amend` mode at most; structural change unlikely since severity ordering is stable). (Closes Open Question 3.)
 - **D-4 (2026-05-07, accepted from proposal)** — **No SSDLC profile**. Engineering RCA, not regulated change. `.state.json.profile` stays `[]`. (Closes Open Question 4.)
 - **D-5 (2026-05-07, user)** — **One spec, phase-divided** by landmine in-scope set (L1, L2, L3+L4 paired, L7 separate). Sub-specs only get spawned if a phase grows past 8 tasks during designed-state work. (Closes Open Question 5.)
+- **D-6 (2026-05-07, user)** — **Pause spec at `proposed`; wait for production JSONL evidence before advancing to `designed`**. This **overrides D-3** ("don't block on production data, proceed by analytical severity"). Trigger for the override: code spikes on 2026-05-07 revealed that L4 and L7 are over-scoped (L4's UNKNOWN-no-promote guard at `rate-limit-judge.ts:39-52` is still holding; L7's `emptyRoundCount` already caps at 2 in `prompt.ts:1446-1467`). Without runtime data we cannot honestly prioritize among L1, L2, L3 either. Resume signal: user reports a new empty-response incident, OR codex-empty-turn-recovery hits its A6 24h soak threshold with concrete cluster patterns in `<state>/codex/empty-turns.jsonl`.
+
+## Spike Findings (2026-05-07)
+
+Code-reading spikes performed before pause. Findings inform the resume:
+
+- **L1 (compaction 37888 equilibrium)** — culprit located at [packages/opencode/src/session/prompt.ts:1884](../../packages/opencode/src/session/prompt.ts#L1884): `predictedCacheMiss = continuationInvalidatedAt ? "miss" : "unknown"` is sticky once `continuationInvalidatedAt` ever fires. Combined with the gate at [prompt.ts:468-471](../../packages/opencode/src/session/prompt.ts#L468-L471), `cache-aware` compaction triggers every turn producing deterministic 37888-byte output. Resume: design.md DD-1 will gate the flag (compact-once-then-clear, or stateful check).
+- **L2 (rotation cold prefix)** — confirmed: zero prewarm path today. `findFallback()` returns new `accountId`; next request immediately uses new `prompt_cache_key = codex-${newAcctId}-${sessionId}` with no warmup. Three remediation directions: prewarm hook / delay-to-turn-boundary / compact-then-rotate. Choice needs runtime data.
+- **L3 (store=false × retry)** — confirmed: we always send `store: false` (matches Codex CLI). `refs/openclaw/CHANGELOG.md` shows OpenAI direct-Responses paths force `store: true` for multi-turn state. Possible: opt into `store: true` on the retry attempt only. Worth audit-then-act.
+- **L4 (unknown → rotation thrash)** — **DOWNGRADED**: spike found UNKNOWN-no-promote guard still holding at [packages/opencode/src/account/rate-limit-judge.ts:39-52](../../packages/opencode/src/account/rate-limit-judge.ts#L39-L52). Not currently a live landmine; reframed as "future fragility — if rotation ever starts reading finishReason, the guard must be preserved AND should read providerMetadata.openai.emptyTurnClassification.causeFamily as a finer signal."
+- **L7 (recursive nudge)** — **DOWNGRADED**: spike found `emptyRoundCount === 2` already triggers natural-stop break at [packages/opencode/src/session/prompt.ts:1446-1467](../../packages/opencode/src/session/prompt.ts#L1446-L1467). The original "infinite loop" framing was wrong. Real gap: no cross-round persisted accumulator; ses_204499 ran 17 rounds because each user message restarts the loop counter. Reframed as observability work (capture cross-round empty-turn density), not infinite-loop prevention.
+
+## Scope Refinement Backlog (apply on resume)
+
+When this spec resumes (per D-6 trigger), apply this scope refinement before drafting design.md:
+
+- L1 stays in scope at P0 (concrete code regression, ready to design)
+- L2 stays in scope at P1 (3 directions; production data ranks them)
+- L3 stays in scope at P2 (audit-then-act based on retry-also-empty cluster rate)
+- L4 reframed as P3 prophylactic ("preserve UNKNOWN-no-promote; recommend reading causeFamily on any future rotation policy refinement")
+- L7 reframed as P3 observability ("capture cross-round empty-turn density; surface via JSONL or new metric, do not add new circuit-breaker logic")
 
 ## Resolved Open Questions
 
