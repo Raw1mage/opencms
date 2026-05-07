@@ -188,6 +188,18 @@ interface WsObservation {
   wsCloseCode: number | null
   wsCloseReason: string | null
   serverErrorMessage: string | null
+  /**
+   * Verbatim WS-layer error reason captured when the empty turn
+   * originated from ws.onerror, ws.onclose with frameCount=0, or
+   * first_frame_timeout. Stays null otherwise. Drives DD-2 throw-leak
+   * closure: previously these sites called endWithError(new Error(...))
+   * which propagated up to processor.ts:isModelTemporaryError and
+   * triggered unwarranted account rotation. With this field set, the
+   * sites call endStream() instead and the SSE flush block routes
+   * through the classifier (causeFamily ws_no_frames per DD-9).
+   * Spec: fix-empty-response-rca DD-2 + DD-5.
+   */
+  wsErrorReason: string | null
   deltasObserved: { text: number; toolCallArguments: number; reasoning: number }
 }
 
@@ -213,6 +225,16 @@ export interface TransportSnapshot {
   wsCloseCode: number | null
   wsCloseReason: string | null
   serverErrorMessage: string | null
+  /**
+   * Verbatim WS-layer error reason for ws_no_frames discrimination
+   * (fix-empty-response-rca DD-5). Populated when the empty turn
+   * originated from ws.onerror / ws.onclose-frame=0 / first_frame_timeout.
+   * Null when wsFrameCount > 0 (existing ws_truncation case where the
+   * close itself is the signal) or when the empty turn originated
+   * server-side. Surfaces in JSONL via the additive wsErrorReason field
+   * per the data-schema.json extension.
+   */
+  wsErrorReason: string | null
   deltasObserved: { text: number; toolCallArguments: number; reasoning: number }
 }
 
@@ -240,6 +262,7 @@ function wsRequest(input: {
     wsCloseCode: null,
     wsCloseReason: null,
     serverErrorMessage: null,
+    wsErrorReason: null,
     deltasObserved: { text: 0, toolCallArguments: 0, reasoning: 0 },
   }
 
@@ -312,9 +335,15 @@ function wsRequest(input: {
           const reason = wsObs.frameCount === 0 ? "first_frame_timeout" : "mid_stream_stall"
           doInvalidate(reason)
           if (wsObs.frameCount === 0) {
-            controller.error(new Error(`Codex WS: ${reason}`))
+            // fix-empty-response-rca DD-2: do not throw upward. The empty
+            // turn classifier (sse.ts flush block) will see wsFrameCount=0
+            // and select ws_no_frames; wsErrorReason carries the reason
+            // for the JSONL log entry. Previously this site called
+            // controller.error which propagated up to processor.ts and
+            // triggered isModelTemporaryError → unwarranted rotation.
+            wsObs.wsErrorReason = reason
             state.status = "failed"
-            cleanup()
+            endStream()
           } else {
             endStream()
           }
@@ -494,7 +523,17 @@ function wsRequest(input: {
 
       ws.onerror = () => {
         doInvalidate("ws_error")
-        wsObs.frameCount === 0 ? endWithError(new Error("WebSocket error")) : endStream()
+        if (wsObs.frameCount === 0) {
+          // fix-empty-response-rca DD-2: previously endWithError("WebSocket error")
+          // threw upward; processor.ts caught it via isModelTemporaryError and
+          // triggered account rotation. Now: capture the reason for the JSONL
+          // log entry (DD-5) and end the stream gracefully so the SSE flush
+          // block routes through the classifier (ws_no_frames + retry).
+          wsObs.wsErrorReason = "WebSocket error"
+          endStream()
+        } else {
+          endStream()
+        }
       }
 
       ws.onclose = (closeEvent: CloseEvent) => {
@@ -511,13 +550,18 @@ function wsRequest(input: {
         if (state.status === "streaming") {
           doInvalidate("close_before_completion")
           state.status = "failed"
-          // Note: we no longer call endWithError vs endStream based purely on
-          // frameCount; the SSE flush block (sse.ts) classifies the empty
-          // turn via getSnapshot() and emits a non-throwing finish part with
-          // classification metadata. This replaces the historical "silent
-          // endStream() at line 422" pattern that masked WS truncation as
-          // graceful close (per design.md DD-5; INV-01 keeps no-throw intact).
-          wsObs.frameCount === 0 ? endWithError(new Error("WS closed before response")) : endStream()
+          // Both branches now route through endStream() with classifier-decided
+          // recovery; no exception propagates up to processor.ts. Predecessor
+          // codex-empty-turn-recovery removed the "silent endStream() at line
+          // 422" pattern from the frameCount > 0 case; fix-empty-response-rca
+          // DD-2 finishes the job by also routing the frameCount === 0 case
+          // through the classifier instead of throwing "WS closed before
+          // response" — that throw was the L2 root cause of unwarranted
+          // rotation thrash. wsErrorReason carries the diagnostic.
+          if (wsObs.frameCount === 0) {
+            wsObs.wsErrorReason = "WS closed before response"
+          }
+          endStream()
         }
       }
 
@@ -537,6 +581,7 @@ function wsRequest(input: {
       wsCloseCode: wsObs.wsCloseCode,
       wsCloseReason: wsObs.wsCloseReason,
       serverErrorMessage: wsObs.serverErrorMessage,
+      wsErrorReason: wsObs.wsErrorReason,
       deltasObserved: { ...wsObs.deltasObserved },
     }),
   }

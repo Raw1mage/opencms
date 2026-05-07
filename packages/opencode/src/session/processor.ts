@@ -146,7 +146,55 @@ export namespace SessionProcessor {
     return false
   }
 
-  function isModelTemporaryError(error: unknown): boolean {
+  /**
+   * fix-empty-response-rca DD-3: extract emptyTurnClassification metadata
+   * from a finish part's providerMetadata. Reads as OPAQUE structural data
+   * — no codex-provider type import (INV-16 boundary discipline). Returns
+   * null when no classification metadata is present, otherwise returns the
+   * relevant fields for the rotation guard's audit breadcrumb (REC-003).
+   *
+   * Exported for unit testing (DD-3 guard verification without simulating
+   * the entire processor stream loop).
+   */
+  export function readEmptyTurnClassification(
+    providerMetadata: unknown,
+  ): { causeFamily: string; recoveryAction: string | null; logSequence: number | null } | null {
+    if (!providerMetadata || typeof providerMetadata !== "object") return null
+    const meta = providerMetadata as Record<string, unknown>
+    const openai = meta.openai && typeof meta.openai === "object" ? (meta.openai as Record<string, unknown>) : undefined
+    const cls = openai?.emptyTurnClassification
+    if (!cls || typeof cls !== "object") return null
+    const fields = cls as Record<string, unknown>
+    const causeFamily = fields.causeFamily
+    if (typeof causeFamily !== "string" || causeFamily.length === 0) return null
+    return {
+      causeFamily,
+      recoveryAction: typeof fields.recoveryAction === "string" ? fields.recoveryAction : null,
+      logSequence: typeof fields.logSequence === "number" ? fields.logSequence : null,
+    }
+  }
+
+  function isModelTemporaryError(error: unknown, lastFinishProviderMetadata?: unknown): boolean {
+    // fix-empty-response-rca DD-3: classified empty turns are NOT
+    // temporary backend errors. The codex provider's empty-turn
+    // classifier already exhausted its retry budget (INV-08 cap=1)
+    // and emitted a soft-fail; rotation would create a cold prefix
+    // on the new account → more truncation (L2 root cause).
+    const cls = readEmptyTurnClassification(lastFinishProviderMetadata)
+    if (cls) {
+      // Audit breadcrumb (REC-003) — sustained occurrence on a session
+      // is a healthy signal that DD-3 is working; absence when JSONL
+      // shows empty-turns means the metadata isn't reaching this point
+      // (DD-2 leak somewhere)
+      // eslint-disable-next-line no-console
+      console.log(
+        `[ROTATION-GUARD] suppressed rotation: causeFamily=${cls.causeFamily} reason=${
+          cls.recoveryAction ?? "?"
+        } logSequence=${cls.logSequence ?? "?"}`,
+      )
+      return false
+    }
+
     const { status, parts } = extractErrorDetails(error)
     if (!parts) return false
 
@@ -729,6 +777,13 @@ export namespace SessionProcessor {
 
             let currentText: MessageV2.TextPart | undefined
             let reasoningMap: Record<string, MessageV2.ReasoningPart> = {}
+            // fix-empty-response-rca DD-3: capture the providerMetadata of the
+            // most recent finish-step seen, so the catch block can hand it to
+            // isModelTemporaryError(e, lastFinishProviderMetadata). Used to
+            // detect codex-empty-turn-recovery's emptyTurnClassification
+            // metadata and refuse to flag the error as a temporary backend
+            // problem (preventing unwarranted account rotation).
+            let lastFinishProviderMetadata: unknown = undefined
             const stream = await LLM.stream(streamInput)
             if (streamInput.accountId && input.assistantMessage.accountId !== streamInput.accountId) {
               // SYSLOG: Account changed after LLM.stream — potential silent account switch (Bug #1)
@@ -1121,6 +1176,11 @@ export namespace SessionProcessor {
                   break
 
                 case "finish-step":
+                  // fix-empty-response-rca DD-3: capture providerMetadata for the
+                  // catch block's rotation guard. Reset on every finish-step so a
+                  // late genuine 5xx after an empty-turn-classified earlier turn
+                  // doesn't reuse stale classification metadata.
+                  lastFinishProviderMetadata = value.providerMetadata
                   // Diagnostic: trace empty responses to stderr for root-cause analysis
                   if (
                     value.finishReason === "unknown" &&
@@ -1444,7 +1504,11 @@ export namespace SessionProcessor {
             }
 
             // 1. Handle Temporary Errors (Rate Limit, Quota, Server Busy, Auth failures)
-            if (isModelTemporaryError(e)) {
+            // fix-empty-response-rca DD-3: pass lastFinishProviderMetadata so the
+            // guard can detect codex-empty-turn-recovery's emptyTurnClassification
+            // and refuse to flag the error as temporary (preventing rotation
+            // on classified empty turns).
+            if (isModelTemporaryError(e, lastFinishProviderMetadata)) {
               // SYSLOG: Rate limit or temporary error hit — rotation should kick in
               debugCheckpoint("syslog.rotation", "temporary error: rotation3d should activate", {
                 sessionID: input.sessionID,

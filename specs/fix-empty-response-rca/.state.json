@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "planned",
+  "state": "implementing",
   "profile": [],
   "history": [
     {
@@ -26,6 +26,22 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "Phase planned artifacts complete: tasks.md (Phase 1+2+3 split per DD-4, ~28 tasks), handoff.md (Execution Contract / 16 Required Reads / 10 Stop Gates / Code-vs-Docs split per feedback_commit_all_split_code_docs.md), test-vectors.json (11 vectors covering A1-A6 + cross-DD invariant), errors.md (5 REC- codes catalogued — REC-001..005, all non-throwing per spec invariant; REC-004 is the regression watchdog for DD-2), observability.md (M8/M9/M10/M11 metrics + 5 alert recommendations + cache-equilibrium.jsonl new channel)"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-05-07T14:23:14.872Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Phase 1 (DD-2 + DD-3 + DD-5) implementation complete on beta/fix-empty-response-rca: tasks 1.1-1.13 + smoke 1.14; 117/117 tests pass (107 baseline + 10 DD-3 readEmptyTurnClassification tests; sse.test wsErrorReason boundary regression block extended). Phase 2 (DD-1 compaction) deferred until Phase 1 soaks per SG-10."
+    },
+    {
+      "at": "2026-05-07T14:23:21.115Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "43e140174d5b672598fc24dbc40a0d9d7e695103"
     }
   ]
 }
