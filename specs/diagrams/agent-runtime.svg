@@ -33,7 +33,10 @@
 <path class="edge edge-arrow" d="M 10.00 67.00 L 10.00 69.00"/>
 <path class="edge" d="M 30.00 57.00 L 30.00 59.00"/>
 <path class="edge edge-arrow" d="M 30.00 59.00 L 30.00 67.00"/>
-<path class="edge edge-arrow" d="M 30.00 59.00 L 30.00 59.00 L 35.95 59.00 Q 36.45 59.00 36.45 59.50 L 36.45 71.12 Q 36.45 71.62 35.95 71.62 L 30.50 71.62 Q 30.00 71.62 30.00 72.12 L 30.00 98.00"/>
+<path class="edge" d="M 30.00 63.00 L 36.45 63.00"/>
+<path class="edge" d="M 36.45 63.00 L 36.45 71.62"/>
+<path class="edge" d="M 36.45 71.62 L 30.00 71.62"/>
+<path class="edge edge-arrow" d="M 30.00 71.62 L 30.00 98.00"/>
 <path class="edge edge-arrow" d="M 30.00 98.00 L 30.00 100.00"/>
 <path class="edge edge-arrow" d="M 20.00 57.00 L 20.00 60.50 Q 20.00 61.00 20.50 61.00 L 33.95 61.00 Q 34.45 61.00 34.45 61.50 L 34.45 69.12 Q 34.45 69.62 33.95 69.62 L 20.50 69.62 Q 20.00 69.62 20.00 70.12 L 20.00 76.00"/>
 <path class="edge edge-arrow" d="M 20.00 76.00 L 20.00 78.00"/>
@@ -169,27 +172,28 @@
 <text class="gate-label-left" x="8.60" y="52.00"><tspan x="8.60" dy="0">工具呼叫其他平行</tspan></text>
 <line class="gate" x1="-1.00" y1="63.00" x2="1.00" y2="63.00"/>
 <text class="gate-label-left" x="-1.40" y="62.32"><tspan x="-1.40" dy="0">已派發==是</tspan><tspan x="-1.40" dy="0.68">&amp;&amp; 父層回</tspan><tspan x="-1.40" dy="0.68">合已返回</tspan></text>
-<line class="gate" x1="29.00" y1="63.00" x2="31.00" y2="63.00"/>
-<text class="gate-label-left" x="28.60" y="63.00"><tspan x="28.60" dy="0">回覆已收到或已解析</tspan></text>
-<line class="gate" x1="29.00" y1="94.00" x2="31.00" y2="94.00"/>
-<text class="gate-label" x="31.40" y="94.00"><tspan x="31.40" dy="0">中止訊號已觸發</tspan></text>
+<line class="gate" x1="29.00" y1="65.00" x2="31.00" y2="65.00"/>
+<text class="gate-label-left" x="28.60" y="65.00"><tspan x="28.60" dy="0">回覆已收到或已解析</tspan></text>
+<line class="gate" x1="29.00" y1="96.00" x2="31.00" y2="96.00"/>
+<text class="gate-label" x="31.40" y="96.00"><tspan x="31.40" dy="0">中止訊號已觸發</tspan></text>
 <line class="gate" x1="19.00" y1="74.00" x2="21.00" y2="74.00"/>
 <text class="gate-label-left" x="18.60" y="74.00"><tspan x="18.60" dy="0">助手乾淨完成</tspan></text>
 <line class="gate" x1="9.00" y1="63.00" x2="11.00" y2="63.00"/>
 <text class="gate-label-left" x="8.60" y="63.00"><tspan x="8.60" dy="0">所有工具結果就緒</tspan></text>
 <line class="gate" x1="9.00" y1="74.00" x2="11.00" y2="74.00"/>
 <text class="gate-label-left" x="8.60" y="74.00"><tspan x="8.60" dy="0">工具結果已提交</tspan></text>
-<line class="gate" x1="39.00" y1="94.00" x2="41.00" y2="94.00"/>
-<text class="gate-label" x="41.40" y="94.00"><tspan x="41.40" dy="0">無配額觸發</tspan></text>
-<line class="gate" x1="-9.00" y1="67.50" x2="-7.00" y2="67.50"/>
-<text class="gate-label" x="-6.60" y="67.50"><tspan x="-6.60" dy="0">已啟用 &amp;&amp; (下一個可執行待辦!=空 || 補充啟用規劃)</tspan></text>
-<line class="gate" x1="19.00" y1="94.00" x2="21.00" y2="94.00"/>
-<text class="gate-label" x="21.40" y="93.32"><tspan x="21.40" dy="0">停止：子代理</tspan><tspan x="21.40" dy="0.68">會話或未啟用</tspan><tspan x="21.40" dy="0.68">或待辦完成</tspan></text>
+<line class="gate" x1="39.00" y1="96.00" x2="41.00" y2="96.00"/>
+<text class="gate-label" x="41.40" y="96.00"><tspan x="41.40" dy="0">無配額觸發</tspan></text>
+<line class="gate" x1="-9.00" y1="94.00" x2="-7.00" y2="94.00"/>
+<text class="gate-label" x="-6.60" y="94.00"><tspan x="-6.60" dy="0">已啟用 &amp;&amp; (下一個可執行待辦!=空 || 補充啟用規劃)</tspan></text>
+<line class="gate" x1="19.00" y1="96.00" x2="21.00" y2="96.00"/>
+<text class="gate-label" x="21.40" y="95.32"><tspan x="21.40" dy="0">停止：子代理</tspan><tspan x="21.40" dy="0.68">會話或未啟用</tspan><tspan x="21.40" dy="0.68">或待辦完成</tspan></text>
 <line class="gate" x1="19.00" y1="107.00" x2="21.00" y2="107.00"/>
 <text class="gate-label-left" x="18.60" y="107.00"><tspan x="18.60" dy="0">下一個使用者訊息</tspan></text>
 <line class="gate" x1="39.00" y1="107.00" x2="41.00" y2="107.00"/>
 <text class="gate-label-left" x="38.60" y="107.00"><tspan x="38.60" dy="0">排程心跳派發到期工作</tspan></text>
 <circle class="junction" cx="20.00" cy="43.00" r="0.22"/>
+<circle class="branch-junction" cx="30.00" cy="63.00" r="0.22"/>
 <circle class="junction" cx="-12.00" cy="109.00" r="0.22"/>
 <circle class="branch-junction" cx="20.00" cy="83.00" r="0.28"/>
 </svg>
