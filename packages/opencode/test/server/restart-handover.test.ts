@@ -25,6 +25,11 @@ describe("restart handover checkpoint", () => {
     expect(checkpoint.reason).toContain("token=<redacted>")
     expect(checkpoint.handover).toContain("api_key=<redacted>")
     expect(checkpoint.validationNextSteps.join("\n")).toContain("do not infer restart success")
+
+    const pendingRaw = await fs.readFile(RestartHandover.pendingPath(), "utf8")
+    const pending = JSON.parse(pendingRaw) as { txid: string; checkpointPath: string }
+    expect(pending.txid).toBe(txid)
+    expect(pending.checkpointPath).toBe(result.path)
   })
 
   test("sanitizes txid before deriving the checkpoint path", () => {

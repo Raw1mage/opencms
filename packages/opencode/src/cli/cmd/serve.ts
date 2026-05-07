@@ -3,6 +3,7 @@ import { Daemon } from "../../server/daemon"
 import { cmd } from "./cmd"
 import { withNetworkOptions, resolveNetworkOptions } from "../network"
 import { WebAuthCredentials } from "../../server/web-auth-credentials"
+import { DaemonStartupLog } from "../../server/daemon-startup-log"
 import { assertMigrationApplied } from "../../server/migration-boot-guard"
 import { MigrationRequiredError } from "../../provider/registry-shape"
 
@@ -53,6 +54,7 @@ export const ServeCommand = cmd({
       const socketPath = args["unix-socket"]
       console.log(`opencode daemon starting on unix:${socketPath}`)
       const server = await Server.listenUnix(socketPath)
+      await DaemonStartupLog.record({ socketPath })
       console.log(`opencode daemon ready (pid ${process.pid})`)
       await waitForShutdownSignal()
       await server.stop(true)
@@ -76,6 +78,7 @@ export const ServeCommand = cmd({
     }
     const opts = await resolveNetworkOptions(args)
     const server = Server.listen(opts)
+    await DaemonStartupLog.record({ port: server.port, hostname: server.hostname })
     console.log(`opencode server listening on http://${server.hostname}:${server.port}`)
     await waitForShutdownSignal()
     await server.stop(true)

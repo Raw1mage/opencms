@@ -655,58 +655,23 @@ export const GlobalRoutes = lazy(() =>
             reason: body.reason,
           })
 
-          const proc = Bun.spawn({
+          Bun.spawn({
             cmd,
             stdout: "ignore",
-            stderr: "pipe",
+            stderr: Bun.file(errorLogPath),
             stdin: "ignore",
             env: {
               ...process.env,
               OPENCODE_RESTART_TXID: txid,
               OPENCODE_RESTART_ERROR_LOG_FILE: errorLogPath,
+              OPENCODE_FORCE_SUDO_FRONTEND_SYNC: "1",
             },
           })
-          const stderrPromise = proc.stderr ? new Response(proc.stderr).text() : Promise.resolve("")
-          const webctlExit = await proc.exited
-          const stderr = (await stderrPromise).trim()
 
-          if (webctlExit !== 0) {
-            // Busy lock → 409. Other failures → 500.
-            const isBusy = /already\s+in\s+progress/i.test(stderr)
-            log.error("web-restart mode=gateway-daemon webctl failed", {
-              webctlPath,
-              webctlExit,
-              txid,
-              errorLogPath,
-              isBusy,
-              stderrHead: stderr.slice(0, 400),
-            })
-            return c.json(
-              {
-                code: isBusy ? "RESTART_LOCK_BUSY" : "WEB_RESTART_FAILED",
-                message: stderr || `webctl restart failed (exit ${webctlExit})`,
-                webctlExit,
-                txid,
-                errorLogPath,
-                webctlPath,
-                hint: "Current runtime is gateway-daemon mode; webctl rebuilds changed layers. See the error log for full output. System kept on previous version.",
-              },
-              isBusy ? 409 : 500,
-            )
-          }
-
-          log.info("web-restart mode=gateway-daemon webctl ok, scheduling self-terminate", {
+          log.info("web-restart mode=gateway-daemon webctl scheduled", {
             txid,
-            webctlExit,
+            errorLogPath,
           })
-
-          // Respond first, then exit so the response reaches the client.
-          setTimeout(async () => {
-            const { Daemon } = await import("@/server/daemon")
-            log.info("gateway-daemon self-terminating for restart", { txid })
-            await Daemon.removeDiscovery().catch(() => {})
-            process.exit(0)
-          }, 300)
 
           return c.json({
             ok: true,

@@ -2,6 +2,7 @@ import { Server } from "../../server/server"
 import { UI } from "../ui"
 import { cmd } from "./cmd"
 import { withNetworkOptions, resolveNetworkOptions } from "../network"
+import { DaemonStartupLog } from "../../server/daemon-startup-log"
 import { WebAuthCredentials } from "../../server/web-auth-credentials"
 import open from "open"
 import { networkInterfaces } from "os"
@@ -82,6 +83,7 @@ export const WebCommand = cmd({
     }
     const opts = await resolveNetworkOptions(args)
     const server = Server.listen(opts)
+    await DaemonStartupLog.record({ port: server.port, hostname: opts.hostname })
     UI.empty()
     UI.println(UI.logo("  "))
     UI.empty()

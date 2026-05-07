@@ -420,6 +420,37 @@ append_restart_event() {
         >>"${RESTART_EVENT_LOG}"
 }
 
+write_restart_handover_marker() {
+    local txid="${1:-unknown}"
+    local mode="${2:-detached}"
+    local graceful="${3:-0}"
+    local state_root="${XDG_STATE_HOME:-${HOME}/.local/state}/opencode"
+    local dir="${state_root}/restart-handover"
+    local safe_txid
+    safe_txid="$(printf '%s' "${txid}" | tr -c 'A-Za-z0-9_.-' '-')"
+    local checkpoint="${dir}/${safe_txid}.json"
+    local pending="${dir}/pending.json"
+    local ts
+    ts="$(date -Iseconds)"
+
+    mkdir -p "${dir}"
+    printf '{"schemaVersion":1,"checkpointID":"%s","txid":"%s","status":"webctl-restart-requested","createdAt":"%s","pid":%s,"runtimeMode":"webctl","targets":["daemon"],"reason":"repo webctl restart","webctlPath":"%s","validationNextSteps":["After restart, probe /api/v2/global/health.","Inspect daemon-startup/startup.jsonl for this txid."]}\n' \
+        "$(json_escape "${txid}")" \
+        "$(json_escape "${txid}")" \
+        "$(json_escape "${ts}")" \
+        "$$" \
+        "$(json_escape "${PROJECT_ROOT}/webctl.sh")" \
+        >"${checkpoint}"
+    printf '{"schemaVersion":1,"txid":"%s","checkpointPath":"%s","createdAt":"%s","status":"webctl-restart-requested","mode":"%s","graceful":%s}\n' \
+        "$(json_escape "${txid}")" \
+        "$(json_escape "${checkpoint}")" \
+        "$(json_escape "${ts}")" \
+        "$(json_escape "${mode}")" \
+        "${graceful}" \
+        >"${pending}"
+    chmod 600 "${checkpoint}" "${pending}" 2>/dev/null || true
+}
+
 acquire_restart_lock() {
     local txid="${1:-unknown}"
     local mode="${2:-detached}"
@@ -1463,6 +1494,7 @@ do_dev_restart() {
 
     local txid
     txid="${OPENCODE_RESTART_TXID:-$(date +%Y%m%dT%H%M%S)-$$}"
+    write_restart_handover_marker "${txid}" "${mode}" "${graceful}"
 
     if [ "${mode}" = "inline" ] && [ "${OPENCODE_ALLOW_INLINE_RESTART:-0}" != "1" ]; then
         log_warn "Inline restart is disabled by default; falling back to detached graceful restart."
@@ -1728,8 +1760,13 @@ sync_frontend_dist_if_needed() {
 
     # System paths (e.g. /usr/local/share/opencode/frontend) are root-owned;
     # use sudo if the target directory is not writable by the current user.
+    # Daemon-triggered self-restart sets OPENCODE_FORCE_SUDO_FRONTEND_SYNC=1 so
+    # the privileged boundary is explicit and non-interactive instead of relying
+    # on a best-effort writability probe inside a service context.
     local _sudo=""
-    if [ ! -w "${FRONTEND_DIST}" ] 2>/dev/null || [ ! -w "$(dirname "${FRONTEND_DIST}")" ] 2>/dev/null; then
+    if [ "${OPENCODE_FORCE_SUDO_FRONTEND_SYNC:-0}" = "1" ]; then
+        _sudo="sudo -n"
+    elif [ ! -w "${FRONTEND_DIST}" ] 2>/dev/null || [ ! -w "$(dirname "${FRONTEND_DIST}")" ] 2>/dev/null; then
         _sudo="sudo"
     fi
 

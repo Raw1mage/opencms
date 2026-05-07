@@ -42,6 +42,10 @@ export namespace RestartHandover {
     return path.join(dir(), `${safe}.json`)
   }
 
+  export function pendingPath() {
+    return path.join(dir(), "pending.json")
+  }
+
   function redactedText(value: string | undefined, maxLength: number) {
     if (!value) return undefined
     return value.replace(/(api[_-]?key|token|secret|password)\s*[:=]\s*\S+/gi, "$1=<redacted>").slice(0, maxLength)
@@ -74,9 +78,27 @@ export namespace RestartHandover {
     const checkpoint = build(input)
     const target = filePath(input.txid)
     const tmp = `${target}.tmp-${process.pid}`
+    const pending = pendingPath()
+    const pendingTmp = `${pending}.tmp-${process.pid}`
     await fs.mkdir(path.dirname(target), { recursive: true })
     await fs.writeFile(tmp, JSON.stringify(checkpoint, null, 2) + "\n", { mode: 0o600 })
     await fs.rename(tmp, target)
+    await fs.writeFile(
+      pendingTmp,
+      JSON.stringify(
+        {
+          schemaVersion: 1,
+          txid: input.txid,
+          checkpointPath: target,
+          createdAt: checkpoint.createdAt,
+          status: checkpoint.status,
+        },
+        null,
+        2,
+      ) + "\n",
+      { mode: 0o600 },
+    )
+    await fs.rename(pendingTmp, pending)
     return { path: target, checkpoint }
   }
 }
