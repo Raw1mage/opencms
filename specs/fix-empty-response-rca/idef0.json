@@ -1,0 +1,81 @@
+{
+  "diagram_title": "Prevent Empty-Turn Loop Cascade",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Receive Codex Provider Call",
+      "description": "Entry point for a codex doStream call from the runloop; provides the request inputs, providerOptions, and session identity that downstream activities consume",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Stream Codex WebSocket Frames",
+      "description": "transport-ws.ts wsRequest opens WebSocket; observes frames and terminal events; on ws.onerror / ws.onclose frame=0 / first_frame_timeout sets wsObs.wsErrorReason and calls endStream() instead of endWithError (DD-2 throw-leak closure)",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Translate SSE Events",
+      "description": "sse.ts mapResponseStream converts SSE frames to LMv2 parts; flush block detects effectively-empty turn and invokes the classifier with the TransportSnapshot (now including wsErrorReason)",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Classify Empty Turn Cause",
+      "description": "empty-turn-classifier evaluates predicate ladder per DD-9; ws_no_frames covers both clean close-without-frames and onerror-without-frames cases (wsErrorReason field discriminates sub-cause without enum churn)",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Persist Forensic Evidence",
+      "description": "empty-turn-log writes JSONL line with the wsErrorReason field; cache-equilibrium-detector writes a separate JSONL channel when DD-1 observes N consecutive identical cache.read values",
+      "decomposition": null
+    },
+    {
+      "id": "A6",
+      "title": "Derive Cache Miss Prediction",
+      "description": "DD-1: prompt.ts derivePredictedCacheMiss helper returns hit/miss/unknown based on lastFinished.tokens.cache.read instead of sticky continuationInvalidatedAt flag, breaking the L1 stable equilibrium that locked cache_read at 36352",
+      "decomposition": null
+    },
+    {
+      "id": "A7",
+      "title": "Gate Account Rotation",
+      "description": "DD-3: processor.ts isModelTemporaryError reads providerMetadata.openai.emptyTurnClassification.causeFamily as opaque metadata; if present, returns false so the rotation cascade triggered by L2 throw-leak no longer fires when classifier already handled the empty turn",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "doStream call from runloop", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A1:control", "label": "providerOptions sessionId accountId", "type": "control" },
+    { "id": "AR3", "source": "A1:output", "target": "A6:input", "label": "session execution context", "type": "output" },
+    { "id": "AR4", "source": "A1:output", "target": "A2:input", "label": "ResponsesApiRequest body", "type": "output" },
+
+    { "id": "AR5", "source": "A6:output", "target": "A2:control", "label": "predictedCacheMiss derived hit miss unknown", "type": "output" },
+    { "id": "AR6", "source": "EXTERNAL", "target": "A6:control", "label": "lastFinished tokens cache read evidence", "type": "control" },
+    { "id": "AR7", "source": "A6:output", "target": "A5:input", "label": "cache equilibrium detection event when locked", "type": "output" },
+
+    { "id": "AR8", "source": "EXTERNAL", "target": "A2:input", "label": "codex backend SSE frames", "type": "input" },
+    { "id": "AR9", "source": "EXTERNAL", "target": "A2:control", "label": "WS lifecycle events onclose onerror idle timeout", "type": "control" },
+    { "id": "AR10", "source": "EXTERNAL", "target": "A2:mechanism", "label": "WebSocket connection chatgpt codex responses endpoint", "type": "mechanism" },
+    { "id": "AR11", "source": "A2:output", "target": "A3:input", "label": "parsed SSE event stream", "type": "output" },
+    { "id": "AR12", "source": "A2:output", "target": "A4:input", "label": "TransportSnapshot wsFrameCount terminalEventReceived wsErrorReason", "type": "output" },
+
+    { "id": "AR13", "source": "EXTERNAL", "target": "A3:control", "label": "AI SDK LanguageModelV2 protocol contract", "type": "control" },
+    { "id": "AR14", "source": "A3:output", "target": "A4:input", "label": "streamStateSnapshot when flush detects empty turn", "type": "output" },
+    { "id": "AR15", "source": "A4:output", "target": "A3:control", "label": "classification drives finishReason and providerMetadata payload", "type": "output" },
+    { "id": "AR16", "source": "A3:output", "target": "A7:input", "label": "finish part with providerMetadata openai emptyTurnClassification", "type": "output" },
+
+    { "id": "AR17", "source": "EXTERNAL", "target": "A4:control", "label": "DD-9 cause-family table preserved", "type": "control" },
+    { "id": "AR18", "source": "EXTERNAL", "target": "A4:mechanism", "label": "empty-turn-classifier pure function", "type": "mechanism" },
+    { "id": "AR19", "source": "A4:output", "target": "A5:input", "label": "classification payload with wsErrorReason field", "type": "output" },
+
+    { "id": "AR20", "source": "EXTERNAL", "target": "A5:control", "label": "data-schema.json append-only contract", "type": "control" },
+    { "id": "AR21", "source": "EXTERNAL", "target": "A5:mechanism", "label": "empty-turn-log JSONL writer plus cache-equilibrium JSONL writer", "type": "mechanism" },
+    { "id": "AR22", "source": "A5:output", "target": "EXTERNAL", "label": "JSONL lines empty-turns plus cache-equilibrium", "type": "output" },
+
+    { "id": "AR23", "source": "EXTERNAL", "target": "A7:control", "label": "isModelTemporaryError patterns 5xx quota overload", "type": "control" },
+    { "id": "AR24", "source": "EXTERNAL", "target": "A7:mechanism", "label": "processor.ts catch block plus rotation3d findFallback", "type": "mechanism" },
+    { "id": "AR25", "source": "A7:output", "target": "EXTERNAL", "label": "rotation decision empty-turn classified rejects rotation; genuine errors still rotate", "type": "output" }
+  ]
+}

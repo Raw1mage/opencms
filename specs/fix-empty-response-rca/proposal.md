@@ -115,6 +115,41 @@ Preview, subject to designed-state refinement:
 - **D-4 (2026-05-07, accepted from proposal)** — **No SSDLC profile**. Engineering RCA, not regulated change. `.state.json.profile` stays `[]`. (Closes Open Question 4.)
 - **D-5 (2026-05-07, user)** — **One spec, phase-divided** by landmine in-scope set (L1, L2, L3+L4 paired, L7 separate). Sub-specs only get spawned if a phase grows past 8 tasks during designed-state work. (Closes Open Question 5.)
 - **D-6 (2026-05-07, user)** — **Pause spec at `proposed`; wait for production JSONL evidence before advancing to `designed`**. This **overrides D-3** ("don't block on production data, proceed by analytical severity"). Trigger for the override: code spikes on 2026-05-07 revealed that L4 and L7 are over-scoped (L4's UNKNOWN-no-promote guard at `rate-limit-judge.ts:39-52` is still holding; L7's `emptyRoundCount` already caps at 2 in `prompt.ts:1446-1467`). Without runtime data we cannot honestly prioritize among L1, L2, L3 either. Resume signal: user reports a new empty-response incident, OR codex-empty-turn-recovery hits its A6 24h soak threshold with concrete cluster patterns in `<state>/codex/empty-turns.jsonl`.
+- **D-7 (2026-05-07, user)** — **RESUME**. ses_204499eecffe2iUTzeXyiarlnq looped again ~30 min after the codex-empty-turn-ws-snapshot-hotfix daemon restart. Live JSONL evidence (logSeq 0/1/2) confirmed: hotfix works (wsFrameCount populated, ws_truncation correctly classified, retry-once-then-soft-fail mechanism + INV-08 cap both fired as designed), BUT the loop continues because the model re-plans from a degraded compaction equilibrium (cache_read locked at 36352 — same mechanism as the original 37888 lock, slightly different value). Plus L2 fired in real time: account rotated from `ivon0829` to `yeatsluo` mid-session after the WS truncation chain. Both L1 and L2 are now empirically proven, not just spike-inferred. Spec moves to designed-state with **L1 + L2 as the focus**; L3/L4/L7 stay deferred per existing Scope Refinement Backlog.
+
+## Live Recurrence Evidence (2026-05-07, post-hotfix)
+
+Session: `ses_204499eecffe2iUTzeXyiarlnq` (the same session that motivated codex-empty-turn-recovery).
+
+Hotfix verification (codex-empty-turn-recovery wiring works as designed):
+
+```
+logSeq 0  ivon0829  ws_truncation  wsFrameCount=3  retryAttempted=false
+logSeq 1  yeatsluo  ws_truncation  wsFrameCount=2  retryAttempted=false
+logSeq 2  yeatsluo  ws_truncation  wsFrameCount=2  retryAttempted=true  retryAlsoEmpty=true  previousLogSequence=1
+          → recoveryAction demoted to pass-through-to-runloop-nudge per INV-08
+```
+
+Loop continues anyway (DB row inspection of subsequent turns):
+
+| Turn | Account | tokens_input | cache_read | reasoning | finish |
+|---|---|---|---|---|---|
+| (latest) | yeatsluo | 0 | 0 | 0 | (empty) |
+| -1 | yeatsluo | 5999 | 36352 | 0 | tool-calls |
+| -2 | yeatsluo | 6062 | 36352 | 0 | tool-calls |
+| -3 | yeatsluo | 42447 | 0 | 0 | tool-calls |
+| -4 | yeatsluo | 21622 | 20992 | 0 | tool-calls |
+| -5 | yeatsluo | 20867 | 20992 | 0 | tool-calls |
+| -6 | (ROTATION) | 0 | 0 | 0 | unknown |
+| -7 | ivon0829 | 3142 | 38912 | 0 | tool-calls |
+| -8 | ivon0829 | 2769 | 38912 | 0 | tool-calls |
+
+Pattern: cache_read locks at 36352 (same mechanism as original 37888); reasoning sticky 0 (same as original); rotation triggered after empty turn (NEW evidence — was theoretical before).
+
+L4/L7 status from this session:
+
+- **L4**: rotation **did fire** mid-session (ivon0829 → yeatsluo). Open question for design phase: **what triggered it**? UNKNOWN-no-promote guard SHOULD have prevented unknown-finishReason from triggering rotation. Either there's another trigger path (retry-also-empty as a separate signal? quota threshold coincidence?), or the guard is bypassed somehow. **Spike before designing DD-2.**
+- **L7**: not the source of the loop in this session; emptyRoundCount cap at 2 is doing its job. The loop was driven by per-round empty turns, not within-round nudge recursion. L7 stays P3 observability work.
 
 ## Spike Findings (2026-05-07)
 

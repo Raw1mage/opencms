@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opencode.local/specs/fix-empty-response-rca/data-schema.json",
+  "title": "fix-empty-response-rca data contract extensions",
+  "description": "Extends specs/codex-empty-turn-recovery/data-schema.json with the wsErrorReason field on TransportSnapshot + log payload, plus a new metric for cache-equilibrium detection. All additions are backward-compatible: existing readers ignore the new field; schemaVersion stays at 1.",
+  "schemaVersion": 1,
+  "extends": "specs/codex-empty-turn-recovery/data-schema.json",
+
+  "definitions": {
+    "WsErrorReason": {
+      "title": "WsErrorReason",
+      "description": "When wsFrameCount is 0 and the empty turn was caused by a WS-layer event (onerror / onclose / first_frame_timeout), this string carries the verbatim reason. null for ws.onclose with frameCount > 0 (the original ws_truncation case where the close itself is the signal). Added by fix-empty-response-rca DD-2 / DD-5.",
+      "type": ["string", "null"],
+      "examples": [
+        "WebSocket error",
+        "WS closed before response",
+        "first_frame_timeout",
+        "mid_stream_stall",
+        "ECONNREFUSED",
+        "EAI_AGAIN"
+      ]
+    },
+
+    "EmptyTurnLogEntryExtension": {
+      "title": "Additive fields on the empty-turn log entry",
+      "description": "These fields extend the existing JSONL line shape from codex-empty-turn-recovery. Treat as optional in any reader.",
+      "type": "object",
+      "properties": {
+        "wsErrorReason": { "$ref": "#/definitions/WsErrorReason" }
+      },
+      "additionalProperties": true
+    },
+
+    "CacheEquilibriumDetectionEvent": {
+      "title": "Cache equilibrium detection (L1 observability)",
+      "description": "Emitted by the L1 fix when prompt.ts:derivePredictedCacheMiss observes the same cache.read value across N consecutive turns. Goes to a separate JSONL channel (does NOT pollute empty-turns.jsonl). Channel: <state>/codex/cache-equilibrium.jsonl. Bus channel: codex.cacheEquilibrium.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "timestamp",
+        "sessionId",
+        "accountId",
+        "lockedCacheRead",
+        "consecutiveTurns",
+        "lastFinishedMessageIds"
+      ],
+      "properties": {
+        "schemaVersion": { "type": "integer", "const": 1 },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "sessionId": { "type": "string", "pattern": "^ses_[A-Za-z0-9]+$" },
+        "accountId": { "type": ["string", "null"] },
+        "lockedCacheRead": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The cache.read value that has been observed identical across consecutive turns"
+        },
+        "consecutiveTurns": {
+          "type": "integer",
+          "minimum": 3,
+          "description": "How many consecutive turns observed the lockedCacheRead value (threshold for emission, default 3)"
+        },
+        "lastFinishedMessageIds": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^msg_[A-Za-z0-9]+$" },
+          "description": "Message IDs of the consecutive assistant turns that hit the lock — for forensic join with session DB"
+        },
+        "continuationInvalidatedAt": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "The session.execution.continuationInvalidatedAt timestamp at the moment of detection. Helps confirm DD-1 hypothesis about sticky behavior."
+        }
+      }
+    }
+  },
+
+  "operatorQueries": {
+    "M8": {
+      "name": "Cache equilibrium incidents per session",
+      "description": "How often a session hit the L1 stable-equilibrium pattern in the rolling window",
+      "command": "jq -s 'group_by(.sessionId) | map({sessionId: .[0].sessionId, count: length, maxConsecutive: max_by(.consecutiveTurns).consecutiveTurns}) | sort_by(.count) | reverse' < ${XDG_STATE_HOME}/opencode/codex/cache-equilibrium.jsonl"
+    },
+    "M9": {
+      "name": "Rotation events caused by empty turns (BEFORE fix; should be 0 AFTER)",
+      "description": "Joins empty-turns.jsonl with rotation log; counts rotations within 60s of an empty-turn classification. Operator-side join; no new instrumentation needed.",
+      "command": "# After Phase 1 deploys, this should show 0 rotation events tagged within 60s of any empty-turn JSONL line. Operators use it as the regression watchdog."
+    },
+    "M10": {
+      "name": "wsErrorReason cluster (DD-5)",
+      "description": "Distribution of WS error reasons; identifies which network-level failures are most common",
+      "command": "jq -r 'select(.wsErrorReason != null) | .wsErrorReason' < ${XDG_STATE_HOME}/opencode/codex/empty-turns.jsonl | sort | uniq -c | sort -rn"
+    }
+  }
+}

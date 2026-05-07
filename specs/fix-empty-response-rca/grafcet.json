@@ -1,0 +1,140 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A0",
+    "StepType": "initial",
+    "StepAction": "Idle; provider awaiting next codex doStream call",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["doStream invoked from runloop"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A6",
+    "StepType": "normal",
+    "StepAction": "DD-1: derivePredictedCacheMiss(sessionExec, lastFinished) returns hit/miss/unknown based on observable cache.read; sticky continuationInvalidatedAt no longer forces miss when cache evidence is alive",
+    "LinkInputType": "track",
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["predictedCacheMiss derived; (parallel) cache-equilibrium-detector observation step"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "WS streaming via transport-ws.ts wsRequest; observes frames; mutates wsObs (frameCount, terminalEventReceived, wsCloseCode, wsCloseReason, wsErrorReason); SSE pipeline consumes frames in parallel emitting LMv2 parts",
+    "LinkInputType": "track",
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3, 8],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "stream_ended AND emittedTextDeltas == 0 AND emittedToolCalls == 0",
+      "stream_ended AND (emittedTextDeltas > 0 OR emittedToolCalls > 0)"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Classify empty turn; predicate ladder selects causeFamily and recoveryAction; ws_no_frames now covers both clean close-without-frames and onerror-without-frames cases (wsErrorReason discriminates)",
+    "LinkInputType": "track",
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["classification complete with wsErrorReason field threaded into payload"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Persist forensic evidence: empty-turn-log appends JSONL line including wsErrorReason field; non-blocking on file write failure (CET-001 breadcrumb)",
+    "LinkInputType": "track",
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["log dispatch attempted"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Apply recovery action selected by classifier; INV-08 retry cap demotion holds",
+    "LinkInputType": "track",
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [6, 7],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "recoveryAction == retry-once-then-soft-fail AND retryAttempted == false",
+      "recoveryAction IN {pass-through-to-runloop-nudge, log-and-continue, synthesize-from-deltas} OR retryAttempted == true"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Retry attempt 2: WS reopens with same body; flip retryAttempted=true; cap held at 1 by INV-08",
+    "LinkInputType": "track",
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["WS reopened body resent"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Emit finish part with finishReason + providerMetadata.openai.emptyTurnClassification; no exception ever leaves codex provider package (INV-01 preserved; DD-2 closes the leak that violated it)",
+    "LinkInputType": "track",
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [9],
+    "LinkOutputType": "track",
+    "Condition": ["finish_with_classification_emitted"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 8,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Normal completion: emit finish part with finishReason in {stop, tool-calls, length}; classifier was NOT invoked; no providerMetadata.emptyTurnClassification attached",
+    "LinkInputType": "track",
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [9],
+    "LinkOutputType": "track",
+    "Condition": ["normal_finish_emitted"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 9,
+    "ModuleRef": "A7",
+    "StepType": "normal",
+    "StepAction": "DD-3: processor.ts catch / isModelTemporaryError reads providerMetadata.openai.emptyTurnClassification.causeFamily as opaque metadata; if present, returns false so handleRateLimitFallback is NOT invoked; else existing pattern matching continues for genuine 5xx/quota/overload",
+    "LinkInputType": "convergence_or",
+    "LinkInputNumber": [7, 8],
+    "LinkOutputNumber": [10],
+    "LinkOutputType": "track",
+    "Condition": ["rotation gate evaluated"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 10,
+    "ModuleRef": "A0",
+    "StepType": "normal",
+    "StepAction": "Cycle complete; runloop processes nudge or normal finish; provider returns to idle",
+    "LinkInputType": "track",
+    "LinkInputNumber": [9],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["session ready for next turn"],
+    "SubGrafcet": []
+  }
+]

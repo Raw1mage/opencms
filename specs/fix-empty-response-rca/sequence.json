@@ -1,0 +1,64 @@
+[
+  {
+    "id": "P1",
+    "name": "L2 throw-leak closure (DD-2): ws.onerror frameCount=0 routes through classifier",
+    "description": "Pre-fix: ws.onerror fires before any frame, transport-ws.ts calls endWithError, processor.ts catches as temporary, rotation fires. Post-fix: ws.onerror sets wsErrorReason and calls endStream; SSE flush classifies as ws_no_frames + retry; soft-fail; finish emitted; processor.ts sees emptyTurnClassification metadata and returns false from isModelTemporaryError; no rotation.",
+    "participants": [
+      { "id": "C1", "name": "transport-ws.ts wsRequest", "componentRef": "C1" },
+      { "id": "C2", "name": "empty-turn-classifier", "componentRef": "C2" },
+      { "id": "C3", "name": "empty-turn-log", "componentRef": "C3" },
+      { "id": "C8", "name": "empty-turns.jsonl", "componentRef": "C8" },
+      { "id": "C7", "name": "processor.ts catch block", "componentRef": "C7" },
+      { "id": "C6", "name": "processor.ts isModelTemporaryError", "componentRef": "C6" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "C1", "to": "C1", "label": "ws.onerror fires; wsObs.frameCount === 0", "componentRef": "C1" },
+      { "id": "MSG2", "from": "C1", "to": "C1", "label": "POST-FIX: wsObs.wsErrorReason = 'WebSocket error'; endStream() (NOT endWithError)", "componentRef": "C1" },
+      { "id": "MSG3", "from": "C1", "to": "C2", "label": "getSnapshot() returns TransportSnapshot { wsFrameCount: 0, wsErrorReason: 'WebSocket error', ... }", "componentRef": "C2" },
+      { "id": "MSG4", "from": "C2", "to": "C2", "label": "predicate ladder: ws_no_frames + retry-once-then-soft-fail", "componentRef": "C2" },
+      { "id": "MSG5", "from": "C2", "to": "C3", "label": "appendEmptyTurnLog with wsErrorReason field", "componentRef": "C3" },
+      { "id": "MSG6", "from": "C3", "to": "C8", "label": "JSONL line written", "componentRef": "C8" },
+      { "id": "MSG7", "from": "C2", "to": "C7", "label": "finish part with providerMetadata.openai.emptyTurnClassification (no exception)", "componentRef": "C7" },
+      { "id": "MSG8", "from": "C7", "to": "C6", "label": "isModelTemporaryError(error, lastFinish)", "componentRef": "C6" },
+      { "id": "MSG9", "from": "C6", "to": "C7", "label": "POST-FIX: returns false (causeFamily='ws_no_frames' detected); no rotation", "componentRef": "C7" }
+    ]
+  },
+  {
+    "id": "P2",
+    "name": "L1 cache-equilibrium break (DD-1): predictedCacheMiss derives from observable cache state",
+    "description": "Pre-fix: continuationInvalidatedAt sticky → predictedCacheMiss='miss' every turn → cache-aware compaction every turn → 36352 lock. Post-fix: derivePredictedCacheMiss checks lastFinished.tokens.cache.read; if non-zero, returns 'hit'; cache-aware compaction skips this turn; codex sees a different prefix; lock breaks.",
+    "participants": [
+      { "id": "C4", "name": "session/prompt.ts derivePredictedCacheMiss", "componentRef": "C4" },
+      { "id": "C5", "name": "cache-equilibrium-detector", "componentRef": "C5" },
+      { "id": "C9", "name": "cache-equilibrium.jsonl", "componentRef": "C9" },
+      { "id": "EXT1", "name": "compaction trigger gate (prompt.ts:468-471)" },
+      { "id": "EXT2", "name": "codex backend" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "EXT1", "to": "C4", "label": "derivePredictedCacheMiss(sessionExec, lastFinished)", "componentRef": "C4" },
+      { "id": "MSG2", "from": "C4", "to": "C4", "label": "POST-FIX: continuationInvalidatedAt set BUT lastFinished.tokens.cache.read > 0 → return 'hit'", "componentRef": "C4" },
+      { "id": "MSG3", "from": "C4", "to": "EXT1", "label": "predictedCacheMiss = 'hit'", "componentRef": "C4" },
+      { "id": "MSG4", "from": "EXT1", "to": "EXT1", "label": "cache-aware compaction GATE NOT FIRED this turn (was firing every turn pre-fix)", "componentRef": "C4" },
+      { "id": "MSG5", "from": "EXT1", "to": "EXT2", "label": "request body sent (NOT pre-emptively compacted)", "componentRef": "EXT2" },
+      { "id": "MSG6", "from": "EXT2", "to": "EXT1", "label": "response with cache.read = newValue (different from previous lock)", "componentRef": "EXT1" },
+      { "id": "MSG7", "from": "C4", "to": "C5", "label": "(parallel) cache-equilibrium-detector observes cache.read value sequence", "componentRef": "C5" },
+      { "id": "MSG8", "from": "C5", "to": "C9", "label": "if N consecutive identical values, emit CacheEquilibriumDetectionEvent (forensic; should be RARE post-fix)", "componentRef": "C9" }
+    ]
+  },
+  {
+    "id": "P3",
+    "name": "Pre-fix vs post-fix comparison (ses_204499 replay)",
+    "description": "Same input session through pre-fix vs post-fix code paths. Pre-fix: WS truncation → throw → rotation → cold prefix on new account → loop. Post-fix: WS truncation → soft-fail with metadata → no rotation → same account stays → next turn has chance to make progress.",
+    "participants": [
+      { "id": "PRE", "name": "Pre-fix runloop" },
+      { "id": "POST", "name": "Post-fix runloop" },
+      { "id": "OP", "name": "Operator JSONL view" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "PRE", "to": "PRE", "label": "ws.onerror frame=0 → throw → processor.ts catches → isModelTemporaryError true → rotate → cold prefix → repeat", "componentRef": "C1" },
+      { "id": "MSG2", "from": "POST", "to": "POST", "label": "ws.onerror frame=0 → wsErrorReason set + endStream → classifier → soft-fail finish → isModelTemporaryError false → no rotate → same account next turn", "componentRef": "C6" },
+      { "id": "MSG3", "from": "POST", "to": "OP", "label": "JSONL line: causeFamily=ws_no_frames, wsErrorReason='WebSocket error', logSequence increments — operator sees the cluster live but no rotation noise" },
+      { "id": "MSG4", "from": "POST", "to": "OP", "label": "rotation log: zero new entries within 60s of empty-turn JSONL line (M9 metric, regression watchdog)" }
+    ]
+  }
+]

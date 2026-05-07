@@ -1,0 +1,103 @@
+{
+  "diagram_title": "fix-empty-response-rca C4 Component View (Phase 1: L1 + L2)",
+  "level": "component",
+  "systems": [
+    {
+      "id": "SYS1",
+      "name": "opencode",
+      "description": "Bundle that includes the codex provider package and the runloop. This spec patches both."
+    }
+  ],
+  "containers": [
+    {
+      "id": "CT1",
+      "systemRef": "SYS1",
+      "name": "codex provider package (packages/opencode-codex-provider)",
+      "description": "DD-2 patches transport-ws.ts throw sites + adds wsErrorReason field"
+    },
+    {
+      "id": "CT2",
+      "systemRef": "SYS1",
+      "name": "opencode runtime (packages/opencode)",
+      "description": "DD-1 patches session/prompt.ts compaction trigger; DD-3 patches session/processor.ts rotation guard"
+    },
+    {
+      "id": "CT3",
+      "systemRef": "SYS1",
+      "name": "filesystem state",
+      "description": "<state>/codex/empty-turns.jsonl (existing) gets new wsErrorReason field; <state>/codex/cache-equilibrium.jsonl (NEW) gets L1 detection events"
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "containerRef": "CT1",
+      "name": "transport-ws.ts wsRequest + getSnapshot",
+      "description": "DD-2: ws.onerror frameCount=0 + ws.onclose frameCount=0 + first_frame_timeout no longer call endWithError; instead set wsObs.wsErrorReason and call endStream(). DD-5: TransportSnapshot gains wsErrorReason field.",
+      "moduleRef": "A2"
+    },
+    {
+      "id": "C2",
+      "containerRef": "CT1",
+      "name": "empty-turn-classifier.ts",
+      "description": "Already has ws_no_frames predicate; no enum change. Reads new wsErrorReason from snapshot, threads it into log payload via buildClassificationPayload (no behavioral change).",
+      "moduleRef": "A4"
+    },
+    {
+      "id": "C3",
+      "containerRef": "CT1",
+      "name": "empty-turn-log.ts",
+      "description": "Receives wsErrorReason in the payload; appends to JSONL transparently. No code change required (data-schema.json change is additive).",
+      "moduleRef": "A5"
+    },
+    {
+      "id": "C4",
+      "containerRef": "CT2",
+      "name": "session/prompt.ts derivePredictedCacheMiss (NEW helper)",
+      "description": "DD-1: replaces the inline `continuationInvalidatedAt ? \"miss\" : \"unknown\"` ternary with a stateful helper that returns hit/miss/unknown based on lastFinished.tokens.cache.read",
+      "moduleRef": "A6"
+    },
+    {
+      "id": "C5",
+      "containerRef": "CT2",
+      "name": "session/prompt.ts cache-equilibrium-detector (NEW)",
+      "description": "Tracks the last N cache.read values per session; emits CacheEquilibriumDetectionEvent (data-schema.json) when N consecutive values are identical. JSONL channel <state>/codex/cache-equilibrium.jsonl + Bus channel codex.cacheEquilibrium.",
+      "moduleRef": "A6"
+    },
+    {
+      "id": "C6",
+      "containerRef": "CT2",
+      "name": "session/processor.ts isModelTemporaryError (PATCHED)",
+      "description": "DD-3: reads opaque providerMetadata.openai.emptyTurnClassification.causeFamily; if present, returns false (this is a classified empty turn, not a rotation-worthy error). Boundary discipline: no codex-provider type imports.",
+      "moduleRef": "A7"
+    },
+    {
+      "id": "C7",
+      "containerRef": "CT2",
+      "name": "session/processor.ts catch block (caller of isModelTemporaryError)",
+      "description": "Already collects the most recent assistant message; threads its providerMetadata into the isModelTemporaryError call. Minimal change.",
+      "moduleRef": "A7"
+    },
+    {
+      "id": "C8",
+      "containerRef": "CT3",
+      "name": "empty-turns.jsonl",
+      "description": "Existing file; gains optional wsErrorReason field on entries where ws-layer originated the empty turn"
+    },
+    {
+      "id": "C9",
+      "containerRef": "CT3",
+      "name": "cache-equilibrium.jsonl (NEW)",
+      "description": "New JSONL channel for L1 detection events. Operator query M8 reads from this. Append-only; same lifecycle conventions as empty-turns.jsonl."
+    }
+  ],
+  "relationships": [
+    { "from": "C1", "to": "C2", "description": "TransportSnapshot.wsErrorReason flows into classifier snapshot" },
+    { "from": "C2", "to": "C3", "description": "log payload includes wsErrorReason (additive)" },
+    { "from": "C3", "to": "C8", "description": "JSONL line written with new field" },
+    { "from": "C4", "to": "C5", "description": "cache-equilibrium-detector observes the values that derivePredictedCacheMiss reads, emits when locked" },
+    { "from": "C5", "to": "C9", "description": "JSONL append + Bus publish" },
+    { "from": "C7", "to": "C6", "description": "passes lastFinish.providerMetadata to isModelTemporaryError" },
+    { "from": "C2", "to": "C6", "description": "(indirect) classifier output flows through finish part to runloop, where C6 reads it" }
+  ]
+}
