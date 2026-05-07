@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="946" height="1900" viewBox="-2.00 -2.00 47.29 95.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="-2.00" y="-2.00" width="47.29" height="95.00" fill="white"/>
+<path class="edge" d="M 21.43 7.00 L 21.43 9.00"/>
+<path class="edge edge-arrow" d="M 21.43 9.00 L 21.43 11.00"/>
+<path class="edge" d="M 21.43 14.00 L 21.43 16.00"/>
+<path class="edge edge-arrow" d="M 21.43 16.00 L 21.43 18.00"/>
+<path class="edge" d="M 21.43 21.00 L 21.43 23.00"/>
+<path class="edge edge-arrow" d="M 21.43 23.00 L 21.43 25.00"/>
+<path class="edge" d="M 21.43 28.00 L 21.43 30.00"/>
+<path class="edge edge-arrow" d="M 21.43 30.00 L 21.43 32.00"/>
+<path class="edge" d="M 21.43 35.00 L 21.43 37.00"/>
+<path class="edge edge-arrow" d="M 21.43 37.00 L 21.43 39.00"/>
+<path class="edge" d="M 21.43 42.00 L 21.43 44.00"/>
+<path class="edge edge-arrow" d="M 21.43 44.00 L 21.43 46.00"/>
+<path class="edge edge-arrow" d="M 21.43 49.00 L 21.43 51.00"/>
+<path class="edge edge-arrow" d="M 10.00 51.00 L 10.00 55.00"/>
+<path class="edge edge-arrow" d="M 21.43 51.00 L 21.43 55.00"/>
+<path class="edge edge-arrow" d="M 10.00 58.00 L 10.00 62.00"/>
+<path class="edge edge-arrow" d="M 21.43 62.00 L 21.43 64.00"/>
+<path class="edge edge-arrow" d="M 21.43 58.00 L 21.43 62.00"/>
+<path class="edge edge-arrow" d="M 21.43 67.00 L 21.43 69.00"/>
+<path class="edge edge-arrow" d="M 10.00 69.00 L 10.00 73.00"/>
+<path class="edge edge-arrow" d="M 21.43 69.00 L 21.43 73.00"/>
+<path class="edge edge-arrow" d="M 32.86 69.00 L 32.86 73.00"/>
+<path class="edge edge-arrow" d="M 10.00 76.00 L 10.00 80.00"/>
+<path class="edge edge-arrow" d="M 21.43 80.00 L 21.43 82.00"/>
+<path class="edge edge-arrow" d="M 21.43 76.00 L 21.43 80.00"/>
+<path class="edge" d="M 21.43 85.00 L 21.43 87.00"/>
+<path class="edge edge-arrow" d="M 21.43 87.00 L 21.43 88.50 Q 21.43 89.00 20.93 89.00 L 2.50 89.00 Q 2.00 89.00 2.00 88.50 L 2.00 2.50 Q 2.00 2.00 2.50 2.00 L 20.93 2.00 Q 21.43 2.00 21.43 2.50 L 21.43 4.00"/>
+<path class="edge edge-arrow" d="M 32.86 76.00 L 32.86 80.00"/>
+<rect class="step" x="19.43" y="4.00" width="4.00" height="3.00"/>
+<rect class="step-inner" x="19.68" y="4.25" width="3.50" height="2.50"/>
+<text class="label" x="21.43" y="5.50">0</text>
+<rect class="step" x="19.43" y="11.00" width="4.00" height="3.00"/>
+<text class="label" x="21.43" y="12.50">1</text>
+<rect class="step" x="19.43" y="18.00" width="4.00" height="3.00"/>
+<text class="label" x="21.43" y="19.50">2</text>
+<rect class="step" x="19.43" y="25.00" width="4.00" height="3.00"/>
+<text class="label" x="21.43" y="26.50">3</text>
+<rect class="step" x="19.43" y="32.00" width="4.00" height="3.00"/>
+<text class="label" x="21.43" y="33.50">4</text>
+<rect class="step" x="19.43" y="39.00" width="4.00" height="3.00"/>
+<text class="label" x="21.43" y="40.50">5</text>
+<rect class="step" x="19.43" y="46.00" width="4.00" height="3.00"/>
+<text class="label" x="21.43" y="47.50">6</text>
+<rect class="step" x="8.00" y="55.00" width="4.00" height="3.00"/>
+<text class="label" x="10.00" y="56.50">7</text>
+<rect class="step" x="19.43" y="55.00" width="4.00" height="3.00"/>
+<text class="label" x="21.43" y="56.50">8</text>
+<rect class="step" x="19.43" y="64.00" width="4.00" height="3.00"/>
+<text class="label" x="21.43" y="65.50">9</text>
+<rect class="step" x="8.00" y="73.00" width="4.00" height="3.00"/>
+<text class="label" x="10.00" y="74.50">10</text>
+<rect class="step" x="19.43" y="73.00" width="4.00" height="3.00"/>
+<text class="label" x="21.43" y="74.50">11</text>
+<rect class="step" x="19.43" y="82.00" width="4.00" height="3.00"/>
+<text class="label" x="21.43" y="83.50">12</text>
+<rect class="step" x="30.86" y="73.00" width="4.00" height="3.00"/>
+<text class="label" x="32.86" y="74.50">13</text>
+<line class="assoc" x1="23.43" y1="5.50" x2="24.43" y2="5.50"/>
+<rect class="action" x="24.43" y="4.07" width="5.43" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="27.14" y="5.50"><tspan x="27.14" dy="0">閒置無inflight</tspan></text>
+<line class="assoc" x1="23.43" y1="12.50" x2="24.43" y2="12.50"/>
+<rect class="action" x="24.43" y="11.07" width="5.43" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="27.14" y="12.09"><tspan x="27.14" dy="0">解析family透過</tspan><tspan x="27.14" dy="0.82">assertfamilykey</tspan></text>
+<line class="assoc" x1="23.43" y1="19.50" x2="24.43" y2="19.50"/>
+<rect class="action" x="24.43" y="18.07" width="5.43" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="27.14" y="19.09"><tspan x="27.14" dy="0">select帳號透過</tspan><tspan x="27.14" dy="0.82">驗證gettwoarg</tspan></text>
+<line class="assoc" x1="23.43" y1="26.50" x2="24.43" y2="26.50"/>
+<rect class="action" x="24.43" y="25.07" width="5.43" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="27.14" y="25.68"><tspan x="27.14" dy="0">instantiatesdk透</tspan><tspan x="27.14" dy="0.82">過getSDK famil</tspan><tspan x="27.14" dy="0.82">y帳號id模型</tspan></text>
+<line class="assoc" x1="23.43" y1="33.50" x2="24.43" y2="33.50"/>
+<rect class="action" x="24.43" y="32.07" width="5.43" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="27.14" y="33.09"><tspan x="27.14" dy="0">建置headers建置h</tspan><tspan x="27.14" dy="0.82">eaders或組裝betas</tspan></text>
+<line class="assoc" x1="23.43" y1="40.50" x2="24.43" y2="40.50"/>
+<rect class="action" x="24.43" y="39.07" width="5.43" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="27.14" y="39.68"><tspan x="27.14" dy="0">transformpayl</tspan><tspan x="27.14" dy="0.82">oadapplycachin</tspan><tspan x="27.14" dy="0.82">g或skipnative</tspan></text>
+<line class="assoc" x1="23.43" y1="47.50" x2="24.43" y2="47.50"/>
+<rect class="action" x="24.43" y="46.07" width="5.43" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="27.14" y="47.09"><tspan x="27.14" dy="0">choosetransp</tspan><tspan x="27.14" dy="0.82">ortws或http</tspan></text>
+<line class="assoc" x1="12.00" y1="56.50" x2="13.00" y2="56.50"/>
+<rect class="action" x="13.00" y="55.07" width="5.43" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="15.71" y="55.68"><tspan x="15.71" dy="0">派發透過websock</tspan><tspan x="15.71" dy="0.82">etupgraderesponses</tspan><tspan x="15.71" dy="0.82">websockets20260206</tspan></text>
+<line class="assoc" x1="23.43" y1="56.50" x2="24.43" y2="56.50"/>
+<rect class="action" x="24.43" y="55.07" width="5.43" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="27.14" y="56.09"><tspan x="27.14" dy="0">派發透過httppos</tspan><tspan x="27.14" dy="0.82">t文字事件串流</tspan></text>
+<line class="assoc" x1="23.43" y1="65.50" x2="24.43" y2="65.50"/>
+<rect class="action" x="24.43" y="64.07" width="5.43" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="27.14" y="65.09"><tspan x="27.14" dy="0">串流分塊c</tspan><tspan x="27.14" dy="0.82">lassify錯誤</tspan></text>
+<line class="assoc" x1="12.00" y1="74.50" x2="13.00" y2="74.50"/>
+<rect class="action" x="13.00" y="73.07" width="5.43" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="15.71" y="74.09"><tspan x="15.71" dy="0">更新tokenusage與</tspan><tspan x="15.71" dy="0.82">ratelimittelemetry</tspan></text>
+<line class="assoc" x1="23.43" y1="74.50" x2="24.43" y2="74.50"/>
+<rect class="action" x="24.43" y="73.07" width="5.43" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="27.14" y="74.09"><tspan x="27.14" dy="0">rotate帳號或bac</tspan><tspan x="27.14" dy="0.82">koff透過輪替3d</tspan></text>
+<line class="assoc" x1="23.43" y1="83.50" x2="24.43" y2="83.50"/>
+<rect class="action" x="24.43" y="82.07" width="5.43" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="27.14" y="83.09"><tspan x="27.14" dy="0">返回到閒置</tspan><tspan x="27.14" dy="0.82">releaseinflight</tspan></text>
+<line class="assoc" x1="34.86" y1="74.50" x2="35.86" y2="74.50"/>
+<rect class="action" x="35.86" y="73.07" width="5.43" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="38.58" y="73.68"><tspan x="38.58" dy="0">發出延續inv</tspan><tspan x="38.58" dy="0.82">alidatedbus事</tspan><tspan x="38.58" dy="0.82">件與evict快取</tspan></text>
+<line class="gate" x1="20.43" y1="9.00" x2="22.43" y2="9.00"/>
+<text class="gate-label" x="22.83" y="9.00"><tspan x="22.83" dy="0">請求已收到</tspan></text>
+<line class="gate" x1="20.43" y1="16.00" x2="22.43" y2="16.00"/>
+<text class="gate-label" x="22.83" y="16.00"><tspan x="22.83" dy="0">family在knownfamilies</tspan></text>
+<line class="gate" x1="20.43" y1="23.00" x2="22.43" y2="23.00"/>
+<text class="gate-label" x="22.83" y="23.00"><tspan x="22.83" dy="0">帳號idpresent與active</tspan></text>
+<line class="gate" x1="20.43" y1="30.00" x2="22.43" y2="30.00"/>
+<text class="gate-label" x="22.83" y="30.00"><tspan x="22.83" dy="0">sdkclient就緒</tspan></text>
+<line class="gate" x1="20.43" y1="37.00" x2="22.43" y2="37.00"/>
+<text class="gate-label" x="22.83" y="37.00"><tspan x="22.83" dy="0">headersfinalized</tspan></text>
+<line class="gate" x1="20.43" y1="44.00" x2="22.43" y2="44.00"/>
+<text class="gate-label" x="22.83" y="44.00"><tspan x="22.83" dy="0">payloadtransform完成</tspan></text>
+<line class="gate" x1="6.00" y1="51.00" x2="25.43" y2="51.00"/>
+<line class="gate" x1="8.00" y1="62.00" x2="23.43" y2="62.00"/>
+<line class="gate" x1="6.00" y1="69.00" x2="36.86" y2="69.00"/>
+<line class="gate" x1="8.00" y1="80.00" x2="34.86" y2="80.00"/>
+<line class="gate" x1="20.43" y1="87.00" x2="22.43" y2="87.00"/>
+<text class="gate-label" x="22.83" y="87.00"><tspan x="22.83" dy="0">1</tspan></text>
+<line class="gate" x1="9.00" y1="53.00" x2="11.00" y2="53.00"/>
+<text class="gate-label-left" x="8.60" y="52.32"><tspan x="8.60" dy="0">ws已啟用</tspan><tspan x="8.60" dy="0.68">與不stick</tspan><tspan x="8.60" dy="0.68">yfallback</tspan></text>
+<line class="gate" x1="20.43" y1="53.00" x2="22.43" y2="53.00"/>
+<text class="gate-label-left" x="20.03" y="53.00"><tspan x="20.03" dy="0">http或wsstickyfallback</tspan></text>
+<line class="gate" x1="9.00" y1="60.00" x2="11.00" y2="60.00"/>
+<text class="gate-label-left" x="8.60" y="60.00"><tspan x="8.60" dy="0">wshandshakeok</tspan></text>
+<line class="gate" x1="20.43" y1="60.00" x2="22.43" y2="60.00"/>
+<text class="gate-label-left" x="20.03" y="60.00"><tspan x="20.03" dy="0">http回應opened</tspan></text>
+<line class="gate" x1="9.00" y1="71.00" x2="11.00" y2="71.00"/>
+<text class="gate-label" x="11.40" y="71.00"><tspan x="11.40" dy="0">分塊completionframe</tspan></text>
+<line class="gate" x1="20.43" y1="71.00" x2="22.43" y2="71.00"/>
+<text class="gate-label" x="22.83" y="71.00"><tspan x="22.83" dy="0">ratelimit或配額hit</tspan></text>
+<line class="gate" x1="31.86" y1="71.00" x2="33.86" y2="71.00"/>
+<text class="gate-label" x="34.26" y="71.00"><tspan x="34.26" dy="0">延續invalidated或4xx5xx</tspan></text>
+<line class="gate" x1="9.00" y1="78.00" x2="11.00" y2="78.00"/>
+<text class="gate-label" x="11.40" y="78.00"><tspan x="11.40" dy="0">telemetrycommitted</tspan></text>
+<line class="gate" x1="20.43" y1="78.00" x2="22.43" y2="78.00"/>
+<text class="gate-label" x="22.83" y="78.00"><tspan x="22.83" dy="0">candidatepoolexhausted或backoffdone</tspan></text>
+<line class="gate" x1="31.86" y1="78.00" x2="33.86" y2="78.00"/>
+<text class="gate-label" x="34.26" y="78.00"><tspan x="34.26" dy="0">bus事件emitted與快取evicted</tspan></text>
+</svg>
