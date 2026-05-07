@@ -1,29 +1,33 @@
 {
-  "model": "codex-empty-turn-ws-snapshot-hotfix",
-  "nodes": [
-    {
-      "id": "A0",
-      "name": "Restore WS empty-turn evidence classification",
-      "inputs": ["WS observation", "empty-turn stream flush"],
-      "controls": ["codex-empty-turn-recovery DD-9", "append-only JSONL policy"],
-      "outputs": ["classified JSONL evidence", "finish metadata"],
-      "mechanisms": ["transport-ws.ts", "sse.ts", "empty-turn-classifier.ts"]
-    },
+  "diagram_title": "Restore WS Empty-Turn Evidence Classification",
+  "node_reference": "A0",
+  "activities": [
     {
       "id": "A1",
-      "name": "Normalize WS snapshot contract",
-      "inputs": ["frameCount"],
-      "controls": ["MapResponseStreamOptions.getTransportSnapshot contract"],
-      "outputs": ["wsFrameCount"],
-      "mechanisms": ["transport-ws.ts getSnapshot"]
+      "title": "Normalize WS Snapshot Contract",
+      "description": "transport-ws.ts:getSnapshot() returns explicit wsFrameCount + other boundary fields, replacing the {...wsObs} spread that exported the internal frameCount name and broke downstream consumers",
+      "decomposition": null
     },
     {
       "id": "A2",
-      "name": "Classify empty turn",
-      "inputs": ["wsFrameCount", "terminalEventReceived", "deltasObserved"],
-      "controls": ["DD-9 cause-family table"],
-      "outputs": ["ws_truncation or ws_no_frames"],
-      "mechanisms": ["empty-turn-classifier.ts"]
+      "title": "Classify Empty Turn From Normalized Snapshot",
+      "description": "sse.ts flush block reads transportSnapshot.wsFrameCount and feeds the classifier; classifier predicate ladder per DD-9 selects ws_truncation or ws_no_frames based on the now-present numeric value",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Persist Classified Evidence",
+      "description": "empty-turn-log.ts appends a JSONL line containing wsFrameCount; subsequent operator queries can distinguish ws_truncation vs ws_no_frames vs unclassified",
+      "decomposition": null
     }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "wsObs.frameCount (internal)", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A1:control", "label": "TransportSnapshot interface (DD-1)", "type": "control" },
+    { "id": "AR3", "source": "A1:output", "target": "A2:input", "label": "wsFrameCount (boundary)", "type": "output" },
+    { "id": "AR4", "source": "EXTERNAL", "target": "A2:control", "label": "DD-9 cause-family table", "type": "control" },
+    { "id": "AR5", "source": "A2:output", "target": "A3:input", "label": "{causeFamily, wsFrameCount, ...} log payload", "type": "output" },
+    { "id": "AR6", "source": "EXTERNAL", "target": "A3:control", "label": "data-schema.json append-only policy", "type": "control" },
+    { "id": "AR7", "source": "A3:output", "target": "EXTERNAL", "label": "JSONL line with wsFrameCount + classified causeFamily", "type": "output" }
   ]
 }

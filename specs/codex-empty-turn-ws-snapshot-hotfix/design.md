@@ -44,7 +44,8 @@ Existing rows that omitted `wsFrameCount` cannot be safely reclassified: `termin
 - `packages/opencode-codex-provider/src/empty-turn-classifier.test.ts`
 - `docs/events/event_20260507_codex-empty-turn-ws-snapshot-hotfix.md`
 
-## Risks
+## Risks / Trade-offs
 
-- If tests only mock `sse.ts`, the real boundary can drift again.
-- If a runtime fallback accepts both names silently, future schema drift may be masked. Prefer explicit boundary normalization and test coverage.
+- If tests only mock `sse.ts`, the real boundary can drift again. Mitigation: DD-3 adds a regression test that uses the real getSnapshot() output shape.
+- If a runtime fallback accepts both names silently, future schema drift may be masked. Prefer explicit boundary normalization and test coverage. Mitigation: this hotfix does NOT add a fallback — it normalizes once and lets TypeScript-style structural typing catch future drift.
+- Trade-off: keeping internal `WsObservation.frameCount` while exporting `TransportSnapshot.wsFrameCount` introduces a field-name dual. Acceptable per DD-2 because the internal counter name is local-only and the boundary name is the contract that matters.

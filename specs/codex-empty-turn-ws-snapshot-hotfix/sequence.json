@@ -1,23 +1,37 @@
-{
-  "scenarios": [
-    {
-      "id": "P1",
-      "name": "WS truncation classified after snapshot normalization",
-      "messages": [
-        {
-          "id": "MSG1",
-          "from": "transport-ws.ts",
-          "to": "sse.ts",
-          "body": "getTransportSnapshot() returns wsFrameCount"
-        },
-        {
-          "id": "MSG2",
-          "from": "sse.ts",
-          "to": "empty-turn-classifier.ts",
-          "body": "classifyEmptyTurn({ wsFrameCount, terminalEventReceived:false })"
-        },
-        { "id": "MSG3", "from": "sse.ts", "to": "empty-turns.jsonl", "body": "append classified evidence" }
-      ]
-    }
-  ]
-}
+[
+  {
+    "id": "P1",
+    "name": "WS truncation classified after snapshot normalization",
+    "description": "Stream ends without terminal event; transport-ws.ts:getSnapshot() returns wsFrameCount; classifier picks ws_truncation; JSONL line includes wsFrameCount.",
+    "participants": [
+      { "id": "C1", "name": "transport-ws.ts", "componentRef": "C1" },
+      { "id": "C2", "name": "sse.ts flush", "componentRef": "C2" },
+      { "id": "C3", "name": "empty-turn-classifier", "componentRef": "C3" },
+      { "id": "C4", "name": "empty-turn-log", "componentRef": "C4" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "C1", "to": "C2", "label": "getTransportSnapshot() → { wsFrameCount: 2, terminalEventReceived: false, ... }", "componentRef": "C2" },
+      { "id": "MSG2", "from": "C2", "to": "C3", "label": "classifyEmptyTurn({ wsFrameCount: 2, terminalEventReceived: false, ... })", "componentRef": "C3" },
+      { "id": "MSG3", "from": "C3", "to": "C2", "label": "{ causeFamily: ws_truncation, recoveryAction: retry-once-then-soft-fail, suspectParams: [] }", "componentRef": "C2" },
+      { "id": "MSG4", "from": "C2", "to": "C4", "label": "appendEmptyTurnLog({ wsFrameCount: 2, causeFamily: ws_truncation, ... })", "componentRef": "C4" },
+      { "id": "MSG5", "from": "C4", "to": "EXTERNAL", "label": "JSONL line written to <state>/codex/empty-turns.jsonl with numeric wsFrameCount", "componentRef": "C4" }
+    ]
+  },
+  {
+    "id": "P2",
+    "name": "WS no-frames classified (regression test for boundary)",
+    "description": "WS connection lost before any frame; getSnapshot returns wsFrameCount: 0; classifier picks ws_no_frames.",
+    "participants": [
+      { "id": "C1", "name": "transport-ws.ts", "componentRef": "C1" },
+      { "id": "C2", "name": "sse.ts flush", "componentRef": "C2" },
+      { "id": "C3", "name": "empty-turn-classifier", "componentRef": "C3" },
+      { "id": "C4", "name": "empty-turn-log", "componentRef": "C4" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "C1", "to": "C2", "label": "getTransportSnapshot() → { wsFrameCount: 0, terminalEventReceived: false, ... }", "componentRef": "C2" },
+      { "id": "MSG2", "from": "C2", "to": "C3", "label": "classifyEmptyTurn({ wsFrameCount: 0, terminalEventReceived: false, ... })", "componentRef": "C3" },
+      { "id": "MSG3", "from": "C3", "to": "C2", "label": "{ causeFamily: ws_no_frames, recoveryAction: retry-once-then-soft-fail }", "componentRef": "C2" },
+      { "id": "MSG4", "from": "C2", "to": "C4", "label": "appendEmptyTurnLog({ wsFrameCount: 0, causeFamily: ws_no_frames, ... })", "componentRef": "C4" }
+    ]
+  }
+]

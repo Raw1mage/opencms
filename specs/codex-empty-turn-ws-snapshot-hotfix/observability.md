@@ -1,5 +1,16 @@
 # Observability
 
+## Events
+
+This hotfix does not add new bus events; it restores the `wsFrameCount` field on the existing `codex.emptyTurn` channel payload (DD-2 boundary normalization).
+
+## Metrics
+
+Pre/post-hotfix observable via the JSONL log:
+
+- **Pre-hotfix baseline**: empty-turn rows with `terminalEventReceived=false` show `wsFrameCount` absent and `causeFamily=unclassified`.
+- **Post-hotfix expectation**: same rows show numeric `wsFrameCount` and `causeFamily ∈ {ws_truncation, ws_no_frames}`.
+
 ## Primary signal
 
 - `~/.local/state/opencode/codex/empty-turns.jsonl`

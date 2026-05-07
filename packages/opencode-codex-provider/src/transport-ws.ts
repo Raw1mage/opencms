@@ -191,10 +191,35 @@ interface WsObservation {
   deltasObserved: { text: number; toolCallArguments: number; reasoning: number }
 }
 
+/**
+ * Boundary contract between the WS transport and the SSE classifier
+ * (spec codex-empty-turn-ws-snapshot-hotfix DD-1). The internal
+ * WsObservation.frameCount is normalized to wsFrameCount on the
+ * exported boundary so it matches the field name used by:
+ *  - sse.ts MapResponseStreamOptions.getTransportSnapshot
+ *  - empty-turn-classifier.ts EmptyTurnSnapshot
+ *  - data-schema.json (empty-turns.jsonl wsFrameCount field)
+ *
+ * Returning the internal WsObservation directly produced bytes-on-disk
+ * with the wrong field name (frameCount), which JSON.stringify dropped
+ * as undefined when sse.ts read transportSnapshot.wsFrameCount, leading
+ * to live JSONL rows missing wsFrameCount and falling through to
+ * unclassified despite the WS layer having the evidence.
+ */
+export interface TransportSnapshot {
+  wsFrameCount: number
+  terminalEventReceived: boolean
+  terminalEventType: "response.completed" | "response.incomplete" | "response.failed" | "error" | null
+  wsCloseCode: number | null
+  wsCloseReason: string | null
+  serverErrorMessage: string | null
+  deltasObserved: { text: number; toolCallArguments: number; reasoning: number }
+}
+
 export interface WsRequestResult {
   events: ReadableStream<ResponseStreamEvent>
   /** Snapshot getter for empty-turn classifier; returns a copy at call time */
-  getSnapshot: () => WsObservation
+  getSnapshot: () => TransportSnapshot
 }
 
 function wsRequest(input: {
@@ -506,7 +531,12 @@ function wsRequest(input: {
   return {
     events,
     getSnapshot: () => ({
-      ...wsObs,
+      wsFrameCount: wsObs.frameCount,
+      terminalEventReceived: wsObs.terminalEventReceived,
+      terminalEventType: wsObs.terminalEventType,
+      wsCloseCode: wsObs.wsCloseCode,
+      wsCloseReason: wsObs.wsCloseReason,
+      serverErrorMessage: wsObs.serverErrorMessage,
       deltasObserved: { ...wsObs.deltasObserved },
     }),
   }
@@ -593,7 +623,7 @@ export interface WsTransportInput {
  */
 export async function tryWsTransport(
   input: WsTransportInput,
-): Promise<{ events: ReadableStream<ResponseStreamEvent>; getSnapshot: () => WsObservation } | null> {
+): Promise<{ events: ReadableStream<ResponseStreamEvent>; getSnapshot: () => TransportSnapshot } | null> {
   const { sessionId, accessToken, accountId, body, wsUrl } = input
   const state = getSession(sessionId)
 

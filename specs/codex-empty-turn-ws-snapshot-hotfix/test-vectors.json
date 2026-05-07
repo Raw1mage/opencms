@@ -1,14 +1,14 @@
-{
-  "vectors": [
-    {
-      "id": "TV-1",
-      "input": { "wsFrameCount": 2, "terminalEventReceived": false },
-      "expected": { "causeFamily": "ws_truncation", "recoveryAction": "retry-once-then-soft-fail" }
-    },
-    {
-      "id": "TV-2",
-      "input": { "wsFrameCount": 0, "terminalEventReceived": false },
-      "expected": { "causeFamily": "ws_no_frames", "recoveryAction": "retry-once-then-soft-fail" }
-    }
-  ]
-}
+[
+  {
+    "id": "TV-1",
+    "scenario": "ws_truncation: WS received frames but no terminal event",
+    "input": { "wsFrameCount": 2, "terminalEventReceived": false },
+    "expected": { "causeFamily": "ws_truncation", "recoveryAction": "retry-once-then-soft-fail" }
+  },
+  {
+    "id": "TV-2",
+    "scenario": "ws_no_frames: WS closed before any frame",
+    "input": { "wsFrameCount": 0, "terminalEventReceived": false },
+    "expected": { "causeFamily": "ws_no_frames", "recoveryAction": "retry-once-then-soft-fail" }
+  }
+]

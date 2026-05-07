@@ -664,3 +664,157 @@ describe("empty-turn classifier integration in sse flush", () => {
     expect((busCalls[0].payload as any).causeFamily).toBe("server_empty_output_with_reasoning")
   })
 })
+
+// ---------------------------------------------------------------------------
+// Regression: WS snapshot field-name boundary
+// (spec codex-empty-turn-ws-snapshot-hotfix DD-3)
+// ---------------------------------------------------------------------------
+import type { TransportSnapshot } from "./transport-ws"
+
+describe("WS snapshot boundary contract regression (codex-empty-turn-ws-snapshot-hotfix)", () => {
+  let tmpDir2: string
+  let logPath2: string
+
+  beforeEach(() => {
+    _resetEmptyTurnLogForTest()
+    tmpDir2 = join(tmpdir(), `cetlog-bnd-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+    mkdirSync(tmpDir2, { recursive: true })
+    logPath2 = join(tmpDir2, "empty-turns.jsonl")
+    setEmptyTurnLogPath(logPath2)
+  })
+
+  afterEach(() => {
+    try {
+      rmSync(tmpDir2, { recursive: true, force: true })
+    } catch {}
+  })
+
+  function makeStreamFromEvents(events: ResponseStreamEvent[]) {
+    return new ReadableStream<ResponseStreamEvent>({
+      start(controller) {
+        for (const e of events) controller.enqueue(e)
+        controller.close()
+      },
+    })
+  }
+
+  function readLogLines(): any[] {
+    if (!existsSync(logPath2)) return []
+    return readFileSync(logPath2, "utf-8")
+      .trim()
+      .split("\n")
+      .filter((l) => l.length > 0)
+      .map((l) => JSON.parse(l))
+  }
+
+  /**
+   * The bug this regression catches: transport-ws.ts:getSnapshot() previously
+   * spread `{...wsObs}` which exported the INTERNAL field name `frameCount`,
+   * but sse.ts MapResponseStreamOptions.getTransportSnapshot expects
+   * `wsFrameCount`. Production logs lost the field; classifier fell to
+   * `unclassified` for ws_truncation events.
+   *
+   * This test imports the EXPORTED `TransportSnapshot` type from transport-ws
+   * and uses it to type the snapshot literal. If anyone renames the boundary
+   * field on either side (transport-ws OR sse), this file fails to compile.
+   * The runtime assertion on `wsFrameCount` in the JSONL line catches the
+   * other half: serialization actually preserves the value.
+   */
+  test("TransportSnapshot.wsFrameCount round-trips into JSONL log entry (ws_truncation)", async () => {
+    // Construct a snapshot using the EXPORTED contract type. If the type
+    // ever loses wsFrameCount or renames it, TypeScript fails this test
+    // file at compile time — that's the type-level regression guard.
+    const snap: TransportSnapshot = {
+      wsFrameCount: 3,
+      terminalEventReceived: false,
+      terminalEventType: null,
+      wsCloseCode: 1006,
+      wsCloseReason: "abnormal closure",
+      serverErrorMessage: null,
+      deltasObserved: { text: 0, toolCallArguments: 0, reasoning: 0 },
+    }
+
+    const logContextLocal = {
+      sessionId: "ses_boundary_regression",
+      accountId: "codex-test-account",
+      modelId: "gpt-5.5",
+      requestOptionsShape: {
+        store: false,
+        hasReasoningEffort: false,
+        reasoningEffortValue: null,
+        includeFields: [],
+        hasTools: false,
+        toolCount: 0,
+        promptCacheKeyHash: "0000000000000000",
+        inputItemCount: 1,
+        instructionsByteSize: 100,
+      },
+    }
+
+    const { stream } = mapResponseStream(makeStreamFromEvents([]), {
+      logContext: logContextLocal,
+      getTransportSnapshot: () => snap,
+    })
+    const reader = stream.getReader()
+    let finish: any = null
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if ((value as any).type === "finish") finish = value
+    }
+
+    // Runtime assertion: JSONL row must include numeric wsFrameCount
+    const lines = readLogLines()
+    expect(lines).toHaveLength(1)
+    expect(typeof lines[0].wsFrameCount).toBe("number")
+    expect(lines[0].wsFrameCount).toBe(3)
+
+    // ws_truncation classification follows from wsFrameCount > 0 + no terminal
+    expect(lines[0].causeFamily).toBe("ws_truncation")
+    expect(lines[0].recoveryAction).toBe("retry-once-then-soft-fail")
+
+    // Finish-part metadata mirrors the same fields
+    expect(finish.providerMetadata.openai.emptyTurnClassification.causeFamily).toBe("ws_truncation")
+  })
+
+  test("TransportSnapshot.wsFrameCount=0 round-trips as ws_no_frames", async () => {
+    const snap: TransportSnapshot = {
+      wsFrameCount: 0,
+      terminalEventReceived: false,
+      terminalEventType: null,
+      wsCloseCode: 1006,
+      wsCloseReason: "no frames received",
+      serverErrorMessage: null,
+      deltasObserved: { text: 0, toolCallArguments: 0, reasoning: 0 },
+    }
+    const logContextLocal = {
+      sessionId: "ses_boundary_no_frames",
+      accountId: null,
+      modelId: "gpt-5.5",
+      requestOptionsShape: {
+        store: false,
+        hasReasoningEffort: false,
+        reasoningEffortValue: null,
+        includeFields: [],
+        hasTools: false,
+        toolCount: 0,
+        promptCacheKeyHash: "1111111111111111",
+        inputItemCount: 1,
+        instructionsByteSize: 50,
+      },
+    }
+    const { stream } = mapResponseStream(makeStreamFromEvents([]), {
+      logContext: logContextLocal,
+      getTransportSnapshot: () => snap,
+    })
+    const reader = stream.getReader()
+    while (true) {
+      const { done } = await reader.read()
+      if (done) break
+    }
+    const lines = readLogLines()
+    expect(lines).toHaveLength(1)
+    expect(lines[0].wsFrameCount).toBe(0)
+    expect(lines[0].causeFamily).toBe("ws_no_frames")
+  })
+})

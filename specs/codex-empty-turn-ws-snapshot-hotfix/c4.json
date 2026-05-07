@@ -1,12 +1,54 @@
 {
-  "systems": [{ "id": "C1", "name": "Codex Provider Package", "moduleRef": "A0" }],
+  "diagram_title": "codex-empty-turn-ws-snapshot-hotfix C4 Component View",
+  "level": "component",
+  "systems": [
+    {
+      "id": "SYS1",
+      "name": "opencode",
+      "description": "Self-hosted Claude-Code-derivative bundle; this hotfix patches the codex provider package's WS→SSE boundary contract"
+    }
+  ],
+  "containers": [
+    {
+      "id": "CT1",
+      "systemRef": "SYS1",
+      "name": "codex provider (packages/opencode-codex-provider)",
+      "description": "Provider package implementing AI SDK LanguageModelV2 against Codex Responses API"
+    }
+  ],
   "components": [
-    { "id": "C1.1", "name": "transport-ws.ts", "moduleRef": "A1" },
-    { "id": "C1.2", "name": "sse.ts", "moduleRef": "A2" },
-    { "id": "C1.3", "name": "empty-turn-classifier.ts", "moduleRef": "A2" }
+    {
+      "id": "C1",
+      "containerRef": "CT1",
+      "name": "transport-ws.ts:getSnapshot",
+      "description": "PATCHED: returns explicit TransportSnapshot with wsFrameCount field instead of {...wsObs} spread; aligns with the public boundary used by sse.ts and data-schema.json",
+      "moduleRef": "A1"
+    },
+    {
+      "id": "C2",
+      "containerRef": "CT1",
+      "name": "sse.ts flush block (transportSnapshot consumer)",
+      "description": "Reads transportSnapshot.wsFrameCount; previously got undefined because transport-ws spread the internal frameCount field name; no change in this hotfix beyond gaining real data",
+      "moduleRef": "A2"
+    },
+    {
+      "id": "C3",
+      "containerRef": "CT1",
+      "name": "empty-turn-classifier.ts predicate ladder",
+      "description": "Now receives numeric wsFrameCount and can correctly select ws_truncation (>0) vs ws_no_frames (===0); no code change",
+      "moduleRef": "A2"
+    },
+    {
+      "id": "C4",
+      "containerRef": "CT1",
+      "name": "empty-turn-log.ts JSONL append + bus publish",
+      "description": "Receives payload with wsFrameCount populated; JSON.stringify no longer drops the field as undefined; no code change",
+      "moduleRef": "A3"
+    }
   ],
   "relationships": [
-    { "from": "C1.1", "to": "C1.2", "description": "Provides normalized getTransportSnapshot() evidence" },
-    { "from": "C1.2", "to": "C1.3", "description": "Builds EmptyTurnSnapshot and requests cause-family classification" }
+    { "from": "C1", "to": "C2", "description": "getTransportSnapshot() returns TransportSnapshot with explicit wsFrameCount" },
+    { "from": "C2", "to": "C3", "description": "Builds EmptyTurnSnapshot, invokes classifyEmptyTurn" },
+    { "from": "C2", "to": "C4", "description": "Hands classification + snapshot fields to logger" }
   ]
 }

@@ -4,7 +4,11 @@
 
 Restore accurate cause-family classification for Codex empty turns by aligning the WS transport observation snapshot with the SSE classifier input contract.
 
+## Requirements
+
 ### Requirement: WS snapshot frame count reaches classifier
+
+#### Scenario: frames received but no terminal event
 
 - **GIVEN** `transport-ws.ts` observes a WS request with `frameCount > 0` and no terminal event
 - **WHEN** the stream ends and `sse.ts` classifies an effectively empty turn
@@ -14,12 +18,16 @@ Restore accurate cause-family classification for Codex empty turns by aligning t
 
 ### Requirement: zero-frame WS closure remains classifiable
 
+#### Scenario: WS closes before first frame
+
 - **GIVEN** the WS layer observes closure before any frame is received
 - **WHEN** the stream is classified as an empty turn
 - **THEN** the classifier input must contain `wsFrameCount: 0`
 - **AND** `causeFamily` must be `ws_no_frames`.
 
 ### Requirement: no historical log mutation
+
+#### Scenario: pre-hotfix JSONL rows already on disk
 
 - **GIVEN** historical JSONL rows were written without `wsFrameCount`
 - **WHEN** this hotfix is implemented

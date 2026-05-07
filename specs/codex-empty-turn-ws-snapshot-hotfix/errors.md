@@ -1,5 +1,7 @@
 # Errors
 
+## Error Catalogue
+
 | Code       | Layer                   | Message                                                                          | Recovery                                                                           |
 | ---------- | ----------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | CET-HF-001 | codex-provider boundary | WS observation snapshot omitted `wsFrameCount` before classifier input assembly. | Normalize `transport-ws.ts:getSnapshot()` output and add regression test.          |

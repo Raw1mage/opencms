@@ -12,11 +12,18 @@ Implement the smallest patch that restores `wsFrameCount` at the WS transport to
 - `packages/opencode-codex-provider/src/sse.ts`
 - `packages/opencode-codex-provider/src/sse.test.ts`
 
-## Stop Gates
+## Stop Gates In Force
 
 - Stop if fixing the field mapping requires changing retry semantics.
 - Stop if tests reveal the real transport API cannot be exercised without a larger refactor.
 - Stop before any daemon restart; only `system-manager_restart_self` is allowed if the user explicitly asks for live deployment.
+
+## Execution-Ready Checklist
+
+- [ ] `proposal.md`, `design.md`, `implementation-spec.md` read
+- [ ] `transport-ws.ts` + `sse.ts` boundary mismatch confirmed (frameCount vs wsFrameCount)
+- [ ] XDG backup at `~/.config/opencode.bak-20260507-1200-codex-empty-turn-ws-snapshot-hotfix/` exists
+- [ ] No daemon restart unless user explicitly asks
 
 ## Validation Plan
 

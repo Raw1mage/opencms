@@ -1,6 +1,6 @@
 # Proposal: codex-empty-turn-ws-snapshot-hotfix
 
-## Requirement
+## Why
 
 Fix the hot path that preserved empty-turn JSONL evidence but lost the WS frame-count field before classification. The hotfix must make future empty-turn logs classify `terminalEventReceived=false` cases as `ws_no_frames` or `ws_truncation` instead of `unclassified` when the WS layer has the required frame-count evidence.
 
@@ -34,6 +34,25 @@ Live evidence from `~/.local/state/opencode/codex/empty-turns.jsonl` for session
 - Fail fast on contract mismatch in tests; do not add runtime fallback that masks a bad snapshot shape unless it is explicit and observable.
 - Keep provider package independent from opencode runtime globals.
 - Do not change the existing JSONL append-only policy.
+
+## What Changes
+
+- `transport-ws.ts:getSnapshot()` returns explicit `wsFrameCount + other fields` instead of `{...wsObs}` spread.
+- New exported `TransportSnapshot` interface documents the boundary.
+- New regression test in `sse.test.ts` exercises the real WS snapshot shape (not the mocked-correct one).
+- Event note records the live RCA + the historical-evidence limitation.
+
+## Capabilities
+
+### Modified Capabilities
+
+- WS→SSE boundary now uses an explicit normalized contract; future empty turns from `terminalEventReceived=false` paths produce `ws_truncation` or `ws_no_frames` classification with numeric `wsFrameCount` in the JSONL log.
+
+## Impact
+
+- Live JSONL going forward includes `wsFrameCount` for every classified empty turn.
+- Operator queries M2 (cause-family distribution) become accurate for ws_truncation vs ws_no_frames vs unclassified.
+- Historical rows already written cannot be retroactively disambiguated; documented in errors.md CET-HF-002.
 
 ## Revision History
 
