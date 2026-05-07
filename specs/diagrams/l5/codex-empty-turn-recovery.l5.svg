@@ -16,23 +16,23 @@
 <path class="edge edge-arrow" d="M 47.86 16.00 L 47.86 18.00"/>
 <path class="edge edge-arrow" d="M 23.93 18.00 L 23.93 22.00"/>
 <path class="edge edge-arrow" d="M 47.86 18.00 L 47.86 22.00"/>
-<path class="edge" d="M 23.93 25.00 L 23.93 27.00"/>
-<path class="edge edge-arrow" d="M 23.93 27.00 L 23.93 29.00"/>
-<path class="edge" d="M 23.93 32.00 L 23.93 34.00"/>
-<path class="edge edge-arrow" d="M 23.93 34.00 L 23.93 36.00"/>
-<path class="edge" d="M 23.93 39.00 L 23.93 41.00"/>
-<path class="edge" d="M 23.93 41.00 L 0.50 41.00 Q 0.00 41.00 0.00 41.50 L 0.00 43.00"/>
-<path class="edge edge-arrow" d="M 0.00 43.00 L 0.00 47.00"/>
-<path class="edge" d="M 23.93 41.00 L 23.93 45.00"/>
-<path class="edge edge-arrow" d="M 23.93 45.00 L 23.93 47.00"/>
-<path class="edge edge-arrow" d="M 23.93 41.00 L 46.36 41.00 Q 46.86 41.00 46.86 41.50 L 46.86 58.00"/>
+<path class="edge" d="M 23.93 25.00 L 23.93 29.00"/>
+<path class="edge edge-arrow" d="M 23.93 29.00 L 23.93 31.00"/>
+<path class="edge" d="M 23.93 34.00 L 23.93 36.00"/>
+<path class="edge edge-arrow" d="M 23.93 36.00 L 23.93 38.00"/>
+<path class="edge" d="M 23.93 41.00 L 23.93 43.00"/>
+<path class="edge" d="M 23.93 43.00 L 0.50 43.00 Q 0.00 43.00 0.00 43.50 L 0.00 45.00"/>
+<path class="edge edge-arrow" d="M 0.00 45.00 L 0.00 49.00"/>
+<path class="edge" d="M 23.93 43.00 L 23.93 45.00"/>
+<path class="edge edge-arrow" d="M 23.93 45.00 L 23.93 49.00"/>
+<path class="edge edge-arrow" d="M 23.93 43.00 L 46.36 43.00 Q 46.86 43.00 46.86 43.50 L 46.86 58.00"/>
 <path class="edge edge-arrow" d="M 23.93 58.00 L 23.93 60.00"/>
-<path class="edge" d="M 0.00 50.00 L 0.00 52.00"/>
 <path class="edge" d="M 0.00 52.00 L 0.00 54.00"/>
-<path class="edge" d="M 0.00 54.00 L -6.00 54.00"/>
-<path class="edge" d="M -6.00 54.00 L -6.00 11.00"/>
+<path class="edge" d="M 0.00 54.00 L 0.00 56.00"/>
+<path class="edge" d="M 0.00 56.00 L -6.00 56.00"/>
+<path class="edge" d="M -6.00 56.00 L -6.00 11.00"/>
 <path class="edge" d="M -6.00 11.00 L 47.86 11.00"/>
-<path class="edge edge-arrow" d="M 23.93 50.00 L 23.93 58.00"/>
+<path class="edge edge-arrow" d="M 23.93 52.00 L 23.93 58.00"/>
 <path class="edge edge-arrow" d="M 23.93 63.00 L 23.93 67.00"/>
 <path class="edge edge-arrow" d="M 47.86 67.00 L 47.86 69.00"/>
 <path class="edge edge-arrow" d="M 47.86 25.00 L 47.86 26.50 Q 47.86 27.00 48.36 27.00 L 51.81 27.00 Q 52.31 27.00 52.31 27.50 L 52.31 60.12 Q 52.31 60.62 51.81 60.62 L 48.36 60.62 Q 47.86 60.62 47.86 61.12 L 47.86 67.00"/>
@@ -45,14 +45,14 @@
 <text class="label" x="47.86" y="14.50">1</text>
 <rect class="step" x="21.93" y="22.00" width="4.00" height="3.00"/>
 <text class="label" x="23.93" y="23.50">2</text>
-<rect class="step" x="21.93" y="29.00" width="4.00" height="3.00"/>
-<text class="label" x="23.93" y="30.50">3</text>
-<rect class="step" x="21.93" y="36.00" width="4.00" height="3.00"/>
-<text class="label" x="23.93" y="37.50">4</text>
-<rect class="step" x="-2.00" y="47.00" width="4.00" height="3.00"/>
-<text class="label" x="0.00" y="48.50">5</text>
-<rect class="step" x="21.93" y="47.00" width="4.00" height="3.00"/>
-<text class="label" x="23.93" y="48.50">6</text>
+<rect class="step" x="21.93" y="31.00" width="4.00" height="3.00"/>
+<text class="label" x="23.93" y="32.50">3</text>
+<rect class="step" x="21.93" y="38.00" width="4.00" height="3.00"/>
+<text class="label" x="23.93" y="39.50">4</text>
+<rect class="step" x="-2.00" y="49.00" width="4.00" height="3.00"/>
+<text class="label" x="0.00" y="50.50">5</text>
+<rect class="step" x="21.93" y="49.00" width="4.00" height="3.00"/>
+<text class="label" x="23.93" y="50.50">6</text>
 <rect class="step" x="21.93" y="60.00" width="4.00" height="3.00"/>
 <text class="label" x="23.93" y="61.50">7</text>
 <rect class="step" x="45.86" y="22.00" width="4.00" height="3.00"/>
@@ -68,18 +68,18 @@
 <line class="assoc" x1="25.93" y1="23.50" x2="26.93" y2="23.50"/>
 <rect class="action" x="26.93" y="22.07" width="17.93" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="35.89" y="23.09"><tspan x="35.89" dy="0">Run classifier on streamStateSnapshot + requestOptionsShape; d</tspan><tspan x="35.89" dy="0.82">erive {causeFamily, recoveryAction, suspectParams, logSequence}</tspan></text>
-<line class="assoc" x1="25.93" y1="30.50" x2="26.93" y2="30.50"/>
-<rect class="action" x="26.93" y="29.07" width="17.93" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="35.89" y="29.68"><tspan x="35.89" dy="0">Persist log entry: append JSONL line to &lt;state&gt;/codex/emp</tspan><tspan x="35.89" dy="0.82">ty-turns.jsonl AND publish bus event on codex.emptyTurn; o</tspan><tspan x="35.89" dy="0.82">n write failure swallow and emit console.error breadcrumb</tspan></text>
-<line class="assoc" x1="25.93" y1="37.50" x2="26.93" y2="37.50"/>
-<rect class="action" x="26.93" y="36.07" width="17.93" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="35.89" y="37.50"><tspan x="35.89" dy="0">Apply recovery action selected by classifier</tspan></text>
-<line class="assoc" x1="2.00" y1="48.50" x2="3.00" y2="48.50"/>
-<rect class="action" x="3.00" y="47.07" width="17.93" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="11.96" y="48.09"><tspan x="11.96" dy="0">Retry: WS reopens with same body; flip retryAttempted=true; cap at</tspan><tspan x="11.96" dy="0.82">one attempt (DD-7); state.usage and counters reset for new attempt</tspan></text>
-<line class="assoc" x1="25.93" y1="48.50" x2="26.93" y2="48.50"/>
-<rect class="action" x="26.93" y="47.07" width="17.93" height="2.86" rx="0.45" ry="0.45"/>
-<text class="action-label" x="35.89" y="47.68"><tspan x="35.89" dy="0">Synthesize text part from accumulated deltas (D</tspan><tspan x="35.89" dy="0.82">ORMANT: no current cause family selects this; re</tspan><tspan x="35.89" dy="0.82">served for future codex shape changes per DD-8)</tspan></text>
+<line class="assoc" x1="25.93" y1="32.50" x2="26.93" y2="32.50"/>
+<rect class="action" x="26.93" y="31.07" width="17.93" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="35.89" y="31.68"><tspan x="35.89" dy="0">Persist log entry: append JSONL line to &lt;state&gt;/codex/emp</tspan><tspan x="35.89" dy="0.82">ty-turns.jsonl AND publish bus event on codex.emptyTurn; o</tspan><tspan x="35.89" dy="0.82">n write failure swallow and emit console.error breadcrumb</tspan></text>
+<line class="assoc" x1="25.93" y1="39.50" x2="26.93" y2="39.50"/>
+<rect class="action" x="26.93" y="38.07" width="17.93" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="35.89" y="39.50"><tspan x="35.89" dy="0">Apply recovery action selected by classifier</tspan></text>
+<line class="assoc" x1="2.00" y1="50.50" x2="3.00" y2="50.50"/>
+<rect class="action" x="3.00" y="49.07" width="17.93" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="11.96" y="50.09"><tspan x="11.96" dy="0">Retry: WS reopens with same body; flip retryAttempted=true; cap at</tspan><tspan x="11.96" dy="0.82">one attempt (DD-7); state.usage and counters reset for new attempt</tspan></text>
+<line class="assoc" x1="25.93" y1="50.50" x2="26.93" y2="50.50"/>
+<rect class="action" x="26.93" y="49.07" width="17.93" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="35.89" y="49.68"><tspan x="35.89" dy="0">Synthesize text part from accumulated deltas (D</tspan><tspan x="35.89" dy="0.82">ORMANT: no current cause family selects this; re</tspan><tspan x="35.89" dy="0.82">served for future codex shape changes per DD-8)</tspan></text>
 <line class="assoc" x1="25.93" y1="61.50" x2="26.93" y2="61.50"/>
 <rect class="action" x="26.93" y="60.07" width="17.93" height="2.86" rx="0.45" ry="0.45"/>
 <text class="action-label" x="35.89" y="60.68"><tspan x="35.89" dy="0">A3 emits finish part with providerMetadata.openai.emptyTurnClassificat</tspan><tspan x="35.89" dy="0.82">ion; A6 (runloop empty-response guard) fires broad question-mark nudge</tspan><tspan x="35.89" dy="0.82">per D-4 and attaches classification metadata to the synthetic message</tspan></text>
@@ -92,17 +92,17 @@
 <line class="gate" x1="46.86" y1="9.00" x2="48.86" y2="9.00"/>
 <text class="gate-label" x="49.26" y="9.00"><tspan x="49.26" dy="0">request_body_built AND ws_connection_opened</tspan></text>
 <line class="gate" x1="19.93" y1="18.00" x2="51.86" y2="18.00"/>
-<line class="gate" x1="22.93" y1="27.00" x2="24.93" y2="27.00"/>
-<text class="gate-label" x="25.33" y="27.00"><tspan x="25.33" dy="0">classification_complete</tspan></text>
-<line class="gate" x1="22.93" y1="34.00" x2="24.93" y2="34.00"/>
-<text class="gate-label" x="25.33" y="34.00"><tspan x="25.33" dy="0">log_dispatch_attempted</tspan></text>
-<line class="gate" x1="-1.00" y1="43.00" x2="1.00" y2="43.00"/>
-<text class="gate-label" x="1.40" y="43.00"><tspan x="1.40" dy="0">recoveryAction == retry-once-then-soft-fail AND retryAttempted == false</tspan></text>
+<line class="gate" x1="22.93" y1="29.00" x2="24.93" y2="29.00"/>
+<text class="gate-label" x="25.33" y="29.00"><tspan x="25.33" dy="0">classification_complete</tspan></text>
+<line class="gate" x1="22.93" y1="36.00" x2="24.93" y2="36.00"/>
+<text class="gate-label" x="25.33" y="36.00"><tspan x="25.33" dy="0">log_dispatch_attempted</tspan></text>
+<line class="gate" x1="-1.00" y1="45.00" x2="1.00" y2="45.00"/>
+<text class="gate-label" x="1.40" y="45.00"><tspan x="1.40" dy="0">recoveryAction == retry-once-then-soft-fail AND retryAttempted == false</tspan></text>
 <line class="gate" x1="22.93" y1="45.00" x2="24.93" y2="45.00"/>
 <text class="gate-label" x="25.33" y="45.00"><tspan x="25.33" dy="0">recoveryAction == synthesize-from-deltas</tspan></text>
 <line class="gate" x1="21.93" y1="58.00" x2="49.86" y2="58.00"/>
-<line class="gate" x1="-1.00" y1="52.00" x2="1.00" y2="52.00"/>
-<text class="gate-label" x="1.40" y="52.00"><tspan x="1.40" dy="0">ws_reopened AND body_resent</tspan></text>
+<line class="gate" x1="-1.00" y1="54.00" x2="1.00" y2="54.00"/>
+<text class="gate-label" x="1.40" y="54.00"><tspan x="1.40" dy="0">ws_reopened AND body_resent</tspan></text>
 <line class="gate" x1="21.93" y1="67.00" x2="49.86" y2="67.00"/>
 <line class="gate" x1="46.86" y1="74.00" x2="48.86" y2="74.00"/>
 <text class="gate-label" x="49.26" y="74.00"><tspan x="49.26" dy="0">session_ready_for_next_turn</tspan></text>
@@ -110,14 +110,14 @@
 <text class="gate-label-left" x="22.53" y="20.00"><tspan x="22.53" dy="0">stream_ended AND emittedTextDeltas == 0 AND emittedToolCalls == 0</tspan></text>
 <line class="gate" x1="46.86" y1="20.00" x2="48.86" y2="20.00"/>
 <text class="gate-label-left" x="46.46" y="20.00"><tspan x="46.46" dy="0">stream_ended AND (emittedTextDeltas &gt; 0 OR emittedToolCalls &gt; 0)</tspan></text>
-<line class="gate" x1="45.86" y1="56.00" x2="47.86" y2="56.00"/>
-<text class="gate-label-left" x="45.46" y="55.32"><tspan x="45.46" dy="0">recoveryAction IN {pass-through</tspan><tspan x="45.46" dy="0.68">-to-runloop-nudge, log-and-conti</tspan><tspan x="45.46" dy="0.68">nue} OR retryAttempted == true</tspan></text>
-<line class="gate" x1="22.93" y1="56.00" x2="24.93" y2="56.00"/>
-<text class="gate-label-left" x="22.53" y="56.00"><tspan x="22.53" dy="0">synthesized_text_emitted</tspan></text>
+<line class="gate" x1="45.86" y1="54.00" x2="47.86" y2="54.00"/>
+<text class="gate-label-left" x="45.46" y="53.32"><tspan x="45.46" dy="0">recoveryAction IN {pass-through</tspan><tspan x="45.46" dy="0.68">-to-runloop-nudge, log-and-conti</tspan><tspan x="45.46" dy="0.68">nue} OR retryAttempted == true</tspan></text>
+<line class="gate" x1="22.93" y1="54.00" x2="24.93" y2="54.00"/>
+<text class="gate-label-left" x="22.53" y="54.00"><tspan x="22.53" dy="0">synthesized_text_emitted</tspan></text>
 <line class="gate" x1="22.93" y1="65.00" x2="24.93" y2="65.00"/>
 <text class="gate-label-left" x="22.53" y="65.00"><tspan x="22.53" dy="0">finish_with_classification_emitted AND nudge_dispatched</tspan></text>
 <line class="gate" x1="46.86" y1="65.00" x2="48.86" y2="65.00"/>
 <text class="gate-label-left" x="46.46" y="65.00"><tspan x="46.46" dy="0">normal_finish_emitted</tspan></text>
 <circle class="junction" cx="47.86" cy="11.00" r="0.22"/>
-<circle class="branch-junction" cx="23.93" cy="41.00" r="0.28"/>
+<circle class="branch-junction" cx="23.93" cy="43.00" r="0.28"/>
 </svg>

@@ -50,7 +50,7 @@
         }
       ],
       "diagnostics_count": 2,
-      "bytes": 17358
+      "bytes": 17211
     },
     {
       "slug": "app-market",
@@ -68,7 +68,7 @@
       "status": "ok",
       "diagnostics": [],
       "diagnostics_count": 0,
-      "bytes": 13803
+      "bytes": 13810
     },
     {
       "slug": "autonomous-opt-in",
@@ -102,22 +102,8 @@
       "source": "specs/daemon/grafcet.json",
       "svg": "specs/diagrams/l5/daemon.l5.svg",
       "status": "ok",
-      "diagnostics": [
-        {
-          "code": "GRAF_LAYOUT_VIOLATION",
-          "severity": "warning",
-          "message": "Control-flow edge must not cross a step, action, or gate box hard obstacle.",
-          "target_ids": [
-            "edge:T8:source-gate",
-            "stub:T9"
-          ],
-          "details": {
-            "violation_type": "edge_crosses_box",
-            "suggested_fix": "Reroute with a dogleg lane outside hard-object bounds."
-          }
-        }
-      ],
-      "diagnostics_count": 1,
+      "diagnostics": [],
+      "diagnostics_count": 0,
       "bytes": 15122
     },
     {
@@ -127,7 +113,7 @@
       "status": "ok",
       "diagnostics": [],
       "diagnostics_count": 0,
-      "bytes": 12575
+      "bytes": 12581
     },
     {
       "slug": "meta",
@@ -136,7 +122,7 @@
       "status": "ok",
       "diagnostics": [],
       "diagnostics_count": 0,
-      "bytes": 13130
+      "bytes": 13127
     },
     {
       "slug": "provider",
@@ -152,9 +138,23 @@
       "source": "specs/session/grafcet.json",
       "svg": "specs/diagrams/l5/session.l5.svg",
       "status": "ok",
-      "diagnostics": [],
-      "diagnostics_count": 0,
-      "bytes": 14712
+      "diagnostics": [
+        {
+          "code": "GRAF_LAYOUT_VIOLATION",
+          "severity": "warning",
+          "message": "Control-flow edge must not cross a step, action, or gate box hard obstacle.",
+          "target_ids": [
+            "edge:T19:gate-target",
+            "gate:transition:T14"
+          ],
+          "details": {
+            "violation_type": "edge_crosses_box",
+            "suggested_fix": "Reroute with a dogleg lane outside hard-object bounds."
+          }
+        }
+      ],
+      "diagnostics_count": 1,
+      "bytes": 14642
     },
     {
       "slug": "webapp",
@@ -163,7 +163,7 @@
       "status": "ok",
       "diagnostics": [],
       "diagnostics_count": 0,
-      "bytes": 10530
+      "bytes": 10525
     }
   ]
 }
