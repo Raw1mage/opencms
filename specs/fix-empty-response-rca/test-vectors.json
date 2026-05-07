@@ -1,0 +1,225 @@
+[
+  {
+    "id": "TV-A1-cache-equilibrium-broken",
+    "acceptance": "A1",
+    "scenario": "DD-1: predictedCacheMiss returns 'hit' when cache is alive even with continuationInvalidatedAt set; cache-equilibrium-detector does NOT emit on a healthy session",
+    "given": {
+      "sessionExec": { "continuationInvalidatedAt": "2026-05-07T13:08:00Z" },
+      "lastFinishedSequence": [
+        { "tokens": { "cache": { "read": 38912 } } },
+        { "tokens": { "cache": { "read": 39200 } } },
+        { "tokens": { "cache": { "read": 41023 } } }
+      ]
+    },
+    "when": "derivePredictedCacheMiss invoked on each turn",
+    "then": {
+      "predictedCacheMissValues": ["hit", "hit", "hit"],
+      "cacheEquilibriumEventEmitted": false,
+      "cacheAwareCompactionTriggered": false
+    }
+  },
+  {
+    "id": "TV-A1-cache-equilibrium-detected-and-broken",
+    "acceptance": "A1",
+    "scenario": "DD-1: when cache.read is genuinely zero (true miss), predictedCacheMiss returns 'miss'; when cache locks at constant value across 3+ turns, equilibrium-detector emits to JSONL",
+    "given": {
+      "sessionExec": { "continuationInvalidatedAt": "2026-05-07T13:08:00Z" },
+      "lastFinishedSequence": [
+        { "tokens": { "cache": { "read": 0 } } },
+        { "tokens": { "cache": { "read": 36352 } } },
+        { "tokens": { "cache": { "read": 36352 } } },
+        { "tokens": { "cache": { "read": 36352 } } }
+      ]
+    },
+    "when": "derivePredictedCacheMiss invoked on each turn AND cache-equilibrium-detector observes the sequence",
+    "then": {
+      "predictedCacheMissValues": ["miss", "hit", "hit", "hit"],
+      "cacheEquilibriumEventEmittedAfterTurn": 3,
+      "cacheEquilibriumEventFields": {
+        "lockedCacheRead": 36352,
+        "consecutiveTurns": 3
+      }
+    }
+  },
+  {
+    "id": "TV-A2-rotation-suppressed-on-empty-turn",
+    "acceptance": "A2",
+    "scenario": "DD-3: isModelTemporaryError returns false when lastFinish carries emptyTurnClassification metadata; handleRateLimitFallback NOT invoked",
+    "given": {
+      "thrownError": { "message": "WebSocket error" },
+      "lastFinish": {
+        "providerMetadata": {
+          "openai": {
+            "emptyTurnClassification": {
+              "causeFamily": "ws_no_frames",
+              "recoveryAction": "pass-through-to-runloop-nudge",
+              "logSequence": 17
+            }
+          }
+        }
+      }
+    },
+    "when": "processor.ts catch block evaluates isModelTemporaryError(error, lastFinish)",
+    "then": {
+      "isModelTemporaryErrorReturns": false,
+      "handleRateLimitFallbackInvoked": false,
+      "accountRotationOccurred": false
+    }
+  },
+  {
+    "id": "TV-A2-rotation-still-fires-on-genuine-5xx",
+    "acceptance": "A2",
+    "scenario": "DD-3 negative case: a genuine 503 from codex backend (no emptyTurnClassification on lastFinish) still triggers rotation as before",
+    "given": {
+      "thrownError": { "status": 503, "message": "Service Unavailable" },
+      "lastFinish": {
+        "providerMetadata": {
+          "openai": {
+            "responseId": "resp_normal"
+          }
+        }
+      }
+    },
+    "when": "processor.ts catch block evaluates isModelTemporaryError(error, lastFinish)",
+    "then": {
+      "isModelTemporaryErrorReturns": true,
+      "handleRateLimitFallbackInvoked": true,
+      "accountRotationOccurred": true
+    }
+  },
+  {
+    "id": "TV-A3-wsErrorReason-populated-onerror",
+    "acceptance": "A3",
+    "scenario": "DD-2 + DD-5: ws.onerror with frameCount=0 populates wsErrorReason; classifier picks ws_no_frames; JSONL entry includes the field",
+    "given": {
+      "wsEvent": "onerror",
+      "wsObsBeforeEvent": { "frameCount": 0 },
+      "logContext": {
+        "sessionId": "ses_ws_error_test",
+        "accountId": "codex-test-account",
+        "modelId": "gpt-5.5"
+      }
+    },
+    "when": "ws.onerror fires; wsRequest classifier path runs; JSONL appended",
+    "then": {
+      "thrownException": null,
+      "wsObsAfter": {
+        "wsErrorReason": "WebSocket error"
+      },
+      "jsonlEntry": {
+        "wsFrameCount": 0,
+        "wsErrorReason": "WebSocket error",
+        "causeFamily": "ws_no_frames",
+        "recoveryAction": "retry-once-then-soft-fail"
+      }
+    }
+  },
+  {
+    "id": "TV-A3-wsErrorReason-populated-idle-timeout",
+    "acceptance": "A3",
+    "scenario": "DD-2: idle timeout fires before any frame; populates wsErrorReason='first_frame_timeout'; classifier picks ws_no_frames",
+    "given": {
+      "wsEvent": "idle-timeout",
+      "wsObsBeforeEvent": { "frameCount": 0 }
+    },
+    "when": "resetIdleTimer fires its callback with frameCount=0",
+    "then": {
+      "thrownException": null,
+      "controllerErrorCalled": false,
+      "wsObsAfter": { "wsErrorReason": "first_frame_timeout" },
+      "jsonlEntry": {
+        "wsFrameCount": 0,
+        "wsErrorReason": "first_frame_timeout",
+        "causeFamily": "ws_no_frames"
+      }
+    }
+  },
+  {
+    "id": "TV-A3-wsErrorReason-null-on-clean-truncation",
+    "acceptance": "A3",
+    "scenario": "DD-2 negative case: ws.onclose with frameCount > 0 (existing ws_truncation case) does not set wsErrorReason; field stays null in JSONL",
+    "given": {
+      "wsEvent": "onclose",
+      "wsObsBeforeEvent": { "frameCount": 3 }
+    },
+    "when": "ws.onclose fires; existing classifier path (ws_truncation) runs",
+    "then": {
+      "wsObsAfter": { "wsErrorReason": null },
+      "jsonlEntry": {
+        "wsFrameCount": 3,
+        "wsErrorReason": null,
+        "causeFamily": "ws_truncation"
+      }
+    }
+  },
+  {
+    "id": "TV-A4-existing-tests-still-pass",
+    "acceptance": "A4",
+    "scenario": "Regression: 107 existing codex-provider tests + new tests in this spec all pass after the patches land",
+    "given": { "branch": "post-fix-empty-response-rca-phase-1" },
+    "when": "bun test packages/opencode-codex-provider/src/ + bun test packages/opencode/test/session/",
+    "then": {
+      "totalTests": ">= 110",
+      "failedTests": 0,
+      "newTestsAdded": [
+        "transport-ws.test.ts: ws.onerror frame=0 no-throw + wsErrorReason populated",
+        "sse.test.ts: wsErrorReason round-trips into JSONL",
+        "processor-empty-turn-rotation-guard.test.ts: isModelTemporaryError returns false on emptyTurnClassification",
+        "compaction-cache-equilibrium.test.ts: derivePredictedCacheMiss + N-consecutive detection"
+      ]
+    }
+  },
+  {
+    "id": "TV-A5-24h-soak-zero-rotations",
+    "acceptance": "A5",
+    "scenario": "Operator-driven: 24h soak post-deploy; M9 query returns zero rotations within 60s windows of empty-turn JSONL lines",
+    "given": {
+      "deployedPhase": 1,
+      "soakWindow": "24 hours after daemon restart",
+      "evidenceFiles": [
+        "<state>/opencode/codex/empty-turns.jsonl",
+        "rotation event log (operator chooses source)"
+      ]
+    },
+    "when": "operator joins empty-turn JSONL with rotation events over the soak window",
+    "then": {
+      "rotationsCausedByEmptyTurns": 0,
+      "rotationsCausedByGenuineErrors": "unchanged from baseline (e.g., real 5xx still rotate)"
+    }
+  },
+  {
+    "id": "TV-A6-no-codex-provider-import-in-runtime",
+    "acceptance": "A6",
+    "scenario": "INV-16 preservation: processor.ts diff contains no new import from @opencode-ai/codex-provider; emptyTurnClassification accessed as opaque metadata",
+    "given": {
+      "fileBeforeDiff": "packages/opencode/src/session/processor.ts",
+      "fileAfterDiff": "packages/opencode/src/session/processor.ts (post DD-3)"
+    },
+    "when": "code review of the diff",
+    "then": {
+      "newImportFromCodexProvider": null,
+      "metadataAccessPattern": "lastFinish?.providerMetadata?.openai?.emptyTurnClassification?.causeFamily"
+    }
+  },
+  {
+    "id": "TV-INVARIANT-no-throw-from-ws-paths",
+    "acceptance": "Cross-DD invariant",
+    "scenario": "After DD-2, no codex provider WS path may throw an exception that escapes the package; all empty-turn cases route through classifier",
+    "given": {
+      "testMatrix": [
+        "ws.onerror frameCount=0",
+        "ws.onerror frameCount>0 (degenerate; should still route through classifier)",
+        "ws.onclose frameCount=0",
+        "ws.onclose frameCount>0",
+        "first_frame_timeout",
+        "mid_stream_stall"
+      ]
+    },
+    "when": "each scenario runs end-to-end through the codex provider package",
+    "then": {
+      "thrownException": null,
+      "finishPartEmittedForAllScenarios": true,
+      "providerMetadataPresentForEmptyClassifications": true
+    }
+  }
+]
