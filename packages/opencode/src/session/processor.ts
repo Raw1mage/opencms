@@ -408,6 +408,11 @@ export namespace SessionProcessor {
           // liveness — stream stalls show up as /proc activity flatlining
           // and are caught there along with every other hang mode.
 
+          // Hoisted out of the try block so the catch block at line ~1475
+          // can read it. Captured during finish-step events; consumed by
+          // isModelTemporaryError to detect codex-empty-turn-recovery's
+          // emptyTurnClassification metadata.
+          let lastFinishProviderMetadata: unknown = undefined
           try {
             // Pre-flight rate-limit check: read shared rotation-state.json
             // before hitting the API. If the current vector is already marked
@@ -777,13 +782,6 @@ export namespace SessionProcessor {
 
             let currentText: MessageV2.TextPart | undefined
             let reasoningMap: Record<string, MessageV2.ReasoningPart> = {}
-            // fix-empty-response-rca DD-3: capture the providerMetadata of the
-            // most recent finish-step seen, so the catch block can hand it to
-            // isModelTemporaryError(e, lastFinishProviderMetadata). Used to
-            // detect codex-empty-turn-recovery's emptyTurnClassification
-            // metadata and refuse to flag the error as a temporary backend
-            // problem (preventing unwarranted account rotation).
-            let lastFinishProviderMetadata: unknown = undefined
             const stream = await LLM.stream(streamInput)
             if (streamInput.accountId && input.assistantMessage.accountId !== streamInput.accountId) {
               // SYSLOG: Account changed after LLM.stream — potential silent account switch (Bug #1)
