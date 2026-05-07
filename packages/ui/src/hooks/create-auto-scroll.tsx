@@ -346,6 +346,11 @@ export function createAutoScroll(options: AutoScrollOptions) {
     const target = e.target instanceof Element ? e.target : undefined
     const nested = target?.closest("[data-scrollable]")
     if (el && nested && nested !== el && nestedConsumesVerticalScroll(nested)) return
+    // No scrollable area, or already at bottom: gesture cannot mean "I want to
+    // read history". iOS rubber-band, address-bar collapse, and viewport
+    // jiggers fire wheel/touch events at the bottom boundary; respecting them
+    // strands the user in free-reading.
+    if (el && (!canScroll(el) || distanceFromBottom(el) < threshold())) return
     clearAuto()
     stop()
   }
@@ -373,6 +378,14 @@ export function createAutoScroll(options: AutoScrollOptions) {
       // overflow (short content) must let the gesture reach root, or
       // mobile history-lazyload never arms — user sees tail 30 only.
       if (el && nested && nested !== el && nestedConsumesVerticalScroll(nested)) return
+      // Same boundary guard as handleWheel: at the bottom of a scrollable
+      // page, iOS fires touchmove with deltaY > 10 from rubber-band bounce
+      // even though scrollTop never moves. Don't strand the user in
+      // free-reading on a phantom gesture.
+      if (el && (!canScroll(el) || distanceFromBottom(el) < threshold())) {
+        touchActive = false
+        return
+      }
       touchActive = false
       clearAuto()
       stop()
@@ -487,7 +500,7 @@ export function createAutoScroll(options: AutoScrollOptions) {
         resumeOnly: options.resumeOnly === true,
       })
 
-      if (distance > 1 && !explicitFollow) {
+      if (distance > followThreshold() && !explicitFollow) {
         stopRafLoop()
         setMode("free-reading", "resize-away-from-bottom", {
           delta,
