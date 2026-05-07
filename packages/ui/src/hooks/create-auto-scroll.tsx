@@ -438,6 +438,22 @@ export function createAutoScroll(options: AutoScrollOptions) {
       return
     }
 
+    // During streaming, a small distance from bottom that we didn't author
+    // is a phantom scroll: iOS address-bar collapse, rubber-band overshoot,
+    // visualViewport transitions, or sentinel-anchor lag. Real user scrolls
+    // move scrollTop hundreds of pixels in one frame — sub-100px drifts are
+    // not user intent. Snap back instead of flipping to free-reading.
+    if (active()) {
+      const distance = distanceFromBottom(el)
+      if (distance < 100) {
+        markAuto(el)
+        el.scrollTop = bottomScrollTop(el)
+        lastScrollHeight = el.scrollHeight
+        debug("handle-scroll-phantom-snap", { distance })
+        return
+      }
+    }
+
     debug("handle-scroll-user")
     stop()
   }
