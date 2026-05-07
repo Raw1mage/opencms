@@ -160,6 +160,8 @@ export interface MapResponseStreamOptions {
     wsCloseCode: number | null
     wsCloseReason: string | null
     serverErrorMessage: string | null
+    /** fix-empty-response-rca DD-5: WS-layer error reason for ws_no_frames discrimination */
+    wsErrorReason: string | null
     deltasObserved: DeltasObserved
   }
 }
@@ -272,6 +274,7 @@ export function mapResponseStream(
               wsCloseCode: number | null
               wsCloseReason: string | null
               serverErrorMessage: string | null
+              wsErrorReason: string | null
               deltasObserved: DeltasObserved
             } => {
               let terminalEventType: EmptyTurnSnapshot["terminalEventType"] = null
@@ -287,6 +290,7 @@ export function mapResponseStream(
                 wsCloseCode: null,
                 wsCloseReason: null,
                 serverErrorMessage: null,
+                wsErrorReason: null,
                 deltasObserved: {
                   text: state.emittedTextDeltas,
                   toolCallArguments: state.emittedToolCalls.size,
@@ -303,6 +307,7 @@ export function mapResponseStream(
               wsCloseCode: transportSnapshot.wsCloseCode,
               wsCloseReason: transportSnapshot.wsCloseReason,
               serverErrorMessage: transportSnapshot.serverErrorMessage,
+              wsErrorReason: transportSnapshot.wsErrorReason,
               deltasObserved: transportSnapshot.deltasObserved,
               requestOptionsShape: options.logContext.requestOptionsShape,
               retryAttempted,
