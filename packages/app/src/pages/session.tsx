@@ -2030,6 +2030,7 @@ export default function Page() {
                     onStatusLineChange={setStatusLine}
                     expanded={store.expanded}
                     onToggleExpanded={(id: string) => setStore("expanded", id, (open: boolean | undefined) => !open)}
+                    onOpenFileLink={(path: string) => openTab(file.tab(path))}
                   />
                 </Show>
               </Match>

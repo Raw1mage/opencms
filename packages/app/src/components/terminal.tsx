@@ -97,6 +97,19 @@ const copyTextToClipboard = async (doc: Document, text: string) => {
   }
 }
 
+const configureTerminalTextarea = (textarea: HTMLTextAreaElement | undefined) => {
+  if (!textarea) return
+  textarea.autocomplete = "off"
+  textarea.autocapitalize = "none"
+  textarea.spellcheck = false
+  textarea.inputMode = "text"
+  textarea.enterKeyHint = "enter"
+  textarea.setAttribute("autocorrect", "off")
+  textarea.setAttribute("aria-label", "Terminal input")
+  textarea.setAttribute("data-lpignore", "true")
+  textarea.setAttribute("data-1p-ignore", "true")
+}
+
 const useTerminalUiBindings = (input: {
   container: HTMLDivElement
   term: Term
@@ -145,6 +158,7 @@ const useTerminalUiBindings = (input: {
 
   const handleTextareaFocus = () => {
     input.term.options.cursorBlink = true
+    input.container.scrollIntoView({ block: "end", behavior: "smooth" })
   }
   const handleTextareaBlur = () => {
     input.term.options.cursorBlink = false
@@ -213,6 +227,7 @@ const useTerminalUiBindings = (input: {
     input.cleanups.push(() => input.container.ownerDocument.removeEventListener("keydown", handleKeyDown, true))
   }
 
+  configureTerminalTextarea(input.term.textarea)
   input.term.textarea?.addEventListener("focus", handleTextareaFocus)
   input.term.textarea?.addEventListener("blur", handleTextareaBlur)
   input.cleanups.push(() => input.term.textarea?.removeEventListener("focus", handleTextareaFocus))
@@ -577,6 +592,20 @@ export const Terminal = (props: TerminalProps) => {
         handleResize = scheduleFit
         window.addEventListener("resize", handleResize)
         cleanups.push(() => window.removeEventListener("resize", handleResize))
+
+        const visualViewport = window.visualViewport
+        if (visualViewport) {
+          const handleVisualViewportChange = () => {
+            scheduleFit()
+            if (container.ownerDocument.activeElement === t.textarea) {
+              requestAnimationFrame(() => container.scrollIntoView({ block: "end", behavior: "smooth" }))
+            }
+          }
+          visualViewport.addEventListener("resize", handleVisualViewportChange)
+          visualViewport.addEventListener("scroll", handleVisualViewportChange)
+          cleanups.push(() => visualViewport.removeEventListener("resize", handleVisualViewportChange))
+          cleanups.push(() => visualViewport.removeEventListener("scroll", handleVisualViewportChange))
+        }
       }
 
       if (restore && restoreSize) {
