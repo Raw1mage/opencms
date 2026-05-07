@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "planned",
+  "state": "archived",
   "profile": [],
   "history": [
     {
@@ -26,6 +26,14 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "tasks/handoff/test-vectors/errors/observability drafted 2026-04-19"
+    },
+    {
+      "from": "planned",
+      "to": "archived",
+      "at": "2026-05-06T00:00:00.000Z",
+      "by": "pkcs12",
+      "mode": "archive",
+      "reason": "superseded — autonomous design diverged substantially from this opt-in gate plan; preserved for reference. Original branch shelf/autonomous-opt-in (impl Phase 1+2 in commits 6db33208d, ed8e9be2e) deleted."
     }
   ]
 }

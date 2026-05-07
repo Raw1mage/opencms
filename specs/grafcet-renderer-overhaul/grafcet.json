@@ -85,7 +85,7 @@
   },
   {
     "StepNumber": 7,
-    "StepType": "final",
+    "StepType": "normal",
     "StepAction": "回傳 SVG",
     "ModuleRef": "A1",
     "LinkInputType": [],
