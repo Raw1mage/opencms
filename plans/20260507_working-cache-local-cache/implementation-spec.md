@@ -39,10 +39,11 @@ Both tiers are reachable on demand via three sibling tools under the `system-man
 
 | File | Change |
 | ---- | ------ |
-| `packages/opencode/src/tool/tool.ts` | Add `kind: "exploration" \| "modify" \| "other"` field to tool definitions; classify all existing tools |
-| `packages/opencode/src/tool/system-manager/recall_toolcall_index.ts` | New tool: returns manifest shape on demand (counts + kinds + topics + sibling tool names) |
-| `packages/opencode/src/tool/system-manager/recall_toolcall_raw.ts` | New tool: L2 pointer query with optional `include_body` flag for inline body retrieval from `Session.messages` |
-| `packages/opencode/src/tool/system-manager/recall_toolcall_digest.ts` | New tool: L1 digest retrieval with stale-entry omission |
+| `packages/opencode/src/tool/tool.ts` | Add `Tool.Kind = "exploration" \| "modify" \| "other"` and `Tool.kind(toolID)` lookup; static registry covers all native tools (no per-file edits) |
+| `packages/mcp/system-manager/src/index.ts` | Register the 3 sibling tools (`recall_toolcall_index`, `_raw`, `_digest`) in ListToolsRequestSchema and dispatch them in CallToolRequestSchema. system-manager is an external MCP server package, not opencode-native (corrects an earlier draft that placed the tools under `packages/opencode/src/tool/system-manager/` — that path does not exist) |
+| `packages/mcp/system-manager/src/system-manager-http.ts` | Add `workingCacheIndexViaApi`, `workingCacheRawViaApi`, `workingCacheDigestViaApi` HTTP client methods following the existing `readSessionMessagesViaApi` pattern |
+| `packages/opencode/src/server/routes/working-cache.ts` | New Hono route file exposing `GET /working-cache/{index\|raw\|digest}/:sessionID` for the MCP server to call back into. Read-only, per-session, follows the existing `describeRoute + validator + resolver` OpenAPI pattern |
+| `packages/opencode/src/server/app.ts` | Register `WorkingCacheRoutes()` under `/working-cache` |
 | `packages/opencode/src/session/tool-invoker.ts` | Add exploration-sequence depth counter; add tool-invoker post-hook for L2 ledger derivation trigger; add postscript injection on the last tool result of an exploration sequence |
 | `packages/opencode/src/session/working-cache.ts` | Add `LedgerEntry` schema + derivation function over `Session.messages`; fix freshness fail-open for `tool-result` / `subagent-result` evidence kinds (line 299); add manifest render helper |
 | `packages/opencode/src/session/post-compaction.ts` | Replace `WorkingCacheProvider.gather` body with manifest-form render (counts + kinds + topics + tool names) |

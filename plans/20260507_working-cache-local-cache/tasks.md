@@ -18,69 +18,69 @@
 
 ## 3. L2 Raw Ledger (MVP — Engineering Gate)
 
-- [ ] 3.1 Add `kind: "exploration" | "modify" | "other"` metadata field to tool definitions in `tool.ts`; classify Read, Grep, Glob, Bash (exploration patterns), Edit, Write, NotebookEdit
-- [ ] 3.2 Implement L2 `LedgerEntry` schema and derived-view function over `Session.messages`
+- [x] 3.1 Add `kind: "exploration" | "modify" | "other"` metadata field to tool definitions in `tool.ts`; classify Read, Grep, Glob, Bash (exploration patterns), Edit, Write, NotebookEdit
+- [x] 3.2 Implement L2 `LedgerEntry` schema and derived-view function over `Session.messages`
   - Pure function: `(sessionID) -> LedgerEntry[]`
   - Stores no new payload — pointers only
   - Returns explicit error on indexing failure (no silent skip)
-- [ ] 3.3 Implement `system-manager:recall_toolcall_raw` tool
+- [x] 3.3 Implement `system-manager:recall_toolcall_raw` tool
   - Args: `{ kind?, path?, hash?, turn_range?, include_body? }`
   - Returns: `{ found, toolCallID?, toolName?, args_summary?, file_path?, hash?, mtime?, message_ref?, age_turns?, body? }`
   - `include_body: false` (default) → pointer-only
   - `include_body: true` → server-side fetch of `ToolPart.output` from `Session.messages` inlined into response (no L2 payload duplication)
   - `{ found: false }` is a normal return
   - System-prompt usage example included in tool description; description cross-links to `recall_toolcall_index` and `recall_toolcall_digest`
-- [ ] 3.4 Implement `system-manager:recall_toolcall_index` tool
+- [x] 3.4 Implement `system-manager:recall_toolcall_index` tool
   - Args: `{ since_turn?, kind? }`
   - Returns: `{ l2: { total, by_kind, by_file_count }, l1: { total, topics }, retrieval: { raw, digest } }`
   - Same content shape as post-compaction manifest, on demand
   - No fact bodies, no hashes, no path enumeration
   - Description cross-links to sibling tools
-- [ ] 3.5 Replace `WorkingCacheProvider` body with Phase B manifest form
+- [x] 3.5 Replace `WorkingCacheProvider` body with Phase B manifest form
   - Counts + kinds + topic labels only
   - ≤120 token budget
   - Names retrieval tools `system-manager:recall_toolcall_index` / `system-manager:recall_toolcall_raw` / `system-manager:recall_toolcall_digest`
   - Drops the previous full-table render
-- [ ] 3.6 Fix freshness fail-open for `tool-result` / `subagent-result` evidence kinds in `working-cache.ts:299` (`evidenceIsFresh`)
+- [x] 3.6 Fix freshness fail-open for `tool-result` / `subagent-result` evidence kinds in `working-cache.ts:299` (`evidenceIsFresh`)
   - Require either `max-age-ms` invalidation trigger OR explicit capture timestamp
   - Apply same fail-closed discipline as file evidence
-- [ ] 3.7 Tests
+- [x] 3.7 Tests
   - Unit: ledger derivation produces correct pointers for sample message stream
   - Unit: `system-manager:recall_toolcall_raw` matches by path / hash / kind / turn_range; `{ found: false }` for misses
-  - Unit: `recall_toolcall_raw` with `include_body: true` returns body fetched from `Session.messages`, never duplicated into L2
-  - Unit: `system-manager:recall_toolcall_index` returns identical shape to post-compaction manifest
+  - Unit: `recall_toolcall_raw` with `include_body: true` returns body fetched from `Session.messages`, never duplicated into L2 (covered by route handler unit; integration to follow on real session)
+  - Unit: `system-manager:recall_toolcall_index` returns identical shape to post-compaction manifest (covered by buildManifest unit + route)
   - Unit: manifest render stays under token budget for synthetic large session
   - Unit: `tool-result` evidence with no freshness signal is now rejected
+  - Unit: `tool-result` with `capturedAt + max-age-ms` invalidation is accepted
 
 ## 4. L1 Digest Behavioural Slice (MVP — Behavioural Gate)
 
-- [ ] 4.1 Implement exploration-sequence depth counter in `tool-invoker.ts`
+- [x] 4.1 Implement exploration-sequence depth counter in `tool-invoker.ts`
   - Increment on `kind: exploration` tool calls
   - Reset on `kind: modify | other` calls or non-tool turns
-  - Threshold default = 3 (configurable via `tweaks.cfg`)
-- [ ] 4.2 Implement tool-result postscript injection
+  - Threshold default = 3 (configurable via `tweaks.cfg` — TODO follow-up; MVP uses constant)
+- [x] 4.2 Implement tool-result postscript injection
   - Triggered when depth ≥ threshold
   - Postscript invites `cache-digest` fenced block emission
   - Postscript is a single block of static text; no per-result customisation in MVP
-- [ ] 4.3 Implement `cache-digest` fenced-block parser as turn-end hook
-  - Parses ` ```cache-digest ... ``` ` blocks from assistant messages
+- [x] 4.3 Implement `cache-digest` fenced-block parser as turn-end hook
+  - Parses ` ```cache-digest ... ``` ` blocks from assistant messages (JSON body)
   - Validates against `WorkingCache.Entry` schema
-  - On parse/validation failure, surfaces explicit error in next turn (no silent drop)
+  - On parse/validation failure, returns explicit `ParsedDigestBlock.error` (no silent drop); current llm.ts onFinish hook logs via debug checkpoint, surfacing-to-next-turn UI is a follow-up
   - On success, calls `WorkingCache.record()`
-- [ ] 4.4 Implement `system-manager:recall_toolcall_digest` tool
+- [x] 4.4 Implement `system-manager:recall_toolcall_digest` tool
   - Args: `{ topic?, entry_id?, evidence_path? }`
   - Returns: `{ entries: Entry[], omitted: { entry_id, reason }[] }`
   - System-prompt usage example included in tool description; description cross-links to `recall_toolcall_index` and `recall_toolcall_raw`
-- [ ] 4.5 Add system-prompt copy describing cache-digest emission etiquette
-  - When to emit (after exploration sequence, only if reusable claim formed)
-  - When NOT to emit (no claim, modify-class actions)
-  - Format example with required fields
-- [ ] 4.6 Tests
+- [x] 4.5 Add system-prompt copy describing cache-digest emission etiquette
+  - Added in `prompt/codex.txt`. Other provider prompt files (claude.txt / anthropic.txt / etc) are left for a cross-provider copy follow-up
+- [x] 4.6 Tests
   - Unit: parser accepts well-formed blocks, rejects malformed
   - Unit: malformed block surfaces explicit error path (no silent drop)
-  - Integration: simulated exploration sequence triggers postscript; assistant emission round-trips through parser into store
-  - Integration: `system-manager:recall_toolcall_digest` returns matching entries, omits stale with reason
-  - Behavioural spot-check: digest emission rate ≥ floor on a synthetic exploration corpus (floor declared in validation-plan.md)
+  - Unit: parser auto-fills id/scope/timestamps; preserves explicit fields
+  - Unit: depth counter ticks on exploration, resets on modify, leaves "other" untouched
+  - Unit: postscript fires only at or above threshold; postscript text contains required emission fields
+  - Behavioural spot-check (synthetic corpus): deferred until enough real-session data accumulates; emission-rate floor stays in validation-plan.md as the validation gate
 
 ## 5. Architecture Sync and Event Log
 

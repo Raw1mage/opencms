@@ -222,3 +222,98 @@ revised plan and noting that only L1 is shipped today.
 - Implement L1 behavioural slice (tasks §4): exploration depth counter,
   postscript injection, `cache-digest` parser, system-prompt copy.
 - Re-run architecture sync after each slice ships.
+
+## Phase Summary — Beta Implementation (2026-05-07, third pass)
+
+User invoked `/beta-workflow` to execute §3 (L2 engineering gate) and §4 (L1
+behavioural slice) on a separate beta worktree. All implementation lives on
+branch `working-cache-l1` in `~/projects/opencode-beta`; main repo carries
+only docs (this file, plans/, future architecture sync).
+
+### Authority SSOT for this run
+
+- `mainRepo` = `/home/pkcs12/projects/opencode` (carries main branch + plan
+  package + this event log).
+- `baseBranch` = `main`.
+- `implementationRepo` / `implementationWorktree` =
+  `/home/pkcs12/projects/opencode-beta` (permanent beta workspace).
+- `implementationBranch` = `working-cache-l1` (forked from the two reverted
+  code commits 88973d86b + 17a963f83 that originally bypassed beta — see
+  earlier section).
+- `docsWriteRepo` = `mainRepo` (single-repo project).
+
+### Implementation commits on `working-cache-l1`
+
+1. **252dd1bbd** `feat(working-cache): tool kind metadata, L2 ledger derivation,
+   freshness fix`
+   - Phase A foundations: `Tool.Kind` registry, `LedgerEntry` schema,
+     `deriveLedger`, `buildManifest`, `selectLedger`, `selectDigest`,
+     `nonReplayableEvidenceIsFresh`, fail-closed validation upgrade.
+2. **f0244869a** `feat(working-cache): L1 capture (postscript + parser) and
+   manifest provider`
+   - Phase B capture loop: exploration depth counter,
+     `explorationPostscript`, `parseDigestBlocks`, llm.ts onFinish hook
+     wiring, `tool-invoker.ts` postscript injection, manifest-form
+     `WorkingCacheProvider` (replaces full-table render).
+3. **33d373a5a** `feat(working-cache): wire system-manager:recall_toolcall_*
+   tool family + system-prompt copy`
+   - Phase C retrieval surface: new `packages/opencode/src/server/routes/
+     working-cache.ts` (3 GET endpoints), 3 client methods in
+     `system-manager-http.ts`, 3 tool registrations + dispatch in
+     `packages/mcp/system-manager/src/index.ts`, emission etiquette section
+     in `prompt/codex.txt`.
+4. **(this commit on main)** Plan path correction + tasks.md checkbox
+   sync + this event-log section.
+
+### Architecture surprise resolved
+
+The plan's `implementation-spec.md` originally placed the three retrieval
+tools under `packages/opencode/src/tool/system-manager/` — a path that does
+not exist. The actual location is `packages/mcp/system-manager/` which is
+an external MCP server package. The implementation crosses MCP boundary
+(stdio → HTTP → opencode HTTP server → working-cache module). Marginal cost
+vs native tool: ~60 lines + two extra hops. Plan path corrected in this
+commit.
+
+### Test status (beta branch)
+
+- `bun test packages/opencode/test/session/working-cache.test.ts` — **16/16
+  pass** covering: schema validation, scope check, lineage preference,
+  manifest provider, deriveLedger pointer-only contract, selectLedger
+  filtering, manifest token budget, parseDigestBlocks (well-formed +
+  malformed + missing-fields), depth counter state machine,
+  explorationPostscript threshold, freshness rejection +acceptance,
+  Tool.kind classification.
+- `bun test packages/mcp/system-manager/src/system-manager-session.test.ts`
+  — **5/5 pass** (no regressions from the new tool dispatch cases).
+
+### Deferred / explicitly out of scope
+
+Per plan §6:
+- Subagent → parent cache promotion (deferred plan).
+- Memory-graph promotion / cross-session retention.
+- Repo-scoped + domain-scoped entries (schema retains support, MVP
+  exercises session scope only).
+- Automatic TTL / deletion policy.
+- Within-turn dedup at tool dispatch.
+
+Cross-provider system-prompt copy: only `prompt/codex.txt` carries the
+emission etiquette section in this slice. Claude / Anthropic / Gemini /
+Trinity drivers will still see the recall tools in their tool list but
+without the dedicated "when to emit" guidance. Follow-up will copy the
+section into the other driver prompts after observing real-session
+emission behaviour.
+
+L1 behavioural validation gate: the engineering pieces (parser, postscript,
+depth counter, tool registrations) are tested; the **behavioural emission
+rate ≥ 40%** target requires real-session corpus and is deferred to
+post-deploy observation per validation-plan.md.
+
+### Next step
+
+Fetch-back via `/beta-workflow` §7.1: from `mainRepo` create
+`test/working-cache-l1`, merge `working-cache-l1` in, resolve the expected
+"deleted vs modified" conflicts on `working-cache.ts`, `post-compaction.ts`,
+`config.ts`, `mcp/index.ts` (main reverted these in 9da99f83f; beta has the
+re-applied + extended versions), validate, then finalize merge to `main`.
+Approval-gated.
