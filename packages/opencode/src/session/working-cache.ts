@@ -631,26 +631,24 @@ export namespace WorkingCache {
 
   /**
    * Render a manifest as the compact text block injected at post-compaction.
-   * Token budget: ~120 tokens. Keeps counts + kinds + a small topic preview;
-   * never emits hashes or path enumerations.
+   * Token budget: ≤120 tokens (~480 chars). Keeps counts + small topic preview;
+   * never emits hashes or path enumerations. Per plan revision DD-22, the
+   * manifest is awareness-level only — drill-in is via the recall_toolcall_*
+   * tool family.
    */
   export function renderManifest(manifest: Manifest): string {
-    const kinds = Object.entries(manifest.l2.byKind)
+    const kindsCompact = Object.entries(manifest.l2.byKind)
+      .slice(0, 5)
       .map(([toolName, count]) => `${toolName}=${count}`)
-      .join(", ")
+      .join(",")
     const topicPreview = manifest.l1.topics
-      .slice(0, 6)
-      .map((topic) => topic.length > 40 ? `${topic.slice(0, 39)}…` : topic)
+      .slice(0, 4)
+      .map((topic) => (topic.length > 36 ? `${topic.slice(0, 35)}…` : topic))
       .join("; ")
     const lines = [
-      "Working Cache available this session:",
-      `- L2 ledger: ${manifest.l2.total} toolcall results indexed across ${manifest.l2.byFileCount} files (${kinds || "no entries"}).`,
-      `  Use \`${manifest.retrieval.raw}\` to fetch a specific toolcall (with optional include_body).`,
-      `- L1 digest: ${manifest.l1.total} entries${topicPreview ? ` (topics: ${topicPreview}${manifest.l1.topics.length > 6 ? "…" : ""})` : ""}.`,
-      `  Use \`${manifest.retrieval.digest}\` to fetch by topic or entry_id.`,
-      `- Refresh awareness mid-session via \`${manifest.retrieval.index}\`.`,
-      "",
-      "Drill in only when a specific need arises. Modifying actions still require fresh evidence verification.",
+      `Working Cache: L2=${manifest.l2.total} toolcalls (${manifest.l2.byFileCount} files${kindsCompact ? `; ${kindsCompact}` : ""}); L1=${manifest.l1.total} digests${topicPreview ? ` (${topicPreview}${manifest.l1.topics.length > 4 ? "…" : ""})` : ""}.`,
+      `Refresh: \`${manifest.retrieval.index}\` | Pull raw: \`${manifest.retrieval.raw}\` (optional include_body) | Pull digest: \`${manifest.retrieval.digest}\`.`,
+      "Modifying actions still need fresh evidence verification.",
     ]
     return lines.join("\n")
   }
@@ -678,6 +676,176 @@ export namespace WorkingCache {
       return true
     })
     return filtered.toSorted((a, b) => b.turn - a.turn)
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Exploration-sequence depth counter (DD-7 / DD-8)
+  //
+  // Tracks consecutive exploration-class toolcalls per session. The L1
+  // postscript fires when depth crosses the configured threshold; modify or
+  // other-class toolcalls reset the counter. Lives in-memory; restart resets
+  // — acceptable because the cache itself is the durable artefact.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const explorationDepth = new Map<string, number>()
+  const DEFAULT_DEPTH_THRESHOLD = 3
+
+  export function tickExplorationDepth(sessionID: string, toolKind: Tool.Kind): number {
+    if (toolKind === "exploration") {
+      const next = (explorationDepth.get(sessionID) ?? 0) + 1
+      explorationDepth.set(sessionID, next)
+      return next
+    }
+    if (toolKind === "modify") {
+      explorationDepth.set(sessionID, 0)
+      return 0
+    }
+    // "other" leaves the counter untouched so neutral tools like todowrite
+    // don't break a real exploration sequence.
+    return explorationDepth.get(sessionID) ?? 0
+  }
+
+  export function getExplorationDepth(sessionID: string): number {
+    return explorationDepth.get(sessionID) ?? 0
+  }
+
+  export function resetExplorationDepth(sessionID: string): void {
+    explorationDepth.delete(sessionID)
+  }
+
+  /**
+   * Returns the postscript text to append to a tool result when exploration
+   * depth has crossed the threshold. Caller appends — this function decides
+   * whether to emit. Returns empty string when no postscript should fire.
+   */
+  export function explorationPostscript(
+    depth: number,
+    threshold: number = DEFAULT_DEPTH_THRESHOLD,
+  ): string {
+    if (depth < threshold) return ""
+    return [
+      "",
+      "[working-cache] Exploration sequence reached depth " + String(depth) + ".",
+      "If you formed a reusable claim from this exploration, emit a `cache-digest`",
+      "fenced block in your next response. Required fields: purpose, facts",
+      "(each with evidenceRefs), evidence (with id/path/kind plus sha256 or mtimeMs;",
+      "tool-result kind also requires sha256 OR capturedAt + max-age-ms).",
+      "Skip emission entirely if no reusable fact crystallised — empty/forced",
+      "blocks waste tokens.",
+    ].join("\n")
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Fenced cache-digest block parser
+  //
+  // Plan reference: working-cache plan revision DD-8, DD-9. The L1 emission
+  // surface is a JSON-bodied fenced block in assistant messages; turn-end hook
+  // calls `parseDigestBlocks(text, sessionID)` to extract candidate entries.
+  // Malformed blocks raise WORKING_CACHE_DIGEST_BLOCK_MALFORMED so the next
+  // turn surfaces an explicit error rather than a silent drop.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const FENCED_BLOCK_PATTERN = /```cache-digest\s*\n([\s\S]*?)\n```/g
+
+  export interface ParsedDigestBlock {
+    raw: string
+    entry: Entry | null
+    error?: { code: ErrorCode; message: string; details?: Record<string, unknown> }
+  }
+
+  /**
+   * Auto-generate fields the AI may legitimately omit. Sessions, timestamps,
+   * version, and operation default sensibly so the LLM only has to author the
+   * substantive parts (purpose / facts / evidence).
+   */
+  function defaultEntryFields(sessionID: string, draft: Record<string, unknown>): Record<string, unknown> {
+    const now = new Date().toISOString()
+    return {
+      version: 1,
+      scope: { kind: "session", sessionID },
+      operation: "summary",
+      createdAt: now,
+      updatedAt: now,
+      derivedFrom: [],
+      supersedes: [],
+      filesSearched: [],
+      filesRead: [],
+      invalidation: [],
+      unresolvedQuestions: [],
+      ...draft,
+      // Re-apply id last so a draft-provided id wins; missing id triggers a generated one.
+      id:
+        typeof draft.id === "string" && draft.id.length > 0
+          ? draft.id
+          : `wc_${createHash("sha256")
+              .update(`${sessionID}:${now}:${Math.random()}`)
+              .digest("hex")
+              .slice(0, 16)}`,
+    }
+  }
+
+  /**
+   * Parse all `cache-digest` fenced blocks out of an assistant message text.
+   * Each block must be a single JSON object matching `EntryInput`. Required
+   * fields the AI must author: `purpose`, `facts`, `evidence`. The rest is
+   * defaulted from session context.
+   *
+   * Pure function. Does NOT persist; pass results to `record()` to write.
+   */
+  export function parseDigestBlocks(text: string, sessionID: string): ParsedDigestBlock[] {
+    const results: ParsedDigestBlock[] = []
+    if (typeof text !== "string" || text.length === 0) return results
+    let match: RegExpExecArray | null
+    FENCED_BLOCK_PATTERN.lastIndex = 0
+    while ((match = FENCED_BLOCK_PATTERN.exec(text)) !== null) {
+      const body = match[1].trim()
+      if (body.length === 0) {
+        results.push({
+          raw: match[0],
+          entry: null,
+          error: {
+            code: "WORKING_CACHE_DIGEST_BLOCK_MALFORMED",
+            message: "cache-digest block body is empty",
+          },
+        })
+        continue
+      }
+      let draft: Record<string, unknown>
+      try {
+        const parsed = JSON.parse(body)
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+          throw new Error("cache-digest block must be a JSON object")
+        }
+        draft = parsed as Record<string, unknown>
+      } catch (err) {
+        results.push({
+          raw: match[0],
+          entry: null,
+          error: {
+            code: "WORKING_CACHE_DIGEST_BLOCK_MALFORMED",
+            message: err instanceof Error ? err.message : String(err),
+            details: { excerpt: body.slice(0, 200) },
+          },
+        })
+        continue
+      }
+      const candidate = defaultEntryFields(sessionID, draft)
+      try {
+        const entry = validate(candidate as EntryInput)
+        results.push({ raw: match[0], entry })
+      } catch (err) {
+        if (err instanceof WorkingCacheError) {
+          results.push({
+            raw: match[0],
+            entry: null,
+            error: { code: err.code, message: err.message, details: err.details },
+          })
+          continue
+        }
+        throw err
+      }
+    }
+    return results
   }
 
   /**

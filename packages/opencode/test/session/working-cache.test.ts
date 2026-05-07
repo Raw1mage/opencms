@@ -120,7 +120,7 @@ describe("WorkingCache", () => {
     expect(rendered).toContain("supersedes:wc_read")
   })
 
-  test("post-compaction provider restores valid session digests", async () => {
+  test("post-compaction provider emits manifest-form awareness", async () => {
     const { store } = createStore()
     WorkingCache.setStoreForTesting(store)
 
@@ -128,15 +128,20 @@ describe("WorkingCache", () => {
       validEntry({
         id: "wc_recovery",
         operation: "modify",
-        summary: "Recovered digest should appear in the compaction addendum.",
+        purpose: "Working Cache manifest contract",
+        summary: "Provider should expose only counts + topic labels, not the body.",
       }),
     )
 
     const followUps = await PostCompaction.gather("ses_test")
-    const workingCache = followUps.find((item) => item.title === "Working Cache (evidence-backed exploration digest)")
+    const workingCache = followUps.find((item) => item.title === "Working Cache (awareness manifest)")
 
-    expect(workingCache?.summaryBody).toContain("Recovered digest should appear")
-    expect(workingCache?.summaryBody).toContain("Before editing code, re-read the cited evidence files")
-    expect(workingCache?.continueHint).toContain("1 valid exploration digest entries restored")
+    expect(workingCache?.summaryBody).toContain("Working Cache: L2=0")
+    expect(workingCache?.summaryBody).toContain("L1=1 digests")
+    expect(workingCache?.summaryBody).toContain("Working Cache manifest contract")
+    expect(workingCache?.summaryBody).not.toContain("Provider should expose only counts")
+    expect(workingCache?.summaryBody).toContain("system-manager:recall_toolcall_index")
+    expect(workingCache?.continueHint).toContain("L1 digests")
+    expect(workingCache?.continueHint).toContain("system-manager:recall_toolcall_raw")
   })
 })

@@ -3,6 +3,7 @@ import { Session } from "."
 import { Todo } from "./todo"
 import type { MessageV2 } from "./message-v2"
 import { WorkingCache } from "./working-cache"
+import { Token } from "@/util/token"
 
 const log = Log.create({ service: "post-compaction" })
 
@@ -217,23 +218,48 @@ export namespace PostCompaction {
     },
   }
 
+  /**
+   * Working Cache awareness manifest (Phase B per plan revision DD-5 / DD-6 /
+   * DD-22). Replaces the previous full-table render. Emits counts + topic
+   * labels + retrieval tool names only — no fact bodies, no hashes, no path
+   * enumeration. Token budget ≤120; if rendered text exceeds budget, drop
+   * the provider output entirely (fail-closed, per INV-13).
+   */
   const WorkingCacheProvider: Provider = {
     name: "working-cache",
     async gather(sessionID) {
-      const selected = await WorkingCache.selectValid({ kind: "session", sessionID }, 5)
-      if (selected.entries.length === 0) return null
-      const rendered = WorkingCache.renderForRecovery(selected.entries, 2000)
-      const omitted =
-        selected.omitted.length > 0 ? `\n\nOmitted stale/invalid entries: ${selected.omitted.length}.` : ""
+      let messages: MessageV2.WithParts[] = []
+      try {
+        messages = await Session.messages({ sessionID }).catch(() => [])
+      } catch (err) {
+        log.warn("working-cache provider: messages fetch failed", { err: (err as Error)?.message })
+        return null
+      }
+      const ledger = WorkingCache.deriveLedger(messages)
+      const valid = await WorkingCache.selectValid({ kind: "session", sessionID }, 16).catch(() => ({
+        entries: [] as WorkingCache.Entry[],
+        omitted: [] as { entryID: string; reason: WorkingCache.ErrorCode | "WORKING_CACHE_SCOPE_UNRESOLVED" }[],
+      }))
+      if (ledger.length === 0 && valid.entries.length === 0 && valid.omitted.length === 0) return null
+
+      const manifest = WorkingCache.buildManifest(ledger, valid.entries)
+      const rendered = WorkingCache.renderManifest(manifest)
+      if (Token.estimate(rendered) > 120) {
+        log.warn("working-cache manifest over budget", { tokens: Token.estimate(rendered) })
+        return null
+      }
+
+      const omittedSuffix =
+        valid.omitted.length > 0 ? `\n\n(${valid.omitted.length} stale L1 entries omitted from counts above.)` : ""
+
       return {
-        title: "Working Cache (evidence-backed exploration digest)",
-        summaryBody:
-          rendered +
-          omitted +
-          "\n\nUse this as advisory recovered exploration context. Before editing code, re-read the cited evidence files.",
+        title: "Working Cache (awareness manifest)",
+        summaryBody: rendered + omittedSuffix,
         continueHint:
-          `Working Cache: ${selected.entries.length} valid exploration digest entries restored. ` +
-          "Use them as advisory context; do not skip read-before-write evidence checks.",
+          `Working Cache: ${manifest.l2.total} L2 ledger entries and ${manifest.l1.total} L1 digests available. ` +
+          "Drill in via `system-manager:recall_toolcall_index` (refresh awareness), " +
+          "`system-manager:recall_toolcall_raw` (specific toolcall, optional include_body), " +
+          "or `system-manager:recall_toolcall_digest` (specific fact). Modifying actions still require fresh evidence verification.",
       }
     },
   }
