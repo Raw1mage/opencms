@@ -176,6 +176,17 @@ export namespace MCP {
     }
   }
 
+  function expandEnvironment(environment: Record<string, string> | undefined): Record<string, string> | undefined {
+    if (!environment) return undefined
+    const home = Env.get("HOME") ?? process.env.HOME ?? ""
+    return Object.fromEntries(
+      Object.entries(environment).map(([key, value]) => [
+        key,
+        value.replaceAll("${HOME}", home).replaceAll("$HOME", home),
+      ]),
+    )
+  }
+
   // Convert MCP tool definition to AI SDK Tool type
   async function convertMcpTool(
     mcpTool: MCPToolDef,
@@ -633,9 +644,11 @@ export namespace MCP {
       const isExternalBinary = cmd.startsWith("/usr/local/lib/opencode/mcp/") || cmd.startsWith("/opt/opencode-apps/")
       const cwd = isExternalBinary ? "/tmp" : Instance.directory
 
+      const expandedEnvironment = expandEnvironment(mcp.environment)
+
       // Ensure memory storage directory exists when MEMORY_FILE_PATH is configured.
       if (key.startsWith("memory")) {
-        const memoryFilePath = mcp.environment?.MEMORY_FILE_PATH
+        const memoryFilePath = expandedEnvironment?.MEMORY_FILE_PATH
         if (memoryFilePath) {
           await fs.mkdir(path.dirname(memoryFilePath), { recursive: true }).catch((error) => {
             log.warn("failed to prepare memory directory", {
@@ -666,7 +679,7 @@ export namespace MCP {
           ...Env.all(),
           OPENCODE_PID: process.env.OPENCODE_PID ?? String(process.pid),
           ...(cmd === "opencode" ? { BUN_BE_BUN: "1" } : {}),
-          ...mcp.environment,
+          ...expandedEnvironment,
         },
       })
       transport.stderr?.on("data", (chunk: Buffer) => {
