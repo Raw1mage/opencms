@@ -19,16 +19,19 @@ export function convertPrompt(prompt: LanguageModelV2Prompt): {
   instructions: string
   input: ResponseItem[]
 } {
-  const instructions = "You are a helpful assistant."
+  // Mirror upstream codex-cli wire layout
+  // (refs/codex/codex-rs/core/src/client.rs:688 — `instructions =
+  // &prompt.base_instructions.text`): the Responses-API `instructions` field
+  // carries the entire system prompt. All LMv2 system messages get
+  // concatenated into it; nothing routed through input as developer role.
+  // Empty string when no system message exists — caller may omit the field.
+  const systemTexts: string[] = []
   const input: ResponseItem[] = []
 
   for (const msg of prompt) {
     switch (msg.role) {
       case "system":
-        // System prompt goes into input as `developer` role message —
-        // matches AI SDK @ai-sdk/openai Responses adapter behavior.
-        // `instructions` is a short placeholder only.
-        input.push({ role: "developer", content: msg.content })
+        systemTexts.push(msg.content)
         break
 
       case "user": {
@@ -150,6 +153,7 @@ export function convertPrompt(prompt: LanguageModelV2Prompt): {
   }
 
 
+  const instructions = systemTexts.join("\n\n")
   return { instructions, input }
 }
 
