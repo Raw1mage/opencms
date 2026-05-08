@@ -168,7 +168,10 @@ export namespace SessionCompaction {
    *
    * Use this helper anywhere we used to call Bus.publish(Event.Compacted, ...).
    */
-  export async function publishCompactedAndResetChain(sessionID: string) {
+  export async function publishCompactedAndResetChain(
+    sessionID: string,
+    eventMeta?: { observed?: string; kind?: string; tokensBefore?: number; tokensAfter?: number },
+  ) {
     Bus.publish(Event.Compacted, { sessionID })
     try {
       const { invalidateContinuationFamily } = await import("@opencode-ai/codex-provider/continuation")
@@ -183,6 +186,18 @@ export namespace SessionCompaction {
         error: err instanceof Error ? err.message : String(err),
       })
     }
+    // 2026-05-09: append to per-session recentEvents ring for the Q card.
+    void Session.appendRecentEvent(sessionID, {
+      ts: Date.now(),
+      kind: "compaction",
+      compaction: {
+        observed: eventMeta?.observed ?? "unknown",
+        kind: eventMeta?.kind,
+        success: true,
+        tokensBefore: eventMeta?.tokensBefore,
+        tokensAfter: eventMeta?.tokensAfter,
+      },
+    }).catch(() => {})
   }
 
   const COMPACTION_BUFFER = 20_000
@@ -1379,7 +1394,10 @@ When constructing the summary, try to stick to this template:
       auto: input.auto,
     })
 
-    void publishCompactedAndResetChain(input.sessionID)
+    void publishCompactedAndResetChain(input.sessionID, {
+      observed: input.observed,
+      kind: "llm-agent",
+    })
 
     // Read summary text out for the caller (and the checkpoint save below).
     const summaryMsg = (await Session.messages({ sessionID: input.sessionID })).findLast(

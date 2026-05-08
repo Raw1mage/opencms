@@ -149,9 +149,72 @@ export function PromptTelemetryCard(props: {
   )
 }
 
+/**
+ * 2026-05-09 ring buffer of recent rotation/compaction events from
+ * Session.execution.recentEvents. Hand-typed here; the SDK gen file
+ * picks it up on the next sync:back. See packages/opencode/src/session/
+ * index.ts SessionRecentEvent.
+ */
+export type RecentExecutionEvent = {
+  ts: number
+  kind: "rotation" | "compaction"
+  rotation?: {
+    fromProviderId?: string
+    fromAccountId?: string
+    toProviderId?: string
+    toAccountId?: string
+    reason?: string
+  }
+  compaction?: {
+    observed: string
+    kind?: string
+    success: boolean
+    tokensBefore?: number
+    tokensAfter?: number
+  }
+}
+
+function shortAccount(accountId?: string): string {
+  if (!accountId) return "?"
+  // Strip the "codex-subscription-" prefix and trailing "-thesmart-cc" /
+  // "-gmail-com" / etc to keep ring lines compact. Keeps the human-readable
+  // identity (e.g. yeatsraw, ivon0829, service).
+  return accountId
+    .replace(/^codex-subscription-/, "")
+    .replace(/^codex-/, "")
+    .replace(/-(thesmart-cc|gmail-com|sob-com-tw|gmail|outlook-com)$/, "")
+}
+
+function formatRecentEventLine(
+  e: RecentExecutionEvent,
+  accountLabel?: (accountId?: string, providerId?: string) => string | undefined,
+): string {
+  const t = new Date(e.ts)
+  const hh = t.getHours().toString().padStart(2, "0")
+  const mm = t.getMinutes().toString().padStart(2, "0")
+  if (e.kind === "rotation" && e.rotation) {
+    const r = e.rotation
+    const from = accountLabel?.(r.fromAccountId, r.fromProviderId) ?? shortAccount(r.fromAccountId)
+    const to = accountLabel?.(r.toAccountId, r.toProviderId) ?? shortAccount(r.toAccountId)
+    const reason = r.reason ? ` (${r.reason.toLowerCase().replace(/_/g, " ")})` : ""
+    return `${hh}:${mm} rotation: ${from} → ${to}${reason}`
+  }
+  if (e.kind === "compaction" && e.compaction) {
+    const c = e.compaction
+    const kind = c.kind ? `, ${c.kind}` : ""
+    const tokens =
+      c.tokensBefore !== undefined && c.tokensAfter !== undefined
+        ? ` (${(c.tokensBefore / 1000).toFixed(0)}k → ${(c.tokensAfter / 1000).toFixed(0)}k)`
+        : ""
+    return `${hh}:${mm} compaction: ${c.observed}${kind}${c.success ? "" : " ✗"}${tokens}`
+  }
+  return `${hh}:${mm} (unknown event)`
+}
+
 export function RoundSessionTelemetryCard(props: {
   telemetry?: SessionTelemetry
   accountLabel?: (accountId?: string, providerId?: string) => string | undefined
+  recentEvents?: RecentExecutionEvent[]
   expanded?: boolean
   onToggle?: () => void
 }) {
@@ -242,6 +305,20 @@ export function RoundSessionTelemetryCard(props: {
               <div class="text-11-medium text-text-strong">Session summary</div>
               <For each={sessionLines()}>
                 {(line) => <div class="text-11-regular text-text-weak break-words">{line}</div>}
+              </For>
+            </div>
+          </Show>
+          <Show when={(props.recentEvents?.length ?? 0) > 0}>
+            <div class="rounded-md border border-border-weak-base bg-surface-panel px-2.5 py-2 flex flex-col gap-1">
+              <div class="text-11-medium text-text-strong">
+                Recent events ({props.recentEvents?.length})
+              </div>
+              <For each={(props.recentEvents ?? []).slice().reverse()}>
+                {(event) => (
+                  <div class="text-11-regular text-text-weak break-words font-mono">
+                    {formatRecentEventLine(event, props.accountLabel)}
+                  </div>
+                )}
               </For>
             </div>
           </Show>

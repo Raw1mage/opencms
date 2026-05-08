@@ -17,7 +17,11 @@ import { getSessionContextMetrics } from "./session-context-metrics"
 import { estimateSessionContextBreakdown, type SessionContextBreakdownKey } from "./session-context-breakdown"
 import { createSessionContextFormatter } from "./session-context-format"
 import type { SessionTelemetry } from "@/context/global-sync/types"
-import { PromptTelemetryCard, RoundSessionTelemetryCard } from "@/pages/session/session-telemetry-cards"
+import {
+  PromptTelemetryCard,
+  RoundSessionTelemetryCard,
+  type RecentExecutionEvent,
+} from "@/pages/session/session-telemetry-cards"
 import { useGlobalSync } from "@/context/global-sync"
 import { resolveTelemetryAccountLabel } from "@/pages/session/session-telemetry-ui"
 
@@ -319,6 +323,7 @@ export function SessionContextTab(props: SessionContextTabProps) {
           <RoundSessionTelemetryCard
             telemetry={telemetry()}
             accountLabel={resolveAccountLabel}
+            recentEvents={(props.info()?.execution as { recentEvents?: RecentExecutionEvent[] })?.recentEvents}
             expanded={layout.contextSidebar.expanded("roundTelemetry")()}
             onToggle={() => layout.contextSidebar.toggleExpanded("roundTelemetry")}
           />
