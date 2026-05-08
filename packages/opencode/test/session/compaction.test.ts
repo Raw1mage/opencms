@@ -234,36 +234,80 @@ describe("session.compaction.kindChainFor", () => {
     expect(SessionCompaction.kindChainFor("provider-switched")).toEqual(["narrative", "replay-tail"])
   })
 
-  test("prioritizes server compaction only for high-context codex subscription", () => {
+  test("codex provider: server-side compaction first, regardless of context ratio / subscription flag", () => {
+    // codex sub at high ctx → server first
     expect(
       SessionCompaction.__test__.resolveKindChain({
         observed: "cache-aware",
         providerId: "codex",
         isSubscription: true,
         ctxRatio: 0.8,
-        codexServerPriorityRatio: 0.7,
       }),
     ).toEqual(["low-cost-server", "narrative", "replay-tail", "llm-agent"])
 
+    // codex non-sub at high ctx → ALSO server first (sub flag no longer gates)
     expect(
       SessionCompaction.__test__.resolveKindChain({
         observed: "cache-aware",
         providerId: "codex",
         isSubscription: false,
         ctxRatio: 0.8,
-        codexServerPriorityRatio: 0.7,
       }),
-    ).toEqual(["narrative", "replay-tail", "low-cost-server", "llm-agent"])
+    ).toEqual(["low-cost-server", "narrative", "replay-tail", "llm-agent"])
 
+    // codex at low ctx → still server first (no threshold gate anymore)
+    expect(
+      SessionCompaction.__test__.resolveKindChain({
+        observed: "cache-aware",
+        providerId: "codex",
+        ctxRatio: 0.3,
+      }),
+    ).toEqual(["low-cost-server", "narrative", "replay-tail", "llm-agent"])
+  })
+
+  test("non-codex provider: local-first chain unchanged regardless of subscription / context", () => {
     expect(
       SessionCompaction.__test__.resolveKindChain({
         observed: "cache-aware",
         providerId: "openai",
         isSubscription: true,
         ctxRatio: 0.8,
-        codexServerPriorityRatio: 0.7,
       }),
     ).toEqual(["narrative", "replay-tail", "low-cost-server", "llm-agent"])
+
+    expect(
+      SessionCompaction.__test__.resolveKindChain({
+        observed: "manual",
+        providerId: "anthropic",
+      }),
+    ).toEqual(["narrative", "low-cost-server", "llm-agent"])
+  })
+
+  test("codex chain handles observed events that don't normally include low-cost-server", () => {
+    // For idle/rebind/etc the base chain has no `low-cost-server`. On
+    // codex we still prepend it so the model can lean on the codex
+    // server-side compactor when available; chain falls through to
+    // local kinds if the server is unreachable / errors.
+    expect(
+      SessionCompaction.__test__.resolveKindChain({
+        observed: "idle",
+        providerId: "codex",
+      }),
+    ).toEqual(["low-cost-server", "narrative", "replay-tail"])
+
+    expect(
+      SessionCompaction.__test__.resolveKindChain({
+        observed: "rebind",
+        providerId: "codex",
+      }),
+    ).toEqual(["low-cost-server", "narrative", "replay-tail"])
+
+    expect(
+      SessionCompaction.__test__.resolveKindChain({
+        observed: "empty-response",
+        providerId: "codex",
+      }),
+    ).toEqual(["low-cost-server", "narrative", "replay-tail", "llm-agent"])
   })
 })
 

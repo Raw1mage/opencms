@@ -796,6 +796,25 @@ export namespace SessionCompaction {
     return KIND_CHAIN[observed]
   }
 
+  /**
+   * Resolve the per-event compaction kind chain for the active provider.
+   *
+   * 2026-05-08 simplification (per user direction):
+   *   - codex provider → server-side `/responses/compact` is always
+   *     attempted FIRST. Prepend `low-cost-server` to the base chain
+   *     (or move it to head if already present), preserving the rest
+   *     of the fallback order.
+   *   - any other provider → local-first (the base KIND_CHAIN order,
+   *     which already starts with `narrative` / `replay-tail` for
+   *     every observed condition).
+   *
+   * The earlier `codexServerPriorityRatio` ctxRatio gate is removed:
+   * codex subscription doesn't bill server-side compaction, so there
+   * is no cost reason to defer it. The `ctxRatio` /
+   * `codexServerPriorityRatio` / `isSubscription` parameters are
+   * retained as optional for back-compat with existing call sites
+   * but are no longer consulted.
+   */
   export function resolveKindChain(input: {
     observed: Observed
     providerId?: string
@@ -804,16 +823,15 @@ export namespace SessionCompaction {
     codexServerPriorityRatio?: number
   }): ReadonlyArray<KindName> {
     const base = KIND_CHAIN[input.observed]
-    const threshold = input.codexServerPriorityRatio ?? Tweaks.compactionSync().codexServerPriorityRatio
-    const codexSubscription = input.providerId === "codex" && input.isSubscription === true
-    if (!codexSubscription || (input.ctxRatio ?? 0) <= threshold) return base
-    if (input.observed === "overflow" || input.observed === "cache-aware") {
-      return ["low-cost-server", "narrative", "replay-tail", "llm-agent"] as const
+    if (input.providerId !== "codex") return base
+    // Codex: server-side first regardless of context ratio. Reorder the
+    // base chain to put `low-cost-server` at the head; if not already
+    // in the base, prepend it.
+    const reordered: KindName[] = ["low-cost-server"]
+    for (const k of base) {
+      if (k !== "low-cost-server") reordered.push(k)
     }
-    if (input.observed === "manual") {
-      return ["low-cost-server", "narrative", "llm-agent"] as const
-    }
-    return base
+    return Object.freeze(reordered) as ReadonlyArray<KindName>
   }
 
   function isSubscriptionCostModel(model: Provider.Model | undefined): boolean {
