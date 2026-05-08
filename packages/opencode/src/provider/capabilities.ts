@@ -176,20 +176,3 @@ export function getCapabilities(provider: Provider.Info, auth?: Auth.Info): Prov
 
   return DEFAULT_CAPABILITIES
 }
-
-/**
- * Convenience function to check if a provider should skip maxOutputTokens.
- */
-export function shouldSkipMaxOutputTokens(provider: Provider.Info, auth?: Auth.Info): boolean {
-  return getCapabilities(provider, auth).skipMaxOutputTokens
-}
-
-/**
- * Convenience function to check if a provider requires dummy tools.
- */
-export function requiresDummyTool(provider: Provider.Info, model: Provider.Model): boolean {
-  const id = provider.id.toLowerCase()
-  const apiId = model.api.id.toLowerCase()
-
-  return provider.options?.["litellmProxy"] === true || id.includes("litellm") || apiId.includes("litellm")
-}

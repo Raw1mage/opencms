@@ -1,6 +1,6 @@
 import { Installation } from "@/installation"
 import { Provider } from "@/provider/provider"
-import { getCapabilities, requiresDummyTool } from "@/provider/capabilities"
+import { getCapabilities } from "@/provider/capabilities"
 import { Log } from "@/util/log"
 import {
   streamText,
