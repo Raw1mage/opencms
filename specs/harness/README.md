@@ -1,14 +1,20 @@
-# agent-runtime
+# harness
 
 > Wiki entry. Source of truth = current code under
 > `packages/opencode/src/agent/`, `packages/opencode/src/session/` (runloop,
 > autorun, workflow-runner, mandatory-skills), `packages/opencode/src/tool/`
 > (`task.ts`, `question.ts`), `packages/opencode/src/question/`,
 > `packages/opencode/src/scheduler/`, and `packages/opencode/src/cron/`.
-> Replaces the legacy spec packages `agent_framework`, `autonomous-opt-in`,
+> Replaces the legacy spec packages `agent_framework`,
 > `responsive-orchestrator`, `subagent-quota-safety-gate`,
 > `mandatory-skills-preload`, `scheduler-channels`, `question-tool-abort-fix`,
-> and `question-tool-input-normalization`.
+> and `question-tool-input-normalization`. The
+> [autonomous-opt-in/](./autonomous-opt-in/) sub-package remains
+> in-flight (R1/R2/R3 unfinished) and is preserved as a child here.
+>
+> Renamed from `specs/agent-runtime/` 2026-05-09 to a
+> harness-scoped name covering the broader agent loop / runloop
+> coordination that the package code already encompasses.
 
 ## Status
 
@@ -265,9 +271,20 @@ Scheduler & cron:
 3. **`scheduler-channels` channel isolation is unimplemented.** Kill-switch is workspace-scoped. Channels would need a new dimension on `Session.Info` and a refactor of `assertSchedulingAllowed`.
 4. **`agent_framework` is a legacy taxonomy folder, not a runtime spec.** Its `slices/` and `sources/` are reading material; the live agent registry lives in `agent/agent.ts` and is not driven by anything under `specs/_archive/agent_framework/`.
 
+## Sub-packages
+
+- [autonomous-opt-in/](./autonomous-opt-in/) — **in-flight**. Verbal
+  arm/disarm detector + `workflow.autonomous.enabled` gate are live;
+  R1 (spec-binding required), R2 (validated-plan precondition), R3
+  (question-based arm) are not yet in code. Lifecycle artifacts
+  (proposal / design / tasks / handoff) are preserved in this
+  sub-folder until R1–R3 land.
+
 ### Related entries
 
-- [compaction.md](../compaction/README.md) — subagent path through compaction (`deriveObservedCondition` does not skip subagents); rebind-checkpoint semantics that interact with task-tool re-dispatch.
-- [session.md](../session/README.md) — runloop, identity, capability layer, workflow shape (`workflow.autonomous.enabled`).
-- [mcp.md](../mcp/README.md) — `skill-finder` / `mcp-finder` MCPs that surface skills to the registry that `mandatory-skills.ts` then pins.
-- [architecture.md](./architecture.md) — `## plan-builder Skill Lifecycle` for how new specs supersede legacy folders like `agent_framework` and `scheduler-channels`.
+- [compaction/](../compaction/README.md) — subagent path through compaction (`deriveObservedCondition` does not skip subagents); rebind-checkpoint semantics that interact with task-tool re-dispatch.
+- [session/](../session/README.md) — runloop, identity, capability layer, workflow shape (`workflow.autonomous.enabled`).
+- [mcp/](../mcp/README.md) — `skill-finder` / `mcp-finder` MCPs that surface skills to the registry that `mandatory-skills.ts` then pins.
+- [meta/](../meta/README.md) — `plan-builder` skill lifecycle that
+  governs how legacy folders like `agent_framework` and
+  `scheduler-channels` are superseded.

@@ -1,10 +1,11 @@
 # provider
 
 > Wiki entry. Source of truth = current code under
-> `packages/opencode/src/provider/`,
-> `packages/opencode/src/account/`,
-> `packages/opencode-claude-provider/src/`, and
-> `packages/opencode-codex-provider/src/`.
+> `packages/opencode/src/provider/` and
+> `packages/opencode/src/account/`.
+> Per-provider package detail lives under
+> [provider/claude/](./claude/README.md) (anthropic + claude-cli) and
+> [provider/codex/](./codex/README.md) (codex AI-SDK + WS layer).
 > Replaces the legacy spec packages
 > `provider-account-decoupling`, `lmv2-decoupling`,
 > `claude-provider-beta-fingerprint-realign`,
@@ -18,19 +19,15 @@ shipped (live as of 2026-05-04).
 families, `Auth.get` is two-arg, `getSDK(family, accountId, model)` is
 the only dispatch entry, the `enforceCodexFamilyOnly` and step-3b
 hotfix are deleted, and `MigrationRequiredError` gates daemon boot.
-`claude-provider-beta-fingerprint-realign` is shipped: `assembleBetas`
-in `@opencode-ai/claude-provider` mirrors upstream `ZR1` push order and
-`MINIMUM_BETAS` is removed. `codex-fingerprint-alignment` is shipped:
-`buildHeaders` is the single header entry for both HTTP and WS,
-`ChatGPT-Account-Id` is TitleCase, `Accept`/`x-client-request-id` are
-sent, and `refs/codex` pins to `rust-v0.125.0-alpha.1`. The pre-
-plan-builder `codex/` package (`provider_runtime`, `websocket`,
-`incremental_delta`, `protocol`, `continuation-reset`,
-`provider-hotfix`) describes the AI-SDK-as-authority + WS-as-transport
-direction, all merged. `lmv2-decoupling` Phase 0 (the `OcToolResultOutput`
-union) was the entry point for replacing AI-SDK-typed envelopes;
-later phases (LMv2 stream / prompt / `LanguageModelV2` interface,
-`streamText` orchestration) are not yet started — see **Notes**.
+`lmv2-decoupling` Phase 0 (the `OcToolResultOutput` union) was the
+entry point for replacing AI-SDK-typed envelopes; later phases (LMv2
+stream / prompt / `LanguageModelV2` interface, `streamText`
+orchestration) are not yet started — see **Notes**.
+
+Per-provider shipped state — the anthropic `assembleBetas` realign and
+the codex `buildHeaders` / `refs/codex` pin / AI-SDK-as-authority
+direction — is documented in [provider/claude/](./claude/README.md)
+and [provider/codex/](./codex/README.md) respectively.
 
 ## Current behavior
 
@@ -118,15 +115,14 @@ selected via `model.api.npm`.
 Self-built / non-AI-SDK paths:
 
 - **codex** — `@opencode-ai/codex-provider` (workspace package
-  `packages/opencode-codex-provider/`). Registered in `database` at
-  `provider.ts:1343` with `api.url =
-  https://chatgpt.com/backend-api/codex` and `api.npm =
-  @opencode-ai/codex-provider`. `CUSTOM_LOADERS["codex"]` returns
-  `{ autoload: true }`; the SDK and `getModel` come from the codex
-  AuthHook plugin (`codex-auth.ts`).
+  `packages/opencode-codex-provider/`). See
+  [provider/codex/](./codex/README.md) for the full HTTP + WS
+  fingerprint, AI-SDK-as-authority direction, and compaction
+  integration.
 - **claude-cli** — `@opencode-ai/claude-provider`
-  (`packages/opencode-claude-provider/`). Same pattern via
-  `CUSTOM_LOADERS["claude-cli"]` and the anthropic auth plugin.
+  (`packages/opencode-claude-provider/`). See
+  [provider/claude/](./claude/README.md) for `assembleBetas`,
+  cache-breakpoint placement, and Claude takeover import.
 - **gemini-cli** — self-built family added at `provider.ts:1218`,
   inherits from `google-api`/`google` only when missing from
   `database` (event_2026-02-17). Uses the AI-SDK Google adapter but
@@ -134,116 +130,6 @@ Self-built / non-AI-SDK paths:
 - **google-api** — uses the AI-SDK Google adapter with a custom
   fetch (`provider.ts:1537`) that injects `thoughtSignature` into
   generativelanguage request bodies.
-
-### Codex provider — AI SDK is the authority
-
-The Codex provider is a fetch-interceptor extension layer beneath
-the AI SDK Responses adapter, not a parallel CUSTOM_LOADER stack
-(the original parallel path is the abandoned direction). Request
-body construction flows through AI SDK Responses semantics; codex-
-specific augmentation is limited to supported `providerOptions` and
-the fetch-interceptor transport/body adjustments. Per-session
-state (turnState, conversationId, response_id continuity) is
-isolated, never shared via module-global mutable state.
-
-Caching is **disabled** in `ProviderTransform` for the codex native
-provider (`transform.ts:397`) because Codex handles caching server-
-side via prompt cache continuity and (optionally) inline
-`context_management`. See [compaction.md](../compaction/README.md) for the
-`/responses/compact` low-cost-server kind.
-
-### Codex header builder — single entry for HTTP + WS
-
-`buildHeaders(options)` in
-`opencode-codex-provider/src/headers.ts` is the single header entry
-for both HTTP POST (`provider.ts:222`) and WebSocket upgrade
-(`transport-ws.ts:580`, `isWebSocket: true`). Outputs:
-
-- `authorization: Bearer <token>`
-- `originator: codex_cli_rs` (constant `ORIGINATOR`)
-- `User-Agent: codex_cli_rs/<CODEX_CLI_VERSION> (<OS> <release>; <arch>) terminal`
-  — prefix matches `originator` value
-- `ChatGPT-Account-Id: <accountId>` — TitleCase
-- `x-codex-turn-state: <turnState>` — sticky routing token from
-  prior response
-- `x-client-request-id: <conversationId>` — upstream codex-rs
-  behavior, sent on both HTTP and WS upgrade
-- `x-codex-window-id`, `x-codex-parent-thread-id`,
-  `x-openai-subagent` — context-window lineage (whitepaper §6,
-  upstream codex-rs `9e19004bc2`)
-- `session_id`, `User-Agent` — analytics
-- HTTP only: `content-type: application/json`,
-  `Accept: text/event-stream`
-- WS only: `OpenAI-Beta: responses_websockets=2026-02-06`
-  (`WS_BETA_HEADER`)
-
-`refs/codex` submodule is pinned to tag `rust-v0.125.0-alpha.1`;
-`CODEX_CLI_VERSION` constant in `protocol.ts` reflects
-`0.125.0-alpha.1`. Goal is OpenAI's first-party classifier
-treating opencode requests as first-party (target third-party
-ratio 0%).
-
-### Codex WebSocket transport adapter
-
-`transport-ws.ts` provides a WebSocket transport beneath the
-AI-SDK contract, producing a synthetic `Response` with
-`text/event-stream` content-type that AI SDK consumes identically
-to HTTP SSE. `WrappedWebsocketErrorEvent` frames are parsed and
-classified into typed errors (`usage_limit_reached` with status →
-rotation-handleable; without status → not mapped, matches codex-rs
-test cases; `websocket_connection_limit_reached` → retryable).
-Failures fall back to HTTP and the fallback is sticky for the
-session's lifetime. Account rotation closes the old WS connection
-and opens a new one with the new auth.
-
-### Anthropic — assembleBetas mirrors upstream ZR1
-
-`assembleBetas(options)` in
-`opencode-claude-provider/src/protocol.ts:232` produces the
-`anthropic-beta` header values byte-equivalently to upstream
-`claude-code@2.1.112` `ZR1`. Push order:
-
-1. `claude-code-20250219` — if `!isHaiku`
-2. `oauth-2025-04-20` — if `isOAuth`
-3. `context-1m-2025-08-07` — if `supports1M(model)`
-4. `interleaved-thinking-2025-05-14` — if
-   `supportsThinking(model) && !disableInterleavedThinking`
-5. `redact-thinking-2026-02-12` — if `isFirstPartyish(provider) &&
-   !disableExperimentalBetas && supportsThinking(model) &&
-   !disableInterleavedThinking && isInteractive &&
-   !showThinkingSummaries`. Opencode runtime always passes
-   `isInteractive=false` (DD-17), so this is suppressed in the
-   daemon path.
-6. `context-management-2025-06-27` — if `provider==="firstParty"
-   && !disableExperimentalBetas &&
-   modelSupportsContextManagement(model, provider)`
-7. RESERVED slot: `structured-outputs-2025-12-15` (upstream `t76`,
-   not emitted)
-8. RESERVED slot: `web-search-2025-03-05` (upstream `Qv1`, vertex/
-   foundry only, not emitted)
-9. `prompt-caching-scope-2026-01-05` — if
-   `isFirstPartyish(provider) && !disableExperimentalBetas` (NOT
-   gated on `isOAuth`, DD-11)
-10. env-supplied `ANTHROPIC_BETAS` appended, then deduped
-
-`MINIMUM_BETAS` constant is removed (members repositioned as
-conditional pushes). `isFirstPartyish(p)` =
-`p ∈ {firstParty, anthropicAws, foundry, mantle}`.
-`modelSupportsContextManagement(m, p)`: foundry → true;
-firstPartyish → `!m.startsWith("claude-3-")`; else → matches
-opus-4 / sonnet-4 / haiku-4.
-
-### Anthropic cache breakpoint placement
-
-`ProviderTransform.applyCaching` (`provider/transform.ts:252`)
-places ephemeral cache breakpoints. Phase B explicit breakpoints
-(BP2 = T1 end, BP3 = T2 end) are walked from
-`providerOptions.phaseB.breakpoint=true` markers placed by the
-context preface emitter; legacy BP1 (system tail) and BP4
-(conversation tail) are placed by tail-position rule. Caching is
-disabled for subscription sessions and for native providers
-(`@opencode-ai/claude-provider`, `@opencode-ai/codex-provider`)
-because those providers manage their own cache.
 
 ### LMv2 envelope (Phase 0 only)
 
@@ -289,43 +175,6 @@ Core registry + dispatch:
 - `packages/opencode/scripts/migrate-provider-account-decoupling.ts`
   — one-shot storage migration.
 
-Codex provider package (`packages/opencode-codex-provider/src/`):
-
-- `protocol.ts` — `ORIGINATOR = "codex_cli_rs"`,
-  `CODEX_CLI_VERSION`, `WS_BETA_HEADER`, `buildCodexUserAgent`.
-- `headers.ts` — `buildHeaders(options)` single entry.
-- `transport-ws.ts` — WS transport adapter; `buildHeaders({
-  isWebSocket: true })` call at L580.
-- `provider.ts` — HTTP path; `buildHeaders` call at L222.
-- `convert.ts` — `case "tool"` exhaustive switch over
-  `OcToolResultOutput.kind`.
-- `continuation.ts`, `sse.ts`, `auth.ts`, `models.ts` — supporting
-  modules.
-- `transport-ws.test.ts`, `headers.test.ts`, `provider.test.ts`,
-  `convert.test.ts`, `auth.test.ts`, `sse.test.ts` — test surface.
-
-Codex compaction integration:
-
-- `packages/opencode/src/provider/codex-compaction.ts` —
-  `codexServerCompact(request)` POSTs to
-  `https://chatgpt.com/backend-api/codex/responses/compact`;
-  `buildContextManagement(threshold)` for inline mode.
-
-Anthropic provider package (`packages/opencode-claude-provider/src/`):
-
-- `protocol.ts` — `assembleBetas` at L232; per-flag constants
-  L77–L86; `isFirstPartyish` L115; model predicates L124–L168.
-- `headers.ts`, `convert.ts`, `provider.ts`, `auth.ts`, `sse.ts`,
-  `models.ts` — supporting modules.
-
-Transform / cache:
-
-- `packages/opencode/src/provider/transform.ts` —
-  `ProviderTransform` namespace. `applyCaching` L252; subscription
-  / native-provider opt-out L397.
-- `packages/opencode/src/provider/transform.applyCaching.test.ts`
-  — BP1–BP4 placement coverage.
-
 Custom loaders:
 
 - `packages/opencode/src/provider/custom-loaders-def.ts` — codex
@@ -351,36 +200,30 @@ LMv2 envelope:
 - **Per-tool R-1 self-bounding** — universal coverage of every
   variable-size tool (per the original `tool-output-chunking`
   spec) requires audit.
-- **`incremental_delta`** — described in
-  `specs/_archive/codex/incremental_delta/spec.md` (delta requests with
-  `previous_response_id`, cache eviction on 4xx/5xx). Phase 3
-  status of the WS plan; verify in code.
 
-### Known issues from MEMORY.md
+### Provider-specific known issues / fixes
 
-- **Codex stale OAuth (project_codex_stale_oauth)** — Codex
-  accounts silently degrade to free plan when OAuth login expires.
-  Fix: delete + re-login. Not caused by WS / retry. Provider does
-  not auto-detect this state — it surfaces as quota exhaustion.
-- **Codex cascade fix (project_codex_cascade_fix_and_delta,
-  2026-03-30)** — six fixes applied: token-follows-account,
-  provider-level guard, UNKNOWN no-promote, WS reset on account
-  switch, transport label, rate_limits logging. WS delta is open
-  (length-based comparison incompatible with AI SDK's rebuild
-  model); codex quota structure observation pending via
-  `[WS-RATE-LIMITS]` logs.
-- **Account-mismatch suspect (project_account_mismatch_suspect,
-  fixed 2026-03-30)** — fetch interceptor now reads
-  `x-opencode-account-id` header for rotation-aware auth.
-- **Provider refactor pending
-  (project_provider_refactor_pending)** — provider management
-  architecture still needs unified-list refactor, `disabled_providers`
-  pollution removal, CRUD consistency, delete-button-to-list move.
-  Not blocking the dispatch path, but UI/CRUD layer is
-  inconsistent.
-- **Pre-existing codex issues (project_preexisting_codex_issues)**
-  — subagent wait, infinite thinking, no response, high tokens —
-  all pre-existing, not from refactoring.
+Per-provider quirks, hotfixes, and pending RCAs live with their
+code. Look in the provider sub-folders for codex- and
+anthropic-specific work; cross-provider compaction / session
+fixes live under their respective topic entries:
+
+- [provider/codex/](./codex/README.md) — codex header / WS / AI-SDK
+  authority. Sub-packages: `codex-update/`, `ws-snapshot-hotfix/`.
+- [provider/claude/](./claude/README.md) — anthropic betas, cache
+  breakpoints, takeover import. Sub-package: `claude-session-list/`.
+- [compaction/](../compaction/README.md) — empty-turn-recovery,
+  empty-response-rca, itemcount-fix sub-packages (all cross-cut
+  with codex but the gate code is in compaction).
+- [session/](../session/README.md) — `continuation-fix/` sub-package.
+
+### Provider-management UI tech debt
+
+- **Provider refactor pending** (project_provider_refactor_pending)
+  — provider management architecture still needs unified-list
+  refactor, `disabled_providers` pollution removal, CRUD
+  consistency, delete-button-to-list move. Not blocking the
+  dispatch path, but UI / CRUD layer is inconsistent.
 
 ### Deprecation surface
 
@@ -397,11 +240,10 @@ LMv2 envelope:
   `providerId`) — rejected at registry boundary by
   `assertFamilyKey`.
 - Original parallel `CUSTOM_LOADER` codex authority path —
-  superseded by AI-SDK-as-authority direction
-  (`specs/_archive/codex/provider_runtime/spec.md`); future codex
-  extensions must extend the AI SDK path or live in the fetch-
-  interceptor layer, never as a second authoritative orchestration
-  stack.
+  superseded by AI-SDK-as-authority direction (see
+  [provider/codex/](./codex/README.md)); future codex extensions
+  must extend the AI SDK path or live in the fetch-interceptor
+  layer, never as a second authoritative orchestration stack.
 
 ### No-silent-fallback compliance (AGENTS.md rule 1)
 
@@ -418,10 +260,10 @@ Provider-load failures error loudly:
   daemon never auto-runs migration.
 - `OcToolResultOutput.fromLmv2(raw)` throws on unconvertible
   shapes — no `kind: "unknown"` bottoming out.
-- `codexServerCompact` returns `{ success: false }` on auth /
-  network / shape errors and the caller falls through to the
-  documented compaction chain (`compaction.md` cost-monotonic
-  chain), not a silent pretend-success.
+- Codex `codexServerCompact` returns `{ success: false }` on auth
+  / network / shape errors and the caller falls through to the
+  documented compaction chain (see [compaction/](../compaction/README.md)
+  cost-monotonic chain), not a silent pretend-success.
 
 ### Storage migration
 
@@ -441,12 +283,16 @@ Marker written to
 
 ### Related entries
 
-- [account.md](../account/README.md) — auth side, account storage,
+- [provider/claude/](./claude/README.md) — anthropic / claude-cli
+  fingerprint, takeover import.
+- [provider/codex/](./codex/README.md) — codex header + WS layer +
+  compaction integration.
+- [account/](../account/README.md) — auth side, account storage,
   rotation3d.
-- [session.md](../session/README.md) — runloop, identity, capability layer
+- [session/](../session/README.md) — runloop, identity, capability layer
   (rebind/capability-refresh consumers of provider boundary).
-- [compaction.md](../compaction/README.md) — codex `/responses/compact`
+- [compaction/](../compaction/README.md) — codex `/responses/compact`
   low-cost-server kind; fingerprint-aware caching gate; static
   system block + cache breakpoints.
-- [attachments.md](../attachments/README.md) — attachment subsystem
+- [attachments/](../attachments/README.md) — attachment subsystem
   consumes the provider transform pipeline.

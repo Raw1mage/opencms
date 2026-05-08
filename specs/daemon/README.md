@@ -446,12 +446,21 @@ that document.
   privilege the `targets: ["gateway"]` flow degrades to "must run
   webctl manually as root".
 
+## Sub-packages
+
+- [self-restart-handover/](./self-restart-handover/) (shipped
+  2026-05-05) — durable handover checkpoint written before
+  `system-manager:restart_self` orchestration interrupts the
+  socket. Records redacted reason / handover / session metadata
+  plus validation next steps; socket close stays
+  unknown/pending until health/log evidence confirms recovery.
+
 ### Related entries
 
-- [meta.md](../meta/README.md) — config-management surface; `opencode.cfg`,
+- [meta/](../meta/README.md) — config-management surface; `opencode.cfg`,
   `tweaks.cfg`, `mcp-apps.json`, the SYSTEM.md / AGENTS.md split.
-- [webapp.md](../webapp/README.md) — web frontend; served through the gateway
+- [webapp/](../webapp/README.md) — web frontend; served through the gateway
   via `/etc/opencode/web_routes.conf` and `OPENCODE_FRONTEND_PATH`.
-- [provider.md](../provider/README.md) — provider runtime; lives inside the
+- [provider/](../provider/README.md) — provider runtime; lives inside the
   per-user daemon process and depends on the daemon lifecycle
   authority defined here for any "restart provider" semantics.

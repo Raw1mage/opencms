@@ -234,11 +234,36 @@ path first; on miss, fall through to legacy `shared_context/<sid>` and
 `Global.Path.state/rebind-checkpoint-<sid>.json`. Legacy reads are
 projected into the new shape and rewritten on first touch.
 
+## Sub-packages
+
+- [working-cache/](./working-cache/) — Working Cache L1 (digest) +
+  L2 (raw ledger) MVP shipped 2026-05-07. `WorkingCache.record()` /
+  `WorkingCache.selectValid()`, `system-manager:recall_toolcall_*`
+  tool family, exploration-depth postscript, and `cache-digest`
+  fenced-block parser. §5 (architecture sync) and §6 (deferred
+  subagent / memory-graph promotion) still open.
+- [itemcount-fix/](./itemcount-fix/) (living, merged 2026-05-09)
+  — gpt-5.5 itemCount truncation hardening. Three runloop-level
+  triggers gated on item count, anchor-prefix-expand Phase 2 over
+  `CompactionPart.metadata.serverCompactedItems`.
+- [empty-turn-recovery/](./empty-turn-recovery/) (implementing,
+  PAUSED) — empty-turn self-heal compaction with storm-prevention
+  gate (`evaluateEmptyResponseGate`, `emptyResponseFloor`).
+  Symptom site is codex provider; gate logic lives in compaction.
+  Awaiting JSONL evidence accumulation before resume.
+- [empty-response-rca/](./empty-response-rca/) (implementing) —
+  empty-response RCA + itemCount addendum 2026-05-09. Cross-cuts
+  with `provider/codex/` and `compaction/itemcount-fix/`.
+
 ### Related entries
 
-- [session.md](../session/README.md) — runloop, identity, capability layer.
-- [provider.md](../provider/README.md) — codex server-side compaction;
-  fingerprint-aware caching.
-- [attachments.md](../attachments/README.md) — big-content boundary handling
-  (R6 in the old `compaction-improvements` spec is implemented in the
-  attachment subsystem).
+- [session/](../session/README.md) — runloop, identity, capability layer.
+- [provider/](../provider/README.md) — top-level provider abstraction.
+- [provider/codex/](../provider/codex/README.md) — codex server-side
+  compaction integration (`/responses/compact`); `ws-snapshot-hotfix/`
+  sub-package interacts with the empty-turn recovery path.
+- [provider/claude/](../provider/claude/README.md) — anthropic cache
+  breakpoints; takeover anchor consumer of `MessageV2.filterCompacted`.
+- [attachments/](../attachments/README.md) — big-content boundary
+  handling (R6 in the old `compaction-improvements` spec is implemented
+  in the attachment subsystem).

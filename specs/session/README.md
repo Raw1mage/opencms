@@ -448,19 +448,32 @@ Tests (representative):
   re-run the runloop. Acceptable today because the upstream cause is
   fixed.
 
+## Sub-packages
+
+- [continuation-fix/](./continuation-fix/) (needs-update — core
+  mechanisms shipped, 2026-05-04 audit) — orphan-task recovery,
+  session version guard, worker pre-bootstrap logger, tool-input
+  normalization, processor execution-identity validation. Open:
+  1.5 / 2.5 / 3.5 / 4.6 / 5.5 automated regression tests, 2.4
+  staleVersion UI surface.
+
 ### Related entries
 
-- [compaction.md](../compaction/README.md) — runloop, anchors, idle gate;
+- [compaction/](../compaction/README.md) — runloop, anchors, idle gate;
   `provider-switched` observed value coordinates with the rebind
   epoch path described here.
-- [provider.md](../provider/README.md) — provider/account boundary; the
+- [provider/](../provider/README.md) — provider/account boundary; the
   pre-loop switch detector is the call-site that bumps epoch with
   `trigger=provider_switch` before `compactWithSharedContext`.
-- [account.md](../account/README.md) — admin-panel account-switch flow that
+- [provider/claude/](../provider/claude/README.md) — Claude Code
+  native takeover import path that produces sessions consumed by
+  this runloop.
+- [account/](../account/README.md) — admin-panel account-switch flow that
   the ghost-responses bug is suspected to interact with.
-- [attachments.md](../attachments/README.md) — oversized attachment blobs
+- [attachments/](../attachments/README.md) — oversized attachment blobs
   live in the per-session SQLite namespace via
   `upsertAttachmentBlob` / `getAttachmentBlob`; the wire-payload
   metadata-only contract for diffs is the same shape applied here.
-- [agent-runtime.md](../agent-runtime/README.md) — capability-layer / lane
-  policy is the agent surface that `RebindEpoch` invalidates.
+- [harness/](../harness/README.md) — capability-layer / lane policy
+  is the agent surface that `RebindEpoch` invalidates (formerly
+  `agent-runtime/`).

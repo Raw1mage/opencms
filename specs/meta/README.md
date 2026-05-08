@@ -14,8 +14,10 @@ shipped — all three meta-layer concerns are live as of 2026-05-04.
 `plan-builder` skill is in production at `~/projects/skills/plan-builder/`
 (SKILL.md + 9 scripts + state schema + templates) and has fully
 displaced the legacy `planner` skill. The wiki conversion you are
-reading right now (`compaction.md`, `session.md`, `provider.md`,
-`attachments.md`, `agent-runtime.md`, this file) was authored against
+reading right now (`compaction/`, `session/`, `provider/` (with
+`provider/claude/` and `provider/codex/` sub-entries),
+`attachments/`, `harness/` (formerly `agent-runtime/`), this file)
+was authored against
 `plan-builder`'s `living`-state model: each wiki entry is the public
 projection of one or more `specs/<slug>/` packages whose lifecycle has
 reached `living`.
@@ -157,8 +159,10 @@ for cross-cutting structure: layered architecture (Infrastructure / Sync
 management, rotation3D, admin panel, registry-first provider universe.
 After per-topic wiki conversion, `architecture.md` is no longer the
 authoritative narrative for any single subsystem — it is the index that
-points to `compaction.md`, `session.md`, `provider.md`, `attachments.md`,
-`agent-runtime.md`, and this `meta.md`. Each `Architecture Sync`
+points to `compaction/`, `session/`, `provider/` (and its
+`claude/` and `codex/` sub-entries), `attachments/`, `harness/`,
+`daemon/`, `mcp/`, `account/`, `webapp/`, `app-market/`, and this
+`meta/`. Each `Architecture Sync`
 checkpoint at the top of `architecture.md` records "Verified (No doc
 changes)" or links to the topic wiki updated in that change.
 
@@ -488,18 +492,25 @@ no-silent-fallback / `living`-state principles.
 
 ### Related entries
 
-- [daemon.md](../daemon/README.md) — daemon lifecycle, gateway ownership,
-  `system-manager:restart_self` (this entry pending; the relevant
-  policy currently lives in `AGENTS.md` "Daemon Lifecycle Authority")
-- [mcp.md](../mcp/README.md) — MCP subsystem; `mcp.json` parse-failure
-  isolation in this entry's Phase 3 narrative
-- [account.md](../account/README.md) — `accounts.json` schema, multi-account
+- [daemon/](../daemon/README.md) — daemon lifecycle, gateway ownership,
+  `system-manager:restart_self`; sub-package
+  [self-restart-handover/](../daemon/self-restart-handover/) is the
+  durable handover checkpoint for restart orchestration.
+- [mcp/](../mcp/README.md) — MCP subsystem; `mcp.json` parse-failure
+  isolation in this entry's Phase 3 narrative.
+- [account/](../account/README.md) — `accounts.json` schema, multi-account
   rotation; provider availability in this entry's Phase 2 narrative
-  derives from it
-- [provider.md](../provider/README.md) — `provider.ts::initState`, registry-first
-  provider universe; consumes the availability API documented here
-- [session.md](../session/README.md) — runloop and how it consumes the merged
-  `Config.Info`
-- [compaction.md](../compaction/README.md) — for tunables flowing through
+  derives from it.
+- [provider/](../provider/README.md) — `provider.ts::initState`, registry-first
+  provider universe; consumes the availability API documented here.
+  Per-provider detail under [provider/claude/](../provider/claude/README.md)
+  and [provider/codex/](../provider/codex/README.md).
+- [session/](../session/README.md) — runloop and how it consumes the merged
+  `Config.Info`.
+- [compaction/](../compaction/README.md) — for tunables flowing through
   `tweaks.cfg` (compaction pinned-zone token ratios, tool output
-  budget)
+  budget); sub-package
+  [working-cache/](../compaction/working-cache/) for L1+L2 cache.
+- [harness/](../harness/README.md) — agent loop / runloop scaffolding
+  (formerly `agent-runtime/`); in-flight
+  [autonomous-opt-in/](../harness/autonomous-opt-in/) sub-package.

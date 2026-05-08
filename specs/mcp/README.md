@@ -196,7 +196,7 @@ in two places that must stay byte-equal in steady state:
 - runtime: `packages/opencode/src/session/prompt/enablement.json`
 - template: `templates/prompts/enablement.json`
 
-`mcp-finder` and `skill-finder` MCPs (and the agent-runtime
+`mcp-finder` and `skill-finder` MCPs (and the harness
 mandatory-skills layer) can mutate the runtime copy when new
 capabilities are installed. The template copy must be updated in the
 same commit so fresh installs ship the same surface. AGENTS.md (root
@@ -287,7 +287,7 @@ External MCP packages:
   `system-manager` MCP (account switch, session monitor, fileview,
   managed-app reads). Hosts `open_fileview` and the
   `read_subsession` / `list_subagents` tools called out in
-  `agent-runtime.md`.
+  [harness/README.md](../harness/README.md).
 - `packages/mcp/branch-cicd` — `beta-tool` MCP (newbeta / syncback /
   merge).
 
@@ -366,10 +366,10 @@ written.
 
 ### Related entries
 
-- [agent-runtime.md](../agent-runtime/README.md) — `skill-finder` /
-  `mcp-finder` for tool-surface expansion; the mandatory-skills layer
-  that pins newly-discovered capabilities into the registry that
-  feeds enablement.
+- [harness/](../harness/README.md) — `skill-finder` / `mcp-finder`
+  for tool-surface expansion; the mandatory-skills layer that pins
+  newly-discovered capabilities into the registry that feeds
+  enablement (formerly `agent-runtime/`).
 - [attachments.md](../attachments/README.md) — repo-incoming-attachments
   pipeline; docxmcp consumer side. The `docx-upload-autodecompose`
   flow (fast outline + background body) lives there.
