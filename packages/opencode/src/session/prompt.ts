@@ -2060,6 +2060,94 @@ export namespace SessionPrompt {
         } catch (error) {
           log.warn("failed to apply stream-anchor rebind", { sessionID, error: String(error) })
         }
+
+        // 2026-05-09: pre-emptive compaction at rebind handoff.
+        //
+        // Daemon restart resets state.lastResponseId for every session.
+        // The very first request after restart MUST send the full input
+        // array (chain reset, no incremental delta). If sqlite holds a
+        // bloated session — itemCount past codex backend's hidden bug
+        // zone, OR tokens past 70% of context — that first request is
+        // pre-doomed to ws_truncation / server_failed. The reactive
+        // ws-truncation × bloated-input trigger eventually rescues, but
+        // pays one full failed request first.
+        //
+        // Pre-emptive: at step=1 right after applyStreamAnchorRebind,
+        // estimate itemCount + tokens from the sliced msgs. If either
+        // is heavy → run local compaction BEFORE opening the WS
+        // connection. Next iteration of the runloop sees a fresh anchor,
+        // sliced input is small, the WS request goes out clean.
+        //
+        // Healthy / freshly-anchored sessions skip naturally (items
+        // already low after slice, tokens below threshold).
+        const REBIND_PREEMPT_ITEM_THRESHOLD = 250
+        const REBIND_PREEMPT_TOKEN_RATIO = 0.7
+        try {
+          let estimatedItemCount = 0
+          for (const m of msgs) {
+            if (m.info.role === "user") {
+              estimatedItemCount += 1
+              continue
+            }
+            if (m.info.role === "assistant") {
+              const hasText = m.parts.some(
+                (p) =>
+                  p.type === "text" &&
+                  typeof (p as { text?: string }).text === "string" &&
+                  ((p as { text: string }).text.length ?? 0) > 0,
+              )
+              if (hasText) estimatedItemCount += 1
+              for (const p of m.parts) {
+                if (p.type !== "tool") continue
+                estimatedItemCount += 1
+                const status = (p as MessageV2.ToolPart).state?.status
+                if (status === "completed" || status === "error") estimatedItemCount += 1
+              }
+            }
+          }
+          const lastFinishedTokens = lastFinished?.tokens?.total ?? 0
+          const tokenLimit = lastUser.model
+            ? (await Provider.getModel(lastUser.model.providerId, lastUser.model.modelID).catch(() => undefined))?.limit
+                ?.context ?? 0
+            : 0
+          const tokenRatio = tokenLimit > 0 ? lastFinishedTokens / tokenLimit : 0
+          const itemsHeavy = estimatedItemCount > REBIND_PREEMPT_ITEM_THRESHOLD
+          const tokensHeavy = tokenRatio > REBIND_PREEMPT_TOKEN_RATIO
+          if (itemsHeavy || tokensHeavy) {
+            log.warn("rebind handed off bloated session, pre-emptive compaction before WS open", {
+              sessionID,
+              step,
+              estimatedItemCount,
+              itemsHeavy,
+              tokensHeavy,
+              tokenRatio: Number(tokenRatio.toFixed(3)),
+              tokenLimit,
+            })
+            try {
+              await SessionCompaction.run({
+                sessionID,
+                observed: "rebind",
+                step,
+                abort,
+              })
+              continue
+            } catch (err) {
+              log.warn("rebind pre-emptive compaction failed, falling through to live request", {
+                sessionID,
+                step,
+                error: err instanceof Error ? err.message : String(err),
+              })
+              // fall through; the reactive ws-truncation × bloated-input
+              // trigger will catch the failure on the next iteration.
+            }
+          }
+        } catch (err) {
+          log.warn("rebind pre-emptive evaluation threw", {
+            sessionID,
+            step,
+            error: err instanceof Error ? err.message : String(err),
+          })
+        }
       }
       const task = tasks.pop()
       // pending subtask (invocation routed via ToolInvoker)
