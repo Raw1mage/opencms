@@ -1,84 +1,84 @@
-# Handoff: compaction-fix Phase 1
+# Handoff: compaction-fix
 
-## ERRATUM 2026-05-08 (d) — Phase 1 disabled, Phase 2 still live
+State: living. Merged to `main` in commit `01aca5124` (2026-05-09).
+No active execution work — this document records validation evidence
+and the operating contract for downstream readers.
 
-Phase 1 stop gates SG-1, SG-3, SG-4, SG-7 below describe a per-turn
-transformer rollout that was attempted (v1–v6) and disabled after a
-re-read of upstream `for_prompt()` showed the transformer's premise
-was wrong. See [proposal.md ERRATUM](./proposal.md#erratum-2026-05-08-d--phase-1-misframing-disabled).
+## Operating Contract
 
-Status of stop gates:
-- **SG-1** (default off): satisfied permanently — `compaction_phase1_enabled=0`.
-- **SG-2** (subagent bypass): moot — transformer not running for any path.
-- **SG-3, SG-4, SG-5, SG-6**: only meaningful if transformer reactivated.
-- **SG-7** (24h soak): not applicable — transformer never reached
-  `phase1Enabled=true` in production.
-- **SG-8** (Phase 2 gate): superseded — Phase 2 decoupled from Phase 1
-  in commit `c1feb48a1`. Phase 2 ships independently.
+Three runloop-level compaction triggers, all gated by
+`itemCount > 250` (with token-ratio companion at rebind):
 
-The L2/L4 layer purity invariant in DD-7 of design.md remains
-architecturally correct and applies to all Phase 2 work.
+| Trigger | When it fires | Compaction observed |
+|---|---|---|
+| Paralysis × bloated-input | 3-turn paralysis triple + items > 250 | `overflow` |
+| ws-truncation × bloated-input | `lastFinished.finish ∈ {unknown, error, other}` + items > 250 | `empty-response` |
+| Pre-emptive rebind | step=1, items > 250 OR tokenRatio > 0.7 | `rebind` |
 
-## Execution Contract
+Phase 2 anchor-prefix expansion runs at every prompt assembly when
+the anchor carries valid `serverCompactedItems` (chain-binding match
+required). Codex provider always tries `low-cost-server` first in the
+KIND_CHAIN.
 
-Implementer takes Phase 1 from `planned` → `implementing` → `verified` per beta-workflow contract. Code goes through beta worktree; docs (this folder) stay on main per [feedback_commit_all_split_code_docs.md](../../packages/opencode/.claude/projects/-home-pkcs12-projects-opencode/memory/feedback_commit_all_split_code_docs.md).
+Feature flags:
+- `compaction_phase1_enabled = 0` (per-turn transformer disabled)
+- `compaction_phase2_enabled = 1` (anchor-prefix expansion live)
 
-## Authority Surface (beta-workflow §1)
+## Validation Evidence
 
-- mainRepo: `/home/pkcs12/projects/opencode`
-- baseBranch: `main`
-- implementationRepo / implementationWorktree: new worktree at `~/projects/opencode-worktrees/compaction-fix`
-- implementationBranch: `beta/compaction-fix` (created from main HEAD at start)
-- docsWriteRepo: same as mainRepo (single-repo project)
+### A1 — Three trigger sites correct
 
-## Required Reads
+- Paralysis trigger: unit-tested via existing paralysis-detector
+  tests; integration verified live on yieU7oSTLOPY session
+  (compaction fired after 3-turn narrative repetition).
+- ws-truncation trigger: live verification on yieU7oSTLOPY session,
+  itemCount 487 → compaction → next slice ~50 items, anchor written
+  (2 anchors visible in session DB post-event).
+- Pre-emptive rebind: live verification 2026-05-09, daemon restart
+  with bloated session triggered compaction at step=1 before WS open.
 
-1. [proposal.md](./proposal.md) — Why + framing (4-layer L1-L4 split, 0-token vs AI-based)
-2. [spec.md](./spec.md) — GIVEN/WHEN/THEN scenarios per requirement
-3. [design.md](./design.md) — DD-1..DD-7 decisions
-4. [tasks.md](./tasks.md) — execution checklist (work items here)
-5. [data-schema.json](./data-schema.json) — TraceMarker shape + tweaks keys + LayerPurityForbiddenKeys
-6. [c4.json](./c4.json) + [sequence.json](./sequence.json) — component map + happy-path/safety-net/subagent flows
-7. [idef0.json](./idef0.json) + [grafcet.json](./grafcet.json) — functional + state model
+### A2 — Phase 2 expansion + chain binding
 
-## Stop Gates In Force
+- 10 unit cases in
+  `packages/opencode/test/session/anchor-prefix-expand.test.ts`
+  cover: valid expansion, chain-binding match, mismatch fallback,
+  message-type splitting, JSON wrapper for non-message types,
+  empty input, no-anchor noop.
 
-- **SG-1**：tweaks flag default MUST be false. PR that flips default `phase1Enabled: true` is a separate commit landed only after SG-7 (24h soak green).
-- **SG-2**：Subagent path bypass MUST be wired (DD-5). Tests in 4.2.3 cover this.
-- **SG-3**：Safety net fallback MUST log warn (DD-4) — silent fallback rejected.
-- **SG-4**：Layer purity guard MUST throw on forbidden keys (DD-7) — defensive assertion at format time.
-- **SG-5**：Mode 1 inline `compaction` parts MUST be exempt from transform (DD-7 white-list). Test 4.1.5 enforces.
-- **SG-6**：In-flight assistant MUST remain intact. Test 4.1.6 enforces. Breaking this corrupts pending tool-call boundaries.
-- **SG-7**：24h soak window post-deploy with `phase1Enabled=true` for at least one real session — failure rate (fix-empty-response-rca empty-turns.jsonl) must NOT increase relative to 0.71% baseline. Document via M-equivalent jq query.
-- **SG-8**：Phase 2 work does NOT start until Phase 1 ships to main and soaks ≥ 24h. compactedItems handling is separate spec iteration.
+### A3 — resolveKindChain codex-first
 
-## Execution-Ready Checklist
+- Unit cases in
+  `packages/opencode/test/session/compaction.test.ts` cover:
+  codex sub at high ctx → server first; codex non-sub at high ctx →
+  server first (sub flag no longer gates); codex at low ctx → server
+  first (no threshold gate); non-codex unchanged regardless of
+  subscription / context.
 
-- [ ] All Required Reads done
-- [ ] Beta worktree created from main HEAD: `git worktree add ~/projects/opencode-worktrees/compaction-fix -b beta/compaction-fix main`
-- [ ] tweaks.cfg test config understood (where new keys live, default values)
-- [ ] WorkingCache write API surface confirmed (existing namespace in [packages/opencode/src/session/working-cache.ts](../../packages/opencode/src/session/working-cache.ts))
-- [ ] Confirmed location of `applyStreamAnchorRebind` invocation in prompt.ts (~line 1840) — Phase 1 transformer hooks in immediately after this
+### A4 — Graceful degradation on compaction failure
 
-## Validation Evidence (filled during verification)
+- All three trigger sites wrap `SessionCompaction.run` in try/catch
+  with structured warn log; on failure, fall through to the original
+  code path (paralysis nudge / live LLM request / rebind continuation).
 
-### A1 — inputItemCount reduction
-- [ ] Pre-Phase-1 baseline: avg inputItemCount on representative session
-- [ ] Post-Phase-1 (flag on): avg inputItemCount on same session pattern
-- [ ] Drop ratio matches expectation (>3x reduction for 30+ turn sessions)
+### A5 — Layer purity holds across rotation/rebind
 
-### A2 — All existing prompt.applyStreamAnchorRebind tests pass
-- [ ] `bun test packages/opencode/test/session/prompt.applyStreamAnchorRebind.test.ts` clean
+- L4 chain reset paths (`transport-ws.ts:561/571/581/607`) all
+  invalidate continuation family without touching L2 anchor content.
+- `chainBinding` validation at projection time rejects compactedItems
+  produced under a different `(accountId, modelId)` pair, ensuring
+  rotation/rebind never serves stale chain-internal references.
 
-### A3 — New unit tests cover G1-G6
-- [ ] All tasks 4.x tests added and pass
+### A6 — Feature flags independent
 
-### A4 — Subagent path integration
-- [ ] Subagent prompt includes full parent context (no transform applied)
+- `compaction_phase2_enabled` no longer requires `compaction_phase1_enabled`
+  to be on (decoupled in commit `c1feb48a1`).
+- Default config: phase1=0, phase2=1.
 
-### A5 — Soak failure rate
-- [ ] 24h post-deploy fix-empty-response-rca empty-turns.jsonl failure rate ≤ baseline 0.71%
+## References
 
-### A6 — Feature flag rollback
-- [ ] Flag default false confirmed in shipped commit
-- [ ] Flag toggled off mid-session reverts behaviour to pre-Phase-1 immediately
+- gpt-5.5 itemCount RCA:
+  [docs/events/event_20260509_gpt55_itemcount_truncation_rca.md](../../docs/events/event_20260509_gpt55_itemcount_truncation_rca.md)
+- Empty-turn classifier RCA:
+  [specs/fix-empty-response-rca/](../fix-empty-response-rca/)
+- Architecture compaction section:
+  [specs/architecture.md](../architecture.md)

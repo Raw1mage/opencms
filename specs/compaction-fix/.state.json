@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "planned",
+  "state": "living",
   "profile": [],
   "history": [
     {
@@ -33,7 +33,31 @@
       "at": "2026-05-08T14:35:00.000Z",
       "by": "pkcs12",
       "mode": "amend",
-      "reason": "Phase 1 misframing erratum — upstream re-read showed for_prompt() is full pass-through; per-turn transformer (v1-v6) had no upstream basis. Phase 1 disabled in commit c1feb48a1 (compaction_phase1_enabled=0). Phase 2 decoupled and remains live. Compaction priority simplified in commit 39bc97786 (codex always tries server-side first). proposal/design/spec/tasks/handoff annotated with ERRATUM blocks; DD-1..DD-5 marked SUPERSEDED, DD-6 still true (flag exists default false), DD-7 architecturally still correct, DD-8..DD-13 (Phase 2) active."
+      "reason": "Phase 1 misframing erratum — upstream re-read showed for_prompt() is full pass-through; per-turn transformer (v1-v6) had no upstream basis. Phase 1 disabled in commit c1feb48a1 (compaction_phase1_enabled=0). Phase 2 decoupled and remains live. Compaction priority simplified in commit 39bc97786 (codex always tries server-side first)."
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-05-09T01:30:00.000Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "three itemCount-gated triggers + Phase 2 anchor-prefix expansion + compaction priority all merged to main in commit 01aca5124"
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-05-09T01:30:01.000Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "tests green (253 session tests, 26 pre-existing failures unchanged); live verification on yieU7oSTLOPY session (compaction fired, 2 anchors visible, items 487 → ~50 after compaction)"
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-05-09T01:30:02.000Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "merged to main; proposal/design/spec/tasks/handoff rewritten 2026-05-09 to describe as-shipped state. Phase 1 misadventure (v1-v6) post-mortem in docs/events/event_20260509_gpt55_itemcount_truncation_rca.md."
     }
   ]
 }

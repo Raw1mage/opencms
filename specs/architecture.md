@@ -311,6 +311,34 @@ plus `chainBinding`, and at prompt assembly the
 `expandAnchorCompactedPrefix` step replaces the anchor's free-form
 summary with the codex-issued items (gated by chain identity match).
 
+itemCount-gated triggers (2026-05-09): the token-based overflow gate
+fires at ~88% of context, but on gpt-5.5 the codex backend's hidden
+input-array sensitivity rejects requests at ~250+ items even when
+total tokens are well under the limit. Three runloop-level triggers
+in `prompt.ts` close that gap, all gated by
+`itemCount > PARALYSIS_ITEMCOUNT_COMPACT_THRESHOLD = 250`:
+(1) **paralysis × bloated-input** — at the 3-turn paralysis-detector
+recovery branch, run `SessionCompaction.run({observed: "overflow"})`
+instead of injecting the recovery nudge;
+(2) **ws-truncation × bloated-input** — at runloop top after
+`lastFinished` is computed, when its `finish` is one of
+`unknown`/`error`/`other` (the empty-turn classifier's mapped
+finishReasons), run `SessionCompaction.run({observed: "empty-response"})`
+single-shot;
+(3) **pre-emptive rebind** — at step=1 immediately after
+`applyStreamAnchorRebind` slicing, when the sliced itemCount > 250 OR
+`tokenRatio > 0.7`, run `SessionCompaction.run({observed: "rebind"})`
+before the WS connection opens — daemon restart resets
+`state.lastResponseId` so the first request after restart MUST send
+the full input array, and pre-emptive compaction here caps the burn
+that would otherwise come from sending bloated full-input on a fresh
+chain.
+Healthy / freshly-anchored sessions skip naturally; failure on any
+trigger falls through to the original code path. See
+[specs/compaction-fix/](./compaction-fix/) for the full contract and
+[docs/events/event_20260509_gpt55_itemcount_truncation_rca.md](../docs/events/event_20260509_gpt55_itemcount_truncation_rca.md)
+for the gpt-5.5 root cause.
+
 Phase D/E big-content boundary and telemetry (2026-05-01,
 specs/\_archive/compaction-improvements): oversized boundary payloads are routed by
 session-scoped reference instead of being injected raw into the next model

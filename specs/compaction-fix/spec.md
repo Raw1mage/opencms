@@ -1,123 +1,178 @@
 # Spec: compaction-fix
 
-## ERRATUM 2026-05-08 (d) — Phase 1 disabled
-
-Phase 1 requirements below describe a per-turn post-anchor transformer
-that is **no longer active**. The transformer code exists but
-`compaction_phase1_enabled=0` in production
-([proposal.md ERRATUM](./proposal.md#erratum-2026-05-08-d--phase-1-misframing-disabled)).
-
-- Phase 1 requirements (Post-anchor transformation, Recent N rounds
-  preserved raw, Safety net fallback, Subagent path unaffected,
-  Feature flag respects gradual rollout) → **historical only**, no
-  longer represent acceptance criteria for production. The flag-off
-  scenario IS the live behavior.
-- Phase 2 requirement (codex `/responses/compact` compactedItems
-  expansion via anchor metadata) → **active and live**, decoupled
-  from Phase 1 in commit `c1feb48a1`.
-- The Mode 1 inline `compaction` part preservation requirement and
-  Layer purity invariant remain architecturally correct; they apply
-  more broadly than the disabled transformer.
-
-## Purpose
-
-Phase 1：升級 opencode 的 0-token compaction（`narrative` + `replay-tail`），把 anchor 之後完成的 assistant turn 從 raw verbose items 轉成精簡 trace marker + WorkingCache reference，避免 codex backend 對 input array 個數的隱藏敏感度（>~300 items 失敗率激增）並保留 fidelity（可透過 WorkingCache 尋回）。
-
-Phase 2（後續）：AI-based compaction（`low-cost-server` + `llm-agent`）真正利用 codex 回傳的 `compactedItems` 取代 pre-anchor history。
+Behavioral requirements for the live compaction-fix system: three
+itemCount-gated triggers + Phase 2 anchor-prefix expansion + codex
+compaction-priority.
 
 ## Requirements
 
-### Requirement: Post-anchor transformation reduces inputItemCount
+### Requirement: Paralysis × bloated-input fires compaction instead of nudge
 
-#### Scenario: 50-turn session post-compaction
+#### Scenario: 3-turn paralysis with high itemCount
 
-- **GIVEN** session 有 anchor message + anchor 後 50 個完成的 assistant turn + 1 個 in-flight assistant turn
-- **AND** `compaction.phase1Enabled = true`
-- **WHEN** prompt 組裝層跑完 transformer
-- **THEN** 送進 codex 的 input array 包含：anchor message、所有 user message、最近 N=2 輪完整 raw assistant、其餘 48 個轉成精簡 trace marker（每個 turn 折成 1 個 message）
-- **AND** inputItemCount 從 ~350 降到 ~80 範圍
+- **GIVEN** the 3-turn paralysis detector matches (sigTriple OR
+  narrativeTriple)
+- **AND** `paralysisRecoveryCount === 0`
+- **AND** estimated codex input itemCount > 250
+- **AND** session has no `parentID` (main session, not subagent)
+- **WHEN** the runloop reaches the recovery branch
+- **THEN** `SessionCompaction.run({observed: "overflow"})` is invoked
+- **AND** `paralysisRecoveryCount` is set to 1
+- **AND** the existing nudge injection is skipped
+- **AND** runloop iteration ends via `continue`
 
-#### Scenario: WorkingCache reference is queryable post-transform
+#### Scenario: 3-turn paralysis with low itemCount falls back to nudge
 
-- **GIVEN** Phase 1 transformer 把第 5 輪 assistant message 的 read tool result 轉成 trace marker `[turn 5] read(packages/x.ts) → cache_id=WC042`
-- **AND** WC042 已透過 WorkingCache write API 寫入
-- **WHEN** Lazy retrieval runtime（L3，獨立於本 plan）以 cache_id=WC042 查詢
-- **THEN** 能拿回原始 read tool result 內容
+- **GIVEN** the 3-turn paralysis detector matches
+- **AND** estimated itemCount ≤ 250
+- **WHEN** the runloop reaches the recovery branch
+- **THEN** the existing recovery nudge injection runs
+- **AND** no compaction is triggered
 
-### Requirement: Recent N rounds preserved raw
+### Requirement: ws-truncation × bloated-input fires compaction at runloop top
 
-#### Scenario: 最近 2 輪不被 transform
+#### Scenario: classifier-failure finishReason with high itemCount
 
-- **GIVEN** anchor 後完成的 assistant turn 有 30 個
-- **AND** `compaction.recentRawRounds = 2`
-- **WHEN** transformer 跑
-- **THEN** 第 29 與第 30 輪（最近 2 輪）保留 raw items 不轉換
-- **AND** 第 1-28 輪轉成精簡 trace marker
+- **GIVEN** `lastFinished.finish` is one of `unknown` / `error` /
+  `other` (the codex empty-turn classifier's mapped finishReasons
+  per [sse.ts](../../packages/opencode-codex-provider/src/sse.ts))
+- **AND** estimated itemCount > 250
+- **AND** session has no `parentID`
+- **WHEN** runloop iteration reaches the post-`lastFinished` checkpoint
+- **THEN** `SessionCompaction.run({observed: "empty-response"})` is
+  invoked
+- **AND** runloop iteration ends via `continue`
 
-### Requirement: In-flight assistant preserved intact
+#### Scenario: healthy finishReason skips trigger
 
-#### Scenario: 當前未完成的 assistant turn 不動
+- **GIVEN** `lastFinished.finish` is `stop` / `tool-calls` / `length`
+- **WHEN** runloop iteration reaches the checkpoint
+- **THEN** no compaction is triggered regardless of itemCount
 
-- **GIVEN** prompt 組裝時有一個 in-flight assistant message（含 pending tool calls）
-- **WHEN** transformer 跑
-- **THEN** in-flight assistant message 完整保留（含 pending tool 部分）
-- **AND** 不破壞 unsafe_boundary 護欄
+### Requirement: Pre-emptive rebind compaction at handoff
 
-### Requirement: Safety net fallback
+#### Scenario: rebind slices large session
 
-#### Scenario: transform 後過於精簡
+- **GIVEN** daemon is at step=1 for this session
+- **AND** `applyStreamAnchorRebind` has produced a sliced `msgs`
+- **AND** estimated itemCount > 250 OR `tokenRatio > 0.7`
+- **AND** session has no `parentID`
+- **WHEN** runloop continues after `applyStreamAnchorRebind`
+- **THEN** `SessionCompaction.run({observed: "rebind"})` is invoked
+- **AND** runloop iteration ends via `continue`
 
-- **GIVEN** transformer 跑完後 messages 數 < 5
-- **WHEN** prompt 即將送出
-- **THEN** fallback 使用未 transform 的原始 messages
-- **AND** log warn `phase1-transform: fallback to raw, transformed_count=N`
+#### Scenario: rebind slices small session
 
-### Requirement: Feature flag respects gradual rollout
+- **GIVEN** daemon is at step=1
+- **AND** sliced `msgs` itemCount ≤ 250 AND `tokenRatio ≤ 0.7`
+- **WHEN** runloop continues
+- **THEN** no compaction is triggered; flow proceeds to LLM call
 
-#### Scenario: flag 關閉時行為等同 Phase 1 落地前
+### Requirement: Phase 2 anchor-prefix expansion replaces summary with codex compactedItems
 
-- **GIVEN** `compaction.phase1Enabled = false`
-- **WHEN** prompt 組裝跑
-- **THEN** transformer 完全跳過，行為與 Phase 1 落地前完全相同（raw items 全送）
+#### Scenario: anchor carries valid compactedItems
 
-#### Scenario: flag 開啟時 transformer 啟用
+- **GIVEN** anchor message has
+  `metadata.serverCompactedItems` populated
+- **AND** `metadata.chainBinding.accountId === current accountId`
+- **AND** `metadata.chainBinding.modelId === current modelId`
+- **AND** `compaction_phase2_enabled === true`
+- **WHEN** `expandAnchorCompactedPrefix` runs after
+  `applyStreamAnchorRebind`
+- **THEN** anchor message is dropped from the projection
+- **AND** for each codex `message`-type entry, a synthetic user-role
+  MessageV2 with the entry's text content is emitted
+- **AND** non-`message` entries (function_call, function_call_output,
+  reasoning) are JSON-serialized into a single labeled wrapper user
+  message
+- **AND** the projection becomes `[...synthesized, ...messages.slice(1)]`
 
-- **GIVEN** `compaction.phase1Enabled = true`
-- **WHEN** prompt 組裝跑
-- **THEN** transformer 啟用、按 DD-1..DD-6 行為運作
+#### Scenario: chain-binding mismatch falls back to summary
 
-### Requirement: Subagent path unaffected
+- **GIVEN** anchor has `serverCompactedItems` but
+  `chainBinding.modelId` differs from current `modelId` (account
+  switch / model switch / cross-chain rotation occurred)
+- **WHEN** `expandAnchorCompactedPrefix` runs
+- **THEN** compactedItems are skipped from projection
+- **AND** anchor's free-form summary text is used
+- **AND** stored `compactedItems` are NOT deleted (forensics retained)
 
-#### Scenario: subagent prompt 組裝
+### Requirement: Phase 2 storage on CompactionPart metadata is additive
 
-- **GIVEN** subagent session 觸發 prompt 組裝（透過 parent stream-anchor 路徑）
-- **WHEN** prompt 組裝跑
-- **THEN** transformer **不**套用 — subagent path 在 Phase 1 完全 bypass
-- **AND** subagent 仍看到完整 parent context（與 Phase 1 落地前一致）
+#### Scenario: tryLowCostServer succeeds
 
-### Requirement: Mode 1 inline compaction items preserved
+- **GIVEN** codex `/responses/compact` plugin hook returns
+  non-empty `compactedItems`
+- **WHEN** `tryLowCostServer` writes the anchor
+- **THEN** `CompactionPart.metadata.serverCompactedItems` is set to
+  the codex-issued items
+- **AND** `CompactionPart.metadata.chainBinding` is set to current
+  `{accountId, modelId, capturedAt}`
+- **AND** the anchor's free-form summary text is also written
+  (fallback path)
 
-#### Scenario: 含 codex 自送的 compaction part
+### Requirement: Codex provider tries server-side compaction first
 
-- **GIVEN** anchor 之後某 assistant turn 含 `compaction` part type（codex Mode 1 inline 產物）
-- **WHEN** transformer 跑
-- **THEN** 該 `compaction` part 完整保留（exempt from transform）
-- **AND** 同 turn 的其他 verbose part（text/reasoning/tool result）正常轉 trace marker
+#### Scenario: codex provider, any observed event
 
-### Requirement: Layer purity invariant
+- **GIVEN** `providerId === "codex"`
+- **WHEN** `resolveKindChain({observed, providerId: "codex"})` is
+  called
+- **THEN** the returned chain has `low-cost-server` at index 0
+- **AND** the rest of the base chain (per `KIND_CHAIN[observed]`)
+  follows in order, with `low-cost-server` removed if it was
+  already present
 
-#### Scenario: trace marker 不含連線狀態
+#### Scenario: non-codex provider unchanged
 
-- **GIVEN** 任何 transformed trace marker
-- **WHEN** 檢查其 payload
-- **THEN** 不出現：accountId、providerId、WS session ID、`previous_response_id`、`conversation_id`
-- **AND** 任何 chain identity 資訊由 L4（transport-ws.ts + continuation.ts）獨立維護
+- **GIVEN** `providerId !== "codex"`
+- **WHEN** `resolveKindChain` is called
+- **THEN** the base `KIND_CHAIN[observed]` is returned unchanged
+  (local-first ordering preserved)
+
+### Requirement: Layer Purity Invariant
+
+#### Scenario: trace markers and compactedItems do not leak L4 state
+
+- **GIVEN** any compaction payload (anchor summary text, trace
+  markers, or `serverCompactedItems`-derived synthetic messages)
+- **WHEN** the payload is rendered into the prompt
+- **THEN** the rendered text does NOT contain accountId / providerId
+  / WS session ID / `previous_response_id` / `conversation_id` /
+  connection-scoped credentials
+- **AND** WorkingCache reference IDs are sessionID-scoped
+- **EXCEPT** the `compactedItems` content from codex is opaque (DD-10
+  carve-out); only synthetic labels we add are subject to the guard
+
+### Requirement: Feature flags
+
+#### Scenario: Phase 2 default-on
+
+- **GIVEN** `compaction_phase2_enabled` is unset OR `1`
+- **WHEN** prompt assembly runs
+- **THEN** `expandAnchorCompactedPrefix` is invoked when the anchor
+  carries valid `serverCompactedItems`
+
+#### Scenario: Phase 1 default-off
+
+- **GIVEN** `compaction_phase1_enabled` is `0` (default)
+- **WHEN** prompt assembly runs
+- **THEN** `transformPostAnchorTail` is NOT invoked
+- **AND** the post-anchor message tail is sent to the LLM unchanged
+  (matches upstream codex-rs `for_prompt()` full-pass-through)
 
 ## Acceptance Checks
 
-- A1：在合成 session（30+ turns）下，`compaction.phase1Enabled = true` 後 inputItemCount 降至 ~80
-- A2：所有 prompt.applyStreamAnchorRebind 既有單元測試 pass
-- A3：新增單元測試覆蓋 G1-G6 對應行為
-- A4：subagent path 整合測試（subagent 看到 parent 完整 context）
-- A5：在 ses_204499eecffe2iUTzeXyiarlnq pattern 復現後，empty-turns.jsonl 24h 內失敗率不增加
-- A6：feature flag 默認 false，啟用後可即時關閉回退
+- A1: Three trigger sites in `prompt.ts` invoke `SessionCompaction.run`
+  with the correct `observed` argument when their preconditions hold,
+  and skip when not
+- A2: `expandAnchorCompactedPrefix` correctly expands valid items and
+  falls back on chain-binding mismatch
+- A3: `resolveKindChain` puts `low-cost-server` at index 0 for codex
+  regardless of context ratio / subscription flag; non-codex chain
+  unchanged
+- A4: All three triggers degrade gracefully on compaction failure
+  (fall through to original code path)
+- A5: Layer purity invariant holds across rotation / rebind / WS
+  reconnect (prompt content stays semantically equivalent)
+- A6: Feature flags govern Phase 1 and Phase 2 independently

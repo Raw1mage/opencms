@@ -1,83 +1,73 @@
 # Tasks
 
-## ERRATUM 2026-05-08 (d) — Phase 1 tasks DONE-THEN-ABANDONED
+All tasks complete. Spec is in `living` state, merged to `main` in
+commit `01aca5124`.
 
-All Phase 1 tasks (1.x–6.x below) were executed through commits
-`6dcd327fa` (v1) → `43d400258` (v2) → `a2f30dc4c` (v3) →
-`ac2b34a0b` (v5) → `c56e5538f` (v6) → `c1feb48a1` (disabled).
+## Shipped Components
 
-**Phase 1 transformer is off by default and not part of the production
-architecture.** See [proposal.md ERRATUM](./proposal.md#erratum-2026-05-08-d--phase-1-misframing-disabled).
+### Three itemCount-gated triggers
 
-Treat tasks below as forensic reference. Do **not** reactivate Phase 1
-without first revisiting the upstream re-read (Phase 1's premise was a
-misread of `for_prompt()`).
+- [x] Paralysis × bloated-input compaction trigger
+  ([prompt.ts](../../packages/opencode/src/session/prompt.ts) at
+  3-turn paralysis recovery branch). Commit `077214fe7`.
+- [x] ws-truncation × bloated-input compaction trigger
+  ([prompt.ts](../../packages/opencode/src/session/prompt.ts) at
+  runloop top, after `lastFinished` resolution). Commits
+  `6530fa6ca` (initial), `6163d81eb` (use `finish` field instead
+  of part metadata).
+- [x] Pre-emptive rebind compaction
+  ([prompt.ts](../../packages/opencode/src/session/prompt.ts) at
+  step=1, after `applyStreamAnchorRebind`). Commit `451d87b39`.
 
-Phase 2 (anchor-prefix-expand for codex compactedItems) **is** the live
-alignment. Phase 2 work lived inside commit `2f3545303` and survived
-all subsequent revisions. Phase 2 governed by DD-8…DD-13 in design.md.
+### Phase 2 anchor-prefix expansion
 
----
+- [x] `CompactionPart.metadata` additive fields (`serverCompactedItems`,
+  `chainBinding`) in
+  [message-v2.ts](../../packages/opencode/src/session/message-v2.ts).
+- [x] `tryLowCostServer` persists `compactedItems` + chain identity
+  in [compaction.ts](../../packages/opencode/src/session/compaction.ts).
+- [x] `expandAnchorCompactedPrefix` module
+  ([anchor-prefix-expand.ts](../../packages/opencode/src/session/anchor-prefix-expand.ts)).
+- [x] Wired into prompt assembly after `applyStreamAnchorRebind`.
+- [x] Decoupled from Phase 1 (independent flag gate). Commits
+  `2f3545303` (initial), `c1feb48a1` (decouple).
 
-Phase 1 execution checklist for compaction-fix. Numbering uses A1-A5 from idef0.json for traceability where applicable. Per plan-builder §16.1, only the current phase's unchecked items go to TodoWrite at any time.
+### Compaction priority
 
-## 1. tweaks.cfg keys + flag plumbing (Phase 1, DD-6)
+- [x] `resolveKindChain` codex-first reorder; subscription/ctxRatio
+  gate removed. Commit `39bc97786`.
 
-- [ ] 1.1 Add `compaction.phase1Enabled: false` (default), `compaction.recentRawRounds: 2` (default), `compaction.fallbackThreshold: 5` (default) to [packages/opencode/src/util/tweaks.ts](../../packages/opencode/src/util/tweaks.ts) compaction sync section
-- [ ] 1.2 Plumb readers into `prompt.ts` so the transformer entry point can read all three values
-- [ ] 1.3 Unit test: tweaks loader reads new keys, defaults take effect when keys absent
+### Telemetry
 
-## 2. Post-anchor transformer (Phase 1 core, A3 + DD-1, DD-2, DD-3, DD-7)
+- [x] inputItemCount in tooltip + Context tab. Commit `99e954985`.
+- [x] Prompt-block names reflect cache-reuse mental model
+  (`動態內文 · 低頻 / 中頻 / 高頻`). Commit `c3bc9cd09`.
+- [x] Rotation/compaction recent-events ring buffer in Q card.
+  Commit `ea2cc166e`, hotfix `02c239fdb`.
 
-- [ ] 2.1 Define `TraceMarker` shape per data-schema.json `$defs/TraceMarker` in a new file (suggested: `packages/opencode/src/session/post-anchor-transform.ts`)
-- [ ] 2.2 Implement `formatTraceMarker(turn: AssistantTurn)`: produces single-line text per DD-1 format (`[turn N] tool_a(args) → WC042; tool_b(args) → WC043; reasoning_summary`)
-- [ ] 2.3 Args truncation: tool args truncated to 80 chars; reasoning truncated to 50 chars
-- [ ] 2.4 WorkingCache reference resolution: query existing reference by tool callId; if absent, lazy-write via existing WorkingCache write API (DD-3 fallback)
-- [ ] 2.5 Layer purity guard: assert formatted text contains none of LayerPurityForbiddenKeys (data-schema.json) — throw at format time if violated (defensive)
-- [ ] 2.6 Implement `transformPostAnchorTail(messages, recentRawRounds)`: iterate completed assistant messages, skip last N rounds, fold each older one into a single synthetic user-role TraceMarker message
-- [ ] 2.7 Preserve `compaction` part type (Mode 1 inline) — assistant messages containing `compaction` parts are exempt from transform (DD-7 white-list)
-- [ ] 2.8 Preserve in-flight assistant message intact (last assistant if pending tool calls present)
+### Tests
 
-## 3. Wiring + safety net (Phase 1, A4 + DD-4, DD-5)
+- [x] Phase 2 expander unit tests
+  (`packages/opencode/test/session/anchor-prefix-expand.test.ts`,
+  10 cases).
+- [x] Compaction kind-chain tests updated for codex-first priority
+  (`packages/opencode/test/session/compaction.test.ts`).
+- [x] Emission filter unit tests
+  (`packages/opencode/test/session/emission-filter.test.ts`,
+  15 cases).
+- [x] Regression: 253 tests pass (26 pre-existing failures unchanged).
 
-- [ ] 3.1 In [packages/opencode/src/session/prompt.ts](../../packages/opencode/src/session/prompt.ts), at step=1 prompt assembly site (around `applyStreamAnchorRebind` call at line ~1840), add transformer invocation when `phase1Enabled && !session.parentID`
-- [ ] 3.2 Subagent bypass per DD-5 — early return path for `session.parentID` cases
-- [ ] 3.3 Safety net per DD-4 — count transformed messages; if < `fallbackThreshold`, log warn `phase1-transform: fallback to raw, threshold=X, got=Y` and use raw messages
-- [ ] 3.4 Refresh `lastFinished.tokens.input` after transform (consistent with existing rebind path behavior at prompt.ts:1850)
+## Out of Scope (deferred)
 
-## 4. Tests (Phase 1)
-
-- [ ] 4.1 Unit test in `packages/opencode/test/session/post-anchor-transform.test.ts`:
-   - 4.1.1 30-turn synthetic session → transformer keeps last 2 raw, folds 28 into trace markers, output count matches expected
-   - 4.1.2 Trace marker text format conforms to DD-1 (regex check `^\[turn \d+\]`)
-   - 4.1.3 Layer purity assertion: trace marker text never contains forbidden keys (DD-7)
-   - 4.1.4 Tool args truncated to 80 chars; reasoning to 50 chars
-   - 4.1.5 `compaction` part type exempt from transform
-   - 4.1.6 In-flight assistant preserved intact
-- [ ] 4.2 Integration test against `applyStreamAnchorRebind` flow in extended `prompt.applyStreamAnchorRebind.test.ts`:
-   - 4.2.1 Flag off → transformer skipped, behaviour identical to pre-Phase-1
-   - 4.2.2 Flag on + main session → transformer runs
-   - 4.2.3 Flag on + subagent (parentID set) → transformer skipped
-   - 4.2.4 Safety net fires when transformed messages < threshold
-- [ ] 4.3 WorkingCache integration test: trace marker references resolve back to original tool result via existing `WorkingCache.selectValid`
-- [ ] 4.4 Regression: all existing `applyStreamAnchorRebind` tests still pass
-
-## 5. Observability + manual verification (Phase 1)
-
-- [ ] 5.1 Add structured log line at transform entry: `phase1-transform: applied, sessionID=..., transformedTurns=N, recentRawRounds=2, traceMarkers=N, cacheRefs=N, missing=N`
-- [ ] 5.2 Add JSONL field to fix-empty-response-rca's empty-turns.jsonl entries: `phase1TransformApplied: boolean` (passed through requestOptionsShape or sibling field) — confirms during soak whether transformer fired
-- [ ] 5.3 Operator runbook entry: how to enable for one session via tweaks.cfg, verify drop in inputItemCount via M-equivalent jq query
-
-## 6. Phase 1 ship sequence
-
-- [ ] 6.1 All 1-4 complete; 5.1-5.2 logging in place
-- [ ] 6.2 Beta worktree fetch-back to `test/compaction-fix` in main repo
-- [ ] 6.3 Manual smoke: enable flag in test branch, run a 30+ turn session, observe inputItemCount drops in `[CODEX-WS] REQ` logs
-- [ ] 6.4 Soak 24h: monitor fix-empty-response-rca empty-turns.jsonl — failure rate must not increase relative to pre-Phase-1 baseline (0.71%)
-- [ ] 6.5 If 6.4 green, flip default `compaction.phase1Enabled` to `true` in a separate small commit
-- [ ] 6.6 Merge `test/compaction-fix` → main; cleanup beta + test branches; promote spec to verified
-
-## Per-phase ship gates
-
-- **Phase 1 ship gate**: 1.x-5.x all checked; 4.x tests pass; 6.x sequence executed end-to-end with 24h soak green. Phase 1 is independently shippable.
-- **Phase 2 (future)**: separate plan iteration; unblocked by Phase 1 baseline data (cache_read changes, classifier threshold recalibration observations) feeding the design.
+- Phase 1 per-turn transformer code retained at
+  [packages/opencode/src/session/post-anchor-transform.ts](../../packages/opencode/src/session/post-anchor-transform.ts)
+  with `compaction_phase1_enabled=0`. Available for future
+  experimental re-enable; not part of production architecture.
+- L3 lazy retrieval runtime (model-facing recall tools): out of
+  this plan's scope, lives in `system-manager:recall_toolcall_*`
+  MCP surface.
+- gpt-5.5 backend item-array sensitivity: upstream bug, mitigated
+  not eliminated. If OpenAI raises gpt-5.5's `max_context_window`
+  to 1 M, the itemCount triggers fall dormant naturally
+  (paralysis-gated for the reactive ones, threshold-gated for the
+  pre-emptive one).

@@ -1,212 +1,208 @@
-# Design: compaction-fix Phase 1
+# Design: compaction-fix
 
-## ERRATUM 2026-05-08 (d) — Phase 1 disabled
-
-The decisions DD-1…DD-7 below describe a per-turn post-anchor
-transformer. That transformer was implemented (Phase 1 v1–v6) and
-disabled after live observation. See [proposal.md](./proposal.md)
-ERRATUM 2026-05-08 (d) for the full reasoning.
-
-Status:
-- DD-1, DD-2, DD-3, DD-4, DD-5, DD-6 → **[SUPERSEDED] / ineffective**
-  (transformer is disabled by default; flag-on path retained for
-  experimental re-enable but not part of the production architecture).
-- DD-7 (layer purity invariant) → still architecturally correct;
-  applies more broadly than just the disabled transformer.
-- DD-8…DD-13 (Phase 2: anchor-prefix-expand) → **active and live**;
-  decoupled from Phase 1 enablement in commit `c1feb48a1`.
-
-The 2026-05-08 (d) compaction priority change (commit `39bc97786`) is
-not in this document — it's in [compaction.ts](../../packages/opencode/src/session/compaction.ts)
-`resolveKindChain`. Per-codex behavior: server-side `low-cost-server`
-is now first regardless of context ratio or subscription flag.
+Decisions for the four shipped components: three itemCount-gated
+triggers, the anchor-prefix expansion (Phase 2), and the
+compaction-priority simplification.
 
 ## Context
 
-Phase 1 範圍：升級 0-token compaction（`narrative` + `replay-tail` kinds）。
-
-問題（已於 [proposal.md](./proposal.md) 詳述）：
-- 4 種 compaction kind 跑完都只產 summaryText 寫進 anchor，post-anchor tail 沒處理
-- 50 輪 tail 累積 ~300-400 input items，撞 codex backend 對 input array 個數的隱藏敏感度
-- AI-based 退化成「0-token + AI 文字」，浪費 server 算力
-
-Phase 1 解 0-token 那條：把完成的 assistant turn 從 raw verbose items 轉成精簡 trace marker + WorkingCache reference。AI-based（Phase 2）後做。
-
-## Goals / Non-Goals
-
-### Goals
-
-- inputItemCount 從 ~300 降到 ~80
-- fidelity 由 WorkingCache reference 補位（L3 retrieval runtime 取回，獨立於本 plan）
-- Phase 1 落地不阻塞 Phase 2 — compactedItems 上來時應視為 anchor 延伸，預留例外路徑
-
-### Non-Goals (also see ## Non-Goals below)
-
-- 不解決 codex backend 的 input array 敏感度（上游 bug）
-- 不暴露 model-facing recall tool（L3 retrieval runtime 的事）
-- 不改 storage schema 結構
-- 不動 AI-based kinds（`low-cost-server` / `llm-agent`）的行為
+gpt-5.5's 272 K hard-cap context window exposes a codex backend
+input-array sensitivity at ~250+ items. Pre-existing token-based
+compaction (~88% threshold) doesn't fire in time because itemCount
+can climb on small-tool-call sessions while tokens stay low.
 
 ## Decisions
 
-### DD-1：Trace marker shape — one line per turn [SUPERSEDED 2026-05-08 (d) — transformer disabled]
+### DD-1: Trigger threshold
 
-**Decision**：每個被省略的完成 assistant turn 折成 1 個 user-role message（synthetic），格式：
+`PARALYSIS_ITEMCOUNT_COMPACT_THRESHOLD = 250`. Used by all three
+itemCount-gated triggers. 50–100 buffer below the empirical 300+
+failure region (RCA in
+[fix-empty-response-rca/](../fix-empty-response-rca/)).
 
-```
-[turn N] tool_a(brief_args) → WC042; tool_b(brief_args) → WC043; <reasoning summary 50 chars>
-```
+Token-side companion threshold: rebind-time pre-emptive uses
+`tokenRatio > 0.7`.
 
-- 多 tool 同 turn 折成一條（item 數從 7-10 降到 1）
-- args 取首 80 字元
-- reasoning 取首 50 字元（如有）
-- 每個 tool result 對應一個 `WC<id>` reference（已透過 WorkingCache write API 寫入）
+### DD-2: itemCount estimation
 
-**Why**：用 user-role 而非 assistant-role 避免 codex 把 trace 當作「自己的歷史輸出」而 echo 回去。trace 是為了讓 model 知道「我之前做過 X，原文在 WC042」，語意上更接近系統 commentary。
+Walk `MessageV2.WithParts[]` count one item per:
+- user message
+- assistant message with non-empty text part
+- each ToolPart (function_call)
+- each ToolPart with `state.status ∈ {completed, error}`
+  (function_call_output)
 
-**How to apply**：transformer helper 在 prompt.ts 加，作用於已 slice 的 messages 陣列。
+Mirrors the codex provider's `convertPrompt` emission shape so
+runtime estimate matches the actual `[CODEX-WS] REQ inputItems` log.
 
-### DD-2：Recent rounds raw — N=2 by default, tweaks-tunable [SUPERSEDED 2026-05-08 (d) — transformer disabled]
+Same algorithm used by:
+- Three runloop triggers (paralysis × bloated-input,
+  ws-truncation × bloated-input, pre-emptive rebind)
+- UI telemetry tooltip (Q card "N items" line)
 
-**Decision**：anchor 後最近 N 輪完成 assistant turn 保留 raw 不轉換，N=2 默認，由 `tweaks.cfg` `compaction.recentRawRounds` 調整。
+### DD-3: Paralysis × bloated-input trigger
 
-**Why**：避免短期失憶 — model 對「我剛剛做了什麼」需要直接看到 raw（trace 太精簡）。N=2 折衷：item 數仍降到 ~80，model 短期記憶完整。
+[prompt.ts](../../packages/opencode/src/session/prompt.ts), at the
+3-turn paralysis-detector recovery branch. When sigTriple OR
+narrativeTriple matches AND `paralysisRecoveryCount === 0` AND
+itemCount > 250 AND not a subagent:
+- Run `SessionCompaction.run({observed: "overflow"})` instead of
+  injecting the recovery nudge
+- Set `paralysisRecoveryCount = 1` so we don't re-fire on the same
+  episode
+- On compaction failure, fall through to the existing nudge path
 
-**How to apply**：transformer 跳過最後 N 個完成的 assistant message。
+### DD-4: ws-truncation × bloated-input trigger
 
-### DD-3：WorkingCache write timing — at tool completion, lazy at transform [SUPERSEDED 2026-05-08 (d) — transformer disabled; WorkingCache write at tool completion still happens via existing tool-invoker hook, but no transform-time lazy write]
+[prompt.ts](../../packages/opencode/src/session/prompt.ts), at
+runloop iteration top after `lastFinished` is computed. When
+`lastFinished.finish ∈ {unknown, error, other}` (the empty-turn
+classifier's mapped finishReasons per
+[sse.ts:357-367](../../packages/opencode-codex-provider/src/sse.ts#L357-L367))
+AND itemCount > 250 AND not a subagent:
+- Run `SessionCompaction.run({observed: "empty-response"})`
+- Single-shot: do NOT wait for a streak
 
-**Decision**：
-- 主路徑：tool 執行完成時，由既有的 tool 完成 hook 寫入 WorkingCache（已存在的機制）
-- Fallback：transformer 跑時若發現某 tool result 尚無對應 WC reference，當場 lazy write
-- transformer 不阻塞 prompt 組裝 — write 失敗時 trace marker 只記錄 tool name，不附 WC reference
+Loop avoidance: after compaction writes a new anchor, the next
+iteration's `lastFinished` resolves to the anchor (`finish: "stop"`,
+no classifier-failure mapping), so the trigger doesn't re-fire.
 
-**Why**：tool 完成寫入是 happy path（一次寫永久可查）；lazy fallback 救舊 session（transform 時才開始 write）。完全失敗時不阻斷 prompt — fidelity 損失但可用性不受影響。
+The empty-turn classifier metadata is captured at runtime in
+processor.ts but NOT persisted onto any part schema — the
+message-level `finish` field is used instead because it IS persisted.
 
-**How to apply**：tool-invoker 既有 path 已具備（[tool-invoker.ts:124](../../packages/opencode/src/session/tool-invoker.ts#L124)），transformer 端確認讀到 reference 再產 marker；讀不到則 lazy write or 產退化版 marker。
+### DD-5: Pre-emptive rebind compaction
 
-### DD-4：Safety net — fallback when transformed messages < 5 [SUPERSEDED 2026-05-08 (d) — transformer disabled]
+[prompt.ts](../../packages/opencode/src/session/prompt.ts), at
+step=1 immediately after `applyStreamAnchorRebind` slicing. After
+the anchor scan + slice:
+- Estimate itemCount from sliced msgs
+- Read `lastFinished.tokens.total / model.limit.context = tokenRatio`
+- If `itemCount > 250 OR tokenRatio > 0.7` →
+  `SessionCompaction.run({observed: "rebind"})` → `continue`
+- On compaction failure, fall through to the live request (the
+  reactive ws-truncation × bloated-input trigger still catches)
 
-**Decision**：transformer 跑完後若結果 messages < 5，fallback 用未 transform 的原始 messages，並 log warn `phase1-transform: fallback to raw, threshold=5, got=N`。
+Daemon restart resets `state.lastResponseId` for every session, so
+the first request after restart MUST send the full input array.
+Pre-emptive compaction at this exact moment caps the burn that
+would otherwise come from sending a bloated full-input on a fresh
+chain.
 
-**Why**：極端情況（session 太短、anchor 異常、transform 過度激進）不能讓 model 看到太空的 prompt 直接崩。5 是經驗值（anchor + 2-3 user msg + in-flight）。
+Healthy / freshly-anchored sessions skip naturally (items already
+low after slice, tokens below threshold).
 
-**How to apply**：transformer 結尾的 length check。
+### DD-6: Phase 2 storage on CompactionPart metadata
 
-### DD-5：Subagent path bypass — Phase 1 不動 subagent [SUPERSEDED 2026-05-08 (d) — transformer disabled, so subagent bypass moot; subagent path is naturally pass-through now]
-
-**Decision**：subagent prompt 組裝（[prompt.ts:989](../../packages/opencode/src/session/prompt.ts#L989) 路徑）**不**套用 transformer。subagent 仍看到 parent 完整 context（行為與 Phase 1 落地前一致）。
-
-**Why**：subagent 與 main session 的記憶模型本來就不同（DD-12: parent owns context management）。Phase 1 transformer 設計針對 main session 的長期累積問題；subagent 通常短命，bloat 還沒成形。如果 subagent 後來也出問題另開 spec。
-
-**How to apply**：transformer 入口檢查 `session.parentID` — 有 parentID 跳過。
-
-### DD-6：Feature flag — `tweaks.cfg compaction.phase1Enabled`，預設 false [STILL TRUE — flag exists, default false confirmed live in /etc/opencode/tweaks.cfg as of 2026-05-08 (d)]
-
-**Decision**：
-- 加 `compaction.phase1Enabled` flag，預設 `false`
-- 加 `compaction.recentRawRounds` 默認 `2`
-- 加 `compaction.fallbackThreshold` 默認 `5`
-- 灰度啟用：先在 ses_204499eecffe2iUTzeXyiarlnq 復現 session 開 flag → 觀察 inputItemCount 下降 → 24h 失敗率穩定 → 翻 default 為 true
-
-**Why**：Phase 1 影響每次 prompt 組裝，預設 off 確保 main 合併後零行為改變。灰度開啟可以即時 verify 在實際 session 上的效果。失敗時關 flag 立即回退，不需要 hotfix。
-
-**How to apply**：tweaks 載入 + transformer 入口讀 flag。
-
-### DD-7：Layer purity — trace marker 不含連線狀態（架構不變式）
-
-**Decision**：trace marker 與任何 transformer 產出的 message 都**不**內嵌：accountId、providerId、WS session ID、`previous_response_id`、`conversation_id`、connection-scoped credentials。
-
-**Why**：compaction payload 是 L2 工作記憶。L4 連線狀態由 [transport-ws.ts](../../packages/opencode-codex-provider/src/transport-ws.ts) + [continuation.ts](../../packages/opencode-codex-provider/src/continuation.ts) 獨立維護。混在一起會讓 rotation / rebind / new chain 的時候，舊的 trace marker 帶著失效 chain ID 變毒物。
-
-**How to apply**：trace marker formatter 只接受 tool name + args + result reference + reasoning text — 不開放任何連線屬性的 input。
-
-## Phase 2 Decisions (DD-8..DD-13)
-
-### DD-8: Storage — extend `CompactionPart.metadata` with two new fields
-
-**Decision**: Reuse the existing `CompactionPart` (no new part type). Extend its optional `metadata` object with:
+Reuse the existing `CompactionPart` (no new part type). Extend its
+optional `metadata` object additively with:
 
 ```ts
 serverCompactedItems?: unknown[]   // raw codex Responses API ResponseItem[]
 chainBinding?: { accountId: string; modelId: string; capturedAt: number }
 ```
 
-**Why**: Anchor message already exists and carries the summary; bolting Phase 2 onto its metadata avoids schema churn and keeps the L2 anchor-as-a-record invariant intact. `unknown[]` because items are codex-format ResponseItems whose schema lives in `@opencode-ai/codex-provider` types — opaque to opencode core.
+Anchor message already exists and carries the summary; bolting Phase
+2 onto its metadata avoids schema churn and keeps the L2 anchor-as-a-
+record invariant intact. `unknown[]` because items are codex-format
+ResponseItems whose schema lives in `@opencode-ai/codex-provider`
+types — opaque to opencode core.
 
-**How to apply**: Extend the Zod schema additively (existing readers without these fields keep working). `tryLowCostServer` writes both fields atomically when the server returns compactedItems.
+### DD-7: Chain identity binding
 
-### DD-9: Chain identity binding
-
-**Decision**: `compactedItems` are valid only when:
+`compactedItems` are valid for projection only when:
 - `chainBinding.accountId === current execution accountId`, AND
 - `chainBinding.modelId === current execution modelId`
 
-Mismatch → strip compactedItems from the projection (do NOT delete from storage), fall back to Phase 1 anchor summary text.
+Mismatch → strip compactedItems from the projection (do NOT delete
+from storage), fall back to anchor summary text. Storage-side keep
+retains forensics; runtime projection skips them.
 
-**Why**: codex's compactedItems are produced by a specific (account, model) pair and may carry chain-internal references that are only valid for that chain. Account switch / model switch / cross-chain rotation invalidate them. Storage-side keep retains forensics; runtime projection skips them.
+Codex's compactedItems are produced by a specific (account, model)
+pair and may carry chain-internal references. Account switch /
+model switch / cross-chain rotation invalidate them.
 
-**How to apply**: Phase 2 expander reads execution context (`activeModel`, `effectiveAccountId`) and compares against `chainBinding`. Only expand on match.
+### DD-8: Phase 2 read path
 
-### DD-10: Read path — replace anchor with expanded items
-
-**Decision**: A new step `expandAnchorCompactedPrefix(messages, executionContext)` runs **after** Phase 1 transformer and **before** `MessageV2.toModelMessages`. If the anchor (messages[0]) carries valid compactedItems:
+`expandAnchorCompactedPrefix(messages, executionContext)` runs
+**after** `applyStreamAnchorRebind` and **before**
+`MessageV2.toModelMessages`. If anchor (`messages[0]`) carries valid
+compactedItems:
 
 - Drop the original anchor message from the projection
-- For each `compactedItems` entry of `type === "message"`, emit a synthetic user-role MessageV2 message containing the entry's text content (kind: `context-preface`)
-- For other item types (function_call, function_call_output, reasoning) in MVP: serialize as JSON inside one synthetic user-role text message labeled "[compacted prior tool history]"
+- For each `compactedItems` entry of `type === "message"`, emit a
+  synthetic user-role MessageV2 message containing the entry's text
+  content
+- For other item types (function_call, function_call_output,
+  reasoning), serialize as JSON inside a single labeled wrapper user
+  message
 - Concatenate: `[...synthesizedFromCompacted, ...messages.slice(1)]`
 
-**Why**: Convert compactedItems into MessageV2 form so the existing `toModelMessages` → `convertPrompt` pipeline serializes them naturally. No changes to codex-provider's `convertPrompt` needed (preserves L2/L3 boundary).
+Convert compactedItems into MessageV2 form so the existing
+`toModelMessages → convertPrompt` pipeline serializes them naturally.
 
-**How to apply**: New module `packages/opencode/src/session/anchor-prefix-expand.ts`. Wired in prompt.ts immediately after the Phase 1 transformer block.
+### DD-9: Compaction priority for codex
 
-### DD-11: Layer purity carve-out for compactedItems
+`resolveKindChain` always prepends `low-cost-server` to the head of
+the kind chain when `providerId === "codex"`, regardless of context
+ratio or subscription flag. Other kinds fall through if server-side
+fails.
 
-**Decision**: `LAYER_PURITY_FORBIDDEN_KEYS` guard from Phase 1 does **NOT** apply to compactedItems content. It DOES apply to any text we synthesize ourselves around compactedItems (e.g. labels we add).
+Subscription flag and ctxRatio are no longer consulted. Parameters
+retained on the input shape for back-compat with existing call sites
+that still pass them.
 
-**Why**: compactedItems are codex-produced black-box artifacts. They may contain chain-internal tokens that look like L4 keys but are L2 from codex's frame of reference (codex's own prior-conversation references). Forcing layer purity here would mean rejecting codex's own work.
+### DD-10: Layer purity carve-out for compactedItems
 
-`chainBinding` metadata IS L4 (we synthesize it), but it lives in part metadata — not in the prompt text — so layer purity doesn't apply at projection time.
+The `LAYER_PURITY_FORBIDDEN_KEYS` guard does NOT apply to
+compactedItems content. It DOES apply to any text we synthesize
+ourselves around compactedItems (e.g., wrapper labels we add).
 
-**How to apply**: Expander pushes compactedItems through to MessageV2 without applying `assertLayerPurity`. Synthetic labels we add (e.g. "[compacted prior tool history]") are subject to the guard.
+compactedItems are codex-produced black-box artifacts. They may
+contain chain-internal tokens that look like L4 keys but are L2 from
+codex's frame of reference (codex's own prior-conversation
+references). Forcing layer purity here would mean rejecting codex's
+own work.
 
-### DD-12: Failure / invalidation modes
+`chainBinding` metadata IS L4 (synthesized by us), but it lives in
+part metadata — not in prompt text — so layer purity doesn't apply
+at projection time.
 
-**Decision**:
+### DD-11: Failure / invalidation modes
 
 | Failure | Recovery | Log level |
 |---|---|---|
-| Plugin returns no compactedItems | summary-only path (Phase 1 baseline) | info |
+| Plugin returns no compactedItems | summary-only path | info |
 | chainBinding mismatch (account/model switch) | strip from projection, keep storage | warn |
 | compactedItems contain unmappable types | serialize as JSON in single synthetic message | warn (one-shot per anchor) |
-| compactedItems shape parse error | strip from projection, keep storage, log error | error |
+| compactedItems shape parse error | strip from projection, keep storage | error |
+| Compaction trigger fires but compaction throws | fall through to original code path (nudge / live request) | warn |
 
-**Why**: Never block prompt assembly; always degrade gracefully to Phase 1.
+Never block prompt assembly; always degrade gracefully.
 
-**How to apply**: Each branch in expander explicitly handles the failure with a structured log line.
+### DD-12: Feature flags
 
-### DD-13: Feature flag — `compaction.phase2Enabled`, default false
+| Tweak | Default | Purpose |
+|---|---|---|
+| `compaction_phase1_enabled` | `0` | Disabled per-turn transformer (kept for experimental re-enable; not part of production architecture) |
+| `compaction_phase2_enabled` | `1` | Phase 2 anchor-prefix expansion (live) |
 
-**Decision**: New flag `compaction.phase2Enabled` (default false). Independent of `phase1Enabled` but Phase 2 expander short-circuits if Phase 1 is also off (anchor projection contract assumes Phase 1's slicing semantics).
-
-**Why**: Phase 2 changes what codex sees as the prefix. Even though it's pure projection (no message stream rewrite), wrong/stale items entering the prompt is a high-severity failure mode. Gated rollout via tweaks.cfg same shape as Phase 1.
-
-**How to apply**: tweaks.cfg key `compaction_phase2_enabled = 0/1`. Default off after merge to main; flip on after Phase 1 hits stable production and Phase 2 has its own soak window.
-
-## Risks / Trade-offs
-
-- **R1（fidelity）**：Phase 1 之後 model 看到的是精簡 trace，可能在某些任務（特別是長期 debug 流程）下因看不到 raw 內容而重做工作 → mitigation：DD-2 留最近 N 輪 raw + WorkingCache reference 可被 L3 retrieval runtime 取回（後續會補）
-- **R2（WorkingCache 覆蓋率）**：如果某 tool result 沒被 WC index，trace marker 變成「失憶 marker」（model 知道有事發生但找不回原文）→ mitigation：DD-3 lazy write fallback；長期：審視 WorkingCache 的 indexing policy
-- **R3（cache_read 比例變化）**：prompt 內容變了，codex 端 prompt cache 可能失效，cache_read tokens 大幅下降 → mitigation：Phase 1 不調 promptCacheKey 策略，先觀察；如真的下降太多再開後續 spec
-- **R4（subagent 暫不處理留下不一致）**：main session 走 transformer 但 subagent 不走 → 行為差異需文件化 → mitigation：DD-5 明確記錄；如果 subagent 也出 bloat 問題再單獨處理
-- **R5（Phase 2 互動）**：Phase 2 拿到 compactedItems 上來，必須當作 anchor 延伸（exempt from Phase 1 transformer）→ mitigation：本 plan 預留 OUT scope 提到此互動，Phase 2 設計階段把 compactedItems 加入 transformer 的「跳過範圍」白名單
+Phase 1 transformer code retained at
+[packages/opencode/src/session/post-anchor-transform.ts](../../packages/opencode/src/session/post-anchor-transform.ts);
+flag-on path runs but is not active in production.
 
 ## Critical Files
 
-- [packages/opencode/src/session/prompt.ts](../../packages/opencode/src/session/prompt.ts) — 主修改點（transformer + applyStreamAnchorRebind 整合）
-- [packages/opencode/src/session/working-cache.ts](../../packages/opencode/src/session/working-cache.ts) — 既有 WorkingCache write API（沿用，不修改）
-- [packages/opencode/src/session/post-compaction.ts](../../packages/opencode/src/session/post-compaction.ts) — 既有 manifest 渲染（沿用）
-- [packages/opencode/src/session/tool-invoker.ts](../../packages/opencode/src/session/tool-invoker.ts) — tool 完成時的 WorkingCache write hook
-- [packages/opencode/src/util/tweaks.ts](../../packages/opencode/src/util/tweaks.ts) — 加新 config 鍵
-- [packages/opencode/test/session/](../../packages/opencode/test/session/) — 新增測試
+- [packages/opencode/src/session/prompt.ts](../../packages/opencode/src/session/prompt.ts)
+  — three trigger sites (DD-3, DD-4, DD-5) + Phase 2 expander wiring
+- [packages/opencode/src/session/anchor-prefix-expand.ts](../../packages/opencode/src/session/anchor-prefix-expand.ts)
+  — Phase 2 read path (DD-8, DD-10, DD-11)
+- [packages/opencode/src/session/compaction.ts](../../packages/opencode/src/session/compaction.ts)
+  — `tryLowCostServer` writes compactedItems (DD-6, DD-7);
+  `resolveKindChain` codex-first priority (DD-9);
+  `publishCompactedAndResetChain` event publishing
+- [packages/opencode/src/session/message-v2.ts](../../packages/opencode/src/session/message-v2.ts)
+  — `CompactionPart.metadata.serverCompactedItems` /
+  `chainBinding` fields (DD-6)
+- [packages/opencode/src/config/tweaks.ts](../../packages/opencode/src/config/tweaks.ts)
+  — feature flags (DD-12)
