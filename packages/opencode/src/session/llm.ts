@@ -508,8 +508,6 @@ export namespace LLM {
 
     // Get provider capabilities (centralizes provider-specific behavior)
     const capabilities = getCapabilities(provider, auth)
-    // Legacy alias for gradual migration - these will be removed once all usages migrate to capabilities
-    const usesInstructions = capabilities.useInstructionsOption
 
     const subagentSession = await isSubagentSession(input.sessionID)
     // @plans/provider-hotfix Phase 2 — parent session id feeds the
@@ -538,6 +536,14 @@ export namespace LLM {
       const knownFamilies = await Account.knownFamilies()
       const family = resolveFamily(executionModel.providerId, knownFamilies)
 
+      // L1 driver + L7 SYSTEM.md must remain in the static system block. The
+      // codex provider's convertPrompt hard-codes the Responses-API
+      // `instructions` field to a 28-byte placeholder (see
+      // packages/opencode-codex-provider/src/convert.ts) and ignores
+      // options.instructions; the real system prompt reaches codex by going
+      // through the LMv2 system-role message → developer-role input item.
+      // Zeroing these layers here would silently strip the persona + global
+      // rules from every codex turn (RCA 2026-05-08, ses_1f8628ed...).
       const driverText = (await SystemPrompt.provider(input.model)).join("\n")
       const agentText = input.agent.prompt ?? ""
       // Subagents skip AGENTS.md (matches pre-Phase-B prompt.ts L2151
@@ -686,22 +692,28 @@ export namespace LLM {
               activeImageBlocks = await buildActiveImageContentBlocks(refs, refsByFilename)
             }
           }
-          // attachment-lifecycle v4: drain the voucher *after* the preface
-          // has consumed it. The previous drain site (processor.ts
-          // step-finish) wiped vouchers written via reread_attachment in
-          // the SAME turn, before the next preface ever got a chance to
-          // emit them — model saw inventory text but never pixels, then
-          // re-rerread, looped. Now: emit (or attempt to emit) → drain →
-          // next turn sees a clean slate. Drain runs whenever refs were
-          // present so a missing-file emit still clears the voucher
-          // rather than retrying forever.
-          if (refs.length > 0) {
-            await SessionMod.setActiveImageRefs(input.sessionID, []).catch((err) => {
-              l.warn("activeImageRefs drain after preface emit failed", {
-                error: err instanceof Error ? err.message : String(err),
-              })
-            })
-          }
+          // attachment-lifecycle v6 (2026-05-08): per-turn auto-drain
+          // removed. v4's drain-after-preface fixed the previous "drain
+          // before emit" bug but introduced a new loop: model called
+          // reread_attachment → next preface inlined image once → drained
+          // → following turn the image is gone again → model re-called →
+          // loop. Across multi-turn analysis of a single uploaded image
+          // (the typical "user asks about screenshot" case) the model
+          // would burn 1 reread call per turn just to keep seeing the
+          // pixels.
+          //
+          // v6: do NOT drain here. `addOnReread` enforces a FIFO cap
+          // (`Tweaks.attachmentInline.activeSetMax`, default 8) so refs
+          // cannot grow unbounded. Images persist across turns of the
+          // same user task; new reread calls push older ones out via
+          // the FIFO. When the user starts a clearly different task
+          // (new image upload, or explicit "now look at X instead"),
+          // the model can call reread_attachment with the new filename
+          // and the old one will FIFO-evict if cap reached.
+          //
+          // Token cost: up to N images × bytes inline per turn while
+          // in the active set. Bounded by activeSetMax (8) and the
+          // typical "1 image per task" usage pattern.
         } catch (err) {
           l.warn("active image inline failed; preface continues without images", {
             error: err instanceof Error ? err.message : String(err),
@@ -884,10 +896,6 @@ export namespace LLM {
       mergeDeep(input.agent.options),
       mergeDeep(variant),
     )
-    if (usesInstructions) {
-      options.instructions = await SystemPrompt.instructions()
-    }
-
     const params = await Plugin.trigger(
       "chat.params",
       {
@@ -960,10 +968,20 @@ export namespace LLM {
     // system + preface). The old per-layer breakdown is replaced by a
     // coarser block-level view; per-layer chars/tokens are derivable
     // upstream by the caller if needed.
+    // Block naming convention (2026-05-09 user clarification):
+    // The cache-reuse model orders prompt regions by update frequency,
+    // low → high. Static system layer never changes within a session;
+    // the dynamic layers below it churn progressively. Names reflect
+    // that mental model so the operator can read "where prefix cache
+    // hits stop".
+    //   靜態系統層     — system / role / always_on (lowest churn)
+    //   動態內文 · 低頻 — session_stable: README, cwd, pinned skills, date
+    //   動態內文 · 中頻 — decay: active / summarized skills (T2)
+    //   動態內文 · 高頻 — dynamic: trailing extras + per-turn images
     const promptTelemetryBlocks: Array<{ key: string; name: string; chars: number; tokens: number; injected: boolean; policy: string }> = [
       ...system.map((text, idx) => ({
         key: `system_block_${idx}`,
-        name: idx === 0 ? "靜態系統層" : `系統補充 ${idx}`,
+        name: idx === 0 ? "靜態系統層" : `靜態系統層補充 ${idx}`,
         chars: text.length,
         tokens: Token.estimate(text),
         injected: text.trim().length > 0,
@@ -974,16 +992,18 @@ export namespace LLM {
             if (b.type === "file") {
               return {
                 key: `preface_image_${idx}`,
-                name: `情境前序 (圖片 ${b.filename})`,
+                name: `動態內文 · 高頻（圖片 ${b.filename}）`,
                 chars: 0,
                 tokens: 0,
                 injected: true,
                 policy: "dynamic",
               }
             }
+            const tierLabel =
+              b.tier === "trailing" ? "高頻" : b.tier === "t2" ? "中頻" : "低頻"
             return {
               key: `preface_${b.tier}`,
-              name: `情境前序 (${b.tier.toUpperCase()})`,
+              name: `動態內文 · ${tierLabel}`,
               chars: b.text.length,
               tokens: Token.estimate(b.text),
               injected: b.text.trim().length > 0,
@@ -1767,6 +1787,25 @@ export namespace LLM {
       reason: fallbackReason === "rate-limit" ? "RATE_LIMIT_EXCEEDED" : "UNKNOWN",
       timestamp: Date.now(),
     }).catch(() => {})
+
+    // Append to the per-session recentEvents ring buffer so the Q card
+    // surfaces recent rotations without the operator grepping bus events.
+    // Dynamic import — same pattern as setActiveImageRefs caller above
+    // (avoids static circular dep between llm.ts and session/index.ts).
+    void (async () => {
+      const { Session: SessionMod } = await import("@/session")
+      await SessionMod.appendRecentEvent(input.sessionID, {
+        ts: Date.now(),
+        kind: "rotation",
+        rotation: {
+          fromProviderId: currentModel.providerId,
+          fromAccountId: currentAccountId,
+          toProviderId: fallback.providerId,
+          toAccountId: fallback.accountId,
+          reason: fallbackReason === "rate-limit" ? "RATE_LIMIT_EXCEEDED" : "UNKNOWN",
+        },
+      })
+    })().catch(() => {})
 
     if (isSameProvider && (!isSameAccount || !isSameModel)) {
       const { getSameProviderRotationGuard, SAME_PROVIDER_ROTATE_COOLDOWN_MS } = await import("@/account/rotation")

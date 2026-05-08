@@ -17,7 +17,11 @@ import { getSessionContextMetrics } from "./session-context-metrics"
 import { estimateSessionContextBreakdown, type SessionContextBreakdownKey } from "./session-context-breakdown"
 import { createSessionContextFormatter } from "./session-context-format"
 import type { SessionTelemetry } from "@/context/global-sync/types"
-import { PromptTelemetryCard, RoundSessionTelemetryCard } from "@/pages/session/session-telemetry-cards"
+import {
+  PromptTelemetryCard,
+  RoundSessionTelemetryCard,
+  type RecentExecutionEvent,
+} from "@/pages/session/session-telemetry-cards"
 import { useGlobalSync } from "@/context/global-sync"
 import { resolveTelemetryAccountLabel } from "@/pages/session/session-telemetry-ui"
 
@@ -95,7 +99,7 @@ export function SessionContextTab(props: SessionContextTabProps) {
       }),
   )
 
-  const metrics = createMemo(() => getSessionContextMetrics(props.messages(), sync.data.provider.all))
+  const metrics = createMemo(() => getSessionContextMetrics(props.messages(), sync.data.provider.all, sync.data.part))
   const ctx = createMemo(() => metrics().context)
   const formatter = createMemo(() => createSessionContextFormatter(language.intl()))
 
@@ -157,6 +161,7 @@ export function SessionContextTab(props: SessionContextTabProps) {
     { label: "context.stats.limit", value: () => formatter().number(ctx()?.limit) },
     { label: "context.stats.totalTokens", value: () => formatter().number(ctx()?.total) },
     { label: "context.stats.usage", value: () => formatter().percent(ctx()?.usage) },
+    { label: "context.stats.inputItems", value: () => formatter().number(ctx()?.inputItemCount) },
     { label: "context.stats.inputTokens", value: () => formatter().number(ctx()?.input) },
     { label: "context.stats.outputTokens", value: () => formatter().number(ctx()?.output) },
     { label: "context.stats.reasoningTokens", value: () => formatter().number(ctx()?.reasoning) },
@@ -318,6 +323,7 @@ export function SessionContextTab(props: SessionContextTabProps) {
           <RoundSessionTelemetryCard
             telemetry={telemetry()}
             accountLabel={resolveAccountLabel}
+            recentEvents={(props.info()?.execution as { recentEvents?: RecentExecutionEvent[] })?.recentEvents}
             expanded={layout.contextSidebar.expanded("roundTelemetry")()}
             onToggle={() => layout.contextSidebar.toggleExpanded("roundTelemetry")}
           />

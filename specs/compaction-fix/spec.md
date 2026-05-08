@@ -1,5 +1,24 @@
 # Spec: compaction-fix
 
+## ERRATUM 2026-05-08 (d) — Phase 1 disabled
+
+Phase 1 requirements below describe a per-turn post-anchor transformer
+that is **no longer active**. The transformer code exists but
+`compaction_phase1_enabled=0` in production
+([proposal.md ERRATUM](./proposal.md#erratum-2026-05-08-d--phase-1-misframing-disabled)).
+
+- Phase 1 requirements (Post-anchor transformation, Recent N rounds
+  preserved raw, Safety net fallback, Subagent path unaffected,
+  Feature flag respects gradual rollout) → **historical only**, no
+  longer represent acceptance criteria for production. The flag-off
+  scenario IS the live behavior.
+- Phase 2 requirement (codex `/responses/compact` compactedItems
+  expansion via anchor metadata) → **active and live**, decoupled
+  from Phase 1 in commit `c1feb48a1`.
+- The Mode 1 inline `compaction` part preservation requirement and
+  Layer purity invariant remain architecturally correct; they apply
+  more broadly than the disabled transformer.
+
 ## Purpose
 
 Phase 1：升級 opencode 的 0-token compaction（`narrative` + `replay-tail`），把 anchor 之後完成的 assistant turn 從 raw verbose items 轉成精簡 trace marker + WorkingCache reference，避免 codex backend 對 input array 個數的隱藏敏感度（>~300 items 失敗率激增）並保留 fidelity（可透過 WorkingCache 尋回）。

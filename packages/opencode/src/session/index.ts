@@ -242,6 +242,40 @@ export namespace Session {
   })
   export type WorkflowInfo = z.output<typeof WorkflowInfo>
 
+  /**
+   * 2026-05-09 — telemetry ring buffer for the Q (Account/quota) card.
+   * Records the most recent 10 rotation and compaction events per session
+   * so the operator can scan recent activity at a glance instead of
+   * digging through logs. Append-only ring (oldest dropped at >10).
+   */
+  export const SessionRecentEvent = z
+    .object({
+      ts: z.number(),
+      kind: z.enum(["rotation", "compaction"]),
+      rotation: z
+        .object({
+          fromProviderId: z.string().optional(),
+          fromAccountId: z.string().optional(),
+          toProviderId: z.string().optional(),
+          toAccountId: z.string().optional(),
+          reason: z.string().optional(),
+        })
+        .optional(),
+      compaction: z
+        .object({
+          observed: z.string(),
+          kind: z.string().optional(),
+          success: z.boolean(),
+          tokensBefore: z.number().optional(),
+          tokensAfter: z.number().optional(),
+        })
+        .optional(),
+    })
+    .meta({ ref: "SessionRecentEvent" })
+  export type SessionRecentEvent = z.output<typeof SessionRecentEvent>
+
+  export const SESSION_RECENT_EVENTS_MAX = 10
+
   export const ExecutionIdentity = z.object({
     providerId: z.string(),
     modelID: z.string(),
@@ -265,6 +299,13 @@ export namespace Session {
      * `addOnReread` (voucher tool). Empty/undefined = no images inlined.
      */
     activeImageRefs: z.array(z.string()).optional(),
+    /**
+     * 2026-05-09: ring buffer of recent rotation/compaction events
+     * (max SESSION_RECENT_EVENTS_MAX = 10). Surfaced in the Q card so
+     * the operator can read recent provider/account/compaction activity
+     * without grepping logs. Append via `appendRecentEvent`.
+     */
+    recentEvents: z.array(SessionRecentEvent).optional(),
   })
   export type ExecutionIdentity = z.output<typeof ExecutionIdentity>
 
@@ -706,6 +747,26 @@ export namespace Session {
           current: draft.execution,
           model: input.model,
         })
+      },
+      { touch: false },
+    )
+  }
+
+  /**
+   * 2026-05-09: append a rotation or compaction event to the per-session
+   * recentEvents ring buffer (FIFO, capped at SESSION_RECENT_EVENTS_MAX).
+   * Surfaced in the Q (Account/quota) telemetry card so the operator can
+   * see recent activity without grepping logs. No-op when no execution
+   * identity exists yet (session hasn't bound to a provider).
+   */
+  export async function appendRecentEvent(sessionID: string, event: SessionRecentEvent) {
+    return update(
+      sessionID,
+      (draft) => {
+        if (!draft.execution) return
+        const prior = draft.execution.recentEvents ?? []
+        const next = [...prior, event].slice(-SESSION_RECENT_EVENTS_MAX)
+        draft.execution = { ...draft.execution, recentEvents: next }
       },
       { touch: false },
     )

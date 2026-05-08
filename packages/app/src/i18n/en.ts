@@ -391,6 +391,7 @@ export const dict = {
   "context.stats.limit": "Context Limit",
   "context.stats.totalTokens": "Total Tokens",
   "context.stats.usage": "Usage",
+  "context.stats.inputItems": "Input Items",
   "context.stats.inputTokens": "Input Tokens",
   "context.stats.outputTokens": "Output Tokens",
   "context.stats.reasoningTokens": "Reasoning Tokens",

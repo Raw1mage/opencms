@@ -385,6 +385,7 @@ export const dict = {
   "context.stats.limit": "上下文限制",
   "context.stats.totalTokens": "总 token",
   "context.stats.usage": "使用率",
+  "context.stats.inputItems": "输入项数",
   "context.stats.inputTokens": "输入 token",
   "context.stats.outputTokens": "输出 token",
   "context.stats.reasoningTokens": "推理 token",

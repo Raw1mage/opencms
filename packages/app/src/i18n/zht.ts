@@ -390,6 +390,7 @@ export const dict = {
   "context.stats.limit": "上下文限制",
   "context.stats.totalTokens": "總 token",
   "context.stats.usage": "使用量",
+  "context.stats.inputItems": "輸入項數",
   "context.stats.inputTokens": "輸入 token",
   "context.stats.outputTokens": "輸出 token",
   "context.stats.reasoningTokens": "推理 token",

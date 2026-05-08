@@ -37,8 +37,9 @@ describe("buildAttachedImagesInventory (v5 DD-22.1)", () => {
     const out = buildAttachedImagesInventory([{ parts: [img("screenshot.png")] }])
     expect(out).toContain('<attached_images count="1">')
     expect(out).toContain("- screenshot.png (image/png)")
-    expect(out).toContain("Active in this preface: (none)")
-    expect(out).toContain("reread_attachment(filename)")
+    // No active set → emits the imperative usage block.
+    expect(out).toContain("filesystem tools (read / grep / glob) CANNOT decode image bytes")
+    expect(out).toContain("reread_attachment()")
     expect(out).toContain("</attached_images>")
   })
 
@@ -52,11 +53,14 @@ describe("buildAttachedImagesInventory (v5 DD-22.1)", () => {
     expect(lines).toEqual(["- b.png (image/png)", "- a.png (image/png)"])
   })
 
-  it("annotates Active in this preface when activeImageRefs intersects", () => {
+  it("annotates active inline when activeImageRefs intersects", () => {
     const messages = [{ parts: [img("a.png"), img("b.png"), img("c.png")] }]
     const out = buildAttachedImagesInventory(messages, { activeImageRefs: ["a.png", "c.png"] })
-    // Order matches the inventory listing order (within-message order preserved).
-    expect(out).toContain("Active in this preface: a.png, c.png")
+    expect(out).toContain("Active inline (pixels available in this preface, persists across turns): a.png, c.png")
+    // Inventory entries get [ACTIVE] tag.
+    expect(out).toContain("- a.png [ACTIVE]")
+    expect(out).toContain("- c.png [ACTIVE]")
+    expect(out).toContain("- b.png (image/png)")
   })
 
   it("renders dimensions and byte_size when populated", () => {

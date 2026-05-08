@@ -16,20 +16,39 @@ import { convertPrompt, convertTools } from "./convert"
 import type { LanguageModelV2Prompt } from "@ai-sdk/provider"
 
 describe("convertPrompt — golden format verification", () => {
-  test("system message → developer role input item", () => {
+  test("system message → instructions field (mirrors upstream codex-cli wire)", () => {
     const prompt: LanguageModelV2Prompt = [
       { role: "system", content: "You are TheSmartAI." },
     ]
     const { instructions, input } = convertPrompt(prompt)
 
-    // instructions is placeholder, NOT the system prompt
-    expect(instructions).toBe("You are a helpful assistant.")
+    // System content carries the entire system prompt via the
+    // Responses-API `instructions` field — same as upstream codex-cli
+    // (refs/codex/codex-rs/core/src/client.rs:688).
+    expect(instructions).toBe("You are TheSmartAI.")
 
-    // System goes into input[0] as developer role
-    expect(input[0]).toEqual({
-      role: "developer",
-      content: "You are TheSmartAI.",
-    })
+    // Nothing routed through input as developer role anymore.
+    expect(input).toEqual([])
+  })
+
+  test("multiple system messages concatenate into instructions", () => {
+    const prompt: LanguageModelV2Prompt = [
+      { role: "system", content: "Driver persona." },
+      { role: "system", content: "SYSTEM.md global rules." },
+    ]
+    const { instructions, input } = convertPrompt(prompt)
+
+    expect(instructions).toBe("Driver persona.\n\nSYSTEM.md global rules.")
+    expect(input).toEqual([])
+  })
+
+  test("no system message → empty instructions (no placeholder)", () => {
+    const prompt: LanguageModelV2Prompt = [
+      { role: "user", content: [{ type: "text", text: "hi" }] },
+    ]
+    const { instructions } = convertPrompt(prompt)
+
+    expect(instructions).toBe("")
   })
 
   test("user text → content parts array with input_text", () => {
@@ -248,7 +267,11 @@ describe("convertPrompt — golden format verification", () => {
     expect(item.type).toBe("function_call_output")
     expect(Array.isArray(item.output)).toBe(true)
     expect(item.output[0]).toEqual({ type: "input_text", text: "<file>\n00001| line one" })
-    expect(item.output[1]).toEqual({ type: "input_image", image_url: "data:image/png;base64,AAAA" })
+    expect(item.output[1]).toEqual({
+      type: "input_image",
+      image_url: "data:image/png;base64,AAAA",
+      detail: "low",
+    })
   })
 
   test("tool result with unrecognised envelope shape THROWS (no silent JSON.stringify)", () => {
@@ -286,13 +309,14 @@ describe("convertPrompt — golden format verification", () => {
         content: [{ type: "tool-result", toolCallId: "call_1", result: "file content" }],
       },
     ]
-    const { input } = convertPrompt(prompt)
+    const { instructions, input } = convertPrompt(prompt)
 
-    expect(input[0]).toHaveProperty("role", "developer")       // system → developer
-    expect(input[1]).toHaveProperty("role", "user")             // user
-    expect(input[2]).toHaveProperty("role", "assistant")        // assistant text
-    expect(input[3]).toHaveProperty("type", "function_call")    // tool call
-    expect(input[4]).toHaveProperty("type", "function_call_output") // tool result
+    // System lifted to instructions field; input contains conversation only.
+    expect(instructions).toBe("System prompt")
+    expect(input[0]).toHaveProperty("role", "user")             // user
+    expect(input[1]).toHaveProperty("role", "assistant")        // assistant text
+    expect(input[2]).toHaveProperty("type", "function_call")    // tool call
+    expect(input[3]).toHaveProperty("type", "function_call_output") // tool result
   })
 })
 

@@ -9,6 +9,8 @@ import { Session } from "."
 import { Agent } from "../agent/agent"
 import { Provider } from "../provider/provider"
 import { SessionCompaction } from "./compaction"
+import { transformPostAnchorTail, LayerPurityViolation } from "./post-anchor-transform"
+import { expandAnchorCompactedPrefix } from "./anchor-prefix-expand"
 import { SharedContext } from "./shared-context"
 import { Memory } from "./memory"
 import { Token } from "../util/token"
@@ -1249,6 +1251,99 @@ export namespace SessionPrompt {
       const contextBudgetSource = findContextBudgetSource(msgs)
       const format = lastUser.format ?? { type: "text" }
 
+      // 2026-05-09: ws-truncation × bloated-input single-shot compaction.
+      // When the latest finished assistant turn carries an empty-turn
+      // classification (ws_truncation / server_failed / ws_no_frames / …)
+      // AND the estimated codex input item count is past the codex
+      // backend's hidden item-array bug zone, fire compaction immediately
+      // — do NOT wait for a streak. Each retry of a 451-item request
+      // forces a full re-send (chain reset on every backend failure
+      // path, see transport-ws.ts:561/571/581/607), and codex
+      // subscription rate-limit windows still account for it even when
+      // input billing is $0. Eagerly compacting at first sign of
+      // backend rejection caps the burn.
+      //
+      // Independent of the paralysis × bloated-input trigger below
+      // (which requires a 3-turn signature/narrative repetition) —
+      // this single-shot path triggers on the empty-turn classifier
+      // signal alone, which is a strictly stronger and earlier
+      // indicator than narrative paralysis.
+      if (lastFinished && !session.parentID) {
+        // Empty-turn classifier metadata is captured at runtime in
+        // processor.ts but NOT persisted onto a part — by the time this
+        // runloop reads from DB, only the message-level `finish` field
+        // remains. classifier → finishReason mapping (sse.ts:357-367):
+        //   ws_truncation / ws_no_frames / unclassified → "unknown"
+        //   server_failed                              → "error"
+        //   server_incomplete                          → "other"
+        //   server_empty_output_with_reasoning         → "other"
+        // We treat ALL three as "backend rejected this request" signal.
+        // "stop" / "tool-calls" / "length" are healthy — those don't
+        // trigger.
+        const finishReason = lastFinished.finish
+        const isClassifierFailureFinish =
+          finishReason === "unknown" || finishReason === "error" || finishReason === "other"
+        if (isClassifierFailureFinish) {
+          // Estimate codex input item count (same algorithm used by the
+          // paralysis × bloated-input trigger and surfaced in the UI
+          // telemetry tooltip). One per user message, one per assistant
+          // text part with content, one per ToolPart (function_call) +
+          // one when its state is completed/error (function_call_output).
+          let estimatedItemCount = 0
+          for (const m of msgs) {
+            if (m.info.role === "user") {
+              estimatedItemCount += 1
+              continue
+            }
+            if (m.info.role === "assistant") {
+              const hasText = m.parts.some(
+                (p) =>
+                  p.type === "text" &&
+                  typeof (p as { text?: string }).text === "string" &&
+                  ((p as { text: string }).text.length ?? 0) > 0,
+              )
+              if (hasText) estimatedItemCount += 1
+              for (const p of m.parts) {
+                if (p.type !== "tool") continue
+                estimatedItemCount += 1
+                const status = (p as MessageV2.ToolPart).state?.status
+                if (status === "completed" || status === "error") estimatedItemCount += 1
+              }
+            }
+          }
+          const WS_TRUNCATION_ITEMCOUNT_COMPACT_THRESHOLD = 250
+          if (estimatedItemCount > WS_TRUNCATION_ITEMCOUNT_COMPACT_THRESHOLD) {
+            log.warn(
+              "ws-truncation × bloated-input single-shot, triggering overflow compaction",
+              {
+                sessionID,
+                step,
+                estimatedItemCount,
+                threshold: WS_TRUNCATION_ITEMCOUNT_COMPACT_THRESHOLD,
+              },
+            )
+            try {
+              await SessionCompaction.run({
+                sessionID,
+                observed: "empty-response",
+                step,
+                abort,
+              })
+              continue
+            } catch (err) {
+              log.warn(
+                "ws-truncation × bloated-input: compaction failed, falling through",
+                {
+                  sessionID,
+                  step,
+                  error: err instanceof Error ? err.message : String(err),
+                },
+              )
+            }
+          }
+        }
+      }
+
       // Guard: detect empty-response loop (finish=unknown|other, 0 tokens).
       // "other" comes from codex SSE/WS that closed without a terminal event,
       // or response.incomplete with an unmapped reason. Same shape as
@@ -1466,40 +1561,28 @@ export namespace SessionPrompt {
             // fall through to the nudge path below
           }
         }
-        if (emptyRoundCount === 1) {
-          const nudgeModel = await Provider.getModel(lastUser.model.providerId, lastUser.model.modelID)
-          const nudgeBudget = contextBudgetSource
-            ? renderContextBudget({ lastFinished: contextBudgetSource, model: nudgeModel })
-            : undefined
-          log.info("self-heal: empty round 1, injecting retry nudge", {
-            sessionID,
-            step,
-            isSubagent: !!session.parentID,
-          })
-          const nudgeUser: MessageV2.User = {
-            id: Identifier.ascending("message"),
-            sessionID,
-            role: "user",
-            time: { created: Date.now() },
-            agent: lastUser.agent,
-            model: lastUser.model,
-            variant: lastUser.variant,
-          }
-          await Session.updateMessage(nudgeUser)
-          await Session.updatePart({
-            id: Identifier.ascending("part"),
-            messageID: nudgeUser.id,
-            sessionID,
-            type: "text",
-            text: ["?", nudgeBudget].filter((part): part is string => !!part).join("\n"),
-            synthetic: true,
-          } satisfies MessageV2.TextPart)
-          continue
-        }
-
-        // emptyRoundCount >= 2: self-heal nudge already fired and the
-        // next round is still empty. Two interpretations:
+        // 2026-05-08 — Pure-"?" nudge removed at user direction.
+        // Previous behavior: emptyRoundCount === 1 (non-overflow path)
+        // injected a synthetic user message with text "?" (+ optional
+        // context budget) to nudge the model to continue. Empirical
+        // result: model frequently interpreted "?" as "what?" /
+        // "explain again" and re-emitted the same plan, fueling
+        // narrative loops. Per memory feedback_break_chain_save_session,
+        // chain reset alone (already executed above on every empty
+        // round) is the right recovery; an additional cryptic nudge
+        // adds noise and tokens without changing outcome.
+        //
+        // New behavior: any empty round whose context-overflow probe
+        // does not suspect overflow (so the compaction-replay branch
+        // above didn't fire) falls straight through to natural-stop.
+        // The compaction-replay path still handles real context
+        // overflow; the rest are treated as the model's clean
+        // "natural stop" signal.
+        //
+        // Two interpretations of an empty round at this point:
         //   (a) genuine codex overflow / chain corruption — runaway
+        //       (compaction-replay branch already attempted on
+        //        emptyRoundCount === 1 + overflowSuspected)
         //   (b) model truly has nothing more to say (tools succeeded
         //       last round, this round is "natural stop" that codex
         //       didn't tag with a terminal event)
@@ -1698,6 +1781,91 @@ export namespace SessionPrompt {
             const samplePrefix = narrativeTriple ? texts[0].slice(0, 120) : sigs[0].slice(0, 120)
 
             if (paralysisRecoveryCount === 0) {
+              // 2026-05-08: before the existing nudge path, check whether
+              // the prompt's input item count is already deep in codex
+              // backend's hidden item-array bug zone (>~300 items).
+              // Empirically (fix-empty-response-rca JSONL), inputItemCount
+              // 300+ correlates with ws_truncation @ frames=3 / server_failed
+              // @ frames=1 — codex backend rejects or cuts the request before
+              // model can produce useful output. Paralysis + bloated input is
+              // the failure-coupling pattern: the model is "stuck" because
+              // its requests aren't completing cleanly, not because of pure
+              // narrative confusion.
+              //
+              // Estimate items as codex provider would emit them
+              // (one per user message, one per assistant text part, one per
+              // tool call, one per tool result). When over the threshold,
+              // run compaction (observed: "overflow") instead of injecting
+              // a nudge — compaction will produce a fresh anchor + KIND_CHAIN
+              // that drops item count back to a safe range. If compaction
+              // fails, fall through to the nudge path so we still emit
+              // *some* recovery signal.
+              const PARALYSIS_ITEMCOUNT_COMPACT_THRESHOLD = 250
+              const estimatedItemCount = (() => {
+                let count = 0
+                for (const m of msgs) {
+                  if (m.info.role === "user") {
+                    count += 1
+                    continue
+                  }
+                  if (m.info.role === "assistant") {
+                    const hasText = m.parts.some(
+                      (p) =>
+                        p.type === "text" &&
+                        typeof (p as { text?: string }).text === "string" &&
+                        ((p as { text: string }).text.length ?? 0) > 0,
+                    )
+                    if (hasText) count += 1
+                    for (const p of m.parts) {
+                      if (p.type !== "tool") continue
+                      // function_call (always emitted for an assistant tool part)
+                      count += 1
+                      // function_call_output (emitted only when tool finished)
+                      const status = (p as MessageV2.ToolPart).state?.status
+                      if (status === "completed" || status === "error") count += 1
+                    }
+                  }
+                }
+                return count
+              })()
+
+              if (estimatedItemCount > PARALYSIS_ITEMCOUNT_COMPACT_THRESHOLD && !session.parentID) {
+                log.warn(
+                  "paralysis-recover: bloated input, triggering overflow compaction instead of nudge",
+                  {
+                    sessionID,
+                    step,
+                    detector,
+                    similarity,
+                    estimatedItemCount,
+                    threshold: PARALYSIS_ITEMCOUNT_COMPACT_THRESHOLD,
+                  },
+                )
+                paralysisRecoveryCount = 1
+                try {
+                  await SessionCompaction.run({
+                    sessionID,
+                    observed: "overflow",
+                    step,
+                    abort,
+                  })
+                  // Compaction produced a fresh anchor; the next iteration's
+                  // applyStreamAnchorRebind will slice from there and the
+                  // model gets a sane prompt size.
+                  continue
+                } catch (err) {
+                  log.warn(
+                    "paralysis-recover: compaction failed, falling through to nudge",
+                    {
+                      sessionID,
+                      step,
+                      error: err instanceof Error ? err.message : String(err),
+                    },
+                  )
+                  // fall through to nudge path below
+                }
+              }
+
               // First detection — auto-inject a synthetic nudge that
               // names the failure mode. Pure "?" (empty-response style)
               // is too cryptic for paralysis: model may interpret it as
@@ -1891,6 +2059,94 @@ export namespace SessionPrompt {
           // — silent no-op.
         } catch (error) {
           log.warn("failed to apply stream-anchor rebind", { sessionID, error: String(error) })
+        }
+
+        // 2026-05-09: pre-emptive compaction at rebind handoff.
+        //
+        // Daemon restart resets state.lastResponseId for every session.
+        // The very first request after restart MUST send the full input
+        // array (chain reset, no incremental delta). If sqlite holds a
+        // bloated session — itemCount past codex backend's hidden bug
+        // zone, OR tokens past 70% of context — that first request is
+        // pre-doomed to ws_truncation / server_failed. The reactive
+        // ws-truncation × bloated-input trigger eventually rescues, but
+        // pays one full failed request first.
+        //
+        // Pre-emptive: at step=1 right after applyStreamAnchorRebind,
+        // estimate itemCount + tokens from the sliced msgs. If either
+        // is heavy → run local compaction BEFORE opening the WS
+        // connection. Next iteration of the runloop sees a fresh anchor,
+        // sliced input is small, the WS request goes out clean.
+        //
+        // Healthy / freshly-anchored sessions skip naturally (items
+        // already low after slice, tokens below threshold).
+        const REBIND_PREEMPT_ITEM_THRESHOLD = 250
+        const REBIND_PREEMPT_TOKEN_RATIO = 0.7
+        try {
+          let estimatedItemCount = 0
+          for (const m of msgs) {
+            if (m.info.role === "user") {
+              estimatedItemCount += 1
+              continue
+            }
+            if (m.info.role === "assistant") {
+              const hasText = m.parts.some(
+                (p) =>
+                  p.type === "text" &&
+                  typeof (p as { text?: string }).text === "string" &&
+                  ((p as { text: string }).text.length ?? 0) > 0,
+              )
+              if (hasText) estimatedItemCount += 1
+              for (const p of m.parts) {
+                if (p.type !== "tool") continue
+                estimatedItemCount += 1
+                const status = (p as MessageV2.ToolPart).state?.status
+                if (status === "completed" || status === "error") estimatedItemCount += 1
+              }
+            }
+          }
+          const lastFinishedTokens = lastFinished?.tokens?.total ?? 0
+          const tokenLimit = lastUser.model
+            ? (await Provider.getModel(lastUser.model.providerId, lastUser.model.modelID).catch(() => undefined))?.limit
+                ?.context ?? 0
+            : 0
+          const tokenRatio = tokenLimit > 0 ? lastFinishedTokens / tokenLimit : 0
+          const itemsHeavy = estimatedItemCount > REBIND_PREEMPT_ITEM_THRESHOLD
+          const tokensHeavy = tokenRatio > REBIND_PREEMPT_TOKEN_RATIO
+          if (itemsHeavy || tokensHeavy) {
+            log.warn("rebind handed off bloated session, pre-emptive compaction before WS open", {
+              sessionID,
+              step,
+              estimatedItemCount,
+              itemsHeavy,
+              tokensHeavy,
+              tokenRatio: Number(tokenRatio.toFixed(3)),
+              tokenLimit,
+            })
+            try {
+              await SessionCompaction.run({
+                sessionID,
+                observed: "rebind",
+                step,
+                abort,
+              })
+              continue
+            } catch (err) {
+              log.warn("rebind pre-emptive compaction failed, falling through to live request", {
+                sessionID,
+                step,
+                error: err instanceof Error ? err.message : String(err),
+              })
+              // fall through; the reactive ws-truncation × bloated-input
+              // trigger will catch the failure on the next iteration.
+            }
+          }
+        } catch (err) {
+          log.warn("rebind pre-emptive evaluation threw", {
+            sessionID,
+            step,
+            error: err instanceof Error ? err.message : String(err),
+          })
         }
       }
       const task = tasks.pop()
@@ -2356,9 +2612,137 @@ export namespace SessionPrompt {
         })
       }
 
-      const sessionMessages = clone(msgs)
+      let sessionMessages = clone(msgs)
       if (imageResolution.dropImages) {
         stripImageParts(sessionMessages)
+      }
+
+      // compaction-fix Phase 1 — post-anchor tail transformer (DD-1..DD-7).
+      // Folds completed assistant turns beyond `recentRawRounds` into a
+      // single trace marker text part so `inputItemCount` stays clear of
+      // codex backend's array-length sensitivity (>~300 items failure
+      // region observed in fix-empty-response-rca soak).
+      //
+      // DD-5: subagent path bypass — sub-sessions inherit parent context
+      // unchanged in Phase 1; only main sessions are transformed.
+      // DD-4: safety net — if transform shrinks below the configured
+      // floor (defensive against unusual session shapes), fall back to
+      // raw and warn.
+      // DD-6: feature flag default false; enable via tweaks.cfg
+      // `compaction_phase1_enabled = 1` for gradual rollout.
+      const compactionTweakPhase1 = Tweaks.compactionSync()
+      if (compactionTweakPhase1.phase1Enabled && !session.parentID) {
+        try {
+          const beforeCount = sessionMessages.length
+          const beforeParts = sessionMessages.reduce((sum, m) => sum + m.parts.length, 0)
+          const transformed = transformPostAnchorTail(sessionMessages)
+          if (transformed.messages.length < compactionTweakPhase1.fallbackThreshold) {
+            log.warn("phase1-transform: fallback to raw", {
+              sessionID,
+              step,
+              threshold: compactionTweakPhase1.fallbackThreshold,
+              got: transformed.messages.length,
+              transformedTurnCount: transformed.transformedTurnCount,
+            })
+          } else if (transformed.transformedTurnCount > 0) {
+            sessionMessages = transformed.messages
+            const afterParts = sessionMessages.reduce((sum, m) => sum + m.parts.length, 0)
+            log.info("phase1-transform: applied", {
+              sessionID,
+              step,
+              transformedTurns: transformed.transformedTurnCount,
+              exemptTurns: transformed.exemptTurnCount,
+              partsBefore: beforeParts,
+              partsAfter: afterParts,
+              messagesCount: beforeCount,
+            })
+          }
+        } catch (err) {
+          if (err instanceof LayerPurityViolation) {
+            log.error("phase1-transform: layer purity violation", {
+              sessionID,
+              step,
+              forbiddenKey: err.forbiddenKey,
+              context: err.context,
+            })
+            // Re-throw — architectural invariant breach surfaces upward.
+            throw err
+          }
+          log.warn("phase1-transform: unexpected error, falling back to raw", {
+            sessionID,
+            step,
+            error: err instanceof Error ? err.message : String(err),
+          })
+        }
+      }
+
+      // compaction-fix Phase 2 — anchor-prefix expansion (DD-8..DD-13).
+      // When the anchor message carries codex-issued `serverCompactedItems`
+      // bound to the current execution chain, replace the anchor's free-form
+      // summary projection with the structured items. Runs AFTER the Phase 1
+      // transformer so the anchor projection swap is the last shaping step
+      // before the messages flow into MessageV2.toModelMessages.
+      //
+      // DD-13: phase2Enabled flag-gated. Phase 2 also short-circuits when
+      // Phase 1 is off (anchor projection contract assumes Phase 1 slicing).
+      // DD-9: chain-binding validated inside the expander; mismatch → leave
+      // messages unchanged.
+      // Decoupled from phase1Enabled (2026-05-08): Phase 2 acts purely on
+      // the anchor message's CompactionPart metadata and is independent of
+      // Phase 1's tail transformer. Upstream codex-rs does not do per-turn
+      // tail drop (verified: refs/codex/codex-rs/core/src/context_manager/
+      // history.rs `for_prompt` returns full history; aggressive drop only
+      // runs inside compact.rs `build_compacted_history` at explicit
+      // compaction events). Phase 1 transformer disabled by default; Phase
+      // 2 still benefits the post-compaction anchor when codex
+      // `/responses/compact` returns structured items.
+      if (compactionTweakPhase1.phase2Enabled && !session.parentID) {
+        try {
+          const phase2Result = expandAnchorCompactedPrefix(sessionMessages, {
+            sessionID,
+            accountId: effectiveAccountId,
+            modelID: activeModel.id,
+          })
+          if (phase2Result.applied) {
+            sessionMessages = phase2Result.messages
+            log.info("phase2-anchor-prefix-expand: applied", {
+              sessionID,
+              step,
+              expandedItemCount: phase2Result.expandedItemCount,
+              messagesAdded: phase2Result.messagesAdded,
+              mappableItemCount: phase2Result.mappableItemCount,
+              unmappableItemCount: phase2Result.unmappableItemCount,
+            })
+          } else if (phase2Result.reason === "chain-mismatch") {
+            log.warn("phase2-anchor-prefix-expand: chain-binding mismatch, falling back", {
+              sessionID,
+              step,
+              accountId: effectiveAccountId,
+              modelID: activeModel.id,
+            })
+          } else {
+            log.debug?.("phase2-anchor-prefix-expand: skipped", {
+              sessionID,
+              step,
+              reason: phase2Result.reason,
+            })
+          }
+        } catch (err) {
+          if (err instanceof LayerPurityViolation) {
+            log.error("phase2-anchor-prefix-expand: layer purity violation", {
+              sessionID,
+              step,
+              forbiddenKey: err.forbiddenKey,
+              context: err.context,
+            })
+            throw err
+          }
+          log.warn("phase2-anchor-prefix-expand: unexpected error, falling back", {
+            sessionID,
+            step,
+            error: err instanceof Error ? err.message : String(err),
+          })
+        }
       }
 
       // Ephemerally wrap queued user messages with a reminder to stay on track

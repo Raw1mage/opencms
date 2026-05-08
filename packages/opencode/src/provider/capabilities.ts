@@ -16,21 +16,15 @@ import type { Provider } from "./provider"
  */
 export interface ProviderCapabilities {
   /**
-   * Whether this provider uses the `options.instructions` field for system prompts
-   * instead of sending them as system messages.
-   * When true: system prompts go to options.instructions
-   * When false: system prompts are sent as { role: "system", content: ... } messages
-   */
-  useInstructionsOption: boolean
-
-  /**
    * How system prompts should be sent in the message array.
    * - "system": Use { role: "system", content: ... }
    * - "user": Wrap in { role: "user", content: ... } (some APIs require this)
    * - "developer": Use { role: "developer", content: ... } (OpenAI Codex style)
    *
-   * Note: When useInstructionsOption is true, this affects how any remaining
-   * system content is formatted if it still needs to go in messages.
+   * The codex provider then lifts that system message into the Responses-API
+   * top-level `instructions` field internally (see
+   * packages/opencode-codex-provider/src/convert.ts) — opencode core no
+   * longer maintains a parallel options.instructions wire path.
    */
   systemMessageRole: "system" | "user" | "developer"
 
@@ -68,7 +62,6 @@ export interface ProviderCapabilities {
  * Default capabilities for unknown/standard providers.
  */
 const DEFAULT_CAPABILITIES: ProviderCapabilities = {
-  useInstructionsOption: false,
   systemMessageRole: "system",
   skipDefaultSystemPrompt: false,
   skipMaxOutputTokens: false,
@@ -90,7 +83,6 @@ export function getCapabilities(provider: Provider.Info, auth?: Auth.Info): Prov
   // Codex Provider (independent C plugin)
   if (id === "codex") {
     return {
-      useInstructionsOption: true,
       systemMessageRole: "developer",
       skipDefaultSystemPrompt: true,
       skipMaxOutputTokens: true,
@@ -103,7 +95,6 @@ export function getCapabilities(provider: Provider.Info, auth?: Auth.Info): Prov
   // Gemini CLI: Google AI via Gemini CLI OAuth
   if (id.includes("gemini-cli")) {
     return {
-      useInstructionsOption: true,
       systemMessageRole: "user",
       skipDefaultSystemPrompt: true,
       skipMaxOutputTokens: false,
@@ -116,7 +107,6 @@ export function getCapabilities(provider: Provider.Info, auth?: Auth.Info): Prov
   // OpenAI Codex (OAuth subscription)
   if (id.includes("openai") && auth?.type === "oauth") {
     return {
-      useInstructionsOption: true,
       systemMessageRole: "user",
       skipDefaultSystemPrompt: true,
       skipMaxOutputTokens: true,
@@ -129,7 +119,6 @@ export function getCapabilities(provider: Provider.Info, auth?: Auth.Info): Prov
   // Anthropic OAuth (subscription)
   if (id.includes("anthropic") && auth?.type === "oauth") {
     return {
-      useInstructionsOption: true,
       systemMessageRole: "user",
       skipDefaultSystemPrompt: true,
       skipMaxOutputTokens: false,
@@ -186,13 +175,6 @@ export function getCapabilities(provider: Provider.Info, auth?: Auth.Info): Prov
   }
 
   return DEFAULT_CAPABILITIES
-}
-
-/**
- * Convenience function to check if a provider uses the instructions option.
- */
-export function usesInstructionsOption(provider: Provider.Info, auth?: Auth.Info): boolean {
-  return getCapabilities(provider, auth).useInstructionsOption
 }
 
 /**

@@ -400,6 +400,28 @@ export namespace MessageV2 {
          * walks this list.
          */
         pinnedByAnchor: z.array(z.string()).optional(),
+        /**
+         * compaction-fix Phase 2 (DD-8): codex Responses API
+         * compactedItems[] returned by `/responses/compact`. Opaque
+         * ResponseItem[] in codex format. Used by anchor-prefix-expand
+         * to replace anchor projection with structured prior-history
+         * items instead of free-form summary text.
+         */
+        serverCompactedItems: z.array(z.unknown()).optional(),
+        /**
+         * compaction-fix Phase 2 (DD-9): chain identity binding for
+         * `serverCompactedItems`. Items are valid only for the
+         * (accountId, modelId) pair that produced them. Mismatch ⇒
+         * runtime strips them from projection and falls back to summary
+         * text (Phase 1 baseline). Storage entry retained for forensics.
+         */
+        chainBinding: z
+          .object({
+            accountId: z.string(),
+            modelId: z.string(),
+            capturedAt: z.number(),
+          })
+          .optional(),
       })
       .optional(),
   }).meta({

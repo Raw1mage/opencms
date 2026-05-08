@@ -1,5 +1,32 @@
 # Proposal: fix-empty-response-rca
 
+## ADDENDUM 2026-05-09 — itemCount RCA is gpt-5.5-specific
+
+The "300-400 input items → ws_truncation / server_failed" failure
+region documented below is gpt-5.5-specific. Comparing model configs
+in [refs/codex/codex-rs/models-manager/models.json](../../refs/codex/codex-rs/models-manager/models.json):
+gpt-5.5 hard-caps `max_context_window` at 272 K, while gpt-5.4 / 5.3
+have 1 M (4× headroom). The 51 events recorded in our JSONL on
+2026-05-07 were all gpt-5.5 sessions. Prior models tolerated 800+
+input items because the codex backend had room to absorb the
+structural overhead; gpt-5.5 backend tightens.
+
+User-observable consequence: paralysis-loop wave starting late April
+2026 / early May 2026 — exactly the gpt-5.5 release window. We were
+on 5.4 / 5.3 for the prior 4 months without seeing the pattern.
+
+Current mitigation: paralysis × bloated-input → compaction trigger
+(commit `077214fe7`, [packages/opencode/src/session/prompt.ts](../../packages/opencode/src/session/prompt.ts)
+threshold=250). See [docs/events/event_20260509_gpt55_itemcount_truncation_rca.md](../../docs/events/event_20260509_gpt55_itemcount_truncation_rca.md).
+
+The L1–L7 landmines below are still real but the headline RCA
+("itemCount drives codex backend failure") is now scoped: it's a
+gpt-5.5 residency tax. If OpenAI later raises gpt-5.5's max
+context window to 1 M, the trigger falls dormant — paralysis-gated
+so non-stuck sessions never pay the compaction cost.
+
+---
+
 ## Why
 
 [`codex-empty-turn-recovery`](../codex-empty-turn-recovery/) (state: `implementing`, awaiting live A6 evidence) shipped the **result-layer** treatment for codex empty responses: classify cause family, write JSONL forensic log, automatically retry once on WS truncation, never hard-error. As recorded in [docs/events/event_20260507_codex-empty-turn-loop-prevention-explained.md](../../docs/events/event_20260507_codex-empty-turn-loop-prevention-explained.md), that fix is **upstream-of-loop, not anti-loop**:

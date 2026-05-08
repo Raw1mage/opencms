@@ -203,6 +203,31 @@ export namespace Tweaks {
     quotaPressureThreshold: number
     codexServerPriorityRatio: number
     emptyResponseFloor: number
+    /**
+     * compaction-fix Phase 1 (DD-6). Master switch for the post-anchor
+     * transformer that folds completed assistant turns (beyond the most
+     * recent N rounds) into single-line trace markers + WorkingCache
+     * references. Default false during gradual rollout.
+     */
+    phase1Enabled: boolean
+    /**
+     * compaction-fix Phase 1 (DD-2). Number of most recent completed
+     * assistant turns to leave unchanged after the anchor. Default 2.
+     */
+    recentRawRounds: number
+    /**
+     * compaction-fix Phase 1 (DD-4). If transformed message count drops
+     * below this, the transformer falls back to raw messages. Default 5.
+     */
+    fallbackThreshold: number
+    /**
+     * compaction-fix Phase 2 (DD-13). Master switch for anchor-prefix
+     * expansion: when an anchor carries serverCompactedItems with a
+     * matching chainBinding, the expander replaces the anchor's summary
+     * projection with the codex-produced structured items. Default false
+     * during rollout; flip on after Phase 1 ships stable.
+     */
+    phase2Enabled: boolean
   }
 
   export interface SessionStorageConfig {
@@ -319,6 +344,10 @@ export namespace Tweaks {
     quotaPressureThreshold: 0.1,
     codexServerPriorityRatio: 0.7,
     emptyResponseFloor: 0.8,
+    phase1Enabled: false,
+    recentRawRounds: 2,
+    fallbackThreshold: 5,
+    phase2Enabled: false,
   }
 
   const SESSION_STORAGE_DEFAULTS: SessionStorageConfig = {
@@ -478,6 +507,8 @@ export namespace Tweaks {
     "compaction_enable_hybrid_llm",
     "compaction_llm_timeout_ms",
     "compaction_fallback_provider",
+    "compaction_phase1_enabled",
+    "compaction_phase2_enabled",
     "compaction_phase2_max_anchor_tokens",
     "compaction_pinned_zone_max_tokens_ratio",
     "compaction_budget_status_thresholds",
@@ -922,6 +953,26 @@ export namespace Tweaks {
     if (cmpEmptyResponseFloorRaw !== undefined) {
       const v = parseRatio(cmpEmptyResponseFloorRaw, "compaction_empty_response_floor")
       if (v !== undefined) compaction.emptyResponseFloor = v
+    }
+    const cmpPhase1EnabledRaw = parsed.get("compaction_phase1_enabled")
+    if (cmpPhase1EnabledRaw !== undefined) {
+      const v = parseBool(cmpPhase1EnabledRaw, "compaction_phase1_enabled")
+      if (v !== undefined) compaction.phase1Enabled = v
+    }
+    const cmpRecentRawRoundsRaw = parsed.get("compaction_recent_raw_rounds")
+    if (cmpRecentRawRoundsRaw !== undefined) {
+      const v = parseIntRange(cmpRecentRawRoundsRaw, "compaction_recent_raw_rounds", 0, 10)
+      if (v !== undefined) compaction.recentRawRounds = v
+    }
+    const cmpFallbackThresholdRaw = parsed.get("compaction_fallback_threshold")
+    if (cmpFallbackThresholdRaw !== undefined) {
+      const v = parseIntRange(cmpFallbackThresholdRaw, "compaction_fallback_threshold", 1, 20)
+      if (v !== undefined) compaction.fallbackThreshold = v
+    }
+    const cmpPhase2EnabledRaw = parsed.get("compaction_phase2_enabled")
+    if (cmpPhase2EnabledRaw !== undefined) {
+      const v = parseBool(cmpPhase2EnabledRaw, "compaction_phase2_enabled")
+      if (v !== undefined) compaction.phase2Enabled = v
     }
 
     const sessionStorage: SessionStorageConfig = { ...SESSION_STORAGE_DEFAULTS }

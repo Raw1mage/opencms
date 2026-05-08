@@ -94,7 +94,6 @@ export namespace SystemPrompt {
       "session/plan.txt": PROMPT_PLAN,
       "session/plan-reminder-anthropic.txt": PROMPT_PLAN_REMINDER_ANTHROPIC,
       "session/max-steps.txt": PROMPT_MAX_STEPS,
-      "session/instructions.txt": PROMPT_CODEX.trim(),
       "enablement.json":
         typeof PROMPT_ENABLEMENT === "string" ? PROMPT_ENABLEMENT : JSON.stringify(PROMPT_ENABLEMENT, null, 2),
       // Agent prompts — XDG-managed for user customization
@@ -222,10 +221,6 @@ export namespace SystemPrompt {
     } catch {
       return internalContent
     }
-  }
-
-  export async function instructions() {
-    return loadPrompt("session/instructions.txt", PROMPT_CODEX.trim())
   }
 
   /**

@@ -26,6 +26,14 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "tasks/handoff/test-vectors/errors/observability ready for beta-workflow execution"
+    },
+    {
+      "from": "planned",
+      "to": "planned",
+      "at": "2026-05-08T14:35:00.000Z",
+      "by": "pkcs12",
+      "mode": "amend",
+      "reason": "Phase 1 misframing erratum — upstream re-read showed for_prompt() is full pass-through; per-turn transformer (v1-v6) had no upstream basis. Phase 1 disabled in commit c1feb48a1 (compaction_phase1_enabled=0). Phase 2 decoupled and remains live. Compaction priority simplified in commit 39bc97786 (codex always tries server-side first). proposal/design/spec/tasks/handoff annotated with ERRATUM blocks; DD-1..DD-5 marked SUPERSEDED, DD-6 still true (flag exists default false), DD-7 architecturally still correct, DD-8..DD-13 (Phase 2) active."
     }
   ]
 }
