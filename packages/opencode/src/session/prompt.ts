@@ -9,6 +9,7 @@ import { Session } from "."
 import { Agent } from "../agent/agent"
 import { Provider } from "../provider/provider"
 import { SessionCompaction } from "./compaction"
+import { transformPostAnchorTail, LayerPurityViolation } from "./post-anchor-transform"
 import { SharedContext } from "./shared-context"
 import { Memory } from "./memory"
 import { Token } from "../util/token"
@@ -2198,9 +2199,73 @@ export namespace SessionPrompt {
         })
       }
 
-      const sessionMessages = clone(msgs)
+      let sessionMessages = clone(msgs)
       if (imageResolution.dropImages) {
         stripImageParts(sessionMessages)
+      }
+
+      // compaction-fix Phase 1 — post-anchor tail transformer (DD-1..DD-7).
+      // Folds completed assistant turns beyond `recentRawRounds` into a
+      // single trace marker text part so `inputItemCount` stays clear of
+      // codex backend's array-length sensitivity (>~300 items failure
+      // region observed in fix-empty-response-rca soak).
+      //
+      // DD-5: subagent path bypass — sub-sessions inherit parent context
+      // unchanged in Phase 1; only main sessions are transformed.
+      // DD-4: safety net — if transform shrinks below the configured
+      // floor (defensive against unusual session shapes), fall back to
+      // raw and warn.
+      // DD-6: feature flag default false; enable via tweaks.cfg
+      // `compaction_phase1_enabled = 1` for gradual rollout.
+      const compactionTweakPhase1 = Tweaks.compactionSync()
+      if (compactionTweakPhase1.phase1Enabled && !session.parentID) {
+        try {
+          const beforeCount = sessionMessages.length
+          const beforeParts = sessionMessages.reduce((sum, m) => sum + m.parts.length, 0)
+          const transformed = transformPostAnchorTail(sessionMessages, {
+            recentRawRounds: compactionTweakPhase1.recentRawRounds,
+          })
+          if (transformed.messages.length < compactionTweakPhase1.fallbackThreshold) {
+            log.warn("phase1-transform: fallback to raw", {
+              sessionID,
+              step,
+              threshold: compactionTweakPhase1.fallbackThreshold,
+              got: transformed.messages.length,
+              transformedTurnCount: transformed.transformedTurnCount,
+            })
+          } else if (transformed.transformedTurnCount > 0) {
+            sessionMessages = transformed.messages
+            const afterParts = sessionMessages.reduce((sum, m) => sum + m.parts.length, 0)
+            log.info("phase1-transform: applied", {
+              sessionID,
+              step,
+              recentRawRounds: compactionTweakPhase1.recentRawRounds,
+              transformedTurns: transformed.transformedTurnCount,
+              exemptTurns: transformed.exemptTurnCount,
+              cacheRefHits: transformed.cacheRefHits,
+              cacheRefMisses: transformed.cacheRefMisses,
+              partsBefore: beforeParts,
+              partsAfter: afterParts,
+              messagesCount: beforeCount,
+            })
+          }
+        } catch (err) {
+          if (err instanceof LayerPurityViolation) {
+            log.error("phase1-transform: layer purity violation", {
+              sessionID,
+              step,
+              forbiddenKey: err.forbiddenKey,
+              context: err.context,
+            })
+            // Re-throw — architectural invariant breach surfaces upward.
+            throw err
+          }
+          log.warn("phase1-transform: unexpected error, falling back to raw", {
+            sessionID,
+            step,
+            error: err instanceof Error ? err.message : String(err),
+          })
+        }
       }
 
       // Ephemerally wrap queued user messages with a reminder to stay on track

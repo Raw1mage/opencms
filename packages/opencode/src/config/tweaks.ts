@@ -203,6 +203,23 @@ export namespace Tweaks {
     quotaPressureThreshold: number
     codexServerPriorityRatio: number
     emptyResponseFloor: number
+    /**
+     * compaction-fix Phase 1 (DD-6). Master switch for the post-anchor
+     * transformer that folds completed assistant turns (beyond the most
+     * recent N rounds) into single-line trace markers + WorkingCache
+     * references. Default false during gradual rollout.
+     */
+    phase1Enabled: boolean
+    /**
+     * compaction-fix Phase 1 (DD-2). Number of most recent completed
+     * assistant turns to leave unchanged after the anchor. Default 2.
+     */
+    recentRawRounds: number
+    /**
+     * compaction-fix Phase 1 (DD-4). If transformed message count drops
+     * below this, the transformer falls back to raw messages. Default 5.
+     */
+    fallbackThreshold: number
   }
 
   export interface SessionStorageConfig {
@@ -319,6 +336,9 @@ export namespace Tweaks {
     quotaPressureThreshold: 0.1,
     codexServerPriorityRatio: 0.7,
     emptyResponseFloor: 0.8,
+    phase1Enabled: false,
+    recentRawRounds: 2,
+    fallbackThreshold: 5,
   }
 
   const SESSION_STORAGE_DEFAULTS: SessionStorageConfig = {
@@ -922,6 +942,21 @@ export namespace Tweaks {
     if (cmpEmptyResponseFloorRaw !== undefined) {
       const v = parseRatio(cmpEmptyResponseFloorRaw, "compaction_empty_response_floor")
       if (v !== undefined) compaction.emptyResponseFloor = v
+    }
+    const cmpPhase1EnabledRaw = parsed.get("compaction_phase1_enabled")
+    if (cmpPhase1EnabledRaw !== undefined) {
+      const v = parseBool(cmpPhase1EnabledRaw, "compaction_phase1_enabled")
+      if (v !== undefined) compaction.phase1Enabled = v
+    }
+    const cmpRecentRawRoundsRaw = parsed.get("compaction_recent_raw_rounds")
+    if (cmpRecentRawRoundsRaw !== undefined) {
+      const v = parseIntRange(cmpRecentRawRoundsRaw, "compaction_recent_raw_rounds", 0, 10)
+      if (v !== undefined) compaction.recentRawRounds = v
+    }
+    const cmpFallbackThresholdRaw = parsed.get("compaction_fallback_threshold")
+    if (cmpFallbackThresholdRaw !== undefined) {
+      const v = parseIntRange(cmpFallbackThresholdRaw, "compaction_fallback_threshold", 1, 20)
+      if (v !== undefined) compaction.fallbackThreshold = v
     }
 
     const sessionStorage: SessionStorageConfig = { ...SESSION_STORAGE_DEFAULTS }
