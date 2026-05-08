@@ -923,6 +923,15 @@ export namespace MCP {
   // ── mcp-apps.json integration (Layer 2) ────────────────────────────
 
   /**
+   * Per-gauth-path "this refresh_token has been proven dead by upstream"
+   * short-circuit. Map<gauthPath, refreshToken>. Once a 4xx (revoked /
+   * invalid_grant) hits, we cache the dead token and skip future timer-
+   * driven refresh attempts. Auto-recovers when gauth.json is re-written
+   * with a fresh refresh_token (re-auth flow).
+   */
+  const deadGoogleRefreshTokens = new Map<string, string>()
+
+  /**
    * Resolve auth token for an MCP App based on its manifest auth config.
    * Reads from gauth.json (Google OAuth) or accounts.json (other providers).
    * Returns env vars to inject into the App's spawn environment.
@@ -937,6 +946,15 @@ export namespace MCP {
       const tokens = JSON.parse(content) as { refresh_token?: string }
       if (!tokens.refresh_token) {
         log.warn("no refresh_token in gauth.json, cannot auto-refresh", { path: gauthPath })
+        return null
+      }
+
+      // Per-token "this refresh_token is already dead" short-circuit.
+      // Without it the 45min background timer keeps hitting Google's
+      // oauth2 endpoint with a known-revoked refresh_token (~32 calls/day).
+      // Auto-recovers when user re-auths (gauth.json gets a new
+      // refresh_token, mismatches the cached dead value).
+      if (deadGoogleRefreshTokens.get(gauthPath) === tokens.refresh_token) {
         return null
       }
 
@@ -960,7 +978,18 @@ export namespace MCP {
 
       if (!res.ok) {
         const body = await res.text()
-        log.warn("google token refresh failed", { status: res.status, body })
+        // 4xx = permanent revoke / invalid_grant. Cache the dead token so
+        // future timer ticks short-circuit. 5xx is transient — retry on
+        // next tick.
+        if (res.status >= 400 && res.status < 500) {
+          deadGoogleRefreshTokens.set(gauthPath, tokens.refresh_token)
+          log.warn("google token refresh suspended: refresh_token revoked, awaiting re-auth", {
+            path: gauthPath,
+            status: res.status,
+          })
+        } else {
+          log.warn("google token refresh failed", { status: res.status, body })
+        }
         return null
       }
 
