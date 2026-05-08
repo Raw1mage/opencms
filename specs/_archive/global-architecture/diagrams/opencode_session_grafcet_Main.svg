@@ -1,106 +1,92 @@
-<svg width="1680" height="1072" viewBox="-335.0 -4.0 1680.0 1072.0" xmlns="http://www.w3.org/2000/svg">
-<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker></defs>
-<rect x="-335.0" y="-4.0" width="1680.0" height="1072.0" fill="white" />
-<rect x="360.0" y="80.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<rect x="365.0" y="85.0" width="70.0" height="50.0" stroke="black" stroke-width="1" fill="none" />
-<text x="400" y="115.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">0</text>
-<line x1="440" y1="110.0" x2="480.0" y2="110.0" stroke="black" />
-<rect x="480.0" y="76.0" width="170.0" height="68.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="565.0" y="102.0" text-anchor="middle" font-family="Arial" font-size="11">建立或載入 session，綁</text>
-<text x="565.0" y="126.00000000000001" text-anchor="middle" font-family="Arial" font-size="11">定工作目錄，載入歷史</text>
-<line x1="400" y1="140.0" x2="400" y2="220" stroke="black" />
-<line x1="380" y1="180.0" x2="420" y2="180.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="184.0" font-style="italic" font-size="11" text-anchor="start">session 就緒，歷史已載入</text>
-<rect x="360.0" y="220.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="255.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">1</text>
-<line x1="440" y1="250.0" x2="480.0" y2="250.0" stroke="black" />
-<rect x="480.0" y="192.0" width="170.0" height="116.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="565.0" y="218.0" text-anchor="middle" font-family="Arial" font-size="11">解析系統提示詞：規劃狀態、en</text>
-<text x="565.0" y="241.99999999999997" text-anchor="middle" font-family="Arial" font-size="11">ablement</text>
-<text x="565.0" y="266.0" text-anchor="middle" font-family="Arial" font-size="11">flags、skill</text>
-<text x="565.0" y="290.0" text-anchor="middle" font-family="Arial" font-size="11">metadata</text>
-<line x1="400" y1="280.0" x2="400" y2="360" stroke="black" />
-<line x1="380" y1="320.0" x2="420" y2="320.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="324.0" font-style="italic" font-size="11" text-anchor="start">prompt 與工具表面已組裝</text>
-<rect x="360.0" y="360.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="395.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">2</text>
-<line x1="440" y1="390.0" x2="480.0" y2="390.0" stroke="black" />
-<rect x="480.0" y="332.0" width="170.0" height="116.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="565.0" y="358.0" text-anchor="middle" font-family="Arial" font-size="11">呼叫 AI SDK</text>
-<text x="565.0" y="382.0" text-anchor="middle" font-family="Arial" font-size="11">generateText，傳入</text>
-<text x="565.0" y="405.99999999999994" text-anchor="middle" font-family="Arial" font-size="11">provider、模型、工具、</text>
-<text x="565.0" y="429.99999999999994" text-anchor="middle" font-family="Arial" font-size="11">訊息</text>
-<line x1="400" y1="420" x2="400" y2="460" stroke="black" />
-<line x1="-255.0" y1="460" x2="645.0" y2="460" stroke="black" stroke-width="1.5" />
-<line x1="-215.0" y1="460" x2="-215.0" y2="500" stroke="black" />
-<line x1="-235.0" y1="500" x2="-195.0" y2="500" stroke="black" stroke-width="2" />
-<text x="-239.0" y="504" font-style="italic" font-size="11" text-anchor="end">回應含工具呼叫</text>
-<line x1="-215.0" y1="500" x2="-215.0" y2="540" stroke="black" marker-end="url(#arrow)" />
-<line x1="605.0" y1="460" x2="605.0" y2="500" stroke="black" />
-<line x1="585.0" y1="500" x2="625.0" y2="500" stroke="black" stroke-width="2" />
-<text x="629.0" y="504" font-style="italic" font-size="11" text-anchor="start">回應為純文字（turn 完成）</text>
-<line x1="605.0" y1="500" x2="605.0" y2="540" stroke="black" marker-end="url(#arrow)" />
-<rect x="-255.0" y="540.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-215.0" y="575.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">3</text>
-<line x1="-175.0" y1="570.0" x2="-135.0" y2="570.0" stroke="black" />
-<rect x="-135.0" y="512.0" width="170.0" height="116.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="-50.0" y="538.0" text-anchor="middle" font-family="Arial" font-size="11">分派工具呼叫至 built-</text>
-<text x="-50.0" y="562.0" text-anchor="middle" font-family="Arial" font-size="11">in/MCP/managed-</text>
-<text x="-50.0" y="586.0" text-anchor="middle" font-family="Arial" font-size="11">app</text>
-<text x="-50.0" y="610.0" text-anchor="middle" font-family="Arial" font-size="11">執行器，擷取結果，迴圈回 AI</text>
-<rect x="565.0" y="540.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="605.0" y="575.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">4</text>
-<line x1="645.0" y1="570.0" x2="685.0" y2="570.0" stroke="black" />
-<rect x="685.0" y="524.0" width="170.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="770.0" y="550.0" text-anchor="middle" font-family="Arial" font-size="11">檢查 context over</text>
-<text x="770.0" y="574.0" text-anchor="middle" font-family="Arial" font-size="11">flow，必要時壓縮，持久化</text>
-<text x="770.0" y="598.0" text-anchor="middle" font-family="Arial" font-size="11">session 狀態</text>
-<line x1="605.0" y1="600" x2="605.0" y2="640" stroke="black" />
-<line x1="360.0" y1="640" x2="1055.0" y2="640" stroke="black" stroke-width="1.5" />
-<line x1="400.0" y1="640" x2="400.0" y2="680" stroke="black" />
-<line x1="380.0" y1="680" x2="420.0" y2="680" stroke="black" stroke-width="2" />
-<text x="376.0" y="684" font-style="italic" font-size="11" text-anchor="end">自主模式啟用中</text>
-<line x1="400.0" y1="680" x2="400.0" y2="720" stroke="black" marker-end="url(#arrow)" />
-<line x1="1015.0" y1="640" x2="1015.0" y2="680" stroke="black" />
-<line x1="995.0" y1="680" x2="1035.0" y2="680" stroke="black" stroke-width="2" />
-<text x="1039.0" y="684" font-style="italic" font-size="11" text-anchor="start">互動模式：等待使用者輸入</text>
-<line x1="1015.0" y1="680" x2="1015.0" y2="720" stroke="black" marker-end="url(#arrow)" />
-<rect x="360.0" y="720.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400.0" y="755.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">5</text>
-<line x1="440.0" y1="750.0" x2="480.0" y2="750.0" stroke="black" />
-<rect x="480.0" y="704.0" width="170.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="565.0" y="730.0" text-anchor="middle" font-family="Arial" font-size="11">Smart Runner</text>
-<text x="565.0" y="754.0" text-anchor="middle" font-family="Arial" font-size="11">Governor 評估決策：繼</text>
-<text x="565.0" y="777.9999999999999" text-anchor="middle" font-family="Arial" font-size="11">續、重規劃、詢問、暫停、完成</text>
-<line x1="400.0" y1="780" x2="400.0" y2="820" stroke="black" />
-<line x1="155.0" y1="820" x2="645.0" y2="820" stroke="black" stroke-width="1.5" />
-<line x1="195.0" y1="820" x2="195.0" y2="860" stroke="black" />
-<line x1="175.0" y1="860" x2="215.0" y2="860" stroke="black" stroke-width="2" />
-<text x="171.0" y="864" font-style="italic" font-size="11" text-anchor="end">決策=繼續：下一自主 turn</text>
-<line x1="195.0" y1="860" x2="195.0" y2="900" stroke="black" marker-end="url(#arrow)" />
-<line x1="605.0" y1="820" x2="605.0" y2="860" stroke="black" />
-<line x1="585.0" y1="860" x2="625.0" y2="860" stroke="black" stroke-width="2" />
-<text x="629.0" y="864" font-style="italic" font-size="11" text-anchor="start">決策=暫停/完成：停止</text>
-<line x1="605.0" y1="860" x2="605.0" y2="900" stroke="black" marker-end="url(#arrow)" />
-<rect x="155.0" y="900.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="195.0" y="935.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">7</text>
-<line x1="235.0" y1="930.0" x2="275.0" y2="930.0" stroke="black" />
-<rect x="275.0" y="872.0" width="170.0" height="116.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="360.0" y="898.0" text-anchor="middle" font-family="Arial" font-size="11">Workflow Runner</text>
-<text x="360.0" y="922.0000000000001" text-anchor="middle" font-family="Arial" font-size="11">排入 continuation</text>
-<text x="360.0" y="946.0" text-anchor="middle" font-family="Arial" font-size="11">，重新進入 prompt</text>
-<text x="360.0" y="970.0000000000001" text-anchor="middle" font-family="Arial" font-size="11">迴圈執行下一 turn</text>
-<rect x="565.0" y="900.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="605.0" y="935.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">8</text>
-<line x1="645.0" y1="930.0" x2="685.0" y2="930.0" stroke="black" />
-<rect x="685.0" y="896.0" width="170.0" height="68.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="770.0" y="922.0" text-anchor="middle" font-family="Arial" font-size="11">工作流暫停或完成，更新狀態，透</text>
-<text x="770.0" y="946.0" text-anchor="middle" font-family="Arial" font-size="11">過 SSE/Bus 通知 UI</text>
-<rect x="975.0" y="720.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="1015.0" y="755.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">6</text>
-<line x1="1055.0" y1="750.0" x2="1095.0" y2="750.0" stroke="black" />
-<rect x="1095.0" y="704.0" width="170.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="1180.0" y="730.0" text-anchor="middle" font-family="Arial" font-size="11">透過 Bus 發布 Messa</text>
-<text x="1180.0" y="754.0" text-anchor="middle" font-family="Arial" font-size="11">geAdded，渲染至 TUI</text>
-<text x="1180.0" y="777.9999999999999" text-anchor="middle" font-family="Arial" font-size="11">/Web，等待下一則使用者訊息</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="724" height="1040" viewBox="2.00 0.00 36.18 52.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="2.00" y="0.00" width="36.18" height="52.00" fill="white"/>
+<path class="edge" d="M 23.59 7.00 L 23.59 9.00"/>
+<path class="edge edge-arrow" d="M 23.59 9.00 L 23.59 11.00"/>
+<path class="edge" d="M 23.59 14.00 L 23.59 16.00"/>
+<path class="edge edge-arrow" d="M 23.59 16.00 L 23.59 18.00"/>
+<path class="edge edge-arrow" d="M 23.59 21.00 L 23.59 23.00"/>
+<path class="edge edge-arrow" d="M 10.00 23.00 L 10.00 27.00"/>
+<path class="edge edge-arrow" d="M 23.59 23.00 L 23.59 27.00"/>
+<path class="edge edge-arrow" d="M 23.59 30.00 L 23.59 32.00"/>
+<path class="edge edge-arrow" d="M 23.59 32.00 L 23.59 36.00"/>
+<path class="edge edge-arrow" d="M 10.00 32.00 L 10.00 36.00"/>
+<path class="edge edge-arrow" d="M 23.59 39.00 L 23.59 41.00"/>
+<path class="edge edge-arrow" d="M 10.00 41.00 L 10.00 45.00"/>
+<path class="edge edge-arrow" d="M 23.59 41.00 L 23.59 45.00"/>
+<rect class="step" x="21.59" y="4.00" width="4.00" height="3.00"/>
+<rect class="step-inner" x="21.84" y="4.25" width="3.50" height="2.50"/>
+<text class="label" x="23.59" y="5.50">0</text>
+<rect class="step" x="21.59" y="11.00" width="4.00" height="3.00"/>
+<text class="label" x="23.59" y="12.50">1</text>
+<rect class="step" x="21.59" y="18.00" width="4.00" height="3.00"/>
+<text class="label" x="23.59" y="19.50">2</text>
+<rect class="step" x="8.00" y="27.00" width="4.00" height="3.00"/>
+<text class="label" x="10.00" y="28.50">3</text>
+<rect class="step" x="21.59" y="27.00" width="4.00" height="3.00"/>
+<text class="label" x="23.59" y="28.50">4</text>
+<rect class="step" x="21.59" y="36.00" width="4.00" height="3.00"/>
+<text class="label" x="23.59" y="37.50">5</text>
+<rect class="step" x="8.00" y="36.00" width="4.00" height="3.00"/>
+<text class="label" x="10.00" y="37.50">6</text>
+<rect class="step" x="8.00" y="45.00" width="4.00" height="3.00"/>
+<text class="label" x="10.00" y="46.50">7</text>
+<rect class="step" x="21.59" y="45.00" width="4.00" height="3.00"/>
+<text class="label" x="23.59" y="46.50">8</text>
+<line class="assoc" x1="25.59" y1="5.50" x2="26.59" y2="5.50"/>
+<rect class="action" x="26.59" y="4.07" width="7.59" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="30.38" y="4.68"><tspan x="30.38" dy="0">建立或載入 sess</tspan><tspan x="30.38" dy="0.82">ion，綁定工作目</tspan><tspan x="30.38" dy="0.82">錄，載入歷史</tspan></text>
+<line class="assoc" x1="25.59" y1="12.50" x2="26.59" y2="12.50"/>
+<rect class="action" x="26.59" y="11.07" width="7.59" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="30.38" y="11.68"><tspan x="30.38" dy="0">解析系統提示詞：</tspan><tspan x="30.38" dy="0.82">規劃狀態、enableme</tspan><tspan x="30.38" dy="0.82">nt flags、skill metadata</tspan></text>
+<line class="assoc" x1="25.59" y1="19.50" x2="26.59" y2="19.50"/>
+<rect class="action" x="26.59" y="18.07" width="7.59" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="30.38" y="18.68"><tspan x="30.38" dy="0">呼叫 AI SDK generateT</tspan><tspan x="30.38" dy="0.82">ext，傳入 provider、</tspan><tspan x="30.38" dy="0.82">模型、工具、訊息</tspan></text>
+<line class="assoc" x1="12.00" y1="28.50" x2="13.00" y2="28.50"/>
+<rect class="action" x="13.00" y="27.07" width="7.59" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="16.80" y="27.68"><tspan x="16.80" dy="0">分派工具呼叫至 built-in</tspan><tspan x="16.80" dy="0.82">/MCP/managed-app 執行器</tspan><tspan x="16.80" dy="0.82">，擷取結果，迴圈回 AI</tspan></text>
+<line class="assoc" x1="25.59" y1="28.50" x2="26.59" y2="28.50"/>
+<rect class="action" x="26.59" y="27.07" width="7.59" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="30.38" y="27.68"><tspan x="30.38" dy="0">檢查 context overflo</tspan><tspan x="30.38" dy="0.82">w，必要時壓縮，</tspan><tspan x="30.38" dy="0.82">持久化 session 狀態</tspan></text>
+<line class="assoc" x1="25.59" y1="37.50" x2="26.59" y2="37.50"/>
+<rect class="action" x="26.59" y="36.07" width="7.59" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="30.38" y="36.68"><tspan x="30.38" dy="0">Smart Runner Governor 評</tspan><tspan x="30.38" dy="0.82">估決策：繼續、重規</tspan><tspan x="30.38" dy="0.82">劃、詢問、暫停、完成</tspan></text>
+<line class="assoc" x1="12.00" y1="37.50" x2="13.00" y2="37.50"/>
+<rect class="action" x="13.00" y="36.07" width="7.59" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="16.80" y="36.68"><tspan x="16.80" dy="0">透過 Bus 發布 MessageAd</tspan><tspan x="16.80" dy="0.82">ded，渲染至 TUI/Web，</tspan><tspan x="16.80" dy="0.82">等待下一則使用者訊息</tspan></text>
+<line class="assoc" x1="12.00" y1="46.50" x2="13.00" y2="46.50"/>
+<rect class="action" x="13.00" y="45.07" width="7.59" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="16.80" y="45.68"><tspan x="16.80" dy="0">Workflow Runner 排入 con</tspan><tspan x="16.80" dy="0.82">tinuation，重新進入 pro</tspan><tspan x="16.80" dy="0.82">mpt 迴圈執行下一 turn</tspan></text>
+<line class="assoc" x1="25.59" y1="46.50" x2="26.59" y2="46.50"/>
+<rect class="action" x="26.59" y="45.07" width="7.59" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="30.38" y="45.68"><tspan x="30.38" dy="0">工作流暫停或完</tspan><tspan x="30.38" dy="0.82">成，更新狀態，</tspan><tspan x="30.38" dy="0.82">透過 SSE/Bus 通知 UI</tspan></text>
+<line class="gate" x1="22.59" y1="9.00" x2="24.59" y2="9.00"/>
+<text class="gate-label" x="24.99" y="9.00"><tspan x="24.99" dy="0">session 就緒，歷史已載入</tspan></text>
+<line class="gate" x1="22.59" y1="16.00" x2="24.59" y2="16.00"/>
+<text class="gate-label" x="24.99" y="16.00"><tspan x="24.99" dy="0">prompt 與工具表面已組裝</tspan></text>
+<line class="gate" x1="6.00" y1="23.00" x2="27.59" y2="23.00"/>
+<line class="gate" x1="6.00" y1="32.00" x2="27.59" y2="32.00"/>
+<line class="gate" x1="6.00" y1="41.00" x2="27.59" y2="41.00"/>
+<line class="gate" x1="9.00" y1="25.00" x2="11.00" y2="25.00"/>
+<text class="gate-label-left" x="8.60" y="25.00"><tspan x="8.60" dy="0">回應含工具呼叫</tspan></text>
+<line class="gate" x1="22.59" y1="25.00" x2="24.59" y2="25.00"/>
+<text class="gate-label-left" x="22.19" y="25.00"><tspan x="22.19" dy="0">回應為純文字（turn 完成）</tspan></text>
+<line class="gate" x1="22.59" y1="34.00" x2="24.59" y2="34.00"/>
+<text class="gate-label-left" x="22.19" y="34.00"><tspan x="22.19" dy="0">自主模式啟用中</tspan></text>
+<line class="gate" x1="9.00" y1="34.00" x2="11.00" y2="34.00"/>
+<text class="gate-label-left" x="8.60" y="33.32"><tspan x="8.60" dy="0">互動模式</tspan><tspan x="8.60" dy="0.68">：等待使</tspan><tspan x="8.60" dy="0.68">用者輸入</tspan></text>
+<line class="gate" x1="9.00" y1="43.00" x2="11.00" y2="43.00"/>
+<text class="gate-label-left" x="8.60" y="42.32"><tspan x="8.60" dy="0">決策=繼</tspan><tspan x="8.60" dy="0.68">續：下一</tspan><tspan x="8.60" dy="0.68">自主 turn</tspan></text>
+<line class="gate" x1="22.59" y1="43.00" x2="24.59" y2="43.00"/>
+<text class="gate-label-left" x="22.19" y="43.00"><tspan x="22.19" dy="0">決策=暫停/完成：停止</tspan></text>
 </svg>

@@ -1,71 +1,65 @@
-<svg width="1270" height="776" viewBox="-130.0 -40.0 1270.0 776.0" xmlns="http://www.w3.org/2000/svg">
-<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker></defs>
-<rect x="-130.0" y="-40.0" width="1270.0" height="776.0" fill="white" />
-<rect x="360.0" y="80.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<rect x="365.0" y="85.0" width="70.0" height="50.0" stroke="black" stroke-width="1" fill="none" />
-<text x="400" y="115.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">0</text>
-<line x1="440" y1="110.0" x2="480.0" y2="110.0" stroke="black" />
-<rect x="480.0" y="40.0" width="170.0" height="140.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="565.0" y="66.0" text-anchor="middle" font-family="Arial" font-size="11">Session 新</text>
-<text x="565.0" y="90.0" text-anchor="middle" font-family="Arial" font-size="11">round：解析 tool</text>
-<text x="565.0" y="114.0" text-anchor="middle" font-family="Arial" font-size="11">surface (built-</text>
-<text x="565.0" y="138.0" text-anchor="middle" font-family="Arial" font-size="11">in + MCP +</text>
-<text x="565.0" y="162.0" text-anchor="middle" font-family="Arial" font-size="11">skill)</text>
-<line x1="400" y1="140.0" x2="400" y2="220" stroke="black" />
-<line x1="380" y1="180.0" x2="420" y2="180.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="184.0" font-style="italic" font-size="11" text-anchor="start">工具表面已組裝 (dirty flag 已清除)</text>
-<rect x="360.0" y="220.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="255.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">1</text>
-<line x1="440" y1="250.0" x2="480.0" y2="250.0" stroke="black" />
-<rect x="480.0" y="192.0" width="170.0" height="116.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="565.0" y="218.0" text-anchor="middle" font-family="Arial" font-size="11">分派 toolCall 至</text>
-<text x="565.0" y="241.99999999999997" text-anchor="middle" font-family="Arial" font-size="11">handler (built-</text>
-<text x="565.0" y="266.0" text-anchor="middle" font-family="Arial" font-size="11">in/MCP/subagent</text>
-<text x="565.0" y="290.0" text-anchor="middle" font-family="Arial" font-size="11">)，執行並收集結果</text>
-<line x1="400" y1="280" x2="400" y2="320" stroke="black" />
-<line x1="-50.0" y1="320" x2="645.0" y2="320" stroke="black" stroke-width="1.5" />
-<line x1="-10.0" y1="320" x2="-10.0" y2="360" stroke="black" />
-<line x1="-30.0" y1="360" x2="10.0" y2="360" stroke="black" stroke-width="2" />
-<text x="-34.0" y="364" font-style="italic" font-size="11" text-anchor="end">AI 要求更多 toolCalls（繼續迴圈）</text>
-<line x1="-10.0" y1="360" x2="-10.0" y2="400" stroke="black" marker-end="url(#arrow)" />
-<line x1="605.0" y1="320" x2="605.0" y2="360" stroke="black" />
-<line x1="585.0" y1="360" x2="625.0" y2="360" stroke="black" stroke-width="2" />
-<text x="629.0" y="364" font-style="italic" font-size="11" text-anchor="start">無更多 toolCalls（turn 完成）</text>
-<line x1="605.0" y1="360" x2="605.0" y2="400" stroke="black" marker-end="url(#arrow)" />
-<rect x="-50.0" y="400.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-10.0" y="435.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">2</text>
-<line x1="30.0" y1="430.0" x2="70.0" y2="430.0" stroke="black" />
-<rect x="70.0" y="396.0" width="170.0" height="68.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="155.0" y="422.0" text-anchor="middle" font-family="Arial" font-size="11">將工具結果回饋至訊息鏈，觸發下</text>
-<text x="155.0" y="445.99999999999994" text-anchor="middle" font-family="Arial" font-size="11">一輪 AI 推論</text>
-<rect x="565.0" y="400.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="605.0" y="435.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">3</text>
-<line x1="645.0" y1="430.0" x2="685.0" y2="430.0" stroke="black" />
-<rect x="685.0" y="384.0" width="170.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="770.0" y="410.0" text-anchor="middle" font-family="Arial" font-size="11">Turn</text>
-<text x="770.0" y="434.0" text-anchor="middle" font-family="Arial" font-size="11">完成：DOOM_LOOP 檢查</text>
-<text x="770.0" y="458.0" text-anchor="middle" font-family="Arial" font-size="11">(&lt; 3 連續錯誤)，發布遙測</text>
-<line x1="605.0" y1="460" x2="605.0" y2="500" stroke="black" />
-<line x1="360.0" y1="500" x2="850.0" y2="500" stroke="black" stroke-width="1.5" />
-<line x1="400.0" y1="500" x2="400.0" y2="540" stroke="black" />
-<line x1="380.0" y1="540" x2="420.0" y2="540" stroke="black" stroke-width="2" />
-<text x="376.0" y="544" font-style="italic" font-size="11" text-anchor="end">DOOM_LOOP 通過，正常完成</text>
-<line x1="400.0" y1="540" x2="400.0" y2="580" stroke="black" marker-end="url(#arrow)" />
-<line x1="810.0" y1="500" x2="810.0" y2="540" stroke="black" />
-<line x1="790.0" y1="540" x2="830.0" y2="540" stroke="black" stroke-width="2" />
-<text x="834.0" y="544" font-style="italic" font-size="11" text-anchor="start">DOOM_LOOP 觸發，連續錯誤過多</text>
-<line x1="810.0" y1="540" x2="810.0" y2="580" stroke="black" marker-end="url(#arrow)" />
-<rect x="360.0" y="580.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400.0" y="615.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">4</text>
-<line x1="440.0" y1="610.0" x2="480.0" y2="610.0" stroke="black" />
-<rect x="480.0" y="564.0" width="170.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="565.0" y="590.0" text-anchor="middle" font-family="Arial" font-size="11">更新 SharedContex</text>
-<text x="565.0" y="614.0" text-anchor="middle" font-family="Arial" font-size="11">t，檢查 dirty</text>
-<text x="565.0" y="638.0" text-anchor="middle" font-family="Arial" font-size="11">flag，準備下一 round</text>
-<rect x="770.0" y="580.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="810.0" y="615.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">5</text>
-<line x1="850.0" y1="610.0" x2="890.0" y2="610.0" stroke="black" />
-<rect x="890.0" y="576.0" width="170.0" height="68.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="975.0" y="602.0" text-anchor="middle" font-family="Arial" font-size="11">DOOM_LOOP 觸發：停止</text>
-<text x="975.0" y="626.0" text-anchor="middle" font-family="Arial" font-size="11">工具迴圈，回報連續失敗</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="679" height="720" viewBox="2.00 0.00 33.94 36.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="2.00" y="0.00" width="33.94" height="36.00" fill="white"/>
+<path class="edge" d="M 22.47 7.00 L 22.47 9.00"/>
+<path class="edge edge-arrow" d="M 22.47 9.00 L 22.47 11.00"/>
+<path class="edge edge-arrow" d="M 22.47 14.00 L 22.47 16.00"/>
+<path class="edge edge-arrow" d="M 10.00 16.00 L 10.00 20.00"/>
+<path class="edge edge-arrow" d="M 22.47 16.00 L 22.47 20.00"/>
+<path class="edge edge-arrow" d="M 22.47 23.00 L 22.47 25.00"/>
+<path class="edge edge-arrow" d="M 10.00 25.00 L 10.00 29.00"/>
+<path class="edge edge-arrow" d="M 22.47 25.00 L 22.47 29.00"/>
+<rect class="step" x="20.47" y="4.00" width="4.00" height="3.00"/>
+<rect class="step-inner" x="20.72" y="4.25" width="3.50" height="2.50"/>
+<text class="label" x="22.47" y="5.50">0</text>
+<rect class="step" x="20.47" y="11.00" width="4.00" height="3.00"/>
+<text class="label" x="22.47" y="12.50">1</text>
+<rect class="step" x="8.00" y="20.00" width="4.00" height="3.00"/>
+<text class="label" x="10.00" y="21.50">2</text>
+<rect class="step" x="20.47" y="20.00" width="4.00" height="3.00"/>
+<text class="label" x="22.47" y="21.50">3</text>
+<rect class="step" x="8.00" y="29.00" width="4.00" height="3.00"/>
+<text class="label" x="10.00" y="30.50">4</text>
+<rect class="step" x="20.47" y="29.00" width="4.00" height="3.00"/>
+<text class="label" x="22.47" y="30.50">5</text>
+<line class="assoc" x1="24.47" y1="5.50" x2="25.47" y2="5.50"/>
+<rect class="action" x="25.47" y="4.07" width="6.47" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="28.70" y="4.68"><tspan x="28.70" dy="0">Session 新 round：</tspan><tspan x="28.70" dy="0.82">解析 tool surface (</tspan><tspan x="28.70" dy="0.82">built-in + MCP + skill)</tspan></text>
+<line class="assoc" x1="24.47" y1="12.50" x2="25.47" y2="12.50"/>
+<rect class="action" x="25.47" y="11.07" width="6.47" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="28.70" y="11.68"><tspan x="28.70" dy="0">分派 toolCall 至 handle</tspan><tspan x="28.70" dy="0.82">r (built-in/MCP/subagent</tspan><tspan x="28.70" dy="0.82">)，執行並收集結果</tspan></text>
+<line class="assoc" x1="12.00" y1="21.50" x2="13.00" y2="21.50"/>
+<rect class="action" x="13.00" y="20.07" width="6.47" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="16.23" y="20.68"><tspan x="16.23" dy="0">將工具結果回饋</tspan><tspan x="16.23" dy="0.82">至訊息鏈，觸發</tspan><tspan x="16.23" dy="0.82">下一輪 AI 推論</tspan></text>
+<line class="assoc" x1="24.47" y1="21.50" x2="25.47" y2="21.50"/>
+<rect class="action" x="25.47" y="20.07" width="6.47" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="28.70" y="20.68"><tspan x="28.70" dy="0">Turn 完成：DOOM_L</tspan><tspan x="28.70" dy="0.82">OOP 檢查 (&lt; 3 連續</tspan><tspan x="28.70" dy="0.82">錯誤)，發布遙測</tspan></text>
+<line class="assoc" x1="12.00" y1="30.50" x2="13.00" y2="30.50"/>
+<rect class="action" x="13.00" y="29.07" width="6.47" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="16.23" y="29.68"><tspan x="16.23" dy="0">更新 SharedContex</tspan><tspan x="16.23" dy="0.82">t，檢查 dirty flag</tspan><tspan x="16.23" dy="0.82">，準備下一 round</tspan></text>
+<line class="assoc" x1="24.47" y1="30.50" x2="25.47" y2="30.50"/>
+<rect class="action" x="25.47" y="29.07" width="6.47" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="28.70" y="29.68"><tspan x="28.70" dy="0">DOOM_LOOP 觸發</tspan><tspan x="28.70" dy="0.82">：停止工具迴圈</tspan><tspan x="28.70" dy="0.82">，回報連續失敗</tspan></text>
+<line class="gate" x1="21.47" y1="9.00" x2="23.47" y2="9.00"/>
+<text class="gate-label" x="23.87" y="9.00"><tspan x="23.87" dy="0">工具表面已組裝 (dirty flag 已清除)</tspan></text>
+<line class="gate" x1="6.00" y1="16.00" x2="26.47" y2="16.00"/>
+<line class="gate" x1="6.00" y1="25.00" x2="26.47" y2="25.00"/>
+<line class="gate" x1="9.00" y1="18.00" x2="11.00" y2="18.00"/>
+<text class="gate-label-left" x="8.60" y="17.32"><tspan x="8.60" dy="0">AI 要求更多</tspan><tspan x="8.60" dy="0.68">toolCalls（繼</tspan><tspan x="8.60" dy="0.68">續迴圈）</tspan></text>
+<line class="gate" x1="21.47" y1="18.00" x2="23.47" y2="18.00"/>
+<text class="gate-label-left" x="21.07" y="18.00"><tspan x="21.07" dy="0">無更多 toolCalls（turn 完成）</tspan></text>
+<line class="gate" x1="9.00" y1="27.00" x2="11.00" y2="27.00"/>
+<text class="gate-label-left" x="8.60" y="26.32"><tspan x="8.60" dy="0">DOOM_LOO</tspan><tspan x="8.60" dy="0.68">P 通過，</tspan><tspan x="8.60" dy="0.68">正常完成</tspan></text>
+<line class="gate" x1="21.47" y1="27.00" x2="23.47" y2="27.00"/>
+<text class="gate-label-left" x="21.07" y="27.00"><tspan x="21.07" dy="0">DOOM_LOOP 觸發，連續錯誤過多</tspan></text>
 </svg>

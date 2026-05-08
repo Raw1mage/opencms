@@ -1,58 +1,55 @@
-<svg width="1495.0" height="740.0" viewBox="-110.0 -210.0 1495.0 740.0" xmlns="http://www.w3.org/2000/svg">
+<svg width="2369.7" height="680.0" viewBox="-596.9 -170.0 2369.7 680.0" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
 <marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
 </defs>
-<rect x="-110.0" y="-210.0" width="1495.0" height="740.0" fill="white" />
+<rect x="-596.9" y="-170.0" width="2369.7" height="680.0" fill="white" />
 <rect x="130.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A341" />
-<text x="230.0" y="166.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A341" >A341</text>
-<text x="230.0" y="196.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A341" >建構模型向量</text>
+<text x="230.0" y="159.9" text-anchor="middle" font-size="26" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A341" >A341</text>
+<text x="230.0" y="207.0" text-anchor="middle" font-size="28" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A341" >建構模型向量</text>
 <rect x="500.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A342" />
-<text x="600.0" y="166.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A342" >A342</text>
-<text x="600.0" y="196.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A342" >收集遞補候選</text>
+<text x="600.0" y="159.9" text-anchor="middle" font-size="26" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A342" >A342</text>
+<text x="600.0" y="207.0" text-anchor="middle" font-size="28" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A342" >收集遞補候選</text>
 <rect x="846.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A343" />
-<text x="946.0" y="166.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A343" >A343</text>
-<text x="946.0" y="196.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A343" >評分候選健康度</text>
-<rect x="130.0" y="320.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A344" />
-<text x="230.0" y="366.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A344" >A344</text>
-<text x="230.0" y="396.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A344" >選擇遞補策略</text>
-<rect x="500.0" y="320.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A345" />
-<text x="600.0" y="366.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A345" >A345</text>
-<text x="600.0" y="396.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A345" >套用遞補決策</text>
-<rect x="50.0" y="20.0" width="1076.0" height="480.0" stroke="black" fill="none" stroke-width="2" />
-<rect x="433.5" y="-180.0" width="309.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A34" />
-<text x="588.0" y="-154.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A34" >A34</text>
-<text x="588.0" y="-124.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A34" >A34 — 執行</text>
-<text x="588.0" y="-94.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A34" >ROTATION3D FALLBACK</text>
-<line x1="433.5" y1="-180.0" x2="50.0" y2="20.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="742.5" y1="-180.0" x2="1126.0" y2="20.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="433.5" y1="-70.0" x2="50.0" y2="500.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="742.5" y1="-70.0" x2="1126.0" y2="500.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="946.0" y="160.4" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A343" >A343</text>
+<text x="946.0" y="206.1" text-anchor="middle" font-size="27" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A343" >評分候選健康度</text>
+<rect x="130.0" y="340.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A344" />
+<text x="230.0" y="379.9" text-anchor="middle" font-size="26" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A344" >A344</text>
+<text x="230.0" y="427.0" text-anchor="middle" font-size="28" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A344" >選擇遞補策略</text>
+<rect x="500.0" y="340.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A345" />
+<text x="600.0" y="379.9" text-anchor="middle" font-size="26" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A345" >A345</text>
+<text x="600.0" y="427.0" text-anchor="middle" font-size="28" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A345" >套用遞補決策</text>
+<rect x="40.0" y="40.0" width="1096.0" height="460.0" stroke="black" fill="none" stroke-width="2" />
+<rect x="433.5" y="-160.0" width="309.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A34" />
+<text x="588.0" y="-134.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A34" >A34</text>
+<text x="588.0" y="-104.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A34" >A34 — 執行</text>
+<text x="588.0" y="-74.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A34" >ROTATION3D FALLBACK</text>
+<line x1="433.5" y1="-160.0" x2="40.0" y2="40.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="742.5" y1="-160.0" x2="1136.0" y2="40.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="433.5" y1="-50.0" x2="40.0" y2="500.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="742.5" y1="-50.0" x2="1136.0" y2="500.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
 <path d="M 330.0 200.0 L 500.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="F1" data-waypoints="330.0,200.0 500.0,200.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 700.0 180.0 L 846.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="F2" data-waypoints="700.0,180.0 846.0,180.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 330.0 380.0 L 500.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="F4" data-waypoints="330.0,380.0 500.0,380.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1046.0 180.0 L 1076.0 180.0 Q 1086.0 180.0 1086.0 190.0 L 1086.0 271.8 Q 1086.0 281.8 1076.0 281.8 L 100.0 281.8 Q 90.0 281.8 90.0 291.8 L 90.0 370.0 Q 90.0 380.0 100.0 380.0 L 130.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="F3" data-waypoints="1046.0,180.0 1086.0,180.0 1086.0,281.8 90.0,281.8 90.0,380.0 130.0,380.0" marker-end="url(#arrow)" fill="none" />
-<path d="M -50.0 180.0 L 130.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="I1" data-waypoints="-50.0,180.0 130.0,180.0" marker-end="url(#arrow)" fill="none" />
-<path d="M -50.0 80.0 L 405.0 80.0 Q 415.0 80.0 415.0 90.0 L 415.0 150.0 Q 415.0 160.0 425.0 160.0 L 500.0 160.0" stroke="black" stroke-width="1.2" data-arrow-id="I2" data-waypoints="-50.0,80.0 415.0,80.0 415.0,160.0 500.0,160.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 400.0 L 500.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="F4" data-waypoints="330.0,400.0 500.0,400.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1046.0 180.0 L 1076.0 180.0 Q 1086.0 180.0 1086.0 190.0 L 1086.0 280.0 Q 1086.0 290.0 1076.0 290.0 L 100.0 290.0 Q 90.0 290.0 90.0 300.0 L 90.0 390.0 Q 90.0 400.0 100.0 400.0 L 130.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="F3" data-waypoints="1046.0,180.0 1086.0,180.0 1086.0,290.0 90.0,290.0 90.0,400.0 130.0,400.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -10.0 180.0 L 130.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="I1" data-waypoints="-10.0,180.0 130.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -10.0 80.0 L 405.0 80.0 Q 415.0 80.0 415.0 90.0 L 415.0 150.0 Q 415.0 160.0 425.0 160.0 L 500.0 160.0" stroke="black" stroke-width="1.2" data-arrow-id="I2" data-waypoints="-10.0,80.0 415.0,80.0 415.0,160.0 500.0,160.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 946.0 84.2 L 946.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C3" data-waypoints="946.0,84.2 946.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 700.0 380.0 L 1226.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="O1" data-waypoints="700.0,380.0 1226.0,380.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 230.0 284.2 L 230.0 320.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A344_control" data-waypoints="230.0,284.2 230.0,320.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 700.0 400.0 L 1186.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="O1" data-waypoints="700.0,400.0 1186.0,400.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 304.2 L 230.0 340.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A344_control" data-waypoints="230.0,304.2 230.0,340.0" marker-end="url(#arrow)" fill="none" />
 <path d="M 946.0 275.8 L 946.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A343_mechanism" data-waypoints="946.0,275.8 946.0,240.0" marker-end="url(#arrow)" fill="none" />
-<text x="946.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="C3">冷卻規則與最低健康閾值</text>
-<text x="224.0" y="315.0" font-size="10" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="C1">RotationPurpose (coding/reasoning</text>
-<text x="236.0" y="315.0" font-size="10" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="C1">image/...)、FallbackStrategy 偏好</text>
-<text x="940.0" y="256.0" font-size="13" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="M1">HealthTracker 持久化狀態</text>
-<text x="952.0" y="256.0" font-size="13" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="M1">RateLimitJudge 分類器</text>
-<text x="415.0" y="195.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F1">待遞補的</text>
-<text x="415.0" y="212.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F1">ModelVector</text>
-<text x="773.0" y="175.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F2">候選</text>
-<text x="773.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F2">ModelVector 清單</text>
-<text x="415.0" y="372.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F4" >策略排序後的最佳候選</text>
-<text x="600.0" y="273.8" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F3" >含健康評分的候選清單</text>
-<text x="46.0" y="175.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I1">來源 ModelVector</text>
-<text x="46.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I1">(失敗的)</text>
-<text x="46.0" y="75.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I2">全域 Provider/</text>
-<text x="46.0" y="92.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I2">Account 註冊表</text>
-<text x="1130.0" y="375.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O1">遞補 ModelVector 或路由失敗 /</text>
-<text x="1130.0" y="392.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O1">RotationExecutedEvent</text>
+<text x="946.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="C3">冷卻規則與最低健康閾值</text>
+<text x="224.0" y="334.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="C1">RotationPurpose (coding/reasoning</text>
+<text x="236.0" y="334.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="C1">image/...)、FallbackStrategy 偏好</text>
+<text x="940.0" y="256.0" font-size="13" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="M1">HealthTracker 持久化狀態</text>
+<text x="952.0" y="256.0" font-size="13" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="M1">RateLimitJudge 分類器</text>
+<text x="415.0" y="195.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="F1">待遞補的</text>
+<text x="415.0" y="212.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="F1">ModelVector</text>
+<text x="773.0" y="175.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="F2">候選</text>
+<text x="773.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="F2">ModelVector 清單</text>
+<text x="415.0" y="392.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="F4" >策略排序後的最佳候選</text>
+<text x="600.0" y="308.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="F3" >含健康評分的候選清單</text>
+<text x="-14.0" y="184.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="I1">來源 ModelVector (失敗的)</text>
+<text x="-14.0" y="84.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="I2">全域 Provider/Account 註冊表</text>
+<text x="1190.0" y="404.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="O1">遞補 ModelVector 或路由失敗 / RotationExecutedEvent</text>
 </svg>

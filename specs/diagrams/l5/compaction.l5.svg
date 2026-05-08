@@ -138,8 +138,8 @@
 <text class="gate-label" x="21.40" y="44.32"><tspan x="21.40" dy="0">attempt.faile</tspan><tspan x="21.40" dy="0.68">d || localtrunc</tspan><tspan x="21.40" dy="0.68">atedescalate</tspan></text>
 <line class="gate" x1="29.00" y1="45.00" x2="31.00" y2="45.00"/>
 <text class="gate-label" x="31.40" y="45.00"><tspan x="31.40" dy="0">chainexhausted</tspan></text>
-<line class="gate" x1="19.00" y1="54.00" x2="21.00" y2="54.00"/>
-<text class="gate-label-left" x="18.60" y="54.68"><tspan x="18.60" dy="0">anchorwritteninline || anchor待處理</tspan></text>
+<line class="gate" x1="19.00" y1="52.00" x2="21.00" y2="52.00"/>
+<text class="gate-label" x="21.40" y="51.32"><tspan x="21.40" dy="0">anchorwritt</tspan><tspan x="21.40" dy="0.68">eninline || anc</tspan><tspan x="21.40" dy="0.68">hor待處理</tspan></text>
 <line class="gate" x1="19.00" y1="65.00" x2="21.00" y2="65.00"/>
 <text class="gate-label-left" x="18.60" y="65.00"><tspan x="18.60" dy="0">anchorpersisted &amp;&amp; telemetryemitted</tspan></text>
 <circle class="junction" cx="20.00" cy="36.00" r="0.22"/>

@@ -1,97 +1,83 @@
-<svg width="1655" height="956" viewBox="-325.0 -28.0 1655.0 956.0" xmlns="http://www.w3.org/2000/svg">
-<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker></defs>
-<rect x="-325.0" y="-28.0" width="1655.0" height="956.0" fill="white" />
-<rect x="360.0" y="80.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<rect x="365.0" y="85.0" width="70.0" height="50.0" stroke="black" stroke-width="1" fill="none" />
-<text x="400" y="115.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">0</text>
-<line x1="440" y1="110.0" x2="480.0" y2="110.0" stroke="black" />
-<rect x="480.0" y="52.0" width="170.0" height="116.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="565.0" y="78.0" text-anchor="middle" font-family="Arial" font-size="11">接收 Turn 完成事件，評估</text>
-<text x="565.0" y="102.0" text-anchor="middle" font-family="Arial" font-size="11">Trigger Gate</text>
-<text x="565.0" y="126.0" text-anchor="middle" font-family="Arial" font-size="11">(continuation /</text>
-<text x="565.0" y="150.0" text-anchor="middle" font-family="Arial" font-size="11">API)</text>
-<line x1="400" y1="140" x2="400" y2="180" stroke="black" />
-<line x1="160.0" y1="180" x2="1050.0" y2="180" stroke="black" stroke-width="1.5" />
-<line x1="200.0" y1="180" x2="200.0" y2="220" stroke="black" />
-<line x1="180.0" y1="220" x2="220.0" y2="220" stroke="black" stroke-width="2" />
-<text x="176.0" y="224" font-style="italic" font-size="11" text-anchor="end">閘門通過：繼續工作流</text>
-<line x1="200.0" y1="220" x2="200.0" y2="260" stroke="black" marker-end="url(#arrow)" />
-<line x1="1010.0" y1="180" x2="1010.0" y2="220" stroke="black" />
-<line x1="990.0" y1="220" x2="1030.0" y2="220" stroke="black" stroke-width="2" />
-<text x="1034.0" y="224" font-style="italic" font-size="11" text-anchor="start">閘門拒絕：互動模式等待</text>
-<line x1="1010.0" y1="220" x2="1010.0" y2="260" stroke="black" marker-end="url(#arrow)" />
-<rect x="160.0" y="260.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="200.0" y="295.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">1</text>
-<line x1="240.0" y1="290.0" x2="280.0" y2="290.0" stroke="black" />
-<rect x="280.0" y="232.0" width="170.0" height="116.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="365.0" y="258.0" text-anchor="middle" font-family="Arial" font-size="11">分派至 Lane：檢查車道容量</text>
-<text x="365.0" y="282.0" text-anchor="middle" font-family="Arial" font-size="11">(critical/norma</text>
-<text x="365.0" y="306.0" text-anchor="middle" font-family="Arial" font-size="11">l/background)，入</text>
-<text x="365.0" y="329.99999999999994" text-anchor="middle" font-family="Arial" font-size="11">列</text>
-<line x1="200.0" y1="320" x2="200.0" y2="360" stroke="black" />
-<line x1="-40.0" y1="360" x2="650.0" y2="360" stroke="black" stroke-width="1.5" />
-<line x1="0.0" y1="360" x2="0.0" y2="400" stroke="black" />
-<line x1="-20.0" y1="400" x2="20.0" y2="400" stroke="black" stroke-width="2" />
-<text x="-24.0" y="404" font-style="italic" font-size="11" text-anchor="end">車道有容量，已入列</text>
-<line x1="0.0" y1="400" x2="0.0" y2="440" stroke="black" marker-end="url(#arrow)" />
-<line x1="610.0" y1="360" x2="610.0" y2="400" stroke="black" />
-<line x1="590.0" y1="400" x2="630.0" y2="400" stroke="black" stroke-width="2" />
-<text x="634.0" y="404" font-style="italic" font-size="11" text-anchor="start">車道滿載，排隊等待</text>
-<line x1="610.0" y1="400" x2="610.0" y2="440" stroke="black" marker-end="url(#arrow)" />
-<rect x="-40.0" y="440.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="0.0" y="475.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">3</text>
-<line x1="40.0" y1="470.0" x2="80.0" y2="470.0" stroke="black" />
-<rect x="80.0" y="412.0" width="170.0" height="116.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="165.0" y="438.0" text-anchor="middle" font-family="Arial" font-size="11">注入 AUTONOMOUS_C</text>
-<text x="165.0" y="462.0" text-anchor="middle" font-family="Arial" font-size="11">ONTINUE_TEXT，啟動</text>
-<text x="165.0" y="485.99999999999994" text-anchor="middle" font-family="Arial" font-size="11">session prompt</text>
-<text x="165.0" y="509.99999999999994" text-anchor="middle" font-family="Arial" font-size="11">迴圈</text>
-<line x1="0.0" y1="500.0" x2="0.0" y2="580" stroke="black" />
-<line x1="-20.0" y1="540.0" x2="20.0" y2="540.0" stroke="black" stroke-width="2" />
-<text x="24.0" y="544.0" font-style="italic" font-size="11" text-anchor="start">Turn 執行完成，進入阻斷檢查</text>
-<rect x="-40.0" y="580.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="0.0" y="615.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">5</text>
-<line x1="40.0" y1="610.0" x2="80.0" y2="610.0" stroke="black" />
-<rect x="80.0" y="552.0" width="160" height="116.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="160.0" y="578.0" text-anchor="middle" font-family="Arial" font-size="11">偵測阻斷條件：todos</text>
-<text x="160.0" y="602.0" text-anchor="middle" font-family="Arial" font-size="11">完成度、plan</text>
-<text x="160.0" y="626.0" text-anchor="middle" font-family="Arial" font-size="11">存在性、risk</text>
-<text x="160.0" y="650.0" text-anchor="middle" font-family="Arial" font-size="11">threshold</text>
-<line x1="0.0" y1="640" x2="0.0" y2="680" stroke="black" />
-<line x1="-245.0" y1="680" x2="245.0" y2="680" stroke="black" stroke-width="1.5" />
-<line x1="-205.0" y1="680" x2="-205.0" y2="720" stroke="black" />
-<line x1="-225.0" y1="720" x2="-185.0" y2="720" stroke="black" stroke-width="2" />
-<text x="-229.0" y="724" font-style="italic" font-size="11" text-anchor="end">未阻斷 → 繼續迴圈（回 S0 評估）</text>
-<line x1="-205.0" y1="720" x2="-205.0" y2="760" stroke="black" marker-end="url(#arrow)" />
-<line x1="205.0" y1="680" x2="205.0" y2="720" stroke="black" />
-<line x1="185.0" y1="720" x2="225.0" y2="720" stroke="black" stroke-width="2" />
-<text x="229.0" y="724" font-style="italic" font-size="11" text-anchor="start">全部完成或阻斷 → 停止</text>
-<line x1="205.0" y1="720" x2="205.0" y2="760" stroke="black" marker-end="url(#arrow)" />
-<rect x="-245.0" y="760.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-205.0" y="795.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">6</text>
-<line x1="-165.0" y1="790.0" x2="-125.0" y2="790.0" stroke="black" />
-<rect x="-125.0" y="756.0" width="170.0" height="68.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="-40.0" y="782.0" text-anchor="middle" font-family="Arial" font-size="11">未阻斷：發布繼續信號，回到閘門</text>
-<text x="-40.0" y="806.0" text-anchor="middle" font-family="Arial" font-size="11">評估</text>
-<rect x="165.0" y="760.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="205.0" y="795.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">7</text>
-<line x1="245.0" y1="790.0" x2="285.0" y2="790.0" stroke="black" />
-<rect x="285.0" y="732.0" width="170.0" height="116.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="370.0" y="758.0" text-anchor="middle" font-family="Arial" font-size="11">工作流完成或阻斷：drain</text>
-<text x="370.0" y="782.0000000000001" text-anchor="middle" font-family="Arial" font-size="11">車道，更新 state 為 c</text>
-<text x="370.0" y="806.0" text-anchor="middle" font-family="Arial" font-size="11">ompleted/blocke</text>
-<text x="370.0" y="830.0000000000001" text-anchor="middle" font-family="Arial" font-size="11">d</text>
-<rect x="570.0" y="440.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="610.0" y="475.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">4</text>
-<line x1="650.0" y1="470.0" x2="690.0" y2="470.0" stroke="black" />
-<rect x="690.0" y="436.0" width="160" height="68.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="770.0" y="462.0" text-anchor="middle" font-family="Arial" font-size="11">車道排隊等待：等待 slot</text>
-<text x="770.0" y="485.99999999999994" text-anchor="middle" font-family="Arial" font-size="11">釋放，FIFO 調度</text>
-<rect x="970.0" y="260.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="1010.0" y="295.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">2</text>
-<line x1="1050.0" y1="290.0" x2="1090.0" y2="290.0" stroke="black" />
-<rect x="1090.0" y="244.0" width="160" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="1170.0" y="270.0" text-anchor="middle" font-family="Arial" font-size="11">互動模式：更新</text>
-<text x="1170.0" y="294.0" text-anchor="middle" font-family="Arial" font-size="11">workflow state</text>
-<text x="1170.0" y="318.0" text-anchor="middle" font-family="Arial" font-size="11">為 waiting_user</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="692" height="900" viewBox="2.00 0.00 34.62 45.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="2.00" y="0.00" width="34.62" height="45.00" fill="white"/>
+<path class="edge edge-arrow" d="M 22.81 7.00 L 22.81 9.00"/>
+<path class="edge edge-arrow" d="M 22.81 9.00 L 22.81 13.00"/>
+<path class="edge edge-arrow" d="M 10.00 9.00 L 10.00 13.00"/>
+<path class="edge edge-arrow" d="M 22.81 16.00 L 22.81 18.00"/>
+<path class="edge edge-arrow" d="M 22.81 18.00 L 22.81 22.00"/>
+<path class="edge edge-arrow" d="M 10.00 18.00 L 10.00 22.00"/>
+<path class="edge" d="M 22.81 25.00 L 22.81 27.00"/>
+<path class="edge edge-arrow" d="M 22.81 27.00 L 22.81 29.00"/>
+<path class="edge edge-arrow" d="M 22.81 32.00 L 22.81 34.00"/>
+<path class="edge edge-arrow" d="M 10.00 34.00 L 10.00 38.00"/>
+<path class="edge edge-arrow" d="M 22.81 34.00 L 22.81 38.00"/>
+<rect class="step" x="20.81" y="4.00" width="4.00" height="3.00"/>
+<rect class="step-inner" x="21.06" y="4.25" width="3.50" height="2.50"/>
+<text class="label" x="22.81" y="5.50">0</text>
+<rect class="step" x="20.81" y="13.00" width="4.00" height="3.00"/>
+<text class="label" x="22.81" y="14.50">1</text>
+<rect class="step" x="8.00" y="13.00" width="4.00" height="3.00"/>
+<text class="label" x="10.00" y="14.50">2</text>
+<rect class="step" x="20.81" y="22.00" width="4.00" height="3.00"/>
+<text class="label" x="22.81" y="23.50">3</text>
+<rect class="step" x="8.00" y="22.00" width="4.00" height="3.00"/>
+<text class="label" x="10.00" y="23.50">4</text>
+<rect class="step" x="20.81" y="29.00" width="4.00" height="3.00"/>
+<text class="label" x="22.81" y="30.50">5</text>
+<rect class="step" x="8.00" y="38.00" width="4.00" height="3.00"/>
+<text class="label" x="10.00" y="39.50">6</text>
+<rect class="step" x="20.81" y="38.00" width="4.00" height="3.00"/>
+<text class="label" x="22.81" y="39.50">7</text>
+<line class="assoc" x1="24.81" y1="5.50" x2="25.81" y2="5.50"/>
+<rect class="action" x="25.81" y="4.07" width="6.81" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="29.22" y="4.68"><tspan x="29.22" dy="0">接收 Turn 完成事</tspan><tspan x="29.22" dy="0.82">件，評估 Trigger G</tspan><tspan x="29.22" dy="0.82">ate (continuation / API)</tspan></text>
+<line class="assoc" x1="24.81" y1="14.50" x2="25.81" y2="14.50"/>
+<rect class="action" x="25.81" y="13.07" width="6.81" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="29.22" y="13.68"><tspan x="29.22" dy="0">分派至 Lane：檢查</tspan><tspan x="29.22" dy="0.82">車道容量 (critical/no</tspan><tspan x="29.22" dy="0.82">rmal/background)，入列</tspan></text>
+<line class="assoc" x1="12.00" y1="14.50" x2="13.00" y2="14.50"/>
+<rect class="action" x="13.00" y="13.07" width="6.81" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="16.41" y="13.68"><tspan x="16.41" dy="0">互動模式：更</tspan><tspan x="16.41" dy="0.82">新 workflow stat</tspan><tspan x="16.41" dy="0.82">e 為 waiting_user</tspan></text>
+<line class="assoc" x1="24.81" y1="23.50" x2="25.81" y2="23.50"/>
+<rect class="action" x="25.81" y="22.07" width="6.81" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="29.22" y="22.68"><tspan x="29.22" dy="0">注入 AUTONOMOUS_C</tspan><tspan x="29.22" dy="0.82">ONTINUE_TEXT，啟動</tspan><tspan x="29.22" dy="0.82">session prompt 迴圈</tspan></text>
+<line class="assoc" x1="12.00" y1="23.50" x2="13.00" y2="23.50"/>
+<rect class="action" x="13.00" y="22.07" width="6.81" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="16.41" y="22.68"><tspan x="16.41" dy="0">車道排隊等待</tspan><tspan x="16.41" dy="0.82">：等待 slot 釋</tspan><tspan x="16.41" dy="0.82">放，FIFO 調度</tspan></text>
+<line class="assoc" x1="24.81" y1="30.50" x2="25.81" y2="30.50"/>
+<rect class="action" x="25.81" y="29.07" width="6.81" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="29.22" y="29.68"><tspan x="29.22" dy="0">偵測阻斷條件：to</tspan><tspan x="29.22" dy="0.82">dos 完成度、plan 存</tspan><tspan x="29.22" dy="0.82">在性、risk threshold</tspan></text>
+<line class="assoc" x1="12.00" y1="39.50" x2="13.00" y2="39.50"/>
+<rect class="action" x="13.00" y="38.07" width="6.81" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="16.41" y="38.68"><tspan x="16.41" dy="0">未阻斷：發布</tspan><tspan x="16.41" dy="0.82">繼續信號，回</tspan><tspan x="16.41" dy="0.82">到閘門評估</tspan></text>
+<line class="assoc" x1="24.81" y1="39.50" x2="25.81" y2="39.50"/>
+<rect class="action" x="25.81" y="38.07" width="6.81" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="29.22" y="38.68"><tspan x="29.22" dy="0">工作流完成或阻斷</tspan><tspan x="29.22" dy="0.82">：drain 車道，更新 s</tspan><tspan x="29.22" dy="0.82">tate 為 completed/blocked</tspan></text>
+<line class="gate" x1="6.00" y1="9.00" x2="26.81" y2="9.00"/>
+<line class="gate" x1="6.00" y1="18.00" x2="26.81" y2="18.00"/>
+<line class="gate" x1="21.81" y1="27.00" x2="23.81" y2="27.00"/>
+<text class="gate-label" x="24.21" y="27.00"><tspan x="24.21" dy="0">Turn 執行完成，進入阻斷檢查</tspan></text>
+<line class="gate" x1="6.00" y1="34.00" x2="26.81" y2="34.00"/>
+<line class="gate" x1="21.81" y1="11.00" x2="23.81" y2="11.00"/>
+<text class="gate-label-left" x="21.41" y="11.00"><tspan x="21.41" dy="0">閘門通過：繼續工作流</tspan></text>
+<line class="gate" x1="9.00" y1="11.00" x2="11.00" y2="11.00"/>
+<text class="gate-label-left" x="8.60" y="10.32"><tspan x="8.60" dy="0">閘門拒絕</tspan><tspan x="8.60" dy="0.68">：互動模</tspan><tspan x="8.60" dy="0.68">式等待</tspan></text>
+<line class="gate" x1="21.81" y1="20.00" x2="23.81" y2="20.00"/>
+<text class="gate-label-left" x="21.41" y="20.00"><tspan x="21.41" dy="0">車道有容量，已入列</tspan></text>
+<line class="gate" x1="9.00" y1="20.00" x2="11.00" y2="20.00"/>
+<text class="gate-label-left" x="8.60" y="19.32"><tspan x="8.60" dy="0">車道滿</tspan><tspan x="8.60" dy="0.68">載，排</tspan><tspan x="8.60" dy="0.68">隊等待</tspan></text>
+<line class="gate" x1="9.00" y1="36.00" x2="11.00" y2="36.00"/>
+<text class="gate-label-left" x="8.60" y="35.32"><tspan x="8.60" dy="0">未阻斷 →</tspan><tspan x="8.60" dy="0.68">繼續迴圈（</tspan><tspan x="8.60" dy="0.68">回 S0 評估）</tspan></text>
+<line class="gate" x1="21.81" y1="36.00" x2="23.81" y2="36.00"/>
+<text class="gate-label-left" x="21.41" y="36.00"><tspan x="21.41" dy="0">全部完成或阻斷 → 停止</tspan></text>
 </svg>

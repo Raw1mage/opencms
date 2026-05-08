@@ -1,170 +1,139 @@
-<svg width="2485" height="1328" viewBox="-740.0 -40.0 2485.0 1328.0" xmlns="http://www.w3.org/2000/svg">
-<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker></defs>
-<rect x="-740.0" y="-40.0" width="2485.0" height="1328.0" fill="white" />
-<rect x="360.0" y="80.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<rect x="365.0" y="85.0" width="70.0" height="50.0" stroke="black" stroke-width="1" fill="none" />
-<text x="400" y="115.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">0</text>
-<line x1="440" y1="110.0" x2="480.0" y2="110.0" stroke="black" />
-<rect x="480.0" y="40.0" width="170.0" height="140.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="565.0" y="66.0" text-anchor="middle" font-family="Arial" font-size="11">接收 StreamInput，</text>
-<text x="565.0" y="90.0" text-anchor="middle" font-family="Arial" font-size="11">解析執行身分</text>
-<text x="565.0" y="114.0" text-anchor="middle" font-family="Arial" font-size="11">(explicit →</text>
-<text x="565.0" y="138.0" text-anchor="middle" font-family="Arial" font-size="11">pinned →</text>
-<text x="565.0" y="162.0" text-anchor="middle" font-family="Arial" font-size="11">global-active)</text>
-<line x1="400" y1="140.0" x2="400" y2="220" stroke="black" />
-<line x1="380" y1="180.0" x2="420" y2="180.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="184.0" font-style="italic" font-size="11" text-anchor="start">ModelVector 已建構 (providerId, accountId, modelID)</text>
-<rect x="360.0" y="220.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="255.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">1</text>
-<line x1="440" y1="250.0" x2="480.0" y2="250.0" stroke="black" />
-<rect x="480.0" y="204.0" width="170.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="565.0" y="230.0" text-anchor="middle" font-family="Arial" font-size="11">預檢速率限制：查詢 isVec</text>
-<text x="565.0" y="254.0" text-anchor="middle" font-family="Arial" font-size="11">torRateLimited(</text>
-<text x="565.0" y="278.0" text-anchor="middle" font-family="Arial" font-size="11">vector)</text>
-<line x1="400" y1="280" x2="400" y2="320" stroke="black" />
-<line x1="160.0" y1="320" x2="1465.0" y2="320" stroke="black" stroke-width="1.5" />
-<line x1="200.0" y1="320" x2="200.0" y2="360" stroke="black" />
-<line x1="180.0" y1="360" x2="220.0" y2="360" stroke="black" stroke-width="2" />
-<text x="176.0" y="364" font-style="italic" font-size="11" text-anchor="end">向量未受限，繼續推論</text>
-<line x1="200.0" y1="360" x2="200.0" y2="400" stroke="black" marker-end="url(#arrow)" />
-<line x1="1425.0" y1="320" x2="1425.0" y2="360" stroke="black" />
-<line x1="1405.0" y1="360" x2="1445.0" y2="360" stroke="black" stroke-width="2" />
-<text x="1449.0" y="364" font-style="italic" font-size="11" text-anchor="start">向量已 rate-limited，直接進入遞補</text>
-<line x1="1425.0" y1="360" x2="1425.0" y2="400" stroke="black" marker-end="url(#arrow)" />
-<rect x="160.0" y="400.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="200.0" y="435.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">2</text>
-<line x1="240.0" y1="430.0" x2="280.0" y2="430.0" stroke="black" />
-<rect x="280.0" y="384.0" width="170.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="365.0" y="410.0" text-anchor="middle" font-family="Arial" font-size="11">呼叫 AI SDK</text>
-<text x="365.0" y="434.0" text-anchor="middle" font-family="Arial" font-size="11">streamText，串流接收</text>
-<text x="365.0" y="458.0" text-anchor="middle" font-family="Arial" font-size="11">tokens</text>
-<line x1="200.0" y1="460" x2="200.0" y2="500" stroke="black" />
-<line x1="-660.0" y1="500" x2="445.0" y2="500" stroke="black" stroke-width="1.5" />
-<line x1="-620.0" y1="500" x2="-620.0" y2="540" stroke="black" />
-<line x1="-640.0" y1="540" x2="-600.0" y2="540" stroke="black" stroke-width="2" />
-<text x="-644.0" y="544" font-style="italic" font-size="11" text-anchor="end">串流成功完成</text>
-<line x1="-620.0" y1="540" x2="-620.0" y2="580" stroke="black" marker-end="url(#arrow)" />
-<line x1="405.0" y1="500" x2="405.0" y2="540" stroke="black" />
-<line x1="385.0" y1="540" x2="425.0" y2="540" stroke="black" stroke-width="2" />
-<text x="429.0" y="544" font-style="italic" font-size="11" text-anchor="start">串流錯誤 (HTTP error / timeout)</text>
-<line x1="405.0" y1="540" x2="405.0" y2="580" stroke="black" marker-end="url(#arrow)" />
-<rect x="-660.0" y="580.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-620.0" y="615.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">4</text>
-<line x1="-580.0" y1="610.0" x2="-540.0" y2="610.0" stroke="black" />
-<rect x="-540.0" y="552.0" width="170.0" height="116.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="-455.0" y="578.0" text-anchor="middle" font-family="Arial" font-size="11">推論成功：回傳 StreamT</text>
-<text x="-455.0" y="602.0" text-anchor="middle" font-family="Arial" font-size="11">extResult</text>
-<text x="-455.0" y="626.0" text-anchor="middle" font-family="Arial" font-size="11">(tokens +</text>
-<text x="-455.0" y="650.0" text-anchor="middle" font-family="Arial" font-size="11">toolCalls)</text>
-<rect x="365.0" y="580.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="405.0" y="615.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">5</text>
-<line x1="445.0" y1="610.0" x2="485.0" y2="610.0" stroke="black" />
-<rect x="485.0" y="552.0" width="170.0" height="116.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="570.0" y="578.0" text-anchor="middle" font-family="Arial" font-size="11">分類錯誤：暫時性</text>
-<text x="570.0" y="602.0" text-anchor="middle" font-family="Arial" font-size="11">(429/5xx/quota)</text>
-<text x="570.0" y="626.0" text-anchor="middle" font-family="Arial" font-size="11">vs 永久性 (404/not</text>
-<text x="570.0" y="650.0" text-anchor="middle" font-family="Arial" font-size="11">found)</text>
-<line x1="405.0" y1="640" x2="405.0" y2="680" stroke="black" />
-<line x1="160.0" y1="680" x2="1060.0" y2="680" stroke="black" stroke-width="1.5" />
-<line x1="200.0" y1="680" x2="200.0" y2="720" stroke="black" />
-<line x1="180.0" y1="720" x2="220.0" y2="720" stroke="black" stroke-width="2" />
-<text x="176.0" y="724" font-style="italic" font-size="11" text-anchor="end">暫時性錯誤 → 嘗試遞補</text>
-<line x1="200.0" y1="720" x2="200.0" y2="760" stroke="black" marker-end="url(#arrow)" />
-<line x1="1020.0" y1="680" x2="1020.0" y2="720" stroke="black" />
-<line x1="1000.0" y1="720" x2="1040.0" y2="720" stroke="black" stroke-width="2" />
-<text x="1044.0" y="724" font-style="italic" font-size="11" text-anchor="start">永久性錯誤 → 終止</text>
-<line x1="1020.0" y1="720" x2="1020.0" y2="760" stroke="black" marker-end="url(#arrow)" />
-<rect x="160.0" y="760.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="200.0" y="795.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">6</text>
-<line x1="240.0" y1="790.0" x2="280.0" y2="790.0" stroke="black" />
-<rect x="280.0" y="756.0" width="170.0" height="68.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="365.0" y="782.0" text-anchor="middle" font-family="Arial" font-size="11">暫時性錯誤：Rotation3</text>
-<text x="365.0" y="806.0" text-anchor="middle" font-family="Arial" font-size="11">D 評分與遞補候選搜尋</text>
-<line x1="200.0" y1="820" x2="200.0" y2="860" stroke="black" />
-<line x1="-250.0" y1="860" x2="445.0" y2="860" stroke="black" stroke-width="1.5" />
-<line x1="-210.0" y1="860" x2="-210.0" y2="900" stroke="black" />
-<line x1="-230.0" y1="900" x2="-190.0" y2="900" stroke="black" stroke-width="2" />
-<text x="-234.0" y="904" font-style="italic" font-size="11" text-anchor="end">找到可用候選 (healthScore &gt; threshold)</text>
-<line x1="-210.0" y1="900" x2="-210.0" y2="940" stroke="black" marker-end="url(#arrow)" />
-<line x1="405.0" y1="860" x2="405.0" y2="900" stroke="black" />
-<line x1="385.0" y1="900" x2="425.0" y2="900" stroke="black" stroke-width="2" />
-<text x="429.0" y="904" font-style="italic" font-size="11" text-anchor="start">無可用候選</text>
-<line x1="405.0" y1="900" x2="405.0" y2="940" stroke="black" marker-end="url(#arrow)" />
-<rect x="-250.0" y="940.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-210.0" y="975.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">8</text>
-<line x1="-170.0" y1="970.0" x2="-130.0" y2="970.0" stroke="black" />
-<rect x="-130.0" y="900.0" width="170.0" height="140.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="-45.0" y="926.0" text-anchor="middle" font-family="Arial" font-size="11">套用遞補</text>
-<text x="-45.0" y="950.0000000000001" text-anchor="middle" font-family="Arial" font-size="11">ModelVector，發布 </text>
-<text x="-45.0" y="974.0" text-anchor="middle" font-family="Arial" font-size="11">RotationExecute</text>
-<text x="-45.0" y="998.0" text-anchor="middle" font-family="Arial" font-size="11">dEvent (attempt</text>
-<text x="-45.0" y="1022.0" text-anchor="middle" font-family="Arial" font-size="11">&lt; 8)</text>
-<rect x="365.0" y="940.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="405.0" y="975.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">9</text>
-<line x1="445.0" y1="970.0" x2="485.0" y2="970.0" stroke="black" />
-<rect x="485.0" y="940.0" width="160" height="60" stroke="black" stroke-width="1.2" fill="white" />
-<text x="565.0" y="974.0" text-anchor="middle" font-family="Arial" font-size="11">所有候選耗盡或重試超限</text>
-<line x1="405.0" y1="1000" x2="405.0" y2="1040" stroke="black" />
-<line x1="160.0" y1="1040" x2="650.0" y2="1040" stroke="black" stroke-width="1.5" />
-<line x1="200.0" y1="1040" x2="200.0" y2="1080" stroke="black" />
-<line x1="180.0" y1="1080" x2="220.0" y2="1080" stroke="black" stroke-width="2" />
-<text x="176.0" y="1084" font-style="italic" font-size="11" text-anchor="end">是子 session → 上報父 session</text>
-<line x1="200.0" y1="1080" x2="200.0" y2="1120" stroke="black" marker-end="url(#arrow)" />
-<line x1="610.0" y1="1040" x2="610.0" y2="1080" stroke="black" />
-<line x1="590.0" y1="1080" x2="630.0" y2="1080" stroke="black" stroke-width="2" />
-<text x="634.0" y="1084" font-style="italic" font-size="11" text-anchor="start">是主 session → 發布錯誤終止</text>
-<line x1="610.0" y1="1080" x2="610.0" y2="1120" stroke="black" marker-end="url(#arrow)" />
-<rect x="160.0" y="1120.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="200.0" y="1155.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">10</text>
-<line x1="240.0" y1="1150.0" x2="280.0" y2="1150.0" stroke="black" />
-<rect x="280.0" y="1092.0" width="170.0" height="116.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="365.0" y="1118.0" text-anchor="middle" font-family="Arial" font-size="11">子 session 發布 Ra</text>
-<text x="365.0" y="1142.0" text-anchor="middle" font-family="Arial" font-size="11">teLimitEscalati</text>
-<text x="365.0" y="1166.0" text-anchor="middle" font-family="Arial" font-size="11">onEvent 至父</text>
-<text x="365.0" y="1190.0" text-anchor="middle" font-family="Arial" font-size="11">session</text>
-<rect x="570.0" y="1120.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="610.0" y="1155.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">11</text>
-<line x1="650.0" y1="1150.0" x2="690.0" y2="1150.0" stroke="black" />
-<rect x="690.0" y="1104.0" width="170.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="775.0" y="1130.0" text-anchor="middle" font-family="Arial" font-size="11">主 session：發布 Ll</text>
-<text x="775.0" y="1154.0" text-anchor="middle" font-family="Arial" font-size="11">mErrorEvent，回報路</text>
-<text x="775.0" y="1178.0" text-anchor="middle" font-family="Arial" font-size="11">由完全失敗</text>
-<rect x="980.0" y="760.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="1020.0" y="795.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">7</text>
-<line x1="1060.0" y1="790.0" x2="1100.0" y2="790.0" stroke="black" />
-<rect x="1100.0" y="756.0" width="170.0" height="68.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="1185.0" y="782.0" text-anchor="middle" font-family="Arial" font-size="11">永久性錯誤：發布 LlmErr</text>
-<text x="1185.0" y="806.0" text-anchor="middle" font-family="Arial" font-size="11">orEvent，終止推論</text>
-<rect x="1385.0" y="400.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="1425.0" y="435.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">3</text>
-<line x1="1465.0" y1="430.0" x2="1505.0" y2="430.0" stroke="black" />
-<rect x="1505.0" y="372.0" width="160" height="116.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="1585.0" y="398.0" text-anchor="middle" font-family="Arial" font-size="11">已 rate-</text>
-<text x="1585.0" y="422.0" text-anchor="middle" font-family="Arial" font-size="11">limited：直接進入</text>
-<text x="1585.0" y="445.99999999999994" text-anchor="middle" font-family="Arial" font-size="11">Rotation3D</text>
-<text x="1585.0" y="469.99999999999994" text-anchor="middle" font-family="Arial" font-size="11">評分與遞補候選搜尋</text>
-<line x1="1425.0" y1="460" x2="1425.0" y2="500" stroke="black" />
-<line x1="1305.0" y1="500" x2="1545.0" y2="500" stroke="black" stroke-width="1.5" />
-<line x1="1345.0" y1="500" x2="1345.0" y2="540" stroke="black" />
-<line x1="1325.0" y1="540" x2="1365.0" y2="540" stroke="black" stroke-width="2" />
-<text x="1321.0" y="544" font-style="italic" font-size="11" text-anchor="end">找到可用候選</text>
-<line x1="1345.0" y1="540" x2="1345.0" y2="580" stroke="black" />
-<line x1="1505.0" y1="500" x2="1505.0" y2="540" stroke="black" />
-<line x1="1485.0" y1="540" x2="1525.0" y2="540" stroke="black" stroke-width="2" />
-<text x="1529.0" y="544" font-style="italic" font-size="11" text-anchor="start">無可用候選</text>
-<line x1="1505.0" y1="540" x2="1505.0" y2="580" stroke="black" />
-<line x1="160.0" y1="1180" x2="1465.0" y2="1180" stroke="black" stroke-width="1.5" />
-<line x1="200.0" y1="1180" x2="200.0" y2="1180" stroke="black" />
-<line x1="1425.0" y1="580" x2="1425.0" y2="1180" stroke="black" />
-<line x1="400" y1="1180" x2="400" y2="1220" stroke="black" marker-end="url(#arrow)" />
-<line x1="1345.0" y1="580" x2="1345.0" y2="580" stroke="black" />
-<line x1="1345.0" y1="580" x2="1345.0" y2="580" stroke="black" />
-<line x1="1345.0" y1="580" x2="1345.0" y2="920.0" stroke="black" />
-<line x1="1345.0" y1="920.0" x2="-210.0" y2="920.0" stroke="black" />
-<line x1="-210.0" y1="920.0" x2="-210.0" y2="940.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="1505.0" y1="580" x2="1505.0" y2="580" stroke="black" />
-<line x1="1505.0" y1="580" x2="1505.0" y2="580" stroke="black" />
-<line x1="1505.0" y1="580" x2="1505.0" y2="920.0" stroke="black" />
-<line x1="1505.0" y1="920.0" x2="405.0" y2="920.0" stroke="black" />
-<line x1="405.0" y1="920.0" x2="405.0" y2="940.0" stroke="black" marker-end="url(#arrow)" />
+<svg xmlns="http://www.w3.org/2000/svg" width="1225" height="1660" viewBox="-8.00 0.00 61.24 83.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="-8.00" y="0.00" width="61.24" height="83.00" fill="white"/>
+<path class="edge" d="M 26.12 7.00 L 26.12 9.00"/>
+<path class="edge edge-arrow" d="M 26.12 9.00 L 26.12 11.00"/>
+<path class="edge edge-arrow" d="M 26.12 14.00 L 26.12 16.00"/>
+<path class="edge edge-arrow" d="M 13.06 16.00 L 13.06 20.00"/>
+<path class="edge edge-arrow" d="M 39.18 16.00 L 39.18 20.00"/>
+<path class="edge edge-arrow" d="M 13.06 23.00 L 13.06 25.00"/>
+<path class="edge edge-arrow" d="M 0.00 25.00 L 0.00 31.00"/>
+<path class="edge edge-arrow" d="M 13.06 25.00 L 13.06 31.00"/>
+<path class="edge" d="M 39.18 23.00 L 39.18 27.00"/>
+<path class="edge edge-arrow" d="M 39.18 27.00 L 39.18 57.00"/>
+<path class="edge edge-arrow" d="M 26.12 57.00 L 26.12 60.50 Q 26.12 61.00 26.62 61.00 L 43.13 61.00 Q 43.63 61.00 43.63 61.50 L 43.63 67.12 Q 43.63 67.62 43.13 67.62 L 26.43 67.62 Q 26.12 67.62 26.12 67.31 L 26.12 67.00"/>
+<path class="edge" d="M 39.18 29.00 L 45.63 29.00"/>
+<path class="edge" d="M 45.63 29.00 L 45.63 69.62"/>
+<path class="edge" d="M 45.63 69.62 L 39.18 69.62"/>
+<path class="edge edge-arrow" d="M 39.18 69.62 L 39.18 63.00"/>
+<path class="edge edge-arrow" d="M 13.06 63.00 L 13.06 67.00"/>
+<path class="edge edge-arrow" d="M 13.06 34.00 L 13.06 36.00"/>
+<path class="edge edge-arrow" d="M 13.06 36.00 L 13.06 40.00"/>
+<path class="edge edge-arrow" d="M 0.00 36.00 L 0.00 40.00"/>
+<path class="edge" d="M 13.06 43.00 L 13.06 45.00"/>
+<path class="edge edge-arrow" d="M 13.06 45.00 L 13.06 57.00"/>
+<path class="edge" d="M 13.06 47.00 L 43.63 47.00"/>
+<path class="edge" d="M 43.63 47.00 L 43.63 61.00"/>
+<path class="edge" d="M 43.63 65.00 L 13.06 65.00"/>
+<path class="edge edge-arrow" d="M 13.06 70.00 L 13.06 72.00"/>
+<path class="edge edge-arrow" d="M 13.06 72.00 L 13.06 76.00"/>
+<path class="edge edge-arrow" d="M 26.12 72.00 L 26.12 76.00"/>
+<rect class="step" x="24.12" y="4.00" width="4.00" height="3.00"/>
+<rect class="step-inner" x="24.37" y="4.25" width="3.50" height="2.50"/>
+<text class="label" x="26.12" y="5.50">0</text>
+<rect class="step" x="24.12" y="11.00" width="4.00" height="3.00"/>
+<text class="label" x="26.12" y="12.50">1</text>
+<rect class="step" x="11.06" y="20.00" width="4.00" height="3.00"/>
+<text class="label" x="13.06" y="21.50">2</text>
+<rect class="step" x="37.18" y="20.00" width="4.00" height="3.00"/>
+<text class="label" x="39.18" y="21.50">3</text>
+<rect class="step" x="-2.00" y="31.00" width="4.00" height="3.00"/>
+<text class="label" x="0.00" y="32.50">4</text>
+<rect class="step" x="11.06" y="31.00" width="4.00" height="3.00"/>
+<text class="label" x="13.06" y="32.50">5</text>
+<rect class="step" x="11.06" y="40.00" width="4.00" height="3.00"/>
+<text class="label" x="13.06" y="41.50">6</text>
+<rect class="step" x="-2.00" y="40.00" width="4.00" height="3.00"/>
+<text class="label" x="0.00" y="41.50">7</text>
+<rect class="step" x="24.12" y="67.00" width="4.00" height="3.00"/>
+<text class="label" x="26.12" y="68.50">8</text>
+<rect class="step" x="11.06" y="67.00" width="4.00" height="3.00"/>
+<text class="label" x="13.06" y="68.50">9</text>
+<rect class="step" x="11.06" y="76.00" width="4.00" height="3.00"/>
+<text class="label" x="13.06" y="77.50">10</text>
+<rect class="step" x="24.12" y="76.00" width="4.00" height="3.00"/>
+<text class="label" x="26.12" y="77.50">11</text>
+<line class="assoc" x1="28.12" y1="5.50" x2="29.12" y2="5.50"/>
+<rect class="action" x="29.12" y="4.07" width="7.06" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="32.65" y="4.68"><tspan x="32.65" dy="0">接收 StreamInput，解</tspan><tspan x="32.65" dy="0.82">析執行身分 (explicit</tspan><tspan x="32.65" dy="0.82">→ pinned → global-active)</tspan></text>
+<line class="assoc" x1="28.12" y1="12.50" x2="29.12" y2="12.50"/>
+<rect class="action" x="29.12" y="11.07" width="7.06" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="32.65" y="11.68"><tspan x="32.65" dy="0">預檢速率限制</tspan><tspan x="32.65" dy="0.82">：查詢 isVectorR</tspan><tspan x="32.65" dy="0.82">ateLimited(vector)</tspan></text>
+<line class="assoc" x1="15.06" y1="21.50" x2="16.06" y2="21.50"/>
+<rect class="action" x="16.06" y="20.07" width="7.06" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="19.59" y="21.09"><tspan x="19.59" dy="0">呼叫 AI SDK streamTe</tspan><tspan x="19.59" dy="0.82">xt，串流接收 tokens</tspan></text>
+<line class="assoc" x1="41.18" y1="21.50" x2="42.18" y2="21.50"/>
+<rect class="action" x="42.18" y="20.07" width="7.06" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="45.71" y="20.68"><tspan x="45.71" dy="0">已 rate-limited：直接</tspan><tspan x="45.71" dy="0.82">進入 Rotation3D 評分</tspan><tspan x="45.71" dy="0.82">與遞補候選搜尋</tspan></text>
+<line class="assoc" x1="2.00" y1="32.50" x2="3.00" y2="32.50"/>
+<rect class="action" x="3.00" y="31.07" width="7.06" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="6.53" y="31.68"><tspan x="6.53" dy="0">推論成功：回傳</tspan><tspan x="6.53" dy="0.82">StreamTextResult (</tspan><tspan x="6.53" dy="0.82">tokens + toolCalls)</tspan></text>
+<line class="assoc" x1="15.06" y1="32.50" x2="16.06" y2="32.50"/>
+<rect class="action" x="16.06" y="31.07" width="7.06" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="19.59" y="31.68"><tspan x="19.59" dy="0">分類錯誤：暫時性</tspan><tspan x="19.59" dy="0.82">(429/5xx/quota) vs 永</tspan><tspan x="19.59" dy="0.82">久性 (404/not found)</tspan></text>
+<line class="assoc" x1="15.06" y1="41.50" x2="16.06" y2="41.50"/>
+<rect class="action" x="16.06" y="40.07" width="7.06" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="19.59" y="40.68"><tspan x="19.59" dy="0">暫時性錯誤：R</tspan><tspan x="19.59" dy="0.82">otation3D 評分與</tspan><tspan x="19.59" dy="0.82">遞補候選搜尋</tspan></text>
+<line class="assoc" x1="2.00" y1="41.50" x2="3.00" y2="41.50"/>
+<rect class="action" x="3.00" y="40.07" width="7.06" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="6.53" y="40.68"><tspan x="6.53" dy="0">永久性錯誤：</tspan><tspan x="6.53" dy="0.82">發布 LlmErrorEv</tspan><tspan x="6.53" dy="0.82">ent，終止推論</tspan></text>
+<line class="assoc" x1="28.12" y1="68.50" x2="29.12" y2="68.50"/>
+<rect class="action" x="29.12" y="67.07" width="7.06" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="32.65" y="67.68"><tspan x="32.65" dy="0">套用遞補 ModelVecto</tspan><tspan x="32.65" dy="0.82">r，發布 RotationExec</tspan><tspan x="32.65" dy="0.82">utedEvent (attempt &lt; 8)</tspan></text>
+<line class="assoc" x1="15.06" y1="68.50" x2="16.06" y2="68.50"/>
+<rect class="action" x="16.06" y="67.07" width="7.06" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="19.59" y="68.09"><tspan x="19.59" dy="0">所有候選耗</tspan><tspan x="19.59" dy="0.82">盡或重試超限</tspan></text>
+<line class="assoc" x1="15.06" y1="77.50" x2="16.06" y2="77.50"/>
+<rect class="action" x="16.06" y="76.07" width="7.06" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="19.59" y="76.68"><tspan x="19.59" dy="0">子 session 發布 R</tspan><tspan x="19.59" dy="0.82">ateLimitEscalationE</tspan><tspan x="19.59" dy="0.82">vent 至父 session</tspan></text>
+<line class="assoc" x1="28.12" y1="77.50" x2="29.12" y2="77.50"/>
+<rect class="action" x="29.12" y="76.07" width="7.06" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="32.65" y="76.68"><tspan x="32.65" dy="0">主 session：發布</tspan><tspan x="32.65" dy="0.82">LlmErrorEvent，回</tspan><tspan x="32.65" dy="0.82">報路由完全失敗</tspan></text>
+<line class="gate" x1="25.12" y1="9.00" x2="27.12" y2="9.00"/>
+<text class="gate-label" x="27.52" y="9.00"><tspan x="27.52" dy="0">ModelVector 已建構 (providerId, accountId, modelID)</tspan></text>
+<line class="gate" x1="9.06" y1="16.00" x2="43.18" y2="16.00"/>
+<line class="gate" x1="-4.00" y1="25.00" x2="17.06" y2="25.00"/>
+<line class="gate" x1="11.06" y1="57.00" x2="41.18" y2="57.00"/>
+<line class="gate" x1="11.06" y1="63.00" x2="41.18" y2="63.00"/>
+<line class="gate" x1="-4.00" y1="36.00" x2="17.06" y2="36.00"/>
+<line class="gate" x1="9.06" y1="72.00" x2="30.12" y2="72.00"/>
+<line class="gate" x1="12.06" y1="18.00" x2="14.06" y2="18.00"/>
+<text class="gate-label-left" x="11.66" y="18.00"><tspan x="11.66" dy="0">向量未受限，繼續推論</tspan></text>
+<line class="gate" x1="38.18" y1="18.00" x2="40.18" y2="18.00"/>
+<text class="gate-label-left" x="37.78" y="18.00"><tspan x="37.78" dy="0">向量已 rate-limited，直接進入遞補</tspan></text>
+<line class="gate" x1="-1.00" y1="29.00" x2="1.00" y2="29.00"/>
+<text class="gate-label-left" x="-1.40" y="29.00"><tspan x="-1.40" dy="0">串流成功完成</tspan></text>
+<line class="gate" x1="12.06" y1="29.00" x2="14.06" y2="29.00"/>
+<text class="gate-label-left" x="11.66" y="29.00"><tspan x="11.66" dy="0">串流錯誤 (HTTP error / timeout)</tspan></text>
+<line class="gate" x1="38.18" y1="55.00" x2="40.18" y2="55.00"/>
+<text class="gate-label-left" x="37.78" y="55.00"><tspan x="37.78" dy="0">找到可用候選</tspan></text>
+<line class="gate" x1="38.18" y1="59.00" x2="40.18" y2="59.00"/>
+<text class="gate-label-left" x="37.78" y="59.00"><tspan x="37.78" dy="0">無可用候選</tspan></text>
+<line class="gate" x1="12.06" y1="38.00" x2="14.06" y2="38.00"/>
+<text class="gate-label-left" x="11.66" y="38.00"><tspan x="11.66" dy="0">暫時性錯誤 → 嘗試遞補</tspan></text>
+<line class="gate" x1="-1.00" y1="38.00" x2="1.00" y2="38.00"/>
+<text class="gate-label-left" x="-1.40" y="38.00"><tspan x="-1.40" dy="0">永久性錯誤 → 終止</tspan></text>
+<line class="gate" x1="12.06" y1="55.00" x2="14.06" y2="55.00"/>
+<text class="gate-label-left" x="11.66" y="55.00"><tspan x="11.66" dy="0">找到可用候選 (healthScore &gt; threshold)</tspan></text>
+<line class="gate" x1="12.06" y1="59.00" x2="14.06" y2="59.00"/>
+<text class="gate-label-left" x="11.66" y="59.00"><tspan x="11.66" dy="0">無可用候選</tspan></text>
+<line class="gate" x1="12.06" y1="74.00" x2="14.06" y2="74.00"/>
+<text class="gate-label-left" x="11.66" y="74.00"><tspan x="11.66" dy="0">是子 session → 上報父 session</tspan></text>
+<line class="gate" x1="25.12" y1="74.00" x2="27.12" y2="74.00"/>
+<text class="gate-label-left" x="24.72" y="74.00"><tspan x="24.72" dy="0">是主 session → 發布錯誤終止</tspan></text>
+<circle class="branch-junction" cx="39.18" cy="29.00" r="0.22"/>
+<circle class="junction" cx="43.63" cy="61.00" r="0.22"/>
+<circle class="branch-junction" cx="43.63" cy="65.00" r="0.22"/>
+<circle class="junction" cx="13.06" cy="65.00" r="0.22"/>
+<circle class="branch-junction" cx="13.06" cy="47.00" r="0.22"/>
 </svg>

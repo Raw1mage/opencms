@@ -1,169 +1,163 @@
 {
-  "renderer": "/home/pkcs12/projects/drawmiat/webapp/grafcet_renderer.py:GrafcetRenderer",
-  "output_dir": "specs/diagrams/l5",
   "summary": {
-    "total": 13,
-    "ok": 13,
-    "diagnostics_total": 3
+    "total": 17,
+    "ok": 17,
+    "error": 0,
+    "diagnostics_total": 0
   },
-  "results": [
+  "rows": [
     {
       "slug": "account",
       "source": "specs/account/grafcet.json",
-      "svg": "specs/diagrams/l5/account.l5.svg",
+      "output": "specs/diagrams/l5/account.l5.svg",
+      "trace_log": "specs/diagrams/l5/logs/account.l5.trace.jsonl",
       "status": "ok",
-      "diagnostics": [],
       "diagnostics_count": 0,
-      "bytes": 11263
+      "diagnostics": []
     },
     {
       "slug": "agent-runtime",
       "source": "specs/agent-runtime/grafcet.json",
-      "svg": "specs/diagrams/l5/agent-runtime.l5.svg",
+      "output": "specs/diagrams/l5/agent-runtime.l5.svg",
+      "trace_log": "specs/diagrams/l5/logs/agent-runtime.l5.trace.jsonl",
       "status": "ok",
-      "diagnostics": [
-        {
-          "code": "GRAF_LAYOUT_VIOLATION",
-          "severity": "warning",
-          "message": "Control-flow edge must not cross a step, action, or gate box hard obstacle.",
-          "target_ids": [
-            "edge:T14:source-gate",
-            "stub:T13"
-          ],
-          "details": {
-            "violation_type": "edge_crosses_box",
-            "suggested_fix": "Reroute with a dogleg lane outside hard-object bounds."
-          }
-        },
-        {
-          "code": "GRAF_LAYOUT_VIOLATION",
-          "severity": "warning",
-          "message": "Control-flow edge must not cross a step, action, or gate box hard obstacle.",
-          "target_ids": [
-            "edge:T14:source-gate",
-            "stub:T13"
-          ],
-          "details": {
-            "violation_type": "edge_crosses_box",
-            "suggested_fix": "Reroute with a dogleg lane outside hard-object bounds."
-          }
-        }
-      ],
-      "diagnostics_count": 2,
-      "bytes": 17211
+      "diagnostics_count": 0,
+      "diagnostics": []
     },
     {
       "slug": "app-market",
       "source": "specs/app-market/grafcet.json",
-      "svg": "specs/diagrams/l5/app-market.l5.svg",
+      "output": "specs/diagrams/l5/app-market.l5.svg",
+      "trace_log": "specs/diagrams/l5/logs/app-market.l5.trace.jsonl",
       "status": "ok",
-      "diagnostics": [],
       "diagnostics_count": 0,
-      "bytes": 11581
+      "diagnostics": []
     },
     {
       "slug": "attachments",
       "source": "specs/attachments/grafcet.json",
-      "svg": "specs/diagrams/l5/attachments.l5.svg",
+      "output": "specs/diagrams/l5/attachments.l5.svg",
+      "trace_log": "specs/diagrams/l5/logs/attachments.l5.trace.jsonl",
       "status": "ok",
-      "diagnostics": [],
       "diagnostics_count": 0,
-      "bytes": 13810
+      "diagnostics": []
     },
     {
       "slug": "autonomous-opt-in",
       "source": "specs/autonomous-opt-in/grafcet.json",
-      "svg": "specs/diagrams/l5/autonomous-opt-in.l5.svg",
+      "output": "specs/diagrams/l5/autonomous-opt-in.l5.svg",
+      "trace_log": "specs/diagrams/l5/logs/autonomous-opt-in.l5.trace.jsonl",
       "status": "ok",
-      "diagnostics": [],
       "diagnostics_count": 0,
-      "bytes": 7823
+      "diagnostics": []
     },
     {
       "slug": "codex-empty-turn-recovery",
       "source": "specs/codex-empty-turn-recovery/grafcet.json",
-      "svg": "specs/diagrams/l5/codex-empty-turn-recovery.l5.svg",
+      "output": "specs/diagrams/l5/codex-empty-turn-recovery.l5.svg",
+      "trace_log": "specs/diagrams/l5/logs/codex-empty-turn-recovery.l5.trace.jsonl",
       "status": "ok",
-      "diagnostics": [],
       "diagnostics_count": 0,
-      "bytes": 11737
+      "diagnostics": []
+    },
+    {
+      "slug": "codex-empty-turn-ws-snapshot-hotfix",
+      "source": "specs/codex-empty-turn-ws-snapshot-hotfix/grafcet.json",
+      "output": "specs/diagrams/l5/codex-empty-turn-ws-snapshot-hotfix.l5.svg",
+      "trace_log": "specs/diagrams/l5/logs/codex-empty-turn-ws-snapshot-hotfix.l5.trace.jsonl",
+      "status": "ok",
+      "diagnostics_count": 0,
+      "diagnostics": []
+    },
+    {
+      "slug": "codex-update",
+      "source": "specs/codex-update/grafcet.json",
+      "output": "specs/diagrams/l5/codex-update.l5.svg",
+      "trace_log": "specs/diagrams/l5/logs/codex-update.l5.trace.jsonl",
+      "status": "ok",
+      "diagnostics_count": 0,
+      "diagnostics": []
     },
     {
       "slug": "compaction",
       "source": "specs/compaction/grafcet.json",
-      "svg": "specs/diagrams/l5/compaction.l5.svg",
+      "output": "specs/diagrams/l5/compaction.l5.svg",
+      "trace_log": "specs/diagrams/l5/logs/compaction.l5.trace.jsonl",
       "status": "ok",
-      "diagnostics": [],
       "diagnostics_count": 0,
-      "bytes": 12537
+      "diagnostics": []
     },
     {
       "slug": "daemon",
       "source": "specs/daemon/grafcet.json",
-      "svg": "specs/diagrams/l5/daemon.l5.svg",
+      "output": "specs/diagrams/l5/daemon.l5.svg",
+      "trace_log": "specs/diagrams/l5/logs/daemon.l5.trace.jsonl",
       "status": "ok",
-      "diagnostics": [],
       "diagnostics_count": 0,
-      "bytes": 15122
+      "diagnostics": []
+    },
+    {
+      "slug": "fix-empty-response-rca",
+      "source": "specs/fix-empty-response-rca/grafcet.json",
+      "output": "specs/diagrams/l5/fix-empty-response-rca.l5.svg",
+      "trace_log": "specs/diagrams/l5/logs/fix-empty-response-rca.l5.trace.jsonl",
+      "status": "ok",
+      "diagnostics_count": 0,
+      "diagnostics": []
+    },
+    {
+      "slug": "grafcet-renderer-overhaul",
+      "source": "specs/grafcet-renderer-overhaul/grafcet.json",
+      "output": "specs/diagrams/l5/grafcet-renderer-overhaul.l5.svg",
+      "trace_log": "specs/diagrams/l5/logs/grafcet-renderer-overhaul.l5.trace.jsonl",
+      "status": "ok",
+      "diagnostics_count": 0,
+      "diagnostics": []
     },
     {
       "slug": "mcp",
       "source": "specs/mcp/grafcet.json",
-      "svg": "specs/diagrams/l5/mcp.l5.svg",
+      "output": "specs/diagrams/l5/mcp.l5.svg",
+      "trace_log": "specs/diagrams/l5/logs/mcp.l5.trace.jsonl",
       "status": "ok",
-      "diagnostics": [],
       "diagnostics_count": 0,
-      "bytes": 12581
+      "diagnostics": []
     },
     {
       "slug": "meta",
       "source": "specs/meta/grafcet.json",
-      "svg": "specs/diagrams/l5/meta.l5.svg",
+      "output": "specs/diagrams/l5/meta.l5.svg",
+      "trace_log": "specs/diagrams/l5/logs/meta.l5.trace.jsonl",
       "status": "ok",
-      "diagnostics": [],
       "diagnostics_count": 0,
-      "bytes": 13127
+      "diagnostics": []
     },
     {
       "slug": "provider",
       "source": "specs/provider/grafcet.json",
-      "svg": "specs/diagrams/l5/provider.l5.svg",
+      "output": "specs/diagrams/l5/provider.l5.svg",
+      "trace_log": "specs/diagrams/l5/logs/provider.l5.trace.jsonl",
       "status": "ok",
-      "diagnostics": [],
       "diagnostics_count": 0,
-      "bytes": 12757
+      "diagnostics": []
     },
     {
       "slug": "session",
       "source": "specs/session/grafcet.json",
-      "svg": "specs/diagrams/l5/session.l5.svg",
+      "output": "specs/diagrams/l5/session.l5.svg",
+      "trace_log": "specs/diagrams/l5/logs/session.l5.trace.jsonl",
       "status": "ok",
-      "diagnostics": [
-        {
-          "code": "GRAF_LAYOUT_VIOLATION",
-          "severity": "warning",
-          "message": "Control-flow edge must not cross a step, action, or gate box hard obstacle.",
-          "target_ids": [
-            "edge:T19:gate-target",
-            "gate:transition:T14"
-          ],
-          "details": {
-            "violation_type": "edge_crosses_box",
-            "suggested_fix": "Reroute with a dogleg lane outside hard-object bounds."
-          }
-        }
-      ],
-      "diagnostics_count": 1,
-      "bytes": 14642
+      "diagnostics_count": 0,
+      "diagnostics": []
     },
     {
       "slug": "webapp",
       "source": "specs/webapp/grafcet.json",
-      "svg": "specs/diagrams/l5/webapp.l5.svg",
+      "output": "specs/diagrams/l5/webapp.l5.svg",
+      "trace_log": "specs/diagrams/l5/logs/webapp.l5.trace.jsonl",
       "status": "ok",
-      "diagnostics": [],
       "diagnostics_count": 0,
-      "bytes": 10525
+      "diagnostics": []
     }
   ]
 }

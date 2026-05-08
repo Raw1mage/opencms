@@ -1,134 +1,110 @@
-<svg width="2065" height="1084" viewBox="-530.0 -16.0 2065.0 1084.0" xmlns="http://www.w3.org/2000/svg">
-<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker></defs>
-<rect x="-530.0" y="-16.0" width="2065.0" height="1084.0" fill="white" />
-<rect x="360.0" y="80.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<rect x="365.0" y="85.0" width="70.0" height="50.0" stroke="black" stroke-width="1" fill="none" />
-<text x="400" y="115.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">0</text>
-<line x1="440" y1="110.0" x2="480.0" y2="110.0" stroke="black" />
-<rect x="480.0" y="64.0" width="170.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="565.0" y="90.0" text-anchor="middle" font-family="Arial" font-size="11">Gateway 於 TCP</text>
-<text x="565.0" y="114.0" text-anchor="middle" font-family="Arial" font-size="11">port 1080</text>
-<text x="565.0" y="138.0" text-anchor="middle" font-family="Arial" font-size="11">監聽，epoll 事件迴圈就緒</text>
-<line x1="400" y1="140.0" x2="400" y2="220" stroke="black" />
-<line x1="380" y1="180.0" x2="420" y2="180.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="184.0" font-style="italic" font-size="11" text-anchor="start">TCP 連線已透過 accept4 接受</text>
-<rect x="360.0" y="220.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="255.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">1</text>
-<line x1="440" y1="250.0" x2="480.0" y2="250.0" stroke="black" />
-<rect x="480.0" y="192.0" width="170.0" height="116.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="565.0" y="218.0" text-anchor="middle" font-family="Arial" font-size="11">配置</text>
-<text x="565.0" y="241.99999999999997" text-anchor="middle" font-family="Arial" font-size="11">PendingRequest</text>
-<text x="565.0" y="266.0" text-anchor="middle" font-family="Arial" font-size="11">緩衝區，累積 HTTP</text>
-<text x="565.0" y="290.0" text-anchor="middle" font-family="Arial" font-size="11">位元組直到 header 完成</text>
-<line x1="400" y1="280" x2="400" y2="320" stroke="black" />
-<line x1="-245.0" y1="320" x2="850.0" y2="320" stroke="black" stroke-width="1.5" />
-<line x1="-205.0" y1="320" x2="-205.0" y2="360" stroke="black" />
-<line x1="-225.0" y1="360" x2="-185.0" y2="360" stroke="black" stroke-width="2" />
-<text x="-229.0" y="364" font-style="italic" font-size="11" text-anchor="end">POST /auth/login（需 PAM 認證）</text>
-<line x1="-205.0" y1="360" x2="-205.0" y2="400" stroke="black" marker-end="url(#arrow)" />
-<line x1="810.0" y1="320" x2="810.0" y2="360" stroke="black" />
-<line x1="790.0" y1="360" x2="830.0" y2="360" stroke="black" stroke-width="2" />
-<text x="834.0" y="364" font-style="italic" font-size="11" text-anchor="start">含 JWT cookie（需身分驗證）</text>
-<line x1="810.0" y1="360" x2="810.0" y2="400" stroke="black" marker-end="url(#arrow)" />
-<rect x="-245.0" y="400.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-205.0" y="435.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">2</text>
-<line x1="-165.0" y1="430.0" x2="-125.0" y2="430.0" stroke="black" />
-<rect x="-125.0" y="372.0" width="160" height="116.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="-45.0" y="398.0" text-anchor="middle" font-family="Arial" font-size="11">檢查 rate</text>
-<text x="-45.0" y="422.0" text-anchor="middle" font-family="Arial" font-size="11">limit，產生 PAM</text>
-<text x="-45.0" y="445.99999999999994" text-anchor="middle" font-family="Arial" font-size="11">auth</text>
-<text x="-45.0" y="469.99999999999994" text-anchor="middle" font-family="Arial" font-size="11">pthread，驗證憑證</text>
-<line x1="-205.0" y1="460" x2="-205.0" y2="500" stroke="black" />
-<line x1="-450.0" y1="500" x2="40.0" y2="500" stroke="black" stroke-width="1.5" />
-<line x1="-410.0" y1="500" x2="-410.0" y2="540" stroke="black" />
-<line x1="-430.0" y1="540" x2="-390.0" y2="540" stroke="black" stroke-width="2" />
-<text x="-434.0" y="544" font-style="italic" font-size="11" text-anchor="end">PAM 成功：簽發 JWT</text>
-<line x1="-410.0" y1="540" x2="-410.0" y2="580" stroke="black" marker-end="url(#arrow)" />
-<line x1="0.0" y1="500" x2="0.0" y2="540" stroke="black" />
-<line x1="-20.0" y1="540" x2="20.0" y2="540" stroke="black" stroke-width="2" />
-<text x="24.0" y="544" font-style="italic" font-size="11" text-anchor="start">PAM 失敗或 rate limited：拒絕</text>
-<line x1="0.0" y1="540" x2="0.0" y2="580" stroke="black" marker-end="url(#arrow)" />
-<rect x="-450.0" y="580.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-410.0" y="615.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">4</text>
-<line x1="-370.0" y1="610.0" x2="-330.0" y2="610.0" stroke="black" />
-<rect x="-330.0" y="564.0" width="170.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="-245.0" y="590.0" text-anchor="middle" font-family="Arial" font-size="11">簽發 JWT HttpOnly</text>
-<text x="-245.0" y="614.0" text-anchor="middle" font-family="Arial" font-size="11">cookie，回應 Set-</text>
-<text x="-245.0" y="638.0" text-anchor="middle" font-family="Arial" font-size="11">Cookie 與重導</text>
-<rect x="-40.0" y="580.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="0.0" y="615.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">5</text>
-<line x1="40.0" y1="610.0" x2="80.0" y2="610.0" stroke="black" />
-<rect x="80.0" y="576.0" width="170.0" height="68.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="165.0" y="602.0" text-anchor="middle" font-family="Arial" font-size="11">回傳錯誤回應 (401/403</text>
-<text x="165.0" y="626.0" text-anchor="middle" font-family="Arial" font-size="11">/429)，關閉連線</text>
-<rect x="770.0" y="400.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="810.0" y="435.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">3</text>
-<line x1="850.0" y1="430.0" x2="890.0" y2="430.0" stroke="black" />
-<rect x="890.0" y="360.0" width="160" height="140.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="970.0" y="386.0" text-anchor="middle" font-family="Arial" font-size="11">解碼 JWT</text>
-<text x="970.0" y="410.0" text-anchor="middle" font-family="Arial" font-size="11">payload，驗證 sub</text>
-<text x="970.0" y="434.0" text-anchor="middle" font-family="Arial" font-size="11">+ exp + HMAC</text>
-<text x="970.0" y="458.00000000000006" text-anchor="middle" font-family="Arial" font-size="11">簽章，透過 getpwnam</text>
-<text x="970.0" y="482.00000000000006" text-anchor="middle" font-family="Arial" font-size="11">解析 UID</text>
-<line x1="810.0" y1="460" x2="810.0" y2="500" stroke="black" />
-<line x1="570.0" y1="500" x2="1255.0" y2="500" stroke="black" stroke-width="1.5" />
-<line x1="610.0" y1="500" x2="610.0" y2="540" stroke="black" />
-<line x1="590.0" y1="540" x2="630.0" y2="540" stroke="black" stroke-width="2" />
-<text x="586.0" y="544" font-style="italic" font-size="11" text-anchor="end">身分已驗證：尋找或產生 daemon</text>
-<line x1="610.0" y1="540" x2="610.0" y2="580" stroke="black" marker-end="url(#arrow)" />
-<line x1="1215.0" y1="500" x2="1215.0" y2="540" stroke="black" />
-<line x1="1195.0" y1="540" x2="1235.0" y2="540" stroke="black" stroke-width="2" />
-<text x="1239.0" y="544" font-style="italic" font-size="11" text-anchor="start">JWT 無效：拒絕 403</text>
-<line x1="1215.0" y1="540" x2="1215.0" y2="580" stroke="black" marker-end="url(#arrow)" />
-<rect x="570.0" y="580.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="610.0" y="615.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">6</text>
-<line x1="650.0" y1="610.0" x2="690.0" y2="610.0" stroke="black" />
-<rect x="690.0" y="540.0" width="170.0" height="140.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="775.0" y="566.0" text-anchor="middle" font-family="Arial" font-size="11">嘗試從 discovery</text>
-<text x="775.0" y="590.0" text-anchor="middle" font-family="Arial" font-size="11">file 收養，否則 fork</text>
-<text x="775.0" y="614.0" text-anchor="middle" font-family="Arial" font-size="11">+setuid+execvp</text>
-<text x="775.0" y="638.0" text-anchor="middle" font-family="Arial" font-size="11">產生 per-user</text>
-<text x="775.0" y="662.0" text-anchor="middle" font-family="Arial" font-size="11">daemon</text>
-<line x1="610.0" y1="640" x2="610.0" y2="680" stroke="black" />
-<line x1="370.0" y1="680" x2="855.0" y2="680" stroke="black" stroke-width="1.5" />
-<line x1="410.0" y1="680" x2="410.0" y2="720" stroke="black" />
-<line x1="390.0" y1="720" x2="430.0" y2="720" stroke="black" stroke-width="2" />
-<text x="386.0" y="724" font-style="italic" font-size="11" text-anchor="end">daemon 就緒，socket 可連線</text>
-<line x1="410.0" y1="720" x2="410.0" y2="760" stroke="black" marker-end="url(#arrow)" />
-<line x1="815.0" y1="680" x2="815.0" y2="720" stroke="black" />
-<line x1="795.0" y1="720" x2="835.0" y2="720" stroke="black" stroke-width="2" />
-<text x="839.0" y="724" font-style="italic" font-size="11" text-anchor="start">daemon 啟動失敗或逾時</text>
-<line x1="815.0" y1="720" x2="815.0" y2="760" stroke="black" marker-end="url(#arrow)" />
-<rect x="370.0" y="760.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="410.0" y="795.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">8</text>
-<line x1="450.0" y1="790.0" x2="490.0" y2="790.0" stroke="black" />
-<rect x="490.0" y="720.0" width="160" height="140.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="570.0" y="746.0" text-anchor="middle" font-family="Arial" font-size="11">建立 splice</text>
-<text x="570.0" y="770.0000000000001" text-anchor="middle" font-family="Arial" font-size="11">proxy：連接</text>
-<text x="570.0" y="794.0" text-anchor="middle" font-family="Arial" font-size="11">socket、建立 pipe</text>
-<text x="570.0" y="818.0" text-anchor="middle" font-family="Arial" font-size="11">pairs、註冊</text>
-<text x="570.0" y="842.0" text-anchor="middle" font-family="Arial" font-size="11">epoll、雙向轉發</text>
-<line x1="410.0" y1="820.0" x2="410.0" y2="900" stroke="black" />
-<line x1="390.0" y1="860.0" x2="430.0" y2="860.0" stroke="black" stroke-width="2" />
-<text x="434.0" y="864.0" font-style="italic" font-size="11" text-anchor="start">EPOLLHUP 或 EPOLLERR 或 splice 錯誤</text>
-<rect x="370.0" y="900.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="410.0" y="935.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">10</text>
-<line x1="450.0" y1="930.0" x2="490.0" y2="930.0" stroke="black" />
-<rect x="490.0" y="872.0" width="170.0" height="116.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="575.0" y="898.0" text-anchor="middle" font-family="Arial" font-size="11">EPOLL_CTL_DEL 雙</text>
-<text x="575.0" y="922.0000000000001" text-anchor="middle" font-family="Arial" font-size="11">fd，關閉所有 fd 與</text>
-<text x="575.0" y="946.0" text-anchor="middle" font-family="Arial" font-size="11">pipe，釋放</text>
-<text x="575.0" y="970.0000000000001" text-anchor="middle" font-family="Arial" font-size="11">slot，遞減計數器</text>
-<rect x="775.0" y="760.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="815.0" y="795.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">9</text>
-<line x1="855.0" y1="790.0" x2="895.0" y2="790.0" stroke="black" />
-<rect x="895.0" y="756.0" width="160" height="68.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="975.0" y="782.0" text-anchor="middle" font-family="Arial" font-size="11">回傳 daemon</text>
-<text x="975.0" y="806.0" text-anchor="middle" font-family="Arial" font-size="11">不可用錯誤給客戶端</text>
-<rect x="1175.0" y="580.0" width="80" height="60" stroke="black" stroke-width="1.5" fill="white" />
-<text x="1215.0" y="615.0" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="14">7</text>
-<line x1="1255.0" y1="610.0" x2="1295.0" y2="610.0" stroke="black" />
-<rect x="1295.0" y="576.0" width="160" height="68.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="1375.0" y="602.0" text-anchor="middle" font-family="Arial" font-size="11">清除過期 JWT</text>
-<text x="1375.0" y="626.0" text-anchor="middle" font-family="Arial" font-size="11">cookie，重導至登入頁</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1511" height="1120" viewBox="-8.00 0.00 75.55 56.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="-8.00" y="0.00" width="75.55" height="56.00" fill="white"/>
+<path class="edge" d="M 26.62 7.00 L 26.62 9.00"/>
+<path class="edge edge-arrow" d="M 26.62 9.00 L 26.62 11.00"/>
+<path class="edge edge-arrow" d="M 26.62 14.00 L 26.62 16.00"/>
+<path class="edge edge-arrow" d="M 13.31 16.00 L 13.31 20.00"/>
+<path class="edge edge-arrow" d="M 53.24 16.00 L 53.24 20.00"/>
+<path class="edge edge-arrow" d="M 13.31 23.00 L 13.31 25.00"/>
+<path class="edge edge-arrow" d="M 0.00 25.00 L 0.00 33.00"/>
+<path class="edge edge-arrow" d="M 13.31 25.00 L 13.31 33.00"/>
+<path class="edge edge-arrow" d="M 53.24 23.00 L 53.24 29.00"/>
+<path class="edge edge-arrow" d="M 53.24 29.00 L 53.24 33.00"/>
+<path class="edge edge-arrow" d="M 39.93 29.00 L 39.93 33.00"/>
+<path class="edge edge-arrow" d="M 53.24 36.00 L 53.24 38.00"/>
+<path class="edge edge-arrow" d="M 53.24 38.00 L 53.24 42.00"/>
+<path class="edge edge-arrow" d="M 39.93 38.00 L 39.93 42.00"/>
+<path class="edge" d="M 53.24 45.00 L 53.24 47.00"/>
+<path class="edge edge-arrow" d="M 53.24 47.00 L 53.24 49.00"/>
+<rect class="step" x="24.62" y="4.00" width="4.00" height="3.00"/>
+<rect class="step-inner" x="24.87" y="4.25" width="3.50" height="2.50"/>
+<text class="label" x="26.62" y="5.50">0</text>
+<rect class="step" x="24.62" y="11.00" width="4.00" height="3.00"/>
+<text class="label" x="26.62" y="12.50">1</text>
+<rect class="step" x="11.31" y="20.00" width="4.00" height="3.00"/>
+<text class="label" x="13.31" y="21.50">2</text>
+<rect class="step" x="51.24" y="20.00" width="4.00" height="3.00"/>
+<text class="label" x="53.24" y="21.50">3</text>
+<rect class="step" x="-2.00" y="33.00" width="4.00" height="3.00"/>
+<text class="label" x="0.00" y="34.50">4</text>
+<rect class="step" x="11.31" y="33.00" width="4.00" height="3.00"/>
+<text class="label" x="13.31" y="34.50">5</text>
+<rect class="step" x="51.24" y="33.00" width="4.00" height="3.00"/>
+<text class="label" x="53.24" y="34.50">6</text>
+<rect class="step" x="37.93" y="33.00" width="4.00" height="3.00"/>
+<text class="label" x="39.93" y="34.50">7</text>
+<rect class="step" x="51.24" y="42.00" width="4.00" height="3.00"/>
+<text class="label" x="53.24" y="43.50">8</text>
+<rect class="step" x="37.93" y="42.00" width="4.00" height="3.00"/>
+<text class="label" x="39.93" y="43.50">9</text>
+<rect class="step" x="51.24" y="49.00" width="4.00" height="3.00"/>
+<text class="label" x="53.24" y="50.50">10</text>
+<line class="assoc" x1="28.62" y1="5.50" x2="29.62" y2="5.50"/>
+<rect class="action" x="29.62" y="4.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="33.27" y="4.68"><tspan x="33.27" dy="0">Gateway 於 TCP po</tspan><tspan x="33.27" dy="0.82">rt 1080 監聽，ep</tspan><tspan x="33.27" dy="0.82">oll 事件迴圈就緒</tspan></text>
+<line class="assoc" x1="28.62" y1="12.50" x2="29.62" y2="12.50"/>
+<rect class="action" x="29.62" y="11.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="33.27" y="11.68"><tspan x="33.27" dy="0">配置 PendingRequest 緩</tspan><tspan x="33.27" dy="0.82">衝區，累積 HTTP 位</tspan><tspan x="33.27" dy="0.82">元組直到 header 完成</tspan></text>
+<line class="assoc" x1="15.31" y1="21.50" x2="16.31" y2="21.50"/>
+<rect class="action" x="16.31" y="20.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="19.97" y="20.68"><tspan x="19.97" dy="0">檢查 rate limit，</tspan><tspan x="19.97" dy="0.82">產生 PAM auth pth</tspan><tspan x="19.97" dy="0.82">read，驗證憑證</tspan></text>
+<line class="assoc" x1="55.24" y1="21.50" x2="56.24" y2="21.50"/>
+<rect class="action" x="56.24" y="20.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="59.90" y="20.68"><tspan x="59.90" dy="0">解碼 JWT payload，驗證</tspan><tspan x="59.90" dy="0.82">sub + exp + HMAC 簽章，</tspan><tspan x="59.90" dy="0.82">透過 getpwnam 解析 UID</tspan></text>
+<line class="assoc" x1="2.00" y1="34.50" x2="3.00" y2="34.50"/>
+<rect class="action" x="3.00" y="33.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="6.66" y="33.68"><tspan x="6.66" dy="0">簽發 JWT HttpOnl</tspan><tspan x="6.66" dy="0.82">y cookie，回應 S</tspan><tspan x="6.66" dy="0.82">et-Cookie 與重導</tspan></text>
+<line class="assoc" x1="15.31" y1="34.50" x2="16.31" y2="34.50"/>
+<rect class="action" x="16.31" y="33.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="19.97" y="34.09"><tspan x="19.97" dy="0">回傳錯誤回應 (401/</tspan><tspan x="19.97" dy="0.82">403/429)，關閉連線</tspan></text>
+<line class="assoc" x1="55.24" y1="34.50" x2="56.24" y2="34.50"/>
+<rect class="action" x="56.24" y="33.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="59.90" y="33.68"><tspan x="59.90" dy="0">嘗試從 discovery file 收</tspan><tspan x="59.90" dy="0.82">養，否則 fork+setuid+ex</tspan><tspan x="59.90" dy="0.82">ecvp 產生 per-user daemon</tspan></text>
+<line class="assoc" x1="41.93" y1="34.50" x2="42.93" y2="34.50"/>
+<rect class="action" x="42.93" y="33.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="46.59" y="34.09"><tspan x="46.59" dy="0">清除過期 JWT cooki</tspan><tspan x="46.59" dy="0.82">e，重導至登入頁</tspan></text>
+<line class="assoc" x1="55.24" y1="43.50" x2="56.24" y2="43.50"/>
+<rect class="action" x="56.24" y="42.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="59.90" y="42.68"><tspan x="59.90" dy="0">建立 splice proxy：連接</tspan><tspan x="59.90" dy="0.82">socket、建立 pipe pairs、</tspan><tspan x="59.90" dy="0.82">註冊 epoll、雙向轉發</tspan></text>
+<line class="assoc" x1="41.93" y1="43.50" x2="42.93" y2="43.50"/>
+<rect class="action" x="42.93" y="42.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="46.59" y="43.09"><tspan x="46.59" dy="0">回傳 daemon 不可</tspan><tspan x="46.59" dy="0.82">用錯誤給客戶端</tspan></text>
+<line class="assoc" x1="55.24" y1="50.50" x2="56.24" y2="50.50"/>
+<rect class="action" x="56.24" y="49.07" width="7.31" height="2.86" rx="0.45" ry="0.45"/>
+<text class="action-label" x="59.90" y="49.68"><tspan x="59.90" dy="0">EPOLL_CTL_DEL 雙 fd，</tspan><tspan x="59.90" dy="0.82">關閉所有 fd 與 pipe，</tspan><tspan x="59.90" dy="0.82">釋放 slot，遞減計數器</tspan></text>
+<line class="gate" x1="25.62" y1="9.00" x2="27.62" y2="9.00"/>
+<text class="gate-label" x="28.02" y="9.00"><tspan x="28.02" dy="0">TCP 連線已透過 accept4 接受</tspan></text>
+<line class="gate" x1="9.31" y1="16.00" x2="57.24" y2="16.00"/>
+<line class="gate" x1="-4.00" y1="25.00" x2="17.31" y2="25.00"/>
+<line class="gate" x1="35.93" y1="29.00" x2="57.24" y2="29.00"/>
+<line class="gate" x1="35.93" y1="38.00" x2="57.24" y2="38.00"/>
+<line class="gate" x1="52.24" y1="47.00" x2="54.24" y2="47.00"/>
+<text class="gate-label" x="54.64" y="47.00"><tspan x="54.64" dy="0">EPOLLHUP 或 EPOLLERR 或 splice 錯誤</tspan></text>
+<line class="gate" x1="12.31" y1="18.00" x2="14.31" y2="18.00"/>
+<text class="gate-label-left" x="11.91" y="18.00"><tspan x="11.91" dy="0">POST /auth/login（需 PAM 認證）</tspan></text>
+<line class="gate" x1="52.24" y1="18.00" x2="54.24" y2="18.00"/>
+<text class="gate-label-left" x="51.84" y="18.00"><tspan x="51.84" dy="0">含 JWT cookie（需身分驗證）</tspan></text>
+<line class="gate" x1="-1.00" y1="27.00" x2="1.00" y2="27.00"/>
+<text class="gate-label-left" x="-1.40" y="27.00"><tspan x="-1.40" dy="0">PAM 成功：簽發 JWT</tspan></text>
+<line class="gate" x1="12.31" y1="27.00" x2="14.31" y2="27.00"/>
+<text class="gate-label-left" x="11.91" y="27.00"><tspan x="11.91" dy="0">PAM 失敗或 rate limited：拒絕</tspan></text>
+<line class="gate" x1="52.24" y1="31.00" x2="54.24" y2="31.00"/>
+<text class="gate-label-left" x="51.84" y="31.00"><tspan x="51.84" dy="0">身分已驗證：尋找或產生 daemon</tspan></text>
+<line class="gate" x1="38.93" y1="31.00" x2="40.93" y2="31.00"/>
+<text class="gate-label-left" x="38.53" y="31.00"><tspan x="38.53" dy="0">JWT 無效：拒絕 403</tspan></text>
+<line class="gate" x1="52.24" y1="40.00" x2="54.24" y2="40.00"/>
+<text class="gate-label-left" x="51.84" y="40.00"><tspan x="51.84" dy="0">daemon 就緒，socket 可連線</tspan></text>
+<line class="gate" x1="38.93" y1="40.00" x2="40.93" y2="40.00"/>
+<text class="gate-label-left" x="38.53" y="40.00"><tspan x="38.53" dy="0">daemon 啟動失敗或逾時</tspan></text>
 </svg>

@@ -1,69 +1,67 @@
-<svg width="1477.0" height="861.8" viewBox="-86.0 -211.8 1477.0 861.8" xmlns="http://www.w3.org/2000/svg">
+<svg width="1761.4" height="721.8" viewBox="-299.7 -171.8 1761.4 721.8" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
 <marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
 </defs>
-<rect x="-86.0" y="-211.8" width="1477.0" height="861.8" fill="white" />
-<rect x="130.0" y="120.0" width="240.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A31" />
-<text x="250.0" y="186.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A31" >A31</text>
-<text x="250.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A31" >組裝 PROVIDER 註冊表</text>
-<rect x="548.0" y="120.0" width="240.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A32" />
-<text x="668.0" y="186.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A32" >A32</text>
-<text x="668.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A32" >解析 CANONICAL 身分</text>
-<rect x="912.0" y="120.0" width="240.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A33" />
-<text x="1032.0" y="186.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A33" >A33</text>
-<text x="1032.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A33" >管理帳號生命週期</text>
-<rect x="130.0" y="360.0" width="240.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A34" />
-<text x="250.0" y="411.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A34" >A34</text>
-<text x="250.0" y="441.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A34" >執行 ROTATION3D</text>
-<text x="250.0" y="471.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A34" >FALLBACK</text>
-<rect x="548.0" y="360.0" width="240.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A35" />
-<text x="668.0" y="426.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A35" >A35</text>
-<text x="668.0" y="456.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A35" >監控 PROVIDER 健康度</text>
-<rect x="50.0" y="18.2" width="1182.0" height="601.8" stroke="black" fill="none" stroke-width="2" />
-<rect x="512.0" y="-181.8" width="258.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
-<text x="641.0" y="-155.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >A3</text>
-<text x="641.0" y="-125.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >A3 — 路由</text>
-<text x="641.0" y="-95.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >PROVIDER 與帳號</text>
-<line x1="512.0" y1="-181.8" x2="50.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="770.0" y1="-181.8" x2="1232.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="512.0" y1="-71.8" x2="50.0" y2="620.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<line x1="770.0" y1="-71.8" x2="1232.0" y2="620.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
-<path d="M 370.0 200.0 L 548.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="F1" data-waypoints="370.0,200.0 548.0,200.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 788.0 226.7 L 912.0 226.7" stroke="black" stroke-width="1.2" data-arrow-id="F2" data-waypoints="788.0,226.7 912.0,226.7" marker-end="url(#arrow)" fill="none" />
-<path d="M 370.0 413.3 L 548.0 413.3" stroke="black" stroke-width="1.2" data-arrow-id="F5" data-waypoints="370.0,413.3 548.0,413.3" marker-end="url(#arrow)" fill="none" />
-<path d="M 1152.0 200.0 L 1182.0 200.0 Q 1192.0 200.0 1192.0 210.0 L 1192.0 308.2 Q 1192.0 318.2 1182.0 318.2 L 100.0 318.2 Q 90.0 318.2 90.0 328.2 L 90.0 403.3 Q 90.0 413.3 100.0 413.3 L 130.0 413.3" stroke="black" stroke-width="1.2" data-arrow-id="F3" data-waypoints="1152.0,200.0 1192.0,200.0 1192.0,318.2 90.0,318.2 90.0,413.3 130.0,413.3" marker-end="url(#arrow)" fill="none" />
-<path d="M -50.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="I1" data-waypoints="-50.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
-<path d="M -50.0 78.2 L 840.0 78.2 Q 850.0 78.2 850.0 88.2 L 850.0 163.3 Q 850.0 173.3 860.0 173.3 L 912.0 173.3" stroke="black" stroke-width="1.2" data-arrow-id="I2" data-waypoints="-50.0,78.2 850.0,78.2 850.0,173.3 912.0,173.3" marker-end="url(#arrow)" fill="none" />
-<path d="M -50.0 466.7 L 130.0 466.7" stroke="black" stroke-width="1.2" data-arrow-id="I3" data-waypoints="-50.0,466.7 130.0,466.7" marker-end="url(#arrow)" fill="none" />
-<path d="M 250.0 84.2 L 250.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C1" data-waypoints="250.0,84.2 250.0,120.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 668.0 315.8 L 668.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="M2" data-waypoints="668.0,315.8 668.0,280.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 370.0 466.7 L 449.0 466.7 Q 459.0 466.7 459.0 476.7 L 459.0 550.0 Q 459.0 560.0 469.0 560.0 L 1332.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="O1" data-waypoints="370.0,466.7 459.0,466.7 459.0,560.0 1332.0,560.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 788.0 440.0 L 1332.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="O2" data-waypoints="788.0,440.0 1332.0,440.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 250.0 324.2 L 250.0 360.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A34_control" data-waypoints="250.0,324.2 250.0,360.0" marker-end="url(#arrow)" fill="none" />
-<path d="M 1032.0 315.8 L 1032.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A33_mechanism" data-waypoints="1032.0,315.8 1032.0,280.0" marker-end="url(#arrow)" fill="none" />
-<text x="244.0" y="115.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="C1">Provider 設定</text>
-<text x="256.0" y="115.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="C1">disabled_providers</text>
-<text x="662.0" y="296.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="M2">Supported</text>
-<text x="674.0" y="296.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="M2">Provider Registry</text>
-<text x="244.0" y="355.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="C2">Rate Limit</text>
-<text x="256.0" y="355.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="C2">策略與冷卻規則、健康狀態與冷卻狀態</text>
-<text x="1026.0" y="296.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="M1">accounts.json (XDG)</text>
-<text x="1038.0" y="296.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="M1">OAuth Token 儲存</text>
-<text x="459.0" y="195.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F1">原始 Provider</text>
-<text x="459.0" y="212.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F1">與模型清單</text>
-<text x="850.0" y="221.7" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F2">Canonical</text>
-<text x="850.0" y="238.7" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F2">Provider Keys</text>
-<text x="459.0" y="405.3" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F5" >路由結果（成功/失敗）</text>
-<text x="250.0" y="310.2" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F3" >各 Provider 的活躍帳號</text>
-<text x="46.0" y="195.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I1">模型 Metadata</text>
-<text x="46.0" y="212.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I1">(models.dev)</text>
-<text x="46.0" y="73.2" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I2">帳號</text>
-<text x="46.0" y="90.2" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I2">CRUD 操作</text>
-<text x="46.0" y="461.7" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I3">Provider</text>
-<text x="46.0" y="478.7" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I3">選擇請求</text>
-<text x="1236.0" y="555.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O1">選定的 Provider/</text>
-<text x="1236.0" y="572.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O1">帳號/模型</text>
-<text x="1236.0" y="435.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O2">Provider</text>
-<text x="1236.0" y="452.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O2">健康報告</text>
+<rect x="-299.7" y="-171.8" width="1761.4" height="721.8" fill="white" />
+<rect x="130.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A31" />
+<text x="230.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A31" >A31</text>
+<text x="230.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A31" >組裝 PROVIDER</text>
+<text x="230.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A31" >註冊表</text>
+<rect x="508.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A32" />
+<text x="608.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A32" >A32</text>
+<text x="608.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A32" >解析</text>
+<text x="608.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A32" >CANONICAL 身分</text>
+<rect x="832.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A33" />
+<text x="932.0" y="161.9" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A33" >A33</text>
+<text x="932.0" y="203.4" text-anchor="middle" font-size="24" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A33" >管理帳號生命週期</text>
+<rect x="130.0" y="340.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A34" />
+<text x="230.0" y="369.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A34" >A34</text>
+<text x="230.0" y="401.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A34" >執行 ROTATION3D</text>
+<text x="230.0" y="432.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A34" >FALLBACK</text>
+<rect x="508.0" y="340.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A35" />
+<text x="608.0" y="369.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A35" >A35</text>
+<text x="608.0" y="401.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A35" >監控 PROVIDER</text>
+<text x="608.0" y="432.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A35" >健康度</text>
+<rect x="40.0" y="38.2" width="1082.0" height="501.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="452.0" y="-161.8" width="258.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="581.0" y="-120.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >A3</text>
+<text x="581.0" y="-90.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >A3 — 路由 PROVIDER 與帳號</text>
+<line x1="452.0" y1="-161.8" x2="40.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="710.0" y1="-161.8" x2="1122.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="452.0" y1="-51.8" x2="40.0" y2="540.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="710.0" y1="-51.8" x2="1122.0" y2="540.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 330.0 180.0 L 508.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="F1" data-waypoints="330.0,180.0 508.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 708.0 200.0 L 832.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="F2" data-waypoints="708.0,200.0 832.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 380.0 L 508.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="F5" data-waypoints="330.0,380.0 508.0,380.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1032.0 180.0 L 1062.0 180.0 Q 1072.0 180.0 1072.0 190.0 L 1072.0 280.0 Q 1072.0 290.0 1062.0 290.0 L 100.0 290.0 Q 90.0 290.0 90.0 300.0 L 90.0 370.0 Q 90.0 380.0 100.0 380.0 L 130.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="F3" data-waypoints="1032.0,180.0 1072.0,180.0 1072.0,290.0 90.0,290.0 90.0,380.0 130.0,380.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -10.0 180.0 L 130.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="I1" data-waypoints="-10.0,180.0 130.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -10.0 78.2 L 760.0 78.2 Q 770.0 78.2 770.0 88.2 L 770.0 150.0 Q 770.0 160.0 780.0 160.0 L 832.0 160.0" stroke="black" stroke-width="1.2" data-arrow-id="I2" data-waypoints="-10.0,78.2 770.0,78.2 770.0,160.0 832.0,160.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -10.0 420.0 L 130.0 420.0" stroke="black" stroke-width="1.2" data-arrow-id="I3" data-waypoints="-10.0,420.0 130.0,420.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C1" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 608.0 275.8 L 608.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="M2" data-waypoints="608.0,275.8 608.0,240.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 420.0 L 409.0 420.0 Q 419.0 420.0 419.0 430.0 L 419.0 490.0 Q 419.0 500.0 429.0 500.0 L 1172.0 500.0" stroke="black" stroke-width="1.2" data-arrow-id="O1" data-waypoints="330.0,420.0 419.0,420.0 419.0,500.0 1172.0,500.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 708.0 400.0 L 1172.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="O2" data-waypoints="708.0,400.0 1172.0,400.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 304.2 L 230.0 340.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A34_control" data-waypoints="230.0,304.2 230.0,340.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 932.0 275.8 L 932.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A33_mechanism" data-waypoints="932.0,275.8 932.0,240.0" marker-end="url(#arrow)" fill="none" />
+<text x="224.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="C1">Provider 設定</text>
+<text x="236.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="C1">disabled_providers</text>
+<text x="602.0" y="256.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="M2">Supported</text>
+<text x="614.0" y="256.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="M2">Provider Registry</text>
+<text x="224.0" y="334.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="C2">Rate Limit</text>
+<text x="236.0" y="334.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="C2">策略與冷卻規則、健康狀態與冷卻狀態</text>
+<text x="926.0" y="256.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="M1">accounts.json (XDG)</text>
+<text x="938.0" y="256.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="M1">OAuth Token 儲存</text>
+<text x="419.0" y="175.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="F1">原始 Provider</text>
+<text x="419.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="F1">與模型清單</text>
+<text x="770.0" y="195.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="F2">Canonical</text>
+<text x="770.0" y="212.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="F2">Provider Keys</text>
+<text x="419.0" y="398.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="F5" >路由結果（成功/失敗）</text>
+<text x="608.0" y="308.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="F3" >各 Provider 的活躍帳號</text>
+<text x="-14.0" y="171.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="I1">模型 Metadata</text>
+<text x="-14.0" y="197.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="I1">(models.dev)</text>
+<text x="-14.0" y="82.2" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="I2">帳號 CRUD 操作</text>
+<text x="-14.0" y="424.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="I3">Provider 選擇請求</text>
+<text x="1176.0" y="504.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="O1">選定的 Provider/帳號/模型</text>
+<text x="1176.0" y="404.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="O2">Provider 健康報告</text>
 </svg>
