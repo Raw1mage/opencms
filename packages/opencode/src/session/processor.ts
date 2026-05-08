@@ -15,6 +15,7 @@ import type { Provider } from "@/provider/provider"
 import { LLM } from "./llm"
 import { Config } from "@/config/config"
 import { SessionCompaction } from "./compaction"
+import { detectEmissionGarbage } from "./emission-filter"
 import { PermissionNext } from "@/permission/next"
 import { Question } from "@/question"
 import { debugCheckpoint } from "@/util/debug"
@@ -1374,6 +1375,22 @@ export namespace SessionProcessor {
                       end: Date.now(),
                     }
                     if (value.providerMetadata) currentText.metadata = value.providerMetadata
+                    // emission-filter: hide regurgitated trace markers,
+                    // line-numbered file dumps, and main-channel cache-digest
+                    // fenced blocks. Sets `ignored: true` so the part
+                    // round-trips into the DB unchanged but is filtered out
+                    // of UI rendering and subsequent prompt assembly.
+                    const emission = detectEmissionGarbage(currentText.text)
+                    if (emission.hidden) {
+                      currentText.ignored = true
+                      log.info("emission-filter: hiding text part", {
+                        sessionID: input.sessionID,
+                        messageID: input.assistantMessage.id,
+                        partID: currentText.id,
+                        reason: emission.reason,
+                        textPrefix: currentText.text.slice(0, 80),
+                      })
+                    }
                     await Session.updatePart(currentText)
                   }
                   currentText = undefined
