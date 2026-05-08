@@ -507,6 +507,8 @@ export namespace Tweaks {
     "compaction_enable_hybrid_llm",
     "compaction_llm_timeout_ms",
     "compaction_fallback_provider",
+    "compaction_phase1_enabled",
+    "compaction_phase2_enabled",
     "compaction_phase2_max_anchor_tokens",
     "compaction_pinned_zone_max_tokens_ratio",
     "compaction_budget_status_thresholds",
