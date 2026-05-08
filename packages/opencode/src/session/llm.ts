@@ -1790,17 +1790,22 @@ export namespace LLM {
 
     // Append to the per-session recentEvents ring buffer so the Q card
     // surfaces recent rotations without the operator grepping bus events.
-    void Session.appendRecentEvent(input.sessionID, {
-      ts: Date.now(),
-      kind: "rotation",
-      rotation: {
-        fromProviderId: currentModel.providerId,
-        fromAccountId: currentAccountId,
-        toProviderId: fallback.providerId,
-        toAccountId: fallback.accountId,
-        reason: fallbackReason === "rate-limit" ? "RATE_LIMIT_EXCEEDED" : "UNKNOWN",
-      },
-    }).catch(() => {})
+    // Dynamic import — same pattern as setActiveImageRefs caller above
+    // (avoids static circular dep between llm.ts and session/index.ts).
+    void (async () => {
+      const { Session: SessionMod } = await import("@/session")
+      await SessionMod.appendRecentEvent(input.sessionID, {
+        ts: Date.now(),
+        kind: "rotation",
+        rotation: {
+          fromProviderId: currentModel.providerId,
+          fromAccountId: currentAccountId,
+          toProviderId: fallback.providerId,
+          toAccountId: fallback.accountId,
+          reason: fallbackReason === "rate-limit" ? "RATE_LIMIT_EXCEEDED" : "UNKNOWN",
+        },
+      })
+    })().catch(() => {})
 
     if (isSameProvider && (!isSameAccount || !isSameModel)) {
       const { getSameProviderRotationGuard, SAME_PROVIDER_ROTATE_COOLDOWN_MS } = await import("@/account/rotation")
