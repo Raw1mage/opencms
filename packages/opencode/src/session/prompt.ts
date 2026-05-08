@@ -10,6 +10,7 @@ import { Agent } from "../agent/agent"
 import { Provider } from "../provider/provider"
 import { SessionCompaction } from "./compaction"
 import { transformPostAnchorTail, LayerPurityViolation } from "./post-anchor-transform"
+import { expandAnchorCompactedPrefix } from "./anchor-prefix-expand"
 import { SharedContext } from "./shared-context"
 import { Memory } from "./memory"
 import { Token } from "../util/token"
@@ -2261,6 +2262,70 @@ export namespace SessionPrompt {
             throw err
           }
           log.warn("phase1-transform: unexpected error, falling back to raw", {
+            sessionID,
+            step,
+            error: err instanceof Error ? err.message : String(err),
+          })
+        }
+      }
+
+      // compaction-fix Phase 2 — anchor-prefix expansion (DD-8..DD-13).
+      // When the anchor message carries codex-issued `serverCompactedItems`
+      // bound to the current execution chain, replace the anchor's free-form
+      // summary projection with the structured items. Runs AFTER the Phase 1
+      // transformer so the anchor projection swap is the last shaping step
+      // before the messages flow into MessageV2.toModelMessages.
+      //
+      // DD-13: phase2Enabled flag-gated. Phase 2 also short-circuits when
+      // Phase 1 is off (anchor projection contract assumes Phase 1 slicing).
+      // DD-9: chain-binding validated inside the expander; mismatch → leave
+      // messages unchanged.
+      if (
+        compactionTweakPhase1.phase2Enabled &&
+        compactionTweakPhase1.phase1Enabled &&
+        !session.parentID
+      ) {
+        try {
+          const phase2Result = expandAnchorCompactedPrefix(sessionMessages, {
+            sessionID,
+            accountId: effectiveAccountId,
+            modelID: activeModel.id,
+          })
+          if (phase2Result.applied) {
+            sessionMessages = phase2Result.messages
+            log.info("phase2-anchor-prefix-expand: applied", {
+              sessionID,
+              step,
+              expandedItemCount: phase2Result.expandedItemCount,
+              messagesAdded: phase2Result.messagesAdded,
+              mappableItemCount: phase2Result.mappableItemCount,
+              unmappableItemCount: phase2Result.unmappableItemCount,
+            })
+          } else if (phase2Result.reason === "chain-mismatch") {
+            log.warn("phase2-anchor-prefix-expand: chain-binding mismatch, falling back", {
+              sessionID,
+              step,
+              accountId: effectiveAccountId,
+              modelID: activeModel.id,
+            })
+          } else {
+            log.debug?.("phase2-anchor-prefix-expand: skipped", {
+              sessionID,
+              step,
+              reason: phase2Result.reason,
+            })
+          }
+        } catch (err) {
+          if (err instanceof LayerPurityViolation) {
+            log.error("phase2-anchor-prefix-expand: layer purity violation", {
+              sessionID,
+              step,
+              forbiddenKey: err.forbiddenKey,
+              context: err.context,
+            })
+            throw err
+          }
+          log.warn("phase2-anchor-prefix-expand: unexpected error, falling back", {
             sessionID,
             step,
             error: err instanceof Error ? err.message : String(err),

@@ -220,6 +220,14 @@ export namespace Tweaks {
      * below this, the transformer falls back to raw messages. Default 5.
      */
     fallbackThreshold: number
+    /**
+     * compaction-fix Phase 2 (DD-13). Master switch for anchor-prefix
+     * expansion: when an anchor carries serverCompactedItems with a
+     * matching chainBinding, the expander replaces the anchor's summary
+     * projection with the codex-produced structured items. Default false
+     * during rollout; flip on after Phase 1 ships stable.
+     */
+    phase2Enabled: boolean
   }
 
   export interface SessionStorageConfig {
@@ -339,6 +347,7 @@ export namespace Tweaks {
     phase1Enabled: false,
     recentRawRounds: 2,
     fallbackThreshold: 5,
+    phase2Enabled: false,
   }
 
   const SESSION_STORAGE_DEFAULTS: SessionStorageConfig = {
@@ -957,6 +966,11 @@ export namespace Tweaks {
     if (cmpFallbackThresholdRaw !== undefined) {
       const v = parseIntRange(cmpFallbackThresholdRaw, "compaction_fallback_threshold", 1, 20)
       if (v !== undefined) compaction.fallbackThreshold = v
+    }
+    const cmpPhase2EnabledRaw = parsed.get("compaction_phase2_enabled")
+    if (cmpPhase2EnabledRaw !== undefined) {
+      const v = parseBool(cmpPhase2EnabledRaw, "compaction_phase2_enabled")
+      if (v !== undefined) compaction.phase2Enabled = v
     }
 
     const sessionStorage: SessionStorageConfig = { ...SESSION_STORAGE_DEFAULTS }
