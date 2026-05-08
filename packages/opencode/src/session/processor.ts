@@ -1208,19 +1208,14 @@ export namespace SessionProcessor {
                   })
                   await Session.updateMessage(input.assistantMessage)
 
-                  // attachment-lifecycle v4 (DD-20, R9 mitigation): drain any
-                  // queued inline images regardless of finishReason. The next
-                  // turn rebuilds the active set fresh from new uploads or
-                  // explicit reread vouchers — never inherits past turn's set.
-                  try {
-                    const sessionForDrain = await Session.get(input.sessionID).catch(() => undefined)
-                    const priorRefs = sessionForDrain?.execution?.activeImageRefs ?? []
-                    if (priorRefs.length > 0) {
-                      await Session.setActiveImageRefs(input.sessionID, [])
-                    }
-                  } catch {
-                    // non-fatal — drained-on-next-turn fallback acceptable
-                  }
+                  // attachment-lifecycle v4: drain moved to llm.ts post-emit
+                  // (2026-05-08). The previous step-finish drain wiped reread
+                  // vouchers in the same turn that wrote them — voucher
+                  // never survived to the next preface, model never saw the
+                  // image, looped on reread_attachment. Drain now happens
+                  // immediately after preface consumption inside llm.ts so
+                  // both upload-path and reread-path vouchers reach the
+                  // model exactly once.
 
                   if (snapshot) {
                     const patch = await Snapshot.patch(snapshot)

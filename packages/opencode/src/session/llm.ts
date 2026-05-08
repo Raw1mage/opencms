@@ -686,6 +686,22 @@ export namespace LLM {
               activeImageBlocks = await buildActiveImageContentBlocks(refs, refsByFilename)
             }
           }
+          // attachment-lifecycle v4: drain the voucher *after* the preface
+          // has consumed it. The previous drain site (processor.ts
+          // step-finish) wiped vouchers written via reread_attachment in
+          // the SAME turn, before the next preface ever got a chance to
+          // emit them — model saw inventory text but never pixels, then
+          // re-rerread, looped. Now: emit (or attempt to emit) → drain →
+          // next turn sees a clean slate. Drain runs whenever refs were
+          // present so a missing-file emit still clears the voucher
+          // rather than retrying forever.
+          if (refs.length > 0) {
+            await SessionMod.setActiveImageRefs(input.sessionID, []).catch((err) => {
+              l.warn("activeImageRefs drain after preface emit failed", {
+                error: err instanceof Error ? err.message : String(err),
+              })
+            })
+          }
         } catch (err) {
           l.warn("active image inline failed; preface continues without images", {
             error: err instanceof Error ? err.message : String(err),
