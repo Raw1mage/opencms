@@ -100,6 +100,8 @@ interface TurnSpec {
   hasCompactionPart?: boolean
   toolName?: string
   toolInput?: unknown
+  /** v3: when true, emit no text part (tool-call-only turn). */
+  noText?: boolean
 }
 
 function assistantTurn(spec: TurnSpec): MessageV2.WithParts {
@@ -119,13 +121,15 @@ function assistantTurn(spec: TurnSpec): MessageV2.WithParts {
     } as unknown as MessageV2.Part)
   }
 
-  parts.push({
-    id: id("prt"),
-    sessionID,
-    messageID,
-    type: "text",
-    text: "I'll do the next step",
-  } as MessageV2.TextPart)
+  if (!spec.noText) {
+    parts.push({
+      id: id("prt"),
+      sessionID,
+      messageID,
+      type: "text",
+      text: "I'll do the next step",
+    } as MessageV2.TextPart)
+  }
 
   for (let i = 0; i < spec.toolCount; i++) {
     parts.push({
@@ -323,5 +327,152 @@ describe("transformPostAnchorTail (drop semantics)", () => {
     for (let i = 0; i < messages.length; i++) {
       expect(messages[i]).toBe(originalRefs[i])
     }
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// v3 — text-bearing-aware preservation (mixed text / no-text turns)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("transformPostAnchorTail v3 — text-bearing preservation", () => {
+  test("keeps Nth-most-recent text turn + everything after (interleaved no-text)", () => {
+    // Pattern: text / no-text / text / no-text / text / no-text  (6 turns)
+    // recentRawRounds=2 → cutoff = 2nd-most-recent text-bearing turn
+    // = the text turn at index ... let's count positions:
+    //   idx 0: anchor
+    //   idx 1: user u1
+    //   idx 2: assistant text-bearing #1 (oldest)
+    //   idx 3: user u2
+    //   idx 4: assistant no-text #1
+    //   idx 5: user u3
+    //   idx 6: assistant text-bearing #2
+    //   idx 7: user u4
+    //   idx 8: assistant no-text #2
+    //   idx 9: user u5
+    //   idx 10: assistant text-bearing #3 (newest)
+    //   idx 11: user u6
+    //   idx 12: assistant no-text #3 (newest)
+    // text-bearing indices: [2, 6, 10]
+    // recentRawRounds=2 → cutoff = textBearing[3-2] = textBearing[1] = idx 6
+    // drop indices: candidates < 6 = [2, 4]
+    // kept: [0(anchor), 1, 3, 5, 6(text#2), 7, 8(no-text#2), 9, 10(text#3), 11, 12(no-text#3)]
+    const messages: MessageV2.WithParts[] = [
+      anchorMessage("summary"),
+      userMessage("u1"),
+      assistantTurn({ toolCount: 1 }),                  // idx 2 — text #1
+      userMessage("u2"),
+      assistantTurn({ toolCount: 2, noText: true }),    // idx 4 — no-text #1
+      userMessage("u3"),
+      assistantTurn({ toolCount: 1 }),                  // idx 6 — text #2
+      userMessage("u4"),
+      assistantTurn({ toolCount: 2, noText: true }),    // idx 8 — no-text #2
+      userMessage("u5"),
+      assistantTurn({ toolCount: 1 }),                  // idx 10 — text #3
+      userMessage("u6"),
+      assistantTurn({ toolCount: 2, noText: true }),    // idx 12 — no-text #3
+    ]
+    const result = transformPostAnchorTail(messages, { recentRawRounds: 2 })
+    expect(result.transformedTurnCount).toBe(2) // idx 2 and 4 dropped
+    expect(result.messages.length).toBe(messages.length - 2) // 13 - 2 = 11
+
+    // Verify text #2 and after survived
+    expect(result.messages).toContain(messages[6])  // text #2
+    expect(result.messages).toContain(messages[8])  // no-text #2 (interleaved, kept)
+    expect(result.messages).toContain(messages[10]) // text #3
+    expect(result.messages).toContain(messages[12]) // no-text #3
+
+    // Verify text #1 + adjacent no-text #1 dropped
+    expect(result.messages).not.toContain(messages[2])
+    expect(result.messages).not.toContain(messages[4])
+  })
+
+  test("drops nothing when last 2 turns are both no-text but only 2 text-bearing total", () => {
+    // 2 text + 2 no-text, recentRawRounds=2 → text count (2) ≤ N (2) → noop
+    const messages: MessageV2.WithParts[] = [
+      anchorMessage("summary"),
+      userMessage("u1"),
+      assistantTurn({ toolCount: 1 }),                  // text
+      userMessage("u2"),
+      assistantTurn({ toolCount: 1 }),                  // text
+      userMessage("u3"),
+      assistantTurn({ toolCount: 1, noText: true }),    // no-text
+      userMessage("u4"),
+      assistantTurn({ toolCount: 1, noText: true }),    // no-text
+    ]
+    const result = transformPostAnchorTail(messages, { recentRawRounds: 2 })
+    expect(result.transformedTurnCount).toBe(0)
+    expect(result.messages).toBe(messages) // referential equality on noop
+  })
+
+  test("v2-amnesia regression: with last 2 raw being no-text, model still sees text history", () => {
+    // The exact failure mode v3 fixes: 5 text + 2 trailing no-text,
+    // recentRawRounds=2. v2 would keep only the 2 trailing no-text.
+    // v3 keeps text-bearing #4 (cutoff) + no-text and text after.
+    const messages: MessageV2.WithParts[] = [
+      anchorMessage("summary"),
+      userMessage("u0"),
+      assistantTurn({ toolCount: 1 }),                  // idx 2 — text #1
+      userMessage("u1"),
+      assistantTurn({ toolCount: 1 }),                  // idx 4 — text #2
+      userMessage("u2"),
+      assistantTurn({ toolCount: 1 }),                  // idx 6 — text #3
+      userMessage("u3"),
+      assistantTurn({ toolCount: 1 }),                  // idx 8 — text #4 (cutoff for N=2)
+      userMessage("u4"),
+      assistantTurn({ toolCount: 1 }),                  // idx 10 — text #5
+      userMessage("u5"),
+      assistantTurn({ toolCount: 1, noText: true }),    // idx 12 — no-text #1
+      userMessage("u6"),
+      assistantTurn({ toolCount: 1, noText: true }),    // idx 14 — no-text #2
+    ]
+    const result = transformPostAnchorTail(messages, { recentRawRounds: 2 })
+    // textBearing indices [2, 4, 6, 8, 10]; cutoff = [5-2] = [3] = idx 8
+    // candidates < 8 = [2, 4, 6] dropped (3 turns)
+    expect(result.transformedTurnCount).toBe(3)
+
+    // Verify model retains text-bearing #4 (the cutoff) — its self-narrative
+    // is still in the prompt despite the trailing no-text turns
+    expect(result.messages).toContain(messages[8]) // text #4
+    expect(result.messages).toContain(messages[10]) // text #5
+    expect(result.messages).toContain(messages[12]) // no-text #1
+    expect(result.messages).toContain(messages[14]) // no-text #2
+    expect(result.messages).not.toContain(messages[2])
+    expect(result.messages).not.toContain(messages[4])
+    expect(result.messages).not.toContain(messages[6])
+  })
+
+  test("treats reasoning-only turns as text-bearing", () => {
+    // Turn with reasoning but no main-channel text → still counts as
+    // text-bearing (codex emits narrative on reasoning channel).
+    const messages: MessageV2.WithParts[] = [
+      anchorMessage("summary"),
+      userMessage("u1"),
+      assistantTurn({ toolCount: 1, hasReasoning: true, noText: true }), // reasoning only
+      userMessage("u2"),
+      assistantTurn({ toolCount: 1, hasReasoning: true, noText: true }), // reasoning only
+      userMessage("u3"),
+      assistantTurn({ toolCount: 1, hasReasoning: true, noText: true }), // reasoning only
+    ]
+    const result = transformPostAnchorTail(messages, { recentRawRounds: 2 })
+    // textBearing count = 3 (all reasoning turns count) > N=2
+    // cutoff = textBearing[1] = the 2nd reasoning turn
+    expect(result.transformedTurnCount).toBe(1)
+  })
+
+  test("when no text-bearing turns exist, drops nothing", () => {
+    // All-no-text edge case (rare in practice). Conservative behavior:
+    // don't drop, model already has nothing useful.
+    const messages: MessageV2.WithParts[] = [
+      anchorMessage("summary"),
+      userMessage("u1"),
+      assistantTurn({ toolCount: 2, noText: true }),
+      userMessage("u2"),
+      assistantTurn({ toolCount: 2, noText: true }),
+      userMessage("u3"),
+      assistantTurn({ toolCount: 2, noText: true }),
+    ]
+    const result = transformPostAnchorTail(messages, { recentRawRounds: 2 })
+    expect(result.transformedTurnCount).toBe(0)
+    expect(result.messages).toBe(messages)
   })
 })

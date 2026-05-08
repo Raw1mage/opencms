@@ -1468,40 +1468,28 @@ export namespace SessionPrompt {
             // fall through to the nudge path below
           }
         }
-        if (emptyRoundCount === 1) {
-          const nudgeModel = await Provider.getModel(lastUser.model.providerId, lastUser.model.modelID)
-          const nudgeBudget = contextBudgetSource
-            ? renderContextBudget({ lastFinished: contextBudgetSource, model: nudgeModel })
-            : undefined
-          log.info("self-heal: empty round 1, injecting retry nudge", {
-            sessionID,
-            step,
-            isSubagent: !!session.parentID,
-          })
-          const nudgeUser: MessageV2.User = {
-            id: Identifier.ascending("message"),
-            sessionID,
-            role: "user",
-            time: { created: Date.now() },
-            agent: lastUser.agent,
-            model: lastUser.model,
-            variant: lastUser.variant,
-          }
-          await Session.updateMessage(nudgeUser)
-          await Session.updatePart({
-            id: Identifier.ascending("part"),
-            messageID: nudgeUser.id,
-            sessionID,
-            type: "text",
-            text: ["?", nudgeBudget].filter((part): part is string => !!part).join("\n"),
-            synthetic: true,
-          } satisfies MessageV2.TextPart)
-          continue
-        }
-
-        // emptyRoundCount >= 2: self-heal nudge already fired and the
-        // next round is still empty. Two interpretations:
+        // 2026-05-08 — Pure-"?" nudge removed at user direction.
+        // Previous behavior: emptyRoundCount === 1 (non-overflow path)
+        // injected a synthetic user message with text "?" (+ optional
+        // context budget) to nudge the model to continue. Empirical
+        // result: model frequently interpreted "?" as "what?" /
+        // "explain again" and re-emitted the same plan, fueling
+        // narrative loops. Per memory feedback_break_chain_save_session,
+        // chain reset alone (already executed above on every empty
+        // round) is the right recovery; an additional cryptic nudge
+        // adds noise and tokens without changing outcome.
+        //
+        // New behavior: any empty round whose context-overflow probe
+        // does not suspect overflow (so the compaction-replay branch
+        // above didn't fire) falls straight through to natural-stop.
+        // The compaction-replay path still handles real context
+        // overflow; the rest are treated as the model's clean
+        // "natural stop" signal.
+        //
+        // Two interpretations of an empty round at this point:
         //   (a) genuine codex overflow / chain corruption — runaway
+        //       (compaction-replay branch already attempted on
+        //        emptyRoundCount === 1 + overflowSuspected)
         //   (b) model truly has nothing more to say (tools succeeded
         //       last round, this round is "natural stop" that codex
         //       didn't tag with a terminal event)
