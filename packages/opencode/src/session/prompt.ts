@@ -1707,7 +1707,14 @@ export namespace SessionPrompt {
               // that drops item count back to a safe range. If compaction
               // fails, fall through to the nudge path so we still emit
               // *some* recovery signal.
-              const PARALYSIS_ITEMCOUNT_COMPACT_THRESHOLD = 250
+              // 2026-05-08 (lowered from 250 → 200): live observation
+              // shows ws_truncation firing at items=230 on a fresh session.
+              // Codex backend's hidden item-array bug has a softer onset
+              // than the empirical 300+ initial RCA suggested — by the time
+              // paralysis is detected the session is already accumulating
+              // failed turns, so being more aggressive with the compact
+              // trigger costs little and breaks loops sooner.
+              const PARALYSIS_ITEMCOUNT_COMPACT_THRESHOLD = 200
               const estimatedItemCount = (() => {
                 let count = 0
                 for (const m of msgs) {
