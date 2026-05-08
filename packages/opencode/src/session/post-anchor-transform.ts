@@ -1,50 +1,58 @@
 /**
- * compaction-fix Phase 1 — post-anchor tail transformer (v5, upstream-aligned).
+ * compaction-fix Phase 1 — post-anchor tail transformer (v6, current-task scope).
  *
  * After `applyStreamAnchorRebind` slices messages from the most recent
- * compaction anchor, this transformer DROPS every completed assistant
- * turn from the LLM input array. The model sees only:
- *   - the anchor (carrying compacted summary + Phase 2 codex compactedItems)
- *   - all user messages
- *   - the in-flight assistant turn (if any)
- *   - assistant turns carrying a `compaction` part (Mode 1 inline server
- *     compaction state — codex chain bookkeeping, must round-trip)
+ * compaction anchor, this transformer drops completed assistant turns
+ * that belong to PRIOR user tasks (turns before the most recent user
+ * message). Within the current task — all turns since the latest user
+ * message — every assistant message stays intact so the model retains
+ * full continuity of its own reasoning and tool history.
  *
  * 2026-05-08 revision history:
  *   v1 (commit 6dcd327fa) — collapse each completed turn into a single
- *     `[turn N] tool(args) → ref:xyz` text part on the original
- *     assistant message. Codex regurgitated the format as its own
- *     output (mimicry under autonomous continuation).
- *   v2 (commit 43d400258) — drop completed turns ENTIRELY beyond the N
- *     most-recent. Eliminated regurgitation, introduced amnesia
- *     (when the recent N turns happened to be no-text the model lost
- *     all of its narrative thread).
- *   v3 (commit a2f30dc4c) — text-bearing-aware preservation: keep the
- *     Nth-most-recent text-bearing turn AND everything after. Solved
- *     the no-text adjacency case but still kept stale tool data.
- *   v5 (this revision) — full upstream codex-rs alignment. Drop ALL
- *     completed assistant content. Recall is via the system-manager
- *     `recall_toolcall_*` MCP tools advertised in the post-compaction
- *     manifest, plus Phase 2 anchor-prefix expansion of codex
- *     `/responses/compact` compactedItems. The `recentRawRounds`
- *     parameter is removed — upstream `build_compacted_history`
- *     does not preserve any past assistant content.
+ *     `[turn N] tool(args) → ref:xyz` text part. Codex regurgitated the
+ *     format as its own output (mimicry).
+ *   v2 (commit 43d400258) — drop completed turns beyond `recentRawRounds`
+ *     most-recent. Eliminated regurgitation, introduced amnesia when the
+ *     recent N turns were all no-text.
+ *   v3 (commit a2f30dc4c) — text-bearing-aware preservation. Solved the
+ *     no-text-adjacency case but still kept stale tool data.
+ *   v5 (commit ac2b34a0b) — full upstream codex-rs alignment, drop ALL
+ *     completed assistants. Live observation: model entered tight
+ *     amnesia loop because every turn's input collapsed to a constant
+ *     (~332 tokens, anchor + user msgs only) and the model re-derived
+ *     the same tool call sequence each iteration with no awareness of
+ *     what it had just done. Upstream gets away with this because
+ *     `/responses/compact` produces a compact summary inside anchor;
+ *     our anchor without Phase 2 codex compactedItems carries no
+ *     intra-task continuity, so dropping all assistants leaves the
+ *     model blind.
+ *   v6 (this revision) — current-task scope. Keep everything after the
+ *     latest user message intact (full assistant + tool continuity for
+ *     the live question). Drop completed assistants before the latest
+ *     user message (prior tasks the model finished and can move on
+ *     from). Recall is via:
+ *       - anchor summary (Phase 2 expansion when codex provider supplies
+ *         `/responses/compact` compactedItems)
+ *       - post-compaction provider manifest (count + topic labels +
+ *         recall tool advertising)
+ *       - `system-manager:recall_toolcall_{index,raw,digest}` MCP tools
  *
  * Decisions:
- *   DD-1 (v5) — completed assistant turns are dropped from LLM input
- *          unconditionally. The model relies on:
- *            (a) anchor summary (Phase 2 expansion when codex provider)
- *            (b) post-compaction provider manifest (count + topic
- *                labels + recall tool names)
- *            (c) `system-manager:recall_toolcall_{index,raw,digest}`
- *                MCP tools for on-demand drill-in
+ *   DD-1 (v6) — drop completed assistant turns whose index in the
+ *          message stream is BEFORE the last user message. Keep all
+ *          turns at or after the last user message regardless of role.
+ *          When no user message exists in the post-anchor slice, drop
+ *          nothing (rare; means anchor + assistants only, e.g. fresh
+ *          rebind from compaction).
  *   DD-7 — `compaction` part type is exempt: those are Mode 1 inline
  *          server compaction items, codex chain state.
  *
  * Safety carve-outs:
  *   - In-flight assistant (any tool part status pending / running) is
- *     NEVER dropped.
- *   - Assistant message containing a `compaction` part is exempt.
+ *     NEVER dropped (always after the last user message anyway).
+ *   - Assistant carrying a `compaction` part is exempt regardless of
+ *     position.
  *   - Anchor message (`messages[0]`) is never touched.
  *
  * Output schema preserved for callers that read `transformedTurnCount`,
@@ -56,8 +64,8 @@ import type { MessageV2 } from "./message-v2"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Layer-purity exports (back-compat surface for callers that import the
-// constant or class). v5 emits no synthetic text so the assertion path is
-// no longer used internally; the symbols remain exported because
+// constant or class). v6 emits no synthetic text so the assertion path is
+// not used internally; the symbols remain exported because
 // `anchor-prefix-expand.ts` (Phase 2) imports them.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -80,16 +88,15 @@ export class LayerPurityViolation extends Error {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tail transformation — v5 unconditional drop
+// Tail transformation — v6 current-task scope
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * v5 retains an empty options object for call-site stability while the
- * `recentRawRounds` field is being removed from config callers. Future
- * cleanup may delete the parameter entirely.
+ * v6 retains an empty options object for call-site stability. The
+ * deprecated `recentRawRounds` field is ignored.
  */
 export interface TransformOptions {
-  /** @deprecated v5 ignores this field. Drop is unconditional. */
+  /** @deprecated v6 ignores this field. Drop scope is "before last user message". */
   recentRawRounds?: number
 }
 
@@ -118,11 +125,11 @@ function isExemptAssistant(msg: MessageV2.WithParts): boolean {
 /**
  * Transform the post-anchor tail of a sliced message stream.
  *
- * Drops every completed assistant turn that is not in-flight and not
- * carrying a `compaction` part. Anchor at index 0, all user messages,
- * the in-flight assistant, and exempt assistants are preserved. Returns
- * a NEW array containing references to kept messages — input is not
- * mutated.
+ * Drops completed assistant turns whose position is before the most
+ * recent user message in the post-anchor slice. Anchor at index 0,
+ * all messages from the last user message onward, in-flight assistant,
+ * and exempt assistants are preserved. Returns a NEW array containing
+ * references to kept messages — input is not mutated.
  */
 export function transformPostAnchorTail(
   messages: MessageV2.WithParts[],
@@ -132,9 +139,26 @@ export function transformPostAnchorTail(
     return { messages, transformedTurnCount: 0, exemptTurnCount: 0, cacheRefHits: 0, cacheRefMisses: 0 }
   }
 
+  // Locate the most recent user message index. Skip the anchor at index 0.
+  let lastUserIdx = -1
+  for (let i = messages.length - 1; i >= 1; i--) {
+    if (messages[i].info.role === "user") {
+      lastUserIdx = i
+      break
+    }
+  }
+
+  // No user message in post-anchor stream → conservative: drop nothing.
+  // This happens immediately after compaction when the runloop emits
+  // anchor + assistant turns without a fresh user (the synthetic
+  // continue message lives there).
+  if (lastUserIdx === -1) {
+    return { messages, transformedTurnCount: 0, exemptTurnCount: 0, cacheRefHits: 0, cacheRefMisses: 0 }
+  }
+
   const dropIndices = new Set<number>()
   let exemptCount = 0
-  for (let i = 1; i < messages.length; i++) {
+  for (let i = 1; i < lastUserIdx; i++) {
     const msg = messages[i]
     if (msg.info.role !== "assistant") continue
     if (isInFlightAssistant(msg)) {

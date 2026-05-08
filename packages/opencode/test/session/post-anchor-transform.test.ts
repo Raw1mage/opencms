@@ -1,16 +1,18 @@
 /**
- * compaction-fix Phase 1 v5 — post-anchor transformer unit tests.
+ * compaction-fix Phase 1 v6 — post-anchor transformer unit tests.
  *
- * v5 unconditionally drops every completed assistant turn that is not
- * in-flight and not carrying a `compaction` part. No `recentRawRounds`
- * preservation. Aligns with upstream codex-rs `build_compacted_history`.
- * Recall is via system-manager `recall_toolcall_*` MCP tools advertised
- * in the post-compaction provider manifest.
+ * v6 drops completed assistant turns whose position is BEFORE the most
+ * recent user message in the post-anchor stream. Within the current
+ * task (turns since the last user message) every assistant message
+ * stays intact, giving the model full self-continuity for the live
+ * question while still bounding itemCount across long sessions of
+ * many separate user tasks.
  *
  * Coverage:
- *   - drops all completed assistant turns
- *   - preserves anchor + all user messages + in-flight + compaction-bearing
- *   - itemCount reduction on long tails
+ *   - drops completed assistants before last user message
+ *   - keeps everything from last user message onward
+ *   - in-flight assistant always preserved
+ *   - compaction-bearing assistant always preserved
  *   - layer-purity exports retained for back-compat
  */
 
@@ -196,10 +198,10 @@ describe("Layer purity exports (back-compat)", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// transformPostAnchorTail — v5 unconditional drop
+// transformPostAnchorTail v6 — current-task scope
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("transformPostAnchorTail v5 (drop all completed assistants)", () => {
+describe("transformPostAnchorTail v6 (drop before last user message)", () => {
   test("noop on empty input", () => {
     const result = transformPostAnchorTail([])
     expect(result.messages).toEqual([])
@@ -207,26 +209,40 @@ describe("transformPostAnchorTail v5 (drop all completed assistants)", () => {
     expect(result.exemptTurnCount).toBe(0)
   })
 
-  test("drops every completed assistant turn unconditionally", () => {
+  test("drops completed assistants from prior tasks; keeps current task intact", () => {
+    // 3 user tasks. Most recent task is the last user message.
     const messages: MessageV2.WithParts[] = [
       anchorMessage("[summary]"),
-      userMessage("u1"),
+      userMessage("u1"),                     // task 1
       assistantTurn({ toolCount: 2 }),
-      userMessage("u2"),
+      assistantTurn({ toolCount: 1 }),
+      userMessage("u2"),                     // task 2
       assistantTurn({ toolCount: 3 }),
-      userMessage("u3"),
+      assistantTurn({ toolCount: 1 }),
+      userMessage("u3"),                     // task 3 (current)
+      assistantTurn({ toolCount: 2 }),
       assistantTurn({ toolCount: 1 }),
     ]
     const result = transformPostAnchorTail(messages)
-    expect(result.transformedTurnCount).toBe(3)
-    // Anchor + 3 user messages survive; 3 completed assistants dropped
-    expect(result.messages.length).toBe(4)
-    expect(result.messages[0]).toBe(messages[0])
-    const surviving = result.messages.filter((m) => m.info.role === "user")
-    expect(surviving.length).toBe(3)
+
+    // 4 assistants from prior tasks dropped (indices 2, 3, 5, 6)
+    expect(result.transformedTurnCount).toBe(4)
+    // Anchor + 3 user + 2 current-task assistants = 6 messages
+    expect(result.messages.length).toBe(6)
+    expect(result.messages[0]).toBe(messages[0])   // anchor
+    expect(result.messages).toContain(messages[1]) // u1
+    expect(result.messages).toContain(messages[4]) // u2
+    expect(result.messages).toContain(messages[7]) // u3 (last user)
+    expect(result.messages).toContain(messages[8]) // current task assistant 1
+    expect(result.messages).toContain(messages[9]) // current task assistant 2
+    // Prior-task assistants dropped
+    expect(result.messages).not.toContain(messages[2])
+    expect(result.messages).not.toContain(messages[3])
+    expect(result.messages).not.toContain(messages[5])
+    expect(result.messages).not.toContain(messages[6])
   })
 
-  test("preserves in-flight assistant intact", () => {
+  test("preserves in-flight assistant (always after last user)", () => {
     const messages: MessageV2.WithParts[] = [
       anchorMessage("summary"),
       userMessage("u1"),
@@ -234,89 +250,92 @@ describe("transformPostAnchorTail v5 (drop all completed assistants)", () => {
       userMessage("u2"),
       assistantTurn({ toolCount: 3 }),
       userMessage("u3"),
-      assistantTurn({ toolCount: 1, inFlight: true }), // pending tool
+      assistantTurn({ toolCount: 1, inFlight: true }),
     ]
     const result = transformPostAnchorTail(messages)
-    // 2 completed assistants dropped, in-flight kept
+    // 2 prior-task assistants (indices 2, 4) dropped
     expect(result.transformedTurnCount).toBe(2)
-    expect(result.exemptTurnCount).toBe(1)
+    // In-flight survives (it's after u3, current task)
     const inFlight = result.messages[result.messages.length - 1]
     expect(inFlight.info.role).toBe("assistant")
     expect(inFlight.parts.some((p) => p.type === "tool")).toBe(true)
   })
 
-  test("exempts assistant message with compaction part (DD-7 carve-out)", () => {
+  test("keeps all assistants when only one user message exists (single-task session)", () => {
     const messages: MessageV2.WithParts[] = [
       anchorMessage("summary"),
       userMessage("u1"),
       assistantTurn({ toolCount: 2 }),
-      userMessage("u2"),
-      assistantTurn({ toolCount: 1, hasCompactionPart: true }), // exempt
-      userMessage("u3"),
-      assistantTurn({ toolCount: 2 }),
-    ]
-    const result = transformPostAnchorTail(messages)
-    // 2 completed assistants dropped, 1 compaction-bearing kept
-    expect(result.transformedTurnCount).toBe(2)
-    expect(result.exemptTurnCount).toBe(1)
-    const compactionBearing = result.messages.find(
-      (m) => m.parts.some((p) => p.type === "compaction") && !(m.info as MessageV2.Assistant).summary,
-    )
-    expect(compactionBearing).toBeDefined()
-  })
-
-  test("treats no-text completed assistant identically to text-bearing (drops both)", () => {
-    const messages: MessageV2.WithParts[] = [
-      anchorMessage("summary"),
-      userMessage("u1"),
-      assistantTurn({ toolCount: 2 }), // text + tools
-      userMessage("u2"),
-      assistantTurn({ toolCount: 3, noText: true }), // tools only
-      userMessage("u3"),
-      assistantTurn({ toolCount: 1, hasReasoning: true, noText: true }), // reasoning only
-    ]
-    const result = transformPostAnchorTail(messages)
-    expect(result.transformedTurnCount).toBe(3) // all three dropped
-    expect(result.messages.length).toBe(4) // anchor + 3 user
-  })
-
-  test("ignores deprecated recentRawRounds option (back-compat call site)", () => {
-    const messages: MessageV2.WithParts[] = [
-      anchorMessage("summary"),
-      userMessage("u1"),
-      assistantTurn({ toolCount: 1 }),
-      userMessage("u2"),
-      assistantTurn({ toolCount: 1 }),
-      userMessage("u3"),
+      assistantTurn({ toolCount: 3 }),
       assistantTurn({ toolCount: 1 }),
     ]
-    // Even with recentRawRounds=10, v5 still drops all
-    const result = transformPostAnchorTail(messages, { recentRawRounds: 10 })
-    expect(result.transformedTurnCount).toBe(3)
-  })
-
-  test("noop when no completed assistants exist (only in-flight)", () => {
-    const messages: MessageV2.WithParts[] = [
-      anchorMessage("summary"),
-      userMessage("u1"),
-      assistantTurn({ toolCount: 1, inFlight: true }),
-    ]
     const result = transformPostAnchorTail(messages)
+    // All 3 assistants are after u1 (the only user) → drop nothing
     expect(result.transformedTurnCount).toBe(0)
-    expect(result.messages).toBe(messages) // referential equality on noop
+    expect(result.messages).toBe(messages)
   })
 
-  test("itemCount reduction on long tail — 50 turns drop to anchor + user msgs only", () => {
+  test("noop when no user message exists in post-anchor slice", () => {
+    // Synthetic post-compaction state: anchor + assistant continue messages
+    const messages: MessageV2.WithParts[] = [
+      anchorMessage("summary"),
+      assistantTurn({ toolCount: 1 }),
+      assistantTurn({ toolCount: 1 }),
+    ]
+    const result = transformPostAnchorTail(messages)
+    // No user msg → drop nothing
+    expect(result.transformedTurnCount).toBe(0)
+    expect(result.messages).toBe(messages)
+  })
+
+  test("exempts assistant message with compaction part regardless of position", () => {
+    const messages: MessageV2.WithParts[] = [
+      anchorMessage("summary"),
+      userMessage("u1"),
+      assistantTurn({ toolCount: 1, hasCompactionPart: true }), // exempt
+      userMessage("u2"),
+      assistantTurn({ toolCount: 2 }),
+    ]
+    const result = transformPostAnchorTail(messages)
+    // Compaction-bearing assistant is exempt; in this case it's BEFORE last user
+    // but the carve-out keeps it
+    expect(result.transformedTurnCount).toBe(0) // exempt + current task
+    expect(result.exemptTurnCount).toBe(1)
+  })
+
+  test("ignores deprecated recentRawRounds option", () => {
+    const messages: MessageV2.WithParts[] = [
+      anchorMessage("summary"),
+      userMessage("u1"),
+      assistantTurn({ toolCount: 1 }),
+      userMessage("u2"),
+      assistantTurn({ toolCount: 1 }),
+    ]
+    // recentRawRounds=10 used to mean "keep 10 raw" — v6 ignores it
+    const result = transformPostAnchorTail(messages, { recentRawRounds: 10 })
+    // 1 assistant (idx 2, before u2) dropped
+    expect(result.transformedTurnCount).toBe(1)
+  })
+
+  test("typical long session — many prior tasks + active current task", () => {
+    // 20 prior user-task cycles, each with 4 assistant turns
     const messages: MessageV2.WithParts[] = [anchorMessage("[summary]")]
-    for (let i = 0; i < 50; i++) {
-      messages.push(userMessage(`u${i}`))
-      messages.push(assistantTurn({ toolCount: 4, hasReasoning: true }))
+    for (let task = 0; task < 20; task++) {
+      messages.push(userMessage(`task-${task}`))
+      for (let t = 0; t < 4; t++) {
+        messages.push(assistantTurn({ toolCount: 2, hasReasoning: true }))
+      }
+    }
+    // Current task: user + 5 in-progress turns
+    messages.push(userMessage("current-task"))
+    for (let t = 0; t < 5; t++) {
+      messages.push(assistantTurn({ toolCount: 2, hasReasoning: true }))
     }
     const result = transformPostAnchorTail(messages)
-    // All 50 completed assistants dropped
-    expect(result.transformedTurnCount).toBe(50)
-    // 1 anchor + 50 user = 51 messages remain
-    expect(result.messages.length).toBe(51)
+    // 20 tasks × 4 assistants = 80 prior assistants dropped
+    expect(result.transformedTurnCount).toBe(80)
+    // Kept: 1 anchor + 21 user + 5 current = 27 messages
+    expect(result.messages.length).toBe(27)
   })
 
   test("does not mutate the input array", () => {
