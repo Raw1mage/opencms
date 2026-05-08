@@ -2369,9 +2369,7 @@ export namespace SessionPrompt {
         try {
           const beforeCount = sessionMessages.length
           const beforeParts = sessionMessages.reduce((sum, m) => sum + m.parts.length, 0)
-          const transformed = transformPostAnchorTail(sessionMessages, {
-            recentRawRounds: compactionTweakPhase1.recentRawRounds,
-          })
+          const transformed = transformPostAnchorTail(sessionMessages)
           if (transformed.messages.length < compactionTweakPhase1.fallbackThreshold) {
             log.warn("phase1-transform: fallback to raw", {
               sessionID,
@@ -2386,11 +2384,8 @@ export namespace SessionPrompt {
             log.info("phase1-transform: applied", {
               sessionID,
               step,
-              recentRawRounds: compactionTweakPhase1.recentRawRounds,
               transformedTurns: transformed.transformedTurnCount,
               exemptTurns: transformed.exemptTurnCount,
-              cacheRefHits: transformed.cacheRefHits,
-              cacheRefMisses: transformed.cacheRefMisses,
               partsBefore: beforeParts,
               partsAfter: afterParts,
               messagesCount: beforeCount,

@@ -1,17 +1,17 @@
 /**
- * compaction-fix Phase 1 — post-anchor transformer unit tests.
+ * compaction-fix Phase 1 v5 — post-anchor transformer unit tests.
  *
- * 2026-05-08 revision: transformer now DROPS completed assistant turns
- * (instead of replacing parts with trace markers). Tests verify the
- * drop behavior, recentRawRounds preservation, and carve-outs.
+ * v5 unconditionally drops every completed assistant turn that is not
+ * in-flight and not carrying a `compaction` part. No `recentRawRounds`
+ * preservation. Aligns with upstream codex-rs `build_compacted_history`.
+ * Recall is via system-manager `recall_toolcall_*` MCP tools advertised
+ * in the post-compaction provider manifest.
  *
  * Coverage:
- *   - DD-1 / drop completed assistant turns       → "drops older completed turns"
- *   - DD-2 / recentRawRounds preserved            → "preserves last N raw"
- *   - DD-7 / Mode 1 compaction exempt             → "exempts compaction part type"
- *   - In-flight assistant preserved               → "preserves in-flight"
- *   - Empty / undersized inputs                   → "noop on empty / under threshold"
- *   - Layer-purity exports still present (back-compat)
+ *   - drops all completed assistant turns
+ *   - preserves anchor + all user messages + in-flight + compaction-bearing
+ *   - itemCount reduction on long tails
+ *   - layer-purity exports retained for back-compat
  */
 
 import { describe, expect, test } from "bun:test"
@@ -100,7 +100,6 @@ interface TurnSpec {
   hasCompactionPart?: boolean
   toolName?: string
   toolInput?: unknown
-  /** v3: when true, emit no text part (tool-call-only turn). */
   noText?: boolean
 }
 
@@ -197,53 +196,34 @@ describe("Layer purity exports (back-compat)", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// transformPostAnchorTail — drop semantics
+// transformPostAnchorTail — v5 unconditional drop
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("transformPostAnchorTail (drop semantics)", () => {
+describe("transformPostAnchorTail v5 (drop all completed assistants)", () => {
   test("noop on empty input", () => {
-    const result = transformPostAnchorTail([], { recentRawRounds: 2 })
+    const result = transformPostAnchorTail([])
     expect(result.messages).toEqual([])
     expect(result.transformedTurnCount).toBe(0)
     expect(result.exemptTurnCount).toBe(0)
   })
 
-  test("drops older completed turns, keeps last N=2 raw (DD-1 + DD-2)", () => {
+  test("drops every completed assistant turn unconditionally", () => {
     const messages: MessageV2.WithParts[] = [
-      anchorMessage("[summary so far]"),
-      userMessage("turn 1 question"),
+      anchorMessage("[summary]"),
+      userMessage("u1"),
       assistantTurn({ toolCount: 2 }),
-      userMessage("turn 2 question"),
+      userMessage("u2"),
       assistantTurn({ toolCount: 3 }),
-      userMessage("turn 3 question"),
-      assistantTurn({ toolCount: 1 }),
-      userMessage("turn 4 question"),
-      assistantTurn({ toolCount: 2 }),
-      userMessage("turn 5 question"),
+      userMessage("u3"),
       assistantTurn({ toolCount: 1 }),
     ]
-    const result = transformPostAnchorTail(messages, { recentRawRounds: 2 })
-
-    // 5 completed assistant turns; recentRawRounds=2 keeps last 2 → 3 dropped
+    const result = transformPostAnchorTail(messages)
     expect(result.transformedTurnCount).toBe(3)
-
-    // Anchor at index 0 unchanged
+    // Anchor + 3 user messages survive; 3 completed assistants dropped
+    expect(result.messages.length).toBe(4)
     expect(result.messages[0]).toBe(messages[0])
-
-    // All 5 user messages preserved
-    const userMsgs = result.messages.filter((m) => m.info.role === "user")
-    expect(userMsgs.length).toBe(5)
-
-    // Only 2 assistant messages (the kept-raw last 2)
-    const assistantMsgs = result.messages.filter((m) => m.info.role === "assistant")
-    // Anchor counts as assistant role too — anchor + 2 raw = 3
-    expect(assistantMsgs.length).toBe(3)
-
-    // The kept assistant turns retain their full part structure (not collapsed)
-    const nonAnchorAssistants = assistantMsgs.filter((m) => !(m.info as MessageV2.Assistant).summary)
-    for (const a of nonAnchorAssistants) {
-      expect(a.parts.length).toBeGreaterThan(2)
-    }
+    const surviving = result.messages.filter((m) => m.info.role === "user")
+    expect(surviving.length).toBe(3)
   })
 
   test("preserves in-flight assistant intact", () => {
@@ -254,13 +234,14 @@ describe("transformPostAnchorTail (drop semantics)", () => {
       userMessage("u2"),
       assistantTurn({ toolCount: 3 }),
       userMessage("u3"),
-      assistantTurn({ toolCount: 1, inFlight: true }), // last one has pending tool
+      assistantTurn({ toolCount: 1, inFlight: true }), // pending tool
     ]
-    const result = transformPostAnchorTail(messages, { recentRawRounds: 0 })
-    // In-flight assistant is preserved even with recentRawRounds=0
+    const result = transformPostAnchorTail(messages)
+    // 2 completed assistants dropped, in-flight kept
+    expect(result.transformedTurnCount).toBe(2)
+    expect(result.exemptTurnCount).toBe(1)
     const inFlight = result.messages[result.messages.length - 1]
     expect(inFlight.info.role).toBe("assistant")
-    expect(inFlight.parts.length).toBeGreaterThan(2)
     expect(inFlight.parts.some((p) => p.type === "tool")).toBe(true)
   })
 
@@ -274,40 +255,68 @@ describe("transformPostAnchorTail (drop semantics)", () => {
       userMessage("u3"),
       assistantTurn({ toolCount: 2 }),
     ]
-    const result = transformPostAnchorTail(messages, { recentRawRounds: 0 })
-    // Compaction-bearing assistant is preserved fully (full part count)
-    const compactionBearing = result.messages.find((m) => m.parts.some((p) => p.type === "compaction") && !(m.info as MessageV2.Assistant).summary)
+    const result = transformPostAnchorTail(messages)
+    // 2 completed assistants dropped, 1 compaction-bearing kept
+    expect(result.transformedTurnCount).toBe(2)
+    expect(result.exemptTurnCount).toBe(1)
+    const compactionBearing = result.messages.find(
+      (m) => m.parts.some((p) => p.type === "compaction") && !(m.info as MessageV2.Assistant).summary,
+    )
     expect(compactionBearing).toBeDefined()
-    expect(compactionBearing!.parts.some((p) => p.type === "compaction")).toBe(true)
   })
 
-  test("noop when recent N >= candidate count", () => {
+  test("treats no-text completed assistant identically to text-bearing (drops both)", () => {
+    const messages: MessageV2.WithParts[] = [
+      anchorMessage("summary"),
+      userMessage("u1"),
+      assistantTurn({ toolCount: 2 }), // text + tools
+      userMessage("u2"),
+      assistantTurn({ toolCount: 3, noText: true }), // tools only
+      userMessage("u3"),
+      assistantTurn({ toolCount: 1, hasReasoning: true, noText: true }), // reasoning only
+    ]
+    const result = transformPostAnchorTail(messages)
+    expect(result.transformedTurnCount).toBe(3) // all three dropped
+    expect(result.messages.length).toBe(4) // anchor + 3 user
+  })
+
+  test("ignores deprecated recentRawRounds option (back-compat call site)", () => {
     const messages: MessageV2.WithParts[] = [
       anchorMessage("summary"),
       userMessage("u1"),
       assistantTurn({ toolCount: 1 }),
       userMessage("u2"),
       assistantTurn({ toolCount: 1 }),
+      userMessage("u3"),
+      assistantTurn({ toolCount: 1 }),
     ]
-    const result = transformPostAnchorTail(messages, { recentRawRounds: 5 })
-    expect(result.transformedTurnCount).toBe(0)
-    expect(result.messages).toBe(messages) // returns same reference when no-op
+    // Even with recentRawRounds=10, v5 still drops all
+    const result = transformPostAnchorTail(messages, { recentRawRounds: 10 })
+    expect(result.transformedTurnCount).toBe(3)
   })
 
-  test("itemCount-equivalent reduction is significant on long tail", () => {
-    // Synthesize 30 completed turns each with 4 tool calls — without drop,
-    // each turn contributes ~7 parts. With drop (recentRawRounds=2), 28 of
-    // 30 are removed entirely.
+  test("noop when no completed assistants exist (only in-flight)", () => {
+    const messages: MessageV2.WithParts[] = [
+      anchorMessage("summary"),
+      userMessage("u1"),
+      assistantTurn({ toolCount: 1, inFlight: true }),
+    ]
+    const result = transformPostAnchorTail(messages)
+    expect(result.transformedTurnCount).toBe(0)
+    expect(result.messages).toBe(messages) // referential equality on noop
+  })
+
+  test("itemCount reduction on long tail — 50 turns drop to anchor + user msgs only", () => {
     const messages: MessageV2.WithParts[] = [anchorMessage("[summary]")]
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 50; i++) {
       messages.push(userMessage(`u${i}`))
       messages.push(assistantTurn({ toolCount: 4, hasReasoning: true }))
     }
-    const result = transformPostAnchorTail(messages, { recentRawRounds: 2 })
-    expect(result.transformedTurnCount).toBe(28)
-    // Original: 1 anchor + 30 user + 30 assistant = 61 messages
-    // After:    1 anchor + 30 user + 2 assistant = 33 messages
-    expect(result.messages.length).toBe(33)
+    const result = transformPostAnchorTail(messages)
+    // All 50 completed assistants dropped
+    expect(result.transformedTurnCount).toBe(50)
+    // 1 anchor + 50 user = 51 messages remain
+    expect(result.messages.length).toBe(51)
   })
 
   test("does not mutate the input array", () => {
@@ -317,162 +326,13 @@ describe("transformPostAnchorTail (drop semantics)", () => {
       assistantTurn({ toolCount: 2 }),
       userMessage("u2"),
       assistantTurn({ toolCount: 1 }),
-      userMessage("u3"),
-      assistantTurn({ toolCount: 1 }),
     ]
     const originalLength = messages.length
     const originalRefs = [...messages]
-    transformPostAnchorTail(messages, { recentRawRounds: 1 })
+    transformPostAnchorTail(messages)
     expect(messages.length).toBe(originalLength)
     for (let i = 0; i < messages.length; i++) {
       expect(messages[i]).toBe(originalRefs[i])
     }
-  })
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-// v3 — text-bearing-aware preservation (mixed text / no-text turns)
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("transformPostAnchorTail v3 — text-bearing preservation", () => {
-  test("keeps Nth-most-recent text turn + everything after (interleaved no-text)", () => {
-    // Pattern: text / no-text / text / no-text / text / no-text  (6 turns)
-    // recentRawRounds=2 → cutoff = 2nd-most-recent text-bearing turn
-    // = the text turn at index ... let's count positions:
-    //   idx 0: anchor
-    //   idx 1: user u1
-    //   idx 2: assistant text-bearing #1 (oldest)
-    //   idx 3: user u2
-    //   idx 4: assistant no-text #1
-    //   idx 5: user u3
-    //   idx 6: assistant text-bearing #2
-    //   idx 7: user u4
-    //   idx 8: assistant no-text #2
-    //   idx 9: user u5
-    //   idx 10: assistant text-bearing #3 (newest)
-    //   idx 11: user u6
-    //   idx 12: assistant no-text #3 (newest)
-    // text-bearing indices: [2, 6, 10]
-    // recentRawRounds=2 → cutoff = textBearing[3-2] = textBearing[1] = idx 6
-    // drop indices: candidates < 6 = [2, 4]
-    // kept: [0(anchor), 1, 3, 5, 6(text#2), 7, 8(no-text#2), 9, 10(text#3), 11, 12(no-text#3)]
-    const messages: MessageV2.WithParts[] = [
-      anchorMessage("summary"),
-      userMessage("u1"),
-      assistantTurn({ toolCount: 1 }),                  // idx 2 — text #1
-      userMessage("u2"),
-      assistantTurn({ toolCount: 2, noText: true }),    // idx 4 — no-text #1
-      userMessage("u3"),
-      assistantTurn({ toolCount: 1 }),                  // idx 6 — text #2
-      userMessage("u4"),
-      assistantTurn({ toolCount: 2, noText: true }),    // idx 8 — no-text #2
-      userMessage("u5"),
-      assistantTurn({ toolCount: 1 }),                  // idx 10 — text #3
-      userMessage("u6"),
-      assistantTurn({ toolCount: 2, noText: true }),    // idx 12 — no-text #3
-    ]
-    const result = transformPostAnchorTail(messages, { recentRawRounds: 2 })
-    expect(result.transformedTurnCount).toBe(2) // idx 2 and 4 dropped
-    expect(result.messages.length).toBe(messages.length - 2) // 13 - 2 = 11
-
-    // Verify text #2 and after survived
-    expect(result.messages).toContain(messages[6])  // text #2
-    expect(result.messages).toContain(messages[8])  // no-text #2 (interleaved, kept)
-    expect(result.messages).toContain(messages[10]) // text #3
-    expect(result.messages).toContain(messages[12]) // no-text #3
-
-    // Verify text #1 + adjacent no-text #1 dropped
-    expect(result.messages).not.toContain(messages[2])
-    expect(result.messages).not.toContain(messages[4])
-  })
-
-  test("drops nothing when last 2 turns are both no-text but only 2 text-bearing total", () => {
-    // 2 text + 2 no-text, recentRawRounds=2 → text count (2) ≤ N (2) → noop
-    const messages: MessageV2.WithParts[] = [
-      anchorMessage("summary"),
-      userMessage("u1"),
-      assistantTurn({ toolCount: 1 }),                  // text
-      userMessage("u2"),
-      assistantTurn({ toolCount: 1 }),                  // text
-      userMessage("u3"),
-      assistantTurn({ toolCount: 1, noText: true }),    // no-text
-      userMessage("u4"),
-      assistantTurn({ toolCount: 1, noText: true }),    // no-text
-    ]
-    const result = transformPostAnchorTail(messages, { recentRawRounds: 2 })
-    expect(result.transformedTurnCount).toBe(0)
-    expect(result.messages).toBe(messages) // referential equality on noop
-  })
-
-  test("v2-amnesia regression: with last 2 raw being no-text, model still sees text history", () => {
-    // The exact failure mode v3 fixes: 5 text + 2 trailing no-text,
-    // recentRawRounds=2. v2 would keep only the 2 trailing no-text.
-    // v3 keeps text-bearing #4 (cutoff) + no-text and text after.
-    const messages: MessageV2.WithParts[] = [
-      anchorMessage("summary"),
-      userMessage("u0"),
-      assistantTurn({ toolCount: 1 }),                  // idx 2 — text #1
-      userMessage("u1"),
-      assistantTurn({ toolCount: 1 }),                  // idx 4 — text #2
-      userMessage("u2"),
-      assistantTurn({ toolCount: 1 }),                  // idx 6 — text #3
-      userMessage("u3"),
-      assistantTurn({ toolCount: 1 }),                  // idx 8 — text #4 (cutoff for N=2)
-      userMessage("u4"),
-      assistantTurn({ toolCount: 1 }),                  // idx 10 — text #5
-      userMessage("u5"),
-      assistantTurn({ toolCount: 1, noText: true }),    // idx 12 — no-text #1
-      userMessage("u6"),
-      assistantTurn({ toolCount: 1, noText: true }),    // idx 14 — no-text #2
-    ]
-    const result = transformPostAnchorTail(messages, { recentRawRounds: 2 })
-    // textBearing indices [2, 4, 6, 8, 10]; cutoff = [5-2] = [3] = idx 8
-    // candidates < 8 = [2, 4, 6] dropped (3 turns)
-    expect(result.transformedTurnCount).toBe(3)
-
-    // Verify model retains text-bearing #4 (the cutoff) — its self-narrative
-    // is still in the prompt despite the trailing no-text turns
-    expect(result.messages).toContain(messages[8]) // text #4
-    expect(result.messages).toContain(messages[10]) // text #5
-    expect(result.messages).toContain(messages[12]) // no-text #1
-    expect(result.messages).toContain(messages[14]) // no-text #2
-    expect(result.messages).not.toContain(messages[2])
-    expect(result.messages).not.toContain(messages[4])
-    expect(result.messages).not.toContain(messages[6])
-  })
-
-  test("treats reasoning-only turns as text-bearing", () => {
-    // Turn with reasoning but no main-channel text → still counts as
-    // text-bearing (codex emits narrative on reasoning channel).
-    const messages: MessageV2.WithParts[] = [
-      anchorMessage("summary"),
-      userMessage("u1"),
-      assistantTurn({ toolCount: 1, hasReasoning: true, noText: true }), // reasoning only
-      userMessage("u2"),
-      assistantTurn({ toolCount: 1, hasReasoning: true, noText: true }), // reasoning only
-      userMessage("u3"),
-      assistantTurn({ toolCount: 1, hasReasoning: true, noText: true }), // reasoning only
-    ]
-    const result = transformPostAnchorTail(messages, { recentRawRounds: 2 })
-    // textBearing count = 3 (all reasoning turns count) > N=2
-    // cutoff = textBearing[1] = the 2nd reasoning turn
-    expect(result.transformedTurnCount).toBe(1)
-  })
-
-  test("when no text-bearing turns exist, drops nothing", () => {
-    // All-no-text edge case (rare in practice). Conservative behavior:
-    // don't drop, model already has nothing useful.
-    const messages: MessageV2.WithParts[] = [
-      anchorMessage("summary"),
-      userMessage("u1"),
-      assistantTurn({ toolCount: 2, noText: true }),
-      userMessage("u2"),
-      assistantTurn({ toolCount: 2, noText: true }),
-      userMessage("u3"),
-      assistantTurn({ toolCount: 2, noText: true }),
-    ]
-    const result = transformPostAnchorTail(messages, { recentRawRounds: 2 })
-    expect(result.transformedTurnCount).toBe(0)
-    expect(result.messages).toBe(messages)
   })
 })
