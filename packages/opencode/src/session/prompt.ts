@@ -967,6 +967,7 @@ export namespace SessionPrompt {
     let autonomousRounds = 0
     let lastDecisionReason: Awaited<ReturnType<typeof decideAutonomousContinuation>>["reason"] | undefined
     let emptyRoundCount = 0
+    let paralysisRecoveryCount = 0
     let consecutiveCompactions = 0
     const session = await Session.get(sessionID)
     const cachedInstructionPrompts = await InstructionPrompt.system()
@@ -1300,6 +1301,38 @@ export namespace SessionPrompt {
           break
         }
 
+        // User-requested empty-response recovery (2026-05-08): on any
+        // real empty turn, reset the codex response chain unconditionally.
+        // Drops `lastResponseId` for every per-account shard of this
+        // session, so the next outbound request omits previous_response_id
+        // and the server rebuilds the chain from our locally-stored full
+        // conversation. Local context untouched — equivalent to "close WS
+        // ID and reconnect with same messages" but without an actual
+        // socket bounce (codex transport's chain identity is the response
+        // ID, not the connection).
+        //
+        // Lighter than compaction (preserves all messages) and matches the
+        // documented Codex provider workaround for the v0.111+ empty-output
+        // bug class. Idempotent — repeated empty rounds are no-ops after
+        // the first invalidation. Fires before the compaction/nudge branch
+        // below so even sub-floor empty turns get a chain reset before any
+        // synthetic nudge retries on the now-fresh chain.
+        try {
+          const { invalidateContinuationFamily } = await import("@opencode-ai/codex-provider/continuation")
+          invalidateContinuationFamily(sessionID)
+          log.info("empty-response: reset codex continuation chain", {
+            sessionID,
+            step,
+            emptyRounds: emptyRoundCount,
+          })
+        } catch (err) {
+          log.warn("empty-response: continuation reset failed", {
+            sessionID,
+            step,
+            error: err instanceof Error ? err.message : String(err),
+          })
+        }
+
         // Self-heal on transient empty response.
         //
         // 2026-05-01: empirical data shows the dominant cause of an
@@ -1582,7 +1615,77 @@ export namespace SessionPrompt {
           }
         }
 
-        // 3-turn intervention — break with error.
+        // Detector C — self-narrated stuck phrase. When the model itself
+        // says "Duplicate ...", "Need stop", "stop using duplicate", etc.
+        // in 2 consecutive turns AND the tool-call signature also matches,
+        // we have very high confidence it's stuck. Fire recovery
+        // immediately at 2-turn instead of waiting for 3-turn — user only
+        // sees at most 1 self-narrated warning before silent recovery.
+        //
+        // 2026-05-08: observed empirical pattern — gpt-5.5 in degraded
+        // tool-repeat mode emits telegraphic English self-warnings
+        // ("Duplicate todowrite due accidental. Need continue. Need use
+        // attachment.") in the reasoning channel. These phrases are a
+        // strong "I know I'm stuck but can't escape" signal — the model
+        // has self-awareness but no path out. Triggering recovery at
+        // 2-turn here gets ahead of the user-visible 3rd warning.
+        //
+        // Phrase-match alone is not enough (false positives if user asks
+        // about deduplication etc.); it must coincide with an actual
+        // signature OR narrative repetition.
+        const STUCK_PHRASES =
+          /\b(duplicate(?:d)?|need stop|stop using|repeating|loop(?:ed|ing)?|stuck|no progress)\b/i
+        if (recentAssistants.length >= 2 && paralysisRecoveryCount === 0) {
+          const stuck0 = STUCK_PHRASES.test(texts[0])
+          const stuck1 = STUCK_PHRASES.test(texts[1])
+          const sigMatch = sigPairsMatch(0, 1)
+          const narrativeMatch = narrativePairsMatch(0, 1) > 0.5
+          if (stuck0 && stuck1 && (sigMatch || narrativeMatch)) {
+            paralysisRecoveryCount = 1
+            log.warn("paralysis-recover: 2-turn self-stuck phrase, injecting nudge", {
+              sessionID,
+              step,
+              detector: "phrase",
+              sigMatch,
+              narrativeMatch,
+              samplePrefix: texts[0].slice(0, 120),
+            })
+            const nudgeText =
+              "你連續 2 輪在 reasoning 寫『duplicate / need stop / stuck』類的自我警告，但還是重複同一個動作。停下來換一條路徑 — 檢查 state、嘗試不同 tool、或直接告訴 user 你卡在哪。"
+            const nudgeUser: MessageV2.User = {
+              id: Identifier.ascending("message"),
+              sessionID,
+              role: "user",
+              time: { created: Date.now() },
+              agent: lastUser.agent,
+              model: lastUser.model,
+              variant: lastUser.variant,
+            }
+            await Session.updateMessage(nudgeUser)
+            await Session.updatePart({
+              id: Identifier.ascending("part"),
+              messageID: nudgeUser.id,
+              sessionID,
+              type: "text",
+              text: nudgeText,
+              synthetic: true,
+            } satisfies MessageV2.TextPart)
+            continue
+          }
+        }
+
+        // 3-turn intervention — auto-recover with one synthetic nudge,
+        // hard-break only if recovery itself paralyzes again.
+        //
+        // 2026-05-08: empirical observation — when paralysis-break fired
+        // and the user manually retried (no extra context), the model
+        // recovered immediately. The "manual retry" was functionally just
+        // "break the runloop, re-enter, model picks up with one extra
+        // turn of context." Same idea as empty-response chain reset:
+        // interrupt the corrupted local state, retry once, only fail
+        // hard if interrupt didn't help. This converts the red toast
+        // from a stop sign into a self-heal that's invisible on the
+        // happy path.
         if (recentAssistants.length >= 3) {
           const sigTriple = sigPairsMatch(0, 1) && sigPairsMatch(1, 2)
           const j01 = narrativePairsMatch(0, 1)
@@ -1593,18 +1696,63 @@ export namespace SessionPrompt {
             const detector = sigTriple ? "signature" : "narrative"
             const similarity = narrativeTriple ? Math.min(j01, j12) : undefined
             const samplePrefix = narrativeTriple ? texts[0].slice(0, 120) : sigs[0].slice(0, 120)
-            log.warn("paralysis-break: 3-turn repetition, halting loop", {
+
+            if (paralysisRecoveryCount === 0) {
+              // First detection — auto-inject a synthetic nudge that
+              // names the failure mode. Pure "?" (empty-response style)
+              // is too cryptic for paralysis: model may interpret it as
+              // "say what?" and re-emit the same plan. An explicit
+              // "you repeated, try different" is concrete enough to
+              // break attention pattern without prescribing the answer.
+              paralysisRecoveryCount = 1
+              log.warn("paralysis-recover: 3-turn repetition, injecting nudge", {
+                sessionID,
+                step,
+                detector,
+                similarity,
+                samplePrefix,
+              })
+              const nudgeText =
+                detector === "signature"
+                  ? "你連續 3 輪呼叫了同一個 tool 加同樣參數。停下來想想：是不是該檢查當前實際狀態，而不是重複 plan？換一個動作。"
+                  : "你連續 3 輪講了非常相似的計畫但沒實際前進。停下來換一條路徑 — 檢查 state、嘗試不同 tool、或直接告訴 user 你卡在哪。"
+              const nudgeUser: MessageV2.User = {
+                id: Identifier.ascending("message"),
+                sessionID,
+                role: "user",
+                time: { created: Date.now() },
+                agent: lastUser.agent,
+                model: lastUser.model,
+                variant: lastUser.variant,
+              }
+              await Session.updateMessage(nudgeUser)
+              await Session.updatePart({
+                id: Identifier.ascending("part"),
+                messageID: nudgeUser.id,
+                sessionID,
+                type: "text",
+                text: nudgeText,
+                synthetic: true,
+              } satisfies MessageV2.TextPart)
+              continue
+            }
+
+            // Recovery already attempted once and the model still
+            // produced 3 identical turns. This is a real stuck state —
+            // hard-break with error so the user knows.
+            log.warn("paralysis-break: 3-turn repetition AFTER nudge, halting loop", {
               sessionID,
               step,
               detector,
               similarity,
               samplePrefix,
+              recoveryAttempts: paralysisRecoveryCount,
             })
             lastAssistant.error = new MessageV2.ParalysisDetectedError({
               message:
                 detector === "signature"
-                  ? "Loop halted: 3 consecutive turns issued the same tool call. The model is stuck — review the situation and resume manually."
-                  : "Loop halted: 3 consecutive turns repeated the same narrative without progress. The model is stuck in a retreat loop — review and resume manually.",
+                  ? "Loop halted: 3 consecutive turns issued the same tool call EVEN AFTER a recovery nudge. The model is genuinely stuck — review the situation and resume manually."
+                  : "Loop halted: 3 consecutive turns repeated the same narrative EVEN AFTER a recovery nudge. The model is genuinely stuck — review and resume manually.",
               detector,
               consecutiveRounds: 3,
               similarity,
@@ -1613,6 +1761,16 @@ export namespace SessionPrompt {
             lastAssistant.finish = "error"
             await Session.updateMessage(lastAssistant)
             break
+          }
+          // No triple this iteration — clear recovery counter so a
+          // future independent paralysis episode gets its own nudge.
+          if (paralysisRecoveryCount > 0) {
+            log.info("paralysis-recover: cleared after non-paralyzed turn", {
+              sessionID,
+              step,
+              priorRecoveryCount: paralysisRecoveryCount,
+            })
+            paralysisRecoveryCount = 0
           }
         }
       }
