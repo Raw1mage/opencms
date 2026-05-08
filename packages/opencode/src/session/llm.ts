@@ -508,8 +508,6 @@ export namespace LLM {
 
     // Get provider capabilities (centralizes provider-specific behavior)
     const capabilities = getCapabilities(provider, auth)
-    // Legacy alias for gradual migration - these will be removed once all usages migrate to capabilities
-    const usesInstructions = capabilities.useInstructionsOption
 
     const subagentSession = await isSubagentSession(input.sessionID)
     // @plans/provider-hotfix Phase 2 — parent session id feeds the
@@ -538,6 +536,14 @@ export namespace LLM {
       const knownFamilies = await Account.knownFamilies()
       const family = resolveFamily(executionModel.providerId, knownFamilies)
 
+      // L1 driver + L7 SYSTEM.md must remain in the static system block. The
+      // codex provider's convertPrompt hard-codes the Responses-API
+      // `instructions` field to a 28-byte placeholder (see
+      // packages/opencode-codex-provider/src/convert.ts) and ignores
+      // options.instructions; the real system prompt reaches codex by going
+      // through the LMv2 system-role message → developer-role input item.
+      // Zeroing these layers here would silently strip the persona + global
+      // rules from every codex turn (RCA 2026-05-08, ses_1f8628ed...).
       const driverText = (await SystemPrompt.provider(input.model)).join("\n")
       const agentText = input.agent.prompt ?? ""
       // Subagents skip AGENTS.md (matches pre-Phase-B prompt.ts L2151
@@ -890,10 +896,6 @@ export namespace LLM {
       mergeDeep(input.agent.options),
       mergeDeep(variant),
     )
-    if (usesInstructions) {
-      options.instructions = await SystemPrompt.instructions()
-    }
-
     const params = await Plugin.trigger(
       "chat.params",
       {
@@ -966,10 +968,20 @@ export namespace LLM {
     // system + preface). The old per-layer breakdown is replaced by a
     // coarser block-level view; per-layer chars/tokens are derivable
     // upstream by the caller if needed.
+    // Block naming convention (2026-05-09 user clarification):
+    // The cache-reuse model orders prompt regions by update frequency,
+    // low → high. Static system layer never changes within a session;
+    // the dynamic layers below it churn progressively. Names reflect
+    // that mental model so the operator can read "where prefix cache
+    // hits stop".
+    //   靜態系統層     — system / role / always_on (lowest churn)
+    //   動態內文 · 低頻 — session_stable: README, cwd, pinned skills, date
+    //   動態內文 · 中頻 — decay: active / summarized skills (T2)
+    //   動態內文 · 高頻 — dynamic: trailing extras + per-turn images
     const promptTelemetryBlocks: Array<{ key: string; name: string; chars: number; tokens: number; injected: boolean; policy: string }> = [
       ...system.map((text, idx) => ({
         key: `system_block_${idx}`,
-        name: idx === 0 ? "靜態系統層" : `系統補充 ${idx}`,
+        name: idx === 0 ? "靜態系統層" : `靜態系統層補充 ${idx}`,
         chars: text.length,
         tokens: Token.estimate(text),
         injected: text.trim().length > 0,
@@ -980,16 +992,18 @@ export namespace LLM {
             if (b.type === "file") {
               return {
                 key: `preface_image_${idx}`,
-                name: `情境前序 (圖片 ${b.filename})`,
+                name: `動態內文 · 高頻（圖片 ${b.filename}）`,
                 chars: 0,
                 tokens: 0,
                 injected: true,
                 policy: "dynamic",
               }
             }
+            const tierLabel =
+              b.tier === "trailing" ? "高頻" : b.tier === "t2" ? "中頻" : "低頻"
             return {
               key: `preface_${b.tier}`,
-              name: `情境前序 (${b.tier.toUpperCase()})`,
+              name: `動態內文 · ${tierLabel}`,
               chars: b.text.length,
               tokens: Token.estimate(b.text),
               injected: b.text.trim().length > 0,
