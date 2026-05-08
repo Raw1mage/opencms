@@ -1251,6 +1251,97 @@ export namespace SessionPrompt {
       const contextBudgetSource = findContextBudgetSource(msgs)
       const format = lastUser.format ?? { type: "text" }
 
+      // 2026-05-09: ws-truncation × bloated-input single-shot compaction.
+      // When the latest finished assistant turn carries an empty-turn
+      // classification (ws_truncation / server_failed / ws_no_frames / …)
+      // AND the estimated codex input item count is past the codex
+      // backend's hidden item-array bug zone, fire compaction immediately
+      // — do NOT wait for a streak. Each retry of a 451-item request
+      // forces a full re-send (chain reset on every backend failure
+      // path, see transport-ws.ts:561/571/581/607), and codex
+      // subscription rate-limit windows still account for it even when
+      // input billing is $0. Eagerly compacting at first sign of
+      // backend rejection caps the burn.
+      //
+      // Independent of the paralysis × bloated-input trigger below
+      // (which requires a 3-turn signature/narrative repetition) —
+      // this single-shot path triggers on the empty-turn classifier
+      // signal alone, which is a strictly stronger and earlier
+      // indicator than narrative paralysis.
+      if (lastFinished && !session.parentID) {
+        const lastFinishedFull = msgs.findLast((m) => m.info.id === lastFinished!.id)
+        let hasEmptyTurnClassification = false
+        if (lastFinishedFull) {
+          for (const p of lastFinishedFull.parts) {
+            const meta = (p as { metadata?: unknown }).metadata
+            const cls = SessionProcessor.readEmptyTurnClassification(meta)
+            if (cls) {
+              hasEmptyTurnClassification = true
+              break
+            }
+          }
+        }
+        if (hasEmptyTurnClassification) {
+          // Estimate codex input item count (same algorithm used by the
+          // paralysis × bloated-input trigger and surfaced in the UI
+          // telemetry tooltip). One per user message, one per assistant
+          // text part with content, one per ToolPart (function_call) +
+          // one when its state is completed/error (function_call_output).
+          let estimatedItemCount = 0
+          for (const m of msgs) {
+            if (m.info.role === "user") {
+              estimatedItemCount += 1
+              continue
+            }
+            if (m.info.role === "assistant") {
+              const hasText = m.parts.some(
+                (p) =>
+                  p.type === "text" &&
+                  typeof (p as { text?: string }).text === "string" &&
+                  ((p as { text: string }).text.length ?? 0) > 0,
+              )
+              if (hasText) estimatedItemCount += 1
+              for (const p of m.parts) {
+                if (p.type !== "tool") continue
+                estimatedItemCount += 1
+                const status = (p as MessageV2.ToolPart).state?.status
+                if (status === "completed" || status === "error") estimatedItemCount += 1
+              }
+            }
+          }
+          const WS_TRUNCATION_ITEMCOUNT_COMPACT_THRESHOLD = 250
+          if (estimatedItemCount > WS_TRUNCATION_ITEMCOUNT_COMPACT_THRESHOLD) {
+            log.warn(
+              "ws-truncation × bloated-input single-shot, triggering overflow compaction",
+              {
+                sessionID,
+                step,
+                estimatedItemCount,
+                threshold: WS_TRUNCATION_ITEMCOUNT_COMPACT_THRESHOLD,
+              },
+            )
+            try {
+              await SessionCompaction.run({
+                sessionID,
+                observed: "empty-response",
+                step,
+                abort,
+              })
+              continue
+            } catch (err) {
+              log.warn(
+                "ws-truncation × bloated-input: compaction failed, falling through",
+                {
+                  sessionID,
+                  step,
+                  error: err instanceof Error ? err.message : String(err),
+                },
+              )
+            }
+          }
+        }
+      }
+
       // Guard: detect empty-response loop (finish=unknown|other, 0 tokens).
       // "other" comes from codex SSE/WS that closed without a terminal event,
       // or response.incomplete with an unmapped reason. Same shape as
