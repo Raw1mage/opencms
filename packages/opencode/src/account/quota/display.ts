@@ -14,6 +14,14 @@ export function formatOpenAIQuotaDisplay(
   quota: OpenAIQuota | null | undefined,
   format: QuotaDisplayFormat = "admin",
 ): string {
+  // Auth-revoked accounts get a distinct badge instead of "--". The probe
+  // layer caches authRevoked=true after a 4xx from auth.openai.com (revoked
+  // refresh_token). Once user re-logins, storage gets a fresh refresh_token
+  // and the next probe will overwrite this synthetic quota with real data.
+  if (quota?.authRevoked) {
+    return format === "footer" ? "(🔒 re-login)" : "🔒 RE-LOGIN"
+  }
+
   const fiveHour = quota ? (quota.hasHourlyWindow ? `${quota.hourlyRemaining}%` : "--") : "--"
   const week = quota ? `${quota.weeklyRemaining}%` : "--"
 

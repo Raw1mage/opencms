@@ -33,6 +33,15 @@ export interface OpenAIQuota {
   hourlyRemaining: number
   weeklyRemaining: number
   hasHourlyWindow?: boolean
+  /**
+   * Set to `true` when the upstream refresh_token has been revoked by
+   * auth.openai.com (4xx / invalid_grant / 401). Display layer should
+   * surface this as a distinct "🔒 re-login required" state instead of
+   * the "--" placeholder used for "not probed yet". Probe layer must NOT
+   * route this through `isQuotaExhausted` / `notifyQuotaExhausted` — it
+   * is an auth state, not a usage state.
+   */
+  authRevoked?: boolean
 }
 
 export type CodexTokenResponse = {
@@ -199,8 +208,25 @@ const quotaCache = new Map<string, { quota: OpenAIQuota | null; timestamp: numbe
 export const OPENAI_QUOTA_DISPLAY_TTL_MS = 60_000
 const CACHE_TTL_MS = OPENAI_QUOTA_DISPLAY_TTL_MS
 
+// Per-account "this refresh_token has already been proven dead by upstream"
+// short-circuit. Map<accountId, refreshToken>. Once we see a 4xx (revoked /
+// invalid_grant / 401) from auth.openai.com for `refreshToken`, we cache
+// that exact token as dead and skip future probes for the same account
+// until the stored refreshToken changes (i.e. user re-logins, which writes
+// a new refresh_token to storage). Without this gate, the 60s probe TTL
+// keeps hammering OpenAI's auth endpoint with known-dead tokens — which
+// itself looks like an abuse pattern and risks revoking the entire
+// (re-logged-in) account family. 2026-05-08 incident: 42-min run pre-fix
+// = ~66 cache-miss refreshes per account → suspected trigger for OpenAI
+// flagging 3 codex accounts simultaneously.
+const deadRefreshTokens = new Map<string, string>()
+
 function isQuotaExhausted(quota: OpenAIQuota | null | undefined): boolean {
   if (!quota) return false
+  // authRevoked is an auth state, not a usage state — don't route through
+  // the rate-limit / rotation trigger path. The account's refresh token is
+  // dead; there's no usage cap to exhaust here.
+  if (quota.authRevoked) return false
   if (quota.weeklyRemaining <= 0) return true
   if (quota.hasHourlyWindow !== false && quota.hourlyRemaining <= 0) return true
   return false
@@ -472,6 +498,17 @@ async function refreshOpenAIAccountQuota(id: string, info: Account.Info, provide
   let refresh = info.refreshToken
   let accountId = info.accountId
 
+  // Skip probe entirely if there's nothing useful to send upstream.
+  // (a) `refresh` is empty/missing — chat path's ensureValidToken cleared
+  //     it after a 4xx (provider.ts:522). Calling oauth2 with an empty
+  //     refresh_token just re-yields 4xx for no signal.
+  // (b) the current refreshToken is already known dead — auto-recovers
+  //     when user re-logins (storage refreshToken changes →
+  //     info.refreshToken no longer matches the cached dead value).
+  if (!refresh || deadRefreshTokens.get(id) === refresh) {
+    return
+  }
+
   // Refresh token if needed
   if (!access || !expires || expires < now) {
     try {
@@ -481,16 +518,46 @@ async function refreshOpenAIAccountQuota(id: string, info: Account.Info, provide
       expires = now + (tokens.expires_in ?? 3600) * 1000
       accountId = accountId ?? extractAccountIdFromTokens(tokens)
 
-      // Update account in storage
-      await Account.update("openai", id, {
+      // Update account in storage. Use the actual providerId (codex /
+      // openai) — this function services both families, hardcoding
+      // "openai" caused `Account not found: openai/codex-subscription-...`
+      // for every codex account refresh, leaving tokens uncached and
+      // forcing a full refresh on every quota probe.
+      await Account.update(providerId, id, {
         refreshToken: refresh,
         accessToken: access,
         expiresAt: expires,
         accountId,
       })
     } catch (e) {
-      log.warn("Token refresh failed for OpenAI account", { id, error: String(e) })
-      writeQuotaCache(id, null, now)
+      const msg = String(e)
+      // Detect permanent (4xx) failure — revoked / invalid_grant / 401.
+      // refreshCodexAccessToken throws on any non-2xx today (line 188-189);
+      // status code is in the message. The auth endpoint won't recover on
+      // its own — only re-login produces a new refresh_token. Cache the
+      // dead value so the next probe short-circuits.
+      const isPermanentRevoke = /\b4\d\d\b|invalid_grant|revoked/i.test(msg)
+      if (isPermanentRevoke && refresh) {
+        deadRefreshTokens.set(id, refresh)
+        log.warn("Token refresh suspended: refresh_token revoked, awaiting re-login", {
+          providerId,
+          id,
+          error: msg,
+        })
+        // Surface the auth-dead state to the display layer with a synthetic
+        // quota object — TUI / admin panel can render "🔒 re-login" instead
+        // of "--" so the user sees the exact account that needs attention
+        // instead of a generic "no data" placeholder. authRevoked=true
+        // gates this out of isQuotaExhausted / notifyQuotaExhausted (it's
+        // not a usage state).
+        quotaCache.set(id, {
+          quota: { hourlyRemaining: 0, weeklyRemaining: 0, authRevoked: true },
+          timestamp: now,
+        })
+      } else {
+        log.warn("Token refresh failed", { providerId, id, error: msg })
+        writeQuotaCache(id, null, now)
+      }
       return
     }
   }
