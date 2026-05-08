@@ -1688,6 +1688,91 @@ export namespace SessionPrompt {
             const samplePrefix = narrativeTriple ? texts[0].slice(0, 120) : sigs[0].slice(0, 120)
 
             if (paralysisRecoveryCount === 0) {
+              // 2026-05-08: before the existing nudge path, check whether
+              // the prompt's input item count is already deep in codex
+              // backend's hidden item-array bug zone (>~300 items).
+              // Empirically (fix-empty-response-rca JSONL), inputItemCount
+              // 300+ correlates with ws_truncation @ frames=3 / server_failed
+              // @ frames=1 — codex backend rejects or cuts the request before
+              // model can produce useful output. Paralysis + bloated input is
+              // the failure-coupling pattern: the model is "stuck" because
+              // its requests aren't completing cleanly, not because of pure
+              // narrative confusion.
+              //
+              // Estimate items as codex provider would emit them
+              // (one per user message, one per assistant text part, one per
+              // tool call, one per tool result). When over the threshold,
+              // run compaction (observed: "overflow") instead of injecting
+              // a nudge — compaction will produce a fresh anchor + KIND_CHAIN
+              // that drops item count back to a safe range. If compaction
+              // fails, fall through to the nudge path so we still emit
+              // *some* recovery signal.
+              const PARALYSIS_ITEMCOUNT_COMPACT_THRESHOLD = 250
+              const estimatedItemCount = (() => {
+                let count = 0
+                for (const m of msgs) {
+                  if (m.info.role === "user") {
+                    count += 1
+                    continue
+                  }
+                  if (m.info.role === "assistant") {
+                    const hasText = m.parts.some(
+                      (p) =>
+                        p.type === "text" &&
+                        typeof (p as { text?: string }).text === "string" &&
+                        ((p as { text: string }).text.length ?? 0) > 0,
+                    )
+                    if (hasText) count += 1
+                    for (const p of m.parts) {
+                      if (p.type !== "tool") continue
+                      // function_call (always emitted for an assistant tool part)
+                      count += 1
+                      // function_call_output (emitted only when tool finished)
+                      const status = (p as MessageV2.ToolPart).state?.status
+                      if (status === "completed" || status === "error") count += 1
+                    }
+                  }
+                }
+                return count
+              })()
+
+              if (estimatedItemCount > PARALYSIS_ITEMCOUNT_COMPACT_THRESHOLD && !session.parentID) {
+                log.warn(
+                  "paralysis-recover: bloated input, triggering overflow compaction instead of nudge",
+                  {
+                    sessionID,
+                    step,
+                    detector,
+                    similarity,
+                    estimatedItemCount,
+                    threshold: PARALYSIS_ITEMCOUNT_COMPACT_THRESHOLD,
+                  },
+                )
+                paralysisRecoveryCount = 1
+                try {
+                  await SessionCompaction.run({
+                    sessionID,
+                    observed: "overflow",
+                    step,
+                    abort,
+                  })
+                  // Compaction produced a fresh anchor; the next iteration's
+                  // applyStreamAnchorRebind will slice from there and the
+                  // model gets a sane prompt size.
+                  continue
+                } catch (err) {
+                  log.warn(
+                    "paralysis-recover: compaction failed, falling through to nudge",
+                    {
+                      sessionID,
+                      step,
+                      error: err instanceof Error ? err.message : String(err),
+                    },
+                  )
+                  // fall through to nudge path below
+                }
+              }
+
               // First detection — auto-inject a synthetic nudge that
               // names the failure mode. Pure "?" (empty-response style)
               // is too cryptic for paralysis: model may interpret it as
