@@ -1269,19 +1269,21 @@ export namespace SessionPrompt {
       // signal alone, which is a strictly stronger and earlier
       // indicator than narrative paralysis.
       if (lastFinished && !session.parentID) {
-        const lastFinishedFull = msgs.findLast((m) => m.info.id === lastFinished!.id)
-        let hasEmptyTurnClassification = false
-        if (lastFinishedFull) {
-          for (const p of lastFinishedFull.parts) {
-            const meta = (p as { metadata?: unknown }).metadata
-            const cls = SessionProcessor.readEmptyTurnClassification(meta)
-            if (cls) {
-              hasEmptyTurnClassification = true
-              break
-            }
-          }
-        }
-        if (hasEmptyTurnClassification) {
+        // Empty-turn classifier metadata is captured at runtime in
+        // processor.ts but NOT persisted onto a part — by the time this
+        // runloop reads from DB, only the message-level `finish` field
+        // remains. classifier → finishReason mapping (sse.ts:357-367):
+        //   ws_truncation / ws_no_frames / unclassified → "unknown"
+        //   server_failed                              → "error"
+        //   server_incomplete                          → "other"
+        //   server_empty_output_with_reasoning         → "other"
+        // We treat ALL three as "backend rejected this request" signal.
+        // "stop" / "tool-calls" / "length" are healthy — those don't
+        // trigger.
+        const finishReason = lastFinished.finish
+        const isClassifierFailureFinish =
+          finishReason === "unknown" || finishReason === "error" || finishReason === "other"
+        if (isClassifierFailureFinish) {
           // Estimate codex input item count (same algorithm used by the
           // paralysis × bloated-input trigger and surfaced in the UI
           // telemetry tooltip). One per user message, one per assistant
