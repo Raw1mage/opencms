@@ -248,7 +248,11 @@ describe("convertPrompt — golden format verification", () => {
     expect(item.type).toBe("function_call_output")
     expect(Array.isArray(item.output)).toBe(true)
     expect(item.output[0]).toEqual({ type: "input_text", text: "<file>\n00001| line one" })
-    expect(item.output[1]).toEqual({ type: "input_image", image_url: "data:image/png;base64,AAAA" })
+    expect(item.output[1]).toEqual({
+      type: "input_image",
+      image_url: "data:image/png;base64,AAAA",
+      detail: "low",
+    })
   })
 
   test("tool result with unrecognised envelope shape THROWS (no silent JSON.stringify)", () => {

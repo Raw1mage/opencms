@@ -54,7 +54,7 @@ export type ResponseItem =
 
 export type ContentPart =
   | { type: "input_text"; text: string }
-  | { type: "input_image"; image_url: string }
+  | { type: "input_image"; image_url: string; detail?: "auto" | "low" | "high" }
   | { type: "input_audio"; data: string; format: string }
   | Record<string, unknown>
 

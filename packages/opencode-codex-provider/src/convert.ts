@@ -113,7 +113,11 @@ export function convertPrompt(prompt: LanguageModelV2Prompt): {
                 return { type: "input_text", text: typeof item.text === "string" ? item.text : "" }
               }
               if (item?.type === "media" && typeof item.data === "string" && item.mediaType) {
-                return { type: "input_image", image_url: `data:${item.mediaType};base64,${item.data}` }
+                return {
+                  type: "input_image",
+                  image_url: `data:${item.mediaType};base64,${item.data}`,
+                  detail: DEFAULT_INLINE_IMAGE_DETAIL,
+                }
               }
               return { type: "input_text", text: JSON.stringify(item ?? "") }
             })
@@ -170,6 +174,21 @@ export function convertTools(
 // § 3  Content conversion helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * Default `detail` flag for image content blocks sent to Codex backend.
+ * "low" → fixed ~85 token cost regardless of resolution (codex API
+ * downsamples to a single tile internally). "high" → tiled, scales with
+ * resolution and burns ~765+ tokens per image.
+ *
+ * Default chosen as "low" because the typical use case is a screenshot
+ * the user wants the model to glance at, not a high-res technical
+ * diagram requiring pixel-level inspection. Operator can override via
+ * the `attachment_inline_detail` tweak if a workload genuinely needs
+ * "high" (e.g., OCR / fine-grained UI inspection). Mirrors upstream
+ * codex-rs `ImageDetail` enum (refs/codex/codex-rs/protocol/src/models.rs).
+ */
+const DEFAULT_INLINE_IMAGE_DETAIL: "auto" | "low" | "high" = "low"
+
 function convertUserContent(
   content: LanguageModelV2Prompt[number] extends { content: infer C } ? C : never,
 ): ContentPart[] {
@@ -194,6 +213,7 @@ function convertUserContent(
           parts.push({
             type: "input_image",
             image_url: `data:${part.mediaType};base64,${data}`,
+            detail: DEFAULT_INLINE_IMAGE_DETAIL,
           })
         } else {
           // Non-image files: include as text reference
