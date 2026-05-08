@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "compaction-fix Phase 1 data contracts",
+  "description": "Trace marker shape + tweaks config keys consumed by the post-anchor transformer.",
+  "$defs": {
+    "TraceMarker": {
+      "type": "object",
+      "description": "Synthetic user-role message produced by the post-anchor transformer to replace a completed assistant turn (per DD-1).",
+      "required": ["role", "synthetic", "text"],
+      "properties": {
+        "role": { "const": "user" },
+        "synthetic": { "const": true },
+        "text": {
+          "type": "string",
+          "description": "Single-line trace; format: '[turn N] tool_a(brief_args) → WC042; tool_b(brief_args) → WC043; <reasoning summary 50ch>'",
+          "maxLength": 1024
+        },
+        "phase1Trace": {
+          "type": "object",
+          "description": "Optional metadata for the trace marker (not sent to model; for storage / debugging only).",
+          "properties": {
+            "originalMessageID": { "type": "string" },
+            "turnIndex": { "type": "integer", "minimum": 0 },
+            "toolNames": { "type": "array", "items": { "type": "string" } },
+            "cacheReferences": { "type": "array", "items": { "type": "string", "pattern": "^WC[0-9]+$" } },
+            "reasoningTextLength": { "type": "integer", "minimum": 0 },
+            "transformedAt": { "type": "string", "format": "date-time" }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "TweaksKeys": {
+      "type": "object",
+      "description": "Config keys read from tweaks.cfg by the transformer (per DD-6).",
+      "required": ["compaction.phase1Enabled"],
+      "properties": {
+        "compaction.phase1Enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Master switch for the post-anchor transformer. Default false for gradual rollout."
+        },
+        "compaction.recentRawRounds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "default": 2,
+          "description": "Number of most recent completed assistant turns to leave unchanged (per DD-2)."
+        },
+        "compaction.fallbackThreshold": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "default": 5,
+          "description": "If transformed message count drops below this, fall back to raw (per DD-4)."
+        }
+      }
+    },
+    "LayerPurityForbiddenKeys": {
+      "type": "array",
+      "description": "Keys that MUST NOT appear in any TraceMarker.text or phase1Trace metadata, per DD-7 / Layer Purity Invariant.",
+      "items": {
+        "enum": [
+          "accountId",
+          "providerId",
+          "wsSessionId",
+          "previous_response_id",
+          "conversation_id",
+          "credentials",
+          "access_token",
+          "refresh_token"
+        ]
+      }
+    }
+  }
+}

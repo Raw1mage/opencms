@@ -1,0 +1,170 @@
+[
+  {
+    "id": "TV1",
+    "requirementRef": "Requirement: Post-anchor transformation reduces inputItemCount",
+    "name": "30-turn synthetic session — flag on",
+    "input": {
+      "tweaks": {
+        "compaction.phase1Enabled": true,
+        "compaction.recentRawRounds": 2,
+        "compaction.fallbackThreshold": 5
+      },
+      "messageStream": "anchor + 30 completed assistant turns (each with 2-3 tool calls + 1 tool result each) + 1 in-flight assistant",
+      "session": {
+        "parentID": null
+      }
+    },
+    "expected": {
+      "kept": [
+        "anchor message (compaction summary)",
+        "all user messages between anchor and now",
+        "last 2 completed assistant turns RAW",
+        "in-flight assistant"
+      ],
+      "transformed": "28 older completed assistant turns folded into 28 trace marker messages",
+      "approximateInputItemCount": "between 60 and 100",
+      "logLine": "phase1-transform: applied, transformedTurns=28"
+    }
+  },
+  {
+    "id": "TV2",
+    "requirementRef": "Requirement: Recent N rounds preserved raw",
+    "name": "Boundary: recentRawRounds=2 keeps last 2 raw",
+    "input": {
+      "tweaks": {
+        "compaction.phase1Enabled": true,
+        "compaction.recentRawRounds": 2
+      },
+      "messageStream": "anchor + 5 completed assistant turns",
+      "session": {
+        "parentID": null
+      }
+    },
+    "expected": {
+      "transformedIndices": [
+        0,
+        1,
+        2
+      ],
+      "rawIndices": [
+        3,
+        4
+      ],
+      "rationale": "last 2 (indices 3 and 4) preserved; turns 0/1/2 transformed"
+    }
+  },
+  {
+    "id": "TV3",
+    "requirementRef": "Requirement: In-flight assistant preserved intact",
+    "name": "In-flight with pending tool calls — no transform",
+    "input": {
+      "tweaks": {
+        "compaction.phase1Enabled": true
+      },
+      "messageStream": "anchor + 10 completed assistant turns + 1 in-flight assistant with one pending tool call",
+      "session": {
+        "parentID": null
+      }
+    },
+    "expected": {
+      "inFlightAssistantPreservedExactly": true,
+      "pendingToolCallStateUnchanged": true
+    }
+  },
+  {
+    "id": "TV4",
+    "requirementRef": "Requirement: Safety net fallback",
+    "name": "Transformed too sparse — fallback to raw",
+    "input": {
+      "tweaks": {
+        "compaction.phase1Enabled": true,
+        "compaction.fallbackThreshold": 5
+      },
+      "messageStream": "anchor + 1 completed assistant turn + 1 in-flight",
+      "session": {
+        "parentID": null
+      }
+    },
+    "expected": {
+      "transformerOutputCount": "below threshold (3 messages total: anchor + transformed + in-flight)",
+      "fallbackTriggered": true,
+      "logWarn": "phase1-transform: fallback to raw, threshold=5, got=3"
+    }
+  },
+  {
+    "id": "TV5",
+    "requirementRef": "Requirement: Feature flag respects gradual rollout",
+    "name": "Flag off — transformer skipped",
+    "input": {
+      "tweaks": {
+        "compaction.phase1Enabled": false
+      },
+      "messageStream": "anchor + 30 completed assistant turns + 1 in-flight",
+      "session": {
+        "parentID": null
+      }
+    },
+    "expected": {
+      "transformerInvoked": false,
+      "outputMatchesPrePhase1Behavior": true
+    }
+  },
+  {
+    "id": "TV6",
+    "requirementRef": "Requirement: Subagent path unaffected",
+    "name": "Subagent prompt — bypass transformer",
+    "input": {
+      "tweaks": {
+        "compaction.phase1Enabled": true
+      },
+      "messageStream": "anchor + 30 completed assistant turns + 1 in-flight",
+      "session": {
+        "parentID": "ses_parent_xxx"
+      }
+    },
+    "expected": {
+      "transformerInvoked": false,
+      "outputMatchesPrePhase1Behavior": true
+    }
+  },
+  {
+    "id": "TV7",
+    "requirementRef": "Requirement: Mode 1 inline compaction items preserved",
+    "name": "Assistant turn containing `compaction` part exempt",
+    "input": {
+      "tweaks": {
+        "compaction.phase1Enabled": true
+      },
+      "messageStream": "anchor + 5 completed assistant turns; turn at index 2 includes a `compaction` part type from Mode 1 inline server compaction",
+      "session": {
+        "parentID": null
+      }
+    },
+    "expected": {
+      "turnsTransformed": [
+        0,
+        1
+      ],
+      "turnsExempt": [
+        2
+      ],
+      "rawTurnsByRecency": [
+        3,
+        4
+      ],
+      "rationale": "turn 2 contains compaction part → exempt; turns 3+4 are within recentRawRounds=2 → exempt; turns 0+1 transformed"
+    }
+  },
+  {
+    "id": "TV8",
+    "requirementRef": "Requirement: Layer purity invariant",
+    "name": "Trace marker forbids connection-state keys",
+    "input": {
+      "completedTurnPayload": "assistant message containing a tool call whose args happen to include a string field 'previous_response_id'"
+    },
+    "expected": {
+      "outcome": "format-time assertion throws; transformer rejects formatting (defensive)",
+      "rationale": "DD-7 layer purity guard — forbidden key never reaches output prompt regardless of source"
+    }
+  }
+]

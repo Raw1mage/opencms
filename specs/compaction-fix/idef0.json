@@ -1,0 +1,48 @@
+{
+  "diagram_title": "compaction-fix Phase 1 — Post-anchor transformation",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Detect Anchor Position",
+      "description": "Locate most recent compaction anchor in message stream",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Slice From Anchor",
+      "description": "Drop pre-anchor history (existing behaviour)",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Transform Post-anchor Tail",
+      "description": "For each completed assistant turn beyond N=2 most recent, fold verbose parts into one trace marker referencing WorkingCache IDs",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Apply Safety Net",
+      "description": "If transformed message count < threshold, fallback to raw",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Emit Filtered Prompt",
+      "description": "Pass shaped messages onward to LLM call",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "session messages", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A1:control", "label": "compaction.phase1Enabled flag", "type": "control" },
+    { "id": "AR3", "source": "A1:output", "target": "A2:input", "label": "anchorIndex", "type": "input" },
+    { "id": "AR4", "source": "A2:output", "target": "A3:input", "label": "sliced messages", "type": "input" },
+    { "id": "AR5", "source": "EXTERNAL", "target": "A3:control", "label": "compaction.recentRawRounds", "type": "control" },
+    { "id": "AR6", "source": "EXTERNAL", "target": "A3:mechanism", "label": "WorkingCache write API", "type": "mechanism" },
+    { "id": "AR7", "source": "A3:output", "target": "A4:input", "label": "transformed messages", "type": "input" },
+    { "id": "AR8", "source": "EXTERNAL", "target": "A4:control", "label": "compaction.fallbackThreshold", "type": "control" },
+    { "id": "AR9", "source": "A4:output", "target": "A5:input", "label": "validated messages", "type": "input" },
+    { "id": "AR10", "source": "A5:output", "target": "EXTERNAL", "label": "prompt to LLM", "type": "output" }
+  ]
+}

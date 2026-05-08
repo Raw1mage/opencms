@@ -1,0 +1,74 @@
+{
+  "diagram_title": "compaction-fix Phase 1 — Components",
+  "level": "component",
+  "scope": "session prompt assembly",
+  "systems": [
+    {
+      "id": "S1",
+      "name": "opencode session runtime",
+      "description": "Local agent runtime that owns prompt assembly, compaction, and dispatch to LLM providers"
+    }
+  ],
+  "containers": [
+    {
+      "id": "K1",
+      "systemId": "S1",
+      "name": "packages/opencode session module",
+      "technology": "Bun + TypeScript",
+      "description": "Houses prompt.ts, compaction.ts, working-cache.ts, post-compaction.ts, tool-invoker.ts"
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "name": "PromptAssembler",
+      "moduleRef": "A0",
+      "description": "Top-level prompt assembly orchestrator in prompt.ts",
+      "technology": "TypeScript namespace"
+    },
+    {
+      "id": "C2",
+      "name": "AnchorScanner",
+      "moduleRef": "A1",
+      "description": "findMostRecentAnchorIndex + applyStreamAnchorRebind helpers (existing)",
+      "technology": "TypeScript helpers"
+    },
+    {
+      "id": "C3",
+      "name": "PostAnchorTransformer",
+      "moduleRef": "A3",
+      "description": "NEW: folds completed assistant turns beyond N=2 into trace markers + WorkingCache references",
+      "technology": "TypeScript helper (new)"
+    },
+    {
+      "id": "C4",
+      "name": "WorkingCacheWriter",
+      "moduleRef": "A3",
+      "description": "Existing WorkingCache write API consumed by transformer for lazy-write fallback",
+      "technology": "TypeScript namespace (existing)"
+    },
+    {
+      "id": "C5",
+      "name": "SafetyNetGuard",
+      "moduleRef": "A4",
+      "description": "NEW: counts transformed messages, falls back to raw when below threshold",
+      "technology": "TypeScript helper (new)"
+    },
+    {
+      "id": "C6",
+      "name": "TweaksConfigReader",
+      "moduleRef": "A1",
+      "description": "Reads compaction.phase1Enabled, recentRawRounds, fallbackThreshold from tweaks.cfg",
+      "technology": "TypeScript helper (existing)"
+    }
+  ],
+  "relationships": [
+    { "id": "R1", "from": "C1", "to": "C2", "label": "asks for anchor index" },
+    { "id": "R2", "from": "C1", "to": "C6", "label": "reads phase1Enabled flag" },
+    { "id": "R3", "from": "C1", "to": "C3", "label": "delegates transformation when flag on" },
+    { "id": "R4", "from": "C3", "to": "C6", "label": "reads recentRawRounds" },
+    { "id": "R5", "from": "C3", "to": "C4", "label": "writes / queries cache references" },
+    { "id": "R6", "from": "C3", "to": "C5", "label": "passes transformed messages for safety check" },
+    { "id": "R7", "from": "C5", "to": "C6", "label": "reads fallbackThreshold" }
+  ]
+}

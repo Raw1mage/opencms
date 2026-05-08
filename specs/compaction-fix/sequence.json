@@ -1,0 +1,62 @@
+[
+  {
+    "id": "P1",
+    "title": "Happy path: post-anchor transform with WorkingCache references",
+    "description": "Phase 1 enabled, anchor exists, 30 completed turns post-anchor, WorkingCache hits for all references",
+    "participants": [
+      { "id": "Caller", "label": "Session.runStep" },
+      { "id": "Assembler", "componentRef": "C1", "label": "PromptAssembler" },
+      { "id": "Tweaks", "componentRef": "C6", "label": "TweaksConfigReader" },
+      { "id": "Anchor", "componentRef": "C2", "label": "AnchorScanner" },
+      { "id": "Transformer", "componentRef": "C3", "label": "PostAnchorTransformer" },
+      { "id": "WC", "componentRef": "C4", "label": "WorkingCacheWriter" },
+      { "id": "Guard", "componentRef": "C5", "label": "SafetyNetGuard" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "Caller", "to": "Assembler", "label": "assemblePrompt(messages)" },
+      { "id": "MSG2", "from": "Assembler", "to": "Tweaks", "label": "read phase1Enabled" },
+      { "id": "MSG3", "from": "Tweaks", "to": "Assembler", "label": "true" },
+      { "id": "MSG4", "from": "Assembler", "to": "Anchor", "label": "applyStreamAnchorRebind(messages)" },
+      { "id": "MSG5", "from": "Anchor", "to": "Assembler", "label": "{ applied: true, messages: sliced, anchorIndex }" },
+      { "id": "MSG6", "from": "Assembler", "to": "Transformer", "label": "transform(sliced, recentRawRounds=2)" },
+      { "id": "MSG7", "from": "Transformer", "to": "WC", "label": "lookup references for older turns" },
+      { "id": "MSG8", "from": "WC", "to": "Transformer", "label": "{ WC042, WC043, ... }" },
+      { "id": "MSG9", "from": "Transformer", "to": "Assembler", "label": "{ messages: anchor + users + traces + last 2 raw + in-flight }" },
+      { "id": "MSG10", "from": "Assembler", "to": "Guard", "label": "checkThreshold(transformed, threshold=5)" },
+      { "id": "MSG11", "from": "Guard", "to": "Assembler", "label": "ok (count=12)" },
+      { "id": "MSG12", "from": "Assembler", "to": "Caller", "label": "transformed messages" }
+    ]
+  },
+  {
+    "id": "P2",
+    "title": "Safety net: transformed too sparse → fallback to raw",
+    "description": "Phase 1 enabled, anchor exists, but unusual session state yields < 5 transformed messages",
+    "participants": [
+      { "id": "Caller", "label": "Session.runStep" },
+      { "id": "Assembler", "componentRef": "C1", "label": "PromptAssembler" },
+      { "id": "Transformer", "componentRef": "C3", "label": "PostAnchorTransformer" },
+      { "id": "Guard", "componentRef": "C5", "label": "SafetyNetGuard" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "Caller", "to": "Assembler", "label": "assemblePrompt(messages)" },
+      { "id": "MSG2", "from": "Assembler", "to": "Transformer", "label": "transform(sliced)" },
+      { "id": "MSG3", "from": "Transformer", "to": "Assembler", "label": "{ messages: 3 items only }" },
+      { "id": "MSG4", "from": "Assembler", "to": "Guard", "label": "checkThreshold(3, threshold=5)" },
+      { "id": "MSG5", "from": "Guard", "to": "Assembler", "label": "below threshold; fallback" },
+      { "id": "MSG6", "from": "Assembler", "to": "Caller", "label": "raw messages (un-transformed) + log warn" }
+    ]
+  },
+  {
+    "id": "P3",
+    "title": "Subagent path: transformer bypassed",
+    "description": "Subagent prompt assembly path detected via session.parentID",
+    "participants": [
+      { "id": "Caller", "label": "Session.runStep (subagent)" },
+      { "id": "Assembler", "componentRef": "C1", "label": "PromptAssembler" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "Caller", "to": "Assembler", "label": "assemblePrompt(messages, parentID=ses_xxx)" },
+      { "id": "MSG2", "from": "Assembler", "to": "Caller", "label": "raw messages (transformer skipped per DD-5)" }
+    ]
+  }
+]

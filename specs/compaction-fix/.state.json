@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "state": "planned",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-05-08T04:14:32.374Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-05-08T08:55:55.431Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Phase 1 designed artifacts: spec/design/idef0/grafcet/c4/sequence/data-schema"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-05-08T08:59:14.678Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "tasks/handoff/test-vectors/errors/observability ready for beta-workflow execution"
+    }
+  ]
+}
