@@ -38,6 +38,8 @@ target
 # Local dev files
 opencode-dev
 logs/
+!specs/diagrams/l5/logs/
+!specs/diagrams/l5/logs/*.l5.trace.jsonl
 *.bun-build
 tsconfig.tsbuildinfo
 __pycache__/
