@@ -95,7 +95,7 @@ export function SessionContextTab(props: SessionContextTabProps) {
       }),
   )
 
-  const metrics = createMemo(() => getSessionContextMetrics(props.messages(), sync.data.provider.all))
+  const metrics = createMemo(() => getSessionContextMetrics(props.messages(), sync.data.provider.all, sync.data.part))
   const ctx = createMemo(() => metrics().context)
   const formatter = createMemo(() => createSessionContextFormatter(language.intl()))
 
@@ -157,6 +157,7 @@ export function SessionContextTab(props: SessionContextTabProps) {
     { label: "context.stats.limit", value: () => formatter().number(ctx()?.limit) },
     { label: "context.stats.totalTokens", value: () => formatter().number(ctx()?.total) },
     { label: "context.stats.usage", value: () => formatter().percent(ctx()?.usage) },
+    { label: "context.stats.inputItems", value: () => formatter().number(ctx()?.inputItemCount) },
     { label: "context.stats.inputTokens", value: () => formatter().number(ctx()?.input) },
     { label: "context.stats.outputTokens", value: () => formatter().number(ctx()?.output) },
     { label: "context.stats.reasoningTokens", value: () => formatter().number(ctx()?.reasoning) },
