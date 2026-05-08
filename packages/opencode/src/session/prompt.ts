@@ -2421,11 +2421,16 @@ export namespace SessionPrompt {
       // Phase 1 is off (anchor projection contract assumes Phase 1 slicing).
       // DD-9: chain-binding validated inside the expander; mismatch → leave
       // messages unchanged.
-      if (
-        compactionTweakPhase1.phase2Enabled &&
-        compactionTweakPhase1.phase1Enabled &&
-        !session.parentID
-      ) {
+      // Decoupled from phase1Enabled (2026-05-08): Phase 2 acts purely on
+      // the anchor message's CompactionPart metadata and is independent of
+      // Phase 1's tail transformer. Upstream codex-rs does not do per-turn
+      // tail drop (verified: refs/codex/codex-rs/core/src/context_manager/
+      // history.rs `for_prompt` returns full history; aggressive drop only
+      // runs inside compact.rs `build_compacted_history` at explicit
+      // compaction events). Phase 1 transformer disabled by default; Phase
+      // 2 still benefits the post-compaction anchor when codex
+      // `/responses/compact` returns structured items.
+      if (compactionTweakPhase1.phase2Enabled && !session.parentID) {
         try {
           const phase2Result = expandAnchorCompactedPrefix(sessionMessages, {
             sessionID,
