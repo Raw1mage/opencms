@@ -589,7 +589,18 @@ export async function buildFallbackCandidates(
 
   let openaiQuotas: any = {}
   try {
-    openaiQuotas = await getOpenAIQuotas()
+    // kickRefresh=false: rotation read MUST NOT trigger SWR background
+    // refresh. At the rate-limit moment, the chat path is about to do its
+    // own ensureValidToken refresh on the winning candidate. If we kick a
+    // SWR refresh here, both fetches hit auth.openai.com with the same
+    // refresh_token concurrently — OpenAI rotates the token on the first
+    // success and 4xx's the loser, which provider.ts (ensureValidToken)
+    // mis-interprets as a permanent revocation and surfaces as
+    // "refresh_token revoked — re-login required" the instant the rotation
+    // toast clears. Cache-only read avoids the race entirely; staleness
+    // here is harmless since the chat-path refresh produces the
+    // authoritative value moments later.
+    openaiQuotas = await getOpenAIQuotas({ kickRefresh: false })
   } catch (e) {
     log.warn("Failed to get OpenAI quotas for fallback", { error: e })
   }

@@ -319,8 +319,22 @@ function ensureOpenAIQuotaRefresh(id: string, info: Account.Info, providerId: st
  *
  * Uses Stale-While-Revalidate: Returns cached data immediately (even if expired)
  * and triggers background refresh if needed.
+ *
+ * `kickRefresh: false` disables the SWR fire-and-forget so the caller gets a
+ * pure read. Rotation uses this to avoid the refresh-token race: at the
+ * rate-limit moment, rotation read + chat-path `ensureValidToken` would
+ * otherwise both refresh the about-to-be-selected account's refresh_token
+ * concurrently against auth.openai.com, and OpenAI's rotating refresh_token
+ * semantics make the loser receive a 4xx ("invalid_grant") which the chat
+ * path (provider.ts:522) interprets as permanent revocation — surfacing
+ * "refresh_token revoked — re-login required" the instant a rotation
+ * succeeds. The chat path will do the authoritative refresh on the winner;
+ * the rotation read does not need fresh data.
  */
-export async function getOpenAIQuotas(): Promise<Record<string, OpenAIQuota | null>> {
+export async function getOpenAIQuotas(options?: {
+  kickRefresh?: boolean
+}): Promise<Record<string, OpenAIQuota | null>> {
+  const kickRefresh = options?.kickRefresh ?? true
   try {
     const openaiAccounts = await Account.list("openai")
     const codexAccounts = await Account.list("codex").catch(() => ({}))
@@ -344,7 +358,7 @@ export async function getOpenAIQuotas(): Promise<Record<string, OpenAIQuota | nu
         results[id] = null
       }
 
-      if (isStale) ensureOpenAIQuotaRefresh(id, info, providerId)
+      if (kickRefresh && isStale) ensureOpenAIQuotaRefresh(id, info, providerId)
     }
 
     return results
