@@ -1,18 +1,21 @@
 /**
  * compaction-fix Phase 1 — post-anchor transformer unit tests.
  *
- * Coverage map vs spec.md:
- *   - DD-1 / TraceMarker shape           → "TV1 / format / args truncation / reasoning truncation"
- *   - DD-2 / recentRawRounds preserved   → "preserves last N raw"
- *   - DD-7 / Mode 1 compaction exempt    → "exempts compaction part type"
- *   - In-flight assistant preserved      → "preserves in-flight"
- *   - DD-7 / layer purity guard          → "throws on forbidden key"
- *   - Empty input                        → "noop on empty"
+ * 2026-05-08 revision: transformer now DROPS completed assistant turns
+ * (instead of replacing parts with trace markers). Tests verify the
+ * drop behavior, recentRawRounds preservation, and carve-outs.
+ *
+ * Coverage:
+ *   - DD-1 / drop completed assistant turns       → "drops older completed turns"
+ *   - DD-2 / recentRawRounds preserved            → "preserves last N raw"
+ *   - DD-7 / Mode 1 compaction exempt             → "exempts compaction part type"
+ *   - In-flight assistant preserved               → "preserves in-flight"
+ *   - Empty / undersized inputs                   → "noop on empty / under threshold"
+ *   - Layer-purity exports still present (back-compat)
  */
 
 import { describe, expect, test } from "bun:test"
 import {
-  formatTraceMarker,
   transformPostAnchorTail,
   LayerPurityViolation,
   LAYER_PURITY_FORBIDDEN_KEYS,
@@ -95,9 +98,7 @@ interface TurnSpec {
   hasReasoning?: boolean
   inFlight?: boolean
   hasCompactionPart?: boolean
-  /** Optional override for tool name to test custom names */
   toolName?: string
-  /** Optional override for tool input to test args formatting */
   toolInput?: unknown
 }
 
@@ -105,12 +106,7 @@ function assistantTurn(spec: TurnSpec): MessageV2.WithParts {
   const messageID = id("msg")
   const sessionID = "ses_test"
   const parts: MessageV2.Part[] = [
-    {
-      id: id("prt"),
-      sessionID,
-      messageID,
-      type: "step-start",
-    } as unknown as MessageV2.Part,
+    { id: id("prt"), sessionID, messageID, type: "step-start" } as unknown as MessageV2.Part,
   ]
 
   if (spec.hasReasoning) {
@@ -139,9 +135,10 @@ function assistantTurn(spec: TurnSpec): MessageV2.WithParts {
       type: "tool",
       callID: id("call"),
       tool: spec.toolName ?? "read",
-      state: spec.inFlight && i === spec.toolCount - 1
-        ? { status: "pending", input: spec.toolInput ?? { file: "x.ts" } }
-        : { status: "completed", input: spec.toolInput ?? { file: "x.ts" }, output: "..." },
+      state:
+        spec.inFlight && i === spec.toolCount - 1
+          ? { status: "pending", input: spec.toolInput ?? { file: "x.ts" } }
+          : { status: "completed", input: spec.toolInput ?? { file: "x.ts" }, output: "..." },
     } as unknown as MessageV2.Part)
   }
 
@@ -155,12 +152,7 @@ function assistantTurn(spec: TurnSpec): MessageV2.WithParts {
     } as unknown as MessageV2.Part)
   }
 
-  parts.push({
-    id: id("prt"),
-    sessionID,
-    messageID,
-    type: "step-finish",
-  } as unknown as MessageV2.Part)
+  parts.push({ id: id("prt"), sessionID, messageID, type: "step-finish" } as unknown as MessageV2.Part)
 
   return {
     info: {
@@ -182,112 +174,37 @@ function assistantTurn(spec: TurnSpec): MessageV2.WithParts {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// formatTraceMarker
+// Layer-purity exports (back-compat)
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("formatTraceMarker — DD-1 shape", () => {
-  test("multi-tool turn folds into one line with refs", () => {
-    const text = formatTraceMarker({
-      turnIndex: 5,
-      toolFragments: [
-        { toolName: "read", argsBrief: '{"file":"x.ts"}', callID: "call_abc123def456ghi", hasResult: true },
-        { toolName: "grep", argsBrief: '{"pattern":"foo"}', callID: "call_xyz999", hasResult: true },
-      ],
-      reasoningSummary: null,
-    })
-    expect(text).toMatch(/^\[turn 5\] /)
-    expect(text).toContain("read(")
-    expect(text).toContain("grep(")
-    expect(text).toContain("→ ref:call_abc123d")
-    expect(text).toContain(";")
-  })
-
-  test("no result on tool → omits ref", () => {
-    const text = formatTraceMarker({
-      turnIndex: 1,
-      toolFragments: [{ toolName: "bash", argsBrief: "ls", callID: "call_x", hasResult: false }],
-      reasoningSummary: null,
-    })
-    expect(text).toContain("bash(ls)")
-    expect(text).not.toContain("→ ref:")
-  })
-
-  test("args truncated to 80 chars", () => {
-    const longArgs = "a".repeat(200)
-    const text = formatTraceMarker({
-      turnIndex: 0,
-      toolFragments: [{ toolName: "read", argsBrief: longArgs.slice(0, 80) + "…", callID: "call_x", hasResult: true }],
-      reasoningSummary: null,
-    })
-    // Trace marker preserves the briefArgs the caller passed; we only verify
-    // formatTraceMarker doesn't ADD beyond what was passed.
-    expect(text.length).toBeLessThan(300)
-  })
-
-  test("reasoning summary truncated and appended", () => {
-    const long = "thinking ".repeat(20)
-    const text = formatTraceMarker({
-      turnIndex: 2,
-      toolFragments: [],
-      reasoningSummary: long,
-    })
-    // "thinking " * 20 = 180 chars; truncated to ~50.
-    const segments = text.split("] ")[1] // strip "[turn 2] "
-    expect(segments.length).toBeLessThanOrEqual(60)
-  })
-
-  test("empty turn yields placeholder", () => {
-    const text = formatTraceMarker({ turnIndex: 9, toolFragments: [], reasoningSummary: null })
-    expect(text).toContain("(no traced parts)")
-  })
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Layer purity (DD-7)
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("Layer purity (DD-7)", () => {
-  test("LAYER_PURITY_FORBIDDEN_KEYS contains expected tokens", () => {
+describe("Layer purity exports (back-compat)", () => {
+  test("LAYER_PURITY_FORBIDDEN_KEYS still contains expected tokens", () => {
     expect(LAYER_PURITY_FORBIDDEN_KEYS).toContain("accountId")
     expect(LAYER_PURITY_FORBIDDEN_KEYS).toContain("previous_response_id")
     expect(LAYER_PURITY_FORBIDDEN_KEYS).toContain("wsSessionId")
   })
 
-  test("formatTraceMarker throws on forbidden key in args", () => {
-    expect(() =>
-      formatTraceMarker({
-        turnIndex: 0,
-        toolFragments: [
-          { toolName: "secret", argsBrief: '{"previous_response_id":"resp_abc"}', callID: "call_x", hasResult: true },
-        ],
-        reasoningSummary: null,
-      }),
-    ).toThrow(LayerPurityViolation)
-  })
-
-  test("formatTraceMarker throws on forbidden key in reasoning", () => {
-    expect(() =>
-      formatTraceMarker({
-        turnIndex: 0,
-        toolFragments: [],
-        reasoningSummary: "leaking accountId into trace",
-      }),
-    ).toThrow(LayerPurityViolation)
+  test("LayerPurityViolation class is constructable", () => {
+    const err = new LayerPurityViolation("accountId", "test")
+    expect(err).toBeInstanceOf(Error)
+    expect(err.forbiddenKey).toBe("accountId")
+    expect(err.context).toBe("test")
   })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// transformPostAnchorTail
+// transformPostAnchorTail — drop semantics
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("transformPostAnchorTail", () => {
+describe("transformPostAnchorTail (drop semantics)", () => {
   test("noop on empty input", () => {
     const result = transformPostAnchorTail([], { recentRawRounds: 2 })
     expect(result.messages).toEqual([])
     expect(result.transformedTurnCount).toBe(0)
+    expect(result.exemptTurnCount).toBe(0)
   })
 
-  test("preserves last N=2 raw turns (DD-2)", () => {
+  test("drops older completed turns, keeps last N=2 raw (DD-1 + DD-2)", () => {
     const messages: MessageV2.WithParts[] = [
       anchorMessage("[summary so far]"),
       userMessage("turn 1 question"),
@@ -303,21 +220,25 @@ describe("transformPostAnchorTail", () => {
     ]
     const result = transformPostAnchorTail(messages, { recentRawRounds: 2 })
 
-    // 5 completed assistant turns; recentRawRounds=2 keeps last 2 raw → 3 transformed
+    // 5 completed assistant turns; recentRawRounds=2 keeps last 2 → 3 dropped
     expect(result.transformedTurnCount).toBe(3)
+
     // Anchor at index 0 unchanged
     expect(result.messages[0]).toBe(messages[0])
-    // Last 2 assistant turns at indices 8, 10 — should still have many parts (raw)
-    expect(result.messages[8].parts.length).toBeGreaterThan(2)
-    expect(result.messages[10].parts.length).toBeGreaterThan(2)
-    // First 3 assistant turns (indices 2, 4, 6) — transformed to step-start + trace + step-finish
-    const transformedIndices = [2, 4, 6]
-    for (const idx of transformedIndices) {
-      const parts = result.messages[idx].parts
-      const traceParts = parts.filter((p) => p.type === "text")
-      expect(traceParts.length).toBe(1)
-      expect((traceParts[0] as MessageV2.TextPart).text).toMatch(/^\[turn \d+\]/)
-      expect((traceParts[0] as MessageV2.TextPart).synthetic).toBe(true)
+
+    // All 5 user messages preserved
+    const userMsgs = result.messages.filter((m) => m.info.role === "user")
+    expect(userMsgs.length).toBe(5)
+
+    // Only 2 assistant messages (the kept-raw last 2)
+    const assistantMsgs = result.messages.filter((m) => m.info.role === "assistant")
+    // Anchor counts as assistant role too — anchor + 2 raw = 3
+    expect(assistantMsgs.length).toBe(3)
+
+    // The kept assistant turns retain their full part structure (not collapsed)
+    const nonAnchorAssistants = assistantMsgs.filter((m) => !(m.info as MessageV2.Assistant).summary)
+    for (const a of nonAnchorAssistants) {
+      expect(a.parts.length).toBeGreaterThan(2)
     }
   })
 
@@ -332,8 +253,9 @@ describe("transformPostAnchorTail", () => {
       assistantTurn({ toolCount: 1, inFlight: true }), // last one has pending tool
     ]
     const result = transformPostAnchorTail(messages, { recentRawRounds: 0 })
-    // In-flight (index 6) should NOT be transformed even with recentRawRounds=0
-    const inFlight = result.messages[6]
+    // In-flight assistant is preserved even with recentRawRounds=0
+    const inFlight = result.messages[result.messages.length - 1]
+    expect(inFlight.info.role).toBe("assistant")
     expect(inFlight.parts.length).toBeGreaterThan(2)
     expect(inFlight.parts.some((p) => p.type === "tool")).toBe(true)
   })
@@ -349,12 +271,13 @@ describe("transformPostAnchorTail", () => {
       assistantTurn({ toolCount: 2 }),
     ]
     const result = transformPostAnchorTail(messages, { recentRawRounds: 0 })
-    // Index 4 holds compaction part — must be preserved fully
-    expect(result.messages[4].parts.some((p) => p.type === "compaction")).toBe(true)
-    expect(result.messages[4].parts.length).toBe(messages[4].parts.length)
+    // Compaction-bearing assistant is preserved fully (full part count)
+    const compactionBearing = result.messages.find((m) => m.parts.some((p) => p.type === "compaction") && !(m.info as MessageV2.Assistant).summary)
+    expect(compactionBearing).toBeDefined()
+    expect(compactionBearing!.parts.some((p) => p.type === "compaction")).toBe(true)
   })
 
-  test("does not transform when recent N >= candidate count", () => {
+  test("noop when recent N >= candidate count", () => {
     const messages: MessageV2.WithParts[] = [
       anchorMessage("summary"),
       userMessage("u1"),
@@ -364,24 +287,41 @@ describe("transformPostAnchorTail", () => {
     ]
     const result = transformPostAnchorTail(messages, { recentRawRounds: 5 })
     expect(result.transformedTurnCount).toBe(0)
+    expect(result.messages).toBe(messages) // returns same reference when no-op
   })
 
-  test("transforms multi-tool turn into trace markers with refs", () => {
+  test("itemCount-equivalent reduction is significant on long tail", () => {
+    // Synthesize 30 completed turns each with 4 tool calls — without drop,
+    // each turn contributes ~7 parts. With drop (recentRawRounds=2), 28 of
+    // 30 are removed entirely.
+    const messages: MessageV2.WithParts[] = [anchorMessage("[summary]")]
+    for (let i = 0; i < 30; i++) {
+      messages.push(userMessage(`u${i}`))
+      messages.push(assistantTurn({ toolCount: 4, hasReasoning: true }))
+    }
+    const result = transformPostAnchorTail(messages, { recentRawRounds: 2 })
+    expect(result.transformedTurnCount).toBe(28)
+    // Original: 1 anchor + 30 user + 30 assistant = 61 messages
+    // After:    1 anchor + 30 user + 2 assistant = 33 messages
+    expect(result.messages.length).toBe(33)
+  })
+
+  test("does not mutate the input array", () => {
     const messages: MessageV2.WithParts[] = [
       anchorMessage("summary"),
       userMessage("u1"),
-      assistantTurn({ toolCount: 4, hasReasoning: true }), // candidate to transform
+      assistantTurn({ toolCount: 2 }),
       userMessage("u2"),
-      assistantTurn({ toolCount: 1 }), // recent, raw
+      assistantTurn({ toolCount: 1 }),
       userMessage("u3"),
-      assistantTurn({ toolCount: 1 }), // recent, raw
+      assistantTurn({ toolCount: 1 }),
     ]
-    const result = transformPostAnchorTail(messages, { recentRawRounds: 2 })
-    expect(result.transformedTurnCount).toBe(1)
-    const tracedTurn = result.messages[2]
-    const traceText = (tracedTurn.parts.find((p) => p.type === "text") as MessageV2.TextPart).text
-    expect(traceText).toMatch(/^\[turn 2\]/)
-    expect(traceText).toContain("read(")
-    expect(traceText.match(/→ ref:/g)?.length).toBe(4) // 4 tool calls all have refs
+    const originalLength = messages.length
+    const originalRefs = [...messages]
+    transformPostAnchorTail(messages, { recentRawRounds: 1 })
+    expect(messages.length).toBe(originalLength)
+    for (let i = 0; i < messages.length; i++) {
+      expect(messages[i]).toBe(originalRefs[i])
+    }
   })
 })
