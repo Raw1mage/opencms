@@ -100,6 +100,79 @@ Phase 1 解 0-token 那條：把完成的 assistant turn 從 raw verbose items �
 
 **How to apply**：trace marker formatter 只接受 tool name + args + result reference + reasoning text — 不開放任何連線屬性的 input。
 
+## Phase 2 Decisions (DD-8..DD-13)
+
+### DD-8: Storage — extend `CompactionPart.metadata` with two new fields
+
+**Decision**: Reuse the existing `CompactionPart` (no new part type). Extend its optional `metadata` object with:
+
+```ts
+serverCompactedItems?: unknown[]   // raw codex Responses API ResponseItem[]
+chainBinding?: { accountId: string; modelId: string; capturedAt: number }
+```
+
+**Why**: Anchor message already exists and carries the summary; bolting Phase 2 onto its metadata avoids schema churn and keeps the L2 anchor-as-a-record invariant intact. `unknown[]` because items are codex-format ResponseItems whose schema lives in `@opencode-ai/codex-provider` types — opaque to opencode core.
+
+**How to apply**: Extend the Zod schema additively (existing readers without these fields keep working). `tryLowCostServer` writes both fields atomically when the server returns compactedItems.
+
+### DD-9: Chain identity binding
+
+**Decision**: `compactedItems` are valid only when:
+- `chainBinding.accountId === current execution accountId`, AND
+- `chainBinding.modelId === current execution modelId`
+
+Mismatch → strip compactedItems from the projection (do NOT delete from storage), fall back to Phase 1 anchor summary text.
+
+**Why**: codex's compactedItems are produced by a specific (account, model) pair and may carry chain-internal references that are only valid for that chain. Account switch / model switch / cross-chain rotation invalidate them. Storage-side keep retains forensics; runtime projection skips them.
+
+**How to apply**: Phase 2 expander reads execution context (`activeModel`, `effectiveAccountId`) and compares against `chainBinding`. Only expand on match.
+
+### DD-10: Read path — replace anchor with expanded items
+
+**Decision**: A new step `expandAnchorCompactedPrefix(messages, executionContext)` runs **after** Phase 1 transformer and **before** `MessageV2.toModelMessages`. If the anchor (messages[0]) carries valid compactedItems:
+
+- Drop the original anchor message from the projection
+- For each `compactedItems` entry of `type === "message"`, emit a synthetic user-role MessageV2 message containing the entry's text content (kind: `context-preface`)
+- For other item types (function_call, function_call_output, reasoning) in MVP: serialize as JSON inside one synthetic user-role text message labeled "[compacted prior tool history]"
+- Concatenate: `[...synthesizedFromCompacted, ...messages.slice(1)]`
+
+**Why**: Convert compactedItems into MessageV2 form so the existing `toModelMessages` → `convertPrompt` pipeline serializes them naturally. No changes to codex-provider's `convertPrompt` needed (preserves L2/L3 boundary).
+
+**How to apply**: New module `packages/opencode/src/session/anchor-prefix-expand.ts`. Wired in prompt.ts immediately after the Phase 1 transformer block.
+
+### DD-11: Layer purity carve-out for compactedItems
+
+**Decision**: `LAYER_PURITY_FORBIDDEN_KEYS` guard from Phase 1 does **NOT** apply to compactedItems content. It DOES apply to any text we synthesize ourselves around compactedItems (e.g. labels we add).
+
+**Why**: compactedItems are codex-produced black-box artifacts. They may contain chain-internal tokens that look like L4 keys but are L2 from codex's frame of reference (codex's own prior-conversation references). Forcing layer purity here would mean rejecting codex's own work.
+
+`chainBinding` metadata IS L4 (we synthesize it), but it lives in part metadata — not in the prompt text — so layer purity doesn't apply at projection time.
+
+**How to apply**: Expander pushes compactedItems through to MessageV2 without applying `assertLayerPurity`. Synthetic labels we add (e.g. "[compacted prior tool history]") are subject to the guard.
+
+### DD-12: Failure / invalidation modes
+
+**Decision**:
+
+| Failure | Recovery | Log level |
+|---|---|---|
+| Plugin returns no compactedItems | summary-only path (Phase 1 baseline) | info |
+| chainBinding mismatch (account/model switch) | strip from projection, keep storage | warn |
+| compactedItems contain unmappable types | serialize as JSON in single synthetic message | warn (one-shot per anchor) |
+| compactedItems shape parse error | strip from projection, keep storage, log error | error |
+
+**Why**: Never block prompt assembly; always degrade gracefully to Phase 1.
+
+**How to apply**: Each branch in expander explicitly handles the failure with a structured log line.
+
+### DD-13: Feature flag — `compaction.phase2Enabled`, default false
+
+**Decision**: New flag `compaction.phase2Enabled` (default false). Independent of `phase1Enabled` but Phase 2 expander short-circuits if Phase 1 is also off (anchor projection contract assumes Phase 1's slicing semantics).
+
+**Why**: Phase 2 changes what codex sees as the prefix. Even though it's pure projection (no message stream rewrite), wrong/stale items entering the prompt is a high-severity failure mode. Gated rollout via tweaks.cfg same shape as Phase 1.
+
+**How to apply**: tweaks.cfg key `compaction_phase2_enabled = 0/1`. Default off after merge to main; flip on after Phase 1 hits stable production and Phase 2 has its own soak window.
+
 ## Risks / Trade-offs
 
 - **R1（fidelity）**：Phase 1 之後 model 看到的是精簡 trace，可能在某些任務（特別是長期 debug 流程）下因看不到 raw 內容而重做工作 → mitigation：DD-2 留最近 N 輪 raw + WorkingCache reference 可被 L3 retrieval runtime 取回（後續會補）
