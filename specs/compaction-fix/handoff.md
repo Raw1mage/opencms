@@ -1,5 +1,24 @@
 # Handoff: compaction-fix Phase 1
 
+## ERRATUM 2026-05-08 (d) — Phase 1 disabled, Phase 2 still live
+
+Phase 1 stop gates SG-1, SG-3, SG-4, SG-7 below describe a per-turn
+transformer rollout that was attempted (v1–v6) and disabled after a
+re-read of upstream `for_prompt()` showed the transformer's premise
+was wrong. See [proposal.md ERRATUM](./proposal.md#erratum-2026-05-08-d--phase-1-misframing-disabled).
+
+Status of stop gates:
+- **SG-1** (default off): satisfied permanently — `compaction_phase1_enabled=0`.
+- **SG-2** (subagent bypass): moot — transformer not running for any path.
+- **SG-3, SG-4, SG-5, SG-6**: only meaningful if transformer reactivated.
+- **SG-7** (24h soak): not applicable — transformer never reached
+  `phase1Enabled=true` in production.
+- **SG-8** (Phase 2 gate): superseded — Phase 2 decoupled from Phase 1
+  in commit `c1feb48a1`. Phase 2 ships independently.
+
+The L2/L4 layer purity invariant in DD-7 of design.md remains
+architecturally correct and applies to all Phase 2 work.
+
 ## Execution Contract
 
 Implementer takes Phase 1 from `planned` → `implementing` → `verified` per beta-workflow contract. Code goes through beta worktree; docs (this folder) stay on main per [feedback_commit_all_split_code_docs.md](../../packages/opencode/.claude/projects/-home-pkcs12-projects-opencode/memory/feedback_commit_all_split_code_docs.md).

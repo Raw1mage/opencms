@@ -1,5 +1,24 @@
 # Tasks
 
+## ERRATUM 2026-05-08 (d) — Phase 1 tasks DONE-THEN-ABANDONED
+
+All Phase 1 tasks (1.x–6.x below) were executed through commits
+`6dcd327fa` (v1) → `43d400258` (v2) → `a2f30dc4c` (v3) →
+`ac2b34a0b` (v5) → `c56e5538f` (v6) → `c1feb48a1` (disabled).
+
+**Phase 1 transformer is off by default and not part of the production
+architecture.** See [proposal.md ERRATUM](./proposal.md#erratum-2026-05-08-d--phase-1-misframing-disabled).
+
+Treat tasks below as forensic reference. Do **not** reactivate Phase 1
+without first revisiting the upstream re-read (Phase 1's premise was a
+misread of `for_prompt()`).
+
+Phase 2 (anchor-prefix-expand for codex compactedItems) **is** the live
+alignment. Phase 2 work lived inside commit `2f3545303` and survived
+all subsequent revisions. Phase 2 governed by DD-8…DD-13 in design.md.
+
+---
+
 Phase 1 execution checklist for compaction-fix. Numbering uses A1-A5 from idef0.json for traceability where applicable. Per plan-builder §16.1, only the current phase's unchecked items go to TodoWrite at any time.
 
 ## 1. tweaks.cfg keys + flag plumbing (Phase 1, DD-6)

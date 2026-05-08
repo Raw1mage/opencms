@@ -1,12 +1,57 @@
 # Proposal: compaction-fix
 
+## ERRATUM 2026-05-08 (d) — Phase 1 misframing, disabled
+
+The original Phase 1 problem statement assumed our pre-existing per-turn
+behavior diverged from upstream codex-rs and needed a transformer to
+correct. **Re-read of upstream proves this is wrong.** Upstream's
+per-turn flow ([refs/codex/codex-rs/core/src/context_manager/history.rs:119](../../refs/codex/codex-rs/core/src/context_manager/history.rs#L119)
+`for_prompt`) returns the FULL history with only orphan-pair repair
+and image modality stripping. The aggressive
+`build_compacted_history` runs ONLY inside an explicit compaction
+event ([compact.rs:466](../../refs/codex/codex-rs/core/src/compact.rs#L466)),
+not every turn.
+
+Phase 1 v1–v6 pursued a per-turn transformer that drops verbose tail
+items. Each iteration was a different drop policy, all sharing the
+same false premise. Live observation under v5 showed a hard amnesia
+loop (input collapsed to ~332 tokens across 6 consecutive turns; model
+re-derived the same tool-call sequence each iteration). v6 narrowed
+the scope but is still a per-turn drop where upstream has none.
+
+**Decision (commit `c1feb48a1`)**: `compaction_phase1_enabled` is
+default-off in tweaks.cfg; Phase 1 transformer code retained but not
+invoked. Per-turn shaping is now upstream-aligned full pass-through.
+
+**Phase 2 stays valid and now decoupled** from Phase 1 (commit
+`c1feb48a1` removes the `phase1Enabled` gate from Phase 2 invocation).
+Anchor-prefix expansion of codex `/responses/compact` compactedItems
+is the production alignment with upstream's compaction-event behavior.
+
+**Compaction priority simplified** (commit `39bc97786`): codex
+provider tries `low-cost-server` (server-side `/responses/compact`)
+first regardless of context ratio or subscription flag. Other
+providers retain local-first base order.
+
+The architectural framing in this document (L1–L4 layer separation,
+L2-payload purity, working-cache as L3 retrieval) is correct and
+unaffected. What changed is the conclusion that Phase 1 needed to
+exist at all — the asymmetry it tried to fix didn't exist.
+
+Sections below retain the original wording with inline ~~strikethrough~~
+on the misframed claims, plus added (v6, SUPERSEDED) tags. The
+post-mortem detail is preserved deliberately so the misadventure is
+auditable.
+
+---
+
 ## Why
 
-opencode 的 compaction 機制比 upstream codex-cli 豐富，但**我們既有的 4 種 kind 跑完都只產出一段 summaryText 寫進 anchor，post-anchor tail 沒有任何處理**，導致：
+opencode 的 compaction 機制比 upstream codex-cli 豐富，~~但**我們既有的 4 種 kind 跑完都只產出一段 summaryText 寫進 anchor，post-anchor tail 沒有任何處理**~~（**2026-05-08 (d) 校正**：post-anchor tail 不做處理 = 對齊 upstream `for_prompt()` 行為，這原本就是正確的設計。下方「導致」三條中只有第三條（AI-based compactedItems 被丟）成立；前兩條的「每輪 tail 累積成長」是 upstream 也有的常態現象，被 compaction 觸發時的 `build_compacted_history` 處理）：
 
-- Tail 累積完整 raw items（assistant text/reasoning/每個 FunctionCall/每個 FunctionCallOutput），item count 線性成長
-- 50 輪 tail 可達 300-400 items，撞 codex backend 對 input array 個數的隱藏敏感度
-- AI-based compaction 跟 0-token compaction 退化成「同一條路」（都只用 summaryText），AI-based 該有的優勢（codex 回的 `compactedItems`）被丟掉
+- ~~Tail 累積完整 raw items（assistant text/reasoning/每個 FunctionCall/每個 FunctionCallOutput），item count 線性成長~~（這是 upstream 也有的設計，等 compaction 觸發處理；不是每輪要修的問題）
+- ~~50 輪 tail 可達 300-400 items，撞 codex backend 對 input array 個數的隱藏敏感度~~（codex backend bug 是真的，但解法是讓 compaction 在達到閾值時觸發，不是每輪 transform）
+- AI-based compaction 跟 0-token compaction 退化成「同一條路」（都只用 summaryText），AI-based 該有的優勢（codex 回的 `compactedItems`）被丟掉 ✓ 仍成立 — Phase 2 修這條
 
 ### 修正方向（user 2026-05-08 reframe）
 
@@ -75,6 +120,7 @@ ses_204499eecffe2iUTzeXyiarlnq（62 小時 / 7189 requests / 0.71% 失敗率）5
 - 2026-05-08 (a): RCA + upstream 比對 + WorkingCache 補位機制
 - 2026-05-08 (b): 採用 user 提出的 AI-based vs 0-token 分類框架，phased structure
 - 2026-05-08 (c): 重新定位 — Phase 1 不是「對齊 upstream」是「升級 0-token」（用 WorkingCache index 做主文省略+尋回）。LLM-called compaction 才是 Phase 2 的對齊 upstream
+- **2026-05-08 (d)**: **Phase 1 disabled.** Re-read of `for_prompt()` proves upstream's per-turn flow is full pass-through. Phase 1 v1–v6 (trace-marker collapse → drop-with-recentRawRounds → text-bearing preserve → unconditional-drop → current-task-scope) all introduced a per-turn drop where upstream has none. v5 caused live amnesia loops (input collapsed to 332 tokens, model re-derived each turn). Disabled via tweaks.cfg (`compaction_phase1_enabled=0`) in commit `c1feb48a1`. Phase 2 decoupled from Phase 1 in the same commit. Compaction priority simplified in commit `39bc97786` (codex always tries server-side first). Phase 1 transformer code retained as default-off experiment for future redesign if a sound use case emerges; current architecture relies on Phase 2 + KIND_CHAIN compaction + working-cache for the actual compaction work.
 
 ## Effective Requirement Description
 

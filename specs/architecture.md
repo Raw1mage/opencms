@@ -275,15 +275,41 @@ an explicit `TRIGGER_INVENTORY` precedence contract including
 consecutive empty high-context assistant rounds without injecting a
 synthetic Continue. Predicted cache miss maps to `cache-aware` only when the
 cache-loss signal is explicit and uncached input exceeds tweak thresholds.
-`SessionCompaction.resolveKindChain` makes kind ordering provider-aware:
-high-context codex OAuth subscription sessions (detected from the codex
-cost-zero model surface) prioritize `low-cost-server` before local narrative
-for overflow/cache-aware/manual triggers, while non-codex and non-subscription
-models keep the base chain. The codex provider's regular `/responses` request
-body is assembled through `buildResponsesApiRequest`, which always emits Mode
-1 server compaction shape `context_management: [{ type: "compaction",
-compact_threshold }]`; the standalone `/responses/compact` hook remains kind
-`low-cost-server`.
+`SessionCompaction.resolveKindChain` makes kind ordering provider-aware.
+**As of 2026-05-08 (commit `39bc97786`)**: codex provider always
+prioritizes `low-cost-server` (server-side `/responses/compact`) at
+the head of the kind chain, regardless of context ratio or
+subscription flag — codex subscription doesn't bill server-side
+compaction so there is no cost reason to defer it. Non-codex
+providers keep the base chain (local-first: narrative → replay-tail
+→ …). The earlier `codexServerPriorityRatio` threshold gate and
+`isSubscription` check are no longer consulted (parameters retained
+on the input shape for back-compat with existing call sites). The
+codex provider's regular `/responses` request body is assembled
+through `buildResponsesApiRequest`, which always emits Mode 1 server
+compaction shape `context_management: [{ type: "compaction",
+compact_threshold }]`; the standalone `/responses/compact` hook
+remains kind `low-cost-server`.
+
+Per-turn shaping (2026-05-08, commit `c1feb48a1`): the per-turn
+prompt assembly is full-history pass-through, matching upstream
+codex-rs `for_prompt()` ([refs/codex/codex-rs/core/src/context_manager/history.rs:119](../../refs/codex/codex-rs/core/src/context_manager/history.rs#L119))
+which only does orphan-pair repair and image modality stripping. An
+earlier per-turn post-anchor transformer (compaction-fix Phase 1
+v1–v6) was disabled after live observation showed it had no upstream
+basis and caused amnesia loops. See [specs/compaction-fix/](./compaction-fix/)
+for the post-mortem. Compaction-event drop (analogous to upstream's
+`build_compacted_history`) still happens via `SessionCompaction.run`
+when a trigger fires; that's the only path where past assistant
+content is removed from the projection.
+
+Phase 2 of compaction-fix (anchor-prefix-expand, commit `2f3545303`,
+decoupled from Phase 1 in `c1feb48a1`) is live: when codex
+`/responses/compact` returns structured `compactedItems`, those are
+persisted onto the anchor's `CompactionPart.metadata.serverCompactedItems`
+plus `chainBinding`, and at prompt assembly the
+`expandAnchorCompactedPrefix` step replaces the anchor's free-form
+summary with the codex-issued items (gated by chain identity match).
 
 Phase D/E big-content boundary and telemetry (2026-05-01,
 specs/\_archive/compaction-improvements): oversized boundary payloads are routed by
