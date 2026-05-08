@@ -50,6 +50,7 @@ import { CronRoutes } from "./routes/cron"
 import { GoogleBindingRoutes } from "./routes/google-binding"
 import { WebRouteRoutes } from "./routes/web-route"
 import { WorkingCacheRoutes } from "./routes/working-cache"
+import { SkillRoutes } from "./routes/skill"
 import { Env } from "@/env"
 import { ActivityBeacon } from "@/util/activity-beacon"
 import { WebAuth } from "./web-auth"
@@ -425,6 +426,7 @@ api.route("/admin/kill-switch", KillSwitchRoutes())
   api.route("/google-binding", GoogleBindingRoutes())
   api.route("/web-route", WebRouteRoutes())
   api.route("/working-cache", WorkingCacheRoutes())
+  api.route("/skill", SkillRoutes())
   api.route("/", FileRoutes())
 
   api.post(

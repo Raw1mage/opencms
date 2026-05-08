@@ -978,6 +978,39 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           },
         },
       },
+      {
+        name: "skill_loader",
+        description:
+          "Manage the daemon's skill index. opencode's Skill module caches its scan of " +
+          "~/.claude/skills, ~/.agents/skills, project .claude/skills (walked up from cwd), " +
+          "~/.config/opencode/skills, ~/.local/share/opencode/skills, and any folders listed in " +
+          "opencode.json's skills.paths / skills.urls — so a freshly added SKILL.md or a just-added " +
+          "folder stays invisible until the daemon restarts. " +
+          "Actions: " +
+          "'list' returns the current cached index. " +
+          "'reload' drops the cache and rescans every source. " +
+          "'load' (path required) appends the folder to ~/.config/opencode/opencode.json's " +
+          "skills.paths (idempotent, jsonc-comment-preserving, durable across restart) and rescans. " +
+          "'unload' (path required) removes the folder from skills.paths and rescans. " +
+          "Pass paths exactly as the user wrote them — '~/' and relative paths are expanded server-side.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            action: {
+              type: "string",
+              enum: ["list", "reload", "load", "unload"],
+              description:
+                "'list' / 'reload' need no path. 'load' / 'unload' must include 'path' — the folder containing one or more SKILL.md files.",
+            },
+            path: {
+              type: "string",
+              description:
+                "Required for action='load' or 'unload'. Folder path; supports '~/...' and relative paths (resolved against the daemon's cwd).",
+            },
+          },
+          required: ["action"],
+        },
+      },
     ],
   }
 })
@@ -2163,6 +2196,80 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             text: `restart_self scheduled (mode=${mode}, txid=${responseTxid}). The daemon will self-terminate after webctl finishes; the gateway will respawn a fresh daemon on the next request. Expect a brief window of 503/reconnect.${handoverPath}`,
           },
         ],
+      }
+    }
+
+    if (name === "skill_loader") {
+      const { action, path: pathArg } = (args ?? {}) as { action?: string; path?: string }
+      const allowed = new Set(["list", "reload", "load", "unload"])
+      if (!action || !allowed.has(action)) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                error: "invalid_args",
+                detail: "action must be one of 'list', 'reload', 'load', 'unload'",
+              }),
+            },
+          ],
+          isError: true,
+        }
+      }
+      if ((action === "load" || action === "unload") && (typeof pathArg !== "string" || !pathArg.trim())) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ error: "invalid_args", detail: `'path' is required for action='${action}'` }),
+            },
+          ],
+          isError: true,
+        }
+      }
+      try {
+        const baseUrl = await getServerApiBaseUrl()
+        const method = action === "list" ? "GET" : "POST"
+        const headers = await getServerRequestHeaders(method)
+        const subpath =
+          action === "list" ? "" : action === "reload" ? "/reload" : action === "load" ? "/load" : "/unload"
+        const url = `${baseUrl}/skill${subpath}`
+        const init: RequestInit = { method, headers }
+        if (action === "load" || action === "unload") {
+          headers.set("content-type", "application/json")
+          init.body = JSON.stringify({ path: pathArg })
+        }
+        const response = await serverFetch(url, init)
+        const text = await response.text()
+        if (!response.ok) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  error: "skill_loader_http_error",
+                  status: response.status,
+                  body: text.slice(0, 800),
+                }),
+              },
+            ],
+            isError: true,
+          }
+        }
+        let parsed: unknown
+        try {
+          parsed = JSON.parse(text)
+        } catch {
+          parsed = { raw: text }
+        }
+        return { content: [{ type: "text", text: JSON.stringify({ action, result: parsed }, null, 2) }] }
+      } catch (err) {
+        return {
+          content: [
+            { type: "text", text: JSON.stringify({ error: "skill_loader_failed", detail: String(err) }) },
+          ],
+          isError: true,
+        }
       }
     }
 
