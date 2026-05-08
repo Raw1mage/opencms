@@ -9,6 +9,8 @@ import { Session } from "."
 import { Agent } from "../agent/agent"
 import { Provider } from "../provider/provider"
 import { SessionCompaction } from "./compaction"
+import { transformPostAnchorTail, LayerPurityViolation } from "./post-anchor-transform"
+import { expandAnchorCompactedPrefix } from "./anchor-prefix-expand"
 import { SharedContext } from "./shared-context"
 import { Memory } from "./memory"
 import { Token } from "../util/token"
@@ -2356,9 +2358,137 @@ export namespace SessionPrompt {
         })
       }
 
-      const sessionMessages = clone(msgs)
+      let sessionMessages = clone(msgs)
       if (imageResolution.dropImages) {
         stripImageParts(sessionMessages)
+      }
+
+      // compaction-fix Phase 1 — post-anchor tail transformer (DD-1..DD-7).
+      // Folds completed assistant turns beyond `recentRawRounds` into a
+      // single trace marker text part so `inputItemCount` stays clear of
+      // codex backend's array-length sensitivity (>~300 items failure
+      // region observed in fix-empty-response-rca soak).
+      //
+      // DD-5: subagent path bypass — sub-sessions inherit parent context
+      // unchanged in Phase 1; only main sessions are transformed.
+      // DD-4: safety net — if transform shrinks below the configured
+      // floor (defensive against unusual session shapes), fall back to
+      // raw and warn.
+      // DD-6: feature flag default false; enable via tweaks.cfg
+      // `compaction_phase1_enabled = 1` for gradual rollout.
+      const compactionTweakPhase1 = Tweaks.compactionSync()
+      if (compactionTweakPhase1.phase1Enabled && !session.parentID) {
+        try {
+          const beforeCount = sessionMessages.length
+          const beforeParts = sessionMessages.reduce((sum, m) => sum + m.parts.length, 0)
+          const transformed = transformPostAnchorTail(sessionMessages, {
+            recentRawRounds: compactionTweakPhase1.recentRawRounds,
+          })
+          if (transformed.messages.length < compactionTweakPhase1.fallbackThreshold) {
+            log.warn("phase1-transform: fallback to raw", {
+              sessionID,
+              step,
+              threshold: compactionTweakPhase1.fallbackThreshold,
+              got: transformed.messages.length,
+              transformedTurnCount: transformed.transformedTurnCount,
+            })
+          } else if (transformed.transformedTurnCount > 0) {
+            sessionMessages = transformed.messages
+            const afterParts = sessionMessages.reduce((sum, m) => sum + m.parts.length, 0)
+            log.info("phase1-transform: applied", {
+              sessionID,
+              step,
+              recentRawRounds: compactionTweakPhase1.recentRawRounds,
+              transformedTurns: transformed.transformedTurnCount,
+              exemptTurns: transformed.exemptTurnCount,
+              cacheRefHits: transformed.cacheRefHits,
+              cacheRefMisses: transformed.cacheRefMisses,
+              partsBefore: beforeParts,
+              partsAfter: afterParts,
+              messagesCount: beforeCount,
+            })
+          }
+        } catch (err) {
+          if (err instanceof LayerPurityViolation) {
+            log.error("phase1-transform: layer purity violation", {
+              sessionID,
+              step,
+              forbiddenKey: err.forbiddenKey,
+              context: err.context,
+            })
+            // Re-throw — architectural invariant breach surfaces upward.
+            throw err
+          }
+          log.warn("phase1-transform: unexpected error, falling back to raw", {
+            sessionID,
+            step,
+            error: err instanceof Error ? err.message : String(err),
+          })
+        }
+      }
+
+      // compaction-fix Phase 2 — anchor-prefix expansion (DD-8..DD-13).
+      // When the anchor message carries codex-issued `serverCompactedItems`
+      // bound to the current execution chain, replace the anchor's free-form
+      // summary projection with the structured items. Runs AFTER the Phase 1
+      // transformer so the anchor projection swap is the last shaping step
+      // before the messages flow into MessageV2.toModelMessages.
+      //
+      // DD-13: phase2Enabled flag-gated. Phase 2 also short-circuits when
+      // Phase 1 is off (anchor projection contract assumes Phase 1 slicing).
+      // DD-9: chain-binding validated inside the expander; mismatch → leave
+      // messages unchanged.
+      if (
+        compactionTweakPhase1.phase2Enabled &&
+        compactionTweakPhase1.phase1Enabled &&
+        !session.parentID
+      ) {
+        try {
+          const phase2Result = expandAnchorCompactedPrefix(sessionMessages, {
+            sessionID,
+            accountId: effectiveAccountId,
+            modelID: activeModel.id,
+          })
+          if (phase2Result.applied) {
+            sessionMessages = phase2Result.messages
+            log.info("phase2-anchor-prefix-expand: applied", {
+              sessionID,
+              step,
+              expandedItemCount: phase2Result.expandedItemCount,
+              messagesAdded: phase2Result.messagesAdded,
+              mappableItemCount: phase2Result.mappableItemCount,
+              unmappableItemCount: phase2Result.unmappableItemCount,
+            })
+          } else if (phase2Result.reason === "chain-mismatch") {
+            log.warn("phase2-anchor-prefix-expand: chain-binding mismatch, falling back", {
+              sessionID,
+              step,
+              accountId: effectiveAccountId,
+              modelID: activeModel.id,
+            })
+          } else {
+            log.debug?.("phase2-anchor-prefix-expand: skipped", {
+              sessionID,
+              step,
+              reason: phase2Result.reason,
+            })
+          }
+        } catch (err) {
+          if (err instanceof LayerPurityViolation) {
+            log.error("phase2-anchor-prefix-expand: layer purity violation", {
+              sessionID,
+              step,
+              forbiddenKey: err.forbiddenKey,
+              context: err.context,
+            })
+            throw err
+          }
+          log.warn("phase2-anchor-prefix-expand: unexpected error, falling back", {
+            sessionID,
+            step,
+            error: err instanceof Error ? err.message : String(err),
+          })
+        }
       }
 
       // Ephemerally wrap queued user messages with a reminder to stay on track

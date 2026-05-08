@@ -904,7 +904,24 @@ export namespace SessionCompaction {
    */
   type KindAttempt =
     | { ok: false; reason: string }
-    | { ok: true; summaryText: string; kind: KindName; anchorWritten?: boolean; truncated?: boolean }
+    | {
+        ok: true
+        summaryText: string
+        kind: KindName
+        anchorWritten?: boolean
+        truncated?: boolean
+        /**
+         * compaction-fix Phase 2 (DD-8): server-compacted ResponseItem[]
+         * to persist on the anchor's compaction part metadata. Only set
+         * by `tryLowCostServer` when the codex `/responses/compact` plugin
+         * returned non-empty `compactedItems`. Forwarded into
+         * `WriteAnchorInput` so `defaultWriteAnchor` writes them and the
+         * accompanying `chainBinding` into `metadata.serverCompactedItems`
+         * and `metadata.chainBinding`.
+         */
+        serverCompactedItems?: unknown[]
+        chainBinding?: { accountId: string; modelId: string; capturedAt: number }
+      }
 
   async function tryNarrative(input: RunInput, model: Provider.Model | undefined): Promise<KindAttempt> {
     const mem = await Memory.read(input.sessionID)
@@ -1041,7 +1058,22 @@ export namespace SessionCompaction {
 
     if (!hookResult.compactedItems) return { ok: false, reason: "plugin did not handle" }
     const summaryText = hookResult.summary || "[Server-compacted conversation history]"
-    return { ok: true, summaryText, kind: "low-cost-server" }
+    // compaction-fix Phase 2 (DD-8/DD-9): forward the structured items
+    // along with chain identity (account/model snapshot at compact time)
+    // so the anchor writer persists them as metadata for future
+    // anchor-prefix expansion. summaryText remains the textual fallback
+    // when chainBinding fails to validate at projection time (DD-9).
+    return {
+      ok: true,
+      summaryText,
+      kind: "low-cost-server",
+      serverCompactedItems: hookResult.compactedItems,
+      chainBinding: {
+        accountId: userMessage.model.accountId ?? "",
+        modelId: model.id,
+        capturedAt: Date.now(),
+      },
+    }
   }
 
   /**
@@ -1747,6 +1779,8 @@ When constructing the summary, try to stick to this template:
             model,
             auto: INJECT_CONTINUE[observed],
             kind: attempt.kind,
+            serverCompactedItems: attempt.serverCompactedItems,
+            chainBinding: attempt.chainBinding,
           })
         } else {
           log.warn("compaction.run anchor write skipped: no resolvable model", { sessionID, observed })
@@ -1822,6 +1856,10 @@ When constructing the summary, try to stick to this template:
     model: Provider.Model
     auto: boolean
     kind: KindName
+    /** compaction-fix Phase 2 (DD-8). */
+    serverCompactedItems?: unknown[]
+    /** compaction-fix Phase 2 (DD-9). */
+    chainBinding?: { accountId: string; modelId: string; capturedAt: number }
   }
   const defaultWriteAnchor = async (input: WriteAnchorInput) => {
     // DD-6: anchor body is wrapped + softened before persistence so it
@@ -1857,6 +1895,8 @@ When constructing the summary, try to stick to this template:
       summaryText: sanitized.body,
       prevAnchorId,
       kind: input.kind,
+      serverCompactedItems: input.serverCompactedItems,
+      chainBinding: input.chainBinding,
     })
   }
 
@@ -1878,6 +1918,10 @@ When constructing the summary, try to stick to this template:
     kind: KindName
     /** Explicit anchor id (used by tryLlmAgent which already knows it). */
     explicitAnchorId?: string
+    /** compaction-fix Phase 2 (DD-8). */
+    serverCompactedItems?: unknown[]
+    /** compaction-fix Phase 2 (DD-9). */
+    chainBinding?: { accountId: string; modelId: string; capturedAt: number }
   }): Promise<void> {
     const newAnchorId = input.explicitAnchorId ?? (await readMostRecentAnchorId(input.sessionID))
     if (!newAnchorId) {
@@ -1960,6 +2004,14 @@ When constructing the summary, try to stick to this template:
         metadata: {
           skillSnapshot: snapshot,
           pinnedByAnchor: matched,
+          // compaction-fix Phase 2 (DD-8/DD-9): persist server-compacted
+          // ResponseItem[] + chain identity binding when low-cost-server
+          // produced them. Skipped (undefined) for narrative/replay-tail/
+          // llm-agent kinds which only contribute summaryText.
+          ...(input.serverCompactedItems
+            ? { serverCompactedItems: input.serverCompactedItems }
+            : {}),
+          ...(input.chainBinding ? { chainBinding: input.chainBinding } : {}),
         },
       } as MessageV2.CompactionPart)
     } catch (err) {
