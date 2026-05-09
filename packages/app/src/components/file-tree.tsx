@@ -1330,12 +1330,19 @@ export default function FileTree(props: {
   if (!root) return tree()
 
   return (
-    <ContextMenu modal={false}>
+    <ContextMenu>
       <ContextMenu.Trigger as="div" class="contents">
         {tree()}
       </ContextMenu.Trigger>
       <ContextMenu.Portal>
-        <ContextMenu.Content>
+        <ContextMenu.Content
+          // UAT pass 2: distinct background + auto-dismiss on outside click.
+          // Default modal=true (we removed the modal={false} override) gives
+          // Kobalte its overlay-based outside detection so the menu closes
+          // when the user clicks elsewhere. Blue tint distinguishes the menu
+          // from the same-toned file tree underneath.
+          class="!bg-blue-950 !border-2 !border-blue-500 !shadow-lg"
+        >
           <Show when={contextMenuTarget()}>{(target) => (props.contextMenu ?? defaultContextMenu)(target())}</Show>
         </ContextMenu.Content>
       </ContextMenu.Portal>
