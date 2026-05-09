@@ -93,6 +93,11 @@ export function TerminalPanel(props: {
     closePopout()
   })
 
+  // Phase 5.4: when popped out, the source pane vacates the main layout
+  // footprint — only the tabs row stays visible so the user can re-dock
+  // via the pop-out toggle. The full-height body (and the prior
+  // "Terminal popped out" placeholder) is hidden.
+  const inlineHeight = createMemo(() => (popoutWindow() ? "auto" : `${props.height}px`))
   return (
     <Show when={props.open}>
       <div
@@ -100,7 +105,7 @@ export function TerminalPanel(props: {
         role="region"
         aria-label={props.language.t("terminal.title")}
         class="relative w-full flex flex-col shrink-0 border-t border-border-weak-base"
-        style={{ height: `${props.height}px` }}
+        style={{ height: inlineHeight() }}
       >
         <ResizeHandle
           direction="vertical"
@@ -194,13 +199,8 @@ export function TerminalPanel(props: {
                   </div>
                 </Tabs.List>
               </Tabs>
-              <div class="flex-1 min-h-0 relative">
-                <Show
-                  when={!popoutWindow()}
-                  fallback={
-                    <div class="h-full flex items-center justify-center text-text-weak">Terminal popped out</div>
-                  }
-                >
+              <Show when={!popoutWindow()}>
+                <div class="flex-1 min-h-0 relative">
                   <Show when={props.terminal.active()} keyed>
                     {(id) => (
                       <Show when={byId().get(id)} keyed>
@@ -216,8 +216,8 @@ export function TerminalPanel(props: {
                       </Show>
                     )}
                   </Show>
-                </Show>
-              </div>
+                </div>
+              </Show>
             </div>
             <DragOverlay>
               <Show when={props.activeTerminalDraggable()} keyed>
