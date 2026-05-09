@@ -125,7 +125,7 @@ export namespace Memory {
       if (info.summary === true) continue
       if (!info.finish) continue
       if (isNarrationAssistantMessage(info, m.parts)) continue
-      const text = lastTextPartText(m.parts)
+      const text = lastNarrativePartText(m.parts)
       if (!text.trim()) continue
       turnSummaries.push({
         turnIndex: turnSummaries.length,
@@ -198,10 +198,11 @@ export namespace Memory {
       .trim()
   }
 
-  function lastTextPartText(parts: MessageV2.Part[]): string {
+  function lastNarrativePartText(parts: MessageV2.Part[]): string {
     for (let i = parts.length - 1; i >= 0; i--) {
       const p = parts[i]
       if (p.type === "text") return (p as MessageV2.TextPart).text ?? ""
+      if (p.type === "reasoning") return (p as MessageV2.ReasoningPart).text ?? ""
     }
     return ""
   }
