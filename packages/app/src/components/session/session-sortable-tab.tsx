@@ -1,6 +1,7 @@
 import { createMemo, Show } from "solid-js"
 import type { JSX } from "solid-js"
 import { createSortable } from "@thisbeyond/solid-dnd"
+import { ContextMenu } from "@opencode-ai/ui/context-menu"
 import { FileIcon } from "@opencode-ai/ui/file-icon"
 import { IconButton } from "@opencode-ai/ui/icon-button"
 import { TooltipKeybind } from "@opencode-ai/ui/tooltip"
@@ -27,7 +28,12 @@ export function FileVisual(props: { path: string; active?: boolean }): JSX.Eleme
   )
 }
 
-export function SortableTab(props: { tab: string; onTabClose: (tab: string) => void }): JSX.Element {
+export function SortableTab(props: {
+  tab: string
+  onTabClose: (tab: string) => void
+  onCloseOthers?: (tab: string) => void
+  onCloseAll?: () => void
+}): JSX.Element {
   const file = useFile()
   const language = useLanguage()
   const command = useCommand()
@@ -41,29 +47,50 @@ export function SortableTab(props: { tab: string; onTabClose: (tab: string) => v
   return (
     <div use:sortable class="h-full flex items-center" classList={{ "opacity-0": sortable.isActiveDraggable }}>
       <div class="relative">
-        <Tabs.Trigger
-          value={props.tab}
-          closeButton={
-            <TooltipKeybind
-              title={language.t("common.closeTab")}
-              keybind={command.keybind("tab.close")}
-              placement="bottom"
-              gutter={10}
+        <ContextMenu>
+          <ContextMenu.Trigger as="div" class="contents">
+            <Tabs.Trigger
+              value={props.tab}
+              closeButton={
+                <TooltipKeybind
+                  title={language.t("common.closeTab")}
+                  keybind={command.keybind("tab.close")}
+                  placement="bottom"
+                  gutter={10}
+                >
+                  <IconButton
+                    icon="close-small"
+                    variant="ghost"
+                    class="h-5 w-5"
+                    onClick={() => props.onTabClose(props.tab)}
+                    aria-label={language.t("common.closeTab")}
+                  />
+                </TooltipKeybind>
+              }
+              hideCloseButton
+              onMiddleClick={() => props.onTabClose(props.tab)}
             >
-              <IconButton
-                icon="close-small"
-                variant="ghost"
-                class="h-5 w-5"
-                onClick={() => props.onTabClose(props.tab)}
-                aria-label={language.t("common.closeTab")}
-              />
-            </TooltipKeybind>
-          }
-          hideCloseButton
-          onMiddleClick={() => props.onTabClose(props.tab)}
-        >
-          <Show when={content()}>{(value) => value()}</Show>
-        </Tabs.Trigger>
+              <Show when={content()}>{(value) => value()}</Show>
+            </Tabs.Trigger>
+          </ContextMenu.Trigger>
+          <ContextMenu.Portal>
+            <ContextMenu.Content class="!bg-slate-900 !border-2 !border-slate-700 !shadow-lg">
+              <ContextMenu.Item onSelect={() => props.onTabClose(props.tab)}>
+                <ContextMenu.ItemLabel>Close</ContextMenu.ItemLabel>
+              </ContextMenu.Item>
+              <Show when={props.onCloseOthers}>
+                <ContextMenu.Item onSelect={() => props.onCloseOthers?.(props.tab)}>
+                  <ContextMenu.ItemLabel>Close others</ContextMenu.ItemLabel>
+                </ContextMenu.Item>
+              </Show>
+              <Show when={props.onCloseAll}>
+                <ContextMenu.Item onSelect={() => props.onCloseAll?.()}>
+                  <ContextMenu.ItemLabel>Close all</ContextMenu.ItemLabel>
+                </ContextMenu.Item>
+              </Show>
+            </ContextMenu.Content>
+          </ContextMenu.Portal>
+        </ContextMenu>
       </div>
     </div>
   )
