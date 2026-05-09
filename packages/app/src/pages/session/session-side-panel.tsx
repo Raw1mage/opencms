@@ -69,8 +69,7 @@ function FileTabMenu(props: {
   dialog: ReturnType<typeof useDialog>
   language: ReturnType<typeof useLanguage>
   command: ReturnType<typeof useCommand>
-  tabs?: ReturnType<ReturnType<typeof useLayout>["tabs"]>
-  routeParams?: { dir?: string; id?: string }
+  onPopOutActive?: () => void
 }) {
   const [open, setOpen] = createSignal(false)
   let ref: HTMLDivElement | undefined
@@ -196,39 +195,12 @@ function FileTabMenu(props: {
               >
                 <Icon name="square-arrow-top-right" size="small" />
               </button>
-              <Show when={props.tabs && props.routeParams}>
+              <Show when={props.onPopOutActive}>
                 <button
                   class="p-1.5 hover:bg-surface-tertiary rounded transition-colors [&_[data-component=icon]]:!text-white"
                   onClick={() => {
-                    const tab = props.activeFileTab()
-                    const path = activePath()
-                    const tabsApi = props.tabs
-                    if (!tab || !path || !props.routeParams || !tabsApi) return
-                    const basePath = props.routeParams.id
-                      ? `/${props.routeParams.dir}/session/${props.routeParams.id}`
-                      : `/${props.routeParams.dir}/session`
-                    const url = new URL(`${basePath}/file-view-popout`, window.location.origin)
-                    url.searchParams.set("path", path)
-                    const width = Math.max(640, Math.floor(window.innerWidth * 0.5))
-                    const height = Math.max(560, Math.floor(window.innerHeight * 0.62))
-                    const left = Math.max(20, Math.floor(window.screenX + (window.outerWidth - width) / 2))
-                    const top = Math.max(20, Math.floor(window.screenY + (window.outerHeight - height) / 2))
-                    const features = `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
-                    const win = window.open(url.toString(), `opencode-file-view-popout-${path}`, features)
-                    if (!win) return
-                    // Phase 5.3 contract: source tab is removed after successful pop-out.
-                    // Use explicit setAll + setActive instead of tabs.close() so the
-                    // sequence is fully observable in case Solid/Portal tear-down
-                    // would otherwise race with the close batch.
-                    const all = tabsApi.all()
-                    const remaining = all.filter((t: string) => t !== tab)
-                    const idx = all.indexOf(tab)
-                    const fallback = all[idx - 1] ?? all[idx + 1]
                     setOpen(false)
-                    queueMicrotask(() => {
-                      tabsApi.setAll(remaining)
-                      if (tabsApi.active() === tab) tabsApi.setActive(fallback)
-                    })
+                    props.onPopOutActive?.()
                   }}
                   title="Pop out viewer"
                 >
@@ -445,8 +417,32 @@ export function SessionSidePanel(props: {
                         dialog={props.dialog}
                         language={props.language}
                         command={props.command}
-                        tabs={props.tabs()}
-                        routeParams={params as { dir?: string; id?: string }}
+                        onPopOutActive={() => {
+                          // Phase 5.3 contract: pop file viewer + remove source tab.
+                          // Owned by SessionSidePanel directly so we have a stable closure
+                          // over `props.tabs()` and `props.file` instead of prop-drilling
+                          // through FileTabMenu (where Solid prop accessors hid a stale
+                          // reference and broke the close in UAT pass 1).
+                          const tab = props.activeFileTab()
+                          if (!tab) return
+                          const path = props.file.pathFromTab(tab)
+                          if (!path) return
+                          const dir = (params as { dir?: string }).dir
+                          const id = (params as { id?: string }).id
+                          const basePath = id ? `/${dir}/session/${id}` : `/${dir}/session`
+                          const url = new URL(`${basePath}/file-view-popout`, window.location.origin)
+                          url.searchParams.set("path", path)
+                          const width = Math.max(640, Math.floor(window.innerWidth * 0.5))
+                          const height = Math.max(560, Math.floor(window.innerHeight * 0.62))
+                          const left = Math.max(20, Math.floor(window.screenX + (window.outerWidth - width) / 2))
+                          const top = Math.max(20, Math.floor(window.screenY + (window.outerHeight - height) / 2))
+                          const features = `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+                          const win = window.open(url.toString(), `opencode-file-view-popout-${path}`, features)
+                          if (!win) return
+                          // Use props.tabs() directly here so we always get the live tabs
+                          // object for the current session — no prop-drilled snapshot.
+                          props.tabs().close(tab)
+                        }}
                       />
                       <IconButton
                         icon="close-small"
