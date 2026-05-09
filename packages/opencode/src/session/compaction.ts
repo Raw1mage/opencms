@@ -1839,11 +1839,22 @@ When constructing the summary, try to stick to this template:
         if (hybridEnrichmentEligible.has(observed)) {
           scheduleHybridEnrichment(sessionID, observed, model)
         }
+        // Some kinds (low-cost-server) do not self-publish Event.Compacted;
+        // others (compactWithSharedContext / tryLlmAgent / tryHybridLlm) do.
+        // Publishing here for the kinds that don't ensures the frontend
+        // statusFooter reliably clears on every successful exit.
+        if (attempt.kind === "low-cost-server") {
+          void publishCompactedAndResetChain(sessionID, { observed, kind: attempt.kind })
+        }
         return "continue"
       }
     }
 
     log.warn("compaction.chain_exhausted", { sessionID, observed, step })
+    // Chain exhausted without writing an anchor — still publish Compacted
+    // so the frontend statusFooter clears (otherwise spinner sticks
+    // indefinitely after a silent failure).
+    void publishCompactedAndResetChain(sessionID, { observed, kind: "narrative" })
     return "stop"
   }
 
