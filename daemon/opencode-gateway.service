@@ -25,7 +25,7 @@ StateDirectoryMode=0700
 # Security hardening (gateway needs root for PAM + setuid, but limit the rest)
 NoNewPrivileges=no
 ProtectSystem=strict
-ReadWritePaths=/run/opencode-gateway /var/lib/opencode-gateway /run/user /tmp /etc/opencode /opt/opencode-apps /var/log/opencode
+ReadWritePaths=/run/opencode-gateway /var/lib/opencode-gateway /run/user /tmp /etc/opencode /opt/opencode-apps /var/log/opencode /mnt/g
 ProtectHome=no
 
 [Install]
