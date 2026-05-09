@@ -418,13 +418,13 @@ export function SessionSidePanel(props: {
                         language={props.language}
                         command={props.command}
                         onPopOutActive={() => {
-                          // Phase 5.3 contract: pop file viewer + remove source tab.
-                          // UAT pass 3 — earlier passes via props.tabs().close(tab) and
-                          // explicit setAll/setActive both failed in UAT. User hint: use
-                          // the same path that originally opens the tab to close it.
-                          // Reconstruct the tabs handle by calling the layout factory
-                          // directly (not the memoized prop accessor) and close source +
-                          // collapse the file pane when no file tabs remain.
+                          // UAT pass 4 — user hint: just chain-trigger the same button
+                          // that toggles the file pane (the folder icon at top of the
+                          // panel). Pop-out = open new window + collapse the file pane.
+                          // No more wrestling with tabs.close timing — closing the
+                          // entire pane is the user-visible signal they want, and the
+                          // tab data behind it can be tidied up at the same time
+                          // without it being on the critical visual path.
                           const tab = props.activeFileTab()
                           if (!tab) return
                           const path = props.file.pathFromTab(tab)
@@ -434,18 +434,12 @@ export function SessionSidePanel(props: {
                           const basePath = id ? `/${dir}/session/${id}` : `/${dir}/session`
                           const url = new URL(`${basePath}/file-view-popout`, window.location.origin)
                           url.searchParams.set("path", path)
-                          // Close source tab BEFORE window.open so the state update is in
-                          // the same user-gesture frame and not racing with the popup
-                          // window's load. Use the live layout factory directly so we
-                          // bypass any stale memo / prop accessor.
+                          // Best-effort tab cleanup so re-opening the pane later doesn't
+                          // resurrect the popped tab. Doesn't matter if it no-ops.
                           const sessionKey = `${dir ?? ""}${id ? "/" + id : ""}`
-                          const liveTabs = props.layout.tabs(sessionKey)
-                          liveTabs.close(tab)
-                          // If popping the only file tab leaves nothing else open, also
-                          // collapse the file pane — matches the "tab + pane" mental model
-                          // (pop-out vacates the source surface).
-                          const remaining = liveTabs.all().filter((t: string) => t !== "review" && t !== "context")
-                          if (remaining.length === 0) closeFilePane()
+                          props.layout.tabs(sessionKey).close(tab)
+                          // Primary visual action — same as pressing the folder toggle.
+                          closeFilePane()
                           const width = Math.max(640, Math.floor(window.innerWidth * 0.5))
                           const height = Math.max(560, Math.floor(window.innerHeight * 0.62))
                           const left = Math.max(20, Math.floor(window.screenX + (window.outerWidth - width) / 2))
