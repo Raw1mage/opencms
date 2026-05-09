@@ -419,10 +419,12 @@ export function SessionSidePanel(props: {
                         command={props.command}
                         onPopOutActive={() => {
                           // Phase 5.3 contract: pop file viewer + remove source tab.
-                          // Owned by SessionSidePanel directly so we have a stable closure
-                          // over `props.tabs()` and `props.file` instead of prop-drilling
-                          // through FileTabMenu (where Solid prop accessors hid a stale
-                          // reference and broke the close in UAT pass 1).
+                          // UAT pass 3 — earlier passes via props.tabs().close(tab) and
+                          // explicit setAll/setActive both failed in UAT. User hint: use
+                          // the same path that originally opens the tab to close it.
+                          // Reconstruct the tabs handle by calling the layout factory
+                          // directly (not the memoized prop accessor) and close source +
+                          // collapse the file pane when no file tabs remain.
                           const tab = props.activeFileTab()
                           if (!tab) return
                           const path = props.file.pathFromTab(tab)
@@ -432,16 +434,24 @@ export function SessionSidePanel(props: {
                           const basePath = id ? `/${dir}/session/${id}` : `/${dir}/session`
                           const url = new URL(`${basePath}/file-view-popout`, window.location.origin)
                           url.searchParams.set("path", path)
+                          // Close source tab BEFORE window.open so the state update is in
+                          // the same user-gesture frame and not racing with the popup
+                          // window's load. Use the live layout factory directly so we
+                          // bypass any stale memo / prop accessor.
+                          const sessionKey = `${dir ?? ""}${id ? "/" + id : ""}`
+                          const liveTabs = props.layout.tabs(sessionKey)
+                          liveTabs.close(tab)
+                          // If popping the only file tab leaves nothing else open, also
+                          // collapse the file pane — matches the "tab + pane" mental model
+                          // (pop-out vacates the source surface).
+                          const remaining = liveTabs.all().filter((t: string) => t !== "review" && t !== "context")
+                          if (remaining.length === 0) closeFilePane()
                           const width = Math.max(640, Math.floor(window.innerWidth * 0.5))
                           const height = Math.max(560, Math.floor(window.innerHeight * 0.62))
                           const left = Math.max(20, Math.floor(window.screenX + (window.outerWidth - width) / 2))
                           const top = Math.max(20, Math.floor(window.screenY + (window.outerHeight - height) / 2))
                           const features = `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
-                          const win = window.open(url.toString(), `opencode-file-view-popout-${path}`, features)
-                          if (!win) return
-                          // Use props.tabs() directly here so we always get the live tabs
-                          // object for the current session — no prop-drilled snapshot.
-                          props.tabs().close(tab)
+                          window.open(url.toString(), `opencode-file-view-popout-${path}`, features)
                         }}
                       />
                       <IconButton
