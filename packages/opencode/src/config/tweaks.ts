@@ -241,6 +241,29 @@ export namespace Tweaks {
      * Hot-toggleable; no daemon restart required.
      */
     enableUserMsgReplay: boolean
+    /**
+     * Spec compaction/dialog-replay-redaction (DD-6). Master switch for
+     * the two-tier compaction restoration. When true (default):
+     * tryNarrative produces anchor[n+1].body = anchor[n].body +
+     * serialize_redacted(tail); transformPostAnchorTail uses v7 redact-
+     * only logic; scheduleHybridEnrichment uses size-triggered ceiling
+     * with provider dispatch. When false: tryNarrative falls back to
+     * Memory.renderForLLMSync; transformPostAnchorTail falls back to v6
+     * drop logic; scheduleHybridEnrichment retains legacy thresholds +
+     * observed-gate. All three patches revert atomically.
+     *
+     * Hot-toggleable; no daemon restart required.
+     */
+    enableDialogRedactionAnchor: boolean
+    /**
+     * Spec compaction/dialog-replay-redaction (DD-4). Token threshold
+     * above which the recompress dispatcher forces an LLM-grade recompress
+     * regardless of `observed`. Anchor body sizes between 5K (skip floor)
+     * and this ceiling fall back to legacy enrichment-when-large policy.
+     * 50000 chosen empirically: ~100 rounds of dialog at 500 tokens/round
+     * average.
+     */
+    anchorRecompressCeilingTokens: number
   }
 
   export interface SessionStorageConfig {
@@ -362,6 +385,8 @@ export namespace Tweaks {
     fallbackThreshold: 5,
     phase2Enabled: false,
     enableUserMsgReplay: true,
+    enableDialogRedactionAnchor: true,
+    anchorRecompressCeilingTokens: 50_000,
   }
 
   const SESSION_STORAGE_DEFAULTS: SessionStorageConfig = {
@@ -526,6 +551,8 @@ export namespace Tweaks {
     "compaction_phase1_enabled",
     "compaction_phase2_enabled",
     "compaction_enable_user_msg_replay",
+    "compaction_enable_dialog_redaction_anchor",
+    "compaction_anchor_recompress_ceiling_tokens",
     "compaction_phase2_max_anchor_tokens",
     "compaction_recent_raw_rounds",
     "compaction_pinned_zone_max_tokens_ratio",
@@ -996,6 +1023,16 @@ export namespace Tweaks {
     if (cmpUserMsgReplayRaw !== undefined) {
       const v = parseBool(cmpUserMsgReplayRaw, "compaction_enable_user_msg_replay")
       if (v !== undefined) compaction.enableUserMsgReplay = v
+    }
+    const cmpDialogRedactionAnchorRaw = parsed.get("compaction_enable_dialog_redaction_anchor")
+    if (cmpDialogRedactionAnchorRaw !== undefined) {
+      const v = parseBool(cmpDialogRedactionAnchorRaw, "compaction_enable_dialog_redaction_anchor")
+      if (v !== undefined) compaction.enableDialogRedactionAnchor = v
+    }
+    const cmpRecompressCeilingRaw = parsed.get("compaction_anchor_recompress_ceiling_tokens")
+    if (cmpRecompressCeilingRaw !== undefined) {
+      const v = parseIntRange(cmpRecompressCeilingRaw, "compaction_anchor_recompress_ceiling_tokens", 1_000, 1_000_000)
+      if (v !== undefined) compaction.anchorRecompressCeilingTokens = v
     }
 
     const sessionStorage: SessionStorageConfig = { ...SESSION_STORAGE_DEFAULTS }

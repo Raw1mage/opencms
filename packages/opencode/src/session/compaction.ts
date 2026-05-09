@@ -29,6 +29,11 @@ import { sanitizeAnchorToString, type AnchorKind } from "./anchor-sanitizer"
 import { checkCleanTail } from "./idle-compaction-gate"
 import { SkillLayerRegistry } from "./skill-layer-registry"
 import { diagnoseCacheMiss } from "./cache-miss-diagnostic"
+import {
+  findUnansweredUserMessageId,
+  parsePrevLastRound,
+  serializeRedactedDialog,
+} from "./dialog-serializer"
 
 // Subscribe to continuation invalidation. compaction-redesign DD-11:
 // state-driven signal — write timestamp onto session.execution; the
@@ -973,22 +978,81 @@ export namespace SessionCompaction {
         chainBinding?: { accountId: string; modelId: string; capturedAt: number }
       }
 
+  /**
+   * Spec compaction/dialog-replay-redaction (DD-3). Builds the narrative
+   * anchor body from the formal model:
+   *   anchor[n+1].body = anchor[n].body + serialize_redacted(tail)
+   * where the serialised tail excludes the unanswered user message
+   * (Spec 1 synergy — replayed post-anchor by replayUnansweredUserMessage).
+   *
+   * Falls back to the legacy Memory.renderForLLMSync body source when the
+   * Tweaks flag is off — atomic rollback path.
+   */
   async function tryNarrative(input: RunInput, model: Provider.Model | undefined): Promise<KindAttempt> {
+    const tweaks = Tweaks.compactionSync()
+    const flag = (tweaks as { enableDialogRedactionAnchor?: boolean }).enableDialogRedactionAnchor
+    if (flag === false) return tryNarrativeLegacy(input, model)
+    return tryNarrativeRedactedDialog(input, model)
+  }
+
+  async function tryNarrativeRedactedDialog(
+    input: RunInput,
+    _model: Provider.Model | undefined,
+  ): Promise<KindAttempt> {
+    const messages = await Session.messages({ sessionID: input.sessionID }).catch(
+      () => [] as MessageV2.WithParts[],
+    )
+    if (messages.length === 0) return { ok: false, reason: "memory empty" }
+
+    const prevAnchor = await Memory.Hybrid.getAnchorMessage(input.sessionID, messages)
+    const prevAnchorIdx = prevAnchor
+      ? messages.findIndex((m) => m.info.id === prevAnchor.info.id)
+      : -1
+    const prevBody = prevAnchor ? extractAnchorTextBody(prevAnchor) : ""
+    const prevLastRound = parsePrevLastRound(prevBody)
+
+    const unansweredId = findUnansweredUserMessageId(messages, prevAnchorIdx === -1 ? undefined : prevAnchorIdx)
+    const tail = messages.slice(prevAnchorIdx + 1)
+
+    const { text: tailText, messagesEmitted } = serializeRedactedDialog(tail, {
+      startRound: prevLastRound + 1,
+      excludeUserMessageID: unansweredId,
+    })
+
+    if (messagesEmitted === 0 && prevBody === "") {
+      return { ok: false, reason: "memory empty" }
+    }
+
+    const body = prevBody && tailText ? `${prevBody}\n\n${tailText}` : prevBody || tailText
+
+    return { ok: true, summaryText: body, kind: "narrative", truncated: false }
+  }
+
+  async function tryNarrativeLegacy(
+    input: RunInput,
+    model: Provider.Model | undefined,
+  ): Promise<KindAttempt> {
     const mem = await Memory.read(input.sessionID)
     const target = await resolveTargetPromptTokens()
     const contextLimit = model?.limit?.context || 0
     const modelBudget = Math.floor(contextLimit * 0.3)
     const cap = modelBudget > 0 ? Math.min(modelBudget, target) : target
-    // Render uncapped first to detect whether the full content exceeds cap.
-    // If so, signal `truncated: true` so run() can decide whether to commit
-    // this lossy local result or escalate to a paid kind that can compress
-    // intelligently. Then re-render with the cap to get the actual payload.
     const fullText = Memory.renderForLLMSync(mem)
     if (!fullText) return { ok: false, reason: "memory empty" }
     const fullEstimate = Math.ceil(fullText.length / 4)
     const truncated = fullEstimate > cap
     const text = truncated ? Memory.renderForLLMSync(mem, cap) : fullText
     return { ok: true, summaryText: text, kind: "narrative", truncated }
+  }
+
+  function extractAnchorTextBody(anchor: MessageV2.WithParts): string {
+    const fragments: string[] = []
+    for (const p of anchor.parts) {
+      if (p.type === "text" && typeof (p as MessageV2.TextPart).text === "string") {
+        fragments.push((p as MessageV2.TextPart).text)
+      }
+    }
+    return fragments.join("\n").trim()
   }
 
   /**
@@ -2499,6 +2563,10 @@ When constructing the summary, try to stick to this template:
     resetReplayHelper() {
       _replayHelper = replayUnansweredUserMessage
     },
+    tryNarrative,
+    tryNarrativeRedactedDialog,
+    tryNarrativeLegacy,
+    extractAnchorTextBody,
   })
 
   // ───────────────────────────────────────────────────────────────────
