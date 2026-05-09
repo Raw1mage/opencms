@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "designed",
+  "state": "planned",
   "profile": [],
   "history": [
     {
@@ -38,6 +38,14 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "proposal/spec/design/idef0+a0.svg/grafcet+svg/c4/sequence/data-schema all complete; DD-1..DD-11 decided; restoration scope locked (4 patches); Spec 1 synergy via excludeUserMessageID parameter"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-05-09T15:54:45.844Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "tasks/handoff/test-vectors/errors/observability complete; ready for implementation"
     }
   ]
 }

@@ -1,0 +1,275 @@
+[
+  {
+    "id": "TV-1",
+    "title": "First compaction in a session — anchor body equals serialised tail (no prefix)",
+    "scenario": "Fresh session, no prior anchor. Ten user/assistant rounds accumulate. tryNarrative fires for the first time with enableDialogRedactionAnchor=true.",
+    "input": {
+      "tweaks": { "enableDialogRedactionAnchor": true, "anchorRecompressCeilingTokens": 50000 },
+      "preCompactionStream": "10 alternating user/assistant rounds, mixed text + reasoning + completed tool calls",
+      "prevAnchor": null
+    },
+    "expectedOutput": {
+      "anchorBody": "starts with '## Round 1\\n\\n**User**\\n\\n...' (no prefix)",
+      "lastRoundEmitted": 10,
+      "toolOutputsRedactedTo": "recall_id: prt_<id>",
+      "toolArgsPreservedVerbatim": true,
+      "reasoningPreservedVerbatim": true
+    }
+  },
+  {
+    "id": "TV-2",
+    "title": "Subsequent compaction — anchor body equals prevBody + serialised tail",
+    "scenario": "Latest anchor[n] has body 'Round 1 through Round 15'. Twenty new messages exist after anchor[n]. tryNarrative fires.",
+    "input": {
+      "prevAnchorBody": "## Round 1\\n\\n...\\n\\n## Round 15\\n\\n... (contents)",
+      "tailMessages": "20 messages after prev anchor",
+      "tweaks": { "enableDialogRedactionAnchor": true }
+    },
+    "expectedOutput": {
+      "anchorBody": "prevBody + '\\n\\n## Round 16\\n\\n...' (continuation)",
+      "lastRoundEmitted": "depends on user/assistant interleave; ≥ 16",
+      "noResetTo1": true
+    }
+  },
+  {
+    "id": "TV-3",
+    "title": "Spec 1 synergy — unanswered user msg excluded from extend",
+    "scenario": "Post-anchor stream has 5 finished rounds + 1 unanswered user msg msg_X at tail (no completed-finish assistant child).",
+    "input": {
+      "tailMessages": [
+        "msg_U1, msg_A1 (finish:stop)",
+        "msg_U2, msg_A2 (finish:stop)",
+        "msg_U3, msg_A3 (finish:stop)",
+        "msg_U4, msg_A4 (finish:stop)",
+        "msg_U5, msg_A5 (finish:stop)",
+        "msg_X (user; no assistant child)"
+      ],
+      "tweaks": { "enableDialogRedactionAnchor": true }
+    },
+    "expectedOutput": {
+      "anchorBodyContains": "msg_U1...msg_U5 + msg_A1...msg_A5 redacted dialog",
+      "anchorBodyDoesNotContain": "msg_X.text",
+      "messagesEmitted": 10,
+      "spec1HelperRunsAfter": "replays msg_X to msg_Y with id > anchor.id; msg_X removed",
+      "filterCompactedNextIter": "[anchor, msg_Y]",
+      "modelSeesUnansweredUserMsg": "exactly once (as msg_Y in post-anchor stream)"
+    }
+  },
+  {
+    "id": "TV-4",
+    "title": "Recompress trigger — codex provider exceeds 50K ceiling",
+    "scenario": "Codex session whose latest anchor body has 52,000 estimated tokens.",
+    "input": {
+      "anchorTokens": 52000,
+      "model": { "providerId": "codex", "modelID": "gpt-5.5" },
+      "observed": "overflow",
+      "tweaks": { "enableDialogRedactionAnchor": true, "anchorRecompressCeilingTokens": 50000 }
+    },
+    "expectedOutput": {
+      "dispatchedTo": "runCodexServerSideRecompress",
+      "telemetry": {
+        "channel": "compaction.recompressed",
+        "trigger": "size-ceiling",
+        "kind": "low-cost-server",
+        "providerId": "codex",
+        "anchorTokensBefore": 52000,
+        "result": "success"
+      },
+      "anchorBodyAfterRecompress": "LLM-distilled summary; in-place overwrite via STEP 3",
+      "recompressIsBackground": true
+    }
+  },
+  {
+    "id": "TV-5",
+    "title": "Recompress trigger — non-codex provider exceeds 50K ceiling",
+    "scenario": "Claude / openai session whose anchor body has 60,000 tokens.",
+    "input": {
+      "anchorTokens": 60000,
+      "model": { "providerId": "anthropic", "modelID": "claude-opus-4-7" },
+      "observed": "rebind",
+      "tweaks": { "enableDialogRedactionAnchor": true }
+    },
+    "expectedOutput": {
+      "dispatchedTo": "runHybridLlmRecompress",
+      "telemetry": {
+        "kind": "hybrid_llm",
+        "trigger": "size-ceiling",
+        "providerId": "anthropic"
+      },
+      "observedGateGone": "rebind no longer skips recompress (was previously gated out)"
+    }
+  },
+  {
+    "id": "TV-6",
+    "title": "Skip floor — anchor below 5K tokens",
+    "scenario": "Anchor body has 4,000 tokens.",
+    "input": {
+      "anchorTokens": 4000,
+      "tweaks": { "enableDialogRedactionAnchor": true }
+    },
+    "expectedOutput": {
+      "noRecompressFired": true,
+      "telemetry": "no compaction.recompressed event emitted",
+      "logEntry": "log.info 'recompress.skip: below-floor' (or equivalent)"
+    }
+  },
+  {
+    "id": "TV-7",
+    "title": "post-anchor v7 — multi-task session continuity preserved",
+    "scenario": "Post-anchor stream contains 3 prior user-task chains (each = user msg + multiple completed assistant turns).",
+    "input": {
+      "postAnchorMessages": [
+        "User msg 1 + 3 completed assistant turns (text + reasoning + tool calls)",
+        "User msg 2 + 2 completed assistant turns",
+        "User msg 3 + 1 completed assistant turn",
+        "User msg 4 (current; in-flight assistant)"
+      ],
+      "tweaks": { "enableDialogRedactionAnchor": true }
+    },
+    "expectedOutput": {
+      "v7Output": {
+        "messageCount": "input length (no drops)",
+        "userMsgsSurvive": "all 4",
+        "assistantTurnsSurvive": "all 6 from prior chains + in-flight",
+        "toolOutputsRedactedTo": "[recall_id: <part.id>]",
+        "assistantText": "preserved verbatim",
+        "reasoning": "preserved verbatim",
+        "toolArgs": "preserved verbatim",
+        "inFlightCarveOut": "in-flight assistant's pending parts NOT redacted",
+        "compactionBearingCarveOut": "Mode 1 inline state NOT redacted"
+      },
+      "amnesiaLoop": "does NOT reproduce — model can read prior assistant turns"
+    }
+  },
+  {
+    "id": "TV-8",
+    "title": "Reasoning-only turn contributes to turnSummaries",
+    "scenario": "Codex assistant message with parts [reasoning, tool_call, tool_call] and no text part. Memory.read processes it.",
+    "input": {
+      "messageParts": [
+        { "type": "reasoning", "text": "internal CoT content" },
+        { "type": "tool", "callID": "abc", "state": { "status": "completed", "input": {}, "output": "..." } },
+        { "type": "tool", "callID": "def", "state": { "status": "completed", "input": {}, "output": "..." } }
+      ]
+    },
+    "expectedOutput": {
+      "turnSummariesEntry": "non-empty (reasoning text surfaces via lastNarrativePartText)",
+      "preFixBehavior": "empty (lastTextPartText returned '')",
+      "preFixSymptom": "this turn invisible to renderForHumanSync; legacy tryNarrative would skip it"
+    }
+  },
+  {
+    "id": "TV-9",
+    "title": "Feature flag off — atomic rollback to pre-fix behaviour",
+    "scenario": "enableDialogRedactionAnchor=false. tryNarrative + post-anchor + scheduleHybridEnrichment all fall back.",
+    "input": {
+      "tweaks": { "enableDialogRedactionAnchor": false },
+      "session": "any state"
+    },
+    "expectedOutput": {
+      "tryNarrativeBody": "Memory.renderForLLMSync output (legacy)",
+      "postAnchorTransform": "v6 drop logic",
+      "scheduleHybridEnrichmentGating": "legacy thresholds + observed-gate restored",
+      "noPartialFallback": true,
+      "comment": "Single flag flip reverts ALL four patches atomically"
+    }
+  },
+  {
+    "id": "TV-10",
+    "title": "Tool args truncation",
+    "scenario": "Tool call with state.input that JSON-stringifies to 800 chars.",
+    "input": {
+      "toolPart": {
+        "type": "tool",
+        "tool": "shell",
+        "state": { "status": "completed", "input": { "cmd": "<800-character command string>" }, "output": "..." }
+      }
+    },
+    "expectedOutput": {
+      "serialisedToolLine": "**Tool**: `shell({\"cmd\":\"very long command...xxx…\")` → `recall_id: prt_xxx`",
+      "argsStringLength": "501 (500 chars + ellipsis)"
+    }
+  },
+  {
+    "id": "TV-11",
+    "title": "Recall round-trip verified end-to-end",
+    "scenario": "Anchor body contains `recall_id: prt_abc123`. Model emits recall_toolcall_raw({part_id: 'prt_abc123'}).",
+    "input": {
+      "anchorBody": "...**Tool**: `read({\"file\":\"sse.ts\"})` → `recall_id: prt_abc123`...",
+      "modelEmits": "recall_toolcall_raw({ part_id: 'prt_abc123' })"
+    },
+    "expectedOutput": {
+      "recallResult": "original tool output text (the raw payload that was redacted from anchor body)",
+      "ledgerLookup": "working-cache.deriveLedger walks Session.messages, finds part with id prt_abc123, returns state.output",
+      "noPersistenceChanges": true
+    }
+  },
+  {
+    "id": "TV-12",
+    "title": "Stale anchor — interloper compaction wrote newer anchor before recompress",
+    "scenario": "Recompress dispatched for anchor[n]; concurrent compaction wrote anchor[n+1] before our async recompress reaches its in-place update step.",
+    "input": {
+      "ourAnchorMessageID": "msg_ANCHOR_N",
+      "currentLatestAnchorMessageID": "msg_ANCHOR_N_PLUS_1 (newer)"
+    },
+    "expectedOutput": {
+      "result": "stale-anchor-skipped",
+      "noOverwrite": true,
+      "telemetry": {
+        "result": "stale-anchor-skipped",
+        "comment": "recompress aborts cleanly; anchor[n] is no longer load-bearing anyway"
+      }
+    }
+  },
+  {
+    "id": "TV-13",
+    "title": "Cold start — empty session, no messages yet",
+    "scenario": "tryNarrative is somehow invoked on a session with no messages (defensive case).",
+    "input": {
+      "messages": [],
+      "prevAnchor": null
+    },
+    "expectedOutput": {
+      "result": "{ ok: false, reason: 'memory empty' }",
+      "noBodyConstructed": true,
+      "kindChainProceedsToNextKind": "replay-tail / etc."
+    }
+  },
+  {
+    "id": "TV-14",
+    "title": "Tool with status=pending NOT redacted",
+    "scenario": "v7 transformPostAnchorTail encounters a tool part with state.status=pending (in-flight).",
+    "input": {
+      "toolPart": {
+        "type": "tool",
+        "state": { "status": "pending", "input": { "cmd": "ls" } }
+      }
+    },
+    "expectedOutput": {
+      "redacted": false,
+      "partUnchanged": true,
+      "carveOut": "in-flight tool parts skip redaction"
+    }
+  },
+  {
+    "id": "TV-15",
+    "title": "Round numbering across recompressed boundary (OQ-1)",
+    "scenario": "Anchor[n] body was just recompressed by /responses/compact. Next extend appends 5 new messages.",
+    "input": {
+      "recompressedAnchorBody": "LLM summary text (## Round N markers may or may not survive)",
+      "newTailMessages": "5 messages forming 3 new rounds"
+    },
+    "expectedOutput": {
+      "optionA": {
+        "parsedLastRound": "from LLM summary if present (e.g. 47 → next is 48)",
+        "appendedRounds": "## Round 48, 49, 50"
+      },
+      "optionB": {
+        "parsedLastRound": "from CompactionPart.lastRound metadata if option A fails",
+        "appendedRounds": "continues from metadata"
+      },
+      "fallback": "if neither works, reset to '## Round 1' (acceptable but logged)",
+      "decisionPoint": "M4 implementation; refer to handoff.md OQ-1"
+    }
+  }
+]
