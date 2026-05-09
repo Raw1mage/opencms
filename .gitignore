@@ -68,4 +68,4 @@ daemon/opencode-gateway
 
 # beta XDG isolation env (per worktree, never commit)
 .beta-env/
-.miatrag/
+.specbase/
