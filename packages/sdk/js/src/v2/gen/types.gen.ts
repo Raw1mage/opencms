@@ -865,6 +865,50 @@ export type EventFileEdited = {
   }
 }
 
+export type EventFileOperationRequested = {
+  type: "file.operation.requested"
+  properties: {
+    operation: string
+    input: {
+      [key: string]: unknown
+    }
+  }
+}
+
+export type EventFileOperationCompleted = {
+  type: "file.operation.completed"
+  properties: {
+    operation: string
+    source?: string
+    destination?: string
+    durationMs: number
+  }
+}
+
+export type EventFileOperationRejected = {
+  type: "file.operation.rejected"
+  properties: {
+    operation: string
+    code:
+      | "FILE_OP_PATH_ESCAPE"
+      | "FILE_OP_INVALID_NAME"
+      | "FILE_OP_DUPLICATE"
+      | "FILE_OP_TARGET_NOT_DIRECTORY"
+      | "FILE_OP_SOURCE_NOT_FOUND"
+      | "FILE_OP_CONFIRMATION_REQUIRED"
+      | "FILE_OP_PERMISSION_DENIED"
+      | "FILE_OP_DESTINATION_AMBIGUOUS"
+      | "FILE_OP_PREFLIGHT_REQUIRED"
+      | "FILE_OP_NOT_FILE"
+      | "FILE_RECYCLEBIN_RESTORE_CONFLICT"
+      | "FILE_RECYCLEBIN_METADATA_INVALID"
+      | "FILE_DOWNLOAD_DIRECTORY_UNSUPPORTED"
+      | "FILE_UPLOAD_TOO_LARGE"
+    message: string
+    durationMs: number
+  }
+}
+
 export type EventFileWatcherUpdated = {
   type: "file.watcher.updated"
   properties: {
@@ -2064,6 +2108,9 @@ export type Event =
   | EventQuestionReplied
   | EventQuestionRejected
   | EventFileEdited
+  | EventFileOperationRequested
+  | EventFileOperationCompleted
+  | EventFileOperationRejected
   | EventFileWatcherUpdated
   | EventIncomingHistoryAppended
   | EventIncomingDispatcherHttpUploadStarted
@@ -3632,6 +3679,8 @@ export type FileNode = {
   absolute: string
   type: "file" | "directory"
   ignored: boolean
+  size?: number
+  modifiedAt?: number
 }
 
 export type FileDirectoryCreateResult = {

@@ -45261,6 +45261,124 @@
           "properties"
         ]
       },
+      "Event.file.operation.requested": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "file.operation.requested"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "operation": {
+                "type": "string"
+              },
+              "input": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              }
+            },
+            "required": [
+              "operation",
+              "input"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.file.operation.completed": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "file.operation.completed"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "operation": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "destination": {
+                "type": "string"
+              },
+              "durationMs": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "operation",
+              "durationMs"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.file.operation.rejected": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "file.operation.rejected"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "operation": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string",
+                "enum": [
+                  "FILE_OP_PATH_ESCAPE",
+                  "FILE_OP_INVALID_NAME",
+                  "FILE_OP_DUPLICATE",
+                  "FILE_OP_TARGET_NOT_DIRECTORY",
+                  "FILE_OP_SOURCE_NOT_FOUND",
+                  "FILE_OP_CONFIRMATION_REQUIRED",
+                  "FILE_OP_PERMISSION_DENIED",
+                  "FILE_OP_DESTINATION_AMBIGUOUS",
+                  "FILE_OP_PREFLIGHT_REQUIRED",
+                  "FILE_OP_NOT_FILE",
+                  "FILE_RECYCLEBIN_RESTORE_CONFLICT",
+                  "FILE_RECYCLEBIN_METADATA_INVALID",
+                  "FILE_DOWNLOAD_DIRECTORY_UNSUPPORTED",
+                  "FILE_UPLOAD_TOO_LARGE"
+                ]
+              },
+              "message": {
+                "type": "string"
+              },
+              "durationMs": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "operation",
+              "code",
+              "message",
+              "durationMs"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
       "Event.file.watcher.updated": {
         "type": "object",
         "properties": {
@@ -46573,7 +46691,7 @@
           },
           "id": {
             "description": "Unique identifier for the todo item (auto-generated if omitted)",
-            "default": "todo_moy8q2vj_u0ksgv",
+            "default": "todo_moy9v669_y2uvym",
             "type": "string"
           },
           "action": {
@@ -50118,6 +50236,15 @@
           },
           {
             "$ref": "#/components/schemas/Event.file.edited"
+          },
+          {
+            "$ref": "#/components/schemas/Event.file.operation.requested"
+          },
+          {
+            "$ref": "#/components/schemas/Event.file.operation.completed"
+          },
+          {
+            "$ref": "#/components/schemas/Event.file.operation.rejected"
           },
           {
             "$ref": "#/components/schemas/Event.file.watcher.updated"
@@ -53835,6 +53962,14 @@
           },
           "ignored": {
             "type": "boolean"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "modifiedAt": {
+            "type": "number"
           }
         },
         "required": [

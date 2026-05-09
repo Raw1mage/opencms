@@ -40,6 +40,13 @@ export namespace File {
       absolute: z.string(),
       type: z.enum(["file", "directory"]),
       ignored: z.boolean(),
+      // Size in bytes for files. Omitted for directories — we do not
+      // recursively aggregate directory sizes in V1.
+      size: z.number().int().min(0).optional(),
+      // Modification time in epoch milliseconds. Omitted when stat fails
+      // (e.g. permission denied, transient race) so the UI can render the
+      // name immediately and skip the column for that row.
+      modifiedAt: z.number().optional(),
     })
     .meta({
       ref: "FileNode",
@@ -1219,19 +1226,31 @@ export namespace File {
       withFileTypes: true,
     })
     const nodes: Node[] = []
-    for (const entry of entries) {
+    const stats = await Promise.all(
+      entries.map((entry) =>
+        fs.promises.stat(path.join(resolved, entry.name)).catch(() => undefined),
+      ),
+    )
+    for (let i = 0; i < entries.length; i++) {
+      const entry = entries[i]
       if (exclude.includes(entry.name)) continue
       const fullPath = path.join(resolved, entry.name)
       const relativePath = path.relative(Instance.directory, fullPath)
       const type = entry.isDirectory() ? "directory" : "file"
       const escapedRelative = relativePath === "" || relativePath === ".." || relativePath.startsWith("../")
-      nodes.push({
+      const stat = stats[i]
+      const node: Node = {
         name: entry.name,
         path: relativePath,
         absolute: fullPath,
         type,
         ignored: escapedRelative ? false : ignored(type === "directory" ? relativePath + "/" : relativePath),
-      })
+      }
+      if (stat) {
+        if (type === "file") node.size = stat.size
+        node.modifiedAt = stat.mtimeMs
+      }
+      nodes.push(node)
     }
     return nodes.sort((a, b) => {
       if (a.type !== b.type) {

@@ -585,6 +585,34 @@ describe("File operation guards", () => {
     })
   })
 
+  test("list returns size and modifiedAt for files; modifiedAt for directories", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await fs.mkdir(path.join(dir, "docs"), { recursive: true })
+        await fs.writeFile(path.join(dir, "docs", "a.txt"), "hello")
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const docs = await File.list("docs")
+        const file = docs.find((n) => n.name === "a.txt")
+        expect(file).toBeDefined()
+        expect(file!.size).toBe(5)
+        expect(typeof file!.modifiedAt).toBe("number")
+        expect(file!.modifiedAt!).toBeGreaterThan(0)
+
+        const root = await File.list("")
+        const folder = root.find((n) => n.name === "docs")
+        expect(folder).toBeDefined()
+        // Directories must not carry an aggregate size in V1.
+        expect(folder!.size).toBeUndefined()
+        expect(typeof folder!.modifiedAt).toBe("number")
+      },
+    })
+  })
+
   test("upload telemetry redacts Blob bytes to size + type metadata", async () => {
     await using tmp = await tmpdir({
       init: async (dir) => {
