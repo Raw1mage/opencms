@@ -1,4 +1,5 @@
 import { BusEvent } from "@/bus/bus-event"
+import { Bus } from "@/bus"
 import z from "zod"
 import { $ } from "bun"
 import type { BunFile } from "bun"
@@ -737,6 +738,91 @@ export namespace File {
         file: z.string(),
       }),
     ),
+    OperationRequested: BusEvent.define(
+      "file.operation.requested",
+      z.object({
+        operation: z.string(),
+        input: z.record(z.string(), z.unknown()),
+      }),
+    ),
+    OperationCompleted: BusEvent.define(
+      "file.operation.completed",
+      z.object({
+        operation: z.string(),
+        source: z.string().optional(),
+        destination: z.string().optional(),
+        durationMs: z.number(),
+      }),
+    ),
+    OperationRejected: BusEvent.define(
+      "file.operation.rejected",
+      z.object({
+        operation: z.string(),
+        code: OperationCode,
+        message: z.string(),
+        durationMs: z.number(),
+      }),
+    ),
+  }
+
+  function publishFireAndForget<Def extends BusEvent.Definition>(def: Def, properties: z.output<Def["properties"]>) {
+    Bus.publish(def, properties).catch((err) =>
+      log.warn("file event publish failed", { type: def.type, error: String(err) }),
+    )
+  }
+
+  function redactTelemetryInput(input: Record<string, unknown>): Record<string, unknown> {
+    const out: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(input)) {
+      if (value instanceof Blob) {
+        out[key] = {
+          kind: "blob",
+          size: value.size,
+          type: value.type || "application/octet-stream",
+        }
+      } else {
+        out[key] = value
+      }
+    }
+    return out
+  }
+
+  async function withTelemetry<T>(
+    operationKind: string,
+    input: Record<string, unknown>,
+    fn: () => Promise<T>,
+    extract: (result: T) => { source?: string; destination?: string } = () => ({}),
+  ): Promise<T> {
+    const startedAt = Date.now()
+    publishFireAndForget(Event.OperationRequested, {
+      operation: operationKind,
+      input: redactTelemetryInput(input),
+    })
+    try {
+      const result = await fn()
+      const { source, destination } = extract(result)
+      publishFireAndForget(Event.OperationCompleted, {
+        operation: operationKind,
+        source,
+        destination,
+        durationMs: Date.now() - startedAt,
+      })
+      return result
+    } catch (err) {
+      if (err instanceof OperationError) {
+        publishFireAndForget(Event.OperationRejected, {
+          operation: operationKind,
+          code: err.code,
+          message: err.message,
+          durationMs: Date.now() - startedAt,
+        })
+      }
+      throw err
+    }
+  }
+
+  function operationResultParts(result: OperationResult): { source?: string; destination?: string } {
+    return { source: result.source, destination: result.destination }
   }
 
   async function createState() {
@@ -1177,152 +1263,165 @@ export namespace File {
     name: string
     type: "file" | "directory"
   }): Promise<OperationResult> {
-    const parent = await resolveProjectParent(input.parent)
-    const name = validateBasename(input.name)
-    const destination = path.join(parent, name)
-    await assertOperationWithinProject(destination)
-    await assertDestinationAvailable(destination)
-    if (input.type === "directory") await fs.promises.mkdir(destination)
-    else await fs.promises.writeFile(destination, "", { flag: "wx" })
-    return {
-      operation: input.type === "directory" ? "create-directory" : "create-file",
-      destination: normalizeRelative(destination),
-      node: await nodeFromPath(destination),
-      affectedDirectories: [normalizeRelative(parent)],
-    }
+    const operationKind = input.type === "directory" ? "create-directory" : "create-file"
+    return withTelemetry(operationKind, input as unknown as Record<string, unknown>, async () => {
+      const parent = await resolveProjectParent(input.parent)
+      const name = validateBasename(input.name)
+      const destination = path.join(parent, name)
+      await assertOperationWithinProject(destination)
+      await assertDestinationAvailable(destination)
+      if (input.type === "directory") await fs.promises.mkdir(destination)
+      else await fs.promises.writeFile(destination, "", { flag: "wx" })
+      return {
+        operation: input.type === "directory" ? "create-directory" : "create-file",
+        destination: normalizeRelative(destination),
+        node: await nodeFromPath(destination),
+        affectedDirectories: [normalizeRelative(parent)],
+      }
+    }, operationResultParts)
   }
 
   export async function rename(input: { path: string; name: string }): Promise<OperationResult> {
-    const source = await resolveProjectPath(input.path)
-    await assertSourceExists(source)
-    const destination = path.join(path.dirname(source), validateBasename(input.name))
-    await assertOperationWithinProject(destination)
-    if (source !== destination) await assertDestinationAvailable(destination)
-    await moveWithoutOverwrite(source, destination)
-    return {
-      operation: "rename",
-      source: normalizeRelative(source),
-      destination: normalizeRelative(destination),
-      node: await nodeFromPath(destination),
-      affectedDirectories: [parentRelative(destination)],
-    }
+    return withTelemetry("rename", input as unknown as Record<string, unknown>, async () => {
+      const source = await resolveProjectPath(input.path)
+      await assertSourceExists(source)
+      const destination = path.join(path.dirname(source), validateBasename(input.name))
+      await assertOperationWithinProject(destination)
+      if (source !== destination) await assertDestinationAvailable(destination)
+      await moveWithoutOverwrite(source, destination)
+      return {
+        operation: "rename",
+        source: normalizeRelative(source),
+        destination: normalizeRelative(destination),
+        node: await nodeFromPath(destination),
+        affectedDirectories: [parentRelative(destination)],
+      }
+    }, operationResultParts)
   }
 
   export async function move(input: { source: string; destinationParent: string }): Promise<OperationResult> {
-    const source = await resolveProjectPath(input.source)
-    await assertSourceExists(source)
-    const parent = await resolveProjectParent(input.destinationParent)
-    const destination = path.join(parent, path.basename(source))
-    await assertOperationWithinProject(destination)
-    if (source !== destination) await assertDestinationAvailable(destination)
-    await moveWithoutOverwrite(source, destination)
-    return {
-      operation: "move",
-      source: normalizeRelative(source),
-      destination: normalizeRelative(destination),
-      node: await nodeFromPath(destination),
-      affectedDirectories: [...new Set([parentRelative(source), normalizeRelative(parent)])],
-    }
+    return withTelemetry("move", input as unknown as Record<string, unknown>, async () => {
+      const source = await resolveProjectPath(input.source)
+      await assertSourceExists(source)
+      const parent = await resolveProjectParent(input.destinationParent)
+      const destination = path.join(parent, path.basename(source))
+      await assertOperationWithinProject(destination)
+      if (source !== destination) await assertDestinationAvailable(destination)
+      await moveWithoutOverwrite(source, destination)
+      return {
+        operation: "move",
+        source: normalizeRelative(source),
+        destination: normalizeRelative(destination),
+        node: await nodeFromPath(destination),
+        affectedDirectories: [...new Set([parentRelative(source), normalizeRelative(parent)])],
+      }
+    }, operationResultParts)
   }
 
   export async function copy(input: { source: string; destinationParent: string }): Promise<OperationResult> {
-    const source = await resolveProjectPath(input.source)
-    await assertSourceExists(source)
-    const parent = await resolveProjectParent(input.destinationParent)
-    const destination = path.join(parent, path.basename(source))
-    await assertOperationWithinProject(destination)
-    await assertDestinationAvailable(destination)
-    await copyWithoutOverwrite(source, destination)
-    return {
-      operation: "copy",
-      source: normalizeRelative(source),
-      destination: normalizeRelative(destination),
-      node: await nodeFromPath(destination),
-      affectedDirectories: [normalizeRelative(parent)],
-    }
+    return withTelemetry("copy", input as unknown as Record<string, unknown>, async () => {
+      const source = await resolveProjectPath(input.source)
+      await assertSourceExists(source)
+      const parent = await resolveProjectParent(input.destinationParent)
+      const destination = path.join(parent, path.basename(source))
+      await assertOperationWithinProject(destination)
+      await assertDestinationAvailable(destination)
+      await copyWithoutOverwrite(source, destination)
+      return {
+        operation: "copy",
+        source: normalizeRelative(source),
+        destination: normalizeRelative(destination),
+        node: await nodeFromPath(destination),
+        affectedDirectories: [normalizeRelative(parent)],
+      }
+    }, operationResultParts)
   }
 
   export async function deleteToRecyclebin(input: { path: string; confirmed: boolean }): Promise<OperationResult> {
-    if (!input.confirmed) {
-      throw operationError("FILE_OP_CONFIRMATION_REQUIRED", "This destructive operation requires confirmation.")
-    }
-    const source = await resolveProjectPath(input.path)
-    const stat = await assertSourceExists(source)
-    const destination = await uniqueRecyclePath(source)
-    const metadata = {
-      originalPath: normalizeRelative(source),
-      tombstonePath: normalizeRelative(destination),
-      deletedAt: new Date().toISOString(),
-      type: stat.isDirectory() ? "directory" : "file",
-    }
-    const metadataFile = recycleMetadataPath(destination)
-    await fs.promises.writeFile(metadataFile, JSON.stringify(metadata, null, 2), { flag: "wx" })
-    try {
-      await copyWithoutOverwrite(source, destination)
-      await fs.promises.rm(source, { recursive: true, force: false })
-    } catch (err) {
-      await fs.promises.rm(destination, { recursive: true, force: true }).catch(() => {})
-      await fs.promises.rm(metadataFile, { force: true }).catch(() => {})
-      throw err
-    }
-    return {
-      operation: "delete-to-recyclebin",
-      source: metadata.originalPath,
-      destination: metadata.tombstonePath,
-      node: await nodeFromPath(destination),
-      affectedDirectories: [...new Set([parentRelative(source), normalizeRelative(recyclebinRoot())])],
-    }
+    return withTelemetry("delete-to-recyclebin", input as unknown as Record<string, unknown>, async () => {
+      if (!input.confirmed) {
+        throw operationError("FILE_OP_CONFIRMATION_REQUIRED", "This destructive operation requires confirmation.")
+      }
+      const source = await resolveProjectPath(input.path)
+      const stat = await assertSourceExists(source)
+      const destination = await uniqueRecyclePath(source)
+      const metadata = {
+        originalPath: normalizeRelative(source),
+        tombstonePath: normalizeRelative(destination),
+        deletedAt: new Date().toISOString(),
+        type: stat.isDirectory() ? "directory" : "file",
+      }
+      const metadataFile = recycleMetadataPath(destination)
+      await fs.promises.writeFile(metadataFile, JSON.stringify(metadata, null, 2), { flag: "wx" })
+      try {
+        await copyWithoutOverwrite(source, destination)
+        await fs.promises.rm(source, { recursive: true, force: false })
+      } catch (err) {
+        await fs.promises.rm(destination, { recursive: true, force: true }).catch(() => {})
+        await fs.promises.rm(metadataFile, { force: true }).catch(() => {})
+        throw err
+      }
+      return {
+        operation: "delete-to-recyclebin",
+        source: metadata.originalPath,
+        destination: metadata.tombstonePath,
+        node: await nodeFromPath(destination),
+        affectedDirectories: [...new Set([parentRelative(source), normalizeRelative(recyclebinRoot())])],
+      }
+    }, operationResultParts)
   }
 
   export async function restoreFromRecyclebin(input: { tombstonePath: string }): Promise<OperationResult> {
-    const tombstone = await resolveProjectPath(input.tombstonePath)
-    const recycleRoot = await assertOperationWithinProject(recyclebinRoot())
-    if (!isWithinRoot(tombstone, recycleRoot)) {
-      throw operationError("FILE_RECYCLEBIN_METADATA_INVALID", "Recyclebin metadata is missing or unsafe.")
-    }
-    const metadataFile = recycleMetadataPath(tombstone)
-    const metadata = await Bun.file(metadataFile)
-      .json()
-      .catch(() => undefined)
-    const parsed = z
-      .object({
-        originalPath: z.string().min(1),
-        tombstonePath: z.string().min(1),
-        deletedAt: z.string(),
-        type: z.enum(["file", "directory"]),
+    return withTelemetry("restore-from-recyclebin", input as unknown as Record<string, unknown>, async () => {
+      const tombstone = await resolveProjectPath(input.tombstonePath)
+      const recycleRoot = await assertOperationWithinProject(recyclebinRoot())
+      if (!isWithinRoot(tombstone, recycleRoot)) {
+        throw operationError("FILE_RECYCLEBIN_METADATA_INVALID", "Recyclebin metadata is missing or unsafe.")
+      }
+      const metadataFile = recycleMetadataPath(tombstone)
+      const metadata = await Bun.file(metadataFile)
+        .json()
+        .catch(() => undefined)
+      const parsed = z
+        .object({
+          originalPath: z.string().min(1),
+          tombstonePath: z.string().min(1),
+          deletedAt: z.string(),
+          type: z.enum(["file", "directory"]),
+        })
+        .safeParse(metadata)
+      if (!parsed.success || parsed.data.tombstonePath !== normalizeRelative(tombstone)) {
+        throw operationError("FILE_RECYCLEBIN_METADATA_INVALID", "Recyclebin metadata is missing or unsafe.")
+      }
+      const destination = path.join(Instance.directory, parsed.data.originalPath)
+      await assertOperationWithinProject(destination)
+      await assertOperationWithinProject(path.dirname(destination))
+      await assertDestinationAvailable(destination).catch((err) => {
+        if (err instanceof OperationError && err.code === "FILE_OP_DUPLICATE") {
+          throw operationError("FILE_RECYCLEBIN_RESTORE_CONFLICT", "Restore target already exists.", {
+            path: parsed.data.originalPath,
+          })
+        }
+        throw err
       })
-      .safeParse(metadata)
-    if (!parsed.success || parsed.data.tombstonePath !== normalizeRelative(tombstone)) {
-      throw operationError("FILE_RECYCLEBIN_METADATA_INVALID", "Recyclebin metadata is missing or unsafe.")
-    }
-    const destination = path.join(Instance.directory, parsed.data.originalPath)
-    await assertOperationWithinProject(destination)
-    await assertOperationWithinProject(path.dirname(destination))
-    await assertDestinationAvailable(destination).catch((err) => {
-      if (err instanceof OperationError && err.code === "FILE_OP_DUPLICATE") {
-        throw operationError("FILE_RECYCLEBIN_RESTORE_CONFLICT", "Restore target already exists.", {
-          path: parsed.data.originalPath,
-        })
+      await copyWithoutOverwrite(tombstone, destination).catch((err) => {
+        if (err instanceof OperationError && err.code === "FILE_OP_DUPLICATE") {
+          throw operationError("FILE_RECYCLEBIN_RESTORE_CONFLICT", "Restore target already exists.", {
+            path: parsed.data.originalPath,
+          })
+        }
+        throw err
+      })
+      await fs.promises.rm(tombstone, { recursive: true, force: false })
+      await fs.promises.rm(metadataFile, { force: true })
+      return {
+        operation: "restore-from-recyclebin",
+        source: parsed.data.tombstonePath,
+        destination: parsed.data.originalPath,
+        node: await nodeFromPath(destination),
+        affectedDirectories: [...new Set([parentRelative(destination), normalizeRelative(recyclebinRoot())])],
       }
-      throw err
-    })
-    await copyWithoutOverwrite(tombstone, destination).catch((err) => {
-      if (err instanceof OperationError && err.code === "FILE_OP_DUPLICATE") {
-        throw operationError("FILE_RECYCLEBIN_RESTORE_CONFLICT", "Restore target already exists.", {
-          path: parsed.data.originalPath,
-        })
-      }
-      throw err
-    })
-    await fs.promises.rm(tombstone, { recursive: true, force: false })
-    await fs.promises.rm(metadataFile, { force: true })
-    return {
-      operation: "restore-from-recyclebin",
-      source: parsed.data.tombstonePath,
-      destination: parsed.data.originalPath,
-      node: await nodeFromPath(destination),
-      affectedDirectories: [...new Set([parentRelative(destination), normalizeRelative(recyclebinRoot())])],
-    }
+    }, operationResultParts)
   }
 
   export async function destinationPreflight(input: {
@@ -1350,39 +1449,41 @@ export namespace File {
     filename: string
     source: Blob
   }): Promise<OperationResult> {
-    const name = validateBasename(input.filename)
-    const limit = uploadMaxBytes()
-    if (typeof input.source.size === "number" && input.source.size > limit) {
-      throw operationError("FILE_UPLOAD_TOO_LARGE", "File is too large to upload.", {
-        limit,
-        size: input.source.size,
-      })
-    }
-    const parent = await resolveProjectParent(input.parent)
-    const destination = path.join(parent, name)
-    await assertOperationWithinProject(destination)
-    await assertDestinationAvailable(destination)
-    const buffer = await input.source.arrayBuffer()
-    if (buffer.byteLength > limit) {
-      throw operationError("FILE_UPLOAD_TOO_LARGE", "File is too large to upload.", {
-        limit,
-        size: buffer.byteLength,
-      })
-    }
-    await fs.promises.writeFile(destination, new Uint8Array(buffer), { flag: "wx" }).catch((err) => {
-      if (isAlreadyExistsError(err)) {
-        throw operationError("FILE_OP_DUPLICATE", "A file or folder with this name already exists.", {
-          path: destination,
+    return withTelemetry("upload", input as unknown as Record<string, unknown>, async () => {
+      const name = validateBasename(input.filename)
+      const limit = uploadMaxBytes()
+      if (typeof input.source.size === "number" && input.source.size > limit) {
+        throw operationError("FILE_UPLOAD_TOO_LARGE", "File is too large to upload.", {
+          limit,
+          size: input.source.size,
         })
       }
-      throw err
-    })
-    return {
-      operation: "upload",
-      destination: normalizeRelative(destination),
-      node: await nodeFromPath(destination),
-      affectedDirectories: [normalizeRelative(parent)],
-    }
+      const parent = await resolveProjectParent(input.parent)
+      const destination = path.join(parent, name)
+      await assertOperationWithinProject(destination)
+      await assertDestinationAvailable(destination)
+      const buffer = await input.source.arrayBuffer()
+      if (buffer.byteLength > limit) {
+        throw operationError("FILE_UPLOAD_TOO_LARGE", "File is too large to upload.", {
+          limit,
+          size: buffer.byteLength,
+        })
+      }
+      await fs.promises.writeFile(destination, new Uint8Array(buffer), { flag: "wx" }).catch((err) => {
+        if (isAlreadyExistsError(err)) {
+          throw operationError("FILE_OP_DUPLICATE", "A file or folder with this name already exists.", {
+            path: destination,
+          })
+        }
+        throw err
+      })
+      return {
+        operation: "upload",
+        destination: normalizeRelative(destination),
+        node: await nodeFromPath(destination),
+        affectedDirectories: [normalizeRelative(parent)],
+      }
+    }, operationResultParts)
   }
 
   export interface DownloadResult {
@@ -1394,36 +1495,46 @@ export namespace File {
   }
 
   export async function download(input: { path: string }): Promise<DownloadResult> {
-    const source = await resolveProjectPath(input.path)
-    const stat = await assertSourceExists(source)
-    if (stat.isDirectory()) {
-      throw operationError("FILE_DOWNLOAD_DIRECTORY_UNSUPPORTED", "Directory download is not available in this phase.", {
-        path: normalizeRelative(source),
-      })
-    }
-    if (!stat.isFile()) {
-      throw operationError("FILE_OP_NOT_FILE", "Operation requires a file, but the target is not a file.", {
-        path: normalizeRelative(source),
-      })
-    }
-    const filename = path.basename(source)
-    const bunFile = Bun.file(source)
-    const mimeType = bunFile.type && bunFile.type !== "application/octet-stream"
-      ? bunFile.type
-      : isImageByExtension(filename)
-        ? getImageMimeType(filename)
-        : isTextByExtension(filename) || isTextByName(filename)
-          ? "text/plain; charset=utf-8"
-          : isBinaryByExtension(filename)
-            ? "application/octet-stream"
-            : "application/octet-stream"
-    return {
-      absolutePath: source,
-      relativePath: normalizeRelative(source),
-      filename,
-      size: stat.size,
-      mimeType,
-    }
+    return withTelemetry(
+      "download",
+      input as unknown as Record<string, unknown>,
+      async () => {
+        const source = await resolveProjectPath(input.path)
+        const stat = await assertSourceExists(source)
+        if (stat.isDirectory()) {
+          throw operationError(
+            "FILE_DOWNLOAD_DIRECTORY_UNSUPPORTED",
+            "Directory download is not available in this phase.",
+            { path: normalizeRelative(source) },
+          )
+        }
+        if (!stat.isFile()) {
+          throw operationError("FILE_OP_NOT_FILE", "Operation requires a file, but the target is not a file.", {
+            path: normalizeRelative(source),
+          })
+        }
+        const filename = path.basename(source)
+        const bunFile = Bun.file(source)
+        const mimeType =
+          bunFile.type && bunFile.type !== "application/octet-stream"
+            ? bunFile.type
+            : isImageByExtension(filename)
+              ? getImageMimeType(filename)
+              : isTextByExtension(filename) || isTextByName(filename)
+                ? "text/plain; charset=utf-8"
+                : isBinaryByExtension(filename)
+                  ? "application/octet-stream"
+                  : "application/octet-stream"
+        return {
+          absolutePath: source,
+          relativePath: normalizeRelative(source),
+          filename,
+          size: stat.size,
+          mimeType,
+        }
+      },
+      (result) => ({ source: result.relativePath }),
+    )
   }
 
   export async function search(input: { query: string; limit?: number; dirs?: boolean; type?: "file" | "directory" }) {

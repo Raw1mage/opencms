@@ -2,11 +2,42 @@ import path from "path"
 import fs from "fs/promises"
 import { describe, expect, test } from "bun:test"
 import { File } from "../../src/file"
+import { Bus } from "../../src/bus"
 import { Instance } from "../../src/project/instance"
 import { tmpdir } from "../fixture/fixture"
 
 async function expectOperationCode(input: Promise<unknown>, code: File.OperationCode) {
   await expect(input).rejects.toMatchObject({ code })
+}
+
+type CapturedEvent = { type: string; properties: Record<string, unknown> }
+
+function captureFileEvents(): { stop: () => void; events: CapturedEvent[] } {
+  const events: CapturedEvent[] = []
+  const unsubs = [
+    Bus.subscribe(File.Event.OperationRequested, (e) =>
+      events.push({ type: e.type, properties: e.properties as Record<string, unknown> }),
+    ),
+    Bus.subscribe(File.Event.OperationCompleted, (e) =>
+      events.push({ type: e.type, properties: e.properties as Record<string, unknown> }),
+    ),
+    Bus.subscribe(File.Event.OperationRejected, (e) =>
+      events.push({ type: e.type, properties: e.properties as Record<string, unknown> }),
+    ),
+  ]
+  return {
+    events,
+    stop: () => {
+      for (const u of unsubs) u()
+    },
+  }
+}
+
+async function flushPendingPublishes() {
+  // Bus.publish is fired-and-forgotten inside File.* via .catch; yield twice
+  // to let pending microtasks deliver to subscribers.
+  await Promise.resolve()
+  await Promise.resolve()
 }
 
 describe("File operation guards", () => {
@@ -488,6 +519,101 @@ describe("File operation guards", () => {
         expect(result.writable).toBe(true)
         expect(result.reason).toBeUndefined()
         expect(path.resolve(result.canonicalPath)).toBe(path.resolve(external.path))
+      },
+    })
+  })
+
+  test("emits operation requested + completed events on success", async () => {
+    await using tmp = await tmpdir()
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const captured = captureFileEvents()
+        try {
+          await File.create({ parent: ".", name: "evt.txt", type: "file" })
+          await flushPendingPublishes()
+
+          const types = captured.events.map((e) => e.type)
+          expect(types).toEqual(["file.operation.requested", "file.operation.completed"])
+
+          const requested = captured.events[0]
+          expect(requested.properties).toMatchObject({
+            operation: "create-file",
+            input: { parent: ".", name: "evt.txt", type: "file" },
+          })
+
+          const completed = captured.events[1]
+          expect(completed.properties).toMatchObject({
+            operation: "create-file",
+            destination: "evt.txt",
+          })
+          expect(typeof completed.properties.durationMs).toBe("number")
+        } finally {
+          captured.stop()
+        }
+      },
+    })
+  })
+
+  test("emits operation rejected event with code on failure", async () => {
+    await using tmp = await tmpdir()
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const captured = captureFileEvents()
+        try {
+          await expectOperationCode(
+            File.create({ parent: ".", name: "../escape.txt", type: "file" }),
+            "FILE_OP_INVALID_NAME",
+          )
+          await flushPendingPublishes()
+
+          const types = captured.events.map((e) => e.type)
+          expect(types).toEqual(["file.operation.requested", "file.operation.rejected"])
+
+          const rejected = captured.events[1]
+          expect(rejected.properties).toMatchObject({
+            operation: "create-file",
+            code: "FILE_OP_INVALID_NAME",
+          })
+        } finally {
+          captured.stop()
+        }
+      },
+    })
+  })
+
+  test("upload telemetry redacts Blob bytes to size + type metadata", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await fs.mkdir(path.join(dir, "docs"), { recursive: true })
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const captured = captureFileEvents()
+        try {
+          await File.upload({
+            parent: "docs",
+            filename: "tele.txt",
+            source: new Blob(["secret-bytes"], { type: "text/plain" }),
+          })
+          await flushPendingPublishes()
+
+          const requested = captured.events.find((e) => e.type === "file.operation.requested")
+          expect(requested).toBeDefined()
+          const input = requested!.properties.input as Record<string, unknown>
+          // The Blob is replaced with a metadata stub; original bytes are not in the payload.
+          expect(input.source).toMatchObject({ kind: "blob", size: 12 })
+          expect(typeof input.source).toBe("object")
+          expect(JSON.stringify(input)).not.toContain("secret-bytes")
+        } finally {
+          captured.stop()
+        }
       },
     })
   })
