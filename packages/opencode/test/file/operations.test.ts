@@ -449,6 +449,113 @@ describe("File operation guards", () => {
     })
   })
 
+  test("file-access-whitelist allows read+mutation outside the active project", async () => {
+    await using project = await tmpdir()
+    await using outside = await tmpdir({
+      init: async (dir) => {
+        await fs.mkdir(path.join(dir, "drive"), { recursive: true })
+        await fs.writeFile(path.join(dir, "drive", "doc.txt"), "hello")
+      },
+    })
+
+    // Whitelist file points at the outside directory; both browse and
+    // mutation should be allowed under it.
+    const whitelistFile = path.join(project.path, "whitelist.json")
+    await fs.writeFile(whitelistFile, JSON.stringify({ allow: [outside.path] }))
+    const previous = process.env.OPENCODE_FILE_ACCESS_WHITELIST_PATH
+    process.env.OPENCODE_FILE_ACCESS_WHITELIST_PATH = whitelistFile
+
+    try {
+      await Instance.provide({
+        directory: project.path,
+        fn: async () => {
+          // List inside whitelisted root succeeds (would normally be PATH_ESCAPE).
+          const listed = await File.list(path.join(outside.path, "drive"))
+          expect(listed.find((n) => n.name === "doc.txt")).toBeDefined()
+
+          // Mutation inside whitelisted root succeeds.
+          const renamed = await File.rename({
+            path: path.join(outside.path, "drive", "doc.txt"),
+            name: "renamed.txt",
+          })
+          expect(renamed.operation).toBe("rename")
+          await expect(Bun.file(path.join(outside.path, "drive", "renamed.txt")).text()).resolves.toBe("hello")
+        },
+      })
+    } finally {
+      if (previous === undefined) delete process.env.OPENCODE_FILE_ACCESS_WHITELIST_PATH
+      else process.env.OPENCODE_FILE_ACCESS_WHITELIST_PATH = previous
+    }
+  })
+
+  test("file-access-whitelist does not match similar-prefix paths (boundary safety)", async () => {
+    await using project = await tmpdir()
+    await using sibling = await tmpdir() // sibling whose path may share prefix bytes with whitelist
+
+    // Whitelist a path that's a prefix of `sibling.path` only via string concat,
+    // not via filesystem hierarchy (e.g. /tmp/x vs /tmp/x-other).
+    const whitelistedRoot = sibling.path + "-allowed"
+    await fs.mkdir(whitelistedRoot, { recursive: true })
+    const whitelistFile = path.join(project.path, "whitelist.json")
+    await fs.writeFile(whitelistFile, JSON.stringify({ allow: [whitelistedRoot] }))
+    const previous = process.env.OPENCODE_FILE_ACCESS_WHITELIST_PATH
+    process.env.OPENCODE_FILE_ACCESS_WHITELIST_PATH = whitelistFile
+
+    try {
+      await Instance.provide({
+        directory: project.path,
+        fn: async () => {
+          // sibling.path shares a prefix with whitelistedRoot but is NOT under it.
+          await fs.writeFile(path.join(sibling.path, "leak.txt"), "leak")
+          // Mutation must reject. Whether via PATH_ESCAPE (abs path detected) or
+          // SOURCE_NOT_FOUND (path joined to project then doesn't exist), the
+          // hard invariant is: source bytes must remain untouched.
+          await expect(
+            File.rename({ path: path.join(sibling.path, "leak.txt"), name: "captured.txt" }),
+          ).rejects.toThrow()
+          await expect(Bun.file(path.join(sibling.path, "leak.txt")).text()).resolves.toBe("leak")
+          await expect(Bun.file(path.join(sibling.path, "captured.txt")).exists()).resolves.toBe(false)
+        },
+      })
+      await fs.rm(whitelistedRoot, { recursive: true, force: true })
+    } finally {
+      if (previous === undefined) delete process.env.OPENCODE_FILE_ACCESS_WHITELIST_PATH
+      else process.env.OPENCODE_FILE_ACCESS_WHITELIST_PATH = previous
+    }
+  })
+
+  test("file-access-whitelist ignores non-absolute and non-string entries", async () => {
+    await using project = await tmpdir()
+    await using outside = await tmpdir()
+
+    const whitelistFile = path.join(project.path, "whitelist.json")
+    // Mix of garbage entries — none should grant access.
+    await fs.writeFile(
+      whitelistFile,
+      JSON.stringify({ allow: ["relative/path", 42, null, ""] }),
+    )
+    const previous = process.env.OPENCODE_FILE_ACCESS_WHITELIST_PATH
+    process.env.OPENCODE_FILE_ACCESS_WHITELIST_PATH = whitelistFile
+
+    try {
+      await Instance.provide({
+        directory: project.path,
+        fn: async () => {
+          await fs.writeFile(path.join(outside.path, "x.txt"), "x")
+          await expect(
+            File.rename({ path: path.join(outside.path, "x.txt"), name: "y.txt" }),
+          ).rejects.toThrow()
+          // Source untouched.
+          await expect(Bun.file(path.join(outside.path, "x.txt")).text()).resolves.toBe("x")
+          await expect(Bun.file(path.join(outside.path, "y.txt")).exists()).resolves.toBe(false)
+        },
+      })
+    } finally {
+      if (previous === undefined) delete process.env.OPENCODE_FILE_ACCESS_WHITELIST_PATH
+      else process.env.OPENCODE_FILE_ACCESS_WHITELIST_PATH = previous
+    }
+  })
+
   test("list resolves symlinks to their target type (dir vs file)", async () => {
     await using tmp = await tmpdir({
       init: async (dir) => {

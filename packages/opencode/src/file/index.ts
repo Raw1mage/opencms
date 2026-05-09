@@ -410,6 +410,72 @@ export namespace File {
     return true
   }
 
+  // -----------------------------------------------------------------------
+  // Per-user filesystem access whitelist.
+  //
+  // File: ~/.config/opencode/file-access-whitelist.json (override via
+  //       OPENCODE_FILE_ACCESS_WHITELIST_PATH env var for tests).
+  // Shape: { "allow": ["/abs/path", ...] }
+  //
+  // When a path falls under any whitelist entry it bypasses the active-
+  // project boundary check for BOTH list/read AND mutations. Realpath of
+  // the candidate must also fall under the whitelist; this prevents a
+  // symlink inside a whitelist root from escaping back outside.
+  //
+  // Loaded once and cached. Restart the daemon to pick up changes (same
+  // policy as tweaks.cfg).
+  let accessWhitelistCache: { path: string; entries: string[] } | undefined
+  function loadAccessWhitelist(): string[] {
+    const home = process.env.HOME ?? process.env.USERPROFILE ?? ""
+    const customPath = process.env.OPENCODE_FILE_ACCESS_WHITELIST_PATH
+    const filepath = customPath || (home ? path.join(home, ".config", "opencode", "file-access-whitelist.json") : "")
+    // Cache keyed on resolved filepath so flipping the env var (test
+    // isolation) or pointing at a fresh file invalidates automatically.
+    if (accessWhitelistCache?.path === filepath) return accessWhitelistCache.entries
+    if (!filepath) {
+      accessWhitelistCache = { path: filepath, entries: [] }
+      return accessWhitelistCache.entries
+    }
+    try {
+      const raw = fs.readFileSync(filepath, "utf-8")
+      const data = JSON.parse(raw) as unknown
+      const allow = (data as { allow?: unknown })?.allow
+      if (!Array.isArray(allow)) {
+        log.warn("file-access-whitelist: 'allow' is not an array; ignoring", { filepath })
+        accessWhitelistCache = { path: filepath, entries: [] }
+        return accessWhitelistCache.entries
+      }
+      const parsed: string[] = []
+      for (const entry of allow) {
+        if (typeof entry !== "string") continue
+        if (!path.isAbsolute(entry)) {
+          log.warn("file-access-whitelist: entry not absolute, ignoring", { entry, filepath })
+          continue
+        }
+        const normalized = entry.replace(/[\\/]+$/, "") || entry
+        parsed.push(normalized)
+      }
+      accessWhitelistCache = { path: filepath, entries: parsed }
+      if (parsed.length > 0) log.info("file-access-whitelist loaded", { count: parsed.length, entries: parsed })
+      return accessWhitelistCache.entries
+    } catch (err: unknown) {
+      const errno = err && typeof err === "object" && "code" in err ? (err as { code?: string }).code : undefined
+      if (errno !== "ENOENT") {
+        log.warn("file-access-whitelist: load failed", { filepath, error: String(err) })
+      }
+      accessWhitelistCache = { path: filepath, entries: [] }
+      return accessWhitelistCache.entries
+    }
+  }
+
+  function isInAccessWhitelist(candidate: string): boolean {
+    const list = loadAccessWhitelist()
+    for (const allowed of list) {
+      if (isWithinRoot(candidate, allowed)) return true
+    }
+    return false
+  }
+
   async function getProjectRootReal(): Promise<string> {
     const directory = Instance.directory
     const cacheKey = `${directory}:${allowGlobalFilesystemBrowse() ? "globalfs" : "project"}`
@@ -445,19 +511,27 @@ export namespace File {
     return candidate === root || candidate.startsWith(root + path.sep)
   }
 
+  // Helper used by all boundary checks: a path is allowed if it falls
+  // under the active-project root OR under any per-user whitelist entry.
+  // Same predicate used for both browse-side (isWithinProject) and
+  // mutation-side (isWithinStrictProject).
+  function isAllowedPath(candidate: string, projectRoot: string): boolean {
+    return isWithinRoot(candidate, projectRoot) || isInAccessWhitelist(candidate)
+  }
+
   async function isWithinProject(targetPath: string): Promise<boolean> {
     const root = await getProjectRootReal()
     const resolved = path.resolve(targetPath)
-    if (!isWithinRoot(resolved, root)) {
+    if (!isAllowedPath(resolved, root)) {
       return false
     }
     const real = await fs.promises.realpath(targetPath).catch(() => undefined)
-    if (real && !isWithinRoot(real, root)) {
+    if (real && !isAllowedPath(real, root)) {
       return false
     }
     if (!real) {
       const parentReal = await fs.promises.realpath(path.dirname(targetPath)).catch(() => undefined)
-      if (parentReal && !isWithinRoot(parentReal, root)) {
+      if (parentReal && !isAllowedPath(parentReal, root)) {
         return false
       }
     }
@@ -467,12 +541,12 @@ export namespace File {
   async function isWithinStrictProject(targetPath: string): Promise<boolean> {
     const root = await getStrictProjectRootReal()
     const resolved = path.resolve(targetPath)
-    if (!isWithinRoot(resolved, root)) return false
+    if (!isAllowedPath(resolved, root)) return false
     const real = await fs.promises.realpath(targetPath).catch(() => undefined)
-    if (real && !isWithinRoot(real, root)) return false
+    if (real && !isAllowedPath(real, root)) return false
     if (!real) {
       const parentReal = await fs.promises.realpath(path.dirname(targetPath)).catch(() => undefined)
-      if (parentReal && !isWithinRoot(parentReal, root)) return false
+      if (parentReal && !isAllowedPath(parentReal, root)) return false
     }
     return true
   }
@@ -481,8 +555,8 @@ export namespace File {
     const root = await getProjectRootReal()
     const resolved = path.resolve(targetPath)
     const globalBrowse = allowGlobalFilesystemBrowse()
-    if (!isWithinRoot(resolved, root)) {
-      log.warn("assertWithinProject denied (resolved outside root)", {
+    if (!isAllowedPath(resolved, root)) {
+      log.warn("assertWithinProject denied (resolved outside root and whitelist)", {
         targetPath,
         resolved,
         root,
@@ -493,8 +567,8 @@ export namespace File {
       throw new Error(`Access denied: path escapes project directory (resolved=${resolved}, root=${root})`)
     }
     const real = await fs.promises.realpath(targetPath).catch(() => undefined)
-    if (real && !isWithinRoot(real, root)) {
-      log.warn("assertWithinProject denied (realpath outside root)", {
+    if (real && !isAllowedPath(real, root)) {
+      log.warn("assertWithinProject denied (realpath outside root and whitelist)", {
         targetPath,
         resolved,
         real,
@@ -507,8 +581,8 @@ export namespace File {
     }
     if (!real) {
       const parentReal = await fs.promises.realpath(path.dirname(targetPath)).catch(() => undefined)
-      if (parentReal && !isWithinRoot(parentReal, root)) {
-        log.warn("assertWithinProject denied (parent realpath outside root)", {
+      if (parentReal && !isAllowedPath(parentReal, root)) {
+        log.warn("assertWithinProject denied (parent realpath outside root and whitelist)", {
           targetPath,
           resolved,
           parentReal,
@@ -639,9 +713,18 @@ export namespace File {
     }
   }
 
+  // Decide whether an absolute input path should be used as-is (vs joined to
+  // Instance.directory). Absolute paths are honoured when global FS browsing
+  // is enabled OR when the path falls under the per-user access whitelist.
+  // This lets whitelisted roots like /mnt/g be addressed directly even when
+  // global browsing is off.
+  function shouldUseAbsoluteInput(inputPath: string): boolean {
+    if (!path.isAbsolute(inputPath)) return false
+    return allowGlobalFilesystemBrowse() || isInAccessWhitelist(inputPath)
+  }
+
   async function resolveProjectPath(inputPath: string): Promise<string> {
-    const requested =
-      allowGlobalFilesystemBrowse() && path.isAbsolute(inputPath) ? inputPath : path.join(Instance.directory, inputPath)
+    const requested = shouldUseAbsoluteInput(inputPath) ? inputPath : path.join(Instance.directory, inputPath)
     return await assertOperationWithinProject(requested)
   }
 
@@ -1215,11 +1298,7 @@ export namespace File {
       ignored = ig.ignores.bind(ig)
     }
     const requested =
-      dir && allowGlobalFilesystemBrowse() && path.isAbsolute(dir)
-        ? dir
-        : dir
-          ? path.join(Instance.directory, dir)
-          : Instance.directory
+      dir && shouldUseAbsoluteInput(dir) ? dir : dir ? path.join(Instance.directory, dir) : Instance.directory
     const resolved = await assertWithinProject(requested)
 
     const entries = await fs.promises.readdir(resolved, {
@@ -1274,10 +1353,7 @@ export namespace File {
   }
 
   export async function createDirectory(input: { path: string }): Promise<DirectoryCreateResult> {
-    const requested =
-      allowGlobalFilesystemBrowse() && path.isAbsolute(input.path)
-        ? input.path
-        : path.join(Instance.directory, input.path)
+    const requested = shouldUseAbsoluteInput(input.path) ? input.path : path.join(Instance.directory, input.path)
     const resolved = await assertWithinProject(requested)
     await fs.promises.mkdir(resolved)
     const relativePath = path.relative(Instance.directory, resolved)
