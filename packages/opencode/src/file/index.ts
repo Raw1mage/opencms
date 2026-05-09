@@ -1,4 +1,5 @@
 import { BusEvent } from "@/bus/bus-event"
+import { Bus } from "@/bus"
 import z from "zod"
 import { $ } from "bun"
 import type { BunFile } from "bun"
@@ -39,6 +40,13 @@ export namespace File {
       absolute: z.string(),
       type: z.enum(["file", "directory"]),
       ignored: z.boolean(),
+      // Size in bytes for files. Omitted for directories — we do not
+      // recursively aggregate directory sizes in V1.
+      size: z.number().int().min(0).optional(),
+      // Modification time in epoch milliseconds. Omitted when stat fails
+      // (e.g. permission denied, transient race) so the UI can render the
+      // name immediately and skip the column for that row.
+      modifiedAt: z.number().optional(),
     })
     .meta({
       ref: "FileNode",
@@ -57,6 +65,77 @@ export namespace File {
       ref: "FileDirectoryCreateResult",
     })
   export type DirectoryCreateResult = z.infer<typeof DirectoryCreateResult>
+
+  export const OperationCode = z.enum([
+    "FILE_OP_PATH_ESCAPE",
+    "FILE_OP_INVALID_NAME",
+    "FILE_OP_DUPLICATE",
+    "FILE_OP_TARGET_NOT_DIRECTORY",
+    "FILE_OP_SOURCE_NOT_FOUND",
+    "FILE_OP_CONFIRMATION_REQUIRED",
+    "FILE_OP_PERMISSION_DENIED",
+    "FILE_OP_DESTINATION_AMBIGUOUS",
+    "FILE_OP_PREFLIGHT_REQUIRED",
+    "FILE_OP_NOT_FILE",
+    "FILE_RECYCLEBIN_RESTORE_CONFLICT",
+    "FILE_RECYCLEBIN_METADATA_INVALID",
+    "FILE_DOWNLOAD_DIRECTORY_UNSUPPORTED",
+    "FILE_UPLOAD_TOO_LARGE",
+  ])
+  export type OperationCode = z.infer<typeof OperationCode>
+
+  export class OperationError extends Error {
+    constructor(
+      readonly code: OperationCode,
+      message: string,
+      readonly status = 400,
+      readonly data?: Record<string, unknown>,
+    ) {
+      super(message)
+      this.name = "FileOperationError"
+    }
+
+    toObject() {
+      return {
+        code: this.code,
+        message: this.message,
+        data: this.data,
+      }
+    }
+  }
+
+  export const OperationResult = z
+    .object({
+      operation: z.enum([
+        "create-file",
+        "create-directory",
+        "rename",
+        "move",
+        "copy",
+        "delete-to-recyclebin",
+        "restore-from-recyclebin",
+        "upload",
+      ]),
+      source: z.string().optional(),
+      destination: z.string().optional(),
+      node: Node.optional(),
+      affectedDirectories: z.array(z.string()),
+    })
+    .meta({
+      ref: "FileOperationResult",
+    })
+  export type OperationResult = z.infer<typeof OperationResult>
+
+  export const DestinationPreflightResult = z
+    .object({
+      canonicalPath: z.string(),
+      writable: z.boolean(),
+      reason: OperationCode.optional(),
+    })
+    .meta({
+      ref: "FileDestinationPreflightResult",
+    })
+  export type DestinationPreflightResult = z.infer<typeof DestinationPreflightResult>
 
   export const Content = z
     .object({
@@ -353,6 +432,14 @@ export namespace File {
     return root
   }
 
+  async function getStrictProjectRootReal(): Promise<string> {
+    try {
+      return await fs.promises.realpath(Instance.directory)
+    } catch {
+      return path.resolve(Instance.directory)
+    }
+  }
+
   function isWithinRoot(candidate: string, root: string): boolean {
     if (root === path.parse(root).root) return path.isAbsolute(candidate)
     return candidate === root || candidate.startsWith(root + path.sep)
@@ -373,6 +460,19 @@ export namespace File {
       if (parentReal && !isWithinRoot(parentReal, root)) {
         return false
       }
+    }
+    return true
+  }
+
+  async function isWithinStrictProject(targetPath: string): Promise<boolean> {
+    const root = await getStrictProjectRootReal()
+    const resolved = path.resolve(targetPath)
+    if (!isWithinRoot(resolved, root)) return false
+    const real = await fs.promises.realpath(targetPath).catch(() => undefined)
+    if (real && !isWithinRoot(real, root)) return false
+    if (!real) {
+      const parentReal = await fs.promises.realpath(path.dirname(targetPath)).catch(() => undefined)
+      if (parentReal && !isWithinRoot(parentReal, root)) return false
     }
     return true
   }
@@ -421,6 +521,166 @@ export namespace File {
       }
     }
     return real ?? resolved
+  }
+
+  function operationError(code: OperationCode, message: string, data?: Record<string, unknown>) {
+    const status = (() => {
+      if (code === "FILE_OP_PATH_ESCAPE" || code === "FILE_OP_PERMISSION_DENIED") return 403
+      if (code === "FILE_OP_SOURCE_NOT_FOUND") return 404
+      if (code === "FILE_OP_DUPLICATE" || code === "FILE_RECYCLEBIN_RESTORE_CONFLICT") return 409
+      if (code === "FILE_UPLOAD_TOO_LARGE") return 413
+      return 400
+    })()
+    return new OperationError(code, message, status, data)
+  }
+
+  // Default cap chosen to match a typical project asset size budget. TODO:
+  // promote to /etc/opencode/tweaks.cfg key once the spec.md "configurable
+  // size limit" follow-up is approved (see plans/20260509_web-file-upload
+  // §Requirement: Enforce upload size limit). Env override exists for ops
+  // who need to lift the cap before that landing.
+  const UPLOAD_MAX_BYTES_DEFAULT = 64 * 1024 * 1024
+  function uploadMaxBytes(): number {
+    const raw = Bun.env.OPENCODE_FILE_UPLOAD_MAX_BYTES
+    if (!raw) return UPLOAD_MAX_BYTES_DEFAULT
+    const parsed = Number.parseInt(raw, 10)
+    if (!Number.isFinite(parsed) || parsed <= 0) return UPLOAD_MAX_BYTES_DEFAULT
+    return parsed
+  }
+
+  async function assertOperationWithinProject(targetPath: string): Promise<string> {
+    if (!(await isWithinStrictProject(targetPath))) {
+      throw operationError("FILE_OP_PATH_ESCAPE", "Operation target is outside the active project.", {
+        path: targetPath,
+      })
+    }
+    return path.resolve(targetPath)
+  }
+
+  function normalizeRelative(targetPath: string): string {
+    return path.relative(Instance.directory, targetPath).replaceAll("\\", "/")
+  }
+
+  function parentRelative(targetPath: string): string {
+    return normalizeRelative(path.dirname(targetPath))
+  }
+
+  function validateBasename(name: string): string {
+    if (!name || name === "." || name === ".." || name.includes("/") || name.includes("\\") || name.includes("\0")) {
+      throw operationError("FILE_OP_INVALID_NAME", "Filename is invalid.", { name })
+    }
+    if (path.basename(name) !== name || path.win32.basename(name) !== name) {
+      throw operationError("FILE_OP_INVALID_NAME", "Filename is invalid.", { name })
+    }
+    return name
+  }
+
+  async function assertDirectory(targetPath: string): Promise<void> {
+    const stat = await fs.promises.stat(targetPath).catch((err) => {
+      if (err && typeof err === "object" && "code" in err && err.code === "ENOENT") {
+        throw operationError("FILE_OP_SOURCE_NOT_FOUND", "Source file or folder no longer exists.", {
+          path: targetPath,
+        })
+      }
+      throw err
+    })
+    if (!stat.isDirectory()) {
+      throw operationError("FILE_OP_TARGET_NOT_DIRECTORY", "Operation target is not a directory.", { path: targetPath })
+    }
+  }
+
+  async function assertSourceExists(targetPath: string): Promise<fs.Stats> {
+    return await fs.promises.stat(targetPath).catch((err) => {
+      if (err && typeof err === "object" && "code" in err && err.code === "ENOENT") {
+        throw operationError("FILE_OP_SOURCE_NOT_FOUND", "Source file or folder no longer exists.", {
+          path: targetPath,
+        })
+      }
+      throw err
+    })
+  }
+
+  async function assertDestinationAvailable(targetPath: string): Promise<void> {
+    if (await Bun.file(targetPath).exists()) {
+      throw operationError("FILE_OP_DUPLICATE", "A file or folder with this name already exists.", { path: targetPath })
+    }
+  }
+
+  function isAlreadyExistsError(err: unknown): boolean {
+    return !!err && typeof err === "object" && "code" in err && err.code === "EEXIST"
+  }
+
+  async function copyWithoutOverwrite(source: string, destination: string): Promise<void> {
+    await fs.promises.cp(source, destination, { recursive: true, errorOnExist: true, force: false }).catch((err) => {
+      if (isAlreadyExistsError(err)) {
+        throw operationError("FILE_OP_DUPLICATE", "A file or folder with this name already exists.", {
+          path: destination,
+        })
+      }
+      throw err
+    })
+  }
+
+  async function moveWithoutOverwrite(source: string, destination: string): Promise<void> {
+    if (source === destination) return
+    await copyWithoutOverwrite(source, destination)
+    await fs.promises.rm(source, { recursive: true, force: false })
+  }
+
+  async function nodeFromPath(targetPath: string): Promise<Node> {
+    const stat = await fs.promises.stat(targetPath)
+    const relativePath = normalizeRelative(targetPath)
+    return {
+      name: path.basename(targetPath),
+      path: relativePath,
+      absolute: targetPath,
+      type: stat.isDirectory() ? "directory" : "file",
+      ignored: false,
+    }
+  }
+
+  async function resolveProjectPath(inputPath: string): Promise<string> {
+    const requested =
+      allowGlobalFilesystemBrowse() && path.isAbsolute(inputPath) ? inputPath : path.join(Instance.directory, inputPath)
+    return await assertOperationWithinProject(requested)
+  }
+
+  async function resolveProjectParent(inputPath: string): Promise<string> {
+    const resolved = await resolveProjectPath(inputPath)
+    await assertDirectory(resolved)
+    return resolved
+  }
+
+  function recyclebinRoot(): string {
+    return path.join(Instance.directory, "recyclebin")
+  }
+
+  function recycleMetadataPath(tombstonePath: string): string {
+    return tombstonePath + ".opencode-recycle.json"
+  }
+
+  async function uniqueRecyclePath(sourcePath: string): Promise<string> {
+    const root = recyclebinRoot()
+    await fs.promises.mkdir(root, { recursive: true })
+    await assertOperationWithinProject(root)
+    const parsed = path.parse(sourcePath)
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-")
+    for (let index = 0; index < 100; index++) {
+      const suffix = index === 0 ? "" : `-${index}`
+      const candidate = path.join(root, `${parsed.name}.${stamp}${suffix}${parsed.ext}`)
+      if (!(await Bun.file(candidate).exists()) && !(await Bun.file(recycleMetadataPath(candidate)).exists()))
+        return candidate
+    }
+    throw operationError("FILE_OP_DUPLICATE", "A file or folder with this name already exists.")
+  }
+
+  async function ensureWritableDirectory(targetPath: string): Promise<OperationCode | undefined> {
+    try {
+      await fs.promises.access(targetPath, fs.constants.W_OK)
+      return undefined
+    } catch {
+      return "FILE_OP_PERMISSION_DENIED"
+    }
   }
 
   async function warnIfOutsideProject(paths: string[], context: string): Promise<void> {
@@ -485,6 +745,91 @@ export namespace File {
         file: z.string(),
       }),
     ),
+    OperationRequested: BusEvent.define(
+      "file.operation.requested",
+      z.object({
+        operation: z.string(),
+        input: z.record(z.string(), z.unknown()),
+      }),
+    ),
+    OperationCompleted: BusEvent.define(
+      "file.operation.completed",
+      z.object({
+        operation: z.string(),
+        source: z.string().optional(),
+        destination: z.string().optional(),
+        durationMs: z.number(),
+      }),
+    ),
+    OperationRejected: BusEvent.define(
+      "file.operation.rejected",
+      z.object({
+        operation: z.string(),
+        code: OperationCode,
+        message: z.string(),
+        durationMs: z.number(),
+      }),
+    ),
+  }
+
+  function publishFireAndForget<Def extends BusEvent.Definition>(def: Def, properties: z.output<Def["properties"]>) {
+    Bus.publish(def, properties).catch((err) =>
+      log.warn("file event publish failed", { type: def.type, error: String(err) }),
+    )
+  }
+
+  function redactTelemetryInput(input: Record<string, unknown>): Record<string, unknown> {
+    const out: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(input)) {
+      if (value instanceof Blob) {
+        out[key] = {
+          kind: "blob",
+          size: value.size,
+          type: value.type || "application/octet-stream",
+        }
+      } else {
+        out[key] = value
+      }
+    }
+    return out
+  }
+
+  async function withTelemetry<T>(
+    operationKind: string,
+    input: Record<string, unknown>,
+    fn: () => Promise<T>,
+    extract: (result: T) => { source?: string; destination?: string } = () => ({}),
+  ): Promise<T> {
+    const startedAt = Date.now()
+    publishFireAndForget(Event.OperationRequested, {
+      operation: operationKind,
+      input: redactTelemetryInput(input),
+    })
+    try {
+      const result = await fn()
+      const { source, destination } = extract(result)
+      publishFireAndForget(Event.OperationCompleted, {
+        operation: operationKind,
+        source,
+        destination,
+        durationMs: Date.now() - startedAt,
+      })
+      return result
+    } catch (err) {
+      if (err instanceof OperationError) {
+        publishFireAndForget(Event.OperationRejected, {
+          operation: operationKind,
+          code: err.code,
+          message: err.message,
+          durationMs: Date.now() - startedAt,
+        })
+      }
+      throw err
+    }
+  }
+
+  function operationResultParts(result: OperationResult): { source?: string; destination?: string } {
+    return { source: result.source, destination: result.destination }
   }
 
   async function createState() {
@@ -881,19 +1226,31 @@ export namespace File {
       withFileTypes: true,
     })
     const nodes: Node[] = []
-    for (const entry of entries) {
+    const stats = await Promise.all(
+      entries.map((entry) =>
+        fs.promises.stat(path.join(resolved, entry.name)).catch(() => undefined),
+      ),
+    )
+    for (let i = 0; i < entries.length; i++) {
+      const entry = entries[i]
       if (exclude.includes(entry.name)) continue
       const fullPath = path.join(resolved, entry.name)
       const relativePath = path.relative(Instance.directory, fullPath)
       const type = entry.isDirectory() ? "directory" : "file"
       const escapedRelative = relativePath === "" || relativePath === ".." || relativePath.startsWith("../")
-      nodes.push({
+      const stat = stats[i]
+      const node: Node = {
         name: entry.name,
         path: relativePath,
         absolute: fullPath,
         type,
         ignored: escapedRelative ? false : ignored(type === "directory" ? relativePath + "/" : relativePath),
-      })
+      }
+      if (stat) {
+        if (type === "file") node.size = stat.size
+        node.modifiedAt = stat.mtimeMs
+      }
+      nodes.push(node)
     }
     return nodes.sort((a, b) => {
       if (a.type !== b.type) {
@@ -918,6 +1275,337 @@ export namespace File {
       type: "directory",
       ignored: false,
     }
+  }
+
+  export async function create(input: {
+    parent: string
+    name: string
+    type: "file" | "directory"
+  }): Promise<OperationResult> {
+    const operationKind = input.type === "directory" ? "create-directory" : "create-file"
+    return withTelemetry(operationKind, input as unknown as Record<string, unknown>, async () => {
+      const parent = await resolveProjectParent(input.parent)
+      const name = validateBasename(input.name)
+      const destination = path.join(parent, name)
+      await assertOperationWithinProject(destination)
+      await assertDestinationAvailable(destination)
+      if (input.type === "directory") await fs.promises.mkdir(destination)
+      else await fs.promises.writeFile(destination, "", { flag: "wx" })
+      return {
+        operation: input.type === "directory" ? "create-directory" : "create-file",
+        destination: normalizeRelative(destination),
+        node: await nodeFromPath(destination),
+        affectedDirectories: [normalizeRelative(parent)],
+      }
+    }, operationResultParts)
+  }
+
+  export async function rename(input: { path: string; name: string }): Promise<OperationResult> {
+    return withTelemetry("rename", input as unknown as Record<string, unknown>, async () => {
+      const source = await resolveProjectPath(input.path)
+      await assertSourceExists(source)
+      const destination = path.join(path.dirname(source), validateBasename(input.name))
+      await assertOperationWithinProject(destination)
+      if (source !== destination) await assertDestinationAvailable(destination)
+      await moveWithoutOverwrite(source, destination)
+      return {
+        operation: "rename",
+        source: normalizeRelative(source),
+        destination: normalizeRelative(destination),
+        node: await nodeFromPath(destination),
+        affectedDirectories: [parentRelative(destination)],
+      }
+    }, operationResultParts)
+  }
+
+  // Phase 4.3 — external destination resolution. Source must always remain
+  // inside the active project. When scope === "external", the destination
+  // bypasses assertOperationWithinProject and is instead canonicalized +
+  // write-probed inline (mirrors destinationPreflight). Returns the
+  // resolved absolute parent + a presentational path for the result.
+  async function resolveDestinationParent(
+    requested: string,
+    scope: "active-project" | "external" | undefined,
+  ): Promise<{ absolute: string; presentation: string; external: boolean }> {
+    if (scope === "external") {
+      const canonical = path.resolve(requested)
+      const stat = await fs.promises.stat(canonical).catch(() => undefined)
+      if (!stat) {
+        throw operationError("FILE_OP_DESTINATION_AMBIGUOUS", "Destination path cannot be resolved safely.", {
+          path: canonical,
+        })
+      }
+      if (!stat.isDirectory()) {
+        throw operationError("FILE_OP_TARGET_NOT_DIRECTORY", "Operation target is not a directory.", {
+          path: canonical,
+        })
+      }
+      const permission = await ensureWritableDirectory(canonical)
+      if (permission) {
+        throw operationError(permission, "Current user cannot write to the destination.", { path: canonical })
+      }
+      return { absolute: canonical, presentation: canonical, external: true }
+    }
+    const absolute = await resolveProjectParent(requested)
+    return { absolute, presentation: normalizeRelative(absolute), external: false }
+  }
+
+  function destinationDisplay(absolute: string, external: boolean): string {
+    return external ? absolute : normalizeRelative(absolute)
+  }
+
+  export async function move(input: {
+    source: string
+    destinationParent: string
+    scope?: "active-project" | "external"
+  }): Promise<OperationResult> {
+    return withTelemetry("move", input as unknown as Record<string, unknown>, async () => {
+      const source = await resolveProjectPath(input.source)
+      await assertSourceExists(source)
+      const parent = await resolveDestinationParent(input.destinationParent, input.scope)
+      const destination = path.join(parent.absolute, path.basename(source))
+      if (!parent.external) await assertOperationWithinProject(destination)
+      if (source !== destination) await assertDestinationAvailable(destination)
+      await moveWithoutOverwrite(source, destination)
+      const destinationDisplayPath = destinationDisplay(destination, parent.external)
+      return {
+        operation: "move",
+        source: normalizeRelative(source),
+        destination: destinationDisplayPath,
+        node: parent.external ? undefined : await nodeFromPath(destination),
+        affectedDirectories: [
+          ...new Set(
+            parent.external
+              ? [parentRelative(source)]
+              : [parentRelative(source), normalizeRelative(parent.absolute)],
+          ),
+        ],
+      }
+    }, operationResultParts)
+  }
+
+  export async function copy(input: {
+    source: string
+    destinationParent: string
+    scope?: "active-project" | "external"
+  }): Promise<OperationResult> {
+    return withTelemetry("copy", input as unknown as Record<string, unknown>, async () => {
+      const source = await resolveProjectPath(input.source)
+      await assertSourceExists(source)
+      const parent = await resolveDestinationParent(input.destinationParent, input.scope)
+      const destination = path.join(parent.absolute, path.basename(source))
+      if (!parent.external) await assertOperationWithinProject(destination)
+      await assertDestinationAvailable(destination)
+      await copyWithoutOverwrite(source, destination)
+      const destinationDisplayPath = destinationDisplay(destination, parent.external)
+      return {
+        operation: "copy",
+        source: normalizeRelative(source),
+        destination: destinationDisplayPath,
+        node: parent.external ? undefined : await nodeFromPath(destination),
+        affectedDirectories: parent.external ? [] : [normalizeRelative(parent.absolute)],
+      }
+    }, operationResultParts)
+  }
+
+  export async function deleteToRecyclebin(input: { path: string; confirmed: boolean }): Promise<OperationResult> {
+    return withTelemetry("delete-to-recyclebin", input as unknown as Record<string, unknown>, async () => {
+      if (!input.confirmed) {
+        throw operationError("FILE_OP_CONFIRMATION_REQUIRED", "This destructive operation requires confirmation.")
+      }
+      const source = await resolveProjectPath(input.path)
+      const stat = await assertSourceExists(source)
+      const destination = await uniqueRecyclePath(source)
+      const metadata = {
+        originalPath: normalizeRelative(source),
+        tombstonePath: normalizeRelative(destination),
+        deletedAt: new Date().toISOString(),
+        type: stat.isDirectory() ? "directory" : "file",
+      }
+      const metadataFile = recycleMetadataPath(destination)
+      await fs.promises.writeFile(metadataFile, JSON.stringify(metadata, null, 2), { flag: "wx" })
+      try {
+        await copyWithoutOverwrite(source, destination)
+        await fs.promises.rm(source, { recursive: true, force: false })
+      } catch (err) {
+        await fs.promises.rm(destination, { recursive: true, force: true }).catch(() => {})
+        await fs.promises.rm(metadataFile, { force: true }).catch(() => {})
+        throw err
+      }
+      return {
+        operation: "delete-to-recyclebin",
+        source: metadata.originalPath,
+        destination: metadata.tombstonePath,
+        node: await nodeFromPath(destination),
+        affectedDirectories: [...new Set([parentRelative(source), normalizeRelative(recyclebinRoot())])],
+      }
+    }, operationResultParts)
+  }
+
+  export async function restoreFromRecyclebin(input: { tombstonePath: string }): Promise<OperationResult> {
+    return withTelemetry("restore-from-recyclebin", input as unknown as Record<string, unknown>, async () => {
+      const tombstone = await resolveProjectPath(input.tombstonePath)
+      const recycleRoot = await assertOperationWithinProject(recyclebinRoot())
+      if (!isWithinRoot(tombstone, recycleRoot)) {
+        throw operationError("FILE_RECYCLEBIN_METADATA_INVALID", "Recyclebin metadata is missing or unsafe.")
+      }
+      const metadataFile = recycleMetadataPath(tombstone)
+      const metadata = await Bun.file(metadataFile)
+        .json()
+        .catch(() => undefined)
+      const parsed = z
+        .object({
+          originalPath: z.string().min(1),
+          tombstonePath: z.string().min(1),
+          deletedAt: z.string(),
+          type: z.enum(["file", "directory"]),
+        })
+        .safeParse(metadata)
+      if (!parsed.success || parsed.data.tombstonePath !== normalizeRelative(tombstone)) {
+        throw operationError("FILE_RECYCLEBIN_METADATA_INVALID", "Recyclebin metadata is missing or unsafe.")
+      }
+      const destination = path.join(Instance.directory, parsed.data.originalPath)
+      await assertOperationWithinProject(destination)
+      await assertOperationWithinProject(path.dirname(destination))
+      await assertDestinationAvailable(destination).catch((err) => {
+        if (err instanceof OperationError && err.code === "FILE_OP_DUPLICATE") {
+          throw operationError("FILE_RECYCLEBIN_RESTORE_CONFLICT", "Restore target already exists.", {
+            path: parsed.data.originalPath,
+          })
+        }
+        throw err
+      })
+      await copyWithoutOverwrite(tombstone, destination).catch((err) => {
+        if (err instanceof OperationError && err.code === "FILE_OP_DUPLICATE") {
+          throw operationError("FILE_RECYCLEBIN_RESTORE_CONFLICT", "Restore target already exists.", {
+            path: parsed.data.originalPath,
+          })
+        }
+        throw err
+      })
+      await fs.promises.rm(tombstone, { recursive: true, force: false })
+      await fs.promises.rm(metadataFile, { force: true })
+      return {
+        operation: "restore-from-recyclebin",
+        source: parsed.data.tombstonePath,
+        destination: parsed.data.originalPath,
+        node: await nodeFromPath(destination),
+        affectedDirectories: [...new Set([parentRelative(destination), normalizeRelative(recyclebinRoot())])],
+      }
+    }, operationResultParts)
+  }
+
+  export async function destinationPreflight(input: {
+    destinationParent: string
+    scope: "active-project" | "external"
+  }): Promise<DestinationPreflightResult> {
+    const candidate =
+      input.scope === "external"
+        ? path.resolve(input.destinationParent)
+        : path.join(Instance.directory, input.destinationParent)
+    if (input.scope === "active-project" && !(await isWithinStrictProject(candidate))) {
+      return { canonicalPath: candidate, writable: false, reason: "FILE_OP_PATH_ESCAPE" }
+    }
+    const stat = await fs.promises.stat(candidate).catch(() => undefined)
+    if (!stat) return { canonicalPath: candidate, writable: false, reason: "FILE_OP_DESTINATION_AMBIGUOUS" }
+    if (!stat.isDirectory())
+      return { canonicalPath: candidate, writable: false, reason: "FILE_OP_TARGET_NOT_DIRECTORY" }
+    const permission = await ensureWritableDirectory(candidate)
+    if (permission) return { canonicalPath: candidate, writable: false, reason: permission }
+    return { canonicalPath: candidate, writable: true }
+  }
+
+  export async function upload(input: {
+    parent: string
+    filename: string
+    source: Blob
+  }): Promise<OperationResult> {
+    return withTelemetry("upload", input as unknown as Record<string, unknown>, async () => {
+      const name = validateBasename(input.filename)
+      const limit = uploadMaxBytes()
+      if (typeof input.source.size === "number" && input.source.size > limit) {
+        throw operationError("FILE_UPLOAD_TOO_LARGE", "File is too large to upload.", {
+          limit,
+          size: input.source.size,
+        })
+      }
+      const parent = await resolveProjectParent(input.parent)
+      const destination = path.join(parent, name)
+      await assertOperationWithinProject(destination)
+      await assertDestinationAvailable(destination)
+      const buffer = await input.source.arrayBuffer()
+      if (buffer.byteLength > limit) {
+        throw operationError("FILE_UPLOAD_TOO_LARGE", "File is too large to upload.", {
+          limit,
+          size: buffer.byteLength,
+        })
+      }
+      await fs.promises.writeFile(destination, new Uint8Array(buffer), { flag: "wx" }).catch((err) => {
+        if (isAlreadyExistsError(err)) {
+          throw operationError("FILE_OP_DUPLICATE", "A file or folder with this name already exists.", {
+            path: destination,
+          })
+        }
+        throw err
+      })
+      return {
+        operation: "upload",
+        destination: normalizeRelative(destination),
+        node: await nodeFromPath(destination),
+        affectedDirectories: [normalizeRelative(parent)],
+      }
+    }, operationResultParts)
+  }
+
+  export interface DownloadResult {
+    absolutePath: string
+    relativePath: string
+    filename: string
+    size: number
+    mimeType: string
+  }
+
+  export async function download(input: { path: string }): Promise<DownloadResult> {
+    return withTelemetry(
+      "download",
+      input as unknown as Record<string, unknown>,
+      async () => {
+        const source = await resolveProjectPath(input.path)
+        const stat = await assertSourceExists(source)
+        if (stat.isDirectory()) {
+          throw operationError(
+            "FILE_DOWNLOAD_DIRECTORY_UNSUPPORTED",
+            "Directory download is not available in this phase.",
+            { path: normalizeRelative(source) },
+          )
+        }
+        if (!stat.isFile()) {
+          throw operationError("FILE_OP_NOT_FILE", "Operation requires a file, but the target is not a file.", {
+            path: normalizeRelative(source),
+          })
+        }
+        const filename = path.basename(source)
+        const bunFile = Bun.file(source)
+        const mimeType =
+          bunFile.type && bunFile.type !== "application/octet-stream"
+            ? bunFile.type
+            : isImageByExtension(filename)
+              ? getImageMimeType(filename)
+              : isTextByExtension(filename) || isTextByName(filename)
+                ? "text/plain; charset=utf-8"
+                : isBinaryByExtension(filename)
+                  ? "application/octet-stream"
+                  : "application/octet-stream"
+        return {
+          absolutePath: source,
+          relativePath: normalizeRelative(source),
+          filename,
+          size: stat.size,
+          mimeType,
+        }
+      },
+      (result) => ({ source: result.relativePath }),
+    )
   }
 
   export async function search(input: { query: string; limit?: number; dirs?: boolean; type?: "file" | "directory" }) {
