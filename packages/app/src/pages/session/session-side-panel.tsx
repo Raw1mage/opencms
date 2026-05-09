@@ -69,6 +69,8 @@ function FileTabMenu(props: {
   dialog: ReturnType<typeof useDialog>
   language: ReturnType<typeof useLanguage>
   command: ReturnType<typeof useCommand>
+  tabs?: ReturnType<ReturnType<typeof useLayout>["tabs"]>
+  routeParams?: { dir?: string; id?: string }
 }) {
   const [open, setOpen] = createSignal(false)
   let ref: HTMLDivElement | undefined
@@ -194,6 +196,35 @@ function FileTabMenu(props: {
               >
                 <Icon name="square-arrow-top-right" size="small" />
               </button>
+              <Show when={props.tabs && props.routeParams}>
+                <button
+                  class="p-1.5 hover:bg-surface-tertiary rounded transition-colors [&_[data-component=icon]]:!text-white"
+                  onClick={() => {
+                    const tab = props.activeFileTab()
+                    const path = activePath()
+                    if (!tab || !path || !props.routeParams || !props.tabs) return
+                    const basePath = props.routeParams.id
+                      ? `/${props.routeParams.dir}/session/${props.routeParams.id}`
+                      : `/${props.routeParams.dir}/session`
+                    const url = new URL(`${basePath}/file-view-popout`, window.location.origin)
+                    url.searchParams.set("path", path)
+                    const width = Math.max(640, Math.floor(window.innerWidth * 0.5))
+                    const height = Math.max(560, Math.floor(window.innerHeight * 0.62))
+                    const left = Math.max(20, Math.floor(window.screenX + (window.outerWidth - width) / 2))
+                    const top = Math.max(20, Math.floor(window.screenY + (window.outerHeight - height) / 2))
+                    const features = `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+                    const win = window.open(url.toString(), `opencode-file-view-popout-${path}`, features)
+                    if (!win) return
+                    // Phase 5.3 contract: source tab is removed after successful pop-out;
+                    // no placeholder remains.
+                    props.tabs.close(tab)
+                    setOpen(false)
+                  }}
+                  title="Pop out viewer"
+                >
+                  <Icon name="layout-bottom-full" size="small" />
+                </button>
+              </Show>
             </Show>
           </div>
         </Portal>
@@ -404,6 +435,8 @@ export function SessionSidePanel(props: {
                         dialog={props.dialog}
                         language={props.language}
                         command={props.command}
+                        tabs={props.tabs()}
+                        routeParams={params as { dir?: string; id?: string }}
                       />
                       <IconButton
                         icon="close-small"
@@ -471,7 +504,26 @@ export function SessionSidePanel(props: {
         >
           <div class="h-full flex flex-col overflow-hidden group/filetree">
             <Show when={sideMode() === "files"}>
-              <div class="bg-background-base px-3 py-0 h-full overflow-auto">
+              <div class="h-7 flex items-center justify-end gap-1 px-2 border-b border-border-weak-base bg-background-stronger shrink-0">
+                <IconButton
+                  icon="square-arrow-top-right"
+                  variant="ghost"
+                  iconSize="small"
+                  class="h-6 w-6"
+                  aria-label="Pop out file explorer"
+                  onClick={() => {
+                    const basePath = params.id ? `/${params.dir}/session/${params.id}` : `/${params.dir}/session`
+                    const url = new URL(`${basePath}/file-explorer-popout`, window.location.origin)
+                    const width = Math.max(640, Math.floor(window.innerWidth * 0.42))
+                    const height = Math.max(720, Math.floor(window.innerHeight * 0.72))
+                    const left = Math.max(20, Math.floor(window.screenX + (window.outerWidth - width) / 2))
+                    const top = Math.max(20, Math.floor(window.screenY + (window.outerHeight - height) / 2))
+                    const features = `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+                    window.open(url.toString(), "opencode-file-explorer-popout", features)
+                  }}
+                />
+              </div>
+              <div class="bg-background-base px-3 py-0 flex-1 min-h-0 overflow-auto">
                 <FileTree
                   path=""
                   modified={props.diffFiles}
