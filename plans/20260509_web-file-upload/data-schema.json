@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WebFileExplorerOperationContracts",
+  "$comment": "Authoritative shapes are the zod validators in packages/opencode/src/server/routes/file.ts and packages/opencode/src/file/index.ts. This document mirrors them for downstream contract tests, SDK consumers, and review. 2026-05-09 audit rewrite: prior version used invented field names (targetDirectory/destinationDirectory/filename/confirmDestructive/createFile) that never matched the implemented routes.",
+  "definitions": {
+    "operationCode": {
+      "type": "string",
+      "enum": [
+        "FILE_OP_PATH_ESCAPE",
+        "FILE_OP_INVALID_NAME",
+        "FILE_OP_DUPLICATE",
+        "FILE_OP_TARGET_NOT_DIRECTORY",
+        "FILE_OP_SOURCE_NOT_FOUND",
+        "FILE_OP_CONFIRMATION_REQUIRED",
+        "FILE_OP_PERMISSION_DENIED",
+        "FILE_OP_DESTINATION_AMBIGUOUS",
+        "FILE_OP_PREFLIGHT_REQUIRED",
+        "FILE_OP_NOT_FILE",
+        "FILE_RECYCLEBIN_RESTORE_CONFLICT",
+        "FILE_RECYCLEBIN_METADATA_INVALID",
+        "FILE_DOWNLOAD_DIRECTORY_UNSUPPORTED",
+        "FILE_UPLOAD_TOO_LARGE"
+      ]
+    },
+    "operationKind": {
+      "type": "string",
+      "enum": [
+        "create-file",
+        "create-directory",
+        "rename",
+        "move",
+        "copy",
+        "delete-to-recyclebin",
+        "restore-from-recyclebin",
+        "upload"
+      ]
+    },
+    "fileNode": {
+      "type": "object",
+      "required": ["name", "path", "absolute", "type", "ignored"],
+      "properties": {
+        "name": { "type": "string" },
+        "path": { "type": "string" },
+        "absolute": { "type": "string" },
+        "type": { "type": "string", "enum": ["file", "directory"] },
+        "ignored": { "type": "boolean" },
+        "size": {
+          "type": "integer",
+          "minimum": 0,
+          "$comment": "Pending Phase 1.5 — not yet emitted by /file list response."
+        },
+        "modifiedAt": {
+          "type": "number",
+          "$comment": "Epoch milliseconds. Pending Phase 1.5 — not yet emitted by /file list response."
+        }
+      }
+    },
+    "operationResult": {
+      "type": "object",
+      "required": ["operation", "affectedDirectories"],
+      "properties": {
+        "operation": { "$ref": "#/definitions/operationKind" },
+        "source": { "type": "string", "description": "Normalized relative project path of the existing input item, when applicable." },
+        "destination": { "type": "string", "description": "Normalized relative project path of the resulting item." },
+        "node": { "$ref": "#/definitions/fileNode" },
+        "affectedDirectories": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Relative directory paths the frontend must refresh after success."
+        }
+      }
+    },
+    "destinationPreflightResult": {
+      "type": "object",
+      "required": ["canonicalPath", "writable"],
+      "properties": {
+        "canonicalPath": { "type": "string" },
+        "writable": { "type": "boolean" },
+        "reason": { "$ref": "#/definitions/operationCode" }
+      }
+    },
+    "operationError": {
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": { "$ref": "#/definitions/operationCode" },
+        "message": { "type": "string" },
+        "data": { "type": "object" }
+      }
+    }
+  },
+  "endpoints": [
+    {
+      "operationId": "file.create",
+      "method": "POST",
+      "path": "/file/create",
+      "request": {
+        "type": "object",
+        "required": ["parent", "name", "type"],
+        "properties": {
+          "parent": { "type": "string" },
+          "name": { "type": "string", "minLength": 1 },
+          "type": { "type": "string", "enum": ["file", "directory"] }
+        }
+      },
+      "response": { "$ref": "#/definitions/operationResult" }
+    },
+    {
+      "operationId": "file.rename",
+      "method": "POST",
+      "path": "/file/rename",
+      "request": {
+        "type": "object",
+        "required": ["path", "name"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1, "description": "Basename only — must pass validateBasename." }
+        }
+      },
+      "response": { "$ref": "#/definitions/operationResult" }
+    },
+    {
+      "operationId": "file.move",
+      "method": "POST",
+      "path": "/file/move",
+      "request": {
+        "type": "object",
+        "required": ["source", "destinationParent"],
+        "properties": {
+          "source": { "type": "string", "minLength": 1 },
+          "destinationParent": { "type": "string" }
+        }
+      },
+      "response": { "$ref": "#/definitions/operationResult" }
+    },
+    {
+      "operationId": "file.copy",
+      "method": "POST",
+      "path": "/file/copy",
+      "request": {
+        "type": "object",
+        "required": ["source", "destinationParent"],
+        "properties": {
+          "source": { "type": "string", "minLength": 1 },
+          "destinationParent": { "type": "string" }
+        }
+      },
+      "response": { "$ref": "#/definitions/operationResult" }
+    },
+    {
+      "operationId": "file.deleteToRecyclebin",
+      "method": "POST",
+      "path": "/file/delete",
+      "request": {
+        "type": "object",
+        "required": ["path", "confirmed"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "confirmed": { "type": "boolean" }
+        }
+      },
+      "response": { "$ref": "#/definitions/operationResult" }
+    },
+    {
+      "operationId": "file.restoreFromRecyclebin",
+      "method": "POST",
+      "path": "/file/restore",
+      "request": {
+        "type": "object",
+        "required": ["tombstonePath"],
+        "properties": {
+          "tombstonePath": { "type": "string", "minLength": 1 }
+        }
+      },
+      "response": { "$ref": "#/definitions/operationResult" }
+    },
+    {
+      "operationId": "file.destinationPreflight",
+      "method": "POST",
+      "path": "/file/destination/preflight",
+      "request": {
+        "type": "object",
+        "required": ["destinationParent", "scope"],
+        "properties": {
+          "destinationParent": { "type": "string", "minLength": 1 },
+          "scope": { "type": "string", "enum": ["active-project", "external"] }
+        }
+      },
+      "response": { "$ref": "#/definitions/destinationPreflightResult" }
+    },
+    {
+      "operationId": "file.upload",
+      "method": "POST",
+      "path": "/file/upload",
+      "$status": "Pending — Phase 2.5. Not yet implemented in the routes file.",
+      "request": {
+        "contentType": "multipart/form-data",
+        "fields": {
+          "parent": { "type": "string", "description": "Relative project directory." },
+          "file": { "type": "binary", "description": "Single file part. Server uses browser-supplied basename only; embedded path separators are rejected." }
+        }
+      },
+      "response": { "$ref": "#/definitions/operationResult" }
+    },
+    {
+      "operationId": "file.download",
+      "method": "GET",
+      "path": "/file/download",
+      "$status": "Pending — Phase 2.5. Not yet implemented in the routes file.",
+      "request": {
+        "type": "object",
+        "required": ["path"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 }
+        }
+      },
+      "response": {
+        "contentType": "application/octet-stream",
+        "$comment": "Directories return FILE_DOWNLOAD_DIRECTORY_UNSUPPORTED."
+      }
+    }
+  ]
+}

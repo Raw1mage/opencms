@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2500" height="2120" viewBox="-10.00 -2.00 125.00 106.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="-10.00" y="-2.00" width="125.00" height="106.00" fill="white"/>
+<path class="edge" d="M 57.00 7.00 L 57.00 9.00"/>
+<path class="edge edge-arrow" d="M 57.00 9.00 L 57.00 11.00"/>
+<path class="edge" d="M 57.00 14.00 L 57.00 16.00"/>
+<path class="edge edge-arrow" d="M 57.00 16.00 L 57.00 18.00"/>
+<path class="edge" d="M 57.00 21.00 L 57.00 23.00"/>
+<path class="edge edge-arrow" d="M 57.00 23.00 L 57.00 25.00"/>
+<path class="edge" d="M 57.00 28.00 L 57.00 30.00"/>
+<path class="edge edge-arrow" d="M 57.00 30.00 L 57.00 32.00"/>
+<path class="edge" d="M 57.00 35.00 L 57.00 37.00"/>
+<path class="edge edge-arrow" d="M 57.00 37.00 L 57.00 39.00"/>
+<path class="edge edge-arrow" d="M 57.00 42.00 L 57.00 44.00"/>
+<path class="edge edge-arrow" d="M 57.00 44.00 L 57.00 48.00"/>
+<path class="edge edge-arrow" d="M 85.50 44.00 L 85.50 48.00"/>
+<path class="edge edge-arrow" d="M 28.50 44.00 L 28.50 48.00"/>
+<path class="edge edge-arrow" d="M 57.00 51.00 L 57.00 73.00"/>
+<path class="edge edge-arrow" d="M 57.00 73.00 L 57.00 75.00"/>
+<path class="edge edge-arrow" d="M 85.50 51.00 L 85.50 73.00"/>
+<path class="edge edge-arrow" d="M 28.50 51.00 L 28.50 53.00"/>
+<path class="edge edge-arrow" d="M 0.00 53.00 L 0.00 57.00"/>
+<path class="edge edge-arrow" d="M 28.50 53.00 L 28.50 57.00"/>
+<path class="edge edge-arrow" d="M 0.00 60.00 L 0.00 64.00"/>
+<path class="edge edge-arrow" d="M 0.00 64.00 L 0.00 66.00"/>
+<path class="edge edge-arrow" d="M 28.50 60.00 L 28.50 64.00"/>
+<path class="edge edge-arrow" d="M 0.00 69.00 L 0.00 73.00"/>
+<path class="edge" d="M 57.00 78.00 L 57.00 80.00"/>
+<path class="edge edge-arrow" d="M 57.00 80.00 L 57.00 82.00"/>
+<path class="edge edge-arrow" d="M 57.00 85.00 L 57.00 87.00"/>
+<path class="edge edge-arrow" d="M 85.50 87.00 L 85.50 93.00"/>
+<path class="edge edge-arrow" d="M 28.50 87.00 L 28.50 90.50 Q 28.50 91.00 28.00 91.00 L -5.50 91.00 Q -6.00 91.00 -6.00 90.50 L -6.00 2.50 Q -6.00 2.00 -5.50 2.00 L 56.50 2.00 Q 57.00 2.00 57.00 2.50 L 57.00 4.00"/>
+<path class="edge" d="M 85.50 96.00 L 85.50 98.00"/>
+<path class="edge" d="M 85.50 98.00 L 85.50 100.00"/>
+<path class="edge" d="M 85.50 100.00 L -6.00 100.00"/>
+<path class="edge" d="M -6.00 100.00 L -6.00 91.00"/>
+<rect class="step" x="55.00" y="4.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<rect class="step-inner" x="55.25" y="4.25" width="3.50" height="2.50" rx="0.22" ry="0.22"/>
+<text class="label" x="57.00" y="5.50">0</text>
+<rect class="step" x="55.00" y="11.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="57.00" y="12.50">1</text>
+<rect class="step" x="55.00" y="18.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="57.00" y="19.50">2</text>
+<rect class="step" x="55.00" y="25.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="57.00" y="26.50">3</text>
+<rect class="step" x="55.00" y="32.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="57.00" y="33.50">4</text>
+<rect class="step" x="55.00" y="39.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="57.00" y="40.50">5</text>
+<rect class="step" x="55.00" y="48.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="57.00" y="49.50">6</text>
+<rect class="step" x="83.50" y="48.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="85.50" y="49.50">7</text>
+<rect class="step" x="26.50" y="48.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="28.50" y="49.50">8</text>
+<rect class="step" x="-2.00" y="57.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="0.00" y="58.50">9</text>
+<rect class="step" x="26.50" y="57.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="28.50" y="58.50">10</text>
+<rect class="step" x="-2.00" y="66.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="0.00" y="67.50">11</text>
+<rect class="step" x="55.00" y="75.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="57.00" y="76.50">12</text>
+<rect class="step" x="55.00" y="82.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="57.00" y="83.50">13</text>
+<rect class="step" x="83.50" y="93.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="85.50" y="94.50">14</text>
+<line class="assoc" x1="59.00" y1="5.50" x2="60.00" y2="5.50"/>
+<rect class="action" x="60.00" y="4.07" width="22.50" height="2.86"/>
+<text class="action-label" x="71.25" y="5.09"><tspan x="71.25" dy="0">Idle: runloop iteration entry; observed conditio</tspan><tspan x="71.25" dy="0.82">n derived; compaction commit decision pending</tspan></text>
+<line class="assoc" x1="59.00" y1="12.50" x2="60.00" y2="12.50"/>
+<rect class="action" x="60.00" y="11.07" width="22.50" height="2.86"/>
+<text class="action-label" x="71.25" y="12.09"><tspan x="71.25" dy="0">tryNarrative loads previous anchor message; computes prevBody = textPartsJoin</tspan><tspan x="71.25" dy="0.82">ed(anchor.parts); parses prevLastRound from `## Round N` markers in prevBody</tspan></text>
+<line class="assoc" x1="59.00" y1="19.50" x2="60.00" y2="19.50"/>
+<rect class="action" x="60.00" y="18.07" width="22.50" height="2.86"/>
+<text class="action-label" x="71.25" y="19.09"><tspan x="71.25" dy="0">Identify unanswered user msg id (Spec 1 synergy): walk tail backward, find most-re</tspan><tspan x="71.25" dy="0.82">cent user msg whose nearest assistant child has finish ∉ {stop, tool-calls, length}</tspan></text>
+<line class="assoc" x1="59.00" y1="26.50" x2="60.00" y2="26.50"/>
+<rect class="action" x="60.00" y="25.07" width="22.50" height="2.86"/>
+<text class="action-label" x="71.25" y="25.68"><tspan x="71.25" dy="0">serializeRedactedDialog walks tail messages (excluding unanswered user msg); per</tspan><tspan x="71.25" dy="0.82">round emits ## Round N header; per role emits **User**/**Reasoning**/**Assis</tspan><tspan x="71.25" dy="0.82">tant**/**Tool** markers; tool outputs replaced with recall_id: part.id references</tspan></text>
+<line class="assoc" x1="59.00" y1="33.50" x2="60.00" y2="33.50"/>
+<rect class="action" x="60.00" y="32.07" width="22.50" height="2.86"/>
+<text class="action-label" x="71.25" y="32.68"><tspan x="71.25" dy="0">Build anchor[n+1].body = prevBody + &#x27;\n\n&#x27; + tailText; compactWith</tspan><tspan x="71.25" dy="0.82">SharedContext writes anchor message with this body as text part;</tspan><tspan x="71.25" dy="0.82">publishCompactedAndResetChain with {observed, kind: &#x27;narrative&#x27;}</tspan></text>
+<line class="assoc" x1="59.00" y1="40.50" x2="60.00" y2="40.50"/>
+<rect class="action" x="60.00" y="39.07" width="22.50" height="2.86"/>
+<text class="action-label" x="71.25" y="40.09"><tspan x="71.25" dy="0">scheduleHybridEnrichment estimates anchor body tokens</tspan><tspan x="71.25" dy="0.82">(chars/4); compares against floor (5K) and ceiling (50K)</tspan></text>
+<line class="assoc" x1="59.00" y1="49.50" x2="60.00" y2="49.50"/>
+<rect class="action" x="60.00" y="48.07" width="22.50" height="2.86"/>
+<text class="action-label" x="71.25" y="49.09"><tspan x="71.25" dy="0">Skip recompress: anchor too small to warrant LL</tspan><tspan x="71.25" dy="0.82">M cost. Telemetry: recompress.skip = below-floor</tspan></text>
+<line class="assoc" x1="87.50" y1="49.50" x2="88.50" y2="49.50"/>
+<rect class="action" x="88.50" y="48.07" width="22.50" height="2.86"/>
+<text class="action-label" x="99.75" y="49.09"><tspan x="99.75" dy="0">Defer recompress: anchor in steady-state band; will fire</tspan><tspan x="99.75" dy="0.82">on next extend if it grows past ceiling. No-op this cycle</tspan></text>
+<line class="assoc" x1="30.50" y1="49.50" x2="31.50" y2="49.50"/>
+<rect class="action" x="31.50" y="48.07" width="22.50" height="2.86"/>
+<text class="action-label" x="42.75" y="49.09"><tspan x="42.75" dy="0">Recompress required: dispatch by provider. Acquire hybridEnrichInFlight lock</tspan><tspan x="42.75" dy="0.82">(per-session). Stale-anchor check: confirm anchor still latest (no interloper)</tspan></text>
+<line class="assoc" x1="2.00" y1="58.50" x2="3.00" y2="58.50"/>
+<rect class="action" x="3.00" y="57.07" width="22.50" height="2.86"/>
+<text class="action-label" x="14.25" y="57.68"><tspan x="14.25" dy="0">Codex path: invoke /responses/compact via tryLowCostServer-style call with</tspan><tspan x="14.25" dy="0.82">anchor body as conversationItem. On success, in-place update anchor&#x27;s text p</tspan><tspan x="14.25" dy="0.82">art. On 429/timeout, leave anchor body as-is (next extend will retry trigger)</tspan></text>
+<line class="assoc" x1="30.50" y1="58.50" x2="31.50" y2="58.50"/>
+<rect class="action" x="31.50" y="57.07" width="22.50" height="2.86"/>
+<text class="action-label" x="42.75" y="57.68"><tspan x="42.75" dy="0">Non-codex path: invoke Hybrid.runHybridLlm with priorAnchor as input; STEP</tspan><tspan x="42.75" dy="0.82">3 in-place update overwrites narrative-extended body with LLM summary. S</tspan><tspan x="42.75" dy="0.82">taleness check on completion (interloper anchor → leave stub as new active)</tspan></text>
+<line class="assoc" x1="2.00" y1="67.50" x2="3.00" y2="67.50"/>
+<rect class="action" x="3.00" y="66.07" width="22.50" height="2.86"/>
+<text class="action-label" x="14.25" y="67.09"><tspan x="14.25" dy="0">Release hybridEnrichInFlight lock; emit telemetry compaction.recompres</tspan><tspan x="14.25" dy="0.82">sed with {provider, kind, inputTokens, outputTokens, latencyMs, result}</tspan></text>
+<line class="assoc" x1="59.00" y1="76.50" x2="60.00" y2="76.50"/>
+<rect class="action" x="60.00" y="75.07" width="22.50" height="2.86"/>
+<text class="action-label" x="71.25" y="75.68"><tspan x="71.25" dy="0">Next runloop iter render path: filterCompacted slices at anchor[n+1]; transformPostAncho</tspan><tspan x="71.25" dy="0.82">rTail v7 walks remaining messages, replacing each completed/error tool part&#x27;s state.output</tspan><tspan x="71.25" dy="0.82">with `[recall_id: &lt;part.id&gt;]` placeholder. In-flight and compaction-bearing assistants exempt</tspan></text>
+<line class="assoc" x1="59.00" y1="83.50" x2="60.00" y2="83.50"/>
+<rect class="action" x="60.00" y="82.07" width="22.50" height="2.86"/>
+<text class="action-label" x="71.25" y="82.68"><tspan x="71.25" dy="0">LLM call fires with: [anchor body containing redacted-dialog history] + [p</tspan><tspan x="71.25" dy="0.82">ost-anchor stream with tool payloads redacted] + [Spec 1 replayed unans</tspan><tspan x="71.25" dy="0.82">wered user msg if present]. Model has full prior context + current question</tspan></text>
+<line class="assoc" x1="87.50" y1="94.50" x2="88.50" y2="94.50"/>
+<rect class="action" x="88.50" y="93.07" width="22.50" height="2.86"/>
+<text class="action-label" x="99.75" y="93.68"><tspan x="99.75" dy="0">Recall: working-cache.deriveLedger walks Session.messages, finds</tspan><tspan x="99.75" dy="0.82">part with id == requested part_id; returns state.output from sto</tspan><tspan x="99.75" dy="0.82">rage (source of truth retained even after anchor body redaction)</tspan></text>
+<line class="gate" x1="56.00" y1="9.00" x2="58.00" y2="9.00"/>
+<text class="gate-label" x="58.40" y="9.00"><tspan x="58.40" dy="0">compaction_triggered AND kind == narrative</tspan></text>
+<line class="gate" x1="56.00" y1="16.00" x2="58.00" y2="16.00"/>
+<text class="gate-label" x="58.40" y="16.00"><tspan x="58.40" dy="0">prev_anchor_loaded</tspan></text>
+<line class="gate" x1="56.00" y1="23.00" x2="58.00" y2="23.00"/>
+<text class="gate-label" x="58.40" y="23.00"><tspan x="58.40" dy="0">unanswered_user_id_resolved</tspan></text>
+<line class="gate" x1="56.00" y1="30.00" x2="58.00" y2="30.00"/>
+<text class="gate-label" x="58.40" y="30.00"><tspan x="58.40" dy="0">tail_serialized</tspan></text>
+<line class="gate" x1="56.00" y1="37.00" x2="58.00" y2="37.00"/>
+<text class="gate-label" x="58.40" y="37.00"><tspan x="58.40" dy="0">anchor_persisted AND chain_reset</tspan></text>
+<line class="gate" x1="26.50" y1="44.00" x2="87.50" y2="44.00"/>
+<line class="gate" x1="-2.00" y1="73.00" x2="87.50" y2="73.00"/>
+<line class="gate" x1="-2.00" y1="53.00" x2="30.50" y2="53.00"/>
+<line class="gate" x1="-2.00" y1="64.00" x2="30.50" y2="64.00"/>
+<line class="gate" x1="56.00" y1="80.00" x2="58.00" y2="80.00"/>
+<text class="gate-label" x="58.40" y="80.00"><tspan x="58.40" dy="0">render_path_complete</tspan></text>
+<line class="gate" x1="26.50" y1="87.00" x2="87.50" y2="87.00"/>
+<line class="gate" x1="84.50" y1="98.00" x2="86.50" y2="98.00"/>
+<text class="gate-label" x="86.90" y="98.00"><tspan x="86.90" dy="0">tool_output_returned_to_model</tspan></text>
+<line class="gate" x1="56.00" y1="46.00" x2="58.00" y2="46.00"/>
+<text class="gate-label" x="58.40" y="46.00"><tspan x="58.40" dy="0">anchorTokens &lt; 5_000</tspan></text>
+<line class="gate" x1="84.50" y1="46.00" x2="86.50" y2="46.00"/>
+<text class="gate-label" x="86.90" y="46.00"><tspan x="86.90" dy="0">anchorTokens &gt;= 5_000 AND anchorTokens &lt;= 50_000</tspan></text>
+<line class="gate" x1="27.50" y1="46.00" x2="29.50" y2="46.00"/>
+<text class="gate-label" x="29.90" y="46.00"><tspan x="29.90" dy="0">anchorTokens &gt; 50_000</tspan></text>
+<line class="gate" x1="56.00" y1="71.00" x2="58.00" y2="71.00"/>
+<text class="gate-label" x="58.40" y="71.00"><tspan x="58.40" dy="0">telemetry_emitted</tspan></text>
+<line class="gate" x1="84.50" y1="71.00" x2="86.50" y2="71.00"/>
+<text class="gate-label" x="86.90" y="71.00"><tspan x="86.90" dy="0">no_op_completed</tspan></text>
+<line class="gate" x1="-1.00" y1="55.00" x2="1.00" y2="55.00"/>
+<text class="gate-label-left" x="-1.40" y="54.32"><tspan x="-1.40" dy="0">model.pr</tspan><tspan x="-1.40" dy="0.68">oviderId</tspan><tspan x="-1.40" dy="0.68">== codex</tspan></text>
+<line class="gate" x1="27.50" y1="55.00" x2="29.50" y2="55.00"/>
+<text class="gate-label-left" x="27.10" y="55.00"><tspan x="27.10" dy="0">model.providerId != codex</tspan></text>
+<line class="gate" x1="-1.00" y1="62.00" x2="1.00" y2="62.00"/>
+<text class="gate-label-left" x="-1.40" y="61.32"><tspan x="-1.40" dy="0">codex_recom</tspan><tspan x="-1.40" dy="0.68">press_comple</tspan><tspan x="-1.40" dy="0.68">ted_or_failed</tspan></text>
+<line class="gate" x1="27.50" y1="62.00" x2="29.50" y2="62.00"/>
+<text class="gate-label-left" x="27.10" y="62.00"><tspan x="27.10" dy="0">hybrid_llm_completed_or_failed</tspan></text>
+<line class="gate" x1="-1.00" y1="71.00" x2="1.00" y2="71.00"/>
+<text class="gate-label" x="1.40" y="71.00"><tspan x="1.40" dy="0">lock_released AND telemetry_dispatched</tspan></text>
+<line class="gate" x1="84.50" y1="89.00" x2="86.50" y2="89.00"/>
+<text class="gate-label-left" x="84.10" y="89.00"><tspan x="84.10" dy="0">model_emits_recall_toolcall_raw</tspan></text>
+<line class="gate" x1="27.50" y1="89.00" x2="29.50" y2="89.00"/>
+<text class="gate-label-left" x="27.10" y="89.00"><tspan x="27.10" dy="0">next_iter_armed</tspan></text>
+<circle class="junction" cx="-6.00" cy="91.00" r="0.22"/>
+</svg>

@@ -228,6 +228,42 @@ export namespace Tweaks {
      * during rollout; flip on after Phase 1 ships stable.
      */
     phase2Enabled: boolean
+    /**
+     * Spec compaction/user-msg-replay-unification (DD-8). Master switch
+     * for the user-message replay helper that runs after every anchor
+     * write so an unanswered user msg is rewritten with id > anchor.id
+     * (preserving the post-condition: lastUser remains visible to the
+     * next runloop iteration). Default true. When false, all four
+     * compaction commit paths skip replay AND inline Continue
+     * injection reverts to the legacy compactWithSharedContext(auto)
+     * behaviour (pre-fix; the user-msg-swallow bug returns).
+     *
+     * Hot-toggleable; no daemon restart required.
+     */
+    enableUserMsgReplay: boolean
+    /**
+     * Spec compaction/dialog-replay-redaction (DD-6). Master switch for
+     * the two-tier compaction restoration. When true (default):
+     * tryNarrative produces anchor[n+1].body = anchor[n].body +
+     * serialize_redacted(tail); transformPostAnchorTail uses v7 redact-
+     * only logic; scheduleHybridEnrichment uses size-triggered ceiling
+     * with provider dispatch. When false: tryNarrative falls back to
+     * Memory.renderForLLMSync; transformPostAnchorTail falls back to v6
+     * drop logic; scheduleHybridEnrichment retains legacy thresholds +
+     * observed-gate. All three patches revert atomically.
+     *
+     * Hot-toggleable; no daemon restart required.
+     */
+    enableDialogRedactionAnchor: boolean
+    /**
+     * Spec compaction/dialog-replay-redaction (DD-4). Token threshold
+     * above which the recompress dispatcher forces an LLM-grade recompress
+     * regardless of `observed`. Anchor body sizes between 5K (skip floor)
+     * and this ceiling fall back to legacy enrichment-when-large policy.
+     * 50000 chosen empirically: ~100 rounds of dialog at 500 tokens/round
+     * average.
+     */
+    anchorRecompressCeilingTokens: number
   }
 
   export interface SessionStorageConfig {
@@ -348,6 +384,9 @@ export namespace Tweaks {
     recentRawRounds: 2,
     fallbackThreshold: 5,
     phase2Enabled: false,
+    enableUserMsgReplay: true,
+    enableDialogRedactionAnchor: true,
+    anchorRecompressCeilingTokens: 50_000,
   }
 
   const SESSION_STORAGE_DEFAULTS: SessionStorageConfig = {
@@ -511,6 +550,9 @@ export namespace Tweaks {
     "compaction_fallback_threshold",
     "compaction_phase1_enabled",
     "compaction_phase2_enabled",
+    "compaction_enable_user_msg_replay",
+    "compaction_enable_dialog_redaction_anchor",
+    "compaction_anchor_recompress_ceiling_tokens",
     "compaction_phase2_max_anchor_tokens",
     "compaction_recent_raw_rounds",
     "compaction_pinned_zone_max_tokens_ratio",
@@ -976,6 +1018,21 @@ export namespace Tweaks {
     if (cmpPhase2EnabledRaw !== undefined) {
       const v = parseBool(cmpPhase2EnabledRaw, "compaction_phase2_enabled")
       if (v !== undefined) compaction.phase2Enabled = v
+    }
+    const cmpUserMsgReplayRaw = parsed.get("compaction_enable_user_msg_replay")
+    if (cmpUserMsgReplayRaw !== undefined) {
+      const v = parseBool(cmpUserMsgReplayRaw, "compaction_enable_user_msg_replay")
+      if (v !== undefined) compaction.enableUserMsgReplay = v
+    }
+    const cmpDialogRedactionAnchorRaw = parsed.get("compaction_enable_dialog_redaction_anchor")
+    if (cmpDialogRedactionAnchorRaw !== undefined) {
+      const v = parseBool(cmpDialogRedactionAnchorRaw, "compaction_enable_dialog_redaction_anchor")
+      if (v !== undefined) compaction.enableDialogRedactionAnchor = v
+    }
+    const cmpRecompressCeilingRaw = parsed.get("compaction_anchor_recompress_ceiling_tokens")
+    if (cmpRecompressCeilingRaw !== undefined) {
+      const v = parseIntRange(cmpRecompressCeilingRaw, "compaction_anchor_recompress_ceiling_tokens", 1_000, 1_000_000)
+      if (v !== undefined) compaction.anchorRecompressCeilingTokens = v
     }
 
     const sessionStorage: SessionStorageConfig = { ...SESSION_STORAGE_DEFAULTS }

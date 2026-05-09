@@ -80,7 +80,60 @@ describe("regression: 2026-04-27 rebind-compaction infinite loop", () => {
     ;(Session as any).get = mock(async () => ({
       execution: { providerId: "codex", modelID: "gpt-5.5", accountId: "acc-yeatsraw" },
     }))
-    ;(Session as any).messages = mock(async () => []) // Phase 13: cooldown reads anchor from messages
+    // Phase 13: cooldown reads anchor from messages.
+    // dialog-replay-redaction: also synthesize a user/assistant pair so the
+    // new tryNarrative path (which serialises Session.messages directly)
+    // produces non-empty content matching the legacy turnSummaries.
+    ;(Session as any).messages = mock(async () => [
+      {
+        info: {
+          id: "msg_u1",
+          sessionID: "ses_regression_2026_04_27",
+          role: "user",
+          time: { created: 1 },
+          agent: "default",
+          model: { providerId: "codex", modelID: "gpt-5.5" },
+        },
+        parts: [
+          {
+            id: "prt_u1",
+            messageID: "msg_u1",
+            sessionID: "ses_regression_2026_04_27",
+            type: "text",
+            text: "earlier user msg",
+            time: { start: 0, end: 0 },
+          },
+        ],
+      },
+      {
+        info: {
+          id: "msg_a1",
+          sessionID: "ses_regression_2026_04_27",
+          role: "assistant",
+          parentID: "msg_u1",
+          modelID: "gpt-5.5",
+          providerId: "codex",
+          mode: "primary",
+          agent: "default",
+          path: { cwd: ".", root: "." },
+          summary: false,
+          cost: 0,
+          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          finish: "stop",
+          time: { created: 1, completed: 2 },
+        },
+        parts: [
+          {
+            id: "prt_a1",
+            messageID: "msg_a1",
+            sessionID: "ses_regression_2026_04_27",
+            type: "text",
+            text: "earlier turn narrative",
+            time: { start: 0, end: 0 },
+          },
+        ],
+      },
+    ])
     ;(Provider as any).getModel = mock(async () => ({
       id: "gpt-5.5",
       providerId: "codex",
@@ -142,9 +195,65 @@ describe("regression: 2026-04-27 rebind-compaction infinite loop", () => {
     }))
 
     let anchorTime: number | null = null
+    // dialog-replay-redaction: pre-anchor stream needs a user/assistant pair
+    // so the new tryNarrative path produces non-empty body. After an anchor
+    // gets written (anchorTime non-null), include it as the most recent
+    // summary-true assistant — the tail after anchor is empty, body equals
+    // anchor body, narrative still succeeds (or chain proceeds correctly).
+    const baseMsgs = [
+      {
+        info: {
+          id: "msg_u1",
+          sessionID: "ses_regression_cooldown",
+          role: "user",
+          time: { created: 1 },
+          agent: "default",
+          model: { providerId: "codex", modelID: "gpt-5.5" },
+        },
+        parts: [
+          {
+            id: "prt_u1",
+            messageID: "msg_u1",
+            sessionID: "ses_regression_cooldown",
+            type: "text",
+            text: "go",
+            time: { start: 0, end: 0 },
+          },
+        ],
+      },
+      {
+        info: {
+          id: "msg_a1",
+          sessionID: "ses_regression_cooldown",
+          role: "assistant",
+          parentID: "msg_u1",
+          modelID: "gpt-5.5",
+          providerId: "codex",
+          mode: "primary",
+          agent: "default",
+          path: { cwd: ".", root: "." },
+          summary: false,
+          cost: 0,
+          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          finish: "stop",
+          time: { created: 1, completed: 2 },
+        },
+        parts: [
+          {
+            id: "prt_a1",
+            messageID: "msg_a1",
+            sessionID: "ses_regression_cooldown",
+            type: "text",
+            text: "x",
+            time: { start: 0, end: 0 },
+          },
+        ],
+      },
+    ]
     ;(Session as any).messages = mock(async () => {
-      if (anchorTime === null) return []
+      if (anchorTime === null) return baseMsgs
       return [
+        ...baseMsgs,
         {
           info: {
             id: "msg_anchor",
@@ -153,7 +262,16 @@ describe("regression: 2026-04-27 rebind-compaction infinite loop", () => {
             summary: true,
             time: { created: anchorTime },
           },
-          parts: [],
+          parts: [
+            {
+              id: "prt_anchor",
+              messageID: "msg_anchor",
+              sessionID: "ses_regression_cooldown",
+              type: "text",
+              text: "## Round 1\n\n**User**\n\ngo\n\n**Assistant**\n\nx",
+              time: { start: 0, end: 0 },
+            },
+          ],
         },
       ]
     })

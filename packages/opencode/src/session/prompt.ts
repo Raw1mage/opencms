@@ -1132,6 +1132,15 @@ export namespace SessionPrompt {
                 .join("\n")
                 .trim() || undefined
           }
+          // user-msg-replay-unification DD-3: snapshot the unanswered user
+          // msg BEFORE compactWithSharedContext writes the anchor. After
+          // the write, replay it post-anchor so the next iter's lastUser
+          // resolves to a real message instead of falling through to the
+          // synthetic Continue path (INJECT_CONTINUE['provider-switched']
+          // is false → no Continue would be injected → silent exit).
+          const replaySnapshot = await SessionCompaction.snapshotUnansweredUserMessage(
+            sessionID,
+          ).catch(() => undefined)
           // Phase 13.1: Memory.markCompacted call removed (Memory.lastCompactedAt
           // is derived from the most recent anchor's time.created, not stored).
           await SessionCompaction.compactWithSharedContext({
@@ -1141,7 +1150,26 @@ export namespace SessionPrompt {
               `[Provider switched from ${prevProvider} to ${nextProvider}. Previous conversation context was not recoverable. The user may re-state their request.]`,
             model,
             auto: false,
+            observed: "provider-switched",
           })
+          if (replaySnapshot) {
+            const postWriteMsgs = await Session.messages({ sessionID }).catch(
+              () => [] as MessageV2.WithParts[],
+            )
+            const anchorMsg = postWriteMsgs.findLast(
+              (m) =>
+                m.info.role === "assistant" && (m.info as MessageV2.Assistant).summary === true,
+            )
+            if (anchorMsg) {
+              await SessionCompaction.replayUnansweredUserMessage({
+                sessionID,
+                snapshot: replaySnapshot,
+                anchorMessageID: anchorMsg.info.id,
+                observed: "provider-switched",
+                step: 0,
+              })
+            }
+          }
           log.info("provider switch compaction complete, entering main loop", { sessionID })
         }
       } else if (accountChanged) {
@@ -1486,28 +1514,13 @@ export namespace SessionPrompt {
             sessionID,
             step,
           })
-          // Hotfix 2026-05-05 — empty-response compaction was silently
-          // dropping the user's most recent question. After compaction
-          // commits its anchor (summary=1), `filterCompacted` truncates
-          // context at the anchor; any message older than it (including
-          // the unanswered user turn that just triggered the empty
-          // response) becomes invisible to the next iteration's LLM
-          // call. The model then saw only the compacted history + the
-          // PostCompaction follow-up ("todos done, wrap up if no further
-          // work implied") and produced a wrap-up reply, swallowing the
-          // user's question entirely.
-          //
-          // Strategy: snapshot the unanswered user message + parts,
-          // run compaction, then re-write the user message with a fresh
-          // ULID. The new id is monotonically larger than the anchor's
-          // id (time-ordered ULID), so filterCompacted picks it up.
-          // Delete the originals after the replay is durable so the UI
-          // doesn't render duplicates and the empty assistant doesn't
-          // dangle.
-          const replayUserFull = msgs.findLast((m) => m.info.id === lastUser.id)
-          const replayUserInfo = replayUserFull ? ({ ...replayUserFull.info } as MessageV2.User) : undefined
-          const replayUserParts = replayUserFull ? replayUserFull.parts.map((p) => ({ ...p }) as MessageV2.Part) : []
-          const emptyAssistantID = lastAssistant.id
+          // user-msg-replay-unification (2026-05-09): the inline replay
+          // block (~70 lines) that lived here as the 5/5 hotfix is now
+          // extracted to SessionCompaction.replayUnansweredUserMessage
+          // and fires automatically inside SessionCompaction.run via
+          // defaultWriteAnchor. Same post-condition; covers all four
+          // commit paths (overflow / cache-aware / rebind / provider-
+          // switched) instead of just empty-response.
           try {
             const result = await SessionCompaction.run({
               sessionID,
@@ -1515,42 +1528,9 @@ export namespace SessionPrompt {
               step,
             })
             log.info("self-heal: empty-response compaction returned", { sessionID, step, result })
-            if (replayUserInfo) {
-              try {
-                const newUserID = Identifier.ascending("message")
-                const newUser: MessageV2.User = {
-                  ...replayUserInfo,
-                  id: newUserID,
-                  time: { created: Date.now() },
-                }
-                await Session.updateMessage(newUser)
-                for (const part of replayUserParts) {
-                  await Session.updatePart({
-                    ...part,
-                    id: Identifier.ascending("part"),
-                    messageID: newUserID,
-                  } as MessageV2.Part)
-                }
-                await Session.removeMessage({ sessionID, messageID: emptyAssistantID })
-                await Session.removeMessage({ sessionID, messageID: replayUserInfo.id })
-                log.info("self-heal: replayed user message after anchor", {
-                  sessionID,
-                  step,
-                  originalUserID: replayUserInfo.id,
-                  newUserID,
-                  emptyAssistantID,
-                  partCount: replayUserParts.length,
-                })
-              } catch (replayErr) {
-                log.error("self-heal: replay-after-compact failed; user message may be hidden behind anchor", {
-                  sessionID,
-                  step,
-                  error: replayErr instanceof Error ? replayErr.message : String(replayErr),
-                })
-              }
-            }
-            // Whether it succeeded or fell through, the runloop should
-            // re-evaluate with the new (potentially smaller) stream.
+            // Helper inside run() handles snapshot+replay. Whether replay
+            // succeeded, was skipped, or failed gracefully, the runloop
+            // should re-evaluate with the new (potentially smaller) stream.
             continue
           } catch (err) {
             log.warn("self-heal: empty-response compaction threw, falling back to nudge", {
@@ -2618,12 +2598,22 @@ export namespace SessionPrompt {
       // DD-6: feature flag default false; enable via tweaks.cfg
       // `compaction_phase1_enabled = 1` for gradual rollout.
       const compactionTweakPhase1 = Tweaks.compactionSync()
-      if (compactionTweakPhase1.phase1Enabled && !session.parentID) {
+      const dialogRedactionEnabled =
+        (compactionTweakPhase1 as { enableDialogRedactionAnchor?: boolean })
+          .enableDialogRedactionAnchor !== false
+      // dialog-replay-redaction (M3): v7 redacts tool outputs to recall_id
+      // markers; runs by default for both main and subagent sessions
+      // because the redact-only logic preserves all messages and is safe
+      // under any session shape. v6 (drop-based) remains gated by
+      // phase1Enabled + main-session-only since it changes message count.
+      const runV7 = dialogRedactionEnabled
+      const runV6 = !dialogRedactionEnabled && compactionTweakPhase1.phase1Enabled && !session.parentID
+      if (runV7 || runV6) {
         try {
           const beforeCount = sessionMessages.length
           const beforeParts = sessionMessages.reduce((sum, m) => sum + m.parts.length, 0)
           const transformed = transformPostAnchorTail(sessionMessages)
-          if (transformed.messages.length < compactionTweakPhase1.fallbackThreshold) {
+          if (runV6 && transformed.messages.length < compactionTweakPhase1.fallbackThreshold) {
             log.warn("phase1-transform: fallback to raw", {
               sessionID,
               step,
@@ -2631,14 +2621,19 @@ export namespace SessionPrompt {
               got: transformed.messages.length,
               transformedTurnCount: transformed.transformedTurnCount,
             })
-          } else if (transformed.transformedTurnCount > 0) {
+          } else if (
+            transformed.transformedTurnCount > 0 ||
+            (transformed.redactedToolPartCount ?? 0) > 0
+          ) {
             sessionMessages = transformed.messages
             const afterParts = sessionMessages.reduce((sum, m) => sum + m.parts.length, 0)
-            log.info("phase1-transform: applied", {
+            log.info("post-anchor-transform: applied", {
               sessionID,
               step,
+              version: runV7 ? "v7" : "v6",
               transformedTurns: transformed.transformedTurnCount,
               exemptTurns: transformed.exemptTurnCount,
+              redactedToolParts: transformed.redactedToolPartCount ?? 0,
               partsBefore: beforeParts,
               partsAfter: afterParts,
               messagesCount: beforeCount,
@@ -2646,7 +2641,7 @@ export namespace SessionPrompt {
           }
         } catch (err) {
           if (err instanceof LayerPurityViolation) {
-            log.error("phase1-transform: layer purity violation", {
+            log.error("post-anchor-transform: layer purity violation", {
               sessionID,
               step,
               forbiddenKey: err.forbiddenKey,
@@ -2655,7 +2650,7 @@ export namespace SessionPrompt {
             // Re-throw — architectural invariant breach surfaces upward.
             throw err
           }
-          log.warn("phase1-transform: unexpected error, falling back to raw", {
+          log.warn("post-anchor-transform: unexpected error, falling back to raw", {
             sessionID,
             step,
             error: err instanceof Error ? err.message : String(err),

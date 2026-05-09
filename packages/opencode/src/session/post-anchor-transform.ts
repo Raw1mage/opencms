@@ -1,14 +1,11 @@
 /**
- * compaction-fix Phase 1 — post-anchor tail transformer (v6, current-task scope).
+ * post-anchor tail transformer.
  *
  * After `applyStreamAnchorRebind` slices messages from the most recent
- * compaction anchor, this transformer drops completed assistant turns
- * that belong to PRIOR user tasks (turns before the most recent user
- * message). Within the current task — all turns since the latest user
- * message — every assistant message stays intact so the model retains
- * full continuity of its own reasoning and tool history.
+ * compaction anchor, this transformer bounds the LLM-visible token cost
+ * of the post-anchor stream.
  *
- * 2026-05-08 revision history:
+ * 2026-05-08 → 2026-05-10 revision history:
  *   v1 (commit 6dcd327fa) — collapse each completed turn into a single
  *     `[turn N] tool(args) → ref:xyz` text part. Codex regurgitated the
  *     format as its own output (mimicry).
@@ -19,52 +16,52 @@
  *     no-text-adjacency case but still kept stale tool data.
  *   v5 (commit ac2b34a0b) — full upstream codex-rs alignment, drop ALL
  *     completed assistants. Live observation: model entered tight
- *     amnesia loop because every turn's input collapsed to a constant
- *     (~332 tokens, anchor + user msgs only) and the model re-derived
- *     the same tool call sequence each iteration with no awareness of
- *     what it had just done. Upstream gets away with this because
- *     `/responses/compact` produces a compact summary inside anchor;
- *     our anchor without Phase 2 codex compactedItems carries no
- *     intra-task continuity, so dropping all assistants leaves the
- *     model blind.
- *   v6 (this revision) — current-task scope. Keep everything after the
- *     latest user message intact (full assistant + tool continuity for
- *     the live question). Drop completed assistants before the latest
- *     user message (prior tasks the model finished and can move on
- *     from). Recall is via:
- *       - anchor summary (Phase 2 expansion when codex provider supplies
- *         `/responses/compact` compactedItems)
- *       - post-compaction provider manifest (count + topic labels +
- *         recall tool advertising)
- *       - `system-manager:recall_toolcall_{index,raw,digest}` MCP tools
+ *     amnesia loop because every turn's input collapsed to a constant.
+ *     Upstream gets away with this only because `/responses/compact`
+ *     produces a compact summary inside anchor; without that, dropping
+ *     all assistants leaves the model blind to its own intra-task
+ *     reasoning.
+ *   v6 (commit c56e5538f) — current-task scope. Keep everything after
+ *     the latest user message intact, drop completed assistants before
+ *     it. Preserved live-question continuity but still dropped prior-
+ *     task content (only-partial fix).
+ *   v7 (compaction/dialog-replay-redaction, 2026-05-10) — pass-through
+ *     all messages, redact tool-result payloads to recall_id markers in
+ *     place. Pairs with the redacted-dialog anchor body produced by
+ *     tryNarrative — model retains full text + reasoning + tool args
+ *     across compactions; the bulky tool outputs are recallable on
+ *     demand via system-manager:recall_toolcall_raw.
  *
- * Decisions:
- *   DD-1 (v6) — drop completed assistant turns whose index in the
- *          message stream is BEFORE the last user message. Keep all
- *          turns at or after the last user message regardless of role.
- *          When no user message exists in the post-anchor slice, drop
- *          nothing (rare; means anchor + assistants only, e.g. fresh
- *          rebind from compaction).
- *   DD-7 — `compaction` part type is exempt: those are Mode 1 inline
- *          server compaction items, codex chain state.
+ * Decisions (v7):
+ *   DD-5 (dialog-replay-redaction) — replace v6 drop logic with redact-
+ *          only logic: per-tool-part `state.output` becomes
+ *          `[recall_id: <part.id>]`. No message-level drops.
+ *   DD-7 (compaction-fix retained) — `compaction` part type is exempt:
+ *          those are Mode 1 inline server compaction items, codex chain
+ *          state.
  *
- * Safety carve-outs:
- *   - In-flight assistant (any tool part status pending / running) is
- *     NEVER dropped (always after the last user message anyway).
+ * Safety carve-outs (v7):
+ *   - In-flight assistants (any tool part status pending / running) —
+ *     pending/running tool parts have no output to redact; skipped.
  *   - Assistant carrying a `compaction` part is exempt regardless of
- *     position.
+ *     position — the assistant message keeps all of its parts unchanged.
  *   - Anchor message (`messages[0]`) is never touched.
  *
  * Output schema preserved for callers that read `transformedTurnCount`,
- * `exemptTurnCount`, etc. `cacheRefHits` / `cacheRefMisses` retained as
- * 0 for back-compat (no longer meaningful).
+ * `exemptTurnCount`, etc. Under v7 the drop-related fields are vestigial
+ * (always 0); a new `redactedToolPartCount` is exposed for telemetry.
+ *
+ * Feature flag (Tweaks.compactionSync().enableDialogRedactionAnchor,
+ * default true): when true, v7 runs; when false, v6 fallback runs
+ * (preserves the pre-spec behaviour for emergency rollback).
  */
 
 import type { MessageV2 } from "./message-v2"
+import { Tweaks } from "../config/tweaks"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Layer-purity exports (back-compat surface for callers that import the
-// constant or class). v6 emits no synthetic text so the assertion path is
+// constant or class). v7 emits no synthetic text so the assertion path is
 // not used internally; the symbols remain exported because
 // `anchor-prefix-expand.ts` (Phase 2) imports them.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -88,25 +85,34 @@ export class LayerPurityViolation extends Error {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tail transformation — v6 current-task scope
+// Public types
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * v6 retains an empty options object for call-site stability. The
- * deprecated `recentRawRounds` field is ignored.
+ * v6 retained `recentRawRounds`; v7 ignores it. Kept for ABI stability.
  */
 export interface TransformOptions {
-  /** @deprecated v6 ignores this field. Drop scope is "before last user message". */
+  /** @deprecated v6/v7 ignore this field. */
   recentRawRounds?: number
 }
 
 export interface TransformResult {
   messages: MessageV2.WithParts[]
+  /** v6: count of dropped completed assistant turns. v7: always 0. */
   transformedTurnCount: number
+  /** v6/v7: count of carve-out matches (in-flight / compaction-bearing). */
   exemptTurnCount: number
+  /** Vestigial under v7. */
   cacheRefHits: number
+  /** Vestigial under v7. */
   cacheRefMisses: number
+  /** v7-only: count of tool parts whose output was redacted to recall_id. */
+  redactedToolPartCount?: number
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Carve-out predicates (shared by v6 + v7)
+// ─────────────────────────────────────────────────────────────────────────────
 
 function isInFlightAssistant(msg: MessageV2.WithParts): boolean {
   if (msg.info.role !== "assistant") return false
@@ -122,19 +128,99 @@ function isExemptAssistant(msg: MessageV2.WithParts): boolean {
   return msg.parts.some((p) => p.type === "compaction")
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// v7 — redact-only (active path under enableDialogRedactionAnchor=true)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function isRedactableToolPart(part: MessageV2.Part): part is MessageV2.ToolPart {
+  if (part.type !== "tool") return false
+  const status = (part as MessageV2.ToolPart).state?.status
+  if (status !== "completed" && status !== "error") return false
+  // Only completed/error states carry an `output` (or `error`) string.
+  // pending/running do not.
+  return true
+}
+
 /**
- * Transform the post-anchor tail of a sliced message stream.
- *
- * Drops completed assistant turns whose position is before the most
- * recent user message in the post-anchor slice. Anchor at index 0,
- * all messages from the last user message onward, in-flight assistant,
- * and exempt assistants are preserved. Returns a NEW array containing
- * references to kept messages — input is not mutated.
+ * Replace `state.output` with a recall_id reference. Returns a new ToolPart
+ * with the output substituted; original is left untouched. Idempotent —
+ * already-redacted parts (output already starts with "[recall_id:") are
+ * passed through unchanged.
  */
-export function transformPostAnchorTail(
-  messages: MessageV2.WithParts[],
-  _options: TransformOptions = {},
-): TransformResult {
+export function redactToolPart(part: MessageV2.ToolPart): MessageV2.ToolPart {
+  const state = part.state as { status: string; output?: string }
+  if (state.status !== "completed") return part
+  const out = state.output
+  if (typeof out !== "string") return part
+  if (out.startsWith("[recall_id:")) return part
+  return {
+    ...part,
+    state: {
+      ...state,
+      output: `[recall_id: ${part.id}]`,
+    } as MessageV2.ToolPart["state"],
+  }
+}
+
+function transformPostAnchorTailV7(messages: MessageV2.WithParts[]): TransformResult {
+  if (messages.length === 0) {
+    return {
+      messages,
+      transformedTurnCount: 0,
+      exemptTurnCount: 0,
+      cacheRefHits: 0,
+      cacheRefMisses: 0,
+      redactedToolPartCount: 0,
+    }
+  }
+
+  let exemptCount = 0
+  let redactedToolPartCount = 0
+
+  const out: MessageV2.WithParts[] = messages.map((msg, idx) => {
+    // Anchor at index 0 — pass through untouched.
+    if (idx === 0) return msg
+    if (msg.info.role !== "assistant") return msg
+
+    if (isInFlightAssistant(msg)) {
+      exemptCount++
+      return msg
+    }
+    if (isExemptAssistant(msg)) {
+      exemptCount++
+      return msg
+    }
+
+    let mutated = false
+    const newParts = msg.parts.map((p) => {
+      if (!isRedactableToolPart(p)) return p
+      const redacted = redactToolPart(p)
+      if (redacted !== p) {
+        mutated = true
+        redactedToolPartCount++
+      }
+      return redacted
+    })
+
+    if (!mutated) return msg
+    return { ...msg, parts: newParts }
+  })
+
+  return {
+    messages: out,
+    transformedTurnCount: 0,
+    exemptTurnCount: exemptCount,
+    cacheRefHits: 0,
+    cacheRefMisses: 0,
+    redactedToolPartCount,
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// v6 — drop-based fallback (legacy; only reachable with flag off)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function transformPostAnchorTailV6(messages: MessageV2.WithParts[]): TransformResult {
   if (messages.length === 0) {
     return { messages, transformedTurnCount: 0, exemptTurnCount: 0, cacheRefHits: 0, cacheRefMisses: 0 }
   }
@@ -149,9 +235,6 @@ export function transformPostAnchorTail(
   }
 
   // No user message in post-anchor stream → conservative: drop nothing.
-  // This happens immediately after compaction when the runloop emits
-  // anchor + assistant turns without a fresh user (the synthetic
-  // continue message lives there).
   if (lastUserIdx === -1) {
     return { messages, transformedTurnCount: 0, exemptTurnCount: 0, cacheRefHits: 0, cacheRefMisses: 0 }
   }
@@ -192,3 +275,38 @@ export function transformPostAnchorTail(
     cacheRefMisses: 0,
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Public dispatch — chooses v7 or v6 by feature flag
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Transform the post-anchor tail of a sliced message stream.
+ *
+ * Default (Tweaks.compactionSync().enableDialogRedactionAnchor=true):
+ * v7 redacts tool result payloads to `[recall_id: <part.id>]` markers
+ * while preserving every message verbatim (including prior-task assistant
+ * turns).
+ *
+ * Legacy (flag off): v6 drops completed assistants whose position is
+ * before the most recent user message.
+ *
+ * Carve-outs in both versions: anchor at index 0, in-flight assistants,
+ * compaction-bearing assistants. Returns a NEW array; input is not
+ * mutated.
+ */
+export function transformPostAnchorTail(
+  messages: MessageV2.WithParts[],
+  _options: TransformOptions = {},
+): TransformResult {
+  const tweaks = Tweaks.compactionSync()
+  const flag = (tweaks as { enableDialogRedactionAnchor?: boolean }).enableDialogRedactionAnchor
+  if (flag === false) return transformPostAnchorTailV6(messages)
+  return transformPostAnchorTailV7(messages)
+}
+
+// Test seam — direct access to v6/v7 implementations for unit tests.
+export const __test__ = Object.freeze({
+  v6: transformPostAnchorTailV6,
+  v7: transformPostAnchorTailV7,
+})

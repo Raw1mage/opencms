@@ -136,3 +136,83 @@ export function emitContextBudgetTelemetry(input: Parameters<typeof buildContext
 export function emitBoundaryRoutingTelemetry(input: Parameters<typeof buildBoundaryRoutingTelemetry>[0]) {
   debugCheckpoint("compaction.telemetry", "boundary_routing", buildBoundaryRoutingTelemetry(input))
 }
+
+type ReplayOutcome =
+  | "replayed"
+  | "skipped:already-after-anchor"
+  | "skipped:no-unanswered"
+  | "skipped:flag-off"
+  | "error"
+
+export function buildUserMsgReplayTelemetry(input: {
+  sessionID: string
+  step?: number
+  observed: SessionCompaction.Observed
+  outcome: ReplayOutcome
+  originalUserID?: string
+  newUserID?: string
+  anchorMessageID?: string
+  hadEmptyAssistantChild?: boolean
+  partCount?: number
+  errorMessage?: string
+}) {
+  return {
+    surface: "user_msg_replay",
+    sessionID: input.sessionID,
+    step: input.step,
+    observed: input.observed,
+    outcome: input.outcome,
+    originalUserID: boundedString(input.originalUserID),
+    newUserID: boundedString(input.newUserID),
+    anchorMessageID: boundedString(input.anchorMessageID),
+    hadEmptyAssistantChild: input.hadEmptyAssistantChild === true,
+    partCount: finiteNumber(input.partCount),
+    errorMessage: boundedString(input.errorMessage),
+  }
+}
+
+export function emitUserMsgReplayTelemetry(input: Parameters<typeof buildUserMsgReplayTelemetry>[0]) {
+  debugCheckpoint("compaction.telemetry", "user_msg_replay", buildUserMsgReplayTelemetry(input))
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// compaction.recompressed (dialog-replay-redaction DD-4 / RecompressTelemetryEvent)
+// ─────────────────────────────────────────────────────────────────────
+
+type RecompressTrigger = "size-ceiling" | "legacy-large-policy"
+type RecompressKind = "low-cost-server" | "hybrid_llm"
+type RecompressResult =
+  | "success"
+  | "stale-anchor-skipped"
+  | "provider-error"
+  | "timeout"
+  | "exception"
+
+export function buildRecompressTelemetry(input: {
+  sessionID: string
+  trigger: RecompressTrigger
+  kind: RecompressKind
+  providerId?: string
+  anchorTokensBefore: number
+  anchorTokensAfter?: number
+  result: RecompressResult
+  errorMessage?: string
+  latencyMs: number
+}) {
+  return {
+    surface: "recompressed",
+    sessionID: input.sessionID,
+    trigger: input.trigger,
+    kind: input.kind,
+    providerId: boundedString(input.providerId),
+    anchorTokensBefore: finiteNumber(input.anchorTokensBefore) ?? 0,
+    anchorTokensAfter: finiteNumber(input.anchorTokensAfter),
+    result: input.result,
+    errorMessage: boundedString(input.errorMessage),
+    latencyMs: finiteNumber(input.latencyMs) ?? 0,
+  }
+}
+
+export function emitRecompressTelemetry(input: Parameters<typeof buildRecompressTelemetry>[0]) {
+  debugCheckpoint("compaction.telemetry", "recompressed", buildRecompressTelemetry(input))
+}

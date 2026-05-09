@@ -1,0 +1,192 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A0",
+    "StepType": "initial",
+    "StepAction": "Idle: runloop iteration entry; observed condition derived; compaction commit decision pending",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["compaction_triggered AND kind == narrative"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "tryNarrative loads previous anchor message; computes prevBody = textPartsJoined(anchor.parts); parses prevLastRound from `## Round N` markers in prevBody",
+    "LinkInputType": "track",
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["prev_anchor_loaded"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Identify unanswered user msg id (Spec 1 synergy): walk tail backward, find most-recent user msg whose nearest assistant child has finish ∉ {stop, tool-calls, length}",
+    "LinkInputType": "track",
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3],
+    "LinkOutputType": "track",
+    "Condition": ["unanswered_user_id_resolved"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A6",
+    "StepType": "normal",
+    "StepAction": "serializeRedactedDialog walks tail messages (excluding unanswered user msg); per round emits ## Round N header; per role emits **User**/**Reasoning**/**Assistant**/**Tool** markers; tool outputs replaced with recall_id: part.id references",
+    "LinkInputType": "track",
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["tail_serialized"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Build anchor[n+1].body = prevBody + '\\n\\n' + tailText; compactWithSharedContext writes anchor message with this body as text part; publishCompactedAndResetChain with {observed, kind: 'narrative'}",
+    "LinkInputType": "track",
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["anchor_persisted AND chain_reset"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "scheduleHybridEnrichment estimates anchor body tokens (chars/4); compares against floor (5K) and ceiling (50K)",
+    "LinkInputType": "track",
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [6, 7, 8],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "anchorTokens < 5_000",
+      "anchorTokens >= 5_000 AND anchorTokens <= 50_000",
+      "anchorTokens > 50_000"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Skip recompress: anchor too small to warrant LLM cost. Telemetry: recompress.skip = below-floor",
+    "LinkInputType": "track",
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [12],
+    "LinkOutputType": "track",
+    "Condition": ["telemetry_emitted"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Defer recompress: anchor in steady-state band; will fire on next extend if it grows past ceiling. No-op this cycle",
+    "LinkInputType": "track",
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [12],
+    "LinkOutputType": "track",
+    "Condition": ["no_op_completed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 8,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Recompress required: dispatch by provider. Acquire hybridEnrichInFlight lock (per-session). Stale-anchor check: confirm anchor still latest (no interloper)",
+    "LinkInputType": "track",
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [9, 10],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "model.providerId == codex",
+      "model.providerId != codex"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 9,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Codex path: invoke /responses/compact via tryLowCostServer-style call with anchor body as conversationItem. On success, in-place update anchor's text part. On 429/timeout, leave anchor body as-is (next extend will retry trigger)",
+    "LinkInputType": "track",
+    "LinkInputNumber": [8],
+    "LinkOutputNumber": [11],
+    "LinkOutputType": "track",
+    "Condition": ["codex_recompress_completed_or_failed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 10,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Non-codex path: invoke Hybrid.runHybridLlm with priorAnchor as input; STEP 3 in-place update overwrites narrative-extended body with LLM summary. Staleness check on completion (interloper anchor → leave stub as new active)",
+    "LinkInputType": "track",
+    "LinkInputNumber": [8],
+    "LinkOutputNumber": [11],
+    "LinkOutputType": "track",
+    "Condition": ["hybrid_llm_completed_or_failed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 11,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Release hybridEnrichInFlight lock; emit telemetry compaction.recompressed with {provider, kind, inputTokens, outputTokens, latencyMs, result}",
+    "LinkInputType": "track",
+    "LinkInputNumber": [9, 10],
+    "LinkOutputNumber": [12],
+    "LinkOutputType": "track",
+    "Condition": ["lock_released AND telemetry_dispatched"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 12,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Next runloop iter render path: filterCompacted slices at anchor[n+1]; transformPostAnchorTail v7 walks remaining messages, replacing each completed/error tool part's state.output with `[recall_id: <part.id>]` placeholder. In-flight and compaction-bearing assistants exempt",
+    "LinkInputType": "track",
+    "LinkInputNumber": [6, 7, 11],
+    "LinkOutputNumber": [13],
+    "LinkOutputType": "track",
+    "Condition": ["render_path_complete"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 13,
+    "ModuleRef": "A0",
+    "StepType": "normal",
+    "StepAction": "LLM call fires with: [anchor body containing redacted-dialog history] + [post-anchor stream with tool payloads redacted] + [Spec 1 replayed unanswered user msg if present]. Model has full prior context + current question",
+    "LinkInputType": "track",
+    "LinkInputNumber": [12],
+    "LinkOutputNumber": [14, 0],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "model_emits_recall_toolcall_raw",
+      "next_iter_armed"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 14,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Recall: working-cache.deriveLedger walks Session.messages, finds part with id == requested part_id; returns state.output from storage (source of truth retained even after anchor body redaction)",
+    "LinkInputType": "track",
+    "LinkInputNumber": [13],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["tool_output_returned_to_model"],
+    "SubGrafcet": []
+  }
+]

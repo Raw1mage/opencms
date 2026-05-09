@@ -93,6 +93,9 @@ function setupMocks(opts: SetupOpts) {
     execution: { providerId: "codex", modelID: "gpt-5.5", accountId: "acc-A" },
   }))
   // anchor 60s old → Cooldown gate would let it through even without bypass
+  // dialog-replay-redaction: include a user/assistant tail AFTER the anchor so
+  // the new tryNarrative path produces a body containing opts.summaryText
+  // (skill detector matches on the rendered body).
   const anchorMessages = [
     {
       info: {
@@ -103,6 +106,54 @@ function setupMocks(opts: SetupOpts) {
         time: { created: Date.now() - 60_000 },
       },
       parts: [],
+    },
+    {
+      info: {
+        id: "msg_synth_u",
+        sessionID: opts.sid,
+        role: "user" as const,
+        time: { created: Date.now() - 30_000 },
+        agent: "default",
+        model: { providerId: "codex", modelID: "gpt-5.5" },
+      },
+      parts: [
+        {
+          id: "prt_u",
+          messageID: "msg_synth_u",
+          sessionID: opts.sid,
+          type: "text" as const,
+          text: "user prompt",
+          time: { start: 0, end: 0 },
+        },
+      ],
+    },
+    {
+      info: {
+        id: "msg_synth_a",
+        sessionID: opts.sid,
+        role: "assistant" as const,
+        parentID: "msg_synth_u",
+        modelID: "gpt-5.5",
+        providerId: "codex",
+        mode: "primary",
+        agent: "default",
+        path: { cwd: ".", root: "." },
+        summary: false,
+        cost: 0,
+        tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+        finish: "stop" as const,
+        time: { created: Date.now() - 25_000, completed: Date.now() - 25_000 },
+      },
+      parts: [
+        {
+          id: "prt_a",
+          messageID: "msg_synth_a",
+          sessionID: opts.sid,
+          type: "text" as const,
+          text: opts.summaryText,
+          time: { start: 0, end: 0 },
+        },
+      ],
     },
   ]
   ;(Session as any).messages = mock(async () => anchorMessages)

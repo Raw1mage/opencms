@@ -1,0 +1,203 @@
+{
+  "diagram_title": "Maintain Compaction Anchor As Redacted Dialog History",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Extend Anchor With Redacted Tail",
+      "description": "On every compaction commit via the narrative kind, build anchor[n+1] body as anchor[n] body concatenated with serialised, redacted dialog from the messages between previous anchor and now (excluding the unanswered user msg). Markdown format with role markers and recall_id references for tool outputs",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Detect Anchor Size Threshold",
+      "description": "Estimate token count of newly written anchor body (chars/4 heuristic). Compare against floor (5K skip) and ceiling (50K force-trigger). Decide whether to schedule recompress",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Recompress Anchor Via Provider Dispatch",
+      "description": "When anchor size exceeds ceiling, dispatch by provider: codex sessions invoke /responses/compact server-side; non-codex sessions invoke Hybrid.runHybridLlm LLM-grade compaction. On success, overwrite anchor body in place with the LLM-distilled summary",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Render LLM-Visible Context With Tool Output Redaction",
+      "description": "Per-iteration post-anchor stream rendering: pass-through all messages (no role-level drops, replacing v6 logic), per-tool-part replace state.output with recall_id reference. Preserves dialog continuity while bounding tool payload bulk",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Provide Tool Output Recall Path",
+      "description": "When model needs original tool output, MCP recall_toolcall_raw resolves part.id via working-cache.deriveLedger walking Session.messages. No separate persistence layer; storage is source of truth",
+      "decomposition": null
+    },
+    {
+      "id": "A6",
+      "title": "Serialize Dialog Round To Markdown",
+      "description": "Pure function: take messages array, produce markdown text with ## Round N headers, **User**/**Assistant**/**Reasoning** sections, **Tool**: name(args) → recall_id: part.id lines. Optional excludeUserMessageID parameter for Spec 1 synergy",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "session messages stream + previous anchor message + observed condition",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "Tweaks.compactionSync().enableDialogRedactionAnchor flag (default true)",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "EXTERNAL",
+      "target": "A1:mechanism",
+      "label": "tryNarrative (compaction.ts:959); compactWithSharedContext (compaction.ts:512); SessionCompaction.run",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR4",
+      "source": "A6:output",
+      "target": "A1:input",
+      "label": "serialised redacted dialog text for tail",
+      "type": "output"
+    },
+    {
+      "id": "AR5",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "anchor[n+1] persisted with body text",
+      "type": "output"
+    },
+
+    {
+      "id": "AR6",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "anchorRecompressCeilingTokens (default 50000); 5K skip floor",
+      "type": "control"
+    },
+    {
+      "id": "AR7",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "label": "scheduleHybridEnrichment (compaction.ts:1454); estimate_tokens (chars/4)",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR8",
+      "source": "A2:output",
+      "target": "A3:input",
+      "label": "trigger decision: {recompress, provider, anchor_msg}",
+      "type": "output"
+    },
+
+    {
+      "id": "AR9",
+      "source": "EXTERNAL",
+      "target": "A3:input",
+      "label": "anchor[n+1] body to be recompressed",
+      "type": "input"
+    },
+    {
+      "id": "AR10",
+      "source": "EXTERNAL",
+      "target": "A3:control",
+      "label": "provider routing rule: codex → server-side, else → llm-agent; staleness check (interloper anchor)",
+      "type": "control"
+    },
+    {
+      "id": "AR11",
+      "source": "EXTERNAL",
+      "target": "A3:mechanism",
+      "label": "tryLowCostServer (codex /responses/compact); Hybrid.runHybridLlm (other providers); in-place anchor update STEP 3 (compaction.ts:1546-1660)",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR12",
+      "source": "A3:output",
+      "target": "EXTERNAL",
+      "label": "anchor body overwritten with LLM-distilled summary; bus event compaction.recompressed",
+      "type": "output"
+    },
+
+    {
+      "id": "AR13",
+      "source": "EXTERNAL",
+      "target": "A4:input",
+      "label": "post-anchor messages stream (after anchor[n+1])",
+      "type": "input"
+    },
+    {
+      "id": "AR14",
+      "source": "EXTERNAL",
+      "target": "A4:control",
+      "label": "in-flight carve-out; compaction-bearing carve-out; AI SDK protocol contract",
+      "type": "control"
+    },
+    {
+      "id": "AR15",
+      "source": "EXTERNAL",
+      "target": "A4:mechanism",
+      "label": "post-anchor-transform.ts v7 transformPostAnchorTail; redactToolPart helper",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR16",
+      "source": "A4:output",
+      "target": "EXTERNAL",
+      "label": "LLM-visible message sequence with tool result payloads replaced by recall_id markers",
+      "type": "output"
+    },
+
+    {
+      "id": "AR17",
+      "source": "EXTERNAL",
+      "target": "A5:input",
+      "label": "model-emitted recall_toolcall_raw({part_id}) MCP call",
+      "type": "input"
+    },
+    {
+      "id": "AR18",
+      "source": "EXTERNAL",
+      "target": "A5:mechanism",
+      "label": "system-manager MCP router; working-cache.deriveLedger (working-cache.ts:514); Session.messages SQLite source of truth",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR19",
+      "source": "A5:output",
+      "target": "EXTERNAL",
+      "label": "original tool output text returned to model",
+      "type": "output"
+    },
+
+    {
+      "id": "AR20",
+      "source": "EXTERNAL",
+      "target": "A6:input",
+      "label": "messages array + optional excludeUserMessageID + startRound parameter",
+      "type": "input"
+    },
+    {
+      "id": "AR21",
+      "source": "EXTERNAL",
+      "target": "A6:control",
+      "label": "markdown grammar (## Round / **Role** / **Tool**); tool args truncation cap (500 chars); reasoning-channel acceptance",
+      "type": "control"
+    },
+    {
+      "id": "AR22",
+      "source": "EXTERNAL",
+      "target": "A6:mechanism",
+      "label": "dialog-serializer.ts pure function; findUnansweredUserMessageId helper (Spec 1 synergy)",
+      "type": "mechanism"
+    }
+  ]
+}

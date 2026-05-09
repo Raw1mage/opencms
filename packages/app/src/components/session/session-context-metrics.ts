@@ -68,6 +68,12 @@ const lastAssistantWithTokens = (messages: Message[]) => {
  * coupling) so the operator-visible number matches what the runtime
  * actually evaluates.
  *
+ * Anchor-aware: counts only from the most recent compaction anchor
+ * (assistant message with `summary: true`) onwards, mirroring
+ * `applyStreamAnchorRebind`'s slicing. Without this guard the counter
+ * keeps growing across compactions because it sees the full sqlite
+ * history rather than what's actually sent to the LLM.
+ *
  * Counting rules:
  *   - user message → 1 item
  *   - assistant message with any non-empty text part → 1 item
@@ -78,8 +84,17 @@ const estimateInputItemCount = (
   messages: Message[],
   partsByMessageID: Record<string, Part[] | undefined>,
 ): number => {
+  let startIndex = 0
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i]
+    if (msg.role === "assistant" && (msg as AssistantMessage & { summary?: boolean }).summary === true) {
+      startIndex = i
+      break
+    }
+  }
   let count = 0
-  for (const msg of messages) {
+  for (let idx = startIndex; idx < messages.length; idx++) {
+    const msg = messages[idx]
     if (msg.role === "user") {
       count += 1
       continue

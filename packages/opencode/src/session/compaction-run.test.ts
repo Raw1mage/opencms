@@ -2,9 +2,13 @@ import { afterEach, describe, expect, it, mock } from "bun:test"
 import { SessionCompaction } from "./compaction"
 import { Memory } from "./memory"
 import { Session } from "."
+import type { MessageV2 } from "./message-v2"
 import { Provider } from "@/provider/provider"
 import { Agent } from "@/agent/agent"
 import { Plugin } from "@/plugin"
+import { Tweaks } from "../config/tweaks"
+
+const originalTweaksSync = Tweaks.compactionSync
 
 const originalMemoryRead = Memory.read
 const originalSessionGet = Session.get
@@ -20,6 +24,7 @@ afterEach(() => {
   ;(Provider as any).getModel = originalProviderGetModel
   ;(Agent as any).get = originalAgentGet
   ;(Plugin as any).trigger = originalPluginTrigger
+  ;(Tweaks as any).compactionSync = originalTweaksSync
   SessionCompaction.__test__.resetAnchorWriter()
 })
 
@@ -48,8 +53,73 @@ function setupCommonMocks(memory: Partial<Memory.SessionMemory>, sid: string) {
   ;(Session as any).get = mock(async () => ({
     execution: { providerId: "codex", modelID: "gpt-5.5", accountId: "acc-A" },
   }))
-  ;(Session as any).messages = mock(async () => [])
+  // Also produce an equivalent Session.messages stream so the
+  // dialog-replay-redaction tryNarrative path (which reads messages
+  // directly via serializeRedactedDialog) yields the same summaryText
+  // assertions ("did stuff" etc) as the legacy turnSummaries path.
+  const synthMessages = synthesizeMessagesFromTurnSummaries(mem.turnSummaries, sid)
+  ;(Session as any).messages = mock(async () => synthMessages)
   ;(Provider as any).getModel = mock(async () => fakeModel())
+}
+
+function synthesizeMessagesFromTurnSummaries(
+  turns: Memory.TurnSummary[],
+  sid: string,
+): MessageV2.WithParts[] {
+  const out: MessageV2.WithParts[] = []
+  turns.forEach((t, i) => {
+    const userId = t.userMessageId || `msg_synth_u${i}`
+    out.push({
+      info: {
+        id: userId,
+        sessionID: sid,
+        role: "user",
+        time: { created: i * 2 },
+        agent: "default",
+        model: { providerId: "codex", modelID: "gpt-5.5" },
+      } as any,
+      parts: [
+        {
+          id: `prt_${userId}`,
+          messageID: userId,
+          sessionID: sid,
+          type: "text",
+          text: `synthetic round ${i}`,
+          time: { start: 0, end: 0 },
+        } as any,
+      ],
+    })
+    const assistantId = `msg_synth_a${i}`
+    out.push({
+      info: {
+        id: assistantId,
+        sessionID: sid,
+        role: "assistant",
+        parentID: userId,
+        modelID: t.modelID || "gpt-5.5",
+        providerId: t.providerId || "codex",
+        mode: "primary",
+        agent: "default",
+        path: { cwd: ".", root: "." },
+        summary: false,
+        cost: 0,
+        tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+        finish: "stop",
+        time: { created: i * 2 + 1, completed: i * 2 + 1 },
+      } as any,
+      parts: [
+        {
+          id: `prt_${assistantId}`,
+          messageID: assistantId,
+          sessionID: sid,
+          type: "text",
+          text: t.text,
+          time: { start: 0, end: 0 },
+        } as any,
+      ],
+    })
+  })
+  return out
 }
 
 /**
@@ -501,6 +571,17 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
     // New behaviour (DD-13 double-phase): replay-tail self-trims newest-first
     // instead of returning fail; estimate (~2400 tokens) is below target so no
     // escalation, anchor is written with the truncated tail.
+    //
+    // dialog-replay-redaction: this test asserts replay-tail behaviour, not
+    // narrative-vs-replay-tail kind selection. With dialog-redaction enabled,
+    // tryNarrative would always succeed on a non-empty Session.messages
+    // stream. Disable the redaction flag for this test so legacy narrative
+    // (turnSummaries empty → fail → fall through) preserves replay-tail's
+    // chain position.
+    ;(Tweaks as any).compactionSync = mock(() => ({
+      ...originalTweaksSync(),
+      enableDialogRedactionAnchor: false,
+    }))
     const longText = "x".repeat(2000)
     const longMsgs = []
     for (let i = 0; i < 20; i++) {

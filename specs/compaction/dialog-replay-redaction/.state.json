@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "state": "living",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-05-09T08:05:42.776Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "at": "2026-05-09T08:08:31.574Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "5005eceb505337353b116ecbc49914181e917f06"
+    },
+    {
+      "at": "2026-05-09T10:03:37.044Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/session/compaction.ts, packages/opencode/src/session/prompt.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/session/compaction.ts",
+        "packages/opencode/src/session/prompt.ts"
+      ],
+      "commit": "51e8445b441083829df10fd8101167f275fd9dbe"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-05-09T11:05:07.721Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "proposal/spec/design/idef0+a0.svg/grafcet+svg/c4/sequence/data-schema all complete; DD-1..DD-11 decided; restoration scope locked (4 patches); Spec 1 synergy via excludeUserMessageID parameter"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-05-09T15:54:45.844Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "tasks/handoff/test-vectors/errors/observability complete; ready for implementation"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-05-09T16:48:39.332Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "M1-M5 implementation landed on beta/dialog-replay-redaction (4 commits); 154/154 target-suite tests green"
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-05-09T16:49:20.258Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "M1-M5 implementation complete on beta/dialog-replay-redaction (4 commits: dialog-serializer / tryNarrative / post-anchor v7 / recompress dispatch); 154/154 target-suite tests; M6 scenarios subsumed by unit suites + M6-2 + M7-5..8 deferred per user direction (rollback hot-toggleable via Tweaks); ready for fetch-back"
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-05-09T16:50:31.604Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "fetch-back complete (merge 850e266cc); implementation live on main; rollback via Tweaks flag"
+    }
+  ]
+}

@@ -1,0 +1,196 @@
+[
+  {
+    "$comment": "2026-05-09 audit rewrite. Vectors now match the implemented zod request schemas in packages/opencode/src/server/routes/file.ts. Each vector annotates the endpoint and any preconditions. $status flags vectors whose endpoint is not yet implemented (Phase 2.5)."
+  },
+  {
+    "id": "create-file",
+    "endpoint": "POST /file/create",
+    "input": { "parent": ".", "name": "notes.txt", "type": "file" },
+    "expected": { "status": 200, "body": { "operation": "create-file", "destination": "notes.txt" } }
+  },
+  {
+    "id": "create-directory",
+    "endpoint": "POST /file/create",
+    "input": { "parent": ".", "name": "incoming", "type": "directory" },
+    "expected": { "status": 200, "body": { "operation": "create-directory", "destination": "incoming" } }
+  },
+  {
+    "id": "create-duplicate",
+    "endpoint": "POST /file/create",
+    "preconditions": "notes.txt already exists at parent",
+    "input": { "parent": ".", "name": "notes.txt", "type": "file" },
+    "expected": { "status": 400, "code": "FILE_OP_DUPLICATE" }
+  },
+  {
+    "id": "create-invalid-basename",
+    "endpoint": "POST /file/create",
+    "input": { "parent": ".", "name": "../escape.txt", "type": "file" },
+    "expected": { "status": 400, "code": "FILE_OP_INVALID_NAME" }
+  },
+  {
+    "id": "rename-success",
+    "endpoint": "POST /file/rename",
+    "input": { "path": "docs/old.txt", "name": "new.txt" },
+    "expected": { "status": 200, "body": { "operation": "rename", "source": "docs/old.txt", "destination": "docs/new.txt" } }
+  },
+  {
+    "id": "rename-duplicate",
+    "endpoint": "POST /file/rename",
+    "preconditions": "docs/new.txt already exists",
+    "input": { "path": "docs/old.txt", "name": "new.txt" },
+    "expected": { "status": 400, "code": "FILE_OP_DUPLICATE" }
+  },
+  {
+    "id": "rename-path-escape",
+    "endpoint": "POST /file/rename",
+    "input": { "path": "../../../etc/passwd", "name": "passwd.txt" },
+    "expected": { "status": 400, "code": "FILE_OP_PATH_ESCAPE" }
+  },
+  {
+    "id": "rename-invalid-basename",
+    "endpoint": "POST /file/rename",
+    "input": { "path": "docs/old.txt", "name": "sub/dir.txt" },
+    "expected": { "status": 400, "code": "FILE_OP_INVALID_NAME" }
+  },
+  {
+    "id": "move-success",
+    "endpoint": "POST /file/move",
+    "input": { "source": "docs/a.txt", "destinationParent": "incoming" },
+    "expected": { "status": 200, "body": { "operation": "move", "source": "docs/a.txt", "destination": "incoming/a.txt" } }
+  },
+  {
+    "id": "move-duplicate",
+    "endpoint": "POST /file/move",
+    "preconditions": "incoming/a.txt already exists",
+    "input": { "source": "docs/a.txt", "destinationParent": "incoming" },
+    "expected": { "status": 400, "code": "FILE_OP_DUPLICATE" }
+  },
+  {
+    "id": "copy-success",
+    "endpoint": "POST /file/copy",
+    "input": { "source": "docs/a.txt", "destinationParent": "incoming" },
+    "expected": { "status": 200, "body": { "operation": "copy", "source": "docs/a.txt", "destination": "incoming/a.txt" } }
+  },
+  {
+    "id": "copy-duplicate",
+    "endpoint": "POST /file/copy",
+    "preconditions": "incoming/a.txt already exists",
+    "input": { "source": "docs/a.txt", "destinationParent": "incoming" },
+    "expected": { "status": 400, "code": "FILE_OP_DUPLICATE" }
+  },
+  {
+    "id": "delete-requires-confirmation",
+    "endpoint": "POST /file/delete",
+    "input": { "path": "docs/a.txt", "confirmed": false },
+    "expected": { "status": 400, "code": "FILE_OP_CONFIRMATION_REQUIRED" }
+  },
+  {
+    "id": "delete-to-recyclebin",
+    "endpoint": "POST /file/delete",
+    "input": { "path": "docs/a.txt", "confirmed": true },
+    "expected": {
+      "status": 200,
+      "body": {
+        "operation": "delete-to-recyclebin",
+        "source": "docs/a.txt",
+        "destinationPattern": "recyclebin/a.<isoTimestamp>.txt",
+        "metadataSidecarPattern": "<destination>.opencode-recycle.json",
+        "metadataKeys": ["originalPath", "tombstonePath", "type", "deletedAt"]
+      }
+    }
+  },
+  {
+    "id": "delete-recyclebin-uniqueness",
+    "endpoint": "POST /file/delete",
+    "preconditions": "Two consecutive deletes of the same basename within <1s.",
+    "input": { "path": "docs/a.txt", "confirmed": true },
+    "expected": { "status": 200, "invariant": "Second tombstone path differs from first; metadata sidecars do not collide." }
+  },
+  {
+    "id": "restore-from-recyclebin",
+    "endpoint": "POST /file/restore",
+    "input": { "tombstonePath": "recyclebin/a.2026-05-09T12-00-00-000Z.txt" },
+    "expected": { "status": 200, "body": { "operation": "restore-from-recyclebin", "destination": "docs/a.txt" } }
+  },
+  {
+    "id": "restore-conflict",
+    "endpoint": "POST /file/restore",
+    "preconditions": "docs/a.txt was recreated after the original delete",
+    "input": { "tombstonePath": "recyclebin/a.2026-05-09T12-00-00-000Z.txt" },
+    "expected": { "status": 400, "code": "FILE_RECYCLEBIN_RESTORE_CONFLICT" }
+  },
+  {
+    "id": "destination-preflight-active-strict",
+    "endpoint": "POST /file/destination/preflight",
+    "input": { "destinationParent": "../../..", "scope": "active-project" },
+    "expected": { "status": 200, "body": { "writable": false, "reason": "FILE_OP_PATH_ESCAPE" } }
+  },
+  {
+    "id": "destination-preflight-external-readonly",
+    "endpoint": "POST /file/destination/preflight",
+    "input": { "destinationParent": "/root", "scope": "external" },
+    "expected": { "status": 200, "body": { "writable": false, "reason": "FILE_OP_PERMISSION_DENIED" } }
+  },
+  {
+    "id": "destination-preflight-external-writable",
+    "endpoint": "POST /file/destination/preflight",
+    "preconditions": "Caller has write access to the temp directory provided.",
+    "input": { "destinationParent": "/tmp/opencode-preflight-fixture", "scope": "external" },
+    "expected": { "status": 200, "body": { "writable": true } }
+  },
+  {
+    "id": "symlink-escape-rejection",
+    "endpoint": "POST /file/rename",
+    "preconditions": "docs/link points to /etc/passwd via symlink",
+    "input": { "path": "docs/link", "name": "captured.txt" },
+    "expected": { "status": 400, "code": "FILE_OP_PATH_ESCAPE" }
+  },
+  {
+    "id": "upload-new-file",
+    "endpoint": "POST /file/upload (multipart)",
+    "$status": "Not implemented — Phase 2.5 pending. Vector locks behavior expected once route lands.",
+    "input": { "parent": "docs", "file": { "filename": "sample.txt", "bytes": "hello" } },
+    "expected": { "status": 200, "body": { "operation": "upload", "destination": "docs/sample.txt" } }
+  },
+  {
+    "id": "upload-duplicate",
+    "endpoint": "POST /file/upload (multipart)",
+    "$status": "Not implemented — Phase 2.5 pending.",
+    "preconditions": "docs/sample.txt already exists",
+    "input": { "parent": "docs", "file": { "filename": "sample.txt" } },
+    "expected": { "status": 400, "code": "FILE_OP_DUPLICATE" }
+  },
+  {
+    "id": "upload-too-large",
+    "endpoint": "POST /file/upload (multipart)",
+    "$status": "Not implemented — Phase 2.5 pending. Limit value defined in spec.md §Upload size limit.",
+    "input": { "parent": "docs", "file": { "filename": "big.bin", "bytes": "<oversize>" } },
+    "expected": { "status": 413, "code": "FILE_UPLOAD_TOO_LARGE" }
+  },
+  {
+    "id": "upload-path-escape",
+    "endpoint": "POST /file/upload (multipart)",
+    "$status": "Not implemented — Phase 2.5 pending.",
+    "input": { "parent": "../outside", "file": { "filename": "x.txt" } },
+    "expected": { "status": 400, "code": "FILE_OP_PATH_ESCAPE" }
+  },
+  {
+    "id": "upload-embedded-separator",
+    "endpoint": "POST /file/upload (multipart)",
+    "$status": "Not implemented — Phase 2.5 pending.",
+    "input": { "parent": "docs", "file": { "filename": "../../boom.txt" } },
+    "expected": { "status": 400, "code": "FILE_OP_INVALID_NAME" }
+  },
+  {
+    "id": "download-file",
+    "endpoint": "GET /file/download?path=docs/a.txt",
+    "$status": "Not implemented — Phase 2.5 pending.",
+    "expected": { "status": 200, "bodyType": "application/octet-stream" }
+  },
+  {
+    "id": "download-directory-rejected",
+    "endpoint": "GET /file/download?path=docs",
+    "$status": "Not implemented — Phase 2.5 pending.",
+    "expected": { "status": 400, "code": "FILE_DOWNLOAD_DIRECTORY_UNSUPPORTED" }
+  }
+]

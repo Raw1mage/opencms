@@ -255,16 +255,25 @@ projected into the new shape and rewritten on first touch.
   empty-response RCA + itemCount addendum 2026-05-09. Cross-cuts
   with `provider/codex/` and `compaction/itemcount-fix/`.
 - [user-msg-replay-unification/](./user-msg-replay-unification/)
-  (proposed, 2026-05-09) — unify the "user message replay after
-  anchor" logic across all four compaction call sites; 5/5 hotfix
-  was scoped to one site (`empty-response`) and the same bug
-  recurred via the `rebind` pre-emptive path 2026-05-09.
-- [narrative-quality/](./narrative-quality/) (proposed, 2026-05-09)
-  — improve narrative anchor's prose continuity. Today narrative
-  collapses 100s of items to ≈3-5 (item-wise excellent) but anchor
-  body is `Memory.renderForLLMSync` (structured state only, no
-  prose summary). When server-side `/responses/compact` is 429-d
-  the floor is "remembers todos but not conversation arc."
+  (living, merged 2026-05-09 commit c889625a8) — unified the
+  "user message replay after anchor" logic across all four
+  compaction call sites. 5/5 hotfix was scoped to one site
+  (`empty-response`); the rebind pre-emptive path recurrence on
+  2026-05-09 confirmed three sibling sites shared the bug. Helper
+  `SessionCompaction.replayUnansweredUserMessage` extracted to
+  module level; defaultWriteAnchor + tryLlmAgent + provider-switch
+  pre-loop all wired. INJECT_CONTINUE table replaced by stream-
+  driven runtime gate. 34 dedicated tests + 75/75 in-scope
+  compaction suite.
+- [dialog-replay-redaction/](./dialog-replay-redaction/) (living,
+  2026-05-10; renamed from `narrative-quality` after design pivot)
+  — restoration of two-tier compaction model: extend (anchor[n+1]
+  = anchor[n] + redact(tail)) on every commit + recompress (codex
+  /responses/compact or llm-agent) when anchor exceeds 50K tokens.
+  Tracks 4 patches against existing infrastructure (tryNarrative
+  body source, scheduleHybridEnrichment threshold/routing, post-
+  anchor-transform v6→v7, lastTextPartText reasoning-blind fix).
+  v1-v6 evolution misdirected the design; this is a refit.
 
 ### Related entries
 

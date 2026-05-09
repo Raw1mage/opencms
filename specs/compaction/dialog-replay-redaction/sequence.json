@@ -1,0 +1,140 @@
+[
+  {
+    "id": "SEQ-1",
+    "title": "Extend anchor with redacted dialog (cheap, every compaction)",
+    "description": "Narrative kind extends anchor[n] to anchor[n+1] by appending redacted-dialog text from the tail. Spec 1's helper handles unanswered user msg replay separately.",
+    "participants": [
+      { "id": "runLoop", "name": "runLoop (prompt.ts)", "kind": "component" },
+      { "id": "sessionCompactionRun", "name": "SessionCompaction.run", "kind": "component" },
+      { "id": "tryNarrative", "name": "tryNarrative", "kind": "component" },
+      { "id": "memoryRead", "name": "Memory.Hybrid.getAnchorMessage", "kind": "component" },
+      { "id": "findUnansweredUserMsg", "name": "findUnansweredUserMessageId", "kind": "component" },
+      { "id": "dialogSerializer", "name": "serializeRedactedDialog", "kind": "component" },
+      { "id": "compactWithSharedContext", "name": "compactWithSharedContext", "kind": "component" },
+      { "id": "storage", "name": "session storage (SQLite)", "kind": "component" },
+      { "id": "spec1Helper", "name": "Spec 1 replayUnansweredUserMessage", "kind": "component" },
+      { "id": "scheduleHybridEnrichment", "name": "scheduleHybridEnrichment", "kind": "component" }
+    ],
+    "messages": [
+      { "from": "runLoop", "to": "sessionCompactionRun", "label": "run({ observed: 'rebind' | 'overflow' | etc, step })" },
+      { "from": "sessionCompactionRun", "to": "tryNarrative", "label": "tryKind('narrative', input, model)" },
+      { "from": "tryNarrative", "to": "memoryRead", "label": "Memory.Hybrid.getAnchorMessage(sessionID)" },
+      { "from": "memoryRead", "to": "tryNarrative", "label": "anchor[n] message OR null (cold start)" },
+      { "from": "tryNarrative", "to": "tryNarrative", "label": "prevBody = textPartsJoined(anchor[n].parts); prevLastRound = parsePrevLastRound(prevBody)" },
+      { "from": "tryNarrative", "to": "findUnansweredUserMsg", "label": "(messages, anchorIdx)" },
+      { "from": "findUnansweredUserMsg", "to": "tryNarrative", "label": "msg_X.id (or undefined if all rounds finished)" },
+      { "from": "tryNarrative", "to": "dialogSerializer", "label": "serializeRedactedDialog(tail, { startRound: prevLastRound+1, excludeUserMessageID: msg_X.id })" },
+      { "from": "dialogSerializer", "to": "tryNarrative", "label": "{ text: '## Round 47\\n**User**...', lastRound: 50, messagesEmitted: 8 }" },
+      { "from": "tryNarrative", "to": "tryNarrative", "label": "body = prevBody + '\\n\\n' + tailText" },
+      { "from": "tryNarrative", "to": "sessionCompactionRun", "label": "{ ok: true, summaryText: body, kind: 'narrative' }" },
+      { "from": "sessionCompactionRun", "to": "compactWithSharedContext", "label": "via _writeAnchor: { snapshot: body, observed }" },
+      { "from": "compactWithSharedContext", "to": "storage", "label": "Session.updateMessage(anchor[n+1] with summary:true)" },
+      { "from": "compactWithSharedContext", "to": "storage", "label": "Session.updatePart(text part with body)" },
+      { "from": "compactWithSharedContext", "to": "storage", "label": "Session.updatePart(compaction part)" },
+      { "from": "sessionCompactionRun", "to": "spec1Helper", "label": "(Spec 1 synergy) replay msg_X to msg_X' post-anchor" },
+      { "from": "spec1Helper", "to": "storage", "label": "Session.updateMessage(msg_X', id > anchor[n+1].id), removeMessage(msg_X)" },
+      { "from": "sessionCompactionRun", "to": "scheduleHybridEnrichment", "label": "scheduleHybridEnrichment(sessionID, observed, model) — fire and forget" },
+      { "from": "sessionCompactionRun", "to": "runLoop", "label": "return 'continue'" },
+      { "from": "runLoop", "to": "runLoop", "label": "next iter: filterCompacted returns [anchor[n+1], msg_X']; lastUser = msg_X'; LLM call fires" }
+    ]
+  },
+  {
+    "id": "SEQ-2",
+    "title": "Recompress anchor at 50K ceiling — codex provider",
+    "description": "Background recompress fires when anchor body exceeds 50K tokens; codex sessions route to /responses/compact.",
+    "participants": [
+      { "id": "scheduleHybridEnrichment", "name": "scheduleHybridEnrichment", "kind": "component" },
+      { "id": "memoryRead", "name": "Memory.Hybrid.getAnchorMessage", "kind": "component" },
+      { "id": "tweaksFlags", "name": "Tweaks.compactionSync()", "kind": "component" },
+      { "id": "tryLowCostServer", "name": "tryLowCostServer (codex /responses/compact)", "kind": "component" },
+      { "id": "codexBackend", "name": "codex /responses/compact", "kind": "external" },
+      { "id": "stalenessCheck", "name": "staleness check", "kind": "component" },
+      { "id": "anchorUpdate", "name": "anchor in-place update STEP 3", "kind": "component" },
+      { "id": "storage", "name": "session storage", "kind": "component" },
+      { "id": "bus", "name": "Bus + telemetry", "kind": "component" }
+    ],
+    "messages": [
+      { "from": "scheduleHybridEnrichment", "to": "tweaksFlags", "label": "read enableHybridLlm + anchorRecompressCeilingTokens" },
+      { "from": "tweaksFlags", "to": "scheduleHybridEnrichment", "label": "{ enable: true, ceiling: 50_000 }" },
+      { "from": "scheduleHybridEnrichment", "to": "memoryRead", "label": "getAnchorMessage(sessionID)" },
+      { "from": "memoryRead", "to": "scheduleHybridEnrichment", "label": "anchor[n+1]" },
+      { "from": "scheduleHybridEnrichment", "to": "scheduleHybridEnrichment", "label": "anchorTokens = chars/4 = 52_000; > ceiling; provider == codex" },
+      { "from": "scheduleHybridEnrichment", "to": "tryLowCostServer", "label": "runCodexServerSideRecompress(anchor)" },
+      { "from": "tryLowCostServer", "to": "codexBackend", "label": "POST /responses/compact body={input: [{type:message, role:user, content: anchor.body}]}" },
+      { "from": "codexBackend", "to": "tryLowCostServer", "label": "200 OK { output: [...] }" },
+      { "from": "tryLowCostServer", "to": "scheduleHybridEnrichment", "label": "{ ok: true, summaryText: <LLM summary> }" },
+      { "from": "scheduleHybridEnrichment", "to": "stalenessCheck", "label": "check no interloper anchor written during call" },
+      { "from": "stalenessCheck", "to": "scheduleHybridEnrichment", "label": "OK, anchor still latest" },
+      { "from": "scheduleHybridEnrichment", "to": "anchorUpdate", "label": "in-place update: overwrite anchor.parts.text with LLM summary" },
+      { "from": "anchorUpdate", "to": "storage", "label": "Session.updatePart(text part with new body)" },
+      { "from": "scheduleHybridEnrichment", "to": "bus", "label": "publish compaction.recompressed { provider: codex, kind: low-cost-server, latencyMs }" }
+    ]
+  },
+  {
+    "id": "SEQ-3",
+    "title": "Recompress anchor at 50K ceiling — non-codex provider",
+    "description": "Same as SEQ-2 but routes to Hybrid.runHybridLlm.",
+    "participants": [
+      { "id": "scheduleHybridEnrichment", "name": "scheduleHybridEnrichment", "kind": "component" },
+      { "id": "runHybridLlm", "name": "Hybrid.runHybridLlm", "kind": "component" },
+      { "id": "anchorUpdate", "name": "anchor in-place update STEP 3", "kind": "component" },
+      { "id": "storage", "name": "session storage", "kind": "component" }
+    ],
+    "messages": [
+      { "from": "scheduleHybridEnrichment", "to": "scheduleHybridEnrichment", "label": "anchorTokens > ceiling; provider != codex" },
+      { "from": "scheduleHybridEnrichment", "to": "runHybridLlm", "label": "runHybridLlm({ priorAnchor, targetTokens: ctx*0.3, voluntary: false })" },
+      { "from": "runHybridLlm", "to": "runHybridLlm", "label": "creates stub anchor message, streams LLM compaction into it" },
+      { "from": "runHybridLlm", "to": "scheduleHybridEnrichment", "label": "{ result: 'success', outputTokens, latencyMs }" },
+      { "from": "scheduleHybridEnrichment", "to": "anchorUpdate", "label": "STEP 3 logic at compaction.ts:1546-1660 (existing flow, unchanged)" },
+      { "from": "anchorUpdate", "to": "storage", "label": "in-place text part update" }
+    ]
+  },
+  {
+    "id": "SEQ-4",
+    "title": "Model recall: tool output retrieval via recall_toolcall_raw",
+    "description": "After redaction, model encounters `recall_id: prt_xxx` reference in anchor body and emits MCP tool call to retrieve original output.",
+    "participants": [
+      { "id": "model", "name": "LLM (codex / claude / etc)", "kind": "external" },
+      { "id": "runLoop", "name": "runLoop", "kind": "component" },
+      { "id": "mcpRouter", "name": "system-manager MCP router", "kind": "component" },
+      { "id": "recallTool", "name": "recall_toolcall_raw handler", "kind": "component" },
+      { "id": "deriveLedger", "name": "WorkingCache.deriveLedger", "kind": "component" },
+      { "id": "storage", "name": "session storage (SQLite)", "kind": "component" }
+    ],
+    "messages": [
+      { "from": "model", "to": "runLoop", "label": "tool_call: recall_toolcall_raw({ part_id: 'prt_e0bb775XYZ' })" },
+      { "from": "runLoop", "to": "mcpRouter", "label": "dispatch to system-manager" },
+      { "from": "mcpRouter", "to": "recallTool", "label": "invoke recall_toolcall_raw" },
+      { "from": "recallTool", "to": "deriveLedger", "label": "deriveLedger(messages) — find entry with messageRef matching part_id" },
+      { "from": "deriveLedger", "to": "storage", "label": "Session.messages(sessionID)" },
+      { "from": "storage", "to": "deriveLedger", "label": "all messages with parts" },
+      { "from": "deriveLedger", "to": "recallTool", "label": "LedgerEntry { messageRef: prt_e0bb775XYZ, ... }" },
+      { "from": "recallTool", "to": "storage", "label": "find part with id prt_e0bb775XYZ; return state.output" },
+      { "from": "recallTool", "to": "model", "label": "tool_result: original tool output text" }
+    ]
+  },
+  {
+    "id": "SEQ-5",
+    "title": "Feature flag rollback — instant revert to legacy behaviour",
+    "description": "Operator hot-toggles enableDialogRedactionAnchor=false; entire system reverts to pre-fix behaviour without daemon restart.",
+    "participants": [
+      { "id": "operator", "name": "operator", "kind": "actor" },
+      { "id": "tweaksFile", "name": "/etc/opencode/tweaks.cfg", "kind": "external" },
+      { "id": "tweaksFlags", "name": "Tweaks.compactionSync()", "kind": "component" },
+      { "id": "tryNarrative", "name": "tryNarrative", "kind": "component" },
+      { "id": "transformPostAnchorTail", "name": "transformPostAnchorTail", "kind": "component" },
+      { "id": "scheduleHybridEnrichment", "name": "scheduleHybridEnrichment", "kind": "component" }
+    ],
+    "messages": [
+      { "from": "operator", "to": "tweaksFile", "label": "edit: compaction.enable_dialog_redaction_anchor = false" },
+      { "from": "tweaksFile", "to": "tweaksFlags", "label": "fs.watch fires; reload" },
+      { "from": "tryNarrative", "to": "tweaksFlags", "label": "next compaction reads flag" },
+      { "from": "tweaksFlags", "to": "tryNarrative", "label": "enableDialogRedactionAnchor = false" },
+      { "from": "tryNarrative", "to": "tryNarrative", "label": "fall back to tryNarrativeLegacy (Memory.renderForLLMSync body source)" },
+      { "from": "transformPostAnchorTail", "to": "tweaksFlags", "label": "next render reads flag" },
+      { "from": "tweaksFlags", "to": "transformPostAnchorTail", "label": "false → fall back to v6 drop logic" },
+      { "from": "scheduleHybridEnrichment", "to": "tweaksFlags", "label": "next compaction reads flag" },
+      { "from": "tweaksFlags", "to": "scheduleHybridEnrichment", "label": "false → fall back to legacy thresholds + observed-gate" }
+    ]
+  }
+]
