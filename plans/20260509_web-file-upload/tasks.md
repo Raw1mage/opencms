@@ -18,7 +18,7 @@
 - [x] 2.1 Inspect SDK route generation pattern for Hono OpenAPI file routes
 - [x] 2.2a Ship create / rename / move / copy / delete-to-recyclebin / restore-from-recyclebin / destination-preflight routes and `File.OperationResult` schema
 - [x] 2.3 Add server-side project-boundary, basename, conflict, recyclebin, and destructive-confirmation guards (see `packages/opencode/src/file/index.ts` `validateBasename`, `assertOperationWithinProject`, `assertDestinationAvailable`, `uniqueRecyclePath`, `ensureWritableDirectory`)
-- [ ] 2.2b Ship `POST /file/upload` (multipart) and `GET /file/download` routes plus `File.upload` / `File.download` implementations; extend `OperationResult.operation` enum with `"upload"`; add `FILE_UPLOAD_TOO_LARGE` to `OperationCode`. Defines the upload size limit referenced by `spec.md`.
+- [x] 2.2b Ship `POST /file/upload` (multipart) and `GET /file/download` routes plus `File.upload` / `File.download` implementations; extend `OperationResult.operation` enum with `"upload"`; add `FILE_UPLOAD_TOO_LARGE` to `OperationCode`. Defines the upload size limit referenced by `spec.md`. (Default cap 64 MiB via `OPENCODE_FILE_UPLOAD_MAX_BYTES` env; `tweaks.cfg` key promotion deferred to a follow-up. SDK regen completed.)
 - [ ] 2.4 Expand backend tests beyond the current five cases. Required matrix:
   - rename success + duplicate destination rejection
   - move success + duplicate destination rejection
