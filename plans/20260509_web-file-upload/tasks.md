@@ -53,17 +53,17 @@
 
 ## 4. Clipboard-style operations
 
-- [ ] 4.1 Add in-app pending copy/cut state with visible source set and operation mode
-- [ ] 4.2 Add paste/move execution inside active project with source and destination folder refresh (consumes `affectedDirectories` from 3.0)
+- [x] 4.1 Add in-app pending copy/cut state with visible source set and operation mode. Shipped on `beta/web-file-upload` commit `c9aab97bc`. `ClipboardState` signal lives at the root `FileTree` and threads via `_clipboard`/`_setClipboard` plumbing; `runClipboard(target, mode)` honours multi-row selection, surfaces a confirm toast, and dims cut rows via `data-filetree-cut="true"` + `opacity-60`.
+- [x] 4.2 Add paste/move execution inside active project with source and destination folder refresh. Same commit. `runPaste` dispatches `sdk.client.file.move` (cut) or `sdk.client.file.copy` (copy), iterates entries, and feeds each result into `useFile().applyOperationResult` so the Phase 3.0 reconcile fires per item. Cut clears the clipboard on success; copy persists for repeated paste.
 - [ ] 4.3 Add explicit writable-location paste flow with resolved destination and permission result via `file.destinationPreflight`; depends on a follow-up to extend `File.copy` / `File.move` to accept external destinations after a successful preflight token (currently both functions reject any destination outside the active project)
-- [ ] 4.4 Add conflict handling and disabled paste reasons
+- [x] 4.4 Add conflict handling and disabled paste reasons. `effectiveHasPendingClipboard` memo merges the new internal clipboard with the existing `props.hasPendingClipboard` so the existing `fileTreeContextMenuActionGroups` paste-disable rule flips state automatically when copy/cut lands. Per-entry SDK errors (e.g. `FILE_OP_DUPLICATE`) surface via `surfaceError` as a stable-code toast.
 
 ## 5. Independent window pop-out surfaces
 
 - [ ] 5.1 Survey existing pop-out scaffolding: `packages/app/src/pages/session/terminal-panel.tsx` already implements terminal pop-out via `window.open` + the `terminal-popout` route registered in `packages/app/src/app.tsx`; the `popoutWindow` signal pattern is the reference shape. Reuse — do not reinvent.
 - [ ] 5.2 Add File Explorer pop-out control and focused independent-window route mirroring the `terminal-popout` pattern
 - [ ] 5.3 Add file-view tab pop-out control, viewer-specific independent-window layout, and source-tab removal after success
-- [ ] 5.4 Extend the existing terminal pop-out so the original terminal pane is removed/collapsed (no placeholder) and the popped window renders only terminal chrome — no app sidebar, no global header. (Current implementation opens the pop-out but does not vacate the source pane.)
+- [x] 5.4 Extend the existing terminal pop-out so the original terminal pane is removed/collapsed (no placeholder) and the popped window renders only terminal chrome — no app sidebar, no global header. Shipped on `beta/web-file-upload` commit `dfae4ced0`. `terminal-panel.tsx` switches the panel's inline height to `auto` while popped (only the tabs row remains visible, hosting the re-dock toggle); the prior "Terminal popped out" placeholder body is removed. `terminal-popout.tsx` drops `SessionHeader` and renders an `h-8` minimal title bar with session title + terminal label + a × close button that calls `window.close()`.
 
 ## 6. Validation and docs sync
 
