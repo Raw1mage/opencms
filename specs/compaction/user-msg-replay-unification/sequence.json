@@ -1,0 +1,104 @@
+[
+  {
+    "id": "SEQ-1",
+    "title": "Rebind pre-emptive compaction with replay",
+    "description": "End-to-end flow for the 2026-05-09 production incident scenario. User has typed an unanswered message; rebind fires; server-side compact 429s; narrative wins; helper replays.",
+    "participants": [
+      { "id": "user", "name": "User (TUI)", "kind": "actor" },
+      { "id": "runLoop", "name": "runLoop (prompt.ts)", "kind": "component" },
+      { "id": "rebindCheck", "name": "rebind pre-emptive check (prompt.ts:2104)", "kind": "component" },
+      { "id": "sessionCompactionRun", "name": "SessionCompaction.run", "kind": "component" },
+      { "id": "kindChain", "name": "kind chain walker", "kind": "component" },
+      { "id": "lowCostServer", "name": "tryLowCostServer", "kind": "component" },
+      { "id": "codexBackend", "name": "codex /responses/compact", "kind": "external" },
+      { "id": "tryNarrative", "name": "tryNarrative", "kind": "component" },
+      { "id": "defaultWriteAnchor", "name": "defaultWriteAnchor", "kind": "component" },
+      { "id": "snapshotHelper", "name": "snapshotUnansweredUserMessage (NEW)", "kind": "component" },
+      { "id": "compactWithSharedContext", "name": "compactWithSharedContext", "kind": "component" },
+      { "id": "replayHelper", "name": "replayUnansweredUserMessage (NEW)", "kind": "component" },
+      { "id": "storage", "name": "session storage (SQLite)", "kind": "component" },
+      { "id": "bus", "name": "Bus + recentEvents", "kind": "component" }
+    ],
+    "messages": [
+      { "from": "user", "to": "runLoop", "label": "type unanswered question (msg_X added to stream)" },
+      { "from": "runLoop", "to": "rebindCheck", "label": "iter step 1: rebindEpoch bumped, evaluate session bloat" },
+      { "from": "rebindCheck", "to": "rebindCheck", "label": "tokenRatio 0.787 > REBIND_PREEMPT_TOKEN_RATIO" },
+      { "from": "rebindCheck", "to": "sessionCompactionRun", "label": "run({ observed: 'rebind' })" },
+      { "from": "sessionCompactionRun", "to": "kindChain", "label": "resolveKindChain → ['low-cost-server', 'narrative', 'replay-tail']" },
+      { "from": "kindChain", "to": "lowCostServer", "label": "tryLowCostServer" },
+      { "from": "lowCostServer", "to": "codexBackend", "label": "POST /responses/compact (440 inputItems)" },
+      { "from": "codexBackend", "to": "lowCostServer", "label": "429 Too Many Requests (1.25s)" },
+      { "from": "lowCostServer", "to": "kindChain", "label": "{ ok: false, reason: 'plugin did not handle' }" },
+      { "from": "kindChain", "to": "tryNarrative", "label": "fallback to narrative" },
+      { "from": "tryNarrative", "to": "kindChain", "label": "{ ok: true, summaryText, kind: 'narrative' }" },
+      { "from": "kindChain", "to": "defaultWriteAnchor", "label": "_writeAnchor({ summaryText, kind: 'narrative', observed: 'rebind' })" },
+      { "from": "defaultWriteAnchor", "to": "snapshotHelper", "label": "(NEW) snapshot stream BEFORE anchor write" },
+      { "from": "snapshotHelper", "to": "storage", "label": "Session.messages → walk backward" },
+      { "from": "storage", "to": "snapshotHelper", "label": "msgs[]" },
+      { "from": "snapshotHelper", "to": "defaultWriteAnchor", "label": "{ info: msg_X, parts: [...] }" },
+      { "from": "defaultWriteAnchor", "to": "compactWithSharedContext", "label": "write summary anchor (msg_A, id > msg_X.id)" },
+      { "from": "compactWithSharedContext", "to": "storage", "label": "Session.updateMessage(msg_A) + parts" },
+      { "from": "compactWithSharedContext", "to": "bus", "label": "publishCompactedAndResetChain({ observed: 'rebind', kind: 'narrative' })" },
+      { "from": "defaultWriteAnchor", "to": "replayHelper", "label": "(NEW) replay({ snapshot, anchorMessageID: msg_A.id, observed: 'rebind' })" },
+      { "from": "replayHelper", "to": "replayHelper", "label": "snapshot.id (msg_X) < anchor.id (msg_A) → replay path" },
+      { "from": "replayHelper", "to": "storage", "label": "Session.updateMessage(msg_Y) where msg_Y.id > msg_A.id" },
+      { "from": "replayHelper", "to": "storage", "label": "Session.updatePart × N (parts cloned to msg_Y)" },
+      { "from": "replayHelper", "to": "storage", "label": "Session.removeMessage(msg_X)" },
+      { "from": "replayHelper", "to": "bus", "label": "publish compaction.user_msg_replay { outcome: 'replayed', originalUserID: msg_X, newUserID: msg_Y }" },
+      { "from": "replayHelper", "to": "defaultWriteAnchor", "label": "{ replayed: true, newUserID: msg_Y }" },
+      { "from": "sessionCompactionRun", "to": "sessionCompactionRun", "label": "decideContinueInjection: replayed=true → skip Continue" },
+      { "from": "sessionCompactionRun", "to": "runLoop", "label": "return 'continue'" },
+      { "from": "runLoop", "to": "runLoop", "label": "next iter: filterCompacted returns [anchor msg_A, user msg_Y]; lastUser = msg_Y" },
+      { "from": "runLoop", "to": "user", "label": "model receives small packet, answers msg_Y's actual question" }
+    ]
+  },
+  {
+    "id": "SEQ-2",
+    "title": "Manual /compact with no unanswered user msg",
+    "description": "User invokes /compact after a clean assistant reply. The /compact part itself becomes the new user msg post-anchor; helper detects no replay needed.",
+    "participants": [
+      { "id": "user", "name": "User (TUI)", "kind": "actor" },
+      { "id": "runLoop", "name": "runLoop", "kind": "component" },
+      { "id": "sessionCompactionRun", "name": "SessionCompaction.run", "kind": "component" },
+      { "id": "defaultWriteAnchor", "name": "defaultWriteAnchor", "kind": "component" },
+      { "id": "snapshotHelper", "name": "snapshotUnansweredUserMessage", "kind": "component" },
+      { "id": "replayHelper", "name": "replayUnansweredUserMessage", "kind": "component" }
+    ],
+    "messages": [
+      { "from": "user", "to": "runLoop", "label": "/compact (new user msg msg_C added)" },
+      { "from": "runLoop", "to": "sessionCompactionRun", "label": "run({ observed: 'manual' })" },
+      { "from": "sessionCompactionRun", "to": "defaultWriteAnchor", "label": "_writeAnchor (after kind chain)" },
+      { "from": "defaultWriteAnchor", "to": "snapshotHelper", "label": "snapshot" },
+      { "from": "snapshotHelper", "to": "snapshotHelper", "label": "most-recent user msg = msg_C; check assistant child → none yet (msg_C is the trigger itself, model hasn't answered)" },
+      { "from": "snapshotHelper", "to": "defaultWriteAnchor", "label": "returns { info: msg_C, parts: [...] } (treats /compact request as the unanswered msg)" },
+      { "from": "defaultWriteAnchor", "to": "replayHelper", "label": "replay attempt" },
+      { "from": "replayHelper", "to": "replayHelper", "label": "anchor.id > msg_C.id (anchor written this turn) — REPLAY needed" },
+      { "from": "replayHelper", "to": "replayHelper", "label": "rewrite msg_C → msg_C' with id > anchor.id; remove msg_C" },
+      { "from": "replayHelper", "to": "defaultWriteAnchor", "label": "{ replayed: true, newUserID: msg_C' }" },
+      { "from": "defaultWriteAnchor", "to": "runLoop", "label": "return; next iter answers /compact's intent (acknowledge + continue)" }
+    ]
+  },
+  {
+    "id": "SEQ-3",
+    "title": "Helper exception during replay",
+    "description": "SQLite write fails mid-replay. Helper logs + emits telemetry + returns gracefully; runloop continues without throwing.",
+    "participants": [
+      { "id": "defaultWriteAnchor", "name": "defaultWriteAnchor", "kind": "component" },
+      { "id": "replayHelper", "name": "replayUnansweredUserMessage", "kind": "component" },
+      { "id": "storage", "name": "session storage", "kind": "component" },
+      { "id": "log", "name": "log.error", "kind": "external" },
+      { "id": "bus", "name": "Bus telemetry", "kind": "component" },
+      { "id": "runLoop", "name": "runLoop", "kind": "component" }
+    ],
+    "messages": [
+      { "from": "defaultWriteAnchor", "to": "replayHelper", "label": "replay({ snapshot, anchorMessageID, observed })" },
+      { "from": "replayHelper", "to": "storage", "label": "Session.updateMessage(msg_Y)" },
+      { "from": "storage", "to": "replayHelper", "label": "throws SQLiteBusyError" },
+      { "from": "replayHelper", "to": "log", "label": "log.error('replay-after-compact failed', {sessionID, originalUserID, anchorMessageID, error})" },
+      { "from": "replayHelper", "to": "bus", "label": "publish compaction.user_msg_replay { outcome: 'error', errorMessage: 'SQLiteBusyError' }" },
+      { "from": "replayHelper", "to": "defaultWriteAnchor", "label": "{ replayed: false, reason: 'exception' }" },
+      { "from": "defaultWriteAnchor", "to": "runLoop", "label": "(non-throwing) return; runloop carries on" },
+      { "from": "runLoop", "to": "runLoop", "label": "next iter: lastUser may be undefined → loop:no_user_after_compaction (degraded floor)" }
+    ]
+  }
+]

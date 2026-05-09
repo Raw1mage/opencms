@@ -1,0 +1,175 @@
+{
+  "diagram_title": "Preserve Unanswered User Messages Across Compaction Boundaries",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Snapshot Unanswered User Message",
+      "description": "Walk session messages stream backward, identify most-recent user message that has no completed assistant reply (assistant.finish ∉ {stop, tool-calls, length}); copy info + parts by spread; capture optional empty-assistant child id; emit observed-condition tag for downstream replay decision",
+      "decomposition": "A1"
+    },
+    {
+      "id": "A2",
+      "title": "Write Compaction Anchor",
+      "description": "Existing compactWithSharedContext or tryLlmAgent inline write; produces summary-true assistant message with monotone ULID; resets codex chain via publishCompactedAndResetChain; surface kind + observed via eventMeta argument",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Replay Unanswered User Message",
+      "description": "If snapshot.id < anchor.id, generate fresh ULID monotonically larger than anchor; rewrite user message with new id and current timestamp; copy all parts with fresh part ids targeting new message id; remove original user message and optional empty-assistant child; idempotent under retry",
+      "decomposition": "A3"
+    },
+    {
+      "id": "A4",
+      "title": "Decide Continue Injection",
+      "description": "Replace static INJECT_CONTINUE table with stream-driven runtime decision: if replayed=true → no Continue; if no user message exists post-anchor → inject synthetic Continue; if user message already exists post-anchor (e.g. /compact trigger) → skip Continue",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Emit Replay Telemetry",
+      "description": "Publish compaction.user_msg_replay event with {sessionID, step, observed, originalUserID, newUserID, anchorMessageID, hadEmptyAssistantChild, partCount, outcome, errorMessage?}; thread eventMeta into publishCompactedAndResetChain so recentEvents records observed/kind instead of unknown",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "session messages stream (Session.messages by sessionID)",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "observed condition (overflow / cache-aware / rebind / empty-response / provider-switched / continuation-invalidated / stall-recovery / manual / idle)",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "EXTERNAL",
+      "target": "A1:mechanism",
+      "label": "snapshotUnansweredUserMessage helper inside SessionCompaction module",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR4",
+      "source": "A1:output",
+      "target": "A3:input",
+      "label": "{snapshot.info, snapshot.parts, emptyAssistantID?} or undefined when none unanswered",
+      "type": "output"
+    },
+
+    {
+      "id": "AR5",
+      "source": "EXTERNAL",
+      "target": "A2:input",
+      "label": "summary text (sanitized) + chainBinding + serverCompactedItems? from kind chain",
+      "type": "input"
+    },
+    {
+      "id": "AR6",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "Cooldown.shouldThrottle gate; ULID monotonicity invariant; AGENTS.md rule 1 logging",
+      "type": "control"
+    },
+    {
+      "id": "AR7",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "label": "compactWithSharedContext (compaction.ts:512); tryLlmAgent inline write (compaction.ts:1380); SQLite Session.updateMessage / Session.updatePart",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR8",
+      "source": "A2:output",
+      "target": "A3:input",
+      "label": "anchorMessageID (post-write summary-true assistant id)",
+      "type": "output"
+    },
+    {
+      "id": "AR9",
+      "source": "A2:output",
+      "target": "A4:input",
+      "label": "post-anchor stream snapshot",
+      "type": "output"
+    },
+
+    {
+      "id": "AR10",
+      "source": "EXTERNAL",
+      "target": "A3:control",
+      "label": "Tweaks.compactionSync().enableUserMsgReplay flag (default true); ULID monotonicity",
+      "type": "control"
+    },
+    {
+      "id": "AR11",
+      "source": "EXTERNAL",
+      "target": "A3:mechanism",
+      "label": "SessionCompaction.replayUnansweredUserMessage helper; Identifier.ascending; Session.removeMessage",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR12",
+      "source": "A3:output",
+      "target": "A4:control",
+      "label": "{replayed: boolean, newUserID?, reason?}",
+      "type": "output"
+    },
+    {
+      "id": "AR13",
+      "source": "A3:output",
+      "target": "A5:input",
+      "label": "replay outcome payload (replayed | skipped:already-after-anchor | skipped:no-unanswered | error)",
+      "type": "output"
+    },
+
+    {
+      "id": "AR14",
+      "source": "EXTERNAL",
+      "target": "A4:control",
+      "label": "post-anchor stream invariant: lastUser must exist when pre-condition was met",
+      "type": "control"
+    },
+    {
+      "id": "AR15",
+      "source": "EXTERNAL",
+      "target": "A4:mechanism",
+      "label": "injectContinueAfterAnchor (compaction.ts:1867) refactored to runtime check; auto-mode branch in compactWithSharedContext (compaction.ts:601)",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR16",
+      "source": "A4:output",
+      "target": "EXTERNAL",
+      "label": "post-compaction messages stream with guaranteed unanswered user msg or synthetic Continue (drives next runloop iter)",
+      "type": "output"
+    },
+
+    {
+      "id": "AR17",
+      "source": "EXTERNAL",
+      "target": "A5:control",
+      "label": "telemetry surface schema (compaction-telemetry.ts emit helpers)",
+      "type": "control"
+    },
+    {
+      "id": "AR18",
+      "source": "EXTERNAL",
+      "target": "A5:mechanism",
+      "label": "Bus.publish; appendRecentEvent; emitCompactionPredicateTelemetry adapter",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR19",
+      "source": "A5:output",
+      "target": "EXTERNAL",
+      "label": "bus event compaction.user_msg_replay; recentEvents ring buffer entry; debug.log line",
+      "type": "output"
+    }
+  ]
+}

@@ -1,0 +1,250 @@
+{
+  "title": "user-msg-replay-unification — C4 model",
+  "description": "Component-level view of the SessionCompaction module surface affected by the helper extraction. Scope is limited to the opencode runtime container; external callers (TUI, web client) are unaffected.",
+  "systems": [
+    {
+      "id": "opencode",
+      "name": "OpenCode runtime",
+      "description": "Single-process node/bun daemon hosting session runloop, compaction, provider integrations, and storage.",
+      "boundary": "internal"
+    }
+  ],
+  "containers": [
+    {
+      "id": "session-runloop",
+      "system": "opencode",
+      "name": "Session runloop",
+      "description": "packages/opencode/src/session/prompt.ts. Owns deriveObservedCondition, calls SessionCompaction.run, hosts the now-deleted inline replay block.",
+      "technology": "TypeScript, Bun"
+    },
+    {
+      "id": "session-compaction",
+      "system": "opencode",
+      "name": "SessionCompaction module",
+      "description": "packages/opencode/src/session/compaction.ts. Owns kind chain, anchor write, telemetry, and the new replayUnansweredUserMessage helper.",
+      "technology": "TypeScript, Bun"
+    },
+    {
+      "id": "session-storage",
+      "system": "opencode",
+      "name": "Session storage",
+      "description": "Storage router + SQLite + legacy fs backends. Read/write messages and parts.",
+      "technology": "SQLite, filesystem"
+    },
+    {
+      "id": "bus",
+      "system": "opencode",
+      "name": "Event Bus",
+      "description": "In-process Bus.publish + GlobalBus EventEmitter. Telemetry channel and recentEvents projection driver.",
+      "technology": "EventEmitter"
+    }
+  ],
+  "components": [
+    {
+      "id": "runLoop",
+      "container": "session-runloop",
+      "name": "runLoop",
+      "description": "Per-iteration loop reading filterCompacted output. Calls SessionCompaction.run on observed conditions. Today: hosts inline replay block at lines 1484-1554; post-fix: this block is deleted."
+    },
+    {
+      "id": "providerSwitchPreLoop",
+      "container": "session-runloop",
+      "name": "Provider-switch pre-loop",
+      "description": "Lines 1099-1146. Calls compactWithSharedContext directly (bypasses SessionCompaction.run because tool-call format incompatibility prevents kind-chain reuse). Post-fix: invokes the new helper after compactWithSharedContext returns."
+    },
+    {
+      "id": "rebindPreEmptive",
+      "container": "session-runloop",
+      "name": "Rebind pre-emptive",
+      "description": "Lines 2104-2130. Calls SessionCompaction.run({observed:'rebind'}) when handed off a bloated session at WS open. Triggered the 2026-05-09 production swallow incident."
+    },
+    {
+      "id": "stateDrivenOverflow",
+      "container": "session-runloop",
+      "name": "State-driven overflow",
+      "description": "Lines 2387-2412. Calls SessionCompaction.run with observed derived from deriveObservedCondition (overflow / cache-aware / etc)."
+    },
+    {
+      "id": "sessionCompactionRun",
+      "container": "session-compaction",
+      "name": "SessionCompaction.run",
+      "description": "Lines 1700-1859. Single entry point for state-driven compaction. Walks kind chain, calls _writeAnchor + injectContinueAfterAnchor. Post-fix: invokes the new helper inside _writeAnchor."
+    },
+    {
+      "id": "compactWithSharedContext",
+      "container": "session-compaction",
+      "name": "compactWithSharedContext",
+      "description": "Lines 512-680. Legacy single-step anchor write (snapshot text + compaction part type). Used by _writeAnchor and by provider-switch pre-loop directly. Post-fix: gains optional `observed` parameter for telemetry."
+    },
+    {
+      "id": "defaultWriteAnchor",
+      "container": "session-compaction",
+      "name": "defaultWriteAnchor",
+      "description": "Lines 1911-1948. Sanitizes summary, calls compactWithSharedContext, annotates anchor with skill snapshot. Post-fix: snapshots unanswered user msg before anchor write, calls the new helper after."
+    },
+    {
+      "id": "tryLlmAgent",
+      "container": "session-compaction",
+      "name": "tryLlmAgent",
+      "description": "LLM-agent kind-5 compaction; writes its own anchor inline (anchorWritten:true). Post-fix: invokes the new helper after its inline write."
+    },
+    {
+      "id": "injectContinueAfterAnchor",
+      "container": "session-compaction",
+      "name": "injectContinueAfterAnchor",
+      "description": "Lines 1867-1893. Currently appends synthetic Continue when INJECT_CONTINUE[observed] is true. Post-fix: rewrites to runtime stream check (skip if user msg already exists)."
+    },
+    {
+      "id": "replayHelper",
+      "container": "session-compaction",
+      "name": "replayUnansweredUserMessage (NEW)",
+      "description": "New export. Snapshot user msg → run anchor write → if buried, rewrite with fresh ULID, copy parts, delete originals. Idempotent under retry. Throws nothing; logs all branches; emits telemetry."
+    },
+    {
+      "id": "snapshotHelper",
+      "container": "session-compaction",
+      "name": "snapshotUnansweredUserMessage (NEW)",
+      "description": "Local helper. Walks stream backward, finds most-recent user msg with no completed-finish assistant child. Returns {info, parts, emptyAssistantID?} or undefined."
+    },
+    {
+      "id": "publishCompactedAndResetChain",
+      "container": "session-compaction",
+      "name": "publishCompactedAndResetChain",
+      "description": "Lines 171-201. Bus.publish(Event.Compacted) + invalidateContinuationFamily + appendRecentEvent. Two callers (line 599, 2761) currently pass no eventMeta → recentEvents records observed:'unknown'. Post-fix: both pass eventMeta."
+    },
+    {
+      "id": "messageStream",
+      "container": "session-storage",
+      "name": "Messages + parts (SQLite)",
+      "description": "ORDER BY id DESC stream (sqlite.ts:349). filterCompacted slices at first compaction part."
+    },
+    {
+      "id": "recentEvents",
+      "container": "session-storage",
+      "name": "recentEvents ring buffer",
+      "description": "Per-session execution.recentEvents (length-bounded). Surfaces in bus.session.updated. Used by Q card for compaction history visualization."
+    }
+  ],
+  "relationships": [
+    {
+      "source": "runLoop",
+      "target": "sessionCompactionRun",
+      "description": "calls on observed != null",
+      "technology": "function call"
+    },
+    {
+      "source": "providerSwitchPreLoop",
+      "target": "compactWithSharedContext",
+      "description": "calls directly bypassing kind chain",
+      "technology": "function call"
+    },
+    {
+      "source": "providerSwitchPreLoop",
+      "target": "snapshotHelper",
+      "description": "(NEW) snapshot before legacy compactWithSharedContext call",
+      "technology": "function call"
+    },
+    {
+      "source": "providerSwitchPreLoop",
+      "target": "replayHelper",
+      "description": "(NEW) replay after legacy compactWithSharedContext returns",
+      "technology": "function call"
+    },
+    {
+      "source": "rebindPreEmptive",
+      "target": "sessionCompactionRun",
+      "description": "calls with observed:'rebind' when tokenRatio > 0.65 OR itemCount > 200",
+      "technology": "function call"
+    },
+    {
+      "source": "stateDrivenOverflow",
+      "target": "sessionCompactionRun",
+      "description": "calls with observed from deriveObservedCondition",
+      "technology": "function call"
+    },
+    {
+      "source": "sessionCompactionRun",
+      "target": "defaultWriteAnchor",
+      "description": "via _writeAnchor indirection (kinds: narrative, replay-tail, low-cost-server)",
+      "technology": "function call"
+    },
+    {
+      "source": "sessionCompactionRun",
+      "target": "tryLlmAgent",
+      "description": "via tryKind dispatch (kind: llm-agent)",
+      "technology": "function call"
+    },
+    {
+      "source": "sessionCompactionRun",
+      "target": "injectContinueAfterAnchor",
+      "description": "after successful anchor write, when stream lacks user msg post-anchor (post-fix runtime decision)",
+      "technology": "function call"
+    },
+    {
+      "source": "defaultWriteAnchor",
+      "target": "snapshotHelper",
+      "description": "(NEW) snapshot before compactWithSharedContext call",
+      "technology": "function call"
+    },
+    {
+      "source": "defaultWriteAnchor",
+      "target": "compactWithSharedContext",
+      "description": "writes anchor message + summary text",
+      "technology": "function call"
+    },
+    {
+      "source": "defaultWriteAnchor",
+      "target": "replayHelper",
+      "description": "(NEW) replay after anchor write",
+      "technology": "function call"
+    },
+    {
+      "source": "tryLlmAgent",
+      "target": "replayHelper",
+      "description": "(NEW) replay after inline anchor write",
+      "technology": "function call"
+    },
+    {
+      "source": "compactWithSharedContext",
+      "target": "publishCompactedAndResetChain",
+      "description": "publishes Compacted (post-fix: passes observed via new arg)",
+      "technology": "function call"
+    },
+    {
+      "source": "compactWithSharedContext",
+      "target": "messageStream",
+      "description": "writes summary-true assistant message + compaction part",
+      "technology": "SQLite write"
+    },
+    {
+      "source": "snapshotHelper",
+      "target": "messageStream",
+      "description": "reads via Session.messages",
+      "technology": "SQLite read"
+    },
+    {
+      "source": "replayHelper",
+      "target": "messageStream",
+      "description": "writes new user msg + parts; removes originals",
+      "technology": "SQLite write"
+    },
+    {
+      "source": "replayHelper",
+      "target": "bus",
+      "description": "publishes compaction.user_msg_replay event",
+      "technology": "Bus.publish"
+    },
+    {
+      "source": "publishCompactedAndResetChain",
+      "target": "recentEvents",
+      "description": "appends compaction event with observed/kind metadata (post-fix: never 'unknown' from prod sites)",
+      "technology": "appendRecentEvent"
+    },
+    {
+      "source": "publishCompactedAndResetChain",
+      "target": "bus",
+      "description": "publishes Event.Compacted",
+      "technology": "Bus.publish"
+    }
+  ]
+}

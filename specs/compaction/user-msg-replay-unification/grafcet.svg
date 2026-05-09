@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2077" height="1660" viewBox="0.00 -2.00 103.87 83.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="0.00" y="-2.00" width="103.87" height="83.00" fill="white"/>
+<path class="edge" d="M 39.29 7.00 L 39.29 9.00"/>
+<path class="edge edge-arrow" d="M 39.29 9.00 L 39.29 11.00"/>
+<path class="edge" d="M 39.29 14.00 L 39.29 16.00"/>
+<path class="edge" d="M 39.29 16.00 L 10.50 16.00 Q 10.00 16.00 10.00 16.50 L 10.00 18.00"/>
+<path class="edge edge-arrow" d="M 10.00 18.00 L 10.00 20.00"/>
+<path class="edge" d="M 39.29 16.00 L 39.29 18.00"/>
+<path class="edge edge-arrow" d="M 39.29 18.00 L 39.29 20.00"/>
+<path class="edge edge-arrow" d="M 39.29 16.00 L 96.37 16.00 Q 96.87 16.00 96.87 16.50 L 96.87 68.00"/>
+<path class="edge edge-arrow" d="M 39.29 68.00 L 39.29 70.00"/>
+<path class="edge edge-arrow" d="M 10.00 23.00 L 10.00 27.00"/>
+<path class="edge edge-arrow" d="M 39.29 27.00 L 39.29 29.00"/>
+<path class="edge edge-arrow" d="M 39.29 23.00 L 39.29 27.00"/>
+<path class="edge" d="M 39.29 32.00 L 39.29 34.00"/>
+<path class="edge edge-arrow" d="M 39.29 34.00 L 39.29 36.00"/>
+<path class="edge edge-arrow" d="M 39.29 39.00 L 39.29 41.00"/>
+<path class="edge edge-arrow" d="M 10.00 41.00 L 10.00 45.00"/>
+<path class="edge edge-arrow" d="M 39.29 41.00 L 39.29 45.00"/>
+<path class="edge edge-arrow" d="M 68.58 41.00 L 68.58 45.00"/>
+<path class="edge edge-arrow" d="M 10.00 48.00 L 10.00 52.00"/>
+<path class="edge edge-arrow" d="M 39.29 52.00 L 39.29 54.00"/>
+<path class="edge edge-arrow" d="M 39.29 48.00 L 39.29 52.00"/>
+<path class="edge edge-arrow" d="M 68.58 48.00 L 68.58 52.00"/>
+<path class="edge" d="M 39.29 57.00 L 39.29 59.00"/>
+<path class="edge edge-arrow" d="M 39.29 59.00 L 39.29 61.00"/>
+<path class="edge edge-arrow" d="M 39.29 64.00 L 39.29 68.00"/>
+<path class="edge" d="M 39.29 73.00 L 39.29 75.00"/>
+<path class="edge edge-arrow" d="M 39.29 75.00 L 39.29 76.50 Q 39.29 77.00 38.79 77.00 L 4.50 77.00 Q 4.00 77.00 4.00 76.50 L 4.00 2.50 Q 4.00 2.00 4.50 2.00 L 38.79 2.00 Q 39.29 2.00 39.29 2.50 L 39.29 4.00"/>
+<rect class="step" x="37.29" y="4.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<rect class="step-inner" x="37.54" y="4.25" width="3.50" height="2.50" rx="0.22" ry="0.22"/>
+<text class="label" x="39.29" y="5.50">0</text>
+<rect class="step" x="37.29" y="11.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="39.29" y="12.50">1</text>
+<rect class="step" x="8.00" y="20.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="10.00" y="21.50">2</text>
+<rect class="step" x="37.29" y="20.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="39.29" y="21.50">3</text>
+<rect class="step" x="37.29" y="29.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="39.29" y="30.50">4</text>
+<rect class="step" x="37.29" y="36.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="39.29" y="37.50">5</text>
+<rect class="step" x="8.00" y="45.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="10.00" y="46.50">6</text>
+<rect class="step" x="37.29" y="45.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="39.29" y="46.50">7</text>
+<rect class="step" x="66.58" y="45.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="68.58" y="46.50">8</text>
+<rect class="step" x="37.29" y="54.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="39.29" y="55.50">9</text>
+<rect class="step" x="37.29" y="61.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="39.29" y="62.50">10</text>
+<rect class="step" x="37.29" y="70.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="39.29" y="71.50">11</text>
+<line class="assoc" x1="41.29" y1="5.50" x2="42.29" y2="5.50"/>
+<rect class="action" x="42.29" y="4.07" width="23.29" height="2.86"/>
+<text class="action-label" x="53.94" y="5.09"><tspan x="53.94" dy="0">Idle: runloop iteration entry; deriveObservedCondition has</tspan><tspan x="53.94" dy="0.82">not yet evaluated; lastUser may or may not exist in stream</tspan></text>
+<line class="assoc" x1="41.29" y1="12.50" x2="42.29" y2="12.50"/>
+<rect class="action" x="42.29" y="11.07" width="23.29" height="2.86"/>
+<text class="action-label" x="53.94" y="11.68"><tspan x="53.94" dy="0">deriveObservedCondition evaluates session state and returns obser</tspan><tspan x="53.94" dy="0.82">ved ∈ {null, overflow, cache-aware, rebind, continuation-invalidate</tspan><tspan x="53.94" dy="0.82">d, provider-switched, stall-recovery, manual, empty-response, idle}</tspan></text>
+<line class="assoc" x1="12.00" y1="21.50" x2="13.00" y2="21.50"/>
+<rect class="action" x="13.00" y="20.07" width="23.29" height="2.86"/>
+<text class="action-label" x="24.64" y="20.68"><tspan x="24.64" dy="0">Inside SessionCompaction.run: snapshotUnansweredUserMessage walks stre</tspan><tspan x="24.64" dy="0.82">am backward; identifies most-recent user msg with no completed-finish as</tspan><tspan x="24.64" dy="0.82">sistant child; copies info+parts; captures emptyAssistantID? when present</tspan></text>
+<line class="assoc" x1="41.29" y1="21.50" x2="42.29" y2="21.50"/>
+<rect class="action" x="42.29" y="20.07" width="23.29" height="2.86"/>
+<text class="action-label" x="53.94" y="20.68"><tspan x="53.94" dy="0">provider-switch pre-loop path (prompt.ts:1099-1146): bypasses S</tspan><tspan x="53.94" dy="0.82">essionCompaction.run; calls compactWithSharedContext directly; s</tspan><tspan x="53.94" dy="0.82">ame snapshot helper invoked here BEFORE the legacy anchor write</tspan></text>
+<line class="assoc" x1="41.29" y1="30.50" x2="42.29" y2="30.50"/>
+<rect class="action" x="42.29" y="29.07" width="23.29" height="2.86"/>
+<text class="action-label" x="53.94" y="29.68"><tspan x="53.94" dy="0">Anchor write: kind chain executes (low-cost-server first for codex, falls through to narrative</tspan><tspan x="53.94" dy="0.82">/ replay-tail / llm-agent); winning kind writes summary-true assistant message via compactWi</tspan><tspan x="53.94" dy="0.82">thSharedContext or tryLlmAgent inline; codex chain reset via publishCompactedAndResetChain</tspan></text>
+<line class="assoc" x1="41.29" y1="37.50" x2="42.29" y2="37.50"/>
+<rect class="action" x="42.29" y="36.07" width="23.29" height="2.86"/>
+<text class="action-label" x="53.94" y="37.09"><tspan x="53.94" dy="0">replayUnansweredUserMessage gate: read post-anchor state</tspan><tspan x="53.94" dy="0.82">; compare snapshot.id vs anchorMessageID; decide replay path</tspan></text>
+<line class="assoc" x1="12.00" y1="46.50" x2="13.00" y2="46.50"/>
+<rect class="action" x="13.00" y="45.07" width="23.29" height="2.86"/>
+<text class="action-label" x="24.64" y="45.68"><tspan x="24.64" dy="0">Replay: generate newUserID via Identifier.ascending; Session.updateMessage wit</tspan><tspan x="24.64" dy="0.82">h snapshot.info shape and new id; copy parts with fresh part ids targeting new</tspan><tspan x="24.64" dy="0.82">message; Session.removeMessage on emptyAssistantID? then on snapshot.info.id</tspan></text>
+<line class="assoc" x1="41.29" y1="46.50" x2="42.29" y2="46.50"/>
+<rect class="action" x="42.29" y="45.07" width="23.29" height="2.86"/>
+<text class="action-label" x="53.94" y="46.09"><tspan x="53.94" dy="0">Skip replay: snapshot already after anchor (race); record o</tspan><tspan x="53.94" dy="0.82">utcome=skipped:already-after-anchor in telemetry payload</tspan></text>
+<line class="assoc" x1="70.58" y1="46.50" x2="71.58" y2="46.50"/>
+<rect class="action" x="71.58" y="45.07" width="23.29" height="2.86"/>
+<text class="action-label" x="83.22" y="46.09"><tspan x="83.22" dy="0">Skip replay: no unanswered user msg OR feature flag disabled</tspan><tspan x="83.22" dy="0.82">; record outcome=skipped:no-unanswered in telemetry payload</tspan></text>
+<line class="assoc" x1="41.29" y1="55.50" x2="42.29" y2="55.50"/>
+<rect class="action" x="42.29" y="54.07" width="23.29" height="2.86"/>
+<text class="action-label" x="53.94" y="54.68"><tspan x="53.94" dy="0">Emit replay telemetry: bus event compaction.user_msg_replay; appendRecentEvent on sessi</tspan><tspan x="53.94" dy="0.82">on execution; debug.log line per AGENTS.md rule 1; thread {observed, kind} through publishC</tspan><tspan x="53.94" dy="0.82">ompactedAndResetChain so recentEvents records the correct observed value (not unknown)</tspan></text>
+<line class="assoc" x1="41.29" y1="62.50" x2="42.29" y2="62.50"/>
+<rect class="action" x="42.29" y="61.07" width="23.29" height="2.86"/>
+<text class="action-label" x="53.94" y="61.68"><tspan x="53.94" dy="0">decideContinueInjection (replaces INJECT_CONTINUE table): inspect post-anchor stream; if</tspan><tspan x="53.94" dy="0.82">replayed=true OR any user msg already exists post-anchor → skip Continue; if no user msg</tspan><tspan x="53.94" dy="0.82">post-anchor AND observed permits ambient continuation → call injectContinueAfterAnchor</tspan></text>
+<line class="assoc" x1="41.29" y1="71.50" x2="42.29" y2="71.50"/>
+<rect class="action" x="42.29" y="70.07" width="23.29" height="2.86"/>
+<text class="action-label" x="53.94" y="70.68"><tspan x="53.94" dy="0">Runloop continues: filterCompacted re-scans stream; lastUser is guaranteed non-</tspan><tspan x="53.94" dy="0.82">undefined when pre-condition was met (replayed user msg has id &gt; anchor.id); nex</tspan><tspan x="53.94" dy="0.82">t LLM call has the user&#x27;s actual question instead of synthetic Continue substitute</tspan></text>
+<line class="gate" x1="38.29" y1="9.00" x2="40.29" y2="9.00"/>
+<text class="gate-label" x="40.69" y="9.00"><tspan x="40.69" dy="0">iter_started</tspan></text>
+<line class="gate" x1="9.00" y1="18.00" x2="11.00" y2="18.00"/>
+<text class="gate-label" x="11.40" y="18.00"><tspan x="11.40" dy="0">observed != null AND observed != provider-switched</tspan></text>
+<line class="gate" x1="38.29" y1="18.00" x2="40.29" y2="18.00"/>
+<text class="gate-label" x="40.69" y="18.00"><tspan x="40.69" dy="0">observed == provider-switched</tspan></text>
+<line class="gate" x1="37.29" y1="68.00" x2="99.87" y2="68.00"/>
+<line class="gate" x1="8.00" y1="27.00" x2="41.29" y2="27.00"/>
+<line class="gate" x1="38.29" y1="34.00" x2="40.29" y2="34.00"/>
+<text class="gate-label" x="40.69" y="34.00"><tspan x="40.69" dy="0">anchor_committed AND chain_reset</tspan></text>
+<line class="gate" x1="8.00" y1="41.00" x2="70.58" y2="41.00"/>
+<line class="gate" x1="8.00" y1="52.00" x2="70.58" y2="52.00"/>
+<line class="gate" x1="38.29" y1="59.00" x2="40.29" y2="59.00"/>
+<text class="gate-label" x="40.69" y="59.00"><tspan x="40.69" dy="0">telemetry_dispatched</tspan></text>
+<line class="gate" x1="38.29" y1="75.00" x2="40.29" y2="75.00"/>
+<text class="gate-label" x="40.69" y="75.00"><tspan x="40.69" dy="0">next_iter_armed</tspan></text>
+<line class="gate" x1="95.87" y1="66.00" x2="97.87" y2="66.00"/>
+<text class="gate-label-left" x="95.47" y="66.00"><tspan x="95.47" dy="0">observed == null</tspan></text>
+<line class="gate" x1="9.00" y1="25.00" x2="11.00" y2="25.00"/>
+<text class="gate-label-left" x="8.60" y="24.32"><tspan x="8.60" dy="0">snapsho</tspan><tspan x="8.60" dy="0.68">t_decisi</tspan><tspan x="8.60" dy="0.68">on_made</tspan></text>
+<line class="gate" x1="38.29" y1="25.00" x2="40.29" y2="25.00"/>
+<text class="gate-label-left" x="37.89" y="25.00"><tspan x="37.89" dy="0">snapshot_decision_made</tspan></text>
+<line class="gate" x1="9.00" y1="43.00" x2="11.00" y2="43.00"/>
+<text class="gate-label" x="11.40" y="43.00"><tspan x="11.40" dy="0">snapshot != null AND snapshot.id &lt; anchorMessageID AND enableUserMsgReplay == true</tspan></text>
+<line class="gate" x1="38.29" y1="43.00" x2="40.29" y2="43.00"/>
+<text class="gate-label" x="40.69" y="43.00"><tspan x="40.69" dy="0">snapshot != null AND snapshot.id &gt; anchorMessageID</tspan></text>
+<line class="gate" x1="67.58" y1="43.00" x2="69.58" y2="43.00"/>
+<text class="gate-label" x="69.98" y="43.00"><tspan x="69.98" dy="0">snapshot == null OR enableUserMsgReplay == false</tspan></text>
+<line class="gate" x1="9.00" y1="50.00" x2="11.00" y2="50.00"/>
+<text class="gate-label" x="11.40" y="50.00"><tspan x="11.40" dy="0">replay_persisted_or_logged_error</tspan></text>
+<line class="gate" x1="38.29" y1="50.00" x2="40.29" y2="50.00"/>
+<text class="gate-label" x="40.69" y="50.00"><tspan x="40.69" dy="0">telemetry_payload_built</tspan></text>
+<line class="gate" x1="67.58" y1="50.00" x2="69.58" y2="50.00"/>
+<text class="gate-label" x="69.98" y="50.00"><tspan x="69.98" dy="0">telemetry_payload_built</tspan></text>
+<line class="gate" x1="38.29" y1="66.00" x2="40.29" y2="66.00"/>
+<text class="gate-label-left" x="37.89" y="66.00"><tspan x="37.89" dy="0">continue_decision_applied</tspan></text>
+<circle class="branch-junction" cx="39.29" cy="16.00" r="0.28"/>
+</svg>

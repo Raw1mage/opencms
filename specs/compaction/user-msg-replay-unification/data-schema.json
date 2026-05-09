@@ -1,0 +1,128 @@
+{
+  "title": "user-msg-replay-unification — data schema",
+  "version": 1,
+  "description": "Type contracts for the replay helper, telemetry event, feature flag, and the eventMeta argument threaded through publishCompactedAndResetChain.",
+
+  "ReplayInput": {
+    "description": "Input to SessionCompaction.replayUnansweredUserMessage.",
+    "type": "object",
+    "required": ["sessionID", "snapshot", "anchorMessageID", "observed", "step"],
+    "properties": {
+      "sessionID": { "type": "string", "format": "ses_<ulid>" },
+      "snapshot": {
+        "type": "object",
+        "required": ["info", "parts"],
+        "properties": {
+          "info": { "$ref": "MessageV2.User" },
+          "parts": { "type": "array", "items": { "$ref": "MessageV2.Part" } }
+        }
+      },
+      "anchorMessageID": { "type": "string", "format": "msg_<ulid>", "description": "id of the just-written summary-true assistant message" },
+      "emptyAssistantID": { "type": "string", "format": "msg_<ulid>", "optional": true, "description": "When known, the helper deletes this empty assistant child along with the original user msg (5/5 hotfix scenario)" },
+      "observed": { "$ref": "Observed" },
+      "step": { "type": "integer", "minimum": 0 }
+    }
+  },
+
+  "ReplayResult": {
+    "description": "Return value of SessionCompaction.replayUnansweredUserMessage. Helper never throws.",
+    "type": "object",
+    "required": ["replayed"],
+    "properties": {
+      "replayed": { "type": "boolean" },
+      "newUserID": { "type": "string", "format": "msg_<ulid>", "optional": true, "description": "Set iff replayed === true" },
+      "reason": {
+        "type": "string",
+        "enum": [
+          "already-after-anchor",
+          "no-unanswered",
+          "snapshot-already-consumed",
+          "feature-flag-disabled",
+          "exception"
+        ],
+        "optional": true,
+        "description": "Set iff replayed === false"
+      }
+    }
+  },
+
+  "ReplayTelemetryEvent": {
+    "description": "Bus event compaction.user_msg_replay; fields also recorded in debug.log per AGENTS.md rule 1.",
+    "type": "object",
+    "required": ["sessionID", "step", "observed", "outcome"],
+    "properties": {
+      "sessionID": { "type": "string", "format": "ses_<ulid>" },
+      "step": { "type": "integer" },
+      "observed": { "$ref": "Observed" },
+      "originalUserID": { "type": "string", "format": "msg_<ulid>", "optional": true },
+      "newUserID": { "type": "string", "format": "msg_<ulid>", "optional": true },
+      "anchorMessageID": { "type": "string", "format": "msg_<ulid>", "optional": true },
+      "anchorObserved": { "$ref": "Observed", "optional": true, "description": "observed value at anchor write — equals input observed in current scope" },
+      "hadEmptyAssistantChild": { "type": "boolean" },
+      "partCount": { "type": "integer", "minimum": 0 },
+      "outcome": {
+        "type": "string",
+        "enum": ["replayed", "skipped:already-after-anchor", "skipped:no-unanswered", "skipped:flag-off", "error"]
+      },
+      "errorMessage": { "type": "string", "optional": true, "description": "Set iff outcome === 'error'" }
+    }
+  },
+
+  "Observed": {
+    "description": "Existing enum reused; no schema change. Kept here for cross-reference.",
+    "type": "string",
+    "enum": [
+      "overflow",
+      "cache-aware",
+      "rebind",
+      "continuation-invalidated",
+      "provider-switched",
+      "stall-recovery",
+      "manual",
+      "empty-response",
+      "idle"
+    ]
+  },
+
+  "TweaksDelta": {
+    "description": "New keys introduced in tweaks.cfg / Tweaks.compactionSync(). Existing keys unchanged.",
+    "type": "object",
+    "properties": {
+      "enableUserMsgReplay": {
+        "type": "boolean",
+        "default": true,
+        "description": "Master flag for the helper. When false, all call sites skip replay and INJECT_CONTINUE falls back to a static table mirroring pre-fix behaviour."
+      }
+    }
+  },
+
+  "PublishCompactedEventMetaDelta": {
+    "description": "Existing eventMeta arg of publishCompactedAndResetChain; this spec threads observed/kind through the two bare call sites (compaction.ts:599, compaction.ts:2761). Schema unchanged; only semantics: 'unknown' should never occur from prod paths post-fix.",
+    "type": "object",
+    "required": [],
+    "properties": {
+      "observed": { "type": "string", "description": "non-'unknown' for any prod path post-fix" },
+      "kind": { "type": "string", "enum": ["narrative", "replay-tail", "low-cost-server", "llm-agent", "hybrid_llm"], "optional": true },
+      "tokensBefore": { "type": "integer", "optional": true },
+      "tokensAfter": { "type": "integer", "optional": true }
+    }
+  },
+
+  "RecentEventCompactionReplayDelta": {
+    "description": "New variant of recentEvents entry. Existing kind:'compaction' entries unchanged; new kind:'compaction-replay' entries added by the helper for surface-level differentiation in the Q card.",
+    "type": "object",
+    "required": ["ts", "kind"],
+    "properties": {
+      "ts": { "type": "integer", "description": "epoch ms" },
+      "kind": { "type": "string", "enum": ["compaction-replay"] },
+      "replay": {
+        "type": "object",
+        "required": ["outcome"],
+        "properties": {
+          "outcome": { "type": "string", "enum": ["replayed", "skipped:already-after-anchor", "skipped:no-unanswered", "skipped:flag-off", "error"] },
+          "observed": { "$ref": "Observed", "optional": true }
+        }
+      }
+    }
+  }
+}

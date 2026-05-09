@@ -1,0 +1,154 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A0",
+    "StepType": "initial",
+    "StepAction": "Idle: runloop iteration entry; deriveObservedCondition has not yet evaluated; lastUser may or may not exist in stream",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["iter_started"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A0",
+    "StepType": "normal",
+    "StepAction": "deriveObservedCondition evaluates session state and returns observed ∈ {null, overflow, cache-aware, rebind, continuation-invalidated, provider-switched, stall-recovery, manual, empty-response, idle}",
+    "LinkInputType": "track",
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2, 3, 11],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "observed != null AND observed != provider-switched",
+      "observed == provider-switched",
+      "observed == null"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Inside SessionCompaction.run: snapshotUnansweredUserMessage walks stream backward; identifies most-recent user msg with no completed-finish assistant child; copies info+parts; captures emptyAssistantID? when present",
+    "LinkInputType": "track",
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["snapshot_decision_made"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "provider-switch pre-loop path (prompt.ts:1099-1146): bypasses SessionCompaction.run; calls compactWithSharedContext directly; same snapshot helper invoked here BEFORE the legacy anchor write",
+    "LinkInputType": "track",
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["snapshot_decision_made"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Anchor write: kind chain executes (low-cost-server first for codex, falls through to narrative / replay-tail / llm-agent); winning kind writes summary-true assistant message via compactWithSharedContext or tryLlmAgent inline; codex chain reset via publishCompactedAndResetChain",
+    "LinkInputType": "track",
+    "LinkInputNumber": [2, 3],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["anchor_committed AND chain_reset"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "replayUnansweredUserMessage gate: read post-anchor state; compare snapshot.id vs anchorMessageID; decide replay path",
+    "LinkInputType": "track",
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [6, 7, 8],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "snapshot != null AND snapshot.id < anchorMessageID AND enableUserMsgReplay == true",
+      "snapshot != null AND snapshot.id > anchorMessageID",
+      "snapshot == null OR enableUserMsgReplay == false"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Replay: generate newUserID via Identifier.ascending; Session.updateMessage with snapshot.info shape and new id; copy parts with fresh part ids targeting new message; Session.removeMessage on emptyAssistantID? then on snapshot.info.id",
+    "LinkInputType": "track",
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [9],
+    "LinkOutputType": "track",
+    "Condition": ["replay_persisted_or_logged_error"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Skip replay: snapshot already after anchor (race); record outcome=skipped:already-after-anchor in telemetry payload",
+    "LinkInputType": "track",
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [9],
+    "LinkOutputType": "track",
+    "Condition": ["telemetry_payload_built"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 8,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Skip replay: no unanswered user msg OR feature flag disabled; record outcome=skipped:no-unanswered in telemetry payload",
+    "LinkInputType": "track",
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [9],
+    "LinkOutputType": "track",
+    "Condition": ["telemetry_payload_built"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 9,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Emit replay telemetry: bus event compaction.user_msg_replay; appendRecentEvent on session execution; debug.log line per AGENTS.md rule 1; thread {observed, kind} through publishCompactedAndResetChain so recentEvents records the correct observed value (not unknown)",
+    "LinkInputType": "track",
+    "LinkInputNumber": [6, 7, 8],
+    "LinkOutputNumber": [10],
+    "LinkOutputType": "track",
+    "Condition": ["telemetry_dispatched"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 10,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "decideContinueInjection (replaces INJECT_CONTINUE table): inspect post-anchor stream; if replayed=true OR any user msg already exists post-anchor → skip Continue; if no user msg post-anchor AND observed permits ambient continuation → call injectContinueAfterAnchor",
+    "LinkInputType": "track",
+    "LinkInputNumber": [9],
+    "LinkOutputNumber": [11],
+    "LinkOutputType": "track",
+    "Condition": ["continue_decision_applied"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 11,
+    "ModuleRef": "A0",
+    "StepType": "normal",
+    "StepAction": "Runloop continues: filterCompacted re-scans stream; lastUser is guaranteed non-undefined when pre-condition was met (replayed user msg has id > anchor.id); next LLM call has the user's actual question instead of synthetic Continue substitute",
+    "LinkInputType": "track",
+    "LinkInputNumber": [1, 10],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["next_iter_armed"],
+    "SubGrafcet": []
+  }
+]

@@ -1,0 +1,202 @@
+[
+  {
+    "id": "TV-1",
+    "title": "rebind pre-emptive 429 fallback to narrative — replay required",
+    "scenario": "Reproduction of 2026-05-09 production incident on session ses_1f47aa711ffehMSKNf54ZCHFTF. Pre-condition: ctxRatio 0.787, lastUser msg_X with text content; rebind pre-emptive fires; codex /responses/compact returns 429; narrative wins.",
+    "input": {
+      "observed": "rebind",
+      "step": 1,
+      "preCompactionStream": [
+        { "id": "msg_OLD_USER_1", "role": "user", "parts": ["..."] },
+        { "id": "msg_OLD_ASSISTANT_1", "role": "assistant", "finish": "stop", "parts": ["..."] },
+        { "id": "msg_X", "role": "user", "parts": [{"type": "text", "text": "你問的具體問題"}], "model": {"providerId": "codex", "modelID": "gpt-5.5"} }
+      ],
+      "tweaks": { "enableUserMsgReplay": true },
+      "kindChainOutcome": [
+        { "kind": "low-cost-server", "ok": false, "reason": "plugin did not handle (HTTP 429)" },
+        { "kind": "narrative", "ok": true, "summaryText": "[narrative summary text]" }
+      ]
+    },
+    "expectedOutput": {
+      "anchor": { "id": "msg_ANCHOR", "role": "assistant", "summary": true, "kind": "narrative" },
+      "postCompactionStream": [
+        { "id": "msg_ANCHOR", "role": "assistant", "summary": true },
+        { "id": "msg_Y", "role": "user", "parts": [{"type": "text", "text": "你問的具體問題"}], "expected": "id > msg_ANCHOR.id" }
+      ],
+      "deletedMsgs": ["msg_X"],
+      "telemetry": {
+        "channel": "compaction.user_msg_replay",
+        "outcome": "replayed",
+        "originalUserID": "msg_X",
+        "newUserID": "msg_Y",
+        "anchorMessageID": "msg_ANCHOR",
+        "observed": "rebind",
+        "partCount": 1
+      },
+      "noContinueInjected": true,
+      "loopNoUserAfterCompactionLog": "must NOT appear"
+    }
+  },
+  {
+    "id": "TV-2",
+    "title": "empty-response self-heal — 5/5 hotfix path semantically preserved",
+    "scenario": "Empty assistant turn at emptyRoundCount=1 with overflowSuspected=true. Pre-fix, prompt.ts:1484-1554 inline block ran. Post-fix, helper inside SessionCompaction.run fires.",
+    "input": {
+      "observed": "empty-response",
+      "step": 5,
+      "preCompactionStream": [
+        { "id": "msg_PREV", "role": "user", "parts": ["..."] },
+        { "id": "msg_PREV_A", "role": "assistant", "finish": "stop" },
+        { "id": "msg_X", "role": "user", "parts": [{"type": "text", "text": "下一個問題"}] },
+        { "id": "msg_EMPTY", "role": "assistant", "finish": "unknown", "tokens": {"input": 0, "output": 0} }
+      ],
+      "tweaks": { "enableUserMsgReplay": true }
+    },
+    "expectedOutput": {
+      "anchor": { "id": "msg_ANCHOR", "summary": true },
+      "postCompactionStream": [
+        { "id": "msg_ANCHOR", "role": "assistant", "summary": true },
+        { "id": "msg_Y", "role": "user", "parts": [{"type": "text", "text": "下一個問題"}] }
+      ],
+      "deletedMsgs": ["msg_X", "msg_EMPTY"],
+      "telemetry": {
+        "outcome": "replayed",
+        "hadEmptyAssistantChild": true,
+        "observed": "empty-response"
+      }
+    }
+  },
+  {
+    "id": "TV-3",
+    "title": "manual /compact after clean assistant turn — no replay (no unanswered)",
+    "scenario": "User invokes /compact when last assistant turn finished with finish:stop. No question pending. The /compact command itself becomes the trigger user msg.",
+    "input": {
+      "observed": "manual",
+      "step": 0,
+      "preCompactionStream": [
+        { "id": "msg_PREV_USER", "role": "user", "parts": ["earlier question"] },
+        { "id": "msg_PREV_A", "role": "assistant", "finish": "stop", "parts": ["clean answer"] },
+        { "id": "msg_COMPACT_CMD", "role": "user", "parts": [{"type": "text", "text": "/compact"}] }
+      ]
+    },
+    "expectedOutput": {
+      "anchor": { "id": "msg_ANCHOR", "summary": true, "kind": "narrative" },
+      "snapshotResult": "{ info: msg_COMPACT_CMD, parts: [...] } — treated as unanswered since /compact has no completed-finish assistant child yet",
+      "replayResult": { "replayed": true, "newUserID": "msg_COMPACT_CMD_PRIME" },
+      "noContinueInjected": true,
+      "comment": "manual /compact behaves like any other user msg — replay ensures the /compact request itself survives compaction; the next iter answers it"
+    }
+  },
+  {
+    "id": "TV-4",
+    "title": "feature flag off — pre-fix behaviour restored",
+    "scenario": "enableUserMsgReplay=false. Same input as TV-1.",
+    "input": {
+      "observed": "rebind",
+      "step": 1,
+      "preCompactionStream": "(same as TV-1)",
+      "tweaks": { "enableUserMsgReplay": false }
+    },
+    "expectedOutput": {
+      "anchor": "msg_ANCHOR written normally",
+      "postCompactionStream": [{ "id": "msg_ANCHOR", "role": "assistant", "summary": true }],
+      "userMsgPreserved": false,
+      "behavior": "lastUser undefined on next iter → loop:no_user_after_compaction log fires (degraded floor; matches pre-fix)",
+      "INJECT_CONTINUE_fallback_table_used": true
+    }
+  },
+  {
+    "id": "TV-5",
+    "title": "idempotency — second helper call is no-op",
+    "scenario": "Helper succeeds; some retry path invokes it again with the same snapshot.",
+    "input": {
+      "firstCall": "{ snapshot: {info: msg_X, ...}, anchorMessageID: msg_A }",
+      "afterFirstCall": "msg_X removed, msg_Y inserted with id > msg_A.id",
+      "secondCall": "{ snapshot: {info: msg_X, ...}, anchorMessageID: msg_A } — same as first"
+    },
+    "expectedOutput": {
+      "secondCallResult": { "replayed": false, "reason": "snapshot-already-consumed" },
+      "noDuplicateUserMsg": true,
+      "telemetry": {
+        "outcome": "skipped:no-unanswered",
+        "comment": "snapshot.info.id no longer in stream → reason maps to no-unanswered, not snapshot-already-consumed; (refine in implementation)"
+      }
+    }
+  },
+  {
+    "id": "TV-6",
+    "title": "race — user msg added between anchor write and helper",
+    "scenario": "Concurrent stream activity adds a new user msg with id > anchor.id BEFORE helper runs. Snapshot was taken pre-anchor with the OLD msg_X.id < anchor.id, but by helper time someone else already wrote msg_Z with id > anchor.id.",
+    "input": {
+      "snapshotInfo": "{ id: msg_X (id < anchor.id) }",
+      "anchorMessageID": "msg_ANCHOR (id > msg_X.id)",
+      "concurrentWrite": "msg_Z added with id > msg_ANCHOR.id before helper runs"
+    },
+    "expectedOutput": {
+      "result": { "replayed": false, "reason": "already-after-anchor" },
+      "comment": "Helper detects post-anchor stream already has a user msg; refuses to replay snapshot since it would create a duplicate"
+    }
+  },
+  {
+    "id": "TV-7",
+    "title": "subagent session — helper still works",
+    "scenario": "session.parentID is set. Subagent path historically did not auto-compact, but if a manual compaction happens, helper must work.",
+    "input": {
+      "observed": "manual",
+      "session.parentID": "ses_PARENT",
+      "preCompactionStream": "(unanswered user msg)"
+    },
+    "expectedOutput": {
+      "result": { "replayed": true },
+      "telemetry": { "outcome": "replayed", "isSubagent": true }
+    }
+  },
+  {
+    "id": "TV-8",
+    "title": "exception in helper — graceful degradation",
+    "scenario": "SQLite Session.updateMessage throws (e.g. SQLITE_BUSY). Helper must log + emit telemetry + return without throwing.",
+    "input": {
+      "snapshot": "{ info: msg_X, parts: [...] }",
+      "storageBehavior": "Session.updateMessage(msg_Y) throws Error('SQLITE_BUSY')"
+    },
+    "expectedOutput": {
+      "result": { "replayed": false, "reason": "exception" },
+      "logEntry": "log.error 'replay-after-compact failed' with full diagnostic",
+      "telemetry": { "outcome": "error", "errorMessage": "SQLITE_BUSY" },
+      "runloopBehavior": "carries on; degrades to pre-fix behaviour for this iter only"
+    }
+  },
+  {
+    "id": "TV-9",
+    "title": "recentEvents observed field — never 'unknown' from prod paths post-fix",
+    "scenario": "Synthetic session that exercises every observed value (overflow, cache-aware, rebind, continuation-invalidated, provider-switched, stall-recovery, manual, empty-response, idle).",
+    "input": {
+      "sequence": "9 compactions back-to-back across 9 iterations, each forcing a different observed value"
+    },
+    "expectedOutput": {
+      "recentEvents.compaction.observed_values": [
+        "overflow", "cache-aware", "rebind", "continuation-invalidated",
+        "provider-switched", "stall-recovery", "manual", "empty-response", "idle"
+      ],
+      "recentEvents.compaction.observed_must_not_contain": ["unknown"]
+    }
+  },
+  {
+    "id": "TV-10",
+    "title": "INJECT_CONTINUE replacement — runtime stream check",
+    "scenario": "Compare INJECT_CONTINUE behaviour before/after for two cases that previously diverged.",
+    "input": [
+      {
+        "case": "observed=rebind, no unanswered user msg in stream",
+        "preFixBehavior": "INJECT_CONTINUE['rebind'] = false → no Continue injected → silent exit (intended for rebind-only-state-reset cases)",
+        "postFixBehavior": "stream check finds no user msg post-anchor → inject Continue (NEW behaviour; if rebind also reset state cleanly this is a small backwards change)"
+      },
+      {
+        "case": "observed=overflow, unanswered user msg X exists",
+        "preFixBehavior": "INJECT_CONTINUE['overflow'] = true → Continue injected → user msg X buried, model responds to Continue not the question",
+        "postFixBehavior": "helper replays msg X to msg Y after anchor → no Continue needed (helper sees user msg already exists) → model responds to actual question"
+      }
+    ],
+    "expectedOutput": "Both cases pass post-fix. The rebind-no-unanswered case may need a follow-up if backwards-compat is required (TBD in design review)."
+  }
+]

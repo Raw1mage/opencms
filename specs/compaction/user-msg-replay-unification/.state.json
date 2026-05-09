@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "state": "planned",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-05-09T08:05:39.031Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "at": "2026-05-09T08:08:31.070Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "5005eceb505337353b116ecbc49914181e917f06"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-05-09T08:51:33.121Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "design.md+spec.md+idef0+grafcet+c4+sequence+data-schema all complete; DD-1..DD-9 decided; helper signature, call-site mapping, INJECT_CONTINUE replacement, telemetry contract, rollback flag, test seam all designed"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-05-09T08:55:53.407Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "tasks.md (8 phases, ~50 tasks), handoff.md (execution contract, 13 required reads, 5 stop gates, execution-ready checklist, commit strategy, rollback), test-vectors.json (10 vectors covering all 4 call sites + flag-off + idempotency + race + subagent + exception + observed-not-unknown + INJECT_CONTINUE behaviour change), errors.md (CRH-001..006), observability.md (1 new event + 4 metrics + dashboards + log levels)"
+    }
+  ]
+}

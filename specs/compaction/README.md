@@ -254,6 +254,17 @@ projected into the new shape and rewritten on first touch.
 - [empty-response-rca/](./empty-response-rca/) (implementing) —
   empty-response RCA + itemCount addendum 2026-05-09. Cross-cuts
   with `provider/codex/` and `compaction/itemcount-fix/`.
+- [user-msg-replay-unification/](./user-msg-replay-unification/)
+  (proposed, 2026-05-09) — unify the "user message replay after
+  anchor" logic across all four compaction call sites; 5/5 hotfix
+  was scoped to one site (`empty-response`) and the same bug
+  recurred via the `rebind` pre-emptive path 2026-05-09.
+- [narrative-quality/](./narrative-quality/) (proposed, 2026-05-09)
+  — improve narrative anchor's prose continuity. Today narrative
+  collapses 100s of items to ≈3-5 (item-wise excellent) but anchor
+  body is `Memory.renderForLLMSync` (structured state only, no
+  prose summary). When server-side `/responses/compact` is 429-d
+  the floor is "remembers todos but not conversation arc."
 
 ### Related entries
 

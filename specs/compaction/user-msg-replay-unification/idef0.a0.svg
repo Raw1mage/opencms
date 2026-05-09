@@ -1,0 +1,89 @@
+<svg width="3915.4" height="881.8" viewBox="-1349.7 -210.0 3915.4 881.8" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-1349.7" y="-210.0" width="3915.4" height="881.8" fill="white" />
+<rect x="130.0" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="230.0" y="151.2" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
+<text x="230.0" y="184.1" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >SNAPSHOT</text>
+<text x="230.0" y="217.8" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >UNANSWERED</text>
+<text x="230.0" y="251.6" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >USER MESSAGE</text>
+<rect x="450.0" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="550.0" y="168.1" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
+<text x="550.0" y="201.0" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >WRITE COMPACTION</text>
+<text x="550.0" y="234.7" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >ANCHOR</text>
+<rect x="886.0" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="986.0" y="151.2" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >A3</text>
+<text x="986.0" y="184.1" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >REPLAY</text>
+<text x="986.0" y="217.8" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >UNANSWERED</text>
+<text x="986.0" y="251.6" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >USER MESSAGE</text>
+<rect x="130.0" y="420.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
+<text x="230.0" y="466.7" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >A4</text>
+<text x="230.0" y="500.9" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >DECIDE CONTINUE</text>
+<text x="230.0" y="536.6" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >INJECTION</text>
+<rect x="450.0" y="420.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A5" />
+<text x="550.0" y="458.0" text-anchor="middle" font-size="23" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >A5</text>
+<text x="550.0" y="500.8" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >EMIT REPLAY</text>
+<text x="550.0" y="547.7" text-anchor="middle" font-size="25" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >TELEMETRY</text>
+<rect x="40.0" y="0.0" width="1136.0" height="661.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="332.0" y="-200.0" width="552.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="608.0" y="-174.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >A0</text>
+<text x="608.0" y="-144.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >PRESERVE UNANSWERED USER MESSAGES</text>
+<text x="608.0" y="-114.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >ACROSS COMPACTION BOUNDARIES</text>
+<line x1="332.0" y1="-200.0" x2="40.0" y2="0.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="884.0" y1="-200.0" x2="1176.0" y2="0.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="332.0" y1="-90.0" x2="40.0" y2="661.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="884.0" y1="-90.0" x2="1176.0" y2="661.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 650.0 200.0 L 886.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR8" data-waypoints="650.0,200.0 886.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 200.0 L 360.0 200.0 Q 370.0 200.0 370.0 190.0 L 370.0 88.2 Q 370.0 78.2 380.0 78.2 L 758.0 78.2 Q 768.0 78.2 768.0 88.2 L 768.0 150.0 Q 768.0 160.0 778.0 160.0 L 886.0 160.0" stroke="black" stroke-width="1.2" data-arrow-id="AR4" data-waypoints="330.0,200.0 370.0,200.0 370.0,78.2 768.0,78.2 768.0,160.0 886.0,160.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 650.0 240.0 L 758.0 240.0 Q 768.0 240.0 768.0 250.0 L 768.0 320.0 Q 768.0 330.0 758.0 330.0 L 100.0 330.0 Q 90.0 330.0 90.0 340.0 L 90.0 490.0 Q 90.0 500.0 100.0 500.0 L 130.0 500.0" stroke="black" stroke-width="1.2" data-arrow-id="AR9" data-waypoints="650.0,240.0 768.0,240.0 768.0,330.0 90.0,330.0 90.0,500.0 130.0,500.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1086.0 200.0 L 1116.0 200.0 Q 1126.0 200.0 1126.0 210.0 L 1126.0 360.0 Q 1126.0 370.0 1116.0 370.0 L 420.0 370.0 Q 410.0 370.0 410.0 380.0 L 410.0 490.0 Q 410.0 500.0 420.0 500.0 L 450.0 500.0" stroke="black" stroke-width="1.2" data-arrow-id="AR13" data-waypoints="1086.0,200.0 1126.0,200.0 1126.0,370.0 410.0,370.0 410.0,500.0 450.0,500.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -10.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR1" data-waypoints="-10.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR2" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 315.8 L 230.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="AR3" data-waypoints="230.0,315.8 230.0,280.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -10.0 40.0 L 400.0 40.0 Q 410.0 40.0 410.0 50.0 L 410.0 190.0 Q 410.0 200.0 420.0 200.0 L 450.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR5" data-waypoints="-10.0,40.0 410.0,40.0 410.0,200.0 450.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 550.0 84.2 L 550.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR6" data-waypoints="550.0,84.2 550.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 550.0 315.8 L 550.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="AR7" data-waypoints="550.0,315.8 550.0,280.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 986.0 84.2 L 986.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR10" data-waypoints="986.0,84.2 986.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 986.0 315.8 L 986.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="AR11" data-waypoints="986.0,315.8 986.0,280.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 615.8 L 230.0 580.0" stroke="black" stroke-width="1.2" data-arrow-id="AR15" data-waypoints="230.0,615.8 230.0,580.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 500.0 L 360.0 500.0 Q 370.0 500.0 370.0 510.0 L 370.0 611.8 Q 370.0 621.8 380.0 621.8 L 1226.0 621.8" stroke="black" stroke-width="1.2" data-arrow-id="AR16" data-waypoints="330.0,500.0 370.0,500.0 370.0,621.8 1226.0,621.8" marker-end="url(#arrow)" fill="none" />
+<path d="M 550.0 384.2 L 550.0 420.0" stroke="black" stroke-width="1.2" data-arrow-id="AR17" data-waypoints="550.0,384.2 550.0,420.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 550.0 615.8 L 550.0 580.0" stroke="black" stroke-width="1.2" data-arrow-id="AR18" data-waypoints="550.0,615.8 550.0,580.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 650.0 500.0 L 1226.0 500.0" stroke="black" stroke-width="1.2" data-arrow-id="AR19" data-waypoints="650.0,500.0 1226.0,500.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 384.2 L 230.0 420.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A4_control" data-waypoints="230.0,384.2 230.0,420.0" marker-end="url(#arrow)" fill="none" />
+<text x="224.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR2">observed condition (overflow / cache-aware / rebind / empty-response</text>
+<text x="236.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR2">provider-switched / continuation-invalidated / stall-recovery / manual / idle)</text>
+<text x="224.0" y="296.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR3">snapshotUnansweredUserMessage helper</text>
+<text x="236.0" y="296.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR3">inside SessionCompaction module</text>
+<text x="544.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR6">Cooldown.shouldThrottle gate; ULID</text>
+<text x="556.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR6">monotonicity invariant; AGENTS.md rule 1 logging</text>
+<text x="544.0" y="296.0" font-size="10" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR7">compactWithSharedContext (compaction.ts:512); tryLlmAgent inline write</text>
+<text x="556.0" y="296.0" font-size="10" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR7">(compaction.ts:1380); SQLite Session.updateMessage / Session.updatePart</text>
+<text x="980.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR10">Tweaks.compactionSync().enableUserMsgReplay</text>
+<text x="992.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR10">flag (default true); ULID monotonicity</text>
+<text x="980.0" y="296.0" font-size="10" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR11">SessionCompaction.replayUnansweredUserMessage</text>
+<text x="992.0" y="296.0" font-size="10" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR11">helper; Identifier.ascending; Session.removeMessage</text>
+<text x="224.0" y="596.0" font-size="10" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR15">injectContinueAfterAnchor (compaction.ts:1867) refactored to runtime</text>
+<text x="236.0" y="596.0" font-size="10" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR15">check; auto-mode branch in compactWithSharedContext (compaction.ts:601)</text>
+<text x="544.0" y="414.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR17">telemetry surface schema</text>
+<text x="556.0" y="414.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR17">(compaction-telemetry.ts emit helpers)</text>
+<text x="544.0" y="596.0" font-size="10" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR18">Bus.publish; appendRecentEvent;</text>
+<text x="556.0" y="596.0" font-size="10" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR18">emitCompactionPredicateTelemetry adapter</text>
+<text x="224.0" y="414.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR12">{replayed: boolean, newUserID?, reason?}、post-anchor stream</text>
+<text x="236.0" y="414.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR12">invariant: lastUser must exist when pre-condition was met</text>
+<text x="768.0" y="195.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR8">anchorMessageID (post-write</text>
+<text x="768.0" y="212.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR8">summary-true assistant id)</text>
+<text x="550.0" y="70.2" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR4" >{snapshot.info, snapshot.parts, emptyAssistantID?} or undefined when none unanswered</text>
+<text x="550.0" y="348.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR9" >post-anchor stream snapshot</text>
+<text x="808.9" y="365.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR13">replay outcome payload (replayed |</text>
+<text x="808.9" y="382.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR13">skipped:already-after-anchor | skipped:no-unanswered | error)</text>
+<text x="-14.0" y="165.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR1">session messages</text>
+<text x="-14.0" y="191.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR1">stream</text>
+<text x="-14.0" y="217.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR1">(Session.messages</text>
+<text x="-14.0" y="243.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR1">by sessionID)</text>
+<text x="-14.0" y="44.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR5">summary text (sanitized) + chainBinding + serverCompactedItems? from kind chain</text>
+<text x="1230.0" y="625.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR16">post-compaction messages stream with guaranteed unanswered user msg or synthetic Continue (drives next runloop iter)</text>
+<text x="1230.0" y="504.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR19">bus event compaction.user_msg_replay; recentEvents ring buffer entry; debug.log line</text>
+</svg>
