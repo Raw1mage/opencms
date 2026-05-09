@@ -2598,12 +2598,22 @@ export namespace SessionPrompt {
       // DD-6: feature flag default false; enable via tweaks.cfg
       // `compaction_phase1_enabled = 1` for gradual rollout.
       const compactionTweakPhase1 = Tweaks.compactionSync()
-      if (compactionTweakPhase1.phase1Enabled && !session.parentID) {
+      const dialogRedactionEnabled =
+        (compactionTweakPhase1 as { enableDialogRedactionAnchor?: boolean })
+          .enableDialogRedactionAnchor !== false
+      // dialog-replay-redaction (M3): v7 redacts tool outputs to recall_id
+      // markers; runs by default for both main and subagent sessions
+      // because the redact-only logic preserves all messages and is safe
+      // under any session shape. v6 (drop-based) remains gated by
+      // phase1Enabled + main-session-only since it changes message count.
+      const runV7 = dialogRedactionEnabled
+      const runV6 = !dialogRedactionEnabled && compactionTweakPhase1.phase1Enabled && !session.parentID
+      if (runV7 || runV6) {
         try {
           const beforeCount = sessionMessages.length
           const beforeParts = sessionMessages.reduce((sum, m) => sum + m.parts.length, 0)
           const transformed = transformPostAnchorTail(sessionMessages)
-          if (transformed.messages.length < compactionTweakPhase1.fallbackThreshold) {
+          if (runV6 && transformed.messages.length < compactionTweakPhase1.fallbackThreshold) {
             log.warn("phase1-transform: fallback to raw", {
               sessionID,
               step,
@@ -2611,14 +2621,19 @@ export namespace SessionPrompt {
               got: transformed.messages.length,
               transformedTurnCount: transformed.transformedTurnCount,
             })
-          } else if (transformed.transformedTurnCount > 0) {
+          } else if (
+            transformed.transformedTurnCount > 0 ||
+            (transformed.redactedToolPartCount ?? 0) > 0
+          ) {
             sessionMessages = transformed.messages
             const afterParts = sessionMessages.reduce((sum, m) => sum + m.parts.length, 0)
-            log.info("phase1-transform: applied", {
+            log.info("post-anchor-transform: applied", {
               sessionID,
               step,
+              version: runV7 ? "v7" : "v6",
               transformedTurns: transformed.transformedTurnCount,
               exemptTurns: transformed.exemptTurnCount,
+              redactedToolParts: transformed.redactedToolPartCount ?? 0,
               partsBefore: beforeParts,
               partsAfter: afterParts,
               messagesCount: beforeCount,
@@ -2626,7 +2641,7 @@ export namespace SessionPrompt {
           }
         } catch (err) {
           if (err instanceof LayerPurityViolation) {
-            log.error("phase1-transform: layer purity violation", {
+            log.error("post-anchor-transform: layer purity violation", {
               sessionID,
               step,
               forbiddenKey: err.forbiddenKey,
@@ -2635,7 +2650,7 @@ export namespace SessionPrompt {
             // Re-throw — architectural invariant breach surfaces upward.
             throw err
           }
-          log.warn("phase1-transform: unexpected error, falling back to raw", {
+          log.warn("post-anchor-transform: unexpected error, falling back to raw", {
             sessionID,
             step,
             error: err instanceof Error ? err.message : String(err),
