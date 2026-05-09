@@ -20,7 +20,11 @@ import { Memory } from "./memory"
 import { Tweaks } from "../config/tweaks"
 import { PostCompaction } from "./post-compaction"
 import { ContinuationInvalidatedEvent } from "../plugin/codex-auth"
-import { emitCompactionPredicateTelemetry, emitKindChainTelemetry } from "./compaction-telemetry"
+import {
+  emitCompactionPredicateTelemetry,
+  emitKindChainTelemetry,
+  emitUserMsgReplayTelemetry,
+} from "./compaction-telemetry"
 import { sanitizeAnchorToString, type AnchorKind } from "./anchor-sanitizer"
 import { checkCleanTail } from "./idle-compaction-gate"
 import { SkillLayerRegistry } from "./skill-layer-registry"
@@ -1892,6 +1896,249 @@ When constructing the summary, try to stick to this template:
     })
   }
 
+  // ───────────────────────────────────────────────────────────────────
+  // User-message replay (spec compaction/user-msg-replay-unification)
+  //
+  // Background:
+  //   When compaction writes a new anchor (any kind), filterCompacted
+  //   slices the messages stream at the anchor's `compaction` part, so
+  //   any user message with id < anchor.id becomes invisible to the next
+  //   runloop iteration. If that user message is the user's most recent
+  //   (still-unanswered) question, the runloop's `lastUser` resolves to
+  //   undefined OR to a synthetic `Continue from where you left off`
+  //   message — silently dropping the user's actual ask.
+  //
+  // The 2026-05-05 hotfix (commit a3be0500e) patched ONE call site
+  // inline at prompt.ts:1484-1554. The 2026-05-09 production incident
+  // (session ses_1f47aa711...) confirmed three sibling commit paths
+  // share the same defect (overflow / rebind pre-emptive / provider-
+  // switch pre-loop). This module-internal helper centralises the
+  // replay so all four commit paths inherit the post-condition:
+  //   "if an unanswered user message existed pre-compaction, an
+  //    unanswered user message exists post-compaction with id > anchor.id."
+  // ───────────────────────────────────────────────────────────────────
+
+  export interface UserMessageSnapshot {
+    info: MessageV2.User
+    parts: MessageV2.Part[]
+    /**
+     * Optional. When the unanswered user message has a child assistant
+     * with empty/error finish (e.g. the 5/5 empty-response self-heal
+     * scenario), the helper will delete that empty child along with the
+     * original user message to keep the UI clean.
+     */
+    emptyAssistantID?: string
+  }
+
+  export type ReplayResult = {
+    replayed: boolean
+    newUserID?: string
+    reason?:
+      | "already-after-anchor"
+      | "no-unanswered"
+      | "snapshot-already-consumed"
+      | "feature-flag-disabled"
+      | "exception"
+  }
+
+  /**
+   * Walk the session messages stream backward to identify the most recent
+   * UNANSWERED user message: one whose nearest subsequent assistant child
+   * has finish ∉ {stop, tool-calls, length} (or no assistant child yet).
+   *
+   * Returns a snapshot caller can pass to `replayUnansweredUserMessage`
+   * after a compaction anchor write. Returns undefined when:
+   *   - the stream has no user message
+   *   - the most recent user message has a properly finished assistant
+   *     child (= already answered, no replay needed)
+   *
+   * Pure read function. Does not mutate storage. Caller may pass an
+   * already-loaded `messages` array to avoid a second fetch.
+   */
+  export async function snapshotUnansweredUserMessage(
+    sessionID: string,
+    messages?: MessageV2.WithParts[],
+  ): Promise<UserMessageSnapshot | undefined> {
+    const msgs =
+      messages ?? (await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[]))
+    if (msgs.length === 0) return undefined
+
+    let userIdx = -1
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].info.role === "user") {
+        userIdx = i
+        break
+      }
+    }
+    if (userIdx === -1) return undefined
+
+    const userMsg = msgs[userIdx]
+
+    let assistantChild: MessageV2.WithParts | undefined
+    for (let i = userIdx + 1; i < msgs.length; i++) {
+      if (msgs[i].info.role === "assistant") {
+        assistantChild = msgs[i]
+        break
+      }
+    }
+
+    // "Properly finished" = assistant ran to completion in a way that
+    // resolves the user's question. unknown / error / other / undefined
+    // all signal an interrupted or empty turn — user msg is unanswered.
+    if (assistantChild) {
+      const finish = (assistantChild.info as MessageV2.Assistant).finish
+      if (finish === "stop" || finish === "tool-calls" || finish === "length") {
+        return undefined
+      }
+    }
+
+    return {
+      info: { ...(userMsg.info as MessageV2.User) },
+      parts: userMsg.parts.map((p) => ({ ...p }) as MessageV2.Part),
+      emptyAssistantID: assistantChild?.info.id,
+    }
+  }
+
+  /**
+   * Replay an unanswered user message AFTER a freshly-written compaction
+   * anchor so it lands post-anchor with id > anchor.id. Idempotent under
+   * retry; never throws (helper failure must not stall the runloop —
+   * degrades to today's pre-fix behaviour).
+   *
+   * Strategy (DD-2 in spec design.md):
+   *   1. Honour `enableUserMsgReplay` feature flag (default true)
+   *   2. If snapshot.id > anchorMessageID, skip — already after anchor
+   *   3. Verify snapshot is still in the stream (idempotency under retry)
+   *   4. Write new user msg with fresh ULID, copy parts with fresh ids
+   *   5. Remove emptyAssistantID + remove original user msg
+   *   6. Emit telemetry (every branch, including skip / error)
+   *
+   * Telemetry surface: `compaction.user_msg_replay` (per
+   * compaction-telemetry.ts emitUserMsgReplayTelemetry).
+   */
+  export async function replayUnansweredUserMessage(input: {
+    sessionID: string
+    snapshot: UserMessageSnapshot
+    anchorMessageID: string
+    observed: Observed
+    step: number
+  }): Promise<ReplayResult> {
+    const tweaks = Tweaks.compactionSync()
+    const flag = (tweaks as { enableUserMsgReplay?: boolean }).enableUserMsgReplay
+    const originalUserID = input.snapshot.info.id
+    const baseTelemetry = {
+      sessionID: input.sessionID,
+      step: input.step,
+      observed: input.observed,
+      originalUserID,
+      anchorMessageID: input.anchorMessageID,
+      hadEmptyAssistantChild: !!input.snapshot.emptyAssistantID,
+      partCount: input.snapshot.parts.length,
+    }
+
+    if (flag === false) {
+      emitUserMsgReplayTelemetry({ ...baseTelemetry, outcome: "skipped:flag-off" })
+      log.info("self-heal: replay skipped — feature flag off", {
+        sessionID: input.sessionID,
+        step: input.step,
+        originalUserID,
+      })
+      return { replayed: false, reason: "feature-flag-disabled" }
+    }
+
+    if (originalUserID > input.anchorMessageID) {
+      emitUserMsgReplayTelemetry({ ...baseTelemetry, outcome: "skipped:already-after-anchor" })
+      log.info("self-heal: replay skipped — snapshot already after anchor", {
+        sessionID: input.sessionID,
+        step: input.step,
+        originalUserID,
+        anchorMessageID: input.anchorMessageID,
+      })
+      return { replayed: false, reason: "already-after-anchor" }
+    }
+
+    // Idempotency: if a previous helper invocation already consumed this
+    // snapshot, the original user msg won't be in the stream anymore.
+    const stillExists = await Session.messages({ sessionID: input.sessionID })
+      .then((msgs) => msgs.some((m) => m.info.id === originalUserID))
+      .catch(() => true) // on read failure, attempt write anyway and let exception path catch
+    if (!stillExists) {
+      emitUserMsgReplayTelemetry({ ...baseTelemetry, outcome: "skipped:no-unanswered" })
+      log.info("self-heal: replay skipped — original snapshot already consumed", {
+        sessionID: input.sessionID,
+        step: input.step,
+        originalUserID,
+      })
+      return { replayed: false, reason: "snapshot-already-consumed" }
+    }
+
+    try {
+      const newUserID = Identifier.ascending("message")
+      const newUser: MessageV2.User = {
+        ...input.snapshot.info,
+        id: newUserID,
+        time: { created: Date.now() },
+      }
+      await Session.updateMessage(newUser)
+      for (const part of input.snapshot.parts) {
+        await Session.updatePart({
+          ...part,
+          id: Identifier.ascending("part"),
+          messageID: newUserID,
+        } as MessageV2.Part)
+      }
+      if (input.snapshot.emptyAssistantID) {
+        await Session.removeMessage({
+          sessionID: input.sessionID,
+          messageID: input.snapshot.emptyAssistantID,
+        })
+      }
+      await Session.removeMessage({ sessionID: input.sessionID, messageID: originalUserID })
+
+      log.info("self-heal: replayed user message after anchor", {
+        sessionID: input.sessionID,
+        step: input.step,
+        observed: input.observed,
+        originalUserID,
+        newUserID,
+        anchorMessageID: input.anchorMessageID,
+        emptyAssistantID: input.snapshot.emptyAssistantID,
+        partCount: input.snapshot.parts.length,
+      })
+
+      emitUserMsgReplayTelemetry({ ...baseTelemetry, outcome: "replayed", newUserID })
+
+      return { replayed: true, newUserID }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      log.error(
+        "self-heal: replay-after-compact failed; user message may be hidden behind anchor",
+        {
+          sessionID: input.sessionID,
+          step: input.step,
+          observed: input.observed,
+          originalUserID,
+          anchorMessageID: input.anchorMessageID,
+          error: errorMessage,
+        },
+      )
+      emitUserMsgReplayTelemetry({
+        ...baseTelemetry,
+        outcome: "error",
+        errorMessage,
+      })
+      return { replayed: false, reason: "exception" }
+    }
+  }
+
+  /**
+   * Replay-helper indirection. Internal compaction call sites
+   * (defaultWriteAnchor, tryLlmAgent post-anchor, the provider-switch
+   * pre-loop adapter in prompt.ts) call `_replayHelper` so tests can
+   * substitute a mock via `__test__.setReplayHelper`.
+   */
+  let _replayHelper = replayUnansweredUserMessage
+
   /**
    * Anchor-write indirection. Production wraps compactWithSharedContext; tests
    * can replace via `__test__.setAnchorWriter(fn)` to capture call arguments
@@ -2086,6 +2333,12 @@ When constructing the summary, try to stick to this template:
     },
     resetAnchorWriter() {
       _writeAnchor = defaultWriteAnchor
+    },
+    setReplayHelper(fn: typeof replayUnansweredUserMessage) {
+      _replayHelper = fn
+    },
+    resetReplayHelper() {
+      _replayHelper = replayUnansweredUserMessage
     },
   })
 
