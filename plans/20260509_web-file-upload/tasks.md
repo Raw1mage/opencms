@@ -31,7 +31,7 @@
   - [x] destination-preflight external scope happy path (writable temp dir) returns `writable: true`
   - [x] upload happy path, duplicate (`FILE_OP_DUPLICATE`), too-large (`FILE_UPLOAD_TOO_LARGE`), path-escape via embedded `..` filename — shipped with 2.2b
   - [x] download directory rejected with `FILE_DOWNLOAD_DIRECTORY_UNSUPPORTED` — shipped with 2.2b
-- [ ] 2.6 Wire Bus events from `observability.md`: emit `file.operation.requested` / `rejected` / `completed` from the `File` namespace mutation entry points; emit `file.popout.opened` from the frontend pop-out controllers. Document redaction rules for paths in event payloads.
+- [x] 2.6 Wire Bus events from `observability.md` (server side): `file.operation.requested` / `completed` / `rejected` are emitted by every `File` namespace mutation + `File.download`. Implemented via `withTelemetry` wrapper in `packages/opencode/src/file/index.ts`. Blob inputs are redacted to `{ kind, size, type }` so upload bytes never enter the event payload. `Bus.publish` is fire-and-forget; a failed publish only logs at warn and never breaks the operation. Frontend `file.popout.opened` is deferred to Phase 5.x where the pop-out controller lives.
 
 ## 3. File explorer action shell
 
