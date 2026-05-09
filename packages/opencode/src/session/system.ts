@@ -16,8 +16,6 @@ import PROMPT_BEAST from "./prompt/beast.txt"
 import PROMPT_GEMINI from "./prompt/gemini.txt"
 import PROMPT_TRINITY from "./prompt/trinity.txt"
 import PROMPT_CODEX from "./prompt/codex.txt"
-import PROMPT_PLAN from "./prompt/plan.txt"
-import PROMPT_PLAN_REMINDER_ANTHROPIC from "./prompt/plan-reminder-anthropic.txt"
 import PROMPT_MAX_STEPS from "./prompt/max-steps.txt"
 import PROMPT_COPILOT_GPT5 from "./prompt/copilot-gpt-5.txt"
 import PROMPT_ENABLEMENT from "./prompt/enablement.json"
@@ -91,8 +89,6 @@ export namespace SystemPrompt {
       "drivers/codex.txt": PROMPT_CODEX,
       "drivers/gpt-5.txt": PROMPT_COPILOT_GPT5,
       "drivers/deepseek.txt": PROMPT_BEAST,
-      "session/plan.txt": PROMPT_PLAN,
-      "session/plan-reminder-anthropic.txt": PROMPT_PLAN_REMINDER_ANTHROPIC,
       "session/max-steps.txt": PROMPT_MAX_STEPS,
       "enablement.json":
         typeof PROMPT_ENABLEMENT === "string" ? PROMPT_ENABLEMENT : JSON.stringify(PROMPT_ENABLEMENT, null, 2),
@@ -221,14 +217,6 @@ export namespace SystemPrompt {
     } catch {
       return internalContent
     }
-  }
-
-  /**
-   * Load the plan mode driver prompt from XDG config, falling back to built-in.
-   * Path: ~/.config/opencode/prompts/session/plan.txt
-   */
-  export async function planPrompt() {
-    return loadPrompt("session/plan.txt", PROMPT_PLAN)
   }
 
   /**
