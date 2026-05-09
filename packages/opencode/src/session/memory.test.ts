@@ -361,4 +361,63 @@ describe("Memory", () => {
     expect(human).toContain("# Session")
     expect(llm).not.toContain("# Session")
   })
+
+  // ── lastNarrativePartText reasoning fix (DD-8 of dialog-replay-redaction) ─
+
+  it("read derives turnSummaries from a reasoning-only assistant turn (codex shape)", async () => {
+    const sid = "ses_reasoning_only"
+    ;(Session as any).messages = mock(async () => [
+      userMsg("u1", sid, "fix the auth bug", 100),
+      // Codex-shape: reasoning + tool call, no text part
+      {
+        info: {
+          id: "a1",
+          sessionID: sid,
+          role: "assistant",
+          mode: "default",
+          agent: "default",
+          modelID: "gpt-5.5",
+          providerId: "codex",
+          path: { cwd: "/tmp", root: "/tmp" },
+          cost: 0,
+          tokens: { input: 0, output: 0, reasoning: 100, cache: { read: 0, write: 0 } },
+          finish: "stop",
+          time: { created: 200, completed: 200 },
+        },
+        parts: [
+          {
+            id: "p_a1_reasoning",
+            messageID: "a1",
+            sessionID: sid,
+            type: "reasoning",
+            text: "let me check the auth middleware first",
+            time: { start: 200, end: 200 },
+          },
+          {
+            id: "p_a1_tool",
+            messageID: "a1",
+            sessionID: sid,
+            type: "tool",
+            callID: "p_a1_tool",
+            tool: "read",
+            state: {
+              status: "completed",
+              input: { file: "auth.ts" },
+              output: "...",
+              title: "",
+              metadata: {},
+              time: { start: 200, end: 200 },
+            },
+          },
+        ],
+      },
+    ])
+    ;(SharedContext as any).get = mock(async () => undefined)
+
+    const mem = await Memory.read(sid)
+    // Pre-fix this turn produced an empty entry and was filtered out;
+    // post-fix the reasoning text surfaces via lastNarrativePartText.
+    expect(mem.turnSummaries).toHaveLength(1)
+    expect(mem.turnSummaries[0].text).toBe("let me check the auth middleware first")
+  })
 })
