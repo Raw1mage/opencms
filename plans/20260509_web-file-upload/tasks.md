@@ -37,9 +37,11 @@
 
 - [x] 3.1 Add row and folder/background context-menu targets to the File tree surface
 - [x] 3.2 Add menu grouping and enabled/disabled action rules for file vs directory targets and selected sets. Note: the selected-set branch only becomes end-to-end testable once 1.6 ships.
-- [ ] 3.0 Frontend integration glue (new gate before 3.3):
-  - In `packages/app/src/context/file.tsx`, consume `OperationResult.affectedDirectories` to refresh exactly those tree branches instead of full reloads.
-  - In `packages/app/src/pages/session/file-tabs.tsx`, reconcile open file tabs on rename/move/delete using `OperationResult.source` / `destination`. Close tabs that point at deleted paths; rebind tabs whose path was moved or renamed.
+- [x] 3.0 Frontend integration glue (gate before 3.3):
+  - [x] `useFile().applyOperationResult(result)` exposed in `packages/app/src/context/file.tsx`. Walks `result.affectedDirectories` and force-refreshes exactly those branches via `tree.listDir(dir, { force: true })`.
+  - [x] Tab reconcile lives in `packages/app/src/context/file/reconcile.ts` (pure, unit-tested) and is invoked by `applyOperationResult`. Tabs themselves stay owned by `layout.tabs(...)`; `file-tabs.tsx` still just renders whatever the layout provides — no edits needed there. rename/move rebind source + descendant tabs, including active. delete-to-recyclebin closes source + descendants and picks the left-neighbor (or right) as new active, matching `tabs.close()` UX.
+  - [x] Store + content-cache reconcile: rename/move walks `store.file` keys matching the source (prefix-aware for directories), rebinds them to the destination, and drops the LRU bytes; delete clears matching keys and bytes.
+  - [x] 12 unit tests in `reconcile.test.ts` cover the rebind/close/no-op matrix; 40 expects all green.
 - [ ] 3.3 Wire create file/folder, rename, recoverable delete, restore affordance, upload, and download UI actions to the backend routes; surface stable error codes through toasts; depends on 1.6 (selection set), 2.2b (upload/download routes), and 3.0 (refresh + tab reconcile).
 
 ## 4. Clipboard-style operations
