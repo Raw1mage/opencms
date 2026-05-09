@@ -23,6 +23,7 @@ import { ContinuationInvalidatedEvent } from "../plugin/codex-auth"
 import {
   emitCompactionPredicateTelemetry,
   emitKindChainTelemetry,
+  emitRecompressTelemetry,
   emitUserMsgReplayTelemetry,
 } from "./compaction-telemetry"
 import { sanitizeAnchorToString, type AnchorKind } from "./anchor-sanitizer"
@@ -1556,7 +1557,13 @@ When constructing the summary, try to stick to this template:
       log.info("hybrid_llm enrichment skipped (already in flight)", { sessionID })
       return
     }
-    if (!new Set<Observed>(["overflow", "cache-aware", "manual"]).has(observed)) return
+
+    // dialog-replay-redaction DD-4: when the redaction master flag is on,
+    // recompress fires on size (50K ceiling) regardless of `observed`. When
+    // off, retain the legacy observed-gate {overflow, cache-aware, manual}.
+    const dialogRedactionFlag =
+      (tweaks as { enableDialogRedactionAnchor?: boolean }).enableDialogRedactionAnchor !== false
+    if (!dialogRedactionFlag && !new Set<Observed>(["overflow", "cache-aware", "manual"]).has(observed)) return
 
     const promise = (async () => {
       try {
@@ -1577,10 +1584,33 @@ When constructing the summary, try to stick to this template:
           .map((p) => (p as any).text ?? "")
           .join("\n")
         const narrativeTokens = Math.ceil(narrativeContent.length / 4)
+        const ceilingTokens =
+          (tweaks as { anchorRecompressCeilingTokens?: number }).anchorRecompressCeilingTokens ?? 50_000
+        // Skip floor 5K stays. Under flag-on, anchors below the ceiling
+        // (5K..ceiling) still recompress (legacy "enrichment-when-large"
+        // policy). Above the ceiling, recompress trigger labels as
+        // "size-ceiling" for telemetry.
         if (narrativeTokens < 5_000) {
           log.info("hybrid_llm enrichment skipped (anchor small)", {
             sessionID,
             anchorTokens: narrativeTokens,
+          })
+          return
+        }
+        const trigger: "size-ceiling" | "legacy-large-policy" =
+          dialogRedactionFlag && narrativeTokens >= ceilingTokens ? "size-ceiling" : "legacy-large-policy"
+        // Provider dispatch: codex sessions go to /responses/compact via the
+        // existing low-cost-server plugin path; non-codex sessions fall
+        // through to Hybrid.runHybridLlm. Both paths share the post-LLM
+        // in-place anchor update logic via applyRecompressInPlaceUpdate.
+        if (dialogRedactionFlag && model.providerId === "codex") {
+          await runCodexServerSideRecompress({
+            sessionID,
+            anchorMsg: narrativeAnchorMsg,
+            anchorTokensBefore: narrativeTokens,
+            model,
+            trigger,
+            messagesPre,
           })
           return
         }
@@ -1604,6 +1634,14 @@ When constructing the summary, try to stick to this template:
         }
         const ctx = model.limit?.context ?? 200_000
         const targetTokens = Math.max(5_000, Math.round(ctx * 0.3))
+        const recompressStartedAt = Date.now()
+        const baseTelemetry = {
+          sessionID,
+          trigger,
+          kind: "hybrid_llm" as const,
+          providerId: model.providerId,
+          anchorTokensBefore: narrativeTokens,
+        }
 
         // STEP 2: run hybrid_llm in background. It creates its OWN stub
         // anchor message (the SessionProcessor pattern requires a
@@ -1630,6 +1668,12 @@ When constructing the summary, try to stick to this template:
         if (event.result !== "success") {
           // hybrid_llm failed — narrative's anchor stays as the active
           // version. Nothing more to do.
+          emitRecompressTelemetry({
+            ...baseTelemetry,
+            result: "provider-error",
+            errorMessage: event.errorCode ? String(event.errorCode) : undefined,
+            latencyMs: Date.now() - recompressStartedAt,
+          })
           return
         }
 
@@ -1686,6 +1730,11 @@ When constructing the summary, try to stick to this template:
             narrativeAnchorId,
             stubId: stubMsg.info.id,
           })
+          emitRecompressTelemetry({
+            ...baseTelemetry,
+            result: "stale-anchor-skipped",
+            latencyMs: Date.now() - recompressStartedAt,
+          })
           return
         }
 
@@ -1735,10 +1784,26 @@ When constructing the summary, try to stick to this template:
           upgradedTokens: Math.ceil(upgradedBody.length / 4),
           replacedTokens: narrativeTokens,
         })
+        emitRecompressTelemetry({
+          ...baseTelemetry,
+          result: "success",
+          anchorTokensAfter: Math.ceil(upgradedBody.length / 4),
+          latencyMs: Date.now() - recompressStartedAt,
+        })
       } catch (err) {
         log.error("hybrid_llm enrichment threw", {
           sessionID,
           error: err instanceof Error ? err.message : String(err),
+        })
+        emitRecompressTelemetry({
+          sessionID,
+          trigger: "legacy-large-policy",
+          kind: "hybrid_llm",
+          providerId: model.providerId,
+          anchorTokensBefore: 0,
+          result: "exception",
+          errorMessage: err instanceof Error ? err.message : String(err),
+          latencyMs: 0,
         })
       } finally {
         hybridEnrichInFlight.delete(sessionID)
@@ -1749,6 +1814,183 @@ When constructing the summary, try to stick to this template:
       sessionID,
       observed,
     })
+  }
+
+  // ───────────────────────────────────────────────────────────────────
+  // dialog-replay-redaction DD-4: codex provider recompress dispatch
+  //
+  // Feeds the anchor body as a single conversationItem to the existing
+  // session.compact plugin (codex /responses/compact). On success, the
+  // plugin returns a server-distilled summary; we update the anchor's
+  // text part in place. Mirrors the staleness check and telemetry
+  // surface of the hybrid_llm path so both routes behave identically
+  // from the runloop's perspective.
+  // ───────────────────────────────────────────────────────────────────
+
+  async function runCodexServerSideRecompress(input: {
+    sessionID: string
+    anchorMsg: MessageV2.WithParts
+    anchorTokensBefore: number
+    model: Provider.Model
+    trigger: "size-ceiling" | "legacy-large-policy"
+    messagesPre: MessageV2.WithParts[]
+  }): Promise<void> {
+    const { sessionID, anchorMsg, anchorTokensBefore, model, trigger, messagesPre } = input
+    const startedAt = Date.now()
+    const baseTelemetry = {
+      sessionID,
+      trigger,
+      kind: "low-cost-server" as const,
+      providerId: model.providerId,
+      anchorTokensBefore,
+    }
+
+    try {
+      // Build a single-item conversation: just the anchor body as a user
+      // message. The plugin returns server-compacted items that, for our
+      // purposes here, we discard — only the textual `summary` matters
+      // for the in-place body update.
+      const anchorBody = anchorMsg.parts
+        .filter((p) => p.type === "text")
+        .map((p) => (p as MessageV2.TextPart).text ?? "")
+        .join("\n")
+      if (!anchorBody.trim()) {
+        log.warn("codex recompress: anchor body empty; skipping", { sessionID })
+        emitRecompressTelemetry({
+          ...baseTelemetry,
+          result: "exception",
+          errorMessage: "anchor body empty",
+          latencyMs: Date.now() - startedAt,
+        })
+        return
+      }
+
+      // Last user msg's accountId — needed for plugin auth path. Fall
+      // back to the anchor's own accountId if the post-anchor stream has
+      // no user msg yet.
+      const lastUser = messagesPre.findLast((m) => m.info.role === "user")?.info as
+        | MessageV2.User
+        | undefined
+      const accountId =
+        lastUser?.model?.accountId ?? (anchorMsg.info as MessageV2.Assistant).accountId ?? ""
+
+      const conversationItems = [
+        {
+          type: "message",
+          role: "user",
+          content: [{ type: "input_text", text: anchorBody }],
+        },
+      ]
+      const agent = lastUser?.agent
+        ? await Agent.get(lastUser.agent).catch(() => undefined)
+        : undefined
+      const instructions = (agent?.prompt ?? "").slice(0, 50_000)
+
+      let hookResult: { compactedItems: unknown[] | null; summary: string | null }
+      try {
+        hookResult = (await Plugin.trigger(
+          "session.compact",
+          {
+            sessionID,
+            model: { providerId: model.providerId, modelID: model.id, accountId },
+            conversationItems,
+            instructions,
+          },
+          { compactedItems: null as unknown[] | null, summary: null as string | null },
+        )) as { compactedItems: unknown[] | null; summary: string | null }
+      } catch (err) {
+        log.warn("codex recompress: plugin threw", {
+          sessionID,
+          error: err instanceof Error ? err.message : String(err),
+        })
+        emitRecompressTelemetry({
+          ...baseTelemetry,
+          result: "provider-error",
+          errorMessage: err instanceof Error ? err.message : String(err),
+          latencyMs: Date.now() - startedAt,
+        })
+        return
+      }
+
+      if (!hookResult.compactedItems || !hookResult.summary?.trim()) {
+        log.info("codex recompress: plugin did not handle (no compactedItems or empty summary)", {
+          sessionID,
+        })
+        emitRecompressTelemetry({
+          ...baseTelemetry,
+          result: "provider-error",
+          errorMessage: "plugin did not handle",
+          latencyMs: Date.now() - startedAt,
+        })
+        return
+      }
+
+      const upgradedBody = hookResult.summary.trim()
+
+      // STALENESS CHECK: re-read the anchor; if a newer one has been
+      // written since we dispatched, abandon the in-place update.
+      const messagesPost = await Session.messages({ sessionID }).catch(
+        () => [] as MessageV2.WithParts[],
+      )
+      const currentAnchor = await Memory.Hybrid.getAnchorMessage(sessionID, messagesPost)
+      if (!currentAnchor || currentAnchor.info.id !== anchorMsg.info.id) {
+        log.info("codex recompress: stale anchor detected; skipping in-place update", {
+          sessionID,
+          dispatchedAnchorID: anchorMsg.info.id,
+          currentAnchorID: currentAnchor?.info.id,
+        })
+        emitRecompressTelemetry({
+          ...baseTelemetry,
+          result: "stale-anchor-skipped",
+          latencyMs: Date.now() - startedAt,
+        })
+        return
+      }
+
+      const anchorTextPart = currentAnchor.parts.find((p) => p.type === "text") as
+        | MessageV2.TextPart
+        | undefined
+      if (!anchorTextPart) {
+        log.warn("codex recompress: anchor has no text part to update", { sessionID })
+        emitRecompressTelemetry({
+          ...baseTelemetry,
+          result: "exception",
+          errorMessage: "anchor has no text part",
+          latencyMs: Date.now() - startedAt,
+        })
+        return
+      }
+
+      await Session.updatePart({
+        ...(anchorTextPart as any),
+        text: upgradedBody,
+      })
+
+      log.info("codex recompress: upgraded anchor body in place", {
+        sessionID,
+        anchorId: anchorMsg.info.id,
+        upgradedTokens: Math.ceil(upgradedBody.length / 4),
+        replacedTokens: anchorTokensBefore,
+        trigger,
+      })
+      emitRecompressTelemetry({
+        ...baseTelemetry,
+        result: "success",
+        anchorTokensAfter: Math.ceil(upgradedBody.length / 4),
+        latencyMs: Date.now() - startedAt,
+      })
+    } catch (err) {
+      log.error("codex recompress threw", {
+        sessionID,
+        error: err instanceof Error ? err.message : String(err),
+      })
+      emitRecompressTelemetry({
+        ...baseTelemetry,
+        result: "exception",
+        errorMessage: err instanceof Error ? err.message : String(err),
+        latencyMs: Date.now() - startedAt,
+      })
+    }
   }
 
   // Note: tryHybridLlmKind was removed 2026-04-29 in the redesign that
@@ -2567,6 +2809,8 @@ When constructing the summary, try to stick to this template:
     tryNarrativeRedactedDialog,
     tryNarrativeLegacy,
     extractAnchorTextBody,
+    runCodexServerSideRecompress,
+    scheduleHybridEnrichment,
   })
 
   // ───────────────────────────────────────────────────────────────────

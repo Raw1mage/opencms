@@ -174,3 +174,45 @@ export function buildUserMsgReplayTelemetry(input: {
 export function emitUserMsgReplayTelemetry(input: Parameters<typeof buildUserMsgReplayTelemetry>[0]) {
   debugCheckpoint("compaction.telemetry", "user_msg_replay", buildUserMsgReplayTelemetry(input))
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// compaction.recompressed (dialog-replay-redaction DD-4 / RecompressTelemetryEvent)
+// ─────────────────────────────────────────────────────────────────────
+
+type RecompressTrigger = "size-ceiling" | "legacy-large-policy"
+type RecompressKind = "low-cost-server" | "hybrid_llm"
+type RecompressResult =
+  | "success"
+  | "stale-anchor-skipped"
+  | "provider-error"
+  | "timeout"
+  | "exception"
+
+export function buildRecompressTelemetry(input: {
+  sessionID: string
+  trigger: RecompressTrigger
+  kind: RecompressKind
+  providerId?: string
+  anchorTokensBefore: number
+  anchorTokensAfter?: number
+  result: RecompressResult
+  errorMessage?: string
+  latencyMs: number
+}) {
+  return {
+    surface: "recompressed",
+    sessionID: input.sessionID,
+    trigger: input.trigger,
+    kind: input.kind,
+    providerId: boundedString(input.providerId),
+    anchorTokensBefore: finiteNumber(input.anchorTokensBefore) ?? 0,
+    anchorTokensAfter: finiteNumber(input.anchorTokensAfter),
+    result: input.result,
+    errorMessage: boundedString(input.errorMessage),
+    latencyMs: finiteNumber(input.latencyMs) ?? 0,
+  }
+}
+
+export function emitRecompressTelemetry(input: Parameters<typeof buildRecompressTelemetry>[0]) {
+  debugCheckpoint("compaction.telemetry", "recompressed", buildRecompressTelemetry(input))
+}
