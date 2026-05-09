@@ -33,6 +33,8 @@ import { AuthGate } from "@/components/auth-gate"
 const Home = lazy(() => import("@/pages/home"))
 const Session = lazy(() => import("@/pages/session"))
 const TerminalPopout = lazy(() => import("@/pages/session/terminal-popout"))
+const FileExplorerPopout = lazy(() => import("@/pages/session/file-explorer-popout"))
+const FileViewPopout = lazy(() => import("@/pages/session/file-view-popout"))
 const SessionToolPage = lazy(() => import("@/pages/session/tool-page"))
 const SessionRichContentProvider = lazy(() => import("@/pages/session/session-rich-content-provider"))
 const TaskList = lazy(() => import("@/pages/task-list"))
@@ -59,6 +61,26 @@ const TerminalPopoutRoute = () => (
     <Suspense fallback={<Loading />}>
       <SessionRichContentProvider>
         <TerminalPopout />
+      </SessionRichContentProvider>
+    </Suspense>
+  </SessionProviders>
+)
+
+const FileExplorerPopoutRoute = () => (
+  <SessionProviders>
+    <Suspense fallback={<Loading />}>
+      <SessionRichContentProvider>
+        <FileExplorerPopout />
+      </SessionRichContentProvider>
+    </Suspense>
+  </SessionProviders>
+)
+
+const FileViewPopoutRoute = () => (
+  <SessionProviders>
+    <Suspense fallback={<Loading />}>
+      <SessionRichContentProvider>
+        <FileViewPopout />
       </SessionRichContentProvider>
     </Suspense>
   </SessionProviders>
@@ -270,6 +292,8 @@ export function AppInterface(props: { defaultUrl?: string; children?: JSX.Elemen
                     <Route path="/session/:id?" component={SessionRoute} />
                     <Route path="/session/:id?/tool/:tool" component={SessionToolRoute} />
                     <Route path="/session/:id?/terminal-popout" component={TerminalPopoutRoute} />
+                    <Route path="/session/:id?/file-explorer-popout" component={FileExplorerPopoutRoute} />
+                    <Route path="/session/:id?/file-view-popout" component={FileViewPopoutRoute} />
                   </Route>
                 </Router>
               </GlobalSyncProvider>

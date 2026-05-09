@@ -129,6 +129,15 @@ export default function Layout(props: ParentProps) {
   const location = useLocation()
   const currentDir = createMemo(() => decode64(params.dir) ?? "")
   const isTasksRoute = createMemo(() => location.pathname.startsWith("/system/tasks"))
+  // Pop-out windows must render only the popped surface — no app sidebar,
+  // no titlebar. Phase 5 contract: terminal-popout / file-explorer-popout /
+  // file-view-popout. Detect by URL suffix instead of touching every route
+  // registration; new pop-out routes that follow the *-popout convention
+  // pick this up automatically.
+  const isPopoutRoute = createMemo(() => {
+    const pathname = location.pathname.replace(/\/+$/, "")
+    return pathname.endsWith("-popout")
+  })
 
   const [state, setState] = createStore({
     autoselect: !initialDirectory,
@@ -1973,6 +1982,14 @@ export default function Layout(props: ParentProps) {
   }
 
   return (
+    <Show
+      when={!isPopoutRoute()}
+      fallback={
+        <div class="relative bg-background-base flex-1 min-h-0 flex flex-col select-none [&_input]:select-text [&_textarea]:select-text [&_[contenteditable]]:select-text">
+          {props.children}
+        </div>
+      }
+    >
     <div class="relative bg-background-base flex-1 min-h-0 flex flex-col select-none [&_input]:select-text [&_textarea]:select-text [&_[contenteditable]]:select-text">
       <Titlebar />
       <div class="flex-1 min-h-0 flex relative">
@@ -2162,5 +2179,6 @@ export default function Layout(props: ParentProps) {
       </div>
       <Toast.Region />
     </div>
+    </Show>
   )
 }

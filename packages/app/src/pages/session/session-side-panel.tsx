@@ -69,6 +69,7 @@ function FileTabMenu(props: {
   dialog: ReturnType<typeof useDialog>
   language: ReturnType<typeof useLanguage>
   command: ReturnType<typeof useCommand>
+  onPopOutActive?: () => void
 }) {
   const [open, setOpen] = createSignal(false)
   let ref: HTMLDivElement | undefined
@@ -194,6 +195,18 @@ function FileTabMenu(props: {
               >
                 <Icon name="square-arrow-top-right" size="small" />
               </button>
+              <Show when={props.onPopOutActive}>
+                <button
+                  class="p-1.5 hover:bg-surface-tertiary rounded transition-colors [&_[data-component=icon]]:!text-white"
+                  onClick={() => {
+                    setOpen(false)
+                    props.onPopOutActive?.()
+                  }}
+                  title="Pop out viewer"
+                >
+                  <Icon name="layout-bottom-full" size="small" />
+                </button>
+              </Show>
             </Show>
           </div>
         </Portal>
@@ -390,7 +403,33 @@ export function SessionSidePanel(props: {
                     <Tabs.List class="min-w-max">
                       <SortableProvider ids={props.openedTabs()}>
                         <For each={props.openedTabs()}>
-                          {(tab) => <SortableTab tab={tab} onTabClose={props.tabs().close} />}
+                          {(tab) => (
+                            <SortableTab
+                              tab={tab}
+                              onTabClose={props.tabs().close}
+                              onCloseOthers={(keep) => {
+                                // Close every file:// tab except `keep`. Non-file tabs
+                                // ("context") survive — only file viewers are scoped.
+                                const all = props.tabs().all()
+                                const remaining = all.filter(
+                                  (t: string) => !t.startsWith("file://") || t === keep,
+                                )
+                                props.tabs().setAll(remaining)
+                                if (props.tabs().active() && !remaining.includes(props.tabs().active() as string)) {
+                                  props.tabs().setActive(keep)
+                                }
+                              }}
+                              onCloseAll={() => {
+                                // Close every file:// tab; "context" survives.
+                                const all = props.tabs().all()
+                                const remaining = all.filter((t: string) => !t.startsWith("file://"))
+                                props.tabs().setAll(remaining)
+                                if (props.tabs().active() && !remaining.includes(props.tabs().active() as string)) {
+                                  props.tabs().setActive(remaining[0])
+                                }
+                              }}
+                            />
+                          )}
                         </For>
                       </SortableProvider>
                     </Tabs.List>
@@ -404,6 +443,36 @@ export function SessionSidePanel(props: {
                         dialog={props.dialog}
                         language={props.language}
                         command={props.command}
+                        onPopOutActive={() => {
+                          // UAT pass 4 — user hint: just chain-trigger the same button
+                          // that toggles the file pane (the folder icon at top of the
+                          // panel). Pop-out = open new window + collapse the file pane.
+                          // No more wrestling with tabs.close timing — closing the
+                          // entire pane is the user-visible signal they want, and the
+                          // tab data behind it can be tidied up at the same time
+                          // without it being on the critical visual path.
+                          const tab = props.activeFileTab()
+                          if (!tab) return
+                          const path = props.file.pathFromTab(tab)
+                          if (!path) return
+                          const dir = (params as { dir?: string }).dir
+                          const id = (params as { id?: string }).id
+                          const basePath = id ? `/${dir}/session/${id}` : `/${dir}/session`
+                          const url = new URL(`${basePath}/file-view-popout`, window.location.origin)
+                          url.searchParams.set("path", path)
+                          // Best-effort tab cleanup so re-opening the pane later doesn't
+                          // resurrect the popped tab. Doesn't matter if it no-ops.
+                          const sessionKey = `${dir ?? ""}${id ? "/" + id : ""}`
+                          props.layout.tabs(sessionKey).close(tab)
+                          // Primary visual action — same as pressing the folder toggle.
+                          closeFilePane()
+                          const width = Math.max(640, Math.floor(window.innerWidth * 0.5))
+                          const height = Math.max(560, Math.floor(window.innerHeight * 0.62))
+                          const left = Math.max(20, Math.floor(window.screenX + (window.outerWidth - width) / 2))
+                          const top = Math.max(20, Math.floor(window.screenY + (window.outerHeight - height) / 2))
+                          const features = `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+                          window.open(url.toString(), `opencode-file-view-popout-${path}`, features)
+                        }}
                       />
                       <IconButton
                         icon="close-small"
@@ -471,7 +540,29 @@ export function SessionSidePanel(props: {
         >
           <div class="h-full flex flex-col overflow-hidden group/filetree">
             <Show when={sideMode() === "files"}>
-              <div class="bg-background-base px-3 py-0 h-full overflow-auto">
+              <div class="h-7 flex items-center justify-end gap-1 px-2 border-b border-border-weak-base bg-background-stronger shrink-0">
+                <IconButton
+                  icon="square-arrow-top-right"
+                  variant="ghost"
+                  iconSize="small"
+                  class="h-6 w-6"
+                  aria-label="Pop out file explorer"
+                  onClick={() => {
+                    const basePath = params.id ? `/${params.dir}/session/${params.id}` : `/${params.dir}/session`
+                    const url = new URL(`${basePath}/file-explorer-popout`, window.location.origin)
+                    const width = Math.max(640, Math.floor(window.innerWidth * 0.42))
+                    const height = Math.max(720, Math.floor(window.innerHeight * 0.72))
+                    const left = Math.max(20, Math.floor(window.screenX + (window.outerWidth - width) / 2))
+                    const top = Math.max(20, Math.floor(window.screenY + (window.outerHeight - height) / 2))
+                    const features = `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+                    window.open(url.toString(), "opencode-file-explorer-popout", features)
+                    // Chain-trigger Ctrl+\ (toggleDesktopPanel("files") -> fileTree.close)
+                    // so the source file-tree panel collapses after pop-out.
+                    props.layout.fileTree.close()
+                  }}
+                />
+              </div>
+              <div class="bg-background-base px-3 py-0 flex-1 min-h-0 overflow-auto">
                 <FileTree
                   path=""
                   modified={props.diffFiles}
