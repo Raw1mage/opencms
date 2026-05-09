@@ -1318,40 +1318,92 @@ export namespace File {
     }, operationResultParts)
   }
 
-  export async function move(input: { source: string; destinationParent: string }): Promise<OperationResult> {
+  // Phase 4.3 — external destination resolution. Source must always remain
+  // inside the active project. When scope === "external", the destination
+  // bypasses assertOperationWithinProject and is instead canonicalized +
+  // write-probed inline (mirrors destinationPreflight). Returns the
+  // resolved absolute parent + a presentational path for the result.
+  async function resolveDestinationParent(
+    requested: string,
+    scope: "active-project" | "external" | undefined,
+  ): Promise<{ absolute: string; presentation: string; external: boolean }> {
+    if (scope === "external") {
+      const canonical = path.resolve(requested)
+      const stat = await fs.promises.stat(canonical).catch(() => undefined)
+      if (!stat) {
+        throw operationError("FILE_OP_DESTINATION_AMBIGUOUS", "Destination path cannot be resolved safely.", {
+          path: canonical,
+        })
+      }
+      if (!stat.isDirectory()) {
+        throw operationError("FILE_OP_TARGET_NOT_DIRECTORY", "Operation target is not a directory.", {
+          path: canonical,
+        })
+      }
+      const permission = await ensureWritableDirectory(canonical)
+      if (permission) {
+        throw operationError(permission, "Current user cannot write to the destination.", { path: canonical })
+      }
+      return { absolute: canonical, presentation: canonical, external: true }
+    }
+    const absolute = await resolveProjectParent(requested)
+    return { absolute, presentation: normalizeRelative(absolute), external: false }
+  }
+
+  function destinationDisplay(absolute: string, external: boolean): string {
+    return external ? absolute : normalizeRelative(absolute)
+  }
+
+  export async function move(input: {
+    source: string
+    destinationParent: string
+    scope?: "active-project" | "external"
+  }): Promise<OperationResult> {
     return withTelemetry("move", input as unknown as Record<string, unknown>, async () => {
       const source = await resolveProjectPath(input.source)
       await assertSourceExists(source)
-      const parent = await resolveProjectParent(input.destinationParent)
-      const destination = path.join(parent, path.basename(source))
-      await assertOperationWithinProject(destination)
+      const parent = await resolveDestinationParent(input.destinationParent, input.scope)
+      const destination = path.join(parent.absolute, path.basename(source))
+      if (!parent.external) await assertOperationWithinProject(destination)
       if (source !== destination) await assertDestinationAvailable(destination)
       await moveWithoutOverwrite(source, destination)
+      const destinationDisplayPath = destinationDisplay(destination, parent.external)
       return {
         operation: "move",
         source: normalizeRelative(source),
-        destination: normalizeRelative(destination),
-        node: await nodeFromPath(destination),
-        affectedDirectories: [...new Set([parentRelative(source), normalizeRelative(parent)])],
+        destination: destinationDisplayPath,
+        node: parent.external ? undefined : await nodeFromPath(destination),
+        affectedDirectories: [
+          ...new Set(
+            parent.external
+              ? [parentRelative(source)]
+              : [parentRelative(source), normalizeRelative(parent.absolute)],
+          ),
+        ],
       }
     }, operationResultParts)
   }
 
-  export async function copy(input: { source: string; destinationParent: string }): Promise<OperationResult> {
+  export async function copy(input: {
+    source: string
+    destinationParent: string
+    scope?: "active-project" | "external"
+  }): Promise<OperationResult> {
     return withTelemetry("copy", input as unknown as Record<string, unknown>, async () => {
       const source = await resolveProjectPath(input.source)
       await assertSourceExists(source)
-      const parent = await resolveProjectParent(input.destinationParent)
-      const destination = path.join(parent, path.basename(source))
-      await assertOperationWithinProject(destination)
+      const parent = await resolveDestinationParent(input.destinationParent, input.scope)
+      const destination = path.join(parent.absolute, path.basename(source))
+      if (!parent.external) await assertOperationWithinProject(destination)
       await assertDestinationAvailable(destination)
       await copyWithoutOverwrite(source, destination)
+      const destinationDisplayPath = destinationDisplay(destination, parent.external)
       return {
         operation: "copy",
         source: normalizeRelative(source),
-        destination: normalizeRelative(destination),
-        node: await nodeFromPath(destination),
-        affectedDirectories: [normalizeRelative(parent)],
+        destination: destinationDisplayPath,
+        node: parent.external ? undefined : await nodeFromPath(destination),
+        affectedDirectories: parent.external ? [] : [normalizeRelative(parent.absolute)],
       }
     }, operationResultParts)
   }

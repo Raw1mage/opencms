@@ -504,6 +504,95 @@ describe("File operation guards", () => {
     })
   })
 
+  test("copy with scope:external writes into a writable directory outside the project", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await fs.mkdir(path.join(dir, "docs"), { recursive: true })
+        await fs.writeFile(path.join(dir, "docs", "a.txt"), "body")
+      },
+    })
+    await using external = await tmpdir()
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const result = await File.copy({
+          source: "docs/a.txt",
+          destinationParent: external.path,
+          scope: "external",
+        })
+        expect(result.operation).toBe("copy")
+        // Source remains intact in the active project.
+        await expect(Bun.file(path.join(tmp.path, "docs", "a.txt")).text()).resolves.toBe("body")
+        await expect(Bun.file(path.join(external.path, "a.txt")).text()).resolves.toBe("body")
+      },
+    })
+  })
+
+  test("move with scope:external relocates into an external directory", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await fs.mkdir(path.join(dir, "docs"), { recursive: true })
+        await fs.writeFile(path.join(dir, "docs", "a.txt"), "body")
+      },
+    })
+    await using external = await tmpdir()
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const result = await File.move({
+          source: "docs/a.txt",
+          destinationParent: external.path,
+          scope: "external",
+        })
+        expect(result.operation).toBe("move")
+        await expect(Bun.file(path.join(tmp.path, "docs", "a.txt")).exists()).resolves.toBe(false)
+        await expect(Bun.file(path.join(external.path, "a.txt")).text()).resolves.toBe("body")
+      },
+    })
+  })
+
+  test("scope:external still rejects when the destination cannot be written", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await fs.writeFile(path.join(dir, "a.txt"), "body")
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        await expectOperationCode(
+          File.copy({ source: "a.txt", destinationParent: "/proc/1", scope: "external" }),
+          "FILE_OP_PERMISSION_DENIED",
+        )
+      },
+    })
+  })
+
+  test("scope:external rejects a missing destination directory", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await fs.writeFile(path.join(dir, "a.txt"), "body")
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        await expectOperationCode(
+          File.copy({
+            source: "a.txt",
+            destinationParent: "/tmp/opencode-doesnotexist-" + Math.random().toString(36).slice(2),
+            scope: "external",
+          }),
+          "FILE_OP_DESTINATION_AMBIGUOUS",
+        )
+      },
+    })
+  })
+
   test("destinationPreflight reports external writable directory as writable", async () => {
     await using tmp = await tmpdir()
     await using external = await tmpdir()

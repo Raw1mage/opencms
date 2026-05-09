@@ -11502,6 +11502,7 @@ export type FileMoveData = {
   body: {
     source: string
     destinationParent: string
+    scope?: "active-project" | "external"
   }
   path?: never
   query?: {
@@ -11523,6 +11524,7 @@ export type FileCopyData = {
   body: {
     source: string
     destinationParent: string
+    scope?: "active-project" | "external"
   }
   path?: never
   query?: {
@@ -19592,6 +19594,7 @@ export type FileMove2Data = {
   body: {
     source: string
     destinationParent: string
+    scope?: "active-project" | "external"
   }
   path?: never
   query?: {
@@ -19613,6 +19616,7 @@ export type FileCopy2Data = {
   body: {
     source: string
     destinationParent: string
+    scope?: "active-project" | "external"
   }
   path?: never
   query?: {

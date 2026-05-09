@@ -268,6 +268,7 @@ export const FileRoutes = lazy(() =>
         z.object({
           source: z.string().min(1),
           destinationParent: z.string(),
+          scope: z.enum(["active-project", "external"]).optional(),
         }),
       ),
       async (c) => {
@@ -298,6 +299,7 @@ export const FileRoutes = lazy(() =>
         z.object({
           source: z.string().min(1),
           destinationParent: z.string(),
+          scope: z.enum(["active-project", "external"]).optional(),
         }),
       ),
       async (c) => {

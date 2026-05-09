@@ -107,6 +107,7 @@ export type FileTreeContextMenuActionId =
   | "copy"
   | "cut"
   | "paste"
+  | "paste-external"
   | "delete"
   | "restore"
   | "upload"
@@ -214,6 +215,12 @@ export function fileTreeContextMenuActionGroups(input: {
           label: "Paste here",
           enabled: folderDestination && !!input.hasPendingClipboard,
           reason: !folderDestination ? "Choose a destination folder." : "No copied or cut items are pending.",
+        },
+        {
+          id: "paste-external",
+          label: "Paste to writable destination…",
+          enabled: !!input.hasPendingClipboard,
+          reason: "No copied or cut items are pending.",
         },
       ],
     },
@@ -920,6 +927,81 @@ export default function FileTree(props: {
     if (lastError) surfaceError(lastError, cb.mode === "cut" ? "Move failed" : "Copy failed")
   }
 
+  // Phase 4.3: paste to a writable destination outside the active project.
+  // Pre-conditions enforced server-side: source must still be inside the
+  // active project; destination is canonicalized and write-permission
+  // probed before any bytes are touched. UX-side: V1 uses window.prompt
+  // for the absolute path and window.confirm to surface the canonical
+  // destination. Both are deferred-to-Phase-7 polish placeholders.
+  const runPasteExternal = async () => {
+    const cb = clipboard()
+    if (!cb || cb.entries.length === 0) {
+      showToast({
+        variant: "error",
+        title: "Paste failed",
+        description: "No copied or cut items are pending.",
+      })
+      return
+    }
+    const requested = window.prompt("Paste destination (absolute path):")?.trim()
+    if (!requested) return
+
+    let preflight: Awaited<ReturnType<typeof sdk.client.file.destinationPreflight>>
+    try {
+      preflight = await sdk.client.file.destinationPreflight({
+        destinationParent: requested,
+        scope: "external",
+      })
+    } catch (err) {
+      surfaceError(err, "External paste preflight failed")
+      return
+    }
+    const result = preflight.data
+    if (!result || !result.writable) {
+      showToast({
+        variant: "error",
+        title: "External paste blocked",
+        description: result?.reason ? `${result.reason}: ${result.canonicalPath ?? requested}` : "Destination is not writable.",
+      })
+      return
+    }
+    const canonical = result.canonicalPath
+    const confirmed = window.confirm(
+      `Paste ${cb.entries.length} item(s) into:\n${canonical}\n\n${cb.mode === "cut" ? "Source files will be MOVED." : "Source files will be COPIED."}`,
+    )
+    if (!confirmed) return
+
+    let succeeded = 0
+    let lastError: unknown
+    for (const entry of cb.entries) {
+      try {
+        const response =
+          cb.mode === "cut"
+            ? await sdk.client.file.move({ source: entry.path, destinationParent: canonical, scope: "external" })
+            : await sdk.client.file.copy({ source: entry.path, destinationParent: canonical, scope: "external" })
+        if (response.data) {
+          file.applyOperationResult(response.data)
+          succeeded++
+        }
+      } catch (err) {
+        lastError = err
+      }
+    }
+    if (cb.mode === "cut") setClipboard(null)
+    setSelection(emptySelection())
+    if (succeeded > 0) {
+      showToast({
+        variant: "success",
+        title: cb.mode === "cut" ? "Moved (external)" : "Copied (external)",
+        description:
+          succeeded === cb.entries.length
+            ? `${succeeded} item(s) into ${canonical}`
+            : `${succeeded} of ${cb.entries.length} item(s) into ${canonical}`,
+      })
+    }
+    if (lastError) surfaceError(lastError, cb.mode === "cut" ? "External move failed" : "External copy failed")
+  }
+
   const runAction = (id: FileTreeContextMenuActionId, target: ActionTarget) => {
     switch (id) {
       case "open":
@@ -954,6 +1036,9 @@ export default function FileTree(props: {
         return
       case "paste":
         void runPaste(target)
+        return
+      case "paste-external":
+        void runPasteExternal()
         return
     }
   }

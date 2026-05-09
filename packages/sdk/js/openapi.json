@@ -20419,6 +20419,13 @@
                   },
                   "destinationParent": {
                     "type": "string"
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "active-project",
+                      "external"
+                    ]
                   }
                 },
                 "required": [
@@ -20470,6 +20477,13 @@
                   },
                   "destinationParent": {
                     "type": "string"
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "active-project",
+                      "external"
+                    ]
                   }
                 },
                 "required": [
@@ -41569,6 +41583,13 @@
                   },
                   "destinationParent": {
                     "type": "string"
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "active-project",
+                      "external"
+                    ]
                   }
                 },
                 "required": [
@@ -41620,6 +41641,13 @@
                   },
                   "destinationParent": {
                     "type": "string"
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "active-project",
+                      "external"
+                    ]
                   }
                 },
                 "required": [
@@ -46691,7 +46719,7 @@
           },
           "id": {
             "description": "Unique identifier for the todo item (auto-generated if omitted)",
-            "default": "todo_moy9v669_y2uvym",
+            "default": "todo_moyem0nu_rbrbzr",
             "type": "string"
           },
           "action": {

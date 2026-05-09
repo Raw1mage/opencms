@@ -13219,6 +13219,7 @@ export class File extends HeyApiClient {
       directory?: string
       source?: string
       destinationParent?: string
+      scope?: "active-project" | "external"
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -13230,6 +13231,7 @@ export class File extends HeyApiClient {
             { in: "query", key: "directory" },
             { in: "body", key: "source" },
             { in: "body", key: "destinationParent" },
+            { in: "body", key: "scope" },
           ],
         },
       ],
@@ -13256,6 +13258,7 @@ export class File extends HeyApiClient {
       directory?: string
       source?: string
       destinationParent?: string
+      scope?: "active-project" | "external"
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -13267,6 +13270,7 @@ export class File extends HeyApiClient {
             { in: "query", key: "directory" },
             { in: "body", key: "source" },
             { in: "body", key: "destinationParent" },
+            { in: "body", key: "scope" },
           ],
         },
       ],
@@ -13690,6 +13694,7 @@ export class File extends HeyApiClient {
       directory?: string
       source?: string
       destinationParent?: string
+      scope?: "active-project" | "external"
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -13701,6 +13706,7 @@ export class File extends HeyApiClient {
             { in: "query", key: "directory" },
             { in: "body", key: "source" },
             { in: "body", key: "destinationParent" },
+            { in: "body", key: "scope" },
           ],
         },
       ],
@@ -13727,6 +13733,7 @@ export class File extends HeyApiClient {
       directory?: string
       source?: string
       destinationParent?: string
+      scope?: "active-project" | "external"
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -13738,6 +13745,7 @@ export class File extends HeyApiClient {
             { in: "query", key: "directory" },
             { in: "body", key: "source" },
             { in: "body", key: "destinationParent" },
+            { in: "body", key: "scope" },
           ],
         },
       ],
