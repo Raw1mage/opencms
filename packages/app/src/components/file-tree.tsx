@@ -1,10 +1,13 @@
 import { useFile } from "@/context/file"
+import { useSDK } from "@/context/sdk"
 import { encodeFilePath } from "@/context/file/path"
 import { Checkbox } from "@opencode-ai/ui/checkbox"
 import { Collapsible } from "@opencode-ai/ui/collapsible"
 import { ContextMenu } from "@opencode-ai/ui/context-menu"
 import { FileIcon } from "@opencode-ai/ui/file-icon"
 import { Icon } from "@opencode-ai/ui/icon"
+import { showToast } from "@opencode-ai/ui/toast"
+import type { FileOperationResult } from "@opencode-ai/sdk/v2"
 import {
   createEffect,
   createMemo,
@@ -438,6 +441,7 @@ export default function FileTree(props: {
   _pathTypes?: Map<string, FileNode["type"]>
 }) {
   const file = useFile()
+  const sdk = useSDK()
   const level = props.level ?? 0
   const draggable = () => props.draggable ?? true
   const root = !props._chain
@@ -448,6 +452,8 @@ export default function FileTree(props: {
   const selection = props._selection ?? localSelection
   const setSelection = props._setSelection ?? setLocalSelection
   const pathTypes = props._pathTypes ?? new Map<string, FileNode["type"]>()
+  let uploadInputEl: HTMLInputElement | undefined
+  let pendingUploadParent: string | undefined
 
   const key = (p: string) =>
     file
@@ -639,6 +645,227 @@ export default function FileTree(props: {
     publishContextMenuTarget(fileTreeFolderContextMenuTarget(path))
   }
 
+  // ----- Phase 3.3: action dispatch wiring -----------------------------
+  // The context menu actions defined by fileTreeContextMenuActionGroups
+  // are paired here with concrete handlers that call the file SDK and feed
+  // results back into the file context for refresh + tab reconcile. V1 uses
+  // window.prompt / window.confirm for name + delete confirmation as a known
+  // UX limitation; Phase 7 polish replaces them with in-app dialogs.
+
+  type ActionTarget = FileTreeContextMenuTarget
+
+  const parentForCreate = (target: ActionTarget): string => {
+    if (target.kind === "folder") return target.path
+    if (target.nodeType === "directory") return target.path
+    return target.parentPath
+  }
+
+  const parentForUpload = parentForCreate
+
+  const surfaceError = (err: unknown, fallbackTitle: string) => {
+    const data = (err && typeof err === "object" && "data" in err ? (err as { data?: unknown }).data : undefined) as
+      | { code?: string; message?: string }
+      | undefined
+    const code = typeof data?.code === "string" ? data.code : undefined
+    const message =
+      (typeof data?.message === "string" && data.message) ||
+      (err instanceof Error ? err.message : undefined) ||
+      "Operation failed."
+    showToast({
+      variant: "error",
+      title: code ? `${fallbackTitle} (${code})` : fallbackTitle,
+      description: message,
+    })
+  }
+
+  const finishOperation = (result: FileOperationResult | undefined, successDescription: string) => {
+    if (!result) return
+    file.applyOperationResult(result)
+    setSelection(emptySelection())
+    showToast({ variant: "success", title: "File operation", description: successDescription })
+  }
+
+  const runCreate = async (target: ActionTarget, type: "file" | "directory") => {
+    const parent = parentForCreate(target)
+    const label = type === "directory" ? "Folder name" : "File name"
+    const name = window.prompt(`${label} (in ${parent || "/"})`)?.trim()
+    if (!name) return
+    try {
+      const response = await sdk.client.file.create({ parent, name, type })
+      finishOperation(response.data, `${type === "directory" ? "Folder" : "File"} created: ${parent ? parent + "/" : ""}${name}`)
+    } catch (err) {
+      surfaceError(err, `Create ${type} failed`)
+    }
+  }
+
+  const runRename = async (target: ActionTarget) => {
+    if (target.kind !== "row") return
+    const current = target.path.split("/").pop() ?? target.path
+    const next = window.prompt(`Rename "${current}" to:`, current)?.trim()
+    if (!next || next === current) return
+    try {
+      const response = await sdk.client.file.rename({ path: target.path, name: next })
+      finishOperation(response.data, `Renamed to ${response.data?.destination ?? next}`)
+    } catch (err) {
+      surfaceError(err, "Rename failed")
+    }
+  }
+
+  const runDelete = async (target: ActionTarget) => {
+    if (target.kind !== "row") return
+    // If the clicked row is itself selected, batch over the whole selection;
+    // otherwise act only on the clicked row.
+    const sel = selection().selected
+    const batch = sel.has(target.path) && sel.size > 1 ? Array.from(sel) : [target.path]
+    const sample = batch.slice(0, 3).join(", ")
+    const more = batch.length > 3 ? ` and ${batch.length - 3} more` : ""
+    const confirmed = window.confirm(
+      `Move ${batch.length === 1 ? "this item" : `${batch.length} items`} to recyclebin?\n\n${sample}${more}`,
+    )
+    if (!confirmed) return
+    let succeeded = 0
+    let lastError: unknown
+    for (const path of batch) {
+      try {
+        const response = await sdk.client.file.deleteToRecyclebin({ path, confirmed: true })
+        if (response.data) {
+          file.applyOperationResult(response.data)
+          succeeded++
+        }
+      } catch (err) {
+        lastError = err
+      }
+    }
+    setSelection(emptySelection())
+    if (succeeded > 0) {
+      showToast({
+        variant: "success",
+        title: "Moved to recyclebin",
+        description: succeeded === batch.length ? `${succeeded} item(s)` : `${succeeded} of ${batch.length} item(s)`,
+      })
+    }
+    if (lastError) surfaceError(lastError, "Delete failed")
+  }
+
+  const runRestore = async (target: ActionTarget) => {
+    if (target.kind !== "row") return
+    try {
+      const response = await sdk.client.file.restoreFromRecyclebin({ tombstonePath: target.path })
+      finishOperation(response.data, `Restored to ${response.data?.destination ?? target.path}`)
+    } catch (err) {
+      surfaceError(err, "Restore failed")
+    }
+  }
+
+  const runUpload = (target: ActionTarget) => {
+    if (!uploadInputEl) return
+    pendingUploadParent = parentForUpload(target)
+    uploadInputEl.value = ""
+    uploadInputEl.click()
+  }
+
+  const handleUploadFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0 || pendingUploadParent === undefined) return
+    const parent = pendingUploadParent
+    pendingUploadParent = undefined
+    let succeeded = 0
+    let lastError: unknown
+    for (const item of Array.from(files)) {
+      try {
+        const response = await sdk.client.file.upload({ parent, file: item })
+        if (response.data) succeeded++
+      } catch (err) {
+        lastError = err
+      }
+    }
+    // Refresh once at the end with a synthetic result; the per-file results
+    // already updated the tree branch via the loop's applyOperationResult
+    // (skipped above for clarity — let the outer loop call it now).
+    if (succeeded > 0) {
+      showToast({
+        variant: "success",
+        title: "Upload complete",
+        description: succeeded === files.length ? `${succeeded} file(s)` : `${succeeded} of ${files.length} file(s)`,
+      })
+      // Force a refresh of the upload-target folder once after the batch.
+      void file.tree.refresh(parent)
+    }
+    if (lastError) surfaceError(lastError, "Upload failed")
+  }
+
+  const runDownload = async (target: ActionTarget) => {
+    if (target.kind !== "row" || target.nodeType !== "file") return
+    try {
+      const url = new URL(`${sdk.url}/api/v2/file/download`)
+      url.searchParams.set("directory", sdk.directory)
+      url.searchParams.set("path", target.path)
+      const response = await sdk.fetch(url.toString())
+      if (!response.ok) {
+        const body = await response.json().catch(() => undefined)
+        const synthetic = { data: body }
+        surfaceError(synthetic, "Download failed")
+        return
+      }
+      const blob = await response.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const filename = target.path.split("/").pop() ?? "download"
+      const anchor = document.createElement("a")
+      anchor.href = objectUrl
+      anchor.download = filename
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      URL.revokeObjectURL(objectUrl)
+      showToast({ variant: "success", title: "Downloaded", description: filename })
+    } catch (err) {
+      surfaceError(err, "Download failed")
+    }
+  }
+
+  const runOpen = (target: ActionTarget) => {
+    if (target.kind !== "row" || target.nodeType !== "file") return
+    props.onFileClick?.(target.node)
+  }
+
+  const runAction = (id: FileTreeContextMenuActionId, target: ActionTarget) => {
+    switch (id) {
+      case "open":
+        runOpen(target)
+        return
+      case "create-file":
+        void runCreate(target, "file")
+        return
+      case "create-folder":
+        void runCreate(target, "directory")
+        return
+      case "rename":
+        void runRename(target)
+        return
+      case "delete":
+        void runDelete(target)
+        return
+      case "restore":
+        void runRestore(target)
+        return
+      case "upload":
+        runUpload(target)
+        return
+      case "download":
+        void runDownload(target)
+        return
+      case "copy":
+      case "cut":
+      case "paste":
+        // Phase 4 — clipboard ops not wired yet.
+        showToast({
+          variant: "info",
+          title: "Not available yet",
+          description: "Copy / cut / paste will land in Phase 4.",
+        })
+        return
+    }
+  }
+
   const effectiveContextSelection = createMemo<readonly FileTreeContextSelectionItem[] | undefined>(() => {
     if (props.contextSelection) return props.contextSelection
     const sel = selection().selected
@@ -667,7 +894,15 @@ export default function FileTree(props: {
           <ContextMenu.GroupLabel>{group.label}</ContextMenu.GroupLabel>
           <For each={group.actions}>
             {(action) => (
-              <ContextMenu.Item disabled={!action.enabled}>
+              <ContextMenu.Item
+                disabled={!action.enabled}
+                onSelect={() => {
+                  if (!action.enabled) return
+                  const target = contextMenuTarget()
+                  if (!target) return
+                  runAction(action.id, target)
+                }}
+              >
                 <ContextMenu.ItemLabel>{action.label}</ContextMenu.ItemLabel>
                 <Show when={!action.enabled && action.reason}>
                   {(reason) => <ContextMenu.ItemDescription>{reason()}</ContextMenu.ItemDescription>}
@@ -914,6 +1149,21 @@ export default function FileTree(props: {
           <Show when={contextMenuTarget()}>{(target) => (props.contextMenu ?? defaultContextMenu)(target())}</Show>
         </ContextMenu.Content>
       </ContextMenu.Portal>
+      <input
+        ref={(el) => {
+          uploadInputEl = el
+        }}
+        type="file"
+        multiple
+        class="hidden"
+        aria-hidden="true"
+        onChange={(event) => {
+          const target = event.currentTarget
+          void handleUploadFiles(target.files).finally(() => {
+            target.value = ""
+          })
+        }}
+      />
     </ContextMenu>
   )
 }
