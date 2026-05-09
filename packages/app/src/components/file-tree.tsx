@@ -92,6 +92,13 @@ export type FileTreeContextSelectionItem = {
   type: FileNode["type"]
 }
 
+export type FileTreeClipboardEntry = {
+  path: string
+  type: FileNode["type"]
+}
+
+export type ClipboardState = { mode: "copy" | "cut"; entries: readonly FileTreeClipboardEntry[] } | null
+
 export type FileTreeContextMenuActionId =
   | "open"
   | "create-file"
@@ -326,6 +333,7 @@ const FileTreeNode = (
       level: number
       active?: string
       selected?: boolean
+      cut?: boolean
       nodeClass?: string
       draggable: boolean
       kinds?: ReadonlyMap<string, Kind>
@@ -340,6 +348,7 @@ const FileTreeNode = (
     "level",
     "active",
     "selected",
+    "cut",
     "nodeClass",
     "draggable",
     "kinds",
@@ -366,12 +375,14 @@ const FileTreeNode = (
         "w-full min-w-0 h-6 flex items-center justify-start gap-x-1.5 rounded-md px-1.5 py-0 text-left hover:bg-surface-raised-base-hover active:bg-surface-base-active transition-colors cursor-pointer": true,
         "bg-surface-base-active": local.node.path === local.active,
         "bg-surface-raised-base-hover": !!local.selected && local.node.path !== local.active,
+        "opacity-60": !!local.cut,
         ...(local.classList ?? {}),
         [local.class ?? ""]: !!local.class,
         [local.nodeClass ?? ""]: !!local.nodeClass,
       }}
       data-filetree-row="true"
       data-filetree-selected={local.selected ? "true" : undefined}
+      data-filetree-cut={local.cut ? "true" : undefined}
       style={`padding-left: ${Math.max(0, 8 + local.level * 12 - (local.node.type === "file" ? 24 : 4))}px`}
       draggable={local.draggable}
       onDragStart={(event: DragEvent) => {
@@ -439,6 +450,8 @@ export default function FileTree(props: {
   _selection?: Accessor<SelectionState>
   _setSelection?: Setter<SelectionState>
   _pathTypes?: Map<string, FileNode["type"]>
+  _clipboard?: Accessor<ClipboardState>
+  _setClipboard?: Setter<ClipboardState>
 }) {
   const file = useFile()
   const sdk = useSDK()
@@ -452,6 +465,9 @@ export default function FileTree(props: {
   const selection = props._selection ?? localSelection
   const setSelection = props._setSelection ?? setLocalSelection
   const pathTypes = props._pathTypes ?? new Map<string, FileNode["type"]>()
+  const [localClipboard, setLocalClipboard] = createSignal<ClipboardState>(null)
+  const clipboard = props._clipboard ?? localClipboard
+  const setClipboard = props._setClipboard ?? setLocalClipboard
   let uploadInputEl: HTMLInputElement | undefined
   let pendingUploadParent: string | undefined
 
@@ -827,6 +843,83 @@ export default function FileTree(props: {
     props.onFileClick?.(target.node)
   }
 
+  // ----- Phase 4.1 + 4.2 + 4.4: in-app clipboard + paste/move ----------
+  // Copy / cut record the source set in an in-app `clipboard` signal so
+  // paste can decide between sdk.client.file.copy and sdk.client.file.move.
+  // After a successful cut+paste the clipboard clears (sources are gone);
+  // copy paste persists so the user can paste again. Conflicts surface as
+  // FILE_OP_DUPLICATE toasts via the existing surfaceError path.
+
+  const collectClipboardEntries = (target: ActionTarget): FileTreeClipboardEntry[] => {
+    if (target.kind !== "row") return []
+    const sel = selection().selected
+    if (sel.has(target.path) && sel.size > 1) {
+      const out: FileTreeClipboardEntry[] = []
+      for (const path of sel) {
+        const type = pathTypes.get(path)
+        if (type) out.push({ path, type })
+      }
+      return out
+    }
+    return [{ path: target.path, type: target.nodeType }]
+  }
+
+  const runClipboard = (target: ActionTarget, mode: "copy" | "cut") => {
+    const entries = collectClipboardEntries(target)
+    if (entries.length === 0) return
+    setClipboard({ mode, entries })
+    showToast({
+      variant: "info",
+      title: mode === "copy" ? "Copied" : "Cut",
+      description:
+        entries.length === 1
+          ? entries[0].path
+          : `${entries.length} items — paste into a folder to ${mode === "copy" ? "duplicate" : "move"}`,
+    })
+  }
+
+  const runPaste = async (target: ActionTarget) => {
+    const cb = clipboard()
+    if (!cb || cb.entries.length === 0) {
+      showToast({
+        variant: "error",
+        title: "Paste failed",
+        description: "No copied or cut items are pending.",
+      })
+      return
+    }
+    const destinationParent = parentForCreate(target)
+    let succeeded = 0
+    let lastError: unknown
+    for (const entry of cb.entries) {
+      try {
+        const response =
+          cb.mode === "cut"
+            ? await sdk.client.file.move({ source: entry.path, destinationParent })
+            : await sdk.client.file.copy({ source: entry.path, destinationParent })
+        if (response.data) {
+          file.applyOperationResult(response.data)
+          succeeded++
+        }
+      } catch (err) {
+        lastError = err
+      }
+    }
+    if (cb.mode === "cut") setClipboard(null)
+    setSelection(emptySelection())
+    if (succeeded > 0) {
+      showToast({
+        variant: "success",
+        title: cb.mode === "cut" ? "Moved" : "Copied",
+        description:
+          succeeded === cb.entries.length
+            ? `${succeeded} item(s) into ${destinationParent || "/"}`
+            : `${succeeded} of ${cb.entries.length} item(s) into ${destinationParent || "/"}`,
+      })
+    }
+    if (lastError) surfaceError(lastError, cb.mode === "cut" ? "Move failed" : "Copy failed")
+  }
+
   const runAction = (id: FileTreeContextMenuActionId, target: ActionTarget) => {
     switch (id) {
       case "open":
@@ -854,14 +947,13 @@ export default function FileTree(props: {
         void runDownload(target)
         return
       case "copy":
+        runClipboard(target, "copy")
+        return
       case "cut":
+        runClipboard(target, "cut")
+        return
       case "paste":
-        // Phase 4 — clipboard ops not wired yet.
-        showToast({
-          variant: "info",
-          title: "Not available yet",
-          description: "Copy / cut / paste will land in Phase 4.",
-        })
+        void runPaste(target)
         return
     }
   }
@@ -878,12 +970,25 @@ export default function FileTree(props: {
     return items.length > 0 ? items : undefined
   })
 
+  const effectiveHasPendingClipboard = createMemo(() => {
+    if (props.hasPendingClipboard !== undefined) return props.hasPendingClipboard
+    return (clipboard()?.entries.length ?? 0) > 0
+  })
+
+  const cutPathSet = createMemo(() => {
+    const cb = clipboard()
+    if (!cb || cb.mode !== "cut") return undefined
+    const set = new Set<string>()
+    for (const e of cb.entries) set.add(e.path)
+    return set
+  })
+
   const defaultContextMenu = (target: FileTreeContextMenuTarget) => (
     <For
       each={fileTreeContextMenuActionGroups({
         target,
         selection: effectiveContextSelection(),
-        hasPendingClipboard: props.hasPendingClipboard,
+        hasPendingClipboard: effectiveHasPendingClipboard(),
       })}
     >
       {(group, index) => (
@@ -1041,6 +1146,7 @@ export default function FileTree(props: {
                     level={level}
                     active={props.active}
                     selected={isSelected(node.path)}
+                    cut={cutPathSet()?.has(node.path)}
                     nodeClass={props.nodeClass}
                     draggable={draggable()}
                     kinds={kinds()}
@@ -1105,6 +1211,8 @@ export default function FileTree(props: {
                         _selection={selection}
                         _setSelection={setSelection}
                         _pathTypes={pathTypes}
+                        _clipboard={clipboard}
+                        _setClipboard={setClipboard}
                       />
                     </Show>
                   </Collapsible.Content>
@@ -1116,6 +1224,7 @@ export default function FileTree(props: {
                   level={level}
                   active={props.active}
                   selected={isSelected(node.path)}
+                  cut={cutPathSet()?.has(node.path)}
                   nodeClass={props.nodeClass}
                   draggable={draggable()}
                   kinds={kinds()}
