@@ -20,7 +20,11 @@ import { Memory } from "./memory"
 import { Tweaks } from "../config/tweaks"
 import { PostCompaction } from "./post-compaction"
 import { ContinuationInvalidatedEvent } from "../plugin/codex-auth"
-import { emitCompactionPredicateTelemetry, emitKindChainTelemetry } from "./compaction-telemetry"
+import {
+  emitCompactionPredicateTelemetry,
+  emitKindChainTelemetry,
+  emitUserMsgReplayTelemetry,
+} from "./compaction-telemetry"
 import { sanitizeAnchorToString, type AnchorKind } from "./anchor-sanitizer"
 import { checkCleanTail } from "./idle-compaction-gate"
 import { SkillLayerRegistry } from "./skill-layer-registry"
@@ -514,6 +518,16 @@ export namespace SessionCompaction {
     snapshot: string
     model: Provider.Model
     auto: boolean
+    /**
+     * user-msg-replay-unification DD-5 / DD-10: thread the observed
+     * condition through so publishCompactedAndResetChain can record it
+     * in recentEvents instead of falling back to "unknown". Optional
+     * for back-compat with legacy callers that didn't supply it; new
+     * callers (defaultWriteAnchor, provider-switch pre-loop) MUST set
+     * it. Defaults to "manual" when absent (closest legacy meaning for
+     * direct API callers).
+     */
+    observed?: Observed
   }) {
     log.info("compacting with shared context", { sessionID: input.sessionID })
 
@@ -596,7 +610,10 @@ export namespace SessionCompaction {
     // Phase 13.2-B: disk-file checkpoint write removed. The anchor message
     // written above IS the durable record; rebind reads it via stream scan.
 
-    void publishCompactedAndResetChain(input.sessionID)
+    void publishCompactedAndResetChain(input.sessionID, {
+      observed: input.observed ?? "manual",
+      kind: "narrative",
+    })
 
     if (input.auto) {
       // Create continue message for auto mode
@@ -1195,6 +1212,7 @@ export namespace SessionCompaction {
         // but with phase 7b run() owns Continue injection — so always pass
         // false here. INJECT_CONTINUE[observed] in run() decides separately.
         auto: false,
+        observed: input.observed,
       })
       if (!summaryText) return { ok: false, reason: "llm-agent produced empty summary" }
       return { ok: true, summaryText, kind: "llm-agent", anchorWritten: true }
@@ -1221,6 +1239,13 @@ export namespace SessionCompaction {
     messages: MessageV2.WithParts[]
     abort: AbortSignal
     auto: boolean
+    /**
+     * user-msg-replay-unification DD-5 / DD-10: observed value threaded
+     * through so the inner publishCompactedAndResetChain call records
+     * it in recentEvents instead of "unknown". Was previously a missing
+     * field that produced a TS2339 error at the publish call site.
+     */
+    observed: Observed
   }): Promise<string | null> {
     Bus.publish(Event.CompactionStarted, { sessionID: input.sessionID, mode: "llm" })
 
@@ -1527,6 +1552,7 @@ When constructing the summary, try to stick to this template:
           targetTokens,
           voluntary: false,
           busMode: "hybrid_llm_background",
+          observed,
         })
         log.info("hybrid_llm enrichment finished", {
           sessionID,
@@ -1774,6 +1800,17 @@ When constructing the summary, try to stick to this template:
     const target = await resolveTargetPromptTokens()
     const hasPaidKindLater = (idx: number) => chain.slice(idx + 1).some((k) => !isLocalKind(k))
 
+    // user-msg-replay-unification DD-3: snapshot the unanswered user
+    // message ONCE at the start of run(), before any kind fires. Pass
+    // it through to anchor write paths so post-anchor replay can rewrite
+    // the user msg with id > anchor.id. Single-runloop-per-session
+    // invariant means no concurrent stream writes during the chain.
+    const tweaks = Tweaks.compactionSync()
+    const replayEnabled = (tweaks as { enableUserMsgReplay?: boolean }).enableUserMsgReplay !== false
+    const preReplaySnapshot = replayEnabled
+      ? await snapshotUnansweredUserMessage(sessionID).catch(() => undefined)
+      : undefined
+
     for (let i = 0; i < chain.length; i++) {
       const kind = chain[i]
       const attempt = await tryKind(kind, input, model)
@@ -1804,8 +1841,37 @@ When constructing the summary, try to stick to this template:
         if (attempt.anchorWritten) {
           // Executor already wrote the anchor (tryLlmAgent uses an inline
           // SessionProcessor.process flow that requires a persisted message).
-          // Skip _writeAnchor; still inject Continue + markCompacted below.
-          if (INJECT_CONTINUE[observed]) {
+          // Skip _writeAnchor; replay the snapshotted user msg first
+          // (so post-anchor stream is settled before Continue decision),
+          // THEN ask the runtime gate whether to inject Continue.
+          //
+          // user-msg-replay-unification DD-3 + DD-4: replay before
+          // injectContinue means shouldInjectContinue's runtime check
+          // sees the replayed user msg and correctly skips Continue
+          // injection. Helper never throws.
+          if (preReplaySnapshot) {
+            const newAnchorId = await readMostRecentAnchorId(sessionID)
+            if (newAnchorId) {
+              await _replayHelper({
+                sessionID,
+                snapshot: preReplaySnapshot,
+                anchorMessageID: newAnchorId,
+                observed,
+                step,
+              })
+            }
+          }
+          if (replayEnabled) {
+            const anchorIdForGate = await readMostRecentAnchorId(sessionID)
+            if (
+              anchorIdForGate &&
+              (await shouldInjectContinue(sessionID, observed, anchorIdForGate))
+            ) {
+              await injectContinueAfterAnchor(sessionID, observed)
+            }
+          } else if (INJECT_CONTINUE[observed]) {
+            // Legacy fallback (flag disabled): direct INJECT_CONTINUE
+            // table check, no runtime gate.
             await injectContinueAfterAnchor(sessionID, observed)
           }
         } else if (model) {
@@ -1817,6 +1883,9 @@ When constructing the summary, try to stick to this template:
             kind: attempt.kind,
             serverCompactedItems: attempt.serverCompactedItems,
             chainBinding: attempt.chainBinding,
+            observed,
+            step,
+            snapshot: preReplaySnapshot,
           })
         } else {
           log.warn("compaction.run anchor write skipped: no resolvable model", { sessionID, observed })
@@ -1863,6 +1932,14 @@ When constructing the summary, try to stick to this template:
    * anchor write (where the executor wrote the anchor inline). Mirrors the
    * Continue injection behaviour of `compactWithSharedContext(auto:true)`,
    * factored out so run() controls Continue placement uniformly.
+   *
+   * user-msg-replay-unification (2026-05-09): now uses
+   * PostCompaction.buildContinueText so the synthetic Continue carries
+   * the same provider-aware directive (todolist hints, etc.) the
+   * compactWithSharedContext(auto:true) path used to write inline.
+   * Uniform Continue text across both anchorWritten:true (llm-agent)
+   * and anchorWritten:false (narrative / replay-tail / low-cost-server)
+   * paths.
    */
   async function injectContinueAfterAnchor(sessionID: string, observed: Observed) {
     const messages = await Session.messages({ sessionID }).catch(() => [])
@@ -1871,6 +1948,8 @@ When constructing the summary, try to stick to this template:
       log.warn("compaction.run injectContinue: no user message found, skipping", { sessionID, observed })
       return
     }
+    const followUps = await PostCompaction.gather(sessionID).catch(() => [])
+    const continueText = PostCompaction.buildContinueText(followUps)
     const continueMsg = await Session.updateMessage({
       id: Identifier.ascending("message"),
       role: "user",
@@ -1887,10 +1966,285 @@ When constructing the summary, try to stick to this template:
       sessionID,
       type: "text",
       synthetic: true,
-      text: "Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.",
+      text: continueText,
       time: { start: Date.now(), end: Date.now() },
     })
   }
+
+  /**
+   * user-msg-replay-unification DD-4: the runtime gate that decides whether
+   * a synthetic Continue should follow a freshly written anchor.
+   *
+   * Combines TWO gates in conjunction:
+   *   1. Static intent (INJECT_CONTINUE[observed]): preserves the R-6
+   *      rule that rebind / continuation-invalidated / provider-switched
+   *      / stall-recovery / manual must NEVER inject Continue (avoids
+   *      the 2026-04-27 infinite loop bug). Same observed-value
+   *      semantics as the legacy table.
+   *   2. Stream state: even when intent says "inject", skip if a real
+   *      user message already exists post-anchor (the replayed user
+   *      msg from Spec 1's helper, OR a /compact request msg, OR any
+   *      other concurrent user write). Prevents the model from seeing
+   *      both the user's actual question AND a synthetic Continue
+   *      directive in the same iteration.
+   */
+  async function shouldInjectContinue(
+    sessionID: string,
+    observed: Observed,
+    anchorMessageID: string,
+  ): Promise<boolean> {
+    if (!INJECT_CONTINUE[observed]) return false
+    const messages = await Session.messages({ sessionID }).catch(
+      () => [] as MessageV2.WithParts[],
+    )
+    const hasUserMsgPostAnchor = messages.some(
+      (m) => m.info.role === "user" && m.info.id > anchorMessageID,
+    )
+    return !hasUserMsgPostAnchor
+  }
+
+  // ───────────────────────────────────────────────────────────────────
+  // User-message replay (spec compaction/user-msg-replay-unification)
+  //
+  // Background:
+  //   When compaction writes a new anchor (any kind), filterCompacted
+  //   slices the messages stream at the anchor's `compaction` part, so
+  //   any user message with id < anchor.id becomes invisible to the next
+  //   runloop iteration. If that user message is the user's most recent
+  //   (still-unanswered) question, the runloop's `lastUser` resolves to
+  //   undefined OR to a synthetic `Continue from where you left off`
+  //   message — silently dropping the user's actual ask.
+  //
+  // The 2026-05-05 hotfix (commit a3be0500e) patched ONE call site
+  // inline at prompt.ts:1484-1554. The 2026-05-09 production incident
+  // (session ses_1f47aa711...) confirmed three sibling commit paths
+  // share the same defect (overflow / rebind pre-emptive / provider-
+  // switch pre-loop). This module-internal helper centralises the
+  // replay so all four commit paths inherit the post-condition:
+  //   "if an unanswered user message existed pre-compaction, an
+  //    unanswered user message exists post-compaction with id > anchor.id."
+  // ───────────────────────────────────────────────────────────────────
+
+  export interface UserMessageSnapshot {
+    info: MessageV2.User
+    parts: MessageV2.Part[]
+    /**
+     * Optional. When the unanswered user message has a child assistant
+     * with empty/error finish (e.g. the 5/5 empty-response self-heal
+     * scenario), the helper will delete that empty child along with the
+     * original user message to keep the UI clean.
+     */
+    emptyAssistantID?: string
+  }
+
+  export type ReplayResult = {
+    replayed: boolean
+    newUserID?: string
+    reason?:
+      | "already-after-anchor"
+      | "no-unanswered"
+      | "snapshot-already-consumed"
+      | "feature-flag-disabled"
+      | "exception"
+  }
+
+  /**
+   * Walk the session messages stream backward to identify the most recent
+   * UNANSWERED user message: one whose nearest subsequent assistant child
+   * has finish ∉ {stop, tool-calls, length} (or no assistant child yet).
+   *
+   * Returns a snapshot caller can pass to `replayUnansweredUserMessage`
+   * after a compaction anchor write. Returns undefined when:
+   *   - the stream has no user message
+   *   - the most recent user message has a properly finished assistant
+   *     child (= already answered, no replay needed)
+   *
+   * Pure read function. Does not mutate storage. Caller may pass an
+   * already-loaded `messages` array to avoid a second fetch.
+   */
+  export async function snapshotUnansweredUserMessage(
+    sessionID: string,
+    messages?: MessageV2.WithParts[],
+  ): Promise<UserMessageSnapshot | undefined> {
+    const msgs =
+      messages ?? (await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[]))
+    if (msgs.length === 0) return undefined
+
+    let userIdx = -1
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].info.role === "user") {
+        userIdx = i
+        break
+      }
+    }
+    if (userIdx === -1) return undefined
+
+    const userMsg = msgs[userIdx]
+
+    let assistantChild: MessageV2.WithParts | undefined
+    for (let i = userIdx + 1; i < msgs.length; i++) {
+      if (msgs[i].info.role === "assistant") {
+        assistantChild = msgs[i]
+        break
+      }
+    }
+
+    // "Properly finished" = assistant ran to completion in a way that
+    // resolves the user's question. unknown / error / other / undefined
+    // all signal an interrupted or empty turn — user msg is unanswered.
+    if (assistantChild) {
+      const finish = (assistantChild.info as MessageV2.Assistant).finish
+      if (finish === "stop" || finish === "tool-calls" || finish === "length") {
+        return undefined
+      }
+    }
+
+    return {
+      info: { ...(userMsg.info as MessageV2.User) },
+      parts: userMsg.parts.map((p) => ({ ...p }) as MessageV2.Part),
+      emptyAssistantID: assistantChild?.info.id,
+    }
+  }
+
+  /**
+   * Replay an unanswered user message AFTER a freshly-written compaction
+   * anchor so it lands post-anchor with id > anchor.id. Idempotent under
+   * retry; never throws (helper failure must not stall the runloop —
+   * degrades to today's pre-fix behaviour).
+   *
+   * Strategy (DD-2 in spec design.md):
+   *   1. Honour `enableUserMsgReplay` feature flag (default true)
+   *   2. If snapshot.id > anchorMessageID, skip — already after anchor
+   *   3. Verify snapshot is still in the stream (idempotency under retry)
+   *   4. Write new user msg with fresh ULID, copy parts with fresh ids
+   *   5. Remove emptyAssistantID + remove original user msg
+   *   6. Emit telemetry (every branch, including skip / error)
+   *
+   * Telemetry surface: `compaction.user_msg_replay` (per
+   * compaction-telemetry.ts emitUserMsgReplayTelemetry).
+   */
+  export async function replayUnansweredUserMessage(input: {
+    sessionID: string
+    snapshot: UserMessageSnapshot
+    anchorMessageID: string
+    observed: Observed
+    step: number
+  }): Promise<ReplayResult> {
+    const tweaks = Tweaks.compactionSync()
+    const flag = (tweaks as { enableUserMsgReplay?: boolean }).enableUserMsgReplay
+    const originalUserID = input.snapshot.info.id
+    const baseTelemetry = {
+      sessionID: input.sessionID,
+      step: input.step,
+      observed: input.observed,
+      originalUserID,
+      anchorMessageID: input.anchorMessageID,
+      hadEmptyAssistantChild: !!input.snapshot.emptyAssistantID,
+      partCount: input.snapshot.parts.length,
+    }
+
+    if (flag === false) {
+      emitUserMsgReplayTelemetry({ ...baseTelemetry, outcome: "skipped:flag-off" })
+      log.info("self-heal: replay skipped — feature flag off", {
+        sessionID: input.sessionID,
+        step: input.step,
+        originalUserID,
+      })
+      return { replayed: false, reason: "feature-flag-disabled" }
+    }
+
+    if (originalUserID > input.anchorMessageID) {
+      emitUserMsgReplayTelemetry({ ...baseTelemetry, outcome: "skipped:already-after-anchor" })
+      log.info("self-heal: replay skipped — snapshot already after anchor", {
+        sessionID: input.sessionID,
+        step: input.step,
+        originalUserID,
+        anchorMessageID: input.anchorMessageID,
+      })
+      return { replayed: false, reason: "already-after-anchor" }
+    }
+
+    // Idempotency: if a previous helper invocation already consumed this
+    // snapshot, the original user msg won't be in the stream anymore.
+    const stillExists = await Session.messages({ sessionID: input.sessionID })
+      .then((msgs) => msgs.some((m) => m.info.id === originalUserID))
+      .catch(() => true) // on read failure, attempt write anyway and let exception path catch
+    if (!stillExists) {
+      emitUserMsgReplayTelemetry({ ...baseTelemetry, outcome: "skipped:no-unanswered" })
+      log.info("self-heal: replay skipped — original snapshot already consumed", {
+        sessionID: input.sessionID,
+        step: input.step,
+        originalUserID,
+      })
+      return { replayed: false, reason: "snapshot-already-consumed" }
+    }
+
+    try {
+      const newUserID = Identifier.ascending("message")
+      const newUser: MessageV2.User = {
+        ...input.snapshot.info,
+        id: newUserID,
+        time: { created: Date.now() },
+      }
+      await Session.updateMessage(newUser)
+      for (const part of input.snapshot.parts) {
+        await Session.updatePart({
+          ...part,
+          id: Identifier.ascending("part"),
+          messageID: newUserID,
+        } as MessageV2.Part)
+      }
+      if (input.snapshot.emptyAssistantID) {
+        await Session.removeMessage({
+          sessionID: input.sessionID,
+          messageID: input.snapshot.emptyAssistantID,
+        })
+      }
+      await Session.removeMessage({ sessionID: input.sessionID, messageID: originalUserID })
+
+      log.info("self-heal: replayed user message after anchor", {
+        sessionID: input.sessionID,
+        step: input.step,
+        observed: input.observed,
+        originalUserID,
+        newUserID,
+        anchorMessageID: input.anchorMessageID,
+        emptyAssistantID: input.snapshot.emptyAssistantID,
+        partCount: input.snapshot.parts.length,
+      })
+
+      emitUserMsgReplayTelemetry({ ...baseTelemetry, outcome: "replayed", newUserID })
+
+      return { replayed: true, newUserID }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      log.error(
+        "self-heal: replay-after-compact failed; user message may be hidden behind anchor",
+        {
+          sessionID: input.sessionID,
+          step: input.step,
+          observed: input.observed,
+          originalUserID,
+          anchorMessageID: input.anchorMessageID,
+          error: errorMessage,
+        },
+      )
+      emitUserMsgReplayTelemetry({
+        ...baseTelemetry,
+        outcome: "error",
+        errorMessage,
+      })
+      return { replayed: false, reason: "exception" }
+    }
+  }
+
+  /**
+   * Replay-helper indirection. Internal compaction call sites
+   * (defaultWriteAnchor, tryLlmAgent post-anchor, the provider-switch
+   * pre-loop adapter in prompt.ts) call `_replayHelper` so tests can
+   * substitute a mock via `__test__.setReplayHelper`.
+   */
+  let _replayHelper = replayUnansweredUserMessage
 
   /**
    * Anchor-write indirection. Production wraps compactWithSharedContext; tests
@@ -1907,6 +2261,16 @@ When constructing the summary, try to stick to this template:
     serverCompactedItems?: unknown[]
     /** compaction-fix Phase 2 (DD-9). */
     chainBinding?: { accountId: string; modelId: string; capturedAt: number }
+    /**
+     * Spec user-msg-replay-unification DD-3: observed condition + step
+     * threaded through so post-anchor replay can emit telemetry with
+     * full caller context. Snapshot is captured by run() before the
+     * kind chain fires so the user msg state is the same one the
+     * anchor was decided against.
+     */
+    observed: Observed
+    step: number
+    snapshot?: UserMessageSnapshot
   }
   const defaultWriteAnchor = async (input: WriteAnchorInput) => {
     // DD-6: anchor body is wrapped + softened before persistence so it
@@ -1925,12 +2289,54 @@ When constructing the summary, try to stick to this template:
     // back-to-back anchor races negligible in practice.
     const prevAnchorId = await readMostRecentAnchorId(input.sessionID)
 
+    // user-msg-replay-unification DD-4: when the feature flag is on,
+    // suppress compactWithSharedContext's inline Continue injection.
+    // Continue injection is now decided post-replay by shouldInjectContinue,
+    // which honours both the legacy INJECT_CONTINUE intent table AND a
+    // runtime stream check (don't inject if a user msg already exists
+    // post-anchor — e.g. via Spec 1's replay helper). Flag-disabled mode
+    // preserves the legacy auto pass-through.
+    const replayTweaks = Tweaks.compactionSync()
+    const replayEnabled =
+      (replayTweaks as { enableUserMsgReplay?: boolean }).enableUserMsgReplay !== false
     await compactWithSharedContext({
       sessionID: input.sessionID,
       snapshot: sanitized.body,
       model: input.model,
-      auto: input.auto,
+      auto: replayEnabled ? false : input.auto,
+      observed: input.observed,
     })
+
+    // user-msg-replay-unification DD-3: after the anchor is persisted,
+    // if a pre-anchor snapshot of an unanswered user message exists,
+    // replay it post-anchor so the next runloop iteration's lastUser
+    // resolves to a real message (not the synthetic Continue substitute).
+    // Helper is the test-substitutable indirection (`_replayHelper`); on
+    // production this is `replayUnansweredUserMessage`. Helper never throws.
+    if (input.snapshot) {
+      const newAnchorId = await readMostRecentAnchorId(input.sessionID)
+      if (newAnchorId && newAnchorId !== prevAnchorId) {
+        await _replayHelper({
+          sessionID: input.sessionID,
+          snapshot: input.snapshot,
+          anchorMessageID: newAnchorId,
+          observed: input.observed,
+          step: input.step,
+        })
+      }
+    }
+
+    // user-msg-replay-unification DD-4: post-replay Continue decision.
+    // Runtime gate: skip if a user msg already exists post-anchor (the
+    // replayed user msg, or a /compact request msg, etc.). Static gate:
+    // skip for observed values that historically forbade Continue (R-6
+    // rebind / continuation-invalidated / provider-switched / etc.).
+    if (replayEnabled) {
+      const newAnchorId = await readMostRecentAnchorId(input.sessionID)
+      if (newAnchorId && (await shouldInjectContinue(input.sessionID, input.observed, newAnchorId))) {
+        await injectContinueAfterAnchor(input.sessionID, input.observed)
+      }
+    }
 
     // DD-9: scan the just-written anchor body for skill name references and
     // pin matched active/summary skills so they survive idle decay until the
@@ -2086,6 +2492,12 @@ When constructing the summary, try to stick to this template:
     },
     resetAnchorWriter() {
       _writeAnchor = defaultWriteAnchor
+    },
+    setReplayHelper(fn: typeof replayUnansweredUserMessage) {
+      _replayHelper = fn
+    },
+    resetReplayHelper() {
+      _replayHelper = replayUnansweredUserMessage
     },
   })
 
@@ -2746,6 +3158,13 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         stricterRetryReason?: ValidationFailure
         /** UI label for Bus.publish(CompactionStarted/Compacted). */
         busMode?: "hybrid_llm" | "hybrid_llm_background"
+        /**
+         * user-msg-replay-unification DD-5 / DD-10: thread observed
+         * through so the finally-block records it in recentEvents
+         * instead of "unknown". Optional; defaults to "manual" for
+         * direct callers that don't set it.
+         */
+        observed?: Observed
       },
     ): Promise<LlmCompactResult> {
       // Visibility — TUI / web shows "Compacting..." badge from this event.
@@ -2758,7 +3177,10 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         // failure / timeout. Subscribers that need success/failure
         // discrimination should look at the LlmCompactResult.ok flag
         // returned to the caller.
-        void publishCompactedAndResetChain(sessionID)
+        void publishCompactedAndResetChain(sessionID, {
+          observed: opts.observed ?? "manual",
+          kind: "llm-agent",
+        })
       }
     }
 
@@ -3043,6 +3465,12 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         targetTokens: number
         voluntary?: boolean
         busMode?: "hybrid_llm" | "hybrid_llm_background"
+        /**
+         * user-msg-replay-unification DD-5 / DD-10: caller observed
+         * value, threaded into runLlmCompact so its publish records
+         * the right `observed` in recentEvents.
+         */
+        observed?: Observed
       },
     ): Promise<CompactionEvent> {
       const eventId = `cev_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
@@ -3057,7 +3485,11 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
       }
 
       // Attempt 1
-      const first = await runLlmCompact(sessionID, request, { abort: opts.abort, busMode: opts.busMode })
+      const first = await runLlmCompact(sessionID, request, {
+        abort: opts.abort,
+        busMode: opts.busMode,
+        observed: opts.observed,
+      })
       if (first.ok) {
         return makeEvent({
           eventId,
@@ -3087,6 +3519,7 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
           abort: opts.abort,
           stricterRetryReason: first.reason as ValidationFailure,
           busMode: opts.busMode,
+          observed: opts.observed,
         })
         if (second.ok) {
           return makeEvent({
@@ -3129,7 +3562,11 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
           pinnedCount: opts.pinnedZone.length,
           phase2TargetTokens,
         })
-        const phase2 = await runLlmCompact(sessionID, phase2Request, { abort: opts.abort, busMode: opts.busMode })
+        const phase2 = await runLlmCompact(sessionID, phase2Request, {
+          abort: opts.abort,
+          busMode: opts.busMode,
+          observed: opts.observed,
+        })
         if (phase2.ok) {
           // Pinned_zone is now absorbed into the new anchor. Caller is
           // responsible for clearing the live pinned_zone state (e.g.,
