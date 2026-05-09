@@ -58,6 +58,75 @@ export namespace File {
     })
   export type DirectoryCreateResult = z.infer<typeof DirectoryCreateResult>
 
+  export const OperationCode = z.enum([
+    "FILE_OP_PATH_ESCAPE",
+    "FILE_OP_INVALID_NAME",
+    "FILE_OP_DUPLICATE",
+    "FILE_OP_TARGET_NOT_DIRECTORY",
+    "FILE_OP_SOURCE_NOT_FOUND",
+    "FILE_OP_CONFIRMATION_REQUIRED",
+    "FILE_OP_PERMISSION_DENIED",
+    "FILE_OP_DESTINATION_AMBIGUOUS",
+    "FILE_OP_PREFLIGHT_REQUIRED",
+    "FILE_OP_NOT_FILE",
+    "FILE_RECYCLEBIN_RESTORE_CONFLICT",
+    "FILE_RECYCLEBIN_METADATA_INVALID",
+    "FILE_DOWNLOAD_DIRECTORY_UNSUPPORTED",
+  ])
+  export type OperationCode = z.infer<typeof OperationCode>
+
+  export class OperationError extends Error {
+    constructor(
+      readonly code: OperationCode,
+      message: string,
+      readonly status = 400,
+      readonly data?: Record<string, unknown>,
+    ) {
+      super(message)
+      this.name = "FileOperationError"
+    }
+
+    toObject() {
+      return {
+        code: this.code,
+        message: this.message,
+        data: this.data,
+      }
+    }
+  }
+
+  export const OperationResult = z
+    .object({
+      operation: z.enum([
+        "create-file",
+        "create-directory",
+        "rename",
+        "move",
+        "copy",
+        "delete-to-recyclebin",
+        "restore-from-recyclebin",
+      ]),
+      source: z.string().optional(),
+      destination: z.string().optional(),
+      node: Node.optional(),
+      affectedDirectories: z.array(z.string()),
+    })
+    .meta({
+      ref: "FileOperationResult",
+    })
+  export type OperationResult = z.infer<typeof OperationResult>
+
+  export const DestinationPreflightResult = z
+    .object({
+      canonicalPath: z.string(),
+      writable: z.boolean(),
+      reason: OperationCode.optional(),
+    })
+    .meta({
+      ref: "FileDestinationPreflightResult",
+    })
+  export type DestinationPreflightResult = z.infer<typeof DestinationPreflightResult>
+
   export const Content = z
     .object({
       type: z.enum(["text", "binary"]),
@@ -353,6 +422,14 @@ export namespace File {
     return root
   }
 
+  async function getStrictProjectRootReal(): Promise<string> {
+    try {
+      return await fs.promises.realpath(Instance.directory)
+    } catch {
+      return path.resolve(Instance.directory)
+    }
+  }
+
   function isWithinRoot(candidate: string, root: string): boolean {
     if (root === path.parse(root).root) return path.isAbsolute(candidate)
     return candidate === root || candidate.startsWith(root + path.sep)
@@ -373,6 +450,19 @@ export namespace File {
       if (parentReal && !isWithinRoot(parentReal, root)) {
         return false
       }
+    }
+    return true
+  }
+
+  async function isWithinStrictProject(targetPath: string): Promise<boolean> {
+    const root = await getStrictProjectRootReal()
+    const resolved = path.resolve(targetPath)
+    if (!isWithinRoot(resolved, root)) return false
+    const real = await fs.promises.realpath(targetPath).catch(() => undefined)
+    if (real && !isWithinRoot(real, root)) return false
+    if (!real) {
+      const parentReal = await fs.promises.realpath(path.dirname(targetPath)).catch(() => undefined)
+      if (parentReal && !isWithinRoot(parentReal, root)) return false
     }
     return true
   }
@@ -421,6 +511,151 @@ export namespace File {
       }
     }
     return real ?? resolved
+  }
+
+  function operationError(code: OperationCode, message: string, data?: Record<string, unknown>) {
+    const status = (() => {
+      if (code === "FILE_OP_PATH_ESCAPE" || code === "FILE_OP_PERMISSION_DENIED") return 403
+      if (code === "FILE_OP_SOURCE_NOT_FOUND") return 404
+      if (code === "FILE_OP_DUPLICATE" || code === "FILE_RECYCLEBIN_RESTORE_CONFLICT") return 409
+      return 400
+    })()
+    return new OperationError(code, message, status, data)
+  }
+
+  async function assertOperationWithinProject(targetPath: string): Promise<string> {
+    if (!(await isWithinStrictProject(targetPath))) {
+      throw operationError("FILE_OP_PATH_ESCAPE", "Operation target is outside the active project.", {
+        path: targetPath,
+      })
+    }
+    return path.resolve(targetPath)
+  }
+
+  function normalizeRelative(targetPath: string): string {
+    return path.relative(Instance.directory, targetPath).replaceAll("\\", "/")
+  }
+
+  function parentRelative(targetPath: string): string {
+    return normalizeRelative(path.dirname(targetPath))
+  }
+
+  function validateBasename(name: string): string {
+    if (!name || name === "." || name === ".." || name.includes("/") || name.includes("\\") || name.includes("\0")) {
+      throw operationError("FILE_OP_INVALID_NAME", "Filename is invalid.", { name })
+    }
+    if (path.basename(name) !== name || path.win32.basename(name) !== name) {
+      throw operationError("FILE_OP_INVALID_NAME", "Filename is invalid.", { name })
+    }
+    return name
+  }
+
+  async function assertDirectory(targetPath: string): Promise<void> {
+    const stat = await fs.promises.stat(targetPath).catch((err) => {
+      if (err && typeof err === "object" && "code" in err && err.code === "ENOENT") {
+        throw operationError("FILE_OP_SOURCE_NOT_FOUND", "Source file or folder no longer exists.", {
+          path: targetPath,
+        })
+      }
+      throw err
+    })
+    if (!stat.isDirectory()) {
+      throw operationError("FILE_OP_TARGET_NOT_DIRECTORY", "Operation target is not a directory.", { path: targetPath })
+    }
+  }
+
+  async function assertSourceExists(targetPath: string): Promise<fs.Stats> {
+    return await fs.promises.stat(targetPath).catch((err) => {
+      if (err && typeof err === "object" && "code" in err && err.code === "ENOENT") {
+        throw operationError("FILE_OP_SOURCE_NOT_FOUND", "Source file or folder no longer exists.", {
+          path: targetPath,
+        })
+      }
+      throw err
+    })
+  }
+
+  async function assertDestinationAvailable(targetPath: string): Promise<void> {
+    if (await Bun.file(targetPath).exists()) {
+      throw operationError("FILE_OP_DUPLICATE", "A file or folder with this name already exists.", { path: targetPath })
+    }
+  }
+
+  function isAlreadyExistsError(err: unknown): boolean {
+    return !!err && typeof err === "object" && "code" in err && err.code === "EEXIST"
+  }
+
+  async function copyWithoutOverwrite(source: string, destination: string): Promise<void> {
+    await fs.promises.cp(source, destination, { recursive: true, errorOnExist: true, force: false }).catch((err) => {
+      if (isAlreadyExistsError(err)) {
+        throw operationError("FILE_OP_DUPLICATE", "A file or folder with this name already exists.", {
+          path: destination,
+        })
+      }
+      throw err
+    })
+  }
+
+  async function moveWithoutOverwrite(source: string, destination: string): Promise<void> {
+    if (source === destination) return
+    await copyWithoutOverwrite(source, destination)
+    await fs.promises.rm(source, { recursive: true, force: false })
+  }
+
+  async function nodeFromPath(targetPath: string): Promise<Node> {
+    const stat = await fs.promises.stat(targetPath)
+    const relativePath = normalizeRelative(targetPath)
+    return {
+      name: path.basename(targetPath),
+      path: relativePath,
+      absolute: targetPath,
+      type: stat.isDirectory() ? "directory" : "file",
+      ignored: false,
+    }
+  }
+
+  async function resolveProjectPath(inputPath: string): Promise<string> {
+    const requested =
+      allowGlobalFilesystemBrowse() && path.isAbsolute(inputPath) ? inputPath : path.join(Instance.directory, inputPath)
+    return await assertOperationWithinProject(requested)
+  }
+
+  async function resolveProjectParent(inputPath: string): Promise<string> {
+    const resolved = await resolveProjectPath(inputPath)
+    await assertDirectory(resolved)
+    return resolved
+  }
+
+  function recyclebinRoot(): string {
+    return path.join(Instance.directory, "recyclebin")
+  }
+
+  function recycleMetadataPath(tombstonePath: string): string {
+    return tombstonePath + ".opencode-recycle.json"
+  }
+
+  async function uniqueRecyclePath(sourcePath: string): Promise<string> {
+    const root = recyclebinRoot()
+    await fs.promises.mkdir(root, { recursive: true })
+    await assertOperationWithinProject(root)
+    const parsed = path.parse(sourcePath)
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-")
+    for (let index = 0; index < 100; index++) {
+      const suffix = index === 0 ? "" : `-${index}`
+      const candidate = path.join(root, `${parsed.name}.${stamp}${suffix}${parsed.ext}`)
+      if (!(await Bun.file(candidate).exists()) && !(await Bun.file(recycleMetadataPath(candidate)).exists()))
+        return candidate
+    }
+    throw operationError("FILE_OP_DUPLICATE", "A file or folder with this name already exists.")
+  }
+
+  async function ensureWritableDirectory(targetPath: string): Promise<OperationCode | undefined> {
+    try {
+      await fs.promises.access(targetPath, fs.constants.W_OK)
+      return undefined
+    } catch {
+      return "FILE_OP_PERMISSION_DENIED"
+    }
   }
 
   async function warnIfOutsideProject(paths: string[], context: string): Promise<void> {
@@ -918,6 +1153,179 @@ export namespace File {
       type: "directory",
       ignored: false,
     }
+  }
+
+  export async function create(input: {
+    parent: string
+    name: string
+    type: "file" | "directory"
+  }): Promise<OperationResult> {
+    const parent = await resolveProjectParent(input.parent)
+    const name = validateBasename(input.name)
+    const destination = path.join(parent, name)
+    await assertOperationWithinProject(destination)
+    await assertDestinationAvailable(destination)
+    if (input.type === "directory") await fs.promises.mkdir(destination)
+    else await fs.promises.writeFile(destination, "", { flag: "wx" })
+    return {
+      operation: input.type === "directory" ? "create-directory" : "create-file",
+      destination: normalizeRelative(destination),
+      node: await nodeFromPath(destination),
+      affectedDirectories: [normalizeRelative(parent)],
+    }
+  }
+
+  export async function rename(input: { path: string; name: string }): Promise<OperationResult> {
+    const source = await resolveProjectPath(input.path)
+    await assertSourceExists(source)
+    const destination = path.join(path.dirname(source), validateBasename(input.name))
+    await assertOperationWithinProject(destination)
+    if (source !== destination) await assertDestinationAvailable(destination)
+    await moveWithoutOverwrite(source, destination)
+    return {
+      operation: "rename",
+      source: normalizeRelative(source),
+      destination: normalizeRelative(destination),
+      node: await nodeFromPath(destination),
+      affectedDirectories: [parentRelative(destination)],
+    }
+  }
+
+  export async function move(input: { source: string; destinationParent: string }): Promise<OperationResult> {
+    const source = await resolveProjectPath(input.source)
+    await assertSourceExists(source)
+    const parent = await resolveProjectParent(input.destinationParent)
+    const destination = path.join(parent, path.basename(source))
+    await assertOperationWithinProject(destination)
+    if (source !== destination) await assertDestinationAvailable(destination)
+    await moveWithoutOverwrite(source, destination)
+    return {
+      operation: "move",
+      source: normalizeRelative(source),
+      destination: normalizeRelative(destination),
+      node: await nodeFromPath(destination),
+      affectedDirectories: [...new Set([parentRelative(source), normalizeRelative(parent)])],
+    }
+  }
+
+  export async function copy(input: { source: string; destinationParent: string }): Promise<OperationResult> {
+    const source = await resolveProjectPath(input.source)
+    await assertSourceExists(source)
+    const parent = await resolveProjectParent(input.destinationParent)
+    const destination = path.join(parent, path.basename(source))
+    await assertOperationWithinProject(destination)
+    await assertDestinationAvailable(destination)
+    await copyWithoutOverwrite(source, destination)
+    return {
+      operation: "copy",
+      source: normalizeRelative(source),
+      destination: normalizeRelative(destination),
+      node: await nodeFromPath(destination),
+      affectedDirectories: [normalizeRelative(parent)],
+    }
+  }
+
+  export async function deleteToRecyclebin(input: { path: string; confirmed: boolean }): Promise<OperationResult> {
+    if (!input.confirmed) {
+      throw operationError("FILE_OP_CONFIRMATION_REQUIRED", "This destructive operation requires confirmation.")
+    }
+    const source = await resolveProjectPath(input.path)
+    const stat = await assertSourceExists(source)
+    const destination = await uniqueRecyclePath(source)
+    const metadata = {
+      originalPath: normalizeRelative(source),
+      tombstonePath: normalizeRelative(destination),
+      deletedAt: new Date().toISOString(),
+      type: stat.isDirectory() ? "directory" : "file",
+    }
+    const metadataFile = recycleMetadataPath(destination)
+    await fs.promises.writeFile(metadataFile, JSON.stringify(metadata, null, 2), { flag: "wx" })
+    try {
+      await copyWithoutOverwrite(source, destination)
+      await fs.promises.rm(source, { recursive: true, force: false })
+    } catch (err) {
+      await fs.promises.rm(destination, { recursive: true, force: true }).catch(() => {})
+      await fs.promises.rm(metadataFile, { force: true }).catch(() => {})
+      throw err
+    }
+    return {
+      operation: "delete-to-recyclebin",
+      source: metadata.originalPath,
+      destination: metadata.tombstonePath,
+      node: await nodeFromPath(destination),
+      affectedDirectories: [...new Set([parentRelative(source), normalizeRelative(recyclebinRoot())])],
+    }
+  }
+
+  export async function restoreFromRecyclebin(input: { tombstonePath: string }): Promise<OperationResult> {
+    const tombstone = await resolveProjectPath(input.tombstonePath)
+    const recycleRoot = await assertOperationWithinProject(recyclebinRoot())
+    if (!isWithinRoot(tombstone, recycleRoot)) {
+      throw operationError("FILE_RECYCLEBIN_METADATA_INVALID", "Recyclebin metadata is missing or unsafe.")
+    }
+    const metadataFile = recycleMetadataPath(tombstone)
+    const metadata = await Bun.file(metadataFile)
+      .json()
+      .catch(() => undefined)
+    const parsed = z
+      .object({
+        originalPath: z.string().min(1),
+        tombstonePath: z.string().min(1),
+        deletedAt: z.string(),
+        type: z.enum(["file", "directory"]),
+      })
+      .safeParse(metadata)
+    if (!parsed.success || parsed.data.tombstonePath !== normalizeRelative(tombstone)) {
+      throw operationError("FILE_RECYCLEBIN_METADATA_INVALID", "Recyclebin metadata is missing or unsafe.")
+    }
+    const destination = path.join(Instance.directory, parsed.data.originalPath)
+    await assertOperationWithinProject(destination)
+    await assertOperationWithinProject(path.dirname(destination))
+    await assertDestinationAvailable(destination).catch((err) => {
+      if (err instanceof OperationError && err.code === "FILE_OP_DUPLICATE") {
+        throw operationError("FILE_RECYCLEBIN_RESTORE_CONFLICT", "Restore target already exists.", {
+          path: parsed.data.originalPath,
+        })
+      }
+      throw err
+    })
+    await copyWithoutOverwrite(tombstone, destination).catch((err) => {
+      if (err instanceof OperationError && err.code === "FILE_OP_DUPLICATE") {
+        throw operationError("FILE_RECYCLEBIN_RESTORE_CONFLICT", "Restore target already exists.", {
+          path: parsed.data.originalPath,
+        })
+      }
+      throw err
+    })
+    await fs.promises.rm(tombstone, { recursive: true, force: false })
+    await fs.promises.rm(metadataFile, { force: true })
+    return {
+      operation: "restore-from-recyclebin",
+      source: parsed.data.tombstonePath,
+      destination: parsed.data.originalPath,
+      node: await nodeFromPath(destination),
+      affectedDirectories: [...new Set([parentRelative(destination), normalizeRelative(recyclebinRoot())])],
+    }
+  }
+
+  export async function destinationPreflight(input: {
+    destinationParent: string
+    scope: "active-project" | "external"
+  }): Promise<DestinationPreflightResult> {
+    const candidate =
+      input.scope === "external"
+        ? path.resolve(input.destinationParent)
+        : path.join(Instance.directory, input.destinationParent)
+    if (input.scope === "active-project" && !(await isWithinStrictProject(candidate))) {
+      return { canonicalPath: candidate, writable: false, reason: "FILE_OP_PATH_ESCAPE" }
+    }
+    const stat = await fs.promises.stat(candidate).catch(() => undefined)
+    if (!stat) return { canonicalPath: candidate, writable: false, reason: "FILE_OP_DESTINATION_AMBIGUOUS" }
+    if (!stat.isDirectory())
+      return { canonicalPath: candidate, writable: false, reason: "FILE_OP_TARGET_NOT_DIRECTORY" }
+    const permission = await ensureWritableDirectory(candidate)
+    if (permission) return { canonicalPath: candidate, writable: false, reason: permission }
+    return { canonicalPath: candidate, writable: true }
   }
 
   export async function search(input: { query: string; limit?: number; dirs?: boolean; type?: "file" | "directory" }) {

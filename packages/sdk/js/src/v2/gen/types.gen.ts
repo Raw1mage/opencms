@@ -687,6 +687,12 @@ export type CompactionPart = {
   metadata?: {
     skillSnapshot?: CompactionSkillSnapshot
     pinnedByAnchor?: Array<string>
+    serverCompactedItems?: Array<unknown>
+    chainBinding?: {
+      accountId: string
+      modelId: string
+      capturedAt: number
+    }
   }
 }
 
@@ -941,6 +947,25 @@ export type PermissionRule = {
 
 export type PermissionRuleset = Array<PermissionRule>
 
+export type SessionRecentEvent = {
+  ts: number
+  kind: "rotation" | "compaction"
+  rotation?: {
+    fromProviderId?: string
+    fromAccountId?: string
+    toProviderId?: string
+    toAccountId?: string
+    reason?: string
+  }
+  compaction?: {
+    observed: string
+    kind?: string
+    success: boolean
+    tokensBefore?: number
+    tokensAfter?: number
+  }
+}
+
 export type PendingSubagentNotice = {
   jobId: string
   childSessionID: string
@@ -1030,6 +1055,7 @@ export type Session = {
     updatedAt: number
     continuationInvalidatedAt?: number
     activeImageRefs?: Array<string>
+    recentEvents?: Array<SessionRecentEvent>
   }
   workflow?: {
     autonomous: {
@@ -3361,6 +3387,7 @@ export type GlobalSession = {
     updatedAt: number
     continuationInvalidatedAt?: number
     activeImageRefs?: Array<string>
+    recentEvents?: Array<SessionRecentEvent>
   }
   workflow?: {
     autonomous: {
@@ -3613,6 +3640,40 @@ export type FileDirectoryCreateResult = {
   absolute: string
   type: "directory"
   ignored: boolean
+}
+
+export type FileOperationResult = {
+  operation:
+    | "create-file"
+    | "create-directory"
+    | "rename"
+    | "move"
+    | "copy"
+    | "delete-to-recyclebin"
+    | "restore-from-recyclebin"
+  source?: string
+  destination?: string
+  node?: FileNode
+  affectedDirectories: Array<string>
+}
+
+export type FileDestinationPreflightResult = {
+  canonicalPath: string
+  writable: boolean
+  reason?:
+    | "FILE_OP_PATH_ESCAPE"
+    | "FILE_OP_INVALID_NAME"
+    | "FILE_OP_DUPLICATE"
+    | "FILE_OP_TARGET_NOT_DIRECTORY"
+    | "FILE_OP_SOURCE_NOT_FOUND"
+    | "FILE_OP_CONFIRMATION_REQUIRED"
+    | "FILE_OP_PERMISSION_DENIED"
+    | "FILE_OP_DESTINATION_AMBIGUOUS"
+    | "FILE_OP_PREFLIGHT_REQUIRED"
+    | "FILE_OP_NOT_FILE"
+    | "FILE_RECYCLEBIN_RESTORE_CONFLICT"
+    | "FILE_RECYCLEBIN_METADATA_INVALID"
+    | "FILE_DOWNLOAD_DIRECTORY_UNSUPPORTED"
 }
 
 export type FileContent = {
@@ -11081,6 +11142,153 @@ export type WorkingCacheDigestResponses = {
 
 export type WorkingCacheDigestResponse = WorkingCacheDigestResponses[keyof WorkingCacheDigestResponses]
 
+export type AppSkillsData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/skill"
+}
+
+export type AppSkillsResponses = {
+  /**
+   * List of skills
+   */
+  200: Array<{
+    name: string
+    description: string
+    location: string
+    content: string
+  }>
+}
+
+export type AppSkillsResponse = AppSkillsResponses[keyof AppSkillsResponses]
+
+export type SkillReloadData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/skill/reload"
+}
+
+export type SkillReloadResponses = {
+  /**
+   * Rescan completed; returns the fresh index
+   */
+  200: {
+    skills: Array<{
+      name: string
+      description: string
+      location: string
+    }>
+    dirs: Array<string>
+    count: number
+  }
+}
+
+export type SkillReloadResponse = SkillReloadResponses[keyof SkillReloadResponses]
+
+export type SkillLoadData = {
+  body: {
+    /**
+     * Folder containing one or more SKILL.md files. Supports ~ expansion and relative paths.
+     */
+    path: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/skill/load"
+}
+
+export type SkillLoadErrors = {
+  /**
+   * Invalid path argument
+   */
+  400: unknown
+  /**
+   * Folder does not exist
+   */
+  404: unknown
+}
+
+export type SkillLoadResponses = {
+  /**
+   * Path registered (or already present) and index rebuilt
+   */
+  200: {
+    action: "load" | "unload"
+    target: string
+    configFile: string
+    pathsBefore: Array<string>
+    pathsAfter: Array<string>
+    configChanged: boolean
+    index: {
+      skills: Array<{
+        name: string
+        description: string
+        location: string
+      }>
+      dirs: Array<string>
+      count: number
+    }
+    warnings?: Array<string>
+  }
+}
+
+export type SkillLoadResponse = SkillLoadResponses[keyof SkillLoadResponses]
+
+export type SkillUnloadData = {
+  body: {
+    /**
+     * Folder containing one or more SKILL.md files. Supports ~ expansion and relative paths.
+     */
+    path: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/skill/unload"
+}
+
+export type SkillUnloadErrors = {
+  /**
+   * Invalid path argument
+   */
+  400: unknown
+}
+
+export type SkillUnloadResponses = {
+  /**
+   * Path removed (or already absent) and index rebuilt
+   */
+  200: {
+    action: "load" | "unload"
+    target: string
+    configFile: string
+    pathsBefore: Array<string>
+    pathsAfter: Array<string>
+    configChanged: boolean
+    index: {
+      skills: Array<{
+        name: string
+        description: string
+        location: string
+      }>
+      dirs: Array<string>
+      count: number
+    }
+    warnings?: Array<string>
+  }
+}
+
+export type SkillUnloadResponse = SkillUnloadResponses[keyof SkillUnloadResponses]
+
 export type FindTextData = {
   body?: never
   path?: never
@@ -11195,6 +11403,155 @@ export type FileCreateDirectoryResponses = {
 }
 
 export type FileCreateDirectoryResponse = FileCreateDirectoryResponses[keyof FileCreateDirectoryResponses]
+
+export type FileCreateData = {
+  body: {
+    parent: string
+    name: string
+    type: "file" | "directory"
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/file/create"
+}
+
+export type FileCreateResponses = {
+  /**
+   * File operation result
+   */
+  200: FileOperationResult
+}
+
+export type FileCreateResponse = FileCreateResponses[keyof FileCreateResponses]
+
+export type FileRenameData = {
+  body: {
+    path: string
+    name: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/file/rename"
+}
+
+export type FileRenameResponses = {
+  /**
+   * File operation result
+   */
+  200: FileOperationResult
+}
+
+export type FileRenameResponse = FileRenameResponses[keyof FileRenameResponses]
+
+export type FileMoveData = {
+  body: {
+    source: string
+    destinationParent: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/file/move"
+}
+
+export type FileMoveResponses = {
+  /**
+   * File operation result
+   */
+  200: FileOperationResult
+}
+
+export type FileMoveResponse = FileMoveResponses[keyof FileMoveResponses]
+
+export type FileCopyData = {
+  body: {
+    source: string
+    destinationParent: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/file/copy"
+}
+
+export type FileCopyResponses = {
+  /**
+   * File operation result
+   */
+  200: FileOperationResult
+}
+
+export type FileCopyResponse = FileCopyResponses[keyof FileCopyResponses]
+
+export type FileDeleteToRecyclebinData = {
+  body: {
+    path: string
+    confirmed: boolean
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/file/delete"
+}
+
+export type FileDeleteToRecyclebinResponses = {
+  /**
+   * File operation result
+   */
+  200: FileOperationResult
+}
+
+export type FileDeleteToRecyclebinResponse = FileDeleteToRecyclebinResponses[keyof FileDeleteToRecyclebinResponses]
+
+export type FileRestoreFromRecyclebinData = {
+  body: {
+    tombstonePath: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/file/restore"
+}
+
+export type FileRestoreFromRecyclebinResponses = {
+  /**
+   * File operation result
+   */
+  200: FileOperationResult
+}
+
+export type FileRestoreFromRecyclebinResponse =
+  FileRestoreFromRecyclebinResponses[keyof FileRestoreFromRecyclebinResponses]
+
+export type FileDestinationPreflightData = {
+  body: {
+    destinationParent: string
+    scope: "active-project" | "external"
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/file/destination/preflight"
+}
+
+export type FileDestinationPreflightResponses = {
+  /**
+   * Destination preflight result
+   */
+  200: FileDestinationPreflightResult
+}
+
+export type FileDestinationPreflightResponse =
+  FileDestinationPreflightResponses[keyof FileDestinationPreflightResponses]
 
 export type FileStatData = {
   body?: never
@@ -11390,29 +11747,6 @@ export type AppAgentsResponses = {
 }
 
 export type AppAgentsResponse = AppAgentsResponses[keyof AppAgentsResponses]
-
-export type AppSkillsData = {
-  body?: never
-  path?: never
-  query?: {
-    directory?: string
-  }
-  url: "/api/v2/skill"
-}
-
-export type AppSkillsResponses = {
-  /**
-   * List of skills
-   */
-  200: Array<{
-    name: string
-    description: string
-    location: string
-    content: string
-  }>
-}
-
-export type AppSkillsResponse = AppSkillsResponses[keyof AppSkillsResponses]
 
 export type LspStatusData = {
   body?: never
@@ -18858,6 +19192,153 @@ export type WorkingCacheDigest2Responses = {
 
 export type WorkingCacheDigest2Response = WorkingCacheDigest2Responses[keyof WorkingCacheDigest2Responses]
 
+export type AppSkills2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/skill"
+}
+
+export type AppSkills2Responses = {
+  /**
+   * List of skills
+   */
+  200: Array<{
+    name: string
+    description: string
+    location: string
+    content: string
+  }>
+}
+
+export type AppSkills2Response = AppSkills2Responses[keyof AppSkills2Responses]
+
+export type SkillReload2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/skill/reload"
+}
+
+export type SkillReload2Responses = {
+  /**
+   * Rescan completed; returns the fresh index
+   */
+  200: {
+    skills: Array<{
+      name: string
+      description: string
+      location: string
+    }>
+    dirs: Array<string>
+    count: number
+  }
+}
+
+export type SkillReload2Response = SkillReload2Responses[keyof SkillReload2Responses]
+
+export type SkillLoad2Data = {
+  body: {
+    /**
+     * Folder containing one or more SKILL.md files. Supports ~ expansion and relative paths.
+     */
+    path: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/skill/load"
+}
+
+export type SkillLoad2Errors = {
+  /**
+   * Invalid path argument
+   */
+  400: unknown
+  /**
+   * Folder does not exist
+   */
+  404: unknown
+}
+
+export type SkillLoad2Responses = {
+  /**
+   * Path registered (or already present) and index rebuilt
+   */
+  200: {
+    action: "load" | "unload"
+    target: string
+    configFile: string
+    pathsBefore: Array<string>
+    pathsAfter: Array<string>
+    configChanged: boolean
+    index: {
+      skills: Array<{
+        name: string
+        description: string
+        location: string
+      }>
+      dirs: Array<string>
+      count: number
+    }
+    warnings?: Array<string>
+  }
+}
+
+export type SkillLoad2Response = SkillLoad2Responses[keyof SkillLoad2Responses]
+
+export type SkillUnload2Data = {
+  body: {
+    /**
+     * Folder containing one or more SKILL.md files. Supports ~ expansion and relative paths.
+     */
+    path: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/skill/unload"
+}
+
+export type SkillUnload2Errors = {
+  /**
+   * Invalid path argument
+   */
+  400: unknown
+}
+
+export type SkillUnload2Responses = {
+  /**
+   * Path removed (or already absent) and index rebuilt
+   */
+  200: {
+    action: "load" | "unload"
+    target: string
+    configFile: string
+    pathsBefore: Array<string>
+    pathsAfter: Array<string>
+    configChanged: boolean
+    index: {
+      skills: Array<{
+        name: string
+        description: string
+        location: string
+      }>
+      dirs: Array<string>
+      count: number
+    }
+    warnings?: Array<string>
+  }
+}
+
+export type SkillUnload2Response = SkillUnload2Responses[keyof SkillUnload2Responses]
+
 export type FindText2Data = {
   body?: never
   path?: never
@@ -18972,6 +19453,155 @@ export type FileCreateDirectory2Responses = {
 }
 
 export type FileCreateDirectory2Response = FileCreateDirectory2Responses[keyof FileCreateDirectory2Responses]
+
+export type FileCreate2Data = {
+  body: {
+    parent: string
+    name: string
+    type: "file" | "directory"
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/file/create"
+}
+
+export type FileCreate2Responses = {
+  /**
+   * File operation result
+   */
+  200: FileOperationResult
+}
+
+export type FileCreate2Response = FileCreate2Responses[keyof FileCreate2Responses]
+
+export type FileRename2Data = {
+  body: {
+    path: string
+    name: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/file/rename"
+}
+
+export type FileRename2Responses = {
+  /**
+   * File operation result
+   */
+  200: FileOperationResult
+}
+
+export type FileRename2Response = FileRename2Responses[keyof FileRename2Responses]
+
+export type FileMove2Data = {
+  body: {
+    source: string
+    destinationParent: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/file/move"
+}
+
+export type FileMove2Responses = {
+  /**
+   * File operation result
+   */
+  200: FileOperationResult
+}
+
+export type FileMove2Response = FileMove2Responses[keyof FileMove2Responses]
+
+export type FileCopy2Data = {
+  body: {
+    source: string
+    destinationParent: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/file/copy"
+}
+
+export type FileCopy2Responses = {
+  /**
+   * File operation result
+   */
+  200: FileOperationResult
+}
+
+export type FileCopy2Response = FileCopy2Responses[keyof FileCopy2Responses]
+
+export type FileDeleteToRecyclebin2Data = {
+  body: {
+    path: string
+    confirmed: boolean
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/file/delete"
+}
+
+export type FileDeleteToRecyclebin2Responses = {
+  /**
+   * File operation result
+   */
+  200: FileOperationResult
+}
+
+export type FileDeleteToRecyclebin2Response = FileDeleteToRecyclebin2Responses[keyof FileDeleteToRecyclebin2Responses]
+
+export type FileRestoreFromRecyclebin2Data = {
+  body: {
+    tombstonePath: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/file/restore"
+}
+
+export type FileRestoreFromRecyclebin2Responses = {
+  /**
+   * File operation result
+   */
+  200: FileOperationResult
+}
+
+export type FileRestoreFromRecyclebin2Response =
+  FileRestoreFromRecyclebin2Responses[keyof FileRestoreFromRecyclebin2Responses]
+
+export type FileDestinationPreflight2Data = {
+  body: {
+    destinationParent: string
+    scope: "active-project" | "external"
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/file/destination/preflight"
+}
+
+export type FileDestinationPreflight2Responses = {
+  /**
+   * Destination preflight result
+   */
+  200: FileDestinationPreflightResult
+}
+
+export type FileDestinationPreflight2Response =
+  FileDestinationPreflight2Responses[keyof FileDestinationPreflight2Responses]
 
 export type FileStat2Data = {
   body?: never
@@ -19167,29 +19797,6 @@ export type AppAgents2Responses = {
 }
 
 export type AppAgents2Response = AppAgents2Responses[keyof AppAgents2Responses]
-
-export type AppSkills2Data = {
-  body?: never
-  path?: never
-  query?: {
-    directory?: string
-  }
-  url: "/skill"
-}
-
-export type AppSkills2Responses = {
-  /**
-   * List of skills
-   */
-  200: Array<{
-    name: string
-    description: string
-    location: string
-    content: string
-  }>
-}
-
-export type AppSkills2Response = AppSkills2Responses[keyof AppSkills2Responses]
 
 export type LspStatus2Data = {
   body?: never

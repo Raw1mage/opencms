@@ -11,6 +11,15 @@ import { RequestUser } from "@/runtime/request-user"
 
 const log = Log.create({ service: "server.routes.file" })
 
+function fileOperationResponse(c: { json: (body: unknown, status?: number) => Response }, fn: () => Promise<unknown>) {
+  return fn()
+    .then((result) => c.json(result))
+    .catch((err) => {
+      if (err instanceof File.OperationError) return c.json(err.toObject(), err.status)
+      throw err
+    })
+}
+
 export const FileRoutes = lazy(() =>
   new Hono()
     .get(
@@ -174,6 +183,213 @@ export const FileRoutes = lazy(() =>
         const path = c.req.valid("json").path
         const content = await File.createDirectory({ path })
         return c.json(content)
+      },
+    )
+    .post(
+      "/file/create",
+      describeRoute({
+        summary: "Create file or directory",
+        description: "Create a file or directory under an active-project parent. Basename conflicts are rejected.",
+        operationId: "file.create",
+        responses: {
+          200: {
+            description: "File operation result",
+            content: {
+              "application/json": {
+                schema: resolver(File.OperationResult),
+              },
+            },
+          },
+        },
+      }),
+      validator(
+        "json",
+        z.object({
+          parent: z.string(),
+          name: z.string().min(1),
+          type: z.enum(["file", "directory"]),
+        }),
+      ),
+      async (c) => {
+        const body = c.req.valid("json")
+        return fileOperationResponse(c, () => File.create(body))
+      },
+    )
+    .post(
+      "/file/rename",
+      describeRoute({
+        summary: "Rename file or directory",
+        description:
+          "Rename an active-project item. The new name must be a basename and destination conflicts are rejected.",
+        operationId: "file.rename",
+        responses: {
+          200: {
+            description: "File operation result",
+            content: {
+              "application/json": {
+                schema: resolver(File.OperationResult),
+              },
+            },
+          },
+        },
+      }),
+      validator(
+        "json",
+        z.object({
+          path: z.string().min(1),
+          name: z.string().min(1),
+        }),
+      ),
+      async (c) => {
+        const body = c.req.valid("json")
+        return fileOperationResponse(c, () => File.rename(body))
+      },
+    )
+    .post(
+      "/file/move",
+      describeRoute({
+        summary: "Move file or directory",
+        description:
+          "Move an active-project item into an active-project directory. Destination conflicts are rejected.",
+        operationId: "file.move",
+        responses: {
+          200: {
+            description: "File operation result",
+            content: {
+              "application/json": {
+                schema: resolver(File.OperationResult),
+              },
+            },
+          },
+        },
+      }),
+      validator(
+        "json",
+        z.object({
+          source: z.string().min(1),
+          destinationParent: z.string(),
+        }),
+      ),
+      async (c) => {
+        const body = c.req.valid("json")
+        return fileOperationResponse(c, () => File.move(body))
+      },
+    )
+    .post(
+      "/file/copy",
+      describeRoute({
+        summary: "Copy file or directory",
+        description:
+          "Copy an active-project item into an active-project directory. Destination conflicts are rejected.",
+        operationId: "file.copy",
+        responses: {
+          200: {
+            description: "File operation result",
+            content: {
+              "application/json": {
+                schema: resolver(File.OperationResult),
+              },
+            },
+          },
+        },
+      }),
+      validator(
+        "json",
+        z.object({
+          source: z.string().min(1),
+          destinationParent: z.string(),
+        }),
+      ),
+      async (c) => {
+        const body = c.req.valid("json")
+        return fileOperationResponse(c, () => File.copy(body))
+      },
+    )
+    .post(
+      "/file/delete",
+      describeRoute({
+        summary: "Delete file or directory to recyclebin",
+        description: "Move an active-project item into repo-local recyclebin. Requires explicit confirmation.",
+        operationId: "file.deleteToRecyclebin",
+        responses: {
+          200: {
+            description: "File operation result",
+            content: {
+              "application/json": {
+                schema: resolver(File.OperationResult),
+              },
+            },
+          },
+        },
+      }),
+      validator(
+        "json",
+        z.object({
+          path: z.string().min(1),
+          confirmed: z.boolean(),
+        }),
+      ),
+      async (c) => {
+        const body = c.req.valid("json")
+        return fileOperationResponse(c, () => File.deleteToRecyclebin(body))
+      },
+    )
+    .post(
+      "/file/restore",
+      describeRoute({
+        summary: "Restore file or directory from recyclebin",
+        description: "Restore a repo-local recyclebin tombstone using its metadata. Restore conflicts are rejected.",
+        operationId: "file.restoreFromRecyclebin",
+        responses: {
+          200: {
+            description: "File operation result",
+            content: {
+              "application/json": {
+                schema: resolver(File.OperationResult),
+              },
+            },
+          },
+        },
+      }),
+      validator(
+        "json",
+        z.object({
+          tombstonePath: z.string().min(1),
+        }),
+      ),
+      async (c) => {
+        const body = c.req.valid("json")
+        return fileOperationResponse(c, () => File.restoreFromRecyclebin(body))
+      },
+    )
+    .post(
+      "/file/destination/preflight",
+      describeRoute({
+        summary: "Preflight file-operation destination",
+        description:
+          "Resolve and probe a destination directory. External destinations are preflight-only in this slice.",
+        operationId: "file.destinationPreflight",
+        responses: {
+          200: {
+            description: "Destination preflight result",
+            content: {
+              "application/json": {
+                schema: resolver(File.DestinationPreflightResult),
+              },
+            },
+          },
+        },
+      }),
+      validator(
+        "json",
+        z.object({
+          destinationParent: z.string().min(1),
+          scope: z.enum(["active-project", "external"]),
+        }),
+      ),
+      async (c) => {
+        const body = c.req.valid("json")
+        return fileOperationResponse(c, () => File.destinationPreflight(body))
       },
     )
     .get(

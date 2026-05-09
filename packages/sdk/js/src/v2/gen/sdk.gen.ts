@@ -129,14 +129,28 @@ import type {
   ExperimentalSessionListResponses,
   ExperimentalUserDaemonList2Responses,
   ExperimentalUserDaemonListResponses,
+  FileCopy2Responses,
+  FileCopyResponses,
+  FileCreate2Responses,
   FileCreateDirectory2Responses,
   FileCreateDirectoryResponses,
+  FileCreateResponses,
+  FileDeleteToRecyclebin2Responses,
+  FileDeleteToRecyclebinResponses,
+  FileDestinationPreflight2Responses,
+  FileDestinationPreflightResponses,
   FileList2Responses,
   FileListResponses,
+  FileMove2Responses,
+  FileMoveResponses,
   FilePartInput,
   FilePartSource,
   FileRead2Responses,
   FileReadResponses,
+  FileRename2Responses,
+  FileRenameResponses,
+  FileRestoreFromRecyclebin2Responses,
+  FileRestoreFromRecyclebinResponses,
   FileStat2Responses,
   FileStatResponses,
   FileStatus2Responses,
@@ -524,6 +538,16 @@ import type {
   SessionUpdate2Responses,
   SessionUpdateErrors,
   SessionUpdateResponses,
+  SkillLoad2Errors,
+  SkillLoad2Responses,
+  SkillLoadErrors,
+  SkillLoadResponses,
+  SkillReload2Responses,
+  SkillReloadResponses,
+  SkillUnload2Errors,
+  SkillUnload2Responses,
+  SkillUnloadErrors,
+  SkillUnloadResponses,
   SubtaskPartInput,
   TextPartInput,
   ToolIds2Errors,
@@ -12495,6 +12519,350 @@ export class WorkingCache extends HeyApiClient {
   }
 }
 
+export class App extends HeyApiClient {
+  /**
+   * List skills
+   *
+   * Get a list of all available skills in the OpenCode system.
+   */
+  public skills<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<AppSkillsResponses, unknown, ThrowOnError>({
+      url: "/api/v2/skill",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Write log
+   *
+   * Write a log entry to the server logs with specified level and metadata.
+   */
+  public log<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      service?: string
+      level?: "debug" | "info" | "error" | "warn"
+      message?: string
+      extra?: {
+        [key: string]: unknown
+      }
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "service" },
+            { in: "body", key: "level" },
+            { in: "body", key: "message" },
+            { in: "body", key: "extra" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<AppLogResponses, AppLogErrors, ThrowOnError>({
+      url: "/api/v2/log",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * List agents
+   *
+   * Get a list of all available AI agents in the OpenCode system.
+   */
+  public agents<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<AppAgentsResponses, unknown, ThrowOnError>({
+      url: "/api/v2/agent",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * List skills
+   *
+   * Get a list of all available skills in the OpenCode system.
+   */
+  public skills2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<AppSkills2Responses, unknown, ThrowOnError>({
+      url: "/skill",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Write log
+   *
+   * Write a log entry to the server logs with specified level and metadata.
+   */
+  public log2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      service?: string
+      level?: "debug" | "info" | "error" | "warn"
+      message?: string
+      extra?: {
+        [key: string]: unknown
+      }
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "service" },
+            { in: "body", key: "level" },
+            { in: "body", key: "message" },
+            { in: "body", key: "extra" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<AppLog2Responses, AppLog2Errors, ThrowOnError>({
+      url: "/log",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * List agents
+   *
+   * Get a list of all available AI agents in the OpenCode system.
+   */
+  public agents2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<AppAgents2Responses, unknown, ThrowOnError>({
+      url: "/agent",
+      ...options,
+      ...params,
+    })
+  }
+}
+
+export class Skill extends HeyApiClient {
+  /**
+   * Reload skills from disk
+   *
+   * Drops the cached skill index and rescans every source: ~/.claude/skills, ~/.agents/skills, project .claude/skills walked up from cwd, Config.directories() (so ~/.config/opencode/skills and ~/.local/share/opencode/skills), config.skills.paths, and config.skills.urls. Use after adding a SKILL.md or editing opencode.json's skills.paths so the change goes live without restarting the daemon.
+   */
+  public reload<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).post<SkillReloadResponses, unknown, ThrowOnError>({
+      url: "/api/v2/skill/reload",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Add a folder to skills.paths and reload
+   *
+   * Persistently adds the given folder to ~/.config/opencode/opencode.json's skills.paths (idempotent — duplicates are skipped) and triggers a rescan so any SKILL.md files directly inside or nested below it become available. Survives daemon restart. The JSONC editor preserves comments and formatting in the existing config file.
+   */
+  public load<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      path?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "path" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<SkillLoadResponses, SkillLoadErrors, ThrowOnError>({
+      url: "/api/v2/skill/load",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Remove a folder from skills.paths and reload
+   *
+   * Inverse of /load: removes the path entry from ~/.config/opencode/opencode.json's skills.paths and rescans. Skills bundled with opencode (under Global.Path.config / Global.Path.data) and the hard-wired ~/.claude/skills, ~/.agents/skills, and project .claude/skills paths are not affected — only the user-added paths array.
+   */
+  public unload<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      path?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "path" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<SkillUnloadResponses, SkillUnloadErrors, ThrowOnError>({
+      url: "/api/v2/skill/unload",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Reload skills from disk
+   *
+   * Drops the cached skill index and rescans every source: ~/.claude/skills, ~/.agents/skills, project .claude/skills walked up from cwd, Config.directories() (so ~/.config/opencode/skills and ~/.local/share/opencode/skills), config.skills.paths, and config.skills.urls. Use after adding a SKILL.md or editing opencode.json's skills.paths so the change goes live without restarting the daemon.
+   */
+  public reload2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).post<SkillReload2Responses, unknown, ThrowOnError>({
+      url: "/skill/reload",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Add a folder to skills.paths and reload
+   *
+   * Persistently adds the given folder to ~/.config/opencode/opencode.json's skills.paths (idempotent — duplicates are skipped) and triggers a rescan so any SKILL.md files directly inside or nested below it become available. Survives daemon restart. The JSONC editor preserves comments and formatting in the existing config file.
+   */
+  public load2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      path?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "path" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<SkillLoad2Responses, SkillLoad2Errors, ThrowOnError>({
+      url: "/skill/load",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Remove a folder from skills.paths and reload
+   *
+   * Inverse of /load: removes the path entry from ~/.config/opencode/opencode.json's skills.paths and rescans. Skills bundled with opencode (under Global.Path.config / Global.Path.data) and the hard-wired ~/.claude/skills, ~/.agents/skills, and project .claude/skills paths are not affected — only the user-added paths array.
+   */
+  public unload2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      path?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "path" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<SkillUnload2Responses, SkillUnload2Errors, ThrowOnError>({
+      url: "/skill/unload",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
 export class Find extends HeyApiClient {
   /**
    * Find text
@@ -12756,6 +13124,265 @@ export class File extends HeyApiClient {
   }
 
   /**
+   * Create file or directory
+   *
+   * Create a file or directory under an active-project parent. Basename conflicts are rejected.
+   */
+  public create<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      parent?: string
+      name?: string
+      type?: "file" | "directory"
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "parent" },
+            { in: "body", key: "name" },
+            { in: "body", key: "type" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<FileCreateResponses, unknown, ThrowOnError>({
+      url: "/api/v2/file/create",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Rename file or directory
+   *
+   * Rename an active-project item. The new name must be a basename and destination conflicts are rejected.
+   */
+  public rename<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      path?: string
+      name?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "path" },
+            { in: "body", key: "name" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<FileRenameResponses, unknown, ThrowOnError>({
+      url: "/api/v2/file/rename",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Move file or directory
+   *
+   * Move an active-project item into an active-project directory. Destination conflicts are rejected.
+   */
+  public move<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      source?: string
+      destinationParent?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "source" },
+            { in: "body", key: "destinationParent" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<FileMoveResponses, unknown, ThrowOnError>({
+      url: "/api/v2/file/move",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Copy file or directory
+   *
+   * Copy an active-project item into an active-project directory. Destination conflicts are rejected.
+   */
+  public copy<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      source?: string
+      destinationParent?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "source" },
+            { in: "body", key: "destinationParent" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<FileCopyResponses, unknown, ThrowOnError>({
+      url: "/api/v2/file/copy",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Delete file or directory to recyclebin
+   *
+   * Move an active-project item into repo-local recyclebin. Requires explicit confirmation.
+   */
+  public deleteToRecyclebin<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      path?: string
+      confirmed?: boolean
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "path" },
+            { in: "body", key: "confirmed" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<FileDeleteToRecyclebinResponses, unknown, ThrowOnError>({
+      url: "/api/v2/file/delete",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Restore file or directory from recyclebin
+   *
+   * Restore a repo-local recyclebin tombstone using its metadata. Restore conflicts are rejected.
+   */
+  public restoreFromRecyclebin<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      tombstonePath?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "tombstonePath" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<FileRestoreFromRecyclebinResponses, unknown, ThrowOnError>({
+      url: "/api/v2/file/restore",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Preflight file-operation destination
+   *
+   * Resolve and probe a destination directory. External destinations are preflight-only in this slice.
+   */
+  public destinationPreflight<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      destinationParent?: string
+      scope?: "active-project" | "external"
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "destinationParent" },
+            { in: "body", key: "scope" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<FileDestinationPreflightResponses, unknown, ThrowOnError>({
+      url: "/api/v2/file/destination/preflight",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
    * Stat file
    *
    * Lightweight mtime/size probe for an open file viewer to detect on-disk changes without re-reading content. Used by the SPA to poll the active file tab.
@@ -12889,6 +13516,265 @@ export class File extends HeyApiClient {
     )
     return (options?.client ?? this.client).post<FileCreateDirectory2Responses, unknown, ThrowOnError>({
       url: "/file/directory",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Create file or directory
+   *
+   * Create a file or directory under an active-project parent. Basename conflicts are rejected.
+   */
+  public create2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      parent?: string
+      name?: string
+      type?: "file" | "directory"
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "parent" },
+            { in: "body", key: "name" },
+            { in: "body", key: "type" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<FileCreate2Responses, unknown, ThrowOnError>({
+      url: "/file/create",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Rename file or directory
+   *
+   * Rename an active-project item. The new name must be a basename and destination conflicts are rejected.
+   */
+  public rename2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      path?: string
+      name?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "path" },
+            { in: "body", key: "name" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<FileRename2Responses, unknown, ThrowOnError>({
+      url: "/file/rename",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Move file or directory
+   *
+   * Move an active-project item into an active-project directory. Destination conflicts are rejected.
+   */
+  public move2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      source?: string
+      destinationParent?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "source" },
+            { in: "body", key: "destinationParent" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<FileMove2Responses, unknown, ThrowOnError>({
+      url: "/file/move",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Copy file or directory
+   *
+   * Copy an active-project item into an active-project directory. Destination conflicts are rejected.
+   */
+  public copy2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      source?: string
+      destinationParent?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "source" },
+            { in: "body", key: "destinationParent" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<FileCopy2Responses, unknown, ThrowOnError>({
+      url: "/file/copy",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Delete file or directory to recyclebin
+   *
+   * Move an active-project item into repo-local recyclebin. Requires explicit confirmation.
+   */
+  public deleteToRecyclebin2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      path?: string
+      confirmed?: boolean
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "path" },
+            { in: "body", key: "confirmed" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<FileDeleteToRecyclebin2Responses, unknown, ThrowOnError>({
+      url: "/file/delete",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Restore file or directory from recyclebin
+   *
+   * Restore a repo-local recyclebin tombstone using its metadata. Restore conflicts are rejected.
+   */
+  public restoreFromRecyclebin2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      tombstonePath?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "tombstonePath" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<FileRestoreFromRecyclebin2Responses, unknown, ThrowOnError>({
+      url: "/file/restore",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Preflight file-operation destination
+   *
+   * Resolve and probe a destination directory. External destinations are preflight-only in this slice.
+   */
+  public destinationPreflight2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      destinationParent?: string
+      scope?: "active-project" | "external"
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "destinationParent" },
+            { in: "body", key: "scope" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<FileDestinationPreflight2Responses, unknown, ThrowOnError>({
+      url: "/file/destination/preflight",
       ...options,
       ...params,
       headers: {
@@ -13133,170 +14019,6 @@ export class Command extends HeyApiClient {
     const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
     return (options?.client ?? this.client).get<CommandList2Responses, unknown, ThrowOnError>({
       url: "/command",
-      ...options,
-      ...params,
-    })
-  }
-}
-
-export class App extends HeyApiClient {
-  /**
-   * Write log
-   *
-   * Write a log entry to the server logs with specified level and metadata.
-   */
-  public log<ThrowOnError extends boolean = false>(
-    parameters?: {
-      directory?: string
-      service?: string
-      level?: "debug" | "info" | "error" | "warn"
-      message?: string
-      extra?: {
-        [key: string]: unknown
-      }
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "query", key: "directory" },
-            { in: "body", key: "service" },
-            { in: "body", key: "level" },
-            { in: "body", key: "message" },
-            { in: "body", key: "extra" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).post<AppLogResponses, AppLogErrors, ThrowOnError>({
-      url: "/api/v2/log",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    })
-  }
-
-  /**
-   * List agents
-   *
-   * Get a list of all available AI agents in the OpenCode system.
-   */
-  public agents<ThrowOnError extends boolean = false>(
-    parameters?: {
-      directory?: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
-    return (options?.client ?? this.client).get<AppAgentsResponses, unknown, ThrowOnError>({
-      url: "/api/v2/agent",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
-   * List skills
-   *
-   * Get a list of all available skills in the OpenCode system.
-   */
-  public skills<ThrowOnError extends boolean = false>(
-    parameters?: {
-      directory?: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
-    return (options?.client ?? this.client).get<AppSkillsResponses, unknown, ThrowOnError>({
-      url: "/api/v2/skill",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
-   * Write log
-   *
-   * Write a log entry to the server logs with specified level and metadata.
-   */
-  public log2<ThrowOnError extends boolean = false>(
-    parameters?: {
-      directory?: string
-      service?: string
-      level?: "debug" | "info" | "error" | "warn"
-      message?: string
-      extra?: {
-        [key: string]: unknown
-      }
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "query", key: "directory" },
-            { in: "body", key: "service" },
-            { in: "body", key: "level" },
-            { in: "body", key: "message" },
-            { in: "body", key: "extra" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).post<AppLog2Responses, AppLog2Errors, ThrowOnError>({
-      url: "/log",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    })
-  }
-
-  /**
-   * List agents
-   *
-   * Get a list of all available AI agents in the OpenCode system.
-   */
-  public agents2<ThrowOnError extends boolean = false>(
-    parameters?: {
-      directory?: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
-    return (options?.client ?? this.client).get<AppAgents2Responses, unknown, ThrowOnError>({
-      url: "/agent",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
-   * List skills
-   *
-   * Get a list of all available skills in the OpenCode system.
-   */
-  public skills2<ThrowOnError extends boolean = false>(
-    parameters?: {
-      directory?: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
-    return (options?.client ?? this.client).get<AppSkills2Responses, unknown, ThrowOnError>({
-      url: "/skill",
       ...options,
       ...params,
     })
@@ -13556,6 +14278,16 @@ export class OpencodeClient extends HeyApiClient {
     return (this._workingCache ??= new WorkingCache({ client: this.client }))
   }
 
+  private _app?: App
+  get app(): App {
+    return (this._app ??= new App({ client: this.client }))
+  }
+
+  private _skill?: Skill
+  get skill(): Skill {
+    return (this._skill ??= new Skill({ client: this.client }))
+  }
+
   private _find?: Find
   get find(): Find {
     return (this._find ??= new Find({ client: this.client }))
@@ -13584,11 +14316,6 @@ export class OpencodeClient extends HeyApiClient {
   private _command?: Command
   get command(): Command {
     return (this._command ??= new Command({ client: this.client }))
-  }
-
-  private _app?: App
-  get app(): App {
-    return (this._app ??= new App({ client: this.client }))
   }
 
   private _lsp?: Lsp

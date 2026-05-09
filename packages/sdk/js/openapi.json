@@ -19568,6 +19568,406 @@
         }
       }
     },
+    "/api/v2/skill": {
+      "get": {
+        "operationId": "app.skills",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "List skills",
+        "description": "Get a list of all available skills in the OpenCode system.",
+        "responses": {
+          "200": {
+            "description": "List of skills",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "location": {
+                        "type": "string"
+                      },
+                      "content": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "description",
+                      "location",
+                      "content"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/skill/reload": {
+      "post": {
+        "operationId": "skill.reload",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Reload skills from disk",
+        "description": "Drops the cached skill index and rescans every source: ~/.claude/skills, ~/.agents/skills, project .claude/skills walked up from cwd, Config.directories() (so ~/.config/opencode/skills and ~/.local/share/opencode/skills), config.skills.paths, and config.skills.urls. Use after adding a SKILL.md or editing opencode.json's skills.paths so the change goes live without restarting the daemon.",
+        "responses": {
+          "200": {
+            "description": "Rescan completed; returns the fresh index",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "skills": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "location": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "description",
+                          "location"
+                        ]
+                      }
+                    },
+                    "dirs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "skills",
+                    "dirs",
+                    "count"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/skill/load": {
+      "post": {
+        "operationId": "skill.load",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Add a folder to skills.paths and reload",
+        "description": "Persistently adds the given folder to ~/.config/opencode/opencode.json's skills.paths (idempotent — duplicates are skipped) and triggers a rescan so any SKILL.md files directly inside or nested below it become available. Survives daemon restart. The JSONC editor preserves comments and formatting in the existing config file.",
+        "responses": {
+          "200": {
+            "description": "Path registered (or already present) and index rebuilt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "action": {
+                      "type": "string",
+                      "enum": [
+                        "load",
+                        "unload"
+                      ]
+                    },
+                    "target": {
+                      "type": "string"
+                    },
+                    "configFile": {
+                      "type": "string"
+                    },
+                    "pathsBefore": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "pathsAfter": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "configChanged": {
+                      "type": "boolean"
+                    },
+                    "index": {
+                      "type": "object",
+                      "properties": {
+                        "skills": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "location": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "description",
+                              "location"
+                            ]
+                          }
+                        },
+                        "dirs": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "count": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "skills",
+                        "dirs",
+                        "count"
+                      ]
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "action",
+                    "target",
+                    "configFile",
+                    "pathsBefore",
+                    "pathsAfter",
+                    "configChanged",
+                    "index"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid path argument"
+          },
+          "404": {
+            "description": "Folder does not exist"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "description": "Folder containing one or more SKILL.md files. Supports ~ expansion and relative paths.",
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "path"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/skill/unload": {
+      "post": {
+        "operationId": "skill.unload",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Remove a folder from skills.paths and reload",
+        "description": "Inverse of /load: removes the path entry from ~/.config/opencode/opencode.json's skills.paths and rescans. Skills bundled with opencode (under Global.Path.config / Global.Path.data) and the hard-wired ~/.claude/skills, ~/.agents/skills, and project .claude/skills paths are not affected — only the user-added paths array.",
+        "responses": {
+          "200": {
+            "description": "Path removed (or already absent) and index rebuilt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "action": {
+                      "type": "string",
+                      "enum": [
+                        "load",
+                        "unload"
+                      ]
+                    },
+                    "target": {
+                      "type": "string"
+                    },
+                    "configFile": {
+                      "type": "string"
+                    },
+                    "pathsBefore": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "pathsAfter": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "configChanged": {
+                      "type": "boolean"
+                    },
+                    "index": {
+                      "type": "object",
+                      "properties": {
+                        "skills": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "location": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "description",
+                              "location"
+                            ]
+                          }
+                        },
+                        "dirs": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "count": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "skills",
+                        "dirs",
+                        "count"
+                      ]
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "action",
+                    "target",
+                    "configFile",
+                    "pathsBefore",
+                    "pathsAfter",
+                    "configChanged",
+                    "index"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid path argument"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "description": "Folder containing one or more SKILL.md files. Supports ~ expansion and relative paths.",
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "path"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/find": {
       "get": {
         "operationId": "find.text",
@@ -19862,6 +20262,372 @@
                 },
                 "required": [
                   "path"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/file/create": {
+      "post": {
+        "operationId": "file.create",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Create file or directory",
+        "description": "Create a file or directory under an active-project parent. Basename conflicts are rejected.",
+        "responses": {
+          "200": {
+            "description": "File operation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileOperationResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "parent": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "file",
+                      "directory"
+                    ]
+                  }
+                },
+                "required": [
+                  "parent",
+                  "name",
+                  "type"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/file/rename": {
+      "post": {
+        "operationId": "file.rename",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Rename file or directory",
+        "description": "Rename an active-project item. The new name must be a basename and destination conflicts are rejected.",
+        "responses": {
+          "200": {
+            "description": "File operation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileOperationResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "path",
+                  "name"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/file/move": {
+      "post": {
+        "operationId": "file.move",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Move file or directory",
+        "description": "Move an active-project item into an active-project directory. Destination conflicts are rejected.",
+        "responses": {
+          "200": {
+            "description": "File operation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileOperationResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "source": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "destinationParent": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "source",
+                  "destinationParent"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/file/copy": {
+      "post": {
+        "operationId": "file.copy",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Copy file or directory",
+        "description": "Copy an active-project item into an active-project directory. Destination conflicts are rejected.",
+        "responses": {
+          "200": {
+            "description": "File operation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileOperationResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "source": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "destinationParent": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "source",
+                  "destinationParent"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/file/delete": {
+      "post": {
+        "operationId": "file.deleteToRecyclebin",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Delete file or directory to recyclebin",
+        "description": "Move an active-project item into repo-local recyclebin. Requires explicit confirmation.",
+        "responses": {
+          "200": {
+            "description": "File operation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileOperationResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "confirmed": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "path",
+                  "confirmed"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/file/restore": {
+      "post": {
+        "operationId": "file.restoreFromRecyclebin",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Restore file or directory from recyclebin",
+        "description": "Restore a repo-local recyclebin tombstone using its metadata. Restore conflicts are rejected.",
+        "responses": {
+          "200": {
+            "description": "File operation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileOperationResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tombstonePath": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "tombstonePath"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/file/destination/preflight": {
+      "post": {
+        "operationId": "file.destinationPreflight",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Preflight file-operation destination",
+        "description": "Resolve and probe a destination directory. External destinations are preflight-only in this slice.",
+        "responses": {
+          "200": {
+            "description": "Destination preflight result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileDestinationPreflightResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "destinationParent": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "active-project",
+                      "external"
+                    ]
+                  }
+                },
+                "required": [
+                  "destinationParent",
+                  "scope"
                 ]
               }
             }
@@ -20203,57 +20969,6 @@
                   "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/Agent"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v2/skill": {
-      "get": {
-        "operationId": "app.skills",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "directory",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "summary": "List skills",
-        "description": "Get a list of all available skills in the OpenCode system.",
-        "responses": {
-          "200": {
-            "description": "List of skills",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "name": {
-                        "type": "string"
-                      },
-                      "description": {
-                        "type": "string"
-                      },
-                      "location": {
-                        "type": "string"
-                      },
-                      "content": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "name",
-                      "description",
-                      "location",
-                      "content"
-                    ]
                   }
                 }
               }
@@ -39914,6 +40629,406 @@
         }
       }
     },
+    "/skill": {
+      "get": {
+        "operationId": "app.skills",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "List skills",
+        "description": "Get a list of all available skills in the OpenCode system.",
+        "responses": {
+          "200": {
+            "description": "List of skills",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "location": {
+                        "type": "string"
+                      },
+                      "content": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "description",
+                      "location",
+                      "content"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/skill/reload": {
+      "post": {
+        "operationId": "skill.reload",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Reload skills from disk",
+        "description": "Drops the cached skill index and rescans every source: ~/.claude/skills, ~/.agents/skills, project .claude/skills walked up from cwd, Config.directories() (so ~/.config/opencode/skills and ~/.local/share/opencode/skills), config.skills.paths, and config.skills.urls. Use after adding a SKILL.md or editing opencode.json's skills.paths so the change goes live without restarting the daemon.",
+        "responses": {
+          "200": {
+            "description": "Rescan completed; returns the fresh index",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "skills": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "location": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "description",
+                          "location"
+                        ]
+                      }
+                    },
+                    "dirs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "skills",
+                    "dirs",
+                    "count"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/skill/load": {
+      "post": {
+        "operationId": "skill.load",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Add a folder to skills.paths and reload",
+        "description": "Persistently adds the given folder to ~/.config/opencode/opencode.json's skills.paths (idempotent — duplicates are skipped) and triggers a rescan so any SKILL.md files directly inside or nested below it become available. Survives daemon restart. The JSONC editor preserves comments and formatting in the existing config file.",
+        "responses": {
+          "200": {
+            "description": "Path registered (or already present) and index rebuilt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "action": {
+                      "type": "string",
+                      "enum": [
+                        "load",
+                        "unload"
+                      ]
+                    },
+                    "target": {
+                      "type": "string"
+                    },
+                    "configFile": {
+                      "type": "string"
+                    },
+                    "pathsBefore": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "pathsAfter": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "configChanged": {
+                      "type": "boolean"
+                    },
+                    "index": {
+                      "type": "object",
+                      "properties": {
+                        "skills": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "location": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "description",
+                              "location"
+                            ]
+                          }
+                        },
+                        "dirs": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "count": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "skills",
+                        "dirs",
+                        "count"
+                      ]
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "action",
+                    "target",
+                    "configFile",
+                    "pathsBefore",
+                    "pathsAfter",
+                    "configChanged",
+                    "index"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid path argument"
+          },
+          "404": {
+            "description": "Folder does not exist"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "description": "Folder containing one or more SKILL.md files. Supports ~ expansion and relative paths.",
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "path"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/skill/unload": {
+      "post": {
+        "operationId": "skill.unload",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Remove a folder from skills.paths and reload",
+        "description": "Inverse of /load: removes the path entry from ~/.config/opencode/opencode.json's skills.paths and rescans. Skills bundled with opencode (under Global.Path.config / Global.Path.data) and the hard-wired ~/.claude/skills, ~/.agents/skills, and project .claude/skills paths are not affected — only the user-added paths array.",
+        "responses": {
+          "200": {
+            "description": "Path removed (or already absent) and index rebuilt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "action": {
+                      "type": "string",
+                      "enum": [
+                        "load",
+                        "unload"
+                      ]
+                    },
+                    "target": {
+                      "type": "string"
+                    },
+                    "configFile": {
+                      "type": "string"
+                    },
+                    "pathsBefore": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "pathsAfter": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "configChanged": {
+                      "type": "boolean"
+                    },
+                    "index": {
+                      "type": "object",
+                      "properties": {
+                        "skills": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "location": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "description",
+                              "location"
+                            ]
+                          }
+                        },
+                        "dirs": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "count": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "skills",
+                        "dirs",
+                        "count"
+                      ]
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "action",
+                    "target",
+                    "configFile",
+                    "pathsBefore",
+                    "pathsAfter",
+                    "configChanged",
+                    "index"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid path argument"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "description": "Folder containing one or more SKILL.md files. Supports ~ expansion and relative paths.",
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "path"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
     "/find": {
       "get": {
         "operationId": "find.text",
@@ -40208,6 +41323,372 @@
                 },
                 "required": [
                   "path"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/file/create": {
+      "post": {
+        "operationId": "file.create",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Create file or directory",
+        "description": "Create a file or directory under an active-project parent. Basename conflicts are rejected.",
+        "responses": {
+          "200": {
+            "description": "File operation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileOperationResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "parent": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "file",
+                      "directory"
+                    ]
+                  }
+                },
+                "required": [
+                  "parent",
+                  "name",
+                  "type"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/file/rename": {
+      "post": {
+        "operationId": "file.rename",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Rename file or directory",
+        "description": "Rename an active-project item. The new name must be a basename and destination conflicts are rejected.",
+        "responses": {
+          "200": {
+            "description": "File operation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileOperationResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "path",
+                  "name"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/file/move": {
+      "post": {
+        "operationId": "file.move",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Move file or directory",
+        "description": "Move an active-project item into an active-project directory. Destination conflicts are rejected.",
+        "responses": {
+          "200": {
+            "description": "File operation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileOperationResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "source": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "destinationParent": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "source",
+                  "destinationParent"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/file/copy": {
+      "post": {
+        "operationId": "file.copy",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Copy file or directory",
+        "description": "Copy an active-project item into an active-project directory. Destination conflicts are rejected.",
+        "responses": {
+          "200": {
+            "description": "File operation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileOperationResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "source": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "destinationParent": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "source",
+                  "destinationParent"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/file/delete": {
+      "post": {
+        "operationId": "file.deleteToRecyclebin",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Delete file or directory to recyclebin",
+        "description": "Move an active-project item into repo-local recyclebin. Requires explicit confirmation.",
+        "responses": {
+          "200": {
+            "description": "File operation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileOperationResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "confirmed": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "path",
+                  "confirmed"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/file/restore": {
+      "post": {
+        "operationId": "file.restoreFromRecyclebin",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Restore file or directory from recyclebin",
+        "description": "Restore a repo-local recyclebin tombstone using its metadata. Restore conflicts are rejected.",
+        "responses": {
+          "200": {
+            "description": "File operation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileOperationResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tombstonePath": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "tombstonePath"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/file/destination/preflight": {
+      "post": {
+        "operationId": "file.destinationPreflight",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Preflight file-operation destination",
+        "description": "Resolve and probe a destination directory. External destinations are preflight-only in this slice.",
+        "responses": {
+          "200": {
+            "description": "Destination preflight result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileDestinationPreflightResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "destinationParent": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "active-project",
+                      "external"
+                    ]
+                  }
+                },
+                "required": [
+                  "destinationParent",
+                  "scope"
                 ]
               }
             }
@@ -40549,57 +42030,6 @@
                   "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/Agent"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/skill": {
-      "get": {
-        "operationId": "app.skills",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "directory",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "summary": "List skills",
-        "description": "Get a list of all available skills in the OpenCode system.",
-        "responses": {
-          "200": {
-            "description": "List of skills",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "name": {
-                        "type": "string"
-                      },
-                      "description": {
-                        "type": "string"
-                      },
-                      "location": {
-                        "type": "string"
-                      },
-                      "content": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "name",
-                      "description",
-                      "location",
-                      "content"
-                    ]
                   }
                 }
               }
@@ -43099,6 +44529,29 @@
                 "items": {
                   "type": "string"
                 }
+              },
+              "serverCompactedItems": {
+                "type": "array",
+                "items": {}
+              },
+              "chainBinding": {
+                "type": "object",
+                "properties": {
+                  "accountId": {
+                    "type": "string"
+                  },
+                  "modelId": {
+                    "type": "string"
+                  },
+                  "capturedAt": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "accountId",
+                  "modelId",
+                  "capturedAt"
+                ]
               }
             }
           }
@@ -43922,6 +45375,69 @@
           "$ref": "#/components/schemas/PermissionRule"
         }
       },
+      "SessionRecentEvent": {
+        "type": "object",
+        "properties": {
+          "ts": {
+            "type": "number"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "rotation",
+              "compaction"
+            ]
+          },
+          "rotation": {
+            "type": "object",
+            "properties": {
+              "fromProviderId": {
+                "type": "string"
+              },
+              "fromAccountId": {
+                "type": "string"
+              },
+              "toProviderId": {
+                "type": "string"
+              },
+              "toAccountId": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          },
+          "compaction": {
+            "type": "object",
+            "properties": {
+              "observed": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "success": {
+                "type": "boolean"
+              },
+              "tokensBefore": {
+                "type": "number"
+              },
+              "tokensAfter": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "observed",
+              "success"
+            ]
+          }
+        },
+        "required": [
+          "ts",
+          "kind"
+        ]
+      },
       "PendingSubagentNotice": {
         "type": "object",
         "properties": {
@@ -44241,6 +45757,12 @@
                 "type": "array",
                 "items": {
                   "type": "string"
+                }
+              },
+              "recentEvents": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/SessionRecentEvent"
                 }
               }
             },
@@ -44873,7 +46395,7 @@
           },
           "id": {
             "description": "Unique identifier for the todo item (auto-generated if omitted)",
-            "default": "todo_movri7fx_jgmjys",
+            "default": "todo_moy2339b_pbrgmc",
             "type": "string"
           },
           "action": {
@@ -51257,6 +52779,12 @@
                 "items": {
                   "type": "string"
                 }
+              },
+              "recentEvents": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/SessionRecentEvent"
+                }
               }
             },
             "required": [
@@ -52165,6 +53693,75 @@
           "absolute",
           "type",
           "ignored"
+        ]
+      },
+      "FileOperationResult": {
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "create-file",
+              "create-directory",
+              "rename",
+              "move",
+              "copy",
+              "delete-to-recyclebin",
+              "restore-from-recyclebin"
+            ]
+          },
+          "source": {
+            "type": "string"
+          },
+          "destination": {
+            "type": "string"
+          },
+          "node": {
+            "$ref": "#/components/schemas/FileNode"
+          },
+          "affectedDirectories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "operation",
+          "affectedDirectories"
+        ]
+      },
+      "FileDestinationPreflightResult": {
+        "type": "object",
+        "properties": {
+          "canonicalPath": {
+            "type": "string"
+          },
+          "writable": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "FILE_OP_PATH_ESCAPE",
+              "FILE_OP_INVALID_NAME",
+              "FILE_OP_DUPLICATE",
+              "FILE_OP_TARGET_NOT_DIRECTORY",
+              "FILE_OP_SOURCE_NOT_FOUND",
+              "FILE_OP_CONFIRMATION_REQUIRED",
+              "FILE_OP_PERMISSION_DENIED",
+              "FILE_OP_DESTINATION_AMBIGUOUS",
+              "FILE_OP_PREFLIGHT_REQUIRED",
+              "FILE_OP_NOT_FILE",
+              "FILE_RECYCLEBIN_RESTORE_CONFLICT",
+              "FILE_RECYCLEBIN_METADATA_INVALID",
+              "FILE_DOWNLOAD_DIRECTORY_UNSUPPORTED"
+            ]
+          }
+        },
+        "required": [
+          "canonicalPath",
+          "writable"
         ]
       },
       "FileContent": {

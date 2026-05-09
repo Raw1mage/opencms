@@ -1,11 +1,13 @@
 import { useFile } from "@/context/file"
 import { encodeFilePath } from "@/context/file/path"
 import { Collapsible } from "@opencode-ai/ui/collapsible"
+import { ContextMenu } from "@opencode-ai/ui/context-menu"
 import { FileIcon } from "@opencode-ai/ui/file-icon"
 import { Icon } from "@opencode-ai/ui/icon"
 import {
   createEffect,
   createMemo,
+  createSignal,
   For,
   Match,
   on,
@@ -13,8 +15,11 @@ import {
   splitProps,
   Switch,
   untrack,
+  type Accessor,
   type ComponentProps,
+  type JSX,
   type ParentProps,
+  type Setter,
 } from "solid-js"
 import { Dynamic } from "solid-js/web"
 import type { FileNode } from "@opencode-ai/sdk/v2"
@@ -30,6 +35,177 @@ type Kind = "add" | "del" | "mix"
 type Filter = {
   files: Set<string>
   dirs: Set<string>
+}
+
+export type FileTreeContextMenuTarget =
+  | {
+      kind: "row"
+      node: FileNode
+      path: string
+      nodeType: FileNode["type"]
+      parentPath: string
+    }
+  | {
+      kind: "folder"
+      path: string
+      node?: FileNode
+      parentPath: string
+    }
+
+export type FileTreeContextSelectionItem = {
+  path: string
+  type: FileNode["type"]
+}
+
+export type FileTreeContextMenuActionId =
+  | "open"
+  | "create-file"
+  | "create-folder"
+  | "rename"
+  | "copy"
+  | "cut"
+  | "paste"
+  | "delete"
+  | "restore"
+  | "upload"
+  | "download"
+
+export type FileTreeContextMenuAction = {
+  id: FileTreeContextMenuActionId
+  label: string
+  enabled: boolean
+  reason?: string
+}
+
+export type FileTreeContextMenuActionGroup = {
+  id: "open" | "new" | "clipboard" | "organize" | "transfer"
+  label: string
+  actions: FileTreeContextMenuAction[]
+}
+
+const parentPath = (path: string) => {
+  const idx = path.lastIndexOf("/")
+  if (idx === -1) return ""
+  return path.slice(0, idx)
+}
+
+const isRecyclebinPath = (path: string) => path === "recyclebin" || path.startsWith("recyclebin/")
+
+export function fileTreeRowContextMenuTarget(node: FileNode): FileTreeContextMenuTarget {
+  return {
+    kind: "row",
+    node,
+    path: node.path,
+    nodeType: node.type,
+    parentPath: parentPath(node.path),
+  }
+}
+
+export function fileTreeFolderContextMenuTarget(path: string, node?: FileNode): FileTreeContextMenuTarget {
+  const target: FileTreeContextMenuTarget = {
+    kind: "folder",
+    path,
+    parentPath: parentPath(path),
+  }
+  if (node) target.node = node
+  return target
+}
+
+export function fileTreeContextMenuActionGroups(input: {
+  target: FileTreeContextMenuTarget
+  selection?: readonly FileTreeContextSelectionItem[]
+  hasPendingClipboard?: boolean
+}): FileTreeContextMenuActionGroup[] {
+  const selected = input.selection ?? []
+  const targetSelected = input.target.kind === "row" && selected.some((item) => item.path === input.target.path)
+  const selectedItems = targetSelected ? selected : []
+  const selectionCount = selectedItems.length
+  const effectiveCount = selectionCount || (input.target.kind === "row" ? 1 : 0)
+  const singleRow = input.target.kind === "row" && selectionCount <= 1
+  const folderDestination =
+    input.target.kind === "folder" || (input.target.kind === "row" && input.target.nodeType === "directory")
+  const fileRow = input.target.kind === "row" && input.target.nodeType === "file"
+  const restoreCandidate = input.target.kind === "row" && isRecyclebinPath(input.target.path)
+
+  return [
+    {
+      id: "open",
+      label: "Open",
+      actions: [
+        {
+          id: "open",
+          label: fileRow ? "Open file" : "Open folder",
+          enabled: input.target.kind === "row" && selectionCount <= 1,
+          reason:
+            input.target.kind === "folder"
+              ? "Choose a file or folder row to open."
+              : "Open supports one item at a time.",
+        },
+      ],
+    },
+    {
+      id: "new",
+      label: "New",
+      actions: [
+        { id: "create-file", label: "New file", enabled: folderDestination, reason: "Choose a destination folder." },
+        {
+          id: "create-folder",
+          label: "New folder",
+          enabled: folderDestination,
+          reason: "Choose a destination folder.",
+        },
+        { id: "upload", label: "Upload files", enabled: folderDestination, reason: "Choose a destination folder." },
+      ],
+    },
+    {
+      id: "clipboard",
+      label: "Clipboard",
+      actions: [
+        {
+          id: "copy",
+          label: selectionCount > 1 ? `Copy ${selectionCount} items` : "Copy",
+          enabled: effectiveCount > 0,
+        },
+        { id: "cut", label: selectionCount > 1 ? `Cut ${selectionCount} items` : "Cut", enabled: effectiveCount > 0 },
+        {
+          id: "paste",
+          label: "Paste here",
+          enabled: folderDestination && !!input.hasPendingClipboard,
+          reason: !folderDestination ? "Choose a destination folder." : "No copied or cut items are pending.",
+        },
+      ],
+    },
+    {
+      id: "organize",
+      label: "Organize",
+      actions: [
+        { id: "rename", label: "Rename", enabled: singleRow, reason: "Rename supports one row at a time." },
+        {
+          id: "delete",
+          label: effectiveCount > 1 ? `Move ${effectiveCount} items to recyclebin` : "Move to recyclebin",
+          enabled: effectiveCount > 0,
+        },
+        {
+          id: "restore",
+          label: "Restore from recyclebin",
+          enabled: restoreCandidate,
+          reason: "Only recyclebin items can be restored.",
+        },
+      ],
+    },
+    {
+      id: "transfer",
+      label: "Transfer",
+      actions: [
+        {
+          id: "download",
+          label: "Download",
+          enabled: fileRow && selectionCount <= 1,
+          reason: fileRow ? "Download supports one file at a time." : "Directory download is not supported.",
+        },
+      ],
+    },
+  ]
 }
 
 export function shouldListRoot(input: { level: number; dir?: { loaded?: boolean; loading?: boolean } }) {
@@ -152,6 +328,7 @@ const FileTreeNode = (
         [local.class ?? ""]: !!local.class,
         [local.nodeClass ?? ""]: !!local.nodeClass,
       }}
+      data-filetree-row="true"
       style={`padding-left: ${Math.max(0, 8 + local.level * 12 - (local.node.type === "file" ? 24 : 4))}px`}
       draggable={local.draggable}
       onDragStart={(event: DragEvent) => {
@@ -201,16 +378,26 @@ export default function FileTree(props: {
   kinds?: ReadonlyMap<string, Kind>
   draggable?: boolean
   onFileClick?: (file: FileNode) => void
+  onContextMenuTarget?: (target: FileTreeContextMenuTarget) => void
+  contextSelection?: readonly FileTreeContextSelectionItem[]
+  hasPendingClipboard?: boolean
+  contextMenu?: (target: FileTreeContextMenuTarget) => JSX.Element
 
   _filter?: Filter
   _marks?: Set<string>
   _deeps?: Map<string, number>
   _kinds?: ReadonlyMap<string, Kind>
   _chain?: readonly string[]
+  _contextMenuTarget?: Accessor<FileTreeContextMenuTarget | undefined>
+  _setContextMenuTarget?: Setter<FileTreeContextMenuTarget | undefined>
 }) {
   const file = useFile()
   const level = props.level ?? 0
   const draggable = () => props.draggable ?? true
+  const root = !props._chain
+  const [localContextMenuTarget, setLocalContextMenuTarget] = createSignal<FileTreeContextMenuTarget>()
+  const contextMenuTarget = props._contextMenuTarget ?? localContextMenuTarget
+  const setContextMenuTarget = props._setContextMenuTarget ?? setLocalContextMenuTarget
 
   const key = (p: string) =>
     file
@@ -389,8 +576,54 @@ export default function FileTree(props: {
     return out
   })
 
-  return (
-    <div class={`flex flex-col gap-0.5 ${props.class ?? ""}`}>
+  const publishContextMenuTarget = (target: FileTreeContextMenuTarget) => {
+    setContextMenuTarget(target)
+    props.onContextMenuTarget?.(target)
+  }
+
+  const handleBackgroundContextMenu = (event: MouseEvent) => {
+    const target = event.target
+    if (target instanceof Element && target.closest('[data-filetree-row="true"]')) return
+    const folder = target instanceof Element ? target.closest<HTMLElement>("[data-filetree-folder-path]") : undefined
+    const path = file.normalize(folder?.dataset.filetreeFolderPath ?? props.path)
+    publishContextMenuTarget(fileTreeFolderContextMenuTarget(path))
+  }
+
+  const defaultContextMenu = (target: FileTreeContextMenuTarget) => (
+    <For
+      each={fileTreeContextMenuActionGroups({
+        target,
+        selection: props.contextSelection,
+        hasPendingClipboard: props.hasPendingClipboard,
+      })}
+    >
+      {(group, index) => (
+        <ContextMenu.Group>
+          <Show when={index() > 0}>
+            <ContextMenu.Separator />
+          </Show>
+          <ContextMenu.GroupLabel>{group.label}</ContextMenu.GroupLabel>
+          <For each={group.actions}>
+            {(action) => (
+              <ContextMenu.Item disabled={!action.enabled}>
+                <ContextMenu.ItemLabel>{action.label}</ContextMenu.ItemLabel>
+                <Show when={!action.enabled && action.reason}>
+                  {(reason) => <ContextMenu.ItemDescription>{reason()}</ContextMenu.ItemDescription>}
+                </Show>
+              </ContextMenu.Item>
+            )}
+          </For>
+        </ContextMenu.Group>
+      )}
+    </For>
+  )
+
+  const tree = () => (
+    <div
+      class={`flex flex-col gap-0.5 ${root ? "min-h-full" : ""} ${props.class ?? ""}`}
+      data-filetree-folder-path={file.normalize(props.path)}
+      onContextMenu={root ? handleBackgroundContextMenu : undefined}
+    >
       <For each={nodes()}>
         {(node) => {
           const expanded = () => file.tree.state(node.path)?.expanded ?? false
@@ -424,6 +657,7 @@ export default function FileTree(props: {
                       draggable={draggable()}
                       kinds={kinds()}
                       marks={marks()}
+                      onContextMenu={() => publishContextMenuTarget(fileTreeRowContextMenuTarget(node))}
                     >
                       <div class="size-4 flex items-center justify-center text-icon-base">
                         <Icon name={expanded() ? "chevron-down" : "chevron-right"} size="small" />
@@ -452,11 +686,17 @@ export default function FileTree(props: {
                         active={props.active}
                         draggable={props.draggable}
                         onFileClick={props.onFileClick}
+                        onContextMenuTarget={props.onContextMenuTarget}
+                        contextSelection={props.contextSelection}
+                        hasPendingClipboard={props.hasPendingClipboard}
+                        contextMenu={props.contextMenu}
                         _filter={filter()}
                         _marks={marks()}
                         _deeps={deeps()}
                         _kinds={kinds()}
                         _chain={chain}
+                        _contextMenuTarget={contextMenuTarget}
+                        _setContextMenuTarget={setContextMenuTarget}
                       />
                     </Show>
                   </Collapsible.Content>
@@ -474,6 +714,7 @@ export default function FileTree(props: {
                   as="button"
                   type="button"
                   onClick={() => props.onFileClick?.(node)}
+                  onContextMenu={() => publishContextMenuTarget(fileTreeRowContextMenuTarget(node))}
                 >
                   <div class="w-4 shrink-0" />
                   <FileIcon node={node} class="text-icon-base size-4" />
@@ -484,5 +725,20 @@ export default function FileTree(props: {
         }}
       </For>
     </div>
+  )
+
+  if (!root) return tree()
+
+  return (
+    <ContextMenu modal={false}>
+      <ContextMenu.Trigger as="div" class="contents">
+        {tree()}
+      </ContextMenu.Trigger>
+      <ContextMenu.Portal>
+        <ContextMenu.Content>
+          <Show when={contextMenuTarget()}>{(target) => (props.contextMenu ?? defaultContextMenu)(target())}</Show>
+        </ContextMenu.Content>
+      </ContextMenu.Portal>
+    </ContextMenu>
   )
 }
