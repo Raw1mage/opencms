@@ -403,7 +403,33 @@ export function SessionSidePanel(props: {
                     <Tabs.List class="min-w-max">
                       <SortableProvider ids={props.openedTabs()}>
                         <For each={props.openedTabs()}>
-                          {(tab) => <SortableTab tab={tab} onTabClose={props.tabs().close} />}
+                          {(tab) => (
+                            <SortableTab
+                              tab={tab}
+                              onTabClose={props.tabs().close}
+                              onCloseOthers={(keep) => {
+                                // Close every file:// tab except `keep`. Non-file tabs
+                                // ("context") survive — only file viewers are scoped.
+                                const all = props.tabs().all()
+                                const remaining = all.filter(
+                                  (t: string) => !t.startsWith("file://") || t === keep,
+                                )
+                                props.tabs().setAll(remaining)
+                                if (props.tabs().active() && !remaining.includes(props.tabs().active() as string)) {
+                                  props.tabs().setActive(keep)
+                                }
+                              }}
+                              onCloseAll={() => {
+                                // Close every file:// tab; "context" survives.
+                                const all = props.tabs().all()
+                                const remaining = all.filter((t: string) => !t.startsWith("file://"))
+                                props.tabs().setAll(remaining)
+                                if (props.tabs().active() && !remaining.includes(props.tabs().active() as string)) {
+                                  props.tabs().setActive(remaining[0])
+                                }
+                              }}
+                            />
+                          )}
                         </For>
                       </SortableProvider>
                     </Tabs.List>
