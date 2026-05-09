@@ -4,6 +4,7 @@ import { createSimpleContext } from "@opencode-ai/ui/context"
 import { showToast } from "@opencode-ai/ui/toast"
 import { useParams } from "@solidjs/router"
 import { getFilename } from "@opencode-ai/util/path"
+import type { FileOperationResult } from "@opencode-ai/sdk/v2"
 import { useSDK } from "./sdk"
 import { useSync } from "./sync"
 import { useGlobalSync } from "./global-sync"
@@ -24,6 +25,7 @@ import {
 import { createFileViewCache } from "./file/view-cache"
 import { createFileTreeStore } from "./file/tree-store"
 import { invalidateFromWatcher } from "./file/watcher"
+import { reconcileTabsForOperation } from "./file/reconcile"
 import {
   selectionFromLines,
   type FileState,
@@ -249,6 +251,80 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
     const setSelectedLines = (input: string, range: SelectedLineRange | null) =>
       withPath(input, (file) => view().setSelectedLines(file, range))
 
+    const matchingStoreKeys = (source: string): string[] => {
+      const prefix = source + "/"
+      return Object.keys(store.file).filter((key) => key === source || key.startsWith(prefix))
+    }
+
+    const applyOperationResult = (result: FileOperationResult) => {
+      // 1. Refresh exactly the directories the server reports as affected.
+      for (const dir of result.affectedDirectories ?? []) {
+        if (!dir && dir !== "") continue
+        void tree.listDir(dir, { force: true })
+      }
+
+      // 2. Tab reconcile — close on delete, rebind on rename/move.
+      if (result.source) {
+        const allTabs = tabs.all()
+        const reconciled = reconcileTabsForOperation(
+          allTabs,
+          tabs.active(),
+          result,
+          path.pathFromTab,
+          path.tab,
+        )
+        if (reconciled.closed.length > 0 || reconciled.rebound.length > 0) {
+          batch(() => {
+            tabs.setAll(reconciled.kept)
+            tabs.setActive(reconciled.activeRebind)
+          })
+        }
+      }
+
+      // 3. Content / store reconcile.
+      const isRebind = (result.operation === "rename" || result.operation === "move") && result.source && result.destination
+      const isDelete = result.operation === "delete-to-recyclebin" && result.source
+
+      if (isRebind && result.source && result.destination) {
+        const source = result.source
+        const destination = result.destination
+        const matches = matchingStoreKeys(source)
+        if (matches.length > 0) {
+          batch(() => {
+            setStore(
+              "file",
+              produce((draft) => {
+                for (const oldKey of matches) {
+                  const state = draft[oldKey]
+                  if (!state) continue
+                  const newKey = oldKey === source ? destination : destination + oldKey.slice(source.length)
+                  delete draft[oldKey]
+                  draft[newKey] = { ...state, path: newKey, name: getFilename(newKey) }
+                }
+              }),
+            )
+          })
+          // Drop LRU entries; the next read repopulates against the new path.
+          for (const oldKey of matches) removeFileContentBytes(oldKey)
+        }
+      }
+
+      if (isDelete && result.source) {
+        const matches = matchingStoreKeys(result.source)
+        if (matches.length > 0) {
+          batch(() => {
+            setStore(
+              "file",
+              produce((draft) => {
+                for (const key of matches) delete draft[key]
+              }),
+            )
+          })
+          for (const key of matches) removeFileContentBytes(key)
+        }
+      }
+    }
+
     onCleanup(() => {
       stop()
       viewCache.clear()
@@ -285,6 +361,7 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
       setSelectedLines,
       searchFiles: (query: string) => search(query, "false"),
       searchFilesAndDirectories: (query: string) => search(query, "true"),
+      applyOperationResult,
     }
   },
 })
