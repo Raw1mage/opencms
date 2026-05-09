@@ -1,0 +1,289 @@
+{
+  "title": "dialog-replay-redaction — C4 model",
+  "description": "Component-level view of the four-piece refit. Scope: SessionCompaction module, post-anchor render path, working-cache recall integration. External boundaries unchanged.",
+  "systems": [
+    {
+      "id": "opencode",
+      "name": "OpenCode runtime",
+      "description": "Single-process bun daemon hosting session runloop, compaction, provider integrations, storage, and MCP tool surface.",
+      "boundary": "internal"
+    },
+    {
+      "id": "codex-backend",
+      "name": "Codex Responses API backend",
+      "description": "External chatgpt.com /backend-api/codex endpoints. /responses for completion; /responses/compact for server-side compaction.",
+      "boundary": "external"
+    }
+  ],
+  "containers": [
+    {
+      "id": "session-compaction",
+      "system": "opencode",
+      "name": "SessionCompaction module",
+      "description": "packages/opencode/src/session/compaction.ts. Owns kind chain, anchor write, recompress dispatch.",
+      "technology": "TypeScript, Bun"
+    },
+    {
+      "id": "session-memory",
+      "system": "opencode",
+      "name": "Session memory derivation",
+      "description": "packages/opencode/src/session/memory.ts. Derives turnSummaries from messages stream; renders for LLM/human.",
+      "technology": "TypeScript"
+    },
+    {
+      "id": "post-anchor-transform",
+      "system": "opencode",
+      "name": "Post-anchor render transformer",
+      "description": "packages/opencode/src/session/post-anchor-transform.ts. Walks post-anchor stream, currently drops completed assistants (v6); after this spec, redacts tool result payloads (v7).",
+      "technology": "TypeScript"
+    },
+    {
+      "id": "working-cache",
+      "system": "opencode",
+      "name": "Working cache (L1 digest + L2 ledger)",
+      "description": "packages/opencode/src/session/working-cache.ts. L2 ledger derived from Session.messages; recall_toolcall_* MCP family resolves part.id to original output.",
+      "technology": "TypeScript, MCP"
+    },
+    {
+      "id": "session-storage",
+      "system": "opencode",
+      "name": "Session storage",
+      "description": "Storage router + SQLite. Source of truth for messages and parts. Tool outputs persist here regardless of anchor body redaction.",
+      "technology": "SQLite"
+    },
+    {
+      "id": "tweaks",
+      "system": "opencode",
+      "name": "Tweaks runtime config",
+      "description": "/etc/opencode/tweaks.cfg + Tweaks.compactionSync(). Hot-reloaded; no daemon restart needed.",
+      "technology": "TypeScript"
+    },
+    {
+      "id": "bus",
+      "system": "opencode",
+      "name": "Event Bus",
+      "description": "In-process Bus.publish + GlobalBus EventEmitter. Telemetry channel.",
+      "technology": "EventEmitter"
+    }
+  ],
+  "components": [
+    {
+      "id": "tryNarrative",
+      "container": "session-compaction",
+      "name": "tryNarrative (extend kind)",
+      "description": "Lines 959-975. Builds anchor body for the narrative kind. Post-fix: anchor[n].text + serializeRedactedDialog(tail excluding unanswered user msg)."
+    },
+    {
+      "id": "compactWithSharedContext",
+      "container": "session-compaction",
+      "name": "compactWithSharedContext",
+      "description": "Lines 512-680. Persists the anchor message with summary text. Post-fix: receives observed parameter for telemetry threading."
+    },
+    {
+      "id": "scheduleHybridEnrichment",
+      "container": "session-compaction",
+      "name": "scheduleHybridEnrichment (recompress dispatcher)",
+      "description": "Lines 1454-1660. Post-fix: removes observed-gate, adds 50K ceiling, dispatches by provider (codex vs other)."
+    },
+    {
+      "id": "tryLowCostServer",
+      "container": "session-compaction",
+      "name": "tryLowCostServer (codex /responses/compact)",
+      "description": "Lines 1056-1110. Existing server-side compact path used by KIND_CHAIN; now also reusable by recompress for codex sessions."
+    },
+    {
+      "id": "runHybridLlm",
+      "container": "session-compaction",
+      "name": "Hybrid.runHybridLlm (llm-agent recompress)",
+      "description": "Lines 2105+. Existing LLM-based compaction body; reused by recompress for non-codex sessions."
+    },
+    {
+      "id": "anchorInPlaceUpdate",
+      "container": "session-compaction",
+      "name": "Anchor in-place update STEP 3",
+      "description": "Lines 1546-1660. Existing 'narrative anchor → refined anchor' overwrite logic. Reused by both codex and non-codex recompress paths."
+    },
+    {
+      "id": "stalenessCheck",
+      "container": "session-compaction",
+      "name": "Anchor staleness check (interloper detection)",
+      "description": "Lines 1573-1600. Existing concurrent-compaction safeguard. Reused as-is."
+    },
+    {
+      "id": "dialogSerializer",
+      "container": "session-compaction",
+      "name": "serializeRedactedDialog (NEW)",
+      "description": "New file packages/opencode/src/session/dialog-serializer.ts. Pure function. Markdown grammar: ## Round N + role markers + recall_id refs."
+    },
+    {
+      "id": "findUnansweredUserMsg",
+      "container": "session-compaction",
+      "name": "findUnansweredUserMessageId (shared with Spec 1)",
+      "description": "Walks tail backward to identify most-recent unanswered user msg. Used by both serializeRedactedDialog (exclude) and Spec 1 replay helper (snapshot)."
+    },
+    {
+      "id": "memoryRead",
+      "container": "session-memory",
+      "name": "Memory.read",
+      "description": "Lines 83-180. Derives SessionMemory from messages stream. Post-fix: lastTextPartText accepts reasoning channel; renamed to lastNarrativePartText."
+    },
+    {
+      "id": "renderForLLMSync",
+      "container": "session-memory",
+      "name": "renderForLLMSync",
+      "description": "Lines 244-289. Post-fix: demoted to fallback role (legacy tryNarrative path when feature flag off; renderForHumanSync continues using turnSummaries)."
+    },
+    {
+      "id": "transformPostAnchorTail",
+      "container": "post-anchor-transform",
+      "name": "transformPostAnchorTail (v6 → v7)",
+      "description": "Post-fix: replaces drop-based logic with redact-only. Walks parts, replaces tool.state.output with `[recall_id: <part.id>]` placeholder."
+    },
+    {
+      "id": "redactToolPart",
+      "container": "post-anchor-transform",
+      "name": "redactToolPart (NEW helper)",
+      "description": "New helper inside transformPostAnchorTail. Pure function: input ToolPart, output ToolPart with state.output redacted."
+    },
+    {
+      "id": "deriveLedger",
+      "container": "working-cache",
+      "name": "deriveLedger (L2 ledger)",
+      "description": "Lines 514-555. Walks Session.messages; emits LedgerEntry per completed ToolPart. messageRef = part.id. No change required."
+    },
+    {
+      "id": "recallToolcallRaw",
+      "container": "working-cache",
+      "name": "recall_toolcall_raw MCP tool",
+      "description": "MCP family handler. Resolves part.id from anchor body's recall_id reference back to original tool output text via deriveLedger."
+    },
+    {
+      "id": "messageStream",
+      "container": "session-storage",
+      "name": "Messages + parts (SQLite)",
+      "description": "ORDER BY id DESC stream. Tool outputs persist here regardless of anchor body redaction. Source of truth for recall."
+    },
+    {
+      "id": "tweaksFlags",
+      "container": "tweaks",
+      "name": "compaction.* tweak keys",
+      "description": "Post-fix: adds `enable_dialog_redaction_anchor` (default true), `anchor_recompress_ceiling_tokens` (default 50000)."
+    }
+  ],
+  "relationships": [
+    {
+      "source": "tryNarrative",
+      "target": "memoryRead",
+      "description": "loads previous anchor message via Memory.Hybrid.getAnchorMessage",
+      "technology": "function call"
+    },
+    {
+      "source": "tryNarrative",
+      "target": "findUnansweredUserMsg",
+      "description": "(NEW) detects unanswered user msg id to exclude from serialisation",
+      "technology": "function call"
+    },
+    {
+      "source": "tryNarrative",
+      "target": "dialogSerializer",
+      "description": "(NEW) serialises tail messages to markdown text",
+      "technology": "function call"
+    },
+    {
+      "source": "tryNarrative",
+      "target": "compactWithSharedContext",
+      "description": "passes anchor body for persistence",
+      "technology": "function call"
+    },
+    {
+      "source": "compactWithSharedContext",
+      "target": "messageStream",
+      "description": "writes summary-true assistant message + compaction part",
+      "technology": "SQLite write"
+    },
+    {
+      "source": "compactWithSharedContext",
+      "target": "bus",
+      "description": "publishes Compacted with {observed, kind} eventMeta (post-fix threading)",
+      "technology": "Bus.publish"
+    },
+    {
+      "source": "scheduleHybridEnrichment",
+      "target": "memoryRead",
+      "description": "loads current anchor for size estimation",
+      "technology": "function call"
+    },
+    {
+      "source": "scheduleHybridEnrichment",
+      "target": "tweaksFlags",
+      "description": "reads ceiling threshold and master flag",
+      "technology": "function call"
+    },
+    {
+      "source": "scheduleHybridEnrichment",
+      "target": "tryLowCostServer",
+      "description": "(NEW) dispatches to server-side compact when provider == codex AND anchorTokens > ceiling",
+      "technology": "function call"
+    },
+    {
+      "source": "scheduleHybridEnrichment",
+      "target": "runHybridLlm",
+      "description": "dispatches to LLM-grade compaction when provider != codex AND anchorTokens > ceiling (existing path, observed-gate removed)",
+      "technology": "function call"
+    },
+    {
+      "source": "scheduleHybridEnrichment",
+      "target": "stalenessCheck",
+      "description": "verifies anchor latest before in-place update",
+      "technology": "function call"
+    },
+    {
+      "source": "scheduleHybridEnrichment",
+      "target": "anchorInPlaceUpdate",
+      "description": "overwrites narrative-extended body with LLM-distilled body on success",
+      "technology": "function call"
+    },
+    {
+      "source": "tryLowCostServer",
+      "target": "codex-backend",
+      "description": "POST /responses/compact with anchor body as conversationItem",
+      "technology": "HTTPS"
+    },
+    {
+      "source": "transformPostAnchorTail",
+      "target": "tweaksFlags",
+      "description": "checks enable_dialog_redaction_anchor; falls back to v6 if disabled",
+      "technology": "function call"
+    },
+    {
+      "source": "transformPostAnchorTail",
+      "target": "redactToolPart",
+      "description": "(NEW) per-part redaction in v7 path",
+      "technology": "function call"
+    },
+    {
+      "source": "redactToolPart",
+      "target": "messageStream",
+      "description": "reads part.id (no write; redaction is render-time only)",
+      "technology": "in-memory transform"
+    },
+    {
+      "source": "recallToolcallRaw",
+      "target": "deriveLedger",
+      "description": "resolves part.id from anchor body recall_id reference",
+      "technology": "function call"
+    },
+    {
+      "source": "deriveLedger",
+      "target": "messageStream",
+      "description": "walks messages, finds part with matching id, returns state.output",
+      "technology": "SQLite read"
+    },
+    {
+      "source": "memoryRead",
+      "target": "messageStream",
+      "description": "derives turnSummaries from full messages stream (not slice)",
+      "technology": "SQLite read"
+    }
+  ]
+}

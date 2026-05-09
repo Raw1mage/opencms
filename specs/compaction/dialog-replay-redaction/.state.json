@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "state": "designed",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-05-09T08:05:42.776Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "at": "2026-05-09T08:08:31.574Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "post-task sync, clean",
+      "result": "clean",
+      "commit": "5005eceb505337353b116ecbc49914181e917f06"
+    },
+    {
+      "at": "2026-05-09T10:03:37.044Z",
+      "by": "pkcs12",
+      "mode": "sync",
+      "reason": "drift detected: packages/opencode/src/session/compaction.ts, packages/opencode/src/session/prompt.ts",
+      "result": "warned",
+      "drift": [
+        "packages/opencode/src/session/compaction.ts",
+        "packages/opencode/src/session/prompt.ts"
+      ],
+      "commit": "51e8445b441083829df10fd8101167f275fd9dbe"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-05-09T11:05:07.721Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "proposal/spec/design/idef0+a0.svg/grafcet+svg/c4/sequence/data-schema all complete; DD-1..DD-11 decided; restoration scope locked (4 patches); Spec 1 synergy via excludeUserMessageID parameter"
+    }
+  ]
+}

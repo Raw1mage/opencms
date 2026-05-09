@@ -1,0 +1,234 @@
+{
+  "title": "dialog-replay-redaction — data schema",
+  "version": 1,
+  "description": "Type contracts for the serializer, recompress dispatch, and tweak deltas. No persistent schema changes; existing MessageV2 / CompactionPart / Anchor shapes unchanged.",
+
+  "SerializeRedactedDialogInput": {
+    "description": "Input to dialog-serializer.ts serializeRedactedDialog pure function.",
+    "type": "object",
+    "required": ["messages"],
+    "properties": {
+      "messages": {
+        "type": "array",
+        "items": { "$ref": "MessageV2.WithParts" },
+        "description": "Tail of messages to serialise (typically post-prevAnchor stream)"
+      },
+      "options": {
+        "type": "object",
+        "properties": {
+          "startRound": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1,
+            "description": "Round number to start counting from. Use prevLastRound + 1 to continue numbering across extends."
+          },
+          "excludeUserMessageID": {
+            "type": "string",
+            "format": "msg_<ulid>",
+            "description": "User message id to skip during serialisation (Spec 1 synergy — unanswered user msg is handled by replay helper, not extend)."
+          }
+        }
+      }
+    }
+  },
+
+  "SerializeRedactedDialogResult": {
+    "description": "Return value of serializeRedactedDialog. Pure function, no side effects.",
+    "type": "object",
+    "required": ["text", "lastRound", "messagesEmitted"],
+    "properties": {
+      "text": {
+        "type": "string",
+        "description": "Markdown-formatted dialog text. Empty string if no messages emitted."
+      },
+      "lastRound": {
+        "type": "integer",
+        "minimum": 0,
+        "description": "Highest `## Round N` number emitted. Used by next extend's startRound."
+      },
+      "messagesEmitted": {
+        "type": "integer",
+        "minimum": 0,
+        "description": "Count of messages actually serialised (excludes the excluded unanswered user msg + skipped narration / synthetic msgs)."
+      }
+    }
+  },
+
+  "MarkdownDialogGrammar": {
+    "description": "The literal markdown produced by serializeRedactedDialog. Specified for parser compatibility (e.g. parsePrevLastRound regex).",
+    "examples": [
+      {
+        "format": "round_header",
+        "text": "## Round {N}",
+        "regex": "^## Round (\\d+)$",
+        "tokens": "≈1-2"
+      },
+      {
+        "format": "user_section",
+        "text": "**User**\\n\\n{user_text_content}",
+        "tokens": "≈3 + content"
+      },
+      {
+        "format": "reasoning_section",
+        "text": "**Reasoning**\\n\\n{reasoning_text_content}",
+        "tokens": "≈3 + content"
+      },
+      {
+        "format": "assistant_section",
+        "text": "**Assistant**\\n\\n{assistant_text_content}",
+        "tokens": "≈3 + content"
+      },
+      {
+        "format": "tool_call_line",
+        "text": "**Tool**: `{tool_name}({json_args})` → `recall_id: {part.id}`",
+        "regex_for_args_truncation": "args length > 500 → slice(0, 500) + '…'",
+        "tokens": "≈10 + tool_name + args"
+      }
+    ]
+  },
+
+  "TryNarrativeOutputDelta": {
+    "description": "Existing KindAttempt return type from tryNarrative. Behaviour change only; signature unchanged.",
+    "type": "object",
+    "required": ["ok", "summaryText", "kind"],
+    "properties": {
+      "ok": { "type": "boolean" },
+      "summaryText": {
+        "type": "string",
+        "description": "Post-fix: prev anchor body + serialized redacted dialog. Pre-fix: Memory.renderForLLMSync output."
+      },
+      "kind": { "type": "string", "enum": ["narrative"] },
+      "truncated": {
+        "type": "boolean",
+        "description": "Always false post-fix (size-triggered recompress handles oversize, not truncation here)"
+      },
+      "reason": {
+        "type": "string",
+        "optional": true,
+        "description": "Set when ok===false. Values: 'memory empty', 'no resolvable model'"
+      }
+    }
+  },
+
+  "RecompressDispatchInput": {
+    "description": "Internal input to runCodexServerSideRecompress / runHybridLlmRecompress dispatched from scheduleHybridEnrichment.",
+    "type": "object",
+    "required": ["sessionID", "anchorMessage", "model", "trigger"],
+    "properties": {
+      "sessionID": { "type": "string" },
+      "anchorMessage": {
+        "$ref": "MessageV2.WithParts",
+        "description": "The anchor message whose body is to be recompressed"
+      },
+      "model": { "$ref": "Provider.Model" },
+      "trigger": {
+        "type": "string",
+        "enum": ["size-ceiling", "legacy-large-policy"],
+        "description": "Which condition caused the recompress dispatch"
+      }
+    }
+  },
+
+  "RecompressTelemetryEvent": {
+    "description": "Bus event compaction.recompressed published after recompress completes (success or failure).",
+    "type": "object",
+    "required": ["sessionID", "trigger", "kind", "result"],
+    "properties": {
+      "sessionID": { "type": "string" },
+      "trigger": { "type": "string", "enum": ["size-ceiling", "legacy-large-policy"] },
+      "kind": {
+        "type": "string",
+        "enum": ["low-cost-server", "hybrid_llm"],
+        "description": "Which path executed"
+      },
+      "providerId": { "type": "string", "description": "model.providerId at dispatch" },
+      "anchorTokensBefore": { "type": "integer" },
+      "anchorTokensAfter": { "type": "integer", "optional": true, "description": "Set on success" },
+      "result": {
+        "type": "string",
+        "enum": ["success", "stale-anchor-skipped", "provider-error", "timeout", "exception"]
+      },
+      "errorMessage": { "type": "string", "optional": true },
+      "latencyMs": { "type": "integer" }
+    }
+  },
+
+  "TweaksDelta": {
+    "description": "New keys added to tweaks.cfg / Tweaks.compactionSync(). Existing keys (enableHybridLlm etc.) unchanged.",
+    "type": "object",
+    "properties": {
+      "enableDialogRedactionAnchor": {
+        "type": "boolean",
+        "default": true,
+        "tweak_key": "compaction.enable_dialog_redaction_anchor",
+        "description": "Master switch for the entire restoration. When false: tryNarrative falls back to Memory.renderForLLMSync; transformPostAnchorTail falls back to v6 drop logic; scheduleHybridEnrichment retains legacy thresholds + observed-gate."
+      },
+      "anchorRecompressCeilingTokens": {
+        "type": "integer",
+        "default": 50000,
+        "tweak_key": "compaction.anchor_recompress_ceiling_tokens",
+        "description": "Token threshold above which anchor body forces recompress. 50000 chosen empirically: ~100 rounds of dialog at 500 tokens/round average."
+      }
+    }
+  },
+
+  "PostAnchorTransformV7Delta": {
+    "description": "Behaviour change only; existing TransformResult schema reused for back-compat.",
+    "type": "object",
+    "v6_behaviour": "Drop completed assistant turns whose index is BEFORE lastUserIdx",
+    "v7_behaviour": "Pass-through all messages; per-tool-part replace state.output with `[recall_id: <part.id>]` placeholder",
+    "carve_outs_preserved": [
+      "in-flight assistants (any pending/running tool part)",
+      "compaction-bearing assistants (Mode 1 inline server compaction state)",
+      "anchor at index 0"
+    ],
+    "result_field_semantics": {
+      "messages": "Always present; v7 returns same length as input (no drops)",
+      "transformedTurnCount": "Always 0 in v7 (no turns dropped)",
+      "exemptTurnCount": "Always 0 in v7 (carve-outs are render-time preservation, not drops)",
+      "cacheRefHits": "0 (vestigial)",
+      "cacheRefMisses": "0 (vestigial)"
+    }
+  },
+
+  "ToolPartRedactionRule": {
+    "description": "How redactToolPart transforms a single ToolPart in v7.",
+    "input": {
+      "type": { "literal": "tool" },
+      "state": {
+        "status": { "enum": ["completed", "error"], "description": "Other statuses skip redaction" },
+        "output": { "type": "string", "description": "The raw tool output payload" },
+        "input": { "type": "object", "description": "Tool args; preserved verbatim" }
+      }
+    },
+    "output": {
+      "type": { "literal": "tool" },
+      "state": {
+        "status": { "preserved": true },
+        "output": { "literal": "[recall_id: {part.id}]", "description": "Replaces raw payload" },
+        "input": { "preserved": true }
+      }
+    },
+    "skip_conditions": [
+      "state.status === 'pending'",
+      "state.status === 'running'",
+      "state.output is not a string (already redacted or non-text)"
+    ]
+  },
+
+  "Observed": {
+    "description": "Existing enum from compaction module; reused. Recompress no longer gates on this — size-triggered.",
+    "type": "string",
+    "enum": [
+      "overflow",
+      "cache-aware",
+      "rebind",
+      "continuation-invalidated",
+      "provider-switched",
+      "stall-recovery",
+      "manual",
+      "empty-response",
+      "idle"
+    ]
+  }
+}
