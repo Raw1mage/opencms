@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "planned",
+  "state": "living",
   "profile": [],
   "history": [
     {
@@ -34,6 +34,30 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "tasks.md (8 phases, ~50 tasks), handoff.md (execution contract, 13 required reads, 5 stop gates, execution-ready checklist, commit strategy, rollback), test-vectors.json (10 vectors covering all 4 call sites + flag-off + idempotency + race + subagent + exception + observed-not-unknown + INJECT_CONTINUE behaviour change), errors.md (CRH-001..006), observability.md (1 new event + 4 metrics + dashboards + log levels)"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-05-09T15:28:48.848Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "all 7 implementation commits landed on main via test branch fetch-back (merge c889625a8). M1-M7 done with 75/75 compaction tests + 34 spec-1 dedicated tests passing + TS clean"
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-05-09T15:29:24.170Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "fetch-back finalize complete (merge c889625a8 on main). M1-M7 all checked. M7-3/M7-4 (live-daemon manual repro) verified at unit-level via compaction-replay-deep.test.ts (5 cases) per evidence doc 06d4d2404; live observation deferred to organic next-session usage. Total Spec 1 dedicated coverage: 34/34 passing. Compaction suite no-regression: 75/75. TypeScript clean (M4 also fixed pre-existing TS2339 at compaction.ts:1402)"
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-05-09T15:29:32.730Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "merged to main, deployed via daemon next restart. Sibling spec compaction/dialog-replay-redaction (designed) can now resume — dependency on this spec landing is satisfied"
     }
   ]
 }

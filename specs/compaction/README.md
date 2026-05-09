@@ -255,10 +255,16 @@ projected into the new shape and rewritten on first touch.
   empty-response RCA + itemCount addendum 2026-05-09. Cross-cuts
   with `provider/codex/` and `compaction/itemcount-fix/`.
 - [user-msg-replay-unification/](./user-msg-replay-unification/)
-  (proposed, 2026-05-09) — unify the "user message replay after
-  anchor" logic across all four compaction call sites; 5/5 hotfix
-  was scoped to one site (`empty-response`) and the same bug
-  recurred via the `rebind` pre-emptive path 2026-05-09.
+  (living, merged 2026-05-09 commit c889625a8) — unified the
+  "user message replay after anchor" logic across all four
+  compaction call sites. 5/5 hotfix was scoped to one site
+  (`empty-response`); the rebind pre-emptive path recurrence on
+  2026-05-09 confirmed three sibling sites shared the bug. Helper
+  `SessionCompaction.replayUnansweredUserMessage` extracted to
+  module level; defaultWriteAnchor + tryLlmAgent + provider-switch
+  pre-loop all wired. INJECT_CONTINUE table replaced by stream-
+  driven runtime gate. 34 dedicated tests + 75/75 in-scope
+  compaction suite.
 - [dialog-replay-redaction/](./dialog-replay-redaction/) (proposed,
   2026-05-09; renamed from `narrative-quality` after design pivot)
   — restoration of two-tier compaction model: extend (anchor[n+1]
