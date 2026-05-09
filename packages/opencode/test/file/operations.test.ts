@@ -278,4 +278,217 @@ describe("File operation guards", () => {
       },
     })
   })
+
+  test("creates directories via the unified create endpoint", async () => {
+    await using tmp = await tmpdir()
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const created = await File.create({ parent: ".", name: "incoming", type: "directory" })
+
+        expect(created.operation).toBe("create-directory")
+        expect(created.destination).toBe("incoming")
+        const stat = await fs.stat(path.join(tmp.path, "incoming"))
+        expect(stat.isDirectory()).toBe(true)
+      },
+    })
+  })
+
+  test("rejects invalid basenames across path-separator and dot variants", async () => {
+    await using tmp = await tmpdir()
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        for (const name of ["", ".", "..", "a/b", "a\\b", "with\0null"]) {
+          await expectOperationCode(
+            File.create({ parent: ".", name, type: "file" }),
+            "FILE_OP_INVALID_NAME",
+          )
+        }
+      },
+    })
+  })
+
+  test("renames files and rejects duplicate destinations", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await fs.mkdir(path.join(dir, "docs"), { recursive: true })
+        await fs.writeFile(path.join(dir, "docs", "old.txt"), "body")
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const renamed = await File.rename({ path: "docs/old.txt", name: "new.txt" })
+        expect(renamed.operation).toBe("rename")
+        expect(renamed.source).toBe("docs/old.txt")
+        expect(renamed.destination).toBe("docs/new.txt")
+        await expect(Bun.file(path.join(tmp.path, "docs", "new.txt")).text()).resolves.toBe("body")
+        await expect(Bun.file(path.join(tmp.path, "docs", "old.txt")).exists()).resolves.toBe(false)
+
+        // Pre-create a collision target then attempt to rename a different file onto it.
+        await fs.writeFile(path.join(tmp.path, "docs", "other.txt"), "other")
+        await expectOperationCode(
+          File.rename({ path: "docs/other.txt", name: "new.txt" }),
+          "FILE_OP_DUPLICATE",
+        )
+      },
+    })
+  })
+
+  test("moves files between active-project directories and rejects duplicates", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await fs.mkdir(path.join(dir, "docs"), { recursive: true })
+        await fs.mkdir(path.join(dir, "incoming"), { recursive: true })
+        await fs.writeFile(path.join(dir, "docs", "a.txt"), "body")
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const moved = await File.move({ source: "docs/a.txt", destinationParent: "incoming" })
+        expect(moved.operation).toBe("move")
+        expect(moved.source).toBe("docs/a.txt")
+        expect(moved.destination).toBe("incoming/a.txt")
+        expect(moved.affectedDirectories).toEqual(expect.arrayContaining(["docs", "incoming"]))
+        await expect(Bun.file(path.join(tmp.path, "docs", "a.txt")).exists()).resolves.toBe(false)
+        await expect(Bun.file(path.join(tmp.path, "incoming", "a.txt")).text()).resolves.toBe("body")
+
+        // Re-add a colliding source then attempt to move into the populated destination.
+        await fs.writeFile(path.join(tmp.path, "docs", "a.txt"), "again")
+        await expectOperationCode(
+          File.move({ source: "docs/a.txt", destinationParent: "incoming" }),
+          "FILE_OP_DUPLICATE",
+        )
+      },
+    })
+  })
+
+  test("copies files between active-project directories and rejects duplicates", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await fs.mkdir(path.join(dir, "docs"), { recursive: true })
+        await fs.mkdir(path.join(dir, "incoming"), { recursive: true })
+        await fs.writeFile(path.join(dir, "docs", "a.txt"), "body")
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const copied = await File.copy({ source: "docs/a.txt", destinationParent: "incoming" })
+        expect(copied.operation).toBe("copy")
+        expect(copied.source).toBe("docs/a.txt")
+        expect(copied.destination).toBe("incoming/a.txt")
+        // Source preserved.
+        await expect(Bun.file(path.join(tmp.path, "docs", "a.txt")).text()).resolves.toBe("body")
+        await expect(Bun.file(path.join(tmp.path, "incoming", "a.txt")).text()).resolves.toBe("body")
+
+        await expectOperationCode(
+          File.copy({ source: "docs/a.txt", destinationParent: "incoming" }),
+          "FILE_OP_DUPLICATE",
+        )
+      },
+    })
+  })
+
+  test("deleteToRecyclebin requires confirmation", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await fs.mkdir(path.join(dir, "docs"), { recursive: true })
+        await fs.writeFile(path.join(dir, "docs", "a.txt"), "body")
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        await expectOperationCode(
+          File.deleteToRecyclebin({ path: "docs/a.txt", confirmed: false }),
+          "FILE_OP_CONFIRMATION_REQUIRED",
+        )
+        // File is still on disk after the rejected call.
+        await expect(Bun.file(path.join(tmp.path, "docs", "a.txt")).text()).resolves.toBe("body")
+      },
+    })
+  })
+
+  test("rejects mutations on a symlink whose realpath escapes the project", async () => {
+    await using outside = await tmpdir({
+      init: async (dir) => {
+        await fs.writeFile(path.join(dir, "secret.txt"), "secret")
+      },
+    })
+    await using tmp = await tmpdir()
+
+    // Build the symlink AFTER tmp is created so we know the project directory layout.
+    await fs.symlink(path.join(outside.path, "secret.txt"), path.join(tmp.path, "leak"))
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        await expectOperationCode(
+          File.rename({ path: "leak", name: "captured.txt" }),
+          "FILE_OP_PATH_ESCAPE",
+        )
+        await expectOperationCode(File.download({ path: "leak" }), "FILE_OP_PATH_ESCAPE")
+        await expectOperationCode(
+          File.deleteToRecyclebin({ path: "leak", confirmed: true }),
+          "FILE_OP_PATH_ESCAPE",
+        )
+      },
+    })
+  })
+
+  test("recyclebin tombstones stay unique across a rapid double-delete of the same basename", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await fs.mkdir(path.join(dir, "docs"), { recursive: true })
+        await fs.writeFile(path.join(dir, "docs", "a.txt"), "first")
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const first = await File.deleteToRecyclebin({ path: "docs/a.txt", confirmed: true })
+        await fs.writeFile(path.join(tmp.path, "docs", "a.txt"), "second")
+        const second = await File.deleteToRecyclebin({ path: "docs/a.txt", confirmed: true })
+
+        expect(first.destination).not.toBe(second.destination)
+        await expect(Bun.file(path.join(tmp.path, first.destination!)).exists()).resolves.toBe(true)
+        await expect(Bun.file(path.join(tmp.path, second.destination!)).exists()).resolves.toBe(true)
+        // Metadata sidecars are also distinct (they piggy-back on the tombstone path).
+        const meta1 = path.join(tmp.path, first.destination! + ".opencode-recycle.json")
+        const meta2 = path.join(tmp.path, second.destination! + ".opencode-recycle.json")
+        expect(meta1).not.toBe(meta2)
+        await expect(Bun.file(meta1).exists()).resolves.toBe(true)
+        await expect(Bun.file(meta2).exists()).resolves.toBe(true)
+      },
+    })
+  })
+
+  test("destinationPreflight reports external writable directory as writable", async () => {
+    await using tmp = await tmpdir()
+    await using external = await tmpdir()
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const result = await File.destinationPreflight({
+          destinationParent: external.path,
+          scope: "external",
+        })
+
+        expect(result.writable).toBe(true)
+        expect(result.reason).toBeUndefined()
+        expect(path.resolve(result.canonicalPath)).toBe(path.resolve(external.path))
+      },
+    })
+  })
 })
