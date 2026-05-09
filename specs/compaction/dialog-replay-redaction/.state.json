@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "planned",
+  "state": "verified",
   "profile": [],
   "history": [
     {
@@ -46,6 +46,22 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "tasks/handoff/test-vectors/errors/observability complete; ready for implementation"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-05-09T16:48:39.332Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "M1-M5 implementation landed on beta/dialog-replay-redaction (4 commits); 154/154 target-suite tests green"
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-05-09T16:49:20.258Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "M1-M5 implementation complete on beta/dialog-replay-redaction (4 commits: dialog-serializer / tryNarrative / post-anchor v7 / recompress dispatch); 154/154 target-suite tests; M6 scenarios subsumed by unit suites + M6-2 + M7-5..8 deferred per user direction (rollback hot-toggleable via Tweaks); ready for fetch-back"
     }
   ]
 }

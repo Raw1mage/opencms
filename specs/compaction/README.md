@@ -265,8 +265,8 @@ projected into the new shape and rewritten on first touch.
   pre-loop all wired. INJECT_CONTINUE table replaced by stream-
   driven runtime gate. 34 dedicated tests + 75/75 in-scope
   compaction suite.
-- [dialog-replay-redaction/](./dialog-replay-redaction/) (planned,
-  2026-05-09; renamed from `narrative-quality` after design pivot)
+- [dialog-replay-redaction/](./dialog-replay-redaction/) (verified,
+  2026-05-10; renamed from `narrative-quality` after design pivot)
   — restoration of two-tier compaction model: extend (anchor[n+1]
   = anchor[n] + redact(tail)) on every commit + recompress (codex
   /responses/compact or llm-agent) when anchor exceeds 50K tokens.
