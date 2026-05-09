@@ -530,6 +530,9 @@ export function SessionSidePanel(props: {
                     const top = Math.max(20, Math.floor(window.screenY + (window.outerHeight - height) / 2))
                     const features = `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
                     window.open(url.toString(), "opencode-file-explorer-popout", features)
+                    // Chain-trigger Ctrl+\ (toggleDesktopPanel("files") -> fileTree.close)
+                    // so the source file-tree panel collapses after pop-out.
+                    props.layout.fileTree.close()
                   }}
                 />
               </div>
