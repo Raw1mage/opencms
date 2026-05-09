@@ -518,6 +518,16 @@ export namespace SessionCompaction {
     snapshot: string
     model: Provider.Model
     auto: boolean
+    /**
+     * user-msg-replay-unification DD-5 / DD-10: thread the observed
+     * condition through so publishCompactedAndResetChain can record it
+     * in recentEvents instead of falling back to "unknown". Optional
+     * for back-compat with legacy callers that didn't supply it; new
+     * callers (defaultWriteAnchor, provider-switch pre-loop) MUST set
+     * it. Defaults to "manual" when absent (closest legacy meaning for
+     * direct API callers).
+     */
+    observed?: Observed
   }) {
     log.info("compacting with shared context", { sessionID: input.sessionID })
 
@@ -600,7 +610,10 @@ export namespace SessionCompaction {
     // Phase 13.2-B: disk-file checkpoint write removed. The anchor message
     // written above IS the durable record; rebind reads it via stream scan.
 
-    void publishCompactedAndResetChain(input.sessionID)
+    void publishCompactedAndResetChain(input.sessionID, {
+      observed: input.observed ?? "manual",
+      kind: "narrative",
+    })
 
     if (input.auto) {
       // Create continue message for auto mode
@@ -1199,6 +1212,7 @@ export namespace SessionCompaction {
         // but with phase 7b run() owns Continue injection — so always pass
         // false here. INJECT_CONTINUE[observed] in run() decides separately.
         auto: false,
+        observed: input.observed,
       })
       if (!summaryText) return { ok: false, reason: "llm-agent produced empty summary" }
       return { ok: true, summaryText, kind: "llm-agent", anchorWritten: true }
@@ -1225,6 +1239,13 @@ export namespace SessionCompaction {
     messages: MessageV2.WithParts[]
     abort: AbortSignal
     auto: boolean
+    /**
+     * user-msg-replay-unification DD-5 / DD-10: observed value threaded
+     * through so the inner publishCompactedAndResetChain call records
+     * it in recentEvents instead of "unknown". Was previously a missing
+     * field that produced a TS2339 error at the publish call site.
+     */
+    observed: Observed
   }): Promise<string | null> {
     Bus.publish(Event.CompactionStarted, { sessionID: input.sessionID, mode: "llm" })
 
@@ -1531,6 +1552,7 @@ When constructing the summary, try to stick to this template:
           targetTokens,
           voluntary: false,
           busMode: "hybrid_llm_background",
+          observed,
         })
         log.info("hybrid_llm enrichment finished", {
           sessionID,
@@ -2282,6 +2304,7 @@ When constructing the summary, try to stick to this template:
       snapshot: sanitized.body,
       model: input.model,
       auto: replayEnabled ? false : input.auto,
+      observed: input.observed,
     })
 
     // user-msg-replay-unification DD-3: after the anchor is persisted,
@@ -3135,6 +3158,13 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         stricterRetryReason?: ValidationFailure
         /** UI label for Bus.publish(CompactionStarted/Compacted). */
         busMode?: "hybrid_llm" | "hybrid_llm_background"
+        /**
+         * user-msg-replay-unification DD-5 / DD-10: thread observed
+         * through so the finally-block records it in recentEvents
+         * instead of "unknown". Optional; defaults to "manual" for
+         * direct callers that don't set it.
+         */
+        observed?: Observed
       },
     ): Promise<LlmCompactResult> {
       // Visibility — TUI / web shows "Compacting..." badge from this event.
@@ -3147,7 +3177,10 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         // failure / timeout. Subscribers that need success/failure
         // discrimination should look at the LlmCompactResult.ok flag
         // returned to the caller.
-        void publishCompactedAndResetChain(sessionID)
+        void publishCompactedAndResetChain(sessionID, {
+          observed: opts.observed ?? "manual",
+          kind: "llm-agent",
+        })
       }
     }
 
@@ -3432,6 +3465,12 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         targetTokens: number
         voluntary?: boolean
         busMode?: "hybrid_llm" | "hybrid_llm_background"
+        /**
+         * user-msg-replay-unification DD-5 / DD-10: caller observed
+         * value, threaded into runLlmCompact so its publish records
+         * the right `observed` in recentEvents.
+         */
+        observed?: Observed
       },
     ): Promise<CompactionEvent> {
       const eventId = `cev_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
@@ -3446,7 +3485,11 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
       }
 
       // Attempt 1
-      const first = await runLlmCompact(sessionID, request, { abort: opts.abort, busMode: opts.busMode })
+      const first = await runLlmCompact(sessionID, request, {
+        abort: opts.abort,
+        busMode: opts.busMode,
+        observed: opts.observed,
+      })
       if (first.ok) {
         return makeEvent({
           eventId,
@@ -3476,6 +3519,7 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
           abort: opts.abort,
           stricterRetryReason: first.reason as ValidationFailure,
           busMode: opts.busMode,
+          observed: opts.observed,
         })
         if (second.ok) {
           return makeEvent({
@@ -3518,7 +3562,11 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
           pinnedCount: opts.pinnedZone.length,
           phase2TargetTokens,
         })
-        const phase2 = await runLlmCompact(sessionID, phase2Request, { abort: opts.abort, busMode: opts.busMode })
+        const phase2 = await runLlmCompact(sessionID, phase2Request, {
+          abort: opts.abort,
+          busMode: opts.busMode,
+          observed: opts.observed,
+        })
         if (phase2.ok) {
           // Pinned_zone is now absorbed into the new anchor. Caller is
           // responsible for clearing the live pinned_zone state (e.g.,

@@ -1150,6 +1150,7 @@ export namespace SessionPrompt {
               `[Provider switched from ${prevProvider} to ${nextProvider}. Previous conversation context was not recoverable. The user may re-state their request.]`,
             model,
             auto: false,
+            observed: "provider-switched",
           })
           if (replaySnapshot) {
             const postWriteMsgs = await Session.messages({ sessionID }).catch(
