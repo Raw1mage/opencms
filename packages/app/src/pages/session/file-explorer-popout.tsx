@@ -45,6 +45,23 @@ export default function FileExplorerPopoutRoute() {
     document.title = `${sessionTitle()} · Files`
   })
 
+  // Cross-window file open: when the user double-clicks a file in the popped
+  // explorer, dispatch the same `opencode:open-file` CustomEvent the mother
+  // window already listens for in session.tsx (line ~1909). Mother window
+  // calls openTab(...) and shows the file in its file pane. If the mother
+  // window has been closed, fall back silently — the popped explorer stays
+  // usable for mutation actions (create / rename / delete / upload / etc.).
+  const requestOpenInMother = (path: string) => {
+    const opener = window.opener as Window | null
+    if (!opener || opener.closed) return
+    try {
+      opener.dispatchEvent(new CustomEvent("opencode:open-file", { detail: { path } }))
+      opener.focus()
+    } catch {
+      // cross-origin restriction or torn-down opener — silently no-op.
+    }
+  }
+
   return (
     <div class="min-h-screen w-full flex flex-col bg-slate-900 text-slate-100">
       <div
@@ -71,7 +88,13 @@ export default function FileExplorerPopoutRoute() {
             </div>
           }
         >
-          <FileTree path="" modified={[]} kinds={new Map()} showHeader />
+          <FileTree
+            path=""
+            modified={[]}
+            kinds={new Map()}
+            showHeader
+            onFileClick={(node) => requestOpenInMother(node.path)}
+          />
         </Show>
       </div>
     </div>
