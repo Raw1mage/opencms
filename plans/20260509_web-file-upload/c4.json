@@ -1,0 +1,102 @@
+{
+  "systems": [
+    {
+      "id": "S1",
+      "name": "OpenCMS WebApp",
+      "description": "Browser-facing OpenCMS interface that hosts the desktop File Explorer, file-view tabs, and terminal surfaces.",
+      "moduleRef": "A1"
+    }
+  ],
+  "containers": [
+    {
+      "id": "C1",
+      "systemId": "S1",
+      "name": "Desktop File Explorer UI",
+      "description": "Dense file list, selection state, context menus, dialogs, toasts, and pop-out controls.",
+      "moduleRef": "A1"
+    },
+    {
+      "id": "C2",
+      "systemId": "S1",
+      "name": "File Operation API",
+      "description": "Hono OpenAPI routes that validate and dispatch file mutations, uploads, downloads, and destination preflights.",
+      "moduleRef": "A2"
+    },
+    {
+      "id": "C3",
+      "systemId": "S1",
+      "name": "File Operation Engine",
+      "description": "Server-side File namespace logic that canonicalizes paths, checks boundaries, mutates bytes, writes recyclebin metadata, and reports affected directories.",
+      "moduleRef": "A3"
+    }
+  ],
+  "components": [
+    {
+      "id": "CP1",
+      "containerId": "C1",
+      "name": "Explorer Table",
+      "description": "Renders file rows with metadata, selection controls, activation behavior, and context-menu targets.",
+      "moduleRef": "A1"
+    },
+    {
+      "id": "CP2",
+      "containerId": "C1",
+      "name": "Operation State Controller",
+      "description": "Tracks selected sets, pending copy/cut state, action eligibility, dialogs, and source-pane cleanup after pop-out.",
+      "moduleRef": "A1"
+    },
+    {
+      "id": "CP3",
+      "containerId": "C2",
+      "name": "Route Validator",
+      "description": "Validates request schema, basename rules, confirmation fields, and stable error-code mapping.",
+      "moduleRef": "A2"
+    },
+    {
+      "id": "CP4",
+      "containerId": "C3",
+      "name": "Boundary Guard",
+      "description": "Resolves canonical paths, rejects traversal and symlink escapes, and handles external writable destination preflight.",
+      "moduleRef": "A3"
+    },
+    {
+      "id": "CP5",
+      "containerId": "C3",
+      "name": "Recyclebin Manager",
+      "description": "Moves deleted targets into repo-local recyclebin and writes restore metadata.",
+      "moduleRef": "A3"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "R1",
+      "source": "CP1",
+      "target": "CP2",
+      "description": "Selection, activation, context-menu, and pop-out events update operation state."
+    },
+    {
+      "id": "R2",
+      "source": "CP2",
+      "target": "CP3",
+      "description": "Validated UI operations call generated SDK methods backed by file routes."
+    },
+    {
+      "id": "R3",
+      "source": "CP3",
+      "target": "CP4",
+      "description": "Routes delegate filesystem safety checks before mutation or streaming."
+    },
+    {
+      "id": "R4",
+      "source": "CP4",
+      "target": "CP5",
+      "description": "Confirmed delete operations use recyclebin manager after boundary validation."
+    },
+    {
+      "id": "R5",
+      "source": "CP3",
+      "target": "CP2",
+      "description": "Normalized operation results drive affected-directory refresh and tab/pane reconciliation."
+    }
+  ]
+}
