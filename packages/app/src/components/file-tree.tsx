@@ -869,7 +869,7 @@ export default function FileTree(props: {
     if (entries.length === 0) return
     setClipboard({ mode, entries })
     showToast({
-      variant: "info",
+      variant: "default",
       title: mode === "copy" ? "Copied" : "Cut",
       description:
         entries.length === 1

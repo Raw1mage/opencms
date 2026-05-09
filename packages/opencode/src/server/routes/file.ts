@@ -482,6 +482,7 @@ export const FileRoutes = lazy(() =>
         }),
       ),
       async (c) => {
+        const errorShim = c as unknown as { json: (body: unknown, status?: number) => Response }
         try {
           const result = await File.download({ path: c.req.valid("query").path })
           const bunFile = Bun.file(result.absolutePath)
@@ -494,7 +495,7 @@ export const FileRoutes = lazy(() =>
             },
           })
         } catch (err) {
-          if (err instanceof File.OperationError) return c.json(err.toObject(), err.status)
+          if (err instanceof File.OperationError) return errorShim.json(err.toObject(), err.status)
           throw err
         }
       },
