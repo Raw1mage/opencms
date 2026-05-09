@@ -1819,14 +1819,14 @@ When constructing the summary, try to stick to this template:
         if (attempt.anchorWritten) {
           // Executor already wrote the anchor (tryLlmAgent uses an inline
           // SessionProcessor.process flow that requires a persisted message).
-          // Skip _writeAnchor; still inject Continue + markCompacted below.
-          if (INJECT_CONTINUE[observed]) {
-            await injectContinueAfterAnchor(sessionID, observed)
-          }
-          // user-msg-replay-unification DD-3: anchor was written inline
-          // by tryLlmAgent; replay the snapshotted user msg post-anchor
-          // so the next iter's lastUser resolves correctly. Helper never
-          // throws.
+          // Skip _writeAnchor; replay the snapshotted user msg first
+          // (so post-anchor stream is settled before Continue decision),
+          // THEN ask the runtime gate whether to inject Continue.
+          //
+          // user-msg-replay-unification DD-3 + DD-4: replay before
+          // injectContinue means shouldInjectContinue's runtime check
+          // sees the replayed user msg and correctly skips Continue
+          // injection. Helper never throws.
           if (preReplaySnapshot) {
             const newAnchorId = await readMostRecentAnchorId(sessionID)
             if (newAnchorId) {
@@ -1838,6 +1838,19 @@ When constructing the summary, try to stick to this template:
                 step,
               })
             }
+          }
+          if (replayEnabled) {
+            const anchorIdForGate = await readMostRecentAnchorId(sessionID)
+            if (
+              anchorIdForGate &&
+              (await shouldInjectContinue(sessionID, observed, anchorIdForGate))
+            ) {
+              await injectContinueAfterAnchor(sessionID, observed)
+            }
+          } else if (INJECT_CONTINUE[observed]) {
+            // Legacy fallback (flag disabled): direct INJECT_CONTINUE
+            // table check, no runtime gate.
+            await injectContinueAfterAnchor(sessionID, observed)
           }
         } else if (model) {
           await _writeAnchor({
@@ -1897,6 +1910,14 @@ When constructing the summary, try to stick to this template:
    * anchor write (where the executor wrote the anchor inline). Mirrors the
    * Continue injection behaviour of `compactWithSharedContext(auto:true)`,
    * factored out so run() controls Continue placement uniformly.
+   *
+   * user-msg-replay-unification (2026-05-09): now uses
+   * PostCompaction.buildContinueText so the synthetic Continue carries
+   * the same provider-aware directive (todolist hints, etc.) the
+   * compactWithSharedContext(auto:true) path used to write inline.
+   * Uniform Continue text across both anchorWritten:true (llm-agent)
+   * and anchorWritten:false (narrative / replay-tail / low-cost-server)
+   * paths.
    */
   async function injectContinueAfterAnchor(sessionID: string, observed: Observed) {
     const messages = await Session.messages({ sessionID }).catch(() => [])
@@ -1905,6 +1926,8 @@ When constructing the summary, try to stick to this template:
       log.warn("compaction.run injectContinue: no user message found, skipping", { sessionID, observed })
       return
     }
+    const followUps = await PostCompaction.gather(sessionID).catch(() => [])
+    const continueText = PostCompaction.buildContinueText(followUps)
     const continueMsg = await Session.updateMessage({
       id: Identifier.ascending("message"),
       role: "user",
@@ -1921,9 +1944,41 @@ When constructing the summary, try to stick to this template:
       sessionID,
       type: "text",
       synthetic: true,
-      text: "Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.",
+      text: continueText,
       time: { start: Date.now(), end: Date.now() },
     })
+  }
+
+  /**
+   * user-msg-replay-unification DD-4: the runtime gate that decides whether
+   * a synthetic Continue should follow a freshly written anchor.
+   *
+   * Combines TWO gates in conjunction:
+   *   1. Static intent (INJECT_CONTINUE[observed]): preserves the R-6
+   *      rule that rebind / continuation-invalidated / provider-switched
+   *      / stall-recovery / manual must NEVER inject Continue (avoids
+   *      the 2026-04-27 infinite loop bug). Same observed-value
+   *      semantics as the legacy table.
+   *   2. Stream state: even when intent says "inject", skip if a real
+   *      user message already exists post-anchor (the replayed user
+   *      msg from Spec 1's helper, OR a /compact request msg, OR any
+   *      other concurrent user write). Prevents the model from seeing
+   *      both the user's actual question AND a synthetic Continue
+   *      directive in the same iteration.
+   */
+  async function shouldInjectContinue(
+    sessionID: string,
+    observed: Observed,
+    anchorMessageID: string,
+  ): Promise<boolean> {
+    if (!INJECT_CONTINUE[observed]) return false
+    const messages = await Session.messages({ sessionID }).catch(
+      () => [] as MessageV2.WithParts[],
+    )
+    const hasUserMsgPostAnchor = messages.some(
+      (m) => m.info.role === "user" && m.info.id > anchorMessageID,
+    )
+    return !hasUserMsgPostAnchor
   }
 
   // ───────────────────────────────────────────────────────────────────
@@ -2212,11 +2267,21 @@ When constructing the summary, try to stick to this template:
     // back-to-back anchor races negligible in practice.
     const prevAnchorId = await readMostRecentAnchorId(input.sessionID)
 
+    // user-msg-replay-unification DD-4: when the feature flag is on,
+    // suppress compactWithSharedContext's inline Continue injection.
+    // Continue injection is now decided post-replay by shouldInjectContinue,
+    // which honours both the legacy INJECT_CONTINUE intent table AND a
+    // runtime stream check (don't inject if a user msg already exists
+    // post-anchor — e.g. via Spec 1's replay helper). Flag-disabled mode
+    // preserves the legacy auto pass-through.
+    const replayTweaks = Tweaks.compactionSync()
+    const replayEnabled =
+      (replayTweaks as { enableUserMsgReplay?: boolean }).enableUserMsgReplay !== false
     await compactWithSharedContext({
       sessionID: input.sessionID,
       snapshot: sanitized.body,
       model: input.model,
-      auto: input.auto,
+      auto: replayEnabled ? false : input.auto,
     })
 
     // user-msg-replay-unification DD-3: after the anchor is persisted,
@@ -2235,6 +2300,18 @@ When constructing the summary, try to stick to this template:
           observed: input.observed,
           step: input.step,
         })
+      }
+    }
+
+    // user-msg-replay-unification DD-4: post-replay Continue decision.
+    // Runtime gate: skip if a user msg already exists post-anchor (the
+    // replayed user msg, or a /compact request msg, etc.). Static gate:
+    // skip for observed values that historically forbade Continue (R-6
+    // rebind / continuation-invalidated / provider-switched / etc.).
+    if (replayEnabled) {
+      const newAnchorId = await readMostRecentAnchorId(input.sessionID)
+      if (newAnchorId && (await shouldInjectContinue(input.sessionID, input.observed, newAnchorId))) {
+        await injectContinueAfterAnchor(input.sessionID, input.observed)
       }
     }
 
