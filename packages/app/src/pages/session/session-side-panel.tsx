@@ -202,7 +202,8 @@ function FileTabMenu(props: {
                   onClick={() => {
                     const tab = props.activeFileTab()
                     const path = activePath()
-                    if (!tab || !path || !props.routeParams || !props.tabs) return
+                    const tabsApi = props.tabs
+                    if (!tab || !path || !props.routeParams || !tabsApi) return
                     const basePath = props.routeParams.id
                       ? `/${props.routeParams.dir}/session/${props.routeParams.id}`
                       : `/${props.routeParams.dir}/session`
@@ -215,10 +216,19 @@ function FileTabMenu(props: {
                     const features = `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
                     const win = window.open(url.toString(), `opencode-file-view-popout-${path}`, features)
                     if (!win) return
-                    // Phase 5.3 contract: source tab is removed after successful pop-out;
-                    // no placeholder remains.
-                    props.tabs.close(tab)
+                    // Phase 5.3 contract: source tab is removed after successful pop-out.
+                    // Use explicit setAll + setActive instead of tabs.close() so the
+                    // sequence is fully observable in case Solid/Portal tear-down
+                    // would otherwise race with the close batch.
+                    const all = tabsApi.all()
+                    const remaining = all.filter((t: string) => t !== tab)
+                    const idx = all.indexOf(tab)
+                    const fallback = all[idx - 1] ?? all[idx + 1]
                     setOpen(false)
+                    queueMicrotask(() => {
+                      tabsApi.setAll(remaining)
+                      if (tabsApi.active() === tab) tabsApi.setActive(fallback)
+                    })
                   }}
                   title="Pop out viewer"
                 >

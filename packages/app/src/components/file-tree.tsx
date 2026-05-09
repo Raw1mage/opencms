@@ -47,18 +47,14 @@ function formatBytes(bytes: number): string {
 
 function formatModifiedShort(ms: number): string {
   if (!Number.isFinite(ms) || ms <= 0) return ""
-  const diff = Date.now() - ms
-  if (diff < 0) return ""
-  if (diff < 60_000) return "just now"
-  if (diff < 3_600_000) return `${Math.round(diff / 60_000)}m ago`
-  if (diff < 86_400_000) return `${Math.round(diff / 3_600_000)}h ago`
-  if (diff < 30 * 86_400_000) return `${Math.round(diff / 86_400_000)}d ago`
-  // Older than ~30d: show absolute YYYY-MM-DD
   const d = new Date(ms)
   const yyyy = d.getFullYear()
   const mm = String(d.getMonth() + 1).padStart(2, "0")
   const dd = String(d.getDate()).padStart(2, "0")
-  return `${yyyy}-${mm}-${dd}`
+  const hh = String(d.getHours()).padStart(2, "0")
+  const mi = String(d.getMinutes()).padStart(2, "0")
+  const ss = String(d.getSeconds()).padStart(2, "0")
+  return `${yyyy}/${mm}/${dd} ${hh}:${mi}:${ss}`
 }
 
 function pathToFileUrl(filepath: string): string {
@@ -1168,7 +1164,7 @@ export default function FileTree(props: {
       <span class="shrink-0 w-16 text-right tabular-nums truncate">
         {node.type === "file" && typeof node.size === "number" ? formatBytes(node.size) : ""}
       </span>
-      <span class="shrink-0 w-20 text-right tabular-nums truncate">
+      <span class="shrink-0 w-44 text-right tabular-nums truncate">
         {typeof node.modifiedAt === "number" ? formatModifiedShort(node.modifiedAt) : ""}
       </span>
     </span>
@@ -1191,7 +1187,7 @@ export default function FileTree(props: {
       <span class="size-4 shrink-0" />
       <span class="flex-1 min-w-0">Name</span>
       <span class="shrink-0 w-16 text-right">Size</span>
-      <span class="shrink-0 w-20 text-right">Modified</span>
+      <span class="shrink-0 w-44 text-right">Modified</span>
     </div>
   )
 
