@@ -1236,9 +1236,22 @@ export namespace File {
       if (exclude.includes(entry.name)) continue
       const fullPath = path.join(resolved, entry.name)
       const relativePath = path.relative(Instance.directory, fullPath)
-      const type = entry.isDirectory() ? "directory" : "file"
-      const escapedRelative = relativePath === "" || relativePath === ".." || relativePath.startsWith("../")
       const stat = stats[i]
+      // Symlinks: Dirent.isDirectory() always returns false because the
+      // Dirent reflects the lstat (the link itself), not the target. Use
+      // stats[i] (which follows the link via fs.promises.stat) so a
+      // symlink-to-dir is reported as type "directory" and the file tree
+      // treats it as expandable; symlink-to-file as "file". When stat
+      // fails (broken / dangling link, target outside project, etc.) fall
+      // back to the dirent verdict so we never throw on listing.
+      const type: Node["type"] = stat
+        ? stat.isDirectory()
+          ? "directory"
+          : "file"
+        : entry.isDirectory()
+          ? "directory"
+          : "file"
+      const escapedRelative = relativePath === "" || relativePath === ".." || relativePath.startsWith("../")
       const node: Node = {
         name: entry.name,
         path: relativePath,

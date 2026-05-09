@@ -449,6 +449,48 @@ describe("File operation guards", () => {
     })
   })
 
+  test("list resolves symlinks to their target type (dir vs file)", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await fs.mkdir(path.join(dir, "real-dir"), { recursive: true })
+        await fs.writeFile(path.join(dir, "real-file.txt"), "hello")
+        await fs.symlink(path.join(dir, "real-dir"), path.join(dir, "link-dir"))
+        await fs.symlink(path.join(dir, "real-file.txt"), path.join(dir, "link-file"))
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const root = await File.list("")
+        const linkDir = root.find((n) => n.name === "link-dir")
+        const linkFile = root.find((n) => n.name === "link-file")
+        expect(linkDir?.type).toBe("directory")
+        expect(linkFile?.type).toBe("file")
+        expect(linkFile?.size).toBe(5)
+      },
+    })
+  })
+
+  test("list tolerates broken symlinks by falling back to file type", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await fs.symlink(path.join(dir, "ghost-target"), path.join(dir, "broken"))
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const root = await File.list("")
+        const broken = root.find((n) => n.name === "broken")
+        expect(broken).toBeDefined()
+        expect(broken?.type).toBe("file")
+        expect(broken?.size).toBeUndefined()
+      },
+    })
+  })
+
   test("rejects mutations on a symlink whose realpath escapes the project", async () => {
     await using outside = await tmpdir({
       init: async (dir) => {
