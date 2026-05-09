@@ -228,6 +228,19 @@ export namespace Tweaks {
      * during rollout; flip on after Phase 1 ships stable.
      */
     phase2Enabled: boolean
+    /**
+     * Spec compaction/user-msg-replay-unification (DD-8). Master switch
+     * for the user-message replay helper that runs after every anchor
+     * write so an unanswered user msg is rewritten with id > anchor.id
+     * (preserving the post-condition: lastUser remains visible to the
+     * next runloop iteration). Default true. When false, all four
+     * compaction commit paths skip replay AND inline Continue
+     * injection reverts to the legacy compactWithSharedContext(auto)
+     * behaviour (pre-fix; the user-msg-swallow bug returns).
+     *
+     * Hot-toggleable; no daemon restart required.
+     */
+    enableUserMsgReplay: boolean
   }
 
   export interface SessionStorageConfig {
@@ -348,6 +361,7 @@ export namespace Tweaks {
     recentRawRounds: 2,
     fallbackThreshold: 5,
     phase2Enabled: false,
+    enableUserMsgReplay: true,
   }
 
   const SESSION_STORAGE_DEFAULTS: SessionStorageConfig = {
@@ -511,6 +525,7 @@ export namespace Tweaks {
     "compaction_fallback_threshold",
     "compaction_phase1_enabled",
     "compaction_phase2_enabled",
+    "compaction_enable_user_msg_replay",
     "compaction_phase2_max_anchor_tokens",
     "compaction_recent_raw_rounds",
     "compaction_pinned_zone_max_tokens_ratio",
@@ -976,6 +991,11 @@ export namespace Tweaks {
     if (cmpPhase2EnabledRaw !== undefined) {
       const v = parseBool(cmpPhase2EnabledRaw, "compaction_phase2_enabled")
       if (v !== undefined) compaction.phase2Enabled = v
+    }
+    const cmpUserMsgReplayRaw = parsed.get("compaction_enable_user_msg_replay")
+    if (cmpUserMsgReplayRaw !== undefined) {
+      const v = parseBool(cmpUserMsgReplayRaw, "compaction_enable_user_msg_replay")
+      if (v !== undefined) compaction.enableUserMsgReplay = v
     }
 
     const sessionStorage: SessionStorageConfig = { ...SESSION_STORAGE_DEFAULTS }
