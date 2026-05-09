@@ -74,10 +74,10 @@ export default function TerminalPopoutRoute() {
   })
 
   return (
-    <div class="min-h-screen w-full flex flex-col bg-background-base">
+    <div class="min-h-screen w-full flex flex-col bg-slate-900 text-slate-100">
       <div
         role="banner"
-        class="h-8 flex items-center gap-2 px-3 border-b border-border-weak-base bg-background-stronger select-none"
+        class="h-8 flex items-center gap-2 px-3 border-b border-slate-700 bg-slate-800 select-none"
         data-slot="terminal-popout-titlebar"
       >
         <span class="text-12-medium text-text-base truncate flex-1 min-w-0">{popoutTitle()}</span>
