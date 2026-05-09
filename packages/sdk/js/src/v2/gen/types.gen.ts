@@ -3651,6 +3651,7 @@ export type FileOperationResult = {
     | "copy"
     | "delete-to-recyclebin"
     | "restore-from-recyclebin"
+    | "upload"
   source?: string
   destination?: string
   node?: FileNode
@@ -3674,6 +3675,7 @@ export type FileDestinationPreflightResult = {
     | "FILE_RECYCLEBIN_RESTORE_CONFLICT"
     | "FILE_RECYCLEBIN_METADATA_INVALID"
     | "FILE_DOWNLOAD_DIRECTORY_UNSUPPORTED"
+    | "FILE_UPLOAD_TOO_LARGE"
 }
 
 export type FileContent = {
@@ -11552,6 +11554,46 @@ export type FileDestinationPreflightResponses = {
 
 export type FileDestinationPreflightResponse =
   FileDestinationPreflightResponses[keyof FileDestinationPreflightResponses]
+
+export type FileUploadData = {
+  body: {
+    parent: string
+    file: Blob | File
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/file/upload"
+}
+
+export type FileUploadResponses = {
+  /**
+   * File operation result
+   */
+  200: FileOperationResult
+}
+
+export type FileUploadResponse = FileUploadResponses[keyof FileUploadResponses]
+
+export type FileDownloadData = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    path: string
+  }
+  url: "/api/v2/file/download"
+}
+
+export type FileDownloadResponses = {
+  /**
+   * File bytes
+   */
+  200: Blob | File
+}
+
+export type FileDownloadResponse = FileDownloadResponses[keyof FileDownloadResponses]
 
 export type FileStatData = {
   body?: never
@@ -19602,6 +19644,46 @@ export type FileDestinationPreflight2Responses = {
 
 export type FileDestinationPreflight2Response =
   FileDestinationPreflight2Responses[keyof FileDestinationPreflight2Responses]
+
+export type FileUpload2Data = {
+  body: {
+    parent: string
+    file: Blob | File
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/file/upload"
+}
+
+export type FileUpload2Responses = {
+  /**
+   * File operation result
+   */
+  200: FileOperationResult
+}
+
+export type FileUpload2Response = FileUpload2Responses[keyof FileUpload2Responses]
+
+export type FileDownload2Data = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    path: string
+  }
+  url: "/file/download"
+}
+
+export type FileDownload2Responses = {
+  /**
+   * File bytes
+   */
+  200: Blob | File
+}
+
+export type FileDownload2Response = FileDownload2Responses[keyof FileDownload2Responses]
 
 export type FileStat2Data = {
   body?: never

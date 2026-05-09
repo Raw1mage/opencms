@@ -116,4 +116,166 @@ describe("File operation guards", () => {
       },
     })
   })
+
+  test("uploads a new file into an active-project directory", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await fs.mkdir(path.join(dir, "docs"), { recursive: true })
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const result = await File.upload({
+          parent: "docs",
+          filename: "sample.txt",
+          source: new Blob(["hello"], { type: "text/plain" }),
+        })
+
+        expect(result.operation).toBe("upload")
+        expect(result.destination).toBe("docs/sample.txt")
+        expect(result.affectedDirectories).toContain("docs")
+        await expect(Bun.file(path.join(tmp.path, "docs", "sample.txt")).text()).resolves.toBe("hello")
+      },
+    })
+  })
+
+  test("upload rejects duplicate destinations", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await fs.mkdir(path.join(dir, "docs"), { recursive: true })
+        await fs.writeFile(path.join(dir, "docs", "sample.txt"), "existing")
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        await expectOperationCode(
+          File.upload({
+            parent: "docs",
+            filename: "sample.txt",
+            source: new Blob(["new"], { type: "text/plain" }),
+          }),
+          "FILE_OP_DUPLICATE",
+        )
+        // Existing bytes preserved.
+        await expect(Bun.file(path.join(tmp.path, "docs", "sample.txt")).text()).resolves.toBe("existing")
+      },
+    })
+  })
+
+  test("upload rejects oversize payloads (env-tunable cap)", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await fs.mkdir(path.join(dir, "docs"), { recursive: true })
+      },
+    })
+    const previous = process.env.OPENCODE_FILE_UPLOAD_MAX_BYTES
+    process.env.OPENCODE_FILE_UPLOAD_MAX_BYTES = "8"
+
+    try {
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          await expectOperationCode(
+            File.upload({
+              parent: "docs",
+              filename: "big.bin",
+              source: new Blob(["123456789"], { type: "application/octet-stream" }),
+            }),
+            "FILE_UPLOAD_TOO_LARGE",
+          )
+          // No partial bytes left on disk.
+          await expect(Bun.file(path.join(tmp.path, "docs", "big.bin")).exists()).resolves.toBe(false)
+        },
+      })
+    } finally {
+      if (previous === undefined) delete process.env.OPENCODE_FILE_UPLOAD_MAX_BYTES
+      else process.env.OPENCODE_FILE_UPLOAD_MAX_BYTES = previous
+    }
+  })
+
+  test("upload rejects parent that escapes the active project", async () => {
+    await using tmp = await tmpdir()
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        await expectOperationCode(
+          File.upload({
+            parent: "../outside",
+            filename: "x.txt",
+            source: new Blob(["x"]),
+          }),
+          "FILE_OP_PATH_ESCAPE",
+        )
+      },
+    })
+  })
+
+  test("upload rejects filename containing path separators", async () => {
+    await using tmp = await tmpdir()
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        await expectOperationCode(
+          File.upload({
+            parent: ".",
+            filename: "../boom.txt",
+            source: new Blob(["x"]),
+          }),
+          "FILE_OP_INVALID_NAME",
+        )
+      },
+    })
+  })
+
+  test("downloads file metadata for an existing project file", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await fs.mkdir(path.join(dir, "docs"), { recursive: true })
+        await fs.writeFile(path.join(dir, "docs", "a.txt"), "hello")
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const result = await File.download({ path: "docs/a.txt" })
+        expect(result.relativePath).toBe("docs/a.txt")
+        expect(result.filename).toBe("a.txt")
+        expect(result.size).toBe(5)
+        expect(result.mimeType.startsWith("text/")).toBe(true)
+      },
+    })
+  })
+
+  test("download rejects directory targets", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await fs.mkdir(path.join(dir, "docs"), { recursive: true })
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        await expectOperationCode(File.download({ path: "docs" }), "FILE_DOWNLOAD_DIRECTORY_UNSUPPORTED")
+      },
+    })
+  })
+
+  test("download rejects missing source", async () => {
+    await using tmp = await tmpdir()
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        await expectOperationCode(File.download({ path: "ghost.txt" }), "FILE_OP_SOURCE_NOT_FOUND")
+      },
+    })
+  })
 })

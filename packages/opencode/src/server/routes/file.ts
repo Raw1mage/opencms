@@ -392,6 +392,113 @@ export const FileRoutes = lazy(() =>
         return fileOperationResponse(c, () => File.destinationPreflight(body))
       },
     )
+    .post(
+      "/file/upload",
+      describeRoute({
+        summary: "Upload file into active-project directory",
+        description:
+          "Upload a single file via multipart/form-data into the given active-project parent directory. Browser-supplied filename basename is used; embedded path separators are rejected. Duplicate destinations and oversize payloads are rejected.",
+        operationId: "file.upload",
+        requestBody: {
+          required: true,
+          content: {
+            "multipart/form-data": {
+              schema: {
+                type: "object",
+                required: ["parent", "file"],
+                properties: {
+                  parent: { type: "string" },
+                  file: { type: "string", format: "binary" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: "File operation result",
+            content: {
+              "application/json": {
+                schema: resolver(File.OperationResult),
+              },
+            },
+          },
+        },
+      }),
+      async (c) => {
+        return fileOperationResponse(c, async () => {
+          const form = await c.req.formData().catch(() => null)
+          if (!form) {
+            throw new File.OperationError(
+              "FILE_OP_INVALID_NAME",
+              "Expected multipart form data with parent and file fields.",
+              400,
+            )
+          }
+          const parent = form.get("parent")
+          const file = form.get("file")
+          if (typeof parent !== "string") {
+            throw new File.OperationError(
+              "FILE_OP_INVALID_NAME",
+              "Missing 'parent' field.",
+              400,
+            )
+          }
+          if (!(file instanceof Blob)) {
+            throw new File.OperationError(
+              "FILE_OP_INVALID_NAME",
+              "Missing 'file' part.",
+              400,
+            )
+          }
+          const maybeNamed = file as Blob & { name?: unknown }
+          const filename = typeof maybeNamed.name === "string" ? maybeNamed.name : ""
+          return File.upload({ parent, filename, source: file })
+        })
+      },
+    )
+    .get(
+      "/file/download",
+      describeRoute({
+        summary: "Download file from active project",
+        description:
+          "Stream the bytes of an active-project file. Directory targets are rejected with FILE_DOWNLOAD_DIRECTORY_UNSUPPORTED. Symlinks whose realpath leaves the project are rejected with FILE_OP_PATH_ESCAPE.",
+        operationId: "file.download",
+        responses: {
+          200: {
+            description: "File bytes",
+            content: {
+              "application/octet-stream": {
+                schema: { type: "string", format: "binary" },
+              },
+            },
+          },
+        },
+      }),
+      validator(
+        "query",
+        z.object({
+          path: z.string().min(1),
+        }),
+      ),
+      async (c) => {
+        try {
+          const result = await File.download({ path: c.req.valid("query").path })
+          const bunFile = Bun.file(result.absolutePath)
+          return new Response(bunFile.stream(), {
+            headers: {
+              "Content-Type": result.mimeType,
+              "Content-Length": String(result.size),
+              "Content-Disposition": `attachment; filename="${result.filename.replaceAll('"', "")}"`,
+              "Cache-Control": "no-store",
+            },
+          })
+        } catch (err) {
+          if (err instanceof File.OperationError) return c.json(err.toObject(), err.status)
+          throw err
+        }
+      },
+    )
     .get(
       "/file/stat",
       describeRoute({

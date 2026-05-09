@@ -20635,6 +20635,95 @@
         }
       }
     },
+    "/api/v2/file/upload": {
+      "post": {
+        "operationId": "file.upload",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Upload file into active-project directory",
+        "description": "Upload a single file via multipart/form-data into the given active-project parent directory. Browser-supplied filename basename is used; embedded path separators are rejected. Duplicate destinations and oversize payloads are rejected.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "parent",
+                  "file"
+                ],
+                "properties": {
+                  "parent": {
+                    "type": "string"
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "File operation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileOperationResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/file/download": {
+      "get": {
+        "operationId": "file.download",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true
+          }
+        ],
+        "summary": "Download file from active project",
+        "description": "Stream the bytes of an active-project file. Directory targets are rejected with FILE_DOWNLOAD_DIRECTORY_UNSUPPORTED. Symlinks whose realpath leaves the project are rejected with FILE_OP_PATH_ESCAPE.",
+        "responses": {
+          "200": {
+            "description": "File bytes",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/file/stat": {
       "get": {
         "operationId": "file.stat",
@@ -41696,6 +41785,95 @@
         }
       }
     },
+    "/file/upload": {
+      "post": {
+        "operationId": "file.upload",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Upload file into active-project directory",
+        "description": "Upload a single file via multipart/form-data into the given active-project parent directory. Browser-supplied filename basename is used; embedded path separators are rejected. Duplicate destinations and oversize payloads are rejected.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "parent",
+                  "file"
+                ],
+                "properties": {
+                  "parent": {
+                    "type": "string"
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "File operation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileOperationResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/file/download": {
+      "get": {
+        "operationId": "file.download",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true
+          }
+        ],
+        "summary": "Download file from active project",
+        "description": "Stream the bytes of an active-project file. Directory targets are rejected with FILE_DOWNLOAD_DIRECTORY_UNSUPPORTED. Symlinks whose realpath leaves the project are rejected with FILE_OP_PATH_ESCAPE.",
+        "responses": {
+          "200": {
+            "description": "File bytes",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/file/stat": {
       "get": {
         "operationId": "file.stat",
@@ -46395,7 +46573,7 @@
           },
           "id": {
             "description": "Unique identifier for the todo item (auto-generated if omitted)",
-            "default": "todo_moy2339b_pbrgmc",
+            "default": "todo_moy8q2vj_u0ksgv",
             "type": "string"
           },
           "action": {
@@ -53707,7 +53885,8 @@
               "move",
               "copy",
               "delete-to-recyclebin",
-              "restore-from-recyclebin"
+              "restore-from-recyclebin",
+              "upload"
             ]
           },
           "source": {
@@ -53755,7 +53934,8 @@
               "FILE_OP_NOT_FILE",
               "FILE_RECYCLEBIN_RESTORE_CONFLICT",
               "FILE_RECYCLEBIN_METADATA_INVALID",
-              "FILE_DOWNLOAD_DIRECTORY_UNSUPPORTED"
+              "FILE_DOWNLOAD_DIRECTORY_UNSUPPORTED",
+              "FILE_UPLOAD_TOO_LARGE"
             ]
           }
         },

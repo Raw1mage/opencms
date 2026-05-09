@@ -72,6 +72,7 @@ export namespace File {
     "FILE_RECYCLEBIN_RESTORE_CONFLICT",
     "FILE_RECYCLEBIN_METADATA_INVALID",
     "FILE_DOWNLOAD_DIRECTORY_UNSUPPORTED",
+    "FILE_UPLOAD_TOO_LARGE",
   ])
   export type OperationCode = z.infer<typeof OperationCode>
 
@@ -105,6 +106,7 @@ export namespace File {
         "copy",
         "delete-to-recyclebin",
         "restore-from-recyclebin",
+        "upload",
       ]),
       source: z.string().optional(),
       destination: z.string().optional(),
@@ -518,9 +520,24 @@ export namespace File {
       if (code === "FILE_OP_PATH_ESCAPE" || code === "FILE_OP_PERMISSION_DENIED") return 403
       if (code === "FILE_OP_SOURCE_NOT_FOUND") return 404
       if (code === "FILE_OP_DUPLICATE" || code === "FILE_RECYCLEBIN_RESTORE_CONFLICT") return 409
+      if (code === "FILE_UPLOAD_TOO_LARGE") return 413
       return 400
     })()
     return new OperationError(code, message, status, data)
+  }
+
+  // Default cap chosen to match a typical project asset size budget. TODO:
+  // promote to /etc/opencode/tweaks.cfg key once the spec.md "configurable
+  // size limit" follow-up is approved (see plans/20260509_web-file-upload
+  // §Requirement: Enforce upload size limit). Env override exists for ops
+  // who need to lift the cap before that landing.
+  const UPLOAD_MAX_BYTES_DEFAULT = 64 * 1024 * 1024
+  function uploadMaxBytes(): number {
+    const raw = Bun.env.OPENCODE_FILE_UPLOAD_MAX_BYTES
+    if (!raw) return UPLOAD_MAX_BYTES_DEFAULT
+    const parsed = Number.parseInt(raw, 10)
+    if (!Number.isFinite(parsed) || parsed <= 0) return UPLOAD_MAX_BYTES_DEFAULT
+    return parsed
   }
 
   async function assertOperationWithinProject(targetPath: string): Promise<string> {
@@ -1326,6 +1343,87 @@ export namespace File {
     const permission = await ensureWritableDirectory(candidate)
     if (permission) return { canonicalPath: candidate, writable: false, reason: permission }
     return { canonicalPath: candidate, writable: true }
+  }
+
+  export async function upload(input: {
+    parent: string
+    filename: string
+    source: Blob
+  }): Promise<OperationResult> {
+    const name = validateBasename(input.filename)
+    const limit = uploadMaxBytes()
+    if (typeof input.source.size === "number" && input.source.size > limit) {
+      throw operationError("FILE_UPLOAD_TOO_LARGE", "File is too large to upload.", {
+        limit,
+        size: input.source.size,
+      })
+    }
+    const parent = await resolveProjectParent(input.parent)
+    const destination = path.join(parent, name)
+    await assertOperationWithinProject(destination)
+    await assertDestinationAvailable(destination)
+    const buffer = await input.source.arrayBuffer()
+    if (buffer.byteLength > limit) {
+      throw operationError("FILE_UPLOAD_TOO_LARGE", "File is too large to upload.", {
+        limit,
+        size: buffer.byteLength,
+      })
+    }
+    await fs.promises.writeFile(destination, new Uint8Array(buffer), { flag: "wx" }).catch((err) => {
+      if (isAlreadyExistsError(err)) {
+        throw operationError("FILE_OP_DUPLICATE", "A file or folder with this name already exists.", {
+          path: destination,
+        })
+      }
+      throw err
+    })
+    return {
+      operation: "upload",
+      destination: normalizeRelative(destination),
+      node: await nodeFromPath(destination),
+      affectedDirectories: [normalizeRelative(parent)],
+    }
+  }
+
+  export interface DownloadResult {
+    absolutePath: string
+    relativePath: string
+    filename: string
+    size: number
+    mimeType: string
+  }
+
+  export async function download(input: { path: string }): Promise<DownloadResult> {
+    const source = await resolveProjectPath(input.path)
+    const stat = await assertSourceExists(source)
+    if (stat.isDirectory()) {
+      throw operationError("FILE_DOWNLOAD_DIRECTORY_UNSUPPORTED", "Directory download is not available in this phase.", {
+        path: normalizeRelative(source),
+      })
+    }
+    if (!stat.isFile()) {
+      throw operationError("FILE_OP_NOT_FILE", "Operation requires a file, but the target is not a file.", {
+        path: normalizeRelative(source),
+      })
+    }
+    const filename = path.basename(source)
+    const bunFile = Bun.file(source)
+    const mimeType = bunFile.type && bunFile.type !== "application/octet-stream"
+      ? bunFile.type
+      : isImageByExtension(filename)
+        ? getImageMimeType(filename)
+        : isTextByExtension(filename) || isTextByName(filename)
+          ? "text/plain; charset=utf-8"
+          : isBinaryByExtension(filename)
+            ? "application/octet-stream"
+            : "application/octet-stream"
+    return {
+      absolutePath: source,
+      relativePath: normalizeRelative(source),
+      filename,
+      size: stat.size,
+      mimeType,
+    }
   }
 
   export async function search(input: { query: string; limit?: number; dirs?: boolean; type?: "file" | "directory" }) {
