@@ -19,18 +19,18 @@
 - [x] 2.2a Ship create / rename / move / copy / delete-to-recyclebin / restore-from-recyclebin / destination-preflight routes and `File.OperationResult` schema
 - [x] 2.3 Add server-side project-boundary, basename, conflict, recyclebin, and destructive-confirmation guards (see `packages/opencode/src/file/index.ts` `validateBasename`, `assertOperationWithinProject`, `assertDestinationAvailable`, `uniqueRecyclePath`, `ensureWritableDirectory`)
 - [x] 2.2b Ship `POST /file/upload` (multipart) and `GET /file/download` routes plus `File.upload` / `File.download` implementations; extend `OperationResult.operation` enum with `"upload"`; add `FILE_UPLOAD_TOO_LARGE` to `OperationCode`. Defines the upload size limit referenced by `spec.md`. (Default cap 64 MiB via `OPENCODE_FILE_UPLOAD_MAX_BYTES` env; `tweaks.cfg` key promotion deferred to a follow-up. SDK regen completed.)
-- [ ] 2.4 Expand backend tests beyond the current five cases. Required matrix:
-  - rename success + duplicate destination rejection
-  - move success + duplicate destination rejection
-  - copy success + duplicate destination rejection
-  - createDirectory (`type: "directory"`) success path
-  - `validateBasename` rejection of `.`, `..`, `/`, `\`, `\0`, empty string
-  - delete with `confirmed: false` returns `FILE_OP_CONFIRMATION_REQUIRED`
-  - symlink escape: source whose realpath leaves the project is rejected with `FILE_OP_PATH_ESCAPE`
-  - recyclebin uniqueness: deleting the same basename twice in <1s yields distinct tombstones
-  - destination-preflight external scope happy path (writable temp dir) returns `writable: true`
-  - upload happy path, duplicate (`FILE_OP_DUPLICATE`), too-large (`FILE_UPLOAD_TOO_LARGE`), path-escape via embedded `..` filename
-  - download directory rejected with `FILE_DOWNLOAD_DIRECTORY_UNSUPPORTED`
+- [x] 2.4 Expand backend tests beyond the current five cases. Required matrix (all 22 tests / 72 expects pass on `beta/web-file-upload` commit `261051164`):
+  - [x] rename success + duplicate destination rejection
+  - [x] move success + duplicate destination rejection
+  - [x] copy success + duplicate destination rejection
+  - [x] createDirectory (`type: "directory"`) success path
+  - [x] `validateBasename` rejection of `.`, `..`, `/`, `\`, `\0`, empty string
+  - [x] delete with `confirmed: false` returns `FILE_OP_CONFIRMATION_REQUIRED`
+  - [x] symlink escape: source whose realpath leaves the project is rejected with `FILE_OP_PATH_ESCAPE`
+  - [x] recyclebin uniqueness: deleting the same basename twice in <1s yields distinct tombstones
+  - [x] destination-preflight external scope happy path (writable temp dir) returns `writable: true`
+  - [x] upload happy path, duplicate (`FILE_OP_DUPLICATE`), too-large (`FILE_UPLOAD_TOO_LARGE`), path-escape via embedded `..` filename — shipped with 2.2b
+  - [x] download directory rejected with `FILE_DOWNLOAD_DIRECTORY_UNSUPPORTED` — shipped with 2.2b
 - [ ] 2.6 Wire Bus events from `observability.md`: emit `file.operation.requested` / `rejected` / `completed` from the `File` namespace mutation entry points; emit `file.popout.opened` from the frontend pop-out controllers. Document redaction rules for paths in event payloads.
 
 ## 3. File explorer action shell
