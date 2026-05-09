@@ -1778,6 +1778,17 @@ When constructing the summary, try to stick to this template:
     const target = await resolveTargetPromptTokens()
     const hasPaidKindLater = (idx: number) => chain.slice(idx + 1).some((k) => !isLocalKind(k))
 
+    // user-msg-replay-unification DD-3: snapshot the unanswered user
+    // message ONCE at the start of run(), before any kind fires. Pass
+    // it through to anchor write paths so post-anchor replay can rewrite
+    // the user msg with id > anchor.id. Single-runloop-per-session
+    // invariant means no concurrent stream writes during the chain.
+    const tweaks = Tweaks.compactionSync()
+    const replayEnabled = (tweaks as { enableUserMsgReplay?: boolean }).enableUserMsgReplay !== false
+    const preReplaySnapshot = replayEnabled
+      ? await snapshotUnansweredUserMessage(sessionID).catch(() => undefined)
+      : undefined
+
     for (let i = 0; i < chain.length; i++) {
       const kind = chain[i]
       const attempt = await tryKind(kind, input, model)
@@ -1812,6 +1823,22 @@ When constructing the summary, try to stick to this template:
           if (INJECT_CONTINUE[observed]) {
             await injectContinueAfterAnchor(sessionID, observed)
           }
+          // user-msg-replay-unification DD-3: anchor was written inline
+          // by tryLlmAgent; replay the snapshotted user msg post-anchor
+          // so the next iter's lastUser resolves correctly. Helper never
+          // throws.
+          if (preReplaySnapshot) {
+            const newAnchorId = await readMostRecentAnchorId(sessionID)
+            if (newAnchorId) {
+              await _replayHelper({
+                sessionID,
+                snapshot: preReplaySnapshot,
+                anchorMessageID: newAnchorId,
+                observed,
+                step,
+              })
+            }
+          }
         } else if (model) {
           await _writeAnchor({
             sessionID,
@@ -1821,6 +1848,9 @@ When constructing the summary, try to stick to this template:
             kind: attempt.kind,
             serverCompactedItems: attempt.serverCompactedItems,
             chainBinding: attempt.chainBinding,
+            observed,
+            step,
+            snapshot: preReplaySnapshot,
           })
         } else {
           log.warn("compaction.run anchor write skipped: no resolvable model", { sessionID, observed })
@@ -2154,6 +2184,16 @@ When constructing the summary, try to stick to this template:
     serverCompactedItems?: unknown[]
     /** compaction-fix Phase 2 (DD-9). */
     chainBinding?: { accountId: string; modelId: string; capturedAt: number }
+    /**
+     * Spec user-msg-replay-unification DD-3: observed condition + step
+     * threaded through so post-anchor replay can emit telemetry with
+     * full caller context. Snapshot is captured by run() before the
+     * kind chain fires so the user msg state is the same one the
+     * anchor was decided against.
+     */
+    observed: Observed
+    step: number
+    snapshot?: UserMessageSnapshot
   }
   const defaultWriteAnchor = async (input: WriteAnchorInput) => {
     // DD-6: anchor body is wrapped + softened before persistence so it
@@ -2178,6 +2218,25 @@ When constructing the summary, try to stick to this template:
       model: input.model,
       auto: input.auto,
     })
+
+    // user-msg-replay-unification DD-3: after the anchor is persisted,
+    // if a pre-anchor snapshot of an unanswered user message exists,
+    // replay it post-anchor so the next runloop iteration's lastUser
+    // resolves to a real message (not the synthetic Continue substitute).
+    // Helper is the test-substitutable indirection (`_replayHelper`); on
+    // production this is `replayUnansweredUserMessage`. Helper never throws.
+    if (input.snapshot) {
+      const newAnchorId = await readMostRecentAnchorId(input.sessionID)
+      if (newAnchorId && newAnchorId !== prevAnchorId) {
+        await _replayHelper({
+          sessionID: input.sessionID,
+          snapshot: input.snapshot,
+          anchorMessageID: newAnchorId,
+          observed: input.observed,
+          step: input.step,
+        })
+      }
+    }
 
     // DD-9: scan the just-written anchor body for skill name references and
     // pin matched active/summary skills so they survive idle decay until the
