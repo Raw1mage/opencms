@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "verified",
+  "state": "living",
   "profile": [],
   "history": [
     {
@@ -62,6 +62,14 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "M1-M5 implementation complete on beta/dialog-replay-redaction (4 commits: dialog-serializer / tryNarrative / post-anchor v7 / recompress dispatch); 154/154 target-suite tests; M6 scenarios subsumed by unit suites + M6-2 + M7-5..8 deferred per user direction (rollback hot-toggleable via Tweaks); ready for fetch-back"
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-05-09T16:50:31.604Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "fetch-back complete (merge 850e266cc); implementation live on main; rollback via Tweaks flag"
     }
   ]
 }
