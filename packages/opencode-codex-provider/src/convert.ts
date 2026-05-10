@@ -7,8 +7,19 @@
 import type {
   LanguageModelV2Prompt,
   LanguageModelV2FunctionTool,
-  LanguageModelV2Content,
+  LanguageModelV2TextPart,
+  LanguageModelV2FilePart,
+  LanguageModelV2ReasoningPart,
+  LanguageModelV2ToolCallPart,
+  LanguageModelV2ToolResultPart,
 } from "@ai-sdk/provider"
+
+type LanguageModelV2AssistantPart =
+  | LanguageModelV2TextPart
+  | LanguageModelV2FilePart
+  | LanguageModelV2ReasoningPart
+  | LanguageModelV2ToolCallPart
+  | LanguageModelV2ToolResultPart
 import type { ResponseItem, ContentPart } from "./types.js"
 
 // ---------------------------------------------------------------------------
@@ -69,9 +80,9 @@ export function convertPrompt(prompt: LanguageModelV2Prompt): {
         //   - String: "output": "plain text"
         //   - Content items: "output": [{type: "input_text", text: "..."}]
         for (const result of msg.content) {
-          // AI SDK LanguageModelV2 uses `result` field, but opencode's tool system
-          // uses `output` field. Check both.
-          const raw = result.result ?? (result as any).output
+          // AI SDK LanguageModelV2 uses `output` field (LanguageModelV2ToolResultOutput).
+          // Legacy opencode shape used a `result` field; keep as fallback for older payloads.
+          const raw = result.output ?? (result as { result?: unknown }).result
           let output: unknown
 
           if (raw == null) {
@@ -169,7 +180,7 @@ export function convertTools(
     type: "function",
     name: tool.name,
     description: tool.description,
-    parameters: tool.parameters,
+    parameters: tool.inputSchema,
     strict: false,
   }))
 }
@@ -235,7 +246,7 @@ function convertUserContent(
   return parts.length > 0 ? parts : [{ type: "input_text", text: "" }]
 }
 
-function convertAssistantContent(content: LanguageModelV2Content[]): {
+function convertAssistantContent(content: LanguageModelV2AssistantPart[]): {
   textParts: string[]
   toolCalls: Array<{ toolCallId: string; toolName: string; args: unknown }>
 } {
