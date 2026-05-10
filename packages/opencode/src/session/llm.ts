@@ -61,6 +61,18 @@ import {
 import { Tweaks } from "@/config/tweaks"
 import { Account } from "../account"
 import { ALWAYS_PRESENT_TOOLS } from "@/tool/tool-loader"
+import {
+  assembleBundles,
+  buildEnvironmentContextFragment,
+  buildOpencodeAgentInstructionsFragment,
+  buildOpencodeProtocolFragment,
+  buildRoleIdentityFragment,
+  buildUserInstructionsFragment,
+  type ContextFragment,
+} from "./context-fragments"
+import { InstructionPrompt } from "./instruction"
+import { Global } from "@/global"
+import path from "path"
 
 /**
  * Bus event for real-time LLM error reporting to the webapp sidebar.
@@ -566,6 +578,12 @@ export namespace LLM {
     const injectEnablementSnapshot = shouldInjectEnablementSnapshot(input.messages)
     const system: string[] = []
     let preface: ContextPrefaceMessageOutput | undefined
+    // plans/provider_codex-prompt-realign Stage A.3-2: hoisted so the
+    // bundle-injection block (after the preface insertion below) can read
+    // the same flag and the same driver hash that buildStaticBlock produced.
+    let useUpstreamWire = false
+    let driverHashForLog = ""
+    let driverCharsForLog = 0
 
     if (isLiteProvider) {
       // Lite provider (DD-14): single concise system prompt, no static-block
@@ -624,11 +642,40 @@ export namespace LLM {
       }
       const staticBlock = buildStaticBlock(tuple)
 
+      // plans/provider_codex-prompt-realign Stage A.3-2: codex provider
+      // takes the upstream-aligned wire layout — `instructions` carries
+      // BaseInstructions (driver) only; agent / agentsMd / userSystem /
+      // systemMd / identity are emitted as developer/user fragment bundles
+      // in `input[]` (see fragment block below). Feature-flagged so a
+      // single env var rolls back to the legacy monolithic-system path.
+      useUpstreamWire =
+        (input.model.providerId === "codex" || input.model.providerId.startsWith("codex")) &&
+        process.env["OPENCODE_CODEX_LEGACY_INSTRUCTIONS"] !== "1"
+
       // Gemini-specific behavioral_guidelines optimization (preserved from
       // pre-Phase-B). Operates on the assembled static block text. The
       // surgery only matches the AGENTS.md region; if anything moves around
       // due to Phase B layer reordering this no-ops gracefully.
       let staticText = staticBlock.text
+      if (useUpstreamWire) {
+        // Override system[0] to driver-only. Other layers move into fragments
+        // (built after Plugin.trigger below). Preserves the staticBlock hash
+        // calculation upstream — only the system_block_0 byte payload changes.
+        const driverOnlyBlock = buildStaticBlock({
+          ...tuple,
+          layers: {
+            driver: tuple.layers.driver,
+            agent: "",
+            agentsMd: "",
+            userSystem: "",
+            systemMd: "",
+            identity: "",
+          },
+        })
+        staticText = driverOnlyBlock.text
+        driverHashForLog = driverOnlyBlock.hash.slice(0, 12)
+        driverCharsForLog = staticText.length
+      }
       const modelId = input.model?.id?.toLowerCase() || ""
       if (modelId.includes("gemini") && staticText) {
         const agentsBlockRegex = /Instructions from: .*?AGENTS\.md[\s\S]*?(?=\nInstructions from:|<env>|$)/g
@@ -668,11 +715,17 @@ export namespace LLM {
       // from conversation growth without dynamic noise.
       recordSystemBlockHash(input.sessionID, staticBlock.hash)
 
+    if (!useUpstreamWire) {
       // Phase B (DD-1, DD-2, DD-4, DD-5): build the user-role context preface
       // with T1 (preload + pinned skills + date) and T2 (active + summarized
       // skills) ranked slow-first. Per-turn extras (input.system carry-over
       // for lazy catalog / structured output / notices / quota-low addenda)
       // ride the trailing tier.
+      //
+      // plans/provider_codex-prompt-realign Stage A.3-2: codex provider
+      // takes the upstream-aligned wire (driver-only instructions + fragment
+      // bundles in input[]); preface is skipped on that path. The fragment
+      // assembly + bundle injection runs after this block.
       const enablementText = injectEnablementSnapshot ? buildEnablementSnapshot(input.messages) : ""
       const partitioned = SkillLayerRegistry.partitionForPreface(skillLayerEntries)
 
@@ -857,6 +910,7 @@ export namespace LLM {
         },
       })
     }
+    } // end of if (!useUpstreamWire) — preface buildup
 
     // Splice the preface message into the outbound messages list. DD-1 says
     // "before the user's first real text turn"; with multi-turn streaming
@@ -920,6 +974,122 @@ export namespace LLM {
       const insertAt = lastUserIdx >= 0 ? lastUserIdx : input.messages.length
       input.messages = [...input.messages.slice(0, insertAt), prefaceMessage, ...input.messages.slice(insertAt)]
     }
+
+    // plans/provider_codex-prompt-realign Stage A.3-2: upstream-aligned
+    // wire — assemble fragment list and prepend a developer-role bundle +
+    // a user-role bundle as ModelMessage items in `input.messages`.
+    // codex provider's convertPrompt picks up `providerOptions.codex.kind`
+    // markers to emit them as Responses-API role:"developer" / role:"user"
+    // ResponseItems (matches refs/codex/codex-rs/core/src/session/mod.rs
+    // build_initial_context() output shape).
+    if (useUpstreamWire) {
+      const fragments: ContextFragment[] = []
+      // Developer-role: identity → constitution → agent persona overlay.
+      // RoleIdentity first so Main vs Subagent is the very first thing the
+      // model sees (DD-8).
+      const identitySource = (() => {
+        // input.agent.name is most authoritative; fall back to subagentSession
+        // detection.
+        return subagentSession
+      })()
+      fragments.push(buildRoleIdentityFragment({ isSubagent: identitySource }))
+      const systemMdJoined = (await SystemPrompt.system(subagentSession)).join("\n")
+      if (systemMdJoined.trim().length > 0) {
+        fragments.push(buildOpencodeProtocolFragment({ text: systemMdJoined }))
+      }
+      const agentPromptText = input.agent.prompt ?? ""
+      const userSystemText = input.user.system ?? ""
+      if ((agentPromptText.trim() + userSystemText.trim()).length > 0) {
+        fragments.push(
+          buildOpencodeAgentInstructionsFragment({
+            agentPrompt: agentPromptText,
+            userSystem: userSystemText,
+          }),
+        )
+      }
+      // User-role: AGENTS.md (global, then project) → environment context.
+      // Subagents skip AGENTS.md (matches legacy subagent gate).
+      if (!subagentSession) {
+        const instructionPrompts = await InstructionPrompt.system(input.sessionID)
+        for (const item of instructionPrompts) {
+          // Items shape: "Instructions from: <abs-path>\n<content>"
+          const m = item.match(/^Instructions from: (.+?)\n([\s\S]*)$/)
+          if (!m) continue
+          const filePath = m[1]
+          const content = m[2]
+          const directory = path.dirname(filePath)
+          const isGlobal = directory.startsWith(Global.Path.config)
+          fragments.push(
+            buildUserInstructionsFragment({
+              scope: isGlobal ? "global" : "project",
+              directory,
+              text: content,
+            }),
+          )
+        }
+      }
+      const cwd = Instance.directory
+      const shellName = process.platform === "win32" ? "cmd.exe" : "bash"
+      const todaysDate = new Date().toDateString()
+      const timezone = (() => {
+        try {
+          return Intl.DateTimeFormat().resolvedOptions().timeZone
+        } catch {
+          return undefined
+        }
+      })()
+      fragments.push(
+        buildEnvironmentContextFragment({
+          cwd,
+          shell: shellName,
+          currentDate: todaysDate,
+          timezone,
+        }),
+      )
+
+      const { developerBundle, userBundle } = assembleBundles(fragments)
+      const bundleMessages: ModelMessage[] = []
+      if (developerBundle) {
+        bundleMessages.push({
+          role: "user",
+          content: [{ type: "text", text: developerBundle.text }],
+          providerOptions: { codex: { kind: "developer-bundle" } },
+        })
+      }
+      if (userBundle) {
+        bundleMessages.push({
+          role: "user",
+          content: [{ type: "text", text: userBundle.text }],
+          providerOptions: { codex: { kind: "user-bundle" } },
+        })
+      }
+      if (bundleMessages.length > 0) {
+        const lastUserIdx = (() => {
+          for (let i = input.messages.length - 1; i >= 0; i--) {
+            if (input.messages[i]?.role === "user") return i
+          }
+          return -1
+        })()
+        const insertAt = lastUserIdx >= 0 ? lastUserIdx : input.messages.length
+        input.messages = [
+          ...input.messages.slice(0, insertAt),
+          ...bundleMessages,
+          ...input.messages.slice(insertAt),
+        ]
+      }
+      log.info("prompt.bundle.assembled", {
+        sessionID: input.sessionID,
+        driverHash: driverHashForLog,
+        driverChars: driverCharsForLog,
+        developerBundle: developerBundle
+          ? { fragmentIds: developerBundle.fragmentIds, totalChars: developerBundle.text.length }
+          : null,
+        userBundle: userBundle
+          ? { fragmentIds: userBundle.fragmentIds, totalChars: userBundle.text.length }
+          : null,
+      })
+    }
+
     // unused locals for backwards-compat (build/lint cleanliness — remove
     // when buildSkillLayerRegistrySystemPart and injectEnablementSnapshot
     // are fully retired in Phase B follow-ups).
