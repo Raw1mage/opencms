@@ -926,7 +926,7 @@ export function SessionSidePanel(props: {
             edge="start"
             size={props.layout.fileTree.width()}
             min={200}
-            max={480}
+            max={Math.floor(window.innerWidth * 0.5)}
             collapseThreshold={160}
             onResize={props.layout.fileTree.resize}
             onCollapse={props.layout.fileTree.close}
