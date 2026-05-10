@@ -715,8 +715,14 @@ export default function FileTree(props: {
 
   const runCreate = async (target: ActionTarget, type: "file" | "directory") => {
     const parent = parentForCreate(target)
-    const label = type === "directory" ? "Folder name" : "File name"
-    const name = window.prompt(`${label} (in ${parent || "/"})`)?.trim()
+    const label = type === "directory" ? "New folder" : "New file"
+    const raw = await promptInput({
+      title: label,
+      description: `in ${parent || "/"}`,
+      placeholder: type === "directory" ? "folder-name" : "filename.ext",
+      submitLabel: "Create",
+    })
+    const name = raw?.trim()
     if (!name) return
     try {
       const response = await sdk.client.file.create({ parent, name, type })
@@ -729,7 +735,13 @@ export default function FileTree(props: {
   const runRename = async (target: ActionTarget) => {
     if (target.kind !== "row") return
     const current = target.path.split("/").pop() ?? target.path
-    const next = window.prompt(`Rename "${current}" to:`, current)?.trim()
+    const raw = await promptInput({
+      title: "Rename",
+      description: `Current: ${current}`,
+      initial: current,
+      submitLabel: "Rename",
+    })
+    const next = raw?.trim()
     if (!next || next === current) return
     try {
       const response = await sdk.client.file.rename({ path: target.path, name: next })
@@ -739,20 +751,69 @@ export default function FileTree(props: {
     }
   }
 
-  // Anchored in-app delete confirmation. Replaces the browser-native
-  // window.confirm() (which renders centered with an origin-prefixed
-  // header — visually disconnected from the right-click action). Uses
-  // the captured cursor position from the most recent contextmenu event
-  // and renders a fixed Portal layer near that point.
-  type DeletePending = { batch: string[]; anchor: { x: number; y: number } }
-  const [deletePending, setDeletePending] = createSignal<DeletePending | undefined>()
+  // ----- Generic anchored prompt + confirm helpers ----------------------
+  // Replace browser-native window.prompt() / window.confirm() (centered,
+  // host-prefixed, visually disconnected from the trigger) with Portal-
+  // rendered modals anchored at the captured right-click coordinates.
+  // Both helpers return Promises so call sites read like the original
+  // synchronous prompt/confirm but stay fully in the Solid effect graph.
 
-  const runDelete = (target: ActionTarget) => {
+  type ConfirmResolution = "confirm" | "cancel" | "apply-all"
+  type ConfirmRequest = {
+    title: string
+    description?: string
+    destructive?: boolean
+    confirmLabel?: string
+    cancelLabel?: string
+    applyAllLabel?: string
+    anchor: { x: number; y: number }
+    resolve: (result: ConfirmResolution) => void
+  }
+  type InputRequest = {
+    title: string
+    description?: string
+    initial?: string
+    placeholder?: string
+    submitLabel?: string
+    cancelLabel?: string
+    validate?: (value: string) => string | undefined
+    anchor: { x: number; y: number }
+    resolve: (value: string | undefined) => void
+  }
+  const [pendingConfirm, setPendingConfirm] = createSignal<ConfirmRequest | undefined>()
+  const [pendingInput, setPendingInput] = createSignal<InputRequest | undefined>()
+
+  const fallbackAnchor = (): { x: number; y: number } =>
+    lastMenuAnchor() ?? { x: window.innerWidth / 2, y: window.innerHeight / 2 }
+
+  const promptConfirm = (
+    opts: Omit<ConfirmRequest, "anchor" | "resolve"> & { anchor?: { x: number; y: number } },
+  ): Promise<ConfirmResolution> =>
+    new Promise<ConfirmResolution>((resolve) => {
+      setPendingConfirm({ ...opts, anchor: opts.anchor ?? fallbackAnchor(), resolve })
+    })
+
+  const promptInput = (
+    opts: Omit<InputRequest, "anchor" | "resolve"> & { anchor?: { x: number; y: number } },
+  ): Promise<string | undefined> =>
+    new Promise<string | undefined>((resolve) => {
+      setPendingInput({ ...opts, anchor: opts.anchor ?? fallbackAnchor(), resolve })
+    })
+
+  const runDelete = async (target: ActionTarget) => {
     if (target.kind !== "row") return
     const sel = selection().selected
     const batch = sel.has(target.path) && sel.size > 1 ? Array.from(sel) : [target.path]
-    const anchor = lastMenuAnchor() ?? { x: window.innerWidth / 2, y: window.innerHeight / 2 }
-    setDeletePending({ batch, anchor })
+    const sample = batch.slice(0, 3).join(", ")
+    const more = batch.length > 3 ? ` and ${batch.length - 3} more` : ""
+    const result = await promptConfirm({
+      title: batch.length === 1 ? "Delete this item?" : `Delete ${batch.length} items?`,
+      description: `${sample}${more}`,
+      destructive: true,
+      confirmLabel: "Delete",
+    })
+    if (result !== "confirm") return
+    await performDelete(batch)
   }
 
   const performDelete = async (batch: string[]) => {
@@ -944,28 +1005,30 @@ export default function FileTree(props: {
               decision = "overwrite"
             } else if (overwriteAllRemaining === false) {
               decision = "skip"
-            } else if (remaining > 0) {
-              // Multi-item paste with collisions still ahead: ask once with
-              // the option to apply to all. Browser confirm() is yes/no, so
-              // we layer two prompts: the first ack-or-skip, then "apply
-              // to all remaining?".
-              const ok = window.confirm(
-                `「${basename}」已存在於目的地：${destinationParent || "/"}\n\n要覆蓋嗎？\n（資料夾會整個覆寫，內部衝突檔案會一起換掉。）`,
-              )
-              decision = ok ? "overwrite" : "skip"
-              if (remaining > 0) {
-                const applyAll = window.confirm(
-                  decision === "overwrite"
-                    ? `對剩餘 ${remaining} 個衝突項目都套用「覆蓋」？\n按取消會逐項詢問。`
-                    : `對剩餘 ${remaining} 個衝突項目都套用「跳過」？\n按取消會逐項詢問。`,
-                )
-                if (applyAll) overwriteAllRemaining = decision === "overwrite"
-              }
             } else {
-              const ok = window.confirm(
-                `「${basename}」已存在於目的地：${destinationParent || "/"}\n\n要覆蓋嗎？\n（資料夾會整個覆寫，內部衝突檔案會一起換掉。）`,
-              )
-              decision = ok ? "overwrite" : "skip"
+              // Single-prompt UX: Overwrite / Skip / "Apply to all"
+              // (which means "yes overwrite for all remaining"). One round
+              // trip per collision instead of the previous two confirm()
+              // boxes. When remaining is 0 we hide the apply-all button
+              // by passing applyAllLabel: undefined.
+              const result = await promptConfirm({
+                title: `Destination already has 「${basename}」`,
+                description:
+                  `Target folder: ${destinationParent || "/"}\n` +
+                  `If it's a directory, contents will be replaced wholesale.`,
+                destructive: true,
+                confirmLabel: "Overwrite",
+                cancelLabel: "Skip",
+                applyAllLabel: remaining > 0 ? `Overwrite all (${remaining + 1})` : undefined,
+              })
+              if (result === "apply-all") {
+                overwriteAllRemaining = true
+                decision = "overwrite"
+              } else if (result === "confirm") {
+                decision = "overwrite"
+              } else {
+                decision = "skip"
+              }
             }
             if (decision === "overwrite") {
               overwrite = true
@@ -1018,7 +1081,14 @@ export default function FileTree(props: {
       })
       return
     }
-    const requested = window.prompt("Paste destination (absolute path):")?.trim()
+    const requested = (
+      await promptInput({
+        title: "Paste to writable destination",
+        description: "Enter an absolute path. Permission will be probed before bytes move.",
+        placeholder: "/absolute/path/to/folder",
+        submitLabel: "Preflight",
+      })
+    )?.trim()
     if (!requested) return
 
     let preflight: Awaited<ReturnType<typeof sdk.client.file.destinationPreflight>>
@@ -1041,10 +1111,15 @@ export default function FileTree(props: {
       return
     }
     const canonical = result.canonicalPath
-    const confirmed = window.confirm(
-      `Paste ${cb.entries.length} item(s) into:\n${canonical}\n\n${cb.mode === "cut" ? "Source files will be MOVED." : "Source files will be COPIED."}`,
-    )
-    if (!confirmed) return
+    const decision = await promptConfirm({
+      title: `Paste ${cb.entries.length} item(s) outside the project?`,
+      description:
+        `Resolved destination: ${canonical}\n` +
+        (cb.mode === "cut" ? "Source files will be MOVED." : "Source files will be COPIED."),
+      destructive: cb.mode === "cut",
+      confirmLabel: cb.mode === "cut" ? "Move" : "Copy",
+    })
+    if (decision !== "confirm") return
 
     let succeeded = 0
     let lastError: unknown
@@ -1544,30 +1619,31 @@ export default function FileTree(props: {
           })
         }}
       />
-      <Show when={deletePending()}>
-        {(pending) => {
-          // Position-clamped so the popup never overflows the viewport edge.
-          const POPUP_MAX_W = 360
-          const POPUP_MAX_H = 200
-          const left = () => Math.max(8, Math.min(pending().anchor.x, window.innerWidth - POPUP_MAX_W - 8))
-          const top = () => Math.max(8, Math.min(pending().anchor.y, window.innerHeight - POPUP_MAX_H - 8))
-          const batch = () => pending().batch
-          const sample = () => batch().slice(0, 3).join(", ")
-          const more = () => (batch().length > 3 ? ` and ${batch().length - 3} more` : "")
-          // Outside-click + Esc to dismiss. Mirrors the in-app dismissal
-          // contract used by the right-click context menu and the popout
-          // window chrome.
+      <Show when={pendingConfirm()}>
+        {(req) => {
+          const POPUP_MAX_W = 380
+          const POPUP_MAX_H = 220
+          const left = () => Math.max(8, Math.min(req().anchor.x, window.innerWidth - POPUP_MAX_W - 8))
+          const top = () => Math.max(8, Math.min(req().anchor.y, window.innerHeight - POPUP_MAX_H - 8))
           let overlayRef: HTMLDivElement | undefined
-          const onOutsideKey = (e: KeyboardEvent) => {
+          const settle = (result: ConfirmResolution) => {
+            const r = req()
+            setPendingConfirm(undefined)
+            r.resolve(result)
+          }
+          const onKey = (e: KeyboardEvent) => {
             if (e.key === "Escape") {
               e.preventDefault()
-              setDeletePending(undefined)
+              settle("cancel")
+            } else if (e.key === "Enter") {
+              e.preventDefault()
+              settle("confirm")
             }
           }
           createEffect(() => {
-            if (!deletePending()) return
-            window.addEventListener("keydown", onOutsideKey, true)
-            onCleanup(() => window.removeEventListener("keydown", onOutsideKey, true))
+            if (!pendingConfirm()) return
+            window.addEventListener("keydown", onKey, true)
+            onCleanup(() => window.removeEventListener("keydown", onKey, true))
           })
           return (
             <Portal>
@@ -1577,7 +1653,7 @@ export default function FileTree(props: {
                 }}
                 class="fixed inset-0 z-[200]"
                 onClick={(e) => {
-                  if (e.target === overlayRef) setDeletePending(undefined)
+                  if (e.target === overlayRef) settle("cancel")
                 }}
               >
                 <div
@@ -1588,34 +1664,143 @@ export default function FileTree(props: {
                     left: `${left()}px`,
                     top: `${top()}px`,
                   }}
-                  data-slot="filetree-delete-confirm"
+                  data-slot="filetree-prompt-confirm"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div class="text-14-medium mb-1">
-                    {batch().length === 1 ? "Delete this item?" : `Delete ${batch().length} items?`}
-                  </div>
-                  <div class="text-text-weak break-all mb-3 max-h-20 overflow-auto">
-                    {sample()}
-                    {more()}
-                  </div>
+                  <div class="text-14-medium mb-1">{req().title}</div>
+                  <Show when={req().description}>
+                    <div class="text-text-weak break-words whitespace-pre-line mb-3 max-h-32 overflow-auto">
+                      {req().description}
+                    </div>
+                  </Show>
                   <div class="flex justify-end gap-2">
                     <button
                       type="button"
                       class="px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-100"
-                      onClick={() => setDeletePending(undefined)}
+                      onClick={() => settle("cancel")}
                     >
-                      取消
+                      {req().cancelLabel ?? "取消"}
+                    </button>
+                    <Show when={req().applyAllLabel}>
+                      <button
+                        type="button"
+                        class="px-2 py-1 rounded bg-amber-600 hover:bg-amber-500 text-white"
+                        onClick={() => settle("apply-all")}
+                      >
+                        {req().applyAllLabel}
+                      </button>
+                    </Show>
+                    <button
+                      type="button"
+                      classList={{
+                        "px-2 py-1 rounded text-white": true,
+                        "bg-red-600 hover:bg-red-500": !!req().destructive,
+                        "bg-blue-600 hover:bg-blue-500": !req().destructive,
+                      }}
+                      onClick={() => settle("confirm")}
+                    >
+                      {req().confirmLabel ?? "確定"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </Portal>
+          )
+        }}
+      </Show>
+      <Show when={pendingInput()}>
+        {(req) => {
+          const POPUP_MAX_W = 380
+          const POPUP_MAX_H = 220
+          const left = () => Math.max(8, Math.min(req().anchor.x, window.innerWidth - POPUP_MAX_W - 8))
+          const top = () => Math.max(8, Math.min(req().anchor.y, window.innerHeight - POPUP_MAX_H - 8))
+          const [value, setValue] = createSignal(req().initial ?? "")
+          const validation = createMemo(() => req().validate?.(value()))
+          let overlayRef: HTMLDivElement | undefined
+          let inputRef: HTMLInputElement | undefined
+          const settle = (next: string | undefined) => {
+            const r = req()
+            setPendingInput(undefined)
+            r.resolve(next)
+          }
+          const submit = () => {
+            if (validation()) return
+            settle(value())
+          }
+          const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") {
+              e.preventDefault()
+              settle(undefined)
+            } else if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault()
+              submit()
+            }
+          }
+          createEffect(() => {
+            if (!pendingInput()) return
+            window.addEventListener("keydown", onKey, true)
+            // Focus the input after Portal mounts.
+            queueMicrotask(() => {
+              inputRef?.focus()
+              inputRef?.select()
+            })
+            onCleanup(() => window.removeEventListener("keydown", onKey, true))
+          })
+          return (
+            <Portal>
+              <div
+                ref={(el) => {
+                  overlayRef = el
+                }}
+                class="fixed inset-0 z-[200]"
+                onClick={(e) => {
+                  if (e.target === overlayRef) settle(undefined)
+                }}
+              >
+                <div
+                  class="fixed bg-slate-900 border-2 border-slate-600 rounded-md shadow-xl text-slate-100 p-3 text-12-regular flex flex-col gap-2"
+                  style={{
+                    "max-width": `${POPUP_MAX_W}px`,
+                    "max-height": `${POPUP_MAX_H}px`,
+                    width: "min(380px, calc(100vw - 16px))",
+                    left: `${left()}px`,
+                    top: `${top()}px`,
+                  }}
+                  data-slot="filetree-prompt-input"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div class="text-14-medium">{req().title}</div>
+                  <Show when={req().description}>
+                    <div class="text-text-weak break-words whitespace-pre-line">{req().description}</div>
+                  </Show>
+                  <input
+                    ref={(el) => {
+                      inputRef = el
+                    }}
+                    type="text"
+                    class="px-2 py-1 rounded bg-slate-800 border border-slate-600 text-slate-100 outline-none focus:border-blue-500"
+                    value={value()}
+                    placeholder={req().placeholder}
+                    onInput={(e) => setValue(e.currentTarget.value)}
+                  />
+                  <Show when={validation()}>
+                    <div class="text-red-400">{validation()}</div>
+                  </Show>
+                  <div class="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      class="px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-100"
+                      onClick={() => settle(undefined)}
+                    >
+                      {req().cancelLabel ?? "取消"}
                     </button>
                     <button
                       type="button"
-                      class="px-2 py-1 rounded bg-red-600 hover:bg-red-500 text-white"
-                      onClick={() => {
-                        const b = batch()
-                        setDeletePending(undefined)
-                        void performDelete(b)
-                      }}
+                      class="px-2 py-1 rounded bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white"
+                      disabled={!!validation() || value().length === 0}
+                      onClick={submit}
                     >
-                      確定
+                      {req().submitLabel ?? "確定"}
                     </button>
                   </div>
                 </div>
