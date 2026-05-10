@@ -73,8 +73,34 @@ export function convertPrompt(prompt: LanguageModelV2Prompt): {
         // bundle items with providerOptions.codex.kind so we can route them
         // to the right Responses-API role.
         const codexOpts = (msg.providerOptions as { codex?: { kind?: string } } | undefined)?.codex
-        const role = codexOpts?.kind === "developer-bundle" ? "developer" : "user"
-        input.push({ role, content: parts } as ResponseItem)
+        const kind = codexOpts?.kind
+        if (kind === "developer-bundle" || kind === "user-bundle") {
+          // plans/provider_codex-prompt-realign cache hotfix 2026-05-11:
+          // emit bundle items with RAW STRING content (matching pre-breaker
+          // wire shape `{role:"developer", content:"<text>"}`), NOT ContentPart
+          // array. Empirical observation — when bundle content was wrapped in
+          // [{type:"input_text", text:"..."}], OpenAI's prefix cache stuck
+          // at the tools-schema floor (~4608 tokens) regardless of bundle
+          // byte stability. Pre-breaker sessions that cached well used raw
+          // string content at this position. Hypothesis: server's chain
+          // reconstruction for delta=true requests serializes back to the
+          // canonical wire form, and a mismatch between original-request
+          // bytes and reconstructed bytes drops the prefix cache match
+          // boundary down to where the bytes diverge.
+          //
+          // Only text parts contribute to bundle bodies (no images), so
+          // joining the text fields back to a single string is lossless.
+          const textOnly = parts
+            .filter((p): p is { type: "input_text"; text: string } => p.type === "input_text")
+            .map((p) => p.text)
+            .join("")
+          input.push({
+            role: kind === "developer-bundle" ? "developer" : "user",
+            content: textOnly,
+          } as ResponseItem)
+        } else {
+          input.push({ role: "user", content: parts } as ResponseItem)
+        }
         break
       }
 
