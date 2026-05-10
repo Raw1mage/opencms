@@ -326,6 +326,22 @@ function findContextBudgetSource(messages: MessageV2.WithParts[]): MessageV2.Ass
   return undefined
 }
 
+function buildContextBudgetPolicyInput(input: { lastFinished?: MessageV2.Assistant; model: Provider.Model }): {
+  status: "green" | "yellow" | "orange" | "red" | "unknown"
+  ratio?: number
+  used?: number
+  window?: number
+  source: "last-finished" | "unavailable"
+} {
+  const window = input.model.limit.input ?? input.model.limit.context
+  const used = input.lastFinished?.tokens?.input ?? 0
+  if (!input.lastFinished || !window || window <= 0 || used <= 0) {
+    return { status: "unknown", source: "unavailable" }
+  }
+  const ratio = used / window
+  return { status: contextBudgetStatus(ratio), ratio, used, window, source: "last-finished" }
+}
+
 /**
  * compaction-redesign phase 6 — state-driven runloop evaluator (DD-1).
  *
@@ -1140,9 +1156,7 @@ export namespace SessionPrompt {
           // resolves to a real message instead of falling through to the
           // synthetic Continue path (INJECT_CONTINUE['provider-switched']
           // is false → no Continue would be injected → silent exit).
-          const replaySnapshot = await SessionCompaction.snapshotUnansweredUserMessage(
-            sessionID,
-          ).catch(() => undefined)
+          const replaySnapshot = await SessionCompaction.snapshotUnansweredUserMessage(sessionID).catch(() => undefined)
           // Phase 13.1: Memory.markCompacted call removed (Memory.lastCompactedAt
           // is derived from the most recent anchor's time.created, not stored).
           await SessionCompaction.compactWithSharedContext({
@@ -1155,12 +1169,9 @@ export namespace SessionPrompt {
             observed: "provider-switched",
           })
           if (replaySnapshot) {
-            const postWriteMsgs = await Session.messages({ sessionID }).catch(
-              () => [] as MessageV2.WithParts[],
-            )
+            const postWriteMsgs = await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[])
             const anchorMsg = postWriteMsgs.findLast(
-              (m) =>
-                m.info.role === "assistant" && (m.info as MessageV2.Assistant).summary === true,
+              (m) => m.info.role === "assistant" && (m.info as MessageV2.Assistant).summary === true,
             )
             if (anchorMsg) {
               await SessionCompaction.replayUnansweredUserMessage({
@@ -1343,15 +1354,12 @@ export namespace SessionPrompt {
           }
           const WS_TRUNCATION_ITEMCOUNT_COMPACT_THRESHOLD = 250
           if (estimatedItemCount > WS_TRUNCATION_ITEMCOUNT_COMPACT_THRESHOLD) {
-            log.warn(
-              "ws-truncation × bloated-input single-shot, triggering overflow compaction",
-              {
-                sessionID,
-                step,
-                estimatedItemCount,
-                threshold: WS_TRUNCATION_ITEMCOUNT_COMPACT_THRESHOLD,
-              },
-            )
+            log.warn("ws-truncation × bloated-input single-shot, triggering overflow compaction", {
+              sessionID,
+              step,
+              estimatedItemCount,
+              threshold: WS_TRUNCATION_ITEMCOUNT_COMPACT_THRESHOLD,
+            })
             try {
               await SessionCompaction.run({
                 sessionID,
@@ -1361,14 +1369,11 @@ export namespace SessionPrompt {
               })
               continue
             } catch (err) {
-              log.warn(
-                "ws-truncation × bloated-input: compaction failed, falling through",
-                {
-                  sessionID,
-                  step,
-                  error: err instanceof Error ? err.message : String(err),
-                },
-              )
+              log.warn("ws-truncation × bloated-input: compaction failed, falling through", {
+                sessionID,
+                step,
+                error: err instanceof Error ? err.message : String(err),
+              })
             }
           }
         }
@@ -1624,9 +1629,9 @@ export namespace SessionPrompt {
         // this fallback Detector B silently sees empty strings on codex
         // sessions and never fires.
         const leadingText = (m: MessageV2.WithParts): string => {
-          const textPart = m.parts.find(
-            (p) => p.type === "text" && !(p as { synthetic?: boolean }).synthetic,
-          ) as { text?: string } | undefined
+          const textPart = m.parts.find((p) => p.type === "text" && !(p as { synthetic?: boolean }).synthetic) as
+            | { text?: string }
+            | undefined
           let raw = textPart?.text ?? ""
           if (!raw) {
             const reasoningParts = m.parts.filter((p) => p.type === "reasoning") as Array<{ text?: string }>
@@ -1698,8 +1703,7 @@ export namespace SessionPrompt {
         // Phrase-match alone is not enough (false positives if user asks
         // about deduplication etc.); it must coincide with an actual
         // signature OR narrative repetition.
-        const STUCK_PHRASES =
-          /\b(duplicate(?:d)?|need stop|stop using|repeating|loop(?:ed|ing)?|stuck|no progress)\b/i
+        const STUCK_PHRASES = /\b(duplicate(?:d)?|need stop|stop using|repeating|loop(?:ed|ing)?|stuck|no progress)\b/i
         if (recentAssistants.length >= 2 && paralysisRecoveryCount === 0) {
           const stuck0 = STUCK_PHRASES.test(texts[0])
           const stuck1 = STUCK_PHRASES.test(texts[1])
@@ -1797,18 +1801,15 @@ export namespace SessionPrompt {
             })()
 
             if (estimatedItemCount > PARALYSIS_ITEMCOUNT_COMPACT_THRESHOLD && !session.parentID) {
-              log.warn(
-                "paralysis-recover: bloated input, triggering overflow compaction instead of nudge/halt",
-                {
-                  sessionID,
-                  step,
-                  detector,
-                  similarity,
-                  estimatedItemCount,
-                  threshold: PARALYSIS_ITEMCOUNT_COMPACT_THRESHOLD,
-                  priorRecoveryCount: paralysisRecoveryCount,
-                },
-              )
+              log.warn("paralysis-recover: bloated input, triggering overflow compaction instead of nudge/halt", {
+                sessionID,
+                step,
+                detector,
+                similarity,
+                estimatedItemCount,
+                threshold: PARALYSIS_ITEMCOUNT_COMPACT_THRESHOLD,
+                priorRecoveryCount: paralysisRecoveryCount,
+              })
               try {
                 await SessionCompaction.run({
                   sessionID,
@@ -1822,14 +1823,11 @@ export namespace SessionPrompt {
                 paralysisRecoveryCount = 0
                 continue
               } catch (err) {
-                log.warn(
-                  "paralysis-recover: compaction failed, falling through to nudge/halt",
-                  {
-                    sessionID,
-                    step,
-                    error: err instanceof Error ? err.message : String(err),
-                  },
-                )
+                log.warn("paralysis-recover: compaction failed, falling through to nudge/halt", {
+                  sessionID,
+                  step,
+                  error: err instanceof Error ? err.message : String(err),
+                })
                 // fall through to recoveryCount-based nudge/halt
               }
             }
@@ -2076,8 +2074,8 @@ export namespace SessionPrompt {
           }
           const lastFinishedTokens = lastFinished?.tokens?.total ?? 0
           const tokenLimit = lastUser.model
-            ? (await Provider.getModel(lastUser.model.providerId, lastUser.model.modelID).catch(() => undefined))?.limit
-                ?.context ?? 0
+            ? ((await Provider.getModel(lastUser.model.providerId, lastUser.model.modelID).catch(() => undefined))
+                ?.limit?.context ?? 0)
             : 0
           const tokenRatio = tokenLimit > 0 ? lastFinishedTokens / tokenLimit : 0
           const itemsHeavy = estimatedItemCount > REBIND_PREEMPT_ITEM_THRESHOLD
@@ -2601,8 +2599,7 @@ export namespace SessionPrompt {
       // `compaction_phase1_enabled = 1` for gradual rollout.
       const compactionTweakPhase1 = Tweaks.compactionSync()
       const dialogRedactionEnabled =
-        (compactionTweakPhase1 as { enableDialogRedactionAnchor?: boolean })
-          .enableDialogRedactionAnchor !== false
+        (compactionTweakPhase1 as { enableDialogRedactionAnchor?: boolean }).enableDialogRedactionAnchor !== false
       // dialog-replay-redaction (M3): v7 redacts tool outputs to recall_id
       // markers; runs by default for both main and subagent sessions
       // because the redact-only logic preserves all messages and is safe
@@ -2623,10 +2620,7 @@ export namespace SessionPrompt {
               got: transformed.messages.length,
               transformedTurnCount: transformed.transformedTurnCount,
             })
-          } else if (
-            transformed.transformedTurnCount > 0 ||
-            (transformed.redactedToolPartCount ?? 0) > 0
-          ) {
+          } else if (transformed.transformedTurnCount > 0 || (transformed.redactedToolPartCount ?? 0) > 0) {
             sessionMessages = transformed.messages
             const afterParts = sessionMessages.reduce((sum, m) => sum + m.parts.length, 0)
             log.info("post-anchor-transform: applied", {
@@ -2843,6 +2837,10 @@ export namespace SessionPrompt {
         lastFinished: contextBudgetSource,
         model: activeModel,
       })
+      const contextBudget = buildContextBudgetPolicyInput({
+        lastFinished: contextBudgetSource,
+        model: activeModel,
+      })
 
       // Phase B (specs/prompt-cache-and-compaction-hardening DD-1..DD-16):
       // dynamic content (preload, env date, AGENTS.md) is no longer pre-baked
@@ -2912,6 +2910,7 @@ export namespace SessionPrompt {
         tools: gatedTools,
         lazyTools: gatedLazyTools,
         model: activeModel,
+        contextBudget,
         toolChoice: gatedToolChoice,
       })
 

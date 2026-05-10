@@ -162,6 +162,16 @@ export namespace Tweaks {
     bashOverride: number
   }
 
+  export interface ToolCallBudgetConfig {
+    enabled: boolean
+    greenMax: number
+    yellowMax: number
+    orangeMax: number
+    redMax: number
+    unknownMax: number
+    absoluteMax: number
+  }
+
   /**
    * tool-output-chunking spec / context-management Layer 1 (DD-3, DD-5,
    * DD-6, DD-9). Knobs governing the hybrid-llm compaction path.
@@ -301,6 +311,7 @@ export namespace Tweaks {
     subagent: SubagentConfig
     autorun: AutorunConfig
     toolOutputBudget: ToolOutputBudgetConfig
+    toolCallBudget: ToolCallBudgetConfig
     compaction: CompactionConfig
     sessionStorage: SessionStorageConfig
     bigContentBoundary: BigContentBoundaryConfig
@@ -364,6 +375,16 @@ export namespace Tweaks {
     minimumFloor: 8_000,
     taskOverride: 60_000,
     bashOverride: 40_000,
+  }
+
+  const TOOL_CALL_BUDGET_DEFAULTS: ToolCallBudgetConfig = {
+    enabled: true,
+    greenMax: 3,
+    yellowMax: 2,
+    orangeMax: 1,
+    redMax: 1,
+    unknownMax: 1,
+    absoluteMax: 3,
   }
 
   const COMPACTION_DEFAULTS: CompactionConfig = {
@@ -543,6 +564,13 @@ export namespace Tweaks {
     "tool_output_budget_minimum_floor",
     "tool_output_budget_task_override",
     "tool_output_budget_bash_override",
+    "tool_call_budget_enabled",
+    "tool_call_budget_green_max",
+    "tool_call_budget_yellow_max",
+    "tool_call_budget_orange_max",
+    "tool_call_budget_red_max",
+    "tool_call_budget_unknown_max",
+    "tool_call_budget_absolute_max",
     "compaction_enable_hybrid_llm",
     "compaction_llm_timeout_ms",
     "compaction_fallback_provider",
@@ -640,6 +668,7 @@ export namespace Tweaks {
           subagent: SUBAGENT_DEFAULTS,
           autorun: AUTORUN_DEFAULTS,
           toolOutputBudget: TOOL_OUTPUT_BUDGET_DEFAULTS,
+          toolCallBudget: TOOL_CALL_BUDGET_DEFAULTS,
           compaction: COMPACTION_DEFAULTS,
           sessionStorage: SESSION_STORAGE_DEFAULTS,
           bigContentBoundary: BIG_CONTENT_BOUNDARY_DEFAULTS,
@@ -659,6 +688,7 @@ export namespace Tweaks {
           disarmPhrases: [...AUTORUN_DEFAULTS.disarmPhrases],
         },
         toolOutputBudget: { ...TOOL_OUTPUT_BUDGET_DEFAULTS },
+        toolCallBudget: { ...TOOL_CALL_BUDGET_DEFAULTS },
         compaction: { ...COMPACTION_DEFAULTS },
         sessionStorage: { ...SESSION_STORAGE_DEFAULTS },
         bigContentBoundary: { ...BIG_CONTENT_BOUNDARY_DEFAULTS },
@@ -924,6 +954,43 @@ export namespace Tweaks {
       if (v !== undefined) toolOutputBudget.bashOverride = v
     }
 
+    const toolCallBudget: ToolCallBudgetConfig = { ...TOOL_CALL_BUDGET_DEFAULTS }
+    const tcbEnabledRaw = parsed.get("tool_call_budget_enabled")
+    if (tcbEnabledRaw !== undefined) {
+      const v = parseBool(tcbEnabledRaw, "tool_call_budget_enabled")
+      if (v !== undefined) toolCallBudget.enabled = v
+    }
+    const tcbGreenRaw = parsed.get("tool_call_budget_green_max")
+    if (tcbGreenRaw !== undefined) {
+      const v = parseIntRange(tcbGreenRaw, "tool_call_budget_green_max", 1, 64)
+      if (v !== undefined) toolCallBudget.greenMax = v
+    }
+    const tcbYellowRaw = parsed.get("tool_call_budget_yellow_max")
+    if (tcbYellowRaw !== undefined) {
+      const v = parseIntRange(tcbYellowRaw, "tool_call_budget_yellow_max", 1, 64)
+      if (v !== undefined) toolCallBudget.yellowMax = v
+    }
+    const tcbOrangeRaw = parsed.get("tool_call_budget_orange_max")
+    if (tcbOrangeRaw !== undefined) {
+      const v = parseIntRange(tcbOrangeRaw, "tool_call_budget_orange_max", 1, 64)
+      if (v !== undefined) toolCallBudget.orangeMax = v
+    }
+    const tcbRedRaw = parsed.get("tool_call_budget_red_max")
+    if (tcbRedRaw !== undefined) {
+      const v = parseIntRange(tcbRedRaw, "tool_call_budget_red_max", 1, 64)
+      if (v !== undefined) toolCallBudget.redMax = v
+    }
+    const tcbUnknownRaw = parsed.get("tool_call_budget_unknown_max")
+    if (tcbUnknownRaw !== undefined) {
+      const v = parseIntRange(tcbUnknownRaw, "tool_call_budget_unknown_max", 1, 64)
+      if (v !== undefined) toolCallBudget.unknownMax = v
+    }
+    const tcbAbsoluteRaw = parsed.get("tool_call_budget_absolute_max")
+    if (tcbAbsoluteRaw !== undefined) {
+      const v = parseIntRange(tcbAbsoluteRaw, "tool_call_budget_absolute_max", 1, 64)
+      if (v !== undefined) toolCallBudget.absoluteMax = v
+    }
+
     const compaction: CompactionConfig = { ...COMPACTION_DEFAULTS }
     const cmpEnableRaw = parsed.get("compaction_enable_hybrid_llm")
     if (cmpEnableRaw !== undefined) {
@@ -1088,6 +1155,7 @@ export namespace Tweaks {
         subagent,
         autorun,
         toolOutputBudget,
+        toolCallBudget,
         compaction,
         sessionStorage,
         bigContentBoundary,
@@ -1104,6 +1172,7 @@ export namespace Tweaks {
       subagent,
       autorun,
       toolOutputBudget,
+      toolCallBudget,
       compaction,
       sessionStorage,
       bigContentBoundary,
@@ -1154,6 +1223,10 @@ export namespace Tweaks {
     return (await effective()).toolOutputBudget
   }
 
+  export async function toolCallBudget(): Promise<ToolCallBudgetConfig> {
+    return (await effective()).toolCallBudget
+  }
+
   export async function compaction(): Promise<CompactionConfig> {
     return (await effective()).compaction
   }
@@ -1193,6 +1266,10 @@ export namespace Tweaks {
    */
   export function toolOutputBudgetSync(): ToolOutputBudgetConfig {
     return _effective?.toolOutputBudget ?? TOOL_OUTPUT_BUDGET_DEFAULTS
+  }
+
+  export function toolCallBudgetSync(): ToolCallBudgetConfig {
+    return _effective?.toolCallBudget ?? TOOL_CALL_BUDGET_DEFAULTS
   }
 
   /**

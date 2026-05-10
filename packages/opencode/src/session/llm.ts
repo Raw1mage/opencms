@@ -243,6 +243,13 @@ export namespace LLM {
     tools: Record<string, Tool>
     lazyTools?: Map<string, Tool>
     toolChoice?: "auto" | "required" | "none"
+    contextBudget?: {
+      status: "green" | "yellow" | "orange" | "red" | "unknown"
+      ratio?: number
+      used?: number
+      window?: number
+      source: "last-finished" | "unavailable"
+    }
     retries?: number
   }
 
@@ -336,6 +343,49 @@ export namespace LLM {
       collectCacheKeywords(child, hits, currentPath)
     }
     return hits
+  }
+
+  function applyToolCallBudget(input: StreamInput, options: Record<string, any>) {
+    const cfg = Tweaks.toolCallBudgetSync()
+    if (!cfg.enabled) return
+    const status = input.contextBudget?.status ?? "unknown"
+    const statusMax =
+      status === "green"
+        ? cfg.greenMax
+        : status === "yellow"
+          ? cfg.yellowMax
+          : status === "orange"
+            ? cfg.orangeMax
+            : status === "red"
+              ? cfg.redMax
+              : cfg.unknownMax
+    const policyMax = Math.min(statusMax, cfg.absoluteMax)
+    const originalMaxToolCalls = options.maxToolCalls
+    const originalParallelToolCalls = options.parallelToolCalls
+    const existingMax =
+      typeof originalMaxToolCalls === "number" && Number.isFinite(originalMaxToolCalls)
+        ? originalMaxToolCalls
+        : undefined
+    const effectiveMaxToolCalls = existingMax === undefined ? policyMax : Math.min(existingMax, policyMax)
+    options.maxToolCalls = effectiveMaxToolCalls
+    options.parallelToolCalls = originalParallelToolCalls === false ? false : effectiveMaxToolCalls > 1
+    debugCheckpoint("llm.tool_call_budget", "Tool-call budget applied", {
+      sessionID: input.sessionID,
+      providerId: input.model.providerId,
+      modelID: input.model.id,
+      status,
+      ratio: input.contextBudget?.ratio,
+      used: input.contextBudget?.used,
+      window: input.contextBudget?.window,
+      source: input.contextBudget?.source ?? "unavailable",
+      policyMax,
+      originalMaxToolCalls,
+      effectiveMaxToolCalls,
+      originalParallelToolCalls,
+      effectiveParallelToolCalls: options.parallelToolCalls,
+      reason: existingMax === undefined ? "defined-by-tweaks-policy" : "clamped-by-tweaks-policy",
+      trace: input.sessionID,
+    })
   }
 
   function buildEnablementSnapshot(messages: ModelMessage[]): string {
@@ -549,7 +599,7 @@ export namespace LLM {
       // Subagents skip AGENTS.md (matches pre-Phase-B prompt.ts L2151
       // `session.parentID ? [] : instructionPrompts`). Caller threads the
       // agentsMd field; we just gate it here on subagent-ness.
-      const agentsMdText = subagentSession ? "" : input.agentsMd ?? ""
+      const agentsMdText = subagentSession ? "" : (input.agentsMd ?? "")
       const userSystemText = input.user.system ?? ""
       const systemMdText = (await SystemPrompt.system(subagentSession)).join("\n")
       const identityText =
@@ -868,11 +918,7 @@ export namespace LLM {
       })
       const prefaceMessage: ModelMessage = { role: "user", content: prefaceContent }
       const insertAt = lastUserIdx >= 0 ? lastUserIdx : input.messages.length
-      input.messages = [
-        ...input.messages.slice(0, insertAt),
-        prefaceMessage,
-        ...input.messages.slice(insertAt),
-      ]
+      input.messages = [...input.messages.slice(0, insertAt), prefaceMessage, ...input.messages.slice(insertAt)]
     }
     // unused locals for backwards-compat (build/lint cleanliness — remove
     // when buildSkillLayerRegistrySystemPart and injectEnablementSnapshot
@@ -914,6 +960,7 @@ export namespace LLM {
         options,
       },
     )
+    applyToolCallBudget(input, params.options)
 
     const { headers } = await Plugin.trigger(
       "chat.headers",
@@ -978,7 +1025,14 @@ export namespace LLM {
     //   動態內文 · 低頻 — session_stable: README, cwd, pinned skills, date
     //   動態內文 · 中頻 — decay: active / summarized skills (T2)
     //   動態內文 · 高頻 — dynamic: trailing extras + per-turn images
-    const promptTelemetryBlocks: Array<{ key: string; name: string; chars: number; tokens: number; injected: boolean; policy: string }> = [
+    const promptTelemetryBlocks: Array<{
+      key: string
+      name: string
+      chars: number
+      tokens: number
+      injected: boolean
+      policy: string
+    }> = [
       ...system.map((text, idx) => ({
         key: `system_block_${idx}`,
         name: idx === 0 ? "靜態系統層" : `靜態系統層補充 ${idx}`,
@@ -999,8 +1053,7 @@ export namespace LLM {
                 policy: "dynamic",
               }
             }
-            const tierLabel =
-              b.tier === "trailing" ? "高頻" : b.tier === "t2" ? "中頻" : "低頻"
+            const tierLabel = b.tier === "trailing" ? "高頻" : b.tier === "t2" ? "中頻" : "低頻"
             return {
               key: `preface_${b.tier}`,
               name: `動態內文 · ${tierLabel}`,
@@ -1046,9 +1099,9 @@ export namespace LLM {
     // and per-variant `systemDirective` (used when that variant is active).
     // This allows models like Qwen3 to use prompt-level /think or /no_think directives.
     if (filteredSystem.length > 0) {
-      const providerModels = (cfg.provider as Record<string, { models?: Record<string, { defaultSystemDirective?: string }> }> | undefined)?.[
-        executionModel.providerId
-      ]?.models
+      const providerModels = (
+        cfg.provider as Record<string, { models?: Record<string, { defaultSystemDirective?: string }> }> | undefined
+      )?.[executionModel.providerId]?.models
       const modelConfig = providerModels?.[executionModel.id]
       const variantDirective = (variant as { systemDirective?: string })?.systemDirective
       const directive = variantDirective ?? modelConfig?.defaultSystemDirective
@@ -1623,272 +1676,272 @@ export namespace LLM {
       eligibleForCoalesce,
       shouldCache: (r) => r !== null,
       work: async () => {
-    // Build current vector key and add to tried set
-    const currentVectorKey = `${currentModel.providerId}:${currentAccountId}:${currentModel.id}`
-    triedVectors.add(currentVectorKey)
+        // Build current vector key and add to tried set
+        const currentVectorKey = `${currentModel.providerId}:${currentAccountId}:${currentModel.id}`
+        triedVectors.add(currentVectorKey)
 
-    // @event_20260216_rate_limit_judge: Delegate marking to RateLimitJudge
-    // This replaces ~160 lines of inline cockpit queries, RPD inference, and tracker updates
-    await RateLimitJudge.markRateLimited(currentModel.providerId, currentAccountId, currentModel.id, error)
+        // @event_20260216_rate_limit_judge: Delegate marking to RateLimitJudge
+        // This replaces ~160 lines of inline cockpit queries, RPD inference, and tracker updates
+        await RateLimitJudge.markRateLimited(currentModel.providerId, currentAccountId, currentModel.id, error)
 
-    // Build current vector
-    const currentVector: ModelVector = {
-      providerId: currentModel.providerId,
-      accountId: currentAccountId,
-      modelID: currentModel.id,
-    }
-
-    // Use 3D rotation to find best fallback
-    // Same-provider account rotation is guarded by SameProviderRotationGuard
-    // (max once per cooldown). Cross-provider rotation is unrestricted.
-    let fallback = await findFallback(currentVector, { strategy, allowSameProviderFallback: true }, triedVectors)
-
-    // SYSLOG: Log findFallback result
-    debugCheckpoint("syslog.rotation", "handleRateLimitFallback: findFallback returned", {
-      currentVector: `${currentModel.providerId}:${currentAccountId}:${currentModel.id}`,
-      fallbackResult: fallback
-        ? `${fallback.providerId}:${fallback.accountId}:${fallback.modelID} (reason=${fallback.reason})`
-        : "null",
-      strategy,
-      triedVectorCount: triedVectors.size,
-      triedVectors: Array.from(triedVectors),
-    })
-
-    if (!fallback) {
-      // Hotfix 2026-05-02: resolve via family so this also fires for per-account
-      // providerIds (codex-subscription-<slug>), not only the literal "codex".
-      const currentFamily = (await resolveProviderKey(currentModel.providerId)) ?? currentModel.providerId
-      debugCheckpoint("syslog.rotation", "handleRateLimitFallback: no fallback candidate found", {
-        currentVector: `${currentModel.providerId}:${currentAccountId}:${currentModel.id}`,
-        currentFamily,
-        strategy,
-        triedVectorCount: triedVectors.size,
-        triedVectors: Array.from(triedVectors),
-        willThrowCodexFamilyExhausted: currentFamily === "codex",
-        note: "all candidates exhausted or rate-limited",
-      })
-      // @plans/codex-rotation-hotfix Phase 3 — codex family is same-provider-only
-      // by design. When the pool is empty AND we came in on codex, it means every
-      // codex subscription account is out of 5H / weekly quota. Surface this as a
-      // codex-specific error so the operator gets an actionable message instead
-      // of the generic "all accounts rate-limited" fallback downstream.
-      if (currentFamily === "codex") {
-        throw new CodexFamilyExhausted({
+        // Build current vector
+        const currentVector: ModelVector = {
           providerId: currentModel.providerId,
           accountId: currentAccountId,
-          modelId: currentModel.id,
-          triedCount: triedVectors.size,
-          message:
-            "All codex subscription accounts have exhausted their 5H/weekly quota. " +
-            "Wait for the next 5H reset or switch provider manually.",
+          modelID: currentModel.id,
+        }
+
+        // Use 3D rotation to find best fallback
+        // Same-provider account rotation is guarded by SameProviderRotationGuard
+        // (max once per cooldown). Cross-provider rotation is unrestricted.
+        let fallback = await findFallback(currentVector, { strategy, allowSameProviderFallback: true }, triedVectors)
+
+        // SYSLOG: Log findFallback result
+        debugCheckpoint("syslog.rotation", "handleRateLimitFallback: findFallback returned", {
+          currentVector: `${currentModel.providerId}:${currentAccountId}:${currentModel.id}`,
+          fallbackResult: fallback
+            ? `${fallback.providerId}:${fallback.accountId}:${fallback.modelID} (reason=${fallback.reason})`
+            : "null",
+          strategy,
+          triedVectorCount: triedVectors.size,
+          triedVectors: Array.from(triedVectors),
         })
-      }
-      return null
-    }
 
-    // FIX: Enforce session identity constraint — when a session has pinned
-    // provider/account, rotation must NOT escape to a different provider or
-    // account. This prevents subagent account drift during rate-limit rotation.
-    //
-    // Allow cross-provider and cross-account fallback.
-    // rotation3d.ts already filters candidates to only include enabled providers
-    // with active accounts. The previous identity filter blocked these valid
-    // candidates, causing stuck sessions when all same-provider accounts
-    // were rate-limited.
-    if (fallback.providerId !== currentModel.providerId || fallback.accountId !== currentAccountId) {
-      debugCheckpoint("syslog.rotation", "Cross-provider/account fallback selected", {
-        fromProviderId: currentModel.providerId,
-        fromAccountId: currentAccountId,
-        fromModelID: currentModel.id,
-        toProviderId: fallback.providerId,
-        toAccountId: fallback.accountId,
-        toModelID: fallback.modelID,
-      })
-    }
+        if (!fallback) {
+          // Hotfix 2026-05-02: resolve via family so this also fires for per-account
+          // providerIds (codex-subscription-<slug>), not only the literal "codex".
+          const currentFamily = (await resolveProviderKey(currentModel.providerId)) ?? currentModel.providerId
+          debugCheckpoint("syslog.rotation", "handleRateLimitFallback: no fallback candidate found", {
+            currentVector: `${currentModel.providerId}:${currentAccountId}:${currentModel.id}`,
+            currentFamily,
+            strategy,
+            triedVectorCount: triedVectors.size,
+            triedVectors: Array.from(triedVectors),
+            willThrowCodexFamilyExhausted: currentFamily === "codex",
+            note: "all candidates exhausted or rate-limited",
+          })
+          // @plans/codex-rotation-hotfix Phase 3 — codex family is same-provider-only
+          // by design. When the pool is empty AND we came in on codex, it means every
+          // codex subscription account is out of 5H / weekly quota. Surface this as a
+          // codex-specific error so the operator gets an actionable message instead
+          // of the generic "all accounts rate-limited" fallback downstream.
+          if (currentFamily === "codex") {
+            throw new CodexFamilyExhausted({
+              providerId: currentModel.providerId,
+              accountId: currentAccountId,
+              modelId: currentModel.id,
+              triedCount: triedVectors.size,
+              message:
+                "All codex subscription accounts have exhausted their 5H/weekly quota. " +
+                "Wait for the next 5H reset or switch provider manually.",
+            })
+          }
+          return null
+        }
 
-    // Add the selected fallback to tried vectors to avoid immediate retry in subsequent attempts
-    const fallbackKey = `${fallback.providerId}:${fallback.accountId}:${fallback.modelID}`
-
-    // Check if this fallback has already been tried (should be caught by findFallback, but as a safeguard)
-    if (triedVectors.has(fallbackKey)) {
-      log.warn("Fallback already tried after selection", {
-        fallback: fallbackKey,
-        triedCount: triedVectors.size,
-      })
-      return null
-    }
-
-    // Mark as tried
-    triedVectors.add(fallbackKey)
-
-    // Log the dimension change
-    const isSameProvider = fallback.providerId === currentModel.providerId
-    const isSameAccount = fallback.accountId === currentAccountId
-    const isSameModel = fallback.modelID === currentModel.id
-
-    const fallbackReason = isVectorRateLimited(currentVector) ? "rate-limit" : "unknown"
-    const purposeValue = (fallback as unknown as Record<string, unknown>).purpose
-    const purpose = typeof purposeValue === "string" ? purposeValue : fallbackReason
-    const reasonLabel = PURPOSE_LABELS[purpose] || fallback.reason
-
-    // Extract error label from error object or fallback to reason label
-    let errorLabel = `(${reasonLabel})`
-    if (error) {
-      const errorObject = error && typeof error === "object" ? (error as Record<string, any>) : undefined
-      const data =
-        errorObject?.data && typeof errorObject.data === "object"
-          ? (errorObject.data as Record<string, any>)
-          : undefined
-      const status = errorObject?.status ?? errorObject?.statusCode ?? data?.status
-      const message = errorObject?.message ?? data?.message ?? String(error)
-      errorLabel = `(${status ?? "Error"})${message}`
-    }
-
-    const sanitizedErrorLabel = errorLabel.replace(/\s*Retry later or choose another model\.?/gi, "").trim()
-
-    const fromAcc = Account.getShortId(currentAccountId, currentModel.providerId)
-    const toAcc = Account.getShortId(fallback.accountId, fallback.providerId)
-
-    const fromStr = `${currentModel.providerId},${currentModel.id},${fromAcc}`
-    const toStr = `${fallback.providerId},${fallback.modelID},${toAcc}`
-    const toastMsg = `${sanitizedErrorLabel}\n${fromStr}->\n${toStr}`
-
-    log.info("3D fallback selected", {
-      reason: fallback.reason,
-      trigger: fallbackReason,
-      changes: {
-        provider: !isSameProvider,
-        account: !isSameAccount,
-        model: !isSameModel,
-      },
-      from: fromStr,
-      to: toStr,
-    })
-
-    debugCheckpoint("rotation3d", "Executing fallback switch", {
-      trigger: fallbackReason,
-      strategy: fallback.reason,
-      from: fromStr,
-      to: toStr,
-      changes: {
-        provider: !isSameProvider,
-        account: !isSameAccount,
-        model: !isSameModel,
-      },
-    })
-
-    // Publish rotation event for LLM status card history chain
-    Bus.publish(RotationExecutedEvent, {
-      fromProviderId: currentModel.providerId,
-      fromModelId: currentModel.id,
-      fromAccountId: currentAccountId,
-      toProviderId: fallback.providerId,
-      toModelId: fallback.modelID,
-      toAccountId: fallback.accountId,
-      reason: fallbackReason === "rate-limit" ? "RATE_LIMIT_EXCEEDED" : "UNKNOWN",
-      timestamp: Date.now(),
-    }).catch(() => {})
-
-    // Append to the per-session recentEvents ring buffer so the Q card
-    // surfaces recent rotations without the operator grepping bus events.
-    // Dynamic import — same pattern as setActiveImageRefs caller above
-    // (avoids static circular dep between llm.ts and session/index.ts).
-    if (sessionID) {
-      void (async () => {
-        const { Session: SessionMod } = await import("@/session")
-        await SessionMod.appendRecentEvent(sessionID, {
-          ts: Date.now(),
-          kind: "rotation",
-          rotation: {
+        // FIX: Enforce session identity constraint — when a session has pinned
+        // provider/account, rotation must NOT escape to a different provider or
+        // account. This prevents subagent account drift during rate-limit rotation.
+        //
+        // Allow cross-provider and cross-account fallback.
+        // rotation3d.ts already filters candidates to only include enabled providers
+        // with active accounts. The previous identity filter blocked these valid
+        // candidates, causing stuck sessions when all same-provider accounts
+        // were rate-limited.
+        if (fallback.providerId !== currentModel.providerId || fallback.accountId !== currentAccountId) {
+          debugCheckpoint("syslog.rotation", "Cross-provider/account fallback selected", {
             fromProviderId: currentModel.providerId,
             fromAccountId: currentAccountId,
+            fromModelID: currentModel.id,
             toProviderId: fallback.providerId,
             toAccountId: fallback.accountId,
-            reason: fallbackReason === "rate-limit" ? "RATE_LIMIT_EXCEEDED" : "UNKNOWN",
+            toModelID: fallback.modelID,
+          })
+        }
+
+        // Add the selected fallback to tried vectors to avoid immediate retry in subsequent attempts
+        const fallbackKey = `${fallback.providerId}:${fallback.accountId}:${fallback.modelID}`
+
+        // Check if this fallback has already been tried (should be caught by findFallback, but as a safeguard)
+        if (triedVectors.has(fallbackKey)) {
+          log.warn("Fallback already tried after selection", {
+            fallback: fallbackKey,
+            triedCount: triedVectors.size,
+          })
+          return null
+        }
+
+        // Mark as tried
+        triedVectors.add(fallbackKey)
+
+        // Log the dimension change
+        const isSameProvider = fallback.providerId === currentModel.providerId
+        const isSameAccount = fallback.accountId === currentAccountId
+        const isSameModel = fallback.modelID === currentModel.id
+
+        const fallbackReason = isVectorRateLimited(currentVector) ? "rate-limit" : "unknown"
+        const purposeValue = (fallback as unknown as Record<string, unknown>).purpose
+        const purpose = typeof purposeValue === "string" ? purposeValue : fallbackReason
+        const reasonLabel = PURPOSE_LABELS[purpose] || fallback.reason
+
+        // Extract error label from error object or fallback to reason label
+        let errorLabel = `(${reasonLabel})`
+        if (error) {
+          const errorObject = error && typeof error === "object" ? (error as Record<string, any>) : undefined
+          const data =
+            errorObject?.data && typeof errorObject.data === "object"
+              ? (errorObject.data as Record<string, any>)
+              : undefined
+          const status = errorObject?.status ?? errorObject?.statusCode ?? data?.status
+          const message = errorObject?.message ?? data?.message ?? String(error)
+          errorLabel = `(${status ?? "Error"})${message}`
+        }
+
+        const sanitizedErrorLabel = errorLabel.replace(/\s*Retry later or choose another model\.?/gi, "").trim()
+
+        const fromAcc = Account.getShortId(currentAccountId, currentModel.providerId)
+        const toAcc = Account.getShortId(fallback.accountId, fallback.providerId)
+
+        const fromStr = `${currentModel.providerId},${currentModel.id},${fromAcc}`
+        const toStr = `${fallback.providerId},${fallback.modelID},${toAcc}`
+        const toastMsg = `${sanitizedErrorLabel}\n${fromStr}->\n${toStr}`
+
+        log.info("3D fallback selected", {
+          reason: fallback.reason,
+          trigger: fallbackReason,
+          changes: {
+            provider: !isSameProvider,
+            account: !isSameAccount,
+            model: !isSameModel,
+          },
+          from: fromStr,
+          to: toStr,
+        })
+
+        debugCheckpoint("rotation3d", "Executing fallback switch", {
+          trigger: fallbackReason,
+          strategy: fallback.reason,
+          from: fromStr,
+          to: toStr,
+          changes: {
+            provider: !isSameProvider,
+            account: !isSameAccount,
+            model: !isSameModel,
           },
         })
-      })().catch(() => {})
-    }
 
-    if (isSameProvider && (!isSameAccount || !isSameModel)) {
-      const { getSameProviderRotationGuard, SAME_PROVIDER_ROTATE_COOLDOWN_MS } = await import("@/account/rotation")
-      getSameProviderRotationGuard().mark(
-        currentModel.providerId,
-        currentAccountId,
-        fallback.accountId,
-        fallback.modelID,
-        SAME_PROVIDER_ROTATE_COOLDOWN_MS,
-      )
-      debugCheckpoint("rotation3d", "Same-provider rotate guard armed", {
-        providerId: currentModel.providerId,
-        fromAccountId: currentAccountId,
-        toAccountId: fallback.accountId,
-        modelID: fallback.modelID,
-        waitMs: SAME_PROVIDER_ROTATE_COOLDOWN_MS,
-      })
-    }
+        // Publish rotation event for LLM status card history chain
+        Bus.publish(RotationExecutedEvent, {
+          fromProviderId: currentModel.providerId,
+          fromModelId: currentModel.id,
+          fromAccountId: currentAccountId,
+          toProviderId: fallback.providerId,
+          toModelId: fallback.modelID,
+          toAccountId: fallback.accountId,
+          reason: fallbackReason === "rate-limit" ? "RATE_LIMIT_EXCEEDED" : "UNKNOWN",
+          timestamp: Date.now(),
+        }).catch(() => {})
 
-    // If same model but different account, keep the model object and return a
-    // session-local account override instead of mutating global active account.
-    if (isSameModel && !isSameAccount && isSameProvider) {
-      // Notify user of account rotation (debounced; suppressed for background sessions)
-      if (!options?.silent) {
-        const now1 = Date.now()
-        if (now1 - lastRotationToastAt >= TOAST_DEBOUNCE_MS) {
-          lastRotationToastAt = now1
-          publishToastTraced(
-            {
-              message: toastMsg,
-              variant: "info",
-              duration: 8000,
-            },
-            { source: "llm.rotation.sameProvider" },
-          ).catch(() => {})
+        // Append to the per-session recentEvents ring buffer so the Q card
+        // surfaces recent rotations without the operator grepping bus events.
+        // Dynamic import — same pattern as setActiveImageRefs caller above
+        // (avoids static circular dep between llm.ts and session/index.ts).
+        if (sessionID) {
+          void (async () => {
+            const { Session: SessionMod } = await import("@/session")
+            await SessionMod.appendRecentEvent(sessionID, {
+              ts: Date.now(),
+              kind: "rotation",
+              rotation: {
+                fromProviderId: currentModel.providerId,
+                fromAccountId: currentAccountId,
+                toProviderId: fallback.providerId,
+                toAccountId: fallback.accountId,
+                reason: fallbackReason === "rate-limit" ? "RATE_LIMIT_EXCEEDED" : "UNKNOWN",
+              },
+            })
+          })().catch(() => {})
         }
-      }
 
-      // Return currentModel here, as the rotation only changed the account.
-      return { model: currentModel, accountId: fallback.accountId }
-    }
+        if (isSameProvider && (!isSameAccount || !isSameModel)) {
+          const { getSameProviderRotationGuard, SAME_PROVIDER_ROTATE_COOLDOWN_MS } = await import("@/account/rotation")
+          getSameProviderRotationGuard().mark(
+            currentModel.providerId,
+            currentAccountId,
+            fallback.accountId,
+            fallback.modelID,
+            SAME_PROVIDER_ROTATE_COOLDOWN_MS,
+          )
+          debugCheckpoint("rotation3d", "Same-provider rotate guard armed", {
+            providerId: currentModel.providerId,
+            fromAccountId: currentAccountId,
+            toAccountId: fallback.accountId,
+            modelID: fallback.modelID,
+            waitMs: SAME_PROVIDER_ROTATE_COOLDOWN_MS,
+          })
+        }
 
-    // If different model or provider, get the full model info
-    const fallbackModel = await Provider.getModel(fallback.providerId, fallback.modelID)
-    if (!fallbackModel) {
-      log.warn("Fallback model not found", {
-        providerId: fallback.providerId,
-        modelID: fallback.modelID,
-      })
-      // If fallback model info can't be found, add it to tried and search again
-      triedVectors.add(fallbackKey)
-      return handleRateLimitFallback(
-        currentModel,
-        strategy,
-        triedVectors,
-        error,
-        currentAccountId,
-        sessionIdentity,
-        options,
-        sessionID,
-      )
-    }
+        // If same model but different account, keep the model object and return a
+        // session-local account override instead of mutating global active account.
+        if (isSameModel && !isSameAccount && isSameProvider) {
+          // Notify user of account rotation (debounced; suppressed for background sessions)
+          if (!options?.silent) {
+            const now1 = Date.now()
+            if (now1 - lastRotationToastAt >= TOAST_DEBOUNCE_MS) {
+              lastRotationToastAt = now1
+              publishToastTraced(
+                {
+                  message: toastMsg,
+                  variant: "info",
+                  duration: 8000,
+                },
+                { source: "llm.rotation.sameProvider" },
+              ).catch(() => {})
+            }
+          }
 
-    // Notify user of model/provider rotation (debounced; suppressed for background sessions)
-    if (!options?.silent) {
-      const now2 = Date.now()
-      if (now2 - lastRotationToastAt >= TOAST_DEBOUNCE_MS) {
-        lastRotationToastAt = now2
-        publishToastTraced(
-          {
-            message: toastMsg,
-            variant: "info",
-            duration: 8000,
-          },
-          { source: "llm.rotation.crossProvider" },
-        ).catch(() => {})
-      }
-    }
+          // Return currentModel here, as the rotation only changed the account.
+          return { model: currentModel, accountId: fallback.accountId }
+        }
 
-    return { model: fallbackModel, accountId: fallback.accountId }
+        // If different model or provider, get the full model info
+        const fallbackModel = await Provider.getModel(fallback.providerId, fallback.modelID)
+        if (!fallbackModel) {
+          log.warn("Fallback model not found", {
+            providerId: fallback.providerId,
+            modelID: fallback.modelID,
+          })
+          // If fallback model info can't be found, add it to tried and search again
+          triedVectors.add(fallbackKey)
+          return handleRateLimitFallback(
+            currentModel,
+            strategy,
+            triedVectors,
+            error,
+            currentAccountId,
+            sessionIdentity,
+            options,
+            sessionID,
+          )
+        }
+
+        // Notify user of model/provider rotation (debounced; suppressed for background sessions)
+        if (!options?.silent) {
+          const now2 = Date.now()
+          if (now2 - lastRotationToastAt >= TOAST_DEBOUNCE_MS) {
+            lastRotationToastAt = now2
+            publishToastTraced(
+              {
+                message: toastMsg,
+                variant: "info",
+                duration: 8000,
+              },
+              { source: "llm.rotation.crossProvider" },
+            ).catch(() => {})
+          }
+        }
+
+        return { model: fallbackModel, accountId: fallback.accountId }
       },
     })
   }

@@ -109,10 +109,38 @@ describe("Tweaks.loadEffective", () => {
     expect(rl.burst).toBe(11)
   })
 
-
+  test("tool call budget parses status caps", async () => {
+    pointToFile(
+      [
+        "tool_call_budget_enabled=true",
+        "tool_call_budget_green_max=4",
+        "tool_call_budget_yellow_max=3",
+        "tool_call_budget_orange_max=2",
+        "tool_call_budget_red_max=1",
+        "tool_call_budget_unknown_max=1",
+        "tool_call_budget_absolute_max=3",
+      ].join("\n"),
+    )
+    const budget = await Tweaks.toolCallBudget()
+    expect(budget).toEqual({
+      enabled: true,
+      greenMax: 4,
+      yellowMax: 3,
+      orangeMax: 2,
+      redMax: 1,
+      unknownMax: 1,
+      absoluteMax: 3,
+    })
+  })
 
   test("big content boundary parses user attachment thresholds", async () => {
-    pointToFile(["boundary_user_attachment_max_bytes=4096", "boundary_attachment_preview_bytes=128", "boundary_subagent_result_max_bytes=8192"].join("\n"))
+    pointToFile(
+      [
+        "boundary_user_attachment_max_bytes=4096",
+        "boundary_attachment_preview_bytes=128",
+        "boundary_subagent_result_max_bytes=8192",
+      ].join("\n"),
+    )
     const boundary = await Tweaks.bigContentBoundary()
     expect(boundary.userAttachmentMaxBytes).toBe(4096)
     expect(boundary.attachmentPreviewBytes).toBe(128)
