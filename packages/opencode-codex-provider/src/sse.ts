@@ -243,16 +243,41 @@ export function mapResponseStream(
         }
         state.toolArgBuffer.clear()
 
-        // Determine finish reason: function_call present → "tool-calls" (§4.6)
-        // No terminal event (response.completed/incomplete/failed/error) ever
-        // arrived → state.finishReason is null. Use "unknown" not "other" so
-        // the runloop's empty-response guard (prompt.ts §empty-round) engages
-        // instead of silently exiting. See also: hotfix in prompt.ts that
-        // treats "other" identically as a defense-in-depth.
-        let finishReason: LanguageModelV2FinishReason =
-          state.finishReason === "stop" && state.hasFunctionCall
-            ? "tool-calls"
-            : (state.finishReason ?? "unknown")
+        // Determine finish reason. Three layers, highest priority first:
+        //
+        //   1. Terminal event arrived (state.finishReason set) — server told
+        //      us. Use it directly; promote "stop" to "tool-calls" when a
+        //      function_call rode the same turn (§4.6).
+        //   2. No terminal event but visible content emitted (text or tool
+        //      call). The model DID produce output; the missing terminal
+        //      event is a transport / parsing edge case (e.g. WS close
+        //      between content frame and `response.completed`, or upstream
+        //      added a new event type we haven't mapped). Default to "stop"
+        //      / "tool-calls" so prompt.ts's `isEmptyRound` guard does NOT
+        //      misfire and reset the codex response chain — that reset
+        //      kills prefix cache for the next turn, observable as
+        //      cached_tokens stuck at the tools-only floor (~4608) with
+        //      occasional one-turn jumps right after each accidental reset.
+        //   3. No terminal event AND no content emitted. Honestly empty —
+        //      surface "unknown" so the runloop's empty-round guard
+        //      engages and chain-reset is justified.
+        //
+        // Pre-fix (provider/codex-prompt-realign hotfix 2026-05-11) the
+        // fallback was `"unknown"` regardless of content; that's what
+        // produced the cache thrash documented in plans/provider_codex-
+        // prompt-realign event log.
+        let finishReason: LanguageModelV2FinishReason
+        if (state.finishReason === "stop" && state.hasFunctionCall) {
+          finishReason = "tool-calls"
+        } else if (state.finishReason) {
+          finishReason = state.finishReason
+        } else if (state.hasFunctionCall || state.emittedToolCalls.size > 0) {
+          finishReason = "tool-calls"
+        } else if (state.emittedTextDeltas > 0) {
+          finishReason = "stop"
+        } else {
+          finishReason = "unknown"
+        }
 
         // Empty-turn classifier hook (spec codex-empty-turn-recovery, DD-4).
         // INV-10: only classify when zero text emitted AND zero tool calls.
