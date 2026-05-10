@@ -1,0 +1,119 @@
+{
+  "diagram_title": "Codex Provider Prompt Assembly (post-realign)",
+  "level": "component",
+  "scope": "codex provider request build pipeline",
+  "systems": [
+    {
+      "id": "S1",
+      "name": "OpenCode Codex Provider Request Pipeline",
+      "description": "Per-turn pipeline that turns OpenCode session state into a Responses API request body aligned with upstream codex-cli wire layout."
+    }
+  ],
+  "containers": [
+    {
+      "id": "K1",
+      "systemId": "S1",
+      "name": "packages/opencode session module",
+      "technology": "Bun + TypeScript",
+      "description": "Hosts PromptAssembler, FragmentRegistry, BundleAssembler, PersonaRouter (llm.ts, system.ts, context-fragments/)."
+    },
+    {
+      "id": "K2",
+      "systemId": "S1",
+      "name": "packages/opencode-codex-provider",
+      "technology": "Bun + TypeScript (LMv2 adapter)",
+      "description": "Hosts convertPrompt, buildResponsesApiRequest, WS Transport (convert.ts, provider.ts, transport-ws.ts)."
+    },
+    {
+      "id": "K3",
+      "systemId": "S1",
+      "name": "OpenAI Responses API (external)",
+      "technology": "External HTTPS / WebSocket service",
+      "description": "Receives outbound request; applies prefix cache scoped by prompt_cache_key; manages chain state via previous_response_id."
+    },
+    {
+      "id": "K4",
+      "systemId": "S1",
+      "name": "Capability source files",
+      "technology": "Filesystem + registries",
+      "description": "Persona files (prompt/codex.txt, model-specific *_prompt.md), AGENTS.md, SYSTEM.md, SkillLayerRegistry, ManagedAppRegistry."
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "name": "PromptAssembler",
+      "moduleRef": "A0",
+      "description": "Top-level orchestrator inside llm.ts; resolves driver text, collects fragments, requests bundle assembly, hands off to streamText.",
+      "technology": "TypeScript (existing, refactored)"
+    },
+    {
+      "id": "C2",
+      "name": "PersonaRouter",
+      "moduleRef": "A1",
+      "description": "Resolves driver text from upstream prompt md by model.api.id with default.md fallback; replaces buildStaticBlock for system_block_0 producer.",
+      "technology": "TypeScript helper (modified system.ts:provider)"
+    },
+    {
+      "id": "C3",
+      "name": "FragmentRegistry",
+      "moduleRef": "A2",
+      "description": "NEW: collects ContextFragment instances from session/agent/skill/MCP producers; dedups by id; emits ordered fragment list per ROLE.",
+      "technology": "TypeScript module (new context-fragments/)"
+    },
+    {
+      "id": "C4",
+      "name": "BundleAssembler",
+      "moduleRef": "A2",
+      "description": "NEW: groups fragments by ROLE, wraps each body with START/END markers (skip if empty), joins into one bundled ResponseItem per ROLE.",
+      "technology": "TypeScript helper (new context-fragments/assemble.ts)"
+    },
+    {
+      "id": "C5",
+      "name": "convertPrompt",
+      "moduleRef": "A3",
+      "description": "Maps LMv2 prompt → {instructions, input[]}. Post-realign: instructions=driver only; input[] prepends developer + user bundle items before conversation history.",
+      "technology": "TypeScript (modified convert.ts)"
+    },
+    {
+      "id": "C6",
+      "name": "buildResponsesApiRequest",
+      "moduleRef": "A3",
+      "description": "Assembles final HTTP body. Post-realign: prompt_cache_key=threadId only (no accountId prefix).",
+      "technology": "TypeScript (modified provider.ts)"
+    },
+    {
+      "id": "C7",
+      "name": "WS Transport",
+      "moduleRef": "A3",
+      "description": "Manages WebSocket connection + previous_response_id chain + per-account swap; consumed by tryWsTransport.",
+      "technology": "TypeScript (transport-ws.ts, partial review for DD-6 side effects)"
+    },
+    {
+      "id": "C8",
+      "name": "Prefix Cache Layer",
+      "moduleRef": "A5",
+      "description": "External: scoped by prompt_cache_key; honors token-level prefix match; reports usage.input_tokens_details.cached_tokens.",
+      "technology": "OpenAI Responses API"
+    },
+    {
+      "id": "C9",
+      "name": "Chain State",
+      "moduleRef": "A5",
+      "description": "External: server-side conversation state holding prior input items; addressed via previous_response_id; appended on delta calls.",
+      "technology": "OpenAI Responses API"
+    }
+  ],
+  "relationships": [
+    { "id": "R1", "from": "C1", "to": "C2", "label": "resolve driver text by model.api.id" },
+    { "id": "R2", "from": "C1", "to": "C3", "label": "request fragment list per turn" },
+    { "id": "R3", "from": "C3", "to": "C4", "label": "pass collected fragments" },
+    { "id": "R4", "from": "C4", "to": "C5", "label": "developer + user ResponseItem prepend to messages" },
+    { "id": "R5", "from": "C2", "to": "C5", "label": "driver text → instructions field" },
+    { "id": "R6", "from": "C5", "to": "C6", "label": "{instructions, input[]} pass through" },
+    { "id": "R7", "from": "C6", "to": "C7", "label": "request body emitted" },
+    { "id": "R8", "from": "C7", "to": "C9", "label": "previous_response_id chain (delta=true)" },
+    { "id": "R9", "from": "C7", "to": "C8", "label": "outbound request scoped by prompt_cache_key" },
+    { "id": "R10", "from": "C8", "to": "C7", "label": "usage.cached_tokens reported back" }
+  ]
+}

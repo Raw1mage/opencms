@@ -1,0 +1,140 @@
+{
+  "diagram_title": "Realign Codex Provider Prompt 結構",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Restore Persona Driver",
+      "decomposition": {
+        "diagram_title": "Restore Persona Driver",
+        "node_reference": "A1",
+        "activities": [
+          {
+            "id": "A11",
+            "title": "Copy Upstream default.md 到 prompt/codex.txt"
+          },
+          {
+            "id": "A12",
+            "title": "Copy Upstream default.md 到 templates/prompts/drivers/codex.txt"
+          },
+          {
+            "id": "A13",
+            "title": "Verify Hash 一致 across bundled, template, upstream"
+          }
+        ]
+      }
+    },
+    {
+      "id": "A2",
+      "title": "Build Fragment Framework",
+      "decomposition": {
+        "diagram_title": "Build Fragment Framework",
+        "node_reference": "A2",
+        "activities": [
+          {
+            "id": "A21",
+            "title": "Define ContextFragment Interface (role + markers + body)"
+          },
+          {
+            "id": "A22",
+            "title": "Implement Bundle Assembler 按 ROLE 分桶"
+          },
+          {
+            "id": "A23",
+            "title": "Author Upstream Fragment (EnvironmentContext, UserInstructions)"
+          },
+          {
+            "id": "A24",
+            "title": "Author OpenCode Fragment (OpencodeProtocolInstructions, RoleIdentity)"
+          }
+        ]
+      }
+    },
+    {
+      "id": "A3",
+      "title": "Rewire Codex Provider Wire Layer",
+      "decomposition": {
+        "diagram_title": "Rewire Codex Provider Wire Layer",
+        "node_reference": "A3",
+        "activities": [
+          {
+            "id": "A31",
+            "title": "Restrict instructions Field 只放 driver"
+          },
+          {
+            "id": "A32",
+            "title": "Inject Developer Bundle 到 input[] 開頭"
+          },
+          {
+            "id": "A33",
+            "title": "Inject User Bundle 緊跟 Developer Bundle"
+          },
+          {
+            "id": "A34",
+            "title": "Strip context-preface 自創訊息"
+          },
+          {
+            "id": "A35",
+            "title": "Reset prompt_cache_key 為純 sessionId"
+          }
+        ]
+      }
+    },
+    {
+      "id": "A4",
+      "title": "Harmonize OpenCode Assets",
+      "decomposition": {
+        "diagram_title": "Harmonize OpenCode Assets",
+        "node_reference": "A4",
+        "activities": [
+          {
+            "id": "A41",
+            "title": "Map SYSTEM.md 到 OpencodeProtocolInstructions"
+          },
+          {
+            "id": "A42",
+            "title": "Map AGENTS.md (global+project) 到 UserInstructions per-dir"
+          },
+          {
+            "id": "A43",
+            "title": "Map Skills 到 AvailableSkillsInstructions + SkillInstructions per-skill"
+          },
+          {
+            "id": "A44",
+            "title": "Map MCP Apps 到 AppsInstructions"
+          },
+          {
+            "id": "A45",
+            "title": "Map OpenCode-Only (lazy catalog/quota/structured/subagent return/images) 到 New Fragment"
+          }
+        ]
+      }
+    },
+    {
+      "id": "A5",
+      "title": "Validate Cache Recovery",
+      "decomposition": {
+        "diagram_title": "Validate Cache Recovery",
+        "node_reference": "A5",
+        "activities": [
+          {
+            "id": "A51",
+            "title": "Smoke Test 兩 Turn cached_tokens >= 90% input_tokens"
+          },
+          {
+            "id": "A52",
+            "title": "Subagent Regression Test"
+          },
+          {
+            "id": "A53",
+            "title": "Hash Stability Test 同 session 同 turn 結果一致"
+          },
+          {
+            "id": "A54",
+            "title": "Plugin Transform Regression"
+          }
+        ]
+      }
+    }
+  ]
+}
