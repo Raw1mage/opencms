@@ -139,6 +139,13 @@ export function loadFavoriteProvidersFromStorage(
   return raw === null ? [...fallbackProviders] : parseHiddenProvidersStorageValue(raw)
 }
 
+// JWT chatgpt_account_id-shaped values must never normalize to a provider key.
+// They are the residue of a legacy onTokenRefresh path that wrote phantom
+// families into accounts.json (fixed server-side in a69e0e2c8). Filter at the
+// rendering boundary so any future leak does not surface as a phantom row in
+// the model selector. Cheap regex; runs once per provider list pass.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export function normalizeProviderKey(id: string): string | undefined {
   if (!id) return undefined
   const raw = id.trim().toLowerCase()
@@ -147,6 +154,7 @@ export function normalizeProviderKey(id: string): string | undefined {
   if (raw.includes(":")) return normalizeProviderKey(raw.split(":")[0]!)
   if (raw === "anthropic") return "claude-cli"
   if (EXCLUDED_PROVIDER_FAMILIES.has(raw)) return undefined
+  if (UUID_RE.test(raw)) return undefined
 
   for (const provider of KNOWN_PROVIDER_FAMILIES) {
     if (raw === provider || raw.startsWith(`${provider}-`)) return provider

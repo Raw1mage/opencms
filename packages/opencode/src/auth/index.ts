@@ -204,6 +204,18 @@ export namespace Auth {
    * Set auth for a provider (creates/updates account in Account module)
    */
   export async function set(providerId: string, info: Info): Promise<string | undefined> {
+    // L1 guard: a UUID-shaped providerId is the JWT chatgpt_account_id
+    // leaking through Auth.set, which in the legacy onTokenRefresh path
+    // (codex-auth pre-a69e0e2c8) was wired into the URL as :providerId.
+    // resolveFamilyOrSelf then materialized a phantom UUID-keyed family.
+    // Pass `family` + `accountId` as separate dimensions instead.
+    if (JWT.isUUID(providerId)) {
+      throw new Error(
+        `Auth.set rejected UUID providerId "${providerId}". ` +
+          `UUIDs are JWT account identifiers, not provider families. ` +
+          `Pass the canonical family (e.g. "openai", "codex") and use Account.update with the opencode account record id for token rotation.`,
+      )
+    }
     const { Account } = await import("../account")
     const providerKey = await Account.resolveProviderOrSelf(providerId)
 

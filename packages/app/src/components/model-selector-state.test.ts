@@ -16,6 +16,8 @@ import {
   usesFreeToUseAccountLabel,
 } from "./model-selector-state"
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 describe("model selector state", () => {
   test("provider rows are built from provider universe and account families", () => {
     const rows = buildProviderRows({
@@ -92,6 +94,26 @@ describe("model selector state", () => {
     })
 
     expect(rows.find((row) => row.providerKey === "ollama")?.name).toBe("Ollama")
+  })
+
+  test("provider rows drop UUID-shaped accountFamilies keys (phantom-family residue)", () => {
+    const rows = buildProviderRows({
+      providers: [{ id: "openai", name: "OpenAI" }],
+      accountFamilies: {
+        openai: { accounts: { a1: {} } },
+        "1a6223a6-f1ba-4268-87ee-7ee9bd656e14": { accounts: { stranded: {} } },
+        "77ceec49-dd85-4480-874b-339e43c1962a": { accounts: { stranded: {} } },
+      },
+    })
+
+    expect(rows.some((row) => row.providerKey === "openai")).toBe(true)
+    expect(rows.some((row) => UUID_RE.test(row.providerKey))).toBe(false)
+  })
+
+  test("normalizeProviderKey rejects bare UUIDs", () => {
+    expect(normalizeProviderKey("1a6223a6-f1ba-4268-87ee-7ee9bd656e14")).toBeUndefined()
+    expect(normalizeProviderKey("77CEEC49-DD85-4480-874B-339E43C1962A")).toBeUndefined()
+    expect(normalizeProviderKey("openai")).toBe("openai")
   })
 
   test("account rows keep stable label ordering and include cooldown reason", () => {

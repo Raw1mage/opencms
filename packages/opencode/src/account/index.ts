@@ -515,6 +515,18 @@ export namespace Account {
    */
   export function add(provider: string, accountId: string, info: Info): Promise<void> {
     return withMutex(async () => {
+      // L1 guard (defense-in-depth): the family key MUST NOT be a UUID. A
+      // UUID-keyed family is the legacy onTokenRefresh phantom (see
+      // codex-auth a69e0e2c8). Reject at the deepest write site so any
+      // future Auth-shaped caller fails loudly.
+      const { JWT } = await import("../util/jwt")
+      if (JWT.isUUID(provider)) {
+        throw new Error(
+          `Account.add rejected UUID family key "${provider}". ` +
+            `UUIDs are JWT account identifiers (chatgpt_account_id), not provider families. ` +
+            `The opencode account record id belongs in the accountId argument, not the provider argument.`,
+        )
+      }
       debugCheckpoint("Account.add", "Starting", { provider, accountId, type: info.type })
       const storage = await state()
       debugCheckpoint("Account.add", "Got state", { existingProviderKeys: providerKeysOf(storage) })
