@@ -4,10 +4,95 @@ import { Plugin } from "../plugin"
 import { Tool } from "../tool/tool"
 import { ulid } from "ulid"
 import { debugCheckpoint } from "@/util/debug"
+import { Session } from "."
 import { SessionPrompt } from "./prompt"
 import { WorkingCache } from "./working-cache"
 
 const log = Log.create({ service: "tool-invoker" })
+
+/**
+ * Stable JSON.stringify with sorted keys, for tool-input signature hashing.
+ * Two parallel calls with the same logical input but different key insertion
+ * order should still hash to the same signature.
+ *
+ * Exported for unit tests.
+ */
+export function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value)
+  if (Array.isArray(value)) return "[" + value.map(stableStringify).join(",") + "]"
+  const obj = value as Record<string, unknown>
+  const keys = Object.keys(obj).sort()
+  return "{" + keys.map((k) => JSON.stringify(k) + ":" + stableStringify(obj[k])).join(",") + "}"
+}
+
+/**
+ * Duplicate tool-call detection across the current user turn. Codex (and
+ * occasionally other providers) sometimes issue parallel OR sequential
+ * tool calls with identical (toolID, args) within one user turn — same
+ * step, separate steps in the same multi-step assistant message, or even
+ * across consecutive assistant messages before the next user reply. This
+ * wastes the user's tokens AND violates the "don't repeat work the model
+ * already did" principle. We short-circuit duplicates by reading the
+ * prior sibling's output and returning it without re-invoking the tool.
+ *
+ * Turn boundary:
+ *   - Walk `Session.messages` from the end backwards.
+ *   - Stop at the most recent user message (turn boundary). After a new
+ *     user msg, we don't dedup — the user might intentionally ask for a
+ *     re-run.
+ *   - Within that range, scan all assistant tool parts.
+ *
+ * Match criteria:
+ *   - Same `tool` (toolID), same `state.input` (under stable JSON
+ *     stringify so key-order doesn't matter).
+ *   - Sibling status must be `completed` with a string output. `running`
+ *     siblings are not awaited (race tolerance); `error` siblings don't
+ *     dedupe (a retry might succeed).
+ *   - Self-exclusion via callID prevents matching the in-flight part.
+ *
+ * Failure mode:
+ *   Best-effort. If `Session.messages` throws or returns unexpected
+ *   shapes, we log a warning and fall through to normal execution.
+ */
+async function findDuplicateSibling(
+  sessionID: string,
+  toolID: string,
+  args: unknown,
+  callID: string,
+): Promise<MessageV2.ToolPart | undefined> {
+  const msgs = await Session.messages({ sessionID })
+  return findDuplicateSiblingInMessages(msgs, toolID, args, callID)
+}
+
+/**
+ * Pure helper for unit testing — same logic as findDuplicateSibling but
+ * accepts the messages array directly (no I/O).
+ */
+export function findDuplicateSiblingInMessages(
+  msgs: MessageV2.WithParts[],
+  toolID: string,
+  args: unknown,
+  callID: string,
+): MessageV2.ToolPart | undefined {
+  const sigKey = stableStringify(args)
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const msg = msgs[i]
+    if (msg.info.role === "user") break // turn boundary
+    if (msg.info.role !== "assistant") continue
+    for (const p of msg.parts) {
+      if (p.type !== "tool") continue
+      const tp = p as MessageV2.ToolPart
+      if (tp.callID === callID) continue
+      if (tp.tool !== toolID) continue
+      const state = tp.state as { status: string; input?: unknown; output?: string }
+      if (state.status !== "completed") continue
+      if (typeof state.output !== "string") continue
+      if (stableStringify(state.input) !== sigKey) continue
+      return tp
+    }
+  }
+  return undefined
+}
 
 type ToolMetadataInput = Parameters<Tool.Context["metadata"]>[0]
 type ToolAskInput = Parameters<Tool.Context["ask"]>[0]
@@ -73,6 +158,54 @@ export namespace ToolInvoker {
       callID,
       agent,
     })
+
+    // Duplicate tool-call dedup (2026-05-10 hotfix). Codex occasionally
+    // issues identical (toolID, args) tool calls within the same user
+    // turn — parallel within a step, across steps in one assistant
+    // message, or across consecutive assistant messages before the next
+    // user reply. Short-circuit by returning the prior sibling's output
+    // so we don't re-execute the tool. Saves user tokens and prevents
+    // wasted compute. See header comment on findDuplicateSibling for
+    // boundary rules.
+    try {
+      const dup = await findDuplicateSibling(sessionID, toolID, args, callID)
+      if (dup) {
+        const dupOutput = (dup.state as { output?: string }).output ?? ""
+        debugCheckpoint("tool.invoke", "dedup-shortcircuit", {
+          tool: toolID,
+          sessionID,
+          messageID,
+          callID,
+          siblingCallID: dup.callID,
+          siblingMessageID: dup.messageID,
+          outputBytes: dupOutput.length,
+        })
+        log.info("dedup: short-circuited identical tool call", {
+          toolID,
+          callID,
+          siblingCallID: dup.callID,
+        })
+        return {
+          output: dupOutput,
+          metadata: {
+            dedup: {
+              shortCircuited: true,
+              siblingCallID: dup.callID,
+              siblingMessageID: dup.messageID,
+              reason: "identical (tool, args) within current user turn",
+            },
+          },
+        } as ToolExecutionResult
+      }
+    } catch (err) {
+      // Dedup is best-effort; if the lookup fails for any reason
+      // (storage hiccup, missing parts) fall through to normal execution.
+      log.warn("dedup lookup failed; falling through to execution", {
+        toolID,
+        callID,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
 
     await Plugin.trigger(
       "tool.execute.before",

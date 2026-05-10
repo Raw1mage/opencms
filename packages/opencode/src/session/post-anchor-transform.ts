@@ -2,8 +2,8 @@
  * post-anchor tail transformer.
  *
  * After `applyStreamAnchorRebind` slices messages from the most recent
- * compaction anchor, this transformer bounds the LLM-visible token cost
- * of the post-anchor stream.
+ * compaction anchor, this transformer historically tried to bound the
+ * LLM-visible token cost of the post-anchor stream.
  *
  * 2026-05-08 → 2026-05-10 revision history:
  *   v1 (commit 6dcd327fa) — collapse each completed turn into a single
@@ -25,35 +25,40 @@
  *     the latest user message intact, drop completed assistants before
  *     it. Preserved live-question continuity but still dropped prior-
  *     task content (only-partial fix).
- *   v7 (compaction/dialog-replay-redaction, 2026-05-10) — pass-through
- *     all messages, redact tool-result payloads to recall_id markers in
- *     place. Pairs with the redacted-dialog anchor body produced by
- *     tryNarrative — model retains full text + reasoning + tool args
- *     across compactions; the bulky tool outputs are recallable on
- *     demand via system-manager:recall_toolcall_raw.
+ *   v7 (compaction/dialog-replay-redaction, 2026-05-10) — initial roll-
+ *     out redacted tool-result payloads to `[recall_id: <part.id>]` at
+ *     every prompt build, even pre-compaction and across the live tail
+ *     between compaction events.
+ *   v7 retired (2026-05-10 same-day fix) — render-time redaction was a
+ *     design overreach: it redacted the model's own just-completed tool
+ *     output before the next step could read it, forcing recall_toolcall_raw
+ *     spam and bash replays. Per the corrected design (specs/compaction/
+ *     dialog-replay-redaction proposal §3 amended): redaction is a one-
+ *     time event that fires at compaction extend (`tryNarrative` folds
+ *     tail into anchor body via `serializeRedactedDialog`), NOT a
+ *     render-time state. Between compaction events the live tail flows
+ *     raw — model sees its own tool outputs verbatim. If the live tail
+ *     grows too large, the compaction trigger threshold is responsible
+ *     for firing sooner; render layer must not pre-empt that decision.
  *
- * Decisions (v7):
- *   DD-5 (dialog-replay-redaction) — replace v6 drop logic with redact-
- *          only logic: per-tool-part `state.output` becomes
- *          `[recall_id: <part.id>]`. No message-level drops.
- *   DD-7 (compaction-fix retained) — `compaction` part type is exempt:
- *          those are Mode 1 inline server compaction items, codex chain
- *          state.
+ * Current state:
+ *   v7 = pass-through (no-op). Returns input messages with zero counters.
+ *   v6 = legacy drop-based fallback, only reachable when
+ *        `enableDialogRedactionAnchor=false` AND `phase1Enabled=true`.
+ *        Kept as emergency rollback path; not recommended for production.
  *
- * Safety carve-outs (v7):
- *   - In-flight assistants (any tool part status pending / running) —
- *     pending/running tool parts have no output to redact; skipped.
- *   - Assistant carrying a `compaction` part is exempt regardless of
- *     position — the assistant message keeps all of its parts unchanged.
- *   - Anchor message (`messages[0]`) is never touched.
+ * Why v7 is kept callable instead of deleted:
+ *   - `redactToolPart` / `isRedactableToolPart` remain useful as building
+ *     blocks for future render-time logic (e.g. selective redaction of
+ *     known-huge payloads), and the dispatch surface stays stable for
+ *     callers in `prompt.ts`.
+ *   - The `__test__.v7` seam still exercises the helper functions to
+ *     guard against regressions in `redactToolPart` itself.
  *
- * Output schema preserved for callers that read `transformedTurnCount`,
- * `exemptTurnCount`, etc. Under v7 the drop-related fields are vestigial
- * (always 0); a new `redactedToolPartCount` is exposed for telemetry.
- *
- * Feature flag (Tweaks.compactionSync().enableDialogRedactionAnchor,
- * default true): when true, v7 runs; when false, v6 fallback runs
- * (preserves the pre-spec behaviour for emergency rollback).
+ * Feature flag (Tweaks.compactionSync().enableDialogRedactionAnchor):
+ *   - true (default): v7 pass-through path; redacted-dialog anchor body
+ *     emitted by `tryNarrative` at compaction extend.
+ *   - false: v6 drop-based path; legacy `tryNarrativeLegacy` anchor body.
  */
 
 import type { MessageV2 } from "./message-v2"
@@ -162,57 +167,19 @@ export function redactToolPart(part: MessageV2.ToolPart): MessageV2.ToolPart {
   }
 }
 
+/**
+ * v7 retired (2026-05-10): pass-through only. See header comment for
+ * rationale. Kept callable so the dispatch surface stays stable and the
+ * `__test__.v7` seam still has something to invoke.
+ */
 function transformPostAnchorTailV7(messages: MessageV2.WithParts[]): TransformResult {
-  if (messages.length === 0) {
-    return {
-      messages,
-      transformedTurnCount: 0,
-      exemptTurnCount: 0,
-      cacheRefHits: 0,
-      cacheRefMisses: 0,
-      redactedToolPartCount: 0,
-    }
-  }
-
-  let exemptCount = 0
-  let redactedToolPartCount = 0
-
-  const out: MessageV2.WithParts[] = messages.map((msg, idx) => {
-    // Anchor at index 0 — pass through untouched.
-    if (idx === 0) return msg
-    if (msg.info.role !== "assistant") return msg
-
-    if (isInFlightAssistant(msg)) {
-      exemptCount++
-      return msg
-    }
-    if (isExemptAssistant(msg)) {
-      exemptCount++
-      return msg
-    }
-
-    let mutated = false
-    const newParts = msg.parts.map((p) => {
-      if (!isRedactableToolPart(p)) return p
-      const redacted = redactToolPart(p)
-      if (redacted !== p) {
-        mutated = true
-        redactedToolPartCount++
-      }
-      return redacted
-    })
-
-    if (!mutated) return msg
-    return { ...msg, parts: newParts }
-  })
-
   return {
-    messages: out,
+    messages,
     transformedTurnCount: 0,
-    exemptTurnCount: exemptCount,
+    exemptTurnCount: 0,
     cacheRefHits: 0,
     cacheRefMisses: 0,
-    redactedToolPartCount,
+    redactedToolPartCount: 0,
   }
 }
 
@@ -284,16 +251,15 @@ function transformPostAnchorTailV6(messages: MessageV2.WithParts[]): TransformRe
  * Transform the post-anchor tail of a sliced message stream.
  *
  * Default (Tweaks.compactionSync().enableDialogRedactionAnchor=true):
- * v7 redacts tool result payloads to `[recall_id: <part.id>]` markers
- * while preserving every message verbatim (including prior-task assistant
- * turns).
+ * v7 pass-through — messages flow unchanged. Redaction happens at
+ * compaction extend time inside `tryNarrative`, not at render time.
  *
  * Legacy (flag off): v6 drops completed assistants whose position is
- * before the most recent user message.
+ * before the most recent user message. Only reachable when
+ * `phase1Enabled=true` in tweaks.cfg; emergency rollback path.
  *
- * Carve-outs in both versions: anchor at index 0, in-flight assistants,
- * compaction-bearing assistants. Returns a NEW array; input is not
- * mutated.
+ * Returns the input messages array under v7 (no clone, no mutation).
+ * Under v6 returns a NEW array filtered by drop indices.
  */
 export function transformPostAnchorTail(
   messages: MessageV2.WithParts[],

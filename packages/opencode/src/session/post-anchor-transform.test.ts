@@ -242,10 +242,18 @@ describe("redactToolPart", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────
-// transformPostAnchorTail v7 (default flag=true)
+// transformPostAnchorTail v7 (default flag=true) — retired to pass-through
 // ─────────────────────────────────────────────────────────────────────
+//
+// 2026-05-10: v7 was originally a render-time redactor that replaced every
+// completed tool output with `[recall_id: <part.id>]`. Production observation
+// showed this blinded the model to its own just-completed tool result inside
+// the same multi-step assistant turn, triggering recall_toolcall_raw spam and
+// bash replays. v7 is now a pass-through — redaction is a one-time event at
+// compaction extend (`tryNarrative` → `serializeRedactedDialog`), not a
+// render-time state.
 
-describe("transformPostAnchorTail v7", () => {
+describe("transformPostAnchorTail v7 (pass-through, post-retirement)", () => {
   it("empty input → empty output, all counters zero", () => {
     stubTweaks({ enableDialogRedactionAnchor: true })
     const result = transformPostAnchorTail([])
@@ -265,11 +273,12 @@ describe("transformPostAnchorTail v7", () => {
       userMsg("u3", "current question"),
     ]
     const result = transformPostAnchorTail(msgs)
-    expect(result.messages).toHaveLength(msgs.length) // no drops
+    expect(result.messages).toBe(msgs) // pass-through, same reference
     expect(result.transformedTurnCount).toBe(0)
+    expect(result.redactedToolPartCount).toBe(0)
   })
 
-  it("redacts completed tool output payload to recall_id marker", () => {
+  it("does NOT redact completed tool output — payload stays raw", () => {
     stubTweaks({ enableDialogRedactionAnchor: true })
     const msgs: MessageV2.WithParts[] = [
       anchorMsg(),
@@ -281,11 +290,11 @@ describe("transformPostAnchorTail v7", () => {
     const result = transformPostAnchorTail(msgs)
     const a1 = result.messages[2]
     const toolPart = a1.parts.find((p) => p.type === "tool") as MessageV2.ToolPart
-    expect((toolPart.state as any).output).toBe("[recall_id: prt_tool_X]")
-    expect(result.redactedToolPartCount).toBe(1)
+    expect((toolPart.state as any).output).toBe("BIG_FILE_CONTENTS")
+    expect(result.redactedToolPartCount).toBe(0)
   })
 
-  it("preserves text + reasoning + tool args verbatim while redacting output", () => {
+  it("preserves text + reasoning + tool args + tool output verbatim", () => {
     stubTweaks({ enableDialogRedactionAnchor: true })
     const msgs: MessageV2.WithParts[] = [
       anchorMsg(),
@@ -294,7 +303,7 @@ describe("transformPostAnchorTail v7", () => {
         reasoning: "internal CoT here",
         text: "user-visible answer",
         tools: [
-          { id: "prt_t1", tool: "grep", input: { pattern: "X" }, output: "..." },
+          { id: "prt_t1", tool: "grep", input: { pattern: "X" }, output: "GREP_RESULTS" },
         ],
       }),
     ]
@@ -306,13 +315,26 @@ describe("transformPostAnchorTail v7", () => {
     expect(reasoning.text).toBe("internal CoT here")
     expect(text.text).toBe("user-visible answer")
     expect((tool.state as any).input).toEqual({ pattern: "X" })
-    expect((tool.state as any).output).toBe("[recall_id: prt_t1]")
+    expect((tool.state as any).output).toBe("GREP_RESULTS")
   })
 
-  it("anchor at index 0 NOT touched (even though it's an assistant msg)", () => {
+  it("multi-step assistant: step 2 sees step 1's tool output verbatim (regression guard)", () => {
+    stubTweaks({ enableDialogRedactionAnchor: true })
+    // Simulate a multi-step assistant turn where step 1 (Glob) just completed
+    // and step 2 is about to start. Pre-fix v7 would have redacted the Glob
+    // output here, blinding step 2 to its own immediately-prior result.
+    const stepBoundaryAssistant = assistantMsg("a_multi", "tool-calls", {
+      tools: [{ id: "prt_glob1", tool: "glob", output: "/path/a\n/path/b\n/path/c" }],
+    })
+    const msgs = [anchorMsg(), userMsg("u1", "list /path"), stepBoundaryAssistant]
+    const result = transformPostAnchorTail(msgs)
+    const tp = result.messages[2].parts.find((p) => p.type === "tool") as MessageV2.ToolPart
+    expect((tp.state as any).output).toBe("/path/a\n/path/b\n/path/c")
+  })
+
+  it("anchor at index 0 not touched", () => {
     stubTweaks({ enableDialogRedactionAnchor: true })
     const anchor = anchorMsg()
-    // Sneak a tool part into the anchor parts to test the carve-out
     anchor.parts.push({
       id: "prt_anchor_tool",
       messageID: anchor.info.id,
@@ -323,7 +345,7 @@ describe("transformPostAnchorTail v7", () => {
       state: {
         status: "completed",
         input: {},
-        output: "should not be redacted",
+        output: "anchor-embedded output",
         title: "",
         metadata: {},
         time: { start: 0, end: 1 },
@@ -331,41 +353,8 @@ describe("transformPostAnchorTail v7", () => {
     } as MessageV2.ToolPart)
     const result = transformPostAnchorTail([anchor])
     const tp = result.messages[0].parts.find((p) => p.type === "tool") as MessageV2.ToolPart
-    expect((tp.state as any).output).toBe("should not be redacted")
+    expect((tp.state as any).output).toBe("anchor-embedded output")
     expect(result.redactedToolPartCount).toBe(0)
-  })
-
-  it("in-flight assistant (any pending/running tool part) is exempt — no redaction on that message", () => {
-    stubTweaks({ enableDialogRedactionAnchor: true })
-    const inflight = assistantMsg("a_inflight", undefined, {
-      tools: [
-        { id: "prt_done", tool: "read", status: "completed", output: "X" },
-        { id: "prt_pending", tool: "shell", status: "pending" },
-      ],
-    })
-    const msgs = [anchorMsg(), userMsg("u1"), inflight]
-    const result = transformPostAnchorTail(msgs)
-    const a = result.messages[2]
-    const completed = a.parts.find((p) => p.type === "tool" && (p as MessageV2.ToolPart).id === "prt_done") as MessageV2.ToolPart
-    // In-flight carve-out: even the COMPLETED tool part on this message is left
-    // unchanged because the message itself is in-flight.
-    expect((completed.state as any).output).toBe("X")
-    expect(result.exemptTurnCount).toBe(1)
-    expect(result.redactedToolPartCount).toBe(0)
-  })
-
-  it("compaction-bearing assistant is exempt", () => {
-    stubTweaks({ enableDialogRedactionAnchor: true })
-    const compactionBearing = assistantMsg("a_comp", "stop", {
-      compactionPart: true,
-      tools: [{ id: "prt_x", tool: "read", output: "preserved" }],
-    })
-    const msgs = [anchorMsg(), userMsg("u1"), compactionBearing, userMsg("u2")]
-    const result = transformPostAnchorTail(msgs)
-    const a = result.messages[2]
-    const tp = a.parts.find((p) => p.type === "tool") as MessageV2.ToolPart
-    expect((tp.state as any).output).toBe("preserved")
-    expect(result.exemptTurnCount).toBe(1)
   })
 
   it("user messages pass through unchanged regardless of position", () => {
@@ -376,7 +365,7 @@ describe("transformPostAnchorTail v7", () => {
     expect(result.messages[2]).toBe(msgs[2])
   })
 
-  it("error-status tool part is NOT redacted (its error string stays visible)", () => {
+  it("error-status tool part stays visible verbatim", () => {
     stubTweaks({ enableDialogRedactionAnchor: true })
     const a1 = assistantMsg("a1", "tool-calls", {
       tools: [{ id: "prt_err", tool: "shell", status: "error" }],
@@ -387,12 +376,12 @@ describe("transformPostAnchorTail v7", () => {
     expect(result.redactedToolPartCount).toBe(0)
   })
 
-  it("messages with no redaction work return reference equality", () => {
+  it("returns input array by reference (no clone, no allocation)", () => {
     stubTweaks({ enableDialogRedactionAnchor: true })
     const a1 = assistantMsg("a1", "stop", { text: "ans, no tools" })
     const msgs = [anchorMsg(), userMsg("u1"), a1]
     const result = transformPostAnchorTail(msgs)
-    expect(result.messages[2]).toBe(a1) // same reference, no clone
+    expect(result.messages).toBe(msgs)
   })
 })
 
@@ -472,8 +461,8 @@ describe("TransformResult schema (back-compat)", () => {
 // ─────────────────────────────────────────────────────────────────────
 
 describe("__test__ direct dispatch", () => {
-  it("__test__.v7 redacts regardless of feature flag", () => {
-    stubTweaks({ enableDialogRedactionAnchor: false }) // flag off
+  it("__test__.v7 is pass-through regardless of feature flag", () => {
+    stubTweaks({ enableDialogRedactionAnchor: false }) // flag value irrelevant
     const msgs = [
       anchorMsg(),
       userMsg("u1"),
@@ -483,7 +472,9 @@ describe("__test__ direct dispatch", () => {
     ]
     const result = __test__.v7(msgs)
     const tp = result.messages[2].parts.find((p) => p.type === "tool") as MessageV2.ToolPart
-    expect((tp.state as any).output).toBe("[recall_id: prt_x]")
+    expect((tp.state as any).output).toBe("RAW")
+    expect(result.redactedToolPartCount).toBe(0)
+    expect(result.messages).toBe(msgs)
   })
 
   it("__test__.v6 drops regardless of feature flag", () => {
