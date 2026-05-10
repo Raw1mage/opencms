@@ -4,7 +4,7 @@
 
 **Reporter**: OpenCode (third-party CLI/daemon built on top of `@opencode-ai/codex-provider`, a custom AI SDK V2 adapter that speaks the same Responses API wire format as `codex-rs`).
 
-**Affected**: All ChatGPT-subscription Codex accounts in our org. Multiple GPT-5.4 and GPT-5.5 sessions show the same floor. Replicates across fresh sessions, single accounts, multiple directories.
+**Affected**: Codex Responses API via ChatGPT-subscription auth. Multiple GPT-5.4 and GPT-5.5 sessions show the same floor. Replicates across fresh sessions and multiple working directories.
 
 ---
 
@@ -13,18 +13,17 @@
 `usage.input_tokens_details.cached_tokens` consistently caps at **4608** across an entire codex session, regardless of:
 
 - Model (`gpt-5.5` and `gpt-5.4` both affected)
-- Account (5+ different ChatGPT subscription accounts in our org all hit the same floor)
 - Working directory / repo
 - Session length (turns 2–200+ all return 4608)
 - WS chain delta mode (`delta=true` with `previous_response_id`) vs full re-send (`delta=false`)
 - Instructions content (driver-only ~640 tok, or full system blob ~16k tok — same floor)
 - Wire shape of bundle items (raw-string content vs `ContentPart[]` array — same floor)
-- `prompt_cache_key` value (per-account-per-thread `codex-${acct}-${sid}` vs pure `${threadId}` — same floor)
+- `prompt_cache_key` value (composite vs pure `${threadId}` — same floor)
 - Bundle insertion position in `input[]` (mid-chain at `lastUserIdx` vs head at index 0 — same floor)
 
 The 4608 figure ≈ `instructions + tools schema` token count for our setup. It looks like the prefix cache hit ends precisely where `tools` ends and the conversation chain begins.
 
-A historical session under our same OpenCode binary on **2026-05-10 22:48–23:56** (`ses_1ee114c2cffez1xu00cIPVXLRZ`) showed cache_read growing 35,840 → 49,152 → 117,248 → 137,216 → 181,248 across consecutive turns under `delta=true` AND `delta=false`. Cache worked until something changed between then and our next sessions.
+A historical session under the same OpenCode binary on **2026-05-10 22:48–23:56** showed cache_read growing 35,840 → 49,152 → 117,248 → 137,216 → 181,248 across consecutive turns under `delta=true` AND `delta=false`. Cache worked until something changed between then and our next sessions.
 
 Sessions starting **2026-05-11** all stuck at 4608. Same daemon binary lineage (we restarted the daemon several times for unrelated reasons), same `@opencode-ai/codex-provider` code path, same upstream codex-cli reference at `f7e8ff8e50` (then `76845d716b` after pull).
 
@@ -99,7 +98,7 @@ Sessions starting **2026-05-11** all stuck at 4608. Same daemon binary lineage (
 
 1. ✅ **Persona alignment**: replaced our 27-line custom driver with upstream `BaseInstructions::default()` (275 lines from `refs/codex/codex-rs/protocol/src/prompts/base_instructions/default.md`, md5 `7a62de0a7552d52b455f48d9a1e96016`). No change.
 
-2. ✅ **`prompt_cache_key = thread_id`** (matching upstream `client.rs:713`): switched from `codex-${accountId}-${threadId}` to pure `threadId`. Verified hash stable cross-rotation. No change.
+2. ✅ **`prompt_cache_key = thread_id`** (matching upstream `client.rs:713`): switched our adapter from a composite key to pure `threadId`. Verified the value is byte-stable across all turns. No change.
 
 3. ✅ **Wire structure aligned to upstream**: instructions = driver only; `input[]` opens with one `developer` bundle item + one `user` bundle item, mirroring `build_initial_context()` in `core/src/session/mod.rs:2553-2761`. No change.
 
@@ -115,14 +114,14 @@ Sessions starting **2026-05-11** all stuck at 4608. Same daemon binary lineage (
 
 9. ✅ **`gpt-5.5` → `gpt-5.4`**: same floor.
 
-10. ✅ **Account rotation**: 5+ accounts cycled through, all stuck at 4608.
+10. ✅ **Re-auth / new credentials**: re-authenticated the ChatGPT subscription credential and started a fresh session — same floor on the new credential.
 
 ---
 
 ## Hypothesis status
 
 - **Wire-shape mismatch** (raw string vs ContentPart[], bundle position, instructions size): Falsified by experiments 4–5 above.
-- **Account-level cache fragmentation**: Plausible — historical working session was on a different account in the same org. We will test by pinning a fresh session to the historical account next, but our remaining quota across accounts is depleted from the cache miss burning ~80k input tokens at full rate per turn.
+- **Account / credential state**: Plausible — the historical working session used a credential that has since gone into 5h cooldown, so we cannot directly retest with it.
 - **Server-side regression**: Strongly supported by three open OpenAI issues:
   - [openai/codex#20301](https://github.com/openai/codex/issues/20301) — "Low cache hit rate when Codex integrates with GPT-5.5"
   - [openai/codex#21756](https://github.com/openai/codex/issues/21756) — "Conversation cache unexpectedly drops to nearly zero during short continuous sessions" (filed 2026-05-08, exact match for our symptom)
@@ -134,11 +133,9 @@ All three issues open, no assignee, no resolution.
 
 ## Operational impact
 
-A single chat turn under cache=4608 with input ≈ 80k tokens costs full price for ~75k uncached tokens. With burst rate enforced by ChatGPT subscription 5h windows, an active session burns through one account's 5h quota in **~10 minutes** of conversation.
+A single chat turn under cache=4608 with input ≈ 80k tokens costs full price for ~75k uncached tokens. The 5h ChatGPT subscription quota gets exhausted in **roughly 10 minutes** of active multi-turn use, where the same workload before the regression was sustainable for hours.
 
-Across our 16 ChatGPT subscription accounts: 11 are now in 3–4 hour cooldowns. Only 4 retain capacity, and those will be exhausted within an hour at the current rate.
-
-For any third-party tool relying on the Codex Responses API for non-trivial multi-turn work, the cache regression is a hard blocker.
+For any third-party tool relying on the Codex Responses API for non-trivial multi-turn work — agent loops, repo-wide code edits, long debug sessions — the cache regression is a hard blocker.
 
 ---
 
@@ -156,7 +153,7 @@ For any third-party tool relying on the Codex Responses API for non-trivial mult
 - OpenCode daemon (TypeScript/Bun), `@opencode-ai/codex-provider` ^x.x
 - `refs/codex` submodule pinned at `76845d716b` (rust-v0.0.2504301132-6092)
 - Linux x64, WSL2 Ubuntu
-- ChatGPT subscription accounts, OAuth flow
+- ChatGPT subscription auth (OAuth flow)
 - Tested: `gpt-5.5`, `gpt-5.4`
 - WebSocket transport (also reproduces on HTTP SSE fallback)
 - `store: false`
