@@ -584,6 +584,11 @@ export namespace LLM {
     let useUpstreamWire = false
     let driverHashForLog = ""
     let driverCharsForLog = 0
+    // Bundle outputs hoisted for the prompt-telemetry block below so the
+    // sidebar `Prompt blocks` panel can render bundle entries on the new
+    // wire path (legacy path still gets preface.contentBlocks).
+    let developerBundleForTelemetry: { text: string; fragmentIds: string[] } | null = null
+    let userBundleForTelemetry: { text: string; fragmentIds: string[] } | null = null
 
     if (isLiteProvider) {
       // Lite provider (DD-14): single concise system prompt, no static-block
@@ -1048,6 +1053,8 @@ export namespace LLM {
       )
 
       const { developerBundle, userBundle } = assembleBundles(fragments)
+      developerBundleForTelemetry = developerBundle
+      userBundleForTelemetry = userBundle
       const bundleMessages: ModelMessage[] = []
       if (developerBundle) {
         bundleMessages.push({
@@ -1233,6 +1240,33 @@ export namespace LLM {
               policy: b.tier === "trailing" ? "dynamic" : b.tier === "t2" ? "decay" : "session_stable",
             }
           })
+        : []),
+      // plans/provider_codex-prompt-realign Stage A.3-2 telemetry: surface
+      // the developer / user bundles to the sidebar Prompt blocks panel.
+      // Names mirror the upstream codex-cli bundle semantics.
+      ...(developerBundleForTelemetry
+        ? [
+            {
+              key: "bundle_developer",
+              name: `開發者層 [${developerBundleForTelemetry.fragmentIds.join(", ")}]`,
+              chars: developerBundleForTelemetry.text.length,
+              tokens: Token.estimate(developerBundleForTelemetry.text),
+              injected: developerBundleForTelemetry.text.trim().length > 0,
+              policy: "session_stable",
+            },
+          ]
+        : []),
+      ...(userBundleForTelemetry
+        ? [
+            {
+              key: "bundle_user",
+              name: `使用者層 [${userBundleForTelemetry.fragmentIds.join(", ")}]`,
+              chars: userBundleForTelemetry.text.length,
+              tokens: Token.estimate(userBundleForTelemetry.text),
+              injected: userBundleForTelemetry.text.trim().length > 0,
+              policy: "session_stable",
+            },
+          ]
         : []),
     ]
     const finalSystemChars = filteredSystem.reduce((sum, item) => sum + item.length, 0)
