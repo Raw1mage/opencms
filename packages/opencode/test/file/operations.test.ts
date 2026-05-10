@@ -742,6 +742,102 @@ describe("File operation guards", () => {
     })
   })
 
+  test("rejects dir-vs-dir collision (assertDestinationAvailable now covers directories)", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await fs.mkdir(path.join(dir, "src", "sub"), { recursive: true })
+        await fs.writeFile(path.join(dir, "src", "sub", "a.txt"), "from-src")
+        await fs.mkdir(path.join(dir, "dst", "sub"), { recursive: true })
+        await fs.writeFile(path.join(dir, "dst", "sub", "b.txt"), "from-dst")
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        // Pre-fix this slipped past the Bun.file()->exists() guard (which
+        // returns false for directories) and hit fs.cp / fs.rename later
+        // with a misleading ENOENT mid-recursion.
+        await expectOperationCode(
+          File.move({ source: "src/sub", destinationParent: "dst" }),
+          "FILE_OP_DUPLICATE",
+        )
+        await expect(Bun.file(path.join(tmp.path, "src", "sub", "a.txt")).text()).resolves.toBe("from-src")
+        await expect(Bun.file(path.join(tmp.path, "dst", "sub", "b.txt")).text()).resolves.toBe("from-dst")
+      },
+    })
+  })
+
+  test("move uses rename (preserves inode) instead of read+write copy", async () => {
+    // Critical for cloud-only placeholder files (Google Drive .gdoc)
+    // whose read() throws EIO. Inode equality after move proves rename
+    // was used; copy+rm would allocate a fresh inode.
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await fs.mkdir(path.join(dir, "nested"), { recursive: true })
+        await fs.writeFile(path.join(dir, "src.txt"), "content")
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const beforeStat = await fs.stat(path.join(tmp.path, "src.txt"))
+        await File.move({ source: "src.txt", destinationParent: "nested" })
+        const afterStat = await fs.stat(path.join(tmp.path, "nested", "src.txt"))
+        expect(afterStat.ino).toBe(beforeStat.ino)
+      },
+    })
+  })
+
+  test("move with overwrite:true replaces existing destination directory", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await fs.mkdir(path.join(dir, "src", "sub"), { recursive: true })
+        await fs.writeFile(path.join(dir, "src", "sub", "a.txt"), "from-src")
+        await fs.mkdir(path.join(dir, "dst", "sub"), { recursive: true })
+        await fs.writeFile(path.join(dir, "dst", "sub", "b.txt"), "from-dst")
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const result = await File.move({ source: "src/sub", destinationParent: "dst", overwrite: true })
+        expect(result.operation).toBe("move")
+        await expect(Bun.file(path.join(tmp.path, "src", "sub", "a.txt")).exists()).resolves.toBe(false)
+        await expect(Bun.file(path.join(tmp.path, "dst", "sub", "a.txt")).text()).resolves.toBe("from-src")
+        // Old dst/sub contents replaced wholesale.
+        await expect(Bun.file(path.join(tmp.path, "dst", "sub", "b.txt")).exists()).resolves.toBe(false)
+      },
+    })
+  })
+
+  test("copy with overwrite:true replaces existing destination file", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await fs.mkdir(path.join(dir, "from"), { recursive: true })
+        await fs.writeFile(path.join(dir, "from", "a.txt"), "new-content")
+        await fs.writeFile(path.join(dir, "a.txt"), "OLD-CONTENT")
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        await expectOperationCode(
+          File.copy({ source: "from/a.txt", destinationParent: "." }),
+          "FILE_OP_DUPLICATE",
+        )
+        const result = await File.copy({ source: "from/a.txt", destinationParent: ".", overwrite: true })
+        expect(result.operation).toBe("copy")
+        await expect(Bun.file(path.join(tmp.path, "a.txt")).text()).resolves.toBe("new-content")
+        // Source still there (it's a copy).
+        await expect(Bun.file(path.join(tmp.path, "from", "a.txt")).text()).resolves.toBe("new-content")
+      },
+    })
+  })
+
   test("destinationPreflight reports external writable directory as writable", async () => {
     await using tmp = await tmpdir()
     await using external = await tmpdir()

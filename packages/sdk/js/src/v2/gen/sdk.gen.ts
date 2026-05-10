@@ -13220,6 +13220,7 @@ export class File extends HeyApiClient {
       source?: string
       destinationParent?: string
       scope?: "active-project" | "external"
+      overwrite?: boolean
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -13232,6 +13233,7 @@ export class File extends HeyApiClient {
             { in: "body", key: "source" },
             { in: "body", key: "destinationParent" },
             { in: "body", key: "scope" },
+            { in: "body", key: "overwrite" },
           ],
         },
       ],
@@ -13259,6 +13261,7 @@ export class File extends HeyApiClient {
       source?: string
       destinationParent?: string
       scope?: "active-project" | "external"
+      overwrite?: boolean
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -13271,6 +13274,7 @@ export class File extends HeyApiClient {
             { in: "body", key: "source" },
             { in: "body", key: "destinationParent" },
             { in: "body", key: "scope" },
+            { in: "body", key: "overwrite" },
           ],
         },
       ],
@@ -13695,6 +13699,7 @@ export class File extends HeyApiClient {
       source?: string
       destinationParent?: string
       scope?: "active-project" | "external"
+      overwrite?: boolean
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -13707,6 +13712,7 @@ export class File extends HeyApiClient {
             { in: "body", key: "source" },
             { in: "body", key: "destinationParent" },
             { in: "body", key: "scope" },
+            { in: "body", key: "overwrite" },
           ],
         },
       ],
@@ -13734,6 +13740,7 @@ export class File extends HeyApiClient {
       source?: string
       destinationParent?: string
       scope?: "active-project" | "external"
+      overwrite?: boolean
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -13746,6 +13753,7 @@ export class File extends HeyApiClient {
             { in: "body", key: "source" },
             { in: "body", key: "destinationParent" },
             { in: "body", key: "scope" },
+            { in: "body", key: "overwrite" },
           ],
         },
       ],

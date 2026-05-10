@@ -20426,6 +20426,9 @@
                       "active-project",
                       "external"
                     ]
+                  },
+                  "overwrite": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -20484,6 +20487,9 @@
                       "active-project",
                       "external"
                     ]
+                  },
+                  "overwrite": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -41590,6 +41596,9 @@
                       "active-project",
                       "external"
                     ]
+                  },
+                  "overwrite": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -41648,6 +41657,9 @@
                       "active-project",
                       "external"
                     ]
+                  },
+                  "overwrite": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -46719,7 +46731,7 @@
           },
           "id": {
             "description": "Unique identifier for the todo item (auto-generated if omitted)",
-            "default": "todo_moyem0nu_rbrbzr",
+            "default": "todo_mozg3tld_7lz76w",
             "type": "string"
           },
           "action": {

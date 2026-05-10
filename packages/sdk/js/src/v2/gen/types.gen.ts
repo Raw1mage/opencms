@@ -11503,6 +11503,7 @@ export type FileMoveData = {
     source: string
     destinationParent: string
     scope?: "active-project" | "external"
+    overwrite?: boolean
   }
   path?: never
   query?: {
@@ -11525,6 +11526,7 @@ export type FileCopyData = {
     source: string
     destinationParent: string
     scope?: "active-project" | "external"
+    overwrite?: boolean
   }
   path?: never
   query?: {
@@ -19595,6 +19597,7 @@ export type FileMove2Data = {
     source: string
     destinationParent: string
     scope?: "active-project" | "external"
+    overwrite?: boolean
   }
   path?: never
   query?: {
@@ -19617,6 +19620,7 @@ export type FileCopy2Data = {
     source: string
     destinationParent: string
     scope?: "active-project" | "external"
+    overwrite?: boolean
   }
   path?: never
   query?: {

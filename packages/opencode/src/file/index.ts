@@ -675,7 +675,13 @@ export namespace File {
   }
 
   async function assertDestinationAvailable(targetPath: string): Promise<void> {
-    if (await Bun.file(targetPath).exists()) {
+    // Bun.file().exists() only reports for regular files — directories
+    // always return false, which let dir-vs-dir collisions slip past this
+    // guard and hit fs.cp later as a misleading ENOENT. Use fs.stat (which
+    // covers files, directories, symlinks, etc.) and treat any successful
+    // stat as "destination occupied".
+    const stat = await fs.promises.stat(targetPath).catch(() => undefined)
+    if (stat) {
       throw operationError("FILE_OP_DUPLICATE", "A file or folder with this name already exists.", { path: targetPath })
     }
   }
@@ -695,10 +701,52 @@ export namespace File {
     })
   }
 
+  function isCrossDeviceError(err: unknown): boolean {
+    return !!err && typeof err === "object" && "code" in err && (err as { code?: string }).code === "EXDEV"
+  }
+
   async function moveWithoutOverwrite(source: string, destination: string): Promise<void> {
     if (source === destination) return
+    // Pre-check: rename() does not check destination collision the same way
+    // copy+rm did, so we keep the explicit DUPLICATE error code surface.
+    await assertDestinationAvailable(destination)
+    // Prefer atomic rename (metadata-only) — critical for cloud-only
+    // placeholder files like Google Drive .gdoc shortcuts where read()
+    // throws EIO. Falls back to copy+rm only when source and destination
+    // sit on different filesystems (EXDEV).
+    try {
+      await fs.promises.rename(source, destination)
+      return
+    } catch (err) {
+      if (!isCrossDeviceError(err)) throw err
+    }
     await copyWithoutOverwrite(source, destination)
     await fs.promises.rm(source, { recursive: true, force: false })
+  }
+
+  async function moveOverwriting(source: string, destination: string): Promise<void> {
+    if (source === destination) return
+    // Caller already confirmed overwrite. Same rename-first / cp-fallback
+    // pattern, but on same-fs path we rm the existing destination first so
+    // rename can land. fs.promises.rename DOES atomically replace the
+    // destination on POSIX, but explicit pre-rm makes the semantics
+    // identical for both files and directories on drvfs / 9p (which has
+    // historically been finicky about overwrite-rename of dirs).
+    await fs.promises.rm(destination, { recursive: true, force: true }).catch(() => {})
+    try {
+      await fs.promises.rename(source, destination)
+      return
+    } catch (err) {
+      if (!isCrossDeviceError(err)) throw err
+    }
+    await fs.promises.cp(source, destination, { recursive: true, force: true, errorOnExist: false })
+    await fs.promises.rm(source, { recursive: true, force: false })
+  }
+
+  async function copyOverwriting(source: string, destination: string): Promise<void> {
+    if (source === destination) return
+    await fs.promises.rm(destination, { recursive: true, force: true }).catch(() => {})
+    await fs.promises.cp(source, destination, { recursive: true, force: true, errorOnExist: false })
   }
 
   async function nodeFromPath(targetPath: string): Promise<Node> {
@@ -1447,6 +1495,7 @@ export namespace File {
     source: string
     destinationParent: string
     scope?: "active-project" | "external"
+    overwrite?: boolean
   }): Promise<OperationResult> {
     return withTelemetry("move", input as unknown as Record<string, unknown>, async () => {
       const source = await resolveProjectPath(input.source)
@@ -1454,8 +1503,11 @@ export namespace File {
       const parent = await resolveDestinationParent(input.destinationParent, input.scope)
       const destination = path.join(parent.absolute, path.basename(source))
       if (!parent.external) await assertOperationWithinProject(destination)
-      if (source !== destination) await assertDestinationAvailable(destination)
-      await moveWithoutOverwrite(source, destination)
+      if (input.overwrite === true) {
+        await moveOverwriting(source, destination)
+      } else {
+        await moveWithoutOverwrite(source, destination)
+      }
       const destinationDisplayPath = destinationDisplay(destination, parent.external)
       return {
         operation: "move",
@@ -1477,6 +1529,7 @@ export namespace File {
     source: string
     destinationParent: string
     scope?: "active-project" | "external"
+    overwrite?: boolean
   }): Promise<OperationResult> {
     return withTelemetry("copy", input as unknown as Record<string, unknown>, async () => {
       const source = await resolveProjectPath(input.source)
@@ -1484,8 +1537,12 @@ export namespace File {
       const parent = await resolveDestinationParent(input.destinationParent, input.scope)
       const destination = path.join(parent.absolute, path.basename(source))
       if (!parent.external) await assertOperationWithinProject(destination)
-      await assertDestinationAvailable(destination)
-      await copyWithoutOverwrite(source, destination)
+      if (input.overwrite === true) {
+        await copyOverwriting(source, destination)
+      } else {
+        await assertDestinationAvailable(destination)
+        await copyWithoutOverwrite(source, destination)
+      }
       const destinationDisplayPath = destinationDisplay(destination, parent.external)
       return {
         operation: "copy",

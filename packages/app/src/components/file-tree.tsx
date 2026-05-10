@@ -881,6 +881,8 @@ export default function FileTree(props: {
     })
   }
 
+  // Per-paste session "Apply to all" memory for overwrite confirms. Reset
+  // per runPaste call so each paste batch starts fresh.
   const runPaste = async (target: ActionTarget) => {
     const cb = clipboard()
     if (!cb || cb.entries.length === 0) {
@@ -893,19 +895,69 @@ export default function FileTree(props: {
     }
     const destinationParent = parentForCreate(target)
     let succeeded = 0
+    let cancelled = 0
     let lastError: unknown
+    let overwriteAllRemaining: boolean | undefined // undefined = ask each, true = overwrite all, false = skip all
     for (const entry of cb.entries) {
-      try {
-        const response =
-          cb.mode === "cut"
-            ? await sdk.client.file.move({ source: entry.path, destinationParent })
-            : await sdk.client.file.copy({ source: entry.path, destinationParent })
-        if (response.data) {
-          file.applyOperationResult(response.data)
-          succeeded++
+      let overwrite = false
+      let resolved = false
+      while (!resolved) {
+        try {
+          const response =
+            cb.mode === "cut"
+              ? await sdk.client.file.move({ source: entry.path, destinationParent, overwrite })
+              : await sdk.client.file.copy({ source: entry.path, destinationParent, overwrite })
+          if (response.data) {
+            file.applyOperationResult(response.data)
+            succeeded++
+          }
+          resolved = true
+        } catch (err) {
+          const data = (err && typeof err === "object" && "data" in err ? (err as { data?: unknown }).data : undefined) as
+            | { code?: string }
+            | undefined
+          if (data?.code === "FILE_OP_DUPLICATE" && !overwrite) {
+            const basename = entry.path.split("/").pop() ?? entry.path
+            const remaining = cb.entries.length - (succeeded + cancelled + 1)
+            let decision: "overwrite" | "skip"
+            if (overwriteAllRemaining === true) {
+              decision = "overwrite"
+            } else if (overwriteAllRemaining === false) {
+              decision = "skip"
+            } else if (remaining > 0) {
+              // Multi-item paste with collisions still ahead: ask once with
+              // the option to apply to all. Browser confirm() is yes/no, so
+              // we layer two prompts: the first ack-or-skip, then "apply
+              // to all remaining?".
+              const ok = window.confirm(
+                `「${basename}」已存在於目的地：${destinationParent || "/"}\n\n要覆蓋嗎？\n（資料夾會整個覆寫，內部衝突檔案會一起換掉。）`,
+              )
+              decision = ok ? "overwrite" : "skip"
+              if (remaining > 0) {
+                const applyAll = window.confirm(
+                  decision === "overwrite"
+                    ? `對剩餘 ${remaining} 個衝突項目都套用「覆蓋」？\n按取消會逐項詢問。`
+                    : `對剩餘 ${remaining} 個衝突項目都套用「跳過」？\n按取消會逐項詢問。`,
+                )
+                if (applyAll) overwriteAllRemaining = decision === "overwrite"
+              }
+            } else {
+              const ok = window.confirm(
+                `「${basename}」已存在於目的地：${destinationParent || "/"}\n\n要覆蓋嗎？\n（資料夾會整個覆寫，內部衝突檔案會一起換掉。）`,
+              )
+              decision = ok ? "overwrite" : "skip"
+            }
+            if (decision === "overwrite") {
+              overwrite = true
+              continue // retry same entry with overwrite=true
+            }
+            cancelled++
+            resolved = true
+          } else {
+            lastError = err
+            resolved = true
+          }
         }
-      } catch (err) {
-        lastError = err
       }
     }
     if (cb.mode === "cut") setClipboard(null)
@@ -917,7 +969,14 @@ export default function FileTree(props: {
         description:
           succeeded === cb.entries.length
             ? `${succeeded} item(s) into ${destinationParent || "/"}`
-            : `${succeeded} of ${cb.entries.length} item(s) into ${destinationParent || "/"}`,
+            : `${succeeded} of ${cb.entries.length} item(s) into ${destinationParent || "/"}` +
+              (cancelled > 0 ? ` (${cancelled} skipped)` : ""),
+      })
+    } else if (cancelled > 0 && !lastError) {
+      showToast({
+        variant: "default",
+        title: "Paste cancelled",
+        description: `${cancelled} item(s) skipped (destination already exists).`,
       })
     }
     if (lastError) surfaceError(lastError, cb.mode === "cut" ? "Move failed" : "Copy failed")
