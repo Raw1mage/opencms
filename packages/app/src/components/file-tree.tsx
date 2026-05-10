@@ -227,7 +227,7 @@ export function fileTreeContextMenuActionGroups(input: {
         { id: "rename", label: "Rename", enabled: singleRow, reason: "Rename supports one row at a time." },
         {
           id: "delete",
-          label: effectiveCount > 1 ? `Move ${effectiveCount} items to recyclebin` : "Move to recyclebin",
+          label: effectiveCount > 1 ? `Delete ${effectiveCount} items` : "Delete",
           enabled: effectiveCount > 0,
         },
         {
@@ -739,7 +739,7 @@ export default function FileTree(props: {
     const sample = batch.slice(0, 3).join(", ")
     const more = batch.length > 3 ? ` and ${batch.length - 3} more` : ""
     const confirmed = window.confirm(
-      `Move ${batch.length === 1 ? "this item" : `${batch.length} items`} to recyclebin?\n\n${sample}${more}`,
+      `Delete ${batch.length === 1 ? "this item" : `${batch.length} items`}?\n\n${sample}${more}`,
     )
     if (!confirmed) return
     let recyclebinCount = 0
