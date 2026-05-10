@@ -1,5 +1,6 @@
 import { useFile } from "@/context/file"
 import { useSDK } from "@/context/sdk"
+import { usePrompts } from "@/context/prompts"
 import { encodeFilePath } from "@/context/file/path"
 import { Checkbox } from "@opencode-ai/ui/checkbox"
 import { Collapsible } from "@opencode-ai/ui/collapsible"
@@ -25,7 +26,7 @@ import {
   type ParentProps,
   type Setter,
 } from "solid-js"
-import { Dynamic, Portal } from "solid-js/web"
+import { Dynamic } from "solid-js/web"
 import type { FileNode } from "@opencode-ai/sdk/v2"
 import {
   applyCheckboxToggle,
@@ -751,54 +752,21 @@ export default function FileTree(props: {
     }
   }
 
-  // ----- Generic anchored prompt + confirm helpers ----------------------
-  // Replace browser-native window.prompt() / window.confirm() (centered,
-  // host-prefixed, visually disconnected from the trigger) with Portal-
-  // rendered modals anchored at the captured right-click coordinates.
-  // Both helpers return Promises so call sites read like the original
-  // synchronous prompt/confirm but stay fully in the Solid effect graph.
-
-  type ConfirmResolution = "confirm" | "cancel" | "apply-all"
-  type ConfirmRequest = {
-    title: string
-    description?: string
-    destructive?: boolean
-    confirmLabel?: string
-    cancelLabel?: string
-    applyAllLabel?: string
-    anchor: { x: number; y: number }
-    resolve: (result: ConfirmResolution) => void
-  }
-  type InputRequest = {
-    title: string
-    description?: string
-    initial?: string
-    placeholder?: string
-    submitLabel?: string
-    cancelLabel?: string
-    validate?: (value: string) => string | undefined
-    anchor: { x: number; y: number }
-    resolve: (value: string | undefined) => void
-  }
-  const [pendingConfirm, setPendingConfirm] = createSignal<ConfirmRequest | undefined>()
-  const [pendingInput, setPendingInput] = createSignal<InputRequest | undefined>()
-
+  // Anchored prompt + confirm primitives now come from PromptsProvider
+  // (mounted in AppShellProviders). file-tree.tsx is one of several
+  // consumers; the modal scaffold + Portal layer + dismissal contract
+  // are owned globally so other surfaces (terminal pane, session
+  // sidebar, popout windows, future features) get the same UX without
+  // duplicating ~150 LOC of modal code.
+  const prompts = usePrompts()
   const fallbackAnchor = (): { x: number; y: number } =>
     lastMenuAnchor() ?? { x: window.innerWidth / 2, y: window.innerHeight / 2 }
-
   const promptConfirm = (
-    opts: Omit<ConfirmRequest, "anchor" | "resolve"> & { anchor?: { x: number; y: number } },
-  ): Promise<ConfirmResolution> =>
-    new Promise<ConfirmResolution>((resolve) => {
-      setPendingConfirm({ ...opts, anchor: opts.anchor ?? fallbackAnchor(), resolve })
-    })
-
+    opts: Omit<Parameters<typeof prompts.promptConfirm>[0], "anchor"> & { anchor?: { x: number; y: number } },
+  ) => prompts.promptConfirm({ ...opts, anchor: opts.anchor ?? fallbackAnchor() })
   const promptInput = (
-    opts: Omit<InputRequest, "anchor" | "resolve"> & { anchor?: { x: number; y: number } },
-  ): Promise<string | undefined> =>
-    new Promise<string | undefined>((resolve) => {
-      setPendingInput({ ...opts, anchor: opts.anchor ?? fallbackAnchor(), resolve })
-    })
+    opts: Omit<Parameters<typeof prompts.promptInput>[0], "anchor"> & { anchor?: { x: number; y: number } },
+  ) => prompts.promptInput({ ...opts, anchor: opts.anchor ?? fallbackAnchor() })
 
   const runDelete = async (target: ActionTarget) => {
     if (target.kind !== "row") return
@@ -1619,196 +1587,6 @@ export default function FileTree(props: {
           })
         }}
       />
-      <Show when={pendingConfirm()}>
-        {(req) => {
-          const POPUP_MAX_W = 380
-          const POPUP_MAX_H = 220
-          const left = () => Math.max(8, Math.min(req().anchor.x, window.innerWidth - POPUP_MAX_W - 8))
-          const top = () => Math.max(8, Math.min(req().anchor.y, window.innerHeight - POPUP_MAX_H - 8))
-          let overlayRef: HTMLDivElement | undefined
-          const settle = (result: ConfirmResolution) => {
-            const r = req()
-            setPendingConfirm(undefined)
-            r.resolve(result)
-          }
-          const onKey = (e: KeyboardEvent) => {
-            if (e.key === "Escape") {
-              e.preventDefault()
-              settle("cancel")
-            } else if (e.key === "Enter") {
-              e.preventDefault()
-              settle("confirm")
-            }
-          }
-          createEffect(() => {
-            if (!pendingConfirm()) return
-            window.addEventListener("keydown", onKey, true)
-            onCleanup(() => window.removeEventListener("keydown", onKey, true))
-          })
-          return (
-            <Portal>
-              <div
-                ref={(el) => {
-                  overlayRef = el
-                }}
-                class="fixed inset-0 z-[200]"
-                onClick={(e) => {
-                  if (e.target === overlayRef) settle("cancel")
-                }}
-              >
-                <div
-                  class="fixed bg-slate-900 border-2 border-slate-600 rounded-md shadow-xl text-slate-100 p-3 text-12-regular"
-                  style={{
-                    "max-width": `${POPUP_MAX_W}px`,
-                    "max-height": `${POPUP_MAX_H}px`,
-                    left: `${left()}px`,
-                    top: `${top()}px`,
-                  }}
-                  data-slot="filetree-prompt-confirm"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div class="text-14-medium mb-1">{req().title}</div>
-                  <Show when={req().description}>
-                    <div class="text-text-weak break-words whitespace-pre-line mb-3 max-h-32 overflow-auto">
-                      {req().description}
-                    </div>
-                  </Show>
-                  <div class="flex justify-end gap-2">
-                    <button
-                      type="button"
-                      class="px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-100"
-                      onClick={() => settle("cancel")}
-                    >
-                      {req().cancelLabel ?? "取消"}
-                    </button>
-                    <Show when={req().applyAllLabel}>
-                      <button
-                        type="button"
-                        class="px-2 py-1 rounded bg-amber-600 hover:bg-amber-500 text-white"
-                        onClick={() => settle("apply-all")}
-                      >
-                        {req().applyAllLabel}
-                      </button>
-                    </Show>
-                    <button
-                      type="button"
-                      classList={{
-                        "px-2 py-1 rounded text-white": true,
-                        "bg-red-600 hover:bg-red-500": !!req().destructive,
-                        "bg-blue-600 hover:bg-blue-500": !req().destructive,
-                      }}
-                      onClick={() => settle("confirm")}
-                    >
-                      {req().confirmLabel ?? "確定"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </Portal>
-          )
-        }}
-      </Show>
-      <Show when={pendingInput()}>
-        {(req) => {
-          const POPUP_MAX_W = 380
-          const POPUP_MAX_H = 220
-          const left = () => Math.max(8, Math.min(req().anchor.x, window.innerWidth - POPUP_MAX_W - 8))
-          const top = () => Math.max(8, Math.min(req().anchor.y, window.innerHeight - POPUP_MAX_H - 8))
-          const [value, setValue] = createSignal(req().initial ?? "")
-          const validation = createMemo(() => req().validate?.(value()))
-          let overlayRef: HTMLDivElement | undefined
-          let inputRef: HTMLInputElement | undefined
-          const settle = (next: string | undefined) => {
-            const r = req()
-            setPendingInput(undefined)
-            r.resolve(next)
-          }
-          const submit = () => {
-            if (validation()) return
-            settle(value())
-          }
-          const onKey = (e: KeyboardEvent) => {
-            if (e.key === "Escape") {
-              e.preventDefault()
-              settle(undefined)
-            } else if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault()
-              submit()
-            }
-          }
-          createEffect(() => {
-            if (!pendingInput()) return
-            window.addEventListener("keydown", onKey, true)
-            // Focus the input after Portal mounts.
-            queueMicrotask(() => {
-              inputRef?.focus()
-              inputRef?.select()
-            })
-            onCleanup(() => window.removeEventListener("keydown", onKey, true))
-          })
-          return (
-            <Portal>
-              <div
-                ref={(el) => {
-                  overlayRef = el
-                }}
-                class="fixed inset-0 z-[200]"
-                onClick={(e) => {
-                  if (e.target === overlayRef) settle(undefined)
-                }}
-              >
-                <div
-                  class="fixed bg-slate-900 border-2 border-slate-600 rounded-md shadow-xl text-slate-100 p-3 text-12-regular flex flex-col gap-2"
-                  style={{
-                    "max-width": `${POPUP_MAX_W}px`,
-                    "max-height": `${POPUP_MAX_H}px`,
-                    width: "min(380px, calc(100vw - 16px))",
-                    left: `${left()}px`,
-                    top: `${top()}px`,
-                  }}
-                  data-slot="filetree-prompt-input"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div class="text-14-medium">{req().title}</div>
-                  <Show when={req().description}>
-                    <div class="text-text-weak break-words whitespace-pre-line">{req().description}</div>
-                  </Show>
-                  <input
-                    ref={(el) => {
-                      inputRef = el
-                    }}
-                    type="text"
-                    class="px-2 py-1 rounded bg-slate-800 border border-slate-600 text-slate-100 outline-none focus:border-blue-500"
-                    value={value()}
-                    placeholder={req().placeholder}
-                    onInput={(e) => setValue(e.currentTarget.value)}
-                  />
-                  <Show when={validation()}>
-                    <div class="text-red-400">{validation()}</div>
-                  </Show>
-                  <div class="flex justify-end gap-2">
-                    <button
-                      type="button"
-                      class="px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-100"
-                      onClick={() => settle(undefined)}
-                    >
-                      {req().cancelLabel ?? "取消"}
-                    </button>
-                    <button
-                      type="button"
-                      class="px-2 py-1 rounded bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white"
-                      disabled={!!validation() || value().length === 0}
-                      onClick={submit}
-                    >
-                      {req().submitLabel ?? "確定"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </Portal>
-          )
-        }}
-      </Show>
     </ContextMenu>
   )
 }

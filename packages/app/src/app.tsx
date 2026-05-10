@@ -25,6 +25,7 @@ import { CommandProvider } from "@/context/command"
 import { LanguageProvider, useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { HighlightsProvider } from "@/context/highlights"
+import { PromptsProvider, PromptsLayer } from "@/context/prompts"
 import { WebAuthProvider } from "@/context/web-auth"
 import Layout from "@/pages/layout"
 import DirectoryLayout from "@/pages/directory-layout"
@@ -130,7 +131,10 @@ function AppShellProviders(props: ParentProps) {
             <ModelsProvider>
               <CommandProvider>
                 <HighlightsProvider>
-                  <Layout>{props.children}</Layout>
+                  <PromptsProvider>
+                    <Layout>{props.children}</Layout>
+                    <PromptsLayer />
+                  </PromptsProvider>
                 </HighlightsProvider>
               </CommandProvider>
             </ModelsProvider>
