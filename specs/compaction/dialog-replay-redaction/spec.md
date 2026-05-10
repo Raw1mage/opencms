@@ -78,28 +78,34 @@ The background recompress mechanism (`scheduleHybridEnrichment`) must trigger wh
 - **THEN** recompress fires (the previous `observed in {overflow, cache-aware, manual}` gate is removed)
 - **AND** behaviour matches the codex / non-codex routing scenarios above
 
-### Requirement: Post-anchor stream is redacted, not dropped
+### Requirement: Post-anchor stream flows raw between compaction events (v7 retired 2026-05-10)
 
-The post-anchor-transform pipeline must replace tool result payloads with recall references, not drop completed assistant messages.
+The post-anchor-transform pipeline must preserve every message verbatim. Render-time redaction was retired same-day as launch — see proposal.md §3 for the rationale. Redaction is a one-time event that fires at compaction extend (`tryNarrative` → `serializeRedactedDialog`), not a render-time state.
 
 #### Scenario: Multi-task session post-extend
 
 - **GIVEN** a session with a recent anchor and 3 prior user-task chains in the post-anchor stream (each chain = user msg + multiple completed assistant turns)
-- **WHEN** the runloop builds the LLM-visible context via post-anchor-transform v7
-- **THEN** all 3 user msgs survive (as before)
-- **AND** all completed assistant turns survive (NEW — v6 dropped these)
-- **AND** every `tool.state.output` content is replaced by `recall_id: <part.id>` placeholder
-- **AND** all assistant text / reasoning / tool_call args are preserved verbatim
-- **AND** the in-flight assistant carve-out still applies (no redaction on pending parts)
-- **AND** the compaction-bearing assistant carve-out still applies (Mode 1 inline server compaction state untouched)
+- **WHEN** the runloop builds the LLM-visible context via post-anchor-transform
+- **THEN** all 3 user msgs survive
+- **AND** all completed assistant turns survive (verbatim, including text + reasoning + tool args + tool output)
+- **AND** **no `tool.state.output` is replaced** — the live tail is raw
+- **AND** the in-flight assistant carve-out is moot (since nothing is being redacted)
+- **AND** the compaction-bearing assistant is unaffected (Mode 1 inline server compaction state untouched)
 
-#### Scenario: Token budget exceeded post-redaction
+#### Scenario: Multi-step assistant turn (regression guard)
 
-- **GIVEN** post-anchor stream contains so much dialog (after redaction) that it exceeds filterCompacted's token budget guard
-- **WHEN** filterCompacted runs
-- **THEN** it stops scanning at the budget and reports `stoppedByBudget: true`
-- **AND** the LLM-visible context is bounded; older messages (post-anchor but earliest) are simply not surfaced this iteration
-- **AND** the next compaction triggers extend, absorbing them into the next anchor
+- **GIVEN** an assistant message with two steps: step 1 ran a `glob` tool that completed successfully, step 2 is about to start
+- **WHEN** the runloop builds the prompt for step 2
+- **THEN** the model sees step 1's `glob` output verbatim — NOT a `[recall_id: ...]` marker
+- **AND** the model can use that output to plan step 2 without invoking `recall_toolcall_raw`
+
+#### Scenario: Token budget exceeded by raw live tail
+
+- **GIVEN** post-anchor stream contains so much raw dialog that it crosses the compaction trigger threshold
+- **WHEN** the trigger evaluator runs
+- **THEN** the **next compaction event** is fired (extend folds the tail into a new anchor body)
+- **AND** the render layer continues to flow the tail raw until that compaction commits
+- **AND** the bounding responsibility lives in the compaction trigger, not the render layer
 
 ### Requirement: Synergy with user-msg-replay-unification (excludes unanswered user msg from extend)
 
@@ -156,7 +162,7 @@ A new Tweaks key `enableDialogRedactionAnchor` (default `true`) gates the new tr
 5. **Recompress trigger boundary**: anchor at 49,999 tokens → no recompress; at 50,000+ → recompress fires.
 6. **Provider routing**: codex sessions hit `tryLowCostServer`; others hit `Hybrid.runHybridLlm`. Verified via mocked anchor writer + provider mock.
 7. **observed-gate removal**: rebind / continuation-invalidated / provider-switched sessions can trigger recompress when anchor > 50K.
-8. **post-anchor v7 preserves continuity**: in a multi-task session, model can read its own assistant turns from prior tasks (text + reasoning + tool args), no amnesia loop reproduction.
+8. **post-anchor render is pass-through (v7 retired)**: in a multi-task session, model reads every prior assistant turn verbatim (text + reasoning + tool args + tool output). No `[recall_id: ...]` markers appear in the live tail. Multi-step regression guard: step 2 of an assistant turn sees step 1's tool output unaltered.
 9. **Reasoning-only turns counted**: codex messages with `[reasoning, tool_call]` parts contribute to turnSummaries (not skipped).
 10. **Backwards compatibility**: existing anchors written before this fix (with old narrative format) still parse correctly via Memory.read; transition is seamless.
 11. **Feature flag rollback**: setting `enableDialogRedactionAnchor=false` restores exact pre-fix behaviour with no daemon restart.

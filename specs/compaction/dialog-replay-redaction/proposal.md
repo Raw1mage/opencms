@@ -78,6 +78,7 @@ The two-tier model is already represented in code; these are the pieces:
 
 - 2026-05-09 (initial draft): proposal.md drafted as `narrative-quality`, listed 3 candidate options for prose-continuity improvement
 - 2026-05-09 (revised): renamed slug to `dialog-replay-redaction`. User clarified the work is restoration/refit of an existing two-tier design (extend + recompress) that was misdirected by v1-v6 evolution, not a new feature. Three originally proposed options abandoned in favour of the formal model `anchor[n+1] = anchor[n] + redact(tail)` + threshold-triggered recompress.
+- 2026-05-10 (v7 retired same day as launch): Production observation showed v7's render-time redaction was a design overreach. Root principle reaffirmed: redaction is a **one-time event** at compaction extend, not a render-time **state**. Post-anchor live tail flows raw; the bounding job belongs to the compaction trigger, not the render layer. v7 the function stays callable as a no-op; spec point 3 amended; render-time redaction logic permanently retired.
 
 ## Effective Requirement Description
 
@@ -95,9 +96,14 @@ The compaction subsystem's existing two-tier design — fast extend on every com
    - At entry, dispatch by provider: codex → `/responses/compact` (the existing `tryLowCostServer` plugin path); else → existing `Hybrid.runHybridLlm` LLM path.
    - On success, the existing in-place anchor update (compaction.ts:1546-1660) overwrites the redacted-dialog body with the LLM-distilled body. The "土製品" → "refined" supersession that's already wired stays.
 
-3. **Post-anchor-transform v6 retired**
-   - With anchor body absorbing the prior dialog at extend time, no need to drop completed assistants from the post-anchor stream.
-   - Replace v6's drop logic with v7 = pass-through (no message drops) plus per-tool-part `state.output` redaction at render time, so post-anchor-but-pre-next-extend tail also stays bounded in token cost.
+3. **Post-anchor-transform retired (v6 AND v7)**
+   - With anchor body absorbing the prior dialog at extend time, the render layer has no remaining bounding job. Both v6 (drop completed assistants) and v7 (render-time per-tool-part redaction) are retired.
+   - v7 stays callable as a pass-through (so dispatch/test surface is stable), but performs no message drops and no output substitution. The live tail between compaction events flows raw.
+   - **Why render-time redaction was wrong** (2026-05-10 hotfix):
+     - The model needs to read its own just-completed tool output to plan the next step in a multi-step assistant turn. Render-time redaction replaced that output with `[recall_id: ...]` before the next step started, blinding the model.
+     - Observed effect: agent saw recall markers it never asked for, called `recall_toolcall_raw` to dereference its own latest tool, or fell back to re-running the same bash/glob — wasting tokens and cycles.
+     - Bounding the live-tail token cost is the **compaction trigger**'s job (size threshold fires the next compaction event). It is NOT the render layer's job to pre-empt that decision.
+   - Consequence: anchor body remains the single redaction sink. The live tail accumulates raw tool outputs until the next compaction event folds them in.
 
 4. **Memory.read / lastTextPartText / turnSummaries demoted to fallback**
    - These are no longer the source for anchor body. They remain available for `renderForHumanSync` (UI session-list preview, debug dumps) and for the rare cold-start case where no anchor has been written yet.
