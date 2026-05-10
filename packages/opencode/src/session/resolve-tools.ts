@@ -347,6 +347,8 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
       for (const [appId, entry] of Object.entries(storeConfig.apps)) {
         if (entry.enabled) continue // enabled apps already in tool pool
         if (!entry.tools || entry.tools.length === 0) continue
+        if (!entry.command || entry.command.length === 0) continue
+        const entryCommand = entry.command
 
         for (const appTool of entry.tools) {
           const toolKey = `mcpapp-${appId}_${appTool.name.replace(/[^a-zA-Z0-9_-]/g, "_")}`
@@ -384,7 +386,7 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
 
               await MCP.add(`mcpapp-${appId}`, {
                 type: "local",
-                command: entry.command,
+                command: entryCommand,
                 environment: env,
                 enabled: true,
               })
