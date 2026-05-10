@@ -1222,7 +1222,7 @@ export const DialogSelectModel: Component<{
   })
 
   // Fetch live rate-limit cooldowns from rotation/status API (same data source as TUI admin panel)
-  const [rateLimitCooldowns, setRateLimitCooldowns] = createSignal<Record<string, { waitMs: number; reason: string }>>(
+  const [rateLimitCooldowns, setRateLimitCooldowns] = createSignal<Record<string, { resetAt: number; reason: string }>>(
     {},
   )
 
@@ -1245,14 +1245,11 @@ export const DialogSelectModel: Component<{
           }>
         }
         if (dead || !data.accounts) return
-        const map: Record<string, { waitMs: number; reason: string }> = {}
+        const map: Record<string, { resetAt: number; reason: string }> = {}
         const now = Date.now()
         for (const acct of data.accounts) {
-          if (acct.isRateLimited && acct.rateLimitResetAt) {
-            const waitMs = Math.max(0, acct.rateLimitResetAt - now)
-            if (waitMs > 0) {
-              map[acct.id] = { waitMs, reason: "rate limited" }
-            }
+          if (acct.isRateLimited && acct.rateLimitResetAt && acct.rateLimitResetAt > now) {
+            map[acct.id] = { resetAt: acct.rateLimitResetAt, reason: "rate limited" }
           }
         }
         if (!dead) setRateLimitCooldowns(map)
@@ -1264,6 +1261,14 @@ export const DialogSelectModel: Component<{
     onCleanup(() => {
       dead = true
     })
+  })
+
+  // 1Hz tick so cooldown rows re-render and count down in seconds.
+  const [nowMs, setNowMs] = createSignal(Date.now())
+  createEffect(() => {
+    if (Object.keys(rateLimitCooldowns()).length === 0) return
+    const id = setInterval(() => setNowMs(Date.now()), 1000)
+    onCleanup(() => clearInterval(id))
   })
 
   const [accountQuotaHints, setAccountQuotaHints] = createSignal<Record<string, string>>({})
@@ -1336,11 +1341,14 @@ export const DialogSelectModel: Component<{
 
   const accountRowDisplay = (row: { id: string; label: string }) => {
     const cd = rateLimitCooldowns()[row.id]
-    if (cd && cd.waitMs > 0) {
-      return {
-        label: row.label,
-        quota: undefined,
-        cooldown: `⏳ ${formatWait(cd.waitMs)}`,
+    if (cd) {
+      const waitMs = cd.resetAt - nowMs()
+      if (waitMs > 0) {
+        return {
+          label: row.label,
+          quota: undefined,
+          cooldown: `⏳ ${formatWait(waitMs)}`,
+        }
       }
     }
     const quota = accountQuotaHints()[row.id]
