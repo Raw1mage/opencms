@@ -782,7 +782,7 @@ export namespace File {
     return resolved
   }
 
-  function projectRecyclebinRoot(): string {
+  function recyclebinRoot(): string {
     return path.join(Instance.directory, "recyclebin")
   }
 
@@ -790,48 +790,21 @@ export namespace File {
     return tombstonePath + ".opencode-recycle.json"
   }
 
-  // Find the filesystem mount root that contains `source`. Walks up from
-  // source's parent until either (a) the parent's stat.dev differs from
-  // source's (then `last` is the mount root), or (b) we hit project root
-  // / fs root. Returns the deepest ancestor that shares the source's
-  // device — which is exactly the per-mount recyclebin anchor we want.
-  async function findMountRootForSource(source: string): Promise<string> {
+  // Detect whether source and the project recyclebin live on the same
+  // filesystem. Drives the "skip recyclebin, just unlink" branch in
+  // deleteToRecyclebin: external mounts (e.g. Google Drive 9p drvfs) are
+  // permanently deleted locally and the cloud client (GD Desktop, etc.)
+  // takes care of moving the cloud copy into its own trash.
+  async function isSameFilesystemAsProject(source: string): Promise<boolean> {
+    const projectStat = await fs.promises.stat(Instance.directory).catch(() => undefined)
     const sourceStat = await fs.promises.stat(source).catch(() => undefined)
-    if (!sourceStat) return Instance.directory
-    const sourceDev = sourceStat.dev
-    let last = path.dirname(source)
-    let cur = last
-    const fsRoot = path.parse(cur).root
-    const projectRoot = path.resolve(Instance.directory)
-    for (let i = 0; i < 64; i++) {
-      const stat = await fs.promises.stat(cur).catch(() => undefined)
-      if (!stat) break
-      if (stat.dev !== sourceDev) {
-        // Crossed a mount boundary — `last` was the deepest same-dev ancestor.
-        return last
-      }
-      last = cur
-      // Stop walking once we're at or past the project root, even if dev
-      // hasn't changed yet — keeps the recyclebin within the project tree.
-      if (cur === projectRoot || cur === fsRoot) break
-      const parent = path.dirname(cur)
-      if (parent === cur) break
-      cur = parent
-    }
-    return last
-  }
-
-  async function recyclebinRootForSource(source: string): Promise<string> {
-    const mountRoot = await findMountRootForSource(source)
-    return path.join(mountRoot, "recyclebin")
+    if (!projectStat || !sourceStat) return false
+    return projectStat.dev === sourceStat.dev
   }
 
   async function uniqueRecyclePath(sourcePath: string): Promise<string> {
-    const root = await recyclebinRootForSource(sourcePath)
+    const root = recyclebinRoot()
     await fs.promises.mkdir(root, { recursive: true })
-    // Keep the boundary contract: the recyclebin we picked must still
-    // live within the strict-project / whitelist boundary so we never
-    // accidentally drop tombstones outside the user's allowed surface.
     await assertOperationWithinProject(root)
     const parsed = path.parse(sourcePath)
     const stamp = new Date().toISOString().replace(/[:.]/g, "-")
@@ -1599,7 +1572,35 @@ export namespace File {
         throw operationError("FILE_OP_CONFIRMATION_REQUIRED", "This destructive operation requires confirmation.")
       }
       const source = await resolveProjectPath(input.path)
-      const stat = await assertSourceExists(source)
+      await assertSourceExists(source)
+
+      // Cross-filesystem source (e.g. Google Drive bind mount on 9p drvfs)
+      // skips the local recyclebin entirely and unlinks. Rationale:
+      //   1. Cross-fs rename throws EXDEV; the copy+rm fallback fails
+      //      with EIO on cloud-only placeholder files (.gdoc et al).
+      //   2. The remote sync client (GD Desktop, etc.) sees the local
+      //      unlink and routes the file to its own cloud trash, so the
+      //      "trash" affordance still exists — just owned by the cloud
+      //      provider, not opencode.
+      // The OperationResult for this path omits `destination` so the
+      // frontend toast can read "Permanently deleted (cloud client
+      // handles trash)" instead of "Moved to recyclebin".
+      const sameFs = await isSameFilesystemAsProject(source)
+      if (!sameFs) {
+        await fs.promises.rm(source, { recursive: true, force: false })
+        return {
+          operation: "delete-to-recyclebin",
+          source: normalizeRelative(source),
+          // destination intentionally omitted.
+          affectedDirectories: [parentRelative(source)],
+        }
+      }
+
+      // Same-fs path: rename into project recyclebin (atomic, metadata-
+      // only — works for any local file including content we cannot
+      // read). Metadata sidecar written AFTER rename so a partial
+      // rename never orphans it.
+      const stat = await fs.promises.stat(source)
       const destination = await uniqueRecyclePath(source)
       const metadata = {
         originalPath: normalizeRelative(source),
@@ -1607,26 +1608,15 @@ export namespace File {
         deletedAt: new Date().toISOString(),
         type: stat.isDirectory() ? "directory" : "file",
       }
-      // rename-first into the per-mount recyclebin. uniqueRecyclePath
-      // selected the recyclebin root that lives on the SAME filesystem as
-      // source, so EXDEV should not occur for normal cases. If we still
-      // hit EXDEV (e.g. a custom mount we couldn't resolve), surface the
-      // error rather than silently doing a copy that EIOs on Drive
-      // placeholders.
       const metadataFile = recycleMetadataPath(destination)
-      try {
-        await fs.promises.rename(source, destination)
-      } catch (err) {
-        throw err
-      }
-      // Metadata sidecar AFTER rename so a failed rename never orphans it.
+      await fs.promises.rename(source, destination)
       await fs.promises.writeFile(metadataFile, JSON.stringify(metadata, null, 2), { flag: "wx" }).catch(() => {})
       return {
         operation: "delete-to-recyclebin",
         source: metadata.originalPath,
         destination: metadata.tombstonePath,
         node: await nodeFromPath(destination),
-        affectedDirectories: [...new Set([parentRelative(source), parentRelative(destination)])],
+        affectedDirectories: [...new Set([parentRelative(source), normalizeRelative(recyclebinRoot())])],
       }
     }, operationResultParts)
   }
@@ -1634,12 +1624,8 @@ export namespace File {
   export async function restoreFromRecyclebin(input: { tombstonePath: string }): Promise<OperationResult> {
     return withTelemetry("restore-from-recyclebin", input as unknown as Record<string, unknown>, async () => {
       const tombstone = await resolveProjectPath(input.tombstonePath)
-      // Per-mount recyclebins mean we can't validate against a single root
-      // anymore. Tombstone is acceptable when its parent directory is named
-      // "recyclebin" AND the path lives within the strict-project (or
-      // whitelisted) boundary. The sidecar metadata + originalPath check
-      // below provides the second integrity layer.
-      if (path.basename(path.dirname(tombstone)) !== "recyclebin") {
+      const recycleRoot = await assertOperationWithinProject(recyclebinRoot())
+      if (!isWithinRoot(tombstone, recycleRoot)) {
         throw operationError("FILE_RECYCLEBIN_METADATA_INVALID", "Recyclebin metadata is missing or unsafe.")
       }
       const metadataFile = recycleMetadataPath(tombstone)
@@ -1698,7 +1684,7 @@ export namespace File {
         source: parsed.data.tombstonePath,
         destination: parsed.data.originalPath,
         node: await nodeFromPath(destination),
-        affectedDirectories: [...new Set([parentRelative(destination), parentRelative(tombstone)])],
+        affectedDirectories: [...new Set([parentRelative(destination), normalizeRelative(recyclebinRoot())])],
       }
     }, operationResultParts)
   }

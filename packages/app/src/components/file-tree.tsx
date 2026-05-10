@@ -742,25 +742,34 @@ export default function FileTree(props: {
       `Move ${batch.length === 1 ? "this item" : `${batch.length} items`} to recyclebin?\n\n${sample}${more}`,
     )
     if (!confirmed) return
-    let succeeded = 0
+    let recyclebinCount = 0
+    let permanentCount = 0
     let lastError: unknown
     for (const path of batch) {
       try {
         const response = await sdk.client.file.deleteToRecyclebin({ path, confirmed: true })
         if (response.data) {
           file.applyOperationResult(response.data)
-          succeeded++
+          // Backend signals the cross-fs unlink path by omitting `destination`.
+          // Same-fs deletes get a recyclebin tombstone path back.
+          if (response.data.destination) recyclebinCount++
+          else permanentCount++
         }
       } catch (err) {
         lastError = err
       }
     }
     setSelection(emptySelection())
+    const succeeded = recyclebinCount + permanentCount
     if (succeeded > 0) {
+      // Compose toast wording from whichever delete paths actually fired.
+      const parts: string[] = []
+      if (recyclebinCount > 0) parts.push(`${recyclebinCount} to recyclebin`)
+      if (permanentCount > 0) parts.push(`${permanentCount} permanently deleted (cloud client handles trash)`)
       showToast({
         variant: "success",
-        title: "Moved to recyclebin",
-        description: succeeded === batch.length ? `${succeeded} item(s)` : `${succeeded} of ${batch.length} item(s)`,
+        title: succeeded === batch.length ? "Deleted" : `Deleted ${succeeded} of ${batch.length}`,
+        description: parts.join(" · "),
       })
     }
     if (lastError) surfaceError(lastError, "Delete failed")
