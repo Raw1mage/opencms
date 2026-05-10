@@ -1071,18 +1071,16 @@ export namespace LLM {
         })
       }
       if (bundleMessages.length > 0) {
-        const lastUserIdx = (() => {
-          for (let i = input.messages.length - 1; i >= 0; i--) {
-            if (input.messages[i]?.role === "user") return i
-          }
-          return -1
-        })()
-        const insertAt = lastUserIdx >= 0 ? lastUserIdx : input.messages.length
-        input.messages = [
-          ...input.messages.slice(0, insertAt),
-          ...bundleMessages,
-          ...input.messages.slice(insertAt),
-        ]
+        // Mirror upstream codex-cli `build_initial_context()`: bundles are
+        // ALWAYS at index 0-1 of input[]. They become the head of the chain
+        // on turn 1; on subsequent turns the WS transport's delta-slice
+        // (based on prevLen) correctly identifies them as already-in-chain
+        // and only the trailing NEW items are sent across the wire. Earlier
+        // we inserted before lastUserIdx, which on turn 2+ landed bundles
+        // AFTER the conversation tail — server saw duplicate bundles,
+        // chain prefix structure diverged from the upstream-expected shape,
+        // and prefix cache stuck at the tools-only ~4608 token floor.
+        input.messages = [...bundleMessages, ...input.messages]
       }
       log.info("prompt.bundle.assembled", {
         sessionID: input.sessionID,
