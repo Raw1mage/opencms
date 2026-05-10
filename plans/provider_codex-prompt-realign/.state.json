@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "planned",
+  "state": "implementing",
   "profile": [],
   "history": [
     {
@@ -26,6 +26,14 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "test-vectors.json 改成 top-level 陣列；errors.md 加 Error Catalogue heading；observability.md 加 Events / Metrics headings"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-05-10T17:56:59.075Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Stage A.2 fragment 框架完成 — 4 fragment + assembler + 13/13 tests + typecheck clean，code anchors 記入 design.md"
     }
   ]
 }

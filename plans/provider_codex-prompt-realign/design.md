@@ -221,6 +221,12 @@ OpenCode 現有 `[IDENTITY REINFORCEMENT]\nCurrent Role: Main Agent / Subagent`�
 ## Code anchors
 
 (populated by spec_add_code_anchor)
+- `packages/opencode/src/session/context-fragments/fragment.ts` — `ContextFragment` — Fragment shape definition; mirrors upstream codex-rs/core/src/context/fragment.rs ContextualUserFragment trait
+- `packages/opencode/src/session/context-fragments/assemble.ts` — `assembleBundles` — Bundle assembler; mirrors upstream build_initial_context() output (one developer item + one user item)
+- `packages/opencode/src/session/context-fragments/environment-context.ts` — `buildEnvironmentContextFragment` — Upstream-aligned EnvironmentContext (cwd/shell/current_date/timezone) wrapped in &lt;environment_context&gt;
+- `packages/opencode/src/session/context-fragments/user-instructions.ts` — `buildUserInstructionsFragment` — Upstream-aligned UserInstructions for AGENTS.md (per scope: global / project)
+- `packages/opencode/src/session/context-fragments/opencode-protocol-instructions.ts` — `buildOpencodeProtocolFragment` — OpenCode-only fragment carrying SYSTEM.md (constitution) at developer-role with &lt;opencode_protocol&gt; markers (DD-3)
+- `packages/opencode/src/session/context-fragments/role-identity.ts` — `buildRoleIdentityFragment` — OpenCode-only fragment encoding Main Agent vs Subagent at developer-role with &lt;role_identity&gt; markers (DD-8)
 
 ## Critical Files
 

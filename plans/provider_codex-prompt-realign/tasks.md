@@ -9,14 +9,14 @@
 - [x] **A1-4** 記事件 `event_2026-05-11_persona-restored.md`
 
 ### A.2 — Fragment 框架
-- [ ] **A2-1** 建目錄 `packages/opencode/src/session/context-fragments/`
-- [ ] **A2-2** 寫 `fragment.ts`：定義 `ContextFragment` interface（`role: "user" | "developer"`, `startMarker`, `endMarker`, `body(): string`, `id: string`）
-- [ ] **A2-3** 寫 `assemble.ts`：定義 `assembleBundles(fragments) → { developerItem, userItem }`，按 ROLE 分桶並用 marker 包裹後 join
-- [ ] **A2-4** 實作 `environment-context.ts`：對齊上游 `EnvironmentContext`（cwd / shell / current_date / timezone）
-- [ ] **A2-5** 實作 `user-instructions.ts`：對齊上游 `UserInstructions`，constructor 接 `{ directory, text }`
-- [ ] **A2-6** 實作 `opencode-protocol-instructions.ts`：OpenCode 自有 fragment（developer-role, `<opencode_protocol>`），body 取 `SystemPrompt.system()` 結果
-- [ ] **A2-7** 實作 `role-identity.ts`：OpenCode 自有 fragment（developer-role, `<role_identity>`）
-- [ ] **A2-8** 單元測試 `assemble.test.ts`：驗證 ROLE 分桶、marker 包裹、空 body 跳過
+- [x] **A2-1** 建目錄 `packages/opencode/src/session/context-fragments/`
+- [x] **A2-2** 寫 `fragment.ts`：定義 `ContextFragment` interface（`role: "user" | "developer"`, `startMarker`, `endMarker`, `body(): string`, `id: string`）
+- [x] **A2-3** 寫 `assemble.ts`：定義 `assembleBundles(fragments) → { developerItem, userItem }`，按 ROLE 分桶並用 marker 包裹後 join
+- [x] **A2-4** 實作 `environment-context.ts`：對齊上游 `EnvironmentContext`（cwd / shell / current_date / timezone）
+- [x] **A2-5** 實作 `user-instructions.ts`：對齊上游 `UserInstructions`，constructor 接 `{ directory, text }`
+- [x] **A2-6** 實作 `opencode-protocol-instructions.ts`：OpenCode 自有 fragment（developer-role, `<opencode_protocol>`），body 取 `SystemPrompt.system()` 結果
+- [x] **A2-7** 實作 `role-identity.ts`：OpenCode 自有 fragment（developer-role, `<role_identity>`）
+- [x] **A2-8** 單元測試 `assemble.test.ts`：驗證 ROLE 分桶、marker 包裹、空 body 跳過
 
 ### A.3 — Wire 結構改寫
 - [ ] **A3-1** 修 `packages/opencode-codex-provider/src/convert.ts`：`instructions` 只放第一個 system message（= driver），其餘 system message 全部丟棄（在 llm.ts 改完之前先這樣）
