@@ -20,9 +20,9 @@
 
 ### A.3 — Wire 結構改寫
 - [x] **A3-1** 修 `packages/opencode-codex-provider/src/convert.ts`：`instructions` 只放第一個 system message（= driver），其餘 system message 全部丟棄（在 llm.ts 改完之前先這樣）
-- [ ] **A3-2** 修 `packages/opencode/src/session/llm.ts`：移除自創 `## CONTEXT PREFACE` 路徑；改成組裝 fragment list → assemble → 兩個 ResponseItem 插在 `input.messages` 的最前面
-- [ ] **A3-3** 拆 `static-system-builder.ts`：`buildStaticBlock()` 只回 driver text；其餘 layer 的 owner 改放各自 fragment producer
-- [ ] **A3-4** 加 feature flag `OPENCODE_CODEX_LEGACY_INSTRUCTIONS=1` 環境變數，預設 off；on 時走舊路徑（讓 rollback 簡單）
+- [x] **A3-2** 修 `packages/opencode/src/session/llm.ts`：移除自創 `## CONTEXT PREFACE` 路徑；改成組裝 fragment list → assemble → 兩個 ResponseItem 插在 `input.messages` 的最前面
+- [x] **A3-3** 拆 `static-system-builder.ts`：`buildStaticBlock()` 只回 driver text；其餘 layer 的 owner 改放各自 fragment producer
+- [x] **A3-4** 加 feature flag `OPENCODE_CODEX_LEGACY_INSTRUCTIONS=1` 環境變數，預設 off；on 時走舊路徑（讓 rollback 簡單）
 - [ ] **A3-5** Plugin trigger 適配：`experimental.chat.system.transform` 仍可運作（input 變窄為 driver only）；新增 `experimental.chat.context.fragment.transform` 給 plugin 操作 fragment list
 
 ### A.4 — `prompt_cache_key` 對齊
