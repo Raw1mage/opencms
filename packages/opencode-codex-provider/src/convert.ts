@@ -71,36 +71,15 @@ export function convertPrompt(prompt: LanguageModelV2Prompt): {
         const parts = convertUserContent(msg.content)
         // Bundle marker: opencode session assembler tags pre-conversation
         // bundle items with providerOptions.codex.kind so we can route them
-        // to the right Responses-API role.
+        // to the right Responses-API role. Content shape stays as
+        // ContentPart[] to match upstream codex-cli (Vec<ContentItem> on the
+        // Rust side). The 2026-05-11 raw-string experiment was reverted —
+        // raw string didn't lift cached_tokens off the 4608 floor either,
+        // so wire-shape wasn't the cache lever; staying upstream-aligned is
+        // the higher-value default.
         const codexOpts = (msg.providerOptions as { codex?: { kind?: string } } | undefined)?.codex
-        const kind = codexOpts?.kind
-        if (kind === "developer-bundle" || kind === "user-bundle") {
-          // plans/provider_codex-prompt-realign cache hotfix 2026-05-11:
-          // emit bundle items with RAW STRING content (matching pre-breaker
-          // wire shape `{role:"developer", content:"<text>"}`), NOT ContentPart
-          // array. Empirical observation — when bundle content was wrapped in
-          // [{type:"input_text", text:"..."}], OpenAI's prefix cache stuck
-          // at the tools-schema floor (~4608 tokens) regardless of bundle
-          // byte stability. Pre-breaker sessions that cached well used raw
-          // string content at this position. Hypothesis: server's chain
-          // reconstruction for delta=true requests serializes back to the
-          // canonical wire form, and a mismatch between original-request
-          // bytes and reconstructed bytes drops the prefix cache match
-          // boundary down to where the bytes diverge.
-          //
-          // Only text parts contribute to bundle bodies (no images), so
-          // joining the text fields back to a single string is lossless.
-          const textOnly = parts
-            .filter((p): p is { type: "input_text"; text: string } => p.type === "input_text")
-            .map((p) => p.text)
-            .join("")
-          input.push({
-            role: kind === "developer-bundle" ? "developer" : "user",
-            content: textOnly,
-          } as ResponseItem)
-        } else {
-          input.push({ role: "user", content: parts } as ResponseItem)
-        }
+        const role = codexOpts?.kind === "developer-bundle" ? "developer" : "user"
+        input.push({ role, content: parts } as ResponseItem)
         break
       }
 

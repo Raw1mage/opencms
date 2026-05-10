@@ -68,18 +68,15 @@ describe("convertPrompt — golden format verification", () => {
 
     expect(instructions).toBe("Driver.")
     expect(input).toHaveLength(3)
-    // First (developer-bundle marker) becomes role:"developer" with raw string
-    // content (matches pre-breaker wire shape; cache-hotfix 2026-05-11).
-    expect((input[0] as { role: string; content: unknown }).role).toBe("developer")
-    expect((input[0] as { role: string; content: unknown }).content).toBe("<role_identity>...</role_identity>")
-    // Second (user-bundle marker) → role:"user" but ALSO raw string content.
-    expect((input[1] as { role: string; content: unknown }).role).toBe("user")
-    expect((input[1] as { role: string; content: unknown }).content).toBe(
-      "<environment_context>...</environment_context>",
-    )
-    // Third (no marker, regular user) → role:"user" with ContentPart[] content
-    // (preserves multi-modal support: input_text / input_image).
-    expect((input[2] as { role: string; content: unknown }).role).toBe("user")
+    // First (developer-bundle marker) becomes role:"developer"
+    expect((input[0] as { role: string }).role).toBe("developer")
+    // Second (user-bundle marker) and third (no marker) both become role:"user"
+    expect((input[1] as { role: string }).role).toBe("user")
+    expect((input[2] as { role: string }).role).toBe("user")
+    // Content shape stays ContentPart[] for all of them — matches upstream
+    // codex-cli Vec<ContentItem>.
+    expect(Array.isArray((input[0] as { content: unknown }).content)).toBe(true)
+    expect(Array.isArray((input[1] as { content: unknown }).content)).toBe(true)
     expect(Array.isArray((input[2] as { content: unknown }).content)).toBe(true)
   })
 
