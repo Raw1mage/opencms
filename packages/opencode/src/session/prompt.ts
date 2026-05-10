@@ -428,22 +428,24 @@ export async function deriveObservedCondition(input: {
   // (commit f63e1138f, "account switch triggers chain reset only, not full
   // compaction"): tool-call format unchanged, full conversation fidelity
   // should be preserved. Only codex's server-side previous_response_id chain
-  // needs cutting. Fire-and-forget invalidateContinuationFamily (no-op for
-  // non-codex providers) and return null so the runloop proceeds without
-  // a destructive compaction round.
+  // needs cutting. Awaited invalidateContinuationFamily (no-op for non-codex
+  // providers) so the per-account swap path inside transport-ws reads the
+  // cleared disk state on the next outbound request. Previously this was
+  // fire-and-forget (`void (async)`), which raced the next streamText call
+  // and let the swap path restore a stale lastResponseId from disk —
+  // observable on rotation-heavy sessions as orphan turns / repeated empty
+  // streams (incident 2026-05-10 ses_1ee7b8bccffeG73CQxXDDSw3og).
   if (lastAnchor) {
     if (lastAnchor.providerId && lastAnchor.providerId !== input.pinnedProviderId) {
       return "provider-switched"
     }
     if (lastAnchor.accountId && input.pinnedAccountId && lastAnchor.accountId !== input.pinnedAccountId) {
-      void (async () => {
-        try {
-          const { invalidateContinuationFamily } = await import("@opencode-ai/codex-provider/continuation")
-          invalidateContinuationFamily(input.sessionID)
-        } catch {
-          // best-effort; non-codex providers don't expose this module
-        }
-      })()
+      try {
+        const { invalidateContinuationFamily } = await import("@opencode-ai/codex-provider/continuation")
+        invalidateContinuationFamily(input.sessionID)
+      } catch {
+        // best-effort; non-codex providers don't expose this module
+      }
       return null
     }
   }
