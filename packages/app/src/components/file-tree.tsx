@@ -1262,11 +1262,100 @@ export default function FileTree(props: {
     </div>
   )
 
+  // ----- Keyboard shortcuts (root tree only) ----------------------------
+  // Bound on the root tree <div>. keydown bubbles from focused interactive
+  // children (checkboxes, chevrons, etc.) so the handler only fires when
+  // focus is INSIDE the file tree. When focus moves to chat input,
+  // terminal, or any other surface in a separate DOM subtree, events
+  // never reach this handler and Ctrl+C / Ctrl+V / Ctrl+X behave normally
+  // for that surface — no manual release needed.
+  //
+  // Bindings:
+  //   Ctrl/Cmd+C  -> copy current selection to in-app clipboard
+  //   Ctrl/Cmd+X  -> cut current selection
+  //   Ctrl/Cmd+V  -> paste at the anchor's containing folder (or root)
+  //   Escape      -> clear selection
+  // Other modifier combos and plain keys pass through untouched.
+  const buildClipboardEntriesFromSelection = (): FileTreeClipboardEntry[] => {
+    const out: FileTreeClipboardEntry[] = []
+    for (const path of selection().selected) {
+      const type = pathTypes.get(path)
+      if (type) out.push({ path, type })
+    }
+    return out
+  }
+  const pasteParentFromAnchor = (): string => {
+    const anchor = selection().anchor
+    if (!anchor) return props.path  // tree root
+    const type = pathTypes.get(anchor)
+    if (type === "directory") return anchor
+    const idx = anchor.lastIndexOf("/")
+    return idx === -1 ? "" : anchor.slice(0, idx)
+  }
+  const handleTreeKeyDown = (event: KeyboardEvent) => {
+    if (event.altKey || event.shiftKey) return
+    const mod = event.ctrlKey || event.metaKey
+    const target = event.target as Element | null
+    const tag = target?.tagName
+    // Don't hijack typing inside actual editable elements (rename inline,
+    // search box, etc.).
+    if (tag === "INPUT" || tag === "TEXTAREA" || (target as HTMLElement | null)?.isContentEditable) return
+
+    if (event.key === "Escape" && !mod) {
+      if (selection().selected.size === 0 && selection().anchor === undefined) return
+      event.preventDefault()
+      setSelection(emptySelection())
+      return
+    }
+
+    if (!mod) return
+    const key = event.key.toLowerCase()
+    if (key === "c") {
+      const entries = buildClipboardEntriesFromSelection()
+      if (entries.length === 0) return
+      event.preventDefault()
+      setClipboard({ mode: "copy", entries })
+      showToast({
+        variant: "default",
+        title: "Copied",
+        description: entries.length === 1 ? entries[0].path : `${entries.length} items`,
+      })
+      return
+    }
+    if (key === "x") {
+      const entries = buildClipboardEntriesFromSelection()
+      if (entries.length === 0) return
+      event.preventDefault()
+      setClipboard({ mode: "cut", entries })
+      showToast({
+        variant: "default",
+        title: "Cut",
+        description: entries.length === 1 ? entries[0].path : `${entries.length} items`,
+      })
+      return
+    }
+    if (key === "v") {
+      const cb = clipboard()
+      if (!cb || cb.entries.length === 0) return
+      event.preventDefault()
+      const pasteParent = pasteParentFromAnchor()
+      const targetForPaste: FileTreeContextMenuTarget = {
+        kind: "folder",
+        path: pasteParent,
+        parentPath: parentPath(pasteParent),
+      }
+      void runPaste(targetForPaste)
+      return
+    }
+  }
+
   const tree = () => (
     <div
       class={`flex flex-col gap-0.5 ${root ? "min-h-full" : ""} ${props.class ?? ""}`}
       data-filetree-folder-path={file.normalize(props.path)}
       onContextMenu={root ? handleBackgroundContextMenu : undefined}
+      onKeyDown={root ? handleTreeKeyDown : undefined}
+      tabIndex={root ? -1 : undefined}
     >
       <Show when={root && props.showHeader}>{renderHeader()}</Show>
       <For each={nodes()}>
