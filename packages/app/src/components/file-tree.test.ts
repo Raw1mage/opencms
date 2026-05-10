@@ -137,7 +137,7 @@ describe("file tree fetch discipline", () => {
     expect(actions.get("open")?.enabled).toBe(false)
     expect(actions.get("copy")?.label).toBe("Copy 2 items")
     expect(actions.get("cut")?.label).toBe("Cut 2 items")
-    expect(actions.get("delete")?.label).toBe("Move 2 items to recyclebin")
+    expect(actions.get("delete")?.label).toBe("Delete 2 items")
     expect(actions.get("rename")?.enabled).toBe(false)
   })
 
