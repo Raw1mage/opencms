@@ -25,7 +25,7 @@ import {
   type ParentProps,
   type Setter,
 } from "solid-js"
-import { Dynamic } from "solid-js/web"
+import { Dynamic, Portal } from "solid-js/web"
 import type { FileNode } from "@opencode-ai/sdk/v2"
 import {
   applyCheckboxToggle,
@@ -651,12 +651,21 @@ export default function FileTree(props: {
     return out
   })
 
+  // Track the cursor position at the moment of the last right-click inside
+  // the tree so confirmation popovers can anchor near where the user
+  // actually clicked, not at the screen center.
+  const [lastMenuAnchor, setLastMenuAnchor] = createSignal<{ x: number; y: number } | undefined>()
+  const captureMenuAnchor = (event: MouseEvent) => {
+    setLastMenuAnchor({ x: event.clientX, y: event.clientY })
+  }
+
   const publishContextMenuTarget = (target: FileTreeContextMenuTarget) => {
     setContextMenuTarget(target)
     props.onContextMenuTarget?.(target)
   }
 
   const handleBackgroundContextMenu = (event: MouseEvent) => {
+    captureMenuAnchor(event)
     const target = event.target
     if (target instanceof Element && target.closest('[data-filetree-row="true"]')) return
     const folder = target instanceof Element ? target.closest<HTMLElement>("[data-filetree-folder-path]") : undefined
@@ -730,18 +739,23 @@ export default function FileTree(props: {
     }
   }
 
-  const runDelete = async (target: ActionTarget) => {
+  // Anchored in-app delete confirmation. Replaces the browser-native
+  // window.confirm() (which renders centered with an origin-prefixed
+  // header — visually disconnected from the right-click action). Uses
+  // the captured cursor position from the most recent contextmenu event
+  // and renders a fixed Portal layer near that point.
+  type DeletePending = { batch: string[]; anchor: { x: number; y: number } }
+  const [deletePending, setDeletePending] = createSignal<DeletePending | undefined>()
+
+  const runDelete = (target: ActionTarget) => {
     if (target.kind !== "row") return
-    // If the clicked row is itself selected, batch over the whole selection;
-    // otherwise act only on the clicked row.
     const sel = selection().selected
     const batch = sel.has(target.path) && sel.size > 1 ? Array.from(sel) : [target.path]
-    const sample = batch.slice(0, 3).join(", ")
-    const more = batch.length > 3 ? ` and ${batch.length - 3} more` : ""
-    const confirmed = window.confirm(
-      `Delete ${batch.length === 1 ? "this item" : `${batch.length} items`}?\n\n${sample}${more}`,
-    )
-    if (!confirmed) return
+    const anchor = lastMenuAnchor() ?? { x: window.innerWidth / 2, y: window.innerHeight / 2 }
+    setDeletePending({ batch, anchor })
+  }
+
+  const performDelete = async (batch: string[]) => {
     let recyclebinCount = 0
     let permanentCount = 0
     let lastError: unknown
@@ -750,8 +764,6 @@ export default function FileTree(props: {
         const response = await sdk.client.file.deleteToRecyclebin({ path, confirmed: true })
         if (response.data) {
           file.applyOperationResult(response.data)
-          // Backend signals the cross-fs unlink path by omitting `destination`.
-          // Same-fs deletes get a recyclebin tombstone path back.
           if (response.data.destination) recyclebinCount++
           else permanentCount++
         }
@@ -762,7 +774,6 @@ export default function FileTree(props: {
     setSelection(emptySelection())
     const succeeded = recyclebinCount + permanentCount
     if (succeeded > 0) {
-      // Compose toast wording from whichever delete paths actually fired.
       const parts: string[] = []
       if (recyclebinCount > 0) parts.push(`${recyclebinCount} to recyclebin`)
       if (permanentCount > 0) parts.push(`${permanentCount} permanently deleted (cloud client handles trash)`)
@@ -1412,7 +1423,10 @@ export default function FileTree(props: {
                         file.tree.expand(node.path)
                       }
                     }}
-                    onContextMenu={() => publishContextMenuTarget(fileTreeRowContextMenuTarget(node))}
+                    onContextMenu={(event: MouseEvent) => {
+                      captureMenuAnchor(event)
+                      publishContextMenuTarget(fileTreeRowContextMenuTarget(node))
+                    }}
                   >
                     <Collapsible.Trigger
                       as="button"
@@ -1530,6 +1544,86 @@ export default function FileTree(props: {
           })
         }}
       />
+      <Show when={deletePending()}>
+        {(pending) => {
+          // Position-clamped so the popup never overflows the viewport edge.
+          const POPUP_MAX_W = 360
+          const POPUP_MAX_H = 200
+          const left = () => Math.max(8, Math.min(pending().anchor.x, window.innerWidth - POPUP_MAX_W - 8))
+          const top = () => Math.max(8, Math.min(pending().anchor.y, window.innerHeight - POPUP_MAX_H - 8))
+          const batch = () => pending().batch
+          const sample = () => batch().slice(0, 3).join(", ")
+          const more = () => (batch().length > 3 ? ` and ${batch().length - 3} more` : "")
+          // Outside-click + Esc to dismiss. Mirrors the in-app dismissal
+          // contract used by the right-click context menu and the popout
+          // window chrome.
+          let overlayRef: HTMLDivElement | undefined
+          const onOutsideKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") {
+              e.preventDefault()
+              setDeletePending(undefined)
+            }
+          }
+          createEffect(() => {
+            if (!deletePending()) return
+            window.addEventListener("keydown", onOutsideKey, true)
+            onCleanup(() => window.removeEventListener("keydown", onOutsideKey, true))
+          })
+          return (
+            <Portal>
+              <div
+                ref={(el) => {
+                  overlayRef = el
+                }}
+                class="fixed inset-0 z-[200]"
+                onClick={(e) => {
+                  if (e.target === overlayRef) setDeletePending(undefined)
+                }}
+              >
+                <div
+                  class="fixed bg-slate-900 border-2 border-slate-600 rounded-md shadow-xl text-slate-100 p-3 text-12-regular"
+                  style={{
+                    "max-width": `${POPUP_MAX_W}px`,
+                    "max-height": `${POPUP_MAX_H}px`,
+                    left: `${left()}px`,
+                    top: `${top()}px`,
+                  }}
+                  data-slot="filetree-delete-confirm"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div class="text-14-medium mb-1">
+                    {batch().length === 1 ? "Delete this item?" : `Delete ${batch().length} items?`}
+                  </div>
+                  <div class="text-text-weak break-all mb-3 max-h-20 overflow-auto">
+                    {sample()}
+                    {more()}
+                  </div>
+                  <div class="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      class="px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-100"
+                      onClick={() => setDeletePending(undefined)}
+                    >
+                      取消
+                    </button>
+                    <button
+                      type="button"
+                      class="px-2 py-1 rounded bg-red-600 hover:bg-red-500 text-white"
+                      onClick={() => {
+                        const b = batch()
+                        setDeletePending(undefined)
+                        void performDelete(b)
+                      }}
+                    >
+                      確定
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </Portal>
+          )
+        }}
+      </Show>
     </ContextMenu>
   )
 }
