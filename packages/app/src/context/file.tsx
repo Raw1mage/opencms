@@ -1,5 +1,6 @@
-import { batch, createEffect, createMemo, onCleanup } from "solid-js"
+import { batch, createEffect, createMemo, onCleanup, createSignal } from "solid-js"
 import { createStore, produce, reconcile } from "solid-js/store"
+import { Persist } from "@/utils/persist"
 import { createSimpleContext } from "@opencode-ai/ui/context"
 import { showToast } from "@opencode-ai/ui/toast"
 import { useParams } from "@solidjs/router"
@@ -90,6 +91,81 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
         })
       },
     })
+
+    // ── Pinned folders ────────────────────────────────────────────────
+    // Per-(workspace, session) shortcut list rendered in file-tree
+    // header. Click a chip → focus(): expand all ancestors, scroll the
+    // row into view, briefly highlight. Population is driven by the
+    // file-tree right-click @Mention action (file → pin parent folder;
+    // folder → pin self). Persisted via the same storage scheme as the
+    // prompt input/context so navigating away and back keeps pins.
+    const pinKey = createMemo(() => Persist.scoped(scope(), params.id, "pinned-folders").key)
+    const [pinned, setPinned] = createSignal<string[]>([])
+    createEffect(() => {
+      const k = pinKey()
+      try {
+        const raw = typeof localStorage !== "undefined" ? localStorage.getItem(k) : null
+        setPinned(raw ? (JSON.parse(raw) as string[]) : [])
+      } catch {
+        setPinned([])
+      }
+    })
+    const writePins = (next: string[]) => {
+      setPinned(next)
+      try {
+        if (typeof localStorage !== "undefined") localStorage.setItem(pinKey(), JSON.stringify(next))
+      } catch {}
+    }
+    const pinFolder = (input: string) => {
+      const folder = path.normalizeDir(input)
+      // Skip pinning the workspace root — it's always visible, no value.
+      if (folder === "") return
+      const current = pinned()
+      if (current.includes(folder)) return
+      writePins([...current, folder])
+    }
+    const unpinFolder = (input: string) => {
+      const folder = path.normalizeDir(input)
+      writePins(pinned().filter((p) => p !== folder))
+    }
+
+    /**
+     * Focus a folder in the tree: expand every ancestor up to root, then
+     * scroll the matching row into view and apply a brief highlight.
+     * Used by header pin chips. Awaits expansion fetches so deep paths
+     * become visible after their dirs load.
+     */
+    const focusFolder = async (input: string) => {
+      const folder = path.normalizeDir(input)
+      if (folder === "") return
+      const segments = folder.split("/")
+      // Expand ancestors top-down so each child listing has a parent loaded.
+      // expandDir triggers listDir(force) — await it so the next iteration
+      // can find the now-rendered row.
+      let prefix = ""
+      for (const seg of segments) {
+        prefix = prefix ? `${prefix}/${seg}` : seg
+        // expandDir is fire-and-forget internally; trigger and let the
+        // tree-store's listDir kick off; await listDir directly so the
+        // dom is settled before we query.
+        tree.expandDir(prefix)
+        await tree.listDir(prefix)
+      }
+      // Wait one frame so SolidJS reactive updates have rendered.
+      await new Promise((r) =>
+        typeof requestAnimationFrame !== "undefined" ? requestAnimationFrame(() => r(undefined)) : setTimeout(r, 16),
+      )
+      const target = document.querySelector<HTMLElement>(
+        `[data-filetree-row="true"][data-filetree-row-path="${CSS.escape(folder)}"]`,
+      )
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "center" })
+        target.dataset.filetreeFocusFlash = "1"
+        setTimeout(() => {
+          delete target.dataset.filetreeFocusFlash
+        }, 1200)
+      }
+    }
 
     const evictContent = (keep?: Set<string>) => {
       evictContentLru(keep, (target) => {
@@ -350,6 +426,12 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
           }
           tree.expandDir(input)
         },
+        focus: focusFolder,
+      },
+      pinnedFolders: {
+        list: pinned,
+        pin: pinFolder,
+        unpin: unpinFolder,
       },
       get,
       load,

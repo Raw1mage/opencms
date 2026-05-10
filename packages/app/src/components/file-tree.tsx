@@ -1,5 +1,6 @@
 import { useFile } from "@/context/file"
 import { useSDK } from "@/context/sdk"
+import { usePrompt, type ContentPart } from "@/context/prompt"
 import { usePrompts } from "@/context/prompts"
 import { encodeFilePath } from "@/context/file/path"
 import { Checkbox } from "@opencode-ai/ui/checkbox"
@@ -98,6 +99,7 @@ export type ClipboardState = { mode: "copy" | "cut"; entries: readonly FileTreeC
 
 export type FileTreeContextMenuActionId =
   | "open"
+  | "mention"
   | "create-file"
   | "create-folder"
   | "rename"
@@ -118,7 +120,7 @@ export type FileTreeContextMenuAction = {
 }
 
 export type FileTreeContextMenuActionGroup = {
-  id: "open" | "new" | "clipboard" | "organize" | "transfer"
+  id: "open" | "reference" | "new" | "clipboard" | "organize" | "transfer"
   label: string
   actions: FileTreeContextMenuAction[]
 }
@@ -180,6 +182,19 @@ export function fileTreeContextMenuActionGroups(input: {
             input.target.kind === "folder"
               ? "Choose a file or folder row to open."
               : "Open supports one item at a time.",
+        },
+      ],
+    },
+    {
+      id: "reference",
+      label: "Reference",
+      actions: [
+        {
+          id: "mention",
+          label: effectiveCount > 1 ? `@Mention ${effectiveCount} items` : "@Mention in chat",
+          enabled:
+            input.target.kind === "row" || (input.target.kind === "folder" && input.target.path !== ""),
+          reason: "Right-click a file or folder row.",
         },
       ],
     },
@@ -385,6 +400,7 @@ const FileTreeNode = (
         [local.nodeClass ?? ""]: !!local.nodeClass,
       }}
       data-filetree-row="true"
+      data-filetree-row-path={local.node.path}
       data-filetree-selected={local.selected ? "true" : undefined}
       data-filetree-cut={local.cut ? "true" : undefined}
       style={`padding-left: ${Math.max(0, 8 + local.level * 12 - (local.node.type === "file" ? 24 : 4))}px`}
@@ -459,6 +475,7 @@ export default function FileTree(props: {
 }) {
   const file = useFile()
   const sdk = useSDK()
+  const promptCtx = usePrompt()
   const level = props.level ?? 0
   const draggable = () => props.draggable ?? true
   const root = !props._chain
@@ -861,6 +878,58 @@ export default function FileTree(props: {
     if (lastError) surfaceError(lastError, "Upload failed")
   }
 
+  const runMention = (target: ActionTarget) => {
+    type Ref = { path: string; nodeType: FileNode["type"] }
+    const refs: Ref[] = []
+    if (target.kind === "row") {
+      const sel = selection().selected
+      if (sel.has(target.path) && sel.size > 1) {
+        for (const path of sel) {
+          const t = pathTypes.get(path) ?? "file"
+          refs.push({ path, nodeType: t })
+        }
+      } else {
+        refs.push({ path: target.path, nodeType: target.nodeType })
+      }
+    } else if (target.kind === "folder" && target.path !== "") {
+      refs.push({ path: target.path, nodeType: "directory" })
+    }
+    if (refs.length === 0) return
+
+    // 1) Append @path pills to the chat prompt.
+    const current = promptCtx.current()
+    const next: ContentPart[] = current.map((p) => ({ ...p }) as ContentPart)
+    const last = next[next.length - 1]
+    if (last && last.type === "text" && last.content && !/\s$/.test(last.content)) {
+      next[next.length - 1] = { ...last, content: last.content + " " }
+    } else if (!last) {
+      next.push({ type: "text", content: "", start: 0, end: 0 })
+    }
+    for (const ref of refs) {
+      next.push({ type: "file", path: ref.path, content: "@" + ref.path, start: 0, end: 0 })
+      next.push({ type: "text", content: " ", start: 0, end: 0 })
+    }
+    promptCtx.set(next)
+
+    // 2) Pin folders to header. File mentions pin their parent folder.
+    const pinTargets = new Set<string>()
+    for (const ref of refs) {
+      if (ref.nodeType === "directory") {
+        pinTargets.add(ref.path)
+      } else {
+        const parent = ref.path.lastIndexOf("/") === -1 ? "" : ref.path.slice(0, ref.path.lastIndexOf("/"))
+        if (parent !== "") pinTargets.add(parent)
+      }
+    }
+    for (const p of pinTargets) file.pinnedFolders.pin(p)
+
+    showToast({
+      variant: "success",
+      title: refs.length > 1 ? `Referenced ${refs.length} items` : "Referenced in chat",
+      description: refs.map((r) => r.path).join(", "),
+    })
+  }
+
   const runDownload = async (target: ActionTarget) => {
     if (target.kind !== "row" || target.nodeType !== "file") return
     try {
@@ -1125,6 +1194,9 @@ export default function FileTree(props: {
       case "open":
         runOpen(target)
         return
+      case "mention":
+        runMention(target)
+        return
       case "create-file":
         void runCreate(target, "file")
         return
@@ -1304,6 +1376,50 @@ export default function FileTree(props: {
     </span>
   )
 
+  // Pinned-folder chips. Populated by @Mention (file → parent folder,
+  // folder → self). Click jumps the tree to that folder; × removes it.
+  // Persisted per (workspace, session) in FileProvider.
+  const pinned = file.pinnedFolders.list
+  const folderBasename = (p: string) => {
+    const idx = p.lastIndexOf("/")
+    return idx === -1 ? p : p.slice(idx + 1)
+  }
+  const renderPinStrip = () => (
+    <Show when={pinned().length > 0}>
+      <div class="w-full flex flex-wrap gap-1 px-1.5 py-1 border-b border-border-weak-base">
+        <For each={pinned()}>
+          {(folder) => (
+            <span
+              class="inline-flex items-center gap-x-1 rounded bg-surface-raised-base px-1.5 py-0.5 text-11-regular text-text-base hover:bg-surface-raised-base-hover transition-colors"
+              title={folder}
+            >
+              <button
+                type="button"
+                class="cursor-pointer max-w-[14ch] truncate text-left"
+                onClick={() => {
+                  void file.tree.focus(folder)
+                }}
+              >
+                {folderBasename(folder)}
+              </button>
+              <button
+                type="button"
+                class="shrink-0 size-3 flex items-center justify-center text-text-weak hover:text-text-base cursor-pointer"
+                aria-label={`Unpin ${folder}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  file.pinnedFolders.unpin(folder)
+                }}
+              >
+                ×
+              </button>
+            </span>
+          )}
+        </For>
+      </div>
+    </Show>
+  )
+
   const renderHeader = () => (
     <div class="w-full h-6 flex items-center gap-x-1.5 px-1.5 text-text-weak text-12-medium border-b border-border-weak-base">
       <span class="shrink-0 size-4 flex items-center justify-center">
@@ -1420,6 +1536,7 @@ export default function FileTree(props: {
       onKeyDown={root ? handleTreeKeyDown : undefined}
       tabIndex={root ? -1 : undefined}
     >
+      <Show when={root}>{renderPinStrip()}</Show>
       <Show when={root && props.showHeader}>{renderHeader()}</Show>
       <For each={nodes()}>
         {(node) => {
