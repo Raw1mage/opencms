@@ -782,7 +782,7 @@ export namespace File {
     return resolved
   }
 
-  function recyclebinRoot(): string {
+  function projectRecyclebinRoot(): string {
     return path.join(Instance.directory, "recyclebin")
   }
 
@@ -790,9 +790,48 @@ export namespace File {
     return tombstonePath + ".opencode-recycle.json"
   }
 
+  // Find the filesystem mount root that contains `source`. Walks up from
+  // source's parent until either (a) the parent's stat.dev differs from
+  // source's (then `last` is the mount root), or (b) we hit project root
+  // / fs root. Returns the deepest ancestor that shares the source's
+  // device — which is exactly the per-mount recyclebin anchor we want.
+  async function findMountRootForSource(source: string): Promise<string> {
+    const sourceStat = await fs.promises.stat(source).catch(() => undefined)
+    if (!sourceStat) return Instance.directory
+    const sourceDev = sourceStat.dev
+    let last = path.dirname(source)
+    let cur = last
+    const fsRoot = path.parse(cur).root
+    const projectRoot = path.resolve(Instance.directory)
+    for (let i = 0; i < 64; i++) {
+      const stat = await fs.promises.stat(cur).catch(() => undefined)
+      if (!stat) break
+      if (stat.dev !== sourceDev) {
+        // Crossed a mount boundary — `last` was the deepest same-dev ancestor.
+        return last
+      }
+      last = cur
+      // Stop walking once we're at or past the project root, even if dev
+      // hasn't changed yet — keeps the recyclebin within the project tree.
+      if (cur === projectRoot || cur === fsRoot) break
+      const parent = path.dirname(cur)
+      if (parent === cur) break
+      cur = parent
+    }
+    return last
+  }
+
+  async function recyclebinRootForSource(source: string): Promise<string> {
+    const mountRoot = await findMountRootForSource(source)
+    return path.join(mountRoot, "recyclebin")
+  }
+
   async function uniqueRecyclePath(sourcePath: string): Promise<string> {
-    const root = recyclebinRoot()
+    const root = await recyclebinRootForSource(sourcePath)
     await fs.promises.mkdir(root, { recursive: true })
+    // Keep the boundary contract: the recyclebin we picked must still
+    // live within the strict-project / whitelist boundary so we never
+    // accidentally drop tombstones outside the user's allowed surface.
     await assertOperationWithinProject(root)
     const parsed = path.parse(sourcePath)
     const stamp = new Date().toISOString().replace(/[:.]/g, "-")
@@ -1568,31 +1607,26 @@ export namespace File {
         deletedAt: new Date().toISOString(),
         type: stat.isDirectory() ? "directory" : "file",
       }
+      // rename-first into the per-mount recyclebin. uniqueRecyclePath
+      // selected the recyclebin root that lives on the SAME filesystem as
+      // source, so EXDEV should not occur for normal cases. If we still
+      // hit EXDEV (e.g. a custom mount we couldn't resolve), surface the
+      // error rather than silently doing a copy that EIOs on Drive
+      // placeholders.
       const metadataFile = recycleMetadataPath(destination)
-      await fs.promises.writeFile(metadataFile, JSON.stringify(metadata, null, 2), { flag: "wx" })
       try {
-        // Same rename-first treatment as moveWithoutOverwrite — critical for
-        // cloud-only placeholder files (Google Drive .gdoc et al) whose
-        // read() throws EIO. Falls back to copy+rm only when source and
-        // recyclebin live on different filesystems (EXDEV).
-        try {
-          await fs.promises.rename(source, destination)
-        } catch (err) {
-          if (!isCrossDeviceError(err)) throw err
-          await copyWithoutOverwrite(source, destination)
-          await fs.promises.rm(source, { recursive: true, force: false })
-        }
+        await fs.promises.rename(source, destination)
       } catch (err) {
-        await fs.promises.rm(destination, { recursive: true, force: true }).catch(() => {})
-        await fs.promises.rm(metadataFile, { force: true }).catch(() => {})
         throw err
       }
+      // Metadata sidecar AFTER rename so a failed rename never orphans it.
+      await fs.promises.writeFile(metadataFile, JSON.stringify(metadata, null, 2), { flag: "wx" }).catch(() => {})
       return {
         operation: "delete-to-recyclebin",
         source: metadata.originalPath,
         destination: metadata.tombstonePath,
         node: await nodeFromPath(destination),
-        affectedDirectories: [...new Set([parentRelative(source), normalizeRelative(recyclebinRoot())])],
+        affectedDirectories: [...new Set([parentRelative(source), parentRelative(destination)])],
       }
     }, operationResultParts)
   }
@@ -1600,8 +1634,12 @@ export namespace File {
   export async function restoreFromRecyclebin(input: { tombstonePath: string }): Promise<OperationResult> {
     return withTelemetry("restore-from-recyclebin", input as unknown as Record<string, unknown>, async () => {
       const tombstone = await resolveProjectPath(input.tombstonePath)
-      const recycleRoot = await assertOperationWithinProject(recyclebinRoot())
-      if (!isWithinRoot(tombstone, recycleRoot)) {
+      // Per-mount recyclebins mean we can't validate against a single root
+      // anymore. Tombstone is acceptable when its parent directory is named
+      // "recyclebin" AND the path lives within the strict-project (or
+      // whitelisted) boundary. The sidecar metadata + originalPath check
+      // below provides the second integrity layer.
+      if (path.basename(path.dirname(tombstone)) !== "recyclebin") {
         throw operationError("FILE_RECYCLEBIN_METADATA_INVALID", "Recyclebin metadata is missing or unsafe.")
       }
       const metadataFile = recycleMetadataPath(tombstone)
@@ -1660,7 +1698,7 @@ export namespace File {
         source: parsed.data.tombstonePath,
         destination: parsed.data.originalPath,
         node: await nodeFromPath(destination),
-        affectedDirectories: [...new Set([parentRelative(destination), normalizeRelative(recyclebinRoot())])],
+        affectedDirectories: [...new Set([parentRelative(destination), parentRelative(tombstone)])],
       }
     }, operationResultParts)
   }
