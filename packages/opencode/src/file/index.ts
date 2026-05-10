@@ -1571,8 +1571,17 @@ export namespace File {
       const metadataFile = recycleMetadataPath(destination)
       await fs.promises.writeFile(metadataFile, JSON.stringify(metadata, null, 2), { flag: "wx" })
       try {
-        await copyWithoutOverwrite(source, destination)
-        await fs.promises.rm(source, { recursive: true, force: false })
+        // Same rename-first treatment as moveWithoutOverwrite — critical for
+        // cloud-only placeholder files (Google Drive .gdoc et al) whose
+        // read() throws EIO. Falls back to copy+rm only when source and
+        // recyclebin live on different filesystems (EXDEV).
+        try {
+          await fs.promises.rename(source, destination)
+        } catch (err) {
+          if (!isCrossDeviceError(err)) throw err
+          await copyWithoutOverwrite(source, destination)
+          await fs.promises.rm(source, { recursive: true, force: false })
+        }
       } catch (err) {
         await fs.promises.rm(destination, { recursive: true, force: true }).catch(() => {})
         await fs.promises.rm(metadataFile, { force: true }).catch(() => {})
@@ -1621,15 +1630,30 @@ export namespace File {
         }
         throw err
       })
-      await copyWithoutOverwrite(tombstone, destination).catch((err) => {
-        if (err instanceof OperationError && err.code === "FILE_OP_DUPLICATE") {
-          throw operationError("FILE_RECYCLEBIN_RESTORE_CONFLICT", "Restore target already exists.", {
-            path: parsed.data.originalPath,
-          })
+      // Restore is also a metadata-only move semantically: from recyclebin
+      // back to the original path. Use rename-first so cloud-only
+      // placeholder files survive restore. Fall back to copy+rm on EXDEV.
+      try {
+        await fs.promises.rename(tombstone, destination)
+      } catch (err) {
+        if (!isCrossDeviceError(err)) {
+          if (err instanceof OperationError && err.code === "FILE_OP_DUPLICATE") {
+            throw operationError("FILE_RECYCLEBIN_RESTORE_CONFLICT", "Restore target already exists.", {
+              path: parsed.data.originalPath,
+            })
+          }
+          throw err
         }
-        throw err
-      })
-      await fs.promises.rm(tombstone, { recursive: true, force: false })
+        await copyWithoutOverwrite(tombstone, destination).catch((err2) => {
+          if (err2 instanceof OperationError && err2.code === "FILE_OP_DUPLICATE") {
+            throw operationError("FILE_RECYCLEBIN_RESTORE_CONFLICT", "Restore target already exists.", {
+              path: parsed.data.originalPath,
+            })
+          }
+          throw err2
+        })
+        await fs.promises.rm(tombstone, { recursive: true, force: false })
+      }
       await fs.promises.rm(metadataFile, { force: true })
       return {
         operation: "restore-from-recyclebin",

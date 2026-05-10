@@ -1164,6 +1164,18 @@ export default function FileTree(props: {
     pathTypes.set(node.path, node.type)
   }
 
+  // Mirror every currently-visible node into pathTypes so that selection
+  // helpers built from path strings alone (Shift-click range, header
+  // select-all, programmatic selection from outside) can still emit a
+  // typed contextSelection. Without this, shift-click range adds the
+  // path strings to selection() but their types are never registered,
+  // and effectiveContextSelection silently drops them — surfacing as
+  // "Cut N items" where N is suspiciously smaller than what the user
+  // visually highlighted.
+  createEffect(() => {
+    for (const node of nodes()) pathTypes.set(node.path, node.type)
+  })
+
   const siblingPaths = createMemo(() => nodes().map((n) => n.path))
 
   const isSelected = (path: string) => selection().selected.has(path)
