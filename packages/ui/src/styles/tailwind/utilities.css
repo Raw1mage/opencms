@@ -1,3 +1,13 @@
+/* Brief flash applied to a file-tree row that has just been focused
+   from a pin chip click. Removed after the timeout in FileProvider. */
+[data-filetree-row="true"][data-filetree-focus-flash="1"] {
+  animation: filetreeFocusFlash 1.2s ease-out;
+}
+@keyframes filetreeFocusFlash {
+  0% { background-color: var(--surface-raised-base-active, rgba(99, 102, 241, 0.35)); }
+  100% { background-color: transparent; }
+}
+
 @utility no-scrollbar {
   &::-webkit-scrollbar {
     display: none;

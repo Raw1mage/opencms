@@ -141,6 +141,38 @@ describe("file tree fetch discipline", () => {
     expect(actions.get("rename")?.enabled).toBe(false)
   })
 
+  test("mention is enabled for rows and named folders, scales with selection", () => {
+    const fileNode = {
+      name: "a.txt",
+      path: "src/a.txt",
+      absolute: "/repo/src/a.txt",
+      type: "file" as const,
+      ignored: false,
+    }
+    const rowGroups = fileTreeContextMenuActionGroups({ target: fileTreeRowContextMenuTarget(fileNode) })
+    const rowActions = new Map(rowGroups.flatMap((g) => g.actions.map((a) => [a.id, a])))
+    expect(rowActions.get("mention")?.enabled).toBe(true)
+    expect(rowActions.get("mention")?.label).toBe("@Mention in chat")
+
+    const multi = fileTreeContextMenuActionGroups({
+      target: fileTreeRowContextMenuTarget(fileNode),
+      selection: [
+        { path: "src/a.txt", type: "file" },
+        { path: "src/b.txt", type: "file" },
+      ],
+    })
+    const multiActions = new Map(multi.flatMap((g) => g.actions.map((a) => [a.id, a])))
+    expect(multiActions.get("mention")?.label).toBe("@Mention 2 items")
+
+    const folderGroups = fileTreeContextMenuActionGroups({ target: fileTreeFolderContextMenuTarget("src") })
+    const folderActions = new Map(folderGroups.flatMap((g) => g.actions.map((a) => [a.id, a])))
+    expect(folderActions.get("mention")?.enabled).toBe(true)
+
+    const rootGroups = fileTreeContextMenuActionGroups({ target: fileTreeFolderContextMenuTarget("") })
+    const rootActions = new Map(rootGroups.flatMap((g) => g.actions.map((a) => [a.id, a])))
+    expect(rootActions.get("mention")?.enabled).toBe(false)
+  })
+
   test("action groups expose restore only for recyclebin rows", () => {
     const node = {
       name: "draft.txt",
