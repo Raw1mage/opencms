@@ -1384,37 +1384,76 @@ export default function FileTree(props: {
     const idx = p.lastIndexOf("/")
     return idx === -1 ? p : p.slice(idx + 1)
   }
+
+  // Focus-mode view: when a chip is active, render only the chain from
+  // root through ancestors of the focused folder + the focused folder's
+  // own children. All sibling branches collapse into a single "N more"
+  // placeholder. Reduces visible-folder count → fewer polling requests
+  // → no more 429s; also matches the "show me only this branch" UX.
+  const focusView = createMemo(() => {
+    const f = file.tree.focused()
+    const all = nodes()
+    if (!f) return { visible: all, hiddenCount: 0 }
+    const here = props.path
+    // At focus point or below it: render normally.
+    if (f === here || here === f || here.startsWith(f + "/")) {
+      return { visible: all, hiddenCount: 0 }
+    }
+    // Ancestor of focused: keep only the child that continues the chain.
+    const isAncestor = here === "" ? f !== "" : f.startsWith(here + "/")
+    if (!isAncestor) return { visible: [] as typeof all, hiddenCount: all.length }
+    const remainder = here === "" ? f : f.slice(here.length + 1)
+    const nextSeg = remainder.split("/")[0]
+    const nextChildPath = here === "" ? nextSeg : here + "/" + nextSeg
+    const visible = all.filter((n) => n.path === nextChildPath)
+    return { visible, hiddenCount: all.length - visible.length }
+  })
   const renderPinStrip = () => (
     <Show when={pinned().length > 0}>
       <div class="w-full flex flex-wrap gap-1 px-1.5 py-1 border-b border-border-weak-base">
         <For each={pinned()}>
-          {(folder) => (
-            <span
-              class="inline-flex items-center gap-x-1 rounded bg-surface-raised-base px-1.5 py-0.5 text-11-regular text-text-base hover:bg-surface-raised-base-hover transition-colors"
-              title={folder}
-            >
-              <button
-                type="button"
-                class="cursor-pointer max-w-[14ch] truncate text-left"
-                onClick={() => {
-                  void file.tree.focus(folder)
+          {(folder) => {
+            const isActive = () => file.tree.focused() === folder
+            return (
+              <span
+                classList={{
+                  "inline-flex items-center gap-x-1 rounded px-1.5 py-0.5 text-11-regular transition-colors": true,
+                  "bg-surface-raised-base text-text-base hover:bg-surface-raised-base-hover": !isActive(),
+                  "bg-blue-600 text-white hover:bg-blue-500": isActive(),
                 }}
+                title={isActive() ? `${folder} (focused — click to show full tree)` : folder}
               >
-                {folderBasename(folder)}
-              </button>
-              <button
-                type="button"
-                class="shrink-0 size-3 flex items-center justify-center text-text-weak hover:text-text-base cursor-pointer"
-                aria-label={`Unpin ${folder}`}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  file.pinnedFolders.unpin(folder)
-                }}
-              >
-                ×
-              </button>
-            </span>
-          )}
+                <button
+                  type="button"
+                  class="cursor-pointer max-w-[14ch] truncate text-left"
+                  onClick={() => {
+                    if (isActive()) {
+                      file.tree.clearFocus()
+                    } else {
+                      void file.tree.focus(folder)
+                    }
+                  }}
+                >
+                  {folderBasename(folder)}
+                </button>
+                <button
+                  type="button"
+                  classList={{
+                    "shrink-0 size-3 flex items-center justify-center cursor-pointer": true,
+                    "text-text-weak hover:text-text-base": !isActive(),
+                    "text-white/70 hover:text-white": isActive(),
+                  }}
+                  aria-label={`Unpin ${folder}`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    file.pinnedFolders.unpin(folder)
+                  }}
+                >
+                  ×
+                </button>
+              </span>
+            )
+          }}
         </For>
       </div>
     </Show>
@@ -1538,7 +1577,7 @@ export default function FileTree(props: {
     >
       <Show when={root}>{renderPinStrip()}</Show>
       <Show when={root && props.showHeader}>{renderHeader()}</Show>
-      <For each={nodes()}>
+      <For each={focusView().visible}>
         {(node) => {
           const expanded = () => file.tree.state(node.path)?.expanded ?? false
           const deep = () => deeps().get(node.path) ?? -1
@@ -1554,8 +1593,35 @@ export default function FileTree(props: {
                   forceMount={false}
                   open={expanded()}
                   onOpenChange={(open) => {
+                    // Branch-isolation chevron behavior:
+                    //   - Expand any folder → auto-focus on it so siblings
+                    //     collapse to chain.
+                    //   - Collapse the focused folder → step up: focus
+                    //     shifts to its parent and this folder collapses.
+                    //   - Collapse a chain ancestor → focus shifts up to
+                    //     that ancestor; everything below it collapses.
+                    //   - Collapse anything else → normal collapse.
+                    const focused = file.tree.focused()
+                    if (!open && focused) {
+                      if (node.path === focused) {
+                        const idx = node.path.lastIndexOf("/")
+                        const parent = idx === -1 ? "" : node.path.slice(0, idx)
+                        if (parent === "") {
+                          file.tree.clearFocus()
+                          void file.tree.refresh(node.path)
+                          file.tree.collapse(node.path)
+                        } else {
+                          void file.tree.focus(parent)
+                        }
+                        return
+                      }
+                      if (focused.startsWith(node.path + "/")) {
+                        void file.tree.focus(node.path)
+                        return
+                      }
+                    }
                     if (open) {
-                      file.tree.expand(node.path)
+                      void file.tree.focus(node.path)
                     } else {
                       void file.tree.refresh(node.path)
                       file.tree.collapse(node.path)
@@ -1576,11 +1642,32 @@ export default function FileTree(props: {
                     trailing={renderTrailing(node)}
                     onClick={(event: MouseEvent) => handleRowClick(node, event)}
                     onDblClick={() => {
+                      // Mirror chevron handler end-to-end. See onOpenChange
+                      // above for the rule set.
+                      const focused = file.tree.focused()
+                      if (focused) {
+                        if (node.path === focused) {
+                          const idx = node.path.lastIndexOf("/")
+                          const parent = idx === -1 ? "" : node.path.slice(0, idx)
+                          if (parent === "") {
+                            file.tree.clearFocus()
+                            void file.tree.refresh(node.path)
+                            file.tree.collapse(node.path)
+                          } else {
+                            void file.tree.focus(parent)
+                          }
+                          return
+                        }
+                        if (focused.startsWith(node.path + "/")) {
+                          void file.tree.focus(node.path)
+                          return
+                        }
+                      }
                       if (expanded()) {
                         void file.tree.refresh(node.path)
                         file.tree.collapse(node.path)
                       } else {
-                        file.tree.expand(node.path)
+                        void file.tree.focus(node.path)
                       }
                     }}
                     onContextMenu={(event: MouseEvent) => {

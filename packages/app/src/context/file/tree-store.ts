@@ -92,6 +92,17 @@ export function createFileTreeStore(options: TreeStoreOptions) {
             }
 
             for (const node of nodes) {
+              const existing = draft[node.path]
+              if (
+                existing &&
+                existing.name === node.name &&
+                existing.absolute === node.absolute &&
+                existing.type === node.type &&
+                existing.ignored === node.ignored &&
+                existing.size === node.size &&
+                existing.modifiedAt === node.modifiedAt
+              )
+                continue
               draft[node.path] = node
             }
           }),
@@ -157,11 +168,36 @@ export function createFileTreeStore(options: TreeStoreOptions) {
     return out
   }
 
-  const refreshLoaded = () => {
+  /**
+   * Walk a path top-down: mark every ancestor expanded and ensure each
+   * is listed exactly once. Used by header pin chips to bring a deep
+   * folder into view without triggering `expandDir`'s force-refresh on
+   * every level (which would multiply requests by depth and trip the
+   * server-side rate limiter).
+   *
+   * Idempotent: ancestors already loaded skip the network call via
+   * `listDir`'s no-force short-circuit. Concurrent focus() calls share
+   * the same in-flight promises through the inflight map.
+   */
+  const focus = async (input: string) => {
+    const target = options.normalizeDir(input)
+    if (!target) return
+    const segments = target.split("/")
+    let prefix = ""
+    for (const seg of segments) {
+      prefix = prefix ? `${prefix}/${seg}` : seg
+      ensureDir(prefix)
+      setTree("dir", prefix, "expanded", true)
+      await listDir(prefix)
+    }
+  }
+
+  const refreshLoaded = (filter?: (dir: string) => boolean) => {
     const targets: string[] = []
     for (const [dir, state] of Object.entries(tree.dir)) {
       if (!state?.loaded) continue
       if (!state.expanded) continue
+      if (filter && !filter(dir)) continue
       targets.push(dir)
     }
     return Promise.all(targets.map((dir) => listDir(dir, { force: true })))
@@ -175,6 +211,7 @@ export function createFileTreeStore(options: TreeStoreOptions) {
     children,
     node: (path: string) => tree.node[path],
     isLoaded: (path: string) => Boolean(tree.dir[path]?.loaded),
+    focus,
     refreshLoaded,
     reset,
   }

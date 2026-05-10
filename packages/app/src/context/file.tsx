@@ -101,6 +101,21 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
     // prompt input/context so navigating away and back keeps pins.
     const pinKey = createMemo(() => Persist.scoped(scope(), params.id, "pinned-folders").key)
     const [pinned, setPinned] = createSignal<string[]>([])
+    // Focus mode: when set, the file-tree renders only the chain from
+    // root through ancestors of this path + the focused folder's
+    // children. All sibling branches collapse into a "N more" button.
+    // Reduces request fan-out (refreshLoaded only revisits dirs on/under
+    // the chain) and matches the user's "show me only this branch"
+    // workflow. Lives outside Persist on purpose — focus is ephemeral
+    // session UI state, not a saved preference.
+    const [focused, setFocused] = createSignal<string | undefined>()
+    // Reset focus when workspace/session changes — the path may not
+    // exist in the new scope.
+    createEffect(() => {
+      scope()
+      params.id
+      setFocused(undefined)
+    })
     createEffect(() => {
       const k = pinKey()
       try {
@@ -132,24 +147,34 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
     /**
      * Focus a folder in the tree: expand every ancestor up to root, then
      * scroll the matching row into view and apply a brief highlight.
-     * Used by header pin chips. Awaits expansion fetches so deep paths
-     * become visible after their dirs load.
+     * Used by header pin chips.
+     *
+     * Delegates the expand+load walk to tree.focus, which marks each
+     * ancestor expanded directly (no per-level force refresh) and lets
+     * listDir's loaded short-circuit + inflight map deduplicate calls.
+     * Without this, deep paths multiplied requests by depth × 2 and
+     * tripped the server rate limiter (Too many requests / 429).
      */
     const focusFolder = async (input: string) => {
       const folder = path.normalizeDir(input)
       if (folder === "") return
-      const segments = folder.split("/")
-      // Expand ancestors top-down so each child listing has a parent loaded.
-      // expandDir triggers listDir(force) — await it so the next iteration
-      // can find the now-rendered row.
-      let prefix = ""
-      for (const seg of segments) {
-        prefix = prefix ? `${prefix}/${seg}` : seg
-        // expandDir is fire-and-forget internally; trigger and let the
-        // tree-store's listDir kick off; await listDir directly so the
-        // dom is settled before we query.
-        tree.expandDir(prefix)
-        await tree.listDir(prefix)
+      const previous = focused()
+      setFocused(folder)
+      await tree.focus(folder)
+      // Going up: when the new focus is an ancestor of the previous focus,
+      // collapse every level between them. Matches the user's "double-click
+      // to step up = close this level" mental model — without this, the
+      // old chain stays expanded and clutters the new branch view.
+      if (previous && previous !== folder && previous.startsWith(folder + "/")) {
+        let cur = previous
+        while (cur && cur !== folder) {
+          tree.collapseDir(cur)
+          const idx = cur.lastIndexOf("/")
+          if (idx === -1) break
+          const parent = cur.slice(0, idx)
+          if (parent === folder) break
+          cur = parent
+        }
       }
       // Wait one frame so SolidJS reactive updates have rendered.
       await new Promise((r) =>
@@ -414,7 +439,22 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
       tree: {
         list: tree.listDir,
         refresh: (input: string) => tree.listDir(input, { force: true }),
-        refreshLoaded: tree.refreshLoaded,
+        // refreshLoaded is gated by focus mode: when focused, only
+        // revisit dirs on the chain or under the focused folder. This
+        // is what stops the 5-second poll from fanning out to every
+        // historically-expanded folder and tripping the daemon's
+        // /api/v2/file rate limiter (Too many requests / 429).
+        refreshLoaded: () => {
+          const f = focused()
+          if (!f) return tree.refreshLoaded()
+          return tree.refreshLoaded(
+            (dir) =>
+              dir === "" ||
+              dir === f ||
+              f.startsWith(dir + "/") || // dir is ancestor of focus
+              dir.startsWith(f + "/"),  // dir is descendant of focus
+          )
+        },
         state: tree.dirState,
         children: tree.children,
         expand: tree.expandDir,
@@ -427,11 +467,18 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
           tree.expandDir(input)
         },
         focus: focusFolder,
+        focused,
+        clearFocus: () => setFocused(undefined),
       },
       pinnedFolders: {
         list: pinned,
         pin: pinFolder,
-        unpin: unpinFolder,
+        unpin: (input: string) => {
+          // If we're un-pinning the currently-focused folder, exit focus
+          // first so the tree returns to normal rendering.
+          if (focused() === path.normalizeDir(input)) setFocused(undefined)
+          unpinFolder(input)
+        },
       },
       get,
       load,
