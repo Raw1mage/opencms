@@ -54,22 +54,24 @@ describe("CodexLanguageModel request body", () => {
     expect(body.store).toBe(false)
   })
 
-  // codex-update plan §2: prompt_cache_key sources from thread_id (upstream
-  // a98623511b: prompt_cache_key = self.state.thread_id.to_string()).
-  // For single-thread callers (default) threadId == sessionId, so the existing
-  // composite cache key ("codex-{accountId}-{sessionId}") is preserved bit-for-bit;
-  // when an explicit threadId is supplied (multi-thread future use), the composite
-  // tracks threadId instead. INV-3.
-  test("TV-6: default cache key follows threadId (== sessionId by DD-1) — buildResponsesApiRequest plumbing", () => {
-    // doStream constructs `codex-{accountId}-{threadId}` where threadId defaults to
-    // sessionId. We verify the body field carries whatever the caller derived.
+  // plans/provider_codex-prompt-realign DD-6 (Stage A.4): prompt_cache_key
+  // is pure threadId, mirroring upstream codex-cli
+  // (refs/codex/codex-rs/core/src/client.rs:713). doStream now derives
+  // cacheKey = threadId (no `codex-${accountId}-` prefix), so multi-account
+  // rotation within one session shares one cache namespace and prefix
+  // cache can grow across rotations. The buildResponsesApiRequest function
+  // itself is plumbing-only — it carries whatever cacheKey the caller
+  // derived, so this test verifies that pass-through.
+  test("TV-6: buildResponsesApiRequest carries the caller-derived cache key verbatim (post-DD-6: pure threadId)", () => {
     const body = buildResponsesApiRequest({
       modelId: "gpt-5.4",
       input: [],
-      promptCacheKey: "codex-acct_test123-S-uuid-aaaa",
+      promptCacheKey: "S-uuid-aaaa",
       window: { conversationId: "S-uuid-aaaa", generation: 0 },
     })
-    expect(body.prompt_cache_key).toBe("codex-acct_test123-S-uuid-aaaa")
+    // Post-DD-6: doStream feeds in threadId only; we verify pass-through.
+    expect(body.prompt_cache_key).toBe("S-uuid-aaaa")
+    expect(body.prompt_cache_key).not.toMatch(/^codex-/)
   })
 
   test("TV-7: explicit promptCacheKey override wins over threadId default", () => {

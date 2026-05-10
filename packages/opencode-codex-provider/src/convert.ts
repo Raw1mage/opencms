@@ -33,23 +33,48 @@ export function convertPrompt(prompt: LanguageModelV2Prompt): {
   // Mirror upstream codex-cli wire layout
   // (refs/codex/codex-rs/core/src/client.rs:688 — `instructions =
   // &prompt.base_instructions.text`): the Responses-API `instructions` field
-  // carries the entire system prompt. All LMv2 system messages get
-  // concatenated into it; nothing routed through input as developer role.
-  // Empty string when no system message exists — caller may omit the field.
+  // carries the BaseInstructions text only (driver / persona). Subsequent
+  // system messages are not silently concatenated; they are dropped and
+  // logged so the caller is forced to put non-driver context into input[]
+  // via the developer/user bundle markers below (matches plans/
+  // provider_codex-prompt-realign DD-1).
+  //
+  // Bundle marker convention: an LMv2 user-role message carrying
+  // `providerOptions.codex.kind === "developer-bundle"` is emitted as a
+  // Responses-API ResponseItem with role:"developer" instead of role:"user".
+  // This is how the opencode session.llm.ts assembler conveys the developer
+  // bundle (RoleIdentity / OpencodeProtocolInstructions / ...) through the
+  // AI SDK V2 prompt shape, which only has system/user/assistant/tool roles.
   const systemTexts: string[] = []
   const input: ResponseItem[] = []
 
   for (const msg of prompt) {
     switch (msg.role) {
       case "system":
-        systemTexts.push(msg.content)
+        // Driver-only contract: keep the first system message; drop the rest.
+        // No silent concatenation (AGENTS.md no-silent-fallback rule).
+        if (systemTexts.length === 0) {
+          systemTexts.push(msg.content)
+        } else {
+          // eslint-disable-next-line no-console
+          console.error(
+            `[codex-convert] dropping extra system message (${msg.content.length} chars); ` +
+              `instructions field is driver-only post-realign. ` +
+              `Move non-driver context into developer/user bundles via providerOptions.codex.kind.`,
+          )
+        }
         break
 
       case "user": {
         // User content is ALWAYS a content parts array (never plain string)
         // Golden: [{type: "input_text", text: "..."}] or [{type: "input_image", image_url: "..."}]
         const parts = convertUserContent(msg.content)
-        input.push({ role: "user", content: parts })
+        // Bundle marker: opencode session assembler tags pre-conversation
+        // bundle items with providerOptions.codex.kind so we can route them
+        // to the right Responses-API role.
+        const codexOpts = (msg.providerOptions as { codex?: { kind?: string } } | undefined)?.codex
+        const role = codexOpts?.kind === "developer-bundle" ? "developer" : "user"
+        input.push({ role, content: parts } as ResponseItem)
         break
       }
 

@@ -31,15 +31,48 @@ describe("convertPrompt — golden format verification", () => {
     expect(input).toEqual([])
   })
 
-  test("multiple system messages concatenate into instructions", () => {
+  test("multiple system messages: first → instructions, rest dropped (driver-only contract, DD-1)", () => {
     const prompt: LanguageModelV2Prompt = [
       { role: "system", content: "Driver persona." },
       { role: "system", content: "SYSTEM.md global rules." },
     ]
     const { instructions, input } = convertPrompt(prompt)
 
-    expect(instructions).toBe("Driver persona.\n\nSYSTEM.md global rules.")
+    // Post-realign: instructions field carries BaseInstructions only.
+    // Subsequent system messages are dropped (logged via console.error)
+    // so callers must route SYSTEM.md / AGENTS.md / etc. through the
+    // developer/user bundle markers in input[].
+    expect(instructions).toBe("Driver persona.")
     expect(input).toEqual([])
+  })
+
+  test("user message with providerOptions.codex.kind=developer-bundle → role:developer ResponseItem", () => {
+    const prompt: LanguageModelV2Prompt = [
+      { role: "system", content: "Driver." },
+      {
+        role: "user",
+        content: [{ type: "text", text: "<role_identity>...</role_identity>" }],
+        providerOptions: { codex: { kind: "developer-bundle" } },
+      },
+      {
+        role: "user",
+        content: [{ type: "text", text: "<environment_context>...</environment_context>" }],
+        providerOptions: { codex: { kind: "user-bundle" } },
+      },
+      {
+        role: "user",
+        content: [{ type: "text", text: "Real user message." }],
+      },
+    ]
+    const { instructions, input } = convertPrompt(prompt)
+
+    expect(instructions).toBe("Driver.")
+    expect(input).toHaveLength(3)
+    // First (developer-bundle marker) becomes role:"developer"
+    expect((input[0] as { role: string }).role).toBe("developer")
+    // Second (user-bundle marker) and third (no marker) both become role:"user"
+    expect((input[1] as { role: string }).role).toBe("user")
+    expect((input[2] as { role: string }).role).toBe("user")
   })
 
   test("no system message → empty instructions (no placeholder)", () => {

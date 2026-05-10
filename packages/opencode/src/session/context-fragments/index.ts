@@ -40,3 +40,10 @@ export {
   ROLE_IDENTITY_CLOSE_TAG,
 } from "./role-identity"
 export type { RoleIdentityInput } from "./role-identity"
+
+export {
+  buildOpencodeAgentInstructionsFragment,
+  AGENT_INSTRUCTIONS_OPEN_TAG,
+  AGENT_INSTRUCTIONS_CLOSE_TAG,
+} from "./opencode-agent-instructions"
+export type { OpencodeAgentInstructionsInput } from "./opencode-agent-instructions"

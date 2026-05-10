@@ -156,12 +156,19 @@ class CodexLanguageModel implements LanguageModelV2 {
 
     // codex-update DD-1: thread_id distinct from session_id (upstream a98623511b).
     // For single-thread callers (current opencode behavior) threadId defaults to
-    // sessionId, keeping the cache key stable. INV-3: prompt_cache_key follows
-    // thread_id; the composite preserves account namespacing.
+    // sessionId, keeping the cache key stable.
+    //
+    // plans/provider_codex-prompt-realign DD-6 (Stage A.4): prompt_cache_key
+    // is pure threadId, mirroring upstream codex-cli
+    // (refs/codex/codex-rs/core/src/client.rs:713 —
+    //   `let prompt_cache_key = Some(self.state.thread_id.to_string());`).
+    // Previously we prefixed with `codex-${accountId}-` for per-account
+    // cache namespacing, but that fragmented the prefix-cache: every
+    // account rotation reset the cache to cold. With pure threadId, all
+    // turns of the same logical thread share one cache namespace and
+    // server-side prefix caching can grow across rotations.
     const threadId = requestHeaders?.["x-opencode-thread-id"] ?? sessionId
-    const cacheKey = threadId
-      ? `codex-${accountId || "default"}-${threadId}`
-      : this.window.conversationId
+    const cacheKey = threadId ?? this.window.conversationId
 
     // Update window conversationId to match session for lineage tracking
     if (sessionId && this.window.conversationId !== sessionId) {
