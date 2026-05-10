@@ -1184,7 +1184,7 @@ export namespace MCP {
             // Inject output directory for tools that save files (e.g. gmail HTML).
             // Uses .opencode/mcp-output/ under the project root so fileview can access it.
             // Gitignored. Not /tmp (security risk with multi-user).
-            const projectRoot = Instance.project?.path ?? process.cwd()
+            const projectRoot = Instance.project?.worktree ?? process.cwd()
             env.OPENCODE_OUTPUT_DIR = path.join(projectRoot, ".opencode", "mcp-output")
 
             // Inject user config values as env vars (key uppercased)

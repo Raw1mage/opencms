@@ -90,7 +90,7 @@ async function handlePluginAuth(plugin: { auth: PluginAuth }, provider: string):
       spinner.start("Waiting for authorization...")
       const result = await authorize.callback()
       if (result.type === "failed") {
-        spinner.stop("Failed to authorize", 1)
+        spinner.error("Failed to authorize")
       }
       if (result.type === "success") {
         const saveProvider = result.provider ?? provider

@@ -637,6 +637,7 @@ async function handleRateLimitEscalation(props: {
     props.currentModel.accountId,
     sessionIdentity,
     { silent: true },
+    childSessionID,
   ).catch((err) => {
     log.warn("[rot-rca] rotation3d threw", {
       childSessionID,
@@ -2752,7 +2753,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
             ` subagent in this turn. To stop it, call cancel_task with this jobId.`,
           metadata: {
             dispatched: true,
-            subSessionID: session.id,
+            sessionId: session.id,
             linkedTodoID: linkedTodo?.id,
             jobId: detachedJobId,
             status: "dispatched",

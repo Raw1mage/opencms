@@ -1111,33 +1111,8 @@ export namespace MessageV2 {
             replay: replayDebug,
           })
         }
-        if (
-          flushRemoteRefs &&
-          (replayDebug.textItemIds > 0 || replayDebug.reasoningItemIds > 0 || replayDebug.toolItemIds > 0)
-        ) {
-          // [log-volume] per-message replay checkpoint disabled — ~5.5% of debug.log bytes.
-          if (false) debugCheckpoint("message-v2", "assistant replay metadata flushed", {
-            messageID: msg.info.id,
-            sessionID: msg.info.sessionID,
-            providerId: msg.info.providerId,
-            modelID: msg.info.modelID,
-            snapshot: buildInvalidationDebugSnapshot({
-              current: {
-                providerId: msg.info.providerId,
-                modelID: msg.info.modelID,
-                accountId: msg.info.accountId,
-              },
-              next: {
-                providerId: model.providerId,
-                modelID: model.id,
-                accountId: (model as { accountId?: string }).accountId,
-              },
-              decision: continuationResetDecision,
-              replay: replayDebug,
-              compactionParts: msg.parts.filter((part) => part.type === "compaction" || part.type === "compaction-request").length,
-            }),
-          })
-        }
+        // [log-volume] per-message replay checkpoint disabled — ~5.5% of debug.log bytes.
+        // Previously emitted "assistant replay metadata flushed" with full snapshot here.
         if (assistantMessage.parts.length > 0) {
           result.push(assistantMessage)
         }

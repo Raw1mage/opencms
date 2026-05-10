@@ -2719,8 +2719,10 @@ export const SessionRoutes = lazy(() =>
           } else {
             // Try to resolve from session's last used model
             const session = await Session.get(sessionID).catch(() => undefined)
-            if (session?.modelID && session?.providerId) {
-              model = await Provider.getModel(session.providerId, session.modelID).catch(() => undefined)
+            if (session?.execution?.modelID && session?.execution?.providerId) {
+              model = await Provider.getModel(session.execution.providerId, session.execution.modelID).catch(
+                () => undefined,
+              )
             }
           }
 
@@ -2781,7 +2783,7 @@ export const SessionRoutes = lazy(() =>
                   {
                     type: "file",
                     data: audioData,
-                    mimeType: mime,
+                    mediaType: mime,
                   },
                   {
                     type: "text",

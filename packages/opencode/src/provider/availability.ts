@@ -48,7 +48,7 @@ export namespace ProviderAvailability {
     const providerIds = new Set<string>([...hasAccount, ...override])
     const byProvider: Record<string, Availability> = {}
     for (const id of providerIds) {
-      byProvider[id] = availabilityFor(id, { hasAccount, overrideDisabled: override, byProvider: {} })
+      byProvider[id] = availabilityFor(id, { hasAccount, overrideDisabled: override })
     }
 
     // AGENTS.md rule #1: loudly surface why a provider is effectively

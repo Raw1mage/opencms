@@ -1597,6 +1597,7 @@ export namespace LLM {
     currentAccountIdInput?: string,
     sessionIdentity?: { providerId: string; accountId?: string },
     options?: { silent?: boolean },
+    sessionID?: string,
   ): Promise<{ model: Provider.Model; accountId?: string } | null> {
     const { Account } = await import("@/account")
 
@@ -1792,20 +1793,22 @@ export namespace LLM {
     // surfaces recent rotations without the operator grepping bus events.
     // Dynamic import — same pattern as setActiveImageRefs caller above
     // (avoids static circular dep between llm.ts and session/index.ts).
-    void (async () => {
-      const { Session: SessionMod } = await import("@/session")
-      await SessionMod.appendRecentEvent(input.sessionID, {
-        ts: Date.now(),
-        kind: "rotation",
-        rotation: {
-          fromProviderId: currentModel.providerId,
-          fromAccountId: currentAccountId,
-          toProviderId: fallback.providerId,
-          toAccountId: fallback.accountId,
-          reason: fallbackReason === "rate-limit" ? "RATE_LIMIT_EXCEEDED" : "UNKNOWN",
-        },
-      })
-    })().catch(() => {})
+    if (sessionID) {
+      void (async () => {
+        const { Session: SessionMod } = await import("@/session")
+        await SessionMod.appendRecentEvent(sessionID, {
+          ts: Date.now(),
+          kind: "rotation",
+          rotation: {
+            fromProviderId: currentModel.providerId,
+            fromAccountId: currentAccountId,
+            toProviderId: fallback.providerId,
+            toAccountId: fallback.accountId,
+            reason: fallbackReason === "rate-limit" ? "RATE_LIMIT_EXCEEDED" : "UNKNOWN",
+          },
+        })
+      })().catch(() => {})
+    }
 
     if (isSameProvider && (!isSameAccount || !isSameModel)) {
       const { getSameProviderRotationGuard, SAME_PROVIDER_ROTATE_COOLDOWN_MS } = await import("@/account/rotation")
@@ -1865,6 +1868,7 @@ export namespace LLM {
         currentAccountId,
         sessionIdentity,
         options,
+        sessionID,
       )
     }
 

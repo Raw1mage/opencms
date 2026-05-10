@@ -186,6 +186,7 @@ export namespace ToolInvoker {
           siblingCallID: dup.callID,
         })
         return {
+          title: "",
           output: dupOutput,
           metadata: {
             dedup: {

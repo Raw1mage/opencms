@@ -161,7 +161,11 @@ export namespace McpAppStore {
   async function probeTools(command: string[], manifest?: McpAppManifest.Manifest): Promise<AppToolInfo[]> {
     // Build probe env: inject dummy auth tokens so the server doesn't crash
     // before tools/list. We only need the tool schema, not actual API access.
-    const probeEnv: Record<string, string> = { ...Env.all(), ...manifest?.env }
+    const probeEnv: Record<string, string> = {}
+    for (const [k, v] of Object.entries(Env.all())) {
+      if (typeof v === "string") probeEnv[k] = v
+    }
+    if (manifest?.env) Object.assign(probeEnv, manifest.env)
     if (manifest?.auth?.type === "oauth" || manifest?.auth?.type === "api-key") {
       const tokenEnv = (manifest.auth as { tokenEnv?: string }).tokenEnv
       if (tokenEnv && !probeEnv[tokenEnv]) {

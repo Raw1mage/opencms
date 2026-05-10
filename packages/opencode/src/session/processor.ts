@@ -701,6 +701,7 @@ export namespace SessionProcessor {
                       accountId,
                       sessionIdentity,
                       { silent: silentRotation },
+                      streamInput.sessionID,
                     )
                     if (fallback) {
                       log.info("Pre-flight: switched to fallback model", {
@@ -1683,6 +1684,7 @@ export namespace SessionProcessor {
                       streamInput.user.model.accountId,
                     sessionIdentity,
                     { silent: streamInput.agent.name === "cron" },
+                    streamInput.sessionID,
                   )
                 } catch (fallbackErr) {
                   if (CodexFamilyExhausted.isInstance(fallbackErr)) {
@@ -1827,6 +1829,7 @@ export namespace SessionProcessor {
                       streamInput.user.model.accountId,
                     sessionIdentity,
                     { silent: streamInput.agent.name === "cron" },
+                    streamInput.sessionID,
                   )
                 } catch (fallbackErr) {
                   if (CodexFamilyExhausted.isInstance(fallbackErr)) {
@@ -1987,6 +1990,7 @@ export namespace SessionProcessor {
                       streamInput.user.model.accountId,
                     sessionIdentity,
                     { silent: streamInput.agent.name === "cron" },
+                    streamInput.sessionID,
                   )
                 } catch (fallbackErr) {
                   if (CodexFamilyExhausted.isInstance(fallbackErr)) {

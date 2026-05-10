@@ -260,7 +260,7 @@ export namespace IncomingDispatcher {
       return null
     }
     const formData = new FormData()
-    formData.append("file", new Blob([buf]), filename)
+    formData.append("file", new Blob([new Uint8Array(buf)]), filename)
 
     let resp: Response
     try {
@@ -393,6 +393,7 @@ export namespace IncomingDispatcher {
     sessionID: string | null
     uploadedTokens: Array<{ repoPath: string; token: string; sha256: string }>
     skipMcpCall: boolean
+    cacheHit?: { repoBundlePath: string; sha: string }
   }
 
   export async function before(input: {

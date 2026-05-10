@@ -158,6 +158,7 @@ export const PtyRoutes = lazy(() =>
       upgradeWebSocket((c) => {
         const owner = RequestUser.username()
         const id = c.req.param("ptyID")
+        if (!id) throw new Error("ptyID required")
         const cursor = (() => {
           const value = c.req.query("cursor")
           if (!value) return

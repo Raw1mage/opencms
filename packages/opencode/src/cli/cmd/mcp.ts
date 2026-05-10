@@ -244,7 +244,7 @@ export const McpAuthCommand = cmd({
           if (status.status === "connected") {
             spinner.stop("Authentication successful!")
           } else if (status.status === "needs_client_registration") {
-            spinner.stop("Authentication failed", 1)
+            spinner.error("Authentication failed")
             prompts.log.error(status.error)
             prompts.log.info("Add clientId to your MCP server config:")
             prompts.log.info(`
@@ -259,13 +259,13 @@ export const McpAuthCommand = cmd({
     }
   }`)
           } else if (status.status === "failed") {
-            spinner.stop("Authentication failed", 1)
+            spinner.error("Authentication failed")
             prompts.log.error(status.error)
           } else {
-            spinner.stop("Unexpected status: " + status.status, 1)
+            spinner.error("Unexpected status: " + status.status)
           }
         } catch (error) {
-          spinner.stop("Authentication failed", 1)
+          spinner.error("Authentication failed")
           prompts.log.error(error instanceof Error ? error.message : String(error))
         } finally {
           unsubscribe()
@@ -744,7 +744,7 @@ export const McpDebugCommand = cmd({
             }
           }
         } catch (error) {
-          spinner.stop("Connection failed", 1)
+          spinner.error("Connection failed")
           prompts.log.error(`Error: ${error instanceof Error ? error.message : String(error)}`)
         }
 
