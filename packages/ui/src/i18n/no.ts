@@ -124,4 +124,7 @@ export const dict: Record<Keys, string> = {
   "ui.question.unreadable": "Question data unreadable — please report this session to the maintainer.",
   "ui.tool.websearch": "Nettsøk",
   "ui.tool.codesearch": "Kodesøk",
+  "ui.reasoning.fold.label": "Resonnement",
+  "ui.reasoning.fold.streaming": "tenker…",
+  "ui.reasoning.fold.chars": "tegn",
 }
