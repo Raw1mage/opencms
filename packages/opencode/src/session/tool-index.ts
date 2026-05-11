@@ -268,3 +268,37 @@ export function validate(body: string): {
 }
 
 export const TOOL_INDEX_SECTION_MARKER = SECTION_MARKER
+
+/**
+ * Strip every `## TOOL_INDEX` section (header + markdown table) from a body
+ * string, leaving prose intact. Each section runs from the marker line
+ * through to the first non-table line after the table (blank line or
+ * non-pipe-prefixed line). Used by defaultWriteAnchor to remove any prior
+ * TOOL_INDEX (from priorAnchor concatenation OR from LLM-emitted output)
+ * before appending the authoritative new one, so dialog tail content
+ * stitched after the prior anchor's index does not get sliced off.
+ */
+export function stripAllSections(body: string): string {
+  if (!body) return body
+  let out = body
+  // Iteratively excise sections from front to back. Each iteration finds
+  // the next marker in the (mutated) string and removes through to the
+  // table's terminator.
+  let safety = 0
+  while (safety++ < 100) {
+    const m = MARKER_REGEX.exec(out)
+    if (!m) break
+    const startIdx = m.index
+    const lines = out.slice(startIdx).split(/\r?\n/)
+    // lines[0] = marker. Advance past the section's table.
+    let endLine = 1
+    while (endLine < lines.length && lines[endLine].trim() === "") endLine++
+    while (endLine < lines.length && lines[endLine].trim().startsWith("|")) endLine++
+    const consumed = lines.slice(0, endLine).join("\n").length
+    const sectionEnd = startIdx + consumed
+    const before = out.slice(0, startIdx).trimEnd()
+    const after = out.slice(sectionEnd).replace(/^\r?\n+/, "")
+    out = before + (before && after ? "\n\n" : "") + after
+  }
+  return out
+}

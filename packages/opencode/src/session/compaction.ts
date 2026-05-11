@@ -2615,14 +2615,15 @@ When constructing the summary, try to stick to this template:
           // anchor body). Older entries truncated with placeholder row.
           const { entries: budgeted, truncatedCount } = ToolIndex.applyBudget(merged, 30_000)
           const section = ToolIndex.renderSection(budgeted)
-          // Replace any LLM-emitted TOOL_INDEX with our authoritative
-          // version. parseFromBody locates the marker via regex.
-          const markerIdx = ToolIndex.findMarkerIndex(input.summaryText)
-          if (markerIdx >= 0) {
-            augmentedSummary = input.summaryText.slice(0, markerIdx).trimEnd() + "\n\n" + section
-          } else {
-            augmentedSummary = input.summaryText.trimEnd() + "\n\n" + section
-          }
+          // Strip ALL pre-existing TOOL_INDEX sections from the body before
+          // appending the authoritative one. Narrative path concatenates
+          // prevAnchor.content (which already carries a TOOL_INDEX from the
+          // previous compaction) with new dialog tail — a naive slice-at-
+          // first-marker drops the tail. stripToolIndexSections walks every
+          // marker occurrence and removes each section through to its
+          // terminating blank line.
+          const stripped = ToolIndex.stripAllSections(input.summaryText)
+          augmentedSummary = stripped.trimEnd() + "\n\n" + section
           log.info("compaction.tool_index.injected", {
             sessionID: input.sessionID,
             kind: input.kind,
