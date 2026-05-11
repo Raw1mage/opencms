@@ -346,12 +346,10 @@ export function createAutoScroll(options: AutoScrollOptions) {
     const target = e.target instanceof Element ? e.target : undefined
     const nested = target?.closest("[data-scrollable]")
     if (el && nested && nested !== el && nestedConsumesVerticalScroll(nested)) return
-    // No scrollable area, or near the bottom: gesture cannot mean "I want to
-    // read history". iOS rubber-band, address-bar collapse, and viewport
-    // jiggers fire wheel/touch events at the bottom boundary with positive
-    // distanceFromBottom of a few dozen px; respecting them strands the user
-    // in free-reading. Width matches handleScroll's phantom-snap window.
-    if (el && (!canScroll(el) || distanceFromBottom(el) < 100)) return
+    // Wheel events on the root scroller are unambiguous user intent —
+    // iOS jitter sources (rubber-band, address-bar collapse, viewport
+    // transitions) don't fire wheel events, only touch. Unlock immediately.
+    if (!el || !canScroll(el)) return
     clearAuto()
     stop()
   }
