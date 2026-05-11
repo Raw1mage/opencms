@@ -141,8 +141,8 @@ describe("context-fragments — assembleBundles", () => {
       ])
     const a = make()
     const b = make()
-    expect(a.developerBundle!.text).toBe(b.developerBundle!.text)
-    expect(a.userBundle!.text).toBe(b.userBundle!.text)
+    expect(a.developerBundle!.parts).toEqual(b.developerBundle!.parts)
+    expect(a.userBundle!.parts).toEqual(b.userBundle!.parts)
   })
 })
 

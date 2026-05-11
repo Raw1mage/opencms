@@ -19,8 +19,13 @@ import type { ContextFragment } from "./fragment"
 
 export interface BundledMessage {
   role: "user" | "developer"
-  /** Joined wire text for this bundle. */
-  text: string
+  /**
+   * Per-fragment wire text. Each entry becomes ONE `ContentItem::InputText`
+   * in the emitted Responses-API Message (upstream codex-rs shape — see
+   * `build_text_message` at refs/codex/codex-rs/core/src/context_manager/
+   * updates.rs:178). Empty strings are filtered before this list is built.
+   */
+  parts: string[]
   /** Ordered fragment ids contributing to this bundle (telemetry / debug). */
   fragmentIds: string[]
 }
@@ -30,8 +35,11 @@ export interface AssembleResult {
   userBundle: BundledMessage | null
 }
 
-/** Separator between fragments within a single bundle. */
-const FRAGMENT_SEP = "\n\n"
+/**
+ * Legacy separator. Retained for byte-equivalent telemetry char counts
+ * (joining `parts` with this matches the pre-refactor `text` length).
+ */
+export const FRAGMENT_SEP = "\n\n"
 
 /**
  * Group fragments by role, dedup by id, render each, join with separator.
@@ -76,7 +84,7 @@ function buildBundle(role: "developer" | "user", fragments: ContextFragment[]): 
 
   return {
     role,
-    text: rendered.map((r) => r.text).join(FRAGMENT_SEP),
+    parts: rendered.map((r) => r.text),
     fragmentIds: rendered.map((r) => r.id),
   }
 }

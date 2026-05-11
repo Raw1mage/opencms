@@ -11,7 +11,7 @@ export type { ContextFragment, FragmentRole, FragmentSource } from "./fragment"
 export { renderFragment } from "./fragment"
 
 export type { BundledMessage, AssembleResult } from "./assemble"
-export { assembleBundles } from "./assemble"
+export { assembleBundles, FRAGMENT_SEP } from "./assemble"
 
 export {
   buildEnvironmentContextFragment,

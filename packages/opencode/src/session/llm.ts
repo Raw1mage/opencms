@@ -68,6 +68,7 @@ import {
   buildOpencodeProtocolFragment,
   buildRoleIdentityFragment,
   buildUserInstructionsFragment,
+  FRAGMENT_SEP,
   type ContextFragment,
 } from "./context-fragments"
 import { InstructionPrompt } from "./instruction"
@@ -587,8 +588,8 @@ export namespace LLM {
     // Bundle outputs hoisted for the prompt-telemetry block below so the
     // sidebar `Prompt blocks` panel can render bundle entries on the new
     // wire path (legacy path still gets preface.contentBlocks).
-    let developerBundleForTelemetry: { text: string; fragmentIds: string[] } | null = null
-    let userBundleForTelemetry: { text: string; fragmentIds: string[] } | null = null
+    let developerBundleForTelemetry: { parts: string[]; fragmentIds: string[] } | null = null
+    let userBundleForTelemetry: { parts: string[]; fragmentIds: string[] } | null = null
 
     if (isLiteProvider) {
       // Lite provider (DD-14): single concise system prompt, no static-block
@@ -1057,16 +1058,25 @@ export namespace LLM {
       userBundleForTelemetry = userBundle
       const bundleMessages: ModelMessage[] = []
       if (developerBundle) {
+        // Emit one text part per fragment to match upstream codex-rs
+        // `build_text_message` (refs/codex/codex-rs/core/src/context_manager/
+        // updates.rs:178) — `Vec<ContentItem::InputText>`, one per section.
+        // Pre-fix we joined fragments into a single text part, which produced
+        // an `Array<ContentItem>` of length 1 and diverged from upstream
+        // whenever N≥2 fragments coexisted; server prefix-cache keys on the
+        // content[] cardinality and the chain got stuck at the ~4608 floor
+        // (RCA: plans/provider_codex-prompt-realign/events/event_2026-05-11_
+        // rca-content-parts-shape-divergence-subagent-vs-main.md).
         bundleMessages.push({
           role: "user",
-          content: [{ type: "text", text: developerBundle.text }],
+          content: developerBundle.parts.map((text) => ({ type: "text", text })),
           providerOptions: { codex: { kind: "developer-bundle" } },
         })
       }
       if (userBundle) {
         bundleMessages.push({
           role: "user",
-          content: [{ type: "text", text: userBundle.text }],
+          content: userBundle.parts.map((text) => ({ type: "text", text })),
           providerOptions: { codex: { kind: "user-bundle" } },
         })
       }
@@ -1087,10 +1097,18 @@ export namespace LLM {
         driverHash: driverHashForLog,
         driverChars: driverCharsForLog,
         developerBundle: developerBundle
-          ? { fragmentIds: developerBundle.fragmentIds, totalChars: developerBundle.text.length }
+          ? {
+              fragmentIds: developerBundle.fragmentIds,
+              partCount: developerBundle.parts.length,
+              totalChars: developerBundle.parts.reduce((sum, p) => sum + p.length, 0),
+            }
           : null,
         userBundle: userBundle
-          ? { fragmentIds: userBundle.fragmentIds, totalChars: userBundle.text.length }
+          ? {
+              fragmentIds: userBundle.fragmentIds,
+              partCount: userBundle.parts.length,
+              totalChars: userBundle.parts.reduce((sum, p) => sum + p.length, 0),
+            }
           : null,
       })
     }
@@ -1243,28 +1261,34 @@ export namespace LLM {
       // the developer / user bundles to the sidebar Prompt blocks panel.
       // Names mirror the upstream codex-cli bundle semantics.
       ...(developerBundleForTelemetry
-        ? [
-            {
-              key: "bundle_developer",
-              name: `開發者層 [${developerBundleForTelemetry.fragmentIds.join(", ")}]`,
-              chars: developerBundleForTelemetry.text.length,
-              tokens: Token.estimate(developerBundleForTelemetry.text),
-              injected: developerBundleForTelemetry.text.trim().length > 0,
-              policy: "session_stable",
-            },
-          ]
+        ? (() => {
+            const joined = developerBundleForTelemetry.parts.join(FRAGMENT_SEP)
+            return [
+              {
+                key: "bundle_developer",
+                name: `開發者層 [${developerBundleForTelemetry.fragmentIds.join(", ")}]`,
+                chars: joined.length,
+                tokens: Token.estimate(joined),
+                injected: joined.trim().length > 0,
+                policy: "session_stable",
+              },
+            ]
+          })()
         : []),
       ...(userBundleForTelemetry
-        ? [
-            {
-              key: "bundle_user",
-              name: `使用者層 [${userBundleForTelemetry.fragmentIds.join(", ")}]`,
-              chars: userBundleForTelemetry.text.length,
-              tokens: Token.estimate(userBundleForTelemetry.text),
-              injected: userBundleForTelemetry.text.trim().length > 0,
-              policy: "session_stable",
-            },
-          ]
+        ? (() => {
+            const joined = userBundleForTelemetry.parts.join(FRAGMENT_SEP)
+            return [
+              {
+                key: "bundle_user",
+                name: `使用者層 [${userBundleForTelemetry.fragmentIds.join(", ")}]`,
+                chars: joined.length,
+                tokens: Token.estimate(joined),
+                injected: joined.trim().length > 0,
+                policy: "session_stable",
+              },
+            ]
+          })()
         : []),
     ]
     const finalSystemChars = filteredSystem.reduce((sum, item) => sum + item.length, 0)
