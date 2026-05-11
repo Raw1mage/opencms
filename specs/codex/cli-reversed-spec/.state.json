@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "state": "living",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-05-11T07:01:05.384Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-05-11T07:04:48.919Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "framework artifacts authored (proposal + spec + design + idef0 root + grafcet + c4 + sequence + data-schema); ready to commence chapter-batch authoring"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-05-11T10:02:09.362Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "required artifacts authored"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-05-11T10:02:13.737Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "chapter authoring underway"
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-05-11T10:02:25.252Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "all 12 chapters audited with 144/144 anchors on pinned SHA"
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-05-11T10:02:29.385Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "user-confirmed graduation"
+    }
+  ]
+}

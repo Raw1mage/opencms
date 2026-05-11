@@ -1,0 +1,64 @@
+[
+  {
+    "id": "TV-CH06-1",
+    "chapter": "06-responses-request-build",
+    "anchor_sha": "76845d716b720ca701b2c91fec75431532e66c74",
+    "purpose": "ResponsesApiRequest body skeleton on HTTP/SSE path",
+    "shape": {
+      "model": "<string>",
+      "instructions": "<string>",
+      "input": "<ResponseItem[]>",
+      "tools": "<Tool[]>",
+      "tool_choice": "auto",
+      "parallel_tool_calls": false,
+      "reasoning": {"effort": "<low|medium|high>", "summary": "auto"},
+      "store": false,
+      "stream": true,
+      "include": ["reasoning.encrypted_content"],
+      "prompt_cache_key": "<thread_id>",
+      "text": {"verbosity": "<low|medium|high>"}
+    }
+  },
+  {
+    "id": "TV-CH08-1",
+    "chapter": "08-transport-websocket",
+    "anchor_sha": "76845d716b720ca701b2c91fec75431532e66c74",
+    "purpose": "ResponseCreate frame on WS path with client_metadata",
+    "shape": {
+      "type": "response.create",
+      "previous_response_id": "<Option<string>>",
+      "input": "<ResponseItem[]>",
+      "client_metadata": {
+        "x-codex-installation-id": "<uuid>",
+        "x-codex-thread-id": "<uuid>",
+        "x-codex-session-id": "<uuid>",
+        "x-codex-window-id": "<thread_id>:<gen>",
+        "x-codex-originator": "<string>"
+      }
+    }
+  },
+  {
+    "id": "TV-CH11-1",
+    "chapter": "11-cache-prefix-model",
+    "anchor_sha": "76845d716b720ca701b2c91fec75431532e66c74",
+    "purpose": "TokenUsage with cached_input_tokens from Completed event",
+    "shape": {
+      "input_tokens": "<u64>",
+      "cached_input_tokens": "<u64>",
+      "output_tokens": "<u64>",
+      "reasoning_output_tokens": "<u64>",
+      "total_tokens": "<u64>"
+    }
+  },
+  {
+    "id": "TV-CH12-1",
+    "chapter": "12-rollout-telemetry",
+    "anchor_sha": "76845d716b720ca701b2c91fec75431532e66c74",
+    "purpose": "RolloutItem JSONL record (one per line)",
+    "shape": {
+      "ts": "<rfc3339>",
+      "kind": "<tagged-union variant>",
+      "payload": "<variant-specific>"
+    }
+  }
+]
