@@ -8,9 +8,72 @@
 .junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
 .assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
 .action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+.debug-gap-band{fill:#fff3bf;stroke:#f59f00;stroke-width:.04;opacity:.22}.debug-gap-area{fill:#74c0fc;stroke:#1971c2;stroke-width:.05;opacity:.24}.debug-gap-line{stroke:#e67700;stroke-width:.05;stroke-dasharray:.4 .25}.debug-gap-label{font:bold .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;fill:#0b7285;text-anchor:start;dominant-baseline:hanging}.debug-gap-label-right{text-anchor:end}.debug-gap-item-label{font:bold .46px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;fill:#1864ab;text-anchor:start;dominant-baseline:hanging}
 </style>
 <defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
 <rect x="-1.50" y="-2.00" width="102.37" height="85.00" fill="white"/>
+<rect class="debug-gap-band" x="-1.00" y="7.00" width="101.37" height="4.00" data-gap-id="gap:0"/>
+<line class="debug-gap-line" x1="-1.00" y1="7.00" x2="100.37" y2="7.00"/>
+<line class="debug-gap-line" x1="-1.00" y1="11.00" x2="100.37" y2="11.00"/>
+<rect class="debug-gap-area" x="-1.00" y="7.00" width="101.37" height="4.00" data-gap-id="gap:0:area:0"/>
+<text class="debug-gap-label debug-gap-label-right" x="100.02" y="7.45" data-gap-id="gap:0:area:0"><tspan x="100.02" dy="0">gap 0 total 4.0U</tspan><tspan x="100.02" dy="0.62">0.0 box_to_box 4.0U lanes=1</tspan></text>
+<text class="debug-gap-item-label" x="39.64" y="8.08" data-gap-id="gap:0:area:0">transition:T1 G0</text>
+<rect class="debug-gap-band" x="-1.00" y="14.00" width="101.37" height="6.00" data-gap-id="gap:1"/>
+<line class="debug-gap-line" x1="-1.00" y1="14.00" x2="100.37" y2="14.00"/>
+<line class="debug-gap-line" x1="-1.00" y1="20.00" x2="100.37" y2="20.00"/>
+<rect class="debug-gap-area" x="-1.00" y="14.00" width="101.37" height="6.00" data-gap-id="gap:1:area:0"/>
+<text class="debug-gap-label debug-gap-label-right" x="100.02" y="14.45" data-gap-id="gap:1:area:0"><tspan x="100.02" dy="0">gap 1 total 6.0U</tspan><tspan x="100.02" dy="0.62">1.0 box_to_box 6.0U lanes=2</tspan></text>
+<text class="debug-gap-item-label" x="39.64" y="15.58" data-gap-id="gap:1:area:0">1 G0</text>
+<text class="debug-gap-item-label" x="46.71" y="15.58" data-gap-id="gap:1:area:0">R20 G0</text>
+<text class="debug-gap-item-label" x="10.35" y="17.08" data-gap-id="gap:1:area:0">transition:T2 G1</text>
+<text class="debug-gap-item-label" x="39.64" y="17.08" data-gap-id="gap:1:area:0">transition:T3 G2</text>
+<rect class="debug-gap-band" x="-1.00" y="23.00" width="101.37" height="6.00" data-gap-id="gap:2"/>
+<line class="debug-gap-line" x1="-1.00" y1="23.00" x2="100.37" y2="23.00"/>
+<line class="debug-gap-line" x1="-1.00" y1="29.00" x2="100.37" y2="29.00"/>
+<rect class="debug-gap-area" x="-1.00" y="23.00" width="101.37" height="6.00" data-gap-id="gap:2:area:0"/>
+<text class="debug-gap-label debug-gap-label-right" x="100.02" y="23.45" data-gap-id="gap:2:area:0"><tspan x="100.02" dy="0">gap 2 total 6.0U</tspan><tspan x="100.02" dy="0.62">2.0 box_to_box 6.0U lanes=2</tspan></text>
+<text class="debug-gap-item-label" x="10.35" y="24.08" data-gap-id="gap:2:area:0">T5 G0</text>
+<text class="debug-gap-item-label" x="39.64" y="24.08" data-gap-id="gap:2:area:0">T6 G1</text>
+<text class="debug-gap-item-label" x="25.00" y="26.08" data-gap-id="gap:2:area:0">converge:4 G2</text>
+<rect class="debug-gap-band" x="-1.00" y="32.00" width="101.37" height="4.00" data-gap-id="gap:3"/>
+<line class="debug-gap-line" x1="-1.00" y1="32.00" x2="100.37" y2="32.00"/>
+<line class="debug-gap-line" x1="-1.00" y1="36.00" x2="100.37" y2="36.00"/>
+<rect class="debug-gap-area" x="-1.00" y="32.00" width="101.37" height="4.00" data-gap-id="gap:3:area:0"/>
+<text class="debug-gap-label debug-gap-label-right" x="100.02" y="32.45" data-gap-id="gap:3:area:0"><tspan x="100.02" dy="0">gap 3 total 4.0U</tspan><tspan x="100.02" dy="0.62">3.0 box_to_box 4.0U lanes=1</tspan></text>
+<text class="debug-gap-item-label" x="39.64" y="33.08" data-gap-id="gap:3:area:0">transition:T7 G0</text>
+<rect class="debug-gap-band" x="-1.00" y="39.00" width="101.37" height="6.00" data-gap-id="gap:4"/>
+<line class="debug-gap-line" x1="-1.00" y1="39.00" x2="100.37" y2="39.00"/>
+<line class="debug-gap-line" x1="-1.00" y1="45.00" x2="100.37" y2="45.00"/>
+<rect class="debug-gap-area" x="-1.00" y="39.00" width="101.37" height="6.00" data-gap-id="gap:4:area:0"/>
+<text class="debug-gap-label debug-gap-label-right" x="100.02" y="39.45" data-gap-id="gap:4:area:0"><tspan x="100.02" dy="0">gap 4 total 6.0U</tspan><tspan x="100.02" dy="0.62">4.0 box_to_box 6.0U lanes=2</tspan></text>
+<text class="debug-gap-item-label" x="39.64" y="40.08" data-gap-id="gap:4:area:0">diverge:5 G0</text>
+<text class="debug-gap-item-label" x="10.35" y="42.08" data-gap-id="gap:4:area:0">T8 G1</text>
+<text class="debug-gap-item-label" x="39.64" y="42.08" data-gap-id="gap:4:area:0">T9 G2</text>
+<text class="debug-gap-item-label" x="68.93" y="42.08" data-gap-id="gap:4:area:0">T10 G3</text>
+<rect class="debug-gap-band" x="-1.00" y="48.00" width="101.37" height="6.00" data-gap-id="gap:5"/>
+<line class="debug-gap-line" x1="-1.00" y1="48.00" x2="100.37" y2="48.00"/>
+<line class="debug-gap-line" x1="-1.00" y1="54.00" x2="100.37" y2="54.00"/>
+<rect class="debug-gap-area" x="-1.00" y="48.00" width="101.37" height="6.00" data-gap-id="gap:5:area:0"/>
+<text class="debug-gap-label debug-gap-label-right" x="100.02" y="48.45" data-gap-id="gap:5:area:0"><tspan x="100.02" dy="0">gap 5 total 6.0U</tspan><tspan x="100.02" dy="0.62">5.0 box_to_box 6.0U lanes=2</tspan></text>
+<text class="debug-gap-item-label" x="10.35" y="49.08" data-gap-id="gap:5:area:0">T11 G0</text>
+<text class="debug-gap-item-label" x="39.64" y="49.08" data-gap-id="gap:5:area:0">T12 G1</text>
+<text class="debug-gap-item-label" x="68.93" y="49.08" data-gap-id="gap:5:area:0">T13 G2</text>
+<text class="debug-gap-item-label" x="39.64" y="51.08" data-gap-id="gap:5:area:0">converge:9 G3</text>
+<rect class="debug-gap-band" x="-1.00" y="57.00" width="101.37" height="4.00" data-gap-id="gap:6"/>
+<line class="debug-gap-line" x1="-1.00" y1="57.00" x2="100.37" y2="57.00"/>
+<line class="debug-gap-line" x1="-1.00" y1="61.00" x2="100.37" y2="61.00"/>
+<rect class="debug-gap-area" x="-1.00" y="57.00" width="101.37" height="4.00" data-gap-id="gap:6:area:0"/>
+<text class="debug-gap-label debug-gap-label-right" x="100.02" y="57.45" data-gap-id="gap:6:area:0"><tspan x="100.02" dy="0">gap 6 total 4.0U</tspan><tspan x="100.02" dy="0.62">6.0 box_to_box 4.0U lanes=1</tspan></text>
+<text class="debug-gap-item-label" x="39.64" y="58.08" data-gap-id="gap:6:area:0">transition:T14 G0</text>
+<rect class="debug-gap-band" x="-1.00" y="64.00" width="101.37" height="8.00" data-gap-id="gap:7"/>
+<line class="debug-gap-line" x1="-1.00" y1="64.00" x2="100.37" y2="64.00"/>
+<line class="debug-gap-line" x1="-1.00" y1="72.00" x2="100.37" y2="72.00"/>
+<rect class="debug-gap-area" x="-1.00" y="64.00" width="101.37" height="8.00" data-gap-id="gap:7:area:0"/>
+<text class="debug-gap-label debug-gap-label-right" x="100.02" y="64.45" data-gap-id="gap:7:area:0"><tspan x="100.02" dy="0">gap 7 total 8.0U</tspan><tspan x="100.02" dy="0.62">7.0 box_to_box 8.0U lanes=3</tspan></text>
+<text class="debug-gap-item-label" x="70.43" y="65.58" data-gap-id="gap:7:area:0">R91 G0</text>
+<text class="debug-gap-item-label" x="39.64" y="65.08" data-gap-id="gap:7:area:0">T15 G1</text>
+<text class="debug-gap-item-label" x="43.64" y="67.08" data-gap-id="gap:7:area:0">T4 G2</text>
+<text class="debug-gap-item-label" x="39.94" y="69.08" data-gap-id="gap:7:area:0">converge:11 G3</text>
 <path class="edge" d="M 39.29 7.00 L 39.29 9.00"/>
 <path class="edge edge-arrow" d="M 39.29 9.00 L 39.29 11.00"/>
 <path class="edge" d="M 39.29 14.00 L 39.29 16.00"/>
