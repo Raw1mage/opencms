@@ -47,3 +47,11 @@ export {
   AGENT_INSTRUCTIONS_CLOSE_TAG,
 } from "./opencode-agent-instructions"
 export type { OpencodeAgentInstructionsInput } from "./opencode-agent-instructions"
+
+export {
+  buildAmnesiaNoticeFragment,
+  decideAmnesiaInjection,
+  AMNESIA_NOTICE_OPEN_TAG,
+  AMNESIA_NOTICE_CLOSE_TAG,
+} from "./amnesia-notice"
+export type { AmnesiaNoticeInput, AmnesiaDecision } from "./amnesia-notice"

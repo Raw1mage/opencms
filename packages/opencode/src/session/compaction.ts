@@ -17,6 +17,7 @@ import { ProviderTransform } from "@/provider/transform"
 import { SessionPrompt } from "./prompt"
 import { SharedContext } from "./shared-context"
 import { Memory } from "./memory"
+import * as ToolIndex from "./tool-index"
 import { Tweaks } from "../config/tweaks"
 import { PostCompaction } from "./post-compaction"
 import { ContinuationInvalidatedEvent } from "../plugin/codex-auth"
@@ -2590,6 +2591,28 @@ When constructing the summary, try to stick to this template:
       imperativePrefixApplied: sanitized.imperativePrefixApplied,
     })
 
+    // compaction/recall-affordance L1: validate TOOL_INDEX presence on the
+    // narrative-kind anchor body. Other kinds (low-cost-server / hybrid_llm
+    // / replay-tail) either preserve content via provider chain or are
+    // exempt by design; we only police the narrative path where loss is
+    // unrecoverable without the affordance.
+    if (input.kind === "narrative") {
+      const indexCheck = ToolIndex.validate(sanitized.body)
+      if (indexCheck.found && indexCheck.entryCount > 0) {
+        log.info("compaction.tool_index.emitted", {
+          sessionID: input.sessionID,
+          entryCount: indexCheck.entryCount,
+          indexBytes: indexCheck.indexBytes,
+        })
+      } else {
+        log.warn("compaction.tool_index.missing", {
+          sessionID: input.sessionID,
+          markerPresent: indexCheck.found,
+          anchorBytes: sanitized.body.length,
+        })
+      }
+    }
+
     // DD-9: identify previous anchor BEFORE the write so we can release its
     // pinForAnchor entries afterwards. The cooldown gate (30s) makes
     // back-to-back anchor races negligible in practice.
@@ -3122,6 +3145,19 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
       request: LLMCompactRequest,
       meta: { generatedAt: string; provider: string; model: string },
     ): string {
+      // compaction/recall-affordance L1: pre-compute TOOL_INDEX from
+      // priorAnchor (carries forward) + journalUnpinned (current cycle's
+      // tool calls). Deterministic — the LLM's job is just to preserve
+      // the section verbatim at the end of the body.
+      const priorIndex = ToolIndex.parseFromBody(request.priorAnchor?.content ?? "")
+      const freshIndex = ToolIndex.extractFromJournal(request.journalUnpinned as any[])
+      const merged = ToolIndex.merge(priorIndex, freshIndex)
+      // INV-6: budget the index at ~10% of targetTokens worth of bytes
+      // (4 chars/token rule-of-thumb). Truncates oldest entries first.
+      const budgetBytes = Math.max(2_000, Math.floor((request.targetTokens / 10) * 4))
+      const { entries: budgeted } = ToolIndex.applyBudget(merged, budgetBytes)
+      const renderedIndex = ToolIndex.renderSection(budgeted)
+
       const earliest = request.journalUnpinned[0] ? (request.journalUnpinned[0].roundIndex ?? 0) : 0
       const latest =
         request.journalUnpinned.length > 0
@@ -3165,6 +3201,9 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
       }
       lines.push("")
       lines.push("Produce the new anchor body now.")
+      // compaction/recall-affordance L1: append the verbatim-preserve
+      // instruction with the precomputed TOOL_INDEX section.
+      lines.push(ToolIndex.buildPromptInstruction(renderedIndex))
       return lines.join("\n")
     }
 
