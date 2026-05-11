@@ -1,0 +1,46 @@
+{
+  "diagram_title": "Chapter 06 — Responses API Request Build",
+  "node_reference": "A6",
+  "activities": [
+    {
+      "id": "A6.1",
+      "title": "Compose Request Body",
+      "inputs": ["Prompt (base_instructions + formatted_input + tools + parallel_tool_calls + output_schema)", "ModelInfo", "Provider info", "ReasoningEffortConfig", "ReasoningSummaryConfig", "service_tier override"],
+      "controls": ["all 14 ResponsesApiRequest fields populated", "hard-coded stream=true + tool_choice=auto", "store=Azure-only"],
+      "outputs": ["Result<ResponsesApiRequest>"],
+      "mechanisms": ["codex-rs/core/src/client.rs::build_responses_request", "codex-rs/tools/src/tool_spec.rs::create_tools_json_for_responses_api", "build_reasoning", "create_text_param_for_request"]
+    },
+    {
+      "id": "A6.2",
+      "title": "Derive prompt_cache_key",
+      "inputs": ["ModelClientState.thread_id"],
+      "controls": ["pure thread_id — no install/account/model mix-in"],
+      "outputs": ["prompt_cache_key: Option<String>"],
+      "mechanisms": ["codex-rs/core/src/client.rs:742"]
+    },
+    {
+      "id": "A6.3",
+      "title": "Compose client_metadata",
+      "inputs": ["ModelClientState.installation_id"],
+      "controls": ["one-key invariant on streaming path: only x-codex-installation-id"],
+      "outputs": ["client_metadata: Option<HashMap<String,String>>"],
+      "mechanisms": ["codex-rs/core/src/client.rs:759-762", "X_CODEX_INSTALLATION_ID_HEADER constant"]
+    },
+    {
+      "id": "A6.4",
+      "title": "Build Per-Turn HTTP Headers",
+      "inputs": ["SessionSource (subagent variant)", "thread_id", "window_generation (AtomicU64)", "beta_features_header", "turn_state", "attestation provider"],
+      "controls": ["x-codex-parent-thread-id only on ThreadSpawn", "x-openai-subagent label per subagent variant", "x-codex-window-id always emitted"],
+      "outputs": ["ApiHeaderMap with X-Codex-* + X-OpenAI-* headers"],
+      "mechanisms": ["build_responses_identity_headers", "build_subagent_headers", "build_responses_headers (beta+turn_state+turn_metadata)", "attestation provider"]
+    },
+    {
+      "id": "A6.5",
+      "title": "Invoke Streaming Endpoint",
+      "inputs": ["ResponsesApiRequest", "ResponsesOptions (session_id, thread_id, session_source, extra_headers, compression, turn_state)"],
+      "controls": ["x-client-request-id := thread_id", "build_session_headers emits both underscore + dash forms", "x-openai-subagent re-added if subagent"],
+      "outputs": ["serialized JSON body + final HeaderMap → handed to transport (Ch07/Ch08)"],
+      "mechanisms": ["codex-api/src/endpoint/responses.rs::stream_request", "codex-api/src/requests/headers.rs::build_session_headers", "serde_json::to_value"]
+    }
+  ]
+}

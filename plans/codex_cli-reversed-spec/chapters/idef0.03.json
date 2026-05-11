@@ -1,0 +1,54 @@
+{
+  "diagram_title": "Chapter 03 — Session & Turn Lifecycle",
+  "node_reference": "A3",
+  "activities": [
+    {
+      "id": "A3.1",
+      "title": "Mint Session Identifiers",
+      "inputs": ["session creation trigger"],
+      "controls": ["UUID v7 format (time-ordered)", "SessionId/ThreadId type distinction"],
+      "outputs": ["SessionId", "ThreadId"],
+      "mechanisms": ["codex-rs/protocol/src/session_id.rs::SessionId::new", "codex-rs/protocol/src/thread_id.rs::ThreadId::new", "uuid::Uuid::now_v7()"]
+    },
+    {
+      "id": "A3.2",
+      "title": "Initialize SessionConfiguration",
+      "inputs": ["Config (Arc)", "ProviderInfo", "user CLI args"],
+      "controls": ["SessionConfiguration field invariants (immutable for session lifetime per Session::new doc)"],
+      "outputs": ["SessionConfiguration struct ready to thread into Session::new"],
+      "mechanisms": ["codex-rs/core/src/session/session.rs::SessionConfiguration"]
+    },
+    {
+      "id": "A3.3",
+      "title": "Compute window_generation From InitialHistory",
+      "inputs": ["InitialHistory enum value", "Resumed.history rollout items"],
+      "controls": ["Resumed → count RolloutItem::Compacted", "New/Cleared/Forked → 0"],
+      "outputs": ["window_generation: u64 (initial)"],
+      "mechanisms": ["codex-rs/core/src/session/session.rs:392", "codex-rs/protocol/src/protocol.rs::InitialHistory", "RolloutItem::Compacted variant"]
+    },
+    {
+      "id": "A3.4",
+      "title": "Build TurnContext Per Turn",
+      "inputs": ["Session reference", "per-turn user input", "model_info", "session_telemetry seed"],
+      "controls": ["TurnContext field invariants (immutable for the turn)", "sub_id uniqueness", "trace_id propagation"],
+      "outputs": ["Arc<TurnContext> threaded into RunningTask"],
+      "mechanisms": ["codex-rs/core/src/session/turn_context.rs::TurnContext", "make_turn_context", "new_default_turn"]
+    },
+    {
+      "id": "A3.5",
+      "title": "Execute Turn",
+      "inputs": ["Arc<TurnContext>", "user input message"],
+      "controls": ["Session has at most 1 running task (session.rs:13 doc)", "ActiveTurn slot mutex serialises access"],
+      "outputs": ["assistant response stream", "tool_calls counter advance", "token usage accounting"],
+      "mechanisms": ["codex-rs/core/src/state/turn.rs::ActiveTurn", "codex-rs/core/src/state/turn.rs::RunningTask", "ModelClient (Ch01)", "transports (Ch07/08)"]
+    },
+    {
+      "id": "A3.6",
+      "title": "Manage MailboxDeliveryPhase",
+      "inputs": ["incoming mailbox messages (from subagents / external)"],
+      "controls": ["start in CurrentTurn", "switch to NextTurn after visible terminal output", "reopen CurrentTurn on explicit same-turn continuation"],
+      "outputs": ["messages folded into current request OR queued for next"],
+      "mechanisms": ["codex-rs/core/src/state/turn.rs::MailboxDeliveryPhase", "TurnState::mailbox_delivery_phase field"]
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "diagram_title": "Chapter 02 — Auth & Identity",
+  "node_reference": "A2",
+  "activities": [
+    {
+      "id": "A2.1",
+      "title": "Run OAuth Login Flow",
+      "inputs": ["user trigger (codex login)", "browser callback URL or device-code endpoint"],
+      "controls": ["PKCE protocol", "OAuth 2.0 spec", "first-party originator classification"],
+      "outputs": ["TokenData (access + refresh + id_token JWT)", "AuthMode = Chatgpt"],
+      "mechanisms": ["codex-rs/login/pkce.rs", "codex-rs/login/server.rs", "codex-rs/login/device_code_auth.rs"]
+    },
+    {
+      "id": "A2.2",
+      "title": "Persist Auth Credentials",
+      "inputs": ["AuthDotJson (in-memory)"],
+      "controls": ["AuthStorageBackend trait", "AuthCredentialsStoreMode (File vs Keyring)"],
+      "outputs": ["$CODEX_HOME/auth.json file OR OS keyring entry (datasheet D2-1)"],
+      "mechanisms": ["codex-rs/login/auth/storage.rs::FileAuthStorage", "codex-rs/login/auth/storage.rs::KeyringAuthStorage", "codex-rs/keyring-store/"]
+    },
+    {
+      "id": "A2.3",
+      "title": "Resolve Per-Install UUID",
+      "inputs": ["$CODEX_HOME path"],
+      "controls": ["UUID v4 format invariant", "POSIX 0o644 mode", "advisory file lock"],
+      "outputs": ["installation_id String (datasheet D2-2)"],
+      "mechanisms": ["codex-rs/core/src/installation_id.rs::resolve_installation_id"]
+    },
+    {
+      "id": "A2.4",
+      "title": "Compute Originator + User-Agent",
+      "inputs": ["build version (CARGO_PKG_VERSION)", "os_info", "terminal detection", "CODEX_INTERNAL_ORIGINATOR_OVERRIDE env"],
+      "controls": ["DEFAULT_ORIGINATOR = \"codex_cli_rs\"", "first-party classifier whitelist"],
+      "outputs": ["originator string", "User-Agent string"],
+      "mechanisms": ["codex-rs/login/auth/default_client.rs", "codex-rs/terminal-detection/"]
+    },
+    {
+      "id": "A2.5",
+      "title": "Inject Identity Headers",
+      "inputs": ["AuthMode", "TokenData / API key / AgentIdentity claims", "outbound HeaderMap"],
+      "controls": ["AuthProvider trait contract", "ChatGPT-Account-Id header name", "X-OpenAI-Fedramp emitted only when fedramp flag set"],
+      "outputs": ["HeaderMap with Authorization + User-Agent + ChatGPT-Account-Id + X-OpenAI-Fedramp"],
+      "mechanisms": ["codex-rs/codex-api/src/auth.rs::AuthProvider", "codex-rs/backend-client/src/client.rs::headers", "codex-rs/login/auth/manager.rs"]
+    },
+    {
+      "id": "A2.6",
+      "title": "Refresh Tokens",
+      "inputs": ["expiring TokenData", "refresh_token"],
+      "controls": ["last_refresh staleness heuristic", "refresh_token_reused error handling"],
+      "outputs": ["new TokenData persisted back to D2-1"],
+      "mechanisms": ["codex-rs/login/auth/manager.rs::AuthManager", "codex-rs/login/auth/util.rs"]
+    }
+  ]
+}

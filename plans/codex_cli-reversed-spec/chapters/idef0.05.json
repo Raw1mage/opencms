@@ -1,0 +1,54 @@
+{
+  "diagram_title": "Chapter 05 — Tools & MCP",
+  "node_reference": "A5",
+  "activities": [
+    {
+      "id": "A5.1",
+      "title": "Define Built-In Tools",
+      "inputs": ["codex-rs/tools/ source files"],
+      "controls": ["ToolSpec enum variant choice", "ResponsesApiTool field invariants (strict + parameters JsonSchema)"],
+      "outputs": ["Vec<ToolSpec> for built-in tools (apply_patch, update_plan, local_shell, web_search, image_generation, ...)"],
+      "mechanisms": ["codex-rs/tools/src/tool_spec.rs", "codex-rs/tools/src/responses_api.rs", "codex-rs/tools/src/json_schema.rs"]
+    },
+    {
+      "id": "A5.2",
+      "title": "Discover MCP Tools",
+      "inputs": ["MCP server endpoints (HTTP / stdio / in-process)"],
+      "controls": ["MCP protocol list_tools method", "OAuth-protected MCP server access"],
+      "outputs": ["Vec<ToolWithConnectorId> (per-server discovered tools)"],
+      "mechanisms": ["codex-rs/rmcp-client/src/rmcp_client.rs::RmcpClient", "http_client_adapter.rs", "executor_process_transport.rs", "in_process_transport.rs", "builtin-mcps/lib.rs"]
+    },
+    {
+      "id": "A5.3",
+      "title": "Convert MCP Tool → ResponsesApiTool",
+      "inputs": ["rmcp::model::Tool (from list_tools)"],
+      "controls": ["parse_mcp_tool conversion contract", "JsonSchema extraction from MCP descriptor"],
+      "outputs": ["ToolSpec::Function(ResponsesApiTool)"],
+      "mechanisms": ["codex-rs/tools/src/mcp_tool.rs::parse_mcp_tool"]
+    },
+    {
+      "id": "A5.4",
+      "title": "Convert DynamicToolSpec → LoadableToolSpec",
+      "inputs": ["DynamicToolSpec from agents / skills runtime registration"],
+      "controls": ["namespace presence → Namespace variant; absence → Function variant"],
+      "outputs": ["LoadableToolSpec (Function or Namespace)"],
+      "mechanisms": ["codex-rs/tools/src/responses_api.rs::dynamic_tool_to_loadable_tool_spec", "dynamic_tool_to_responses_api_tool"]
+    },
+    {
+      "id": "A5.5",
+      "title": "Aggregate Into prompt.tools",
+      "inputs": ["built-in ToolSpec", "MCP-derived ToolSpec", "dynamic-tool LoadableToolSpec coalesced"],
+      "controls": ["coalesce_loadable_tool_specs for namespace dedup", "per-turn capability filter (TurnContext.tools_config)"],
+      "outputs": ["Vec<ToolSpec> for this turn (prompt.tools)"],
+      "mechanisms": ["codex-rs/tools/src/responses_api.rs::coalesce_loadable_tool_specs", "Session/TurnContext aggregation"]
+    },
+    {
+      "id": "A5.6",
+      "title": "Serialise To Wire (Vec<Value>)",
+      "inputs": ["Vec<ToolSpec>"],
+      "controls": ["serde tag = \"type\" wire shape", "output_schema #[serde(skip)] excluded"],
+      "outputs": ["Vec<serde_json::Value> assigned to ResponsesApiRequest.tools"],
+      "mechanisms": ["codex-rs/tools/src/tool_spec.rs::create_tools_json_for_responses_api", "serde_json::to_value"]
+    }
+  ]
+}

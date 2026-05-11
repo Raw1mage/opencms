@@ -1,0 +1,40 @@
+[
+  {
+    "id": "P1",
+    "title": "Chapter N authoring + audit batch",
+    "description": "Single-chapter workflow from draft to audited.",
+    "participants": [
+      { "id": "Author", "label": "AI (this skill)" },
+      { "id": "Upstream", "componentRef": "S2", "label": "refs/codex source files" },
+      { "id": "Anchors", "componentRef": "C3.1", "label": "code anchors registry" },
+      { "id": "Audit", "componentRef": "C2.1", "label": "audit pass" },
+      { "id": "User", "label": "user (sign-off)" }
+    ],
+    "messages": [
+      { "id": "M1", "from": "Author", "to": "Upstream", "label": "read N relevant files for chapter N" },
+      { "id": "M2", "from": "Upstream", "to": "Author", "label": "file:line content excerpts" },
+      { "id": "M3", "from": "Author", "to": "Author", "label": "draft chapter body + idef0.NN.json" },
+      { "id": "M4", "from": "Author", "to": "Author", "label": "extract claim list C1..CN" },
+      { "id": "M5", "from": "Author", "to": "Anchors", "label": "spec_add_code_anchor per claim" },
+      { "id": "M6", "from": "Audit", "to": "Upstream", "label": "re-read every anchor file:line" },
+      { "id": "M7", "from": "Audit", "to": "Author", "label": "report mismatches OR pass" },
+      { "id": "M8", "from": "Author", "to": "Anchors", "label": "spec_record_event audit-pass with SHA + counts" },
+      { "id": "M9", "from": "User", "to": "Author", "label": "OK to next chapter (or batch end)" }
+    ]
+  },
+  {
+    "id": "P2",
+    "title": "Downstream spec cites a graduated chapter",
+    "description": "How a future codex-provider spec consumes this reference.",
+    "participants": [
+      { "id": "Downstream", "componentRef": "S4", "label": "downstream spec (e.g. bundle-slow-first)" },
+      { "id": "Ref", "componentRef": "S1", "label": "this reference" },
+      { "id": "Validate", "componentRef": "C3.1", "label": "wiki_validate" }
+    ],
+    "messages": [
+      { "id": "M1", "from": "Downstream", "to": "Ref", "label": "cite chapter 04 section X.Y" },
+      { "id": "M2", "from": "Validate", "to": "Ref", "label": "drift check over cited anchors" },
+      { "id": "M3", "from": "Validate", "to": "Downstream", "label": "if drift → flag downstream as drift-suspect" }
+    ]
+  }
+]

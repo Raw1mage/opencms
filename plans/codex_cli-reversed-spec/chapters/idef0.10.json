@@ -1,0 +1,54 @@
+{
+  "diagram_title": "Chapter 10 — Subagents",
+  "node_reference": "A10",
+  "activities": [
+    {
+      "id": "A10.1",
+      "title": "Classify SessionSource Variant",
+      "inputs": ["SessionSource value (set at session spawn / entry binary)"],
+      "controls": ["8-variant enum semantics", "serde rename_all = lowercase + #[serde(other)] fallback"],
+      "outputs": ["Session source value flowing into ModelClient state"],
+      "mechanisms": ["protocol/src/protocol.rs::SessionSource enum", "InternalSessionSource enum", "SubAgentSource enum"]
+    },
+    {
+      "id": "A10.2",
+      "title": "Inherit Identity At Spawn",
+      "inputs": ["parent_session: Arc<Session>", "subagent_source: SubAgentSource", "auth_manager, models_manager"],
+      "controls": ["installation_id MUST be identical between parent and child", "thread_id MUST be fresh per child"],
+      "outputs": ["child Codex spawn with inherited identity + SubAgent session_source + Subagent thread_source"],
+      "mechanisms": ["core/src/codex_delegate.rs::run_codex_thread_interactive", "Codex::spawn", "session/session.rs::Session::new"]
+    },
+    {
+      "id": "A10.3",
+      "title": "Map SessionSource → Subagent Label",
+      "inputs": ["SessionSource reference"],
+      "controls": ["5-label canonical mapping (review/compact/memory_consolidation/collab_spawn/<label>)", "main-session variants return None"],
+      "outputs": ["Option<String> subagent label"],
+      "mechanisms": ["core/src/client.rs::subagent_header_value (line 1672)"]
+    },
+    {
+      "id": "A10.4",
+      "title": "Map SessionSource → parent_thread_id",
+      "inputs": ["SessionSource reference"],
+      "controls": ["Some only on SubAgent(ThreadSpawn { parent_thread_id, .. })", "all other variants return None"],
+      "outputs": ["Option<String> parent_thread_id"],
+      "mechanisms": ["core/src/client.rs::parent_thread_id_header_value (line 1693)"]
+    },
+    {
+      "id": "A10.5",
+      "title": "Emit Conditional Headers / Metadata",
+      "inputs": ["subagent label (A10.3 output)", "parent_thread_id (A10.4 output)"],
+      "controls": ["HTTP streaming: as HTTP headers", "WS: in client_metadata of first frame", "Compact: as HTTP headers"],
+      "outputs": ["x-openai-subagent + x-codex-parent-thread-id + (conditionally) x-openai-memgen-request"],
+      "mechanisms": ["build_subagent_headers (Ch06 C10)", "build_responses_identity_headers (Ch06 C10)", "build_ws_client_metadata (Ch08 C5)"]
+    },
+    {
+      "id": "A10.6",
+      "title": "Memory-Consolidation Special Case",
+      "inputs": ["SessionSource::Internal(InternalSessionSource::MemoryConsolidation)"],
+      "controls": ["adds x-openai-memgen-request: true ONLY for Internal variant (not SubAgent::MemoryConsolidation)"],
+      "outputs": ["additional HTTP header / metadata key"],
+      "mechanisms": ["core/src/client.rs::build_subagent_headers (line 593-608)"]
+    }
+  ]
+}

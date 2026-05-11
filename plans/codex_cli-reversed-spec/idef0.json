@@ -1,0 +1,176 @@
+{
+  "diagram_title": "codex-cli Upstream Runtime — Wire-Affecting Subsystems",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Process Bootstrap & Entry Points (Chapter 1)",
+      "decomposition": {
+        "diagram_title": "Process Bootstrap & Entry Points",
+        "node_reference": "A1",
+        "activities": [
+          { "id": "A11", "title": "TUI entry (codex-rs/tui/src/cli.rs)" },
+          { "id": "A12", "title": "Exec / non-interactive entry (codex-rs/exec/src/cli.rs)" },
+          { "id": "A13", "title": "App-server entry (codex-rs/app-server/)" },
+          { "id": "A14", "title": "MCP-server entry (codex-rs/mcp-server/)" },
+          { "id": "A15", "title": "Config + provider + auth resolution path leading to ModelClient construction" }
+        ]
+      }
+    },
+    {
+      "id": "A2",
+      "title": "Auth & Identity (Chapter 2)",
+      "decomposition": {
+        "diagram_title": "Auth & Identity",
+        "node_reference": "A2",
+        "activities": [
+          { "id": "A21", "title": "OAuth login flow (codex-rs/login/)" },
+          { "id": "A22", "title": "installation_id resolver (codex-rs/core/src/installation_id.rs)" },
+          { "id": "A23", "title": "default_client originator + User-Agent (codex-rs/login/src/default_client.rs)" },
+          { "id": "A24", "title": "ChatGPT account binding (chatgpt-account-id header source)" },
+          { "id": "A25", "title": "Token refresh + persistence to auth.json" }
+        ]
+      }
+    },
+    {
+      "id": "A3",
+      "title": "Session & Turn Lifecycle (Chapter 3)",
+      "decomposition": {
+        "diagram_title": "Session & Turn Lifecycle",
+        "node_reference": "A3",
+        "activities": [
+          { "id": "A31", "title": "Session::new construction + session_id / thread_id generation" },
+          { "id": "A32", "title": "Turn state machine (idle → user-turn → tool-loop → assistant-turn → idle)" },
+          { "id": "A33", "title": "ModelClientSession state struct (codex-rs/core/src/client.rs)" },
+          { "id": "A34", "title": "Conversation persistence (codex-rs/rollout/)" }
+        ]
+      }
+    },
+    {
+      "id": "A4",
+      "title": "Context Fragment Assembly (Chapter 4)",
+      "decomposition": {
+        "diagram_title": "Context Fragment Assembly",
+        "node_reference": "A4",
+        "activities": [
+          { "id": "A41", "title": "base_instructions persona file (codex-rs/protocol/src/prompts/base_instructions/default.md)" },
+          { "id": "A42", "title": "build_initial_context() input[] composition (codex-rs/core/src/session/mod.rs)" },
+          { "id": "A43", "title": "environment_context fragment shape (codex-rs/core/src/context/environment_context.rs)" },
+          { "id": "A44", "title": "AGENTS.md / user_instructions handling" },
+          { "id": "A45", "title": "Per-model persona routing (codex-rs/protocol/src/openai_models.rs ModelInfo.base_instructions)" }
+        ]
+      }
+    },
+    {
+      "id": "A5",
+      "title": "Tools & MCP (Chapter 5)",
+      "decomposition": {
+        "diagram_title": "Tools & MCP",
+        "node_reference": "A5",
+        "activities": [
+          { "id": "A51", "title": "Built-in tools (codex-rs/tools/, codex-rs/core/src/tool_executor)" },
+          { "id": "A52", "title": "MCP client + tool import (codex-rs/rmcp-client/, codex-rs/builtin-mcps/)" },
+          { "id": "A53", "title": "Code-mode tools (codex-rs/code-mode/)" },
+          { "id": "A54", "title": "tools field assembly in Responses request" }
+        ]
+      }
+    },
+    {
+      "id": "A6",
+      "title": "Responses API Request Build (Chapter 6)",
+      "decomposition": {
+        "diagram_title": "Responses API Request Build",
+        "node_reference": "A6",
+        "activities": [
+          { "id": "A61", "title": "build_responses_request body composition (codex-rs/core/src/client.rs)" },
+          { "id": "A62", "title": "Per-turn headers (codex-rs/core/src/client.rs + codex-rs/codex-api/src/requests/headers.rs)" },
+          { "id": "A63", "title": "prompt_cache_key derivation" },
+          { "id": "A64", "title": "client_metadata composition (installation_id + window_id + …)" },
+          { "id": "A65", "title": "service_tier / store / stream / include / reasoning / text fields" }
+        ]
+      }
+    },
+    {
+      "id": "A7",
+      "title": "HTTP SSE Transport (Chapter 7)",
+      "decomposition": {
+        "diagram_title": "HTTP SSE Transport",
+        "node_reference": "A7",
+        "activities": [
+          { "id": "A71", "title": "Endpoint URL + path (codex-rs/codex-api/src/endpoint/responses.rs)" },
+          { "id": "A72", "title": "Streaming event parsing (response.created / output_item.added / response.completed / …)" },
+          { "id": "A73", "title": "previous_response_id chain semantics" },
+          { "id": "A74", "title": "Retry / backoff behaviour" }
+        ]
+      }
+    },
+    {
+      "id": "A8",
+      "title": "WebSocket Transport (Chapter 8)",
+      "decomposition": {
+        "diagram_title": "WebSocket Transport",
+        "node_reference": "A8",
+        "activities": [
+          { "id": "A81", "title": "Handshake headers (codex-rs/core/src/client.rs build_websocket_headers)" },
+          { "id": "A82", "title": "First-frame body (delta=false bootstrap; delta=true subsequent)" },
+          { "id": "A83", "title": "x-codex-turn-state sticky routing (codex-rs/codex-api/src/endpoint/responses_websocket.rs)" },
+          { "id": "A84", "title": "Reconnect / session resume + WebsocketSession cache" }
+        ]
+      }
+    },
+    {
+      "id": "A9",
+      "title": "Compact Sub-Endpoint (Chapter 9)",
+      "decomposition": {
+        "diagram_title": "Compact Sub-Endpoint",
+        "node_reference": "A9",
+        "activities": [
+          { "id": "A91", "title": "ApiCompactionInput body shape (codex-rs/core/src/client.rs compact_input)" },
+          { "id": "A92", "title": "Compact-specific extra headers (the ONE place x-codex-installation-id rides as HTTP header)" },
+          { "id": "A93", "title": "Compaction trigger conditions inside session loop" }
+        ]
+      }
+    },
+    {
+      "id": "A10",
+      "title": "Subagents (Chapter 10)",
+      "decomposition": {
+        "diagram_title": "Subagents",
+        "node_reference": "A10",
+        "activities": [
+          { "id": "A101", "title": "SubAgentSource variants (Review / Compact / MemoryConsolidation / ThreadSpawn)" },
+          { "id": "A102", "title": "window_id generation per subagent (codex-rs/core/src/codex_delegate.rs, thread_manager.rs)" },
+          { "id": "A103", "title": "x-codex-parent-thread-id / x-openai-subagent headers (codex-rs/core/src/client.rs build_responses_identity_headers)" },
+          { "id": "A104", "title": "Subagent session inheritance (installation_id, base session_id)" }
+        ]
+      }
+    },
+    {
+      "id": "A11",
+      "title": "Cache & Prefix Model (Chapter 11)",
+      "decomposition": {
+        "diagram_title": "Cache & Prefix Model",
+        "node_reference": "A11",
+        "activities": [
+          { "id": "A111", "title": "Identity dimensions affecting cache (installation_id, prompt_cache_key, chatgpt-account-id)" },
+          { "id": "A112", "title": "previous_response_id chain + delta semantics" },
+          { "id": "A113", "title": "Server-side compaction signal (context_management field)" },
+          { "id": "A114", "title": "Known cache hazards (e.g. openai/codex#20301 GPT-5.5 regression)" }
+        ]
+      }
+    },
+    {
+      "id": "A12",
+      "title": "Rollout & Telemetry (Chapter 12)",
+      "decomposition": {
+        "diagram_title": "Rollout & Telemetry",
+        "node_reference": "A12",
+        "activities": [
+          { "id": "A121", "title": "Rollout recorder (codex-rs/rollout/)" },
+          { "id": "A122", "title": "OTel instrumentation (codex-rs/otel/, codex-rs/core/src/otel_init.rs)" },
+          { "id": "A123", "title": "Analytics & attestation headers (codex-rs/analytics/, x-oai-attestation)" }
+        ]
+      }
+    }
+  ]
+}

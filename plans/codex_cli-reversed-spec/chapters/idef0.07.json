@@ -1,0 +1,54 @@
+{
+  "diagram_title": "Chapter 07 — HTTP SSE Transport",
+  "node_reference": "A7",
+  "activities": [
+    {
+      "id": "A7.1",
+      "title": "Issue HTTP POST",
+      "inputs": ["ResponsesApiRequest (D6-1)", "extra_headers (D6-2)", "provider base_url"],
+      "controls": ["Method::POST hard-coded", "path = \"responses\"", "Accept: text/event-stream injected"],
+      "outputs": ["HTTP request ready to send"],
+      "mechanisms": ["codex-api/endpoint/responses.rs::stream", "Transport"]
+    },
+    {
+      "id": "A7.2",
+      "title": "Apply Retry Policy",
+      "inputs": ["Request envelope", "RetryConfig from provider"],
+      "controls": ["max_attempts (default 5 for stream, 4 for request); hard cap 100", "retry_on { 429, 5xx, transport }", "base_delay backoff"],
+      "outputs": ["Successful request OR final ApiError after exhausting retries"],
+      "mechanisms": ["codex-api/endpoint/session.rs::stream_with", "run_with_request_telemetry", "AuthProvider.apply_auth"]
+    },
+    {
+      "id": "A7.3",
+      "title": "Stream Response Body",
+      "inputs": ["server response headers + body bytes"],
+      "controls": ["StreamResponse { status, headers, bytes }"],
+      "outputs": ["ByteStream of SSE chunks"],
+      "mechanisms": ["codex-client::Transport::stream", "StreamResponse"]
+    },
+    {
+      "id": "A7.4",
+      "title": "Parse SSE Events",
+      "inputs": ["ByteStream"],
+      "controls": ["eventsource framing (event: <type>\\ndata: <json>\\n\\n)", "serde_json parse per data"],
+      "outputs": ["Stream of ResponsesStreamEvent"],
+      "mechanisms": ["sse/responses.rs::process_sse", "stream.eventsource()", "serde_json::from_str"]
+    },
+    {
+      "id": "A7.5",
+      "title": "Project To ResponseEvent",
+      "inputs": ["ResponsesStreamEvent"],
+      "controls": ["ResponseEvent variant choice per event type", "ServerModel dedup against last_server_model"],
+      "outputs": ["mpsc::Sender<Result<ResponseEvent, ApiError>> messages → ResponseStream"],
+      "mechanisms": ["process_responses_event", "ResponseEvent enum (codex-api/common.rs:71)"]
+    },
+    {
+      "id": "A7.6",
+      "title": "Terminate Cleanly",
+      "inputs": ["ResponseEvent::Completed OR stream end OR idle timeout OR transport error"],
+      "controls": ["Completed = terminal (return after send)", "stream end without Completed = ApiError::Stream", "idle_timeout default 300s"],
+      "outputs": ["task exit"],
+      "mechanisms": ["tokio::time::timeout", "mpsc send + return", "ApiError emission"]
+    }
+  ]
+}

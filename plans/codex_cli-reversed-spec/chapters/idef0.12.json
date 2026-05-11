@@ -1,0 +1,54 @@
+{
+  "diagram_title": "Chapter 12 — Rollout & Telemetry",
+  "node_reference": "A12",
+  "activities": [
+    {
+      "id": "A12.1",
+      "title": "Persist Rollout Items",
+      "inputs": ["RolloutItem variants from session lifecycle"],
+      "controls": ["JSONL format (one record per line, tagged-union)", "filesystem path partition YYYY/MM/DD"],
+      "outputs": ["rollout-<ts>-<uuid>.jsonl files on disk"],
+      "mechanisms": ["rollout/src/recorder.rs::RolloutRecorder", "tokio::sync::mpsc channel for async writes", "RolloutCmd enum (AddItems/Persist/Flush/Shutdown)"]
+    },
+    {
+      "id": "A12.2",
+      "title": "Filter Persisted Items",
+      "inputs": ["candidate RolloutItem"],
+      "controls": ["policy::is_persisted_rollout_item decides yes/no"],
+      "outputs": ["filtered Vec<RolloutItem> reaches disk; rest pass only through in-memory event stream"],
+      "mechanisms": ["rollout/src/policy.rs"]
+    },
+    {
+      "id": "A12.3",
+      "title": "Emit OTel Spans + Metrics",
+      "inputs": ["per-request + per-turn context", "OtelSettings configuration"],
+      "controls": ["SessionTelemetry + SessionTelemetryMetadata schema", "Statsig settings", "W3C trace context propagation"],
+      "outputs": ["OTel spans + counter/gauge/timer metrics → external collector"],
+      "mechanisms": ["otel/src/provider.rs::OtelProvider", "otel/src/events/session_telemetry.rs", "Timer + RuntimeMetricTotals"]
+    },
+    {
+      "id": "A12.4",
+      "title": "Emit Analytics Events",
+      "inputs": ["client-side facts: compaction events, app invocations, turn submissions, subagent thread starts, hook runs"],
+      "controls": ["TrackEvent schema (events.rs)", "AnalyticsClient configuration"],
+      "outputs": ["analytics events shipped to backend over separate channel"],
+      "mechanisms": ["analytics/src/events.rs", "analytics/src/facts.rs", "analytics/src/client.rs::AnalyticsClient"]
+    },
+    {
+      "id": "A12.5",
+      "title": "Conditionally Emit Attestation Header",
+      "inputs": ["AttestationContext { thread_id }", "state.include_attestation flag"],
+      "controls": ["AttestationProvider trait policy", "Option<HeaderValue> return — None suppresses emission"],
+      "outputs": ["x-oai-attestation HTTP/WS header (when provider returns Some)"],
+      "mechanisms": ["core/src/attestation.rs::AttestationProvider", "core/src/client.rs:909/502/526 insertion sites"]
+    },
+    {
+      "id": "A12.6",
+      "title": "Propagate W3C Trace Context",
+      "inputs": ["current_span W3cTraceContext", "outgoing request"],
+      "controls": ["WS path: traceparent + tracestate in client_metadata via response_create_client_metadata (Ch08 C6)"],
+      "outputs": ["traceparent/tracestate keys appended to WS client_metadata when context present"],
+      "mechanisms": ["otel/src/trace_context.rs", "codex-api/src/common.rs::response_create_client_metadata"]
+    }
+  ]
+}

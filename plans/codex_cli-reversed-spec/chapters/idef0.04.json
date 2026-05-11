@@ -1,0 +1,54 @@
+{
+  "diagram_title": "Chapter 04 — Context Fragment Assembly",
+  "node_reference": "A4",
+  "activities": [
+    {
+      "id": "A4.1",
+      "title": "Aggregate Developer Sections",
+      "inputs": ["TurnContext", "Session state (reference + previous_turn_settings + base_instructions)", "Config feature flags"],
+      "controls": ["Source-line push order = wire order", "conditional per fragment toggle", "guardian-source mutual exclusion"],
+      "outputs": ["Vec<String> developer_sections (≤ ~11 items in practice)"],
+      "mechanisms": ["model_switch_instructions.rs", "permissions_instructions.rs", "memory_tool prompt builder", "collaboration_mode_instructions.rs", "realtime_start_instructions.rs", "personality_spec_instructions.rs", "apps_instructions.rs", "available_skills_instructions.rs", "plugin_instructions.rs", "commit_message_trailer_instruction"]
+    },
+    {
+      "id": "A4.2",
+      "title": "Aggregate Contextual User Sections",
+      "inputs": ["TurnContext.user_instructions (AGENTS.md text)", "TurnContext.cwd / shell / current_date / timezone", "subagent registry"],
+      "controls": ["UserInstructions first, EnvironmentContext last (slow-first by source order — current_date daily flip is at the end of env body)"],
+      "outputs": ["Vec<String> contextual_user_sections (≤ 2 items)"],
+      "mechanisms": ["user_instructions.rs", "environment_context.rs"]
+    },
+    {
+      "id": "A4.3",
+      "title": "Compose Developer ResponseItem",
+      "inputs": ["Vec<String> developer_sections"],
+      "controls": ["ResponseItem::Message { role: \"developer\" } shape", "one ContentItem::InputText per section", "None when sections empty"],
+      "outputs": ["Option<ResponseItem> developer Message"],
+      "mechanisms": ["context_manager/updates.rs::build_developer_update_item", "build_text_message"]
+    },
+    {
+      "id": "A4.4",
+      "title": "Compose Contextual User ResponseItem",
+      "inputs": ["Vec<String> contextual_user_sections"],
+      "controls": ["ResponseItem::Message { role: \"user\" } shape", "one ContentItem::InputText per section"],
+      "outputs": ["Option<ResponseItem> user Message"],
+      "mechanisms": ["context_manager/updates.rs::build_contextual_user_message"]
+    },
+    {
+      "id": "A4.5",
+      "title": "Optionally Emit Multi-Agent V2 Usage Hint",
+      "inputs": ["TurnContext", "SessionSource", "feature flag MultiAgentV2"],
+      "controls": ["only when feature enabled AND usage_hint_text non-empty"],
+      "outputs": ["additional developer Message inserted between [0] and [2]"],
+      "mechanisms": ["multi_agents::usage_hint_text", "build_developer_update_item"]
+    },
+    {
+      "id": "A4.6",
+      "title": "Optionally Emit Separate Guardian Developer Message",
+      "inputs": ["SessionSource", "TurnContext.developer_instructions"],
+      "controls": ["only when is_guardian_reviewer_source(session_source)", "mutually exclusive with developer_instructions branch inside [0]"],
+      "outputs": ["additional developer Message appended at index [3]"],
+      "mechanisms": ["guardian module", "build_developer_update_item"]
+    }
+  ]
+}

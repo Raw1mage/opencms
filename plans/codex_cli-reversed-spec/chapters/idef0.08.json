@@ -1,0 +1,62 @@
+{
+  "diagram_title": "Chapter 08 — WebSocket Transport",
+  "node_reference": "A8",
+  "activities": [
+    {
+      "id": "A8.1",
+      "title": "Build WS Handshake Headers",
+      "inputs": ["thread_id", "session_id", "window_generation", "session_source", "beta_features_header", "turn_state", "turn_metadata_header", "attestation provider"],
+      "controls": ["OpenAI-Beta: responses_websockets=2026-02-06 (required for WS)", "session_id/session-id/thread_id/thread-id both forms", "x-client-request-id == thread_id"],
+      "outputs": ["ApiHeaderMap for the WS upgrade request"],
+      "mechanisms": ["core/src/client.rs::build_websocket_headers", "build_responses_headers", "build_session_headers", "build_responses_identity_headers"]
+    },
+    {
+      "id": "A8.2",
+      "title": "Establish WS Connection",
+      "inputs": ["WS URL", "handshake headers", "optional permessage-deflate config"],
+      "controls": ["DEFAULT_WEBSOCKET_CONNECT_TIMEOUT_MS = 15_000", "TLS via rustls"],
+      "outputs": ["WebSocketStream<MaybeTlsStream<TcpStream>>"],
+      "mechanisms": ["tokio_tungstenite::connect_async_tls_with_config", "DeflateConfig"]
+    },
+    {
+      "id": "A8.3",
+      "title": "Build WS client_metadata Map",
+      "inputs": ["installation_id", "current_window_id (\"{thread_id}:{window_generation}\")", "SessionSource subagent variant", "turn_metadata_header"],
+      "controls": ["always emit x-codex-installation-id + x-codex-window-id", "conditional x-openai-subagent / x-codex-parent-thread-id / x-codex-turn-metadata", "optional W3C traceparent/tracestate appended later"],
+      "outputs": ["HashMap<String,String> (2-5+ keys)"],
+      "mechanisms": ["core/src/client.rs::build_ws_client_metadata", "codex-api/src/common.rs::response_create_client_metadata (W3C trace overlay)"]
+    },
+    {
+      "id": "A8.4",
+      "title": "Prepare Delta-Mode Request",
+      "inputs": ["last_response (Option<LastResponse>)", "ResponsesApiRequest (HTTP-path body)", "payload (ResponseCreateWsRequest)"],
+      "controls": ["delta-mode requires non-empty last_response.response_id AND get_incremental_items Some", "fall through to full-mode otherwise"],
+      "outputs": ["ResponsesWsRequest::ResponseCreate(...) in either full or delta variant"],
+      "mechanisms": ["core/src/client.rs::prepare_websocket_request", "get_incremental_items"]
+    },
+    {
+      "id": "A8.5",
+      "title": "Send First Frame",
+      "inputs": ["ResponseCreateWsRequest payload (delta or full)", "client_metadata overlay"],
+      "controls": ["serde tag = \"response.create\"", "WS Text message framing"],
+      "outputs": ["WebSocket frame sent to server"],
+      "mechanisms": ["serde_json::to_value", "WsStream Send command (tokio_tungstenite::Message::Text)"]
+    },
+    {
+      "id": "A8.6",
+      "title": "Drive Response Stream",
+      "inputs": ["incoming WS frames"],
+      "controls": ["same ResponseEvent enum as HTTP (Ch07 D7-1)", "x-codex-turn-state captured from response headers for next-turn replay", "Completed event = terminal"],
+      "outputs": ["mpsc::Sender<Result<ResponseEvent, ApiError>> messages → ResponseStream"],
+      "mechanisms": ["codex-api/src/endpoint/responses_websocket.rs::run_websocket_response_stream", "process_responses_event"]
+    },
+    {
+      "id": "A8.7",
+      "title": "Optional ACK Back",
+      "inputs": ["response_id from completed turn"],
+      "controls": ["serde tag = \"response.processed\""],
+      "outputs": ["WS Text message {type: \"response.processed\", response_id}"],
+      "mechanisms": ["core/src/client.rs::send_response_processed", "ResponseProcessedWsRequest struct"]
+    }
+  ]
+}

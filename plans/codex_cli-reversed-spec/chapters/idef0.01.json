@@ -1,0 +1,54 @@
+{
+  "diagram_title": "Chapter 01 — Entry Points & Process Bootstrap",
+  "node_reference": "A1",
+  "activities": [
+    {
+      "id": "A1.1",
+      "title": "Parse argv + load config",
+      "inputs": ["argv", "env vars (CODEX_HOME, OPENAI_API_KEY, etc.)", "config.toml on disk"],
+      "controls": ["clap arg schema", "CliConfigOverrides schema", "no-silent-fallback rule"],
+      "outputs": ["Config struct", "CLI subcommand selection"],
+      "mechanisms": ["codex-rs/cli/", "codex-rs/utils/cli/", "codex-rs/config/", "codex-rs/install-context/"]
+    },
+    {
+      "id": "A1.2",
+      "title": "Resolve auth",
+      "inputs": ["Config", "$CODEX_HOME/auth.json on disk", "env API keys"],
+      "controls": ["auth schema (OAuth tokens, API key, account binding)", "refresh-token rotation policy"],
+      "outputs": ["AuthManager / AuthContext", "originator + User-Agent ready"],
+      "mechanisms": ["codex-rs/login/", "codex-rs/login/src/default_client.rs"]
+    },
+    {
+      "id": "A1.3",
+      "title": "Resolve / generate per-install identity",
+      "inputs": ["$CODEX_HOME/installation_id file (may be absent)"],
+      "controls": ["file lock (advisory)", "0644 mode invariant", "UUID v4 format"],
+      "outputs": ["installation_id UUID string"],
+      "mechanisms": ["codex-rs/core/src/installation_id.rs::resolve_installation_id", "filesystem"]
+    },
+    {
+      "id": "A1.4",
+      "title": "Construct ModelClient",
+      "inputs": ["Config", "AuthManager", "installation_id", "provider info"],
+      "controls": ["ModelClient invariants (state.installation_id stable, state.session_id assigned)"],
+      "outputs": ["ModelClient instance with state populated"],
+      "mechanisms": ["codex-rs/core/src/client.rs::ModelClient::new", "codex-rs/codex-client/"]
+    },
+    {
+      "id": "A1.5",
+      "title": "Construct Session",
+      "inputs": ["ModelClient", "Config", "resume target (optional)"],
+      "controls": ["Session::new invariants (session_id format, initial Turn state)"],
+      "outputs": ["Session ready to accept first turn"],
+      "mechanisms": ["codex-rs/core/src/session/", "codex-rs/rollout/ (if persistence enabled)"]
+    },
+    {
+      "id": "A1.6",
+      "title": "Hand off to per-binary main loop",
+      "inputs": ["Session", "stdin/stdout (TUI/exec/mcp-server) or socket (app-server)"],
+      "controls": ["loop contract per binary (interactive prompt vs one-shot vs accept-loop vs MCP RPC)"],
+      "outputs": ["Process ready to dispatch first turn"],
+      "mechanisms": ["codex-rs/tui/", "codex-rs/exec/", "codex-rs/app-server/", "codex-rs/mcp-server/"]
+    }
+  ]
+}

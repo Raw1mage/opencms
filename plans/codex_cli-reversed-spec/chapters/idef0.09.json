@@ -1,0 +1,46 @@
+{
+  "diagram_title": "Chapter 09 — Compact Sub-Endpoint",
+  "node_reference": "A9",
+  "activities": [
+    {
+      "id": "A9.1",
+      "title": "Gate Compaction Decision",
+      "inputs": ["TurnContext.features (RemoteCompactionV2)", "Provider info (Azure check)", "session-level heuristic trigger"],
+      "controls": ["Feature::RemoteCompactionV2 enabled", "should_use_remote_compact_task(provider) true"],
+      "outputs": ["proceed-or-skip decision"],
+      "mechanisms": ["core/src/session/turn.rs:816 Feature check", "core/src/compact_tests.rs::should_use_remote_compact_task"]
+    },
+    {
+      "id": "A9.2",
+      "title": "Build CompactionInput",
+      "inputs": ["Prompt", "ModelInfo", "CompactConversationRequestSettings"],
+      "controls": ["destructure subset of ResponsesApiRequest (drop tool_choice/store/stream/include/client_metadata)", "borrowed references for zero-copy"],
+      "outputs": ["CompactionInput<'a>"],
+      "mechanisms": ["core/src/client.rs::compact_conversation_history (line 432-485)", "codex-api/src/common.rs::CompactionInput struct"]
+    },
+    {
+      "id": "A9.3",
+      "title": "Assemble Compact Headers",
+      "inputs": ["state.installation_id", "state.beta_features_header", "state.session_id", "state.thread_id", "state.window_generation", "SessionSource (subagent)"],
+      "controls": ["x-codex-installation-id as HTTP HEADER (unique to compact)", "no turn_state/turn_metadata (unary)"],
+      "outputs": ["ApiHeaderMap for the compact POST"],
+      "mechanisms": ["core/src/client.rs:487-503", "build_responses_headers (turn_state None)", "build_responses_identity_headers", "build_session_headers"]
+    },
+    {
+      "id": "A9.4",
+      "title": "Issue HTTP POST /responses/compact",
+      "inputs": ["CompactionInput", "compact extra_headers", "auth"],
+      "controls": ["Method::POST hard-coded", "path \"responses/compact\"", "unary (NOT streaming, NO SSE)"],
+      "outputs": ["server response bytes (JSON body)"],
+      "mechanisms": ["codex-api/src/endpoint/compact.rs::CompactClient::compact_input", "EndpointSession::execute"]
+    },
+    {
+      "id": "A9.5",
+      "title": "Parse Unary Response",
+      "inputs": ["server response bytes"],
+      "controls": ["CompactHistoryResponse { output: Vec<ResponseItem> } shape"],
+      "outputs": ["Vec<ResponseItem> to replace caller's compacted history"],
+      "mechanisms": ["serde_json::from_slice", "codex-api/src/endpoint/compact.rs::CompactHistoryResponse"]
+    }
+  ]
+}

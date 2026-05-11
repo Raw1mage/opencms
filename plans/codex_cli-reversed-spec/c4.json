@@ -1,0 +1,31 @@
+{
+  "diagram_title": "codex-cli Reversed Spec — Position In OpenCode Spec Graph",
+  "level": "context",
+  "scope": "documentation product + consumers",
+  "systems": [
+    { "id": "S1", "name": "codex-cli reversed spec", "description": "This package. Reference doc with audited chapters." },
+    { "id": "S2", "name": "Upstream codex-cli (refs/codex)", "description": "Source of truth being reverse-engineered. Read-only submodule." },
+    { "id": "S3", "name": "OpenCode codex provider", "description": "Local implementation being aligned." },
+    { "id": "S4", "name": "Downstream specs (provider_*)", "description": "provider_codex-prompt-realign, provider_codex-installation-id, provider_codex-bundle-slow-first-refinement, future drift remediation." }
+  ],
+  "containers": [
+    { "id": "K1", "systemId": "S1", "name": "Chapter files", "technology": "Markdown + JSON", "description": "chapters/01..12 + idef0.NN.json per chapter." },
+    { "id": "K2", "systemId": "S1", "name": "Audit evidence", "technology": "Markdown + spec_record_event", "description": "audit/*.md + event log per chapter pass." },
+    { "id": "K3", "systemId": "S1", "name": "Code anchors registry", "technology": "spec_add_code_anchor (design.md table)", "description": "All anchors logged via plan-builder; wiki_validate guards drift." }
+  ],
+  "components": [
+    { "id": "C1.1", "containerId": "K1", "name": "Chapter authoring", "description": "Draft → claim-extract → anchor." },
+    { "id": "C1.2", "containerId": "K1", "name": "OpenCode delta map", "description": "Per chapter section linking to S4 specs." },
+    { "id": "C2.1", "containerId": "K2", "name": "Audit pass protocol", "description": "Re-read every anchor; ≥1 TEST/TYPE; record SHA." },
+    { "id": "C3.1", "containerId": "K3", "name": "Drift guard", "description": "wiki_validate runs over all anchors." }
+  ],
+  "relationships": [
+    { "from": "C1.1", "to": "S2", "label": "reads file:line content" },
+    { "from": "C1.1", "to": "K3", "label": "registers spec_add_code_anchor" },
+    { "from": "C2.1", "to": "K3", "label": "verifies anchors" },
+    { "from": "C2.1", "to": "S2", "label": "pins HEAD SHA at audit time" },
+    { "from": "S4", "to": "S1", "label": "cites chapter sections instead of re-deriving" },
+    { "from": "S3", "to": "S4", "label": "implements per spec" },
+    { "from": "C3.1", "to": "S4", "label": "warns when cited anchor drifts" }
+  ]
+}

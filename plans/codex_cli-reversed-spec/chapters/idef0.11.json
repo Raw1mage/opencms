@@ -1,0 +1,54 @@
+{
+  "diagram_title": "Chapter 11 — Cache & Prefix Model",
+  "node_reference": "A11",
+  "activities": [
+    {
+      "id": "A11.1",
+      "title": "Emit Cache-Affecting Dimensions",
+      "inputs": ["session-stable identity (installation_id, thread_id, session_id, model)", "per-turn state (input[], tools[], reasoning, service_tier)", "subagent state", "auth tokens"],
+      "controls": ["7+ wire-level dimensions, any one differing turn-over-turn can break cache", "client cannot inspect backend's actual hashing algorithm"],
+      "outputs": ["request body + headers carrying all cache-affecting bytes"],
+      "mechanisms": ["build_responses_request (Ch06)", "build_ws_client_metadata (Ch08)", "build_headers (Ch02/Ch06)"]
+    },
+    {
+      "id": "A11.2",
+      "title": "Compute Incremental-Input Delta (WS)",
+      "inputs": ["current ResponsesApiRequest", "WebsocketSession.last_request", "LastResponse.items_added"],
+      "controls": ["non-input fields must match exactly", "request.input must be strict prefix-extension of (prior_input ++ items_added)", "last_response.response_id must be non-empty"],
+      "outputs": ["Option<Vec<ResponseItem>> incremental items OR None (fallback to full-mode)"],
+      "mechanisms": ["client.rs::get_incremental_items (line 988)"]
+    },
+    {
+      "id": "A11.3",
+      "title": "Detect Compaction Window Shift",
+      "inputs": ["compaction events (Ch09 endpoint result) OR Resumed history with RolloutItem::Compacted"],
+      "controls": ["window_generation = count of Compacted items", "x-codex-window-id format \"{thread_id}:{window_generation}\""],
+      "outputs": ["client_metadata.x-codex-window-id value shift (WS) — cache namespace partition"],
+      "mechanisms": ["client.rs::current_window_id (line 381)", "advance_window_generation"]
+    },
+    {
+      "id": "A11.4",
+      "title": "Observe cached_input_tokens",
+      "inputs": ["ResponseEvent::Completed.token_usage from server"],
+      "controls": ["cached_input_tokens >= 0; non_cached = input - cached"],
+      "outputs": ["per-turn cache observation (logged + telemetry)"],
+      "mechanisms": ["protocol::TokenUsage struct", "[CODEX-WS] USAGE console log line", "bus.session.round.telemetry"]
+    },
+    {
+      "id": "A11.5",
+      "title": "Stash Baseline For Next Turn",
+      "inputs": ["just-completed request + server's items_added stream"],
+      "controls": ["LastResponse { response_id, items_added }", "WebsocketSession.last_request set to current request"],
+      "outputs": ["state ready for next turn's delta check"],
+      "mechanisms": ["client.rs::LastResponse struct (line 249)", "WebsocketSession (line 255)", "items_added accumulation (line 1754, 1777)"]
+    },
+    {
+      "id": "A11.6",
+      "title": "Manage Known Cache Hazards",
+      "inputs": ["empirical observation log", "known issue tracker"],
+      "controls": ["GPT-5.5 server-side regression (openai/codex#20301) acknowledged; not the full explanation for client-controllable differentials", "mid-session identity dimension change orphans cache lineage", "account rotation may shift routing"],
+      "outputs": ["maintained ledger; informs future RCA work"],
+      "mechanisms": ["debugging campaign event log (provider_codex-prompt-realign/events/)"]
+    }
+  ]
+}
