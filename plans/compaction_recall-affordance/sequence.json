@@ -1,0 +1,64 @@
+[
+  {
+    "id": "SEQ-1",
+    "title": "Narrative compaction emits TOOL_INDEX, next turn injects notice, AI calls recall",
+    "description": "End-to-end happy path. Rebind triggers narrative compaction; LLM produces anchor with TOOL_INDEX; next turn prompt has amnesia notice; AI consults TOOL_INDEX and recalls a specific tool_call_id.",
+    "participants": [
+      { "id": "runLoop", "name": "runLoop (prompt.ts)", "kind": "component" },
+      { "id": "sessionCompactionRun", "name": "SessionCompaction.run", "kind": "component" },
+      { "id": "tryNarrative", "name": "tryNarrative", "kind": "component" },
+      { "id": "buildUserPayload", "name": "buildUserPayload (L1)", "kind": "component" },
+      { "id": "llm", "name": "LLM (narrative compactor)", "kind": "external" },
+      { "id": "defaultWriteAnchor", "name": "defaultWriteAnchor", "kind": "component" },
+      { "id": "validateToolIndex", "name": "validateToolIndex (L1 post-write)", "kind": "component" },
+      { "id": "bus", "name": "Bus telemetry", "kind": "component" },
+      { "id": "promptAssembly", "name": "Next-turn prompt assembly (L3)", "kind": "component" },
+      { "id": "model", "name": "Build-agent model", "kind": "external" },
+      { "id": "recallTool", "name": "RecallTool.execute (L2)", "kind": "component" },
+      { "id": "recallByCallId", "name": "Memory.Hybrid.recallByCallId", "kind": "component" },
+      { "id": "storage", "name": "Session.messages stream", "kind": "component" }
+    ],
+    "messages": [
+      { "from": "runLoop", "to": "sessionCompactionRun", "label": "run({observed:'rebind'}) when rebind triggers" },
+      { "from": "sessionCompactionRun", "to": "tryNarrative", "label": "kind chain selects narrative (server-side path failed earlier)" },
+      { "from": "tryNarrative", "to": "buildUserPayload", "label": "build LLM_compact prompt" },
+      { "from": "buildUserPayload", "to": "buildUserPayload", "label": "append TOOL_INDEX_INSTRUCTION block (L1)" },
+      { "from": "buildUserPayload", "to": "llm", "label": "POST /chat with PRIOR_ANCHOR + JOURNAL + TOOL_INDEX instruction" },
+      { "from": "llm", "to": "tryNarrative", "label": "anchor body with prose narrative + ## TOOL_INDEX table" },
+      { "from": "tryNarrative", "to": "defaultWriteAnchor", "label": "_writeAnchor({kind:'narrative', summaryText})" },
+      { "from": "defaultWriteAnchor", "to": "validateToolIndex", "label": "post-write scan for ## TOOL_INDEX marker" },
+      { "from": "validateToolIndex", "to": "bus", "label": "publish compaction.tool_index.emitted {entryCount, indexBytes}" },
+      { "from": "defaultWriteAnchor", "to": "storage", "label": "persist anchor with summary=true" },
+      { "from": "runLoop", "to": "promptAssembly", "label": "next turn: build prompt" },
+      { "from": "promptAssembly", "to": "storage", "label": "read most-recent anchor metadata" },
+      { "from": "storage", "to": "promptAssembly", "label": "{anchorId, kind:'narrative'}" },
+      { "from": "promptAssembly", "to": "promptAssembly", "label": "inject system_block_amnesia_notice (L3)" },
+      { "from": "promptAssembly", "to": "bus", "label": "publish prompt.amnesia_notice.injected" },
+      { "from": "promptAssembly", "to": "model", "label": "send prompt with notice + anchor (TOOL_INDEX visible)" },
+      { "from": "model", "to": "recallTool", "label": "tool_call recall({tool_call_id:'call_xyz'})" },
+      { "from": "recallTool", "to": "recallByCallId", "label": "lookup callID in session stream" },
+      { "from": "recallByCallId", "to": "storage", "label": "Session.messages → scan parts for matching callID" },
+      { "from": "storage", "to": "recallByCallId", "label": "ToolPart{output, originalToolName}" },
+      { "from": "recallByCallId", "to": "recallTool", "label": "{output, toolName}" },
+      { "from": "recallTool", "to": "bus", "label": "publish tool.recall.invoked {found:true}" },
+      { "from": "recallTool", "to": "model", "label": "tool_result with original output text" }
+    ]
+  },
+  {
+    "id": "SEQ-2",
+    "title": "Recall fails with unknown_call_id; AI falls back to re-execution",
+    "description": "Degraded path. LLM guessed an id from narrative (TOOL_INDEX may have been truncated or missing); recall returns typed error; AI re-runs the original tool.",
+    "participants": [
+      { "id": "model", "name": "Build-agent model", "kind": "external" },
+      { "id": "recallTool", "name": "RecallTool.execute", "kind": "component" },
+      { "id": "recallByCallId", "name": "Memory.Hybrid.recallByCallId", "kind": "component" }
+    ],
+    "messages": [
+      { "from": "model", "to": "recallTool", "label": "tool_call recall({tool_call_id:'call_guessed'})" },
+      { "from": "recallTool", "to": "recallByCallId", "label": "lookup callID" },
+      { "from": "recallByCallId", "to": "recallTool", "label": "null" },
+      { "from": "recallTool", "to": "model", "label": "tool_result {error: unknown_call_id, advice: re-execute original tool}" },
+      { "from": "model", "to": "model", "label": "decides to call the original tool (e.g. read) directly" }
+    ]
+  }
+]

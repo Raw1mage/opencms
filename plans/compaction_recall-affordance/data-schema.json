@@ -1,0 +1,102 @@
+{
+  "title": "compaction_recall-affordance — data schema",
+  "version": 1,
+  "description": "Type contracts for L1 TOOL_INDEX format, L2 recall tool I/O, L3 system block, and the four new telemetry events.",
+
+  "ToolIndexEntry": {
+    "description": "Single row in the ## TOOL_INDEX table within a narrative anchor body. Markdown table format; parsed by validateToolIndex regex.",
+    "type": "object",
+    "required": ["tool_call_id", "tool_name", "args_brief", "status", "output_chars"],
+    "properties": {
+      "tool_call_id": { "type": "string", "description": "Verbatim id from ToolPart.callID; e.g. call_abc123." },
+      "tool_name": { "type": "string", "description": "Tool name, e.g. read, grep, bash." },
+      "args_brief": { "type": "string", "maxLength": 80, "description": "Short stringified args (truncated)." },
+      "status": { "type": "string", "enum": ["ok", "error", "abort"], "description": "Final ToolPart.state.status." },
+      "output_chars": { "type": "integer", "minimum": 0, "description": "Original output length in chars; signals recall payload size." }
+    }
+  },
+
+  "RecallInput": {
+    "description": "Zod-validated input to RecallTool.execute.",
+    "type": "object",
+    "required": ["tool_call_id"],
+    "properties": {
+      "tool_call_id": { "type": "string", "minLength": 1, "description": "ToolPart.callID to look up; case-sensitive verbatim match." }
+    }
+  },
+
+  "RecallOutput": {
+    "description": "Return value of RecallTool.execute. Successful and error paths share the metadata schema for telemetry uniformity.",
+    "type": "object",
+    "required": ["title", "metadata", "output"],
+    "properties": {
+      "title": { "type": "string", "description": "tool_call_id (echoed)" },
+      "metadata": {
+        "type": "object",
+        "properties": {
+          "resolvedCallID": { "type": "string", "optional": true },
+          "originalToolName": { "type": "string", "optional": true },
+          "redundant": { "type": "boolean", "optional": true, "description": "True when callID is still in post-anchor journal." },
+          "error": { "type": "string", "enum": ["unknown_call_id"], "optional": true }
+        }
+      },
+      "output": { "type": "string", "description": "Original tool output text (success) or typed error message with re-execution advice (failure)." }
+    }
+  },
+
+  "AmnesiaNoticeBlock": {
+    "description": "L3 system_block injected into prompt assembly when active anchor kind is narrative.",
+    "type": "object",
+    "required": ["key", "name", "chars", "tokens", "injected", "policy"],
+    "properties": {
+      "key": { "type": "string", "const": "system_block_amnesia_notice" },
+      "name": { "type": "string", "const": "Amnesia / Recall Notice" },
+      "chars": { "type": "integer", "minimum": 0 },
+      "tokens": { "type": "integer", "minimum": 0 },
+      "injected": { "type": "boolean" },
+      "policy": { "type": "string", "const": "session_stable_until_next_anchor" }
+    }
+  },
+
+  "TelemetryEvents": {
+    "compaction.tool_index.emitted": {
+      "type": "object",
+      "required": ["sessionID", "anchorId", "entryCount", "indexBytes"],
+      "properties": {
+        "sessionID": { "type": "string", "format": "ses_<ulid>" },
+        "anchorId": { "type": "string", "format": "msg_<ulid>" },
+        "entryCount": { "type": "integer", "minimum": 0 },
+        "indexBytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "compaction.tool_index.missing": {
+      "type": "object",
+      "required": ["sessionID", "anchorId", "anchorBytes"],
+      "properties": {
+        "sessionID": { "type": "string" },
+        "anchorId": { "type": "string" },
+        "anchorBytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "tool.recall.invoked": {
+      "type": "object",
+      "required": ["sessionID", "callID", "found"],
+      "properties": {
+        "sessionID": { "type": "string" },
+        "callID": { "type": "string" },
+        "found": { "type": "boolean" },
+        "redundant": { "type": "boolean", "optional": true },
+        "originalToolName": { "type": "string", "optional": true }
+      }
+    },
+    "prompt.amnesia_notice.injected": {
+      "type": "object",
+      "required": ["sessionID", "anchorId", "anchorKind"],
+      "properties": {
+        "sessionID": { "type": "string" },
+        "anchorId": { "type": "string" },
+        "anchorKind": { "type": "string", "enum": ["narrative", "hybrid_llm", "low-cost-server", "replay-tail", "llm-agent"] }
+      }
+    }
+  }
+}

@@ -1,0 +1,209 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A0",
+    "StepType": "initial",
+    "StepAction": "Idle: runloop iteration entry; no active anchor write in progress; AI has full session messages in prompt",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["iter_started"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A0",
+    "StepType": "normal",
+    "StepAction": "Compaction predicate evaluates; if narrative kind selected (rebind / overflow without server-side path), SessionCompaction.run enters buildUserPayload",
+    "LinkInputType": "track",
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2, 12],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "compaction kind == narrative",
+      "compaction kind != narrative (server-side / hybrid_llm)"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "buildUserPayload appends TOOL_INDEX_INSTRUCTION to prompt: directs LLM to emit ## TOOL_INDEX fenced table listing (tool_call_id, name, args_brief, status, output_chars) for every pre-anchor tool call",
+    "LinkInputType": "track",
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3],
+    "LinkOutputType": "track",
+    "Condition": ["prompt_assembled"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "LLM generates anchor body with prose narrative + TOOL_INDEX section; defaultWriteAnchor persists summary-true assistant message; post-write validator scans for ## TOOL_INDEX marker",
+    "LinkInputType": "track",
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4, 5],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "TOOL_INDEX section present",
+      "TOOL_INDEX section missing"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Emit compaction.tool_index.emitted telemetry: {sessionID, anchorId, entryCount parsed from index, indexBytes}",
+    "LinkInputType": "track",
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["telemetry_published"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Emit compaction.tool_index.missing telemetry; anchor still persists with degraded affordance; downstream L3 note must instruct guessing tool_call_ids from narrative",
+    "LinkInputType": "track",
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["telemetry_published"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Next runloop turn: applyStreamAnchorRebind runs; most-recent anchor inspected; if kind=narrative, A3 fires injection",
+    "LinkInputType": "track",
+    "LinkInputNumber": [4, 5, 12],
+    "LinkOutputNumber": [7, 8],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "anchor.kind == narrative",
+      "anchor.kind != narrative (hybrid_llm / server-side / no anchor)"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Prompt assembly prepends system_block_amnesia_notice with policy session_stable_until_next_anchor; content explains compaction state + TOOL_INDEX authority + recall instruction",
+    "LinkInputType": "track",
+    "LinkInputNumber": [6],
+    "LinkOutputNumber": [9],
+    "LinkOutputType": "track",
+    "Condition": ["block_injected"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 8,
+    "ModuleRef": "A0",
+    "StepType": "normal",
+    "StepAction": "No amnesia notice needed; standard prompt assembly proceeds",
+    "LinkInputType": "track",
+    "LinkInputNumber": [6],
+    "LinkOutputNumber": [9],
+    "LinkOutputType": "track",
+    "Condition": ["standard_prompt"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 9,
+    "ModuleRef": "A0",
+    "StepType": "normal",
+    "StepAction": "Model sees notice + TOOL_INDEX in anchor; decides whether to call recall; emits tool_call recall(tool_call_id) OR proceeds without recall",
+    "LinkInputType": "track",
+    "LinkInputNumber": [7, 8],
+    "LinkOutputNumber": [10, 13],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "model invokes recall",
+      "model proceeds without recall"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 10,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "RecallTool.execute receives tool_call_id; calls Memory.Hybrid.recallByCallId(sessionID, callID); validates arg shape via zod schema",
+    "LinkInputType": "track",
+    "LinkInputNumber": [9],
+    "LinkOutputNumber": [11],
+    "LinkOutputType": "track",
+    "Condition": ["dispatch_complete"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 11,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "recallByCallId walks Session.messages stream; scans each msg.parts for ToolPart with matching callID; returns first match or null",
+    "LinkInputType": "track",
+    "LinkInputNumber": [10],
+    "LinkOutputNumber": [14, 15],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "ToolPart found",
+      "ToolPart not found"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 12,
+    "ModuleRef": "A0",
+    "StepType": "normal",
+    "StepAction": "Compaction proceeds via non-narrative path (server-side kind=4 or hybrid_llm); no TOOL_INDEX emission needed because provider preserves chain",
+    "LinkInputType": "track",
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["compaction_complete"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 13,
+    "ModuleRef": "A0",
+    "StepType": "normal",
+    "StepAction": "Standard runloop continuation; model's next action processed normally; recall remains available for future turns",
+    "LinkInputType": "track",
+    "LinkInputNumber": [9],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["next_iter"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 14,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "RecallTool returns output text + metadata {resolvedCallID, originalToolName, redundant}; emit tool.recall.invoked telemetry {found=true}",
+    "LinkInputType": "track",
+    "LinkInputNumber": [11],
+    "LinkOutputNumber": [13],
+    "LinkOutputType": "track",
+    "Condition": ["recall_resolved"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 15,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "RecallTool returns typed error {error: unknown_call_id, message: <id> not found, advice: re-execute original tool}; emit tool.recall.invoked telemetry {found=false}",
+    "LinkInputType": "track",
+    "LinkInputNumber": [11],
+    "LinkOutputNumber": [13],
+    "LinkOutputType": "track",
+    "Condition": ["recall_failed"],
+    "SubGrafcet": []
+  }
+]

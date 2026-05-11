@@ -1,0 +1,93 @@
+{
+  "title": "compaction_recall-affordance — minimal C4",
+  "description": "Root-level C4 only (per plan-builder SKILL §12.1 c4-minimal convention). Component-level diagrams subsumed by IDEF0 + GRAFCET in idef0.json / grafcet.json.",
+  "systems": [
+    {
+      "id": "opencode",
+      "name": "OpenCode runtime",
+      "description": "Single-process bun daemon hosting session runloop, compaction, tool registry, and provider integrations.",
+      "boundary": "internal"
+    }
+  ],
+  "containers": [
+    {
+      "id": "compaction",
+      "system": "opencode",
+      "name": "Compaction subsystem",
+      "description": "packages/opencode/src/session/compaction.ts. Hosts narrative kind path + buildUserPayload + defaultWriteAnchor. L1 lives here.",
+      "technology": "TypeScript, Bun"
+    },
+    {
+      "id": "tool-recall",
+      "system": "opencode",
+      "name": "Recall tool",
+      "description": "packages/opencode/src/tool/recall.ts (new). L2: AI-callable tool exposing tool_call_id → original output lookup.",
+      "technology": "TypeScript, zod, Tool.define"
+    },
+    {
+      "id": "memory-hybrid",
+      "system": "opencode",
+      "name": "Memory.Hybrid",
+      "description": "packages/opencode/src/session/memory.ts. Hosts recallByCallId (new) and existing recallMessage. Pure view over Session.messages stream.",
+      "technology": "TypeScript"
+    },
+    {
+      "id": "prompt-assembly",
+      "system": "opencode",
+      "name": "Prompt assembly",
+      "description": "packages/opencode/src/session/prompt.ts. Hosts applyStreamAnchorRebind + system-block assembly. L3 lives adjacent to this.",
+      "technology": "TypeScript"
+    },
+    {
+      "id": "tool-registry",
+      "system": "opencode",
+      "name": "Tool registry",
+      "description": "packages/opencode/src/tool/registry.ts. Registers RecallTool unconditionally in the build agent's catalog.",
+      "technology": "TypeScript"
+    }
+  ],
+  "components": [
+    {
+      "id": "buildUserPayload",
+      "container": "compaction",
+      "name": "buildUserPayload",
+      "description": "L1 surface — assembles LLM_compact prompt. Modified to inject TOOL_INDEX_INSTRUCTION."
+    },
+    {
+      "id": "defaultWriteAnchor",
+      "container": "compaction",
+      "name": "defaultWriteAnchor",
+      "description": "Post-write hook for L1 validation (validateToolIndex + telemetry)."
+    },
+    {
+      "id": "validateToolIndex",
+      "container": "compaction",
+      "name": "validateToolIndex",
+      "description": "New helper. Regex-scans anchor body for ## TOOL_INDEX section; counts entries."
+    },
+    {
+      "id": "RecallTool",
+      "container": "tool-recall",
+      "name": "RecallTool",
+      "description": "AI-callable Tool.Info exposing recall(tool_call_id)."
+    },
+    {
+      "id": "recallByCallId",
+      "container": "memory-hybrid",
+      "name": "Memory.Hybrid.recallByCallId",
+      "description": "New helper — scans Session.messages for ToolPart with matching callID. Sibling of existing recallMessage."
+    },
+    {
+      "id": "amnesiaNoticeInjector",
+      "container": "prompt-assembly",
+      "name": "amnesia notice injector",
+      "description": "Reads most-recent anchor kind; conditionally injects system_block_amnesia_notice. Lives adjacent to applyStreamAnchorRebind."
+    }
+  ],
+  "relationships": [
+    { "from": "compaction", "to": "memory-hybrid", "description": "consumes Session.messages stream via Hybrid accessors" },
+    { "from": "tool-recall", "to": "memory-hybrid", "description": "invokes recallByCallId during AI tool call" },
+    { "from": "prompt-assembly", "to": "compaction", "description": "reads most-recent anchor metadata to decide L3 injection" },
+    { "from": "tool-registry", "to": "tool-recall", "description": "exports RecallTool to build agent" }
+  ]
+}

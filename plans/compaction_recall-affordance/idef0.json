@@ -1,0 +1,143 @@
+{
+  "diagram_title": "Provide Tool-Result Recall Affordance Across Narrative Compaction",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Emit TOOL_INDEX in Anchor Body",
+      "description": "During narrative compaction's buildUserPayload, append explicit instruction to the LLM prompt: produce a fenced ## TOOL_INDEX table listing (tool_call_id, tool_name, args_brief, status, output_chars) for every pre-anchor tool call. Post-write validator scans persisted anchor body for the section; missing-section path emits compaction.tool_index.missing telemetry and proceeds with degraded affordance.",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Expose AI-Callable Recall Tool",
+      "description": "Define RecallTool via Tool.define pattern with parameter tool_call_id: string. Tool handler invokes Memory.Hybrid.recallByCallId, returns original tool output text with metadata {resolvedCallID, originalToolName, redundant}. Unknown id returns typed error with instruction to re-execute the original tool. Registered in registry.ts adjacent to RereadAttachmentTool.",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Inject Rebind-Aware System Note",
+      "description": "After applyStreamAnchorRebind runs and the active anchor has kind=narrative, prompt assembly prepends a system_block_amnesia_notice block with policy session_stable_until_next_anchor. Block content states tool history is narrative-compacted, TOOL_INDEX is authoritative, recall is the recovery mechanism. Skipped when anchor kind is hybrid_llm or server-side equivalent.",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Resolve callID to ToolPart from Stream",
+      "description": "Memory.Hybrid.recallByCallId(sessionID, callID) extends existing recallMessage namespace. Walks Session.messages stream, scans each message's parts for ToolPart whose callID matches. Returns the matched part or null. O(n) message scan; n is bounded by session message count. Idempotent — repeated calls return identical content.",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Emit Recall and TOOL_INDEX Telemetry",
+      "description": "Publish (a) compaction.tool_index.{emitted,missing} on every narrative anchor write with {sessionID, anchorId, entryCount, indexBytes}; (b) tool.recall.invoked on every recall call with {sessionID, callID, found, redundant}. Threaded into existing bus.session.compaction.* and tool-telemetry channels for ops visibility.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "LLMCompactRequest with priorAnchor + journalUnpinned + targetTokens",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "compaction kind selector (narrative path only; hybrid_llm and server-side bypass A1)",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "EXTERNAL",
+      "target": "A1:mechanism",
+      "label": "buildUserPayload prompt template + post-write anchor body validator",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR4",
+      "source": "A1:output",
+      "target": "A3:input",
+      "label": "persisted anchor message with summary=true + kind=narrative + TOOL_INDEX section",
+      "type": "output"
+    },
+    {
+      "id": "AR5",
+      "source": "EXTERNAL",
+      "target": "A2:input",
+      "label": "AI tool call with arguments {tool_call_id}",
+      "type": "input"
+    },
+    {
+      "id": "AR6",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "tool registry exposes RecallTool unconditionally for build agent",
+      "type": "control"
+    },
+    {
+      "id": "AR7",
+      "source": "A2:output",
+      "target": "A4:input",
+      "label": "internal call to Memory.Hybrid.recallByCallId(sessionID, callID)",
+      "type": "input"
+    },
+    {
+      "id": "AR8",
+      "source": "EXTERNAL",
+      "target": "A4:mechanism",
+      "label": "Session.messages stream (on-disk source of truth)",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR9",
+      "source": "A4:output",
+      "target": "A2:output",
+      "label": "matched ToolPart (output text + tool name) or null",
+      "type": "output"
+    },
+    {
+      "id": "AR10",
+      "source": "EXTERNAL",
+      "target": "A3:input",
+      "label": "applyStreamAnchorRebind result + most-recent anchor metadata",
+      "type": "input"
+    },
+    {
+      "id": "AR11",
+      "source": "EXTERNAL",
+      "target": "A3:control",
+      "label": "anchor kind = narrative (gates whether A3 fires)",
+      "type": "control"
+    },
+    {
+      "id": "AR12",
+      "source": "A3:output",
+      "target": "EXTERNAL",
+      "label": "system_block_amnesia_notice prepended to next prompt assembly",
+      "type": "output"
+    },
+    {
+      "id": "AR13",
+      "source": "A1:output",
+      "target": "A5:input",
+      "label": "anchor write outcome (emitted vs missing TOOL_INDEX)",
+      "type": "input"
+    },
+    {
+      "id": "AR14",
+      "source": "A2:output",
+      "target": "A5:input",
+      "label": "recall invocation outcome (found / unknown_call_id / redundant)",
+      "type": "input"
+    },
+    {
+      "id": "AR15",
+      "source": "A5:output",
+      "target": "EXTERNAL",
+      "label": "Bus telemetry events for ops dashboards and drift detection",
+      "type": "output"
+    }
+  ]
+}

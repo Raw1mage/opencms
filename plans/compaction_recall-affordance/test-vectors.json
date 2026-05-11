@@ -1,0 +1,226 @@
+[
+  {
+    "id": "TV-1",
+    "title": "L1 buildUserPayload appends TOOL_INDEX_INSTRUCTION when journal has tool calls",
+    "scenario": "Compaction pipeline at narrative-kind path. JournalUnpinned contains one assistant message with a ToolPart (read). buildUserPayload should return a prompt string containing the explicit '## TOOL_INDEX' instruction block.",
+    "input": {
+      "journalUnpinned": [
+        {
+          "roundIndex": 1,
+          "messages": [
+            {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "tool",
+                  "callID": "call_abc",
+                  "tool": "read",
+                  "state": { "status": "ok", "output": "file contents" },
+                  "input": { "filePath": "/foo" }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "priorAnchor": null,
+      "targetTokens": 5000
+    },
+    "expect": {
+      "promptContains": ["## TOOL_INDEX", "tool_call_id", "args_brief"]
+    }
+  },
+  {
+    "id": "TV-2",
+    "title": "L1 buildUserPayload includes instruction even when journal has no tool calls",
+    "scenario": "Idempotent instruction emission — LLM emits empty TOOL_INDEX table; ensures format consistency.",
+    "input": {
+      "journalUnpinned": [
+        { "roundIndex": 1, "messages": [{ "role": "assistant", "parts": [{ "type": "text", "text": "hello" }] }] }
+      ],
+      "priorAnchor": null,
+      "targetTokens": 5000
+    },
+    "expect": {
+      "promptContains": ["## TOOL_INDEX"]
+    }
+  },
+  {
+    "id": "TV-3",
+    "title": "L1 validateToolIndex parses a well-formed index section",
+    "scenario": "Anchor body has narrative prose followed by a markdown table; validator returns found=true with correct entryCount.",
+    "input": {
+      "body": "narrative text\n\n## TOOL_INDEX\n\n| tool_call_id | tool_name | args_brief | status | output_chars |\n|---|---|---|---|---|\n| call_abc | read | /foo | ok | 1234 |\n| call_def | grep | pattern | ok | 89 |\n"
+    },
+    "expect": { "found": true, "entryCount": 2 }
+  },
+  {
+    "id": "TV-4",
+    "title": "L1 validateToolIndex detects missing section",
+    "scenario": "LLM ignored TOOL_INDEX instruction; validator must report missing and emit telemetry.",
+    "input": {
+      "body": "narrative text only, no section"
+    },
+    "expect": { "found": false, "entryCount": 0 }
+  },
+  {
+    "id": "TV-5",
+    "title": "L1 validateToolIndex tolerates whitespace variance",
+    "scenario": "LLM emits the section but with non-standard whitespace; validator must still parse it.",
+    "input": {
+      "body": "narrative\n\n##  TOOL_INDEX  \n| tool_call_id | tool_name | args_brief | status | output_chars |\n|---|---|---|---|---|\n| call_abc | read | /foo | ok | 1234 |"
+    },
+    "expect": { "found": true, "entryCount": 1 }
+  },
+  {
+    "id": "TV-6",
+    "title": "L2 RecallTool returns content for known callID",
+    "scenario": "Session stream contains a ToolPart with callID call_abc and output 'hello world'. Recall returns content with correct metadata.",
+    "input": {
+      "sessionFixture": "session-with-tool-call-call_abc-output-hello-world",
+      "toolArgs": { "tool_call_id": "call_abc" }
+    },
+    "expect": {
+      "title": "call_abc",
+      "metadata": { "resolvedCallID": "call_abc", "originalToolName": "read", "redundant": false },
+      "output": "hello world"
+    }
+  },
+  {
+    "id": "TV-7",
+    "title": "L2 RecallTool returns unknown_call_id for missing callID",
+    "scenario": "Empty session or callID not present in stream; recall returns typed error with re-execution advice.",
+    "input": {
+      "sessionFixture": "empty-session",
+      "toolArgs": { "tool_call_id": "call_nonexistent" }
+    },
+    "expect": {
+      "metadata": { "error": "unknown_call_id" },
+      "outputContains": ["not found", "re-execute"]
+    }
+  },
+  {
+    "id": "TV-8",
+    "title": "L2 RecallTool marks redundant=true for post-anchor live callID",
+    "scenario": "callID is still in post-anchor journal; recall succeeds but flags the redundancy in metadata for telemetry.",
+    "input": {
+      "sessionFixture": "session-with-recent-tool-call-call_live-output-current",
+      "toolArgs": { "tool_call_id": "call_live" }
+    },
+    "expect": {
+      "metadata": { "redundant": true },
+      "output": "current"
+    }
+  },
+  {
+    "id": "TV-9",
+    "title": "L2 RecallTool rejects empty string callID via zod",
+    "scenario": "Input validation fails before reaching helper.",
+    "input": {
+      "toolArgs": { "tool_call_id": "" }
+    },
+    "expect": {
+      "errorKind": "zod_validation",
+      "errorMessageContains": "min"
+    }
+  },
+  {
+    "id": "TV-10",
+    "title": "L2 recallByCallId helper scans across message boundaries",
+    "scenario": "Stream has user/assistant messages interleaved; helper walks all messages to find ToolPart by callID.",
+    "input": {
+      "stream": [
+        { "id": "msg_1", "role": "user", "parts": [{ "type": "text" }] },
+        { "id": "msg_2", "role": "assistant", "parts": [{ "type": "tool", "callID": "call_a", "tool": "read", "state": { "status": "ok", "output": "X" } }] },
+        { "id": "msg_3", "role": "user", "parts": [{ "type": "text" }] }
+      ],
+      "callID": "call_a"
+    },
+    "expect": {
+      "found": true,
+      "toolPart": { "callID": "call_a", "tool": "read", "output": "X" }
+    }
+  },
+  {
+    "id": "TV-11",
+    "title": "L2 recallByCallId returns first match when duplicates exist",
+    "scenario": "Stream has two ToolPart entries with same callID (rare but possible due to retry); helper returns the first chronologically.",
+    "input": {
+      "stream": [
+        { "id": "msg_1", "role": "assistant", "parts": [{ "type": "tool", "callID": "call_dup", "tool": "read", "state": { "status": "ok", "output": "first" } }] },
+        { "id": "msg_2", "role": "assistant", "parts": [{ "type": "tool", "callID": "call_dup", "tool": "read", "state": { "status": "ok", "output": "second" } }] }
+      ],
+      "callID": "call_dup"
+    },
+    "expect": {
+      "output": "first"
+    }
+  },
+  {
+    "id": "TV-12",
+    "title": "L3 amnesia notice injected when most-recent anchor is narrative",
+    "scenario": "Session has a narrative-kind anchor as the most recent summary message. Next-turn prompt assembly must include system_block_amnesia_notice.",
+    "input": {
+      "sessionFixture": "session-with-narrative-anchor"
+    },
+    "expect": {
+      "promptBlocks.containsKey": "system_block_amnesia_notice",
+      "promptBlocks.amnesia.injected": true
+    }
+  },
+  {
+    "id": "TV-13",
+    "title": "L3 amnesia notice NOT injected when most-recent anchor is hybrid_llm",
+    "scenario": "Session has a hybrid_llm-kind anchor; server-side path preserves chain; no notice needed.",
+    "input": {
+      "sessionFixture": "session-with-hybrid-llm-anchor"
+    },
+    "expect": {
+      "promptBlocks.doesNotContainKey": "system_block_amnesia_notice"
+    }
+  },
+  {
+    "id": "TV-14",
+    "title": "L3 amnesia notice NOT injected when no anchor exists",
+    "scenario": "Fresh session; no anchor at all.",
+    "input": {
+      "sessionFixture": "fresh-session"
+    },
+    "expect": {
+      "promptBlocks.doesNotContainKey": "system_block_amnesia_notice"
+    }
+  },
+  {
+    "id": "TV-15",
+    "title": "L3 amnesia notice NOT injected when narrative is superseded by hybrid_llm",
+    "scenario": "Two anchors exist: an older narrative and a newer hybrid_llm. Most-recent is the hybrid one; no notice injected.",
+    "input": {
+      "sessionFixture": "session-with-narrative-then-hybrid-llm-anchor"
+    },
+    "expect": {
+      "promptBlocks.doesNotContainKey": "system_block_amnesia_notice"
+    }
+  },
+  {
+    "id": "TV-16",
+    "title": "Integration: narrative compaction → next-turn notice → recall returns content",
+    "scenario": "End-to-end happy path. Spin up a test session, execute 3 dummy tool calls, force narrative compaction, verify TOOL_INDEX, trigger next prompt, verify notice, invoke recall.",
+    "input": {
+      "preCompactionTools": [
+        { "callID": "call_1", "tool": "read", "input": { "filePath": "/a" }, "output": "AAA" },
+        { "callID": "call_2", "tool": "read", "input": { "filePath": "/b" }, "output": "BBB" },
+        { "callID": "call_3", "tool": "grep", "input": { "pattern": "x" }, "output": "CCC" }
+      ],
+      "compactionTrigger": { "observed": "rebind", "kind": "narrative" }
+    },
+    "expect": {
+      "anchor.body.contains": "## TOOL_INDEX",
+      "anchor.body.toolIndexEntryCount": 3,
+      "nextPromptBlocks.containsKey": "system_block_amnesia_notice",
+      "recall.call_1.output": "AAA",
+      "recall.call_2.output": "BBB",
+      "recall.call_3.output": "CCC",
+      "recall.call_unknown.metadata.error": "unknown_call_id"
+    }
+  }
+]
