@@ -157,7 +157,7 @@
 <text class="gate-label" x="11.40" y="34.00"><tspan x="11.40" dy="0">jsonlappended來源上傳</tspan></text>
 <line class="gate" x1="13.00" y1="89.00" x2="15.00" y2="89.00"/>
 <text class="gate-label" x="15.40" y="89.00"><tspan x="15.40" dy="0">aiSkipsReread</tspan></text>
-<line class="gate" x1="9.00" y1="87.00" x2="11.00" y2="87.00"/>
-<text class="gate-label-left" x="8.60" y="87.00"><tspan x="8.60" dy="0">image位元組inlined在trailingextras</tspan></text>
+<line class="gate" x1="9.00" y1="89.00" x2="11.00" y2="89.00"/>
+<text class="gate-label-left" x="8.60" y="89.00"><tspan x="8.60" dy="0">image位元組inlined在trailingextras</tspan></text>
 <circle class="branch-junction" cx="10.00" cy="64.00" r="0.28"/>
 </svg>
