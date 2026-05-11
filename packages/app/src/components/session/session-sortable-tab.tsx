@@ -104,12 +104,13 @@ export function SortableTab(props: {
             <Portal>
               <div
                 data-slot="tab-context-menu"
-                class="fixed z-[1000] min-w-[10rem] rounded-md border-2 border-slate-700 bg-slate-900 py-1 shadow-lg text-12-medium text-text-base"
-                style={{ left: `${pos().x}px`, top: `${pos().y}px` }}
+                class="fixed z-[9999] min-w-[10rem] rounded-md border border-slate-300 py-1 shadow-lg text-12-medium"
+                style={`left:${pos().x}px;top:${pos().y}px;background-color:#ffffff !important;color:#0f172a !important;`}
               >
                 <button
                   type="button"
-                  class="w-full text-left px-3 py-1.5 hover:bg-surface-tertiary"
+                  class="w-full text-left px-3 py-1.5 hover:bg-slate-100"
+                  style="color:#0f172a !important;background-color:transparent;"
                   onClick={() => {
                     closeMenu()
                     props.onTabClose(props.tab)
@@ -120,7 +121,8 @@ export function SortableTab(props: {
                 <Show when={props.onCloseOthers}>
                   <button
                     type="button"
-                    class="w-full text-left px-3 py-1.5 hover:bg-surface-tertiary"
+                    class="w-full text-left px-3 py-1.5 hover:bg-slate-100"
+                  style="color:#0f172a !important;background-color:transparent;"
                     onClick={() => {
                       closeMenu()
                       props.onCloseOthers?.(props.tab)
@@ -132,7 +134,8 @@ export function SortableTab(props: {
                 <Show when={props.onCloseAll}>
                   <button
                     type="button"
-                    class="w-full text-left px-3 py-1.5 hover:bg-surface-tertiary"
+                    class="w-full text-left px-3 py-1.5 hover:bg-slate-100"
+                  style="color:#0f172a !important;background-color:transparent;"
                     onClick={() => {
                       closeMenu()
                       props.onCloseAll?.()
