@@ -32,6 +32,7 @@ import { Log } from "../util/log"
 import { Installation } from "../installation"
 import { Auth } from "../auth"
 import { Global } from "../global"
+import { resolveCodexInstallationId } from "./codex-installation-id"
 import { BusEvent } from "@/bus/bus-event"
 import { codexServerCompact } from "../provider/codex-compaction"
 import { Bus } from "../bus"
@@ -285,6 +286,14 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
         // Capture client for the onTokenRefresh closure below.
         const authClient = input.client
 
+        // Per-install client identity (mirrors upstream codex CLI
+        // $CODEX_HOME/installation_id). Resolved once per process and threaded
+        // into every getModel call so body.client_metadata["x-codex-installation-id"]
+        // is stable across turns and account rotations. See spec
+        // provider/codex-installation-id (DD-1..DD-5). Fail-loud on IO error —
+        // AGENTS.md rule 1, no silent fallback.
+        const installationId = await resolveCodexInstallationId()
+
         // Return credentials + getModel factory for native codex provider
         return {
           apiKey: "codex-oauth", // dummy — native provider ignores this
@@ -312,7 +321,7 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
                   },
               conversationId: credentials?.conversationId,
               sessionId: credentials?.sessionId,
-              installationId: credentials?.installationId,
+              installationId: credentials?.installationId ?? installationId,
               userAgent: buildCodexUserAgent(),
               // Persist refreshed (or cleared-on-dead) tokens back to accounts.json
               // so the next bootstrap reads the fresh state instead of replaying a
