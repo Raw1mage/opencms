@@ -126,14 +126,14 @@ graph BT
 
 ![OpenCMS A0 IDEF0 — Operate Multi-Account AI Agent Control Plane](specs/diagrams/opencms_a0_idef0.svg)
 
-| 活動 | 標題 | 對應 chapter |
-|---|---|---|
-| **A1** | Present User Interface | [`webapp/`](specs/webapp/README.md) |
-| **A2** | Process AI Sessions | [`session/`](specs/session/README.md), [`compaction/`](specs/compaction/README.md), [`attachments/`](specs/attachments/README.md), [`harness/`](specs/harness/README.md) |
-| **A3** | Route Provider And Account | [`provider/`](specs/provider/README.md), [`account/`](specs/account/README.md) |
-| **A4** | Execute Tools And MCP | [`mcp/`](specs/mcp/README.md), [`app-market/`](specs/app-market/README.md) |
-| **A5** | Operate Multi-User Gateway | [`daemon/`](specs/daemon/README.md) |
-| **A6** | Govern Documentation Lifecycle | [`meta/`](specs/meta/README.md) |
+| 活動   | 標題                           | 對應 chapter                                                                                                                                                             |
+| ------ | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **A1** | Present User Interface         | [`webapp/`](specs/webapp/README.md)                                                                                                                                      |
+| **A2** | Process AI Sessions            | [`session/`](specs/session/README.md), [`compaction/`](specs/compaction/README.md), [`attachments/`](specs/attachments/README.md), [`harness/`](specs/harness/README.md) |
+| **A3** | Route Provider And Account     | [`provider/`](specs/provider/README.md), [`account/`](specs/account/README.md)                                                                                           |
+| **A4** | Execute Tools And MCP          | [`mcp/`](specs/mcp/README.md), [`app-market/`](specs/app-market/README.md)                                                                                               |
+| **A5** | Operate Multi-User Gateway     | [`daemon/`](specs/daemon/README.md)                                                                                                                                      |
+| **A6** | Govern Documentation Lifecycle | [`meta/`](specs/meta/README.md)                                                                                                                                          |
 
 ### GRAFCET — 主流程（一輪使用者 turn 的執行時序）
 
@@ -147,19 +147,37 @@ graph BT
 
 每個 chapter 都是一個 **單一交付目的** 的 functional purpose，附 A0/A1.. 遞迴 IDEF0、配對 GRAFCET 與相關 sub-spec 包。
 
-| 章節 | 交付目的 | 主要源碼 |
-|---|---|---|
-| [`account/`](specs/account/README.md) | 管理帳號身分與 OAuth token | `src/account · src/auth` |
-| [`app-market/`](specs/app-market/README.md) | 統一三類安裝來源（mcp-server / managed-app / mcp-app） | `src/mcp · /admin` |
-| [`attachments/`](specs/attachments/README.md) | 接收與生命週期管理檔案附件 | `src/incoming · src/file` |
-| [`compaction/`](specs/compaction/README.md) | 在 token 預算內壓縮對話狀態 | `src/session/compaction*` |
-| [`daemon/`](specs/daemon/README.md) | 透過本機 IPC 服務多使用者 session | `daemon/ · src/daemon · src/server` |
-| [`harness/`](specs/harness/README.md) | 編排 plan 驅動的自主執行 | `src/agent · src/runtime · src/skill` |
-| [`mcp/`](specs/mcp/README.md) | 統一 MCP 傳輸、manifest、idle unload | `src/mcp` |
-| [`meta/`](specs/meta/README.md) | 治理 config / plan-builder / architecture 流程 | meta layer |
-| [`provider/`](specs/provider/README.md) | 解析 provider 並路由 LLM 呼叫（含 Rotation3D） | `src/provider · src/account/rotation3d` |
-| [`session/`](specs/session/README.md) | 執行一次使用者發起的 AI turn | `src/session · src/storage` |
-| [`webapp/`](specs/webapp/README.md) | SolidJS SPA 與 Admin Panel 介面層 | `packages/app · packages/web` |
+| 章節                                          | 交付目的                                               | 主要源碼                                |
+| --------------------------------------------- | ------------------------------------------------------ | --------------------------------------- |
+| [`account/`](specs/account/README.md)         | 管理帳號身分與 OAuth token                             | `src/account · src/auth`                |
+| [`app-market/`](specs/app-market/README.md)   | 統一三類安裝來源（mcp-server / managed-app / mcp-app） | `src/mcp · /admin`                      |
+| [`attachments/`](specs/attachments/README.md) | 接收與生命週期管理檔案附件                             | `src/incoming · src/file`               |
+| [`compaction/`](specs/compaction/README.md)   | 在 token 預算內壓縮對話狀態                            | `src/session/compaction*`               |
+| [`daemon/`](specs/daemon/README.md)           | 透過本機 IPC 服務多使用者 session                      | `daemon/ · src/daemon · src/server`     |
+| [`harness/`](specs/harness/README.md)         | 編排 plan 驅動的自主執行                               | `src/agent · src/runtime · src/skill`   |
+| [`mcp/`](specs/mcp/README.md)                 | 統一 MCP 傳輸、manifest、idle unload                   | `src/mcp`                               |
+| [`meta/`](specs/meta/README.md)               | 治理 config / plan-builder / architecture 流程         | meta layer                              |
+| [`provider/`](specs/provider/README.md)       | 解析 provider 並路由 LLM 呼叫（含 Rotation3D）         | `src/provider · src/account/rotation3d` |
+| [`session/`](specs/session/README.md)         | 執行一次使用者發起的 AI turn                           | `src/session · src/storage`             |
+| [`webapp/`](specs/webapp/README.md)           | SolidJS SPA 與 Admin Panel 介面層                      | `packages/app · packages/web`           |
+
+### 子系統 GRAFCET 圖索引
+
+以下 SVG 由 drawmiat 正式 GRAFCET renderer 依各章節 `grafcet.json` 重繪，排除 debug overlay，作為 README 的快速流程入口。
+
+| 章節        | GRAFCET SVG                                                            |
+| ----------- | ---------------------------------------------------------------------- |
+| account     | [`account_grafcet.svg`](specs/account/account_grafcet.svg)             |
+| app-market  | [`app-market_grafcet.svg`](specs/app-market/app-market_grafcet.svg)    |
+| attachments | [`attachments_grafcet.svg`](specs/attachments/attachments_grafcet.svg) |
+| compaction  | [`compaction_grafcet.svg`](specs/compaction/compaction_grafcet.svg)    |
+| daemon      | [`daemon_grafcet.svg`](specs/daemon/daemon_grafcet.svg)                |
+| harness     | [`harness_grafcet.svg`](specs/harness/harness_grafcet.svg)             |
+| mcp         | [`mcp_grafcet.svg`](specs/mcp/mcp_grafcet.svg)                         |
+| meta        | [`meta_grafcet.svg`](specs/meta/meta_grafcet.svg)                      |
+| provider    | [`provider_grafcet.svg`](specs/provider/provider_grafcet.svg)          |
+| session     | [`session_grafcet.svg`](specs/session/session_grafcet.svg)             |
+| webapp      | [`webapp_grafcet.svg`](specs/webapp/webapp_grafcet.svg)                |
 
 跨章節決策日誌與層級設計理由：[`specs/architecture.md`](specs/architecture.md)。
 
@@ -326,17 +344,17 @@ templates/             XDG 部署模板
 
 ## 資料持久化路徑
 
-| 路徑 | 用途 |
-|------|------|
-| `~/.config/opencode/accounts.json` | 帳號與 provider 設定 |
-| `~/.config/opencode/managed-apps.json` | MCP app 安裝狀態 |
-| `~/.config/opencode/gauth.json` | Google OAuth 共享 token |
-| `~/.config/opencode/cron/jobs.json` | Scheduler job 持久化 |
-| `/etc/opencode/opencode.cfg` | Gateway runtime 設定 |
-| `/etc/opencode/google-bindings.json` | Google OAuth ↔ Linux user binding |
-| `/run/opencode-gateway/jwt.key` | JWT secret（file-backed, 0600） |
-| `$XDG_RUNTIME_DIR/opencode/daemon.json` | Per-user daemon discovery |
-| `$XDG_RUNTIME_DIR/opencode/daemon.sock` | Per-user daemon Unix socket |
+| 路徑                                    | 用途                              |
+| --------------------------------------- | --------------------------------- |
+| `~/.config/opencode/accounts.json`      | 帳號與 provider 設定              |
+| `~/.config/opencode/managed-apps.json`  | MCP app 安裝狀態                  |
+| `~/.config/opencode/gauth.json`         | Google OAuth 共享 token           |
+| `~/.config/opencode/cron/jobs.json`     | Scheduler job 持久化              |
+| `/etc/opencode/opencode.cfg`            | Gateway runtime 設定              |
+| `/etc/opencode/google-bindings.json`    | Google OAuth ↔ Linux user binding |
+| `/run/opencode-gateway/jwt.key`         | JWT secret（file-backed, 0600）   |
+| `$XDG_RUNTIME_DIR/opencode/daemon.json` | Per-user daemon discovery         |
+| `$XDG_RUNTIME_DIR/opencode/daemon.sock` | Per-user daemon Unix socket       |
 
 ---
 
