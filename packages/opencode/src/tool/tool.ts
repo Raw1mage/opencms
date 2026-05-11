@@ -3,6 +3,19 @@ import type { MessageV2 } from "../session/message-v2"
 import type { Agent } from "../agent/agent"
 import type { PermissionNext } from "../permission/next"
 import { Truncate } from "./truncation"
+import { Log } from "../util/log"
+
+const telemetryLog = Log.create({ service: "tool-telemetry" })
+
+function byteSize(value: unknown): number {
+  if (value === undefined || value === null) return 0
+  if (typeof value === "string") return Buffer.byteLength(value, "utf8")
+  try {
+    return Buffer.byteLength(JSON.stringify(value) ?? "", "utf8")
+  } catch {
+    return -1
+  }
+}
 
 export namespace Tool {
   interface Metadata {
@@ -130,7 +143,36 @@ export namespace Tool {
               { cause: error },
             )
           }
-          const result = await execute(parsed, ctx)
+          const inputBytes = byteSize(parsed)
+          const startedAt = Date.now()
+          let result
+          try {
+            result = await execute(parsed, ctx)
+          } catch (err) {
+            const durationMs = Date.now() - startedAt
+            telemetryLog.info("tool-call", {
+              tool: id,
+              ok: false,
+              durationMs,
+              inputBytes,
+              sessionID: ctx.sessionID,
+              messageID: ctx.messageID,
+              callID: ctx.callID,
+              error: err instanceof Error ? err.message : String(err),
+            })
+            throw err
+          }
+          const durationMs = Date.now() - startedAt
+          telemetryLog.info("tool-call", {
+            tool: id,
+            ok: true,
+            durationMs,
+            inputBytes,
+            outputBytes: byteSize(result.output),
+            sessionID: ctx.sessionID,
+            messageID: ctx.messageID,
+            callID: ctx.callID,
+          })
           // skip truncation for tools that handle it themselves
           if (result.metadata.truncated !== undefined) {
             return result

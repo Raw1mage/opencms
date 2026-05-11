@@ -63,6 +63,21 @@ Example patch:
 *** End Patch
 ```
 
+# Token Budget Discipline (SOFT — read this before composing the patch)
+
+A single `apply_patch` call is one tool message. If it is large and the provider hits a rate limit, throttles, or stalls mid-stream, the **entire payload must be re-transmitted** on retry — wasted tokens, wasted minutes, and your session context burns down the same. Cache stays warmer when each call is smaller, too.
+
+Soft budget per call:
+- **≤ 5 hunks**, OR **≤ ~200 changed lines** (whichever comes first)
+- One coherent semantic unit per call (e.g. "rename X in file A", "extract helper in file B") — not "refactor module"
+
+For larger work, **split across multiple `apply_patch` calls**:
+1. Plan the change set first (which files, which logical steps).
+2. Apply one logical step per call. Read → patch → verify → next.
+3. If you find yourself composing a patch with 10+ hunks or 500+ lines, stop and split it.
+
+Exception: pure file creation (`*** Add File`) of a single new file can exceed these limits, since there is no match-failure risk and no benefit to splitting a brand-new file.
+
 # Best Practices & Error Recovery
 
 - You must include a header with your intended action (Add/Delete/Update)
