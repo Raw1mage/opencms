@@ -8,7 +8,13 @@
 
 ## Status
 
-partially shipped (live as of 2026-05-04).
+partially shipped (live as of 2026-05-10; minor 2026-05-11 doc refresh
+for miatdiagram §4.4 wire datasheet — see `datasheet.md` in this
+directory). Recent shipped fixes: Google token auto-refresh
+(719c6f14a, 2026-05-10), Home-dir expansion (fe391bbf1, 2026-05-10),
+prior token-injection fix (ee3ac5303, 2026-04-07), settings UI
+(4c06d6719, 2026-04-07). Three-kind unified install surface (`mcp-server`
+/ `managed-app` / `mcp-app`) is described in [`../app-market/`](../app-market/README.md).
 
 `mcp_subsystem/mcp-separation` is largely shipped — `BUILTIN_CATALOG`
 is empty, Gmail / Calendar run as standalone stdio MCP servers under
@@ -240,6 +246,14 @@ escape hatch is the `OPENCODE_OUTPUT_DIR` env var that
 — tools save files there, then invoke `open_fileview`. Fileview
 needs absolute-path support to retire this `.opencode/mcp-output/`
 workaround.
+
+## Wire datasheet
+
+Per-message field reference for the three transports MCP speaks
+(stdio, Streamable HTTP, SSE) plus the OpenCMS-specific
+`structuredContent.bundle_tar_b64` extension lives in
+[`./datasheet.md`](./datasheet.md). Required reading when adding a
+new mcp-app or debugging a transport-level issue.
 
 ## Code anchors
 

@@ -435,7 +435,7 @@ prohibition on silent fallbacks.
 
 Plan-builder:
 - `~/projects/skills/plan-builder/SKILL.md` — judgment surface
-- `~/projects/skills/plan-builder/scripts/*.ts` — 9 stateful operations
+- `~/projects/skills/plan-builder/scripts/*.ts` — 10 stateful operations
 - `~/projects/skills/plan-builder/schemas/state.schema.json` —
   `.state.json` machine contract
 - `~/projects/skills/plan-builder/templates/` — required-artifact

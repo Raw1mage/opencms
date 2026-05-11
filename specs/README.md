@@ -32,8 +32,7 @@ specs/
 │   ├── claude/                # anthropic + claude-cli + claude takeover import
 │   │   └── claude-session-list/   # sidebar tab + import/delta + anchor — folded plan
 │   └── codex/                 # codex AI-SDK authority + WS layer + compaction
-│       ├── codex-update/          # codex feature update spec — living
-│       └── ws-snapshot-hotfix/    # WS snapshot interaction — verified
+│       └── codex-update/          # codex feature update spec — living
 ├── session/               # session storage, capability layer, rebind, dialog stream
 │   └── continuation-fix/      # orphan-task recovery, version guard — needs-update
 └── webapp/                # SolidJS SPA, Admin Panel, route registration, voice input
@@ -72,7 +71,6 @@ roughly balanced, so no single topic dominates the navigation:
   `harness/autonomous-opt-in/`,
   `provider/claude/claude-session-list/`,
   `provider/codex/codex-update/`,
-  `provider/codex/ws-snapshot-hotfix/`,
   `session/continuation-fix/`).
 - **Two levels of nesting** is reserved for `provider/<vendor>/<slug>/`
   where the per-vendor sub-domain itself hosts multiple

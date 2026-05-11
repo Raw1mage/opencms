@@ -138,13 +138,26 @@ binary will be inlined into the next preface trailing tier. Lifecycle:
   `activeImageBlocks` only for filenames in `activeImageRefs`. Both
   ride `prefaceInput.trailingExtras` so they sit in the BP4 zone and
   do not invalidate the T1 / T2 prefix cache.
-- **Drain** — `session/processor.ts` (~L1153) clears
-  `activeImageRefs` after every `step-finish` regardless of
-  `finishReason`, so image binary never accumulates across turns.
-- **FIFO cap** — `ACTIVE_IMAGE_REFS_DEFAULT_MAX = 3`. Hard upper
-  bound even when the AI vouchers in many filenames at once;
-  configurable via `attachment_inline_active_set_max` in
-  `tweaks.cfg`.
+- **Drain (v6, 2026-05-08)** — per-turn auto-drain **removed**.
+  Earlier rounds tried two drain sites that both produced regressions:
+  v3 drained at `processor.ts` `step-finish` (wiped reread vouchers
+  in the same turn that wrote them; image never reached the model);
+  v4 moved the drain to `llm.ts` post-preface-emit (image reached the
+  model once, then evaporated → multi-turn analysis of one image
+  forced a `reread_attachment` per turn just to keep seeing the
+  pixels). v6 stops draining altogether; lifetime is governed by the
+  FIFO cap below. Cross-reference: `session/llm.ts` ~L804-825 carries
+  the v6 rationale comment.
+- **FIFO cap** — bounded by `Tweaks.attachmentInline.activeSetMax`
+  (default **8**), enforced inside `addOnReread`
+  (`tool/reread-attachment.ts:147`). New reread calls evict the
+  oldest filename when the cap is reached, so the active set cannot
+  grow unbounded across long sessions. The legacy constant
+  `ACTIVE_IMAGE_REFS_DEFAULT_MAX = 3` in `active-image-refs.ts`
+  remains for test fixtures only; production reads `activeSetMax`
+  from tweaks. Configurable via `attachment_inline_active_set_max`
+  in `tweaks.cfg`; bumped from 3 → 8 in 2026-05-08 to match the v6
+  multi-turn persistence model.
 
 The whole subsystem is gated by `attachment_inline_enabled`
 (`Tweaks.attachmentInlineSync()`); when disabled, neither inventory
@@ -184,10 +197,15 @@ Image lifecycle (attachment-lifecycle):
   `buildAttachedImagesInventory` text block.
 - `packages/opencode/src/session/image-router.ts` — multimodal
   capability rotation; `stripImageParts`.
-- `packages/opencode/src/session/llm.ts` — preface assembly site
-  (~L620–L755): inventory + `activeImageBlocks` into `trailingExtras`.
-- `packages/opencode/src/session/processor.ts` — drain after
-  `step-finish` (~L1153).
+- `packages/opencode/src/session/llm.ts` — preface assembly
+  (~L620-L755) plus the v6 no-drain rationale comment (~L804-L825).
+- `packages/opencode/src/session/processor.ts` — (v6) **no longer**
+  drains after `step-finish` (historical drain site at ~L1207-L1220
+  now carries the v6 reasoning comment).
+- `packages/opencode/src/tool/reread-attachment.ts:147` — FIFO cap
+  enforcement (`addOnReread(prior, name, { max: cfg.activeSetMax })`).
+- `packages/opencode/src/config/tweaks.ts:431` —
+  `attachmentInline.activeSetMax` default = 8.
 - `packages/opencode/src/session/index.ts` —
   `execution.activeImageRefs` schema (L267), `setActiveImageRefs`
   (L715).

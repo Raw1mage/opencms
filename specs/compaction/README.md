@@ -8,7 +8,11 @@
 
 ## Status
 
-shipped (live as of 2026-05-04).
+shipped (live as of 2026-05-11; main spec stable, sub-specs
+`dialog-replay-redaction` / `itemcount-fix` / `user-msg-replay-unification`
+shipped, `empty-response-rca` + `empty-turn-recovery` paused awaiting
+evidence, `working-cache` proposed). See sub-package state files for
+individual lifecycles.
 
 `compaction-redesign` and `compaction-improvements` reached `verified`
 and were merged into the main runloop. `prompt-cache-and-compaction-hardening`

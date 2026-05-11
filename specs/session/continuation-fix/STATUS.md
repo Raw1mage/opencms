@@ -1,4 +1,15 @@
-# STATUS — session-continuation-fix (2026-05-04 audit)
+# STATUS — session-continuation-fix (closed 2026-05-11)
+
+**Closure verdict:** core mechanisms all shipped and stable. Residual
+gaps (regression tests 1.5/2.5/3.5/4.6/5.5; UI surfacing of
+`_staleVersion`) are tracked as ordinary backlog items in
+[`specs/session/README.md`](../README.md) — not a separate sub-spec.
+This package is **closed**; do not promote / amend / reopen. Predates
+specbase `.state.json`, so no archive move via `plan_archive`.
+
+---
+
+## Original audit (2026-05-04)
 
 **Verdict:** needs-update — core mechanisms shipped, plan needs trimming to remaining gaps.
 

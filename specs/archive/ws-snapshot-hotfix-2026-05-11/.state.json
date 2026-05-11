@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "verified",
+  "state": "archived",
   "profile": [],
   "history": [
     {
@@ -50,6 +50,22 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "All Phase 1+2+3 tasks done; 107/107 codex-provider tests pass; event note records implementation result + lessons + no-restart reminder; architecture sync verified no doc changes"
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-05-11T12:19:29.096Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Hotfix verified and shipped; promote to living so it can be archived as completed maintenance scope."
+    },
+    {
+      "from": "living",
+      "to": "archived",
+      "at": "2026-05-11T12:19:34.075Z",
+      "by": "pkcs12",
+      "mode": "archive",
+      "reason": "Verified hotfix; WS snapshot field mismatch fix landed and stable. One-shot done."
     }
   ]
 }

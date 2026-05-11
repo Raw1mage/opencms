@@ -121,7 +121,7 @@ dialog refetches and shows green. Token expiry surfaces as
 
 Frontend:
 - `packages/app/src/components/dialog-app-market.tsx` — unified
-  dialog (~1100 LOC). `MarketApp` type L23, `statusDisplay` L42,
+  dialog (~754 LOC after 2026-05 slimdown, was ~1100 LOC). `MarketApp` type L23, `statusDisplay` L42,
   `fetchMarket` L102, OAuth pop-up L149, settings save L164, store
   add L202.
 - `packages/app/src/components/dialog-app-market.css` — responsive

@@ -184,6 +184,48 @@ Single source of truth for the gateway. The systemd unit's
 exposes for `webctl.sh publish-route` / `remove-route` to mutate
 `web_routes.conf` without restarting the gateway.
 
+### Gateway-as-platform: registered webapps
+
+The gateway's prefix-routed reverse-proxy is **also** the platform any
+local dev server can mount itself onto. Registering an app gives it
+unified PAM/JWT auth, a stable `/<prefix>` URL, and an entry in the
+Admin Panel's webapp list — with zero new infrastructure (no nginx, no
+new port wrangling, no auth glue). This is the load-bearing
+developer-ergonomics feature of the daemon layer.
+
+Two layers of state, with clear responsibility:
+
+| Layer | File | Owner | Purpose |
+|---|---|---|---|
+| **User declaration** | `~/.config/web_registry.json` | the registering user | source of truth for `entryName`, `publicBasePath`, `host`, `primaryPort`, `webctlPath`, `enabled`, `access` (`public`/`protected`) |
+| **Gateway route table** | `/etc/opencode/web_routes.conf` | written by the gateway / `publish-route` | `<prefix> <host> <port> <owner_uid> [auth]`, longest-prefix-match at `load_web_routes()` |
+
+Flow: user edits `web_registry.json` (or runs the `opencode-web-routes`
+skill) → `web-route` HTTP API on the per-user daemon validates and
+forwards to `webctl.sh publish-route` → `webctl.sh` talks to
+`/run/opencode-gateway/ctl.sock` → gateway rewrites
+`/etc/opencode/web_routes.conf` and reloads in-memory. No daemon /
+gateway restart required.
+
+Health: `web-route.ts` exposes `tcpProbe()` to TCP-probe each entry's
+`host:port` and report alive/dead — surfaced in the Admin Panel and
+useful for catching dead dev servers before users hit a 502.
+
+Auth split: when an entry's `access` is `protected`, the gateway
+applies its own PAM/JWT verification before forwarding (so the upstream
+dev server never sees unauthenticated traffic). `public` entries skip
+verification entirely. Mixing `protected` sub-prefixes under a `public`
+parent is supported and resolved by longest-prefix-match.
+
+> **Roadmap — remote gateway-to-gateway federation**: a mesh layer
+> letting gateways on different hosts forward each other's prefixes
+> (so a webapp registered on host A is reachable through host B's
+> gateway under a common identity) is currently in design. Open
+> questions: trust model (mTLS vs shared JWT signer), prefix-collision
+> policy, peering discovery, per-hop auth replay vs delegated
+> identity. Proposal will land under `specs/daemon/<remote-gateway>/`
+> when drafted.
+
 ### Authoritative restart path: `restart_self`
 
 The **only** sanctioned AI self-restart path is the
@@ -345,6 +387,10 @@ Daemon (TypeScript):
 - `packages/opencode/src/server/routes/global.ts` — `/web/restart`
   route handler (~L491). `resolveRestartRuntimeMode` L24,
   `isGatewayDaemon` L34.
+- `packages/opencode/src/server/routes/web-route.ts` — gateway
+  registered-webapps API. `registryPath()` L43, `readRegistry()` L48,
+  `tcpProbe()` L55, webctl runner L76, ctl.sock client L97, route
+  registration handlers ~L180+, health endpoint ~L253.
 - `packages/opencode/src/cli/cmd/tui/thread.ts` — TUI adopt /
   `--attach` strict path.
 

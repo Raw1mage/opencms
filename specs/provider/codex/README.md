@@ -136,9 +136,10 @@ Codex registration in core registry:
 - [codex-update/](./codex-update/) (state: living) — codex feature
   update spec (refs/codex pin bumps + protocol fingerprint refresh
   cycle).
-- [ws-snapshot-hotfix/](./ws-snapshot-hotfix/) (verified) —
-  WebSocket snapshot interaction with the empty-turn recovery path.
-  WS-specific behavior; the empty-turn recovery gate itself lives in
+- ~~`ws-snapshot-hotfix/`~~ (archived 2026-05-11 →
+  [`specs/archive/ws-snapshot-hotfix-2026-05-11/`](../../archive/ws-snapshot-hotfix-2026-05-11/)) —
+  WebSocket snapshot field-mismatch fix landed and stable; one-shot
+  scope. The empty-turn recovery gate itself remains in
   [compaction/empty-turn-recovery/](../../compaction/empty-turn-recovery/).
 
 ## Cross-cutting empty-response work

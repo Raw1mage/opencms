@@ -209,7 +209,9 @@ anthropic-specific work; cross-provider compaction / session
 fixes live under their respective topic entries:
 
 - [provider/codex/](./codex/README.md) — codex header / WS / AI-SDK
-  authority. Sub-packages: `codex-update/`, `ws-snapshot-hotfix/`.
+  authority. Sub-packages: `codex-update/`. (`ws-snapshot-hotfix/`
+  archived 2026-05-11 to `specs/archive/ws-snapshot-hotfix-2026-05-11/`
+  — fix shipped, one-shot scope complete.)
 - [provider/claude/](./claude/README.md) — anthropic betas, cache
   breakpoints, takeover import. Sub-package: `claude-session-list/`.
 - [compaction/](../compaction/README.md) — empty-turn-recovery,
