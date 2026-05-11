@@ -218,6 +218,10 @@ export function buildSessionTelemetryFromProjector(input: {
     sessionId: input.session?.id ?? asString(sessionSummaryRecord?.sessionID) ?? "",
     durationMs: input.session ? Math.max(0, input.session.time.updated - input.session.time.created) : undefined,
     cumulativeTokens: asNumber(sessionSummaryRecord?.cumulativeTokens) ?? 0,
+    cumulativeCacheReadTokens:
+      asNumber(sessionSummaryRecord?.cumulativeCacheReadTokens) ?? input.session?.stats?.tokens?.cache?.read,
+    cumulativeInputTokens:
+      asNumber(sessionSummaryRecord?.cumulativeInputTokens) ?? input.session?.stats?.tokens?.input,
     totalRequests: asNumber(sessionSummaryRecord?.totalRequests) ?? 0,
     providerId: round.providerId ?? input.session?.execution?.providerId,
     accountId: round.accountId ?? input.session?.execution?.accountId,

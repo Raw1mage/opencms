@@ -124,6 +124,8 @@ export namespace TelemetryProjector {
     sessionSummary: z.object({
       sessionID: z.string(),
       cumulativeTokens: z.number(),
+      cumulativeCacheReadTokens: z.number().optional(),
+      cumulativeInputTokens: z.number().optional(),
       totalRequests: z.number(),
       cumulativeCost: z.number(),
       latestRoundIndex: z.number().optional(),
@@ -150,14 +152,15 @@ export namespace TelemetryProjector {
     const latestRound = roundEvents.at(-1)?.payload
     const latestCompaction = compactionEvents.at(-1)?.payload
     const totalRequests = roundEvents.length
-    const cumulativeTokens = roundEvents.reduce((sum, event) => {
-      const total = (event.payload as Record<string, unknown>).totalTokens
-      return sum + (typeof total === "number" ? total : 0)
-    }, 0)
-    const cumulativeCost = roundEvents.reduce((sum, event) => {
-      const cost = (event.payload as Record<string, unknown>).cost
-      return sum + (typeof cost === "number" ? cost : 0)
-    }, 0)
+    const sumField = (field: string) =>
+      roundEvents.reduce((sum, event) => {
+        const v = (event.payload as Record<string, unknown>)[field]
+        return sum + (typeof v === "number" ? v : 0)
+      }, 0)
+    const cumulativeTokens = sumField("totalTokens")
+    const cumulativeCacheReadTokens = sumField("cacheReadTokens")
+    const cumulativeInputTokens = sumField("inputTokens")
+    const cumulativeCost = sumField("cost")
     const lastEvent = events.at(-1)
 
     return Aggregate.parse({
@@ -168,6 +171,8 @@ export namespace TelemetryProjector {
       sessionSummary: {
         sessionID,
         cumulativeTokens,
+        cumulativeCacheReadTokens,
+        cumulativeInputTokens,
         totalRequests,
         cumulativeCost,
         latestRoundIndex:

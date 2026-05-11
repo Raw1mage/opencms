@@ -178,6 +178,10 @@ export type SessionTelemetrySessionSummary = {
   sessionId: string
   durationMs?: number
   cumulativeTokens: number
+  /** Sum of cache_read across all rounds this session. Drives session hit-rate %. */
+  cumulativeCacheReadTokens?: number
+  /** Sum of fresh (non-cached) input across all rounds. Pair with cumulativeCacheReadTokens for hit rate. */
+  cumulativeInputTokens?: number
   totalRequests: number
   providerId?: string
   accountId?: string
