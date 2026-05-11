@@ -1,120 +1,114 @@
-<svg width="1360" height="1010" viewBox="-180.0 -50.0 1360.0 1010.0" xmlns="http://www.w3.org/2000/svg">
-<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker></defs>
-<rect x="-180.0" y="-50.0" width="1360.0" height="1010.0" fill="white" />
-<rect x="380.0" y="80.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<rect x="385.0" y="85.0" width="30.0" height="30.0" stroke="black" stroke-width="1" fill="none" />
-<text x="400" y="105.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">0</text>
-<line x1="420.0" y1="100.0" x2="460.0" y2="100.0" stroke="black" />
-<rect x="460.0" y="54.0" width="160.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="540.0" y="104.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">閒置</text>
-<line x1="400" y1="120.0" x2="400" y2="200.0" stroke="black" />
-<line x1="380" y1="160.0" x2="420" y2="160.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="164.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">設定requested</text>
-<rect x="380.0" y="200.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="225.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">1</text>
-<line x1="420.0" y1="220.0" x2="460.0" y2="220.0" stroke="black" />
-<rect x="460.0" y="174.0" width="160.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="540.0" y="200.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">解析 Main</text>
-<text x="540.0" y="224.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">opencode.</text>
-<text x="540.0" y="248.00000000000003" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">js在</text>
-<line x1="400" y1="240.0" x2="400" y2="280.0" stroke="black" />
-<line x1="40.0" y1="280.0" x2="760.0" y2="280.0" stroke="black" stroke-width="1.5" />
-<line x1="80.0" y1="280.0" x2="80.0" y2="320.0" stroke="black" />
-<line x1="60.0" y1="320.0" x2="100.0" y2="320.0" stroke="black" stroke-width="2" />
-<text x="56.0" y="324.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">解析ok</text>
-<line x1="80.0" y1="320.0" x2="80.0" y2="360.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="720.0" y1="280.0" x2="720.0" y2="320.0" stroke="black" />
-<line x1="700.0" y1="320.0" x2="740.0" y2="320.0" stroke="black" stroke-width="2" />
-<text x="744.0" y="324.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">解析fail</text>
-<line x1="720.0" y1="320.0" x2="720.0" y2="360.0" stroke="black" marker-end="url(#arrow)" />
-<rect x="60.0" y="360.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="80.0" y="385.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">2</text>
-<line x1="100.0" y1="380.0" x2="140.0" y2="380.0" stroke="black" />
-<rect x="140.0" y="334.0" width="160.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="220.0" y="360.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Write LKG</text>
-<text x="220.0" y="384.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Snapshot</text>
-<text x="220.0" y="408.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Atomic</text>
-<line x1="80.0" y1="400.0" x2="80.0" y2="480.0" stroke="black" />
-<line x1="60.0" y1="440.0" x2="100.0" y2="440.0" stroke="black" stroke-width="2" />
-<text x="104.0" y="444.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">lkgwritten</text>
-<rect x="700.0" y="360.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="720.0" y="385.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">3</text>
-<line x1="740.0" y1="380.0" x2="780.0" y2="380.0" stroke="black" />
-<rect x="780.0" y="334.0" width="160.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="860.0" y="372.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">記錄 Warn</text>
-<text x="860.0" y="395.99999999999994" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">與 Read LKG</text>
-<line x1="720.0" y1="400.0" x2="720.0" y2="440.0" stroke="black" />
-<line x1="520.0" y1="440.0" x2="920.0" y2="440.0" stroke="black" stroke-width="1.5" />
-<line x1="560.0" y1="440.0" x2="560.0" y2="480.0" stroke="black" />
-<line x1="540.0" y1="480.0" x2="580.0" y2="480.0" stroke="black" stroke-width="2" />
-<text x="536.0" y="484.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">lkgexists</text>
-<line x1="560.0" y1="480.0" x2="560.0" y2="520.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="880.0" y1="440.0" x2="880.0" y2="480.0" stroke="black" />
-<line x1="860.0" y1="480.0" x2="900.0" y2="480.0" stroke="black" stroke-width="2" />
-<text x="904.0" y="484.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">lkg缺失</text>
-<line x1="880.0" y1="480.0" x2="880.0" y2="520.0" stroke="black" marker-end="url(#arrow)" />
-<rect x="540.0" y="520.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="560.0" y="545.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">4</text>
-<line x1="580.0" y1="540.0" x2="620.0" y2="540.0" stroke="black" />
-<rect x="620.0" y="494.0" width="160.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="700.0" y="520.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Serve 設定</text>
-<text x="700.0" y="544.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">使用 設定</text>
-<text x="700.0" y="568.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">stale Flag</text>
-<line x1="560.0" y1="560.0" x2="560.0" y2="640.0" stroke="black" />
-<line x1="540.0" y1="600.0" x2="580.0" y2="600.0" stroke="black" stroke-width="2" />
-<text x="584.0" y="604.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">staleserved</text>
-<rect x="540.0" y="640.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="560.0" y="665.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">5</text>
-<line x1="580.0" y1="660.0" x2="620.0" y2="660.0" stroke="black" />
-<rect x="620.0" y="614.0" width="160.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="700.0" y="640.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Derive Provider</text>
-<text x="700.0" y="664.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Availability</text>
-<text x="700.0" y="688.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">來自 帳號</text>
-<line x1="560.0" y1="680.0" x2="560.0" y2="760.0" stroke="black" />
-<line x1="540.0" y1="720.0" x2="580.0" y2="720.0" stroke="black" stroke-width="2" />
-<text x="584.0" y="724.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">availability就緒</text>
-<rect x="540.0" y="760.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="560.0" y="785.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">6</text>
-<line x1="580.0" y1="780.0" x2="620.0" y2="780.0" stroke="black" />
-<rect x="620.0" y="734.0" width="160.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="700.0" y="760.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">返回 設</text>
-<text x="700.0" y="784.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">定 到</text>
-<text x="700.0" y="807.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Caller</text>
-<line x1="560.0" y1="800.0" x2="560.0" y2="880.0" stroke="black" />
-<line x1="540.0" y1="840.0" x2="580.0" y2="840.0" stroke="black" stroke-width="2" />
-<text x="584.0" y="844.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">回應done</text>
-<rect x="860.0" y="520.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="880.0" y="545.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">7</text>
-<line x1="900.0" y1="540.0" x2="940.0" y2="540.0" stroke="black" />
-<rect x="940.0" y="494.0" width="160.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="1020.0" y="520.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">發出 503</text>
-<text x="1020.0" y="544.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Structured</text>
-<text x="1020.0" y="568.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">錯誤</text>
-<line x1="880.0" y1="560.0" x2="880.0" y2="640.0" stroke="black" />
-<line x1="860.0" y1="600.0" x2="900.0" y2="600.0" stroke="black" stroke-width="2" />
-<text x="904.0" y="604.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">錯誤emitted</text>
-<rect x="860.0" y="640.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="880.0" y="665.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">8</text>
-<line x1="900.0" y1="660.0" x2="940.0" y2="660.0" stroke="black" />
-<rect x="940.0" y="614.0" width="160.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="1020.0" y="640.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">渲染 錯誤</text>
-<text x="1020.0" y="664.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">boundary</text>
-<text x="1020.0" y="688.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">在 Webapp</text>
-<line x1="880.0" y1="680.0" x2="880.0" y2="760.0" stroke="black" />
-<line x1="860.0" y1="720.0" x2="900.0" y2="720.0" stroke="black" stroke-width="2" />
-<text x="904.0" y="724.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">uirendered</text>
-<line x1="40.0" y1="880.0" x2="760.0" y2="880.0" stroke="black" stroke-width="1.5" />
-<line x1="80.0" y1="480.0" x2="80.0" y2="880.0" stroke="black" />
-<line x1="720.0" y1="880.0" x2="720.0" y2="880.0" stroke="black" />
-<line x1="400" y1="880.0" x2="400" y2="920.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="560.0" y1="880.0" x2="560.0" y2="880.0" stroke="black" />
-<line x1="560.0" y1="880.0" x2="-20.0" y2="880.0" stroke="black" />
-<line x1="-20.0" y1="880.0" x2="-20.0" y2="30.0" stroke="black" />
-<line x1="-20.0" y1="30.0" x2="400" y2="30.0" stroke="black" />
-<line x1="400" y1="30.0" x2="400" y2="70.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="880.0" y1="760.0" x2="880.0" y2="780.0" stroke="black" />
-<line x1="880.0" y1="780.0" x2="-100.0" y2="780.0" stroke="black" />
-<line x1="-100.0" y1="780.0" x2="-100.0" y2="30.0" stroke="black" />
-<line x1="-100.0" y1="30.0" x2="400" y2="30.0" stroke="black" />
-<line x1="400" y1="30.0" x2="400" y2="70.0" stroke="black" marker-end="url(#arrow)" />
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="1440" viewBox="-10.00 -2.00 41.00 72.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="-10.00" y="-2.00" width="41.00" height="72.00" fill="white"/>
+<path class="edge" d="M 20.00 7.00 L 20.00 9.00"/>
+<path class="edge edge-arrow" d="M 20.00 9.00 L 20.00 11.00"/>
+<path class="edge edge-arrow" d="M 20.00 14.00 L 20.00 16.00"/>
+<path class="edge edge-arrow" d="M 20.00 16.00 L 20.00 20.00"/>
+<path class="edge edge-arrow" d="M 10.00 16.00 L 10.00 20.00"/>
+<path class="edge edge-arrow" d="M 20.00 23.00 L 20.00 40.00"/>
+<path class="edge edge-arrow" d="M 10.00 40.00 L 10.00 50.00"/>
+<path class="edge edge-arrow" d="M 10.00 23.00 L 10.00 25.00"/>
+<path class="edge edge-arrow" d="M 0.00 25.00 L 0.00 29.00"/>
+<path class="edge edge-arrow" d="M 10.00 25.00 L 10.00 29.00"/>
+<path class="edge edge-arrow" d="M 0.00 32.00 L 0.00 33.50 Q 0.00 34.00 0.50 34.00 L 3.95 34.00 Q 4.45 34.00 4.45 34.50 L 4.45 41.50 Q 4.45 42.00 3.95 42.00 L 0.50 42.00 Q 0.00 42.00 0.00 41.50 L 0.00 40.00"/>
+<path class="edge" d="M 10.00 53.00 L 10.00 55.00"/>
+<path class="edge edge-arrow" d="M 10.00 55.00 L 10.00 59.00"/>
+<path class="edge" d="M 10.00 62.00 L 10.00 64.00"/>
+<path class="edge edge-arrow" d="M 10.00 64.00 L 10.00 65.50 Q 10.00 66.00 9.50 66.00 L -5.50 66.00 Q -6.00 66.00 -6.00 65.50 L -6.00 2.50 Q -6.00 2.00 -5.50 2.00 L 19.50 2.00 Q 20.00 2.00 20.00 2.50 L 20.00 4.00"/>
+<path class="edge" d="M 10.00 32.00 L 10.00 37.50 Q 10.00 38.00 9.50 38.00 L 0.00 38.00"/>
+<path class="edge" d="M 0.00 36.00 L 0.00 38.00"/>
+<path class="edge" d="M 10.00 38.00 L 24.45 38.00"/>
+<path class="edge" d="M 24.45 38.00 L 24.45 37.00"/>
+<path class="edge" d="M 24.45 37.00 L 0.00 37.00"/>
+<path class="edge" d="M 0.00 38.00 L 0.00 40.00"/>
+<path class="edge" d="M 0.00 42.00 L 0.00 50.00"/>
+<path class="edge" d="M 0.00 53.00 L 0.00 55.00"/>
+<path class="edge" d="M 0.00 55.00 L 0.00 57.00"/>
+<path class="edge" d="M 0.00 57.00 L -6.00 57.00"/>
+<rect class="step" x="18.00" y="4.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<rect class="step-inner" x="18.25" y="4.25" width="3.50" height="2.50" rx="0.22" ry="0.22"/>
+<text class="label" x="20.00" y="5.50">0</text>
+<rect class="step" x="18.00" y="11.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.00" y="12.50">1</text>
+<rect class="step" x="18.00" y="20.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.00" y="21.50">2</text>
+<rect class="step" x="8.00" y="20.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="10.00" y="21.50">3</text>
+<rect class="step" x="-2.00" y="29.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="0.00" y="30.50">4</text>
+<rect class="step" x="8.00" y="50.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="10.00" y="51.50">5</text>
+<rect class="step" x="8.00" y="59.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="10.00" y="60.50">6</text>
+<rect class="step" x="8.00" y="29.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="10.00" y="30.50">7</text>
+<rect class="step" x="-2.00" y="50.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="0.00" y="51.50">8</text>
+<line class="assoc" x1="22.00" y1="5.50" x2="23.00" y2="5.50"/>
+<rect class="action" x="23.00" y="4.07" width="4.00" height="2.86"/>
+<text class="action-label" x="25.00" y="5.50"><tspan x="25.00" dy="0">閒置</tspan></text>
+<line class="assoc" x1="22.00" y1="12.50" x2="23.00" y2="12.50"/>
+<rect class="action" x="23.00" y="11.07" width="4.00" height="2.86"/>
+<text class="action-label" x="25.00" y="12.09"><tspan x="25.00" dy="0">解析 Main o</tspan><tspan x="25.00" dy="0.82">pencode.js在</tspan></text>
+<line class="assoc" x1="22.00" y1="21.50" x2="23.00" y2="21.50"/>
+<rect class="action" x="23.00" y="20.07" width="4.00" height="2.86"/>
+<text class="action-label" x="25.00" y="20.68"><tspan x="25.00" dy="0">Write LK</tspan><tspan x="25.00" dy="0.82">G Snapsh</tspan><tspan x="25.00" dy="0.82">ot Atomic</tspan></text>
+<line class="assoc" x1="12.00" y1="21.50" x2="13.00" y2="21.50"/>
+<rect class="action" x="13.00" y="20.07" width="4.00" height="2.86"/>
+<text class="action-label" x="15.00" y="21.09"><tspan x="15.00" dy="0">記錄 Warn</tspan><tspan x="15.00" dy="0.82">與 Read LKG</tspan></text>
+<line class="assoc" x1="2.00" y1="30.50" x2="3.00" y2="30.50"/>
+<rect class="action" x="3.00" y="29.07" width="4.00" height="2.86"/>
+<text class="action-label" x="5.00" y="29.68"><tspan x="5.00" dy="0">Serve 設定</tspan><tspan x="5.00" dy="0.82">使用 設</tspan><tspan x="5.00" dy="0.82">定stale Flag</tspan></text>
+<line class="assoc" x1="12.00" y1="51.50" x2="13.00" y2="51.50"/>
+<rect class="action" x="13.00" y="50.07" width="4.00" height="2.86"/>
+<text class="action-label" x="15.00" y="50.68"><tspan x="15.00" dy="0">Derive Provid</tspan><tspan x="15.00" dy="0.82">er Availability</tspan><tspan x="15.00" dy="0.82">來自 帳號</tspan></text>
+<line class="assoc" x1="12.00" y1="60.50" x2="13.00" y2="60.50"/>
+<rect class="action" x="13.00" y="59.07" width="4.00" height="2.86"/>
+<text class="action-label" x="15.00" y="60.09"><tspan x="15.00" dy="0">返回 設定</tspan><tspan x="15.00" dy="0.82">到 Caller</tspan></text>
+<line class="assoc" x1="12.00" y1="30.50" x2="13.00" y2="30.50"/>
+<rect class="action" x="13.00" y="29.07" width="4.00" height="2.86"/>
+<text class="action-label" x="15.00" y="29.68"><tspan x="15.00" dy="0">發出 50</tspan><tspan x="15.00" dy="0.82">3 Structu</tspan><tspan x="15.00" dy="0.82">red 錯誤</tspan></text>
+<line class="assoc" x1="2.00" y1="51.50" x2="3.00" y2="51.50"/>
+<rect class="action" x="3.00" y="50.07" width="4.00" height="2.86"/>
+<text class="action-label" x="5.00" y="50.68"><tspan x="5.00" dy="0">渲染 錯</tspan><tspan x="5.00" dy="0.82">誤boundary</tspan><tspan x="5.00" dy="0.82">在 Webapp</tspan></text>
+<line class="gate" x1="19.00" y1="9.00" x2="21.00" y2="9.00"/>
+<text class="gate-label" x="21.40" y="9.00"><tspan x="21.40" dy="0">設定requested</tspan></text>
+<line class="gate" x1="8.00" y1="16.00" x2="22.00" y2="16.00"/>
+<line class="gate" x1="-2.00" y1="40.00" x2="22.00" y2="40.00"/>
+<line class="gate" x1="-2.00" y1="25.00" x2="12.00" y2="25.00"/>
+<line class="gate" x1="9.00" y1="55.00" x2="11.00" y2="55.00"/>
+<text class="gate-label" x="11.40" y="55.00"><tspan x="11.40" dy="0">availability就緒</tspan></text>
+<line class="gate" x1="9.00" y1="64.00" x2="11.00" y2="64.00"/>
+<text class="gate-label" x="11.40" y="64.00"><tspan x="11.40" dy="0">回應done</tspan></text>
+<line class="gate" x1="-1.00" y1="36.00" x2="1.00" y2="36.00"/>
+<text class="gate-label-left" x="-1.40" y="36.00"><tspan x="-1.40" dy="0">錯誤emitted</tspan></text>
+<line class="gate" x1="-1.00" y1="55.00" x2="1.00" y2="55.00"/>
+<text class="gate-label" x="1.40" y="55.00"><tspan x="1.40" dy="0">uirendered</tspan></text>
+<line class="gate" x1="19.00" y1="18.00" x2="21.00" y2="18.00"/>
+<text class="gate-label" x="21.40" y="18.00"><tspan x="21.40" dy="0">解析ok</tspan></text>
+<line class="gate" x1="9.00" y1="18.00" x2="11.00" y2="18.00"/>
+<text class="gate-label-left" x="8.60" y="18.00"><tspan x="8.60" dy="0">解析fail</tspan></text>
+<line class="gate" x1="19.00" y1="36.00" x2="21.00" y2="36.00"/>
+<text class="gate-label" x="21.40" y="36.00"><tspan x="21.40" dy="0">lkgwritten</tspan></text>
+<line class="gate" x1="-1.00" y1="27.00" x2="1.00" y2="27.00"/>
+<text class="gate-label-left" x="-1.40" y="27.00"><tspan x="-1.40" dy="0">lkgexists</tspan></text>
+<line class="gate" x1="9.00" y1="27.00" x2="11.00" y2="27.00"/>
+<text class="gate-label" x="11.40" y="27.00"><tspan x="11.40" dy="0">lkg缺失</tspan></text>
+<line class="gate" x1="-1.00" y1="44.00" x2="1.00" y2="44.00"/>
+<text class="gate-label-left" x="-1.40" y="44.00"><tspan x="-1.40" dy="0">staleserved</tspan></text>
+<circle class="junction" cx="0.00" cy="42.00" r="0.22"/>
+<circle class="junction" cx="-6.00" cy="57.00" r="0.22"/>
+<circle class="junction" cx="10.00" cy="38.00" r="0.22"/>
+<circle class="junction" cx="0.00" cy="38.00" r="0.22"/>
 </svg>

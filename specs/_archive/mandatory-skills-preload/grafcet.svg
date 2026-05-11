@@ -1,157 +1,127 @@
-<svg width="1174" height="1530" viewBox="-93.5 -50.0 1174.0 1530.0" xmlns="http://www.w3.org/2000/svg">
-<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker></defs>
-<rect x="-93.5" y="-50.0" width="1174.0" height="1530.0" fill="white" />
-<rect x="380.0" y="80.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<rect x="385.0" y="85.0" width="30.0" height="30.0" stroke="black" stroke-width="1" fill="none" />
-<text x="400" y="105.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">0</text>
-<line x1="420.0" y1="100.0" x2="460.0" y2="100.0" stroke="black" />
-<rect x="460.0" y="54.0" width="307.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="613.5" y="80.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">閒置 — waiting</text>
-<text x="613.5" y="104.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">供 new Session</text>
-<text x="613.5" y="127.99999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">round trigger</text>
-<line x1="400" y1="120.0" x2="400" y2="200.0" stroke="black" />
-<line x1="380" y1="160.0" x2="420" y2="160.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="164.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">roundstartsignal</text>
-<rect x="380.0" y="200.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="225.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">1</text>
-<line x1="420.0" y1="220.0" x2="460.0" y2="220.0" stroke="black" />
-<rect x="460.0" y="174.0" width="307.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="613.5" y="200.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Determine agent</text>
-<text x="613.5" y="224.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">路徑 — main vs</text>
-<text x="613.5" y="248.00000000000003" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">coding 子代理</text>
-<line x1="400" y1="240.0" x2="400" y2="280.0" stroke="black" />
-<line x1="126.49999999999999" y1="280.0" x2="673.5" y2="280.0" stroke="black" stroke-width="1.5" />
-<line x1="166.5" y1="280.0" x2="166.5" y2="320.0" stroke="black" />
-<line x1="146.5" y1="320.0" x2="186.5" y2="320.0" stroke="black" stroke-width="2" />
-<text x="142.49999999999997" y="304.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">agent.name ===</text>
-<text x="142.49999999999997" y="324.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">&#x27;coding&#x27; AND 是</text>
-<text x="142.49999999999997" y="344.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">子代理 === true</text>
-<line x1="166.5" y1="320.0" x2="166.5" y2="360.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="633.5" y1="280.0" x2="633.5" y2="320.0" stroke="black" />
-<line x1="613.5" y1="320.0" x2="653.5" y2="320.0" stroke="black" stroke-width="2" />
-<text x="657.5" y="324.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">otherwise</text>
-<line x1="633.5" y1="320.0" x2="633.5" y2="360.0" stroke="black" marker-end="url(#arrow)" />
-<rect x="146.5" y="360.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="166.5" y="385.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">2</text>
-<line x1="186.5" y1="380.0" x2="226.5" y2="380.0" stroke="black" />
-<rect x="226.5" y="334.0" width="307.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="380.0" y="360.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Read coding.</text>
-<text x="380.0" y="384.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">txt 與 解析</text>
-<text x="380.0" y="408.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Sentinel 區塊</text>
-<line x1="166.5" y1="400.0" x2="166.5" y2="480.0" stroke="black" />
-<line x1="146.5" y1="440.0" x2="186.5" y2="440.0" stroke="black" stroke-width="2" />
-<text x="190.49999999999997" y="444.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">parsed清單就緒</text>
-<rect x="613.5" y="360.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="633.5" y="385.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">3</text>
-<line x1="653.5" y1="380.0" x2="693.5" y2="380.0" stroke="black" />
-<rect x="693.4999999999999" y="334.0" width="307.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="846.9999999999999" y="360.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Read 全域 + 專案 AGENTS.</text>
-<text x="846.9999999999999" y="384.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">md, 解析 + dedup Sentinel</text>
-<text x="846.9999999999999" y="408.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">區塊 (專案 優先序)</text>
-<line x1="633.5" y1="400.0" x2="633.5" y2="480.0" stroke="black" />
-<line x1="613.5" y1="440.0" x2="653.5" y2="440.0" stroke="black" stroke-width="2" />
-<text x="657.5" y="444.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">parsed清單就緒</text>
-<line x1="126.49999999999999" y1="480.0" x2="673.5" y2="480.0" stroke="black" stroke-width="1.5" />
-<line x1="166.5" y1="480.0" x2="166.5" y2="480.0" stroke="black" />
-<line x1="633.5" y1="480.0" x2="633.5" y2="480.0" stroke="black" />
-<line x1="400" y1="480.0" x2="400" y2="520.0" stroke="black" marker-end="url(#arrow)" />
-<rect x="380.0" y="520.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="545.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">4</text>
-<line x1="420.0" y1="540.0" x2="460.0" y2="540.0" stroke="black" />
-<rect x="460.0" y="494.0" width="307.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="613.5" y="520.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Iterate 技能 清</text>
-<text x="613.5" y="544.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">單 — 解析 下一個</text>
-<text x="613.5" y="568.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">SKILL.md 路徑</text>
-<line x1="400" y1="560.0" x2="400" y2="600.0" stroke="black" />
-<line x1="126.49999999999999" y1="600.0" x2="673.5" y2="600.0" stroke="black" stroke-width="1.5" />
-<line x1="166.5" y1="600.0" x2="166.5" y2="640.0" stroke="black" />
-<line x1="146.5" y1="640.0" x2="186.5" y2="640.0" stroke="black" stroke-width="2" />
-<text x="142.49999999999997" y="644.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">技能mdexists</text>
-<line x1="166.5" y1="640.0" x2="166.5" y2="680.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="633.5" y1="600.0" x2="633.5" y2="640.0" stroke="black" />
-<line x1="613.5" y1="640.0" x2="653.5" y2="640.0" stroke="black" stroke-width="2" />
-<text x="657.5" y="644.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">技能md缺失</text>
-<line x1="633.5" y1="640.0" x2="633.5" y2="680.0" stroke="black" marker-end="url(#arrow)" />
-<rect x="146.5" y="680.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="166.5" y="705.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">5</text>
-<line x1="186.5" y1="700.0" x2="226.5" y2="700.0" stroke="black" />
-<rect x="226.5" y="654.0" width="307.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="380.0" y="680.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Read SKILL.md content; 記錄已</text>
-<text x="380.0" y="704.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">載入 + 釘選 在 SkillLayerRegistry;</text>
-<text x="380.0" y="727.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">追加 技能.必要preloaded 事件</text>
-<line x1="166.5" y1="720.0" x2="166.5" y2="800.0" stroke="black" />
-<line x1="146.5" y1="760.0" x2="186.5" y2="760.0" stroke="black" stroke-width="2" />
-<text x="190.49999999999997" y="764.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">技能已註冊與已釘選</text>
-<rect x="613.5" y="680.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="633.5" y="705.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">6</text>
-<line x1="653.5" y1="700.0" x2="693.5" y2="700.0" stroke="black" />
-<rect x="693.4999999999999" y="654.0" width="307.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="846.9999999999999" y="680.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Loud-warn fallback — 記錄</text>
-<text x="846.9999999999999" y="704.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">.warn + 追加 技能.必要缺失 異</text>
-<text x="846.9999999999999" y="727.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">常 事件; SKIP 註冊表 mutation</text>
-<line x1="633.5" y1="720.0" x2="633.5" y2="800.0" stroke="black" />
-<line x1="613.5" y1="760.0" x2="653.5" y2="760.0" stroke="black" stroke-width="2" />
-<text x="657.5" y="764.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">fallbackrecorded</text>
-<line x1="126.49999999999999" y1="800.0" x2="673.5" y2="800.0" stroke="black" stroke-width="1.5" />
-<line x1="166.5" y1="800.0" x2="166.5" y2="800.0" stroke="black" />
-<line x1="633.5" y1="800.0" x2="633.5" y2="800.0" stroke="black" />
-<line x1="400" y1="800.0" x2="400" y2="840.0" stroke="black" marker-end="url(#arrow)" />
-<rect x="380.0" y="840.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="865.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">7</text>
-<line x1="420.0" y1="860.0" x2="460.0" y2="860.0" stroke="black" />
-<rect x="460.0" y="814.0" width="307.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="613.5" y="852.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Check iterator —</text>
-<text x="613.5" y="876.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">more 技能 在 清單?</text>
-<line x1="400" y1="880.0" x2="400" y2="920.0" stroke="black" />
-<line x1="126.49999999999999" y1="920.0" x2="673.5" y2="920.0" stroke="black" stroke-width="1.5" />
-<line x1="166.5" y1="920.0" x2="166.5" y2="960.0" stroke="black" />
-<line x1="146.5" y1="960.0" x2="186.5" y2="960.0" stroke="black" stroke-width="2" />
-<text x="142.49999999999997" y="964.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">iteration完成</text>
-<line x1="166.5" y1="960.0" x2="166.5" y2="1000.0" stroke="black" />
-<line x1="633.5" y1="920.0" x2="633.5" y2="960.0" stroke="black" />
-<line x1="613.5" y1="960.0" x2="653.5" y2="960.0" stroke="black" stroke-width="2" />
-<text x="657.5" y="964.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">more技能remaining</text>
-<line x1="633.5" y1="960.0" x2="633.5" y2="1000.0" stroke="black" marker-end="url(#arrow)" />
-<rect x="613.5" y="1000.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="633.5" y="1025.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">10</text>
-<line x1="653.5" y1="1020.0" x2="693.5" y2="1020.0" stroke="black" />
-<rect x="693.4999999999999" y="974.0" width="307.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="846.9999999999999" y="1012.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Advance iterator —</text>
-<text x="846.9999999999999" y="1036.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">pick 下一個 技能 name</text>
-<line x1="633.5" y1="1040.0" x2="633.5" y2="1120.0" stroke="black" />
-<line x1="613.5" y1="1080.0" x2="653.5" y2="1080.0" stroke="black" stroke-width="2" />
-<text x="657.5" y="1084.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">下一個技能就緒</text>
-<line x1="126.49999999999999" y1="1120.0" x2="673.5" y2="1120.0" stroke="black" stroke-width="1.5" />
-<line x1="166.5" y1="1000.0" x2="166.5" y2="1120.0" stroke="black" />
-<line x1="633.5" y1="1120.0" x2="633.5" y2="1120.0" stroke="black" />
-<line x1="400" y1="1120.0" x2="400" y2="1160.0" stroke="black" marker-end="url(#arrow)" />
-<rect x="380.0" y="1160.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="1185.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">8</text>
-<line x1="420.0" y1="1180.0" x2="460.0" y2="1180.0" stroke="black" />
-<rect x="460.0" y="1134.0" width="307.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="613.5" y="1160.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Reconcile — diff 已釘選 entries</text>
-<text x="613.5" y="1184.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">vs new清單; unpin removed; 追</text>
-<text x="613.5" y="1208.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">加 技能.必要unpinned 供 each</text>
-<line x1="400" y1="1200.0" x2="400" y2="1280.0" stroke="black" />
-<line x1="380" y1="1240.0" x2="420" y2="1240.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="1244.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">reconcile完成</text>
-<rect x="380.0" y="1280.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="1305.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">9</text>
-<line x1="420.0" y1="1300.0" x2="460.0" y2="1300.0" stroke="black" />
-<rect x="460.0" y="1254.0" width="307.0" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="613.5" y="1280.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Invoke 技能-layer-seam 到</text>
-<text x="613.5" y="1304.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">渲染 &lt;技能layer&gt; 文字; splice</text>
-<text x="613.5" y="1328.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">進入 system[] array 供 LLM</text>
-<line x1="400" y1="1320.0" x2="400" y2="1400.0" stroke="black" />
-<line x1="380" y1="1360.0" x2="420" y2="1360.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="1364.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">round已完成wait供下一個</text>
-<line x1="400" y1="1400.0" x2="400" y2="1400.0" stroke="black" />
-<line x1="400" y1="1400.0" x2="-13.500000000000014" y2="1400.0" stroke="black" />
-<line x1="-13.500000000000014" y1="1400.0" x2="-13.500000000000014" y2="30.0" stroke="black" />
-<line x1="-13.500000000000014" y1="30.0" x2="400" y2="30.0" stroke="black" />
-<line x1="400" y1="30.0" x2="400" y2="70.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="633.5" y1="1120.0" x2="633.5" y2="1140.0" stroke="black" />
-<line x1="633.5" y1="1140.0" x2="66.49999999999999" y2="1140.0" stroke="black" />
-<line x1="66.49999999999999" y1="1140.0" x2="66.49999999999999" y2="496.0" stroke="black" />
-<line x1="66.49999999999999" y1="496.0" x2="400" y2="496.0" stroke="black" marker-end="url(#arrow)" />
+<svg xmlns="http://www.w3.org/2000/svg" width="907" height="1640" viewBox="-4.00 -2.00 45.34 82.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="-4.00" y="-2.00" width="45.34" height="82.00" fill="white"/>
+<path class="edge" d="M 25.17 7.00 L 25.17 9.00"/>
+<path class="edge edge-arrow" d="M 25.17 9.00 L 25.17 11.00"/>
+<path class="edge edge-arrow" d="M 25.17 14.00 L 25.17 16.00"/>
+<path class="edge edge-arrow" d="M 10.00 16.00 L 10.00 20.00"/>
+<path class="edge edge-arrow" d="M 25.17 16.00 L 25.17 20.00"/>
+<path class="edge edge-arrow" d="M 10.00 23.00 L 10.00 27.00"/>
+<path class="edge edge-arrow" d="M 25.17 27.00 L 25.17 33.00"/>
+<path class="edge edge-arrow" d="M 25.17 23.00 L 25.17 27.00"/>
+<path class="edge edge-arrow" d="M 25.17 36.00 L 25.17 38.00"/>
+<path class="edge edge-arrow" d="M 10.00 38.00 L 10.00 42.00"/>
+<path class="edge edge-arrow" d="M 25.17 38.00 L 25.17 42.00"/>
+<path class="edge edge-arrow" d="M 10.00 45.00 L 10.00 49.00"/>
+<path class="edge edge-arrow" d="M 25.17 49.00 L 25.17 51.00"/>
+<path class="edge edge-arrow" d="M 25.17 45.00 L 25.17 49.00"/>
+<path class="edge edge-arrow" d="M 25.17 54.00 L 25.17 56.00"/>
+<path class="edge edge-arrow" d="M 25.17 56.00 L 25.17 60.00"/>
+<path class="edge edge-arrow" d="M 10.00 56.00 L 10.00 60.00"/>
+<path class="edge" d="M 25.17 63.00 L 25.17 65.00"/>
+<path class="edge edge-arrow" d="M 25.17 65.00 L 25.17 69.00"/>
+<path class="edge" d="M 25.17 72.00 L 25.17 74.00"/>
+<path class="edge edge-arrow" d="M 25.17 74.00 L 25.17 75.50 Q 25.17 76.00 24.67 76.00 L 4.50 76.00 Q 4.00 76.00 4.00 75.50 L 4.00 2.50 Q 4.00 2.00 4.50 2.00 L 24.67 2.00 Q 25.17 2.00 25.17 2.50 L 25.17 4.00"/>
+<path class="edge" d="M 10.00 63.00 L 10.00 65.00"/>
+<path class="edge" d="M 10.00 65.00 L 10.00 66.50 Q 10.00 67.00 9.50 67.00 L 0.50 67.00 Q 0.00 67.00 0.00 66.50 L 0.00 31.50 Q 0.00 31.00 0.50 31.00 L 25.17 31.00"/>
+<rect class="step" x="23.17" y="4.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<rect class="step-inner" x="23.42" y="4.25" width="3.50" height="2.50" rx="0.22" ry="0.22"/>
+<text class="label" x="25.17" y="5.50">0</text>
+<rect class="step" x="23.17" y="11.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="25.17" y="12.50">1</text>
+<rect class="step" x="8.00" y="20.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="10.00" y="21.50">2</text>
+<rect class="step" x="23.17" y="20.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="25.17" y="21.50">3</text>
+<rect class="step" x="23.17" y="33.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="25.17" y="34.50">4</text>
+<rect class="step" x="8.00" y="42.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="10.00" y="43.50">5</text>
+<rect class="step" x="23.17" y="42.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="25.17" y="43.50">6</text>
+<rect class="step" x="23.17" y="51.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="25.17" y="52.50">7</text>
+<rect class="step" x="23.17" y="60.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="25.17" y="61.50">8</text>
+<rect class="step" x="23.17" y="69.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="25.17" y="70.50">9</text>
+<rect class="step" x="8.00" y="60.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="10.00" y="61.50">10</text>
+<line class="assoc" x1="27.17" y1="5.50" x2="28.17" y2="5.50"/>
+<rect class="action" x="28.17" y="4.07" width="9.17" height="2.86"/>
+<text class="action-label" x="32.76" y="5.09"><tspan x="32.76" dy="0">閒置 — waiting 供 ne</tspan><tspan x="32.76" dy="0.82">w Session round trigger</tspan></text>
+<line class="assoc" x1="27.17" y1="12.50" x2="28.17" y2="12.50"/>
+<rect class="action" x="28.17" y="11.07" width="9.17" height="2.86"/>
+<text class="action-label" x="32.76" y="12.09"><tspan x="32.76" dy="0">Determine agent 路徑 —</tspan><tspan x="32.76" dy="0.82">main vs coding 子代理</tspan></text>
+<line class="assoc" x1="12.00" y1="21.50" x2="13.00" y2="21.50"/>
+<rect class="action" x="13.00" y="20.07" width="9.17" height="2.86"/>
+<text class="action-label" x="17.59" y="21.09"><tspan x="17.59" dy="0">Read coding.txt 與</tspan><tspan x="17.59" dy="0.82">解析 Sentinel 區塊</tspan></text>
+<line class="assoc" x1="27.17" y1="21.50" x2="28.17" y2="21.50"/>
+<rect class="action" x="28.17" y="20.07" width="9.17" height="2.86"/>
+<text class="action-label" x="32.76" y="20.68"><tspan x="32.76" dy="0">Read 全域 + 專案 AGENT</tspan><tspan x="32.76" dy="0.82">S.md, 解析 + dedup Sentin</tspan><tspan x="32.76" dy="0.82">el 區塊 (專案 優先序)</tspan></text>
+<line class="assoc" x1="27.17" y1="34.50" x2="28.17" y2="34.50"/>
+<rect class="action" x="28.17" y="33.07" width="9.17" height="2.86"/>
+<text class="action-label" x="32.76" y="34.09"><tspan x="32.76" dy="0">Iterate 技能 清單 — 解</tspan><tspan x="32.76" dy="0.82">析 下一個 SKILL.md 路徑</tspan></text>
+<line class="assoc" x1="12.00" y1="43.50" x2="13.00" y2="43.50"/>
+<rect class="action" x="13.00" y="42.07" width="9.17" height="2.86"/>
+<text class="action-label" x="17.59" y="42.68"><tspan x="17.59" dy="0">Read SKILL.md content; 記錄已載</tspan><tspan x="17.59" dy="0.82">入 + 釘選 在 SkillLayerRegistry;</tspan><tspan x="17.59" dy="0.82">追加 技能.必要preloaded 事件</tspan></text>
+<line class="assoc" x1="27.17" y1="43.50" x2="28.17" y2="43.50"/>
+<rect class="action" x="28.17" y="42.07" width="9.17" height="2.86"/>
+<text class="action-label" x="32.76" y="42.68"><tspan x="32.76" dy="0">Loud-warn fallback — 記錄.war</tspan><tspan x="32.76" dy="0.82">n + 追加 技能.必要缺失 異</tspan><tspan x="32.76" dy="0.82">常 事件; SKIP 註冊表 mutation</tspan></text>
+<line class="assoc" x1="27.17" y1="52.50" x2="28.17" y2="52.50"/>
+<rect class="action" x="28.17" y="51.07" width="9.17" height="2.86"/>
+<text class="action-label" x="32.76" y="52.09"><tspan x="32.76" dy="0">Check iterator — m</tspan><tspan x="32.76" dy="0.82">ore 技能 在 清單?</tspan></text>
+<line class="assoc" x1="27.17" y1="61.50" x2="28.17" y2="61.50"/>
+<rect class="action" x="28.17" y="60.07" width="9.17" height="2.86"/>
+<text class="action-label" x="32.76" y="60.68"><tspan x="32.76" dy="0">Reconcile — diff 已釘選 entrie</tspan><tspan x="32.76" dy="0.82">s vs new清單; unpin removed; 追</tspan><tspan x="32.76" dy="0.82">加 技能.必要unpinned 供 each</tspan></text>
+<line class="assoc" x1="27.17" y1="70.50" x2="28.17" y2="70.50"/>
+<rect class="action" x="28.17" y="69.07" width="9.17" height="2.86"/>
+<text class="action-label" x="32.76" y="69.68"><tspan x="32.76" dy="0">Invoke 技能-layer-seam 到 渲</tspan><tspan x="32.76" dy="0.82">染 &lt;技能layer&gt; 文字; splice</tspan><tspan x="32.76" dy="0.82">進入 system[] array 供 LLM</tspan></text>
+<line class="assoc" x1="12.00" y1="61.50" x2="13.00" y2="61.50"/>
+<rect class="action" x="13.00" y="60.07" width="9.17" height="2.86"/>
+<text class="action-label" x="17.59" y="61.09"><tspan x="17.59" dy="0">Advance iterator — pic</tspan><tspan x="17.59" dy="0.82">k 下一個 技能 name</tspan></text>
+<line class="gate" x1="24.17" y1="9.00" x2="26.17" y2="9.00"/>
+<text class="gate-label" x="26.57" y="9.00"><tspan x="26.57" dy="0">roundstartsignal</tspan></text>
+<line class="gate" x1="8.00" y1="16.00" x2="27.17" y2="16.00"/>
+<line class="gate" x1="8.00" y1="27.00" x2="27.17" y2="27.00"/>
+<line class="gate" x1="8.00" y1="38.00" x2="27.17" y2="38.00"/>
+<line class="gate" x1="8.00" y1="49.00" x2="27.17" y2="49.00"/>
+<line class="gate" x1="8.00" y1="56.00" x2="27.17" y2="56.00"/>
+<line class="gate" x1="24.17" y1="65.00" x2="26.17" y2="65.00"/>
+<text class="gate-label" x="26.57" y="65.00"><tspan x="26.57" dy="0">reconcile完成</tspan></text>
+<line class="gate" x1="24.17" y1="74.00" x2="26.17" y2="74.00"/>
+<text class="gate-label" x="26.57" y="74.00"><tspan x="26.57" dy="0">round已完成wait供下一個</tspan></text>
+<line class="gate" x1="9.00" y1="65.00" x2="11.00" y2="65.00"/>
+<text class="gate-label" x="11.40" y="65.00"><tspan x="11.40" dy="0">下一個技能就緒</tspan></text>
+<line class="gate" x1="9.00" y1="18.00" x2="11.00" y2="18.00"/>
+<text class="gate-label-left" x="8.60" y="18.00"><tspan x="8.60" dy="0">agent.name === &#x27;coding&#x27; AND 是子代理 === true</tspan></text>
+<line class="gate" x1="24.17" y1="18.00" x2="26.17" y2="18.00"/>
+<text class="gate-label" x="26.57" y="18.00"><tspan x="26.57" dy="0">otherwise</tspan></text>
+<line class="gate" x1="9.00" y1="25.00" x2="11.00" y2="25.00"/>
+<text class="gate-label-left" x="8.60" y="24.32"><tspan x="8.60" dy="0">parsed</tspan><tspan x="8.60" dy="0.68">清單</tspan><tspan x="8.60" dy="0.68">就緒</tspan></text>
+<line class="gate" x1="24.17" y1="25.00" x2="26.17" y2="25.00"/>
+<text class="gate-label" x="26.57" y="25.00"><tspan x="26.57" dy="0">parsed清單就緒</tspan></text>
+<line class="gate" x1="9.00" y1="40.00" x2="11.00" y2="40.00"/>
+<text class="gate-label-left" x="8.60" y="40.00"><tspan x="8.60" dy="0">技能mdexists</tspan></text>
+<line class="gate" x1="24.17" y1="40.00" x2="26.17" y2="40.00"/>
+<text class="gate-label" x="26.57" y="40.00"><tspan x="26.57" dy="0">技能md缺失</tspan></text>
+<line class="gate" x1="9.00" y1="47.00" x2="11.00" y2="47.00"/>
+<text class="gate-label-left" x="8.60" y="46.32"><tspan x="8.60" dy="0">技能已</tspan><tspan x="8.60" dy="0.68">註冊與</tspan><tspan x="8.60" dy="0.68">已釘選</tspan></text>
+<line class="gate" x1="24.17" y1="47.00" x2="26.17" y2="47.00"/>
+<text class="gate-label" x="26.57" y="47.00"><tspan x="26.57" dy="0">fallbackrecorded</tspan></text>
+<line class="gate" x1="24.17" y1="58.00" x2="26.17" y2="58.00"/>
+<text class="gate-label" x="26.57" y="58.00"><tspan x="26.57" dy="0">iteration完成</tspan></text>
+<line class="gate" x1="9.00" y1="58.00" x2="11.00" y2="58.00"/>
+<text class="gate-label-left" x="8.60" y="57.32"><tspan x="8.60" dy="0">more技</tspan><tspan x="8.60" dy="0.68">能rem</tspan><tspan x="8.60" dy="0.68">aining</tspan></text>
+<circle class="junction" cx="25.17" cy="31.00" r="0.22"/>
 </svg>

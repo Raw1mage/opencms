@@ -1,62 +1,59 @@
-<svg width="1898" height="726" viewBox="-259.6 -26.0 1898.4 726.0" xmlns="http://www.w3.org/2000/svg">
-<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker></defs>
-<rect x="-259.6" y="-26.0" width="1898.4" height="726.0" fill="white" />
-<rect x="380.0" y="80.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<rect x="385.0" y="85.0" width="30.0" height="30.0" stroke="black" stroke-width="1" fill="none" />
-<text x="400" y="105.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">0</text>
-<line x1="420.0" y1="100.0" x2="460.00000000000006" y2="100.0" stroke="black" />
-<rect x="460.0000000000001" y="54.0" width="679.2" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="799.6000000000001" y="80.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Store has 無 項目 供 this sid; reducer waiting 供 first</text>
-<text x="799.6000000000001" y="104.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Session-scoped SSE 事件. Once first 事件 arrives, reducer</text>
-<text x="799.6000000000001" y="127.99999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">creates 項目 使用 已收到於 = Date.now() 與 transitions 到 Fresh.</text>
-<line x1="400" y1="120.0" x2="400" y2="200.0" stroke="black" />
-<line x1="380" y1="160.0" x2="420" y2="160.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="164.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">事件arrived</text>
-<rect x="380.0" y="200.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="225.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">1</text>
-<line x1="420.0" y1="220.0" x2="460.00000000000006" y2="220.0" stroke="black" />
-<rect x="460.0000000000001" y="174.0" width="679.2" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="799.6000000000001" y="200.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">項目 exists; fidelity = fresh. Any further Session-scoped 事件 供 this</text>
-<text x="799.6000000000001" y="224.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">sid continuously refreshes 已收到於 = Date.now() 透過 reducer (步驟-internal</text>
-<text x="799.6000000000001" y="248.00000000000003" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">side effect, 無 transition). UI memo renders normally 不 stale hint.</text>
-<line x1="400" y1="240.0" x2="400" y2="320.0" stroke="black" />
-<line x1="380" y1="280.0" x2="420" y2="280.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="284.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">freshnessNow - 已收到於 &gt;= uifreshnessthresholdsec * 1000</text>
-<rect x="380.0" y="320.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="345.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">2</text>
-<line x1="420.0" y1="340.0" x2="460.00000000000006" y2="340.0" stroke="black" />
-<rect x="460.0000000000001" y="294.0" width="679.2" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="799.6000000000001" y="320.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">項目 exists but soft threshold exceeded; fidelity = stale. UI memo</text>
-<text x="799.6000000000001" y="344.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">renders &#x27;updated N ago&#x27; badge while still showing content. Either 事</text>
-<text x="799.6000000000001" y="368.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">件 arrival rolls 回到 到 Fresh, 或 hard threshold advances 到 HardStale.</text>
-<line x1="400" y1="360.0" x2="400" y2="400.0" stroke="black" />
-<line x1="-59.60000000000001" y1="400.0" x2="859.6000000000001" y2="400.0" stroke="black" stroke-width="1.5" />
-<line x1="-19.60000000000001" y1="400.0" x2="-19.60000000000001" y2="440.0" stroke="black" />
-<line x1="-39.60000000000001" y1="440.0" x2="0.3999999999999915" y2="440.0" stroke="black" stroke-width="2" />
-<text x="-43.60000000000001" y="444.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">事件arrived</text>
-<line x1="-19.60000000000001" y1="440.0" x2="-19.60000000000001" y2="480.0" stroke="black" />
-<line x1="819.6000000000001" y1="400.0" x2="819.6000000000001" y2="440.0" stroke="black" />
-<line x1="799.6000000000001" y1="440.0" x2="839.6000000000001" y2="440.0" stroke="black" stroke-width="2" />
-<text x="843.6000000000001" y="424.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">freshnessNow - 已收到</text>
-<text x="843.6000000000001" y="444.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">於 &gt;= uifreshnesshardtimeoutsec</text>
-<text x="843.6000000000001" y="464.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">* 1000</text>
-<line x1="819.6000000000001" y1="440.0" x2="819.6000000000001" y2="480.0" stroke="black" marker-end="url(#arrow)" />
-<rect x="799.6000000000001" y="480.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="819.6000000000001" y="505.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">3</text>
-<line x1="839.6000000000001" y1="500.0" x2="879.6000000000001" y2="500.0" stroke="black" />
-<rect x="879.6000000000003" y="454.0" width="679.2" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="1219.2000000000003" y="480.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Hard threshold exceeded; fidelity = hard-stale.</text>
-<text x="1219.2000000000003" y="504.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">UI memo degrades 渲染: card grayed / collapsed /</text>
-<text x="1219.2000000000003" y="528.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">elapsed timer frozen. 僅 事件 arrival 返回 到 Fresh.</text>
-<line x1="819.6000000000001" y1="520.0" x2="819.6000000000001" y2="600.0" stroke="black" />
-<line x1="799.6000000000001" y1="560.0" x2="839.6000000000001" y2="560.0" stroke="black" stroke-width="2" />
-<text x="843.6000000000001" y="564.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">事件arrived</text>
-<line x1="-19.60000000000001" y1="480.0" x2="-19.60000000000001" y2="480.0" stroke="black" />
-<line x1="-19.60000000000001" y1="480.0" x2="-99.60000000000001" y2="480.0" stroke="black" />
-<line x1="-99.60000000000001" y1="480.0" x2="-99.60000000000001" y2="176.0" stroke="black" />
-<line x1="-99.60000000000001" y1="176.0" x2="400" y2="176.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="819.6000000000001" y1="600.0" x2="819.6000000000001" y2="620.0" stroke="black" />
-<line x1="819.6000000000001" y1="620.0" x2="-179.60000000000002" y2="620.0" stroke="black" />
-<line x1="-179.60000000000002" y1="620.0" x2="-179.60000000000002" y2="176.0" stroke="black" />
-<line x1="-179.60000000000002" y1="176.0" x2="400" y2="176.0" stroke="black" marker-end="url(#arrow)" />
+<svg xmlns="http://www.w3.org/2000/svg" width="1313" height="880" viewBox="0.00 0.00 65.66 44.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="0.00" y="0.00" width="65.66" height="44.00" fill="white"/>
+<path class="edge edge-arrow" d="M 15.00 9.00 L 15.00 15.00"/>
+<path class="edge" d="M 15.00 7.00 L 15.00 9.00"/>
+<path class="edge" d="M 15.00 18.00 L 15.00 20.00"/>
+<path class="edge edge-arrow" d="M 15.00 20.00 L 15.00 22.00"/>
+<path class="edge edge-arrow" d="M 15.00 25.00 L 15.00 27.00"/>
+<path class="edge" d="M 10.00 27.00 L 10.00 30.50 Q 10.00 31.00 9.50 31.00 L 4.50 31.00 Q 4.00 31.00 4.00 30.50 L 4.00 13.50 Q 4.00 13.00 4.50 13.00 L 15.00 13.00"/>
+<path class="edge edge-arrow" d="M 39.83 27.00 L 39.83 33.00"/>
+<path class="edge" d="M 39.83 36.00 L 39.83 38.00"/>
+<path class="edge" d="M 39.83 38.00 L 39.83 40.00"/>
+<path class="edge" d="M 39.83 40.00 L 4.00 40.00"/>
+<path class="edge" d="M 4.00 40.00 L 4.00 31.00"/>
+<rect class="step" x="13.00" y="4.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<rect class="step-inner" x="13.25" y="4.25" width="3.50" height="2.50" rx="0.22" ry="0.22"/>
+<text class="label" x="15.00" y="5.50">0</text>
+<rect class="step" x="13.00" y="15.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="15.00" y="16.50">1</text>
+<rect class="step" x="13.00" y="22.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="15.00" y="23.50">2</text>
+<rect class="step" x="37.83" y="33.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="39.83" y="34.50">3</text>
+<line class="assoc" x1="17.00" y1="5.50" x2="18.00" y2="5.50"/>
+<rect class="action" x="18.00" y="4.07" width="18.83" height="2.86"/>
+<text class="action-label" x="27.41" y="4.68"><tspan x="27.41" dy="0">Store has 無 項目 供 this sid; reducer waiting 供 first Sessio</tspan><tspan x="27.41" dy="0.82">n-scoped SSE 事件. Once first 事件 arrives, reducer creates</tspan><tspan x="27.41" dy="0.82">項目 使用 已收到於 = Date.now() 與 transitions 到 Fresh.</tspan></text>
+<line class="assoc" x1="17.00" y1="16.50" x2="18.00" y2="16.50"/>
+<rect class="action" x="18.00" y="15.07" width="18.83" height="2.86"/>
+<text class="action-label" x="27.41" y="15.68"><tspan x="27.41" dy="0">項目 exists; fidelity = fresh. Any further Session-scoped 事件 供 this si</tspan><tspan x="27.41" dy="0.82">d continuously refreshes 已收到於 = Date.now() 透過 reducer (步驟-i</tspan><tspan x="27.41" dy="0.82">nternal side effect, 無 transition). UI memo renders normally 不 stale hint.</tspan></text>
+<line class="assoc" x1="17.00" y1="23.50" x2="18.00" y2="23.50"/>
+<rect class="action" x="18.00" y="22.07" width="18.83" height="2.86"/>
+<text class="action-label" x="27.41" y="22.68"><tspan x="27.41" dy="0">項目 exists but soft threshold exceeded; fidelity = stale. UI memo ren</tspan><tspan x="27.41" dy="0.82">ders &#x27;updated N ago&#x27; badge while still showing content. Either 事件 ar</tspan><tspan x="27.41" dy="0.82">rival rolls 回到 到 Fresh, 或 hard threshold advances 到 HardStale.</tspan></text>
+<line class="assoc" x1="41.83" y1="34.50" x2="42.83" y2="34.50"/>
+<rect class="action" x="42.83" y="33.07" width="18.83" height="2.86"/>
+<text class="action-label" x="52.24" y="33.68"><tspan x="52.24" dy="0">Hard threshold exceeded; fidelity = hard-stale. UI m</tspan><tspan x="52.24" dy="0.82">emo degrades 渲染: card grayed / collapsed / elaps</tspan><tspan x="52.24" dy="0.82">ed timer frozen. 僅 事件 arrival 返回 到 Fresh.</tspan></text>
+<line class="gate" x1="14.00" y1="9.00" x2="16.00" y2="9.00"/>
+<text class="gate-label" x="16.40" y="9.00"><tspan x="16.40" dy="0">事件arrived</tspan></text>
+<line class="gate" x1="14.00" y1="20.00" x2="16.00" y2="20.00"/>
+<text class="gate-label" x="16.40" y="20.00"><tspan x="16.40" dy="0">freshnessNow - 已收到於 &gt;= uifreshnessthresholdsec * 1000</tspan></text>
+<line class="gate" x1="8.00" y1="27.00" x2="41.83" y2="27.00"/>
+<line class="gate" x1="38.83" y1="38.00" x2="40.83" y2="38.00"/>
+<text class="gate-label" x="41.23" y="38.00"><tspan x="41.23" dy="0">事件arrived</tspan></text>
+<line class="gate" x1="9.00" y1="29.00" x2="11.00" y2="29.00"/>
+<text class="gate-label-left" x="8.60" y="29.00"><tspan x="8.60" dy="0">事件arrived</tspan></text>
+<line class="gate" x1="38.83" y1="29.00" x2="40.83" y2="29.00"/>
+<text class="gate-label" x="41.23" y="29.00"><tspan x="41.23" dy="0">freshnessNow - 已收到於 &gt;= uifreshnesshardtimeoutsec * 1000</tspan></text>
+<circle class="junction" cx="15.00" cy="13.00" r="0.22"/>
+<circle class="junction" cx="4.00" cy="31.00" r="0.22"/>
 </svg>

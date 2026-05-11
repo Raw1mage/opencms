@@ -1,171 +1,147 @@
-<svg width="2537" height="1210" viewBox="-629.3 -50.0 2536.6 1210.0" xmlns="http://www.w3.org/2000/svg">
-<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker></defs>
-<rect x="-629.3" y="-50.0" width="2536.6" height="1210.0" fill="white" />
-<rect x="380.0" y="80.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<rect x="385.0" y="85.0" width="30.0" height="30.0" stroke="black" stroke-width="1" fill="none" />
-<text x="400" y="105.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">0</text>
-<line x1="420.0" y1="100.0" x2="460.0" y2="100.0" stroke="black" />
-<rect x="460.00000000000006" y="54.0" width="179.39999999999998" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="549.7" y="92.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">閒置 Awaiting</text>
-<text x="549.7" y="116.00000000000001" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Operator 輸入</text>
-<line x1="400" y1="120.0" x2="400" y2="160.0" stroke="black" />
-<line x1="-318.79999999999995" y1="160.0" x2="1118.8" y2="160.0" stroke="black" stroke-width="1.5" />
-<line x1="-278.79999999999995" y1="160.0" x2="-278.79999999999995" y2="200.0" stroke="black" />
-<line x1="-298.79999999999995" y1="200.0" x2="-258.79999999999995" y2="200.0" stroke="black" stroke-width="2" />
-<text x="-302.79999999999995" y="204.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">logouttriggered</text>
-<line x1="-278.79999999999995" y1="200.0" x2="-278.79999999999995" y2="240.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="1078.8" y1="160.0" x2="1078.8" y2="200.0" stroke="black" />
-<line x1="1058.8" y1="200.0" x2="1098.8" y2="200.0" stroke="black" stroke-width="2" />
-<text x="1102.8" y="204.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">LLM請求triggered</text>
-<line x1="1078.8" y1="200.0" x2="1078.8" y2="240.0" stroke="black" marker-end="url(#arrow)" />
-<rect x="-298.79999999999995" y="240.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-278.79999999999995" y="265.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">1</text>
-<line x1="-258.79999999999995" y1="260.0" x2="-218.79999999999995" y2="260.0" stroke="black" />
-<rect x="-218.79999999999995" y="214.0" width="179.39999999999998" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="-129.09999999999997" y="252.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">POST 刷新 Token 到</text>
-<text x="-129.09999999999997" y="276.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Revoke Endpoint</text>
-<line x1="-278.79999999999995" y1="280.0" x2="-278.79999999999995" y2="320.0" stroke="black" />
-<line x1="-488.49999999999994" y1="320.0" x2="-69.09999999999997" y2="320.0" stroke="black" stroke-width="1.5" />
-<line x1="-448.49999999999994" y1="320.0" x2="-448.49999999999994" y2="360.0" stroke="black" />
-<line x1="-468.49999999999994" y1="360.0" x2="-428.49999999999994" y2="360.0" stroke="black" stroke-width="2" />
-<text x="-472.49999999999994" y="364.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">revokeok</text>
-<line x1="-448.49999999999994" y1="360.0" x2="-448.49999999999994" y2="400.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="-109.09999999999997" y1="320.0" x2="-109.09999999999997" y2="360.0" stroke="black" />
-<line x1="-129.09999999999997" y1="360.0" x2="-89.09999999999997" y2="360.0" stroke="black" stroke-width="2" />
-<text x="-85.09999999999997" y="364.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">revokefailed</text>
-<line x1="-109.09999999999997" y1="360.0" x2="-109.09999999999997" y2="400.0" stroke="black" marker-end="url(#arrow)" />
-<rect x="-468.49999999999994" y="400.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-448.49999999999994" y="425.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">2</text>
-<line x1="-428.49999999999994" y1="420.0" x2="-388.49999999999994" y2="420.0" stroke="black" />
-<rect x="-388.49999999999994" y="374.0" width="179.39999999999998" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="-298.79999999999995" y="400.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Clear</text>
-<text x="-298.79999999999995" y="424.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Local</text>
-<text x="-298.79999999999995" y="448.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">帳號 項目</text>
-<line x1="-448.49999999999994" y1="440.0" x2="-448.49999999999994" y2="520.0" stroke="black" />
-<line x1="-468.49999999999994" y1="480.0" x2="-428.49999999999994" y2="480.0" stroke="black" stroke-width="2" />
-<text x="-424.49999999999994" y="484.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">teardowndone</text>
-<rect x="-129.09999999999997" y="400.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-109.09999999999997" y="425.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">8</text>
-<line x1="-89.09999999999997" y1="420.0" x2="-49.099999999999966" y2="420.0" stroke="black" />
-<rect x="-49.099999999999966" y="374.0" width="179.39999999999998" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="40.60000000000002" y="400.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Fail Closed</text>
-<text x="40.60000000000002" y="424.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Preserve Local</text>
-<text x="40.60000000000002" y="448.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">狀態 Throw 錯誤</text>
-<line x1="-109.09999999999997" y1="440.0" x2="-109.09999999999997" y2="520.0" stroke="black" />
-<line x1="-129.09999999999997" y1="480.0" x2="-89.09999999999997" y2="480.0" stroke="black" stroke-width="2" />
-<text x="-85.09999999999997" y="484.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">錯誤surfaced</text>
-<line x1="-488.49999999999994" y1="520.0" x2="-69.09999999999997" y2="520.0" stroke="black" stroke-width="1.5" />
-<line x1="-448.49999999999994" y1="520.0" x2="-448.49999999999994" y2="520.0" stroke="black" />
-<line x1="-109.09999999999997" y1="520.0" x2="-109.09999999999997" y2="520.0" stroke="black" />
-<line x1="-278.79999999999995" y1="520.0" x2="-278.79999999999995" y2="560.0" stroke="black" marker-end="url(#arrow)" />
-<rect x="1058.8" y="240.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="1078.8" y="265.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">3</text>
-<line x1="1098.8" y1="260.0" x2="1138.8" y2="260.0" stroke="black" />
-<rect x="1138.8" y="214.0" width="179.39999999999998" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="1228.5" y="240.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">解析</text>
-<text x="1228.5" y="264.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Provider</text>
-<text x="1228.5" y="288.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">供 請求</text>
-<line x1="1078.8" y1="280.0" x2="1078.8" y2="320.0" stroke="black" />
-<line x1="699.4" y1="320.0" x2="1458.1999999999998" y2="320.0" stroke="black" stroke-width="1.5" />
-<line x1="739.4" y1="320.0" x2="739.4" y2="360.0" stroke="black" />
-<line x1="719.4" y1="360.0" x2="759.4" y2="360.0" stroke="black" stroke-width="2" />
-<text x="715.3999999999999" y="364.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">explicitProviderpick</text>
-<line x1="739.4" y1="360.0" x2="739.4" y2="400.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="1418.1999999999998" y1="320.0" x2="1418.1999999999998" y2="360.0" stroke="black" />
-<line x1="1398.1999999999998" y1="360.0" x2="1438.1999999999998" y2="360.0" stroke="black" stroke-width="2" />
-<text x="1442.2" y="364.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">autoProviderpick</text>
-<line x1="1418.1999999999998" y1="360.0" x2="1418.1999999999998" y2="400.0" stroke="black" marker-end="url(#arrow)" />
-<rect x="719.4" y="400.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="739.4" y="425.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">4</text>
-<line x1="759.4" y1="420.0" x2="799.4" y2="420.0" stroke="black" />
-<rect x="799.3999999999999" y="374.0" width="179.39999999999998" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="889.0999999999999" y="400.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Bypass</text>
-<text x="889.0999999999999" y="424.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">disabledProvider</text>
-<text x="889.0999999999999" y="448.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Filter 供 Explicit</text>
-<line x1="739.4" y1="440.0" x2="739.4" y2="520.0" stroke="black" />
-<line x1="719.4" y1="480.0" x2="759.4" y2="480.0" stroke="black" stroke-width="2" />
-<text x="763.4000000000001" y="484.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">Provider已解析</text>
-<rect x="1398.1999999999998" y="400.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="1418.1999999999998" y="425.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">9</text>
-<line x1="1438.1999999999998" y1="420.0" x2="1478.1999999999998" y2="420.0" stroke="black" />
-<rect x="1478.1999999999998" y="374.0" width="179.39999999999998" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="1567.8999999999999" y="400.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Apply Auto Hidden</text>
-<text x="1567.8999999999999" y="424.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Filter Skip</text>
-<text x="1567.8999999999999" y="448.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">disabled Provider</text>
-<line x1="1418.1999999999998" y1="440.0" x2="1418.1999999999998" y2="480.0" stroke="black" />
-<line x1="1208.5" y1="480.0" x2="1627.8999999999999" y2="480.0" stroke="black" stroke-width="1.5" />
-<line x1="1248.5" y1="480.0" x2="1248.5" y2="520.0" stroke="black" />
-<line x1="1228.5" y1="520.0" x2="1268.5" y2="520.0" stroke="black" stroke-width="2" />
-<text x="1224.5" y="524.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">autoProviderfound</text>
-<line x1="1248.5" y1="520.0" x2="1248.5" y2="560.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="1587.8999999999999" y1="480.0" x2="1587.8999999999999" y2="520.0" stroke="black" />
-<line x1="1567.8999999999999" y1="520.0" x2="1607.8999999999999" y2="520.0" stroke="black" stroke-width="2" />
-<text x="1611.9" y="524.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">無Provideravailable</text>
-<line x1="1587.8999999999999" y1="520.0" x2="1587.8999999999999" y2="560.0" stroke="black" marker-end="url(#arrow)" />
-<rect x="1228.5" y="560.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="1248.5" y="585.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">10</text>
-<line x1="1268.5" y1="580.0" x2="1308.5" y2="580.0" stroke="black" />
-<rect x="1308.4999999999998" y="534.0" width="179.39999999999998" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="1398.1999999999998" y="560.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">繼續 使用</text>
-<text x="1398.1999999999998" y="584.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Auto 已解</text>
-<text x="1398.1999999999998" y="608.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">析 Provider</text>
-<line x1="1248.5" y1="600.0" x2="1248.5" y2="680.0" stroke="black" />
-<line x1="1228.5" y1="640.0" x2="1268.5" y2="640.0" stroke="black" stroke-width="2" />
-<text x="1272.5" y="644.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">auto已解析</text>
-<rect x="1228.5" y="680.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="1248.5" y="705.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">5</text>
-<line x1="1268.5" y1="700.0" x2="1308.5" y2="700.0" stroke="black" />
-<rect x="1308.4999999999998" y="654.0" width="179.39999999999998" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="1398.1999999999998" y="680.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Attach 上下</text>
-<text x="1398.1999999999998" y="704.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">文 Window</text>
-<text x="1398.1999999999998" y="727.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Headers 到 請求</text>
-<line x1="1248.5" y1="720.0" x2="1248.5" y2="800.0" stroke="black" />
-<line x1="1228.5" y1="760.0" x2="1268.5" y2="760.0" stroke="black" stroke-width="2" />
-<text x="1272.5" y="764.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">headersattached</text>
-<rect x="1228.5" y="800.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="1248.5" y="825.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">6</text>
-<line x1="1268.5" y1="820.0" x2="1308.5" y2="820.0" stroke="black" />
-<rect x="1308.4999999999998" y="774.0" width="179.39999999999998" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="1398.1999999999998" y="800.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">解析 Effort</text>
-<text x="1398.1999999999998" y="824.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Variant Applying</text>
-<text x="1398.1999999999998" y="847.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">xhigh If Opus 4.7</text>
-<line x1="1248.5" y1="840.0" x2="1248.5" y2="920.0" stroke="black" />
-<line x1="1228.5" y1="880.0" x2="1268.5" y2="880.0" stroke="black" stroke-width="2" />
-<text x="1272.5" y="884.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">請求dispatched</text>
-<rect x="1567.8999999999999" y="560.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="1587.8999999999999" y="585.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">11</text>
-<line x1="1607.8999999999999" y1="580.0" x2="1647.8999999999999" y2="580.0" stroke="black" />
-<rect x="1647.8999999999999" y="534.0" width="179.39999999999998" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="1737.6" y="572.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Surface 無</text>
-<text x="1737.6" y="596.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Provider 錯誤</text>
-<line x1="1587.8999999999999" y1="600.0" x2="1587.8999999999999" y2="680.0" stroke="black" />
-<line x1="1567.8999999999999" y1="640.0" x2="1607.8999999999999" y2="640.0" stroke="black" stroke-width="2" />
-<text x="1611.9" y="644.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">錯誤到operator</text>
-<line x1="1208.5" y1="920.0" x2="1627.8999999999999" y2="920.0" stroke="black" stroke-width="1.5" />
-<line x1="1248.5" y1="920.0" x2="1248.5" y2="920.0" stroke="black" />
-<line x1="1587.8999999999999" y1="680.0" x2="1587.8999999999999" y2="920.0" stroke="black" />
-<line x1="1418.1999999999998" y1="920.0" x2="1418.1999999999998" y2="960.0" stroke="black" marker-end="url(#arrow)" />
-<rect x="1398.1999999999998" y="960.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="1418.1999999999998" y="985.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">7</text>
-<line x1="1438.1999999999998" y1="980.0" x2="1478.1999999999998" y2="980.0" stroke="black" />
-<rect x="1478.1999999999998" y="934.0" width="179.39999999999998" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="1567.8999999999999" y="960.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">發出 記錄</text>
-<text x="1567.8999999999999" y="984.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">與 返回</text>
-<text x="1567.8999999999999" y="1007.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">到 閒置</text>
-<line x1="1418.1999999999998" y1="1000.0" x2="1418.1999999999998" y2="1080.0" stroke="black" />
-<line x1="1398.1999999999998" y1="1040.0" x2="1438.1999999999998" y2="1040.0" stroke="black" stroke-width="2" />
-<text x="1442.2" y="1044.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">cycle完成</text>
-<line x1="699.4" y1="1080.0" x2="1458.1999999999998" y2="1080.0" stroke="black" stroke-width="1.5" />
-<line x1="739.4" y1="520.0" x2="739.4" y2="1080.0" stroke="black" />
-<line x1="1418.1999999999998" y1="1080.0" x2="1418.1999999999998" y2="1080.0" stroke="black" />
-<line x1="1078.8" y1="1080.0" x2="1078.8" y2="1120.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="-318.79999999999995" y1="1120.0" x2="1118.8" y2="1120.0" stroke="black" stroke-width="1.5" />
-<line x1="-278.79999999999995" y1="560.0" x2="-278.79999999999995" y2="1120.0" stroke="black" />
-<line x1="1078.8" y1="1120.0" x2="1078.8" y2="1120.0" stroke="black" />
-<line x1="400" y1="1120.0" x2="400" y2="1160.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="1418.1999999999998" y1="1080.0" x2="1418.1999999999998" y2="1080.0" stroke="black" />
-<line x1="1418.1999999999998" y1="1080.0" x2="-548.5" y2="1080.0" stroke="black" />
-<line x1="-548.5" y1="1080.0" x2="-548.5" y2="30.0" stroke="black" />
-<line x1="-548.5" y1="30.0" x2="400" y2="30.0" stroke="black" />
-<line x1="400" y1="30.0" x2="400" y2="70.0" stroke="black" marker-end="url(#arrow)" />
+<svg xmlns="http://www.w3.org/2000/svg" width="1340" height="1320" viewBox="-13.00 -2.00 67.00 66.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="-13.00" y="-2.00" width="67.00" height="66.00" fill="white"/>
+<path class="edge edge-arrow" d="M 20.40 27.00 L 20.40 33.00"/>
+<path class="edge edge-arrow" d="M 20.40 7.00 L 20.40 9.00"/>
+<path class="edge edge-arrow" d="M 10.20 9.00 L 10.20 13.00"/>
+<path class="edge edge-arrow" d="M 40.80 9.00 L 40.80 13.00"/>
+<path class="edge edge-arrow" d="M 10.20 16.00 L 10.20 18.00"/>
+<path class="edge edge-arrow" d="M 0.00 18.00 L 0.00 22.00"/>
+<path class="edge edge-arrow" d="M 10.20 18.00 L 10.20 22.00"/>
+<path class="edge edge-arrow" d="M 0.00 25.00 L 0.00 47.00"/>
+<path class="edge edge-arrow" d="M 10.20 47.00 L 10.20 53.00"/>
+<path class="edge edge-arrow" d="M 40.80 16.00 L 40.80 18.00"/>
+<path class="edge edge-arrow" d="M 30.60 18.00 L 30.60 22.00"/>
+<path class="edge edge-arrow" d="M 40.80 18.00 L 40.80 22.00"/>
+<path class="edge" d="M 30.60 25.00 L 30.60 26.38"/>
+<path class="edge" d="M 30.60 26.38 L 50.00 26.38"/>
+<path class="edge" d="M 50.00 26.38 L 50.00 29.00"/>
+<path class="edge" d="M 50.00 29.00 L 30.60 29.00"/>
+<path class="edge" d="M 30.60 29.00 L 30.60 26.38"/>
+<path class="edge" d="M 30.60 25.62 L 20.40 25.62"/>
+<path class="edge" d="M 20.40 36.00 L 20.40 38.00"/>
+<path class="edge edge-arrow" d="M 20.40 38.00 L 20.40 42.00"/>
+<path class="edge edge-arrow" d="M 20.40 45.00 L 20.40 47.00"/>
+<path class="edge" d="M 10.20 56.00 L 10.20 58.00"/>
+<path class="edge edge-arrow" d="M 10.20 58.00 L 10.20 59.50 Q 10.20 60.00 9.70 60.00 L -8.50 60.00 Q -9.00 60.00 -9.00 59.50 L -9.00 2.50 Q -9.00 2.00 -8.50 2.00 L 19.90 2.00 Q 20.40 2.00 20.40 2.50 L 20.40 4.00"/>
+<path class="edge edge-arrow" d="M 10.20 25.00 L 10.20 47.00"/>
+<path class="edge edge-arrow" d="M 40.80 25.00 L 40.80 27.00"/>
+<path class="edge" d="M 30.60 29.00 L 30.60 33.00"/>
+<path class="edge edge-arrow" d="M 40.80 27.00 L 40.80 33.00"/>
+<path class="edge" d="M 30.60 36.00 L 30.60 38.00"/>
+<path class="edge" d="M 30.60 38.00 L 30.60 40.00"/>
+<path class="edge" d="M 30.60 40.00 L 22.60 40.00"/>
+<path class="edge" d="M 22.60 40.00 L 22.60 31.00"/>
+<path class="edge" d="M 22.60 31.00 L 20.40 31.00"/>
+<path class="edge edge-arrow" d="M 40.80 36.00 L 40.80 47.00"/>
+<rect class="step" x="18.40" y="4.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<rect class="step-inner" x="18.65" y="4.25" width="3.50" height="2.50" rx="0.22" ry="0.22"/>
+<text class="label" x="20.40" y="5.50">0</text>
+<rect class="step" x="8.20" y="13.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="10.20" y="14.50">1</text>
+<rect class="step" x="-2.00" y="22.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="0.00" y="23.50">2</text>
+<rect class="step" x="38.80" y="13.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="40.80" y="14.50">3</text>
+<rect class="step" x="28.60" y="22.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="30.60" y="23.50">4</text>
+<rect class="step" x="18.40" y="33.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.40" y="34.50">5</text>
+<rect class="step" x="18.40" y="42.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.40" y="43.50">6</text>
+<rect class="step" x="8.20" y="53.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="10.20" y="54.50">7</text>
+<rect class="step" x="8.20" y="22.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="10.20" y="23.50">8</text>
+<rect class="step" x="38.80" y="22.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="40.80" y="23.50">9</text>
+<rect class="step" x="28.60" y="33.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="30.60" y="34.50">10</text>
+<rect class="step" x="38.80" y="33.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="40.80" y="34.50">11</text>
+<line class="assoc" x1="22.40" y1="5.50" x2="23.40" y2="5.50"/>
+<rect class="action" x="23.40" y="4.07" width="4.20" height="2.86"/>
+<text class="action-label" x="25.50" y="5.09"><tspan x="25.50" dy="0">閒置 Awaiting</tspan><tspan x="25.50" dy="0.82">Operator 輸入</tspan></text>
+<line class="assoc" x1="12.20" y1="14.50" x2="13.20" y2="14.50"/>
+<rect class="action" x="13.20" y="13.07" width="4.20" height="2.86"/>
+<text class="action-label" x="15.30" y="13.68"><tspan x="15.30" dy="0">POST 刷新</tspan><tspan x="15.30" dy="0.82">Token 到 Re</tspan><tspan x="15.30" dy="0.82">voke Endpoint</tspan></text>
+<line class="assoc" x1="2.00" y1="23.50" x2="3.00" y2="23.50"/>
+<rect class="action" x="3.00" y="22.07" width="4.20" height="2.86"/>
+<text class="action-label" x="5.10" y="23.09"><tspan x="5.10" dy="0">Clear Local</tspan><tspan x="5.10" dy="0.82">帳號 項目</tspan></text>
+<line class="assoc" x1="42.80" y1="14.50" x2="43.80" y2="14.50"/>
+<rect class="action" x="43.80" y="13.07" width="4.20" height="2.86"/>
+<text class="action-label" x="45.90" y="14.09"><tspan x="45.90" dy="0">解析 Provid</tspan><tspan x="45.90" dy="0.82">er 供 請求</tspan></text>
+<line class="assoc" x1="32.60" y1="23.50" x2="33.60" y2="23.50"/>
+<rect class="action" x="33.60" y="22.07" width="4.20" height="2.86"/>
+<text class="action-label" x="35.70" y="22.68"><tspan x="35.70" dy="0">Bypass disable</tspan><tspan x="35.70" dy="0.82">dProvider Filt</tspan><tspan x="35.70" dy="0.82">er 供 Explicit</tspan></text>
+<line class="assoc" x1="22.40" y1="34.50" x2="23.40" y2="34.50"/>
+<rect class="action" x="23.40" y="33.07" width="4.20" height="2.86"/>
+<text class="action-label" x="25.50" y="33.68"><tspan x="25.50" dy="0">Attach 上下</tspan><tspan x="25.50" dy="0.82">文 Window Hea</tspan><tspan x="25.50" dy="0.82">ders 到 請求</tspan></text>
+<line class="assoc" x1="22.40" y1="43.50" x2="23.40" y2="43.50"/>
+<rect class="action" x="23.40" y="42.07" width="4.20" height="2.86"/>
+<text class="action-label" x="25.50" y="42.68"><tspan x="25.50" dy="0">解析 Effort V</tspan><tspan x="25.50" dy="0.82">ariant Applying</tspan><tspan x="25.50" dy="0.82">xhigh If Opus 4.7</tspan></text>
+<line class="assoc" x1="12.20" y1="54.50" x2="13.20" y2="54.50"/>
+<rect class="action" x="13.20" y="53.07" width="4.20" height="2.86"/>
+<text class="action-label" x="15.30" y="53.68"><tspan x="15.30" dy="0">發出 記</tspan><tspan x="15.30" dy="0.82">錄 與 返</tspan><tspan x="15.30" dy="0.82">回 到 閒置</tspan></text>
+<line class="assoc" x1="12.20" y1="23.50" x2="13.20" y2="23.50"/>
+<rect class="action" x="13.20" y="22.07" width="4.20" height="2.86"/>
+<text class="action-label" x="15.30" y="22.68"><tspan x="15.30" dy="0">Fail Closed Pres</tspan><tspan x="15.30" dy="0.82">erve Local 狀態</tspan><tspan x="15.30" dy="0.82">Throw 錯誤</tspan></text>
+<line class="assoc" x1="42.80" y1="23.50" x2="43.80" y2="23.50"/>
+<rect class="action" x="43.80" y="22.07" width="4.20" height="2.86"/>
+<text class="action-label" x="45.90" y="22.68"><tspan x="45.90" dy="0">Apply Auto Hidd</tspan><tspan x="45.90" dy="0.82">en Filter Skip d</tspan><tspan x="45.90" dy="0.82">isabled Provider</tspan></text>
+<line class="assoc" x1="32.60" y1="34.50" x2="33.60" y2="34.50"/>
+<rect class="action" x="33.60" y="33.07" width="4.20" height="2.86"/>
+<text class="action-label" x="35.70" y="33.68"><tspan x="35.70" dy="0">繼續 使用</tspan><tspan x="35.70" dy="0.82">Auto 已解</tspan><tspan x="35.70" dy="0.82">析 Provider</tspan></text>
+<line class="assoc" x1="42.80" y1="34.50" x2="43.80" y2="34.50"/>
+<rect class="action" x="43.80" y="33.07" width="4.20" height="2.86"/>
+<text class="action-label" x="45.90" y="34.09"><tspan x="45.90" dy="0">Surface 無 P</tspan><tspan x="45.90" dy="0.82">rovider 錯誤</tspan></text>
+<line class="gate" x1="8.20" y1="9.00" x2="42.80" y2="9.00"/>
+<line class="gate" x1="-2.00" y1="18.00" x2="12.20" y2="18.00"/>
+<line class="gate" x1="-5.00" y1="47.00" x2="45.80" y2="47.00"/>
+<line class="gate" x1="28.60" y1="18.00" x2="42.80" y2="18.00"/>
+<line class="gate" x1="19.40" y1="27.00" x2="21.40" y2="27.00"/>
+<text class="gate-label" x="21.80" y="27.00"><tspan x="21.80" dy="0">Provider已解析</tspan></text>
+<line class="gate" x1="19.40" y1="38.00" x2="21.40" y2="38.00"/>
+<text class="gate-label-left" x="19.00" y="38.00"><tspan x="19.00" dy="0">headersattached</tspan></text>
+<line class="gate" x1="9.20" y1="58.00" x2="11.20" y2="58.00"/>
+<text class="gate-label" x="11.60" y="58.00"><tspan x="11.60" dy="0">cycle完成</tspan></text>
+<line class="gate" x1="28.60" y1="27.00" x2="42.80" y2="27.00"/>
+<line class="gate" x1="29.60" y1="38.00" x2="31.60" y2="38.00"/>
+<text class="gate-label" x="32.00" y="38.00"><tspan x="32.00" dy="0">auto已解析</tspan></text>
+<line class="gate" x1="9.20" y1="11.00" x2="11.20" y2="11.00"/>
+<text class="gate-label-left" x="8.80" y="11.00"><tspan x="8.80" dy="0">logouttriggered</tspan></text>
+<line class="gate" x1="39.80" y1="11.00" x2="41.80" y2="11.00"/>
+<text class="gate-label" x="42.20" y="11.00"><tspan x="42.20" dy="0">LLM請求triggered</tspan></text>
+<line class="gate" x1="-1.00" y1="20.00" x2="1.00" y2="20.00"/>
+<text class="gate-label-left" x="-1.40" y="20.00"><tspan x="-1.40" dy="0">revokeok</tspan></text>
+<line class="gate" x1="9.20" y1="20.00" x2="11.20" y2="20.00"/>
+<text class="gate-label" x="11.60" y="20.00"><tspan x="11.60" dy="0">revokefailed</tspan></text>
+<line class="gate" x1="-1.00" y1="51.00" x2="1.00" y2="51.00"/>
+<text class="gate-label-left" x="-1.40" y="51.00"><tspan x="-1.40" dy="0">teardowndone</tspan></text>
+<line class="gate" x1="29.60" y1="20.00" x2="31.60" y2="20.00"/>
+<text class="gate-label-left" x="29.20" y="20.00"><tspan x="29.20" dy="0">explicitProviderpick</tspan></text>
+<line class="gate" x1="39.80" y1="20.00" x2="41.80" y2="20.00"/>
+<text class="gate-label" x="42.20" y="20.00"><tspan x="42.20" dy="0">autoProviderpick</tspan></text>
+<line class="gate" x1="19.40" y1="51.00" x2="21.40" y2="51.00"/>
+<text class="gate-label" x="21.80" y="51.00"><tspan x="21.80" dy="0">請求dispatched</tspan></text>
+<line class="gate" x1="9.20" y1="51.00" x2="11.20" y2="51.00"/>
+<text class="gate-label-left" x="8.80" y="51.00"><tspan x="8.80" dy="0">錯誤surfaced</tspan></text>
+<line class="gate" x1="29.60" y1="31.00" x2="31.60" y2="31.00"/>
+<text class="gate-label-left" x="29.20" y="31.00"><tspan x="29.20" dy="0">autoProviderfound</tspan></text>
+<line class="gate" x1="39.80" y1="31.00" x2="41.80" y2="31.00"/>
+<text class="gate-label" x="42.20" y="31.00"><tspan x="42.20" dy="0">無Provideravailable</tspan></text>
+<line class="gate" x1="39.80" y1="51.00" x2="41.80" y2="51.00"/>
+<text class="gate-label" x="42.20" y="51.00"><tspan x="42.20" dy="0">錯誤到operator</tspan></text>
+<circle class="junction" cx="20.40" cy="31.00" r="0.22"/>
+<circle class="junction" cx="30.60" cy="29.00" r="0.22"/>
 </svg>

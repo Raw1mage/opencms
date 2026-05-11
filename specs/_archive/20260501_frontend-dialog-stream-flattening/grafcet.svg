@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="740" viewBox="0.00 -2.00 21.00 37.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="0.00" y="-2.00" width="21.00" height="37.00" fill="white"/>
+<path class="edge" d="M 15.00 7.00 L 15.00 9.00"/>
+<path class="edge edge-arrow" d="M 15.00 9.00 L 15.00 11.00"/>
+<path class="edge edge-arrow" d="M 15.00 14.00 L 15.00 16.00"/>
+<path class="edge edge-arrow" d="M 10.00 16.00 L 10.00 20.00"/>
+<path class="edge edge-arrow" d="M 15.00 16.00 L 15.00 20.00"/>
+<path class="edge" d="M 10.00 23.00 L 10.00 25.00"/>
+<path class="edge edge-arrow" d="M 10.00 25.00 L 10.00 30.50 Q 10.00 31.00 9.50 31.00 L 4.50 31.00 Q 4.00 31.00 4.00 30.50 L 4.00 2.50 Q 4.00 2.00 4.50 2.00 L 14.50 2.00 Q 15.00 2.00 15.00 2.50 L 15.00 4.00"/>
+<path class="edge" d="M 15.00 23.00 L 15.00 29.00"/>
+<path class="edge" d="M 15.00 29.00 L 15.00 31.00"/>
+<path class="edge" d="M 15.00 31.00 L 10.00 31.00"/>
+<rect class="step" x="13.00" y="4.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<rect class="step-inner" x="13.25" y="4.25" width="3.50" height="2.50" rx="0.22" ry="0.22"/>
+<text class="label" x="15.00" y="5.50">S0</text>
+<rect class="step" x="13.00" y="11.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="15.00" y="12.50">S1</text>
+<rect class="step" x="8.00" y="20.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="10.00" y="21.50">S2</text>
+<rect class="step" x="13.00" y="20.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="15.00" y="21.50">S3</text>
+<line class="gate" x1="14.00" y1="9.00" x2="16.00" y2="9.00"/>
+<text class="gate-label-left" x="13.60" y="9.00"><tspan x="13.60" dy="0">new visible event arrives</tspan></text>
+<line class="gate" x1="8.00" y1="16.00" x2="17.00" y2="16.00"/>
+<line class="gate" x1="9.00" y1="25.00" x2="11.00" y2="25.00"/>
+<text class="gate-label" x="15.60" y="25.00"><tspan x="15.60" dy="0">text update rendered</tspan></text>
+<line class="gate" x1="14.00" y1="29.00" x2="16.00" y2="29.00"/>
+<text class="gate-label-left" x="9.40" y="29.00"><tspan x="9.40" dy="0">status line updated</tspan></text>
+<line class="gate" x1="9.00" y1="18.00" x2="11.00" y2="18.00"/>
+<text class="gate-label-left" x="8.60" y="17.32"><tspan x="8.60" dy="0">assistant t</tspan><tspan x="8.60" dy="0.68">ext stream</tspan><tspan x="8.60" dy="0.68">continues</tspan></text>
+<line class="gate" x1="14.00" y1="18.00" x2="16.00" y2="18.00"/>
+<text class="gate-label" x="16.40" y="17.32"><tspan x="16.40" dy="0">status</tspan><tspan x="16.40" dy="0.68">event</tspan><tspan x="16.40" dy="0.68">arrives</tspan></text>
+<circle class="junction" cx="10.00" cy="31.00" r="0.22"/>
+</svg>

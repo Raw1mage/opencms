@@ -1,0 +1,157 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1362" height="1940" viewBox="-7.00 -1.00 68.09 97.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="-7.00" y="-1.00" width="68.09" height="97.00" fill="white"/>
+<path class="edge edge-arrow" d="M 15.00 42.00 L 15.00 48.00"/>
+<path class="edge edge-arrow" d="M 15.00 55.00 L 15.00 59.00"/>
+<path class="edge" d="M 15.00 7.00 L 15.00 9.00"/>
+<path class="edge" d="M 15.00 9.00 L 15.00 11.00"/>
+<path class="edge edge-arrow" d="M 15.00 11.00 L 15.00 13.00"/>
+<path class="edge edge-arrow" d="M 15.00 9.00 L 28.53 9.00 Q 29.03 9.00 29.03 9.50 L 29.03 19.50 Q 29.03 20.00 28.53 20.00 L 19.50 20.00 Q 19.00 20.00 19.00 20.50 L 19.00 24.00"/>
+<path class="edge edge-arrow" d="M 15.00 24.00 L 15.00 28.00"/>
+<path class="edge edge-arrow" d="M 15.00 9.00 L 11.50 9.00 Q 11.00 9.00 11.00 8.50 L 11.00 3.50 Q 11.00 3.00 11.50 3.00 L 29.53 3.00 Q 30.03 3.00 30.03 3.50 L 30.03 24.00"/>
+<path class="edge edge-arrow" d="M 30.03 24.00 L 30.03 28.00"/>
+<path class="edge" d="M 15.00 16.00 L 15.00 18.00"/>
+<path class="edge edge-arrow" d="M 15.00 18.00 L 15.00 24.00"/>
+<path class="edge edge-arrow" d="M 15.00 18.00 L 33.53 18.00 Q 34.03 18.00 34.03 18.50 L 34.03 24.00"/>
+<path class="edge" d="M 15.00 31.00 L 15.00 33.00"/>
+<path class="edge edge-arrow" d="M 15.00 33.00 L 15.00 37.00"/>
+<path class="edge" d="M 30.03 31.00 L 30.03 33.00"/>
+<path class="edge" d="M 30.03 33.00 L 30.03 34.50 Q 30.03 35.00 29.53 35.00 L 9.50 35.00 Q 9.00 35.00 9.00 34.50 L 9.00 20.50 Q 9.00 20.00 9.50 20.00 L 15.00 20.00"/>
+<path class="edge" d="M 15.00 40.00 L 15.00 42.00"/>
+<path class="edge" d="M 15.00 51.00 L 15.00 53.00"/>
+<path class="edge" d="M 15.00 53.00 L 15.00 55.00"/>
+<path class="edge edge-arrow" d="M 15.00 53.00 L 28.53 53.00 Q 29.03 53.00 29.03 53.50 L 29.03 65.50 Q 29.03 66.00 28.53 66.00 L 19.50 66.00 Q 19.00 66.00 19.00 66.50 L 19.00 72.00"/>
+<path class="edge edge-arrow" d="M 15.00 72.00 L 15.00 74.00"/>
+<path class="edge" d="M 15.00 62.00 L 15.00 62.88 Q 15.00 63.38 15.50 63.38 L 18.95 63.38 Q 19.45 63.38 19.45 63.88 L 19.45 67.50 Q 19.45 68.00 18.95 68.00 L 15.50 68.00 Q 15.00 68.00 15.00 67.50 L 15.00 64.00"/>
+<path class="edge" d="M 15.00 64.00 L 5.00 66.00"/>
+<path class="edge" d="M 5.00 66.00 L 5.00 64.50 Q 5.00 64.00 4.50 64.00 L 1.50 64.00 Q 1.00 64.00 1.00 63.50 L 1.00 46.50 Q 1.00 46.00 1.50 46.00 L 15.00 46.00"/>
+<path class="edge" d="M 15.00 64.00 L 11.50 64.00 Q 11.00 64.00 11.00 63.50 L 11.00 58.50 Q 11.00 58.00 11.50 58.00 L 29.53 58.00 Q 30.03 58.00 30.03 58.50 L 30.03 68.00"/>
+<path class="edge edge-arrow" d="M 30.03 68.00 L 30.03 74.00"/>
+<path class="edge" d="M 15.00 68.00 L 15.00 72.00"/>
+<path class="edge" d="M 15.00 74.00 L 15.00 78.00"/>
+<path class="edge" d="M 15.00 78.00 L 29.03 78.00"/>
+<path class="edge" d="M 29.03 78.00 L 29.03 66.00"/>
+<path class="edge" d="M 29.03 56.00 L 15.00 56.00"/>
+<path class="edge" d="M 15.00 59.00 L 15.00 62.00"/>
+<path class="edge" d="M 15.00 63.38 L 15.00 64.00"/>
+<path class="edge edge-arrow" d="M 30.03 77.00 L 30.03 79.00"/>
+<path class="edge" d="M 15.00 79.00 L 15.00 83.00"/>
+<path class="edge" d="M 15.00 83.00 L -3.00 83.00"/>
+<path class="edge" d="M -3.00 83.00 L -3.00 69.00"/>
+<path class="edge" d="M -3.00 69.00 L 15.00 69.00"/>
+<path class="edge edge-arrow" d="M 45.06 79.00 L 45.06 85.00"/>
+<path class="edge" d="M 45.06 88.00 L 45.06 90.00"/>
+<path class="edge" d="M 45.06 90.00 L 45.06 92.00"/>
+<path class="edge" d="M 45.06 92.00 L 1.00 92.00"/>
+<path class="edge" d="M 1.00 92.00 L 1.00 64.00"/>
+<rect class="step" x="13.00" y="4.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<rect class="step-inner" x="13.25" y="4.25" width="3.50" height="2.50" rx="0.22" ry="0.22"/>
+<text class="label" x="15.00" y="5.50">0</text>
+<rect class="step" x="13.00" y="13.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="15.00" y="14.50">1</text>
+<rect class="step" x="13.00" y="28.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="15.00" y="29.50">2</text>
+<rect class="step" x="28.03" y="28.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="30.03" y="29.50">3</text>
+<rect class="step" x="13.00" y="37.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="15.00" y="38.50">4</text>
+<rect class="step" x="13.00" y="48.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="15.00" y="49.50">5</text>
+<rect class="step" x="13.00" y="59.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="15.00" y="60.50">6</text>
+<rect class="step" x="28.03" y="74.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="30.03" y="75.50">7</text>
+<rect class="step" x="43.06" y="85.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="45.06" y="86.50">8</text>
+<rect class="step" x="13.00" y="74.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="15.00" y="75.50">9</text>
+<line class="assoc" x1="17.00" y1="5.50" x2="18.00" y2="5.50"/>
+<rect class="action" x="18.00" y="4.07" width="9.03" height="2.86"/>
+<text class="action-label" x="22.52" y="5.09"><tspan x="22.52" dy="0">IDLE — 尚未開啟 session；可</tspan><tspan x="22.52" dy="0.82">能在 / 、/sessions 或其他頁</tspan></text>
+<line class="assoc" x1="17.00" y1="14.50" x2="18.00" y2="14.50"/>
+<rect class="action" x="18.00" y="13.07" width="9.03" height="2.86"/>
+<text class="action-label" x="22.52" y="14.09"><tspan x="22.52" dy="0">FETCH META — GE</tspan><tspan x="22.52" dy="0.82">T /Session/:id/meta</tspan></text>
+<line class="assoc" x1="17.00" y1="29.50" x2="18.00" y2="29.50"/>
+<rect class="action" x="18.00" y="28.07" width="9.03" height="2.86"/>
+<text class="action-label" x="22.52" y="29.09"><tspan x="22.52" dy="0">NAVIGATE SESSION — router</tspan><tspan x="22.52" dy="0.82">.navigate(/&lt;dir&gt;/Session/&lt;id&gt;)</tspan></text>
+<line class="assoc" x1="32.03" y1="29.50" x2="33.03" y2="29.50"/>
+<rect class="action" x="33.03" y="28.07" width="9.03" height="2.86"/>
+<text class="action-label" x="37.55" y="28.68"><tspan x="37.55" dy="0">NAVIGATE LIST — route</tspan><tspan x="37.55" dy="0.82">r.navigate(/&lt;dir&gt;/session</tspan><tspan x="37.55" dy="0.82">s) + toast 若門檻超過</tspan></text>
+<line class="assoc" x1="17.00" y1="38.50" x2="18.00" y2="38.50"/>
+<rect class="action" x="18.00" y="37.07" width="9.03" height="2.86"/>
+<text class="action-label" x="22.52" y="37.68"><tspan x="22.52" dy="0">LOAD INITIAL — 依 meta.p</tspan><tspan x="22.52" dy="0.82">artCount 決定 initialLimit,</tspan><tspan x="22.52" dy="0.82">呼 /message?limit=N (R6)</tspan></text>
+<line class="assoc" x1="17.00" y1="49.50" x2="18.00" y2="49.50"/>
+<rect class="action" x="18.00" y="48.07" width="9.03" height="2.86"/>
+<text class="action-label" x="22.52" y="48.68"><tspan x="22.52" dy="0">FOLLOW TAIL — 畫面貼底；</tspan><tspan x="22.52" dy="0.82">接 SSE live deltas；rebuild heuris</tspan><tspan x="22.52" dy="0.82">tic + tail-window 套用 (R3.S1, R4)</tspan></text>
+<line class="assoc" x1="17.00" y1="60.50" x2="18.00" y2="60.50"/>
+<rect class="action" x="18.00" y="59.07" width="9.03" height="2.86"/>
+<text class="action-label" x="22.52" y="60.09"><tspan x="22.52" dy="0">FREE READING — autoScroll.mode</tspan><tspan x="22.52" dy="0.82">=free-reading；top-sentinel 啟用</tspan></text>
+<line class="assoc" x1="32.03" y1="75.50" x2="33.03" y2="75.50"/>
+<rect class="action" x="33.03" y="74.07" width="9.03" height="2.86"/>
+<text class="action-label" x="37.55" y="74.68"><tspan x="37.55" dy="0">LOAD MORE — sync.sessi</tspan><tspan x="37.55" dy="0.82">on.history.loadMore(sessio</tspan><tspan x="37.55" dy="0.82">nID)；顯示頂端 spinner</tspan></text>
+<line class="assoc" x1="47.06" y1="86.50" x2="48.06" y2="86.50"/>
+<rect class="action" x="48.06" y="85.07" width="9.03" height="2.86"/>
+<text class="action-label" x="52.58" y="85.68"><tspan x="52.58" dy="0">HISTORY COMPLETE — met</tspan><tspan x="52.58" dy="0.82">a.complete=true；關閉 sen</tspan><tspan x="52.58" dy="0.82">tinel 與 Load Earlier 按鈕</tspan></text>
+<line class="assoc" x1="17.00" y1="75.50" x2="18.00" y2="75.50"/>
+<rect class="action" x="18.00" y="74.07" width="9.03" height="2.86"/>
+<text class="action-label" x="22.52" y="75.09"><tspan x="22.52" dy="0">DISPOSED — unsubscribe</tspan><tspan x="22.52" dy="0.82">SSE、釋放 store 副本</tspan></text>
+<line class="gate" x1="14.00" y1="11.00" x2="16.00" y2="11.00"/>
+<text class="gate-label" x="16.40" y="11.00"><tspan x="16.40" dy="0">T01: URL=&#x27;/&#x27; AND lastSession 存在 AND flag=1</tspan></text>
+<line class="gate" x1="13.00" y1="24.00" x2="21.00" y2="24.00"/>
+<line class="gate" x1="28.03" y1="24.00" x2="36.03" y2="24.00"/>
+<line class="gate" x1="14.00" y1="33.00" x2="16.00" y2="33.00"/>
+<text class="gate-label" x="16.40" y="33.00"><tspan x="16.40" dy="0">T20: session 頁 mount</tspan></text>
+<line class="gate" x1="29.03" y1="33.00" x2="31.03" y2="33.00"/>
+<text class="gate-label" x="31.43" y="33.00"><tspan x="31.43" dy="0">T30: 使用者在 /sessions 點某 session</tspan></text>
+<line class="gate" x1="14.00" y1="42.00" x2="16.00" y2="42.00"/>
+<text class="gate-label" x="16.40" y="42.00"><tspan x="16.40" dy="0">T40: messages 載入完成，autoScroll resume 至 bottom</tspan></text>
+<line class="gate" x1="14.00" y1="55.00" x2="16.00" y2="55.00"/>
+<text class="gate-label" x="16.40" y="55.00"><tspan x="16.40" dy="0">T50: 使用者 wheel/touch 往上捲 (delta&lt;0)</tspan></text>
+<line class="gate" x1="13.00" y1="72.00" x2="21.00" y2="72.00"/>
+<line class="gate" x1="14.00" y1="66.00" x2="16.00" y2="66.00"/>
+<text class="gate-label-left" x="13.60" y="66.00"><tspan x="13.60" dy="0">T60: 捲回貼底</tspan></text>
+<line class="gate" x1="29.03" y1="68.00" x2="31.03" y2="68.00"/>
+<text class="gate-label" x="31.43" y="68.00"><tspan x="31.43" dy="0">T61: top-sentinel 進 viewport AND history.more=true AND loading=false (R5.S1)</tspan></text>
+<line class="gate" x1="13.00" y1="79.00" x2="47.06" y2="79.00"/>
+<line class="gate" x1="44.06" y1="90.00" x2="46.06" y2="90.00"/>
+<text class="gate-label" x="46.46" y="90.00"><tspan x="46.46" dy="0">T82: 使用者又捲回貼底 → 回 follow-bottom</tspan></text>
+<line class="gate" x1="18.00" y1="22.00" x2="20.00" y2="22.00"/>
+<text class="gate-label" x="20.40" y="21.32"><tspan x="20.40" dy="0">T02: 使用者直接</tspan><tspan x="20.40" dy="0.68">點 /session/:id 或 s</tspan><tspan x="20.40" dy="0.68">idebar 新對話建成</tspan></text>
+<line class="gate" x1="29.03" y1="22.00" x2="31.03" y2="22.00"/>
+<text class="gate-label-left" x="28.63" y="20.64"><tspan x="28.63" dy="0">T03: URL=&#x27;/&#x27; AND (last</tspan><tspan x="28.63" dy="0.68">Session 不存在 OR f</tspan><tspan x="28.63" dy="0.68">lag=0 對應舊邏輯)</tspan></text>
+<line class="gate" x1="14.00" y1="22.00" x2="16.00" y2="22.00"/>
+<text class="gate-label-left" x="13.60" y="22.00"><tspan x="13.60" dy="0">T10: meta.partCount ≤ threshold AND meta.total位元組 ≤ threshold</tspan></text>
+<line class="gate" x1="33.03" y1="22.00" x2="35.03" y2="22.00"/>
+<text class="gate-label" x="35.43" y="22.00"><tspan x="35.43" dy="0">T11: meta 超門檻 OR meta 呼叫失敗 (R1.S2, R1.S3)</tspan></text>
+<line class="gate" x1="18.00" y1="70.00" x2="20.00" y2="70.00"/>
+<text class="gate-label" x="20.40" y="70.00"><tspan x="20.40" dy="0">T80: 使用者離開頁面</tspan></text>
+<line class="gate" x1="14.00" y1="70.00" x2="16.00" y2="70.00"/>
+<text class="gate-label-left" x="13.60" y="70.00"><tspan x="13.60" dy="0">T81: 使用者離開頁面</tspan></text>
+<line class="gate" x1="14.00" y1="81.00" x2="16.00" y2="81.00"/>
+<text class="gate-label-left" x="13.60" y="81.00"><tspan x="13.60" dy="0">T70: loadMore 完成且仍有更舊可載</tspan></text>
+<line class="gate" x1="44.06" y1="81.00" x2="46.06" y2="81.00"/>
+<text class="gate-label" x="46.46" y="81.00"><tspan x="46.46" dy="0">T71: loadMore 完成且 meta.complete=true</tspan></text>
+<circle class="junction" cx="15.00" cy="46.00" r="0.22"/>
+<circle class="junction" cx="15.00" cy="56.00" r="0.22"/>
+<circle class="junction" cx="15.00" cy="20.00" r="0.22"/>
+<circle class="junction" cx="29.03" cy="66.00" r="0.22"/>
+<circle class="junction" cx="29.03" cy="56.00" r="0.22"/>
+<circle class="junction" cx="15.00" cy="63.38" r="0.22"/>
+<circle class="junction" cx="15.00" cy="68.00" r="0.22"/>
+<circle class="junction" cx="1.00" cy="64.00" r="0.22"/>
+<circle class="junction" cx="15.00" cy="69.00" r="0.22"/>
+<circle class="branch-junction" cx="15.00" cy="9.00" r="0.28"/>
+<circle class="branch-junction" cx="15.00" cy="18.00" r="0.28"/>
+<circle class="branch-junction" cx="15.00" cy="53.00" r="0.28"/>
+<circle class="branch-junction" cx="15.00" cy="64.00" r="0.28"/>
+</svg>

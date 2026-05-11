@@ -1,32 +1,38 @@
-<svg width="481" height="492" viewBox="300.0 -26.0 481.2 492.0" xmlns="http://www.w3.org/2000/svg">
-<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker></defs>
-<rect x="300.0" y="-26.0" width="481.2" height="492.0" fill="white" />
-<rect x="380.0" y="80.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<rect x="385.0" y="85.0" width="30.0" height="30.0" stroke="black" stroke-width="1" fill="none" />
-<text x="400" y="105.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">0</text>
-<line x1="420.0" y1="100.0" x2="460.0" y2="100.0" stroke="black" />
-<rect x="460.0" y="54.0" width="241.2" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="580.6" y="80.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Draft supported</text>
-<text x="580.6" y="104.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Provider 註冊</text>
-<text x="580.6" y="127.99999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">表 contract</text>
-<line x1="400" y1="120.0" x2="400" y2="200.0" stroke="black" />
-<line x1="380" y1="160.0" x2="420" y2="160.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="164.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">planningstarted</text>
-<rect x="380.0" y="200.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="225.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">1</text>
-<line x1="420.0" y1="220.0" x2="460.0" y2="220.0" stroke="black" />
-<rect x="460.0" y="174.0" width="241.2" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="580.6" y="200.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Refactor 後端</text>
-<text x="580.6" y="224.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Provider universe</text>
-<text x="580.6" y="248.00000000000003" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">到 start 來自 註冊表</text>
-<line x1="400" y1="240.0" x2="400" y2="320.0" stroke="black" />
-<line x1="380" y1="280.0" x2="420" y2="280.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="284.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">註冊表approved</text>
-<rect x="380.0" y="320.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="345.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">2</text>
-<line x1="420.0" y1="340.0" x2="460.0" y2="340.0" stroke="black" />
-<rect x="460.0" y="294.0" width="241.2" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="580.6" y="320.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Align Provider consumers</text>
-<text x="580.6" y="344.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">與 validate unsupported</text>
-<text x="580.6" y="368.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Provider remain hidden</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="386" height="500" viewBox="14.00 0.00 19.30 25.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="14.00" y="0.00" width="19.30" height="25.00" fill="white"/>
+<path class="edge" d="M 20.00 7.00 L 20.00 9.00"/>
+<path class="edge edge-arrow" d="M 20.00 9.00 L 20.00 11.00"/>
+<path class="edge" d="M 20.00 14.00 L 20.00 16.00"/>
+<path class="edge edge-arrow" d="M 20.00 16.00 L 20.00 18.00"/>
+<rect class="step" x="18.00" y="4.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<rect class="step-inner" x="18.25" y="4.25" width="3.50" height="2.50" rx="0.22" ry="0.22"/>
+<text class="label" x="20.00" y="5.50">0</text>
+<rect class="step" x="18.00" y="11.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.00" y="12.50">1</text>
+<rect class="step" x="18.00" y="18.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.00" y="19.50">2</text>
+<line class="assoc" x1="22.00" y1="5.50" x2="23.00" y2="5.50"/>
+<rect class="action" x="23.00" y="4.07" width="6.30" height="2.86"/>
+<text class="action-label" x="26.15" y="5.09"><tspan x="26.15" dy="0">Draft supported Provi</tspan><tspan x="26.15" dy="0.82">der 註冊表 contract</tspan></text>
+<line class="assoc" x1="22.00" y1="12.50" x2="23.00" y2="12.50"/>
+<rect class="action" x="23.00" y="11.07" width="6.30" height="2.86"/>
+<text class="action-label" x="26.15" y="11.68"><tspan x="26.15" dy="0">Refactor 後端 Pro</tspan><tspan x="26.15" dy="0.82">vider universe 到 st</tspan><tspan x="26.15" dy="0.82">art 來自 註冊表</tspan></text>
+<line class="assoc" x1="22.00" y1="19.50" x2="23.00" y2="19.50"/>
+<rect class="action" x="23.00" y="18.07" width="6.30" height="2.86"/>
+<text class="action-label" x="26.15" y="18.68"><tspan x="26.15" dy="0">Align Provider consumer</tspan><tspan x="26.15" dy="0.82">s 與 validate unsupporte</tspan><tspan x="26.15" dy="0.82">d Provider remain hidden</tspan></text>
+<line class="gate" x1="19.00" y1="9.00" x2="21.00" y2="9.00"/>
+<text class="gate-label" x="21.40" y="9.00"><tspan x="21.40" dy="0">planningstarted</tspan></text>
+<line class="gate" x1="19.00" y1="16.00" x2="21.00" y2="16.00"/>
+<text class="gate-label" x="21.40" y="16.00"><tspan x="21.40" dy="0">註冊表approved</tspan></text>
 </svg>

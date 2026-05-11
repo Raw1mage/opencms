@@ -1,0 +1,179 @@
+[
+  {
+    "id": "TV-1",
+    "scenario": "orphan reclaim \u2014 orphan present, age 7s",
+    "given": {
+      "session": "ses_test_1",
+      "lastMessage": {
+        "role": "assistant",
+        "id": "msg_orphan_A",
+        "time": {
+          "created": "now-7000"
+        },
+        "providerId": "codex",
+        "modelID": "gpt-5.4",
+        "accountId": "acct_x"
+      }
+    },
+    "when": "persistUserMessage({ info: newUserMsg @ now, parts:[], sessionID:'ses_test_1' })",
+    "then": {
+      "updateMessageCall": {
+        "id": "msg_orphan_A",
+        "fields": {
+          "time.completed": "now",
+          "finish": "error",
+          "error.name": "NamedError.Unknown",
+          "error.data.message": "abandoned_orphan_round"
+        }
+      },
+      "runtimeEvent": {
+        "eventType": "session.orphan_assistant_reclaimed",
+        "domain": "workflow",
+        "payload": {
+          "sessionID": "ses_test_1",
+          "reclaimedMessageID": "msg_orphan_A",
+          "ageMs": 7000,
+          "providerId": "codex",
+          "modelID": "gpt-5.4",
+          "accountId": "acct_x"
+        }
+      }
+    }
+  },
+  {
+    "id": "TV-2",
+    "scenario": "orphan reclaim \u2014 orphan present but fresh (age 2s)",
+    "given": {
+      "session": "ses_test_2",
+      "lastMessage": {
+        "role": "assistant",
+        "id": "msg_fresh",
+        "time": {
+          "created": "now-2000"
+        }
+      }
+    },
+    "when": "persistUserMessage(...)",
+    "then": {
+      "updateMessageCall": null,
+      "runtimeEvent": null
+    }
+  },
+  {
+    "id": "TV-3",
+    "scenario": "orphan reclaim \u2014 last assistant already completed",
+    "given": {
+      "session": "ses_test_3",
+      "lastMessage": {
+        "role": "assistant",
+        "id": "msg_done",
+        "time": {
+          "created": "now-7000",
+          "completed": "now-6500"
+        },
+        "finish": "stop"
+      }
+    },
+    "when": "persistUserMessage(...)",
+    "then": {
+      "updateMessageCall": null,
+      "runtimeEvent": null
+    }
+  },
+  {
+    "id": "TV-4",
+    "scenario": "orphan reclaim \u2014 last message is user (no orphan candidate)",
+    "given": {
+      "session": "ses_test_4",
+      "lastMessage": {
+        "role": "user",
+        "id": "msg_prev_user"
+      }
+    },
+    "when": "persistUserMessage(...)",
+    "then": {
+      "updateMessageCall": null,
+      "runtimeEvent": null
+    }
+  },
+  {
+    "id": "TV-5",
+    "scenario": "rebind unexpected reset \u2014 second daemon_start with everBumped retained",
+    "given": {
+      "everBumped": [
+        "ses_test_5"
+      ],
+      "registry": {}
+    },
+    "when": "RebindEpoch.bumpEpoch({ sessionID:'ses_test_5', trigger:'daemon_start', reason:'first runLoop iteration after daemon start' })",
+    "then": {
+      "runtimeEvents": [
+        {
+          "eventType": "session.rebind_epoch_unexpected_reset",
+          "domain": "anomaly",
+          "anomalyFlags": [
+            "rebind_epoch_reset"
+          ],
+          "payload": {
+            "trigger": "daemon_start",
+            "sessionEntryMissing": true,
+            "everBumpedSize": 1
+          }
+        },
+        {
+          "eventType": "session.rebind",
+          "domain": "workflow",
+          "payload": {
+            "previousEpoch": 0,
+            "currentEpoch": 1
+          }
+        }
+      ],
+      "outcome": {
+        "status": "bumped",
+        "previousEpoch": 0,
+        "currentEpoch": 1
+      }
+    }
+  },
+  {
+    "id": "TV-6",
+    "scenario": "rebind normal first bump \u2014 no anomaly",
+    "given": {
+      "everBumped": [],
+      "registry": {}
+    },
+    "when": "RebindEpoch.bumpEpoch({ sessionID:'ses_test_6', trigger:'daemon_start' })",
+    "then": {
+      "runtimeEvents": [
+        {
+          "eventType": "session.rebind",
+          "domain": "workflow"
+        }
+      ],
+      "anomalyEmitted": false,
+      "everBumpedAfter": [
+        "ses_test_6"
+      ]
+    }
+  },
+  {
+    "id": "TV-7",
+    "scenario": "clearSession removes from both registry and everBumped",
+    "given": {
+      "everBumped": [
+        "ses_test_7"
+      ],
+      "registry": {
+        "ses_test_7": {
+          "epoch": 1
+        }
+      }
+    },
+    "when": "RebindEpoch.clearSession('ses_test_7')",
+    "then": {
+      "everBumpedAfter": [],
+      "registryAfter": {}
+    }
+  }
+]

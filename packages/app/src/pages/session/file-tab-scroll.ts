@@ -71,10 +71,18 @@ export const scrollTabIntoView = (input: { el: HTMLDivElement; activeTab: string
   const trigger = input.el.querySelector<HTMLElement>(`[data-key="${CSS.escape(input.activeTab)}"]`)
   if (!trigger) return
 
+  // Compute the tab's position relative to the scrollable strip via bounding
+  // rects — `offsetLeft` is relative to the nearest positioned ancestor,
+  // which (because SortableTab wraps each trigger in `<div class="relative">`)
+  // is the tab's own wrapper, not the strip. Using offsetLeft would always
+  // report ~0 and yank the strip back to the start whenever an off-screen
+  // tab activates.
+  const containerRect = input.el.getBoundingClientRect()
+  const triggerRect = trigger.getBoundingClientRect()
+  const tabLeft = input.el.scrollLeft + (triggerRect.left - containerRect.left)
+  const tabRight = tabLeft + triggerRect.width
   const containerLeft = input.el.scrollLeft
   const containerRight = containerLeft + input.el.clientWidth
-  const tabLeft = trigger.offsetLeft
-  const tabRight = tabLeft + trigger.offsetWidth
 
   if (tabLeft < containerLeft) {
     input.el.scrollTo({ left: tabLeft, behavior: "smooth" })

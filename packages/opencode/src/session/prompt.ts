@@ -1612,6 +1612,12 @@ export namespace SessionPrompt {
           }
         }
 
+        // Signature must reflect the *whole* tool input, not a prefix.
+        // Earlier versions sliced to 200 chars, which collapsed bash calls
+        // that share a long boilerplate prefix (e.g. `command -v python3 …
+        // PYTHONDONTWRITEBYTECODE=1 python3 - <<'PY' …`) into a single
+        // signature even when their heredoc bodies were entirely different.
+        // Hash the full JSON instead so genuinely distinct calls hash apart.
         const sigOf = (m: MessageV2.WithParts): string => {
           const tools = m.parts.filter((p) => p.type === "tool")
           return tools
@@ -1619,7 +1625,8 @@ export namespace SessionPrompt {
               const tp = p as MessageV2.ToolPart
               const input = (tp.state as { input?: unknown })?.input
               const inputStr = input ? JSON.stringify(input) : ""
-              return `${tp.tool}:${inputStr.slice(0, 200)}`
+              const inputHash = inputStr ? Bun.hash.xxHash64(inputStr).toString(16) : ""
+              return `${tp.tool}:${inputHash}`
             })
             .join("|")
         }

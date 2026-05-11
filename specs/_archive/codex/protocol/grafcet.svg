@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1335" height="2040" viewBox="-4.00 -2.00 66.75 102.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="-4.00" y="-2.00" width="66.75" height="102.00" fill="white"/>
+<path class="edge edge-arrow" d="M 27.25 30.00 L 27.25 34.00"/>
+<path class="edge" d="M 27.25 7.00 L 27.25 9.00"/>
+<path class="edge edge-arrow" d="M 27.25 9.00 L 27.25 11.00"/>
+<path class="edge" d="M 27.25 14.00 L 27.25 16.00"/>
+<path class="edge edge-arrow" d="M 27.25 16.00 L 27.25 18.00"/>
+<path class="edge" d="M 27.25 21.00 L 27.25 23.00"/>
+<path class="edge edge-arrow" d="M 27.25 23.00 L 27.25 25.00"/>
+<path class="edge" d="M 27.25 28.00 L 27.25 30.00"/>
+<path class="edge" d="M 27.25 37.00 L 27.25 39.00"/>
+<path class="edge edge-arrow" d="M 27.25 39.00 L 27.25 41.00"/>
+<path class="edge" d="M 27.25 44.00 L 27.25 46.00"/>
+<path class="edge" d="M 27.25 46.00 L 27.25 48.00"/>
+<path class="edge edge-arrow" d="M 27.25 48.00 L 27.25 50.00"/>
+<path class="edge" d="M 27.25 53.00 L 27.25 56.50 Q 27.25 57.00 27.75 57.00 L 31.20 57.00 Q 31.70 57.00 31.70 57.50 L 31.70 64.50 Q 31.70 65.00 31.20 65.00 L 27.75 65.00 Q 27.25 65.00 27.25 65.50 L 27.25 69.00"/>
+<path class="edge" d="M 27.25 69.00 L 43.50 69.00"/>
+<path class="edge" d="M 27.25 65.00 L 27.25 59.00"/>
+<path class="edge" d="M 31.70 69.00 L 31.70 69.62"/>
+<path class="edge" d="M 31.70 69.62 L 27.25 69.62"/>
+<path class="edge" d="M 27.25 69.62 L 27.25 71.00"/>
+<path class="edge edge-arrow" d="M 27.25 74.00 L 27.25 76.00"/>
+<path class="edge edge-arrow" d="M 10.00 76.00 L 10.00 77.50 Q 10.00 78.00 9.50 78.00 L 4.50 78.00 Q 4.00 78.00 4.00 77.50 L 4.00 2.50 Q 4.00 2.00 4.50 2.00 L 26.75 2.00 Q 27.25 2.00 27.25 2.50 L 27.25 4.00"/>
+<path class="edge edge-arrow" d="M 44.50 76.00 L 44.50 82.00"/>
+<path class="edge" d="M 44.50 85.00 L 44.50 87.00"/>
+<path class="edge edge-arrow" d="M 44.50 87.00 L 44.50 89.00"/>
+<path class="edge" d="M 44.50 92.00 L 44.50 94.00"/>
+<path class="edge" d="M 44.50 94.00 L 44.50 96.00"/>
+<path class="edge" d="M 44.50 96.00 L 4.00 96.00"/>
+<path class="edge" d="M 4.00 96.00 L 4.00 78.00"/>
+<path class="edge edge-arrow" d="M 27.25 46.00 L 43.00 46.00 Q 43.50 46.00 43.50 46.50 L 43.50 75.12 Q 43.50 75.62 43.00 75.62 L 23.75 75.62 Q 23.25 75.62 23.25 75.12 L 23.25 63.00"/>
+<path class="edge edge-arrow" d="M 10.00 63.00 L 10.00 71.00"/>
+<path class="edge" d="M 27.25 69.00 L 27.25 69.62"/>
+<path class="edge" d="M 27.25 71.00 L 27.25 74.00"/>
+<path class="edge" d="M 27.25 74.38 L 43.50 74.38"/>
+<path class="edge" d="M 43.50 75.62 L 43.50 80.00"/>
+<path class="edge" d="M 43.50 80.00 L 27.25 80.00"/>
+<path class="edge" d="M 27.25 80.00 L 27.25 76.00"/>
+<path class="edge edge-arrow" d="M 10.00 63.00 L 10.00 55.00"/>
+<path class="edge" d="M 10.00 74.00 L 10.00 71.00"/>
+<path class="edge" d="M 9.00 55.00 L 9.00 67.00"/>
+<path class="edge" d="M 9.00 67.00 L 0.00 67.00"/>
+<path class="edge" d="M 0.00 67.00 L 0.00 32.00"/>
+<path class="edge" d="M 0.00 32.00 L 27.25 32.00"/>
+<path class="edge" d="M 9.00 67.00 L 9.00 78.00"/>
+<rect class="step" x="25.25" y="4.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<rect class="step-inner" x="25.50" y="4.25" width="3.50" height="2.50" rx="0.22" ry="0.22"/>
+<text class="label" x="27.25" y="5.50">S0</text>
+<rect class="step" x="25.25" y="11.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="27.25" y="12.50">S1</text>
+<rect class="step" x="25.25" y="18.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="27.25" y="19.50">S2</text>
+<rect class="step" x="25.25" y="25.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="27.25" y="26.50">S3</text>
+<rect class="step" x="25.25" y="34.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="27.25" y="35.50">S4</text>
+<rect class="step" x="25.25" y="41.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="27.25" y="42.50">S5</text>
+<rect class="step" x="25.25" y="50.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="27.25" y="51.50">S6</text>
+<rect class="step" x="25.25" y="71.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="27.25" y="72.50">S7</text>
+<rect class="step" x="42.50" y="82.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="44.50" y="83.50">S8</text>
+<rect class="step" x="42.50" y="89.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="44.50" y="90.50">S9</text>
+<rect class="step" x="8.00" y="71.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="10.00" y="72.50">S10</text>
+<line class="assoc" x1="29.25" y1="5.50" x2="30.25" y2="5.50"/>
+<rect class="action" x="30.25" y="4.07" width="11.25" height="2.86"/>
+<text class="action-label" x="35.88" y="5.09"><tspan x="35.88" dy="0">Session awaiting 使用者 輸入. WS ma</tspan><tspan x="35.88" dy="0.82">y 是 connected (warm) 或 disconnected.</tspan></text>
+<line class="assoc" x1="29.25" y1="12.50" x2="30.25" y2="12.50"/>
+<rect class="action" x="30.25" y="11.07" width="11.25" height="2.86"/>
+<text class="action-label" x="35.88" y="12.09"><tspan x="35.88" dy="0">OAuth token valid, originator</tspan><tspan x="35.88" dy="0.82">set, installationid available.</tspan></text>
+<line class="assoc" x1="29.25" y1="19.50" x2="30.25" y2="19.50"/>
+<rect class="action" x="30.25" y="18.07" width="11.25" height="2.86"/>
+<text class="action-label" x="35.88" y="18.68"><tspan x="35.88" dy="0">responsesapi請求 body assembled: inst</tspan><tspan x="35.88" dy="0.82">ructions, 輸入, tools, reasoning, 文字</tspan><tspan x="35.88" dy="0.82">, clientmetadata, 上下文management.</tspan></text>
+<line class="assoc" x1="29.25" y1="26.50" x2="30.25" y2="26.50"/>
+<rect class="action" x="30.25" y="25.07" width="11.25" height="2.86"/>
+<text class="action-label" x="35.88" y="25.68"><tspan x="35.88" dy="0">Incremental 輸入 delta calculated against p</tspan><tspan x="35.88" dy="0.82">revious 請求. If WS Session invalid 或 請</tspan><tspan x="35.88" dy="0.82">求 shape changed, falls 回到 到 full 輸入.</tspan></text>
+<line class="assoc" x1="29.25" y1="35.50" x2="30.25" y2="35.50"/>
+<rect class="action" x="30.25" y="34.07" width="11.25" height="2.86"/>
+<text class="action-label" x="35.88" y="34.68"><tspan x="35.88" dy="0">Transport chosen: WS (primary), HTTP SS</tspan><tspan x="35.88" dy="0.82">E (fallback), 或 WebRTC (realtime). Head</tspan><tspan x="35.88" dy="0.82">ers attached including x-codex-window-id.</tspan></text>
+<line class="assoc" x1="29.25" y1="42.50" x2="30.25" y2="42.50"/>
+<rect class="action" x="30.25" y="41.07" width="11.25" height="2.86"/>
+<text class="action-label" x="35.88" y="42.09"><tspan x="35.88" dy="0">請求 sent 在 selected transpo</tspan><tspan x="35.88" dy="0.82">rt. Awaiting first 回應 frame.</tspan></text>
+<line class="assoc" x1="29.25" y1="51.50" x2="30.25" y2="51.50"/>
+<rect class="action" x="30.25" y="50.07" width="11.25" height="2.86"/>
+<text class="action-label" x="35.88" y="50.68"><tspan x="35.88" dy="0">回應 事件 streaming: 文字</tspan><tspan x="35.88" dy="0.82">deltas, 工具 calls, reasoning it</tspan><tspan x="35.88" dy="0.82">ems. Token usage accumulating.</tspan></text>
+<line class="assoc" x1="29.25" y1="72.50" x2="30.25" y2="72.50"/>
+<rect class="action" x="30.25" y="71.07" width="11.25" height="2.86"/>
+<text class="action-label" x="35.88" y="72.09"><tspan x="35.88" dy="0">回應 串流 ended. Final token usage</tspan><tspan x="35.88" dy="0.82">known. 回應id captured 供 延續.</tspan></text>
+<line class="assoc" x1="46.50" y1="83.50" x2="47.50" y2="83.50"/>
+<rect class="action" x="47.50" y="82.07" width="11.25" height="2.86"/>
+<text class="action-label" x="53.12" y="83.09"><tspan x="53.12" dy="0">Token usage exceeds compactthreshol</tspan><tspan x="53.12" dy="0.82">d. 壓縮 initiated (remote 或 inline).</tspan></text>
+<line class="assoc" x1="46.50" y1="90.50" x2="47.50" y2="90.50"/>
+<rect class="action" x="47.50" y="89.07" width="11.25" height="2.86"/>
+<text class="action-label" x="53.12" y="89.68"><tspan x="53.12" dy="0">History replaced 使用 compac</tspan><tspan x="53.12" dy="0.82">ted summary. WS Session rese</tspan><tspan x="53.12" dy="0.82">t. Window generation advanced.</tspan></text>
+<line class="assoc" x1="12.00" y1="72.50" x2="13.00" y2="72.50"/>
+<rect class="action" x="13.00" y="71.07" width="11.25" height="2.86"/>
+<text class="action-label" x="18.62" y="71.68"><tspan x="18.62" dy="0">Transport 錯誤, 驗證 failure</tspan><tspan x="18.62" dy="0.82">, 或 速率限制. May trigger</tspan><tspan x="18.62" dy="0.82">WS→HTTP fallback 或 重試.</tspan></text>
+<line class="gate" x1="26.25" y1="9.00" x2="28.25" y2="9.00"/>
+<text class="gate-label" x="28.65" y="9.00"><tspan x="28.65" dy="0">User input received ∧ auth token valid</tspan></text>
+<line class="gate" x1="26.25" y1="16.00" x2="28.25" y2="16.00"/>
+<text class="gate-label" x="28.65" y="16.00"><tspan x="28.65" dy="0">Auth resolved</tspan></text>
+<line class="gate" x1="26.25" y1="23.00" x2="28.25" y2="23.00"/>
+<text class="gate-label" x="28.65" y="23.00"><tspan x="28.65" dy="0">Request body ready</tspan></text>
+<line class="gate" x1="26.25" y1="30.00" x2="28.25" y2="30.00"/>
+<text class="gate-label" x="28.65" y="30.00"><tspan x="28.65" dy="0">Delta computed</tspan></text>
+<line class="gate" x1="26.25" y1="39.00" x2="28.25" y2="39.00"/>
+<text class="gate-label" x="28.65" y="39.00"><tspan x="28.65" dy="0">Transport ready</tspan></text>
+<line class="gate" x1="26.25" y1="48.00" x2="28.25" y2="48.00"/>
+<text class="gate-label" x="28.65" y="48.00"><tspan x="28.65" dy="0">First response frame received</tspan></text>
+<line class="gate" x1="26.25" y1="59.00" x2="28.25" y2="59.00"/>
+<text class="gate-label-left" x="25.85" y="59.00"><tspan x="25.85" dy="0">response.completed event received</tspan></text>
+<line class="gate" x1="8.00" y1="76.00" x2="46.50" y2="76.00"/>
+<line class="gate" x1="43.50" y1="87.00" x2="45.50" y2="87.00"/>
+<text class="gate-label" x="45.90" y="87.00"><tspan x="45.90" dy="0">Compaction LLM response received</tspan></text>
+<line class="gate" x1="43.50" y1="94.00" x2="45.50" y2="94.00"/>
+<text class="gate-label" x="45.90" y="94.00"><tspan x="45.90" dy="0">Always</tspan></text>
+<line class="gate" x1="21.25" y1="63.00" x2="29.25" y2="63.00"/>
+<line class="gate" x1="8.00" y1="55.00" x2="29.25" y2="55.00"/>
+<line class="gate" x1="9.00" y1="80.00" x2="11.00" y2="80.00"/>
+<text class="gate-label-left" x="8.60" y="79.32"><tspan x="8.60" dy="0">Token usag</tspan><tspan x="8.60" dy="0.68">e &lt; compac</tspan><tspan x="8.60" dy="0.68">t_threshold</tspan></text>
+<line class="gate" x1="43.50" y1="80.00" x2="45.50" y2="80.00"/>
+<text class="gate-label" x="45.90" y="80.00"><tspan x="45.90" dy="0">Token usage ≥ compact_threshold</tspan></text>
+<line class="gate" x1="22.25" y1="59.00" x2="24.25" y2="59.00"/>
+<text class="gate-label-left" x="17.65" y="58.32"><tspan x="17.65" dy="0">Connect timeo</tspan><tspan x="17.65" dy="0.68">ut ∨ auth err</tspan><tspan x="17.65" dy="0.68">or ∨ 4xx/5xx</tspan></text>
+<line class="gate" x1="26.25" y1="61.00" x2="28.25" y2="61.00"/>
+<text class="gate-label" x="32.85" y="60.32"><tspan x="32.85" dy="0">Mid-stream stall tim</tspan><tspan x="32.85" dy="0.68">eout ∨ WS close ∨</tspan><tspan x="32.85" dy="0.68">rate_limit_exceeded</tspan></text>
+<line class="gate" x1="8.00" y1="59.00" x2="10.00" y2="59.00"/>
+<text class="gate-label-left" x="7.60" y="58.32"><tspan x="7.60" dy="0">Retryable er</tspan><tspan x="7.60" dy="0.68">ror ∧ retr</tspan><tspan x="7.60" dy="0.68">y budget &gt; 0</tspan></text>
+<line class="gate" x1="8.00" y1="69.00" x2="10.00" y2="69.00"/>
+<text class="gate-label-left" x="3.40" y="68.32"><tspan x="3.40" dy="0">Non-retryable e</tspan><tspan x="3.40" dy="0.68">rror ∨ retry b</tspan><tspan x="3.40" dy="0.68">udget exhausted</tspan></text>
+<circle class="junction" cx="27.25" cy="32.00" r="0.22"/>
+<circle class="junction" cx="27.25" cy="65.00" r="0.22"/>
+<circle class="junction" cx="31.70" cy="69.00" r="0.22"/>
+<circle class="junction" cx="43.50" cy="69.00" r="0.22"/>
+<circle class="junction" cx="27.25" cy="69.62" r="0.22"/>
+<circle class="junction" cx="27.25" cy="74.38" r="0.22"/>
+<circle class="junction" cx="4.00" cy="78.00" r="0.22"/>
+<circle class="junction" cx="9.00" cy="78.00" r="0.22"/>
+<circle class="junction" cx="43.50" cy="74.38" r="0.22"/>
+<circle class="branch-junction" cx="43.50" cy="75.62" r="0.22"/>
+<circle class="branch-junction" cx="9.00" cy="67.00" r="0.22"/>
+<circle class="branch-junction" cx="27.25" cy="46.00" r="0.28"/>
+<circle class="branch-junction" cx="27.25" cy="69.00" r="0.28"/>
+</svg>

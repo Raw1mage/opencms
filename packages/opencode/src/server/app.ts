@@ -58,6 +58,7 @@ import { RequestUser } from "@/runtime/request-user"
 import { LinuxUserExec } from "@/system/linux-user-exec"
 import { UserDaemonManager } from "./user-daemon"
 import { ensureAutonomousSupervisor } from "@/session/workflow-runner"
+import { ensureSessionStorageWatch } from "./session-storage-watch"
 
 // Declare external CORS whitelist (set by server.ts)
 declare global {
@@ -81,6 +82,7 @@ function applyProxyFriendlySSEHeaders(c: { header: (name: string, value: string)
 export function createApp(app: Hono): Hono {
   UserDaemonManager.logRuntimeModeOnce()
   ensureAutonomousSupervisor()
+  ensureSessionStorageWatch()
 
   app.onError((err, c) => {
     log.error("failed", {

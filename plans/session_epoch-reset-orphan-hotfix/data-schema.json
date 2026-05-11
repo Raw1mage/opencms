@@ -1,0 +1,36 @@
+{
+  "title": "Runtime event payload schemas introduced by this hotfix",
+  "description": "No persistent storage schema change. Two new runtime-event types reuse the existing RuntimeEventService journal. MessageV2.Assistant fields used during reclaim already exist.",
+  "events": {
+    "session.orphan_assistant_reclaimed": {
+      "domain": "workflow",
+      "level": "info",
+      "anomalyFlags": [],
+      "payload": {
+        "sessionID": { "type": "string", "required": true, "description": "Session ID of the reclaim site" },
+        "reclaimedMessageID": { "type": "string", "required": true, "description": "MessageV2.id of the orphan that was finalized" },
+        "ageMs": { "type": "number", "required": true, "description": "Date.now() - orphan.time.created at reclaim time" },
+        "providerId": { "type": "string", "required": false, "description": "Mirrored from orphan.providerId" },
+        "modelID": { "type": "string", "required": false, "description": "Mirrored from orphan.modelID" },
+        "accountId": { "type": "string", "required": false, "description": "Mirrored from orphan.accountId" }
+      }
+    },
+    "session.rebind_epoch_unexpected_reset": {
+      "domain": "anomaly",
+      "level": "warn",
+      "anomalyFlags": ["rebind_epoch_reset"],
+      "payload": {
+        "trigger": { "type": "string", "required": true, "description": "BumpEpochInput.trigger that triggered detection (always 'daemon_start' under DD-5 predicate)" },
+        "reason": { "type": "string", "required": false, "description": "BumpEpochInput.reason if provided" },
+        "sessionEntryMissing": { "type": "boolean", "required": true, "description": "true iff registry.get(sid) returned undefined at predicate evaluation time" },
+        "everBumpedSize": { "type": "number", "required": true, "description": "Snapshot of everBumped.size at emission, for population diagnostics" },
+        "processUptimeMs": { "type": "number", "required": false, "description": "performance.now() value as crude process-age signal" }
+      }
+    }
+  },
+  "messageV2Fields": {
+    "Assistant.time.completed": { "type": "number?", "description": "Reclaim sets this to Date.now() when finalizing orphan" },
+    "Assistant.finish": { "type": "string?", "description": "Reclaim sets this to 'error'" },
+    "Assistant.error": { "type": "NamedError.Unknown", "description": "Reclaim sets { name:'NamedError.Unknown', data:{ message:'abandoned_orphan_round' } }" }
+  }
+}

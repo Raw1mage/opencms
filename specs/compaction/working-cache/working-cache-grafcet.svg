@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="882" height="1520" viewBox="-1.50 -2.00 44.08 76.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="-1.50" y="-2.00" width="44.08" height="76.00" fill="white"/>
+<path class="edge" d="M 22.54 7.00 L 22.54 9.00"/>
+<path class="edge edge-arrow" d="M 22.54 9.00 L 22.54 11.00"/>
+<path class="edge edge-arrow" d="M 22.54 14.00 L 22.54 16.00"/>
+<path class="edge edge-arrow" d="M 10.00 16.00 L 10.00 20.00"/>
+<path class="edge edge-arrow" d="M 22.54 16.00 L 22.54 20.00"/>
+<path class="edge edge-arrow" d="M 10.00 23.00 L 10.00 27.00"/>
+<path class="edge edge-arrow" d="M 22.54 27.00 L 22.54 29.00"/>
+<path class="edge edge-arrow" d="M 22.54 23.00 L 22.54 27.00"/>
+<path class="edge" d="M 22.54 32.00 L 22.54 34.00"/>
+<path class="edge" d="M 22.54 34.00 L 22.54 36.00"/>
+<path class="edge edge-arrow" d="M 22.54 36.00 L 22.54 38.00"/>
+<path class="edge edge-arrow" d="M 22.54 34.00 L 32.04 34.00 Q 32.54 34.00 32.54 34.50 L 32.54 61.00"/>
+<path class="edge edge-arrow" d="M 22.54 61.00 L 22.54 63.00"/>
+<path class="edge" d="M 22.54 41.00 L 22.54 43.00"/>
+<path class="edge edge-arrow" d="M 22.54 43.00 L 22.54 45.00"/>
+<path class="edge edge-arrow" d="M 22.54 48.00 L 22.54 50.00"/>
+<path class="edge edge-arrow" d="M 10.00 50.00 L 10.00 54.00"/>
+<path class="edge edge-arrow" d="M 22.54 50.00 L 22.54 54.00"/>
+<path class="edge edge-arrow" d="M 10.00 57.00 L 10.00 61.00"/>
+<path class="edge edge-arrow" d="M 22.54 57.00 L 22.54 61.00"/>
+<path class="edge" d="M 22.54 66.00 L 22.54 68.00"/>
+<path class="edge edge-arrow" d="M 22.54 68.00 L 22.54 69.50 Q 22.54 70.00 22.04 70.00 L 3.00 70.00 Q 2.50 70.00 2.50 69.50 L 2.50 2.50 Q 2.50 2.00 3.00 2.00 L 22.04 2.00 Q 22.54 2.00 22.54 2.50 L 22.54 4.00"/>
+<rect class="step" x="20.54" y="4.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<rect class="step-inner" x="20.79" y="4.25" width="3.50" height="2.50" rx="0.22" ry="0.22"/>
+<text class="label" x="22.54" y="5.50">0</text>
+<rect class="step" x="20.54" y="11.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="22.54" y="12.50">1</text>
+<rect class="step" x="8.00" y="20.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="10.00" y="21.50">2</text>
+<rect class="step" x="20.54" y="20.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="22.54" y="21.50">3</text>
+<rect class="step" x="20.54" y="29.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="22.54" y="30.50">4</text>
+<rect class="step" x="20.54" y="38.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="22.54" y="39.50">5</text>
+<rect class="step" x="20.54" y="45.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="22.54" y="46.50">6</text>
+<rect class="step" x="8.00" y="54.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="10.00" y="55.50">7</text>
+<rect class="step" x="20.54" y="54.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="22.54" y="55.50">8</text>
+<rect class="step" x="20.54" y="63.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="22.54" y="64.50">9</text>
+<line class="assoc" x1="24.54" y1="5.50" x2="25.54" y2="5.50"/>
+<rect class="action" x="25.54" y="4.07" width="6.54" height="2.86"/>
+<text class="action-label" x="28.81" y="4.68"><tspan x="28.81" dy="0">Wait for next tool</tspan><tspan x="28.81" dy="0.82">result to commit t</tspan><tspan x="28.81" dy="0.82">o message storage</tspan></text>
+<line class="assoc" x1="24.54" y1="12.50" x2="25.54" y2="12.50"/>
+<rect class="action" x="25.54" y="11.07" width="6.54" height="2.86"/>
+<text class="action-label" x="28.81" y="11.68"><tspan x="28.81" dy="0">Derive L2 ledger entry</tspan><tspan x="28.81" dy="0.82">pointer and tick explo</tspan><tspan x="28.81" dy="0.82">ration sequence depth</tspan></text>
+<line class="assoc" x1="12.00" y1="21.50" x2="13.00" y2="21.50"/>
+<rect class="action" x="13.00" y="20.07" width="6.54" height="2.86"/>
+<text class="action-label" x="16.27" y="20.68"><tspan x="16.27" dy="0">Inject postscript on mos</tspan><tspan x="16.27" dy="0.82">t recent tool result invit</tspan><tspan x="16.27" dy="0.82">ing cache-digest emission</tspan></text>
+<line class="assoc" x1="24.54" y1="21.50" x2="25.54" y2="21.50"/>
+<rect class="action" x="25.54" y="20.07" width="6.54" height="2.86"/>
+<text class="action-label" x="28.81" y="20.68"><tspan x="28.81" dy="0">Continue without postscri</tspan><tspan x="28.81" dy="0.82">pt when exploration depth</tspan><tspan x="28.81" dy="0.82">has not crossed threshold</tspan></text>
+<line class="assoc" x1="24.54" y1="30.50" x2="25.54" y2="30.50"/>
+<rect class="action" x="25.54" y="29.07" width="6.54" height="2.86"/>
+<text class="action-label" x="28.81" y="29.68"><tspan x="28.81" dy="0">Scan assistant tu</tspan><tspan x="28.81" dy="0.82">rn end for cache-d</tspan><tspan x="28.81" dy="0.82">igest fenced block</tspan></text>
+<line class="assoc" x1="24.54" y1="39.50" x2="25.54" y2="39.50"/>
+<rect class="action" x="25.54" y="38.07" width="6.54" height="2.86"/>
+<text class="action-label" x="28.81" y="38.68"><tspan x="28.81" dy="0">Parse fenced block</tspan><tspan x="28.81" dy="0.82">contents into cand</tspan><tspan x="28.81" dy="0.82">idate Entry payload</tspan></text>
+<line class="assoc" x1="24.54" y1="46.50" x2="25.54" y2="46.50"/>
+<rect class="action" x="25.54" y="45.07" width="6.54" height="2.86"/>
+<text class="action-label" x="28.81" y="45.68"><tspan x="28.81" dy="0">Validate schema, scope, ev</tspan><tspan x="28.81" dy="0.82">idence freshness, and fres</tspan><tspan x="28.81" dy="0.82">hness signal requirements</tspan></text>
+<line class="assoc" x1="12.00" y1="55.50" x2="13.00" y2="55.50"/>
+<rect class="action" x="13.00" y="54.07" width="6.54" height="2.86"/>
+<text class="action-label" x="16.27" y="54.68"><tspan x="16.27" dy="0">Persist L1 entry via</tspan><tspan x="16.27" dy="0.82">WorkingCache record</tspan><tspan x="16.27" dy="0.82">under session scope</tspan></text>
+<line class="assoc" x1="24.54" y1="55.50" x2="25.54" y2="55.50"/>
+<rect class="action" x="25.54" y="54.07" width="6.54" height="2.86"/>
+<text class="action-label" x="28.81" y="54.68"><tspan x="28.81" dy="0">Reject candidate a</tspan><tspan x="28.81" dy="0.82">nd surface explicit</tspan><tspan x="28.81" dy="0.82">error for next turn</tspan></text>
+<line class="assoc" x1="24.54" y1="64.50" x2="25.54" y2="64.50"/>
+<rect class="action" x="25.54" y="63.07" width="6.54" height="2.86"/>
+<text class="action-label" x="28.81" y="63.68"><tspan x="28.81" dy="0">Cycle complete and</tspan><tspan x="28.81" dy="0.82">return to idle await</tspan><tspan x="28.81" dy="0.82">ing next tool result</tspan></text>
+<line class="gate" x1="21.54" y1="9.00" x2="23.54" y2="9.00"/>
+<text class="gate-label" x="23.94" y="9.00"><tspan x="23.94" dy="0">tool result committed to message storage</tspan></text>
+<line class="gate" x1="8.00" y1="16.00" x2="24.54" y2="16.00"/>
+<line class="gate" x1="8.00" y1="27.00" x2="24.54" y2="27.00"/>
+<line class="gate" x1="21.54" y1="36.00" x2="23.54" y2="36.00"/>
+<text class="gate-label" x="23.94" y="36.00"><tspan x="23.94" dy="0">fenced block detected</tspan></text>
+<line class="gate" x1="6.50" y1="61.00" x2="38.58" y2="61.00"/>
+<line class="gate" x1="21.54" y1="43.00" x2="23.54" y2="43.00"/>
+<text class="gate-label" x="23.94" y="43.00"><tspan x="23.94" dy="0">candidate Entry payload assembled</tspan></text>
+<line class="gate" x1="8.00" y1="50.00" x2="24.54" y2="50.00"/>
+<line class="gate" x1="21.54" y1="68.00" x2="23.54" y2="68.00"/>
+<text class="gate-label" x="23.94" y="68.00"><tspan x="23.94" dy="0">session continues</tspan></text>
+<line class="gate" x1="9.00" y1="18.00" x2="11.00" y2="18.00"/>
+<text class="gate-label-left" x="8.60" y="18.00"><tspan x="8.60" dy="0">depth &gt;= threshold</tspan></text>
+<line class="gate" x1="21.54" y1="18.00" x2="23.54" y2="18.00"/>
+<text class="gate-label" x="23.94" y="18.00"><tspan x="23.94" dy="0">depth &lt; threshold</tspan></text>
+<line class="gate" x1="9.00" y1="25.00" x2="11.00" y2="25.00"/>
+<text class="gate-label-left" x="8.60" y="24.32"><tspan x="8.60" dy="0">postscript ap</tspan><tspan x="8.60" dy="0.68">pended to las</tspan><tspan x="8.60" dy="0.68">t tool result</tspan></text>
+<line class="gate" x1="21.54" y1="25.00" x2="23.54" y2="25.00"/>
+<text class="gate-label" x="23.94" y="25.00"><tspan x="23.94" dy="0">depth below threshold confirmed</tspan></text>
+<line class="gate" x1="31.54" y1="59.00" x2="33.54" y2="59.00"/>
+<text class="gate-label" x="33.94" y="59.00"><tspan x="33.94" dy="0">no fenced block emitted</tspan></text>
+<line class="gate" x1="9.00" y1="52.00" x2="11.00" y2="52.00"/>
+<text class="gate-label-left" x="8.60" y="52.00"><tspan x="8.60" dy="0">candidate Entry valid</tspan></text>
+<line class="gate" x1="21.54" y1="52.00" x2="23.54" y2="52.00"/>
+<text class="gate-label" x="23.94" y="52.00"><tspan x="23.94" dy="0">candidate Entry invalid or stale</tspan></text>
+<line class="gate" x1="9.00" y1="59.00" x2="11.00" y2="59.00"/>
+<text class="gate-label-left" x="8.60" y="59.00"><tspan x="8.60" dy="0">entry persisted</tspan></text>
+<line class="gate" x1="21.54" y1="59.00" x2="23.54" y2="59.00"/>
+<text class="gate-label" x="23.94" y="58.32"><tspan x="23.94" dy="0">error surfa</tspan><tspan x="23.94" dy="0.68">ced via debu</tspan><tspan x="23.94" dy="0.68">g checkpoint</tspan></text>
+<circle class="branch-junction" cx="22.54" cy="34.00" r="0.28"/>
+</svg>

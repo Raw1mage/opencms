@@ -193,7 +193,7 @@
         "tools": [
           {
             "name": "generate_diagram",
-            "description": "Generate SVG diagram(s) from IDEF0 or Grafcet JSON. Accepts diagram_type (grafcet|idef0), json_payload (string), and optional output_dir. Returns inline SVG + saved paths + diagnostics."
+            "description": "Generate SVG diagram(s) from IDEF0 or Grafcet JSON. Accepts diagram_type (grafcet|idef0), json_payload (string), and optional output_dir. Returns inline SVG + saved paths + diagnostics. For Grafcet debug overlays, the underlying drawmiat L5 diagnostic renderer supports debug_gaps / --debug-gaps to emit a separate debug SVG with gap overlays."
           },
           {
             "name": "validate_diagram",
@@ -263,7 +263,8 @@
         "fallback": ["miatdiagram skill for JSON generation, then drawmiat MCP for SVG rendering"],
         "notes": [
           "Use miatdiagram skill for text-to-JSON conversion, then drawmiat MCP for JSON-to-SVG rendering.",
-          "drawmiat supports hierarchical IDEF0 decomposition (multiple SVGs) and Grafcet sub-grafcets."
+          "drawmiat supports hierarchical IDEF0 decomposition (multiple SVGs) and Grafcet sub-grafcets.",
+          "When the request is to inspect Grafcet routing/layout problems, prefer the drawmiat L5 diagnostic renderer's debug_gaps / --debug-gaps mode so the output includes gap overlays in a separate debug SVG."
         ]
       },
       {

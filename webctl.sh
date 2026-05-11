@@ -1931,19 +1931,26 @@ do_logs() {
 # ---------------------------------------------------------------------------
 _frontend_source_fingerprint() {
     # Content-based fingerprint of the source tree that feeds the frontend
-    # build. mtime was unreliable because dist mtime is set on every build,
-    # even when earlier runs already produced a newer dist from stale
-    # content. Using git tree hashes + dirty-file list catches both
-    # committed and uncommitted changes.
+    # build. Combines:
+    #   1. HEAD tree hashes (committed state)
+    #   2. Full diff content vs HEAD (catches edits to tracked files)
+    #   3. Concatenated contents of untracked files (catches new files)
+    # Previously this hashed only file *names* of dirty/untracked files, so
+    # successive edits to the same file produced identical fingerprints and
+    # the build was wrongly skipped.
     cd "${PROJECT_ROOT}"
-    local parts=""
-    for dir in packages/app packages/ui packages/theme; do
-        [ -d "${dir}" ] || continue
-        parts="${parts}$(git rev-parse HEAD:"${dir}" 2>/dev/null || echo dirty)"
-    done
-    parts="${parts}$(git diff --name-only HEAD -- packages/app packages/ui packages/theme 2>/dev/null)"
-    parts="${parts}$(git ls-files --others --exclude-standard -- packages/app packages/ui packages/theme 2>/dev/null)"
-    echo "${parts}" | sha256sum | cut -d' ' -f1
+    local dirs="packages/app packages/ui packages/theme"
+    {
+        for dir in ${dirs}; do
+            [ -d "${dir}" ] || continue
+            git rev-parse "HEAD:${dir}" 2>/dev/null || echo dirty
+        done
+        git diff HEAD -- ${dirs} 2>/dev/null
+        git ls-files --others --exclude-standard -- ${dirs} 2>/dev/null \
+            | while IFS= read -r f; do
+                [ -f "${f}" ] && printf '%s\n' "${f}" && cat -- "${f}" 2>/dev/null
+            done
+    } | sha256sum | cut -d' ' -f1
 }
 
 FRONTEND_BUILD_STAMP_FILE="${PROJECT_ROOT}/packages/app/dist/.source-stamp"

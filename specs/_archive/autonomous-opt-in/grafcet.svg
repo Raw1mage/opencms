@@ -1,106 +1,89 @@
-<svg width="2995" height="790" viewBox="-1188.5 -50.0 2994.7 790.0" xmlns="http://www.w3.org/2000/svg">
-<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker></defs>
-<rect x="-1188.5" y="-50.0" width="2994.7" height="790.0" fill="white" />
-<rect x="380.0" y="80.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<rect x="385.0" y="85.0" width="30.0" height="30.0" stroke="black" stroke-width="1" fill="none" />
-<text x="400" y="105.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">0</text>
-<line x1="420.0" y1="100.0" x2="460.0" y2="100.0" stroke="black" />
-<rect x="459.99999999999994" y="54.0" width="315.4" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="617.6999999999999" y="92.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Session 閒置; runloop does</text>
-<text x="617.6999999999999" y="116.00000000000001" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">不 pump 自主 continuations</text>
-<line x1="400" y1="120.0" x2="400" y2="200.0" stroke="black" />
-<line x1="380" y1="160.0" x2="420" y2="160.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="164.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">啟用signal已收到 AND bindingvalid AND 狀態 IN {planned, implementing} AND has可執行待辦</text>
-<rect x="380.0" y="200.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="225.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">1</text>
-<line x1="420.0" y1="220.0" x2="460.0" y2="220.0" stroke="black" />
-<rect x="459.99999999999994" y="174.0" width="315.4" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="617.6999999999999" y="200.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Autorun 已啟用; runloop</text>
-<text x="617.6999999999999" y="224.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">pumps 延續 when todolist</text>
-<text x="617.6999999999999" y="248.00000000000003" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">has 可執行 items</text>
-<line x1="400" y1="240.0" x2="400" y2="280.0" stroke="black" />
-<line x1="-590.8" y1="280.0" x2="1390.7999999999997" y2="280.0" stroke="black" stroke-width="1.5" />
-<line x1="-550.8" y1="280.0" x2="-550.8" y2="320.0" stroke="black" />
-<line x1="-570.8" y1="320.0" x2="-530.8" y2="320.0" stroke="black" stroke-width="2" />
-<text x="-574.8" y="304.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">todolistdrained</text>
-<text x="-574.8" y="324.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">AND 規劃has下</text>
-<text x="-574.8" y="344.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">一個phase</text>
-<line x1="-550.8" y1="320.0" x2="-550.8" y2="360.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="400.0" y1="280.0" x2="400.0" y2="320.0" stroke="black" />
-<line x1="380.0" y1="320.0" x2="420.0" y2="320.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="304.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">使用者speaks OR</text>
-<text x="424.0" y="324.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">blockerfires</text>
-<text x="424.0" y="344.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">OR abortsignal</text>
-<line x1="400.0" y1="320.0" x2="400.0" y2="360.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="1350.7999999999997" y1="280.0" x2="1350.7999999999997" y2="320.0" stroke="black" />
-<line x1="1330.7999999999997" y1="320.0" x2="1370.7999999999997" y2="320.0" stroke="black" stroke-width="2" />
-<text x="1374.8" y="314.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">規劃</text>
-<text x="1374.8" y="334.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">editduringimplementing</text>
-<line x1="1350.7999999999997" y1="320.0" x2="1350.7999999999997" y2="360.0" stroke="black" marker-end="url(#arrow)" />
-<rect x="-570.8" y="360.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-550.8" y="385.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">2</text>
-<line x1="-530.8" y1="380.0" x2="-490.79999999999995" y2="380.0" stroke="black" />
-<rect x="-490.8" y="334.0" width="315.4" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="-333.1" y="360.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Refill 待辦write 來自</text>
-<text x="-333.1" y="384.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">tasks.md 下一個 phase;</text>
-<text x="-333.1" y="408.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">記錄 autorun.refill 事件</text>
-<line x1="-550.8" y1="400.0" x2="-550.8" y2="440.0" stroke="black" />
-<line x1="-828.5" y1="440.0" x2="-273.09999999999997" y2="440.0" stroke="black" stroke-width="1.5" />
-<line x1="-788.5" y1="440.0" x2="-788.5" y2="480.0" stroke="black" />
-<line x1="-808.5" y1="480.0" x2="-768.5" y2="480.0" stroke="black" stroke-width="2" />
-<text x="-812.5" y="484.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">refillnonempty</text>
-<line x1="-788.5" y1="480.0" x2="-788.5" y2="520.0" stroke="black" />
-<line x1="-313.09999999999997" y1="440.0" x2="-313.09999999999997" y2="480.0" stroke="black" />
-<line x1="-333.09999999999997" y1="480.0" x2="-293.09999999999997" y2="480.0" stroke="black" stroke-width="2" />
-<text x="-289.09999999999997" y="484.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">refillempty</text>
-<line x1="-313.09999999999997" y1="480.0" x2="-313.09999999999997" y2="520.0" stroke="black" marker-end="url(#arrow)" />
-<rect x="-333.09999999999997" y="520.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-313.09999999999997" y="545.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">5</text>
-<line x1="-293.09999999999997" y1="540.0" x2="-253.09999999999997" y2="540.0" stroke="black" />
-<rect x="-253.09999999999994" y="494.0" width="315.4" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="-95.39999999999995" y="520.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">規劃 fully drained; flip autorun已</text>
-<text x="-95.39999999999995" y="544.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">啟用 到 false; 發出 autorun.已完成</text>
-<text x="-95.39999999999995" y="568.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">; 返回 stop reason 規劃drained</text>
-<line x1="-313.09999999999997" y1="560.0" x2="-313.09999999999997" y2="640.0" stroke="black" />
-<line x1="-333.09999999999997" y1="600.0" x2="-293.09999999999997" y2="600.0" stroke="black" stroke-width="2" />
-<text x="-289.09999999999997" y="604.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">cleanup完成</text>
-<rect x="380.0" y="360.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400.0" y="385.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">3</text>
-<line x1="420.0" y1="380.0" x2="460.0" y2="380.0" stroke="black" />
-<rect x="459.99999999999994" y="334.0" width="315.4" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="617.6999999999999" y="360.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">停用: flip autorun已啟用 到 false;</text>
-<text x="617.6999999999999" y="384.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">記錄 autorun.disarmed 使用</text>
-<text x="617.6999999999999" y="408.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">reason; .state.js在 unchanged</text>
-<line x1="400.0" y1="400.0" x2="400.0" y2="480.0" stroke="black" />
-<line x1="380.0" y1="440.0" x2="420.0" y2="440.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="444.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">停用完成</text>
-<rect x="1330.7999999999997" y="360.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="1350.7999999999997" y="385.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">4</text>
-<line x1="1370.7999999999997" y1="380.0" x2="1410.7999999999997" y2="380.0" stroke="black" />
-<rect x="1410.8" y="334.0" width="315.4" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="1568.5" y="360.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Demote .state.js在 implementing-</text>
-<text x="1568.5" y="384.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">&gt;planned; flip autorun已啟用 到</text>
-<text x="1568.5" y="408.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">false; 記錄 autorun.demoted由edit</text>
-<line x1="1350.7999999999997" y1="400.0" x2="1350.7999999999997" y2="480.0" stroke="black" />
-<line x1="1330.7999999999997" y1="440.0" x2="1370.7999999999997" y2="440.0" stroke="black" stroke-width="2" />
-<text x="1374.8" y="444.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">demotion完成</text>
-<line x1="-788.5" y1="520.0" x2="-788.5" y2="520.0" stroke="black" />
-<line x1="-788.5" y1="520.0" x2="-868.5" y2="520.0" stroke="black" />
-<line x1="-868.5" y1="520.0" x2="-868.5" y2="176.0" stroke="black" />
-<line x1="-868.5" y1="176.0" x2="400" y2="176.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="-313.09999999999997" y1="640.0" x2="-313.09999999999997" y2="660.0" stroke="black" />
-<line x1="-313.09999999999997" y1="660.0" x2="-948.5" y2="660.0" stroke="black" />
-<line x1="-948.5" y1="660.0" x2="-948.5" y2="30.0" stroke="black" />
-<line x1="-948.5" y1="30.0" x2="400" y2="30.0" stroke="black" />
-<line x1="400" y1="30.0" x2="400" y2="70.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="400.0" y1="480.0" x2="400.0" y2="520.0" stroke="black" />
-<line x1="400.0" y1="520.0" x2="-1028.5" y2="520.0" stroke="black" />
-<line x1="-1028.5" y1="520.0" x2="-1028.5" y2="30.0" stroke="black" />
-<line x1="-1028.5" y1="30.0" x2="400" y2="30.0" stroke="black" />
-<line x1="400" y1="30.0" x2="400" y2="70.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="1350.7999999999997" y1="480.0" x2="1350.7999999999997" y2="540.0" stroke="black" />
-<line x1="1350.7999999999997" y1="540.0" x2="-1108.5" y2="540.0" stroke="black" />
-<line x1="-1108.5" y1="540.0" x2="-1108.5" y2="30.0" stroke="black" />
-<line x1="-1108.5" y1="30.0" x2="400" y2="30.0" stroke="black" />
-<line x1="400" y1="30.0" x2="400" y2="70.0" stroke="black" marker-end="url(#arrow)" />
+<svg xmlns="http://www.w3.org/2000/svg" width="1568" height="1000" viewBox="-5.50 -2.00 78.42 50.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="-5.50" y="-2.00" width="78.42" height="50.00" fill="white"/>
+<path class="edge edge-arrow" d="M 25.48 9.00 L 25.48 13.00"/>
+<path class="edge" d="M 25.48 7.00 L 25.48 9.00"/>
+<path class="edge edge-arrow" d="M 25.48 16.00 L 25.48 18.00"/>
+<path class="edge edge-arrow" d="M 40.96 18.00 L 40.96 22.00"/>
+<path class="edge edge-arrow" d="M 10.00 18.00 L 10.00 22.00"/>
+<path class="edge edge-arrow" d="M 25.48 18.00 L 25.48 22.00"/>
+<path class="edge edge-arrow" d="M 40.96 25.00 L 40.96 31.00"/>
+<path class="edge" d="M 25.48 31.00 L 25.48 35.00"/>
+<path class="edge" d="M 25.48 35.00 L 2.50 35.00"/>
+<path class="edge" d="M 2.50 35.00 L 2.50 11.00"/>
+<path class="edge" d="M 2.50 11.00 L 25.48 11.00"/>
+<path class="edge edge-arrow" d="M 56.44 31.00 L 56.44 37.00"/>
+<path class="edge" d="M 10.00 25.00 L 10.00 27.00"/>
+<path class="edge edge-arrow" d="M 10.00 27.00 L 10.00 28.50 Q 10.00 29.00 9.50 29.00 L -1.00 29.00 Q -1.50 29.00 -1.50 28.50 L -1.50 2.50 Q -1.50 2.00 -1.00 2.00 L 24.98 2.00 Q 25.48 2.00 25.48 2.50 L 25.48 4.00"/>
+<path class="edge" d="M 25.48 25.00 L 25.48 27.00"/>
+<path class="edge" d="M 25.48 27.00 L 25.48 29.00"/>
+<path class="edge" d="M 25.48 29.00 L 10.00 29.00"/>
+<path class="edge" d="M 56.44 40.00 L 56.44 42.00"/>
+<path class="edge" d="M 56.44 42.00 L 56.44 44.00"/>
+<path class="edge" d="M 56.44 44.00 L -1.50 44.00"/>
+<path class="edge" d="M -1.50 44.00 L -1.50 29.00"/>
+<rect class="step" x="23.48" y="4.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<rect class="step-inner" x="23.73" y="4.25" width="3.50" height="2.50" rx="0.22" ry="0.22"/>
+<text class="label" x="25.48" y="5.50">0</text>
+<rect class="step" x="23.48" y="13.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="25.48" y="14.50">1</text>
+<rect class="step" x="38.96" y="22.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="40.96" y="23.50">2</text>
+<rect class="step" x="8.00" y="22.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="10.00" y="23.50">3</text>
+<rect class="step" x="23.48" y="22.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="25.48" y="23.50">4</text>
+<rect class="step" x="54.44" y="37.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="56.44" y="38.50">5</text>
+<line class="assoc" x1="27.48" y1="5.50" x2="28.48" y2="5.50"/>
+<rect class="action" x="28.48" y="4.07" width="9.48" height="2.86"/>
+<text class="action-label" x="33.22" y="5.09"><tspan x="33.22" dy="0">Session 閒置; runloop does</tspan><tspan x="33.22" dy="0.82">不 pump 自主 continuations</tspan></text>
+<line class="assoc" x1="27.48" y1="14.50" x2="28.48" y2="14.50"/>
+<rect class="action" x="28.48" y="13.07" width="9.48" height="2.86"/>
+<text class="action-label" x="33.22" y="14.09"><tspan x="33.22" dy="0">Autorun 已啟用; runloop pumps 延</tspan><tspan x="33.22" dy="0.82">續 when todolist has 可執行 items</tspan></text>
+<line class="assoc" x1="42.96" y1="23.50" x2="43.96" y2="23.50"/>
+<rect class="action" x="43.96" y="22.07" width="9.48" height="2.86"/>
+<text class="action-label" x="48.70" y="22.68"><tspan x="48.70" dy="0">Refill 待辦write 來自</tspan><tspan x="48.70" dy="0.82">tasks.md 下一個 phase;</tspan><tspan x="48.70" dy="0.82">記錄 autorun.refill 事件</tspan></text>
+<line class="assoc" x1="12.00" y1="23.50" x2="13.00" y2="23.50"/>
+<rect class="action" x="13.00" y="22.07" width="9.48" height="2.86"/>
+<text class="action-label" x="17.74" y="22.68"><tspan x="17.74" dy="0">停用: flip autorun已啟用 到 f</tspan><tspan x="17.74" dy="0.82">alse; 記錄 autorun.disarmed 使</tspan><tspan x="17.74" dy="0.82">用 reason; .state.js在 unchanged</tspan></text>
+<line class="assoc" x1="27.48" y1="23.50" x2="28.48" y2="23.50"/>
+<rect class="action" x="28.48" y="22.07" width="9.48" height="2.86"/>
+<text class="action-label" x="33.22" y="22.68"><tspan x="33.22" dy="0">Demote .state.js在 implementing-&gt;</tspan><tspan x="33.22" dy="0.82">planned; flip autorun已啟用 到 f</tspan><tspan x="33.22" dy="0.82">alse; 記錄 autorun.demoted由edit</tspan></text>
+<line class="assoc" x1="58.44" y1="38.50" x2="59.44" y2="38.50"/>
+<rect class="action" x="59.44" y="37.07" width="9.48" height="2.86"/>
+<text class="action-label" x="64.18" y="37.68"><tspan x="64.18" dy="0">規劃 fully drained; flip autorun已</tspan><tspan x="64.18" dy="0.82">啟用 到 false; 發出 autorun.已完</tspan><tspan x="64.18" dy="0.82">成; 返回 stop reason 規劃drained</tspan></text>
+<line class="gate" x1="24.48" y1="9.00" x2="26.48" y2="9.00"/>
+<text class="gate-label" x="26.88" y="9.00"><tspan x="26.88" dy="0">啟用signal已收到 AND bindingvalid AND 狀態 IN {planned, implementing} AND has可執行待辦</tspan></text>
+<line class="gate" x1="6.50" y1="18.00" x2="44.46" y2="18.00"/>
+<line class="gate" x1="23.48" y1="31.00" x2="58.44" y2="31.00"/>
+<line class="gate" x1="9.00" y1="27.00" x2="11.00" y2="27.00"/>
+<text class="gate-label" x="11.40" y="27.00"><tspan x="11.40" dy="0">停用完成</tspan></text>
+<line class="gate" x1="24.48" y1="27.00" x2="26.48" y2="27.00"/>
+<text class="gate-label" x="26.88" y="27.00"><tspan x="26.88" dy="0">demotion完成</tspan></text>
+<line class="gate" x1="55.44" y1="42.00" x2="57.44" y2="42.00"/>
+<text class="gate-label" x="57.84" y="42.00"><tspan x="57.84" dy="0">cleanup完成</tspan></text>
+<line class="gate" x1="39.96" y1="20.00" x2="41.96" y2="20.00"/>
+<text class="gate-label" x="42.36" y="20.00"><tspan x="42.36" dy="0">todolistdrained AND 規劃has下一個phase</tspan></text>
+<line class="gate" x1="9.00" y1="20.00" x2="11.00" y2="20.00"/>
+<text class="gate-label-left" x="8.60" y="19.32"><tspan x="8.60" dy="0">使用者speaks</tspan><tspan x="8.60" dy="0.68">OR blockerfires</tspan><tspan x="8.60" dy="0.68">OR abortsignal</tspan></text>
+<line class="gate" x1="24.48" y1="20.00" x2="26.48" y2="20.00"/>
+<text class="gate-label" x="26.88" y="20.00"><tspan x="26.88" dy="0">規劃editduringimplementing</tspan></text>
+<line class="gate" x1="24.48" y1="33.00" x2="26.48" y2="33.00"/>
+<text class="gate-label-left" x="24.08" y="33.00"><tspan x="24.08" dy="0">refillnonempty</tspan></text>
+<line class="gate" x1="55.44" y1="27.00" x2="57.44" y2="27.00"/>
+<text class="gate-label" x="57.84" y="27.00"><tspan x="57.84" dy="0">refillempty</tspan></text>
+<circle class="junction" cx="25.48" cy="11.00" r="0.22"/>
+<circle class="junction" cx="10.00" cy="29.00" r="0.22"/>
+<circle class="junction" cx="-1.50" cy="29.00" r="0.22"/>
 </svg>

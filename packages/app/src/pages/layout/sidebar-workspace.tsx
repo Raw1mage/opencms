@@ -405,7 +405,23 @@ const WorkspaceSessionList = (props: {
 
   return (
     <nav class="flex flex-col gap-1 px-2">
-      <div class="flex items-center justify-end gap-2 px-2 pt-1 pb-2">
+      <div class="flex items-center gap-2 px-2 pt-1 pb-2">
+        <DropdownMenu>
+          <DropdownMenu.Trigger class="shrink-0 inline-flex items-center gap-1 rounded-md bg-surface-interactive-base px-2 py-1 text-12-medium text-text-strong hover:text-text-base">
+            {sessionTab.value === "claude" ? "Claude" : "Native"}
+            <Icon name="chevron-down" class="size-3" />
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content>
+              <DropdownMenu.Item onSelect={() => setSessionTab("value", "opencode")}>
+                <DropdownMenu.ItemLabel>Native</DropdownMenu.ItemLabel>
+              </DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => setSessionTab("value", "claude")}>
+                <DropdownMenu.ItemLabel>Claude</DropdownMenu.ItemLabel>
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu>
         <Show when={props.showNew() && sessionTab.value === "opencode"}>
           <div class="flex-1 min-w-0">
             <NewSessionItem
@@ -417,55 +433,35 @@ const WorkspaceSessionList = (props: {
             />
           </div>
         </Show>
-        <div class="shrink-0">
-          <Tooltip value={props.language.t("common.edit")} placement="top">
-            <div classList={{ "rounded-md bg-surface-interactive-base": managementMode() }}>
-              <IconButton
-                icon="pencil-line"
-                variant="ghost"
-                size="small"
-                onClick={() => {
-                  if (typeof localStorage !== "undefined" && localStorage.getItem("opencode:debug:sidebar") === "1")
-                    console.log("[Edit button clicked]", managementMode())
-                  setManagementMode(!managementMode())
-                }}
-              />
-            </div>
-          </Tooltip>
-        </div>
-      </div>
-      <div class="px-2 pb-2 flex items-center gap-1">
-        <button
-          type="button"
-          class="rounded-md px-2 py-1 text-12-medium transition-colors"
-          classList={{
-            "bg-surface-interactive-base text-text-strong": sessionTab.value === "opencode",
-            "text-text-weak hover:text-text-base": sessionTab.value !== "opencode",
-          }}
-          onClick={() => setSessionTab("value", "opencode")}
-        >
-          OpenCode
-        </button>
-        <button
-          type="button"
-          class="rounded-md px-2 py-1 text-12-medium transition-colors"
-          classList={{
-            "bg-surface-interactive-base text-text-strong": sessionTab.value === "claude",
-            "text-text-weak hover:text-text-base": sessionTab.value !== "claude",
-          }}
-          onClick={() => setSessionTab("value", "claude")}
-        >
-          Claude
-        </button>
-        <Show when={sessionTab.value === "claude"}>
-          <button
-            type="button"
-            class="ml-auto rounded-md px-2 py-1 text-12-medium text-text-weak hover:text-text-base"
-            onClick={() => setRefreshVersion((value) => value + 1)}
+        <div class="shrink-0 ml-auto">
+          <Show
+            when={sessionTab.value === "claude"}
+            fallback={
+              <Tooltip value={props.language.t("common.edit")} placement="top">
+                <div classList={{ "rounded-md bg-surface-interactive-base": managementMode() }}>
+                  <IconButton
+                    icon="pencil-line"
+                    variant="ghost"
+                    size="small"
+                    onClick={() => {
+                      if (typeof localStorage !== "undefined" && localStorage.getItem("opencode:debug:sidebar") === "1")
+                        console.log("[Edit button clicked]", managementMode())
+                      setManagementMode(!managementMode())
+                    }}
+                  />
+                </div>
+              </Tooltip>
+            }
           >
-            Refresh
-          </button>
-        </Show>
+            <button
+              type="button"
+              class="rounded-md px-2 py-1 text-12-medium text-text-weak hover:text-text-base"
+              onClick={() => setRefreshVersion((value) => value + 1)}
+            >
+              Refresh
+            </button>
+          </Show>
+        </div>
       </div>
       <Show when={activeLoading()}>
         <SessionSkeleton />

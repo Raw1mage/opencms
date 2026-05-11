@@ -1,98 +1,86 @@
-<svg width="1328" height="1196" viewBox="-137.5 -50.0 1328.4 1196.0" xmlns="http://www.w3.org/2000/svg">
-<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker></defs>
-<rect x="-137.5" y="-50.0" width="1328.4" height="1196.0" fill="white" />
-<rect x="380.0" y="80.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<rect x="385.0" y="85.0" width="30.0" height="30.0" stroke="black" stroke-width="1" fill="none" />
-<text x="400" y="105.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">0</text>
-<line x1="420.0" y1="100.0" x2="460.0" y2="100.0" stroke="black" />
-<rect x="459.99999999999994" y="54.0" width="380.6" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="650.3" y="80.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Serve Session reads 來自</text>
-<text x="650.3" y="104.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">legacy directory layout</text>
-<text x="650.3" y="127.99999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">(&lt;sid&gt;/messages/&lt;mid&gt;/...).</text>
-<line x1="400" y1="120.0" x2="400" y2="200.0" stroke="black" />
-<line x1="380" y1="160.0" x2="420" y2="160.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="164.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">legacydirectorypresent AND sqlitedbabsent</text>
-<rect x="380.0" y="200.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="225.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">1</text>
-<line x1="420.0" y1="220.0" x2="460.0" y2="220.0" stroke="black" />
-<rect x="459.99999999999994" y="174.0" width="380.6" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="650.3" y="200.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Read all legacy messages</text>
-<text x="650.3" y="224.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">與 parts 進入 memory while</text>
-<text x="650.3" y="248.00000000000003" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">holding daemon 閒置.</text>
-<line x1="400" y1="240.0" x2="400" y2="320.0" stroke="black" />
-<line x1="380" y1="280.0" x2="420" y2="280.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="284.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">閒置sweeptickfired AND 無activewrites在window AND 不yetmigrated</text>
-<rect x="380.0" y="320.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="345.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">2</text>
-<line x1="420.0" y1="340.0" x2="460.0" y2="340.0" stroke="black" />
-<rect x="459.99999999999994" y="294.0" width="380.6" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="650.3" y="320.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Create &lt;sid&gt;.db.tmp; apply schema</text>
-<text x="650.3" y="344.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">v1; insert all messages 與 parts</text>
-<text x="650.3" y="368.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">inside single transaction; commit.</text>
-<line x1="400" y1="360.0" x2="400" y2="440.0" stroke="black" />
-<line x1="380" y1="400.0" x2="420" y2="400.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="404.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">legacyread完成</text>
-<rect x="380.0" y="440.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="465.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">3</text>
-<line x1="420.0" y1="460.0" x2="460.0" y2="460.0" stroke="black" />
-<rect x="459.99999999999994" y="414.0" width="380.6" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="650.3" y="440.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">執行 PRAGMA integritycheck 在</text>
-<text x="650.3" y="464.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">tmp 檔案 與 assert 訊息 row</text>
-<text x="650.3" y="488.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">count equals legacy訊息count.</text>
-<line x1="400" y1="480.0" x2="400" y2="520.0" stroke="black" />
-<line x1="89.69999999999999" y1="520.0" x2="710.3" y2="520.0" stroke="black" stroke-width="1.5" />
-<line x1="129.7" y1="520.0" x2="129.7" y2="560.0" stroke="black" />
-<line x1="109.69999999999999" y1="560.0" x2="149.7" y2="560.0" stroke="black" stroke-width="2" />
-<text x="105.69999999999999" y="554.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">tmpwritecommitted</text>
-<text x="105.69999999999999" y="574.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">AND fsync已完成</text>
-<line x1="129.7" y1="560.0" x2="129.7" y2="600.0" stroke="black" />
-<line x1="670.3" y1="520.0" x2="670.3" y2="560.0" stroke="black" />
-<line x1="650.3" y1="560.0" x2="690.3" y2="560.0" stroke="black" stroke-width="2" />
-<line x1="670.3" y1="560.0" x2="670.3" y2="600.0" stroke="black" marker-end="url(#arrow)" />
-<rect x="650.3" y="600.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="670.3" y="625.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">7</text>
-<line x1="690.3" y1="620.0" x2="730.3" y2="620.0" stroke="black" />
-<rect x="730.3" y="574.0" width="380.6" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="920.6" y="600.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Delete &lt;sid&gt;.db.tmp (partial migration)</text>
-<text x="920.6" y="624.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">. Legacy &lt;sid&gt;/ remains 來源 的 truth.</text>
-<text x="920.6" y="648.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Requeue Session 供 下一個 閒置-sweep tick.</text>
-<line x1="670.3" y1="640.0" x2="670.3" y2="720.0" stroke="black" />
-<line x1="650.3" y1="680.0" x2="690.3" y2="680.0" stroke="black" stroke-width="2" />
-<text x="694.3000000000001" y="684.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">integritycheckfails OR rowcountmismatch OR daemoncrashedbeforerename</text>
-<line x1="89.69999999999999" y1="720.0" x2="710.3" y2="720.0" stroke="black" stroke-width="1.5" />
-<line x1="129.7" y1="600.0" x2="129.7" y2="720.0" stroke="black" />
-<line x1="670.3" y1="720.0" x2="670.3" y2="720.0" stroke="black" />
-<line x1="400" y1="720.0" x2="400" y2="760.0" stroke="black" marker-end="url(#arrow)" />
-<rect x="380.0" y="760.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="785.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">4</text>
-<line x1="420.0" y1="780.0" x2="460.0" y2="780.0" stroke="black" />
-<rect x="459.99999999999994" y="734.0" width="380.6" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="650.3" y="760.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Atomically rename &lt;sid&gt;.db.</text>
-<text x="650.3" y="784.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">tmp 到 &lt;sid&gt;.db, then delete</text>
-<text x="650.3" y="807.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">legacy &lt;sid&gt;/ directory.</text>
-<line x1="400" y1="800.0" x2="400" y2="880.0" stroke="black" />
-<line x1="380" y1="840.0" x2="420" y2="840.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="844.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">integritycheckok AND rowcountmatcheslegacy</text>
-<rect x="380.0" y="880.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="905.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">5</text>
-<line x1="420.0" y1="900.0" x2="460.0" y2="900.0" stroke="black" />
-<rect x="459.99999999999994" y="854.0" width="380.6" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="650.3" y="880.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Serve Session reads 與 writes 來自 &lt;sid&gt;.</text>
-<text x="650.3" y="904.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">db 透過 SqliteStore + ConnectionPool.</text>
-<text x="650.3" y="927.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Writes 是 依-訊息 transactions 在 WAL.</text>
-<line x1="400" y1="920.0" x2="400" y2="1000.0" stroke="black" />
-<line x1="380" y1="960.0" x2="420" y2="960.0" stroke="black" stroke-width="2" />
-<text x="424.0" y="964.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">renameatomicdone AND legacydirdeleted</text>
-<rect x="380.0" y="1000.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="400" y="1025.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">6</text>
-<line x1="420.0" y1="1020.0" x2="460.0" y2="1020.0" stroke="black" />
-<rect x="459.99999999999994" y="974.0" width="380.6" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="650.3" y="1000.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Refuse 到 load Session 與 發布</text>
-<text x="650.3" y="1024.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Session.儲存.corrupted Bus 事件.</text>
-<text x="650.3" y="1048.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Daemon awaits 使用者-driven recovery.</text>
-<line x1="670.3" y1="720.0" x2="670.3" y2="720.0" stroke="black" />
-<line x1="670.3" y1="720.0" x2="300.0" y2="720.0" stroke="black" />
-<line x1="300.0" y1="720.0" x2="300.0" y2="30.0" stroke="black" />
-<line x1="300.0" y1="30.0" x2="400" y2="30.0" stroke="black" />
-<line x1="400" y1="30.0" x2="400" y2="70.0" stroke="black" marker-end="url(#arrow)" />
+<svg xmlns="http://www.w3.org/2000/svg" width="891" height="1180" viewBox="0.00 -2.00 44.56 59.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="0.00" y="-2.00" width="44.56" height="59.00" fill="white"/>
+<path class="edge" d="M 26.78 7.00 L 26.78 9.00"/>
+<path class="edge edge-arrow" d="M 26.78 9.00 L 26.78 11.00"/>
+<path class="edge" d="M 26.78 14.00 L 26.78 16.00"/>
+<path class="edge edge-arrow" d="M 26.78 16.00 L 26.78 18.00"/>
+<path class="edge" d="M 26.78 21.00 L 26.78 23.00"/>
+<path class="edge edge-arrow" d="M 26.78 23.00 L 26.78 25.00"/>
+<path class="edge edge-arrow" d="M 26.78 28.00 L 26.78 30.00"/>
+<path class="edge edge-arrow" d="M 26.78 30.00 L 26.78 34.00"/>
+<path class="edge edge-arrow" d="M 10.00 30.00 L 10.00 34.00"/>
+<path class="edge" d="M 26.78 37.00 L 26.78 39.00"/>
+<path class="edge edge-arrow" d="M 26.78 39.00 L 26.78 43.00"/>
+<path class="edge" d="M 26.78 46.00 L 26.78 48.00"/>
+<path class="edge edge-arrow" d="M 26.78 48.00 L 26.78 50.00"/>
+<path class="edge" d="M 10.00 37.00 L 10.00 39.00"/>
+<path class="edge edge-arrow" d="M 10.00 39.00 L 10.00 40.50 Q 10.00 41.00 9.50 41.00 L 4.50 41.00 Q 4.00 41.00 4.00 40.50 L 4.00 2.50 Q 4.00 2.00 4.50 2.00 L 26.28 2.00 Q 26.78 2.00 26.78 2.50 L 26.78 4.00"/>
+<rect class="step" x="24.78" y="4.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<rect class="step-inner" x="25.03" y="4.25" width="3.50" height="2.50" rx="0.22" ry="0.22"/>
+<text class="label" x="26.78" y="5.50">0</text>
+<rect class="step" x="24.78" y="11.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="26.78" y="12.50">1</text>
+<rect class="step" x="24.78" y="18.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="26.78" y="19.50">2</text>
+<rect class="step" x="24.78" y="25.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="26.78" y="26.50">3</text>
+<rect class="step" x="24.78" y="34.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="26.78" y="35.50">4</text>
+<rect class="step" x="24.78" y="43.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="26.78" y="44.50">5</text>
+<rect class="step" x="24.78" y="50.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="26.78" y="51.50">6</text>
+<rect class="step" x="8.00" y="34.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="10.00" y="35.50">7</text>
+<line class="assoc" x1="28.78" y1="5.50" x2="29.78" y2="5.50"/>
+<rect class="action" x="29.78" y="4.07" width="10.78" height="2.86"/>
+<text class="action-label" x="35.17" y="5.09"><tspan x="35.17" dy="0">Serve Session reads 來自 legacy direc</tspan><tspan x="35.17" dy="0.82">tory layout (&lt;sid&gt;/messages/&lt;mid&gt;/...).</tspan></text>
+<line class="assoc" x1="28.78" y1="12.50" x2="29.78" y2="12.50"/>
+<rect class="action" x="29.78" y="11.07" width="10.78" height="2.86"/>
+<text class="action-label" x="35.17" y="12.09"><tspan x="35.17" dy="0">Read all legacy messages 與 parts 進</tspan><tspan x="35.17" dy="0.82">入 memory while holding daemon 閒置.</tspan></text>
+<line class="assoc" x1="28.78" y1="19.50" x2="29.78" y2="19.50"/>
+<rect class="action" x="29.78" y="18.07" width="10.78" height="2.86"/>
+<text class="action-label" x="35.17" y="18.68"><tspan x="35.17" dy="0">Create &lt;sid&gt;.db.tmp; apply schema</tspan><tspan x="35.17" dy="0.82">v1; insert all messages 與 parts</tspan><tspan x="35.17" dy="0.82">inside single transaction; commit.</tspan></text>
+<line class="assoc" x1="28.78" y1="26.50" x2="29.78" y2="26.50"/>
+<rect class="action" x="29.78" y="25.07" width="10.78" height="2.86"/>
+<text class="action-label" x="35.17" y="25.68"><tspan x="35.17" dy="0">執行 PRAGMA integritycheck 在</tspan><tspan x="35.17" dy="0.82">tmp 檔案 與 assert 訊息 row</tspan><tspan x="35.17" dy="0.82">count equals legacy訊息count.</tspan></text>
+<line class="assoc" x1="28.78" y1="35.50" x2="29.78" y2="35.50"/>
+<rect class="action" x="29.78" y="34.07" width="10.78" height="2.86"/>
+<text class="action-label" x="35.17" y="35.09"><tspan x="35.17" dy="0">Atomically rename &lt;sid&gt;.db.tmp 到 &lt;sid&gt;</tspan><tspan x="35.17" dy="0.82">.db, then delete legacy &lt;sid&gt;/ directory.</tspan></text>
+<line class="assoc" x1="28.78" y1="44.50" x2="29.78" y2="44.50"/>
+<rect class="action" x="29.78" y="43.07" width="10.78" height="2.86"/>
+<text class="action-label" x="35.17" y="43.68"><tspan x="35.17" dy="0">Serve Session reads 與 writes 來自 &lt;sid</tspan><tspan x="35.17" dy="0.82">&gt;.db 透過 SqliteStore + ConnectionPool. W</tspan><tspan x="35.17" dy="0.82">rites 是 依-訊息 transactions 在 WAL.</tspan></text>
+<line class="assoc" x1="28.78" y1="51.50" x2="29.78" y2="51.50"/>
+<rect class="action" x="29.78" y="50.07" width="10.78" height="2.86"/>
+<text class="action-label" x="35.17" y="50.68"><tspan x="35.17" dy="0">Refuse 到 load Session 與 發布 Ses</tspan><tspan x="35.17" dy="0.82">sion.儲存.corrupted Bus 事件. Dae</tspan><tspan x="35.17" dy="0.82">mon awaits 使用者-driven recovery.</tspan></text>
+<line class="assoc" x1="12.00" y1="35.50" x2="13.00" y2="35.50"/>
+<rect class="action" x="13.00" y="34.07" width="10.78" height="2.86"/>
+<text class="action-label" x="18.39" y="34.68"><tspan x="18.39" dy="0">Delete &lt;sid&gt;.db.tmp (partial migration). Le</tspan><tspan x="18.39" dy="0.82">gacy &lt;sid&gt;/ remains 來源 的 truth. Reque</tspan><tspan x="18.39" dy="0.82">ue Session 供 下一個 閒置-sweep tick.</tspan></text>
+<line class="gate" x1="25.78" y1="9.00" x2="27.78" y2="9.00"/>
+<text class="gate-label" x="28.18" y="9.00"><tspan x="28.18" dy="0">legacydirectorypresent AND sqlitedbabsent</tspan></text>
+<line class="gate" x1="25.78" y1="16.00" x2="27.78" y2="16.00"/>
+<text class="gate-label-left" x="25.38" y="16.00"><tspan x="25.38" dy="0">閒置sweeptickfired AND 無activewrites在window AND 不yetmigrated</tspan></text>
+<line class="gate" x1="25.78" y1="23.00" x2="27.78" y2="23.00"/>
+<text class="gate-label" x="28.18" y="23.00"><tspan x="28.18" dy="0">legacyread完成</tspan></text>
+<line class="gate" x1="8.00" y1="30.00" x2="28.78" y2="30.00"/>
+<line class="gate" x1="25.78" y1="39.00" x2="27.78" y2="39.00"/>
+<text class="gate-label" x="28.18" y="39.00"><tspan x="28.18" dy="0">integritycheckok AND rowcountmatcheslegacy</tspan></text>
+<line class="gate" x1="25.78" y1="48.00" x2="27.78" y2="48.00"/>
+<text class="gate-label" x="28.18" y="48.00"><tspan x="28.18" dy="0">renameatomicdone AND legacydirdeleted</tspan></text>
+<line class="gate" x1="9.00" y1="39.00" x2="11.00" y2="39.00"/>
+<text class="gate-label" x="11.40" y="38.32"><tspan x="11.40" dy="0">integritycheckfails OR ro</tspan><tspan x="11.40" dy="0.68">wcountmismatch OR daem</tspan><tspan x="11.40" dy="0.68">oncrashedbeforerename</tspan></text>
+<line class="gate" x1="25.78" y1="32.00" x2="27.78" y2="32.00"/>
+<text class="gate-label" x="28.18" y="32.00"><tspan x="28.18" dy="0">tmpwritecommitted AND fsync已完成</tspan></text>
+<line class="gate" x1="9.00" y1="32.00" x2="11.00" y2="32.00"/>
 </svg>

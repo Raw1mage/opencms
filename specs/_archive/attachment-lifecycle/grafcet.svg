@@ -1,150 +1,129 @@
-<svg width="2470" height="1010" viewBox="-796.4 -50.0 2470.4 1010.0" xmlns="http://www.w3.org/2000/svg">
-<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker></defs>
-<rect x="-796.4" y="-50.0" width="2470.4" height="1010.0" fill="white" />
-<rect x="380.0" y="80.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<rect x="385.0" y="85.0" width="30.0" height="30.0" stroke="black" stroke-width="1" fill="none" />
-<text x="400" y="105.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">0</text>
-<line x1="420.0" y1="100.0" x2="460.0" y2="100.0" stroke="black" />
-<rect x="460.0" y="54.0" width="357.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="638.8" y="80.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">閒置: 等待 助手 回合</text>
-<text x="638.8" y="104.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">completion 或 工</text>
-<text x="638.8" y="127.99999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">具 呼叫 或 GC tick</text>
-<line x1="400" y1="120.0" x2="400" y2="160.0" stroke="black" />
-<line x1="-157.59999999999997" y1="160.0" x2="957.5999999999999" y2="160.0" stroke="black" stroke-width="1.5" />
-<line x1="-117.59999999999998" y1="160.0" x2="-117.59999999999998" y2="200.0" stroke="black" />
-<line x1="-137.59999999999997" y1="200.0" x2="-97.59999999999998" y2="200.0" stroke="black" stroke-width="2" />
-<text x="-141.6" y="204.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">助手完成stop</text>
-<line x1="-117.59999999999998" y1="200.0" x2="-117.59999999999998" y2="240.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="917.5999999999999" y1="160.0" x2="917.5999999999999" y2="200.0" stroke="black" />
-<line x1="897.5999999999999" y1="200.0" x2="937.5999999999999" y2="200.0" stroke="black" stroke-width="2" />
-<text x="941.5999999999999" y="204.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">模型calledreread附件</text>
-<line x1="917.5999999999999" y1="200.0" x2="917.5999999999999" y2="240.0" stroke="black" marker-end="url(#arrow)" />
-<rect x="-137.59999999999997" y="240.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-117.59999999999998" y="265.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">1</text>
-<line x1="-97.59999999999998" y1="260.0" x2="-57.59999999999998" y2="260.0" stroke="black" />
-<rect x="-57.599999999999966" y="214.0" width="357.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="121.20000000000002" y="240.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Locate 父層 使用</text>
-<text x="121.20000000000002" y="264.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">者 訊息 + its image</text>
-<text x="121.20000000000002" y="288.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">附件ref parts</text>
-<line x1="-117.59999999999998" y1="280.0" x2="-117.59999999999998" y2="360.0" stroke="black" />
-<line x1="-137.59999999999997" y1="320.0" x2="-97.59999999999998" y2="320.0" stroke="black" stroke-width="2" />
-<text x="-93.59999999999998" y="324.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">附件listed</text>
-<rect x="-137.59999999999997" y="360.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-117.59999999999998" y="385.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">2</text>
-<line x1="-97.59999999999998" y1="380.0" x2="-57.59999999999998" y2="380.0" stroke="black" />
-<rect x="-57.599999999999966" y="334.0" width="357.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="121.20000000000002" y="360.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">供 each part:</text>
-<text x="121.20000000000002" y="384.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">check dehydrated</text>
-<text x="121.20000000000002" y="408.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">flag 與 mime</text>
-<line x1="-117.59999999999998" y1="400.0" x2="-117.59999999999998" y2="440.0" stroke="black" />
-<line x1="-416.4" y1="440.0" x2="181.2" y2="440.0" stroke="black" stroke-width="1.5" />
-<line x1="-376.4" y1="440.0" x2="-376.4" y2="480.0" stroke="black" />
-<line x1="-396.4" y1="480.0" x2="-356.4" y2="480.0" stroke="black" stroke-width="2" />
-<text x="-400.4" y="464.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">imagemime AND</text>
-<text x="-400.4" y="484.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">NOT dehydrated</text>
-<text x="-400.4" y="504.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">AND 完成=stop</text>
-<line x1="-376.4" y1="480.0" x2="-376.4" y2="520.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="141.2" y1="440.0" x2="141.2" y2="480.0" stroke="black" />
-<line x1="121.19999999999997" y1="480.0" x2="161.2" y2="480.0" stroke="black" stroke-width="2" />
-<text x="165.19999999999996" y="464.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">nonimagemime</text>
-<text x="165.19999999999996" y="484.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">OR alreadydehydrated</text>
-<text x="165.19999999999996" y="504.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">OR 完成錯誤</text>
-<line x1="141.2" y1="480.0" x2="141.2" y2="520.0" stroke="black" />
-<rect x="-396.4" y="520.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-376.4" y="545.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">3</text>
-<line x1="-356.4" y1="540.0" x2="-316.4" y2="540.0" stroke="black" />
-<rect x="-316.4" y="494.0" width="357.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="-137.60000000000002" y="520.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">取出 annotation</text>
-<text x="-137.60000000000002" y="544.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">來自 助手 回應 文字</text>
-<text x="-137.60000000000002" y="568.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">(≤ 4000 chars)</text>
-<line x1="-376.4" y1="560.0" x2="-376.4" y2="640.0" stroke="black" />
-<line x1="-396.4" y1="600.0" x2="-356.4" y2="600.0" stroke="black" stroke-width="2" />
-<text x="-352.40000000000003" y="604.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">annotation已取出</text>
-<rect x="-396.4" y="640.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-376.4" y="665.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">5</text>
-<line x1="-356.4" y1="660.0" x2="-316.4" y2="660.0" stroke="black" />
-<rect x="-316.4" y="614.0" width="357.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="-137.60000000000002" y="640.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Session.更新part: set dehydrated=true</text>
-<text x="-137.60000000000002" y="664.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">+ annotation (repo路徑 / sha256</text>
-<text x="-137.60000000000002" y="688.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">unchanged; 無 binary move)</text>
-<line x1="-376.4" y1="680.0" x2="-376.4" y2="760.0" stroke="black" />
-<line x1="-396.4" y1="720.0" x2="-356.4" y2="720.0" stroke="black" stroke-width="2" />
-<text x="-352.40000000000003" y="724.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">partrewritten</text>
-<rect x="-396.4" y="760.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="-376.4" y="785.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">6</text>
-<line x1="-356.4" y1="780.0" x2="-316.4" y2="780.0" stroke="black" />
-<rect x="-316.4" y="734.0" width="357.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="-137.60000000000002" y="760.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">發出 telemetry 附件.</text>
-<text x="-137.60000000000002" y="784.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">dehydrated; loop 到</text>
-<text x="-137.60000000000002" y="807.9999999999999" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">下一個 附件 或 返回 閒置</text>
-<line x1="-376.4" y1="800.0" x2="-376.4" y2="880.0" stroke="black" />
-<line x1="-396.4" y1="840.0" x2="-356.4" y2="840.0" stroke="black" stroke-width="2" />
-<text x="-352.40000000000003" y="844.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">all附件processed</text>
-<rect x="897.5999999999999" y="240.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="917.5999999999999" y="265.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">20</text>
-<line x1="937.5999999999999" y1="260.0" x2="977.5999999999999" y2="260.0" stroke="black" />
-<rect x="977.5999999999999" y="214.0" width="357.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="1156.3999999999999" y="240.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Read filename arg;</text>
-<text x="1156.3999999999999" y="264.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">lookup IncomingStore.</text>
-<text x="1156.3999999999999" y="288.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">get(sid, filename)</text>
-<line x1="917.5999999999999" y1="280.0" x2="917.5999999999999" y2="360.0" stroke="black" />
-<line x1="897.5999999999999" y1="320.0" x2="937.5999999999999" y2="320.0" stroke="black" stroke-width="2" />
-<text x="941.5999999999999" y="324.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">lookup完成</text>
-<rect x="897.5999999999999" y="360.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="917.5999999999999" y="385.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">21</text>
-<line x1="937.5999999999999" y1="380.0" x2="977.5999999999999" y2="380.0" stroke="black" />
-<rect x="977.5999999999999" y="334.0" width="357.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="1156.3999999999999" y="360.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">Branch</text>
-<text x="1156.3999999999999" y="384.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">在 檔案</text>
-<text x="1156.3999999999999" y="408.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">presence</text>
-<line x1="917.5999999999999" y1="400.0" x2="917.5999999999999" y2="440.0" stroke="black" />
-<line x1="618.8" y1="440.0" x2="1216.3999999999999" y2="440.0" stroke="black" stroke-width="1.5" />
-<line x1="658.8" y1="440.0" x2="658.8" y2="480.0" stroke="black" />
-<line x1="638.8" y1="480.0" x2="678.8" y2="480.0" stroke="black" stroke-width="2" />
-<text x="634.8" y="484.0" font-style="italic" font-size="11" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">位元組returned</text>
-<line x1="658.8" y1="480.0" x2="658.8" y2="520.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="1176.3999999999999" y1="440.0" x2="1176.3999999999999" y2="480.0" stroke="black" />
-<line x1="1156.3999999999999" y1="480.0" x2="1196.3999999999999" y2="480.0" stroke="black" stroke-width="2" />
-<text x="1200.3999999999999" y="484.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">檔案缺失或gcd</text>
-<line x1="1176.3999999999999" y1="480.0" x2="1176.3999999999999" y2="520.0" stroke="black" marker-end="url(#arrow)" />
-<rect x="638.8" y="520.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="658.8" y="545.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">22</text>
-<line x1="678.8" y1="540.0" x2="718.8" y2="540.0" stroke="black" />
-<rect x="718.8" y="494.0" width="357.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="897.5999999999999" y="520.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">返回 工具 結果 {type:&#x27;image&#x27;, url:</text>
-<text x="897.5999999999999" y="544.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">&#x27;data:...&#x27;, esttokens, bytesize}</text>
-<text x="897.5999999999999" y="568.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">; 發出 附件.rereaded telemetry</text>
-<line x1="658.8" y1="560.0" x2="658.8" y2="640.0" stroke="black" />
-<line x1="638.8" y1="600.0" x2="678.8" y2="600.0" stroke="black" stroke-width="2" />
-<text x="682.8" y="604.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">返回到閒置</text>
-<rect x="1156.3999999999999" y="520.0" width="40.0" height="40.0" stroke="black" stroke-width="1.5" fill="white" />
-<text x="1176.3999999999999" y="545.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-weight="bold" font-size="14">23</text>
-<line x1="1196.3999999999999" y1="540.0" x2="1236.3999999999999" y2="540.0" stroke="black" />
-<rect x="1236.3999999999999" y="494.0" width="357.59999999999997" height="92.0" stroke="black" stroke-width="1.2" fill="white" />
-<text x="1415.1999999999998" y="520.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">返回 工具 錯誤 {錯</text>
-<text x="1415.1999999999998" y="544.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">誤:&#x27;附件expired&#x27;,</text>
-<text x="1415.1999999999998" y="568.0" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" font-size="11">訊息:&#x27;...&#x27;}</text>
-<line x1="1176.3999999999999" y1="560.0" x2="1176.3999999999999" y2="640.0" stroke="black" />
-<line x1="1156.3999999999999" y1="600.0" x2="1196.3999999999999" y2="600.0" stroke="black" stroke-width="2" />
-<text x="1200.3999999999999" y="604.0" font-style="italic" font-size="11" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif">返回到閒置</text>
-<line x1="-376.4" y1="880.0" x2="-376.4" y2="880.0" stroke="black" />
-<line x1="-376.4" y1="880.0" x2="-556.4" y2="880.0" stroke="black" />
-<line x1="-556.4" y1="880.0" x2="-556.4" y2="30.0" stroke="black" />
-<line x1="-556.4" y1="30.0" x2="400" y2="30.0" stroke="black" />
-<line x1="400" y1="30.0" x2="400" y2="70.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="141.2" y1="520.0" x2="141.2" y2="540.0" stroke="black" />
-<line x1="141.2" y1="540.0" x2="-476.4" y2="540.0" stroke="black" />
-<line x1="-476.4" y1="540.0" x2="-476.4" y2="30.0" stroke="black" />
-<line x1="-476.4" y1="30.0" x2="400" y2="30.0" stroke="black" />
-<line x1="400" y1="30.0" x2="400" y2="70.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="658.8" y1="640.0" x2="658.8" y2="680.0" stroke="black" />
-<line x1="658.8" y1="680.0" x2="-636.4" y2="680.0" stroke="black" />
-<line x1="-636.4" y1="680.0" x2="-636.4" y2="30.0" stroke="black" />
-<line x1="-636.4" y1="30.0" x2="400" y2="30.0" stroke="black" />
-<line x1="400" y1="30.0" x2="400" y2="70.0" stroke="black" marker-end="url(#arrow)" />
-<line x1="1176.3999999999999" y1="640.0" x2="1176.3999999999999" y2="700.0" stroke="black" />
-<line x1="1176.3999999999999" y1="700.0" x2="-716.4" y2="700.0" stroke="black" />
-<line x1="-716.4" y1="700.0" x2="-716.4" y2="30.0" stroke="black" />
-<line x1="-716.4" y1="30.0" x2="400" y2="30.0" stroke="black" />
-<line x1="400" y1="30.0" x2="400" y2="70.0" stroke="black" marker-end="url(#arrow)" />
+<svg xmlns="http://www.w3.org/2000/svg" width="1203" height="1360" viewBox="-10.00 -2.00 60.16 68.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="-10.00" y="-2.00" width="60.16" height="68.00" fill="white"/>
+<path class="edge edge-arrow" d="M 19.72 7.00 L 19.72 9.00"/>
+<path class="edge edge-arrow" d="M 5.00 9.00 L 5.00 13.00"/>
+<path class="edge edge-arrow" d="M 19.72 9.00 L 19.72 13.00"/>
+<path class="edge" d="M 5.00 16.00 L 5.00 18.00"/>
+<path class="edge edge-arrow" d="M 5.00 18.00 L 5.00 20.00"/>
+<path class="edge edge-arrow" d="M 5.00 23.00 L 5.00 25.00"/>
+<path class="edge edge-arrow" d="M 19.72 25.00 L 19.72 28.50 Q 19.72 29.00 20.22 29.00 L 38.39 29.00 Q 38.89 29.00 38.89 29.50 L 38.89 36.50 Q 38.89 37.00 38.39 37.00 L 20.22 37.00 Q 19.72 37.00 19.72 37.50 L 19.72 39.00"/>
+<path class="edge edge-arrow" d="M 0.00 25.00 L 0.00 26.50 Q 0.00 27.00 -0.50 27.00 L -5.50 27.00 Q -6.00 27.00 -6.00 26.50 L -6.00 2.50 Q -6.00 2.00 -5.50 2.00 L 19.22 2.00 Q 19.72 2.00 19.72 2.50 L 19.72 4.00"/>
+<path class="edge" d="M 19.72 42.00 L 19.72 44.00"/>
+<path class="edge edge-arrow" d="M 19.72 44.00 L 19.72 48.00"/>
+<path class="edge" d="M 19.72 51.00 L 19.72 53.00"/>
+<path class="edge edge-arrow" d="M 19.72 53.00 L 19.72 55.00"/>
+<path class="edge" d="M 19.72 58.00 L 19.72 60.00"/>
+<path class="edge" d="M 19.72 60.00 L 19.72 62.00"/>
+<path class="edge" d="M 19.72 62.00 L -6.00 62.00"/>
+<path class="edge" d="M -6.00 62.00 L -6.00 27.00"/>
+<path class="edge" d="M 19.72 16.00 L 19.72 18.00"/>
+<path class="edge edge-arrow" d="M 19.72 18.00 L 19.72 20.00"/>
+<path class="edge" d="M 19.72 23.00 L 19.72 20.00"/>
+<path class="edge" d="M 19.72 19.00 L 24.17 19.00"/>
+<path class="edge" d="M 24.17 19.00 L 24.17 35.00"/>
+<path class="edge" d="M 24.17 35.00 L 19.72 35.00"/>
+<path class="edge edge-arrow" d="M 19.72 35.00 L 19.72 33.00"/>
+<path class="edge edge-arrow" d="M 5.00 33.00 L 5.00 39.00"/>
+<path class="edge edge-arrow" d="M 34.44 33.00 L 34.44 39.00"/>
+<path class="edge" d="M 5.00 42.00 L 5.00 44.00"/>
+<path class="edge" d="M 5.00 44.00 L 5.00 46.00"/>
+<path class="edge" d="M 5.00 46.00 L -6.00 46.00"/>
+<path class="edge" d="M 34.44 42.00 L 34.44 44.00"/>
+<path class="edge" d="M 34.44 44.00 L 34.44 46.00"/>
+<path class="edge" d="M 34.44 46.00 L 5.00 46.00"/>
+<rect class="step" x="17.72" y="4.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<rect class="step-inner" x="17.97" y="4.25" width="3.50" height="2.50" rx="0.22" ry="0.22"/>
+<text class="label" x="19.72" y="5.50">0</text>
+<rect class="step" x="3.00" y="13.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="5.00" y="14.50">1</text>
+<rect class="step" x="3.00" y="20.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="5.00" y="21.50">2</text>
+<rect class="step" x="17.72" y="39.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="19.72" y="40.50">3</text>
+<rect class="step" x="17.72" y="48.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="19.72" y="49.50">5</text>
+<rect class="step" x="17.72" y="55.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="19.72" y="56.50">6</text>
+<rect class="step" x="17.72" y="13.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="19.72" y="14.50">20</text>
+<rect class="step" x="17.72" y="20.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="19.72" y="21.50">21</text>
+<rect class="step" x="3.00" y="39.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="5.00" y="40.50">22</text>
+<rect class="step" x="32.44" y="39.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="34.44" y="40.50">23</text>
+<line class="assoc" x1="21.72" y1="5.50" x2="22.72" y2="5.50"/>
+<rect class="action" x="22.72" y="4.07" width="8.72" height="2.86"/>
+<text class="action-label" x="27.08" y="5.09"><tspan x="27.08" dy="0">閒置: 等待 助手 回合 compl</tspan><tspan x="27.08" dy="0.82">etion 或 工具 呼叫 或 GC tick</tspan></text>
+<line class="assoc" x1="7.00" y1="14.50" x2="8.00" y2="14.50"/>
+<rect class="action" x="8.00" y="13.07" width="8.72" height="2.86"/>
+<text class="action-label" x="12.36" y="14.09"><tspan x="12.36" dy="0">Locate 父層 使用者 訊息</tspan><tspan x="12.36" dy="0.82">+ its image 附件ref parts</tspan></text>
+<line class="assoc" x1="7.00" y1="21.50" x2="8.00" y2="21.50"/>
+<rect class="action" x="8.00" y="20.07" width="8.72" height="2.86"/>
+<text class="action-label" x="12.36" y="21.09"><tspan x="12.36" dy="0">供 each part: check de</tspan><tspan x="12.36" dy="0.82">hydrated flag 與 mime</tspan></text>
+<line class="assoc" x1="21.72" y1="40.50" x2="22.72" y2="40.50"/>
+<rect class="action" x="22.72" y="39.07" width="8.72" height="2.86"/>
+<text class="action-label" x="27.08" y="40.09"><tspan x="27.08" dy="0">取出 annotation 來自 助手</tspan><tspan x="27.08" dy="0.82">回應 文字 (≤ 4000 chars)</tspan></text>
+<line class="assoc" x1="21.72" y1="49.50" x2="22.72" y2="49.50"/>
+<rect class="action" x="22.72" y="48.07" width="8.72" height="2.86"/>
+<text class="action-label" x="27.08" y="48.68"><tspan x="27.08" dy="0">Session.更新part: set dehydrated</tspan><tspan x="27.08" dy="0.82">=true + annotation (repo路徑 / s</tspan><tspan x="27.08" dy="0.82">ha256 unchanged; 無 binary move)</tspan></text>
+<line class="assoc" x1="21.72" y1="56.50" x2="22.72" y2="56.50"/>
+<rect class="action" x="22.72" y="55.07" width="8.72" height="2.86"/>
+<text class="action-label" x="27.08" y="55.68"><tspan x="27.08" dy="0">發出 telemetry 附件.de</tspan><tspan x="27.08" dy="0.82">hydrated; loop 到 下一</tspan><tspan x="27.08" dy="0.82">個 附件 或 返回 閒置</tspan></text>
+<line class="assoc" x1="21.72" y1="14.50" x2="22.72" y2="14.50"/>
+<rect class="action" x="22.72" y="13.07" width="8.72" height="2.86"/>
+<text class="action-label" x="27.08" y="14.09"><tspan x="27.08" dy="0">Read filename arg; lookup Inco</tspan><tspan x="27.08" dy="0.82">mingStore.get(sid, filename)</tspan></text>
+<line class="assoc" x1="21.72" y1="21.50" x2="22.72" y2="21.50"/>
+<rect class="action" x="22.72" y="20.07" width="8.72" height="2.86"/>
+<text class="action-label" x="27.08" y="21.50"><tspan x="27.08" dy="0">Branch 在 檔案 presence</tspan></text>
+<line class="assoc" x1="7.00" y1="40.50" x2="8.00" y2="40.50"/>
+<rect class="action" x="8.00" y="39.07" width="8.72" height="2.86"/>
+<text class="action-label" x="12.36" y="39.68"><tspan x="12.36" dy="0">返回 工具 結果 {type:&#x27;image&#x27;,</tspan><tspan x="12.36" dy="0.82">url:&#x27;data:...&#x27;, esttokens, bytesize};</tspan><tspan x="12.36" dy="0.82">發出 附件.rereaded telemetry</tspan></text>
+<line class="assoc" x1="36.44" y1="40.50" x2="37.44" y2="40.50"/>
+<rect class="action" x="37.44" y="39.07" width="8.72" height="2.86"/>
+<text class="action-label" x="41.80" y="40.09"><tspan x="41.80" dy="0">返回 工具 錯誤 {錯誤</tspan><tspan x="41.80" dy="0.82">:&#x27;附件expired&#x27;, 訊息:&#x27;...&#x27;}</tspan></text>
+<line class="gate" x1="3.00" y1="9.00" x2="21.72" y2="9.00"/>
+<line class="gate" x1="4.00" y1="18.00" x2="6.00" y2="18.00"/>
+<text class="gate-label-left" x="3.60" y="18.00"><tspan x="3.60" dy="0">附件listed</tspan></text>
+<line class="gate" x1="-2.00" y1="25.00" x2="21.72" y2="25.00"/>
+<line class="gate" x1="18.72" y1="44.00" x2="20.72" y2="44.00"/>
+<text class="gate-label" x="21.12" y="44.00"><tspan x="21.12" dy="0">annotation已取出</tspan></text>
+<line class="gate" x1="18.72" y1="53.00" x2="20.72" y2="53.00"/>
+<text class="gate-label" x="21.12" y="53.00"><tspan x="21.12" dy="0">partrewritten</tspan></text>
+<line class="gate" x1="18.72" y1="60.00" x2="20.72" y2="60.00"/>
+<text class="gate-label" x="21.12" y="60.00"><tspan x="21.12" dy="0">all附件processed</tspan></text>
+<line class="gate" x1="18.72" y1="18.00" x2="20.72" y2="18.00"/>
+<text class="gate-label" x="21.12" y="18.00"><tspan x="21.12" dy="0">lookup完成</tspan></text>
+<line class="gate" x1="3.00" y1="33.00" x2="36.44" y2="33.00"/>
+<line class="gate" x1="4.00" y1="44.00" x2="6.00" y2="44.00"/>
+<text class="gate-label-left" x="3.60" y="44.00"><tspan x="3.60" dy="0">返回到閒置</tspan></text>
+<line class="gate" x1="33.44" y1="44.00" x2="35.44" y2="44.00"/>
+<text class="gate-label" x="35.84" y="44.00"><tspan x="35.84" dy="0">返回到閒置</tspan></text>
+<line class="gate" x1="4.00" y1="11.00" x2="6.00" y2="11.00"/>
+<text class="gate-label-left" x="3.60" y="11.00"><tspan x="3.60" dy="0">助手完成stop</tspan></text>
+<line class="gate" x1="18.72" y1="11.00" x2="20.72" y2="11.00"/>
+<text class="gate-label" x="21.12" y="11.00"><tspan x="21.12" dy="0">模型calledreread附件</tspan></text>
+<line class="gate" x1="18.72" y1="31.00" x2="20.72" y2="31.00"/>
+<text class="gate-label" x="25.32" y="31.00"><tspan x="25.32" dy="0">imagemime AND NOT dehydrated AND 完成=stop</tspan></text>
+<line class="gate" x1="-1.00" y1="31.00" x2="1.00" y2="31.00"/>
+<text class="gate-label-left" x="-1.40" y="30.32"><tspan x="-1.40" dy="0">nonimagemime OR</tspan><tspan x="-1.40" dy="0.68">alreadydehydrate</tspan><tspan x="-1.40" dy="0.68">d OR 完成錯誤</tspan></text>
+<line class="gate" x1="4.00" y1="31.00" x2="6.00" y2="31.00"/>
+<text class="gate-label-left" x="3.60" y="30.32"><tspan x="3.60" dy="0">位元</tspan><tspan x="3.60" dy="0.68">組ret</tspan><tspan x="3.60" dy="0.68">urned</tspan></text>
+<line class="gate" x1="33.44" y1="25.00" x2="35.44" y2="25.00"/>
+<text class="gate-label" x="35.84" y="25.00"><tspan x="35.84" dy="0">檔案缺失或gcd</tspan></text>
+<circle class="junction" cx="-6.00" cy="27.00" r="0.22"/>
+<circle class="junction" cx="-6.00" cy="46.00" r="0.22"/>
+<circle class="junction" cx="19.72" cy="19.00" r="0.22"/>
+<circle class="junction" cx="5.00" cy="46.00" r="0.22"/>
 </svg>
