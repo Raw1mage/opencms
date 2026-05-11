@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CodexInstallationIdentity",
+  "description": "Schemas covering the on-disk UUID file, the credentials carrier, and the outgoing request body slice that carries the installation id.",
+  "type": "object",
+  "properties": {
+    "OnDiskFile": { "$ref": "#/$defs/OnDiskFile" },
+    "CredentialsCarrier": { "$ref": "#/$defs/CredentialsCarrier" },
+    "ClientMetadataSlice": { "$ref": "#/$defs/ClientMetadataSlice" }
+  },
+  "$defs": {
+    "OnDiskFile": {
+      "type": "object",
+      "description": "Filesystem representation of the installation id.",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "${OPENCODE_DATA_HOME}/codex-installation-id (default ~/.config/opencode/codex-installation-id)."
+        },
+        "mode": {
+          "type": "integer",
+          "const": 420,
+          "description": "POSIX mode 0644 (decimal 420)."
+        },
+        "contents": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "description": "Single v4 UUID string (36 chars), no trailing newline required."
+        }
+      },
+      "required": ["path", "contents"]
+    },
+    "CredentialsCarrier": {
+      "type": "object",
+      "description": "In-memory credentials object passed from codex-auth to createCodex on every getModel call.",
+      "properties": {
+        "accessToken": { "type": "string" },
+        "refreshToken": { "type": "string" },
+        "accountId": { "type": "string" },
+        "expiresAt": { "type": "number" },
+        "installationId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "description": "Per-install UUID. MUST be present after this spec lands."
+        }
+      },
+      "required": ["accessToken", "installationId"]
+    },
+    "ClientMetadataSlice": {
+      "type": "object",
+      "description": "The slice of body.client_metadata that this spec controls. Other keys (e.g. x-codex-window-id) are owned by sibling specs and unaffected.",
+      "properties": {
+        "x-codex-installation-id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "description": "MUST equal OnDiskFile.contents for the active opencode process."
+        }
+      },
+      "required": ["x-codex-installation-id"]
+    }
+  }
+}

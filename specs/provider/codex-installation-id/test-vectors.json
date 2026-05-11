@@ -1,0 +1,161 @@
+[
+  {
+    "id": "TV1",
+    "title": "First-launch generates valid v4 UUID and persists",
+    "description": "Empty data home, resolver called once.",
+    "given": {
+      "fs": "${OPENCODE_DATA_HOME}/codex-installation-id does not exist; parent directory writable"
+    },
+    "when": "resolveCodexInstallationId() is invoked",
+    "expected": {
+      "returned_value_matches_uuid_v4_regex": true,
+      "file_exists": true,
+      "file_mode_posix": "0644",
+      "file_contents_equals_returned_value": true
+    },
+    "covers": ["Acceptance Check #1", "spec.md Requirement: Per-Install UUID Persisted On Disk"]
+  },
+  {
+    "id": "TV2",
+    "title": "Idempotent re-read returns same UUID",
+    "description": "Pre-populated file with valid UUID.",
+    "given": {
+      "fs": "${OPENCODE_DATA_HOME}/codex-installation-id contains 'd2c4f6e8-1a3b-4c5d-8e9f-0a1b2c3d4e5f'"
+    },
+    "when": "resolveCodexInstallationId() is invoked twice in two different processes",
+    "expected": {
+      "both_calls_return_same_value": true,
+      "returned_value": "d2c4f6e8-1a3b-4c5d-8e9f-0a1b2c3d4e5f",
+      "file_contents_byte_identical_after_calls": true
+    },
+    "covers": ["Acceptance Check #2"]
+  },
+  {
+    "id": "TV3",
+    "title": "Corrupted file is rewritten with fresh UUID",
+    "description": "File present but contains non-UUID text.",
+    "given": {
+      "fs": "${OPENCODE_DATA_HOME}/codex-installation-id contains 'not-a-uuid\\n'"
+    },
+    "when": "resolveCodexInstallationId() is invoked",
+    "expected": {
+      "returned_value_matches_uuid_v4_regex": true,
+      "returned_value_not_equal_to_pre_state": true,
+      "file_contents_equals_returned_value": true
+    },
+    "covers": ["Acceptance Check #3"]
+  },
+  {
+    "id": "TV4",
+    "title": "Empty file treated as missing UUID",
+    "description": "File exists with zero bytes.",
+    "given": {
+      "fs": "${OPENCODE_DATA_HOME}/codex-installation-id exists with size 0"
+    },
+    "when": "resolveCodexInstallationId() is invoked",
+    "expected": {
+      "returned_value_matches_uuid_v4_regex": true,
+      "file_size_after": 36,
+      "file_contents_equals_returned_value": true
+    },
+    "covers": ["Acceptance Check #3"]
+  },
+  {
+    "id": "TV5",
+    "title": "Read-only data home fails loud",
+    "description": "Parent directory not writable; file absent.",
+    "given": {
+      "fs": "${OPENCODE_DATA_HOME} mode 0555; codex-installation-id absent"
+    },
+    "when": "resolveCodexInstallationId() is invoked",
+    "expected": {
+      "throws": true,
+      "error_name": "CodexInstallationIdResolveError",
+      "error_cause_kind": "EACCES | EROFS",
+      "no_uuid_returned": true,
+      "no_file_written": true,
+      "codex_provider_start_refused": true
+    },
+    "covers": ["Acceptance Check #8", "spec.md Requirement: No Silent Fallback On IO Failure"]
+  },
+  {
+    "id": "TV6",
+    "title": "Concurrent first-launch produces one shared UUID",
+    "description": "Two processes race the resolver against a missing file.",
+    "given": {
+      "fs": "${OPENCODE_DATA_HOME}/codex-installation-id absent",
+      "race": "process A and process B call resolveCodexInstallationId() simultaneously"
+    },
+    "when": "both finish",
+    "expected": {
+      "both_return_same_uuid": true,
+      "file_contents_equals_that_uuid": true,
+      "exactly_one_create_observed": true
+    },
+    "covers": ["design.md Risks: concurrent first-launch race"]
+  },
+  {
+    "id": "TV7",
+    "title": "Outgoing body carries x-codex-installation-id on two consecutive turns",
+    "description": "Steady-state HTTP streaming session; intercept body on turn N and N+1.",
+    "given": {
+      "session": "established codex session, single account",
+      "turn_count": 2,
+      "resolver_state": "persisted UUID U"
+    },
+    "when": "intercept outbound request body on each turn",
+    "expected": {
+      "turn_1.client_metadata['x-codex-installation-id']": "U",
+      "turn_2.client_metadata['x-codex-installation-id']": "U",
+      "turn_1_and_turn_2_value_byte_identical": true,
+      "other_client_metadata_keys_preserved": true
+    },
+    "covers": ["Acceptance Check #5"]
+  },
+  {
+    "id": "TV8",
+    "title": "Account rotation keeps installation_id stable",
+    "description": "Mid-session rotation from account A to account B.",
+    "given": {
+      "session": "established codex session",
+      "rotation": "account A → account B between turn N and turn N+1",
+      "resolver_state": "persisted UUID U"
+    },
+    "when": "intercept outbound request body on turn N (account A) and turn N+1 (account B)",
+    "expected": {
+      "turn_N.client_metadata['x-codex-installation-id']": "U",
+      "turn_N_plus_1.client_metadata['x-codex-installation-id']": "U",
+      "ChatGPT-Account-Id_header_differs_between_turns": true
+    },
+    "covers": ["Acceptance Check #9", "spec.md Requirement: UUID Threaded Through Codex Auth Plumbing"]
+  },
+  {
+    "id": "TV9",
+    "title": "No HTTP header on the streaming turn path",
+    "description": "Inspect outgoing HTTP headers after the fix lands.",
+    "given": {
+      "transport": "HTTP streaming Responses"
+    },
+    "when": "outgoing request HTTP headers captured",
+    "expected": {
+      "headers['x-codex-installation-id']": "absent",
+      "body.client_metadata['x-codex-installation-id']": "present"
+    },
+    "covers": ["Acceptance Check #7", "DD-3"]
+  },
+  {
+    "id": "TV10",
+    "title": "WS first-frame body carries the field",
+    "description": "Responses-over-WebSocket transport.",
+    "given": {
+      "transport": "WebSocket",
+      "resolver_state": "persisted UUID U"
+    },
+    "when": "first frame JSON body captured",
+    "expected": {
+      "body.client_metadata['x-codex-installation-id']": "U",
+      "ws_handshake_headers['x-codex-installation-id']": "absent"
+    },
+    "covers": ["Acceptance Check #6"]
+  }
+]

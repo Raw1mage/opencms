@@ -1,0 +1,75 @@
+[
+  {
+    "id": "P1",
+    "title": "First-launch happy path",
+    "description": "Opencode boots for the first time on a fresh data home; resolver generates UUID; UUID reaches the first outgoing request body.",
+    "participants": [
+      { "id": "Bootstrap", "componentRef": "C1.2", "label": "codex-auth bootstrap" },
+      { "id": "Resolver", "componentRef": "C1.1", "label": "resolveCodexInstallationId" },
+      { "id": "FS", "componentRef": "C3.1", "label": "filesystem" },
+      { "id": "Factory", "componentRef": "C1.3", "label": "getModel" },
+      { "id": "Build", "componentRef": "C2.1", "label": "buildResponsesApiRequest" },
+      { "id": "Meta", "componentRef": "C2.2", "label": "buildClientMetadata" },
+      { "id": "Backend", "componentRef": "C4.1", "label": "Responses API" }
+    ],
+    "messages": [
+      { "id": "M1", "from": "Bootstrap", "to": "Resolver", "label": "resolveCodexInstallationId()" },
+      { "id": "M2", "from": "Resolver", "to": "FS", "label": "open(${HOME}/codex-installation-id, read+write+create)" },
+      { "id": "M3", "from": "FS", "to": "Resolver", "label": "empty file" },
+      { "id": "M4", "from": "Resolver", "to": "FS", "label": "write uuid v4 + fsync + chmod 0644" },
+      { "id": "M5", "from": "Resolver", "to": "Bootstrap", "label": "uuid" },
+      { "id": "M6", "from": "Bootstrap", "to": "Factory", "label": "authWithAccount.installationId = uuid" },
+      { "id": "M7", "from": "Factory", "to": "Build", "label": "createCodex({ ..., installationId: uuid })" },
+      { "id": "M8", "from": "Build", "to": "Meta", "label": "buildClientMetadata({ installationId, window })" },
+      { "id": "M9", "from": "Meta", "to": "Build", "label": "{ 'x-codex-installation-id': uuid, 'x-codex-window-id': ... }" },
+      { "id": "M10", "from": "Build", "to": "Backend", "label": "POST /responses body.client_metadata carries uuid" }
+    ]
+  },
+  {
+    "id": "P2",
+    "title": "Subsequent-launch reuse",
+    "description": "Second opencode launch reads the existing UUID and reuses it; no write occurs.",
+    "participants": [
+      { "id": "Bootstrap", "componentRef": "C1.2", "label": "codex-auth bootstrap" },
+      { "id": "Resolver", "componentRef": "C1.1", "label": "resolveCodexInstallationId" },
+      { "id": "FS", "componentRef": "C3.1", "label": "filesystem" }
+    ],
+    "messages": [
+      { "id": "M1", "from": "Bootstrap", "to": "Resolver", "label": "resolveCodexInstallationId()" },
+      { "id": "M2", "from": "Resolver", "to": "FS", "label": "open + read + parse UUID" },
+      { "id": "M3", "from": "FS", "to": "Resolver", "label": "valid uuid bytes" },
+      { "id": "M4", "from": "Resolver", "to": "Bootstrap", "label": "same uuid as previous launch" }
+    ]
+  },
+  {
+    "id": "P3",
+    "title": "Account rotation keeps identity stable",
+    "description": "Session rotates from account A to account B mid-turn; installationId in body unchanged.",
+    "participants": [
+      { "id": "Session", "label": "Session.runStep" },
+      { "id": "Factory", "componentRef": "C1.3", "label": "getModel" },
+      { "id": "Build", "componentRef": "C2.1", "label": "buildResponsesApiRequest" },
+      { "id": "Backend", "componentRef": "C4.1", "label": "Responses API" }
+    ],
+    "messages": [
+      { "id": "M1", "from": "Session", "to": "Factory", "label": "rotate to account B" },
+      { "id": "M2", "from": "Factory", "to": "Build", "label": "credentials.accountId=B, credentials.installationId=<same UUID>" },
+      { "id": "M3", "from": "Build", "to": "Backend", "label": "body.client_metadata.x-codex-installation-id unchanged" }
+    ]
+  },
+  {
+    "id": "P4",
+    "title": "IO failure fails loud",
+    "description": "Data home read-only; resolver throws; codex provider start refused.",
+    "participants": [
+      { "id": "Bootstrap", "componentRef": "C1.2", "label": "codex-auth bootstrap" },
+      { "id": "Resolver", "componentRef": "C1.1", "label": "resolveCodexInstallationId" },
+      { "id": "FS", "componentRef": "C3.1", "label": "filesystem" }
+    ],
+    "messages": [
+      { "id": "M1", "from": "Bootstrap", "to": "Resolver", "label": "resolveCodexInstallationId()" },
+      { "id": "M2", "from": "Resolver", "to": "FS", "label": "open(create) → EROFS / EACCES" },
+      { "id": "M3", "from": "Resolver", "to": "Bootstrap", "label": "throw IO error (no fallback UUID)" }
+    ]
+  }
+]

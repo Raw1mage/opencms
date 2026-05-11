@@ -1,0 +1,59 @@
+{
+  "diagram_title": "Codex Installation Identity Plumbing",
+  "level": "component",
+  "scope": "codex provider auth + request build pipeline",
+  "systems": [
+    {
+      "id": "S1",
+      "name": "OpenCode Codex Identity Pipeline",
+      "description": "Resolver + auth threading + request-build wire-up that ensures every Responses request carries a stable per-install UUID."
+    }
+  ],
+  "containers": [
+    {
+      "id": "K1",
+      "systemId": "S1",
+      "name": "packages/opencode codex auth + resolver",
+      "technology": "Bun + TypeScript",
+      "description": "Hosts the new resolveCodexInstallationId() and the existing codex-auth bootstrap that threads installationId into credentials."
+    },
+    {
+      "id": "K2",
+      "systemId": "S1",
+      "name": "packages/opencode-codex-provider request builder",
+      "technology": "Bun + TypeScript (LMv2 adapter)",
+      "description": "Existing buildResponsesApiRequest + buildClientMetadata pair; consumes installationId, writes body.client_metadata."
+    },
+    {
+      "id": "K3",
+      "systemId": "S1",
+      "name": "Filesystem (OPENCODE_DATA_HOME)",
+      "technology": "Local filesystem",
+      "description": "Stores the per-install UUID at ${OPENCODE_DATA_HOME}/codex-installation-id, mode 0644."
+    },
+    {
+      "id": "K4",
+      "systemId": "S1",
+      "name": "OpenAI Responses API (external)",
+      "technology": "External HTTPS / WebSocket",
+      "description": "Reads body.client_metadata.x-codex-installation-id as the per-install client identity for prefix-cache lineage and anti-abuse signals."
+    }
+  ],
+  "components": [
+    { "id": "C1.1", "containerId": "K1", "name": "resolveCodexInstallationId", "description": "Read-or-create UUID resolver, lock-safe, fail-loud." },
+    { "id": "C1.2", "containerId": "K1", "name": "codex-auth bootstrap", "description": "Calls resolver once, caches UUID in process scope, sets authWithAccount.installationId." },
+    { "id": "C1.3", "containerId": "K1", "name": "getModel factory", "description": "Threads credentials.installationId into createCodex on every model build." },
+    { "id": "C2.1", "containerId": "K2", "name": "buildResponsesApiRequest", "description": "Composes request body; reads installationId from options." },
+    { "id": "C2.2", "containerId": "K2", "name": "buildClientMetadata", "description": "Writes client_metadata.x-codex-installation-id when installationId is truthy." },
+    { "id": "C3.1", "containerId": "K3", "name": "codex-installation-id file", "description": "Single UUID line, mode 0644, in OPENCODE_DATA_HOME." },
+    { "id": "C4.1", "containerId": "K4", "name": "Prefix-cache lineage", "description": "Backend cache routing keyed in part by client_metadata identity dimension." }
+  ],
+  "relationships": [
+    { "from": "C1.2", "to": "C1.1", "label": "invokes once at bootstrap" },
+    { "from": "C1.1", "to": "C3.1", "label": "reads or creates UUID file" },
+    { "from": "C1.2", "to": "C1.3", "label": "provides cached UUID via credentials" },
+    { "from": "C1.3", "to": "C2.1", "label": "passes installationId into request build" },
+    { "from": "C2.1", "to": "C2.2", "label": "delegates client_metadata assembly" },
+    { "from": "C2.2", "to": "C4.1", "label": "outgoing body field reaches backend" }
+  ]
+}

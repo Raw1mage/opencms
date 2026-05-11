@@ -1,0 +1,98 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A0",
+    "StepType": "initial",
+    "StepAction": "Opencode process starts; codex auth bootstrap not yet invoked",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["process up"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "codex auth bootstrap invokes resolveCodexInstallationId()",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["bootstrap entered"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Open file with read+write+create, acquire advisory lock",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3, 7],
+    "LinkOutputType": "branch",
+    "Condition": ["open OK → 3", "open fails → 7"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Read existing contents and parse as v4 UUID",
+    "LinkInputType": [],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4, 5],
+    "LinkOutputType": "branch",
+    "Condition": ["valid UUID → 5", "empty or invalid → 4"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Generate uuid v4, truncate file, write bytes, fsync, chmod 0644",
+    "LinkInputType": [],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5, 7],
+    "LinkOutputType": "branch",
+    "Condition": ["write OK → 5", "write fails → 7"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Release lock; return UUID; cache as process-wide singleton in codex-auth scope",
+    "LinkInputType": [],
+    "LinkInputNumber": [3, 4],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["UUID in memory"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Every getModel(...) injects credentials.installationId; buildClientMetadata writes body.client_metadata.x-codex-installation-id",
+    "LinkInputType": [],
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["next turn (UUID stable across turns and accounts)"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A5",
+    "StepType": "final",
+    "StepAction": "Propagate IO error; refuse codex provider start (no silent fallback)",
+    "LinkInputType": [],
+    "LinkInputNumber": [2, 4],
+    "LinkOutputNumber": [],
+    "LinkOutputType": "track",
+    "Condition": ["error surfaced to caller"],
+    "SubGrafcet": []
+  }
+]

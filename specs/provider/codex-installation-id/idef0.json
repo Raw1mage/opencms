@@ -1,0 +1,72 @@
+{
+  "diagram_title": "Maintain Per-Install Codex Client Identity",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Resolve Installation UUID",
+      "decomposition": {
+        "diagram_title": "Resolve Installation UUID",
+        "node_reference": "A1",
+        "activities": [
+          { "id": "A11", "title": "Open file at OPENCODE_DATA_HOME/codex-installation-id (create if missing)" },
+          { "id": "A12", "title": "Acquire advisory lock to serialize concurrent first-launches" },
+          { "id": "A13", "title": "Read existing contents and validate as v4 UUID" },
+          { "id": "A14", "title": "Generate uuid v4 when missing or invalid" }
+        ]
+      }
+    },
+    {
+      "id": "A2",
+      "title": "Persist UUID On First Launch",
+      "decomposition": {
+        "diagram_title": "Persist UUID On First Launch",
+        "node_reference": "A2",
+        "activities": [
+          { "id": "A21", "title": "Truncate and write UUID bytes" },
+          { "id": "A22", "title": "fsync to durable storage" },
+          { "id": "A23", "title": "chmod 0644 on POSIX" }
+        ]
+      }
+    },
+    {
+      "id": "A3",
+      "title": "Thread UUID Through Auth Plumbing",
+      "decomposition": {
+        "diagram_title": "Thread UUID Through Auth Plumbing",
+        "node_reference": "A3",
+        "activities": [
+          { "id": "A31", "title": "Cache resolved UUID in codex-auth bootstrap scope (process-wide singleton)" },
+          { "id": "A32", "title": "Set authWithAccount.installationId on bootstrap" },
+          { "id": "A33", "title": "Pass credentials.installationId into createCodex(...) on every getModel call" }
+        ]
+      }
+    },
+    {
+      "id": "A4",
+      "title": "Emit UUID In Request Body",
+      "decomposition": {
+        "diagram_title": "Emit UUID In Request Body",
+        "node_reference": "A4",
+        "activities": [
+          { "id": "A41", "title": "buildResponsesApiRequest receives installationId in options" },
+          { "id": "A42", "title": "buildClientMetadata writes client_metadata.x-codex-installation-id" },
+          { "id": "A43", "title": "HTTP streaming + WebSocket transports both carry the field in JSON body" }
+        ]
+      }
+    },
+    {
+      "id": "A5",
+      "title": "Fail Loud On IO Error",
+      "decomposition": {
+        "diagram_title": "Fail Loud On IO Error",
+        "node_reference": "A5",
+        "activities": [
+          { "id": "A51", "title": "Detect open/read/write failure" },
+          { "id": "A52", "title": "Propagate error up to codex auth bootstrap" },
+          { "id": "A53", "title": "Refuse codex provider start (no fallback UUID)" }
+        ]
+      }
+    }
+  ]
+}

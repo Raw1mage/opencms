@@ -4,6 +4,10 @@
 
 OpenCode 的 codex provider 在 May 9 commit `b59ccb96f` 把 system prompt 全塞 Responses API 的 `instructions` 欄位，並插一個自製 `## CONTEXT PREFACE` user-role 訊息。這個 wire 形態跟上游 codex-cli (`refs/codex/codex-rs/core/`) 嚴重偏離，導致 prefix cache 在 delta=true 模式下卡 4608 tokens 不動，無論帳號穩定與否。本 plan 把 wire 結構重排回上游樣貌：`instructions` 只放駕駛員人格、其他全進 `input[]` 走 developer-role + user-role 兩個 bundle、`prompt_cache_key` 改回純 sessionId。
 
+### Related upstream-alignment spec
+
+- [`../provider_codex-installation-id/`](../provider_codex-installation-id/) — closes the per-request `client_metadata["x-codex-installation-id"]` gap that the byte-diff investigation surfaced. **Not** the cache-4608 root cause (that is `openai/codex#20301`, a server-side GPT-5.5 regression, closed in this plan's event log `event_2026-05-11_closing-note-...`). Treated as upstream-alignment hygiene that shrinks the suspect set for future regression chases.
+
 ## Goals / Non-Goals
 
 ### Goals
@@ -253,6 +257,78 @@ OpenCode 現有 `[IDENTITY REINFORCEMENT]\nCurrent Role: Main Agent / Subagent`�
 
 - `idef0.json` / `idef0.svg` — context-fragment 組裝的 ICOM 分解
 - `grafcet.json` / `grafcet.svg` — runtime evolution（per-turn fragment list 組合 → instructions + input[] 組合 → outbound）
+
+## Context layer map（slow→fast cache-stability ranking）
+
+This section is the **single-page reference** for "where does each OpenCode asset land in the outbound request, and how stable is it under prefix cache".
+
+### Wire-level slots（codex provider, upstream-aligned path）
+
+| Slot | Body location | What rides here | Static / Dynamic | Cache invalidation trigger |
+|---|---|---|---|---|
+| **L0 driver** | `instructions` (top-level field) | `SystemPrompt.provider(model)` → persona file (`prompt/codex.txt` = upstream `default.md`) | **Static** per session | Persona file edit OR model switch (driver routed per-model) |
+| **L1 RoleIdentity** | `input[0]` developer bundle, fragment #1 | Main vs Subagent label | **Static** per session | Subagent transition only (never flips mid-session) |
+| **L2 SYSTEM.md** | `input[0]` developer bundle, fragment #2 (`opencode_protocol`) | `SystemPrompt.system()` → SYSTEM.md verbatim | **Static** per session | User edits SYSTEM.md (rare) |
+| **L3 Agent overlay** | `input[0]` developer bundle, fragment #3 (`opencode_agent_instructions`) | `agent.prompt` + `user.system` | **Semi-dynamic** | `user.system` can carry per-turn extras (lazy catalog, structured-output, quota-low notice, subagent return note) — **THIS IS THE FASTEST-CHURNING FRAGMENT in the developer bundle** |
+| **L4 AGENTS.md global** | `input[1]` user bundle, fragment #1 (`agents_md:global`) | `~/.config/opencode/AGENTS.md` | **Static** per session | User edits global AGENTS.md (rare); skipped for subagents |
+| **L5 AGENTS.md project** | `input[1]` user bundle, fragment #2 (`agents_md:project`) | `<root>/AGENTS.md` | **Static** per session | User edits project AGENTS.md (rare); skipped for subagents |
+| **L6 EnvironmentContext** | `input[1]` user bundle, fragment #3 (`environment_context`) | cwd + shell + currentDate + timezone | **Daily-dynamic** | `currentDate` flips at midnight → invalidates everything *after* the date marker (cwd/shell/timezone stable per session) |
+| **L7 Conversation history** | `input[2..]` | prior user/assistant/tool messages | **Per-turn churn** | Every new turn appends; prefix of prior messages stays cached |
+| **L8 Tools** | top-level `tools` field (parallel to `input[]`) | MCP tools + built-in tools (Bash/Read/Edit/...) + `skill` tool | **Semi-static** | Tool set changes when MCP server starts/stops, agent capabilities change, or skill registry rebuilds |
+| **L9 client_metadata** | top-level `client_metadata` object | `x-codex-installation-id` (per-install UUID), `x-codex-window-id` (`conversationId:generation`) | **Static** per install (UUID) + per session (window) | Install file deletion (UUID); subagent spawn (window generation bump) |
+| **L10 prompt_cache_key** | top-level field | `sessionId` (post Stage A.4 — no accountId mix-in) | **Static** per session | Session id rotates (new session) |
+
+### Inside-bundle fragment ordering（slow-first invariant）
+
+**Developer bundle** (`input[0]`):
+```
+[ RoleIdentity ]              ← L1, static
+[ OpencodeProtocol / SYSTEM ] ← L2, static
+[ AgentInstructions ]         ← L3, semi-dynamic ← LAST so churn truncates only the tail
+```
+
+**User bundle** (`input[1]`):
+```
+[ AGENTS.md global ]          ← L4, static
+[ AGENTS.md project ]         ← L5, static
+[ EnvironmentContext ]        ← L6, daily-dynamic ← LAST so currentDate flip truncates only tail bytes
+```
+
+→ Slow-first ordering is **respected within each bundle**. The fastest-churn fragment sits last in its bundle so cache hash matches the maximum byte prefix until the churn point.
+
+### Cross-slot ordering（what the model actually sees）
+
+```
+instructions field    ── L0 driver (static)
+─────────────────────
+input[0]  developer   ── L1 → L2 → L3
+input[1]  user        ── L4 → L5 → L6
+input[2..] history    ── L7 (per-turn growth)
+─────────────────────
+tools field            ── L8 (parallel; separate cache dimension)
+client_metadata        ── L9 (parallel; identity dimension)
+prompt_cache_key       ── L10 (the cache namespace itself)
+```
+
+The Responses API hashes `input[]` as one prefix-cacheable stream. So bundle ordering matters: L1-L6 sit BEFORE every conversation turn, so their stability protects the whole prefix from invalidation as the conversation grows. L7 history is the only intentionally per-turn append; prefix cache survives up to and including the last assistant turn from the previous round.
+
+### Known imperfections / future work
+
+- **L3 placement is not optimal.** `user.system` carries per-turn extras (lazy catalog, quota-low, etc.) and currently lives inside the developer bundle as fragment #3. If `user.system` content changes between turns, the developer bundle hash breaks even though L1+L2 are byte-stable. **Future option**: split L3 out into a third bundle item between developer and user bundles, or move `user.system` extras into a trailing user-role message (after history) so they ride per-turn churn instead of polluting the static head.
+- **Skills (SKILL.md catalog)** are not currently in the bundle at all on the upstream-wire codex path. The `skill` tool's description lists available skill names; loading a skill goes through tool invocation, not context injection. This is upstream-faithful (codex-cli also does not bundle skills) and is the correct slot for skills under this design.
+- **MCP schemas** appear via the `tools` field, separate from `input[]`. The Responses API caches `tools` independently; tool schema changes only invalidate the tool dimension. If MCP servers register/unregister mid-session this dimension churns; mitigation lives in tool-registration discipline, not in this wire layout.
+- **L6 EnvironmentContext could split** `currentDate` into a trailing micro-fragment so the daily flip invalidates fewer bytes (today the whole environment_context tail goes). Low priority — daily cache break is already the second-slowest churn after L0/L1/L2.
+
+### Quick checklist for new context content
+
+When adding a new piece of context, ask in order:
+1. Is it really context, or is it a tool? → tools go to L8, not into bundles.
+2. Does it change within a single session? → if no, it belongs in L1-L2 (developer) or L4-L5 (user) head, slow-first.
+3. Does it change per-turn? → it must sit at the tail of its bundle, or ride L7 conversation history.
+4. Is it identity (per-install / per-window)? → L9 `client_metadata`, not in `input[]`.
+5. Is it a routing key? → L10 `prompt_cache_key`, not content.
+
+Violating slow-first ordering inside a bundle is the most common regression — every byte placed before a churn point invalidates with it.
 
 ## Migration & rollout
 
