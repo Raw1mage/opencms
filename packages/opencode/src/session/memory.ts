@@ -506,5 +506,41 @@ export namespace Memory {
       }
       return null
     }
+
+    /**
+     * Recall by tool_call_id (compaction/recall-affordance, INV-1, INV-4).
+     *
+     * Linear scan of Session.messages for a ToolPart whose callID matches.
+     * Returns the matched part along with the message that contains it and
+     * its chronological index, so the caller can decide redundancy (i.e.
+     * whether the part is still in post-anchor journal vs. only addressable
+     * via the narrative anchor's TOOL_INDEX).
+     *
+     * First-match wins on duplicate callIDs (DD-7); duplicates are rare
+     * (would imply a retried-and-persisted tool call) but possible. Returns
+     * null when no part matches.
+     */
+    export async function recallByCallId(
+      sessionID: string,
+      callID: string,
+    ): Promise<{
+      toolPart: MessageV2.ToolPart
+      message: MessageV2.WithParts
+      messageIndex: number
+    } | null> {
+      if (!callID) return null
+      const msgs = await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[])
+      for (let i = 0; i < msgs.length; i++) {
+        const m = msgs[i]
+        for (const part of m.parts) {
+          if (part.type !== "tool") continue
+          const tp = part as MessageV2.ToolPart
+          if (tp.callID === callID) {
+            return { toolPart: tp, message: m, messageIndex: i }
+          }
+        }
+      }
+      return null
+    }
   }
 }

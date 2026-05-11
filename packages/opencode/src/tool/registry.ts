@@ -33,6 +33,7 @@ import { RefreshCapabilityLayerTool } from "./refresh-capability-layer"
 import { ToolLoaderTool } from "./tool-loader"
 import { AttachmentTool } from "./attachment"
 import { RereadAttachmentTool } from "./reread-attachment"
+import { RecallTool } from "./recall"
 import { pathToFileURL } from "url"
 
 export namespace ToolRegistry {
@@ -145,6 +146,7 @@ export namespace ToolRegistry {
       TaskTool,
       AttachmentTool,
       RereadAttachmentTool,
+      RecallTool,
       CancelTaskTool,
       WebFetchTool,
       TodoWriteTool,

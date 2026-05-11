@@ -537,9 +537,40 @@ export const FileRoutes = lazy(() =>
         const reqPath = c.req.valid("query").path
         const fs = await import("fs/promises")
         const path = await import("path")
-        const resolved = path.isAbsolute(reqPath) ? reqPath : path.resolve(Instance.directory, reqPath)
-        const stat = await fs.stat(resolved)
-        return c.json({ mtime: stat.mtimeMs, size: stat.size })
+        // When the SPA polls without a directory hint, Instance.directory can
+        // fall back to the request user's $HOME (see app.ts middleware
+        // defaultDirectory). Relative paths then mis-resolve. Try the request
+        // user's resolved directory first, then fall back to Instance.worktree
+        // (project root) and process.cwd() before giving up. ENOENT becomes
+        // 404 so the SPA's poll loop sees a clean "missing" signal instead of
+        // black-screening on 500.
+        async function tryStat(p: string) {
+          try {
+            const s = await fs.stat(p)
+            return { mtime: s.mtimeMs, size: s.size }
+          } catch (err) {
+            const code = (err as NodeJS.ErrnoException)?.code
+            if (code === "ENOENT" || code === "ENOTDIR") return null
+            throw err
+          }
+        }
+        if (path.isAbsolute(reqPath)) {
+          const hit = await tryStat(reqPath)
+          if (hit) return c.json(hit)
+          return c.json({ error: "not_found", path: reqPath }, 404)
+        }
+        const candidates = Array.from(
+          new Set([
+            path.resolve(Instance.directory, reqPath),
+            path.resolve(Instance.worktree, reqPath),
+            path.resolve(process.cwd(), reqPath),
+          ]),
+        )
+        for (const candidate of candidates) {
+          const hit = await tryStat(candidate)
+          if (hit) return c.json(hit)
+        }
+        return c.json({ error: "not_found", path: reqPath, tried: candidates }, 404)
       },
     )
     .get(
@@ -566,8 +597,45 @@ export const FileRoutes = lazy(() =>
         }),
       ),
       async (c) => {
-        const path = c.req.valid("query").path
-        const content = await File.read(path)
+        const reqPath = c.req.valid("query").path
+        const content = await File.read(reqPath)
+        // Disambiguate "newly-created but unsaved file" (legal — caller is
+        // editing a not-yet-persisted document) from "file gone, no git
+        // history" (deleted/moved/never-existed — SPA fileview should not
+        // open at all). Both cases land on File.read returning {content:""}
+        // without a `patch`/`diff` field. We treat the absence of both
+        // on-disk content AND git history as 404 so SPA error paths can
+        // render cleanly instead of attempting to mount an empty SVG/text
+        // viewer that crashes its child interactions.
+        const isTextEmpty = (content as any)?.type === "text" && (content as any)?.content === ""
+        const hasDiff = Boolean((content as any)?.diff)
+        if (isTextEmpty && !hasDiff) {
+          const pathMod = await import("path")
+          const fsMod = await import("fs/promises")
+          const candidates = pathMod.isAbsolute(reqPath)
+            ? [reqPath]
+            : Array.from(
+                new Set([
+                  pathMod.resolve(Instance.directory, reqPath),
+                  pathMod.resolve(Instance.worktree, reqPath),
+                  pathMod.resolve(process.cwd(), reqPath),
+                ]),
+              )
+          let onDisk = false
+          for (const candidate of candidates) {
+            const hit = await fsMod
+              .stat(candidate)
+              .then(() => true)
+              .catch(() => false)
+            if (hit) {
+              onDisk = true
+              break
+            }
+          }
+          if (!onDisk) {
+            return c.json({ error: "not_found", path: reqPath, tried: candidates }, 404)
+          }
+        }
         return c.json(content)
       },
     )

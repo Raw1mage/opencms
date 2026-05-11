@@ -8,102 +8,9 @@
 .junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
 .assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
 .action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
-.debug-gap-band{fill:#fff3bf;stroke:#f59f00;stroke-width:.04;opacity:.22}.debug-gap-area{fill:#74c0fc;stroke:#1971c2;stroke-width:.05;opacity:.24}.debug-gap-line{stroke:#e67700;stroke-width:.05;stroke-dasharray:.4 .25}.debug-gap-label{font:bold .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;fill:#0b7285;text-anchor:start;dominant-baseline:hanging}.debug-gap-label-right{text-anchor:end}.debug-gap-item-label{font:bold .46px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;fill:#1864ab;text-anchor:start;dominant-baseline:hanging}
 </style>
 <defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
 <rect x="-17.00" y="-2.00" width="68.00" height="120.00" fill="white"/>
-<rect class="debug-gap-band" x="-16.50" y="7.00" width="67.00" height="4.00" data-gap-id="gap:0"/>
-<line class="debug-gap-line" x1="-16.50" y1="7.00" x2="50.50" y2="7.00"/>
-<line class="debug-gap-line" x1="-16.50" y1="11.00" x2="50.50" y2="11.00"/>
-<rect class="debug-gap-area" x="-16.50" y="7.00" width="67.00" height="4.00" data-gap-id="gap:0:area:0"/>
-<text class="debug-gap-label debug-gap-label-right" x="50.15" y="7.45" data-gap-id="gap:0:area:0"><tspan x="50.15" dy="0">gap 0 total 4.0U</tspan><tspan x="50.15" dy="0.62">0.0 box_to_box 4.0U lanes=1</tspan></text>
-<text class="debug-gap-item-label" x="20.35" y="8.08" data-gap-id="gap:0:area:0">transition:T1 G0</text>
-<rect class="debug-gap-band" x="-16.50" y="14.00" width="67.00" height="4.00" data-gap-id="gap:1"/>
-<line class="debug-gap-line" x1="-16.50" y1="14.00" x2="50.50" y2="14.00"/>
-<line class="debug-gap-line" x1="-16.50" y1="18.00" x2="50.50" y2="18.00"/>
-<rect class="debug-gap-area" x="-16.50" y="14.00" width="67.00" height="4.00" data-gap-id="gap:1:area:0"/>
-<text class="debug-gap-label debug-gap-label-right" x="50.15" y="14.45" data-gap-id="gap:1:area:0"><tspan x="50.15" dy="0">gap 1 total 4.0U</tspan><tspan x="50.15" dy="0.62">1.0 box_to_box 4.0U lanes=1</tspan></text>
-<text class="debug-gap-item-label" x="20.35" y="15.08" data-gap-id="gap:1:area:0">transition:T2 G0</text>
-<rect class="debug-gap-band" x="-16.50" y="21.00" width="67.00" height="4.00" data-gap-id="gap:2"/>
-<line class="debug-gap-line" x1="-16.50" y1="21.00" x2="50.50" y2="21.00"/>
-<line class="debug-gap-line" x1="-16.50" y1="25.00" x2="50.50" y2="25.00"/>
-<rect class="debug-gap-area" x="-16.50" y="21.00" width="67.00" height="4.00" data-gap-id="gap:2:area:0"/>
-<text class="debug-gap-label debug-gap-label-right" x="50.15" y="21.45" data-gap-id="gap:2:area:0"><tspan x="50.15" dy="0">gap 2 total 4.0U</tspan><tspan x="50.15" dy="0.62">2.0 box_to_box 4.0U lanes=1</tspan></text>
-<text class="debug-gap-item-label" x="20.35" y="22.08" data-gap-id="gap:2:area:0">transition:T3 G0</text>
-<rect class="debug-gap-band" x="-16.50" y="28.00" width="67.00" height="6.00" data-gap-id="gap:3"/>
-<line class="debug-gap-line" x1="-16.50" y1="28.00" x2="50.50" y2="28.00"/>
-<line class="debug-gap-line" x1="-16.50" y1="34.00" x2="50.50" y2="34.00"/>
-<rect class="debug-gap-area" x="-16.50" y="28.00" width="67.00" height="6.00" data-gap-id="gap:3:area:0"/>
-<text class="debug-gap-label debug-gap-label-right" x="50.15" y="28.45" data-gap-id="gap:3:area:0"><tspan x="50.15" dy="0">gap 3 total 6.0U</tspan><tspan x="50.15" dy="0.62">3.0 box_to_box 6.0U lanes=2</tspan></text>
-<text class="debug-gap-item-label" x="15.35" y="29.08" data-gap-id="gap:3:area:0">diverge:3 G0</text>
-<text class="debug-gap-item-label" x="10.35" y="31.08" data-gap-id="gap:3:area:0">T4 G1</text>
-<text class="debug-gap-item-label" x="20.35" y="31.08" data-gap-id="gap:3:area:0">T5 G2</text>
-<rect class="debug-gap-band" x="-16.50" y="37.00" width="67.00" height="8.00" data-gap-id="gap:4"/>
-<line class="debug-gap-line" x1="-16.50" y1="37.00" x2="50.50" y2="37.00"/>
-<line class="debug-gap-line" x1="-16.50" y1="45.00" x2="50.50" y2="45.00"/>
-<rect class="debug-gap-area" x="-16.50" y="37.00" width="67.00" height="8.00" data-gap-id="gap:4:area:0"/>
-<text class="debug-gap-label debug-gap-label-right" x="50.15" y="37.45" data-gap-id="gap:4:area:0"><tspan x="50.15" dy="0">gap 4 total 8.0U</tspan><tspan x="50.15" dy="0.62">4.0 box_to_box 8.0U lanes=3</tspan></text>
-<text class="debug-gap-item-label" x="10.35" y="38.08" data-gap-id="gap:4:area:0">T6 G0</text>
-<text class="debug-gap-item-label" x="20.35" y="38.08" data-gap-id="gap:4:area:0">T7 G1</text>
-<text class="debug-gap-item-label" x="15.35" y="40.08" data-gap-id="gap:4:area:0">converge:6 G2</text>
-<text class="debug-gap-item-label" x="-15.65" y="42.58" data-gap-id="gap:4:area:0">R63 G3</text>
-<rect class="debug-gap-band" x="-16.50" y="48.00" width="67.00" height="6.00" data-gap-id="gap:5"/>
-<line class="debug-gap-line" x1="-16.50" y1="48.00" x2="50.50" y2="48.00"/>
-<line class="debug-gap-line" x1="-16.50" y1="54.00" x2="50.50" y2="54.00"/>
-<rect class="debug-gap-area" x="-16.50" y="48.00" width="67.00" height="6.00" data-gap-id="gap:5:area:0"/>
-<text class="debug-gap-label debug-gap-label-right" x="50.15" y="48.45" data-gap-id="gap:5:area:0"><tspan x="50.15" dy="0">gap 5 total 6.0U</tspan><tspan x="50.15" dy="0.62">5.0 box_to_box 6.0U lanes=2</tspan></text>
-<text class="debug-gap-item-label" x="15.35" y="49.08" data-gap-id="gap:5:area:0">diverge:6 G0</text>
-<text class="debug-gap-item-label" x="0.35" y="51.08" data-gap-id="gap:5:area:0">T8 G1</text>
-<text class="debug-gap-item-label" x="10.35" y="51.08" data-gap-id="gap:5:area:0">T11 G2</text>
-<text class="debug-gap-item-label" x="20.35" y="51.08" data-gap-id="gap:5:area:0">T10 G3</text>
-<text class="debug-gap-item-label" x="30.35" y="51.08" data-gap-id="gap:5:area:0">T9 G4</text>
-<rect class="debug-gap-band" x="-16.50" y="57.00" width="67.00" height="10.00" data-gap-id="gap:6"/>
-<line class="debug-gap-line" x1="-16.50" y1="57.00" x2="50.50" y2="57.00"/>
-<line class="debug-gap-line" x1="-16.50" y1="67.00" x2="50.50" y2="67.00"/>
-<rect class="debug-gap-area" x="-16.50" y="57.00" width="67.00" height="10.00" data-gap-id="gap:6:area:0"/>
-<text class="debug-gap-label debug-gap-label-right" x="50.15" y="57.45" data-gap-id="gap:6:area:0"><tspan x="50.15" dy="0">gap 6 total 10.0U</tspan><tspan x="50.15" dy="0.62">6.0 box_to_box 10.0U lanes=4</tspan></text>
-<text class="debug-gap-item-label" x="30.35" y="58.58" data-gap-id="gap:6:area:0">8 G0</text>
-<text class="debug-gap-item-label" x="33.57" y="58.58" data-gap-id="gap:6:area:0">R82 G0</text>
-<text class="debug-gap-item-label" x="27.57" y="60.58" data-gap-id="gap:6:area:0">R80 G1</text>
-<text class="debug-gap-item-label" x="0.35" y="58.08" data-gap-id="gap:6:area:0">T12 G2</text>
-<text class="debug-gap-item-label" x="10.35" y="58.08" data-gap-id="gap:6:area:0">T16 G3</text>
-<text class="debug-gap-item-label" x="30.35" y="62.08" data-gap-id="gap:6:area:0">T13 G4</text>
-<text class="debug-gap-item-label" x="14.60" y="64.08" data-gap-id="gap:6:area:0">converge:11 G5</text>
-<rect class="debug-gap-band" x="-16.50" y="70.00" width="67.00" height="6.00" data-gap-id="gap:7"/>
-<line class="debug-gap-line" x1="-16.50" y1="70.00" x2="50.50" y2="70.00"/>
-<line class="debug-gap-line" x1="-16.50" y1="76.00" x2="50.50" y2="76.00"/>
-<rect class="debug-gap-area" x="-16.50" y="70.00" width="67.00" height="6.00" data-gap-id="gap:7:area:0"/>
-<text class="debug-gap-label debug-gap-label-right" x="50.15" y="70.45" data-gap-id="gap:7:area:0"><tspan x="50.15" dy="0">gap 7 total 6.0U</tspan><tspan x="50.15" dy="0.62">7.0 box_to_box 6.0U lanes=2</tspan></text>
-<text class="debug-gap-item-label" x="10.35" y="71.08" data-gap-id="gap:7:area:0">T17 G0</text>
-<text class="debug-gap-item-label" x="20.35" y="71.08" data-gap-id="gap:7:area:0">T15 G1</text>
-<text class="debug-gap-item-label" x="15.35" y="73.08" data-gap-id="gap:7:area:0">converge:12 G2</text>
-<rect class="debug-gap-band" x="-16.50" y="79.00" width="67.00" height="6.00" data-gap-id="gap:8"/>
-<line class="debug-gap-line" x1="-16.50" y1="79.00" x2="50.50" y2="79.00"/>
-<line class="debug-gap-line" x1="-16.50" y1="85.00" x2="50.50" y2="85.00"/>
-<rect class="debug-gap-area" x="-16.50" y="79.00" width="67.00" height="6.00" data-gap-id="gap:8:area:0"/>
-<text class="debug-gap-label debug-gap-label-right" x="50.15" y="79.45" data-gap-id="gap:8:area:0"><tspan x="50.15" dy="0">gap 8 total 6.0U</tspan><tspan x="50.15" dy="0.62">8.0 box_to_box 6.0U lanes=2</tspan></text>
-<text class="debug-gap-item-label" x="20.35" y="80.58" data-gap-id="gap:8:area:0">12 G0</text>
-<text class="debug-gap-item-label" x="30.35" y="80.58" data-gap-id="gap:8:area:0">R109 G0</text>
-<text class="debug-gap-item-label" x="20.35" y="82.08" data-gap-id="gap:8:area:0">transition:T18 G1</text>
-<rect class="debug-gap-band" x="-16.50" y="88.00" width="67.00" height="8.00" data-gap-id="gap:9"/>
-<line class="debug-gap-line" x1="-16.50" y1="88.00" x2="50.50" y2="88.00"/>
-<line class="debug-gap-line" x1="-16.50" y1="96.00" x2="50.50" y2="96.00"/>
-<rect class="debug-gap-area" x="-16.50" y="88.00" width="67.00" height="8.00" data-gap-id="gap:9:area:0"/>
-<text class="debug-gap-label debug-gap-label-right" x="50.15" y="88.45" data-gap-id="gap:9:area:0"><tspan x="50.15" dy="0">gap 9 total 8.0U</tspan><tspan x="50.15" dy="0.62">9.0 box_to_box 8.0U lanes=3</tspan></text>
-<text class="debug-gap-item-label" x="20.35" y="89.08" data-gap-id="gap:9:area:0">diverge:13 G0</text>
-<text class="debug-gap-item-label" x="20.35" y="91.08" data-gap-id="gap:9:area:0">T21 G1</text>
-<text class="debug-gap-item-label" x="30.35" y="91.08" data-gap-id="gap:9:area:0">T14 G2</text>
-<text class="debug-gap-item-label" x="40.35" y="89.08" data-gap-id="gap:9:area:0">T19 G3</text>
-<text class="debug-gap-item-label" x="29.60" y="93.08" data-gap-id="gap:9:area:0">converge:14 G4</text>
-<rect class="debug-gap-band" x="-16.50" y="99.00" width="67.00" height="8.00" data-gap-id="gap:10"/>
-<line class="debug-gap-line" x1="-16.50" y1="99.00" x2="50.50" y2="99.00"/>
-<line class="debug-gap-line" x1="-16.50" y1="107.00" x2="50.50" y2="107.00"/>
-<rect class="debug-gap-area" x="-16.50" y="99.00" width="67.00" height="8.00" data-gap-id="gap:10:area:0"/>
-<text class="debug-gap-label debug-gap-label-right" x="50.15" y="99.45" data-gap-id="gap:10:area:0"><tspan x="50.15" dy="0">gap 10 total 8.0U</tspan><tspan x="50.15" dy="0.62">10.0 box_to_box 8.0U lanes=3</tspan></text>
-<text class="debug-gap-item-label" x="30.35" y="100.08" data-gap-id="gap:10:area:0">diverge:14 G0</text>
-<text class="debug-gap-item-label" x="20.35" y="102.08" data-gap-id="gap:10:area:0">T22 G1</text>
-<text class="debug-gap-item-label" x="40.35" y="102.08" data-gap-id="gap:10:area:0">T23 G2</text>
-<text class="debug-gap-item-label" x="-15.80" y="104.58" data-gap-id="gap:10:area:0">R141 G3</text>
 <path class="edge edge-arrow" d="M 20.00 90.00 L 20.00 94.00"/>
 <path class="edge" d="M 20.00 7.00 L 20.00 9.00"/>
 <path class="edge edge-arrow" d="M 20.00 9.00 L 20.00 11.00"/>
@@ -128,7 +35,7 @@
 <path class="edge edge-arrow" d="M 30.00 59.00 L 30.00 65.00"/>
 <path class="edge edge-arrow" d="M 30.00 59.00 L 30.00 59.00 L 35.95 59.00 Q 36.45 59.00 36.45 59.50 L 36.45 69.12 Q 36.45 69.62 35.95 69.62 L 30.50 69.62 Q 30.00 69.62 30.00 70.12 L 30.00 94.00"/>
 <path class="edge edge-arrow" d="M 30.00 94.00 L 30.00 96.00"/>
-<path class="edge edge-arrow" d="M 20.00 57.00 L 20.00 57.50 Q 20.00 58.00 20.50 58.00 L 33.95 58.00 Q 34.45 58.00 34.45 58.50 L 34.45 67.12 Q 34.45 67.62 33.95 67.62 L 20.50 67.62 Q 20.00 67.62 20.00 68.12 L 20.00 74.00"/>
+<path class="edge edge-arrow" d="M 20.00 57.00 L 20.00 60.50 Q 20.00 61.00 20.50 61.00 L 33.95 61.00 Q 34.45 61.00 34.45 61.50 L 34.45 67.12 Q 34.45 67.62 33.95 67.62 L 20.50 67.62 Q 20.00 67.62 20.00 68.12 L 20.00 74.00"/>
 <path class="edge edge-arrow" d="M 20.00 74.00 L 20.00 76.00"/>
 <path class="edge edge-arrow" d="M 10.00 57.00 L 10.00 65.00"/>
 <path class="edge edge-arrow" d="M 10.00 70.00 L 10.00 74.00"/>
@@ -139,12 +46,12 @@
 <path class="edge edge-arrow" d="M 20.00 88.00 L 20.00 90.00"/>
 <path class="edge" d="M 20.00 90.00 L -8.50 90.00 Q -9.00 90.00 -9.00 89.50 L -9.00 43.50 Q -9.00 43.00 -8.50 43.00 L 20.00 43.00"/>
 <path class="edge edge-arrow" d="M 30.00 99.00 L 30.00 101.00"/>
-<path class="edge edge-arrow" d="M 20.00 101.00 L 20.00 108.50 Q 20.00 109.00 19.50 109.00 L -12.50 109.00 Q -13.00 109.00 -13.00 108.50 L -13.00 2.50 Q -13.00 2.00 -12.50 2.00 L 19.50 2.00 Q 20.00 2.00 20.00 2.50 L 20.00 4.00"/>
+<path class="edge edge-arrow" d="M 20.00 101.00 L 20.00 104.50 Q 20.00 105.00 19.50 105.00 L -12.50 105.00 Q -13.00 105.00 -13.00 104.50 L -13.00 2.50 Q -13.00 2.00 -12.50 2.00 L 19.50 2.00 Q 20.00 2.00 20.00 2.50 L 20.00 4.00"/>
 <path class="edge edge-arrow" d="M 40.00 101.00 L 40.00 107.00"/>
 <path class="edge" d="M 40.00 110.00 L 40.00 112.00"/>
 <path class="edge" d="M 40.00 112.00 L 40.00 114.00"/>
 <path class="edge" d="M 40.00 114.00 L -13.00 114.00"/>
-<path class="edge" d="M -13.00 114.00 L -13.00 109.00"/>
+<path class="edge" d="M -13.00 114.00 L -13.00 105.00"/>
 <rect class="step" x="18.00" y="4.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
 <rect class="step-inner" x="18.25" y="4.25" width="3.50" height="2.50" rx="0.22" ry="0.22"/>
 <text class="label" x="20.00" y="5.50">0</text>
@@ -260,16 +167,16 @@
 <text class="gate-label" x="21.40" y="52.00"><tspan x="21.40" dy="0">助手完成無工具</tspan></text>
 <line class="gate" x1="9.00" y1="52.00" x2="11.00" y2="52.00"/>
 <text class="gate-label-left" x="8.60" y="52.00"><tspan x="8.60" dy="0">工具呼叫其他平行</tspan></text>
-<line class="gate" x1="-1.00" y1="59.00" x2="1.00" y2="59.00"/>
-<text class="gate-label-left" x="-1.40" y="58.32"><tspan x="-1.40" dy="0">已派發==是</tspan><tspan x="-1.40" dy="0.68">&amp;&amp; 父層回</tspan><tspan x="-1.40" dy="0.68">合已返回</tspan></text>
+<line class="gate" x1="-1.00" y1="63.00" x2="1.00" y2="63.00"/>
+<text class="gate-label-left" x="-1.40" y="62.32"><tspan x="-1.40" dy="0">已派發==是</tspan><tspan x="-1.40" dy="0.68">&amp;&amp; 父層回</tspan><tspan x="-1.40" dy="0.68">合已返回</tspan></text>
 <line class="gate" x1="29.00" y1="63.00" x2="31.00" y2="63.00"/>
 <text class="gate-label" x="31.40" y="62.32"><tspan x="31.40" dy="0">回覆已</tspan><tspan x="31.40" dy="0.68">收到或</tspan><tspan x="31.40" dy="0.68">已解析</tspan></text>
 <line class="gate" x1="29.00" y1="92.00" x2="31.00" y2="92.00"/>
 <text class="gate-label" x="31.40" y="92.00"><tspan x="31.40" dy="0">中止訊號已觸發</tspan></text>
 <line class="gate" x1="19.00" y1="72.00" x2="21.00" y2="72.00"/>
 <text class="gate-label" x="21.40" y="72.00"><tspan x="21.40" dy="0">助手乾淨完成</tspan></text>
-<line class="gate" x1="9.00" y1="59.00" x2="11.00" y2="59.00"/>
-<text class="gate-label-left" x="8.60" y="59.00"><tspan x="8.60" dy="0">所有工具結果就緒</tspan></text>
+<line class="gate" x1="9.00" y1="63.00" x2="11.00" y2="63.00"/>
+<text class="gate-label-left" x="8.60" y="63.00"><tspan x="8.60" dy="0">所有工具結果就緒</tspan></text>
 <line class="gate" x1="9.00" y1="72.00" x2="11.00" y2="72.00"/>
 <text class="gate-label-left" x="8.60" y="72.00"><tspan x="8.60" dy="0">工具結果已提交</tspan></text>
 <line class="gate" x1="39.00" y1="90.00" x2="41.00" y2="90.00"/>
@@ -283,7 +190,7 @@
 <line class="gate" x1="39.00" y1="103.00" x2="41.00" y2="103.00"/>
 <text class="gate-label" x="41.40" y="103.00"><tspan x="41.40" dy="0">排程心跳派發到期工作</tspan></text>
 <circle class="junction" cx="20.00" cy="43.00" r="0.22"/>
-<circle class="junction" cx="-13.00" cy="109.00" r="0.22"/>
+<circle class="junction" cx="-13.00" cy="105.00" r="0.22"/>
 <circle class="branch-junction" cx="30.00" cy="59.00" r="0.28"/>
 <circle class="branch-junction" cx="20.00" cy="81.00" r="0.28"/>
 </svg>

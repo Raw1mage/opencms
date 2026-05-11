@@ -17,6 +17,7 @@ import { ProviderTransform } from "@/provider/transform"
 import { SessionPrompt } from "./prompt"
 import { SharedContext } from "./shared-context"
 import { Memory } from "./memory"
+import * as ToolIndex from "./tool-index"
 import { Tweaks } from "../config/tweaks"
 import { PostCompaction } from "./post-compaction"
 import { ContinuationInvalidatedEvent } from "../plugin/codex-auth"
@@ -2579,16 +2580,102 @@ When constructing the summary, try to stick to this template:
     snapshot?: UserMessageSnapshot
   }
   const defaultWriteAnchor = async (input: WriteAnchorInput) => {
+    // compaction/recall-affordance L1: server-side TOOL_INDEX injection.
+    // The narrative / replay-tail / llm-agent kinds build their body in
+    // local code without LLM in the loop, so a prompt-side instruction
+    // (buildUserPayload) cannot reach them. We compute the index
+    // authoritatively from the on-disk message stream and append it before
+    // sanitization. For hybrid_llm we deduplicate against any LLM-emitted
+    // table.
+    let augmentedSummary = input.summaryText
+    const needsClientSideIndex =
+      input.kind === "narrative" ||
+      input.kind === "replay-tail" ||
+      input.kind === "llm-agent" ||
+      input.kind === "hybrid_llm"
+    if (needsClientSideIndex) {
+      try {
+        const allMsgs = await Session.messages({ sessionID: input.sessionID }).catch(
+          () => [] as MessageV2.WithParts[],
+        )
+        // Scan the full pre-write message stream for ToolPart entries —
+        // these are the calls that will collapse into the anchor body
+        // once it lands. Wrap as a single pseudo-journal-entry so the
+        // shared extractor works.
+        const fresh = ToolIndex.extractFromJournal([{ messages: allMsgs }])
+        const priorBody = (() => {
+          // priorAnchor's body is already inside input.summaryText for the
+          // redacted-dialog path (concat); separate parse is harmless if
+          // not present.
+          return ToolIndex.parseFromBody(input.summaryText)
+        })()
+        const merged = ToolIndex.merge(priorBody, fresh)
+        if (merged.length > 0) {
+          // Apply size ceiling: cap index at ~30K bytes (≤10% of typical
+          // anchor body). Older entries truncated with placeholder row.
+          const { entries: budgeted, truncatedCount } = ToolIndex.applyBudget(merged, 30_000)
+          const section = ToolIndex.renderSection(budgeted)
+          // Strip ALL pre-existing TOOL_INDEX sections from the body before
+          // appending the authoritative one. Narrative path concatenates
+          // prevAnchor.content (which already carries a TOOL_INDEX from the
+          // previous compaction) with new dialog tail — a naive slice-at-
+          // first-marker drops the tail. stripToolIndexSections walks every
+          // marker occurrence and removes each section through to its
+          // terminating blank line.
+          const stripped = ToolIndex.stripAllSections(input.summaryText)
+          augmentedSummary = stripped.trimEnd() + "\n\n" + section
+          log.info("compaction.tool_index.injected", {
+            sessionID: input.sessionID,
+            kind: input.kind,
+            entryCount: budgeted.length,
+            truncatedCount,
+            origBytes: input.summaryText.length,
+            newBytes: augmentedSummary.length,
+          })
+        }
+      } catch (err) {
+        log.warn("compaction.tool_index.inject_failed", {
+          sessionID: input.sessionID,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      }
+    }
+
     // DD-6: anchor body is wrapped + softened before persistence so it
     // cannot be misread as system authority by the LLM on next turn.
-    const sanitized = sanitizeAnchorToString(input.summaryText, input.kind as AnchorKind)
+    const sanitized = sanitizeAnchorToString(augmentedSummary, input.kind as AnchorKind)
     log.info("compaction.anchor.sanitized", {
       sessionID: input.sessionID,
       kind: input.kind,
       originalLength: input.summaryText.length,
+      augmentedLength: augmentedSummary.length,
       sanitizedLength: sanitized.body.length,
       imperativePrefixApplied: sanitized.imperativePrefixApplied,
     })
+
+    // compaction/recall-affordance L1: validate TOOL_INDEX presence on the
+    // narrative-kind anchor body. Other kinds (low-cost-server / hybrid_llm
+    // / replay-tail) either preserve content via provider chain or are
+    // exempt by design; we only police the narrative path where loss is
+    // unrecoverable without the affordance.
+    if (needsClientSideIndex) {
+      const indexCheck = ToolIndex.validate(sanitized.body)
+      if (indexCheck.found && indexCheck.entryCount > 0) {
+        log.info("compaction.tool_index.emitted", {
+          sessionID: input.sessionID,
+          kind: input.kind,
+          entryCount: indexCheck.entryCount,
+          indexBytes: indexCheck.indexBytes,
+        })
+      } else {
+        log.warn("compaction.tool_index.missing", {
+          sessionID: input.sessionID,
+          kind: input.kind,
+          markerPresent: indexCheck.found,
+          anchorBytes: sanitized.body.length,
+        })
+      }
+    }
 
     // DD-9: identify previous anchor BEFORE the write so we can release its
     // pinForAnchor entries afterwards. The cooldown gate (30s) makes
@@ -3122,6 +3209,19 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
       request: LLMCompactRequest,
       meta: { generatedAt: string; provider: string; model: string },
     ): string {
+      // compaction/recall-affordance L1: pre-compute TOOL_INDEX from
+      // priorAnchor (carries forward) + journalUnpinned (current cycle's
+      // tool calls). Deterministic — the LLM's job is just to preserve
+      // the section verbatim at the end of the body.
+      const priorIndex = ToolIndex.parseFromBody(request.priorAnchor?.content ?? "")
+      const freshIndex = ToolIndex.extractFromJournal(request.journalUnpinned as any[])
+      const merged = ToolIndex.merge(priorIndex, freshIndex)
+      // INV-6: budget the index at ~10% of targetTokens worth of bytes
+      // (4 chars/token rule-of-thumb). Truncates oldest entries first.
+      const budgetBytes = Math.max(2_000, Math.floor((request.targetTokens / 10) * 4))
+      const { entries: budgeted } = ToolIndex.applyBudget(merged, budgetBytes)
+      const renderedIndex = ToolIndex.renderSection(budgeted)
+
       const earliest = request.journalUnpinned[0] ? (request.journalUnpinned[0].roundIndex ?? 0) : 0
       const latest =
         request.journalUnpinned.length > 0
@@ -3165,6 +3265,9 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
       }
       lines.push("")
       lines.push("Produce the new anchor body now.")
+      // compaction/recall-affordance L1: append the verbatim-preserve
+      // instruction with the precomputed TOOL_INDEX section.
+      lines.push(ToolIndex.buildPromptInstruction(renderedIndex))
       return lines.join("\n")
     }
 

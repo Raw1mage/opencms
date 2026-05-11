@@ -389,12 +389,21 @@ export namespace Session {
   }): ExecutionIdentity {
     const now = input.now ?? Date.now()
     const unchanged = sameExecutionIdentity(input.current, input.model)
+    // Preserve side-band state attached to execution (recentEvents,
+    // activeImageRefs) across identity rotations. The identity fields
+    // (providerId/modelID/accountId) change on account rotation, but the
+    // session's behavioural state (recent compaction events that drive
+    // the amnesia notice; queued image refs) MUST survive. Pre-2026-05-12
+    // these silently disappeared on every rotation, breaking compaction/
+    // recall-affordance L3 and attachment-lifecycle v4.
     return {
       providerId: input.model.providerId,
       modelID: input.model.modelID,
       accountId: input.model.accountId,
       revision: unchanged ? (input.current?.revision ?? 0) : (input.current?.revision ?? 0) + 1,
       updatedAt: now,
+      ...(input.current?.recentEvents !== undefined ? { recentEvents: input.current.recentEvents } : {}),
+      ...(input.current?.activeImageRefs !== undefined ? { activeImageRefs: input.current.activeImageRefs } : {}),
     }
   }
 
