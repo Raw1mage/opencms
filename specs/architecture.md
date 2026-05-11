@@ -4,6 +4,210 @@
 
 OpenCode is a desktop/TUI/Webapp multi-interface platform for interacting with AI coding agents and various model providers (OpenAI, Anthropic, Gemini, etc.).
 
+## Module Architecture
+
+These two diagrams are the **system-level** view (block + stack) — the
+question "what are the parts and how do they layer". Workflow questions
+("how does *this* purpose evolve at runtime") live in the per-chapter
+IDEF0 + GRAFCET artifacts under `specs/<chapter>/` (see chapter table
+below).
+
+### Block view — peer subsystems and dataflow
+
+```mermaid
+graph TB
+    classDef edge fill:#fde68a,stroke:#92400e,color:#1f2937
+    classDef daemon fill:#bfdbfe,stroke:#1e3a8a,color:#1f2937
+    classDef session fill:#bbf7d0,stroke:#14532d,color:#1f2937
+    classDef tool fill:#e9d5ff,stroke:#581c87,color:#1f2937
+    classDef ext fill:#fecaca,stroke:#7f1d1d,color:#1f2937
+    classDef store fill:#e5e7eb,stroke:#374151,color:#1f2937
+
+    subgraph CLIENTS[Client surfaces]
+        TUI["TUI<br/>packages/console"]
+        WEB["Web SPA<br/>packages/app · packages/web"]
+        DESK["Desktop<br/>packages/desktop (Tauri)"]
+        CLI["CLI<br/>packages/opencode/src/cli"]
+    end
+
+    subgraph EDGE[C Gateway layer]
+        GW["opencode-gateway<br/>daemon/opencode-gateway.c<br/>PAM · JWT · epoll splice"]
+    end
+
+    subgraph PERUSER[Per-user Bun daemon]
+        SVR["HTTP / SSE / WS server<br/>src/server/"]
+        BUS["Event Bus<br/>src/bus/"]
+        SCHED["Scheduler / Cron<br/>src/scheduler · src/cron"]
+
+        subgraph CORE[Session core]
+            SESS["Session lifecycle<br/>src/session/"]
+            COMP["Compaction<br/>src/session/compaction*"]
+            HARN["Harness / runner<br/>src/agent · src/runtime"]
+        end
+
+        subgraph PROV[Provider routing]
+            REG["Provider registry<br/>src/provider/"]
+            ACC["Account / OAuth<br/>src/account · src/auth"]
+            R3D["Rotation3D<br/>src/account/rotation3d"]
+        end
+
+        subgraph TOOLS[Tool surface]
+            TOOL["Built-in tools<br/>src/tool/"]
+            MCP["MCP framework<br/>src/mcp/"]
+            SKILL["Skills<br/>src/skill/"]
+            APPS["Managed apps<br/>app-market"]
+        end
+
+        STORE["XDG storage · SQLite · snapshot<br/>src/storage · src/snapshot"]
+    end
+
+    subgraph EXT[External]
+        LLM["LLM APIs<br/>OpenAI · Anthropic · Gemini · …<br/>via Vercel AI SDK"]
+        MCPSV["MCP servers<br/>stdio · SSE · HTTP<br/>system-manager · branch-cicd · docxmcp · …"]
+        OAUTH["OAuth providers<br/>Google · Anthropic · OpenAI Codex"]
+    end
+
+    TUI --> GW
+    WEB --> GW
+    DESK --> GW
+    CLI --> SVR
+
+    GW -->|setuid + Unix socket| SVR
+    SVR --> SESS
+    SVR <--> BUS
+    SCHED --> BUS
+    BUS --> SESS
+
+    SESS --> HARN
+    SESS --> COMP
+    SESS --> PROV
+    SESS --> TOOLS
+
+    PROV --> R3D
+    PROV --> ACC
+    R3D --> LLM
+    ACC --> OAUTH
+
+    TOOLS --> MCP
+    MCP --> MCPSV
+    APPS --> OAUTH
+
+    SESS --> STORE
+    ACC --> STORE
+    SCHED --> STORE
+
+    class GW edge
+    class SVR,BUS,SCHED daemon
+    class SESS,COMP,HARN,REG,ACC,R3D session
+    class TOOL,MCP,SKILL,APPS tool
+    class LLM,MCPSV,OAUTH ext
+    class STORE store
+```
+
+### Stack view — layered dependency
+
+```mermaid
+graph BT
+    L8["L8 · Storage<br/>~/.config/opencode · ~/.local/{state,share}/opencode · /etc/opencode<br/>JSON atomic + SQLite + snapshots"]
+    L7["L7 · External<br/>LLM APIs · MCP servers · OAuth providers"]
+    L6["L6 · Tool surface<br/>Built-in tools · MCP framework · Managed apps · Skills · Permission"]
+    L5["L5 · Session runtime<br/>Session · Compaction · Harness · Provider router · Rotation3D · Account"]
+    L4["L4 · Per-user daemon<br/>HTTP/SSE/WS server · Event Bus · Scheduler · Cron · Snapshot"]
+    L3["L3 · Gateway<br/>C, root-privileged · PAM · JWT · epoll splice · per-IP rate limit"]
+    L2["L2 · Transport<br/>HTTP · SSE · WebSocket over TCP / Unix socket"]
+    L1["L1 · Client surfaces<br/>TUI · Web SPA · Desktop (Tauri) · CLI"]
+
+    L1 --> L2 --> L3 --> L4 --> L5 --> L6
+    L5 --> L7
+    L6 --> L7
+    L4 --> L8
+    L5 --> L8
+```
+
+### Chapter index — per-purpose IDEF0 / GRAFCET
+
+Each chapter under `specs/<chapter>/` is one **deliverable functional purpose**
+with its own A0 / A1.. IDEF0 decomposition and paired GRAFCET. This is the
+canonical source of truth; the global `_archive/global-architecture/` set is
+historical reference only.
+
+| Chapter | Purpose | Key code | Wiki |
+|---|---|---|---|
+| `account/` | Manage account identity & OAuth tokens | `src/account · src/auth` | [README](./account/README.md) |
+| `app-market/` | Install MCP / managed-app / mcp-app on a unified surface | `src/mcp · admin panel` | [README](./app-market/README.md) |
+| `attachments/` | Receive and lifecycle file attachments | `src/incoming · src/file` | [README](./attachments/README.md) |
+| `compaction/` | Compact conversation state within token budget | `src/session/compaction*` | [README](./compaction/README.md) |
+| `daemon/` | Serve multi-user sessions over local IPC | `daemon/ · src/daemon · src/server` | [README](./daemon/README.md) |
+| `harness/` | Orchestrate plan-driven autonomous runs | `src/agent · src/runtime · src/skill` | [README](./harness/README.md) |
+| `mcp/` | Frame MCP transport, manifests, idle unload | `src/mcp` | [README](./mcp/README.md) |
+| `meta/` | Govern config / plan-builder / architecture flow | `meta layer` | [README](./meta/README.md) |
+| `provider/` | Resolve provider & route LLM calls (incl. Rotation3D) | `src/provider · src/account/rotation3d` | [README](./provider/README.md) |
+| `session/` | Execute one user-initiated AI turn | `src/session · src/storage` | [README](./session/README.md) |
+| `webapp/` | Present sessions across SolidJS SPA + Admin Panel | `packages/app · packages/web` | [README](./webapp/README.md) |
+
+> **Status**: module diagrams above introduced 2026-05-11 per miatdiagram
+> reframe (system architecture is no longer conflated with IDEF0). Per-chapter
+> protocol datasheets and per-chapter module sub-diagrams are next on the
+> documentation backlog (see [meta/](./meta/README.md)).
+
+### Gateway as developer platform — registered webapps
+
+Beyond proxying its own Web App, the Gateway exposes a **prefix-routed
+registration surface** so any local dev server can be mounted under
+`/<prefix>` and immediately inherit unified auth + reverse proxy + UI
+entry-point. This is a load-bearing developer-ergonomics feature: a new
+feature gets a debuggable surface in zero infrastructure cost — no
+nginx, no port wrangling, no auth glue.
+
+```mermaid
+graph LR
+    DEV[Developer<br/>writes feature]
+    REG["~/.config/web_registry.json<br/>entryName · publicBasePath<br/>primaryPort · webctlPath · access"]
+    API["server/routes/web-route.ts<br/>register · remove · health"]
+    CONF["/etc/opencode/web_routes.conf<br/>auto-generated routing table<br/>longest-prefix match"]
+    GW[opencode-gateway.c<br/>PAM · JWT · epoll splice]
+    APP1["/cecelearn → :5173"]
+    APP2["/linebot → :3015 (protected)"]
+    APP3["/lifecollection → :8090"]
+    APPN["…/<prefix> → :PORT"]
+
+    DEV --> REG
+    REG --> API
+    API --> CONF
+    CONF --> GW
+    GW --> APP1
+    GW --> APP2
+    GW --> APP3
+    GW --> APPN
+```
+
+Contract:
+
+| Field | Source of truth | Effect |
+|---|---|---|
+| `entryName` | `web_registry.json` | unique key for register/remove API |
+| `publicBasePath` | `web_registry.json` | the `/<prefix>` the Gateway routes to this app |
+| `primaryPort` | `web_registry.json` | upstream `127.0.0.1:<port>` Gateway proxies to |
+| `webctlPath` | `web_registry.json` | optional control script for start/stop/refresh |
+| `access` | `web_registry.json` | `public` (no login) vs `protected` (PAM/JWT required) |
+| route entry | `/etc/opencode/web_routes.conf` | auto-generated; **never hand-edit** — regenerated by API |
+
+Operational surfaces:
+
+- Skill `opencode-web-routes` (in `~/.claude/skills/`) automates register / update / remove flows.
+- `web-route` HTTP API is also reachable from the Admin Panel.
+- `health` endpoint TCP-probes every entry to detect dead upstreams.
+
+#### Roadmap — remote gateway-to-gateway federation
+
+Currently being designed: a **remote gateway-gateway** layer that lets
+gateways on different hosts forward each other's registered prefixes,
+producing a cross-host registered-app mesh. Open questions: trust model
+(mTLS vs shared JWT signer), prefix collision policy across hosts,
+discovery (static peering vs gossip), per-hop auth replay vs delegated
+identity. Design notes will land under `specs/daemon/<remote-gateway>/`
+when the proposal is drafted.
+
 ## Core Architecture
 
 - **Multi-Interface**: TUI (`cli/cmd/tui`), Desktop App, Webapp (`packages/app`), and CLI.
