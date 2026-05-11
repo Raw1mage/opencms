@@ -8,80 +8,15 @@
 .junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
 .assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
 .action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
-.debug-gap-band{fill:#fff3bf;stroke:#f59f00;stroke-width:.04;opacity:.22}.debug-gap-area{fill:#74c0fc;stroke:#1971c2;stroke-width:.05;opacity:.24}.debug-gap-line{stroke:#e67700;stroke-width:.05;stroke-dasharray:.4 .25}.debug-gap-label{font:bold .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;fill:#0b7285;text-anchor:start;dominant-baseline:hanging}.debug-gap-label-right{text-anchor:end}.debug-gap-item-label{font:bold .46px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;fill:#1864ab;text-anchor:start;dominant-baseline:hanging}
 </style>
 <defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
 <rect x="-37.00" y="-2.00" width="76.00" height="80.00" fill="white"/>
-<rect class="debug-gap-band" x="-36.50" y="7.00" width="75.00" height="4.00" data-gap-id="gap:0"/>
-<line class="debug-gap-line" x1="-36.50" y1="7.00" x2="38.50" y2="7.00"/>
-<line class="debug-gap-line" x1="-36.50" y1="11.00" x2="38.50" y2="11.00"/>
-<rect class="debug-gap-area" x="-36.50" y="7.00" width="75.00" height="4.00" data-gap-id="gap:0:area:0"/>
-<text class="debug-gap-label debug-gap-label-right" x="38.15" y="7.45" data-gap-id="gap:0:area:0"><tspan x="38.15" dy="0">gap 0 total 4.0U</tspan><tspan x="38.15" dy="0.62">0.0 box_to_box 4.0U lanes=1</tspan></text>
-<text class="debug-gap-item-label" x="0.35" y="8.08" data-gap-id="gap:0:area:0">transition:T1 G0</text>
-<rect class="debug-gap-band" x="-36.50" y="14.00" width="75.00" height="4.00" data-gap-id="gap:1"/>
-<line class="debug-gap-line" x1="-36.50" y1="14.00" x2="38.50" y2="14.00"/>
-<line class="debug-gap-line" x1="-36.50" y1="18.00" x2="38.50" y2="18.00"/>
-<rect class="debug-gap-area" x="-36.50" y="14.00" width="75.00" height="4.00" data-gap-id="gap:1:area:0"/>
-<text class="debug-gap-label debug-gap-label-right" x="38.15" y="14.45" data-gap-id="gap:1:area:0"><tspan x="38.15" dy="0">gap 1 total 4.0U</tspan><tspan x="38.15" dy="0.62">1.0 box_to_box 4.0U lanes=1</tspan></text>
-<text class="debug-gap-item-label" x="0.35" y="15.08" data-gap-id="gap:1:area:0">transition:T2 G0</text>
-<rect class="debug-gap-band" x="-36.50" y="21.00" width="75.00" height="8.00" data-gap-id="gap:2"/>
-<line class="debug-gap-line" x1="-36.50" y1="21.00" x2="38.50" y2="21.00"/>
-<line class="debug-gap-line" x1="-36.50" y1="29.00" x2="38.50" y2="29.00"/>
-<rect class="debug-gap-area" x="-36.50" y="21.00" width="75.00" height="8.00" data-gap-id="gap:2:area:0"/>
-<text class="debug-gap-label debug-gap-label-right" x="38.15" y="21.45" data-gap-id="gap:2:area:0"><tspan x="38.15" dy="0">gap 2 total 8.0U</tspan><tspan x="38.15" dy="0.62">2.0 box_to_box 8.0U lanes=3</tspan></text>
-<text class="debug-gap-item-label" x="0.35" y="22.08" data-gap-id="gap:2:area:0">transition:T3 G0</text>
-<text class="debug-gap-item-label" x="0.35" y="24.58" data-gap-id="gap:2:area:0">3 G1</text>
-<text class="debug-gap-item-label" x="-29.65" y="26.58" data-gap-id="gap:2:area:0">R39 G2</text>
-<rect class="debug-gap-band" x="-36.50" y="32.00" width="75.00" height="6.00" data-gap-id="gap:3"/>
-<line class="debug-gap-line" x1="-36.50" y1="32.00" x2="38.50" y2="32.00"/>
-<line class="debug-gap-line" x1="-36.50" y1="38.00" x2="38.50" y2="38.00"/>
-<rect class="debug-gap-area" x="-36.50" y="32.00" width="75.00" height="6.00" data-gap-id="gap:3:area:0"/>
-<text class="debug-gap-label debug-gap-label-right" x="38.15" y="32.45" data-gap-id="gap:3:area:0"><tspan x="38.15" dy="0">gap 3 total 6.0U</tspan><tspan x="38.15" dy="0.62">3.0 box_to_box 6.0U lanes=2</tspan></text>
-<text class="debug-gap-item-label" x="0.35" y="33.08" data-gap-id="gap:3:area:0">diverge:3 G0</text>
-<text class="debug-gap-item-label" x="-19.65" y="35.08" data-gap-id="gap:3:area:0">T4 G1</text>
-<text class="debug-gap-item-label" x="-9.65" y="35.08" data-gap-id="gap:3:area:0">T6 G1</text>
-<text class="debug-gap-item-label" x="10.35" y="35.08" data-gap-id="gap:3:area:0">T7 G1</text>
-<text class="debug-gap-item-label" x="20.35" y="35.08" data-gap-id="gap:3:area:0">T5 G1</text>
-<rect class="debug-gap-band" x="-36.50" y="41.00" width="75.00" height="8.00" data-gap-id="gap:4"/>
-<line class="debug-gap-line" x1="-36.50" y1="41.00" x2="38.50" y2="41.00"/>
-<line class="debug-gap-line" x1="-36.50" y1="49.00" x2="38.50" y2="49.00"/>
-<rect class="debug-gap-area" x="-36.50" y="41.00" width="75.00" height="8.00" data-gap-id="gap:4:area:0"/>
-<text class="debug-gap-label debug-gap-label-right" x="38.15" y="41.45" data-gap-id="gap:4:area:0"><tspan x="38.15" dy="0">gap 4 total 8.0U</tspan><tspan x="38.15" dy="0.62">4.0 box_to_box 8.0U lanes=3</tspan></text>
-<text class="debug-gap-item-label" x="5.35" y="42.08" data-gap-id="gap:4:area:0">diverge:12 G0</text>
-<text class="debug-gap-item-label" x="20.35" y="42.58" data-gap-id="gap:4:area:0">7 G0</text>
-<text class="debug-gap-item-label" x="25.35" y="42.58" data-gap-id="gap:4:area:0">R57 G0</text>
-<text class="debug-gap-item-label" x="-19.65" y="42.08" data-gap-id="gap:4:area:0">transition:T8 G0</text>
-<text class="debug-gap-item-label" x="-9.65" y="42.08" data-gap-id="gap:4:area:0">transition:T14 G0</text>
-<text class="debug-gap-item-label" x="-2.15" y="44.08" data-gap-id="gap:4:area:0">T19 G1</text>
-<text class="debug-gap-item-label" x="0.35" y="44.08" data-gap-id="gap:4:area:0">T17 G1</text>
-<text class="debug-gap-item-label" x="10.35" y="44.08" data-gap-id="gap:4:area:0">T18 G1</text>
-<text class="debug-gap-item-label" x="20.35" y="44.08" data-gap-id="gap:4:area:0">transition:T11 G1</text>
-<text class="debug-gap-item-label" x="-34.90" y="46.58" data-gap-id="gap:4:area:0">R61 G2</text>
-<rect class="debug-gap-band" x="-36.50" y="52.00" width="75.00" height="6.00" data-gap-id="gap:5"/>
-<line class="debug-gap-line" x1="-36.50" y1="52.00" x2="38.50" y2="52.00"/>
-<line class="debug-gap-line" x1="-36.50" y1="58.00" x2="38.50" y2="58.00"/>
-<rect class="debug-gap-area" x="-36.50" y="52.00" width="75.00" height="6.00" data-gap-id="gap:5:area:0"/>
-<text class="debug-gap-label debug-gap-label-right" x="38.15" y="52.45" data-gap-id="gap:5:area:0"><tspan x="38.15" dy="0">gap 5 total 6.0U</tspan><tspan x="38.15" dy="0.62">5.0 box_to_box 6.0U lanes=2</tspan></text>
-<text class="debug-gap-item-label" x="0.35" y="53.08" data-gap-id="gap:5:area:0">transition:T20 G0</text>
-<text class="debug-gap-item-label" x="10.35" y="53.08" data-gap-id="gap:5:area:0">transition:T21 G0</text>
-<text class="debug-gap-item-label" x="-19.65" y="53.08" data-gap-id="gap:5:area:0">transition:T9 G0</text>
-<text class="debug-gap-item-label" x="-27.15" y="55.58" data-gap-id="gap:5:area:0">R76 G1</text>
-<rect class="debug-gap-band" x="-36.50" y="61.00" width="75.00" height="6.00" data-gap-id="gap:6"/>
-<line class="debug-gap-line" x1="-36.50" y1="61.00" x2="38.50" y2="61.00"/>
-<line class="debug-gap-line" x1="-36.50" y1="67.00" x2="38.50" y2="67.00"/>
-<rect class="debug-gap-area" x="-36.50" y="61.00" width="75.00" height="6.00" data-gap-id="gap:6:area:0"/>
-<text class="debug-gap-label debug-gap-label-right" x="38.15" y="61.45" data-gap-id="gap:6:area:0"><tspan x="38.15" dy="0">gap 6 total 6.0U</tspan><tspan x="38.15" dy="0.62">6.0 box_to_box 6.0U lanes=2</tspan></text>
-<text class="debug-gap-item-label" x="-19.65" y="62.08" data-gap-id="gap:6:area:0">T10 G0</text>
-<text class="debug-gap-item-label" x="-9.65" y="62.08" data-gap-id="gap:6:area:0">T15 G0</text>
-<text class="debug-gap-item-label" x="20.35" y="62.08" data-gap-id="gap:6:area:0">T13 G0</text>
-<text class="debug-gap-item-label" x="30.35" y="62.08" data-gap-id="gap:6:area:0">T12 G0</text>
-<text class="debug-gap-item-label" x="5.35" y="64.08" data-gap-id="gap:6:area:0">converge:11 G1</text>
-<path class="edge edge-arrow" d="M 0.00 23.00 L 0.00 29.00"/>
+<path class="edge edge-arrow" d="M 0.00 25.00 L 0.00 29.00"/>
 <path class="edge" d="M 0.00 7.00 L 0.00 9.00"/>
 <path class="edge edge-arrow" d="M 0.00 9.00 L 0.00 11.00"/>
 <path class="edge" d="M 0.00 14.00 L 0.00 16.00"/>
 <path class="edge edge-arrow" d="M 0.00 16.00 L 0.00 18.00"/>
-<path class="edge" d="M 0.00 21.00 L 0.00 23.00"/>
+<path class="edge" d="M 0.00 21.00 L 0.00 25.00"/>
 <path class="edge edge-arrow" d="M 0.00 32.00 L 0.00 34.00"/>
 <path class="edge edge-arrow" d="M -20.00 34.00 L -20.00 38.00"/>
 <path class="edge edge-arrow" d="M 20.00 34.00 L 20.00 38.00"/>
@@ -193,8 +128,8 @@
 <text class="gate-label" x="1.40" y="9.00"><tspan x="1.40" dy="0">clientopensSession路由</tspan></text>
 <line class="gate" x1="-1.00" y1="16.00" x2="1.00" y2="16.00"/>
 <text class="gate-label" x="1.40" y="16.00"><tspan x="1.40" dy="0">epochbumpok &amp;&amp; reinject完成</tspan></text>
-<line class="gate" x1="-1.00" y1="23.00" x2="1.00" y2="23.00"/>
-<text class="gate-label" x="1.40" y="23.00"><tspan x="1.40" dy="0">tail已載入或304</tspan></text>
+<line class="gate" x1="-1.00" y1="25.00" x2="1.00" y2="25.00"/>
+<text class="gate-label" x="1.40" y="25.00"><tspan x="1.40" dy="0">tail已載入或304</tspan></text>
 <line class="gate" x1="-25.00" y1="34.00" x2="25.00" y2="34.00"/>
 <line class="gate" x1="-21.00" y1="43.00" x2="-19.00" y2="43.00"/>
 <text class="gate-label" x="-18.60" y="43.00"><tspan x="-18.60" dy="0">httppost2xx &amp;&amp; 訊息appended</tspan></text>
@@ -215,23 +150,23 @@
 <line class="gate" x1="-21.00" y1="36.00" x2="-19.00" y2="36.00"/>
 <text class="gate-label-left" x="-21.40" y="36.00"><tspan x="-21.40" dy="0">使用者submits提示</tspan></text>
 <line class="gate" x1="19.00" y1="36.00" x2="21.00" y2="36.00"/>
-<text class="gate-label-left" x="18.60" y="36.00"><tspan x="18.60" dy="0">rebindtriggerobserved</tspan></text>
+<text class="gate-label" x="21.40" y="36.00"><tspan x="21.40" dy="0">rebindtriggerobserved</tspan></text>
 <line class="gate" x1="-11.00" y1="36.00" x2="-9.00" y2="36.00"/>
 <text class="gate-label-left" x="-11.40" y="36.00"><tspan x="-11.40" dy="0">scrollupSentinelhit</tspan></text>
 <line class="gate" x1="9.00" y1="36.00" x2="11.00" y2="36.00"/>
-<text class="gate-label-left" x="8.60" y="36.00"><tspan x="8.60" dy="0">閒置freshnesstick</tspan></text>
+<text class="gate-label" x="11.40" y="36.00"><tspan x="11.40" dy="0">閒置freshnesstick</tspan></text>
 <line class="gate" x1="-21.00" y1="63.00" x2="-19.00" y2="63.00"/>
 <text class="gate-label-left" x="-21.40" y="63.00"><tspan x="-21.40" dy="0">訊息已完成或aborted</tspan></text>
 <line class="gate" x1="29.00" y1="63.00" x2="31.00" y2="63.00"/>
-<text class="gate-label-left" x="28.60" y="63.00"><tspan x="28.60" dy="0">ratelimitedstorm</tspan></text>
+<text class="gate-label" x="31.40" y="63.00"><tspan x="31.40" dy="0">ratelimitedstorm</tspan></text>
 <line class="gate" x1="19.00" y1="63.00" x2="21.00" y2="63.00"/>
-<text class="gate-label-left" x="18.60" y="63.00"><tspan x="18.60" dy="0">reinject返回或Sessionbusy</tspan></text>
+<text class="gate-label" x="21.40" y="63.00"><tspan x="21.40" dy="0">reinject返回或Sessionbusy</tspan></text>
 <line class="gate" x1="-11.00" y1="63.00" x2="-9.00" y2="63.00"/>
 <text class="gate-label-left" x="-11.40" y="63.00"><tspan x="-11.40" dy="0">timelinerendered</tspan></text>
 <line class="gate" x1="-1.00" y1="45.00" x2="1.00" y2="45.00"/>
 <text class="gate-label-left" x="-2.80" y="45.00"><tspan x="-2.80" dy="0">stalethresholdcrossed</tspan></text>
 <line class="gate" x1="9.00" y1="45.00" x2="11.00" y2="45.00"/>
-<text class="gate-label-left" x="8.60" y="45.00"><tspan x="8.60" dy="0">hardstalethresholdcrossed</tspan></text>
+<text class="gate-label" x="11.40" y="45.00"><tspan x="11.40" dy="0">hardstalethresholdcrossed</tspan></text>
 <line class="gate" x1="-3.50" y1="45.00" x2="-1.50" y2="45.00"/>
 <text class="gate-label-left" x="-8.10" y="44.32"><tspan x="-8.10" dy="0">Sess</tspan><tspan x="-8.10" dy="0.68">ion路</tspan><tspan x="-8.10" dy="0.68">由left</tspan></text>
 <circle class="junction" cx="0.00" cy="27.00" r="0.22"/>
