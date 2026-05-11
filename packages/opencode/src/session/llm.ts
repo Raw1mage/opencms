@@ -63,14 +63,17 @@ import { Account } from "../account"
 import { ALWAYS_PRESENT_TOOLS } from "@/tool/tool-loader"
 import {
   assembleBundles,
+  buildAmnesiaNoticeFragment,
   buildEnvironmentContextFragment,
   buildOpencodeAgentInstructionsFragment,
   buildOpencodeProtocolFragment,
   buildRoleIdentityFragment,
   buildUserInstructionsFragment,
+  decideAmnesiaInjection,
   FRAGMENT_SEP,
   type ContextFragment,
 } from "./context-fragments"
+import { Session } from "."
 import { InstructionPrompt } from "./instruction"
 import { Global } from "@/global"
 import path from "path"
@@ -1044,6 +1047,33 @@ export namespace LLM {
           return undefined
         }
       })()
+      // compaction/recall-affordance L3: inject an amnesia notice fragment
+      // when the most recent compaction event was narrative-kind. Tells the
+      // model its tool history is summarized and points at TOOL_INDEX +
+      // `recall` for retrieval. Re-injected each turn until a non-narrative
+      // compaction supersedes the narrative one in recentEvents.
+      try {
+        const sessionInfo = await Session.get(input.sessionID).catch(() => undefined)
+        const decision = decideAmnesiaInjection(sessionInfo?.execution?.recentEvents)
+        if (decision.inject) {
+          fragments.push(
+            buildAmnesiaNoticeFragment({
+              anchorKind: decision.anchorKind,
+            }),
+          )
+          log.info("prompt.amnesia_notice.injected", {
+            sessionID: input.sessionID,
+            anchorKind: decision.anchorKind,
+            ts: decision.ts,
+          })
+        }
+      } catch (err) {
+        log.warn("amnesia_notice.check_failed", {
+          sessionID: input.sessionID,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      }
+
       fragments.push(
         buildEnvironmentContextFragment({
           cwd,
