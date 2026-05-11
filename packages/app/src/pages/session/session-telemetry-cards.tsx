@@ -31,11 +31,6 @@ const tokenLine = (label: string, value?: number) => {
   return `${label} ~${value.toLocaleString()} tok`
 }
 
-const compactLine = (label: string, active: boolean, detail?: string) => {
-  if (!active && !detail) return undefined
-  return `${label} ${active ? "active" : (detail ?? "recorded")}`
-}
-
 function telemetryFallback(
   phase: SessionTelemetry["promptPhase"] | SessionTelemetry["roundPhase"],
   empty: string,
@@ -245,7 +240,7 @@ export function RoundSessionTelemetryCard(props: {
       telemetry.round.totalTokens && telemetry.round.totalTokens > 0
         ? `Round total ~${telemetry.round.totalTokens.toLocaleString()} tok`
         : undefined,
-      compactLine("Compaction", telemetry.round.compacting, telemetry.round.compactionResult),
+      telemetry.round.compactionResult ? `Compaction ${telemetry.round.compactionResult}` : undefined,
       telemetry.round.compactionDraftTokens
         ? `Compaction draft ~${telemetry.round.compactionDraftTokens.toLocaleString()} tok`
         : undefined,

@@ -510,7 +510,10 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     pendingFreshQuotaLoad = false
 
     const cached = peekQuotaHint(cacheInput)
-    setQuotaHint(cached.hint)
+    // Only adopt the cached value when we have one. On account switch / poll
+    // tick the cache was just invalidated; clobbering with `undefined` here
+    // makes the footer text blink out until the async fetch resolves.
+    if (cached.hint !== undefined) setQuotaHint(cached.hint)
     if (!cached.stale && !accountSwitched && !forceFresh) return
 
     void (async () => {
