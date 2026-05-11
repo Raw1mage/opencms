@@ -537,9 +537,40 @@ export const FileRoutes = lazy(() =>
         const reqPath = c.req.valid("query").path
         const fs = await import("fs/promises")
         const path = await import("path")
-        const resolved = path.isAbsolute(reqPath) ? reqPath : path.resolve(Instance.directory, reqPath)
-        const stat = await fs.stat(resolved)
-        return c.json({ mtime: stat.mtimeMs, size: stat.size })
+        // When the SPA polls without a directory hint, Instance.directory can
+        // fall back to the request user's $HOME (see app.ts middleware
+        // defaultDirectory). Relative paths then mis-resolve. Try the request
+        // user's resolved directory first, then fall back to Instance.worktree
+        // (project root) and process.cwd() before giving up. ENOENT becomes
+        // 404 so the SPA's poll loop sees a clean "missing" signal instead of
+        // black-screening on 500.
+        async function tryStat(p: string) {
+          try {
+            const s = await fs.stat(p)
+            return { mtime: s.mtimeMs, size: s.size }
+          } catch (err) {
+            const code = (err as NodeJS.ErrnoException)?.code
+            if (code === "ENOENT" || code === "ENOTDIR") return null
+            throw err
+          }
+        }
+        if (path.isAbsolute(reqPath)) {
+          const hit = await tryStat(reqPath)
+          if (hit) return c.json(hit)
+          return c.json({ error: "not_found", path: reqPath }, 404)
+        }
+        const candidates = Array.from(
+          new Set([
+            path.resolve(Instance.directory, reqPath),
+            path.resolve(Instance.worktree, reqPath),
+            path.resolve(process.cwd(), reqPath),
+          ]),
+        )
+        for (const candidate of candidates) {
+          const hit = await tryStat(candidate)
+          if (hit) return c.json(hit)
+        }
+        return c.json({ error: "not_found", path: reqPath, tried: candidates }, 404)
       },
     )
     .get(
