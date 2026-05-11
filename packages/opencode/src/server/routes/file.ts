@@ -597,8 +597,45 @@ export const FileRoutes = lazy(() =>
         }),
       ),
       async (c) => {
-        const path = c.req.valid("query").path
-        const content = await File.read(path)
+        const reqPath = c.req.valid("query").path
+        const content = await File.read(reqPath)
+        // Disambiguate "newly-created but unsaved file" (legal — caller is
+        // editing a not-yet-persisted document) from "file gone, no git
+        // history" (deleted/moved/never-existed — SPA fileview should not
+        // open at all). Both cases land on File.read returning {content:""}
+        // without a `patch`/`diff` field. We treat the absence of both
+        // on-disk content AND git history as 404 so SPA error paths can
+        // render cleanly instead of attempting to mount an empty SVG/text
+        // viewer that crashes its child interactions.
+        const isTextEmpty = (content as any)?.type === "text" && (content as any)?.content === ""
+        const hasDiff = Boolean((content as any)?.diff)
+        if (isTextEmpty && !hasDiff) {
+          const pathMod = await import("path")
+          const fsMod = await import("fs/promises")
+          const candidates = pathMod.isAbsolute(reqPath)
+            ? [reqPath]
+            : Array.from(
+                new Set([
+                  pathMod.resolve(Instance.directory, reqPath),
+                  pathMod.resolve(Instance.worktree, reqPath),
+                  pathMod.resolve(process.cwd(), reqPath),
+                ]),
+              )
+          let onDisk = false
+          for (const candidate of candidates) {
+            const hit = await fsMod
+              .stat(candidate)
+              .then(() => true)
+              .catch(() => false)
+            if (hit) {
+              onDisk = true
+              break
+            }
+          }
+          if (!onDisk) {
+            return c.json({ error: "not_found", path: reqPath, tried: candidates }, 404)
+          }
+        }
         return c.json(content)
       },
     )
