@@ -1,0 +1,241 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1197" height="2220" viewBox="0.00 -2.00 59.84 111.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+.debug-gap-band{fill:#fff3bf;stroke:#f59f00;stroke-width:.04;opacity:.22}.debug-gap-area{fill:#74c0fc;stroke:#1971c2;stroke-width:.05;opacity:.24}.debug-gap-line{stroke:#e67700;stroke-width:.05;stroke-dasharray:.4 .25}.debug-gap-label{font:bold .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;fill:#0b7285;text-anchor:start;dominant-baseline:hanging}.debug-gap-label-right{text-anchor:end}.debug-gap-item-label{font:bold .46px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;fill:#1864ab;text-anchor:start;dominant-baseline:hanging}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="0.00" y="-2.00" width="59.84" height="111.00" fill="white"/>
+<rect class="debug-gap-band" x="0.50" y="7.00" width="58.84" height="4.00" data-gap-id="gap:0"/>
+<line class="debug-gap-line" x1="0.50" y1="7.00" x2="59.34" y2="7.00"/>
+<line class="debug-gap-line" x1="0.50" y1="11.00" x2="59.34" y2="11.00"/>
+<rect class="debug-gap-area" x="0.50" y="7.00" width="58.84" height="4.00" data-gap-id="gap:0:area:0"/>
+<text class="debug-gap-label debug-gap-label-right" x="58.99" y="7.45" data-gap-id="gap:0:area:0"><tspan x="58.99" dy="0">gap 0 total 4.0U</tspan><tspan x="58.99" dy="0.62">0.0 box_to_box 4.0U lanes=1</tspan></text>
+<text class="debug-gap-item-label" x="34.77" y="8.08" data-gap-id="gap:0:area:0">transition:T1 G0</text>
+<rect class="debug-gap-band" x="0.50" y="14.00" width="58.84" height="4.00" data-gap-id="gap:1"/>
+<line class="debug-gap-line" x1="0.50" y1="14.00" x2="59.34" y2="14.00"/>
+<line class="debug-gap-line" x1="0.50" y1="18.00" x2="59.34" y2="18.00"/>
+<rect class="debug-gap-area" x="0.50" y="14.00" width="58.84" height="4.00" data-gap-id="gap:1:area:0"/>
+<text class="debug-gap-label debug-gap-label-right" x="58.99" y="14.45" data-gap-id="gap:1:area:0"><tspan x="58.99" dy="0">gap 1 total 4.0U</tspan><tspan x="58.99" dy="0.62">1.0 box_to_box 4.0U lanes=1</tspan></text>
+<text class="debug-gap-item-label" x="34.77" y="15.08" data-gap-id="gap:1:area:0">transition:T2 G0</text>
+<rect class="debug-gap-band" x="0.50" y="21.00" width="58.84" height="4.00" data-gap-id="gap:2"/>
+<line class="debug-gap-line" x1="0.50" y1="21.00" x2="59.34" y2="21.00"/>
+<line class="debug-gap-line" x1="0.50" y1="25.00" x2="59.34" y2="25.00"/>
+<rect class="debug-gap-area" x="0.50" y="21.00" width="58.84" height="4.00" data-gap-id="gap:2:area:0"/>
+<text class="debug-gap-label debug-gap-label-right" x="58.99" y="21.45" data-gap-id="gap:2:area:0"><tspan x="58.99" dy="0">gap 2 total 4.0U</tspan><tspan x="58.99" dy="0.62">2.0 box_to_box 4.0U lanes=1</tspan></text>
+<text class="debug-gap-item-label" x="34.77" y="22.08" data-gap-id="gap:2:area:0">transition:T3 G0</text>
+<rect class="debug-gap-band" x="0.50" y="28.00" width="58.84" height="4.00" data-gap-id="gap:3"/>
+<line class="debug-gap-line" x1="0.50" y1="28.00" x2="59.34" y2="28.00"/>
+<line class="debug-gap-line" x1="0.50" y1="32.00" x2="59.34" y2="32.00"/>
+<rect class="debug-gap-area" x="0.50" y="28.00" width="58.84" height="4.00" data-gap-id="gap:3:area:0"/>
+<text class="debug-gap-label debug-gap-label-right" x="58.99" y="28.45" data-gap-id="gap:3:area:0"><tspan x="58.99" dy="0">gap 3 total 4.0U</tspan><tspan x="58.99" dy="0.62">3.0 box_to_box 4.0U lanes=1</tspan></text>
+<text class="debug-gap-item-label" x="34.77" y="29.08" data-gap-id="gap:3:area:0">transition:T4 G0</text>
+<rect class="debug-gap-band" x="0.50" y="35.00" width="58.84" height="4.00" data-gap-id="gap:4"/>
+<line class="debug-gap-line" x1="0.50" y1="35.00" x2="59.34" y2="35.00"/>
+<line class="debug-gap-line" x1="0.50" y1="39.00" x2="59.34" y2="39.00"/>
+<rect class="debug-gap-area" x="0.50" y="35.00" width="58.84" height="4.00" data-gap-id="gap:4:area:0"/>
+<text class="debug-gap-label debug-gap-label-right" x="58.99" y="35.45" data-gap-id="gap:4:area:0"><tspan x="58.99" dy="0">gap 4 total 4.0U</tspan><tspan x="58.99" dy="0.62">4.0 box_to_box 4.0U lanes=1</tspan></text>
+<text class="debug-gap-item-label" x="34.77" y="36.08" data-gap-id="gap:4:area:0">transition:T5 G0</text>
+<rect class="debug-gap-band" x="0.50" y="42.00" width="58.84" height="6.00" data-gap-id="gap:5"/>
+<line class="debug-gap-line" x1="0.50" y1="42.00" x2="59.34" y2="42.00"/>
+<line class="debug-gap-line" x1="0.50" y1="48.00" x2="59.34" y2="48.00"/>
+<rect class="debug-gap-area" x="0.50" y="42.00" width="58.84" height="6.00" data-gap-id="gap:5:area:0"/>
+<text class="debug-gap-label debug-gap-label-right" x="58.99" y="42.45" data-gap-id="gap:5:area:0"><tspan x="58.99" dy="0">gap 5 total 6.0U</tspan><tspan x="58.99" dy="0.62">5.0 box_to_box 6.0U lanes=2</tspan></text>
+<text class="debug-gap-item-label" x="22.56" y="43.08" data-gap-id="gap:5:area:0">diverge:5 G0</text>
+<text class="debug-gap-item-label" x="10.35" y="45.08" data-gap-id="gap:5:area:0">T7 G1</text>
+<text class="debug-gap-item-label" x="34.77" y="45.08" data-gap-id="gap:5:area:0">T6 G1</text>
+<rect class="debug-gap-band" x="0.50" y="51.00" width="58.84" height="10.00" data-gap-id="gap:6"/>
+<line class="debug-gap-line" x1="0.50" y1="51.00" x2="59.34" y2="51.00"/>
+<line class="debug-gap-line" x1="0.50" y1="61.00" x2="59.34" y2="61.00"/>
+<rect class="debug-gap-area" x="0.50" y="51.00" width="58.84" height="10.00" data-gap-id="gap:6:area:0"/>
+<text class="debug-gap-label debug-gap-label-right" x="58.99" y="51.45" data-gap-id="gap:6:area:0"><tspan x="58.99" dy="0">gap 6 total 10.0U</tspan><tspan x="58.99" dy="0.62">6.0 box_to_box 10.0U lanes=4</tspan></text>
+<text class="debug-gap-item-label" x="10.35" y="52.08" data-gap-id="gap:6:area:0">transition:T17 G0</text>
+<text class="debug-gap-item-label" x="1.20" y="54.58" data-gap-id="gap:6:area:0">R75 G1</text>
+<text class="debug-gap-item-label" x="22.56" y="56.08" data-gap-id="gap:6:area:0">diverge:6 G2</text>
+<text class="debug-gap-item-label" x="10.35" y="58.08" data-gap-id="gap:6:area:0">T8 G3</text>
+<text class="debug-gap-item-label" x="34.77" y="58.08" data-gap-id="gap:6:area:0">T9 G3</text>
+<rect class="debug-gap-band" x="0.50" y="64.00" width="58.84" height="6.00" data-gap-id="gap:7"/>
+<line class="debug-gap-line" x1="0.50" y1="64.00" x2="59.34" y2="64.00"/>
+<line class="debug-gap-line" x1="0.50" y1="70.00" x2="59.34" y2="70.00"/>
+<rect class="debug-gap-area" x="0.50" y="64.00" width="58.84" height="6.00" data-gap-id="gap:7:area:0"/>
+<text class="debug-gap-label debug-gap-label-right" x="58.99" y="64.45" data-gap-id="gap:7:area:0"><tspan x="58.99" dy="0">gap 7 total 6.0U</tspan><tspan x="58.99" dy="0.62">7.0 box_to_box 6.0U lanes=2</tspan></text>
+<text class="debug-gap-item-label" x="10.35" y="65.08" data-gap-id="gap:7:area:0">T10 G0</text>
+<text class="debug-gap-item-label" x="34.77" y="65.08" data-gap-id="gap:7:area:0">T11 G0</text>
+<text class="debug-gap-item-label" x="22.56" y="67.08" data-gap-id="gap:7:area:0">converge:9 G1</text>
+<rect class="debug-gap-band" x="0.50" y="73.00" width="58.84" height="4.00" data-gap-id="gap:8"/>
+<line class="debug-gap-line" x1="0.50" y1="73.00" x2="59.34" y2="73.00"/>
+<line class="debug-gap-line" x1="0.50" y1="77.00" x2="59.34" y2="77.00"/>
+<rect class="debug-gap-area" x="0.50" y="73.00" width="58.84" height="4.00" data-gap-id="gap:8:area:0"/>
+<text class="debug-gap-label debug-gap-label-right" x="58.99" y="73.45" data-gap-id="gap:8:area:0"><tspan x="58.99" dy="0">gap 8 total 4.0U</tspan><tspan x="58.99" dy="0.62">8.0 box_to_box 4.0U lanes=1</tspan></text>
+<text class="debug-gap-item-label" x="34.77" y="74.08" data-gap-id="gap:8:area:0">transition:T12 G0</text>
+<rect class="debug-gap-band" x="0.50" y="80.00" width="58.84" height="4.00" data-gap-id="gap:9"/>
+<line class="debug-gap-line" x1="0.50" y1="80.00" x2="59.34" y2="80.00"/>
+<line class="debug-gap-line" x1="0.50" y1="84.00" x2="59.34" y2="84.00"/>
+<rect class="debug-gap-area" x="0.50" y="80.00" width="58.84" height="4.00" data-gap-id="gap:9:area:0"/>
+<text class="debug-gap-label debug-gap-label-right" x="58.99" y="80.45" data-gap-id="gap:9:area:0"><tspan x="58.99" dy="0">gap 9 total 4.0U</tspan><tspan x="58.99" dy="0.62">9.0 box_to_box 4.0U lanes=1</tspan></text>
+<text class="debug-gap-item-label" x="34.77" y="81.08" data-gap-id="gap:9:area:0">transition:T13 G0</text>
+<rect class="debug-gap-band" x="0.50" y="87.00" width="58.84" height="4.00" data-gap-id="gap:10"/>
+<line class="debug-gap-line" x1="0.50" y1="87.00" x2="59.34" y2="87.00"/>
+<line class="debug-gap-line" x1="0.50" y1="91.00" x2="59.34" y2="91.00"/>
+<rect class="debug-gap-area" x="0.50" y="87.00" width="58.84" height="4.00" data-gap-id="gap:10:area:0"/>
+<text class="debug-gap-label debug-gap-label-right" x="58.99" y="87.45" data-gap-id="gap:10:area:0"><tspan x="58.99" dy="0">gap 10 total 4.0U</tspan><tspan x="58.99" dy="0.62">10.0 box_to_box 4.0U lanes=1</tspan></text>
+<text class="debug-gap-item-label" x="34.77" y="88.08" data-gap-id="gap:10:area:0">transition:T14 G0</text>
+<rect class="debug-gap-band" x="0.50" y="94.00" width="58.84" height="4.00" data-gap-id="gap:11"/>
+<line class="debug-gap-line" x1="0.50" y1="94.00" x2="59.34" y2="94.00"/>
+<line class="debug-gap-line" x1="0.50" y1="98.00" x2="59.34" y2="98.00"/>
+<rect class="debug-gap-area" x="0.50" y="94.00" width="58.84" height="4.00" data-gap-id="gap:11:area:0"/>
+<text class="debug-gap-label debug-gap-label-right" x="58.99" y="94.45" data-gap-id="gap:11:area:0"><tspan x="58.99" dy="0">gap 11 total 4.0U</tspan><tspan x="58.99" dy="0.62">11.0 box_to_box 4.0U lanes=1</tspan></text>
+<text class="debug-gap-item-label" x="34.77" y="95.08" data-gap-id="gap:11:area:0">transition:T15 G0</text>
+<path class="edge" d="M 34.42 7.00 L 34.42 9.00"/>
+<path class="edge edge-arrow" d="M 34.42 9.00 L 34.42 11.00"/>
+<path class="edge" d="M 34.42 14.00 L 34.42 16.00"/>
+<path class="edge edge-arrow" d="M 34.42 16.00 L 34.42 18.00"/>
+<path class="edge" d="M 34.42 21.00 L 34.42 23.00"/>
+<path class="edge edge-arrow" d="M 34.42 23.00 L 34.42 25.00"/>
+<path class="edge" d="M 34.42 28.00 L 34.42 30.00"/>
+<path class="edge edge-arrow" d="M 34.42 30.00 L 34.42 32.00"/>
+<path class="edge" d="M 34.42 35.00 L 34.42 37.00"/>
+<path class="edge edge-arrow" d="M 34.42 37.00 L 34.42 39.00"/>
+<path class="edge edge-arrow" d="M 34.42 42.00 L 34.42 44.00"/>
+<path class="edge edge-arrow" d="M 34.42 44.00 L 34.42 48.00"/>
+<path class="edge edge-arrow" d="M 10.00 44.00 L 10.00 48.00"/>
+<path class="edge edge-arrow" d="M 34.42 51.00 L 34.42 57.00"/>
+<path class="edge edge-arrow" d="M 10.00 57.00 L 10.00 61.00"/>
+<path class="edge edge-arrow" d="M 34.42 57.00 L 34.42 61.00"/>
+<path class="edge edge-arrow" d="M 10.00 64.00 L 10.00 68.00"/>
+<path class="edge edge-arrow" d="M 34.42 68.00 L 34.42 70.00"/>
+<path class="edge edge-arrow" d="M 34.42 64.00 L 34.42 68.00"/>
+<path class="edge" d="M 34.42 73.00 L 34.42 75.00"/>
+<path class="edge edge-arrow" d="M 34.42 75.00 L 34.42 77.00"/>
+<path class="edge" d="M 34.42 80.00 L 34.42 82.00"/>
+<path class="edge edge-arrow" d="M 34.42 82.00 L 34.42 84.00"/>
+<path class="edge" d="M 34.42 87.00 L 34.42 89.00"/>
+<path class="edge edge-arrow" d="M 34.42 89.00 L 34.42 91.00"/>
+<path class="edge" d="M 34.42 94.00 L 34.42 96.00"/>
+<path class="edge edge-arrow" d="M 34.42 96.00 L 34.42 98.00"/>
+<path class="edge" d="M 34.42 101.00 L 34.42 103.00"/>
+<path class="edge edge-arrow" d="M 34.42 103.00 L 34.42 104.50 Q 34.42 105.00 33.92 105.00 L 4.50 105.00 Q 4.00 105.00 4.00 104.50 L 4.00 2.50 Q 4.00 2.00 4.50 2.00 L 33.92 2.00 Q 34.42 2.00 34.42 2.50 L 34.42 4.00"/>
+<path class="edge" d="M 10.00 51.00 L 10.00 53.00"/>
+<path class="edge" d="M 10.00 53.00 L 10.00 55.00"/>
+<path class="edge" d="M 10.00 55.00 L 4.00 55.00"/>
+<rect class="step" x="32.42" y="4.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<rect class="step-inner" x="32.67" y="4.25" width="3.50" height="2.50" rx="0.22" ry="0.22"/>
+<text class="label" x="34.42" y="5.50">0</text>
+<rect class="step" x="32.42" y="11.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="34.42" y="12.50">1</text>
+<rect class="step" x="32.42" y="18.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="34.42" y="19.50">2</text>
+<rect class="step" x="32.42" y="25.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="34.42" y="26.50">3</text>
+<rect class="step" x="32.42" y="32.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="34.42" y="33.50">4</text>
+<rect class="step" x="32.42" y="39.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="34.42" y="40.50">5</text>
+<rect class="step" x="32.42" y="48.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="34.42" y="49.50">6</text>
+<rect class="step" x="8.00" y="61.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="10.00" y="62.50">7</text>
+<rect class="step" x="32.42" y="61.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="34.42" y="62.50">8</text>
+<rect class="step" x="32.42" y="70.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="34.42" y="71.50">9</text>
+<rect class="step" x="32.42" y="77.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="34.42" y="78.50">10</text>
+<rect class="step" x="32.42" y="84.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="34.42" y="85.50">11</text>
+<rect class="step" x="32.42" y="91.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="34.42" y="92.50">12</text>
+<rect class="step" x="32.42" y="98.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="34.42" y="99.50">13</text>
+<rect class="step" x="8.00" y="48.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="10.00" y="49.50">14</text>
+<line class="assoc" x1="36.42" y1="5.50" x2="37.42" y2="5.50"/>
+<rect class="action" x="37.42" y="4.07" width="18.42" height="2.86"/>
+<text class="action-label" x="46.63" y="5.09"><tspan x="46.63" dy="0">Gateway splice loop serving authenticated clie</tspan><tspan x="46.63" dy="0.82">nts 到 依-使用者 daemon 於 steady 狀態</tspan></text>
+<line class="assoc" x1="36.42" y1="12.50" x2="37.42" y2="12.50"/>
+<rect class="action" x="37.42" y="11.07" width="18.42" height="2.86"/>
+<text class="action-label" x="46.63" y="12.09"><tspan x="46.63" dy="0">Daemon 路由 /api/v2/全域/web/restart receives</tspan><tspan x="46.63" dy="0.82">JWT-authenticated POST 使用 targets 與 reason</tspan></text>
+<line class="assoc" x1="36.42" y1="19.50" x2="37.42" y2="19.50"/>
+<rect class="action" x="37.42" y="18.07" width="18.42" height="2.86"/>
+<text class="action-label" x="46.63" y="19.09"><tspan x="46.63" dy="0">解析restartruntimemode classifies ru</tspan><tspan x="46.63" dy="0.82">ntime 作為 Gateway-daemon 或 legacy</tspan></text>
+<line class="assoc" x1="36.42" y1="26.50" x2="37.42" y2="26.50"/>
+<rect class="action" x="37.42" y="25.07" width="18.42" height="2.86"/>
+<text class="action-label" x="46.63" y="25.68"><tspan x="46.63" dy="0">Branch dispatched: Gateway-目標 compileGateway供self更新, d</tspan><tspan x="46.63" dy="0.82">aemon/前端-目標 啟動 webctl.sh restart --graceful 使用 OP</tspan><tspan x="46.63" dy="0.82">ENCODE RESTART TXID, legacy 啟動 webctl.sh restart --graceful</tspan></text>
+<line class="assoc" x1="36.42" y1="33.50" x2="37.42" y2="33.50"/>
+<rect class="action" x="37.42" y="32.07" width="18.42" height="2.86"/>
+<text class="action-label" x="46.63" y="33.09"><tspan x="46.63" dy="0">webctl.sh dorestart fingerprints daemon 來源, 前端</tspan><tspan x="46.63" dy="0.82">Bundle, 與 Gateway C binary against installed artifacts</tspan></text>
+<line class="assoc" x1="36.42" y1="40.50" x2="37.42" y2="40.50"/>
+<rect class="action" x="37.42" y="39.07" width="18.42" height="2.86"/>
+<text class="action-label" x="46.63" y="40.09"><tspan x="46.63" dy="0">Rebuild 與 install 僅 dirty layers 透過 do建</tspan><tspan x="46.63" dy="0.82">置binary, do建置前端, docompileGateway</tspan></text>
+<line class="assoc" x1="36.42" y1="49.50" x2="37.42" y2="49.50"/>
+<rect class="action" x="37.42" y="48.07" width="18.42" height="2.86"/>
+<text class="action-label" x="46.63" y="49.09"><tspan x="46.63" dy="0">worker exits zero, 路由 handler responds 200 使用</tspan><tspan x="46.63" dy="0.82">mode=controlledrestart 與 recoveryDeadlineMs=30000</tspan></text>
+<line class="assoc" x1="12.00" y1="62.50" x2="13.00" y2="62.50"/>
+<rect class="action" x="13.00" y="61.07" width="18.42" height="2.86"/>
+<text class="action-label" x="22.21" y="62.09"><tspan x="22.21" dy="0">Daemon 路徑: setTimeout 300ms, then Daemon.removeDiscovery</tspan><tspan x="22.21" dy="0.82">unlinks daemon.js在 daemon.pid daemon.sock 與 process.exit(0)</tspan></text>
+<line class="assoc" x1="36.42" y1="62.50" x2="37.42" y2="62.50"/>
+<rect class="action" x="37.42" y="61.07" width="18.42" height="2.86"/>
+<text class="action-label" x="46.63" y="61.68"><tspan x="46.63" dy="0">Gateway 路徑: schedule restart-service opencode</tspan><tspan x="46.63" dy="0.82">-gateway.service after 300ms, systemd respawns</tspan><tspan x="46.63" dy="0.82">Gateway binary causing 3-5s downtime 供 all users</tspan></text>
+<line class="assoc" x1="36.42" y1="71.50" x2="37.42" y2="71.50"/>
+<rect class="action" x="37.42" y="70.07" width="18.42" height="2.86"/>
+<text class="action-label" x="46.63" y="71.09"><tspan x="46.63" dy="0">下一個 authenticated 請求 hits Gateway find或creat</tspan><tspan x="46.63" dy="0.82">edaemon 與 detects stale daemon.js在 或 缺失 socket</tspan></text>
+<line class="assoc" x1="36.42" y1="78.50" x2="37.42" y2="78.50"/>
+<rect class="action" x="37.42" y="77.07" width="18.42" height="2.86"/>
+<text class="action-label" x="46.63" y="78.09"><tspan x="46.63" dy="0">Self-heal escalation: read daemon.lock JSON, validate /程序/&lt;pi</tspan><tspan x="46.63" dy="0.82">d&gt; uid 比對, SIGTERM, 1s waitpid, SIGKILL, unlink socket 路徑</tspan></text>
+<line class="assoc" x1="36.42" y1="85.50" x2="37.42" y2="85.50"/>
+<rect class="action" x="37.42" y="84.07" width="18.42" height="2.86"/>
+<text class="action-label" x="46.63" y="85.09"><tspan x="46.63" dy="0">Gateway re-creates /執行/使用者/&lt;uid&gt;/opencode mode 0700, parses</tspan><tspan x="46.63" dy="0.82">OPENCODE BIN argv, fork+setsid+initgroups+setgid+setuid+execvp daemon</tspan></text>
+<line class="assoc" x1="36.42" y1="92.50" x2="37.42" y2="92.50"/>
+<rect class="action" x="37.42" y="91.07" width="18.42" height="2.86"/>
+<text class="action-label" x="46.63" y="92.09"><tspan x="46.63" dy="0">New daemon 伺服器.listenUnix binds socket 與 writes</tspan><tspan x="46.63" dy="0.82">daemon.js在 daemon.pid 透過 Daemon.writeDiscovery</tspan></text>
+<line class="assoc" x1="36.42" y1="99.50" x2="37.42" y2="99.50"/>
+<rect class="action" x="37.42" y="98.07" width="18.42" height="2.86"/>
+<text class="action-label" x="46.63" y="99.09"><tspan x="46.63" dy="0">Gateway resumes splice proxy 到 fresh daemon, client SSE re</tspan><tspan x="46.63" dy="0.82">connect absorbs 503 window, system 回到 到 steady 狀態</tspan></text>
+<line class="assoc" x1="12.00" y1="49.50" x2="13.00" y2="49.50"/>
+<rect class="action" x="13.00" y="48.07" width="18.42" height="2.86"/>
+<text class="action-label" x="22.21" y="48.68"><tspan x="22.21" dy="0">建置 failure 路徑: 路由 handler 返回 WEB RESTART FAILED 使用</tspan><tspan x="22.21" dy="0.82">webctlExit, txid, 錯誤記錄路徑, 或 RESTART LOCK BUSY 409 if std</tspan><tspan x="22.21" dy="0.82">err matches already 在 progress; previous daemon version keeps 執行中</tspan></text>
+<line class="gate" x1="33.42" y1="9.00" x2="35.42" y2="9.00"/>
+<text class="gate-label" x="35.82" y="9.00"><tspan x="35.82" dy="0">restartself MCP 工具 invoked 由 AI</tspan></text>
+<line class="gate" x1="33.42" y1="16.00" x2="35.42" y2="16.00"/>
+<text class="gate-label" x="35.82" y="16.00"><tspan x="35.82" dy="0">JWT verified 與 body parsed</tspan></text>
+<line class="gate" x1="33.42" y1="23.00" x2="35.42" y2="23.00"/>
+<text class="gate-label" x="35.82" y="23.00"><tspan x="35.82" dy="0">runtime mode classified as Gateway-daemon with/without Gateway target or legacy mode</tspan></text>
+<line class="gate" x1="33.42" y1="30.00" x2="35.42" y2="30.00"/>
+<text class="gate-label" x="35.82" y="30.00"><tspan x="35.82" dy="0">worker spawned 使用 OPENCODE RESTART ERROR LOG FILE set</tspan></text>
+<line class="gate" x1="33.42" y1="37.00" x2="35.42" y2="37.00"/>
+<text class="gate-label" x="35.82" y="37.00"><tspan x="35.82" dy="0">dirty layer set computed</tspan></text>
+<line class="gate" x1="8.00" y1="44.00" x2="36.42" y2="44.00"/>
+<line class="gate" x1="8.00" y1="57.00" x2="36.42" y2="57.00"/>
+<line class="gate" x1="8.00" y1="68.00" x2="36.42" y2="68.00"/>
+<line class="gate" x1="33.42" y1="75.00" x2="35.42" y2="75.00"/>
+<text class="gate-label" x="35.82" y="75.00"><tspan x="35.82" dy="0">adopt 探測 failed</tspan></text>
+<line class="gate" x1="33.42" y1="82.00" x2="35.42" y2="82.00"/>
+<text class="gate-label" x="35.82" y="82.00"><tspan x="35.82" dy="0">orphan-cleanup 結果 exited 或 killed logged</tspan></text>
+<line class="gate" x1="33.42" y1="89.00" x2="35.42" y2="89.00"/>
+<text class="gate-label" x="35.82" y="89.00"><tspan x="35.82" dy="0">forked daemon child pid logged</tspan></text>
+<line class="gate" x1="33.42" y1="96.00" x2="35.42" y2="96.00"/>
+<text class="gate-label" x="35.82" y="96.00"><tspan x="35.82" dy="0">/api/v2/全域/健康 探測 返回 200</tspan></text>
+<line class="gate" x1="33.42" y1="103.00" x2="35.42" y2="103.00"/>
+<text class="gate-label" x="35.82" y="103.00"><tspan x="35.82" dy="0">bidirectional splice established</tspan></text>
+<line class="gate" x1="9.00" y1="53.00" x2="11.00" y2="53.00"/>
+<text class="gate-label" x="11.40" y="53.00"><tspan x="11.40" dy="0">AI reads 錯誤記錄路徑, fixes 來源, re-invokes restartself</tspan></text>
+<line class="gate" x1="33.42" y1="46.00" x2="35.42" y2="46.00"/>
+<text class="gate-label" x="35.82" y="46.00"><tspan x="35.82" dy="0">all builds exit zero</tspan></text>
+<line class="gate" x1="9.00" y1="46.00" x2="11.00" y2="46.00"/>
+<text class="gate-label-left" x="8.60" y="45.32"><tspan x="8.60" dy="0">any 建</tspan><tspan x="8.60" dy="0.68">置 exits</tspan><tspan x="8.60" dy="0.68">non-zero</tspan></text>
+<line class="gate" x1="9.00" y1="59.00" x2="11.00" y2="59.00"/>
+<text class="gate-label-left" x="8.60" y="58.32"><tspan x="8.60" dy="0">targets di</tspan><tspan x="8.60" dy="0.68">d 不 inclu</tspan><tspan x="8.60" dy="0.68">de Gateway</tspan></text>
+<line class="gate" x1="33.42" y1="59.00" x2="35.42" y2="59.00"/>
+<text class="gate-label" x="35.82" y="59.00"><tspan x="35.82" dy="0">targets included Gateway 與 self更新.執行actions succeeded</tspan></text>
+<line class="gate" x1="9.00" y1="66.00" x2="11.00" y2="66.00"/>
+<text class="gate-label-left" x="8.60" y="65.32"><tspan x="8.60" dy="0">daemon p</tspan><tspan x="8.60" dy="0.68">rocess te</tspan><tspan x="8.60" dy="0.68">rminated</tspan></text>
+<line class="gate" x1="33.42" y1="66.00" x2="35.42" y2="66.00"/>
+<text class="gate-label" x="35.82" y="66.00"><tspan x="35.82" dy="0">systemd reports opencode-Gateway active 執行中</tspan></text>
+<circle class="junction" cx="4.00" cy="55.00" r="0.22"/>
+</svg>
