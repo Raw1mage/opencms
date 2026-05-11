@@ -23,6 +23,12 @@ export const ALWAYS_PRESENT_TOOLS = new Set([
   "apply_patch",
   "grep",
   "glob",
+  // compaction/recall-affordance L2: the amnesia notice (L3) injected
+  // on every post-narrative-compaction turn instructs the model to call
+  // recall(tool_call_id). That promise is load-bearing for the recall
+  // affordance — if recall sits behind tool_loader the AI cannot recover
+  // pre-anchor tool outputs in the very turn it is told it has lost them.
+  "recall",
 ])
 
 export interface CatalogEntry {
