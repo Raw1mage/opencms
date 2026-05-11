@@ -1034,7 +1034,7 @@ export function SessionTurn(
                             appeared simultaneously when steps were collapsed, doubling the red. */}
                       </div>
                     </Show>
-                    <Show when={!!statusOverride() || (statusLineVisible() && props.inlineStatus !== false)}>
+                    <Show when={statusLineVisible() && props.inlineStatus !== false}>
                       <div data-slot="session-turn-status-inline">
                         <Switch>
                           <Match when={retry()}>
