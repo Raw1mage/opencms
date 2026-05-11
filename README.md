@@ -120,7 +120,30 @@ graph BT
     L5 --> L8
 ```
 
-### 子系統章節索引（IDEF0 + GRAFCET）
+### IDEF0 A0 — 系統上下文（formal MIAT view）
+
+依 IEEE 1320.1 標準的 A0 上下文圖，將前述 mermaid block view 對映為六個子系統的功能活動 + ICOM（Input / Control / Output / Mechanism）箭頭。每個 A_n 對應若干個 chapter wiki。
+
+![OpenCMS A0 IDEF0 — Operate Multi-Account AI Agent Control Plane](specs/diagrams/opencms_a0_idef0.svg)
+
+| 活動 | 標題 | 對應 chapter |
+|---|---|---|
+| **A1** | Present User Interface | [`webapp/`](specs/webapp/README.md) |
+| **A2** | Process AI Sessions | [`session/`](specs/session/README.md), [`compaction/`](specs/compaction/README.md), [`attachments/`](specs/attachments/README.md), [`harness/`](specs/harness/README.md) |
+| **A3** | Route Provider And Account | [`provider/`](specs/provider/README.md), [`account/`](specs/account/README.md) |
+| **A4** | Execute Tools And MCP | [`mcp/`](specs/mcp/README.md), [`app-market/`](specs/app-market/README.md) |
+| **A5** | Operate Multi-User Gateway | [`daemon/`](specs/daemon/README.md) |
+| **A6** | Govern Documentation Lifecycle | [`meta/`](specs/meta/README.md) |
+
+### GRAFCET — 主流程（一輪使用者 turn 的執行時序）
+
+依 IEC 60848 標準的 GRAFCET 圖，描述從 TCP 連線進入 → 認證 → daemon 找/spawn → session turn loop（preface → LLM stream → tool call 迴圈 → compaction → persist → 等下一輪）的離散事件演化。
+
+![OpenCMS Main GRAFCET — Session Turn Flow](specs/diagrams/opencms_main_grafcet.svg)
+
+每個 Step 帶 `ModuleRef` 指向上述 A0 IDEF0 的功能活動（A1-A5），維持兩標準之間的可追溯性。原始 JSON 與 SVG 位於 [`specs/diagrams/`](specs/diagrams/)，可由 drawmiat 重生。
+
+### 子系統章節索引（per-chapter IDEF0 + GRAFCET）
 
 每個 chapter 都是一個 **單一交付目的** 的 functional purpose，附 A0/A1.. 遞迴 IDEF0、配對 GRAFCET 與相關 sub-spec 包。
 

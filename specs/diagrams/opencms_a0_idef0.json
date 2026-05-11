@@ -1,0 +1,219 @@
+{
+  "diagram_title": "OpenCMS \u2014 Operate Multi-Account AI Agent Control Plane",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Present User Interface",
+      "box_number": 1,
+      "description": "TUI, Web SPA, Desktop (Tauri), CLI client surfaces. Wiki: webapp/"
+    },
+    {
+      "id": "A2",
+      "title": "Process AI Sessions",
+      "box_number": 2,
+      "description": "Session lifecycle, compaction, attachments, autonomous harness. Wiki: session, compaction, attachments, harness"
+    },
+    {
+      "id": "A3",
+      "title": "Route Provider And Account",
+      "box_number": 3,
+      "description": "Provider registry, account / OAuth, Rotation3D fallback. Wiki: provider, account"
+    },
+    {
+      "id": "A4",
+      "title": "Execute Tools And MCP",
+      "box_number": 4,
+      "description": "Built-in tools, MCP framework, app-market. Wiki: mcp, app-market"
+    },
+    {
+      "id": "A5",
+      "title": "Operate Multi-User Gateway",
+      "box_number": 5,
+      "description": "C gateway, per-user daemon, registered webapps. Wiki: daemon"
+    },
+    {
+      "id": "A6",
+      "title": "Govern Documentation Lifecycle",
+      "box_number": 6,
+      "description": "plan-builder skill, specbase, architecture documentation flow. Wiki: meta"
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR_USER_IN",
+      "label": "user actions and messages",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "type": "input"
+    },
+    {
+      "id": "AR_TCP",
+      "label": "TCP connection",
+      "source": "EXTERNAL",
+      "target": "A5:input",
+      "type": "input"
+    },
+    {
+      "id": "AR_AUTH_POL",
+      "label": "PAM and JWT policy",
+      "source": "EXTERNAL",
+      "target": "A5:control",
+      "type": "control"
+    },
+    {
+      "id": "AR_PERM",
+      "label": "permission rules",
+      "source": "EXTERNAL",
+      "target": "A4:control",
+      "type": "control"
+    },
+    {
+      "id": "AR_ROT_POL",
+      "label": "rotation strategy and tweaks",
+      "source": "EXTERNAL",
+      "target": "A3:control",
+      "type": "control"
+    },
+    {
+      "id": "AR_SKILLS",
+      "label": "skills and prompt drivers",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "type": "control"
+    },
+    {
+      "id": "AR_UI_POL",
+      "label": "UI policy",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "type": "control"
+    },
+    {
+      "id": "AR_LIFECYCLE",
+      "label": "lifecycle gate",
+      "source": "EXTERNAL",
+      "target": "A6:control",
+      "type": "control"
+    },
+    {
+      "id": "AR_LLM",
+      "label": "LLM APIs",
+      "source": "EXTERNAL",
+      "target": "A3:mechanism",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR_MCP_SRV",
+      "label": "MCP servers stdio sse http",
+      "source": "EXTERNAL",
+      "target": "A4:mechanism",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR_OAUTH",
+      "label": "OAuth providers",
+      "source": "EXTERNAL",
+      "target": "A3:mechanism",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR_KERNEL",
+      "label": "Linux kernel PAM epoll",
+      "source": "EXTERNAL",
+      "target": "A5:mechanism",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR_RUNTIME",
+      "label": "bun runtime and storage",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR_SDK",
+      "label": "client SDK and renderers",
+      "source": "EXTERNAL",
+      "target": "A1:mechanism",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR_PLAN_BUILDER",
+      "label": "plan-builder skill and specbase MCP",
+      "source": "EXTERNAL",
+      "target": "A6:mechanism",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR_DOC_IN",
+      "label": "spec or plan request",
+      "source": "EXTERNAL",
+      "target": "A6:input",
+      "type": "input"
+    },
+    {
+      "id": "AR_DOC_OUT",
+      "label": "updated documentation",
+      "source": "A6:output",
+      "target": "EXTERNAL",
+      "type": "output"
+    },
+    {
+      "id": "AR_GW_TO_UI",
+      "label": "authenticated traffic",
+      "source": "A5:output",
+      "target": "A1:input",
+      "type": "input"
+    },
+    {
+      "id": "AR_UI_TO_SESS",
+      "label": "session API request",
+      "source": "A1:output",
+      "target": "A2:input",
+      "type": "input"
+    },
+    {
+      "id": "AR_SESS_TO_PROV",
+      "label": "model call request",
+      "source": "A2:output",
+      "target": "A3:input",
+      "type": "input"
+    },
+    {
+      "id": "AR_PROV_TO_SESS",
+      "label": "LLM response stream",
+      "source": "A3:output",
+      "target": "A2:input",
+      "type": "input"
+    },
+    {
+      "id": "AR_SESS_TO_TOOL",
+      "label": "tool call request",
+      "source": "A2:output",
+      "target": "A4:input",
+      "type": "input"
+    },
+    {
+      "id": "AR_TOOL_TO_SESS",
+      "label": "tool result",
+      "source": "A4:output",
+      "target": "A2:input",
+      "type": "input"
+    },
+    {
+      "id": "AR_SESS_TO_UI",
+      "label": "AI response stream",
+      "source": "A2:output",
+      "target": "A1:input",
+      "type": "input"
+    },
+    {
+      "id": "AR_UI_OUT",
+      "label": "rendered response to user",
+      "source": "A1:output",
+      "target": "EXTERNAL",
+      "type": "output"
+    }
+  ]
+}

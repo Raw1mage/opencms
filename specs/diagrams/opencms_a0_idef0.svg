@@ -1,0 +1,101 @@
+<svg width="1725.1" height="1077.6" viewBox="-292.6 -171.8 1725.1 1077.6" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-292.6" y="-171.8" width="1725.1" height="1077.6" fill="white" />
+<rect x="130.0" y="120.0" width="200.0" height="200.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="230.0" y="186.7" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
+<text x="230.0" y="220.9" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >PRESENT USER</text>
+<text x="230.0" y="256.6" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >INTERFACE</text>
+<rect x="490.0" y="120.0" width="200.0" height="200.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="590.0" y="186.7" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
+<text x="590.0" y="220.9" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >PROCESS AI</text>
+<text x="590.0" y="256.6" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >SESSIONS</text>
+<rect x="850.0" y="120.0" width="200.0" height="200.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="950.0" y="186.7" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >A3</text>
+<text x="950.0" y="220.9" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >ROUTE PROVIDER</text>
+<text x="950.0" y="256.6" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >AND ACCOUNT</text>
+<rect x="130.0" y="620.0" width="200.0" height="200.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
+<text x="230.0" y="686.7" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >A4</text>
+<text x="230.0" y="720.9" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >EXECUTE</text>
+<text x="230.0" y="756.6" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >TOOLS AND MCP</text>
+<rect x="490.0" y="620.0" width="200.0" height="200.0" stroke="black" fill="white" stroke-width="1.5" data-id="A5" />
+<text x="590.0" y="668.8" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >A5</text>
+<text x="590.0" y="703.1" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >OPERATE</text>
+<text x="590.0" y="738.8" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >MULTI-USER</text>
+<text x="590.0" y="774.4" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >GATEWAY</text>
+<rect x="850.0" y="620.0" width="200.0" height="200.0" stroke="black" fill="white" stroke-width="1.5" data-id="A6" />
+<text x="950.0" y="668.8" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >A6</text>
+<text x="950.0" y="703.1" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >GOVERN</text>
+<text x="950.0" y="738.8" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >DOCUMENTATION</text>
+<text x="950.0" y="774.4" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >LIFECYCLE</text>
+<rect x="0.0" y="38.2" width="1140.0" height="857.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="322.5" y="-161.8" width="495.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="570.0" y="-135.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >A0</text>
+<text x="570.0" y="-105.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >OPENCMS — OPERATE MULTI-ACCOUNT</text>
+<text x="570.0" y="-75.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >AI AGENT CONTROL PLANE</text>
+<line x1="322.5" y1="-161.8" x2="0.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="817.5" y1="-161.8" x2="1140.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="322.5" y1="-51.8" x2="0.0" y2="895.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="817.5" y1="-51.8" x2="1140.0" y2="895.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 330.0 200.0 L 490.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR_UI_TO_SESS" data-waypoints="330.0,200.0 490.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 690.0 170.0 L 850.0 170.0" stroke="black" stroke-width="1.2" data-arrow-id="AR_SESS_TO_PROV" data-waypoints="690.0,170.0 850.0,170.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 690.0 720.0 L 720.0 720.0 Q 730.0 720.0 730.0 710.0 L 730.0 420.0 Q 730.0 410.0 720.0 410.0 L 100.0 410.0 Q 90.0 410.0 90.0 400.0 L 90.0 280.0 Q 90.0 270.0 100.0 270.0 L 130.0 270.0" stroke="black" stroke-width="1.2" data-arrow-id="AR_GW_TO_UI" data-waypoints="690.0,720.0 730.0,720.0 730.0,410.0 90.0,410.0 90.0,270.0 130.0,270.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 690.0 220.0 L 800.0 220.0 Q 810.0 220.0 810.0 230.0 L 810.0 480.0 Q 810.0 490.0 800.0 490.0 L 100.0 490.0 Q 90.0 490.0 90.0 500.0 L 90.0 710.0 Q 90.0 720.0 100.0 720.0 L 130.0 720.0" stroke="black" stroke-width="1.2" data-arrow-id="AR_SESS_TO_TOOL" data-waypoints="690.0,220.0 810.0,220.0 810.0,490.0 90.0,490.0 90.0,720.0 130.0,720.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 720.0 L 400.0 720.0 Q 410.0 720.0 410.0 710.0 L 410.0 180.0 Q 410.0 170.0 420.0 170.0 L 490.0 170.0" stroke="black" stroke-width="1.2" data-arrow-id="AR_TOOL_TO_SESS" data-waypoints="330.0,720.0 410.0,720.0 410.0,170.0 490.0,170.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1050.0 220.0 L 1080.0 220.0 Q 1090.0 220.0 1090.0 230.0 L 1090.0 360.0 Q 1090.0 370.0 1080.0 370.0 L 460.0 370.0 Q 450.0 370.0 450.0 360.0 L 450.0 280.0 Q 450.0 270.0 460.0 270.0 L 490.0 270.0" stroke="black" stroke-width="1.2" data-arrow-id="AR_PROV_TO_SESS" data-waypoints="1050.0,220.0 1090.0,220.0 1090.0,370.0 450.0,370.0 450.0,270.0 490.0,270.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 690.0 270.0 L 760.0 270.0 Q 770.0 270.0 770.0 280.0 L 770.0 440.0 Q 770.0 450.0 760.0 450.0 L 60.0 450.0 Q 50.0 450.0 50.0 440.0 L 50.0 230.0 Q 50.0 220.0 60.0 220.0 L 130.0 220.0" stroke="black" stroke-width="1.2" data-arrow-id="AR_SESS_TO_UI" data-waypoints="690.0,270.0 770.0,270.0 770.0,450.0 50.0,450.0 50.0,220.0 130.0,220.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -50.0 170.0 L 130.0 170.0" stroke="black" stroke-width="1.2" data-arrow-id="AR_USER_IN" data-waypoints="-50.0,170.0 130.0,170.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -50.0 570.0 L 360.0 570.0 Q 370.0 570.0 370.0 580.0 L 370.0 730.0 Q 370.0 740.0 380.0 740.0 L 490.0 740.0" stroke="black" stroke-width="1.2" data-arrow-id="AR_TCP" data-waypoints="-50.0,570.0 370.0,570.0 370.0,740.0 490.0,740.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 590.0 584.2 L 590.0 620.0" stroke="black" stroke-width="1.2" data-arrow-id="AR_AUTH_POL" data-waypoints="590.0,584.2 590.0,620.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 584.2 L 230.0 620.0" stroke="black" stroke-width="1.2" data-arrow-id="AR_PERM" data-waypoints="230.0,584.2 230.0,620.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 950.0 84.2 L 950.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR_ROT_POL" data-waypoints="950.0,84.2 950.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 590.0 84.2 L 590.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR_SKILLS" data-waypoints="590.0,84.2 590.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR_UI_POL" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 950.0 584.2 L 950.0 620.0" stroke="black" stroke-width="1.2" data-arrow-id="AR_LIFECYCLE" data-waypoints="950.0,584.2 950.0,620.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 855.8 L 230.0 820.0" stroke="black" stroke-width="1.2" data-arrow-id="AR_MCP_SRV" data-waypoints="230.0,855.8 230.0,820.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 590.0 855.8 L 590.0 820.0" stroke="black" stroke-width="1.2" data-arrow-id="AR_KERNEL" data-waypoints="590.0,855.8 590.0,820.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 590.0 355.8 L 590.0 320.0" stroke="black" stroke-width="1.2" data-arrow-id="AR_RUNTIME" data-waypoints="590.0,355.8 590.0,320.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 355.8 L 230.0 320.0" stroke="black" stroke-width="1.2" data-arrow-id="AR_SDK" data-waypoints="230.0,355.8 230.0,320.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 950.0 855.8 L 950.0 820.0" stroke="black" stroke-width="1.2" data-arrow-id="AR_PLAN_BUILDER" data-waypoints="950.0,855.8 950.0,820.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -50.0 530.0 L 760.0 530.0 Q 770.0 530.0 770.0 540.0 L 770.0 710.0 Q 770.0 720.0 780.0 720.0 L 850.0 720.0" stroke="black" stroke-width="1.2" data-arrow-id="AR_DOC_IN" data-waypoints="-50.0,530.0 770.0,530.0 770.0,720.0 850.0,720.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1050.0 720.0 L 1190.0 720.0" stroke="black" stroke-width="1.2" data-arrow-id="AR_DOC_OUT" data-waypoints="1050.0,720.0 1190.0,720.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 186.7 L 360.0 186.7 Q 370.0 186.7 370.0 176.7 L 370.0 88.2 Q 370.0 78.2 380.0 78.2 L 1190.0 78.2" stroke="black" stroke-width="1.2" data-arrow-id="AR_UI_OUT" data-waypoints="330.0,186.7 370.0,186.7 370.0,78.2 1190.0,78.2" marker-end="url(#arrow)" fill="none" />
+<path d="M 950.0 355.8 L 950.0 320.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A3_mechanism" data-waypoints="950.0,355.8 950.0,320.0" marker-end="url(#arrow)" fill="none" />
+<text x="590.0" y="578.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_AUTH_POL">PAM and JWT policy</text>
+<text x="224.0" y="614.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_PERM">permission</text>
+<text x="236.0" y="614.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_PERM">rules</text>
+<text x="944.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_ROT_POL">rotation strategy</text>
+<text x="956.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_ROT_POL">and tweaks</text>
+<text x="584.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_SKILLS">skills and</text>
+<text x="596.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_SKILLS">prompt drivers</text>
+<text x="230.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_UI_POL">UI policy</text>
+<text x="950.0" y="578.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_LIFECYCLE">lifecycle gate</text>
+<text x="230.0" y="871.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_MCP_SRV">MCP servers stdio sse http</text>
+<text x="590.0" y="871.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_KERNEL">Linux kernel PAM epoll</text>
+<text x="584.0" y="336.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_RUNTIME">bun runtime</text>
+<text x="596.0" y="336.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_RUNTIME">and storage</text>
+<text x="230.0" y="371.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_SDK">client SDK and renderers</text>
+<text x="950.0" y="871.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_PLAN_BUILDER">plan-builder skill and specbase MCP</text>
+<text x="944.0" y="336.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_LLM">LLM APIs、OAuth</text>
+<text x="956.0" y="336.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_LLM">providers</text>
+<text x="428.3" y="195.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_UI_TO_SESS">session</text>
+<text x="428.3" y="212.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_UI_TO_SESS">API request</text>
+<text x="770.0" y="165.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_SESS_TO_PROV">model call</text>
+<text x="770.0" y="182.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_SESS_TO_PROV">request</text>
+<text x="590.0" y="402.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_GW_TO_UI" >authenticated traffic</text>
+<text x="590.0" y="482.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_SESS_TO_TOOL" >tool call request</text>
+<text x="380.0" y="514.9" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_TOOL_TO_SESS" >tool result</text>
+<text x="950.0" y="388.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_PROV_TO_SESS" >LLM response stream</text>
+<text x="230.0" y="442.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_SESS_TO_UI" >AI response stream</text>
+<text x="-54.0" y="161.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_USER_IN">user actions</text>
+<text x="-54.0" y="187.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_USER_IN">and messages</text>
+<text x="-54.0" y="574.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_TCP">TCP connection</text>
+<text x="-54.0" y="534.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_DOC_IN">spec or plan request</text>
+<text x="1194.0" y="711.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_DOC_OUT">updated</text>
+<text x="1194.0" y="737.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_DOC_OUT">documentation</text>
+<text x="1194.0" y="69.2" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_UI_OUT">rendered</text>
+<text x="1194.0" y="95.2" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR_UI_OUT">response to user</text>
+<path d="M 380.0,510.7 L 380.6,511.1 L 381.2,511.6 L 381.9,512.0 L 382.5,512.4 L 383.1,512.8 L 383.8,513.1 L 384.4,513.4 L 385.0,513.7 L 385.6,513.9 L 386.2,514.0 L 386.9,514.1 L 387.5,514.2 L 388.1,514.1 L 388.8,514.0 L 389.4,513.9 L 390.0,513.7 L 390.6,513.4 L 391.2,513.1 L 391.9,512.8 L 392.5,512.4 L 393.1,512.0 L 393.8,511.6 L 394.4,511.1 L 395.0,510.7 L 395.6,510.2 L 396.2,509.8 L 396.9,509.3 L 397.5,508.9 L 398.1,508.5 L 398.8,508.2 L 399.4,507.9 L 400.0,507.6 L 400.6,507.4 L 401.2,507.3 L 401.9,507.2 L 402.5,507.2 L 403.1,507.2 L 403.8,507.3 L 404.4,507.4 L 405.0,507.6 L 405.6,507.9 L 406.2,508.2 L 406.9,508.5 L 407.5,508.9 L 408.1,509.3 L 408.8,509.8 L 409.4,510.2 L 410.0,510.7" stroke="red" stroke-width="0.8" fill="none" opacity="0.5" />
+</svg>
