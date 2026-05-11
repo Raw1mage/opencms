@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BundleFragmentSplit",
+  "description": "Schemas covering the two new fragment producers and their assembler output.",
+  "type": "object",
+  "properties": {
+    "AgentPersonaInput": { "$ref": "#/$defs/AgentPersonaInput" },
+    "UserSystemAddendaInput": { "$ref": "#/$defs/UserSystemAddendaInput" },
+    "BundlePositions": { "$ref": "#/$defs/BundlePositions" }
+  },
+  "$defs": {
+    "AgentPersonaInput": {
+      "type": "object",
+      "description": "Input to opencode_agent_persona producer.",
+      "properties": {
+        "agentPrompt": { "type": "string", "description": "agent.prompt content. Empty string permitted." }
+      },
+      "required": ["agentPrompt"]
+    },
+    "UserSystemAddendaInput": {
+      "type": "object",
+      "description": "Input to opencode_user_system_addenda producer.",
+      "properties": {
+        "userSystem": { "type": "string", "description": "user.system joined text. Empty string → producer returns null (fragment omitted)." }
+      },
+      "required": ["userSystem"]
+    },
+    "BundlePositions": {
+      "type": "object",
+      "description": "Where each fragment sits in the bundles.",
+      "properties": {
+        "developerBundle": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["role_identity", "opencode_protocol", "opencode_agent_persona"]
+          },
+          "description": "Order is fixed and slow-first."
+        },
+        "userBundle": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["agents_md:global", "agents_md:project", "environment_context", "opencode_user_system_addenda"]
+          },
+          "description": "Order is fixed and slow-first. opencode_user_system_addenda is conditional and tail-only."
+        }
+      },
+      "required": ["developerBundle", "userBundle"]
+    }
+  }
+}
