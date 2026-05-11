@@ -2580,13 +2580,74 @@ When constructing the summary, try to stick to this template:
     snapshot?: UserMessageSnapshot
   }
   const defaultWriteAnchor = async (input: WriteAnchorInput) => {
+    // compaction/recall-affordance L1: server-side TOOL_INDEX injection.
+    // The narrative / replay-tail / llm-agent kinds build their body in
+    // local code without LLM in the loop, so a prompt-side instruction
+    // (buildUserPayload) cannot reach them. We compute the index
+    // authoritatively from the on-disk message stream and append it before
+    // sanitization. For hybrid_llm we deduplicate against any LLM-emitted
+    // table.
+    let augmentedSummary = input.summaryText
+    const needsClientSideIndex =
+      input.kind === "narrative" ||
+      input.kind === "replay-tail" ||
+      input.kind === "llm-agent" ||
+      input.kind === "hybrid_llm"
+    if (needsClientSideIndex) {
+      try {
+        const allMsgs = await Session.messages({ sessionID: input.sessionID }).catch(
+          () => [] as MessageV2.WithParts[],
+        )
+        // Scan the full pre-write message stream for ToolPart entries —
+        // these are the calls that will collapse into the anchor body
+        // once it lands. Wrap as a single pseudo-journal-entry so the
+        // shared extractor works.
+        const fresh = ToolIndex.extractFromJournal([{ messages: allMsgs }])
+        const priorBody = (() => {
+          // priorAnchor's body is already inside input.summaryText for the
+          // redacted-dialog path (concat); separate parse is harmless if
+          // not present.
+          return ToolIndex.parseFromBody(input.summaryText)
+        })()
+        const merged = ToolIndex.merge(priorBody, fresh)
+        if (merged.length > 0) {
+          // Apply size ceiling: cap index at ~30K bytes (≤10% of typical
+          // anchor body). Older entries truncated with placeholder row.
+          const { entries: budgeted, truncatedCount } = ToolIndex.applyBudget(merged, 30_000)
+          const section = ToolIndex.renderSection(budgeted)
+          // Replace any LLM-emitted TOOL_INDEX with our authoritative
+          // version. parseFromBody locates the marker via regex.
+          const markerIdx = ToolIndex.findMarkerIndex(input.summaryText)
+          if (markerIdx >= 0) {
+            augmentedSummary = input.summaryText.slice(0, markerIdx).trimEnd() + "\n\n" + section
+          } else {
+            augmentedSummary = input.summaryText.trimEnd() + "\n\n" + section
+          }
+          log.info("compaction.tool_index.injected", {
+            sessionID: input.sessionID,
+            kind: input.kind,
+            entryCount: budgeted.length,
+            truncatedCount,
+            origBytes: input.summaryText.length,
+            newBytes: augmentedSummary.length,
+          })
+        }
+      } catch (err) {
+        log.warn("compaction.tool_index.inject_failed", {
+          sessionID: input.sessionID,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      }
+    }
+
     // DD-6: anchor body is wrapped + softened before persistence so it
     // cannot be misread as system authority by the LLM on next turn.
-    const sanitized = sanitizeAnchorToString(input.summaryText, input.kind as AnchorKind)
+    const sanitized = sanitizeAnchorToString(augmentedSummary, input.kind as AnchorKind)
     log.info("compaction.anchor.sanitized", {
       sessionID: input.sessionID,
       kind: input.kind,
       originalLength: input.summaryText.length,
+      augmentedLength: augmentedSummary.length,
       sanitizedLength: sanitized.body.length,
       imperativePrefixApplied: sanitized.imperativePrefixApplied,
     })
@@ -2596,17 +2657,19 @@ When constructing the summary, try to stick to this template:
     // / replay-tail) either preserve content via provider chain or are
     // exempt by design; we only police the narrative path where loss is
     // unrecoverable without the affordance.
-    if (input.kind === "narrative") {
+    if (needsClientSideIndex) {
       const indexCheck = ToolIndex.validate(sanitized.body)
       if (indexCheck.found && indexCheck.entryCount > 0) {
         log.info("compaction.tool_index.emitted", {
           sessionID: input.sessionID,
+          kind: input.kind,
           entryCount: indexCheck.entryCount,
           indexBytes: indexCheck.indexBytes,
         })
       } else {
         log.warn("compaction.tool_index.missing", {
           sessionID: input.sessionID,
+          kind: input.kind,
           markerPresent: indexCheck.found,
           anchorBytes: sanitized.body.length,
         })
