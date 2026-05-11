@@ -1367,10 +1367,10 @@ export default function FileTree(props: {
 
   const renderTrailing = (node: FileNode) => (
     <span class="contents text-text-weak text-12-regular">
-      <span class="shrink-0 w-16 text-right tabular-nums truncate">
+      <span class="shrink-0 w-16 text-right tabular-nums truncate @max-[220px]/filetree:hidden">
         {node.type === "file" && typeof node.size === "number" ? formatBytes(node.size) : ""}
       </span>
-      <span class="shrink-0 w-44 text-right tabular-nums truncate">
+      <span class="shrink-0 w-44 text-right tabular-nums truncate @max-[360px]/filetree:hidden">
         {typeof node.modifiedAt === "number" ? formatModifiedShort(node.modifiedAt) : ""}
       </span>
     </span>
@@ -1475,8 +1475,8 @@ export default function FileTree(props: {
       <span class="w-4 shrink-0" />
       <span class="size-4 shrink-0" />
       <span class="flex-1 min-w-0">Name</span>
-      <span class="shrink-0 w-16 text-right">Size</span>
-      <span class="shrink-0 w-44 text-right">Modified</span>
+      <span class="shrink-0 w-16 text-right @max-[220px]/filetree:hidden">Size</span>
+      <span class="shrink-0 w-44 text-right @max-[360px]/filetree:hidden">Modified</span>
     </div>
   )
 
@@ -1569,7 +1569,7 @@ export default function FileTree(props: {
 
   const tree = () => (
     <div
-      class={`flex flex-col gap-0.5 ${root ? "min-h-full" : ""} ${props.class ?? ""}`}
+      class={`flex flex-col gap-0.5 ${root ? "@container/filetree min-h-full" : ""} ${props.class ?? ""}`}
       data-filetree-folder-path={file.normalize(props.path)}
       onContextMenu={root ? handleBackgroundContextMenu : undefined}
       onKeyDown={root ? handleTreeKeyDown : undefined}
