@@ -13,10 +13,16 @@ const LLMTodoShape = z.object({
   content: z.string().describe("Brief description of the task"),
   status: z.string().describe("pending | in_progress | completed | cancelled"),
   priority: z.string().optional().default("medium").describe("high | medium | low (defaults to medium)"),
+  // CACHE FIX 2026-05-11: `.default(() => ...)` is evaluated by zod-to-
+  // json-schema at serialization time, producing a NEW timestamp+random
+  // string every request. That mutates the tools[] JSON bytes per turn
+  // and shatters codex prefix cache (RCA: plans/provider_codex-prompt-
+  // realign cache-4608-floor investigation 2026-05-11). Use a stable
+  // literal default — the actual id is filled in by the execute() body
+  // after parsing if absent.
   id: z
     .string()
     .optional()
-    .default(() => `todo_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`)
     .describe("Stable id for the todo (auto-generated if omitted)"),
 })
 
@@ -41,6 +47,12 @@ export const TodoWriteTool = Tool.define("todowrite", {
       metadata: {},
     })
 
+    // Server-generate id when the LLM omits it (CACHE FIX 2026-05-11:
+    // schema no longer carries a dynamic default — see LLMTodoShape.id).
+    const incoming: Todo.Info[] = params.todos.map((todo) => ({
+      ...todo,
+      id: todo.id ?? `todo_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+    })) as Todo.Info[]
     const current = await Todo.get(ctx.sessionID)
 
     const signature = (todos: Todo.Info[]) =>
@@ -49,7 +61,7 @@ export const TodoWriteTool = Tool.define("todowrite", {
         .sort()
         .join("||")
 
-    const structureChanged = signature(current) !== signature(params.todos)
+    const structureChanged = signature(current) !== signature(incoming)
 
     // Harness control (plan-builder skill, agent prompts) decides when structure
     // edits are appropriate; the runtime just honors what the LLM passes. The
@@ -63,7 +75,7 @@ export const TodoWriteTool = Tool.define("todowrite", {
 
     await Todo.update({
       sessionID: ctx.sessionID,
-      todos: params.todos,
+      todos: incoming,
       mode,
     })
     const todos = await Todo.get(ctx.sessionID)
