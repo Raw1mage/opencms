@@ -1622,11 +1622,11 @@ ToolRegistry.register({
               component={diffComponent}
               before={{
                 name: props.metadata?.filediff?.file || props.input.filePath,
-                contents: props.metadata?.filediff?.before || props.input.oldString,
+                contents: props.input.oldString,
               }}
               after={{
                 name: props.metadata?.filediff?.file || props.input.filePath,
-                contents: props.metadata?.filediff?.after || props.input.newString,
+                contents: props.input.newString,
               }}
             />
           </div>
@@ -1766,8 +1766,8 @@ ToolRegistry.register({
                         <div data-component="apply-patch-file-diff">
                           <Dynamic
                             component={diffComponent}
-                            before={{ name: file.filePath, contents: file.before }}
-                            after={{ name: file.filePath, contents: file.after }}
+                            rawDiff={file.diff}
+                            filename={file.filePath}
                           />
                         </div>
                       </Show>
@@ -1805,8 +1805,8 @@ ToolRegistry.register({
             <div data-component="edit-content">
               <Dynamic
                 component={diffComponent}
-                before={{ name: file().filePath, contents: file().before }}
-                after={{ name: file().movePath ?? file().filePath, contents: file().after }}
+                rawDiff={file().diff}
+                filename={file().movePath ?? file().filePath}
               />
             </div>
           </BasicTool>

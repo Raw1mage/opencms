@@ -1,4 +1,4 @@
-import { DIFFS_TAG_NAME, FileDiff, type SelectedLineRange, VirtualizedFileDiff } from "@pierre/diffs"
+import { DIFFS_TAG_NAME, FileDiff, type FileDiffMetadata, type SelectedLineRange, VirtualizedFileDiff, processFile } from "@pierre/diffs"
 import { PreloadMultiFileDiffResult } from "@pierre/diffs/ssr"
 import { createEffect, onCleanup, onMount, Show, splitProps } from "solid-js"
 import { Dynamic, isServer } from "solid-js/web"
@@ -16,6 +16,8 @@ export function Diff<T>(props: SSRDiffProps<T>) {
   const [local, others] = splitProps(props, [
     "before",
     "after",
+    "rawDiff",
+    "filename",
     "useVirtualizer",
     "class",
     "classList",
@@ -23,6 +25,15 @@ export function Diff<T>(props: SSRDiffProps<T>) {
     "selectedLines",
     "commentedLines",
   ])
+
+  const parsedDiff = (): FileDiffMetadata | undefined => {
+    if (!local.rawDiff) return undefined
+    try {
+      return processFile(local.rawDiff)
+    } catch {
+      return undefined
+    }
+  }
   const workerPool = useWorkerPool(props.diffStyle)
 
   let fileDiffInstance: FileDiff<T> | undefined
@@ -252,13 +263,23 @@ export function Diff<T>(props: SSRDiffProps<T>) {
         )
     // @ts-expect-error - fileContainer is private but needed for SSR hydration
     fileDiffInstance.fileContainer = fileDiffRef
-    fileDiffInstance.hydrate({
-      oldFile: local.before,
-      newFile: local.after,
-      lineAnnotations: local.annotations,
-      fileContainer: fileDiffRef,
-      containerWrapper: container,
-    })
+    const fileDiff = parsedDiff()
+    if (fileDiff) {
+      fileDiffInstance.hydrate({
+        fileDiff,
+        lineAnnotations: local.annotations,
+        fileContainer: fileDiffRef,
+        containerWrapper: container,
+      })
+    } else {
+      fileDiffInstance.hydrate({
+        oldFile: local.before,
+        newFile: local.after,
+        lineAnnotations: local.annotations,
+        fileContainer: fileDiffRef,
+        containerWrapper: container,
+      })
+    }
 
     setSelectedLines(local.selectedLines ?? null)
 
