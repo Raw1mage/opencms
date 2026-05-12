@@ -93,3 +93,16 @@ plans/*/.state.json
 /script/beta-env.sh
 /script/deploy-agents-constitution.sh
 /script/dev-sync-config.sh
+
+# non-published product lines (kept local for dev, not for public repo)
+/packages/web/
+/packages/console/
+/packages/desktop/
+/packages/enterprise/
+/packages/function/
+/packages/extensions/
+/packages/identity/
+/packages/containers/
+/packages/mcp-gcp-grounding/
+/packages/docs/
+/packages/slack/
