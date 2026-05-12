@@ -1404,16 +1404,38 @@ export namespace SessionPrompt {
       // or response.incomplete with an unmapped reason. Same shape as
       // "unknown": empty body, 0 tokens, no parts.
       //
+      // 2026-05-12 (Phase E of session/rebind-procedure-revision): also
+      // catch finish=error here. The codex SSE→finishReason mapping is
+      //   ws_truncation / ws_no_frames / unclassified → "unknown"
+      //   server_failed                              → "error"
+      //   server_incomplete                          → "other"
+      //   server_empty_output_with_reasoning         → "other"
+      // i.e. "error" is the server_failed bucket; structurally identical
+      // to the empty-response shape (0 tokens, no parts) and wants the
+      // same recovery path. Pre-Phase E, error-finish rounds leaked past
+      // Phase B's dispatch — transport-ws would do a primitive
+      // invalidateContinuationFamily scrub but the AI never received a
+      // chain_init_notice on the next outbound, reproducing the跳針 class
+      // for server_failed cases.
+      //
       // Hotfix 2026-04-29: fail fast instead of injecting a synthetic "?".
       // The nudge polluted the message stream and could add extra retries on
       // Codex context-overflow incidents, making double-reporting harder to
       // diagnose. A real recovery path must be explicit chain invalidation or
       // compaction, not hidden user-message fabrication.
       const isEmptyRound =
-        (lastAssistant?.finish === "unknown" || lastAssistant?.finish === "other") &&
+        (lastAssistant?.finish === "unknown" ||
+          lastAssistant?.finish === "other" ||
+          lastAssistant?.finish === "error") &&
         lastAssistant.tokens.input === 0 &&
         lastAssistant.tokens.output === 0 &&
         lastAssistant.id > lastUser.id
+      // Continuation event kind dispatched from this site. Differentiates
+      // server_failed (backend_failure_forced_resend) from empty-output
+      // (empty_response_recovery) so chain.init.injected telemetry carries
+      // accurate reason metadata downstream.
+      const failureKindForChainInit: "empty_response_recovery" | "backend_failure_forced_resend" =
+        lastAssistant?.finish === "error" ? "backend_failure_forced_resend" : "empty_response_recovery"
       // Counter is only reset on positive evidence (a completed turn that
       // actually produced tokens). The injected synthetic nudge below will
       // make lastUser.id > lastAssistant.id on the next iteration, so we
@@ -1475,27 +1497,52 @@ export namespace SessionPrompt {
         // breaksChain=false and the call is a no-op aside from epoch
         // bump — preserving the prior "no-op for non-codex" invariant.
         const { Continuation } = await import("./continuation/run")
-        await Continuation.run({
-          kind: "empty_response_recovery",
-          sessionID,
-          emptyRoundCount,
-          providerId: lastAssistant.providerId,
-        }).catch((err) => {
-          // Continuation.run is already best-effort internally (each
-          // step is try/wrapped). Outermost catch here is belt-and-
-          // suspenders for any import / synchronous-throw case so the
-          // self-heal flow below still runs.
-          log.warn("empty-response: Continuation.run threw at outer boundary", {
+        if (failureKindForChainInit === "backend_failure_forced_resend") {
+          await Continuation.run({
+            kind: "backend_failure_forced_resend",
+            sessionID,
+            // Map finish=error to classifier=server_failed per the SSE
+            // mapping table documented above. Other classifiers
+            // (ws_truncation / ws_no_frames / server_incomplete) flow
+            // through the empty_response_recovery branch below.
+            classifier: "server_failed",
+            providerId: lastAssistant.providerId,
+          }).catch((err) => {
+            log.warn("backend-failure: Continuation.run threw at outer boundary", {
+              sessionID,
+              step,
+              error: err instanceof Error ? err.message : String(err),
+            })
+          })
+          log.info("backend-failure: reset codex continuation chain via Continuation.run", {
             sessionID,
             step,
-            error: err instanceof Error ? err.message : String(err),
+            classifier: "server_failed",
+            emptyRounds: emptyRoundCount,
           })
-        })
-        log.info("empty-response: reset codex continuation chain via Continuation.run", {
-          sessionID,
-          step,
-          emptyRounds: emptyRoundCount,
-        })
+        } else {
+          await Continuation.run({
+            kind: "empty_response_recovery",
+            sessionID,
+            emptyRoundCount,
+            providerId: lastAssistant.providerId,
+          }).catch((err) => {
+            // Continuation.run is already best-effort internally (each
+            // step is try/wrapped). Outermost catch here is belt-and-
+            // suspenders for any import / synchronous-throw case so the
+            // self-heal flow below still runs.
+            log.warn("empty-response: Continuation.run threw at outer boundary", {
+              sessionID,
+              step,
+              error: err instanceof Error ? err.message : String(err),
+            })
+          })
+          log.info("empty-response: reset codex continuation chain via Continuation.run", {
+            sessionID,
+            step,
+            emptyRounds: emptyRoundCount,
+          })
+        }
 
         // Self-heal on transient empty response.
         //
