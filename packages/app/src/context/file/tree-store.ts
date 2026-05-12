@@ -39,7 +39,7 @@ export function createFileTreeStore(options: TreeStoreOptions) {
     setTree("dir", path, { expanded: false })
   }
 
-  const listDir = (input: string, opts?: { force?: boolean }) => {
+  const listDir = (input: string, opts?: { force?: boolean; silent?: boolean }) => {
     const dir = options.normalizeDir(input)
     ensureDir(dir)
 
@@ -128,7 +128,7 @@ export function createFileTreeStore(options: TreeStoreOptions) {
             draft.error = e.message
           }),
         )
-        options.onError(e.message)
+        if (!opts?.silent) options.onError(e.message)
       })
       .finally(() => {
         inflight.delete(dir)
@@ -200,7 +200,7 @@ export function createFileTreeStore(options: TreeStoreOptions) {
       if (filter && !filter(dir)) continue
       targets.push(dir)
     }
-    return Promise.all(targets.map((dir) => listDir(dir, { force: true })))
+    return Promise.all(targets.map((dir) => listDir(dir, { force: true, silent: true })))
   }
 
   return {
