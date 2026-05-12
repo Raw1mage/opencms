@@ -804,28 +804,12 @@ export namespace LLM {
               activeImageBlocks = await buildActiveImageContentBlocks(refs, refsByFilename)
             }
           }
-          // attachment-lifecycle v6 (2026-05-08): per-turn auto-drain
-          // removed. v4's drain-after-preface fixed the previous "drain
-          // before emit" bug but introduced a new loop: model called
-          // reread_attachment → next preface inlined image once → drained
-          // → following turn the image is gone again → model re-called →
-          // loop. Across multi-turn analysis of a single uploaded image
-          // (the typical "user asks about screenshot" case) the model
-          // would burn 1 reread call per turn just to keep seeing the
-          // pixels.
-          //
-          // v6: do NOT drain here. `addOnReread` enforces a FIFO cap
-          // (`Tweaks.attachmentInline.activeSetMax`, default 8) so refs
-          // cannot grow unbounded. Images persist across turns of the
-          // same user task; new reread calls push older ones out via
-          // the FIFO. When the user starts a clearly different task
-          // (new image upload, or explicit "now look at X instead"),
-          // the model can call reread_attachment with the new filename
-          // and the old one will FIFO-evict if cap reached.
-          //
-          // Token cost: up to N images × bytes inline per turn while
-          // in the active set. Bounded by activeSetMax (8) and the
-          // typical "1 image per task" usage pattern.
+          // attachment-lifecycle v6: do not drain here. `addOnReread`
+          // enforces a FIFO cap (`Tweaks.attachmentInline.activeSetMax`,
+          // default 8) so refs cannot grow unbounded; images persist
+          // across turns of the same task and new reread calls FIFO-evict
+          // older ones. Token cost: up to activeSetMax images × bytes
+          // inline per turn while in the active set.
         } catch (err) {
           l.warn("active image inline failed; preface continues without images", {
             error: err instanceof Error ? err.message : String(err),

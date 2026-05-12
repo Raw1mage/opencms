@@ -436,12 +436,9 @@ export namespace SharedContext {
     return space
   }
 
-  // Phase 13.3-full: regex-extracted snapshot surface (snapshot,
-  // persistSnapshot, snapshotDiff, formatForInjection, formatSnapshot)
-  // removed. Compaction now reads from message-stream anchors and the
-  // Memory journal — single source of truth. SharedContext.Space remains
-  // as the file/action workspace used by subagents (updateFromTurn,
-  // mergeFrom, get).
+  // SharedContext.Space is the file/action workspace used by subagents
+  // (updateFromTurn, mergeFrom, get). Compaction reads from message-stream
+  // anchors and the Memory journal — not from this surface.
 
   // ── Merge From Child Session ─────────────────────────────────
 
