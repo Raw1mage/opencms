@@ -530,7 +530,7 @@ async fn initialize(app: AppHandle) {
                 Ok(Ok(Err(e))) => {
                     let _ = child.kill();
                     let msg = format!(
-                        "Failed to spawn OpenCode Server ({e}). Logs:\n{}",
+                        "Failed to spawn OpenCMS Server ({e}). Logs:\n{}",
                         get_logs()
                     );
                     let _ = server_ready_tx.send(Err(msg.clone()));

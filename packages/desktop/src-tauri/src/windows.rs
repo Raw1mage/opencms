@@ -56,7 +56,7 @@ impl MainWindow {
             ),
             app,
         )
-        .title("OpenCode")
+        .title("OpenCMS")
         .decorations(true)
         .disable_drag_drop_handler()
         .zoom_hotkeys_enabled(false)
