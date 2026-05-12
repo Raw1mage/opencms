@@ -8,6 +8,7 @@ import { MessageV2 } from "./message-v2"
 import z from "zod"
 import { Token } from "../util/token"
 import { Log } from "../util/log"
+import { RuntimeEventService } from "../system/runtime-event-service"
 import { SessionProcessor } from "./processor"
 import { fn } from "@/util/fn"
 import { Agent } from "@/agent/agent"
@@ -872,9 +873,18 @@ export namespace SessionCompaction {
     overflow: Object.freeze(["narrative", "replay-tail", "low-cost-server", "llm-agent"] as const),
     "cache-aware": Object.freeze(["narrative", "replay-tail", "low-cost-server", "llm-agent"] as const),
     idle: Object.freeze(["narrative", "replay-tail"] as const),
-    rebind: Object.freeze(["narrative", "replay-tail"] as const),
-    "continuation-invalidated": Object.freeze(["narrative", "replay-tail"] as const),
-    "provider-switched": Object.freeze(["narrative", "replay-tail"] as const),
+    // 2026-05-13 rev1 (specs/session/rebind-procedure-revision/events/
+    // event_2026-05-12_rev1-rebind-class-compaction-chain-excludes-server.md):
+    // rebind / continuation-invalidated / provider-switched compactions
+    // hit the same chain-reset semantics as overflow/cache-aware in
+    // rotation-heavy sessions — narrative alone leaves context full and
+    // re-fires within minutes. Append low-cost-server + llm-agent so
+    // rebind-class compactions fall through to real LLM-driven reduction
+    // when narrative's deterministic stub-and-concat doesn't actually
+    // shrink the context (dialog-heavy sessions).
+    rebind: Object.freeze(["narrative", "replay-tail", "low-cost-server", "llm-agent"] as const),
+    "continuation-invalidated": Object.freeze(["narrative", "replay-tail", "low-cost-server", "llm-agent"] as const),
+    "provider-switched": Object.freeze(["narrative", "replay-tail", "low-cost-server", "llm-agent"] as const),
     "stall-recovery": Object.freeze(["narrative", "replay-tail", "low-cost-server", "llm-agent"] as const),
     manual: Object.freeze(["narrative", "low-cost-server", "llm-agent"] as const),
     // empty-response auto-heal: codex's server-side compact gets first crack
@@ -1605,13 +1615,35 @@ When constructing the summary, try to stick to this template:
    * If the flag is off, in-flight, or anchor is already small, skip.
    */
   function scheduleHybridEnrichment(sessionID: string, observed: Observed, model: Provider.Model | undefined): void {
-    if (!model) return
-    const tweaks = Tweaks.compactionSync()
-    if (!tweaks.enableHybridLlm) return
-    if (hybridEnrichInFlight.has(sessionID)) {
-      log.info("hybrid_llm enrichment skipped (already in flight)", { sessionID })
+    // 2026-05-13 rev2: add RuntimeEventService telemetry so the
+    // background enrichment lifecycle is observable in the runtime
+    // event journal (previously only Log.info, invisible to dashboards
+    // and post-hoc audit per session/rebind-procedure-revision DD-14).
+    const emitTelemetry = (eventType: string, extra: Record<string, unknown> = {}) => {
+      void RuntimeEventService.append({
+        sessionID,
+        level: "info",
+        domain: "telemetry",
+        eventType,
+        anomalyFlags: [],
+        payload: { observed, providerId: model?.providerId ?? null, ...extra },
+      }).catch(() => undefined)
+    }
+    if (!model) {
+      emitTelemetry("session.hybrid_enrichment.skipped", { reason: "no_model" })
       return
     }
+    const tweaks = Tweaks.compactionSync()
+    if (!tweaks.enableHybridLlm) {
+      emitTelemetry("session.hybrid_enrichment.skipped", { reason: "flag_disabled" })
+      return
+    }
+    if (hybridEnrichInFlight.has(sessionID)) {
+      log.info("hybrid_llm enrichment skipped (already in flight)", { sessionID })
+      emitTelemetry("session.hybrid_enrichment.skipped", { reason: "in_flight" })
+      return
+    }
+    emitTelemetry("session.hybrid_enrichment.scheduled")
 
     // dialog-replay-redaction DD-4: when the redaction master flag is on,
     // recompress fires on size (50K ceiling) regardless of `observed`. When
@@ -2156,7 +2188,26 @@ When constructing the summary, try to stick to this template:
     // hybrid_llm AFTER chain success means we always have an anchor
     // before user is unblocked, regardless of whether hybrid_llm
     // succeeds or times out.
-    const hybridEnrichmentEligible: ReadonlySet<Observed> = new Set(["overflow", "cache-aware", "manual"])
+    // 2026-05-13 rev2 (specs/session/rebind-procedure-revision/events/
+    // event_2026-05-12_rev2-hybrid-llm-enrichment-rarely-observed-eligibi.md):
+    // rebind / continuation-invalidated / provider-switched / stall-recovery
+    // were previously excluded from hybrid_llm enrichment under the implicit
+    // "rebind = small context" assumption. Rotation-heavy sessions falsify
+    // that assumption: narrative anchors chain linearly without LLM-driven
+    // size reduction. Adding these to the eligible set lets the background
+    // hybrid_llm enrichment dissolve stacked narrative anchors into a single
+    // distilled quality anchor for these triggers too. Leave `idle` out
+    // (no pressure → don't burn LLM tokens) and `empty-response` out
+    // (already uses low-cost-server as first attempt).
+    const hybridEnrichmentEligible: ReadonlySet<Observed> = new Set([
+      "overflow",
+      "cache-aware",
+      "manual",
+      "rebind",
+      "continuation-invalidated",
+      "provider-switched",
+      "stall-recovery",
+    ])
 
     const target = await resolveTargetPromptTokens()
     const hasPaidKindLater = (idx: number) => chain.slice(idx + 1).some((k) => !isLocalKind(k))
