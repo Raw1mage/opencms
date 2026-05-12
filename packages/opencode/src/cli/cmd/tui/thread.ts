@@ -144,7 +144,7 @@ export const TuiThreadCommand = cmd({
       }),
   handler: async (args) => {
     if (!process.stdin.isTTY || !process.stdout.isTTY) {
-      UI.error("OpenCode TUI requires an interactive terminal (TTY).")
+      UI.error("OpenCMS TUI requires an interactive terminal (TTY).")
       UI.error("Please run in a real terminal and avoid output panels/piped execution.")
       process.exit(1)
     }

@@ -1,6 +1,6 @@
 # System Prompt 注入結構
 
-本文件說明 OpenCode 如何在每次 LLM 請求中組裝 prompt 內容，包含 system role 與 user-role context preface 兩個物理載體。
+本文件說明 OpenCMS 如何在每次 LLM 請求中組裝 prompt 內容，包含 system role 與 user-role context preface 兩個物理載體。
 
 > **權威來源**：`specs/_archive/prompt-cache-and-compaction-hardening/`（Phase B 落地後）
 > **組裝核心**：`packages/opencode/src/session/llm.ts`、`packages/opencode/src/session/static-system-builder.ts`、`packages/opencode/src/session/context-preface.ts`
