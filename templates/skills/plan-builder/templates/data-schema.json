@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://plan-builder.local/templates/data-schema.json",
+  "title": "Data schema for <feature-slug>",
+  "description": "Canonical data contract for the feature. Every field that code will read or write must have an explicit type. No implicit any.",
+  "type": "object",
+  "definitions": {
+    "ExampleEntity": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "description": "stable identifier" }
+      }
+    }
+  },
+  "properties": {}
+}

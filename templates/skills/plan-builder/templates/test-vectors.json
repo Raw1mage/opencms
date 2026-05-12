@@ -1,0 +1,10 @@
+[
+  {
+    "id": "TV1",
+    "requirementRef": "Requirement: <name>",
+    "description": "<what this vector verifies>",
+    "input": {},
+    "expected": {},
+    "notes": "<edge cases or references>"
+  }
+]

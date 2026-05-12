@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Repository releases
+    url: https://github.com/Raw1mage/skills/releases
+    about: Review published release notes and tags

@@ -20,8 +20,8 @@ ts-dist
 **/.serena
 .serena/
 /result
-# refs — tracked as submodules, don't ignore
-# refs
+# refs/ — upstream reference repos, fetch from their own origin
+refs/
 Session.vim
 opencode.json
 /config/opencode/
@@ -69,3 +69,11 @@ daemon/opencode-gateway
 # beta XDG isolation env (per worktree, never commit)
 .beta-env/
 .specbase/
+
+# runtime/local noise
+/.opencode/
+*.log
+*.pid
+*.sock
+settings.local.json
+plans/*/.state.json
