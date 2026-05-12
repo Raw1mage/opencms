@@ -41,7 +41,7 @@ ensure_clean_repo_deploy_source() {
 
 usage() {
   cat <<'EOF'
-OpenCode bootstrap installer
+OpenCMS bootstrap installer
 
 Usage:
   ./install.sh [options]
@@ -659,7 +659,7 @@ main() {
 
   ensure_clean_repo_deploy_source
 
-  log_info "OpenCode bootstrap starting..."
+  log_info "OpenCMS bootstrap starting..."
 
   if ! confirm "Proceed with environment preparation?"; then
     log_warn "Aborted by user."

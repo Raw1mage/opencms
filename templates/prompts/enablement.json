@@ -152,7 +152,7 @@
       {
         "name": "system-manager",
         "enabled": true,
-        "capability": "OpenCode runtime control, model/account switching, MCP toggling"
+        "capability": "OpenCMS runtime control, model/account switching, MCP toggling"
       },
       {
         "name": "gmail",

@@ -54,7 +54,7 @@ Example patch for WebSocket support:
 ```nginx
         proxy_set_header        X-Forwarded-Proto            $scheme;
 
-        # WebSocket support for OpenCode PTY + SSE
+        # WebSocket support for OpenCMS PTY + SSE
         proxy_set_header        Upgrade             $http_upgrade;
         proxy_set_header        Connection          "upgrade";
 

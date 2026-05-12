@@ -106,3 +106,4 @@ plans/*/.state.json
 /packages/mcp-gcp-grounding/
 /packages/docs/
 /packages/slack/
+/sdks/vscode/
