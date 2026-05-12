@@ -435,7 +435,7 @@ api.route("/admin/kill-switch", KillSwitchRoutes())
     "/instance/dispose",
     describeRoute({
       summary: "Dispose instance",
-      description: "Clean up and dispose the current OpenCode instance, releasing all resources.",
+      description: "Clean up and dispose the current OpenCMS instance, releasing all resources.",
       operationId: "instance.dispose",
       responses: {
         200: {
@@ -458,7 +458,7 @@ api.route("/admin/kill-switch", KillSwitchRoutes())
     "/path",
     describeRoute({
       summary: "Get paths",
-      description: "Retrieve the current working directory and related path information for the OpenCode instance.",
+      description: "Retrieve the current working directory and related path information for the OpenCMS instance.",
       operationId: "path.get",
       responses: {
         200: {
@@ -523,7 +523,7 @@ api.route("/admin/kill-switch", KillSwitchRoutes())
     "/command",
     describeRoute({
       summary: "List commands",
-      description: "Get a list of all available commands in the OpenCode system.",
+      description: "Get a list of all available commands in the OpenCMS system.",
       operationId: "command.list",
       responses: {
         200: {
@@ -596,7 +596,7 @@ api.route("/admin/kill-switch", KillSwitchRoutes())
     "/agent",
     describeRoute({
       summary: "List agents",
-      description: "Get a list of all available AI agents in the OpenCode system.",
+      description: "Get a list of all available AI agents in the OpenCMS system.",
       operationId: "app.agents",
       responses: {
         200: {
@@ -619,7 +619,7 @@ api.route("/admin/kill-switch", KillSwitchRoutes())
     "/skill",
     describeRoute({
       summary: "List skills",
-      description: "Get a list of all available skills in the OpenCode system.",
+      description: "Get a list of all available skills in the OpenCMS system.",
       operationId: "app.skills",
       responses: {
         200: {
