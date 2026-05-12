@@ -91,7 +91,93 @@
       "payload": {
         "sessionID": { "type": "string", "required": true },
         "eventKind": { "type": "ContinuationEvent['kind']", "required": true },
-        "reason": { "type": "string", "required": true, "description": "Why skipped: 'user_clear' | 'subagent_spawn' | 'no_prior_chain' | 'capability_only' | 'ws_reconnect' | 'sl_provider'" }
+        "reason": { "type": "string", "required": true, "description": "Why skipped: 'user_clear' | 'subagent_spawn' | 'no_prior_chain' | 'capability_only' | 'ws_reconnect' | 'sl_provider' | 'amnesia_supersedes' | 'server_side_compaction'" }
+      }
+    },
+    "session.hybrid_enrichment.scheduled": {
+      "domain": "telemetry",
+      "level": "info",
+      "anomalyFlags": [],
+      "_added": "rev2 (2026-05-12)",
+      "_description": "Background hybrid_llm enrichment was scheduled after a compaction. Fire-and-forget; further lifecycle events (.started/.succeeded/.failed) deferred to F14.",
+      "payload": {
+        "sessionID": { "type": "string", "required": true },
+        "observed": { "type": "Observed", "required": true },
+        "providerId": { "type": "string|null", "required": true }
+      }
+    },
+    "session.hybrid_enrichment.skipped": {
+      "domain": "telemetry",
+      "level": "info",
+      "anomalyFlags": [],
+      "_added": "rev2 (2026-05-12)",
+      "payload": {
+        "sessionID": { "type": "string", "required": true },
+        "observed": { "type": "Observed", "required": true },
+        "providerId": { "type": "string|null", "required": true },
+        "reason": { "type": "string", "required": true, "description": "'no_model' | 'flag_disabled' | 'in_flight'" }
+      }
+    },
+    "compaction.sustainability.measured": {
+      "domain": "telemetry",
+      "level": "info",
+      "anomalyFlags": [],
+      "_added": "rev5 (2026-05-13)",
+      "_description": "Emitted after every local-kind (narrative / replay-tail) commit. Records the post-compaction context_residual / model.context_limit ratio against the configured threshold. Cross-model invariant.",
+      "payload": {
+        "sessionID": { "type": "string", "required": true },
+        "observed": { "type": "Observed", "required": true },
+        "ratio": { "type": "number", "required": true, "description": "context_residual / model.context_limit, ∈ [0, ∞)" },
+        "threshold": { "type": "number", "required": true, "description": "W_rel, default 0.5" },
+        "violated": { "type": "boolean", "required": true, "description": "ratio > threshold" },
+        "anchor_tokens": { "type": "number", "required": true },
+        "context_residual": { "type": "number", "required": true },
+        "context_limit": { "type": "number", "required": true }
+      }
+    },
+    "compaction.sustainability.fired": {
+      "domain": "workflow",
+      "level": "warn",
+      "anomalyFlags": [],
+      "_added": "rev5 (2026-05-13)",
+      "_description": "Sustainability watermark violated; forcing synchronous contractive compaction (low-cost-server then llm-agent).",
+      "payload": {
+        "sessionID": { "type": "string", "required": true },
+        "observed": { "type": "Observed", "required": true },
+        "ratio_before": { "type": "number", "required": true },
+        "threshold": { "type": "number", "required": true },
+        "reason": { "type": "string", "required": true, "description": "Currently always 'post_local_compact_ratio_exceeded'" }
+      }
+    },
+    "compaction.sustainability.completed": {
+      "domain": "workflow",
+      "level": "info",
+      "anomalyFlags": [],
+      "_added": "rev5 (2026-05-13)",
+      "_description": "Contractive kind succeeded in restoring sustainability bound. ratio_after may still be > threshold if even the contractive kind couldn't fully restore (LLM output still large); violated_after flags this.",
+      "payload": {
+        "sessionID": { "type": "string", "required": true },
+        "observed": { "type": "Observed", "required": true },
+        "kind_used": { "type": "'low-cost-server' | 'llm-agent'", "required": true },
+        "ratio_before": { "type": "number", "required": true },
+        "ratio_after": { "type": "number", "required": true },
+        "violated_after": { "type": "boolean", "required": true },
+        "ms": { "type": "number", "required": true, "description": "End-to-end latency including the contractive kind's LLM round-trip" }
+      }
+    },
+    "compaction.sustainability.failed": {
+      "domain": "anomaly",
+      "level": "warn",
+      "anomalyFlags": ["sustainability_compact_failed"],
+      "_added": "rev5 (2026-05-13)",
+      "_description": "All contractive kinds failed to restore the sustainability bound. Operator attention required — degraded operation continues but the invariant is violated.",
+      "payload": {
+        "sessionID": { "type": "string", "required": true },
+        "observed": { "type": "Observed", "required": true },
+        "ratio_before": { "type": "number", "required": true },
+        "ratio_after": { "type": "number|null", "required": true, "description": "null when post-attempt measurement itself failed" },
+        "last_reason": { "type": "string", "required": true, "description": "Reason text from the final contractive attempt that failed" },
+        "ms": { "type": "number", "required": true }
       }
     },
     "chain.commitment.captured": {

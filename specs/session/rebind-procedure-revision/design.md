@@ -150,6 +150,20 @@ A side-effect surfaced during sustained live observation: **token-burn rate drop
 
 **Mechanism**: chain-reset events forced full-prompt replay (no `previous_response_id`); at 270k context this means N rounds × ~30k tokens charged per loop. The chain_init_notice adds ~700 chars once per break, preventing the loop. Break-even is essentially the first prevented round.
 
+### Post-graduation revision layer (rev1–rev5, 2026-05-12 → 2026-05-13)
+
+Five revision events surfaced after the spec graduated; each addresses a structural assumption that didn't survive live observation. Recorded as `events/event_2026-05-1{2,3}_rev{N}-*.md`.
+
+| rev | Symptom | Mechanism / change | Status |
+|---|---|---|---|
+| rev1 | rebind-driven compactions stayed `narrative`; never escalated even when context was large | Extended `KIND_CHAIN` for rebind / continuation-invalidated / provider-switched / stall-recovery to include `low-cost-server` + `llm-agent` as fallback positions | Code on main (commit `9c6d68b6f`); see [theory §1](theory.md#1-abstraction-leak-across-package-inheritance-boundary) for the underlying "rebind = small context" misclassification pattern |
+| rev2 | Background `hybrid_llm` enrichment never observed; rebind-class excluded from eligibility + no telemetry | Extended `hybridEnrichmentEligible` set + added `session.hybrid_enrichment.scheduled` / `.skipped` runtime events | Code on main (commit `9c6d68b6f`); full lifecycle telemetry (`.started`/`.succeeded`/`.failed`) deferred to F14 |
+| rev3 | Implementation of rev1 + rev2 (single commit, code applied) | (see above) | shipped |
+| rev4 | Post-compaction `INJECT_CONTINUE[rebind]=false` suppressed Continue even for user-initiated rebind → AI silently stopped | Added PendingInjectionStore.peek override in `shouldInjectContinue`; chain-init pending mark is the distinguishing signal vs the 2026-04-27 phantom-rebind class | Code on main (commit `d0b47fe99`); cross-recorded in `compaction/user-msg-replay-unification` |
+| rev5 | No long-horizon sustainability guarantee — anchors stack linearly under narrative-only commits, context fills monotonically | **Compaction Sustainability Invariant** (theory §4.5): synchronous ratio-based watermark backstop. After every local-kind commit, measure `context_residual / model.context_limit`; if > `W_rel` (default 0.5), synchronously invoke contractive kind (`low-cost-server` then `llm-agent`). Cross-model invariant by design. | Code on main (commit `e5c15e983`) |
+
+The rev2/rev3/rev4 chain represents a structural pattern this work surfaced: **`rebind`-class observed values had been implicitly classified as "small / no-op" across multiple unrelated sets** (KIND_CHAIN, hybridEnrichmentEligible, INJECT_CONTINUE). Each set was correct under the assumptions of its day; rotation-heavy sessions falsified those assumptions simultaneously. Revs 1–4 are the structural fix for the misclassification; rev5 is the load-bearing sustainability invariant that turns "tell the AI about breaks" into "guarantee context stays bounded".
+
 **Adjacent failure classes NOT addressed by this work** (tracked in `tasks.md` §M11.7):
 
 | Failure class | Status | Where it lives |
@@ -211,6 +225,13 @@ A side-effect surfaced during sustained live observation: **token-burn rate drop
 - `packages/opencode/src/session/prompt.ts:1499` — `empty-response / backend-failure dispatch branch` — Phase B (M7-1) + Phase E: finish ∈ {unknown, other} → empty_response_recovery; finish=error → backend_failure_forced_resend (classifier=server_failed)
 - `packages/opencode/src/session/compaction.ts:182` — `publishCompactedAndResetChain` — Phase C rewire: maps (observed, kind) → compaction_* ContinuationEvent kind via mapCompactionEventMetaToKind; dispatches through Continuation.run
 - `packages/opencode/src/session/rebind-epoch.ts` — `BumpEpochInput + ChainBreakClass` — Phase D extension: BumpEpochInput.chainBreakClass optional; appended to session.rebind event payload so dashboards can filter SS-break / SL-noop / capability-only / user-intent / preserved
+- `packages/opencode/src/session/compaction.ts` — `measureSustainabilityWatermark` — rev5: pure ratio computation context_residual / model.context_limit; cross-model invariant (DD-15 + theory.md §4.5)
+- `packages/opencode/src/session/compaction.ts` — `forceContractiveCompaction` — rev5: synchronous escalator; tries low-cost-server first (codex /responses/compact), llm-agent fallback; emits sustainability.{fired,completed,failed}
+- `packages/opencode/src/config/tweaks.ts` — `CompactionConfig.sustainabilityRatio` — rev5: ratio threshold (default 0.5); model-agnostic via division by model.context_limit; configurable
+- `packages/opencode/src/session/compaction.ts:2327` — `post-local-commit sustainability hook` — rev5: insertion point in run() — measures watermark after every isLocalKind commit, fires force-compact if violated
+- `packages/opencode/src/session/compaction.ts:874` — `KIND_CHAIN rebind-class extension` — rev3 hotfix: rebind / continuation-invalidated / provider-switched / stall-recovery now include low-cost-server + llm-agent (was local-only)
+- `packages/opencode/src/session/compaction.ts:2209` — `hybridEnrichmentEligible (extended)` — rev3 hotfix: rebind-class added to background hybrid_llm enrichment eligibility (was overflow/cache-aware/manual only)
+- `packages/opencode/src/session/compaction.ts:2412` — `shouldInjectContinue chain-init-pending override` — rev4 amend (cross-spec compaction/user-msg-replay-unification): consults PendingInjectionStore.peek when INJECT_CONTINUE table-default is false, to distinguish user-initiated vs phantom rebind
 
 ## Interface contracts
 
