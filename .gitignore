@@ -77,3 +77,10 @@ daemon/opencode-gateway
 *.sock
 settings.local.json
 plans/*/.state.json
+
+# personal / local-only dotdirs (never publish)
+.anthropic/
+.cursorrules
+.github/
+.husky/
+/services/warroom-placeholder/
