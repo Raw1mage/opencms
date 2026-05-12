@@ -20,8 +20,8 @@ ts-dist
 **/.serena
 .serena/
 /result
-# refs — tracked as submodules, don't ignore
-# refs
+# refs/ — upstream reference repos, fetch from their own origin
+refs/
 Session.vim
 opencode.json
 /config/opencode/
@@ -69,3 +69,40 @@ daemon/opencode-gateway
 # beta XDG isolation env (per worktree, never commit)
 .beta-env/
 .specbase/
+
+# runtime/local noise
+/.opencode/
+*.log
+*.pid
+*.sock
+settings.local.json
+plans/*/.state.json
+
+# personal / local-only dotdirs (never publish)
+.anthropic/
+.cursorrules
+.github/
+.husky/
+/services/warroom-placeholder/
+
+# personal narrative & internal docs — not for third-party consumption
+/CLAUDE.md
+/plans/
+/docs/
+/issues/
+/script/beta-env.sh
+/script/deploy-agents-constitution.sh
+/script/dev-sync-config.sh
+
+# non-published product lines (kept local for dev, not for public repo)
+/packages/web/
+/packages/console/
+/packages/desktop/
+/packages/enterprise/
+/packages/function/
+/packages/extensions/
+/packages/identity/
+/packages/containers/
+/packages/mcp-gcp-grounding/
+/packages/docs/
+/packages/slack/

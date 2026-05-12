@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "miatdiagram/grafcet.schema.json",
+  "title": "GRAFCET Descriptor",
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "type": "object",
+    "required": [
+      "StepNumber",
+      "ModuleRef",
+      "StepType",
+      "StepAction",
+      "LinkInputType",
+      "LinkOutputType",
+      "LinkInputNumber",
+      "LinkOutputNumber",
+      "Condition",
+      "SubGrafcet"
+    ],
+    "properties": {
+      "StepNumber": { "type": "integer", "minimum": 0 },
+      "ModuleRef": { "type": "string", "pattern": "^A[0-9]+$" },
+      "StepType": { "type": "string", "enum": ["initial", "normal", "sub_grafcet"] },
+      "StepAction": { "type": "string", "minLength": 1 },
+      "LinkInputType": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": ["track", "divergence_or", "divergence_and", "convergence_and", "convergence_or"]
+        }
+      },
+      "LinkOutputNumber": {
+        "type": "array",
+        "items": { "type": "integer", "minimum": 0 }
+      },
+      "LinkInputNumber": {
+        "type": "array",
+        "items": { "type": "integer", "minimum": 0 }
+      },
+      "LinkOutputType": {
+        "type": "string",
+        "enum": ["track", "divergence_or", "divergence_and", "convergence_and", "convergence_or"]
+      },
+      "Condition": {
+        "type": "array",
+        "items": { "type": "string", "minLength": 1 }
+      },
+      "SubGrafcet": {
+        "type": "array",
+        "items": { "$ref": "#/$defs/step" }
+      }
+    },
+    "$defs": {
+      "step": {
+        "type": "object",
+        "properties": {
+          "StepNumber": { "type": "integer", "minimum": 0 },
+          "ModuleRef": { "type": "string", "pattern": "^A[0-9]+$" },
+          "StepType": { "type": "string" },
+          "StepAction": { "type": "string" },
+          "LinkInputType": { "type": "array", "items": { "type": "string" } },
+          "LinkOutputNumber": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
+          "LinkInputNumber": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
+          "LinkOutputType": { "type": "string" },
+          "Condition": { "type": "array", "items": { "type": "string" } }
+        },
+        "additionalProperties": true
+      }
+    },
+    "additionalProperties": true
+  }
+}

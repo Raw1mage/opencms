@@ -1,0 +1,19 @@
+changelog:
+  categories:
+    - title: Features
+      labels:
+        - feature
+        - enhancement
+    - title: Skill updates
+      labels:
+        - skill
+        - upstream-sync
+        - refactor
+    - title: Documentation and maintenance
+      labels:
+        - docs
+        - chore
+        - ci
+    - title: Other changes
+      labels:
+        - '*'

@@ -1,0 +1,60 @@
+name: validate-skills
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install validation dependency
+        run: pip install pyyaml
+
+      - name: Validate all top-level skills
+        run: |
+          python - <<'PY'
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          root = Path('.')
+          validator = root / 'skill-creator' / 'scripts' / 'quick_validate.py'
+          skill_dirs = sorted(
+              path.parent for path in root.glob('*/SKILL.md')
+              if path.parent.is_dir()
+          )
+
+          if not skill_dirs:
+              print('No skill directories found')
+              sys.exit(1)
+
+          failures = []
+          for skill_dir in skill_dirs:
+              result = subprocess.run(
+                  [sys.executable, str(validator), str(skill_dir)],
+                  capture_output=True,
+                  text=True,
+              )
+              message = result.stdout.strip() or result.stderr.strip() or 'No output'
+              print(f'[{skill_dir.name}] {message}')
+              if result.returncode != 0:
+                  failures.append(skill_dir.name)
+
+          if failures:
+              print('\nValidation failed for:', ', '.join(failures))
+              sys.exit(1)
+
+          print(f'\nValidated {len(skill_dirs)} skill directories successfully')
+          PY

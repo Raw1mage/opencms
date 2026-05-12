@@ -1,0 +1,248 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://plan-builder.local/schemas/state.schema.json",
+  "title": "plan-builder .state.json",
+  "description": "Machine contract for per-spec lifecycle state tracking. Every specs/<slug>/.state.json file must validate against this schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "state", "history"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "description": "Schema version of this .state.json. Bump when the schema changes in breaking ways.",
+      "const": 1
+    },
+    "state": {
+      "$ref": "#/definitions/stateEnum",
+      "description": "Current lifecycle state of the spec."
+    },
+    "profile": {
+      "type": "array",
+      "description": "Optional profiles that activate extra artifact requirements. Currently recognized: 'ssdlc'.",
+      "items": {
+        "type": "string",
+        "enum": ["ssdlc"]
+      },
+      "uniqueItems": true,
+      "default": []
+    },
+    "history": {
+      "type": "array",
+      "description": "Append-only audit trail of every state transition, mode invocation, and sync checkpoint.",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/historyEntry" }
+    }
+  },
+
+  "definitions": {
+    "stateEnum": {
+      "type": "string",
+      "enum": [
+        "proposed",
+        "designed",
+        "planned",
+        "implementing",
+        "verified",
+        "living",
+        "archived"
+      ]
+    },
+
+    "modeEnum": {
+      "type": "string",
+      "enum": [
+        "new",
+        "promote",
+        "amend",
+        "revise",
+        "extend",
+        "refactor",
+        "sync",
+        "archive",
+        "migration",
+        "refactor-rollback"
+      ],
+      "description": "User-invocable modes: new, promote, amend, revise, extend, refactor, sync, archive. System modes: migration (written by ensureNewFormat), refactor-rollback (written by plan-rollback-refactor)."
+    },
+
+    "syncResultEnum": {
+      "type": "string",
+      "enum": ["warned", "clean"],
+      "description": "Outcome of a sync checkpoint. 'warned' means drift was detected and reported; 'clean' means no drift."
+    },
+
+    "historyEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["at", "by", "mode", "reason"],
+      "properties": {
+        "from": {
+          "description": "Source state. Null only when mode = 'new' (the spec did not exist before).",
+          "oneOf": [
+            { "$ref": "#/definitions/stateEnum" },
+            { "type": "null" }
+          ]
+        },
+        "to": {
+          "description": "Target state after this entry. Omitted when the entry does not change state (e.g. amend self-loop, sync checkpoint).",
+          "$ref": "#/definitions/stateEnum"
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO-8601 UTC timestamp of when the transition/checkpoint occurred."
+        },
+        "by": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Who triggered the entry. User name, agent name, or 'system' for automated writes."
+        },
+        "mode": {
+          "$ref": "#/definitions/modeEnum"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable explanation for this transition or checkpoint."
+        },
+        "result": {
+          "$ref": "#/definitions/syncResultEnum",
+          "description": "Only used when mode = 'sync'. Indicates whether drift was detected."
+        },
+        "drift": {
+          "type": "array",
+          "description": "Only used when mode = 'sync' and result = 'warned'. List of drift identifiers (field paths, error codes, test vector IDs).",
+          "items": { "type": "string" }
+        },
+        "snapshot": {
+          "type": "string",
+          "description": "Only used when mode = 'refactor'. Relative path to the .history/refactor-YYYY-MM-DD/ folder holding the pre-refactor snapshot."
+        },
+        "restored-from": {
+          "type": "string",
+          "description": "Only used when mode = 'refactor-rollback'. Relative path to the .history/refactor-YYYY-MM-DD/ folder that was restored."
+        }
+      },
+
+      "allOf": [
+        {
+          "description": "mode=new MUST set from=null and to=proposed",
+          "if": { "properties": { "mode": { "const": "new" } }, "required": ["mode"] },
+          "then": {
+            "properties": {
+              "from": { "type": "null" },
+              "to": { "const": "proposed" }
+            },
+            "required": ["to"]
+          }
+        },
+        {
+          "description": "mode=promote MUST include from and to, and to must be the next state",
+          "if": { "properties": { "mode": { "const": "promote" } }, "required": ["mode"] },
+          "then": {
+            "required": ["from", "to"]
+          }
+        },
+        {
+          "description": "mode=sync MUST include result",
+          "if": { "properties": { "mode": { "const": "sync" } }, "required": ["mode"] },
+          "then": {
+            "required": ["result"]
+          }
+        },
+        {
+          "description": "mode=sync + result=warned SHOULD include drift list",
+          "if": {
+            "properties": {
+              "mode": { "const": "sync" },
+              "result": { "const": "warned" }
+            },
+            "required": ["mode", "result"]
+          },
+          "then": {
+            "required": ["drift"]
+          }
+        },
+        {
+          "description": "mode=refactor MUST include snapshot path",
+          "if": { "properties": { "mode": { "const": "refactor" } }, "required": ["mode"] },
+          "then": {
+            "required": ["snapshot"],
+            "properties": {
+              "to": { "const": "proposed" }
+            }
+          }
+        },
+        {
+          "description": "mode=refactor-rollback MUST include restored-from",
+          "if": { "properties": { "mode": { "const": "refactor-rollback" } }, "required": ["mode"] },
+          "then": {
+            "required": ["restored-from"]
+          }
+        },
+        {
+          "description": "mode=archive MUST set to=archived",
+          "if": { "properties": { "mode": { "const": "archive" } }, "required": ["mode"] },
+          "then": {
+            "properties": {
+              "to": { "const": "archived" }
+            },
+            "required": ["to"]
+          }
+        },
+        {
+          "description": "mode=migration MUST include from=null (legacy had no state) and to=inferred state",
+          "if": { "properties": { "mode": { "const": "migration" } }, "required": ["mode"] },
+          "then": {
+            "required": ["to"],
+            "properties": {
+              "from": { "type": "null" }
+            }
+          }
+        }
+      ]
+    }
+  },
+
+  "examples": [
+    {
+      "schema_version": 1,
+      "state": "proposed",
+      "profile": [],
+      "history": [
+        {
+          "from": null,
+          "to": "proposed",
+          "at": "2026-04-18T15:00:00Z",
+          "by": "pkcs12",
+          "mode": "new",
+          "reason": "initial spec created via plan-init.ts"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "state": "implementing",
+      "profile": ["ssdlc"],
+      "history": [
+        { "from": null, "to": "proposed", "at": "2026-02-15T10:30:00Z", "by": "pkcs12", "mode": "new", "reason": "initial spec created" },
+        { "from": "proposed", "to": "designed", "at": "2026-02-16T14:20:00Z", "by": "pkcs12", "mode": "promote", "reason": "design artifacts drafted" },
+        { "from": "designed", "to": "planned", "at": "2026-02-18T09:00:00Z", "by": "pkcs12", "mode": "promote", "reason": "tasks.md and handoff.md complete" },
+        { "from": "planned", "to": "implementing", "at": "2026-02-20T11:00:00Z", "by": "build-agent", "mode": "promote", "reason": "first task checked" },
+        { "at": "2026-02-22T13:45:00Z", "by": "build-agent", "mode": "sync", "reason": "post-task sync after 2.3", "result": "warned", "drift": ["user.session.lastActive"] },
+        { "at": "2026-02-22T14:00:00Z", "by": "build-agent", "mode": "amend", "reason": "apply data-schema update for user.session.lastActive" }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "state": "proposed",
+      "profile": [],
+      "history": [
+        { "from": null, "to": "proposed", "at": "2026-02-15T10:30:00Z", "by": "pkcs12", "mode": "new", "reason": "initial" },
+        { "from": "proposed", "to": "designed", "at": "2026-02-16T14:20:00Z", "by": "pkcs12", "mode": "promote", "reason": "advance" },
+        { "from": "designed", "to": "living", "at": "2026-03-01T10:00:00Z", "by": "pkcs12", "mode": "promote", "reason": "shipped" },
+        { "from": "living", "to": "proposed", "at": "2026-04-18T12:00:00Z", "by": "pkcs12", "mode": "refactor", "reason": "SSO insufficient after 2026-04-15 incident", "snapshot": ".history/refactor-2026-04-18/" }
+      ]
+    }
+  ]
+}
