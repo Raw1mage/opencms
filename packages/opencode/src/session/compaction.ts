@@ -184,15 +184,28 @@ export namespace SessionCompaction {
     eventMeta?: { observed?: string; kind?: string; tokensBefore?: number; tokensAfter?: number },
   ) {
     Bus.publish(Event.Compacted, { sessionID })
+    // 2026-05-12 (Phase C of session/rebind-procedure-revision): chain
+    // invalidation routes through Continuation.run so the post-compaction
+    // outbound also picks up an amnesia_notice with commitment digest
+    // (extends the L3 amnesia notice with mutation context — DD-2). Map
+    // (observed, kind) onto the most specific ContinuationEvent kind
+    // for the classifier; default is compaction_narrative.
+    const continuationKind = mapCompactionEventMetaToKind(eventMeta)
     try {
-      const { invalidateContinuationFamily } = await import("@opencode-ai/codex-provider/continuation")
-      invalidateContinuationFamily(sessionID)
-      Log.create({ service: "session.compaction" }).info(
-        "codex chain family reset after compaction (lastResponseId cleared)",
-        { sessionID },
-      )
+      const { Continuation } = await import("./continuation/run")
+      await Continuation.run({
+        kind: continuationKind,
+        sessionID,
+        anchorId: eventMeta?.kind ?? "unknown",
+        // providerId is best-effort here — at this site we don't have
+        // direct access. Continuation.run resolves provider class with
+        // the SL fallback when providerId is absent, which keeps the
+        // call a no-op-on-chain-id for SL providers (the existing
+        // semantics) while still emitting amnesia + telemetry events.
+        providerId: "codex",
+      })
     } catch (err) {
-      Log.create({ service: "session.compaction" }).warn("codex chain reset failed (non-fatal)", {
+      Log.create({ service: "session.compaction" }).warn("Continuation.run threw at compaction publish", {
         sessionID,
         error: err instanceof Error ? err.message : String(err),
       })
@@ -209,6 +222,47 @@ export namespace SessionCompaction {
         tokensAfter: eventMeta?.tokensAfter,
       },
     }).catch(() => {})
+  }
+
+  /**
+   * Map the existing (observed, kind) compaction telemetry pair onto the
+   * ContinuationEvent.kind discriminator. Conservative: any unrecognised
+   * combination falls back to `compaction_narrative`, which has the
+   * strongest amnesia-notice semantics (the worst-case for the AI).
+   *
+   * Recognised observed values:
+   *   - "cache-aware"  → compaction_cache_aware
+   *   - "stall-recovery"  → compaction_stall_recovery
+   *   - "preemptive-daemon-restart"  → compaction_preemptive_daemon_restart
+   *   - "overflow" / "manual" / "auto" / "idle" / "continuation-invalidated"
+   *     → compaction_narrative
+   *
+   * Recognised kind values:
+   *   - "server-side" / "low-cost-server"  → compaction_server_side (chain
+   *     preserved by codex; classifier returns breaksChain=false +
+   *     skipReason="server_side_compaction")
+   */
+  function mapCompactionEventMetaToKind(
+    eventMeta?: { observed?: string; kind?: string },
+  ):
+    | "compaction_narrative"
+    | "compaction_cache_aware"
+    | "compaction_stall_recovery"
+    | "compaction_preemptive_daemon_restart"
+    | "compaction_server_side" {
+    if (eventMeta?.kind === "server-side" || eventMeta?.kind === "low-cost-server") {
+      return "compaction_server_side"
+    }
+    switch (eventMeta?.observed) {
+      case "cache-aware":
+        return "compaction_cache_aware"
+      case "stall-recovery":
+        return "compaction_stall_recovery"
+      case "preemptive-daemon-restart":
+        return "compaction_preemptive_daemon_restart"
+      default:
+        return "compaction_narrative"
+    }
   }
 
   const COMPACTION_BUFFER = 20_000
@@ -3617,6 +3671,17 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
       // "exceeds context window" error a second time, which the user
       // sees as the duplicate display. Idempotent: the finally block
       // still fires, no harm in calling twice.
+      //
+      // 2026-05-12 (Phase C of session/rebind-procedure-revision):
+      // intentionally kept as direct invalidateContinuationFamily, NOT
+      // routed through Continuation.run. This site is a pre-flight
+      // scrub — the AI hasn't seen any compaction-related context yet,
+      // so writing a pendingContinuationInjection here would either
+      // (a) fire chain_init_notice on the compaction LLM call (wrong:
+      // the compaction agent is a sub-process that doesn't need it)
+      // or (b) get immediately overwritten by the runLlmCompact finally
+      // block (3595) which calls publishCompactedAndResetChain →
+      // Continuation.run with the correct post-compaction semantics.
       try {
         const { invalidateContinuationFamily } = await import("@opencode-ai/codex-provider/continuation")
         invalidateContinuationFamily(sessionID)

@@ -456,12 +456,25 @@ export async function deriveObservedCondition(input: {
       return "provider-switched"
     }
     if (lastAnchor.accountId && input.pinnedAccountId && lastAnchor.accountId !== input.pinnedAccountId) {
-      try {
-        const { invalidateContinuationFamily } = await import("@opencode-ai/codex-provider/continuation")
-        invalidateContinuationFamily(input.sessionID)
-      } catch {
-        // best-effort; non-codex providers don't expose this module
-      }
+      // 2026-05-12 (Phase C of session/rebind-procedure-revision): the
+      // chain reset is now dispatched through Continuation.run so the
+      // next outbound also carries a chain_init_notice with commitment
+      // digest. The classifier returns breaksChain=true + injectsChainInit
+      // for SS providers (codex / copilot / openai), and breaksChain=false
+      // + injectsChainInit=false for SL providers — preserving the prior
+      // "no-op for non-codex" invariant of the direct call.
+      const { Continuation } = await import("./continuation/run")
+      await Continuation.run({
+        kind: "account_switch",
+        sessionID: input.sessionID,
+        previousAccountId: lastAnchor.accountId,
+        accountId: input.pinnedAccountId,
+        providerId: lastAnchor.providerId ?? input.pinnedProviderId,
+      }).catch(() => {
+        // Continuation.run is internally best-effort; outer catch is for
+        // any import / synchronous-throw case so the decision flow still
+        // returns null below.
+      })
       return null
     }
   }
@@ -1199,21 +1212,28 @@ export namespace SessionPrompt {
           nextAccount,
         })
         ensureCapabilityLoaderRegistered()
-        await RebindEpoch.bumpEpoch({
+        // 2026-05-12 (Phase C of session/rebind-procedure-revision):
+        // dispatch via Continuation.run instead of the prior pair
+        // (RebindEpoch.bumpEpoch + invalidateContinuationFamily).
+        // Continuation.run subsumes both — bumps epoch internally with
+        // chainBreakClass="SS-break" (codex) / "SL-noop" (anthropic etc.),
+        // captures commitment digest BEFORE invalidation (DD-8), marks
+        // the next outbound for chain_init_notice injection, and emits
+        // chain.commitment.captured + chain.init.injected runtime events.
+        const { Continuation } = await import("./continuation/run")
+        await Continuation.run({
+          kind: "account_switch",
           sessionID,
-          trigger: "provider_switch",
-          reason: `account ${prevAccount} → ${nextAccount}`,
-        })
-        try {
-          const { invalidateContinuationFamily } = await import("@opencode-ai/codex-provider/continuation")
-          invalidateContinuationFamily(sessionID)
-          log.info("account switch: codex chain family reset (lastResponseId cleared)", { sessionID })
-        } catch (err) {
-          log.warn("account switch: codex chain reset failed (non-fatal)", {
+          previousAccountId: prevAccount ?? "unknown",
+          accountId: nextAccount ?? "unknown",
+          providerId: nextProvider ?? "unknown",
+        }).catch((err) => {
+          log.warn("account switch: Continuation.run threw at outer boundary", {
             sessionID,
             error: err instanceof Error ? err.message : String(err),
           })
-        }
+        })
+        log.info("account switch: chain reset via Continuation.run", { sessionID })
       }
     }
 
