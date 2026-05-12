@@ -17,7 +17,7 @@ const DEFAULT_SESSION_WIDTH = 600
 const DEFAULT_TERMINAL_HEIGHT = 280
 const STATUS_SIDEBAR_ORDER_DEFAULT = ["servers", "monitor", "todo", "skills", "mcp", "llm"] as const
 type StatusSidebarKey = (typeof STATUS_SIDEBAR_ORDER_DEFAULT)[number]
-const CONTEXT_SIDEBAR_ORDER_DEFAULT = ["summary", "breakdown", "promptTelemetry", "roundTelemetry", "quota"] as const
+const CONTEXT_SIDEBAR_ORDER_DEFAULT = ["summary", "breakdown", "promptTelemetry", "roundTelemetry", "recentEvents", "quota"] as const
 type ContextSidebarKey = (typeof CONTEXT_SIDEBAR_ORDER_DEFAULT)[number]
 export type AvatarColorKey = (typeof AVATAR_COLOR_KEYS)[number]
 
@@ -262,6 +262,7 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
             breakdown: true,
             promptTelemetry: true,
             roundTelemetry: true,
+            recentEvents: true,
             quota: true,
           } as Record<ContextSidebarKey, boolean>,
         },

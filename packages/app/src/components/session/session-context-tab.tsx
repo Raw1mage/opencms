@@ -19,6 +19,7 @@ import { createSessionContextFormatter } from "./session-context-format"
 import type { SessionTelemetry } from "@/context/global-sync/types"
 import {
   PromptTelemetryCard,
+  RecentEventsCard,
   RoundSessionTelemetryCard,
   type RecentExecutionEvent,
 } from "@/pages/session/session-telemetry-cards"
@@ -50,7 +51,7 @@ function Stat(props: { label: string; value: JSX.Element }) {
   )
 }
 
-type ContextCardKey = "summary" | "breakdown" | "promptTelemetry" | "roundTelemetry"
+type ContextCardKey = "summary" | "breakdown" | "promptTelemetry" | "roundTelemetry" | "recentEvents"
 
 function shouldPackSummaryStat(label: string, value: string) {
   const normalizedValue = value.trim()
@@ -323,9 +324,19 @@ export function SessionContextTab(props: SessionContextTabProps) {
           <RoundSessionTelemetryCard
             telemetry={telemetry()}
             accountLabel={resolveAccountLabel}
-            recentEvents={(props.info()?.execution as { recentEvents?: RecentExecutionEvent[] })?.recentEvents}
             expanded={layout.contextSidebar.expanded("roundTelemetry")()}
             onToggle={() => layout.contextSidebar.toggleExpanded("roundTelemetry")}
+          />
+        ),
+      })
+      result.push({
+        key: "recentEvents",
+        content: (
+          <RecentEventsCard
+            recentEvents={(props.info()?.execution as { recentEvents?: RecentExecutionEvent[] })?.recentEvents}
+            accountLabel={resolveAccountLabel}
+            expanded={layout.contextSidebar.expanded("recentEvents")()}
+            onToggle={() => layout.contextSidebar.toggleExpanded("recentEvents")}
           />
         ),
       })

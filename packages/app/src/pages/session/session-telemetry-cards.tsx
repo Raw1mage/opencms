@@ -209,7 +209,6 @@ function formatRecentEventLine(
 export function RoundSessionTelemetryCard(props: {
   telemetry?: SessionTelemetry
   accountLabel?: (accountId?: string, providerId?: string) => string | undefined
-  recentEvents?: RecentExecutionEvent[]
   expanded?: boolean
   onToggle?: () => void
 }) {
@@ -313,21 +312,39 @@ export function RoundSessionTelemetryCard(props: {
               </For>
             </div>
           </Show>
-          <Show when={(props.recentEvents?.length ?? 0) > 0}>
-            <div class="rounded-md border border-border-weak-base bg-surface-panel px-2.5 py-2 flex flex-col gap-1">
-              <div class="text-11-medium text-text-strong">
-                Recent events ({props.recentEvents?.length})
-              </div>
-              <For each={(props.recentEvents ?? []).slice().reverse()}>
-                {(event) => (
-                  <div class="text-11-regular text-text-weak break-words font-mono">
-                    {formatRecentEventLine(event, props.accountLabel)}
-                  </div>
-                )}
-              </For>
-            </div>
-          </Show>
         </>
+      </Show>
+    </TelemetryCardShell>
+  )
+}
+
+export function RecentEventsCard(props: {
+  recentEvents?: RecentExecutionEvent[]
+  accountLabel?: (accountId?: string, providerId?: string) => string | undefined
+  expanded?: boolean
+  onToggle?: () => void
+}) {
+  const events = () => (props.recentEvents ?? []).slice().reverse()
+  return (
+    <TelemetryCardShell
+      marker="[E]"
+      title={`Recent events (${props.recentEvents?.length ?? 0})`}
+      expanded={props.expanded}
+      onToggle={props.onToggle}
+    >
+      <Show
+        when={events().length > 0}
+        fallback={<div class="text-12-regular text-text-weak">No recent rotation/compaction events.</div>}
+      >
+        <div class="max-h-64 overflow-y-auto flex flex-col gap-1 pr-1">
+          <For each={events()}>
+            {(event) => (
+              <div class="text-11-regular text-text-weak break-words font-mono">
+                {formatRecentEventLine(event, props.accountLabel)}
+              </div>
+            )}
+          </For>
+        </div>
       </Show>
     </TelemetryCardShell>
   )
