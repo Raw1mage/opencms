@@ -1229,9 +1229,17 @@ export namespace LLM {
     // that mental model so the operator can read "where prefix cache
     // hits stop".
     //   靜態系統層     — system / role / always_on (lowest churn)
-    //   動態內文 · 低頻 — session_stable: README, cwd, pinned skills, date
+    //   動態內文 · 低頻 — conversation_stable: README, cwd, pinned skills, date
     //   動態內文 · 中頻 — decay: active / summarized skills (T2)
     //   動態內文 · 高頻 — dynamic: trailing extras + per-turn images
+    //
+    // 2026-05-12: policy taxonomy refined per
+    // plans/session_rebind-procedure-revision/ M6. The legacy label
+    // "session_stable" conflated two invariants; it is now split into
+    // "conversation_stable" (chain-independent — preface T1, developer
+    // bundle) and "chain_stable" (chain-dependent — user bundle, which
+    // can carry amnesia_notice / environment_context that legitimately
+    // need to recompute when the chain identity resets).
     const promptTelemetryBlocks: Array<{
       key: string
       name: string
@@ -1267,7 +1275,7 @@ export namespace LLM {
               chars: b.text.length,
               tokens: Token.estimate(b.text),
               injected: b.text.trim().length > 0,
-              policy: b.tier === "trailing" ? "dynamic" : b.tier === "t2" ? "decay" : "session_stable",
+              policy: b.tier === "trailing" ? "dynamic" : b.tier === "t2" ? "decay" : "conversation_stable",
             }
           })
         : []),
@@ -1284,7 +1292,8 @@ export namespace LLM {
                 chars: joined.length,
                 tokens: Token.estimate(joined),
                 injected: joined.trim().length > 0,
-                policy: "session_stable",
+                // role_identity + opencode_protocol — chain-independent
+                policy: "conversation_stable",
               },
             ]
           })()
@@ -1299,7 +1308,10 @@ export namespace LLM {
                 chars: joined.length,
                 tokens: Token.estimate(joined),
                 injected: joined.trim().length > 0,
-                policy: "session_stable",
+                // agents_md + amnesia_notice + environment_context —
+                // amnesia_notice can mutate on chain reset, so this
+                // bundle is chain_stable (M6).
+                policy: "chain_stable",
               },
             ]
           })()

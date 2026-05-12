@@ -102,3 +102,87 @@ describe("decideAmnesiaInjection", () => {
     expect(decideAmnesiaInjection(events as any).inject).toBe(false)
   })
 })
+
+describe("buildAmnesiaNoticeFragment — digest extension (M5)", () => {
+  const sampleDigest = {
+    entries: [
+      {
+        call_id: "call_p1",
+        tool: "apply_patch",
+        args_brief: "foo/bar.md",
+        status: "completed" as const,
+        output_summary: "✓ Success",
+        completed_at: 1,
+      },
+      {
+        call_id: "call_p2",
+        tool: "edit",
+        args_brief: "baz.ts",
+        status: "completed" as const,
+        output_summary: "wrote 42 bytes",
+        completed_at: 2,
+      },
+    ],
+    bodyCharCount: 200,
+    capturedAt: 3,
+    sourceMessageCount: 10,
+  }
+
+  it("without digest field — body retains original shape (backward compatible)", () => {
+    const before = buildAmnesiaNoticeFragment({ anchorId: "msg_x" }).body
+    const after = buildAmnesiaNoticeFragment({ anchorId: "msg_x", digest: undefined }).body
+    expect(after).toBe(before)
+  })
+
+  it("with null digest — body retains original shape", () => {
+    const before = buildAmnesiaNoticeFragment({ anchorId: "msg_x" }).body
+    const after = buildAmnesiaNoticeFragment({ anchorId: "msg_x", digest: null }).body
+    expect(after).toBe(before)
+  })
+
+  it("with empty-entries digest — body retains original shape", () => {
+    const before = buildAmnesiaNoticeFragment().body
+    const empty = {
+      entries: [],
+      bodyCharCount: 0,
+      capturedAt: 1,
+      sourceMessageCount: 0,
+    }
+    const after = buildAmnesiaNoticeFragment({ digest: empty }).body
+    expect(after).toBe(before)
+  })
+
+  it("with populated digest — body contains 'Recent committed actions' section", () => {
+    const frag = buildAmnesiaNoticeFragment({ digest: sampleDigest })
+    expect(frag.body).toContain("Recent committed actions")
+    expect(frag.body).toContain("call_p1")
+    expect(frag.body).toContain("call_p2")
+    expect(frag.body).toContain("foo/bar.md")
+    expect(frag.body).toContain("baz.ts")
+  })
+
+  it("digest section appears AFTER the recall affordance block", () => {
+    const frag = buildAmnesiaNoticeFragment({ digest: sampleDigest })
+    const recallIndex = frag.body.indexOf("recall returns `unknown_call_id`")
+    const digestIndex = frag.body.indexOf("Recent committed actions")
+    expect(recallIndex).toBeGreaterThan(0)
+    expect(digestIndex).toBeGreaterThan(recallIndex)
+  })
+
+  it("digest plus anchor id — both surfaces present", () => {
+    const frag = buildAmnesiaNoticeFragment({
+      anchorId: "msg_anchor",
+      anchorKind: "narrative",
+      digest: sampleDigest,
+    })
+    expect(frag.body).toContain("msg_anchor")
+    expect(frag.body).toContain("call_p1")
+  })
+
+  it("preserves user role + markers when digest is added", () => {
+    const frag = buildAmnesiaNoticeFragment({ digest: sampleDigest })
+    expect(frag.role).toBe("user")
+    expect(frag.startMarker).toBe("<amnesia_notice>")
+    expect(frag.endMarker).toBe("</amnesia_notice>")
+  })
+})

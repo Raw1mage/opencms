@@ -15,6 +15,8 @@
  */
 
 import type { ContextFragment } from "./fragment"
+import type { CommitmentDigest } from "../continuation/commitment-digest"
+import { renderDigest } from "../continuation/commitment-digest"
 
 /**
  * Decision helper — pure. Given a session's recentEvents ring buffer,
@@ -77,6 +79,14 @@ export interface AmnesiaNoticeInput {
   anchorId?: string
   /** kind value from recentEvents (typically "narrative"). */
   anchorKind?: string
+  /**
+   * Commitment digest captured at the chain-breaking event that produced the
+   * anchor. Optional — when omitted the body retains its original shape
+   * (backward compatible with callers that predate session/rebind-procedure-revision).
+   * When present, an additional "Recent committed actions" section is appended
+   * after the recall affordance block.
+   */
+  digest?: CommitmentDigest | null
 }
 
 export const AMNESIA_NOTICE_OPEN_TAG = "<amnesia_notice>"
@@ -87,6 +97,10 @@ export function buildAmnesiaNoticeFragment(input: AmnesiaNoticeInput = {}): Cont
     ? `  <anchor_id>${input.anchorId}</anchor_id>\n  <anchor_kind>${input.anchorKind ?? "narrative"}</anchor_kind>\n`
     : ""
   const kindLabel = (input.anchorKind ?? "narrative").toUpperCase().replace(/_/g, "-")
+  const digestSection =
+    input.digest && input.digest.entries.length > 0
+      ? "\n" + renderDigest(input.digest.entries) + "\n"
+      : ""
   const body =
     "\n" +
     traceLine +
@@ -103,7 +117,8 @@ export function buildAmnesiaNoticeFragment(input: AmnesiaNoticeInput = {}): Cont
     "  call `recall(tool_call_id)` instead of trusting the narrative prose alone.\n" +
     "  Re-running a tool that was already run is wasteful — recall it instead.\n" +
     "  If recall returns `unknown_call_id`, the id was misread or its entry was\n" +
-    "  truncated; re-execute the original tool as a fallback.\n"
+    "  truncated; re-execute the original tool as a fallback.\n" +
+    digestSection
   return {
     id: "amnesia_notice",
     role: "user",
