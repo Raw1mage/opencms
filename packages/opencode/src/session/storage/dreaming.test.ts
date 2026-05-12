@@ -249,6 +249,12 @@ describe("DreamingWorker migration", () => {
     expect(detectFormat(sid).format).toBe("legacy")
   })
 
+  // Legacy-shape fixture: new apply_patch payloads (post-2026-05-12, plan
+  // provider_apply-patch-metadata-strip) omit `before`/`after`, so the pruner
+  // has nothing to prune from new sessions. This test exercises the pruner's
+  // backwards-compatibility path on a hand-constructed legacy-shape part —
+  // the `before`/`after` fields here are intentionally present to verify
+  // pruning still works on historical sessions that carry them.
   it("prunes oversized tool diffs stored under state.metadata during migration", async () => {
     const sid = "ses_test_dreaming_nested_diff"
     await seedLegacy(sid)
@@ -274,6 +280,8 @@ describe("DreamingWorker migration", () => {
               relativePath: "script/test-bin",
               type: "delete",
               diff: "y".repeat(300_000),
+              // before/after are legacy-shape fields (pre-2026-05-12) — kept
+              // here to validate the pruner's backwards-compat coverage.
               before: "z".repeat(300_000),
               after: "",
               additions: 0,

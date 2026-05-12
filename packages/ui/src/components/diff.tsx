@@ -1,5 +1,12 @@
 import { sampledChecksum } from "@opencode-ai/util/encode"
-import { FileDiff, type FileDiffOptions, type SelectedLineRange, VirtualizedFileDiff } from "@pierre/diffs"
+import {
+  FileDiff,
+  type FileDiffMetadata,
+  type FileDiffOptions,
+  type SelectedLineRange,
+  VirtualizedFileDiff,
+  processFile,
+} from "@pierre/diffs"
 import { createMediaQuery } from "@solid-primitives/media"
 import { createEffect, createMemo, createSignal, onCleanup, splitProps } from "solid-js"
 import { createDefaultOptions, type DiffProps, styleVariables } from "../pierre"
@@ -68,6 +75,8 @@ export function Diff<T>(props: DiffProps<T>) {
   const [local, others] = splitProps(props, [
     "before",
     "after",
+    "rawDiff",
+    "filename",
     "useVirtualizer",
     "class",
     "classList",
@@ -79,7 +88,19 @@ export function Diff<T>(props: DiffProps<T>) {
 
   const mobile = createMediaQuery("(max-width: 640px)")
 
+  // Parse rawDiff into FileDiffMetadata on demand. Distinct from the
+  // content-pair (before/after) path; render() below picks one of the two.
+  const parsedDiff = createMemo<FileDiffMetadata | undefined>(() => {
+    if (!local.rawDiff) return undefined
+    try {
+      return processFile(local.rawDiff, { cacheKey: sampledChecksum(local.rawDiff) })
+    } catch {
+      return undefined
+    }
+  })
+
   const large = createMemo(() => {
+    if (local.rawDiff) return local.rawDiff.length > 500_000
     const before = typeof local.before?.contents === "string" ? local.before.contents : ""
     const after = typeof local.after?.contents === "string" ? local.after.contents : ""
     return Math.max(before.length, after.length) > 500_000
@@ -548,13 +569,7 @@ export function Diff<T>(props: DiffProps<T>) {
     const workerPool = large() ? getWorkerPool("unified") : getWorkerPool(props.diffStyle)
     const virtualizer = getVirtualizer()
     const annotations = local.annotations
-    const beforeContents = typeof local.before?.contents === "string" ? local.before.contents : ""
-    const afterContents = typeof local.after?.contents === "string" ? local.after.contents : ""
-
-    const cacheKey = (contents: string) => {
-      if (!large()) return sampledChecksum(contents, contents.length)
-      return sampledChecksum(contents)
-    }
+    const fileDiff = parsedDiff()
 
     instance?.cleanUp()
     instance = virtualizer
@@ -563,20 +578,42 @@ export function Diff<T>(props: DiffProps<T>) {
     setCurrent(instance)
 
     container.innerHTML = ""
-    instance.render({
-      oldFile: {
-        ...local.before,
-        contents: beforeContents,
-        cacheKey: cacheKey(beforeContents),
-      },
-      newFile: {
-        ...local.after,
-        contents: afterContents,
-        cacheKey: cacheKey(afterContents),
-      },
-      lineAnnotations: annotations,
-      containerWrapper: container,
-    })
+
+    if (fileDiff) {
+      // Unified-patch path: feed the pre-parsed FileDiffMetadata directly.
+      // No before/after contents required.
+      instance.render({
+        fileDiff,
+        lineAnnotations: annotations,
+        containerWrapper: container,
+      })
+    } else {
+      // Content-pair path (edit/write and legacy apply_patch with before/after).
+      const beforeContents = typeof local.before?.contents === "string" ? local.before.contents : ""
+      const afterContents = typeof local.after?.contents === "string" ? local.after.contents : ""
+
+      const cacheKey = (contents: string) => {
+        if (!large()) return sampledChecksum(contents, contents.length)
+        return sampledChecksum(contents)
+      }
+
+      instance.render({
+        oldFile: {
+          name: local.before?.name ?? local.filename ?? "",
+          ...local.before,
+          contents: beforeContents,
+          cacheKey: cacheKey(beforeContents),
+        },
+        newFile: {
+          name: local.after?.name ?? local.filename ?? "",
+          ...local.after,
+          contents: afterContents,
+          cacheKey: cacheKey(afterContents),
+        },
+        lineAnnotations: annotations,
+        containerWrapper: container,
+      })
+    }
 
     applyScheme()
 

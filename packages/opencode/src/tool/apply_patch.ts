@@ -29,8 +29,6 @@ export type ApplyPatchFileMetadata = {
   relativePath: string
   type: "add" | "update" | "delete" | "move"
   diff: string
-  before: string
-  after: string
   additions: number
   deletions: number
   movePath?: string
@@ -243,14 +241,16 @@ export const ApplyPatchTool = Tool.define("apply_patch", {
         }
       }
 
-      // Build per-file metadata for UI rendering (used for both permission and result)
+      // Build per-file metadata for UI rendering (used for both permission and result).
+      // Note: before/after full-file bodies were dropped (2026-05-12, plan
+      // provider_apply-patch-metadata-strip) — UI renders the unified `diff`
+      // hunks directly via @pierre/diffs' patch path. Git snapshot is the
+      // authoritative source for full-content history.
       const files = fileChanges.map((change) => ({
         filePath: change.filePath,
         relativePath: path.relative(Instance.worktree, change.movePath ?? change.filePath).replaceAll("\\", "/"),
         type: change.type,
         diff: change.diff,
-        before: change.oldContent,
-        after: change.newContent,
         additions: change.additions,
         deletions: change.deletions,
         movePath: change.movePath,
