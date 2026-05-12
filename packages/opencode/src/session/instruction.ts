@@ -134,7 +134,58 @@ export namespace InstructionPrompt {
         .then((x) => (x ? "Instructions from: " + url + "\n" + x : "")),
     )
 
-    const value = await Promise.all([...files, ...fetches]).then((result) => result.filter(Boolean))
+    const fileAndUrlEntries = await Promise.all([...files, ...fetches]).then((result) => result.filter(Boolean))
+
+    // /plans/mcp_service-revision/ DD-5 + DD-6 (Phase 13, 2026-05-13):
+    // merge per-MCP-app instructions into the system prompt.
+    // Precedence: McpAppManifest.instructions (host-side hint) >
+    // InitializeResult.instructions (server-side default) > none
+    // (silently omitted). The MCP module's getServerInstructions()
+    // already filters by non-empty, so anything we get here is worth
+    // surfacing.
+    //
+    // Per-app block format:
+    //   "Instructions from MCP server: <appId>\n<text>"
+    // This mirrors the existing "Instructions from: <path>\n<content>"
+    // convention so the capability-layer-loader's source-attribution
+    // logic continues to work.
+    let mcpEntries: string[] = []
+    try {
+      const { MCP } = await import("../mcp")
+      const serverLevel = await MCP.getServerInstructions()
+      // McpAppManifest.instructions = host-side override, takes
+      // precedence per DD-6. Sourced from McpAppStore (the local
+      // registry that already parsed each mcp.json).
+      const manifestLevel = new Map<string, string>()
+      try {
+        const { McpAppStore } = await import("../mcp/app-store")
+        const apps = await McpAppStore.loadConfig()
+        if (apps?.apps) {
+          for (const [appId, entry] of Object.entries(apps.apps)) {
+            const manifestInstr = (entry as { manifest?: { instructions?: string } })?.manifest?.instructions
+            if (typeof manifestInstr === "string" && manifestInstr.trim().length > 0) {
+              manifestLevel.set(appId, manifestInstr)
+            }
+          }
+        }
+      } catch {
+        // McpAppStore not loadable — fall back to server-level only.
+      }
+      const appIds = new Set([...serverLevel.keys(), ...manifestLevel.keys()])
+      // Deterministic order for stable cache + reproducible prompts.
+      for (const appId of Array.from(appIds).sort()) {
+        const effective = manifestLevel.get(appId) ?? serverLevel.get(appId)
+        if (!effective) continue
+        mcpEntries.push(`Instructions from MCP server: ${appId}\n${effective}`)
+      }
+    } catch {
+      // MCP module not available (e.g. unit test environment) — skip
+      // the MCP source entirely. Existing AGENTS.md / opencode.json
+      // sources are unaffected.
+      mcpEntries = []
+    }
+
+    const value = [...fileAndUrlEntries, ...mcpEntries]
     state().systemCache.set(cacheKey, { value, cachedAtEpoch: epoch, cachedAtTimeMs: Date.now() })
     return value
   }
