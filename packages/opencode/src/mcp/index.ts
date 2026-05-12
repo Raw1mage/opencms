@@ -866,6 +866,40 @@ export namespace MCP {
     return state().then((state) => state.clients)
   }
 
+  /**
+   * Return the server-level `instructions` string each connected MCP
+   * client surfaced at `initialize` time (per Model Context Protocol
+   * 2025-03-26 spec). Only entries with non-empty instructions are
+   * returned. Used by `session/instruction.ts` to inject the per-app
+   * usage guidance into the Large Language Model (LLM)'s system
+   * prompt.
+   *
+   * Implementation note: the @modelcontextprotocol/sdk Client object
+   * caches `_instructions` from the InitializeResult; `getInstructions()`
+   * returns it post-connect. No round-trip happens here.
+   *
+   * /plans/mcp_service-revision/ DD-5 (Phase 11, 2026-05-13).
+   */
+  export async function getServerInstructions(): Promise<Map<string, string>> {
+    const all = await clients()
+    const out = new Map<string, string>()
+    for (const [name, client] of Object.entries(all)) {
+      try {
+        const text = client.getInstructions()
+        if (typeof text === "string" && text.trim().length > 0) {
+          // Strip the `mcpapp-` prefix that the registry uses to namespace
+          // managed apps; consumers expect the bare app id (e.g. "docxmcp").
+          const appId = name.startsWith("mcpapp-") ? name.slice("mcpapp-".length) : name
+          out.set(appId, text)
+        }
+      } catch {
+        // Best-effort — a client that lost its connection mid-call
+        // shouldn't crash the whole instructions registry build.
+      }
+    }
+    return out
+  }
+
   export async function connect(name: string) {
     const cfg = await Config.get()
     const config = cfg.mcp ?? {}

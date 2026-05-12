@@ -80,7 +80,10 @@ export const DecomposeOutcome = BusEvent.define(
 export const FAST_PHASE_TIMEOUT_MS = 30_000
 export const MAX_BACKGROUND_AGE_MS = 600_000
 export const DOCXMCP_APP_ID = "docxmcp"
-export const DOCXMCP_TOOL_EXTRACT_ALL = "extract_all"
+// docxmcp service-revision (2026-05-13 plan, Phase 2 DD-2): all
+// docxmcp tools now carry the `docxmcp_` service prefix to avoid
+// collisions when other MCP servers are installed alongside.
+export const DOCXMCP_TOOL_EXTRACT_ALL = "docxmcp_extract_all"
 
 // ── Public types ───────────────────────────────────────────────────────
 

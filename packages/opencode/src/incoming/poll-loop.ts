@@ -36,7 +36,9 @@ const log = Log.create({ service: "incoming.poll-loop" })
 
 export const POLL_INTERVAL_MS = 5_000
 export const POLL_SAFETY_CAP_MS = 180_000
-export const DOCXMCP_TOOL_COLLECT = "extract_all_collect"
+// docxmcp service-revision (2026-05-13 plan, Phase 2 DD-2): all
+// docxmcp tools now carry the `docxmcp_` service prefix.
+export const DOCXMCP_TOOL_COLLECT = "docxmcp_extract_all_collect"
 
 export interface StartPollLoopInput {
   stem: string
