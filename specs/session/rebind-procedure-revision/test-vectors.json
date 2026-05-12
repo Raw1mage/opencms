@@ -1,0 +1,214 @@
+[
+  {
+    "id": "TV-1",
+    "scenario": "Account switch on codex session — happy path",
+    "given": {
+      "session": "ses_test_codex_1",
+      "providerId": "codex",
+      "previousAccountId": "A1",
+      "accountId": "A2",
+      "lastMessages": [
+        { "type": "tool", "tool": "apply_patch", "callID": "call_p1", "status": "completed", "outputBrief": "✓ Success: foo.md" },
+        { "type": "tool", "tool": "apply_patch", "callID": "call_p2", "status": "completed", "outputBrief": "✓ Success: bar.md" },
+        { "type": "tool", "tool": "read", "callID": "call_r1", "status": "completed" }
+      ]
+    },
+    "when": "Continuation.run({ kind: 'account_switch', sessionID: 'ses_test_codex_1', previousAccountId: 'A1', accountId: 'A2', providerId: 'codex' })",
+    "then": {
+      "classifierDecision": {
+        "breaksChain": true,
+        "capturesDigest": true,
+        "recomputesChainStable": true,
+        "injectsChainInit": true,
+        "injectsAmnesia": false,
+        "bumpsRebindEpoch": true
+      },
+      "digestEntries": [
+        { "call_id": "call_p1", "tool": "apply_patch", "status": "completed" },
+        { "call_id": "call_p2", "tool": "apply_patch", "status": "completed" }
+      ],
+      "digestExcludes": ["call_r1"],
+      "invalidateContinuationFamilyCalled": true,
+      "invalidateOrderingInvariant": "digest captured before invalidate (DD-8)",
+      "pendingInjection": { "chainInit": true, "amnesia": false, "reason": "account_switch" },
+      "rebindEpochBumped": true,
+      "sessionRebindPayload": { "chainBreakClass": "SS-break" },
+      "runtimeEvents": ["chain.commitment.captured", "chain.init.injected"]
+    }
+  },
+  {
+    "id": "TV-2",
+    "scenario": "Account switch on anthropic session — SL no-op",
+    "given": { "session": "ses_test_anthropic_1", "providerId": "anthropic", "previousAccountId": "B1", "accountId": "B2" },
+    "when": "Continuation.run({ kind: 'account_switch', sessionID: 'ses_test_anthropic_1', previousAccountId: 'B1', accountId: 'B2', providerId: 'anthropic' })",
+    "then": {
+      "classifierDecision": {
+        "breaksChain": false,
+        "capturesDigest": false,
+        "recomputesChainStable": false,
+        "injectsChainInit": false,
+        "injectsAmnesia": false,
+        "bumpsRebindEpoch": true
+      },
+      "invalidateContinuationFamilyCalled": false,
+      "pendingInjection": null,
+      "rebindEpochBumped": true,
+      "sessionRebindPayload": { "chainBreakClass": "SL-noop" },
+      "runtimeEvents": ["chain.init.skipped"]
+    }
+  },
+  {
+    "id": "TV-3",
+    "scenario": "User /clear — chain break with notice suppressed (DD-9)",
+    "given": { "session": "ses_test_clear_1", "providerId": "codex" },
+    "when": "Continuation.run({ kind: 'user_clear', sessionID: 'ses_test_clear_1' })",
+    "then": {
+      "classifierDecision": {
+        "breaksChain": true,
+        "capturesDigest": false,
+        "injectsChainInit": false,
+        "injectsAmnesia": false,
+        "bumpsRebindEpoch": true
+      },
+      "invalidateContinuationFamilyCalled": true,
+      "pendingInjection": null,
+      "runtimeEvents": ["chain.init.skipped"],
+      "chainInitSkippedReason": "user_clear"
+    }
+  },
+  {
+    "id": "TV-4",
+    "scenario": "Subagent spawn — fresh start, no init",
+    "given": { "session": "ses_test_subagent_child", "providerId": "codex", "parentSessionID": "ses_test_subagent_parent" },
+    "when": "Continuation.run({ kind: 'subagent_spawn', sessionID: 'ses_test_subagent_child', parentSessionID: 'ses_test_subagent_parent' })",
+    "then": {
+      "classifierDecision": {
+        "breaksChain": false,
+        "capturesDigest": false,
+        "injectsChainInit": false,
+        "injectsAmnesia": false,
+        "bumpsRebindEpoch": false
+      },
+      "invalidateContinuationFamilyCalled": false,
+      "pendingInjection": null,
+      "rebindEpochBumped": false,
+      "runtimeEvents": ["chain.init.skipped"],
+      "chainInitSkippedReason": "subagent_spawn"
+    }
+  },
+  {
+    "id": "TV-5",
+    "scenario": "Empty-response recovery — invalidate + notice (DD-10)",
+    "given": { "session": "ses_test_empty_1", "providerId": "codex", "emptyRoundCount": 1 },
+    "when": "Continuation.run({ kind: 'empty_response_recovery', sessionID: 'ses_test_empty_1', emptyRoundCount: 1 })",
+    "then": {
+      "classifierDecision": {
+        "breaksChain": true,
+        "capturesDigest": true,
+        "injectsChainInit": true,
+        "injectsAmnesia": false,
+        "bumpsRebindEpoch": true
+      },
+      "invalidateContinuationFamilyCalled": true,
+      "pendingInjection": { "chainInit": true, "reason": "empty_response_recovery" },
+      "sessionRebindPayload": { "chainBreakClass": "SS-break" },
+      "runtimeEvents": ["chain.commitment.captured", "chain.init.injected"]
+    }
+  },
+  {
+    "id": "TV-6",
+    "scenario": "Compaction on anthropic — amnesia notice with digest, no chain break",
+    "given": { "session": "ses_test_anthropic_compact", "providerId": "anthropic", "anchorId": "anchor_x" },
+    "when": "Continuation.run({ kind: 'compaction_cache_aware', sessionID: 'ses_test_anthropic_compact', anchorId: 'anchor_x', providerId: 'anthropic' })",
+    "then": {
+      "classifierDecision": {
+        "breaksChain": false,
+        "capturesDigest": true,
+        "recomputesChainStable": true,
+        "injectsChainInit": false,
+        "injectsAmnesia": true,
+        "bumpsRebindEpoch": true
+      },
+      "invalidateContinuationFamilyCalled": false,
+      "pendingInjection": { "chainInit": false, "amnesia": true, "reason": "compaction_cache_aware" },
+      "sessionRebindPayload": { "chainBreakClass": "SL-noop" },
+      "runtimeEvents": ["chain.commitment.captured"],
+      "amnesiaFragmentBodyIncludesDigest": true
+    }
+  },
+  {
+    "id": "TV-7",
+    "scenario": "Capability layer refresh — epoch only, no chain break (DD-12)",
+    "given": { "session": "ses_test_cap_refresh", "providerId": "codex", "reason": "AGENTS.md updated" },
+    "when": "Continuation.run({ kind: 'capability_layer_refresh', sessionID: 'ses_test_cap_refresh', reason: 'AGENTS.md updated' })",
+    "then": {
+      "classifierDecision": {
+        "breaksChain": false,
+        "capturesDigest": false,
+        "injectsChainInit": false,
+        "injectsAmnesia": false,
+        "bumpsRebindEpoch": true,
+        "recomputesChainStable": true
+      },
+      "invalidateContinuationFamilyCalled": false,
+      "rebindEpochBumped": true,
+      "sessionRebindPayload": { "chainBreakClass": "capability-only" },
+      "runtimeEvents": ["chain.init.skipped"],
+      "chainInitSkippedReason": "capability_only"
+    }
+  },
+  {
+    "id": "TV-8",
+    "scenario": "WS reconnect — no-op",
+    "given": { "session": "ses_test_ws", "providerId": "codex" },
+    "when": "Continuation.run({ kind: 'ws_reconnect', sessionID: 'ses_test_ws' })",
+    "then": {
+      "classifierDecision": {
+        "breaksChain": false,
+        "capturesDigest": false,
+        "injectsChainInit": false,
+        "injectsAmnesia": false,
+        "bumpsRebindEpoch": false
+      },
+      "invalidateContinuationFamilyCalled": false,
+      "rebindEpochBumped": false,
+      "runtimeEvents": []
+    }
+  },
+  {
+    "id": "TV-9",
+    "scenario": "Digest capture failure → sentinel",
+    "given": {
+      "session": "ses_test_digest_fail",
+      "providerId": "codex",
+      "messageStreamThrows": true
+    },
+    "when": "Continuation.run({ kind: 'account_switch', sessionID: 'ses_test_digest_fail', previousAccountId: 'A1', accountId: 'A2', providerId: 'codex' })",
+    "then": {
+      "captureDigestReturns": null,
+      "proceduralBehaviour": "invalidate still proceeds; pendingInjection.digest=null",
+      "chainInitFragmentBody": "contains <commitment_digest_unavailable> sentinel marker",
+      "runtimeEvents": ["chain.init.injected"],
+      "chainInitInjectedDigestEntryCount": 0
+    }
+  },
+  {
+    "id": "TV-10",
+    "scenario": "End-to-end replay of ses_1e56ed3f9ffebv4AaWOlcPLz20 fixture",
+    "given": {
+      "fixture": "ses_1e56ed3f9ffebv4AaWOlcPLz20.fixture.jsonl",
+      "checkpointRound": 240,
+      "rebindTriggerAt": "after round 240",
+      "preRebindMutations": ["apply_patch ×3 enterprise_security_operation_analysis.md"]
+    },
+    "when": "replay fixture with new continuation procedure active",
+    "then": {
+      "round241Behaviour": "chain_init_notice fragment present in outbound prompt body",
+      "digestEntries": "3 apply_patch entries listed",
+      "rounds241to260ReadCallsTo": "enterprise_security_operation_analysis.md",
+      "expectedMaxRepeatedReads": 1,
+      "regressionThreshold": "if ≥3 consecutive reads to same file, test fails",
+      "assertion": "model exits the would-be loop within 2 turns of receiving chain_init_notice"
+    }
+  }
+]

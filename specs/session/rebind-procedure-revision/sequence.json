@@ -1,0 +1,104 @@
+[
+  {
+    "id": "SEQ-1",
+    "title": "Account switch on codex session — full continuation procedure",
+    "description": "User clicks 'switch account' in admin panel; server route dispatches account_switch into Continuation.run; next outbound carries chain_init_notice with commitment digest.",
+    "participants": [
+      { "id": "admin", "name": "Admin panel route (server/routes/session.ts)", "kind": "component" },
+      { "id": "run", "name": "Continuation.run (continuation/run.ts)", "kind": "component" },
+      { "id": "classifier", "name": "classify (continuation-event.ts)", "kind": "component" },
+      { "id": "semantics", "name": "ProviderChainSemantics (chain-semantics.ts)", "kind": "component" },
+      { "id": "digest", "name": "CommitmentDigest (commitment-digest.ts)", "kind": "component" },
+      { "id": "stream", "name": "MessageV2.stream", "kind": "component" },
+      { "id": "invalidate", "name": "@opencode-ai/codex-provider invalidateContinuationFamily", "kind": "component" },
+      { "id": "session", "name": "Session.execution state", "kind": "component" },
+      { "id": "epoch", "name": "RebindEpoch.bumpEpoch", "kind": "component" },
+      { "id": "events", "name": "RuntimeEventService", "kind": "component" },
+      { "id": "promptbuilder", "name": "Prompt builder (session/llm.ts)", "kind": "component" },
+      { "id": "fragments", "name": "FragmentRegistry + chain-init-notice", "kind": "component" }
+    ],
+    "messages": [
+      { "from": "admin", "to": "run", "label": "run({ kind: 'account_switch', sessionID: S, previousAccountId: A1, accountId: A2, providerId: 'codex' })" },
+      { "from": "run", "to": "classifier", "label": "classify(event)" },
+      { "from": "classifier", "to": "semantics", "label": "classifyProvider('codex')" },
+      { "from": "semantics", "to": "classifier", "label": "'SS'" },
+      { "from": "classifier", "to": "run", "label": "{ breaksChain:true, capturesDigest:true, recomputesChainStable:true, injectsChainInit:true, injectsAmnesia:false, bumpsRebindEpoch:true }" },
+      { "from": "run", "to": "digest", "label": "captureDigest(S)" },
+      { "from": "digest", "to": "stream", "label": "stream(S) — last 50 messages" },
+      { "from": "stream", "to": "digest", "label": "[...messages...]" },
+      { "from": "digest", "to": "digest", "label": "filter mutation-class tools; truncate to last 5; scrub secrets; render entries" },
+      { "from": "digest", "to": "session", "label": "session.execution.recentBreakDigest = digest" },
+      { "from": "digest", "to": "run", "label": "{ entries: [...], bodyCharCount: 432 }" },
+      { "from": "run", "to": "invalidate", "label": "invalidateContinuationFamily(S)" },
+      { "from": "invalidate", "to": "run", "label": "lastResponseId cleared per-account shard" },
+      { "from": "run", "to": "session", "label": "session.execution.pendingContinuationInjection = { chainInit:true, amnesia:false, digest, reason:'account_switch', ts:now }" },
+      { "from": "run", "to": "epoch", "label": "bumpEpoch({ sessionID:S, trigger:'account_switch', reason:'A1→A2' })" },
+      { "from": "epoch", "to": "events", "label": "append session.rebind { trigger:'account_switch', chainBreakClass:'SS-break', previousEpoch, currentEpoch }" },
+      { "from": "run", "to": "events", "label": "append chain.commitment.captured { sessionID:S, sourceMessageCount:50, digestEntryCount:5 }" },
+      { "from": "run", "to": "events", "label": "append chain.init.injected { sessionID:S, eventKind:'account_switch', digestEntryCount:5, bodyCharCount:432 }" },
+      { "from": "run", "to": "admin", "label": "{ decision, digest }" },
+      { "from": "admin", "to": "promptbuilder", "label": "(later) next outbound prompt build invoked" },
+      { "from": "promptbuilder", "to": "session", "label": "read pendingContinuationInjection" },
+      { "from": "session", "to": "promptbuilder", "label": "{ chainInit:true, digest, reason }" },
+      { "from": "promptbuilder", "to": "fragments", "label": "buildChainInitNoticeFragment({ reason, digest })" },
+      { "from": "fragments", "to": "promptbuilder", "label": "<chain_init_notice>... commitment digest ...</chain_init_notice>" },
+      { "from": "promptbuilder", "to": "session", "label": "clear pendingContinuationInjection" },
+      { "from": "promptbuilder", "to": "fragments", "label": "recompute chain_stable fragments (bundle_user)" },
+      { "from": "promptbuilder", "to": "promptbuilder", "label": "outbound dispatched without previous_response_id" }
+    ]
+  },
+  {
+    "id": "SEQ-2",
+    "title": "Compaction on anthropic session — amnesia notice with digest",
+    "description": "Anthropic session crosses cache-aware compaction threshold; existing L3 amnesia-notice path fires, extended body embeds commitment digest.",
+    "participants": [
+      { "id": "loop", "name": "Runloop (prompt.ts)", "kind": "component" },
+      { "id": "compaction", "name": "SessionCompaction.run (compaction.ts)", "kind": "component" },
+      { "id": "run", "name": "Continuation.run", "kind": "component" },
+      { "id": "classifier", "name": "classify", "kind": "component" },
+      { "id": "semantics", "name": "ProviderChainSemantics", "kind": "component" },
+      { "id": "digest", "name": "CommitmentDigest", "kind": "component" },
+      { "id": "session", "name": "Session.execution state", "kind": "component" },
+      { "id": "epoch", "name": "RebindEpoch.bumpEpoch", "kind": "component" },
+      { "id": "events", "name": "RuntimeEventService", "kind": "component" },
+      { "id": "fragments", "name": "FragmentRegistry + amnesia-notice", "kind": "component" }
+    ],
+    "messages": [
+      { "from": "loop", "to": "compaction", "label": "SessionCompaction.run({ sessionID:S, observed:'cache-aware', ... })" },
+      { "from": "compaction", "to": "compaction", "label": "(existing) narrative anchor built; messages collapsed" },
+      { "from": "compaction", "to": "run", "label": "run({ kind: 'compaction_cache_aware', sessionID:S, anchorId, providerId:'anthropic' })" },
+      { "from": "run", "to": "classifier", "label": "classify(event)" },
+      { "from": "classifier", "to": "semantics", "label": "classifyProvider('anthropic')" },
+      { "from": "semantics", "to": "classifier", "label": "'SL'" },
+      { "from": "classifier", "to": "run", "label": "{ breaksChain:false, capturesDigest:true, injectsChainInit:false, injectsAmnesia:true, bumpsRebindEpoch:true, recomputesChainStable:true }" },
+      { "from": "run", "to": "digest", "label": "captureDigest(S)" },
+      { "from": "digest", "to": "run", "label": "{ entries: [...], bodyCharCount: 287 }" },
+      { "from": "run", "to": "session", "label": "session.execution.pendingContinuationInjection = { amnesia:true, digest, reason:'compaction_cache_aware', anchorId }" },
+      { "from": "run", "to": "epoch", "label": "bumpEpoch({ trigger:'compaction_cache_aware', reason })" },
+      { "from": "epoch", "to": "events", "label": "append session.rebind { chainBreakClass:'SL-noop' }" },
+      { "from": "run", "to": "events", "label": "append chain.commitment.captured" },
+      { "from": "run", "to": "compaction", "label": "{ decision, digest }" },
+      { "from": "compaction", "to": "loop", "label": "compaction complete" },
+      { "from": "loop", "to": "fragments", "label": "(next round) buildAmnesiaNoticeFragment({ anchorId, anchorKind:'narrative', digest })" },
+      { "from": "fragments", "to": "loop", "label": "<amnesia_notice>... TOOL_INDEX hint ... recent commitments: digest ...</amnesia_notice>" }
+    ]
+  },
+  {
+    "id": "SEQ-3",
+    "title": "Subagent spawn — chain-init suppressed",
+    "description": "Parent session spawns subagent; Continuation.run dispatches subagent_spawn event; classifier suppresses chain-init since subagent has no prior chain.",
+    "participants": [
+      { "id": "parent", "name": "Parent session (subagent spawn site)", "kind": "component" },
+      { "id": "run", "name": "Continuation.run", "kind": "component" },
+      { "id": "classifier", "name": "classify", "kind": "component" },
+      { "id": "events", "name": "RuntimeEventService", "kind": "component" }
+    ],
+    "messages": [
+      { "from": "parent", "to": "run", "label": "run({ kind:'subagent_spawn', sessionID:childID, parentSessionID:parentID })" },
+      { "from": "run", "to": "classifier", "label": "classify(event)" },
+      { "from": "classifier", "to": "run", "label": "{ breaksChain:false, capturesDigest:false, injectsChainInit:false, ..., bumpsRebindEpoch:false }" },
+      { "from": "run", "to": "events", "label": "append chain.init.skipped { sessionID:childID, eventKind:'subagent_spawn', reason:'no prior chain' }" },
+      { "from": "run", "to": "parent", "label": "{ decision, digest:null }" }
+    ]
+  }
+]

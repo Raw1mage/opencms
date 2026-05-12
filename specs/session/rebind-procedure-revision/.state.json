@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "state": "living",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-05-12T09:29:41.779Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-05-12T10:01:00.289Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Acceptance Checks section added (A1-A10); all 8 designed-state artifacts present"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-05-12T10:03:43.872Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "test-vectors.json (10 vectors covering all classifier cells + e2e replay), errors.md (8 failure modes, 3 error contracts), observability.md (3 new events + payload extension + jq recipes) authored"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-05-12T13:55:24.850Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "All Phase A-E commits landed on main; live verification on ses_1e56ed3f9ffebv4AaWOlcPLz20 captured; entering active operation phase"
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-05-12T14:01:16.545Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Live verification across 6 event notes; 168 unit tests pass; tsgo clean. Remaining items reformatted as explicit deferrals to F-series follow-ups so the verified state correctly reflects what was achieved in-cycle."
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-05-12T14:47:45.103Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "User-confirmed graduation. All Phase A-E + hotfixes + polish on main; live-verified end-to-end including 300× token efficiency outcome; theory.md + 12 events + 17 DDs + Failure-Mode Taxonomy + Glossary + Mermaid + Related Specs all in place. rev1 (KIND_CHAIN observation) captured."
+    }
+  ]
+}

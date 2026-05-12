@@ -1,0 +1,54 @@
+{
+  "diagram_title": "Revised Continuation Procedure For Chain-Identity-Breaking Events",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Classify Continuation Event",
+      "description": "Given ContinuationEvent { kind, sessionID, providerId, … }, resolve providerClass via provider/chain-semantics.ts; return ContinuationDecision { breaksChain, capturesDigest, recomputesChainStable, injectsChainInit, injectsAmnesia, bumpsRebindEpoch }. Single dispatch point; classifier matrix (proposal R4 / design.md) drives the decision.",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Capture Commitment Digest",
+      "description": "When decision.capturesDigest is true, scan last 50 messages of the session via MessageV2.stream, filter to mutation-class tool calls (apply_patch / edit / write / bash-with-write / move_file / delete_file), select last 5, render as digest entries (call_id, tool, args_brief ≤80c, status, output_summary ≤60c, completed_at). Total digest ≤1000 chars. Capture BEFORE invalidation (DD-8); failure yields sentinel marker, not abort.",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Invalidate Codex Chain Family",
+      "description": "When decision.breaksChain is true, call invalidateContinuationFamily(sessionID) from @opencode-ai/codex-provider/continuation. Drops lastResponseId for every per-account shard of the session; no-op for SL providers (anthropic, gemini, etc.). Existing primitive — unchanged.",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Mark Pending Fragment Injection",
+      "description": "When decision.injectsChainInit OR decision.injectsAmnesia is true, persist PendingInjection { chainInit, amnesia, digest, reason, ts } to session.execution.pendingContinuationInjection. Consumed on next outbound prompt build; cleared after consumption. Once-after-chain-break policy.",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Bump Rebind Epoch",
+      "description": "When decision.bumpsRebindEpoch is true, call RebindEpoch.bumpEpoch({ sessionID, trigger: event.kind, reason }). Increments per-session epoch counter; emits session.rebind event (workflow domain) with extended payload { ..., chainBreakClass }. Drives chain_stable fragment cache invalidation downstream.",
+      "decomposition": null
+    },
+    {
+      "id": "A6",
+      "title": "Build Chain-Init Notice Fragment",
+      "description": "On next outbound prompt build, if pendingContinuationInjection.chainInit is set, call buildChainInitNoticeFragment({ reason, digest, anchorKind? }). Renders user-role context fragment with markers <chain_init_notice>…</chain_init_notice>. Body composes: (1) chain-reset framing, (2) round numbering, (3) commitment digest via shared renderer, (4) recovery affordances (recall / TOOL_INDEX).",
+      "decomposition": null
+    },
+    {
+      "id": "A7",
+      "title": "Recompute Chain-Stable Fragments",
+      "description": "Fragment registry uses chain_stable policy: at prompt build, fragments tagged chain_stable check rebind epoch — recompute when epoch advanced since last render. bundle_user (agents_md, amnesia_notice, environment_context) reclassified chain_stable; static system block stays conversation_stable.",
+      "decomposition": null
+    },
+    {
+      "id": "A8",
+      "title": "Emit Continuation Telemetry",
+      "description": "RuntimeEventService.append for chain.init.injected | chain.init.skipped | chain.commitment.captured (workflow / telemetry domain). Payload carries sessionID, eventKind, digestEntryCount, bodyCharCount, reason. Extends existing session.rebind payload with chainBreakClass marker.",
+      "decomposition": null
+    }
+  ]
+}

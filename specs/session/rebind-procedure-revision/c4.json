@@ -1,0 +1,193 @@
+{
+  "title": "session/rebind-procedure-revision — C4 model",
+  "description": "Component-level view of the revised continuation procedure: one classifier + one executor + one shared digest helper + two sibling fragments routed through an extended fragment registry. Sits inside the session runtime container; touches the codex-provider continuation package read-only.",
+  "systems": [
+    {
+      "id": "opencode",
+      "name": "OpenCode runtime",
+      "description": "Single-process bun daemon hosting session runloop, provider adapters, fragment registry, and runtime-event service.",
+      "boundary": "internal"
+    }
+  ],
+  "containers": [
+    {
+      "id": "session-runtime",
+      "system": "opencode",
+      "name": "Session runtime",
+      "description": "packages/opencode/src/session/* — owns runloop, message persistence, compaction, fragment composition, rebind epoch.",
+      "technology": "TypeScript, Bun"
+    },
+    {
+      "id": "provider-registry",
+      "system": "opencode",
+      "name": "Provider registry",
+      "description": "packages/opencode/src/provider/* — chain-semantics classification, SDK adapters, account/auth state.",
+      "technology": "TypeScript, Bun"
+    },
+    {
+      "id": "codex-provider",
+      "system": "opencode",
+      "name": "Codex provider package (external)",
+      "description": "@opencode-ai/codex-provider — owns lastResponseId per-shard storage and invalidateContinuationFamily. Read-only from this plan's perspective.",
+      "technology": "TypeScript, npm package"
+    },
+    {
+      "id": "runtime-event-service",
+      "system": "opencode",
+      "name": "RuntimeEventService",
+      "description": "packages/opencode/src/system/runtime-event-service.ts — append-only event journal per session.",
+      "technology": "TypeScript, Bun"
+    }
+  ],
+  "components": [
+    {
+      "id": "chain-semantics",
+      "container": "provider-registry",
+      "name": "ProviderChainSemantics",
+      "description": "Static registry classifying each providerId as SS / SL / Hybrid. Single source of truth for chain-awareness.",
+      "files": ["packages/opencode/src/provider/chain-semantics.ts"]
+    },
+    {
+      "id": "continuation-event",
+      "container": "session-runtime",
+      "name": "ContinuationEvent + classifier",
+      "description": "Discriminated union of 12 event kinds; classify((kind, providerClass)) → ContinuationDecision per the canonical matrix.",
+      "files": ["packages/opencode/src/session/continuation/continuation-event.ts"]
+    },
+    {
+      "id": "continuation-run",
+      "container": "session-runtime",
+      "name": "Continuation.run executor",
+      "description": "Single entry point. Orchestrates digest capture → invalidation → pending-injection mark → epoch bump → telemetry. Replaces direct invalidateContinuationFamily call sites.",
+      "files": ["packages/opencode/src/session/continuation/run.ts"]
+    },
+    {
+      "id": "commitment-digest",
+      "container": "session-runtime",
+      "name": "CommitmentDigest helper",
+      "description": "captureDigest(sessionID) scans MessageV2 stream for mutation-class tools, truncates to N=5, scrubs secrets. renderDigest(entries) emits prose body for fragment composition.",
+      "files": ["packages/opencode/src/session/continuation/commitment-digest.ts"]
+    },
+    {
+      "id": "chain-init-notice",
+      "container": "session-runtime",
+      "name": "ChainInitNotice fragment",
+      "description": "User-role context fragment fired once-after-chain-break. Body composes chain-reset framing, round numbering, commitment digest, recovery affordance hints.",
+      "files": ["packages/opencode/src/session/context-fragments/chain-init-notice.ts"]
+    },
+    {
+      "id": "amnesia-notice",
+      "container": "session-runtime",
+      "name": "AmnesiaNotice fragment (extended)",
+      "description": "Existing compaction notice; body extended to embed commitment digest via shared renderer; decision helper unchanged.",
+      "files": ["packages/opencode/src/session/context-fragments/amnesia-notice.ts"]
+    },
+    {
+      "id": "fragment-registry",
+      "container": "session-runtime",
+      "name": "FragmentRegistry (policy enum extended)",
+      "description": "Adds chain_stable and once_after_chain_break policies; removes session_stable. Every fragment audited and re-tagged.",
+      "files": ["packages/opencode/src/session/context-fragments/index.ts"]
+    },
+    {
+      "id": "rebind-epoch",
+      "container": "session-runtime",
+      "name": "RebindEpoch (payload extended)",
+      "description": "Existing epoch bumper; session.rebind event payload extended with chainBreakClass field.",
+      "files": ["packages/opencode/src/session/rebind-epoch.ts"]
+    },
+    {
+      "id": "prompt-builder-callsites",
+      "container": "session-runtime",
+      "name": "prompt.ts call sites (3)",
+      "description": "Lines 460, 1208, 1451 rewired from direct invalidateContinuationFamily into Continuation.run dispatch.",
+      "files": ["packages/opencode/src/session/prompt.ts"]
+    },
+    {
+      "id": "compaction-callsites",
+      "container": "session-runtime",
+      "name": "compaction.ts call sites (2)",
+      "description": "Lines 189, 3622 rewired into Continuation.run dispatch with kind=compaction_*.",
+      "files": ["packages/opencode/src/session/compaction.ts"]
+    },
+    {
+      "id": "transport-ws-callsites",
+      "container": "session-runtime",
+      "name": "transport-ws.ts call sites (4)",
+      "description": "Lines 561/571/581/607 rewired into Continuation.run dispatch with kind=backend_failure_forced_resend (Phase E).",
+      "files": ["packages/opencode/src/session/transport-ws.ts"]
+    }
+  ],
+  "relationships": [
+    {
+      "from": "prompt-builder-callsites",
+      "to": "continuation-run",
+      "description": "Dispatches account_switch / provider_switch / empty_response_recovery events"
+    },
+    {
+      "from": "compaction-callsites",
+      "to": "continuation-run",
+      "description": "Dispatches compaction_* events"
+    },
+    {
+      "from": "transport-ws-callsites",
+      "to": "continuation-run",
+      "description": "Dispatches backend_failure_forced_resend events (Phase E)"
+    },
+    {
+      "from": "continuation-run",
+      "to": "continuation-event",
+      "description": "classify() to get ContinuationDecision"
+    },
+    {
+      "from": "continuation-event",
+      "to": "chain-semantics",
+      "description": "Resolve providerClass(providerId) for dispatch"
+    },
+    {
+      "from": "continuation-run",
+      "to": "commitment-digest",
+      "description": "captureDigest(sessionID) before invalidation (DD-8)"
+    },
+    {
+      "from": "continuation-run",
+      "to": "codex-provider",
+      "description": "invalidateContinuationFamily(sessionID) when breaksChain=true; no-op for non-codex providers"
+    },
+    {
+      "from": "continuation-run",
+      "to": "rebind-epoch",
+      "description": "bumpEpoch when bumpsRebindEpoch=true; emits session.rebind with chainBreakClass"
+    },
+    {
+      "from": "continuation-run",
+      "to": "runtime-event-service",
+      "description": "Emits chain.init.injected / chain.init.skipped / chain.commitment.captured"
+    },
+    {
+      "from": "chain-init-notice",
+      "to": "commitment-digest",
+      "description": "renderDigest(entries) for body composition"
+    },
+    {
+      "from": "amnesia-notice",
+      "to": "commitment-digest",
+      "description": "renderDigest(entries) for body composition (shared helper)"
+    },
+    {
+      "from": "fragment-registry",
+      "to": "rebind-epoch",
+      "description": "chain_stable fragments invalidate cache on epoch bump"
+    },
+    {
+      "from": "fragment-registry",
+      "to": "chain-init-notice",
+      "description": "Registers chain-init-notice with policy=once_after_chain_break"
+    },
+    {
+      "from": "fragment-registry",
+      "to": "amnesia-notice",
+      "description": "Registers amnesia-notice with policy=session_stable_until_next_anchor (unchanged)"
+    }
+  ]
+}

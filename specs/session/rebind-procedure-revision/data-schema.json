@@ -1,0 +1,121 @@
+{
+  "title": "Continuation procedure — types, schemas, and runtime event contracts",
+  "description": "Introduces a discriminated union for ContinuationEvent, a decision struct, a commitment digest record, a pending-injection persistence shape, an extended fragment-policy enum, and three new runtime event types. Extends one existing event payload (session.rebind).",
+  "types": {
+    "ContinuationEvent": {
+      "kind": "discriminated_union",
+      "discriminator": "kind",
+      "variants": {
+        "account_switch": { "sessionID": "string", "previousAccountId": "string", "accountId": "string", "providerId": "string" },
+        "account_rotate": { "sessionID": "string", "previousAccountId": "string", "accountId": "string", "providerId": "string", "trigger": "'quota' | '429' | 'manual'" },
+        "provider_switch": { "sessionID": "string", "previousProviderId": "string", "providerId": "string" },
+        "model_switch_same_family": { "sessionID": "string", "previousModelId": "string", "modelId": "string", "providerId": "string" },
+        "model_switch_cross_family": { "sessionID": "string", "previousModelId": "string", "modelId": "string", "providerId": "string" },
+        "session_fork": { "sessionID": "string", "parentSessionID": "string" },
+        "session_resume_daemon_alive": { "sessionID": "string" },
+        "session_resume_after_daemon_restart": { "sessionID": "string" },
+        "capability_layer_refresh": { "sessionID": "string", "reason": "string" },
+        "compaction_narrative": { "sessionID": "string", "anchorId": "string", "providerId": "string" },
+        "compaction_cache_aware": { "sessionID": "string", "anchorId": "string", "providerId": "string" },
+        "compaction_stall_recovery": { "sessionID": "string", "anchorId": "string", "providerId": "string" },
+        "compaction_preemptive_daemon_restart": { "sessionID": "string", "anchorId": "string", "providerId": "string" },
+        "compaction_server_side": { "sessionID": "string", "anchorId": "string", "providerId": "string" },
+        "empty_response_recovery": { "sessionID": "string", "emptyRoundCount": "number" },
+        "ws_reconnect": { "sessionID": "string" },
+        "subagent_spawn": { "sessionID": "string", "parentSessionID": "string" },
+        "user_clear": { "sessionID": "string" },
+        "backend_failure_forced_resend": { "sessionID": "string", "classifier": "'ws_truncation' | 'server_failed' | 'ws_no_frames' | 'server_incomplete'" }
+      }
+    },
+    "ProviderChainClass": {
+      "kind": "enum",
+      "values": ["SS", "SL", "Hybrid"],
+      "description": "SS=stateful with previous_response_id chain; SL=stateless full-context resend; Hybrid=mode-switchable"
+    },
+    "ContinuationDecision": {
+      "breaksChain": { "type": "boolean", "description": "Should invalidateContinuationFamily run?" },
+      "capturesDigest": { "type": "boolean", "description": "Should commitment digest be captured before invalidation?" },
+      "recomputesChainStable": { "type": "boolean", "description": "Should chain_stable fragments recompute on next prompt build?" },
+      "injectsChainInit": { "type": "boolean", "description": "Should chain-init-notice fragment be injected on next outbound?" },
+      "injectsAmnesia": { "type": "boolean", "description": "Should amnesia-notice fragment be injected on next outbound?" },
+      "bumpsRebindEpoch": { "type": "boolean", "description": "Should RebindEpoch.bumpEpoch fire?" }
+    },
+    "CommitmentDigestEntry": {
+      "call_id": { "type": "string", "required": true, "description": "tool_call_id from the original ToolPart" },
+      "tool": { "type": "string", "required": true, "description": "Tool name (apply_patch, edit, write, bash, move_file, delete_file)" },
+      "args_brief": { "type": "string", "required": true, "description": "≤80 chars; for apply_patch: target file path; for bash: first 80 chars of command after stripping leading 'curl ' / 'bash -c'" },
+      "status": { "type": "'completed' | 'failed' | 'partial'", "required": true },
+      "output_summary": { "type": "string", "required": false, "description": "≤60 chars; for apply_patch: '✓ Success' or first error line; for bash: first 60 chars of stdout tail or exit code" },
+      "completed_at": { "type": "number", "required": true, "description": "epoch ms" }
+    },
+    "CommitmentDigest": {
+      "entries": { "type": "CommitmentDigestEntry[]", "maxLength": 5 },
+      "bodyCharCount": { "type": "number", "description": "Pre-computed rendered char count (≤1000)" },
+      "capturedAt": { "type": "number", "description": "epoch ms at capture time" },
+      "sourceMessageCount": { "type": "number", "description": "How many messages were scanned to assemble entries" }
+    },
+    "PendingContinuationInjection": {
+      "chainInit": { "type": "boolean", "description": "Inject chain-init-notice on next outbound" },
+      "amnesia": { "type": "boolean", "description": "Inject amnesia-notice on next outbound (or extend existing decision)" },
+      "digest": { "type": "CommitmentDigest | null" },
+      "reason": { "type": "ContinuationEvent['kind']" },
+      "ts": { "type": "number", "description": "epoch ms when marked" }
+    },
+    "FragmentPolicy": {
+      "kind": "enum",
+      "values": ["always_on", "conversation_stable", "chain_stable", "once_after_chain_break", "session_stable_until_next_anchor"],
+      "description": "always_on: recomputed every turn; conversation_stable: computed at session creation; chain_stable: recomputed on rebind epoch bump (NEW); once_after_chain_break: injected on next outbound then cleared (NEW); session_stable_until_next_anchor: existing policy used by amnesia-notice"
+    }
+  },
+  "sessionExecutionExtensions": {
+    "recentBreakDigest": { "type": "CommitmentDigest | null", "description": "Most-recently captured digest; persisted by Continuation.run; consumed by fragment builders" },
+    "pendingContinuationInjection": { "type": "PendingContinuationInjection | null", "description": "Once-after-chain-break marker; cleared after consumption by next prompt build" }
+  },
+  "events": {
+    "chain.init.injected": {
+      "domain": "workflow",
+      "level": "info",
+      "anomalyFlags": [],
+      "payload": {
+        "sessionID": { "type": "string", "required": true },
+        "eventKind": { "type": "ContinuationEvent['kind']", "required": true },
+        "digestEntryCount": { "type": "number", "required": true, "description": "0 if digest unavailable" },
+        "bodyCharCount": { "type": "number", "required": true, "description": "Total rendered fragment body chars" },
+        "reason": { "type": "string", "required": false, "description": "Mirrors eventKind; redundancy aids dashboard filters" }
+      }
+    },
+    "chain.init.skipped": {
+      "domain": "workflow",
+      "level": "info",
+      "anomalyFlags": [],
+      "payload": {
+        "sessionID": { "type": "string", "required": true },
+        "eventKind": { "type": "ContinuationEvent['kind']", "required": true },
+        "reason": { "type": "string", "required": true, "description": "Why skipped: 'user_clear' | 'subagent_spawn' | 'no_prior_chain' | 'capability_only' | 'ws_reconnect' | 'sl_provider'" }
+      }
+    },
+    "chain.commitment.captured": {
+      "domain": "telemetry",
+      "level": "info",
+      "anomalyFlags": [],
+      "payload": {
+        "sessionID": { "type": "string", "required": true },
+        "sourceMessageCount": { "type": "number", "required": true },
+        "digestEntryCount": { "type": "number", "required": true },
+        "capturedAt": { "type": "number", "required": true }
+      }
+    },
+    "session.rebind": {
+      "domain": "workflow",
+      "level": "info",
+      "anomalyFlags": [],
+      "payload": {
+        "trigger": { "type": "string", "required": true, "description": "EXISTING — typically maps to ContinuationEvent['kind']" },
+        "previousEpoch": { "type": "number", "required": true, "description": "EXISTING" },
+        "currentEpoch": { "type": "number", "required": true, "description": "EXISTING" },
+        "reason": { "type": "string", "required": false, "description": "EXISTING" },
+        "chainBreakClass": { "type": "'SS-break' | 'SL-noop' | 'capability-only' | 'user-intent' | 'preserved'", "required": true, "description": "NEW — added by this plan" }
+      }
+    }
+  }
+}
