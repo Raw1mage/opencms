@@ -27,6 +27,7 @@ import {
   type ContinuationEvent,
   type ContinuationEventKind,
 } from "./continuation-event"
+import { dedupKeyFor, DispatchDedup } from "./dispatch-dedup"
 import { PendingInjectionStore } from "./pending-injection"
 
 const log = Log.create({ service: "continuation.run" })
@@ -51,6 +52,31 @@ export namespace Continuation {
    */
   export async function run(event: ContinuationEvent): Promise<ContinuationOutcome> {
     const decision = classify(event)
+
+    // 2026-05-12 hotfix: stale-anchor dedup. prompt.ts:460/1208 detect
+    // account/provider/model divergence by comparing the latest compaction
+    // anchor with the session's current pinned identity. The anchor only
+    // updates on compaction, so detection re-fires every prompt build
+    // until a new anchor lands — pre-Phase B/C this was a harmless
+    // idempotent invalidate, but post-Phase B/C every re-fire writes a
+    // fresh chain_init_notice. Skip Continuation.run when the same
+    // (kind, previousId → newId) pair was dispatched for this session
+    // within the dedup TTL. See dispatch-dedup.ts for the rule.
+    const dedupKey = dedupKeyFor(event)
+    if (!DispatchDedup.shouldDispatch(event.sessionID, dedupKey)) {
+      log.info("continuation.run dedup-skipped", {
+        sessionID: event.sessionID,
+        kind: event.kind,
+        dedupKey,
+      })
+      return {
+        decision,
+        digest: null,
+        chainInvalidated: false,
+        epochBumped: false,
+        pendingMarkWritten: false,
+      }
+    }
 
     log.info("continuation.run dispatched", {
       sessionID: event.sessionID,
@@ -138,6 +164,11 @@ export namespace Continuation {
 
     // Step 5: emit injected/skipped telemetry
     await emitInjectedOrSkipped(event, decision, digest)
+
+    // Step 6: record dedup key after successful dispatch — subsequent
+    // re-detections of the same stale anchor will short-circuit at the
+    // top of run() above.
+    DispatchDedup.record(event.sessionID, dedupKey)
 
     return { decision, digest, chainInvalidated, epochBumped, pendingMarkWritten }
   }
