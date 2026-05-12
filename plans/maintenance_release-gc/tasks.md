@@ -104,7 +104,7 @@ Sub-tasks (order matters):
 - [x] C7a — `plans/daemon-agent/` migrated → `specs/daemon-agent/` (commit ea2e1a90f)
 - [x] C7b — `plans/subagent-taxonomy/` migrated → `specs/subagent-taxonomy/` (commit 2578ed938)
 - [x] C7-P3a — sync-config-back.sh excludes `planner/` (commit f79d3001a)
-- [!] C7-P3c — BLOCKED: `templates/skills/` is a submodule (github.com/Raw1mage/skills); push gated on `synology_nginx/SKILL.md` containing internal LAN IPs + Synology reverse-proxy entries. User decision pending (move / generalize / archive).
+- [x] C7-P3c — submodule planner/ deleted (adc7fd7 in skills repo) + opencode pointer bump (commit 14c11b0d3). Unblocked by turning github.com/Raw1mage/skills PRIVATE.
 - [x] C7-P3d — `docs/sdd_framework.md` rewritten as historical note (commit 83346020b)
 - [x] C7-P3b — `OPENCODE_PLAN_BUILDER_TEMPLATE_DIR` alias added (commit 58bb4ec7a)
 - [ ] C7-P3e — `templates/prompts/session/plan.txt` retire planner script references (deferred; needs /plan-mode live test)
