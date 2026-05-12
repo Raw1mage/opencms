@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "state": "planned",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "planned",
+      "at": "2026-05-12T00:24:19.761Z",
+      "by": "pkcs12",
+      "mode": "migration",
+      "reason": "peaceful on-touch migration from plans/daemon-agent/",
+      "snapshot": ".archive/pre-migration-20260512"
+    }
+  ]
+}
