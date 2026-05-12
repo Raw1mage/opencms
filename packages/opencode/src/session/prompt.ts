@@ -1441,27 +1441,41 @@ export namespace SessionPrompt {
         // socket bounce (codex transport's chain identity is the response
         // ID, not the connection).
         //
-        // Lighter than compaction (preserves all messages) and matches the
-        // documented Codex provider workaround for the v0.111+ empty-output
-        // bug class. Idempotent — repeated empty rounds are no-ops after
-        // the first invalidation. Fires before the compaction/nudge branch
-        // below so even sub-floor empty turns get a chain reset before any
-        // synthetic nudge retries on the now-fresh chain.
-        try {
-          const { invalidateContinuationFamily } = await import("@opencode-ai/codex-provider/continuation")
-          invalidateContinuationFamily(sessionID)
-          log.info("empty-response: reset codex continuation chain", {
-            sessionID,
-            step,
-            emptyRounds: emptyRoundCount,
-          })
-        } catch (err) {
-          log.warn("empty-response: continuation reset failed", {
+        // 2026-05-12 (Phase B of session/rebind-procedure-revision):
+        // dispatched through Continuation.run so the next outbound also
+        // carries a chain_init_notice fragment with commitment digest.
+        // This was the documented failure mode behind the 2026-05-12
+        // ses_1e56ed3f9ffebv4AaWOlcPLz20 read-loop incident: chain was
+        // being reset silently without any AI-visible marker, leaving
+        // the model in a "I might have to redo things" reasoning state.
+        // The new run() path captures digest BEFORE invalidation (DD-8),
+        // marks the next outbound for chain-init injection, and emits
+        // chain.commitment.captured + chain.init.injected telemetry.
+        // For SL providers (anthropic / gemini) the classifier returns
+        // breaksChain=false and the call is a no-op aside from epoch
+        // bump — preserving the prior "no-op for non-codex" invariant.
+        const { Continuation } = await import("./continuation/run")
+        await Continuation.run({
+          kind: "empty_response_recovery",
+          sessionID,
+          emptyRoundCount,
+          providerId: lastAssistant.providerId,
+        }).catch((err) => {
+          // Continuation.run is already best-effort internally (each
+          // step is try/wrapped). Outermost catch here is belt-and-
+          // suspenders for any import / synchronous-throw case so the
+          // self-heal flow below still runs.
+          log.warn("empty-response: Continuation.run threw at outer boundary", {
             sessionID,
             step,
             error: err instanceof Error ? err.message : String(err),
           })
-        }
+        })
+        log.info("empty-response: reset codex continuation chain via Continuation.run", {
+          sessionID,
+          step,
+          emptyRounds: emptyRoundCount,
+        })
 
         // Self-heal on transient empty response.
         //
