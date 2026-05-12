@@ -181,6 +181,12 @@ export type SkipReason =
   | "ws_reconnect"
   | "sl_provider"
   | "server_side_compaction"
+  // 2026-05-12 Phase F polish: compaction kinds queue an amnesia_notice
+  // instead of a chain_init_notice — chain.init.skipped therefore carries
+  // this reason rather than "unspecified", so dashboard filters can
+  // distinguish "skipped because amnesia took over" from genuine
+  // suppressions (user_clear, subagent_spawn, sl_provider, …).
+  | "amnesia_supersedes"
 
 // -------------------------------------------------------------------------
 // Decision helpers — keep cells declarative; one function per event kind.
@@ -316,6 +322,7 @@ const SHAPE_BY_KIND: Record<ContinuationEventKind, DecisionShape> = {
     injectsAmnesia: true,
     bumpsRebindEpoch: true,
     ssBreakClass: "SS-break",
+    skipReason: "amnesia_supersedes",
   },
 
   // E7a — cache-aware compaction: same shape
@@ -327,6 +334,7 @@ const SHAPE_BY_KIND: Record<ContinuationEventKind, DecisionShape> = {
     injectsAmnesia: true,
     bumpsRebindEpoch: true,
     ssBreakClass: "SS-break",
+    skipReason: "amnesia_supersedes",
   },
 
   // E7b — stall-recovery compaction
@@ -338,6 +346,7 @@ const SHAPE_BY_KIND: Record<ContinuationEventKind, DecisionShape> = {
     injectsAmnesia: true,
     bumpsRebindEpoch: true,
     ssBreakClass: "SS-break",
+    skipReason: "amnesia_supersedes",
   },
 
   // E7c — pre-emptive compaction at daemon restart
@@ -349,6 +358,7 @@ const SHAPE_BY_KIND: Record<ContinuationEventKind, DecisionShape> = {
     injectsAmnesia: true,
     bumpsRebindEpoch: true,
     ssBreakClass: "SS-break",
+    skipReason: "amnesia_supersedes",
   },
 
   // E7d — server-side compaction (codex /responses/compact): chain preserved
