@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "state": "living",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-05-12T08:02:13.911Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-05-12T09:16:12.351Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "artifacts authored for designed gate"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-05-12T09:17:23.130Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "tasks/handoff/test-vectors/errors/observability authored"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-05-12T09:17:26.808Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "work merged to main 6c66af0fd"
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-05-12T09:17:51.496Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Surface rebrand merged to main 6c66af0fd — 6 batch commits, 44 files, zero new typecheck regressions"
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-05-12T09:17:55.599Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "user-confirmed graduation after merge to main"
+    }
+  ]
+}

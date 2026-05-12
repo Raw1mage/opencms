@@ -1,0 +1,92 @@
+{
+  "title": "branding/rebrand-opencms-userfacing — C4 model",
+  "description": "Presentation-layer rebrand surfaces. No new components; only string substitution at existing surfaces.",
+  "systems": [
+    {
+      "id": "opencode",
+      "name": "OpenCode runtime (rebranded to OpenCMS at surfaces)",
+      "description": "Single-process bun daemon + CLI + web/TUI.",
+      "boundary": "internal"
+    }
+  ],
+  "containers": [
+    {
+      "id": "tui",
+      "system": "opencode",
+      "name": "TUI / CLI surface",
+      "description": "packages/opencode/src/cli/cmd/tui/* — Solid-based terminal UI; install scripts.",
+      "technology": "TypeScript, Bun"
+    },
+    {
+      "id": "i18n",
+      "system": "opencode",
+      "name": "i18n bundles",
+      "description": "packages/app/src/i18n/*.ts — 16 locale modules consumed by app/desktop UIs.",
+      "technology": "TypeScript"
+    },
+    {
+      "id": "server",
+      "system": "opencode",
+      "name": "Server + SDK",
+      "description": "packages/opencode/src/server/routes/* OpenAPI descriptions + packages/sdk/* regen output.",
+      "technology": "TypeScript, Hono, OpenAPI"
+    },
+    {
+      "id": "templates",
+      "system": "opencode",
+      "name": "Templates and prompts",
+      "description": "templates/system/*, CONFIG-README, skill SKILL.md, prompt corpus.",
+      "technology": "Markdown / plain text"
+    }
+  ],
+  "components": [
+    {
+      "id": "tui-strings",
+      "container": "tui",
+      "name": "TUI brand strings",
+      "description": "User-visible app name in banners, dialog-status, tips, permission UI.",
+      "technology": "TSX"
+    },
+    {
+      "id": "install-strings",
+      "container": "tui",
+      "name": "Install script strings",
+      "description": "install.sh + scripts/install/install user-facing prompts.",
+      "technology": "Bash"
+    },
+    {
+      "id": "i18n-keys",
+      "container": "i18n",
+      "name": "Brand i18n keys",
+      "description": "Localized brand mentions per locale module; 'OpenCode Zen' preserved.",
+      "technology": "TS literal records"
+    },
+    {
+      "id": "openapi-desc",
+      "container": "server",
+      "name": "Route OpenAPI descriptions",
+      "description": "Route metadata strings consumed by SDK regen.",
+      "technology": "Hono OpenAPI"
+    },
+    {
+      "id": "sdk-regen",
+      "container": "server",
+      "name": "SDK regen output",
+      "description": "packages/sdk/js/openapi.json, sdk.gen.ts, packages/sdk/openapi.json.",
+      "technology": "OpenAPI codegen"
+    },
+    {
+      "id": "tpl-text",
+      "container": "templates",
+      "name": "Template + prompt text",
+      "description": "Brand mentions inside system templates, CONFIG-README, skill instructions, prompts.",
+      "technology": "Markdown"
+    }
+  ],
+  "relationships": [
+    {"id": "rel-1", "source": "tui-strings", "target": "i18n-keys", "label": "reads localized brand text"},
+    {"id": "rel-2", "source": "openapi-desc", "target": "sdk-regen", "label": "regenerated from"},
+    {"id": "rel-3", "source": "install-strings", "target": "tui-strings", "label": "hands off to running TUI"},
+    {"id": "rel-4", "source": "tpl-text", "target": "tui-strings", "label": "rendered by TUI/agent prompts"}
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "title": "branding/rebrand-opencms-userfacing — schema impact",
+  "description": "Pure surface text change. No data schema, persistence, or API contract shape change.",
+  "schemas_changed": [],
+  "shapes_unchanged": [
+    "Session / Message / Part payload_json",
+    "auth.json structure",
+    "opencode.json config schema",
+    "OpenAPI route shapes (only description strings changed)",
+    "SDK type names and method signatures"
+  ],
+  "notes": [
+    "packages/sdk/js/openapi.json and packages/sdk/openapi.json are regenerated artifacts; only description fields differ."
+  ]
+}

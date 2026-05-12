@@ -1,0 +1,86 @@
+[
+  {
+    "StepNumber": 0,
+    "StepType": "initial",
+    "StepAction": "rebrand-idle",
+    "ModuleRef": "A0",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "Condition": ["worker checks out test/rebrand-opencms"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "StepType": "normal",
+    "StepAction": "sweep-tui-install",
+    "ModuleRef": "A1",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "Condition": ["batch 1 commit aa926df0d"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "StepType": "normal",
+    "StepAction": "sweep-i18n",
+    "ModuleRef": "A2",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3],
+    "Condition": ["batch 2a commit c2fd36c09"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "StepType": "normal",
+    "StepAction": "sweep-server-openapi-regen",
+    "ModuleRef": "A3",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4],
+    "Condition": ["batch 3 commit 895f14dd0; SDK regen clean"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "StepType": "normal",
+    "StepAction": "sweep-templates-prompts",
+    "ModuleRef": "A4",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5],
+    "Condition": ["batch 6 commit 604bd89e9"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "StepType": "normal",
+    "StepAction": "typecheck-and-merge",
+    "ModuleRef": "A5",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [6],
+    "Condition": ["bun turbo typecheck parity; merge to main 6c66af0fd"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "StepType": "final",
+    "StepAction": "verified-on-main",
+    "ModuleRef": "A0",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [],
+    "Condition": [],
+    "SubGrafcet": []
+  }
+]

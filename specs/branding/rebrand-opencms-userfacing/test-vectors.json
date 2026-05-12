@@ -1,0 +1,42 @@
+[
+  {
+    "id": "TV-1",
+    "scenario": "TUI shows OpenCMS",
+    "given": { "binary": "opencode", "locale": "en" },
+    "when": "user launches $ opencode and observes startup banner",
+    "then": { "visible_brand": "OpenCMS", "binary_name": "opencode (unchanged)" }
+  },
+  {
+    "id": "TV-2",
+    "scenario": "i18n preserves OpenCode Zen",
+    "given": { "files": "packages/app/src/i18n/*.ts" },
+    "when": "grep for 'OpenCode Zen' across all 16 locales",
+    "then": { "matches_preserved": true, "no_replacement_to_OpenCMS_Zen": true }
+  },
+  {
+    "id": "TV-3",
+    "scenario": "OpenAPI description rebranded",
+    "given": { "file": "packages/sdk/openapi.json" },
+    "when": "inspect route description fields previously containing 'OpenCode'",
+    "then": { "description_contains": "OpenCMS", "route_paths_unchanged": true, "type_names_unchanged": true }
+  },
+  {
+    "id": "TV-4",
+    "scenario": "Preservation allowlist intact",
+    "given": { "repo": "main @ 6c66af0fd" },
+    "when": "grep for preservation tokens",
+    "then": {
+      "@opencode-ai/_present": true,
+      "opencode.json_filename_present": true,
+      ".config/opencode/_path_present": true,
+      "mainBinaryName_unchanged": true
+    }
+  },
+  {
+    "id": "TV-5",
+    "scenario": "Typecheck parity",
+    "given": { "branch": "test/rebrand-opencms vs main pre-merge" },
+    "when": "run bun turbo typecheck",
+    "then": { "new_failures": 0, "pre_existing_failures_unchanged": true }
+  }
+]

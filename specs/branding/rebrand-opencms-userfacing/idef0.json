@@ -1,0 +1,44 @@
+{
+  "diagram_title": "User-facing rebrand opencode → opencms",
+  "node_reference": "A0",
+  "description": "Sweep visible 'OpenCode' strings to 'OpenCMS' across CLI/TUI, i18n, server OpenAPI, SDK regen, install scripts, and templates/prompts. Preserve all programmatic identifiers and OpenCode Zen sub-brand. Land via test branch + fetch-back to main.",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Rebrand TUI + install surfaces",
+      "description": "Batch 1: install.sh, scripts/install/install, packages/opencode/src/cli/cmd/tui/* user-visible strings."
+    },
+    {
+      "id": "A2",
+      "title": "Rebrand i18n bundles",
+      "description": "Batch 2a: packages/app/src/i18n/*.ts — 16 locales, ~240 string swaps, preserve 'OpenCode Zen'."
+    },
+    {
+      "id": "A3",
+      "title": "Rebrand server OpenAPI + regen SDKs",
+      "description": "Batch 3: packages/opencode/src/server/routes/*.ts descriptions; regen packages/sdk/js/openapi.json + sdk.gen.ts + packages/sdk/openapi.json."
+    },
+    {
+      "id": "A4",
+      "title": "Rebrand templates and prompts",
+      "description": "Batch 6: templates/system/*, CONFIG-README, skill SKILL.md, prompt files."
+    },
+    {
+      "id": "A5",
+      "title": "Validate and merge to main",
+      "description": "Run bun turbo typecheck on test/rebrand-opencms; confirm parity with pre-merge main baseline (pre-existing SST + compaction.ts errors only); merge commit 6c66af0fd."
+    }
+  ],
+  "arrows": [
+    {"id": "a0in1", "source": "EXTERNAL", "target": "A1:input", "label": "long-term rebrand directive"},
+    {"id": "a0c1", "source": "EXTERNAL", "target": "A1:control", "label": "preservation allowlist"},
+    {"id": "a0c2", "source": "EXTERNAL", "target": "A2:control", "label": "preservation allowlist"},
+    {"id": "a0c3", "source": "EXTERNAL", "target": "A3:control", "label": "preservation allowlist"},
+    {"id": "a0c4", "source": "EXTERNAL", "target": "A4:control", "label": "preservation allowlist"},
+    {"id": "a0m1", "source": "A1:output", "target": "A5:input", "label": "batch 1 commit"},
+    {"id": "a0m2", "source": "A2:output", "target": "A5:input", "label": "batch 2a commit"},
+    {"id": "a0m3", "source": "A3:output", "target": "A5:input", "label": "batch 3 commit"},
+    {"id": "a0m4", "source": "A4:output", "target": "A5:input", "label": "batch 6 commit"},
+    {"id": "a0out1", "source": "A5:output", "target": "EXTERNAL", "label": "merge commit 6c66af0fd on main"}
+  ]
+}

@@ -1,0 +1,40 @@
+[
+  {
+    "id": "SEQ-1",
+    "title": "Batch sweep → typecheck → merge",
+    "description": "Worker performs the six batch substitutions on test/rebrand-opencms, validates with bun turbo typecheck, then merges to main.",
+    "participants": [
+      { "id": "worker", "name": "Implementer", "kind": "external" },
+      { "id": "test-branch", "name": "test/rebrand-opencms", "kind": "component" },
+      { "id": "typecheck", "name": "bun turbo typecheck", "kind": "component" },
+      { "id": "main", "name": "main branch", "kind": "component" }
+    ],
+    "messages": [
+      { "from": "worker", "to": "test-branch", "label": "batch 1: install.sh + TUI commits (aa926df0d)" },
+      { "from": "worker", "to": "test-branch", "label": "batch 2a: i18n 16 locales (c2fd36c09)" },
+      { "from": "worker", "to": "test-branch", "label": "batch 3: server OpenAPI + SDK regen (895f14dd0)" },
+      { "from": "worker", "to": "test-branch", "label": "batch 6: templates + prompts (604bd89e9)" },
+      { "from": "worker", "to": "typecheck", "label": "run on test-branch" },
+      { "from": "typecheck", "to": "worker", "label": "parity vs main baseline" },
+      { "from": "worker", "to": "main", "label": "merge test/rebrand-opencms (6c66af0fd)" }
+    ]
+  },
+  {
+    "id": "SEQ-2",
+    "title": "Runtime user sees rebrand at TUI",
+    "description": "After install, user launches CLI; TUI renders new brand string from i18n module.",
+    "participants": [
+      { "id": "user", "name": "User shell", "kind": "external" },
+      { "id": "cli", "name": "opencode CLI binary (name unchanged)", "kind": "component" },
+      { "id": "tui", "name": "TUI surface", "kind": "component" },
+      { "id": "i18n", "name": "i18n bundle", "kind": "component" }
+    ],
+    "messages": [
+      { "from": "user", "to": "cli", "label": "$ opencode" },
+      { "from": "cli", "to": "tui", "label": "boot TUI" },
+      { "from": "tui", "to": "i18n", "label": "lookup brand string for locale" },
+      { "from": "i18n", "to": "tui", "label": "'OpenCMS …' ('OpenCode Zen' preserved where keyed)" },
+      { "from": "tui", "to": "user", "label": "render banner showing OpenCMS" }
+    ]
+  }
+]
