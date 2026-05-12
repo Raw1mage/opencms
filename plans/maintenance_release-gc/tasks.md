@@ -101,10 +101,14 @@ Phase 0 results:
 
 Sub-tasks (order matters):
 
-- [ ] C7a — migrate `plans/daemon-agent/` to plan-builder format via on-touch migration (or archive if stale)
-- [ ] C7b — migrate `plans/subagent-taxonomy/` likewise
-- [ ] C7c — grep callers of `templates/skills/planner/scripts/`; if zero, delete the template directory
-- [ ] C7d — verify install.ts / build.ts no longer copies `templates/skills/planner/` to user's skills/
+- [x] C7a — `plans/daemon-agent/` migrated → `specs/daemon-agent/` (commit ea2e1a90f)
+- [x] C7b — `plans/subagent-taxonomy/` migrated → `specs/subagent-taxonomy/` (commit 2578ed938)
+- [x] C7-P3a — sync-config-back.sh excludes `planner/` (commit f79d3001a)
+- [!] C7-P3c — BLOCKED: `templates/skills/` is a submodule (github.com/Raw1mage/skills); push gated on `synology_nginx/SKILL.md` containing internal LAN IPs + Synology reverse-proxy entries. User decision pending (move / generalize / archive).
+- [x] C7-P3d — `docs/sdd_framework.md` rewritten as historical note (commit 83346020b)
+- [x] C7-P3b — `OPENCODE_PLAN_BUILDER_TEMPLATE_DIR` alias added (commit 58bb4ec7a)
+- [ ] C7-P3e — `templates/prompts/session/plan.txt` retire planner script references (deferred; needs /plan-mode live test)
+- [~] C7-P3f — delete local `~/.claude/skills/planner/`, `~/.config/opencode/skills/planner/`, `~/.local/share/opencode/skills/planner/` (user decision; sync-back exclude prevents resurrection regardless)
 
 Recommendation: **C7 stays in scope** but split into 4 sub-commits, NOT one atomic commit. Each sub-commit is independently revertible.
 
