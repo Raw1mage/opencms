@@ -43,7 +43,7 @@ Phase 0 results:
 - [x] **CUSTOM_LOADER** — `rg CUSTOM_LOADER packages/` → 0 hits. **Already fully removed.** Nothing to do.
 - [x] **Stage 5 drain-on-stop / drainGovernor** — `rg 'drain.?on.?stop|Stage5|drainGovernor'` → 0 hits. **Already fully removed.**
 - [x] **Inline agent switch** — `rg 'inlineAgentSwitch|InlineAgentSwitch'` → 0 hits. **Already shelved + cleaned.**
-- [~] **SameProviderRotationGuard candidate-filter path** — MEMORY claims "diagnostic-only since 2026-05-07". Reality: `getProviderWaitTime()` still called at [rotation3d.ts:404](packages/opencode/src/account/rotation3d.ts#L404); value `sameProviderRotateWaitMs` consumed at [lines 461, 517, 527](packages/opencode/src/account/rotation3d.ts#L461). **NOT dead.** SUSPECT — needs deeper read to decide whether values feed decision logic or only telemetry. Defer to separate spec.
+- [x] **SameProviderRotationGuard candidate-filter path** — MEMORY says "diagnostic-only since 2026-05-07". Re-verified during P5: all 3 consumption sites at lines 461/517/527 are inside `log.warn(...)` / `debugCheckpoint(...)` calls (pure telemetry, no decision logic). MEMORY entry is accurate; nothing to remove.
 
 Net result: C3 is **empty for execution**. The 4 MEMORY-listed superseded features are either already removed or still load-bearing.
 
