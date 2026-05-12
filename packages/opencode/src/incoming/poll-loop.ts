@@ -147,15 +147,18 @@ async function pollOnce(input: StartPollLoopInput): Promise<Manifest | null> {
     { timeout: POLL_INTERVAL_MS, resetTimeoutOnProgress: false },
   )
 
-  const sc = (result as { structuredContent?: { bundle_tar_b64?: string; from_cache?: boolean } })
-    .structuredContent
-  if (sc?.bundle_tar_b64) {
-    await IncomingDispatcher.publishBundleForApp({
+  // DD-10 rev 3: produced files arrive as MCP resource_link entries
+  // in result.content[]. The from_cache flag (used for bus telemetry)
+  // is still attached to structuredContent.
+  const sc = (result as { structuredContent?: { from_cache?: boolean } }).structuredContent
+  const links = IncomingDispatcher.extractResourceLinks(result)
+  if (links.length > 0) {
+    await IncomingDispatcher.materializeResourceLinks({
       appId: input.appId,
+      links,
       repoPath: input.repoPath,
       projectRoot: input.projectRoot,
-      tarB64: sc.bundle_tar_b64,
-      fromCache: !!sc.from_cache,
+      fromCache: !!sc?.from_cache,
     })
   }
 

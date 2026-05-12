@@ -11,10 +11,24 @@
  *      such path, multipart-POST the file to the mcp app's /files
  *      endpoint, receive a token, rewrite the path → token in the args.
  *
- *   2. after(): inspect the mcp tool's structured result for a
- *      `bundle_tar_b64` payload; if present, decode + extract into the
- *      bundle's repo path (sibling of the source file). Best-effort
- *      DELETE the tokens we created during before().
+ *   2. after(): pass through. Produced files are surfaced by the mcp
+ *      server as MCP `EmbeddedResource` entries in the tool result's
+ *      `content[]` (DD-10 rev 3 / 2026-05-12). The host LLM consumes
+ *      them via standard `resources/read` — no client-specific
+ *      post-processing happens here. We do NOT delete tokens after
+ *      the call: the resource URIs remain valid until the token TTL
+ *      (default 1h) expires, so the AI can read them at its own pace.
+ *
+ *      Historical client-specific paths (now retired):
+ *        DD-10 rev 1: tar + base64 bundle in a custom
+ *          `structuredContent.bundle_tar_b64` field. Required a custom
+ *          client decoder; not portable.
+ *        DD-10 rev 2: list of `produced[]` + custom `fetch_via` marker
+ *          + custom `GET /files/{token}/blob/{rel}` endpoint. Still
+ *          required a custom client.
+ *      Both are gone. The current path is vanilla MCP and works with
+ *      any compliant client (Claude Desktop, Cursor, Continue, Cline,
+ *      opencode, ...).
  *
  * What this file no longer does (deleted in phase 6 cutover):
  *   - bind-mount staging (mcp-staging/<app>/staging/<sha>.<ext>)
@@ -37,6 +51,7 @@ import { Bus } from "@/bus"
 import { BusEvent } from "../bus/bus-event"
 import { IncomingPaths } from "./paths"
 import { McpAppStore } from "../mcp/app-store"
+import { MCP } from "../mcp"
 import z from "zod"
 
 export namespace IncomingDispatcher {
@@ -360,19 +375,195 @@ export namespace IncomingDispatcher {
   }
 
   /**
-   * Extract a base64 tar bundle into the bundle dir co-located with
-   * the source file. Public wrapper around the private publishBundle.
-   * The upload-time decompose hook uses this to land the fast-phase
-   * bundle returned by docxmcp's extract_all.
+   * Resource-link entry shape extracted from an MCP tool result's
+   * `content[]`. Matches the wire schema of
+   * https://modelcontextprotocol.io/specification → ResourceLink.
    */
-  export async function publishBundleForApp(input: {
+  export interface ProducedResourceLink {
+    uri: string
+    name?: string
+    mimeType?: string
+    size?: number
+  }
+
+  /**
+   * Walk an MCP tool result's `content[]` and collect every entry
+   * whose `type === "resource_link"`. Internal flows (decompose-hook,
+   * poll-loop) use this to discover what the server produced WITHOUT
+   * relying on any custom payload field — the protocol-standard list.
+   */
+  export function extractResourceLinks(result: unknown): ProducedResourceLink[] {
+    if (!result || typeof result !== "object") return []
+    const content = (result as { content?: unknown[] }).content
+    if (!Array.isArray(content)) return []
+    const links: ProducedResourceLink[] = []
+    for (const item of content) {
+      if (!item || typeof item !== "object") continue
+      const obj = item as Record<string, unknown>
+      if (obj.type !== "resource_link") continue
+      const uri = typeof obj.uri === "string" ? obj.uri : undefined
+      if (!uri) continue
+      links.push({
+        uri,
+        name: typeof obj.name === "string" ? obj.name : undefined,
+        mimeType: typeof obj.mimeType === "string" ? obj.mimeType : undefined,
+        size: typeof obj.size === "number" ? obj.size : undefined,
+      })
+    }
+    return links
+  }
+
+  /**
+   * Background materialization helper. Used by opencode-internal flows
+   * that need produced files landed on host disk WITHOUT the LLM in
+   * the loop (decompose-hook on upload, poll-loop for the background
+   * extract phase). The on-disk position is the same as historically:
+   * `<projectRoot>/<sourceDir>/<stem>/<rel>`.
+   *
+   * Implementation: for each resource_link in the tool result we call
+   * the standard MCP `resources/read` RPC on the same client used for
+   * the original tool call. There is no docxmcp-specific protocol
+   * here — any compliant server that returns resource_links will work.
+   *
+   * For LLM-driven tool calls (AI calls a docxmcp tool, sees the
+   * resource_links in the result, and uses `resources/read` itself),
+   * this helper is NOT invoked. The LLM consumes resources at its own
+   * pace via its host MCP client.
+   */
+  export async function materializeResourceLinks(input: {
     appId: string
+    links: ProducedResourceLink[]
     repoPath: string
     projectRoot: string
-    tarB64: string
     fromCache: boolean
   }): Promise<void> {
-    return publishBundle(input)
+    if (input.links.length === 0) return
+
+    const clients = await MCP.clients()
+    const client = clients[`mcpapp-${input.appId}`] ?? clients[input.appId]
+    if (!client) {
+      log.warn("materializeResourceLinks: mcp client not connected", { appId: input.appId })
+      return
+    }
+
+    const stem = IncomingPaths.stem(path.basename(input.repoPath))
+    const sourceDir = path.dirname(input.repoPath)
+    const bundleRepoRel = sourceDir === "." || sourceDir === ""
+      ? stem
+      : path.join(sourceDir, stem)
+    const targetDir = path.join(input.projectRoot, bundleRepoRel)
+    await fs.mkdir(targetDir, { recursive: true })
+
+    let totalBytes = 0
+    const errors: Array<{ uri: string; error: string }> = []
+
+    async function readOne(link: ProducedResourceLink): Promise<void> {
+      // Derive on-disk rel from the uri's path tail.
+      // Canonical docxmcp form: docxmcp://files/{token}/{rel...}
+      // For any other server emitting resource_link we fall back to
+      // the URI's path component as best-effort.
+      let rel: string | null = null
+      try {
+        const u = new URL(link.uri)
+        const pathPart = u.pathname.replace(/^\/+/, "")
+        if (u.protocol === "docxmcp:" && pathPart.startsWith("files/")) {
+          // strip "files/{token}/" — keep just the trailing rel
+          const after = pathPart.slice("files/".length)
+          const slash = after.indexOf("/")
+          rel = slash >= 0 ? after.slice(slash + 1) : null
+        } else {
+          // generic fallback: use the URI's last segment
+          rel = pathPart || link.name || null
+        }
+      } catch {
+        rel = link.name ?? null
+      }
+      if (!rel) {
+        errors.push({ uri: link.uri, error: "could not derive on-disk rel" })
+        return
+      }
+
+      const resp = await client.readResource({ uri: link.uri })
+      const contents = (resp as { contents?: unknown[] }).contents
+      if (!Array.isArray(contents) || contents.length === 0) {
+        errors.push({ uri: link.uri, error: "empty contents" })
+        return
+      }
+
+      const dest = path.join(targetDir, rel)
+      // Guard against path traversal via crafted URIs.
+      const destAbs = path.resolve(dest)
+      const targetAbs = path.resolve(targetDir)
+      if (!destAbs.startsWith(targetAbs + path.sep) && destAbs !== targetAbs) {
+        errors.push({ uri: link.uri, error: `path escapes bundle dir: ${rel}` })
+        return
+      }
+      await fs.mkdir(path.dirname(dest), { recursive: true })
+
+      // Each content entry is either {text} or {blob: base64}. Write
+      // the first entry only — servers should return one entry per
+      // resources/read call (multi-entry responses are for templates).
+      const first = contents[0] as { text?: string; blob?: string }
+      if (typeof first.text === "string") {
+        const buf = Buffer.from(first.text, "utf-8")
+        await fs.writeFile(dest, buf)
+        totalBytes += buf.byteLength
+      } else if (typeof first.blob === "string") {
+        const buf = Buffer.from(first.blob, "base64")
+        await fs.writeFile(dest, buf)
+        totalBytes += buf.byteLength
+      } else {
+        errors.push({ uri: link.uri, error: "neither text nor blob" })
+      }
+    }
+
+    // Bounded parallel reads — MCP transport may serialise but we
+    // amortise the per-call overhead.
+    const queue = [...input.links]
+    async function worker(): Promise<void> {
+      while (queue.length > 0) {
+        const link = queue.shift()
+        if (!link) return
+        try {
+          await readOne(link)
+        } catch (err) {
+          errors.push({
+            uri: link.uri,
+            error: err instanceof Error ? err.message : String(err),
+          })
+        }
+      }
+    }
+    const FETCH_PARALLELISM = 6
+    await Promise.all(
+      Array.from(
+        { length: Math.min(FETCH_PARALLELISM, input.links.length) },
+        () => worker(),
+      ),
+    )
+
+    if (errors.length > 0) {
+      log.warn("materializeResourceLinks partial failure", {
+        appId: input.appId,
+        succeeded: input.links.length - errors.length,
+        failed: errors.length,
+        firstError: errors[0],
+      })
+    }
+
+    await Bus.publish(BundlePublished, {
+      appId: input.appId,
+      bundleRepoPath: bundleRepoRel,
+      sizeBytes: totalBytes,
+      fromCache: input.fromCache,
+    }).catch(() => {})
+    log.info("resource links materialized", {
+      appId: input.appId,
+      bundleRepoPath: bundleRepoRel,
+      fileCount: input.links.length - errors.length,
+      sizeBytes: totalBytes,
+      fromCache: input.fromCache,
+    })
   }
 
   /**
@@ -444,100 +635,19 @@ export namespace IncomingDispatcher {
   }
 
   /**
-   * Decode a base64-encoded tar bundle written into the mcp tool result
-   * (DD-10) and unpack into <repo>/<sourceDir>/<stem>/. Best-effort
-   * cleanup of all tokens we issued in before().
+   * Pass-through. Produced files are surfaced by the mcp server as
+   * MCP `EmbeddedResource` entries (DD-10 rev 3); the host LLM
+   * retrieves them via standard `resources/read`. Tokens are NOT
+   * deleted here so the resource URIs stay valid for the rest of the
+   * turn; the docxmcp-side reaper evicts on TTL idle (default 1h).
    */
   export async function after(input: {
     result: unknown
     ctx: DispatchContext
   }): Promise<unknown> {
-    const { ctx } = input
-
-    // Inspect result for a structured bundle payload.
-    if (ctx.projectRoot && input.result && typeof input.result === "object") {
-      const r = input.result as { structuredContent?: { bundle_tar_b64?: string; from_cache?: boolean } }
-      const sc = r.structuredContent
-      if (sc?.bundle_tar_b64) {
-        for (const upload of ctx.uploadedTokens) {
-          try {
-            await publishBundle({
-              tarB64: sc.bundle_tar_b64,
-              repoPath: upload.repoPath,
-              projectRoot: ctx.projectRoot,
-              fromCache: !!sc.from_cache,
-              appId: ctx.appId,
-            })
-            // Once we publish, only do it once even if multiple uploads.
-            break
-          } catch (err) {
-            log.warn("bundle publish failed", {
-              repoPath: upload.repoPath,
-              error: err instanceof Error ? err.message : String(err),
-            })
-          }
-        }
-      }
-    }
-
-    // Best-effort cleanup of tokens.
-    for (const t of ctx.uploadedTokens) {
-      void deleteToken(ctx.appId, t.token)
-    }
-
     return input.result
   }
 
-  async function publishBundle(input: {
-    tarB64: string
-    repoPath: string
-    projectRoot: string
-    fromCache: boolean
-    appId: string
-  }): Promise<void> {
-    const stem = IncomingPaths.stem(path.basename(input.repoPath))
-    const sourceDir = path.dirname(input.repoPath)
-    const bundleRepoRel = sourceDir === "." || sourceDir === ""
-      ? stem
-      : path.join(sourceDir, stem)
-    const targetDir = path.join(input.projectRoot, bundleRepoRel)
-    await fs.mkdir(targetDir, { recursive: true })
-
-    const tarBuffer = Buffer.from(input.tarB64, "base64")
-    // Bun has a built-in tar parser via `Bun.spawn(["tar", "-xf", "-"])`
-    // but the simplest portable approach: shell out to tar.
-    await new Promise<void>((resolve, reject) => {
-      const proc = Bun.spawn(["tar", "-xf", "-", "-C", targetDir], {
-        stdin: "pipe",
-        stdout: "ignore",
-        stderr: "pipe",
-      })
-      const w = proc.stdin as unknown as { write: (b: Uint8Array) => unknown; end: () => Promise<void> | void }
-      w.write(tarBuffer)
-      Promise.resolve(w.end()).then(async () => {
-        const code = await proc.exited
-        if (code !== 0) {
-          const err = await new Response(proc.stderr as ReadableStream<Uint8Array>).text()
-          reject(new Error(`tar -xf failed: ${err.trim()}`))
-        } else {
-          resolve()
-        }
-      })
-    })
-
-    await Bus.publish(BundlePublished, {
-      appId: input.appId,
-      bundleRepoPath: bundleRepoRel,
-      sizeBytes: tarBuffer.byteLength,
-      fromCache: input.fromCache,
-    }).catch(() => {})
-    log.info("bundle published", {
-      appId: input.appId,
-      bundleRepoPath: bundleRepoRel,
-      sizeBytes: tarBuffer.byteLength,
-      fromCache: input.fromCache,
-    })
-  }
 
   // /specs/docxmcp-http-transport phase 6: the following are no-ops
   // retained for compatibility with the old import surface. They were

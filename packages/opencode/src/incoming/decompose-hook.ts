@@ -450,18 +450,19 @@ async function runDocxExtractAll(input: {
     clearTimeout(timer)
   }
 
-  // Step 3: extract bundle into bundle dir
-  const sc = (result as { structuredContent?: { bundle_tar_b64?: string; from_cache?: boolean } })
-    .structuredContent
-  if (!sc?.bundle_tar_b64) {
-    throw new Error("docxmcp extract_all returned no bundle (unexpected)")
+  // Step 3: materialize produced resource_links into bundle dir via
+  // standard MCP `resources/read`.
+  const sc = (result as { structuredContent?: { from_cache?: boolean } }).structuredContent
+  const links = IncomingDispatcher.extractResourceLinks(result)
+  if (links.length === 0) {
+    throw new Error("docxmcp extract_all returned no resource_links (unexpected)")
   }
-  await IncomingDispatcher.publishBundleForApp({
+  await IncomingDispatcher.materializeResourceLinks({
     appId: DOCXMCP_APP_ID,
+    links,
     repoPath: input.repoPath,
     projectRoot: input.projectRoot,
-    tarB64: sc.bundle_tar_b64,
-    fromCache: !!sc.from_cache,
+    fromCache: !!sc?.from_cache,
   })
   return { token: upload.token }
 }
