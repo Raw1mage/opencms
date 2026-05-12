@@ -45,11 +45,15 @@ if [ -d "$USER_CONFIG_DIR/prompts" ]; then
 fi
 
 # 2. 反向同步 Skills (ALL, newer wins)
+# Excludes: planner/ — retired skill, superseded by plan-builder. Local
+# ghost copies in user dirs must not resurrect the template after deletion.
 if [ -d "$USER_CONFIG_DIR/skills" ]; then
     if is_safe_runtime_dir "$USER_CONFIG_DIR/skills"; then
         mkdir -p "$TEMPLATE_DIR/skills"
-        rsync -ru --no-perms --no-owner --no-group "$USER_CONFIG_DIR/skills/" "$TEMPLATE_DIR/skills/"
-        echo "  -> Synced: templates/skills/"
+        rsync -ru --no-perms --no-owner --no-group \
+            --exclude='planner/' --exclude='planner/**' \
+            "$USER_CONFIG_DIR/skills/" "$TEMPLATE_DIR/skills/"
+        echo "  -> Synced: templates/skills/ (excluded retired planner/)"
     else
         echo "  -> Skipped: templates/skills/ (runtime skills path resolves outside $USER_HOME)"
     fi
