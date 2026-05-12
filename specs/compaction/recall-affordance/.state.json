@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "state": "living",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-05-11T20:54:43.288Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-05-11T21:02:05.538Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Architecture + IDEF0 + GRAFCET + design decisions complete. Spec headings and C4 components added per validator."
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-05-11T21:03:27.872Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "All artifact validators pass: handoff sections, test-vectors array, errors catalogue, observability events+metrics."
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-05-12T00:05:16.545Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Code merged to main at 169f9e974. M1-M4 done; M5-5 marker pending at restart-consent verification."
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-05-12T00:05:25.432Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "All M1-M5 tasks checked. 45 new tests + 110 regression tests green; typecheck clean; L1/L2/L3 production-verified via session telemetry; identity-preserve fix validated by 7-event recentEvents trace; operator confirmed no further 跳針/失憶 since deployment."
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-05-12T00:05:33.611Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "User-confirmed: spec wiki entry. Code merged to main at 169f9e974, production-validated, operator confirmed elimination of 跳針/失憶 symptom."
+    }
+  ]
+}
