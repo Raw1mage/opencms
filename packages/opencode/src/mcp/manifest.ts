@@ -87,6 +87,15 @@ export namespace McpAppManifest {
       source: Source.optional(),
       transport: z.enum(["stdio", "streamable-http", "sse"]).optional().default("stdio"),
       url: z.string().optional(),
+      // /plans/mcp_service-revision/ DD-6 (Phase 12, 2026-05-13):
+      // host-side deployment hint for the LLM. Manifest-level
+      // instructions override the server-emitted InitializeResult.
+      // instructions when the prompt builder composes the per-MCP
+      // block. Typical use: include the local socket path / curl
+      // template that the server cannot know about. Soft cap 4096
+      // chars (system-prompt budget); not enforced by zod (a long
+      // string still parses).
+      instructions: z.string().optional(),
     })
     .refine(
       (m) => m.transport === "stdio" ? !!m.command : !!m.url,
