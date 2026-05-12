@@ -124,6 +124,33 @@ First-draft dedup used 5-min TTL. Result: one re-fire every 5 minutes, 12 leaks 
 
 **Diagnostic.** Plot dedup hits over time. Periodic spikes at TTL intervals = steady-state condition disguised as event. Sporadic / event-correlated spikes = correctly modelled periodic event.
 
+## 4.5 Compaction Sustainability Invariant (rev5, 2026-05-13)
+
+**Statement.** For any session running on any provider/model under a multi-dimensional rebind protocol P, P is *sustainable* if and only if every compaction commit C satisfies:
+
+```
+  context_residual(C) / model.context_limit  ≤  W_rel
+```
+
+where `W_rel ∈ (0, 1)` is a global ratio threshold (default 0.5). When the bound is violated, P MUST synchronously invoke a contractive compaction kind (one that produces strict size reduction — `low-cost-server` or `llm-agent` in this work) until the bound is restored OR the contractive kind itself failed.
+
+**Why ratio, not absolute tokens.** Absolute thresholds (e.g. "anchor ≤ 100K tokens") don't generalise across models: a 100K anchor at a 128K-context provider is 78% utilization (unsustainable), the same anchor at a 272K-context provider is 37% (fine), and at a hypothetical 1M-context provider is 10% (trivial). The relative formulation is the only one that admits a single universal theorem statement.
+
+**Why this is necessary, not just nice-to-have.** Some compaction kinds operate by **deterministic concat-and-redact** (this work's `narrative` kind serialises post-anchor dialog rounds, replaces tool-call output bodies with stub references, and appends the result to the previous anchor body). Such kinds have compression ratio α ≈ 1: they fold tool outputs into stubs but otherwise preserve dialog text verbatim. Without an external contractive backstop, repeated invocations grow the anchor linearly with time, and the session reaches its context limit deterministically in finite time. The Sustainability Invariant is the mathematical statement that a protocol must escalate to α < 1 mechanisms before this happens.
+
+**Connection to upstream design constraints.** The contractive backstop must run synchronously (in the runloop's foreground) to be load-bearing, because background-only fallbacks (best-effort enrichment, post-hoc cleanup) can lose the race against active conversation. This work places the backstop directly after each local-kind commit in the chain walk; if the watermark is violated, the runloop blocks until a contractive kind completes or all contractive kinds fail.
+
+**Operational expression in this work.** Implementation lives at `packages/opencode/src/session/compaction.ts`:
+- `measureSustainabilityWatermark(sessionID, model)` — pure read-only ratio computation
+- `forceContractiveCompaction(...)` — synchronous escalator; tries `low-cost-server` (codex `/responses/compact`) first, falls back to `llm-agent`
+- Telemetry: `compaction.sustainability.measured` / `.fired` / `.completed` / `.failed` runtime events
+
+The check fires only after LOCAL kind commits (`narrative` / `replay-tail`), not after contractive kind commits — preventing recursion when the contractive kind itself fails to fully restore the bound.
+
+**Theorem (informal).** A multi-dimensional rebind protocol P that maintains the Sustainability Invariant on every compaction commit is sustainable in the sense that, for any T > 0, |context(t)| ≤ W_rel × model.context_limit for all t ∈ [0, T] modulo the small overshoot window between a local-kind commit and the synchronous contractive escalation that follows it. The window is bounded by the contractive kind's latency, which in practice is the codex `/responses/compact` round-trip (~seconds) plus the llm-agent fallback's local LLM call (~tens of seconds).
+
+**Open question.** If both contractive kinds fail on the same session (network outage, quota exhausted on the codex compact endpoint), the protocol can only emit a `compaction.sustainability.failed` anomaly event and accept degradation — there is no further fallback short of refusing to continue the session. Whether this degradation should be hard-fail or best-effort-continue is a policy decision the protocol delegates to operators via the anomaly stream.
+
 ## 5. Other patterns observed but not fully developed
 
 - **"Sibling fragment" composition over "unified conditional fragment"** (DD-1). Two fragments that can co-occur with shared rendering helper compose better than one fragment with internal branches. Trade-off: more code paths to test vs each fragment's body stays focused.

@@ -25,7 +25,7 @@ _語言：[zh-hant](./) · **en**_
 - [`tasks.md`](./tasks.md) — checklist · 49/49 done (100%) · modified 2026-05-12
 - [`idef0.json`](./idef0.json) + _no SVGs yet_ — formal functional decomposition
 - [`grafcet.json`](./grafcet.json) + _no SVGs yet_ — formal runtime behavior
-- [`events/`](./events/) — 12 event records
+- [`events/`](./events/) — 16 event records
 - `.state.json` — lifecycle state machine
 
 ## Why (excerpt)
@@ -96,11 +96,11 @@ flowchart TB
 - 2026-05-12: `promote` planned → implementing — All Phase A-E commits landed on main; live verification on ses_1e56ed3f9ffebv4AaWOlcPLz20 captured; entering active operation phase
 - 2026-05-12: `promote` designed → planned — test-vectors.json (10 vectors covering all classifier cells + e2e replay), errors.md (8 failure modes, 3 error contracts), observability.md (3 new events + payload extension + jq recipes) authored
 - 2026-05-12: `promote` proposed → designed — Acceptance Checks section added (A1-A10); all 8 designed-state artifacts present
+- 2026-05-13: [`events/event_2026-05-13_rev5-compaction-sustainability-invariant-synchrono.md`](./events/event_2026-05-13_rev5-compaction-sustainability-invariant-synchrono.md)
+- 2026-05-13: [`events/event_2026-05-13_rev3-kind-chain-hybrid-enrichment-hotfixes-applied.md`](./events/event_2026-05-13_rev3-kind-chain-hybrid-enrichment-hotfixes-applied.md)
+- 2026-05-13: [`events/event_2026-05-13_rev4-cross-spec-amend-wiring-chain-init-pending-in.md`](./events/event_2026-05-13_rev4-cross-spec-amend-wiring-chain-init-pending-in.md)
 - 2026-05-12: [`events/event_2026-05-12_phase-b-m7-1-empty-response-recovery-rewire.md`](./events/event_2026-05-12_phase-b-m7-1-empty-response-recovery-rewire.md)
 - 2026-05-12: [`events/event_2026-05-12_rev1-rebind-class-compaction-chain-excludes-server.md`](./events/event_2026-05-12_rev1-rebind-class-compaction-chain-excludes-server.md)
-- 2026-05-12: [`events/event_2026-05-12_phase-d-chainbreakclass-payload-extension.md`](./events/event_2026-05-12_phase-d-chainbreakclass-payload-extension.md)
-- 2026-05-12: [`events/event_2026-05-12_live-verification-on-ses-1e56ed3f9ffebv4aawolcplz2.md`](./events/event_2026-05-12_live-verification-on-ses-1e56ed3f9ffebv4aawolcplz2.md)
-- 2026-05-12: [`events/event_2026-05-12_architecture-correction-transport-ws-sites-stay-di.md`](./events/event_2026-05-12_architecture-correction-transport-ws-sites-stay-di.md)
 
 ## Cross-links
 
@@ -116,12 +116,16 @@ _… and 24 more · [full list →](./design.md#code-anchors)_
 
 ### Event log
 
+- 2026-05-13: [`event_2026-05-13_rev5-compaction-sustainability-invariant-synchrono.md`](./events/event_2026-05-13_rev5-compaction-sustainability-invariant-synchrono.md)
+- 2026-05-13: [`event_2026-05-13_rev3-kind-chain-hybrid-enrichment-hotfixes-applied.md`](./events/event_2026-05-13_rev3-kind-chain-hybrid-enrichment-hotfixes-applied.md)
+- 2026-05-13: [`event_2026-05-13_rev4-cross-spec-amend-wiring-chain-init-pending-in.md`](./events/event_2026-05-13_rev4-cross-spec-amend-wiring-chain-init-pending-in.md)
 - 2026-05-12: [`event_2026-05-12_phase-b-m7-1-empty-response-recovery-rewire.md`](./events/event_2026-05-12_phase-b-m7-1-empty-response-recovery-rewire.md)
 - 2026-05-12: [`event_2026-05-12_rev1-rebind-class-compaction-chain-excludes-server.md`](./events/event_2026-05-12_rev1-rebind-class-compaction-chain-excludes-server.md)
 - 2026-05-12: [`event_2026-05-12_phase-d-chainbreakclass-payload-extension.md`](./events/event_2026-05-12_phase-d-chainbreakclass-payload-extension.md)
 - 2026-05-12: [`event_2026-05-12_live-verification-on-ses-1e56ed3f9ffebv4aawolcplz2.md`](./events/event_2026-05-12_live-verification-on-ses-1e56ed3f9ffebv4aawolcplz2.md)
 - 2026-05-12: [`event_2026-05-12_architecture-correction-transport-ws-sites-stay-di.md`](./events/event_2026-05-12_architecture-correction-transport-ws-sites-stay-di.md)
 - 2026-05-12: [`event_2026-05-12_token-efficiency-outcome-300x-improvement.md`](./events/event_2026-05-12_token-efficiency-outcome-300x-improvement.md)
+- 2026-05-12: [`event_2026-05-12_rev2-hybrid-llm-enrichment-rarely-observed-eligibi.md`](./events/event_2026-05-12_rev2-hybrid-llm-enrichment-rarely-observed-eligibi.md)
 - 2026-05-12: [`event_2026-05-12_phase-a-foundations-landed.md`](./events/event_2026-05-12_phase-a-foundations-landed.md)
 - 2026-05-12: [`event_2026-05-12_phase-c-account-switch-compaction-rewires.md`](./events/event_2026-05-12_phase-c-account-switch-compaction-rewires.md)
 - 2026-05-12: [`event_2026-05-12_skipreason-polish-amnesia-supersedes-for-compactio.md`](./events/event_2026-05-12_skipreason-polish-amnesia-supersedes-for-compactio.md)
@@ -129,4 +133,4 @@ _… and 24 more · [full list →](./design.md#code-anchors)_
 - 2026-05-12: [`event_2026-05-12_data-plane-gap-discovered-pendinginjectionstore-ha.md`](./events/event_2026-05-12_data-plane-gap-discovered-pendinginjectionstore-ha.md)
 - 2026-05-12: [`event_2026-05-12_dedup-bug-discovered-chain-init-notice-re-injected.md`](./events/event_2026-05-12_dedup-bug-discovered-chain-init-notice-re-injected.md)
 
-<!-- AUTO-GENERATED by plan-builder MCP plan_sync · 2026-05-12T14:47:45Z · do not edit this file. -->
+<!-- AUTO-GENERATED by plan-builder MCP plan_sync · 2026-05-12T17:45:30Z · do not edit this file. -->

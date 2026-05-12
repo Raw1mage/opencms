@@ -214,6 +214,22 @@ export namespace Tweaks {
     codexServerPriorityRatio: number
     emptyResponseFloor: number
     /**
+     * 2026-05-13 (specs/session/rebind-procedure-revision rev5):
+     * Compaction Sustainability Invariant — post-compaction
+     * context_residual / model.context_limit ratio ceiling. When a local
+     * compaction kind (narrative / replay-tail) commits an anchor whose
+     * post-state ratio exceeds this threshold, the runloop synchronously
+     * invokes a contractive kind (low-cost-server first, llm-agent
+     * fallback) to bring it back under. Model-agnostic by design —
+     * scales correctly across providers (Claude 200K, gpt-5.5 272K,
+     * future 1M context, etc.) without absolute-value reconfiguration.
+     *
+     * Default 0.5: "if compaction leaves context still half-full, it
+     * didn't actually contract." Tune lower (0.3-0.4) for aggressive
+     * sustainability; higher (0.6-0.7) if false positives observed.
+     */
+    sustainabilityRatio: number
+    /**
      * compaction-fix Phase 1 (DD-6). Master switch for the post-anchor
      * transformer that folds completed assistant turns (beyond the most
      * recent N rounds) into single-line trace markers + WorkingCache
@@ -398,6 +414,7 @@ export namespace Tweaks {
     minUncachedTokens: 40_000,
     stallRecoveryFloor: 0.5,
     stallRecoveryConsecutiveEmpty: 2,
+    sustainabilityRatio: 0.5,
     quotaPressureThreshold: 0.1,
     codexServerPriorityRatio: 0.7,
     emptyResponseFloor: 0.8,
