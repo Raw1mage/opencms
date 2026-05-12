@@ -1,12 +1,12 @@
 ---
 name: mcp-implementation
-description: MCP app implementation spec for OpenCode — covers industry-standard config formats (stdio/HTTP), zero-config import, manifest conventions, and how they map to OpenCode's McpAppManifest + ManagedAppRegistry. Use when developing new MCP apps, designing import flows, or reviewing MCP integration code.
+description: MCP app implementation spec for OpenCMS — covers industry-standard config formats (stdio/HTTP), zero-config import, manifest conventions, and how they map to OpenCMS's McpAppManifest + ManagedAppRegistry. Use when developing new MCP apps, designing import flows, or reviewing MCP integration code.
 license: Internal
 ---
 
 # MCP App Implementation Spec
 
-This skill defines the **external interoperability formats** that OpenCode's MCP app system must support, and how they map to our internal schemas.
+This skill defines the **external interoperability formats** that OpenCMS's MCP app system must support, and how they map to our internal schemas.
 
 ---
 
@@ -121,19 +121,19 @@ This is optional and not widely adopted yet.
 
 ---
 
-## 5. Mapping to OpenCode Internal Schemas
+## 5. Mapping to OpenCMS Internal Schemas
 
 ### McpAppManifest (`mcp.json`) — Layer 1
 
 Our `McpAppManifest.Schema` maps naturally from the external format:
 
-| External | OpenCode `mcp.json` | Notes |
+| External | OpenCMS `mcp.json` | Notes |
 |----------|---------------------|-------|
 | `command` + `args` | `command: string[]` | We merge into single array: `["npx", "-y", "@pkg/server"]` |
 | `env` | `env: Record<string, string>` | Direct mapping |
 | `<server-name>` | `id` + `name` | External name becomes both |
-| _(none)_ | `auth` | OpenCode extension: `oauth` / `api-key` / `none` |
-| _(none)_ | `source` | OpenCode extension: `github` / `local` provenance |
+| _(none)_ | `auth` | OpenCMS extension: `oauth` / `api-key` / `none` |
+| _(none)_ | `source` | OpenCMS extension: `github` / `local` provenance |
 
 ### ManagedAppRegistry — Layer 2
 
@@ -154,7 +154,7 @@ The external format analysis above serves as **reference knowledge** for underst
 
 ## 6. Fork Adaptation Checklist
 
-When forking an external MCP server for OpenCode use, follow this checklist:
+When forking an external MCP server for OpenCMS use, follow this checklist:
 
 ### 6.1 Recon (before forking)
 

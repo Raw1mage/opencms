@@ -1,1 +1,1 @@
-# OpenCode Local Configuration
+# OpenCMS Local Configuration

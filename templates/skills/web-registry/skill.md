@@ -1,6 +1,6 @@
 # Web Registry
 
-Publish, remove, or list public web routes on the OpenCode gateway.
+Publish, remove, or list public web routes on the OpenCMS gateway.
 
 ## Use when
 

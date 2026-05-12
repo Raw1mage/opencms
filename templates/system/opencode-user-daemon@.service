@@ -1,5 +1,5 @@
 [Unit]
-Description=OpenCode Per-User Daemon (%i)
+Description=OpenCMS Per-User Daemon (%i)
 After=network-online.target
 Wants=network-online.target
 

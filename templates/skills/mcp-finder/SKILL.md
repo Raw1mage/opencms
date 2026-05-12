@@ -5,11 +5,11 @@ description: Search for, install, and configure Model Context Protocol (MCP) ser
 
 # MCP Finder
 
-This skill enables the agent (Antigravity/OpenCode) to autonomously find, download, and install MCP servers, seamlessly giving itself new tools and resources without requiring manual developer intervention.
+This skill enables the agent (Antigravity/OpenCMS) to autonomously find, download, and install MCP servers, seamlessly giving itself new tools and resources without requiring manual developer intervention.
 
 ## Philosophy
 
-The goal is to make OpenCode a "self-growing organism." If you realize you lack the capability to fulfill a user's request (e.g., "Summarize my latest Slack messages" or "Query my Postgres database"), you should trigger this workflow to automatically acquire the necessary MCP server.
+The goal is to make OpenCMS a "self-growing organism." If you realize you lack the capability to fulfill a user's request (e.g., "Summarize my latest Slack messages" or "Query my Postgres database"), you should trigger this workflow to automatically acquire the necessary MCP server.
 
 ## Workflow
 
