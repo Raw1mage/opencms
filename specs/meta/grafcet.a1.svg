@@ -1,8 +1,162 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="980" height="1670" viewBox="0 0 980 1670" role="img" aria-label="meta GRAFCET A1">
-<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#111"/></marker></defs>
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1860" viewBox="-34.00 -2.00 70.00 93.00" role="img">
 <style>
-.title{font:bold 26px serif;fill:#111}.meta{font:14px monospace;fill:#555}.step{fill:#fff;stroke:#111;stroke-width:2}.step-inner{fill:none;stroke:#111;stroke-width:1.5}.step-no{font:bold 22px serif;text-anchor:middle;dominant-baseline:middle}.assoc,.edge{stroke:#111;stroke-width:2;fill:none}.action{fill:#fff;stroke:#111;stroke-width:2}.module{fill:#f8fafc;stroke:#475569;stroke-width:1.5}.label{font:18px serif;fill:#111}.module-label{font:15px monospace;fill:#334155}.gate{font:14px serif;fill:#444}.gate-line{stroke:#111;stroke-width:2}
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
 </style>
-<rect width="100%" height="100%" fill="white"/>
-<text class="title" x="40" y="42">meta GRAFCET A1</text><text class="meta" x="40" y="70">source: specs/meta/grafcet.json · layer: A1</text><rect class="step" x="54" y="105" width="72" height="72" rx="9"/><rect class="step-inner" x="62" y="113" width="56" height="56" rx="7"/><text class="step-no" x="90" y="149">0</text><line class="assoc" x1="126" y1="141" x2="160" y2="141"/><rect class="action" x="160" y="105" width="500" height="72" rx="8"/><text class="label" x="176" y="129"><tspan x="176" dy="0">無spec在flight</tspan></text><rect class="module" x="690" y="105" width="220" height="72" rx="8"/><text class="module-label" x="704" y="132"><tspan x="704" dy="0">ModuleRef: A1</tspan></text><text class="gate" x="176" y="197"><tspan x="176" dy="0">規劃initinvoked供newslugOR legacyplanstouched</tspan></text><path class="edge" d="M90 177 L90 225" marker-end="url(#arrow)"/><line class="gate-line" x1="58" y1="199" x2="122" y2="199"/><rect class="step" x="54" y="225" width="72" height="72" rx="9"/><text class="step-no" x="90" y="269">1</text><line class="assoc" x1="126" y1="261" x2="160" y2="261"/><rect class="action" x="160" y="225" width="500" height="72" rx="8"/><text class="label" x="176" y="249"><tspan x="176" dy="0">propose狀態</tspan></text><rect class="module" x="690" y="225" width="220" height="72" rx="8"/><text class="module-label" x="704" y="252"><tspan x="704" dy="0">ModuleRef: A11</tspan></text><text class="gate" x="176" y="317"><tspan x="176" dy="0">proposalmdAND 狀態jsonwritten狀態==proposed</tspan></text><path class="edge" d="M90 297 L90 345" marker-end="url(#arrow)"/><line class="gate-line" x1="58" y1="319" x2="122" y2="319"/><rect class="step" x="54" y="345" width="72" height="72" rx="9"/><text class="step-no" x="90" y="389">2</text><line class="assoc" x1="126" y1="381" x2="160" y2="381"/><rect class="action" x="160" y="345" width="500" height="72" rx="8"/><text class="label" x="176" y="369"><tspan x="176" dy="0">design狀態</tspan></text><rect class="module" x="690" y="345" width="220" height="72" rx="8"/><text class="module-label" x="704" y="372"><tspan x="704" dy="0">ModuleRef: A12</tspan></text><text class="gate" x="176" y="437"><tspan x="176" dy="0">specmddesignmdidef0grafcetc4sequencedataschemapresentAND validatepasses</tspan></text><path class="edge" d="M90 417 L90 465" marker-end="url(#arrow)"/><line class="gate-line" x1="58" y1="439" x2="122" y2="439"/><rect class="step" x="54" y="465" width="72" height="72" rx="9"/><text class="step-no" x="90" y="509">3</text><line class="assoc" x1="126" y1="501" x2="160" y2="501"/><rect class="action" x="160" y="465" width="500" height="72" rx="8"/><text class="label" x="176" y="489"><tspan x="176" dy="0">規劃狀態</tspan></text><rect class="module" x="690" y="465" width="220" height="72" rx="8"/><text class="module-label" x="704" y="492"><tspan x="704" dy="0">ModuleRef: A13</tspan></text><text class="gate" x="176" y="557"><tspan x="176" dy="0">tasksmdhandoffmdtestvectors錯誤observabilitypresent</tspan></text><path class="edge" d="M90 537 L90 585" marker-end="url(#arrow)"/><line class="gate-line" x1="58" y1="559" x2="122" y2="559"/><rect class="step" x="54" y="585" width="72" height="72" rx="9"/><text class="step-no" x="90" y="629">4</text><line class="assoc" x1="126" y1="621" x2="160" y2="621"/><rect class="action" x="160" y="585" width="500" height="72" rx="8"/><text class="label" x="176" y="609"><tspan x="176" dy="0">implement狀態</tspan></text><rect class="module" x="690" y="585" width="220" height="72" rx="8"/><text class="module-label" x="704" y="612"><tspan x="704" dy="0">ModuleRef: A13</tspan></text><text class="gate" x="176" y="677"><tspan x="176" dy="0">alltaskscheckedAND syncclean; 規劃abandoned或refactorrequested</tspan></text><path class="edge" d="M90 657 L90 705" marker-end="url(#arrow)"/><line class="gate-line" x1="58" y1="679" x2="122" y2="679"/><rect class="step" x="54" y="705" width="72" height="72" rx="9"/><text class="step-no" x="90" y="749">5</text><line class="assoc" x1="126" y1="741" x2="160" y2="741"/><rect class="action" x="160" y="705" width="500" height="72" rx="8"/><text class="label" x="176" y="729"><tspan x="176" dy="0">verify狀態</tspan></text><rect class="module" x="690" y="705" width="220" height="72" rx="8"/><text class="module-label" x="704" y="732"><tspan x="704" dy="0">ModuleRef: A12</tspan></text><text class="gate" x="176" y="797"><tspan x="176" dy="0">validationevidenceattachedAND testspass</tspan></text><path class="edge" d="M90 777 L90 825" marker-end="url(#arrow)"/><line class="gate-line" x1="58" y1="799" x2="122" y2="799"/><rect class="step" x="54" y="825" width="72" height="72" rx="9"/><text class="step-no" x="90" y="869">6</text><line class="assoc" x1="126" y1="861" x2="160" y2="861"/><rect class="action" x="160" y="825" width="500" height="72" rx="8"/><text class="label" x="176" y="849"><tspan x="176" dy="0">live狀態synccheckpoint</tspan></text><rect class="module" x="690" y="825" width="220" height="72" rx="8"/><text class="module-label" x="704" y="852"><tspan x="704" dy="0">ModuleRef: A14</tspan></text><text class="gate" x="176" y="917"><tspan x="176" dy="0">mode==amend; mode==revise或extend; mode==refactor; mode==archive</tspan></text><path class="edge" d="M90 897 L90 945" marker-end="url(#arrow)"/><line class="gate-line" x1="58" y1="919" x2="122" y2="919"/><rect class="step" x="54" y="945" width="72" height="72" rx="9"/><text class="step-no" x="90" y="989">7</text><line class="assoc" x1="126" y1="981" x2="160" y2="981"/><rect class="action" x="160" y="945" width="500" height="72" rx="8"/><text class="label" x="176" y="969"><tspan x="176" dy="0">amendinlinedelta</tspan></text><rect class="module" x="690" y="945" width="220" height="72" rx="8"/><text class="module-label" x="704" y="972"><tspan x="704" dy="0">ModuleRef: A13</tspan></text><text class="gate" x="176" y="1037"><tspan x="176" dy="0">inlinedeltamarkeraddedAND 狀態remainsliving</tspan></text><path class="edge" d="M90 1017 L90 1065" marker-end="url(#arrow)"/><line class="gate-line" x1="58" y1="1039" x2="122" y2="1039"/><rect class="step" x="54" y="1065" width="72" height="72" rx="9"/><text class="step-no" x="90" y="1109">8</text><line class="assoc" x1="126" y1="1101" x2="160" y2="1101"/><rect class="action" x="160" y="1065" width="500" height="72" rx="8"/><text class="label" x="176" y="1089"><tspan x="176" dy="0">revise或extend回到到designed</tspan></text><rect class="module" x="690" y="1065" width="220" height="72" rx="8"/><text class="module-label" x="704" y="1092"><tspan x="704" dy="0">ModuleRef: A13</tspan></text><text class="gate" x="176" y="1157"><tspan x="176" dy="0">狀態setdesignedAND revise或extendhistory項目appended</tspan></text><path class="edge" d="M90 1137 L90 1185" marker-end="url(#arrow)"/><line class="gate-line" x1="58" y1="1159" x2="122" y2="1159"/><rect class="step" x="54" y="1185" width="72" height="72" rx="9"/><text class="step-no" x="90" y="1229">9</text><line class="assoc" x1="126" y1="1221" x2="160" y2="1221"/><rect class="action" x="160" y="1185" width="500" height="72" rx="8"/><text class="label" x="176" y="1209"><tspan x="176" dy="0">refactorsnapshot與reset</tspan></text><rect class="module" x="690" y="1185" width="220" height="72" rx="8"/><text class="module-label" x="704" y="1212"><tspan x="704" dy="0">ModuleRef: A13</tspan></text><text class="gate" x="176" y="1277"><tspan x="176" dy="0">historyrefactorYYYY MM DD createdAND artifactsreset到proposedskeleton</tspan></text><path class="edge" d="M90 1257 L90 1305" marker-end="url(#arrow)"/><line class="gate-line" x1="58" y1="1279" x2="122" y2="1279"/><rect class="step" x="54" y="1305" width="72" height="72" rx="9"/><text class="step-no" x="90" y="1349">10</text><line class="assoc" x1="126" y1="1341" x2="160" y2="1341"/><rect class="action" x="160" y="1305" width="500" height="72" rx="8"/><text class="label" x="176" y="1329"><tspan x="176" dy="0">archive狀態</tspan></text><rect class="module" x="690" y="1305" width="220" height="72" rx="8"/><text class="module-label" x="704" y="1332"><tspan x="704" dy="0">ModuleRef: A13</tspan></text><text class="gate" x="176" y="1397"><tspan x="176" dy="0">狀態setarchivedAND optionalmove到archivefolderdone</tspan></text><path class="edge" d="M90 1377 L90 1425" marker-end="url(#arrow)"/><line class="gate-line" x1="58" y1="1399" x2="122" y2="1399"/><rect class="step" x="54" y="1425" width="72" height="72" rx="9"/><text class="step-no" x="90" y="1469">11</text><line class="assoc" x1="126" y1="1461" x2="160" y2="1461"/><rect class="action" x="160" y="1425" width="500" height="72" rx="8"/><text class="label" x="176" y="1449"><tspan x="176" dy="0">spec於rest</tspan></text><rect class="module" x="690" y="1425" width="220" height="72" rx="8"/><text class="module-label" x="704" y="1452"><tspan x="704" dy="0">ModuleRef: A1</tspan></text><text class="gate" x="176" y="1517"><tspan x="176" dy="0">1</tspan></text><path class="edge" d="M90 1497 L90 1545" marker-end="url(#arrow)"/><line class="gate-line" x1="58" y1="1519" x2="122" y2="1519"/><rect class="step" x="54" y="1545" width="72" height="72" rx="9"/><text class="step-no" x="90" y="1589">12</text><line class="assoc" x1="126" y1="1581" x2="160" y2="1581"/><rect class="action" x="160" y="1545" width="500" height="72" rx="8"/><text class="label" x="176" y="1569"><tspan x="176" dy="0">abandon或rollback</tspan></text><rect class="module" x="690" y="1545" width="220" height="72" rx="8"/><text class="module-label" x="704" y="1572"><tspan x="704" dy="0">ModuleRef: A13</tspan></text><text class="gate" x="176" y="1637"><tspan x="176" dy="0">規劃rollbackrefactor或explicitabandonrecorded在history</tspan></text>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="-34.00" y="-2.00" width="70.00" height="93.00" fill="white"/>
+<path class="edge edge-arrow" d="M 20.00 9.00 L 20.00 11.00"/>
+<path class="edge edge-arrow" d="M 20.00 18.00 L 20.00 20.00"/>
+<path class="edge" d="M 20.00 7.00 L 20.00 9.00"/>
+<path class="edge" d="M 20.00 14.00 L 20.00 18.00"/>
+<path class="edge" d="M 20.00 23.00 L 20.00 27.00"/>
+<path class="edge edge-arrow" d="M 20.00 27.00 L 20.00 29.00"/>
+<path class="edge" d="M 20.00 32.00 L 20.00 34.00"/>
+<path class="edge edge-arrow" d="M 20.00 34.00 L 20.00 36.00"/>
+<path class="edge edge-arrow" d="M 20.00 39.00 L 20.00 41.00"/>
+<path class="edge edge-arrow" d="M 10.00 41.00 L 10.00 45.00"/>
+<path class="edge edge-arrow" d="M 20.00 41.00 L 20.00 45.00"/>
+<path class="edge" d="M 10.00 48.00 L 10.00 50.00"/>
+<path class="edge edge-arrow" d="M 10.00 50.00 L 10.00 52.00"/>
+<path class="edge edge-arrow" d="M 10.00 55.00 L 10.00 57.00"/>
+<path class="edge edge-arrow" d="M 10.00 57.00 L 10.00 71.00"/>
+<path class="edge edge-arrow" d="M -10.00 57.00 L -10.00 58.50 Q -10.00 59.00 -9.50 59.00 L 28.50 59.00 Q 29.00 59.00 29.00 59.50 L 29.00 71.12 Q 29.00 71.62 28.50 71.62 L -9.69 71.62 Q -10.00 71.62 -10.00 71.31 L -10.00 71.00"/>
+<path class="edge edge-arrow" d="M 0.00 57.00 L 0.00 62.50 Q 0.00 63.00 0.50 63.00 L 3.95 63.00 Q 4.45 63.00 4.45 63.50 L 4.45 73.12 Q 4.45 73.62 3.95 73.62 L 0.50 73.62 Q 0.00 73.62 0.00 73.12 L 0.00 71.00"/>
+<path class="edge edge-arrow" d="M 20.00 57.00 L 20.00 71.00"/>
+<path class="edge edge-arrow" d="M 10.00 74.00 L 10.00 78.00"/>
+<path class="edge edge-arrow" d="M 20.00 78.00 L 20.00 80.00"/>
+<path class="edge" d="M -10.00 74.00 L -21.50 74.00 Q -22.00 74.00 -22.00 73.50 L -22.00 65.50 Q -22.00 65.00 -21.50 65.00 L -10.00 65.00"/>
+<path class="edge" d="M 27.45 59.00 L 27.45 24.38"/>
+<path class="edge" d="M 27.45 24.38 L 20.00 24.38"/>
+<path class="edge edge-arrow" d="M 20.00 23.00 L 20.00 20.00"/>
+<path class="edge" d="M -22.00 74.00 L -26.00 74.00"/>
+<path class="edge" d="M 0.00 74.00 L -10.00 74.00"/>
+<path class="edge" d="M -26.00 74.00 L -26.00 69.00"/>
+<path class="edge" d="M -26.00 69.00 L 0.00 69.00"/>
+<path class="edge" d="M 20.00 63.00 L 27.45 63.00"/>
+<path class="edge" d="M 27.45 24.38 L 27.45 15.38"/>
+<path class="edge" d="M 27.45 63.00 L 27.45 59.00"/>
+<path class="edge" d="M 27.45 15.38 L 20.00 15.38"/>
+<path class="edge edge-arrow" d="M 20.00 14.00 L 20.00 11.00"/>
+<path class="edge edge-arrow" d="M 20.00 74.00 L 20.00 78.00"/>
+<path class="edge" d="M 20.00 83.00 L 20.00 85.00"/>
+<path class="edge edge-arrow" d="M 20.00 85.00 L 20.00 86.50 Q 20.00 87.00 19.50 87.00 L -29.50 87.00 Q -30.00 87.00 -30.00 86.50 L -30.00 2.50 Q -30.00 2.00 -29.50 2.00 L 19.50 2.00 Q 20.00 2.00 20.00 2.50 L 20.00 4.00"/>
+<path class="edge edge-arrow" d="M 20.00 48.00 L 20.00 49.50 Q 20.00 50.00 20.50 50.00 L 29.50 50.00 Q 30.00 50.00 30.00 50.50 L 30.00 78.00"/>
+<rect class="step" x="18.00" y="4.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<rect class="step-inner" x="18.25" y="4.25" width="3.50" height="2.50" rx="0.22" ry="0.22"/>
+<text class="label" x="20.00" y="5.50">0</text>
+<rect class="step" x="18.00" y="11.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.00" y="12.50">1</text>
+<rect class="step" x="18.00" y="20.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.00" y="21.50">2</text>
+<rect class="step" x="18.00" y="29.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.00" y="30.50">3</text>
+<rect class="step" x="18.00" y="36.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.00" y="37.50">4</text>
+<rect class="step" x="8.00" y="45.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="10.00" y="46.50">5</text>
+<rect class="step" x="8.00" y="52.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="10.00" y="53.50">6</text>
+<rect class="step" x="8.00" y="71.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="10.00" y="72.50">7</text>
+<rect class="step" x="-12.00" y="71.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="-10.00" y="72.50">8</text>
+<rect class="step" x="-2.00" y="71.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="0.00" y="72.50">9</text>
+<rect class="step" x="18.00" y="71.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.00" y="72.50">10</text>
+<rect class="step" x="18.00" y="80.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.00" y="81.50">11</text>
+<rect class="step" x="18.00" y="45.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.00" y="46.50">12</text>
+<line class="assoc" x1="22.00" y1="5.50" x2="23.00" y2="5.50"/>
+<rect class="action" x="23.00" y="4.07" width="4.00" height="2.86"/>
+<text class="action-label" x="25.00" y="5.09"><tspan x="25.00" dy="0">無spec</tspan><tspan x="25.00" dy="0.82">在flight</tspan></text>
+<line class="assoc" x1="22.00" y1="12.50" x2="23.00" y2="12.50"/>
+<rect class="action" x="23.00" y="11.07" width="4.00" height="2.86"/>
+<text class="action-label" x="25.00" y="12.09"><tspan x="25.00" dy="0">propos</tspan><tspan x="25.00" dy="0.82">e狀態</tspan></text>
+<line class="assoc" x1="22.00" y1="21.50" x2="23.00" y2="21.50"/>
+<rect class="action" x="23.00" y="20.07" width="4.00" height="2.86"/>
+<text class="action-label" x="25.00" y="21.09"><tspan x="25.00" dy="0">design</tspan><tspan x="25.00" dy="0.82">狀態</tspan></text>
+<line class="assoc" x1="22.00" y1="30.50" x2="23.00" y2="30.50"/>
+<rect class="action" x="23.00" y="29.07" width="4.00" height="2.86"/>
+<text class="action-label" x="25.00" y="30.09"><tspan x="25.00" dy="0">規劃</tspan><tspan x="25.00" dy="0.82">狀態</tspan></text>
+<line class="assoc" x1="22.00" y1="37.50" x2="23.00" y2="37.50"/>
+<rect class="action" x="23.00" y="36.07" width="4.00" height="2.86"/>
+<text class="action-label" x="25.00" y="37.09"><tspan x="25.00" dy="0">impleme</tspan><tspan x="25.00" dy="0.82">nt狀態</tspan></text>
+<line class="assoc" x1="12.00" y1="46.50" x2="13.00" y2="46.50"/>
+<rect class="action" x="13.00" y="45.07" width="4.00" height="2.86"/>
+<text class="action-label" x="15.00" y="46.09"><tspan x="15.00" dy="0">verify</tspan><tspan x="15.00" dy="0.82">狀態</tspan></text>
+<line class="assoc" x1="12.00" y1="53.50" x2="13.00" y2="53.50"/>
+<rect class="action" x="13.00" y="52.07" width="4.00" height="2.86"/>
+<text class="action-label" x="15.00" y="52.68"><tspan x="15.00" dy="0">live狀態</tspan><tspan x="15.00" dy="0.82">syncche</tspan><tspan x="15.00" dy="0.82">ckpoint</tspan></text>
+<line class="assoc" x1="12.00" y1="72.50" x2="13.00" y2="72.50"/>
+<rect class="action" x="13.00" y="71.07" width="4.00" height="2.86"/>
+<text class="action-label" x="15.00" y="72.09"><tspan x="15.00" dy="0">amendinl</tspan><tspan x="15.00" dy="0.82">inedelta</tspan></text>
+<line class="assoc" x1="-8.00" y1="72.50" x2="-7.00" y2="72.50"/>
+<rect class="action" x="-7.00" y="71.07" width="4.00" height="2.86"/>
+<text class="action-label" x="-5.00" y="71.68"><tspan x="-5.00" dy="0">revise或ex</tspan><tspan x="-5.00" dy="0.82">tend回到</tspan><tspan x="-5.00" dy="0.82">到designed</tspan></text>
+<line class="assoc" x1="2.00" y1="72.50" x2="3.00" y2="72.50"/>
+<rect class="action" x="3.00" y="71.07" width="4.00" height="2.86"/>
+<text class="action-label" x="5.00" y="71.68"><tspan x="5.00" dy="0">refactor</tspan><tspan x="5.00" dy="0.82">snapshot</tspan><tspan x="5.00" dy="0.82">與reset</tspan></text>
+<line class="assoc" x1="22.00" y1="72.50" x2="23.00" y2="72.50"/>
+<rect class="action" x="23.00" y="71.07" width="4.00" height="2.86"/>
+<text class="action-label" x="25.00" y="72.09"><tspan x="25.00" dy="0">archive</tspan><tspan x="25.00" dy="0.82">狀態</tspan></text>
+<line class="assoc" x1="22.00" y1="81.50" x2="23.00" y2="81.50"/>
+<rect class="action" x="23.00" y="80.07" width="4.00" height="2.86"/>
+<text class="action-label" x="25.00" y="81.09"><tspan x="25.00" dy="0">spec</tspan><tspan x="25.00" dy="0.82">於rest</tspan></text>
+<line class="assoc" x1="22.00" y1="46.50" x2="23.00" y2="46.50"/>
+<rect class="action" x="23.00" y="45.07" width="4.00" height="2.86"/>
+<text class="action-label" x="25.00" y="46.09"><tspan x="25.00" dy="0">abandon或</tspan><tspan x="25.00" dy="0.82">rollback</tspan></text>
+<line class="gate" x1="19.00" y1="9.00" x2="21.00" y2="9.00"/>
+<text class="gate-label" x="21.40" y="9.00"><tspan x="21.40" dy="0">規劃initinvoked供newslugOR legacyplanstouched</tspan></text>
+<line class="gate" x1="19.00" y1="18.00" x2="21.00" y2="18.00"/>
+<text class="gate-label-left" x="18.60" y="18.00"><tspan x="18.60" dy="0">proposalmdAND 狀態jsonwritten狀態==proposed</tspan></text>
+<line class="gate" x1="19.00" y1="27.00" x2="21.00" y2="27.00"/>
+<text class="gate-label-left" x="18.60" y="27.00"><tspan x="18.60" dy="0">specmddesignmdidef0grafcetc4sequencedataschemapresentAND validatepasses</tspan></text>
+<line class="gate" x1="19.00" y1="34.00" x2="21.00" y2="34.00"/>
+<text class="gate-label-left" x="18.60" y="34.00"><tspan x="18.60" dy="0">tasksmdhandoffmdtestvectors錯誤observabilitypresent</tspan></text>
+<line class="gate" x1="8.00" y1="41.00" x2="22.00" y2="41.00"/>
+<line class="gate" x1="9.00" y1="50.00" x2="11.00" y2="50.00"/>
+<text class="gate-label-left" x="8.60" y="50.00"><tspan x="8.60" dy="0">validationevidenceattachedAND testspass</tspan></text>
+<line class="gate" x1="-15.00" y1="57.00" x2="25.00" y2="57.00"/>
+<line class="gate" x1="6.50" y1="78.00" x2="32.00" y2="78.00"/>
+<line class="gate" x1="-16.00" y1="63.00" x2="-8.00" y2="63.00"/>
+<line class="gate" x1="-18.00" y1="67.00" x2="2.00" y2="67.00"/>
+<line class="gate" x1="19.00" y1="85.00" x2="21.00" y2="85.00"/>
+<text class="gate-label" x="21.40" y="85.00"><tspan x="21.40" dy="0">1</tspan></text>
+<line class="gate" x1="9.00" y1="43.00" x2="11.00" y2="43.00"/>
+<text class="gate-label-left" x="8.60" y="43.00"><tspan x="8.60" dy="0">alltaskscheckedAND syncclean</tspan></text>
+<line class="gate" x1="19.00" y1="43.00" x2="21.00" y2="43.00"/>
+<text class="gate-label" x="21.40" y="42.32"><tspan x="21.40" dy="0">規劃abando</tspan><tspan x="21.40" dy="0.68">ned或refact</tspan><tspan x="21.40" dy="0.68">orrequested</tspan></text>
+<line class="gate" x1="9.00" y1="61.00" x2="11.00" y2="61.00"/>
+<text class="gate-label" x="11.40" y="61.00"><tspan x="11.40" dy="0">mode==amend</tspan></text>
+<line class="gate" x1="-11.00" y1="61.00" x2="-9.00" y2="61.00"/>
+<text class="gate-label-left" x="-11.40" y="61.00"><tspan x="-11.40" dy="0">mode==revise或extend</tspan></text>
+<line class="gate" x1="-1.00" y1="61.00" x2="1.00" y2="61.00"/>
+<text class="gate-label-left" x="-1.40" y="61.00"><tspan x="-1.40" dy="0">mode==refactor</tspan></text>
+<line class="gate" x1="19.00" y1="61.00" x2="21.00" y2="61.00"/>
+<text class="gate-label" x="21.40" y="61.00"><tspan x="21.40" dy="0">mode==archive</tspan></text>
+<line class="gate" x1="9.00" y1="76.00" x2="11.00" y2="76.00"/>
+<text class="gate-label-left" x="8.60" y="76.00"><tspan x="8.60" dy="0">inlinedeltamarkeraddedAND 狀態remainsliving</tspan></text>
+<line class="gate" x1="-23.00" y1="57.00" x2="-21.00" y2="57.00"/>
+<text class="gate-label-left" x="-23.40" y="56.32"><tspan x="-23.40" dy="0">狀態setdesignedAN</tspan><tspan x="-23.40" dy="0.68">D revise或extendhis</tspan><tspan x="-23.40" dy="0.68">tory項目appended</tspan></text>
+<line class="gate" x1="-27.00" y1="57.00" x2="-25.00" y2="57.00"/>
+<text class="gate-label-left" x="-30.20" y="56.32"><tspan x="-30.20" dy="0">historyrefactorYYYY MM</tspan><tspan x="-30.20" dy="0.68">DD createdAND artifacts</tspan><tspan x="-30.20" dy="0.68">reset到proposedskeleton</tspan></text>
+<line class="gate" x1="19.00" y1="76.00" x2="21.00" y2="76.00"/>
+<text class="gate-label" x="21.40" y="75.32"><tspan x="21.40" dy="0">狀態setarchivedA</tspan><tspan x="21.40" dy="0.68">ND optionalmove到</tspan><tspan x="21.40" dy="0.68">archivefolderdone</tspan></text>
+<line class="gate" x1="29.00" y1="76.00" x2="31.00" y2="76.00"/>
+<text class="gate-label" x="31.40" y="75.32"><tspan x="31.40" dy="0">規劃rollbackrefac</tspan><tspan x="31.40" dy="0.68">tor或explicitabando</tspan><tspan x="31.40" dy="0.68">nrecorded在history</tspan></text>
+<circle class="junction" cx="20.00" cy="15.38" r="0.22"/>
+<circle class="junction" cx="20.00" cy="24.38" r="0.22"/>
+<circle class="junction" cx="20.00" cy="59.00" r="0.22"/>
+<circle class="junction" cx="27.45" cy="59.00" r="0.22"/>
+<circle class="branch-junction" cx="-22.00" cy="74.00" r="0.22"/>
+<circle class="branch-junction" cx="27.45" cy="24.38" r="0.22"/>
 </svg>

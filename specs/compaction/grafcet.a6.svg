@@ -1,8 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="980" height="230" viewBox="0 0 980 230" role="img" aria-label="compaction GRAFCET A6">
-<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#111"/></marker></defs>
+<svg xmlns="http://www.w3.org/2000/svg" width="340" height="220" viewBox="14.00 0.00 17.00 11.00" role="img">
 <style>
-.title{font:bold 26px serif;fill:#111}.meta{font:14px monospace;fill:#555}.step{fill:#fff;stroke:#111;stroke-width:2}.step-inner{fill:none;stroke:#111;stroke-width:1.5}.step-no{font:bold 22px serif;text-anchor:middle;dominant-baseline:middle}.assoc,.edge{stroke:#111;stroke-width:2;fill:none}.action{fill:#fff;stroke:#111;stroke-width:2}.module{fill:#f8fafc;stroke:#475569;stroke-width:1.5}.label{font:18px serif;fill:#111}.module-label{font:15px monospace;fill:#334155}.gate{font:14px serif;fill:#444}.gate-line{stroke:#111;stroke-width:2}
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
 </style>
-<rect width="100%" height="100%" fill="white"/>
-<text class="title" x="40" y="42">compaction GRAFCET A6</text><text class="meta" x="40" y="70">source: specs/compaction/grafcet.json · layer: A6</text><rect class="step" x="54" y="105" width="72" height="72" rx="9"/><text class="step-no" x="90" y="149">10</text><line class="assoc" x1="126" y1="141" x2="160" y2="141"/><rect class="action" x="160" y="105" width="500" height="72" rx="8"/><text class="label" x="176" y="129"><tspan x="176" dy="0">apply快取layout與staticsystem</tspan></text><rect class="module" x="690" y="105" width="220" height="72" rx="8"/><text class="module-label" x="704" y="132"><tspan x="704" dy="0">ModuleRef: A6</tspan></text><text class="gate" x="176" y="197"><tspan x="176" dy="0">bp1bp2bp3bp4placed &amp;&amp; hashrecorded</tspan></text>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="14.00" y="0.00" width="17.00" height="11.00" fill="white"/>
+<rect class="step" x="18.00" y="4.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<rect class="step-inner" x="18.25" y="4.25" width="3.50" height="2.50" rx="0.22" ry="0.22"/>
+<text class="label" x="20.00" y="5.50">10</text>
+<line class="assoc" x1="22.00" y1="5.50" x2="23.00" y2="5.50"/>
+<rect class="action" x="23.00" y="4.07" width="4.00" height="2.86"/>
+<text class="action-label" x="25.00" y="4.68"><tspan x="25.00" dy="0">apply快取</tspan><tspan x="25.00" dy="0.82">layout與st</tspan><tspan x="25.00" dy="0.82">aticsystem</tspan></text>
 </svg>
