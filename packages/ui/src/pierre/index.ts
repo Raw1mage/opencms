@@ -2,8 +2,16 @@ import { DiffLineAnnotation, FileContents, FileDiffOptions, type SelectedLineRan
 import { ComponentProps } from "solid-js"
 
 export type DiffProps<T = {}> = FileDiffOptions<T> & {
-  before: FileContents
-  after: FileContents
+  // Provide EITHER (before + after) for content-pair diffing, OR rawDiff for
+  // unified-patch rendering. apply_patch landed on rawDiff in 2026-05-12 to
+  // avoid persisting full-file before/after dumps (~58x session DB savings);
+  // edit/write continue to use the content-pair path because their inputs are
+  // small substring deltas, not unified patches. See plan
+  // provider_apply-patch-metadata-strip.
+  before?: FileContents
+  after?: FileContents
+  rawDiff?: string
+  filename?: string
   useVirtualizer?: boolean
   annotations?: DiffLineAnnotation<T>[]
   selectedLines?: SelectedLineRange | null
