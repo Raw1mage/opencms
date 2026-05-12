@@ -84,3 +84,12 @@ plans/*/.state.json
 .github/
 .husky/
 /services/warroom-placeholder/
+
+# personal narrative & internal docs — not for third-party consumption
+/CLAUDE.md
+/plans/
+/docs/
+/issues/
+/script/beta-env.sh
+/script/deploy-agents-constitution.sh
+/script/dev-sync-config.sh
