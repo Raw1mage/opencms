@@ -1036,6 +1036,32 @@ export namespace LLM {
       // model its tool history is summarized and points at TOOL_INDEX +
       // `recall` for retrieval. Re-injected each turn until a non-narrative
       // compaction supersedes the narrative one in recentEvents.
+      //
+      // 2026-05-12 (session/rebind-procedure-revision Phase C+): also
+      // consume the once-after-chain-break PendingInjectionStore marker.
+      // Two complementary cadences:
+      //   - amnesia_notice  → re-injected every turn while compaction is
+      //                       the latest break-class (persistent)
+      //   - chain_init_notice → fires ONCE on the first outbound after
+      //                         any chain-break event, then clears
+      //                         (one-shot, per DD-1 sibling fragments)
+      // The pending marker also carries the commitment digest captured
+      // synchronously at the break (DD-8); we thread it into both
+      // fragments so the AI sees "you did these mutations, don't redo"
+      // regardless of which notice surfaces it.
+      const pendingInjection = await (async () => {
+        try {
+          const { PendingInjectionStore } = await import("./continuation/pending-injection")
+          return PendingInjectionStore.consume(input.sessionID)
+        } catch (err) {
+          log.warn("chain_init_notice.consume_failed", {
+            sessionID: input.sessionID,
+            error: err instanceof Error ? err.message : String(err),
+          })
+          return null
+        }
+      })()
+
       try {
         const sessionInfo = await Session.get(input.sessionID).catch(() => undefined)
         const decision = decideAmnesiaInjection(sessionInfo?.execution?.recentEvents)
@@ -1043,16 +1069,50 @@ export namespace LLM {
           fragments.push(
             buildAmnesiaNoticeFragment({
               anchorKind: decision.anchorKind,
+              digest: pendingInjection?.amnesia ? pendingInjection.digest : undefined,
             }),
           )
           log.info("prompt.amnesia_notice.injected", {
             sessionID: input.sessionID,
             anchorKind: decision.anchorKind,
             ts: decision.ts,
+            digestEntryCount: pendingInjection?.digest?.entries.length ?? 0,
           })
         }
       } catch (err) {
         log.warn("amnesia_notice.check_failed", {
+          sessionID: input.sessionID,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      }
+
+      // chain-init notice (session/rebind-procedure-revision M4):
+      // one-shot fragment fired on the outbound immediately following a
+      // chain-identity-breaking event (account_switch, rotation,
+      // empty-response recovery, …). Tells the AI its server-side
+      // reasoning chain was reset; carries the commitment digest so the
+      // model knows what's already done.
+      try {
+        const { decideChainInitInjection, buildChainInitNoticeFragment } = await import(
+          "./context-fragments/chain-init-notice"
+        )
+        const chainInitMark = decideChainInitInjection(pendingInjection)
+        if (chainInitMark) {
+          fragments.push(
+            buildChainInitNoticeFragment({
+              reason: chainInitMark.reason,
+              digest: chainInitMark.digest,
+              anchorId: chainInitMark.anchorId,
+            }),
+          )
+          log.info("prompt.chain_init_notice.injected", {
+            sessionID: input.sessionID,
+            reason: chainInitMark.reason,
+            digestEntryCount: chainInitMark.digest?.entries.length ?? 0,
+          })
+        }
+      } catch (err) {
+        log.warn("chain_init_notice.check_failed", {
           sessionID: input.sessionID,
           error: err instanceof Error ? err.message : String(err),
         })
