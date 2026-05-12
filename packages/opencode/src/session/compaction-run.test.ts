@@ -167,12 +167,24 @@ describe("compaction-redesign phase 4 — KIND_CHAIN + INJECT_CONTINUE table str
     }
   })
 
-  it("rebind / continuation-invalidated / provider-switched chains contain no paid kinds", () => {
+  it("rebind / continuation-invalidated / provider-switched chains include paid kinds as fallback (rev1 2026-05-13)", () => {
+    // 2026-05-13 rev1 (specs/session/rebind-procedure-revision/events/
+    // event_2026-05-12_rev1-rebind-class-compaction-chain-excludes-server.md):
+    // rebind-class chains used to be local-only under the implicit
+    // "rebind = small context" assumption. Rotation-heavy sessions
+    // falsified that assumption (dialog-heavy contexts stay full after
+    // narrative concat). Now the chains include low-cost-server and
+    // llm-agent as later fallbacks; narrative + replay-tail still run
+    // first (fast & free).
     const chains = SessionCompaction.__test__.KIND_CHAIN
     for (const observed of ["rebind", "continuation-invalidated", "provider-switched"] as const) {
       const kinds = chains[observed]
-      expect(kinds).not.toContain("low-cost-server")
-      expect(kinds).not.toContain("llm-agent")
+      // narrative + replay-tail still come first
+      expect(kinds[0]).toBe("narrative")
+      expect(kinds[1]).toBe("replay-tail")
+      // paid kinds now present as fallback
+      expect(kinds).toContain("low-cost-server")
+      expect(kinds).toContain("llm-agent")
     }
   })
 
@@ -181,8 +193,15 @@ describe("compaction-redesign phase 4 — KIND_CHAIN + INJECT_CONTINUE table str
     expect(kinds).toEqual(["narrative", "low-cost-server", "llm-agent"])
   })
 
-  it("provider-switched chain stays local-only (narrative + replay-tail, no paid kinds)", () => {
-    expect(SessionCompaction.__test__.KIND_CHAIN["provider-switched"]).toEqual(["narrative", "replay-tail"])
+  it("provider-switched chain falls through to paid kinds (rev1 2026-05-13)", () => {
+    // rev1 extension: narrative + replay-tail run first (fast & free),
+    // then paid kinds as fallback when local kinds don't reduce enough.
+    expect(SessionCompaction.__test__.KIND_CHAIN["provider-switched"]).toEqual([
+      "narrative",
+      "replay-tail",
+      "low-cost-server",
+      "llm-agent",
+    ])
   })
 
   it("Phase 13 REVISED — no chain contains 'schema' kind", () => {
@@ -320,9 +339,12 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
     expect(writes[0].auto).toBe(false) // manual never injects Continue
   })
 
-  it("R-5: run({observed: 'provider-switched'}) permits local replay-tail but rejects paid kinds", async () => {
-    // Provider-switched may recover from the local message tail, but must not
-    // spend quota on low-cost-server or llm-agent.
+  it("R-5: run({observed: 'provider-switched'}) tries local kinds first, then falls through to paid kinds (rev1 2026-05-13)", async () => {
+    // Provider-switched may recover from the local message tail. As of rev1
+    // (specs/session/rebind-procedure-revision/events/event_2026-05-12_rev1-*),
+    // the chain ALSO contains low-cost-server + llm-agent as fallback when
+    // narrative + replay-tail don't reduce enough. Local kinds still run
+    // first (this test stub returns a successful replay-tail at position 1).
     setupCommonMocks({ turnSummaries: [] }, "ses_run_pswitch")
     ;(Session as any).messages = mock(async () => [
       {
@@ -347,8 +369,14 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
     expect(writes[0].auto).toBe(false)
 
     const chain = SessionCompaction.__test__.KIND_CHAIN["provider-switched"]
-    expect(chain).not.toContain("low-cost-server")
-    expect(chain).not.toContain("llm-agent")
+    // rev1: paid kinds NOW present as fallback (was previously excluded
+    // under the "rebind = small context" assumption — rotation-heavy
+    // sessions falsified that).
+    expect(chain).toContain("low-cost-server")
+    expect(chain).toContain("llm-agent")
+    // But local kinds still come first
+    expect(chain[0]).toBe("narrative")
+    expect(chain[1]).toBe("replay-tail")
   })
 
   it("Cooldown gates the entry: throttled run returns 'continue' without writing anchor", async () => {

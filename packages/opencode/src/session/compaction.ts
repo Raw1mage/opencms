@@ -185,6 +185,25 @@ export namespace SessionCompaction {
     eventMeta?: { observed?: string; kind?: string; tokensBefore?: number; tokensAfter?: number },
   ) {
     Bus.publish(Event.Compacted, { sessionID })
+    // 2026-05-09: append to per-session recentEvents ring for the Q card.
+    // 2026-05-13: moved BEFORE Continuation.run so the ring entry lands
+    // in the synchronous microtask path. publishCompactedAndResetChain is
+    // called fire-and-forget (`void`) from multiple callers; with
+    // Continuation.run first, the outer awaiter (or test) would resolve
+    // before the ring entry was actually pushed. Order is correctness-
+    // irrelevant — ring is read on the NEXT prompt build by
+    // decideAmnesiaInjection, well after both sites resolve.
+    void Session.appendRecentEvent(sessionID, {
+      ts: Date.now(),
+      kind: "compaction",
+      compaction: {
+        observed: eventMeta?.observed ?? "unknown",
+        kind: eventMeta?.kind,
+        success: true,
+        tokensBefore: eventMeta?.tokensBefore,
+        tokensAfter: eventMeta?.tokensAfter,
+      },
+    }).catch(() => {})
     // 2026-05-12 (Phase C of session/rebind-procedure-revision): chain
     // invalidation routes through Continuation.run so the post-compaction
     // outbound also picks up an amnesia_notice with commitment digest
@@ -211,18 +230,6 @@ export namespace SessionCompaction {
         error: err instanceof Error ? err.message : String(err),
       })
     }
-    // 2026-05-09: append to per-session recentEvents ring for the Q card.
-    void Session.appendRecentEvent(sessionID, {
-      ts: Date.now(),
-      kind: "compaction",
-      compaction: {
-        observed: eventMeta?.observed ?? "unknown",
-        kind: eventMeta?.kind,
-        success: true,
-        tokensBefore: eventMeta?.tokensBefore,
-        tokensAfter: eventMeta?.tokensAfter,
-      },
-    }).catch(() => {})
   }
 
   /**
@@ -2405,7 +2412,34 @@ When constructing the summary, try to stick to this template:
     observed: Observed,
     anchorMessageID: string,
   ): Promise<boolean> {
-    if (!INJECT_CONTINUE[observed]) return false
+    // 2026-05-13 amend (specs/compaction/user-msg-replay-unification +
+    // specs/session/rebind-procedure-revision rev4): for the false-default
+    // cases (rebind / continuation-invalidated / provider-switched /
+    // stall-recovery / manual), allow Continue injection if a chain-init
+    // pending mark exists. The mark is the signal of a real user-initiated
+    // chain-break event that flowed through Continuation.run (admin PATCH,
+    // explicit account_switch dispatch, …) — i.e. the user is mid-prompt
+    // and expects work to continue.
+    //
+    // 2026-04-27 regression defence: phantom-rebind-detection (the
+    // processor.ts:707 mid-stream "account changed" false positive that
+    // produced the original infinite-loop bug) operates entirely inside
+    // the processor, does NOT route through Continuation.run, and
+    // therefore does NOT write a PendingInjectionStore mark. So the
+    // override path here only fires for genuinely user-initiated
+    // rebind / provider-switch / model-switch events, preserving the
+    // belt-and-suspenders defence against the original bug class.
+    if (!INJECT_CONTINUE[observed]) {
+      try {
+        const { PendingInjectionStore } = await import("./continuation/pending-injection")
+        const pending = PendingInjectionStore.peek(sessionID)
+        if (!pending || !pending.chainInit) return false
+        // chain-init pending → real user-initiated event → fall through
+      } catch {
+        // continuation module not loadable → preserve legacy behaviour
+        return false
+      }
+    }
     const messages = await Session.messages({ sessionID }).catch(
       () => [] as MessageV2.WithParts[],
     )
@@ -3003,6 +3037,13 @@ When constructing the summary, try to stick to this template:
     extractAnchorTextBody,
     runCodexServerSideRecompress,
     scheduleHybridEnrichment,
+    /**
+     * Test seam (2026-05-13 amend): exposes shouldInjectContinue so the
+     * specs/compaction/user-msg-replay-unification rev2 + specs/session/
+     * rebind-procedure-revision rev4 amend's chain-init-pending override
+     * can be unit-tested directly.
+     */
+    shouldInjectContinue,
   })
 
   // ───────────────────────────────────────────────────────────────────
