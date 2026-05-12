@@ -47,11 +47,15 @@ interface DedupEntry {
 
 const store = new Map<string, DedupEntry>()
 
-const DEFAULT_TTL_MS = 5 * 60 * 1000 // 5 minutes — covers a single
-                                     // conversation burst of duplicate
-                                     // detections; resets cleanly across
-                                     // longer idle gaps where a genuine
-                                     // re-switch becomes plausible.
+// Stale-anchor divergence is a *persistent* condition — the compaction
+// anchor only updates on compaction, so the divergence is steady-state
+// noise rather than a periodic event. A short TTL (initial 5-min draft)
+// leaked one re-dispatch every TTL window indefinitely. Set TTL to 1
+// hour so realistic chat sessions stay deduped end-to-end; if the user
+// genuinely wants to re-trigger the notice for the same account pair
+// they can either compaction-reset (clears the anchor naturally) or
+// switch to a different account pair (different dedup key bypasses).
+const DEFAULT_TTL_MS = 60 * 60 * 1000 // 1 hour
 
 /**
  * Derive a dedup key for an event, or `null` if the event kind is

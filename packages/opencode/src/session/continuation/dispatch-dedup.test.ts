@@ -113,9 +113,18 @@ describe("DispatchDedup", () => {
 
   it("same key past TTL is allowed again", () => {
     const now = 1_000_000
-    const ttlMs = 5 * 60 * 1000
+    const ttlMs = 60 * 60 * 1000
     DispatchDedup.record(S, "k1", now)
     expect(DispatchDedup.shouldDispatch(S, "k1", now + ttlMs + 1)).toBe(true)
+  })
+
+  it("explicit TTL override (test seam)", () => {
+    const now = 1_000_000
+    DispatchDedup.record(S, "k1", now)
+    // explicit short TTL
+    expect(DispatchDedup.shouldDispatch(S, "k1", now + 10_000, 5_000)).toBe(true)
+    // explicit long TTL
+    expect(DispatchDedup.shouldDispatch(S, "k1", now + 10_000, 60_000)).toBe(false)
   })
 
   it("different key always allowed (different prev→next pair)", () => {
