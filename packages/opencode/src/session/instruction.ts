@@ -154,17 +154,29 @@ export namespace InstructionPrompt {
       const { MCP } = await import("../mcp")
       const serverLevel = await MCP.getServerInstructions()
       // McpAppManifest.instructions = host-side override, takes
-      // precedence per DD-6. Sourced from McpAppStore (the local
-      // registry that already parsed each mcp.json).
+      // precedence per DD-6. The registered AppEntry on disk doesn't
+      // carry the full manifest (intentional flattening); re-read
+      // mcp.json from entry.path to pull the optional `instructions`
+      // field added in Phase 12. Cheap (one filesystem read per
+      // registered MCP app per cache miss).
       const manifestLevel = new Map<string, string>()
       try {
         const { McpAppStore } = await import("../mcp/app-store")
+        const { McpAppManifest } = await import("../mcp/manifest")
         const apps = await McpAppStore.loadConfig()
         if (apps?.apps) {
           for (const [appId, entry] of Object.entries(apps.apps)) {
-            const manifestInstr = (entry as { manifest?: { instructions?: string } })?.manifest?.instructions
-            if (typeof manifestInstr === "string" && manifestInstr.trim().length > 0) {
-              manifestLevel.set(appId, manifestInstr)
+            const entryPath = (entry as { path?: string })?.path
+            if (!entryPath) continue
+            try {
+              const manifest = await McpAppManifest.load(entryPath)
+              const text = (manifest as { instructions?: string })?.instructions
+              if (typeof text === "string" && text.trim().length > 0) {
+                manifestLevel.set(appId, text)
+              }
+            } catch {
+              // Individual manifest load failure shouldn't poison the
+              // whole registry walk; skip this app.
             }
           }
         }
