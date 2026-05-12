@@ -122,6 +122,10 @@ export namespace Continuation {
           sessionID: event.sessionID,
           trigger: mapToRebindTrigger(event.kind),
           reason: continuationReasonString(event),
+          // Phase D: thread the classifier through so the
+          // session.rebind event payload carries chainBreakClass
+          // alongside trigger / epoch counters.
+          chainBreakClass: decision.chainBreakClass,
         })
         epochBumped = outcome.status === "bumped"
       } catch (err) {

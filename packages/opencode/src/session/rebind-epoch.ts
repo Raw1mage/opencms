@@ -25,10 +25,26 @@ type EpochEntry = {
   windowBumps: number[]
 }
 
+/**
+ * Categorical label describing what kind of chain-identity change is
+ * driving this bump. Mirrors session/continuation/ContinuationDecision
+ * .chainBreakClass; surfaced on session.rebind event payload so
+ * downstream consumers (telemetry dashboard, audit jq queries) can
+ * filter SS-break vs SL-noop vs capability-only without reaching into
+ * the chain.init.* sibling events.
+ *
+ * Optional — direct RebindEpoch.bumpEpoch callers that predate
+ * session/rebind-procedure-revision can omit it; the field then
+ * defaults to null in the event payload.
+ */
+export type ChainBreakClass = "SS-break" | "SL-noop" | "capability-only" | "user-intent" | "preserved"
+
 export type BumpEpochInput = {
   sessionID: string
   trigger: RebindTrigger
   reason?: string
+  /** Set by Continuation.run when dispatching; null/undefined for direct callers. */
+  chainBreakClass?: ChainBreakClass
 }
 
 export type BumpEpochOutcome = {
@@ -197,6 +213,13 @@ export namespace RebindEpoch {
         previousEpoch,
         currentEpoch: entry.epoch,
         reason: input.reason ?? null,
+        // 2026-05-12 (Phase D of session/rebind-procedure-revision):
+        // surface chain-break classification on the canonical workflow
+        // event so dashboards filtering session.rebind can distinguish
+        // SS-break vs SL-noop without correlating against the sibling
+        // chain.init.* events. Null when the bumper didn't classify
+        // (direct callers that predate Continuation.run dispatch).
+        chainBreakClass: input.chainBreakClass ?? null,
       },
     })
 
