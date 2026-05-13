@@ -19,6 +19,7 @@ import type { FileSelection } from "@/context/file"
 import { setCursorPosition } from "./editor-dom"
 import { buildRequestParts } from "./build-request-parts"
 import { formatApiErrorMessage } from "@/utils/api-error"
+import { startActivePoll } from "@/context/active-poll"
 
 type PendingPrompt = {
   abort: AbortController
@@ -26,6 +27,11 @@ type PendingPrompt = {
 }
 
 const pending = new Map<string, PendingPrompt>()
+// Per-session active-poll stop fns. Only one poll runs per session at a time;
+// resubmitting cancels the previous poll before starting a new one. Cleared
+// from inside onStop when the poll terminates naturally (frontend/resync
+// T1.3.2, AC-4).
+const activePolls = new Map<string, () => void>()
 
 type PromptSubmitInput = {
   info: Accessor<{ id: string } | undefined>
@@ -489,27 +495,17 @@ export function createPromptSubmit(input: PromptSubmitInput) {
     }
     const sendStartedAt = Date.now()
 
-    // SSE liveness check before POST.
-    // Server writes `server.heartbeat` every 30s; a gap > 30s means the
-    // inbound channel has almost certainly been NAT-dropped by an
-    // intermediate proxy (Synology nginx / Cloudflare / cellular). If we
-    // POST over a fresh connection but the SSE that carries the reply is
-    // dead, the user sees a silent "sent but no reply" failure. Force an
-    // SSE reconnect BEFORE the POST so the reply has a live channel to
-    // travel back on.
-    // lastEventAt === 0 means "never received any event" — treat as fresh
-    // (page just loaded, initial connect in progress) and skip the check.
-    const STALE_SSE_THRESHOLD_MS = 30_000
-    const nowBeforeSend = Date.now()
-    const lastSseAt = sdk.lastEventAt?.() ?? 0
-    if (lastSseAt > 0 && nowBeforeSend - lastSseAt > STALE_SSE_THRESHOLD_MS) {
-      console.info("[submit] SSE stale — forcing reconnect before send", {
-        sessionID: session.id,
-        lastEventAgoMs: nowBeforeSend - lastSseAt,
-        thresholdMs: STALE_SSE_THRESHOLD_MS,
-      })
-      sdk.forceSseReconnect?.("stale-sse-before-send")
-    }
+    // Input-driven channel liveness checkpoint (frontend/resync DD-2, AC-2).
+    // Client owns the SSE channel — we don't rely on server knowing our state.
+    // verifyChannel returns within 2s regardless of outcome; never throws.
+    // We don't branch on the result: active polling below carries correctness.
+    const verifyResult = await sdk
+      .verifyChannel?.({ timeoutMs: 2000 })
+      .catch(() => ({ alive: false, rebuilt: true, timedOut: true }))
+    console.info("[submit] channel verify", {
+      sessionID: session.id,
+      ...verifyResult,
+    })
 
     const send = async () => {
       const ok = await waitForWorktree()
@@ -525,6 +521,40 @@ export function createPromptSubmit(input: PromptSubmitInput) {
         autonomous: true, // always-on
       })
       console.info("[submit] send ok", { ...telemetryCtx, elapsedMs: Date.now() - sendStartedAt })
+
+      // Active polling — correctness floor (frontend/resync DD-4, AC-1, AC-4).
+      // Runs independently of SSE health: even if SSE is permanently dead,
+      // the assistant response renders within poll-cadence latency.
+      const prevStop = activePolls.get(session.id)
+      if (prevStop) prevStop()
+      const directory = sdk.directory
+      const stop = startActivePoll(
+        session.id,
+        {
+          client: sdk.client as Parameters<typeof startActivePoll>[1]["client"],
+          directory,
+          store: sync.data,
+          setStore: sync.set as Parameters<typeof startActivePoll>[1]["setStore"],
+        },
+        {
+          pollMs: () => {
+            const s = sync.session.get(session.id)
+            return s?.workflow?.state === "running" ? 500 : 2000
+          },
+          until: ({ session: snap, lastAssistant }) => {
+            const ws = snap?.workflow?.state
+            if (ws && ws !== "running" && ws !== "queued") return true
+            if (lastAssistant && lastAssistant.role === "assistant" && lastAssistant.finish) return true
+            return false
+          },
+          onStop: (reason) => {
+            // Remove handle so a future submit doesn't try to cancel an already-stopped poll.
+            if (activePolls.get(session.id) === stop) activePolls.delete(session.id)
+            console.info("[submit] active poll stopped", { sessionID: session.id, reason })
+          },
+        },
+      )
+      activePolls.set(session.id, stop)
     }
 
     void send().catch((err) => {

@@ -59,6 +59,11 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
       // an idle SSE has been NAT-dropped upstream).
       lastEventAt: globalSDK.lastEventAt,
       forceSseReconnect: globalSDK.forceSseReconnect,
+      // verifyChannel — channel-ownership API for input-driven liveness
+      // checkpoints. Never throws. Callers MAY observe timedOut but MUST
+      // NOT block user action on it; active polling is the correctness
+      // floor. See frontend/resync spec.md AC-2, errors.md E1/E2.
+      verifyChannel: globalSDK.verifyChannel,
     }
   },
 })
