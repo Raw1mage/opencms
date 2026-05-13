@@ -1637,14 +1637,24 @@ When constructing the summary, try to stick to this template:
         const narrativeTokens = Math.ceil(narrativeContent.length / 4)
         const ceilingTokens =
           (tweaks as { anchorRecompressCeilingTokens?: number }).anchorRecompressCeilingTokens ?? 50_000
-        // Skip floor 5K stays. Under flag-on, anchors below the ceiling
-        // (5K..ceiling) still recompress (legacy "enrichment-when-large"
-        // policy). Above the ceiling, recompress trigger labels as
-        // "size-ceiling" for telemetry.
-        if (narrativeTokens < 5_000) {
-          log.info("hybrid_llm enrichment skipped (anchor small)", {
+        // compaction_simplification T4 (2026-05-14, plans/compaction_simplification/
+        // design.md §1 INV-5 + §7): replace the legacy 5_000-token absolute
+        // floor with a context-relative ratio gate. The local anchor body
+        // schedules an ai_paid upgrade only when it occupies at least
+        // `localToAiThresholdRatio` of the current active model's
+        // context_limit (default 0.20). Anchors below that ratio are
+        // assumed cheap enough to leave alone — paying an LLM round-trip
+        // for a 4% anchor is not worth the cost. Operators can tune via
+        // `compaction_local_to_ai_threshold_ratio`.
+        const thresholdRatio = (tweaks as { localToAiThresholdRatio?: number }).localToAiThresholdRatio ?? 0.2
+        const contextLimit = model.limit?.context ?? 0
+        if (contextLimit <= 0 || narrativeTokens / contextLimit < thresholdRatio) {
+          log.info("hybrid_llm enrichment skipped (anchor below ratio threshold)", {
             sessionID,
             anchorTokens: narrativeTokens,
+            contextLimit,
+            ratio: contextLimit > 0 ? narrativeTokens / contextLimit : null,
+            thresholdRatio,
           })
           return
         }

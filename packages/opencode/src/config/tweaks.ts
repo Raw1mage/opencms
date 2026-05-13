@@ -212,6 +212,20 @@ export namespace Tweaks {
     codexServerPriorityRatio: number
     emptyResponseFloor: number
     /**
+     * compaction_simplification T4 (2026-05-14, plans/compaction_simplification/
+     * design.md §1 INV-5 + §7). Ratio of local anchor body tokens to the
+     * current model's context_limit at which a background ai_paid upgrade
+     * is scheduled. Replaces the legacy 5_000-token absolute floor inside
+     * scheduleHybridEnrichment.
+     *
+     * Default 0.20: "if the local anchor body alone already occupies 20%
+     * of the model's context window, pay an LLM round-trip to compress it
+     * back down." Operators on small-context models who want to delay
+     * upgrade can raise this (e.g. 0.30); operators on large-context
+     * models who want earlier promotion can lower it.
+     */
+    localToAiThresholdRatio: number
+    /**
      * compaction-fix Phase 1 (DD-6). Master switch for the post-anchor
      * transformer that folds completed assistant turns (beyond the most
      * recent N rounds) into single-line trace markers + WorkingCache
@@ -398,6 +412,7 @@ export namespace Tweaks {
     quotaPressureThreshold: 0.1,
     codexServerPriorityRatio: 0.7,
     emptyResponseFloor: 0.8,
+    localToAiThresholdRatio: 0.2,
     phase1Enabled: false,
     recentRawRounds: 2,
     fallbackThreshold: 5,
@@ -1057,6 +1072,11 @@ export namespace Tweaks {
     if (cmpEmptyResponseFloorRaw !== undefined) {
       const v = parseRatio(cmpEmptyResponseFloorRaw, "compaction_empty_response_floor")
       if (v !== undefined) compaction.emptyResponseFloor = v
+    }
+    const cmpLocalToAiThresholdRaw = parsed.get("compaction_local_to_ai_threshold_ratio")
+    if (cmpLocalToAiThresholdRaw !== undefined) {
+      const v = parseRatio(cmpLocalToAiThresholdRaw, "compaction_local_to_ai_threshold_ratio")
+      if (v !== undefined) compaction.localToAiThresholdRatio = v
     }
     const cmpPhase1EnabledRaw = parsed.get("compaction_phase1_enabled")
     if (cmpPhase1EnabledRaw !== undefined) {
