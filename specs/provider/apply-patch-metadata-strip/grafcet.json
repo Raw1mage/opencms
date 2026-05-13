@@ -1,0 +1,86 @@
+[
+  {
+    "StepNumber": 0,
+    "StepType": "initial",
+    "StepAction": "plan-designed-idle",
+    "ModuleRef": "A0",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [6],
+    "LinkOutputNumber": [1],
+    "Condition": ["implementer starts work"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "StepType": "normal",
+    "StepAction": "narrow-tool-type",
+    "ModuleRef": "A11",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "Condition": ["ApplyPatchFileMetadata drops before/after"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "StepType": "normal",
+    "StepAction": "narrow-tool-return",
+    "ModuleRef": "A12",
+    "LinkInputType": [],
+    "LinkOutputType": "divergence_and",
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3, 4],
+    "Condition": ["return value omits before/after AND typecheck passes"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "StepType": "normal",
+    "StepAction": "migrate-ui-consumers",
+    "ModuleRef": "A2",
+    "LinkInputType": [],
+    "LinkOutputType": "convergence_and",
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [5],
+    "Condition": ["L1769-1770 + L1808-1809 use hunk diff AND L1625 L1629 dead code removed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "StepType": "normal",
+    "StepAction": "update-dreaming-test-fixture",
+    "ModuleRef": "A3",
+    "LinkInputType": [],
+    "LinkOutputType": "convergence_and",
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [5],
+    "Condition": ["dreaming.test.ts reflects new shape AND test green"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "StepType": "normal",
+    "StepAction": "verify-live-session",
+    "ModuleRef": "A4",
+    "LinkInputType": ["convergence_and"],
+    "LinkOutputType": "divergence_or",
+    "LinkInputNumber": [3, 4],
+    "LinkOutputNumber": [6, 1],
+    "Condition": ["new payload ~14KB AND UI diff renders AND legacy session still renders", "regression observed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "StepType": "normal",
+    "StepAction": "verified-and-ready-to-graduate",
+    "ModuleRef": "A0",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [0],
+    "Condition": ["user triggers plan_graduate"],
+    "SubGrafcet": []
+  }
+]

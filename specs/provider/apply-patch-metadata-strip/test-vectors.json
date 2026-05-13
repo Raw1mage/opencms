@@ -1,0 +1,131 @@
+[
+  {
+    "id": "TV-1",
+    "scenario": "Single-file apply_patch on small file — new shape",
+    "given": {
+      "workingFile": { "path": "tmp/small.py", "sizeBytes": 1024 },
+      "patch": "*** Begin Patch\n*** Update File: tmp/small.py\n@@\n-print('a')\n+print('b')\n*** End Patch\n"
+    },
+    "when": "apply_patch.execute({ input: <patch> })",
+    "then": {
+      "returnValue": {
+        "output": "string starting with 'Success.'",
+        "metadata.files[0]": {
+          "filePath": "<abs path>/tmp/small.py",
+          "relativePath": "tmp/small.py",
+          "type": "update",
+          "diff": "non-empty unified hunk string",
+          "additions": 1,
+          "deletions": 1,
+          "before": "MUST be undefined",
+          "after": "MUST be undefined"
+        }
+      }
+    }
+  },
+  {
+    "id": "TV-2",
+    "scenario": "Multi-file apply_patch — new shape on all entries",
+    "given": {
+      "workingFiles": [
+        { "path": "tmp/a.py", "sizeBytes": 200 },
+        { "path": "tmp/b.py", "sizeBytes": 200 },
+        { "path": "tmp/c.py", "sizeBytes": 200 }
+      ],
+      "patch": "valid multi-file patch touching a.py, b.py, c.py"
+    },
+    "when": "apply_patch.execute({ input: <patch> })",
+    "then": {
+      "metadata.files.length": 3,
+      "every entry": {
+        "before": "undefined",
+        "after": "undefined",
+        "diff": "present",
+        "filePath": "present"
+      }
+    }
+  },
+  {
+    "id": "TV-3",
+    "scenario": "Large-file apply_patch — payload size assertion",
+    "given": {
+      "workingFile": { "path": "tmp/large.py", "sizeBytes": 388000 },
+      "patch": "single small hunk inside large.py (1 line change)"
+    },
+    "when": "apply_patch.execute, then Session.updatePart persists",
+    "then": {
+      "persistedRow": {
+        "payload_json_length_bytes": { "lt": 20000, "note": "vs ~800KB pre-change" }
+      }
+    }
+  },
+  {
+    "id": "TV-4",
+    "scenario": "Tool part serialized to LLM — invariant",
+    "given": {
+      "session": { "id": "ses_tv4", "parts": ["one apply_patch part with new shape"] }
+    },
+    "when": "MessageV2.toModelMessages(stream(ses_tv4))",
+    "then": {
+      "emittedModelMessage": {
+        "tool_result_content": "equals state.output string (success message); contains no substring from state.metadata.files; contains no occurrence of 'before' or 'after' field names"
+      }
+    }
+  },
+  {
+    "id": "TV-5",
+    "scenario": "UI renders new-shape apply_patch part — happy path",
+    "given": {
+      "part": { "type": "tool", "tool": "apply_patch", "state": { "metadata": { "files": [{ "filePath": "x.py", "diff": "@@ -1 +1 @@\\n-a\\n+b\\n", "additions": 1, "deletions": 1, "type": "update" }] } } }
+    },
+    "when": "<MessagePart part={...} /> renders",
+    "then": {
+      "domQuery": "diff component rendered with non-empty hunk content",
+      "console": "no errors",
+      "noReferenceTo": "file.before / file.after / undefined property access"
+    }
+  },
+  {
+    "id": "TV-6",
+    "scenario": "UI renders legacy-shape apply_patch part — backwards compatibility",
+    "given": {
+      "part": { "type": "tool", "tool": "apply_patch", "state": { "metadata": { "files": [{ "filePath": "x.py", "diff": "@@ -1 +1 @@\\n-a\\n+b\\n", "before": "a\\n", "after": "b\\n", "additions": 1, "deletions": 1, "type": "update" }] } } }
+    },
+    "when": "<MessagePart part={...} /> renders",
+    "then": {
+      "domQuery": "diff component rendered with non-empty content",
+      "console": "no errors",
+      "note": "Code path reads file.diff regardless of presence/absence of before/after."
+    }
+  },
+  {
+    "id": "TV-7",
+    "scenario": "Dreaming pruner — legacy-shape fixture still pruned",
+    "given": {
+      "fakePart": { "type": "tool", "tool": "apply_patch", "state": { "metadata": { "files": [{ "filePath": "x.py", "before": "<300_000 byte string>", "after": "<300_000 byte string>", "diff": "small hunk", "additions": 1, "deletions": 1, "type": "update" }] } } }
+    },
+    "when": "pruneToolMetadata(fakePart) runs",
+    "then": {
+      "fakePart.state.metadata.files[0].before": "contains 'dream-pruned: dropped 300,000 bytes of file before snapshot'",
+      "fakePart.state.metadata.files[0].after": "contains 'dream-pruned: dropped 300,000 bytes of file after snapshot'"
+    }
+  },
+  {
+    "id": "TV-8",
+    "scenario": "Move-type patch — movePath preserved, no before/after",
+    "given": {
+      "patch": "*** Begin Patch\\n*** Rename File: old/x.py -> new/x.py\\n*** End Patch\\n"
+    },
+    "when": "apply_patch.execute",
+    "then": {
+      "metadata.files[0]": {
+        "type": "move",
+        "filePath": "<abs>/old/x.py",
+        "movePath": "<abs>/new/x.py",
+        "diff": "present (may be empty if no content change)",
+        "before": "undefined",
+        "after": "undefined"
+      }
+    }
+  }
+]

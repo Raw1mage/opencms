@@ -1,0 +1,55 @@
+{
+  "title": "ApplyPatchFileMetadata schema change",
+  "description": "Tool-return type for apply_patch narrows. No persistent storage schema migration — SQLite parts.payload_json is a JSON blob; consumers must tolerate optional fields. New sessions emit narrowed shape; legacy sessions remain readable.",
+  "types": {
+    "ApplyPatchFileMetadata": {
+      "kind": "object",
+      "ownership": "packages/opencode/src/tool/apply_patch.ts",
+      "before": {
+        "filePath": { "type": "string", "required": true, "description": "Absolute path to the touched file." },
+        "relativePath": { "type": "string", "required": true, "description": "Path relative to project root." },
+        "type": { "type": "string", "enum": ["update", "create", "delete", "move"], "required": true },
+        "diff": { "type": "string", "required": true, "description": "Unified hunk-format diff for this file." },
+        "before": { "type": "string", "required": true, "description": "REMOVED. Full file body before the patch. Caused ~388 KB per call for a 388 KB file." },
+        "after": { "type": "string", "required": true, "description": "REMOVED. Full file body after the patch. Same waste as before." },
+        "additions": { "type": "number", "required": true },
+        "deletions": { "type": "number", "required": true },
+        "movePath": { "type": "string", "required": false, "description": "Destination path when type='move'." }
+      },
+      "after": {
+        "filePath": { "type": "string", "required": true },
+        "relativePath": { "type": "string", "required": true },
+        "type": { "type": "string", "enum": ["update", "create", "delete", "move"], "required": true },
+        "diff": { "type": "string", "required": true, "description": "Unified hunk-format diff for this file. Single source of patch information consumed by UI and humans." },
+        "additions": { "type": "number", "required": true },
+        "deletions": { "type": "number", "required": true },
+        "movePath": { "type": "string", "required": false }
+      }
+    },
+    "ApplyPatchMetadata": {
+      "kind": "object",
+      "ownership": "packages/opencode/src/tool/apply_patch.ts",
+      "unchanged": true,
+      "shape": {
+        "phase": { "type": "string", "description": "'completed' | 'failed' | ..." },
+        "files": { "type": "ApplyPatchFileMetadata[]", "description": "Per-file metadata; entries follow the narrowed shape above." },
+        "diff": { "type": "string", "description": "Aggregate hunk-format diff across all touched files." },
+        "diagnostics": { "type": "object", "description": "Optional warnings / non-fatal issues." },
+        "truncated": { "type": "boolean", "required": false }
+      }
+    }
+  },
+  "storageMigration": {
+    "required": false,
+    "rationale": "SQLite parts.payload_json is JSON-blob storage; no schema column changes. UI must accept both shapes. New rows omit before/after; old rows continue to carry them. Dream-pruner continues to strip them from legacy rows opportunistically.",
+    "rollback": "Re-add before/after fields to the apply_patch return statement. No data backfill needed — old sessions never lost their bodies; new sessions never had them."
+  },
+  "events": {},
+  "tables": {
+    "parts": {
+      "ownership": "packages/opencode/src/session/storage/sqlite.ts",
+      "unchanged": true,
+      "note": "payload_json column accepts both old and new ApplyPatchFileMetadata shapes; no migration."
+    }
+  }
+}

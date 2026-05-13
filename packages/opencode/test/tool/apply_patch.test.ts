@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test"
 import path from "path"
 import * as fs from "fs/promises"
+import * as os from "os"
 import { ApplyPatchTool } from "../../src/tool/apply_patch"
+import { ReadTool } from "../../src/tool/read"
 import { Instance } from "../../src/project/instance"
 import { tmpdir } from "../fixture/fixture"
 
@@ -12,7 +14,7 @@ const baseCtx = {
   agent: "build",
   abort: AbortSignal.any([]),
   messages: [],
-  metadata: () => {},
+  metadata: (_input?: unknown) => {},
 }
 
 type AskInput = {
@@ -25,13 +27,24 @@ type AskInput = {
     files: Array<{
       filePath: string
       relativePath: string
+      requestedPath: string
+      normalizedPath: string
+      absolutePath: string
+      realPath?: string
       type: "add" | "update" | "delete" | "move"
       diff: string
-      before: string
-      after: string
       additions: number
       deletions: number
+      bytesBefore: number
+      bytesAfter: number
+      sha256Before?: string
+      sha256After?: string
+      verified?: boolean
       movePath?: string
+      requestedMovePath?: string
+      normalizedMovePath?: string
+      absoluteMovePath?: string
+      realMovePath?: string
     }>
   }
 }
@@ -43,6 +56,11 @@ type ToolCtx = typeof baseCtx & {
 const execute = async (params: { patchText: string }, ctx: ToolCtx) => {
   const tool = await ApplyPatchTool.init()
   return tool.execute(params, ctx)
+}
+
+const readFileWithTool = async (filePath: string, ctx: ToolCtx) => {
+  const tool = await ReadTool.init()
+  return tool.execute({ filePath }, ctx as any)
 }
 
 const makeCtx = () => {
@@ -57,10 +75,30 @@ const makeCtx = () => {
   return { ctx, calls }
 }
 
+const withNonSudoerScope = async (fn: () => Promise<void>) => {
+  const previous = process.env.OPENCODE_APPLY_PATCH_DISABLE_SUDOER_SCOPE
+  process.env.OPENCODE_APPLY_PATCH_DISABLE_SUDOER_SCOPE = "1"
+  try {
+    await fn()
+  } finally {
+    if (previous === undefined) delete process.env.OPENCODE_APPLY_PATCH_DISABLE_SUDOER_SCOPE
+    else process.env.OPENCODE_APPLY_PATCH_DISABLE_SUDOER_SCOPE = previous
+  }
+}
+
+const withHomeFixture = async (fn: (root: string) => Promise<void>) => {
+  const root = await fs.mkdtemp(path.join(os.homedir(), ".opencode-apply-patch-test-"))
+  try {
+    await fn(root)
+  } finally {
+    await fs.rm(root, { recursive: true, force: true })
+  }
+}
+
 describe("tool.apply_patch freeform", () => {
-  test("requires patchText", async () => {
+  test("requires input", async () => {
     const { ctx } = makeCtx()
-    await expect(execute({ patchText: "" }, ctx)).rejects.toThrow("patchText is required")
+    await expect(execute({ patchText: "" }, ctx)).rejects.toThrow("input is required")
   })
 
   test("rejects invalid patch format", async () => {
@@ -72,6 +110,192 @@ describe("tool.apply_patch freeform", () => {
     const { ctx } = makeCtx()
     const emptyPatch = "*** Begin Patch\n*** End Patch"
     await expect(execute({ patchText: emptyPatch }, ctx)).rejects.toThrow("patch rejected: empty patch")
+  })
+
+  test("allows absolute patch paths inside the current home", async () => {
+    await withNonSudoerScope(async () => {
+      await withHomeFixture(async (root) => {
+        const { ctx, calls } = makeCtx()
+        const repo = path.join(root, "repo")
+        await fs.mkdir(repo)
+
+        await Instance.provide({
+          directory: repo,
+          fn: async () => {
+            const target = path.join(root, "absolute.txt")
+            const patchText = `*** Begin Patch\n*** Add File: ${target}\n+home absolute\n*** End Patch`
+
+            await execute({ patchText }, ctx)
+
+            expect(await fs.readFile(target, "utf-8")).toBe("home absolute\n")
+            const file = calls.find((call) => call.metadata.files)?.metadata.files[0]
+            expect(file).toBeDefined()
+            expect(file!.requestedPath).toBe(target)
+            expect(file!.normalizedPath).toBe(target)
+            expect(file!.absolutePath).toBe(target)
+            expect(calls.find((call) => call.permission === "edit")?.patterns).toEqual([target])
+          },
+        })
+      })
+    })
+  })
+
+  test("allows parent-directory patch paths that resolve inside the current home", async () => {
+    await withNonSudoerScope(async () => {
+      await withHomeFixture(async (root) => {
+        const { ctx, calls } = makeCtx()
+        const repo = path.join(root, "repo")
+        const sibling = path.join(root, "sibling")
+        await fs.mkdir(repo)
+        await fs.mkdir(sibling)
+
+        await Instance.provide({
+          directory: repo,
+          fn: async () => {
+            const patchText = "*** Begin Patch\n*** Add File: ../sibling/escape.txt\n+home sibling\n*** End Patch"
+
+            await execute({ patchText }, ctx)
+
+            const target = path.join(sibling, "escape.txt")
+            expect(await fs.readFile(target, "utf-8")).toBe("home sibling\n")
+            const file = calls.find((call) => call.metadata.files)?.metadata.files[0]
+            expect(file).toBeDefined()
+            expect(file!.requestedPath).toBe("../sibling/escape.txt")
+            expect(file!.normalizedPath).toBe("../sibling/escape.txt")
+            expect(file!.absolutePath).toBe(target)
+            expect(calls.find((call) => call.permission === "edit")?.patterns).toEqual([target])
+          },
+        })
+      })
+    })
+  })
+
+  test("post-write verification makes read-after-apply observable for markdown files", async () => {
+    await using fixture = await tmpdir({ git: true })
+    const { ctx, calls } = makeCtx()
+
+    await Instance.provide({
+      directory: fixture.path,
+      fn: async () => {
+        const tracked = path.join(fixture.path, "docs", "events", "event.md")
+        const untracked = path.join(fixture.path, "plans", "example", "tasks.md")
+        await fs.mkdir(path.dirname(tracked), { recursive: true })
+        await fs.mkdir(path.dirname(untracked), { recursive: true })
+        await fs.writeFile(tracked, "# Event\n\n- [ ] Sync docs\n", "utf-8")
+        await fs.writeFile(untracked, "# Tasks\n\n- [ ] Finish regression\n", "utf-8")
+
+        const before = await readFileWithTool(tracked, ctx)
+        expect(before.output).toContain("- [ ] Sync docs")
+
+        await execute(
+          {
+            patchText:
+              "*** Begin Patch\n*** Update File: docs/events/event.md\n@@\n-- [ ] Sync docs\n+- [x] Sync docs\n*** Update File: plans/example/tasks.md\n@@\n-- [ ] Finish regression\n+- [x] Finish regression\n*** End Patch",
+          },
+          ctx,
+        )
+
+        const afterTracked = await readFileWithTool(tracked, ctx)
+        const afterUntracked = await readFileWithTool(untracked, ctx)
+        expect(afterTracked.output).toContain("- [x] Sync docs")
+        expect(afterUntracked.output).toContain("- [x] Finish regression")
+
+        const editedFiles = calls.find((call) => call.permission === "edit")?.metadata.files ?? []
+        expect(editedFiles).toHaveLength(2)
+        expect(editedFiles.every((file) => file.verified === true)).toBe(true)
+        expect(editedFiles.every((file) => typeof file.sha256Before === "string")).toBe(true)
+        expect(editedFiles.every((file) => typeof file.sha256After === "string")).toBe(true)
+      },
+    })
+  })
+
+  test("rejects non-sudoer patch paths outside repo, worktree, and home", async () => {
+    await withNonSudoerScope(async () => {
+      await using fixture = await tmpdir()
+      await withHomeFixture(async (root) => {
+        const { ctx } = makeCtx()
+        const repo = path.join(root, "repo")
+        await fs.mkdir(repo)
+
+        await Instance.provide({
+          directory: repo,
+          fn: async () => {
+            const target = path.join(fixture.path, "outside.txt")
+            const patchText = `*** Begin Patch\n*** Add File: ${target}\n+outside\n*** End Patch`
+
+            await expect(execute({ patchText }, ctx)).rejects.toThrow("outside allowed scope")
+            await expect(fs.readFile(target, "utf-8")).rejects.toThrow()
+          },
+        })
+      })
+    })
+  })
+
+  test("rejects non-sudoer symlink realpath escapes outside repo, worktree, and home", async () => {
+    await withNonSudoerScope(async () => {
+      await using fixture = await tmpdir()
+      await withHomeFixture(async (root) => {
+        const { ctx } = makeCtx()
+        const repo = path.join(root, "repo")
+        const outside = path.join(fixture.path, "outside")
+        await fs.mkdir(repo)
+        await fs.mkdir(outside)
+        await fs.writeFile(path.join(outside, "file.txt"), "old\n", "utf-8")
+        await fs.symlink(outside, path.join(repo, "link"))
+
+        await Instance.provide({
+          directory: repo,
+          fn: async () => {
+            const patchText = "*** Begin Patch\n*** Update File: link/file.txt\n@@\n-old\n+new\n*** End Patch"
+
+            await expect(execute({ patchText }, ctx)).rejects.toThrow("outside allowed scope")
+            expect(await fs.readFile(path.join(outside, "file.txt"), "utf-8")).toBe("old\n")
+          },
+        })
+      })
+    })
+  })
+
+  test("rejects no-op update patches", async () => {
+    await using fixture = await tmpdir()
+    const { ctx } = makeCtx()
+
+    await Instance.provide({
+      directory: fixture.path,
+      fn: async () => {
+        const target = path.join(fixture.path, "same.txt")
+        await fs.writeFile(target, "same\n", "utf-8")
+        const patchText = "*** Begin Patch\n*** Update File: same.txt\n@@\n-same\n+same\n*** End Patch"
+
+        await expect(execute({ patchText }, ctx)).rejects.toThrow("patch would not change file")
+        expect(await fs.readFile(target, "utf-8")).toBe("same\n")
+      },
+    })
+  })
+
+  test("reports real path for symlinked patch paths", async () => {
+    await using fixture = await tmpdir({ git: true })
+    const { ctx, calls } = makeCtx()
+
+    await Instance.provide({
+      directory: fixture.path,
+      fn: async () => {
+        const targetDir = path.join(fixture.path, "target")
+        await fs.mkdir(targetDir)
+        await fs.writeFile(path.join(targetDir, "file.txt"), "old\n", "utf-8")
+        await fs.symlink("target", path.join(fixture.path, "link"))
+
+        const patchText = "*** Begin Patch\n*** Update File: link/file.txt\n@@\n-old\n+new\n*** End Patch"
+        await execute({ patchText }, ctx)
+
+        const file = calls.find((call) => call.metadata.files)?.metadata.files[0]
+        expect(file!.requestedPath).toBe("link/file.txt")
+        expect(file!.normalizedPath).toBe("link/file.txt")
+        expect(file!.absolutePath).toBe(path.join(fixture.path, "link/file.txt"))
+        expect(file!.realPath).toBe(await fs.realpath(path.join(fixture.path, "target/file.txt")))
+        expect(await fs.readFile(path.join(targetDir, "file.txt"), "utf-8")).toBe("new\n")
+      },
+    })
   })
 
   test("applies add/update/delete in one patch", async () => {
@@ -104,12 +328,27 @@ describe("tool.apply_patch freeform", () => {
         const addFile = permissionCall.metadata.files.find((f) => f.type === "add")
         expect(addFile).toBeDefined()
         expect(addFile!.relativePath).toBe("nested/new.txt")
-        expect(addFile!.after).toBe("created\n")
+        expect(addFile!.requestedPath).toBe("nested/new.txt")
+        expect(addFile!.normalizedPath).toBe("nested/new.txt")
+        expect(addFile!.absolutePath).toBe(path.join(fixture.path, "nested/new.txt"))
+        expect(addFile!.bytesBefore).toBe(0)
+        expect(addFile!.bytesAfter).toBe(Buffer.byteLength("created\n", "utf-8"))
+        expect(addFile!.diff).toContain("+created")
+        expect("before" in addFile!).toBe(false)
+        expect("after" in addFile!).toBe(false)
 
         const updateFile = permissionCall.metadata.files.find((f) => f.type === "update")
         expect(updateFile).toBeDefined()
-        expect(updateFile!.before).toContain("line2")
-        expect(updateFile!.after).toContain("changed")
+        expect(updateFile!.requestedPath).toBe("modify.txt")
+        expect(updateFile!.normalizedPath).toBe("modify.txt")
+        expect(updateFile!.absolutePath).toBe(modifyPath)
+        expect(updateFile!.realPath).toBe(await fs.realpath(modifyPath))
+        expect(updateFile!.bytesBefore).toBe(Buffer.byteLength("line1\nline2\n", "utf-8"))
+        expect(updateFile!.bytesAfter).toBe(Buffer.byteLength("line1\nchanged\n", "utf-8"))
+        expect(updateFile!.diff).toContain("-line2")
+        expect(updateFile!.diff).toContain("+changed")
+        expect("before" in updateFile!).toBe(false)
+        expect("after" in updateFile!).toBe(false)
 
         const added = await fs.readFile(path.join(fixture.path, "nested", "new.txt"), "utf-8")
         expect(added).toBe("created\n")
@@ -143,8 +382,10 @@ describe("tool.apply_patch freeform", () => {
         expect(moveFile.type).toBe("move")
         expect(moveFile.relativePath).toBe("renamed/dir/name.txt")
         expect(moveFile.movePath).toBe(path.join(fixture.path, "renamed/dir/name.txt"))
-        expect(moveFile.before).toBe("old content\n")
-        expect(moveFile.after).toBe("new content\n")
+        expect(moveFile.diff).toContain("-old content")
+        expect(moveFile.diff).toContain("+new content")
+        expect("before" in moveFile).toBe(false)
+        expect("after" in moveFile).toBe(false)
       },
     })
   })
@@ -155,8 +396,8 @@ describe("tool.apply_patch freeform", () => {
     const { calls } = makeCtx()
     const ctx: ToolCtx = {
       ...baseCtx,
-      metadata: (input) => {
-        metadataCalls.push(input.metadata ?? {})
+      metadata: (input?: unknown) => {
+        metadataCalls.push((input as { metadata?: Record<string, any> } | undefined)?.metadata ?? {})
       },
       ask: async (input) => {
         calls.push(input)

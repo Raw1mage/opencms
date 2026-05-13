@@ -1,0 +1,96 @@
+{
+  "diagram_title": "Strip apply_patch metadata before/after",
+  "node_reference": "A0",
+  "description": "Remove redundant full-file-body fields (state.metadata.files[].before / .after) from apply_patch tool return. Confirmed not in LLM prompt (UI-only). Aligns apply_patch with the 2026-04-23 write/edit migration (mobile-session-restructure). UI consumers migrate to hunk-format diff rendering. Lazy migration: old sessions keep their bloat untouched.",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Narrow tool metadata type",
+      "description": "Remove `before` and `after` from ApplyPatchFileMetadata at apply_patch.ts:27-37 (type) and apply_patch.ts:406-415 (return value). Per-file metadata becomes {filePath, relativePath, type, diff, additions, deletions, movePath?}. No other apply_patch behavior changes.",
+      "decomposition": {
+        "diagram_title": "Narrow tool metadata type",
+        "node_reference": "A1",
+        "activities": [
+          {
+            "id": "A11",
+            "title": "Edit type definition",
+            "description": "Drop `before: string` and `after: string` properties from ApplyPatchFileMetadata interface."
+          },
+          {
+            "id": "A12",
+            "title": "Edit return value construction",
+            "description": "In the loop that builds per-file metadata, stop assigning before/after. Keep diff computation (it consumes oldContent/newContent locally and discards them after producing the diff string)."
+          }
+        ],
+        "arrows": [
+          {"id": "a1in1", "source": "EXTERNAL", "target": "A11:input", "label": "apply_patch.ts type block"},
+          {"id": "a1in2", "source": "EXTERNAL", "target": "A12:input", "label": "apply_patch.ts return block"},
+          {"id": "a1c1", "source": "EXTERNAL", "target": "A11:control", "label": "DD-1 (drop new emission)"},
+          {"id": "a1m1", "source": "A11:output", "target": "A12:input", "label": "type matches return"},
+          {"id": "a1out1", "source": "A12:output", "target": "EXTERNAL", "label": "smaller payload_json on Session.updatePart"}
+        ]
+      }
+    },
+    {
+      "id": "A2",
+      "title": "Migrate UI consumers to hunk-format diff",
+      "description": "Three sites in message-part.tsx feed before/after into useDiffComponent(). Switch to feeding the existing hunk-format diff (file.diff) into the same component, mirroring edit/write rendering. Plus remove the two dead-code lines from prior edit-tool migration.",
+      "decomposition": {
+        "diagram_title": "Migrate UI consumers",
+        "node_reference": "A2",
+        "activities": [
+          {
+            "id": "A21",
+            "title": "Multi-file viewer (L1769-1770)",
+            "description": "Apply_patch result with multiple files. Switch the loop body from passing {before, after} contents to passing diff hunks."
+          },
+          {
+            "id": "A22",
+            "title": "Single-file detail (L1808-1809)",
+            "description": "Apply_patch expanded view for single file. Same migration as A21."
+          },
+          {
+            "id": "A23",
+            "title": "Remove dead edit-tool code (L1625, L1629)",
+            "description": "Edit-tool migration left UI code reading props.metadata?.filediff?.before/.after, but edit.ts never populates them. Drop the references; fallback to existing oldString/newString path is already in place."
+          },
+          {
+            "id": "A24",
+            "title": "Backwards-compatible field access",
+            "description": "Where the hunk diff is available in both old and new payloads, ensure UI reads `file.diff` (always populated) and tolerates missing before/after. New sessions render via hunk; old sessions still work."
+          }
+        ],
+        "arrows": [
+          {"id": "a2in1", "source": "EXTERNAL", "target": "A21:input", "label": "message-part.tsx L1769-1770"},
+          {"id": "a2in2", "source": "EXTERNAL", "target": "A22:input", "label": "message-part.tsx L1808-1809"},
+          {"id": "a2in3", "source": "EXTERNAL", "target": "A23:input", "label": "message-part.tsx L1625, L1629"},
+          {"id": "a2c1", "source": "EXTERNAL", "target": "A24:control", "label": "DD-2 (hunk-format renderer)"},
+          {"id": "a2m1", "source": "A21:output", "target": "A24:input", "label": "shared diff component"},
+          {"id": "a2m2", "source": "A22:output", "target": "A24:input", "label": "shared diff component"},
+          {"id": "a2out1", "source": "A24:output", "target": "EXTERNAL", "label": "diff visible regardless of metadata shape"}
+        ]
+      }
+    },
+    {
+      "id": "A3",
+      "title": "Update test fixture",
+      "description": "Dreaming pruning test at dreaming.test.ts:309 currently asserts that oversized before/after are replaced with [dream-pruned: ...] stubs. After the change, new payloads no longer carry before/after at all; the assertion shape must reflect that pruner now has nothing to prune for new sessions (but still works on legacy fixtures)."
+    },
+    {
+      "id": "A4",
+      "title": "Verification",
+      "description": "Run apply_patch in a live session, confirm new payload size (~14 KB instead of ~800 KB), view diff in UI, replay an older session containing legacy before/after to confirm graceful rendering."
+    }
+  ],
+  "arrows": [
+    {"id": "a0i1", "source": "EXTERNAL", "target": "A1:input", "label": "current apply_patch.ts"},
+    {"id": "a0c1", "source": "EXTERNAL", "target": "A1:control", "label": "DD-1 drop emission"},
+    {"id": "a0m1", "source": "A1:output", "target": "A2:input", "label": "metadata.files[] without before/after"},
+    {"id": "a0c2", "source": "EXTERNAL", "target": "A2:control", "label": "DD-2 hunk renderer, DD-3 remove dead code"},
+    {"id": "a0m2", "source": "A1:output", "target": "A3:input", "label": "fixture must reflect new shape"},
+    {"id": "a0m3", "source": "A2:output", "target": "A4:input", "label": "UI ready for visual verify"},
+    {"id": "a0m4", "source": "A3:output", "target": "A4:input", "label": "fixture green"},
+    {"id": "a0o1", "source": "A4:output", "target": "EXTERNAL", "label": "session DB ~58x smaller for apply_patch-heavy sessions"},
+    {"id": "a0c4", "source": "EXTERNAL", "target": "A4:control", "label": "DD-4 no vacuum, DD-5 snapshot remains canonical"}
+  ]
+}

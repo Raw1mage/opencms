@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "state": "living",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-05-12T00:59:44.864Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-05-12T09:52:06.655Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "re-advance after state reset"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-05-12T09:52:24.910Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "re-advance after state reset"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-05-12T09:52:30.512Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "re-advance after state reset; implementation already merged to main (0e47f9d2c)"
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-05-12T09:52:40.157Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "re-advance after state reset; all M1-M5 ticked, merged to main 0e47f9d2c"
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-05-12T09:52:46.897Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "user-confirmed graduation 2026-05-12 — implementation merged to main (0e47f9d2c), live write path verified, branches cleaned up"
+    }
+  ]
+}

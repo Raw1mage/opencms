@@ -1,0 +1,94 @@
+{
+  "title": "provider_apply-patch-metadata-strip — C4 model",
+  "description": "Component view: two surgical patch sites — apply_patch tool return value + UI consumer rewiring. No new components; no API surface change.",
+  "systems": [
+    {
+      "id": "opencode",
+      "name": "OpenCode runtime",
+      "description": "Single-process bun daemon hosting session runloop, tools, message persistence, and web UI.",
+      "boundary": "internal"
+    }
+  ],
+  "containers": [
+    {
+      "id": "tool-runtime",
+      "system": "opencode",
+      "name": "Tool runtime",
+      "description": "packages/opencode/src/tool/* — owns tool definitions including apply_patch. Returns ToolResult to session processor for persistence.",
+      "technology": "TypeScript, Bun"
+    },
+    {
+      "id": "session-runtime",
+      "system": "opencode",
+      "name": "Session runtime",
+      "description": "packages/opencode/src/session/* — persists tool parts to parts.payload_json via Session.updatePart; toModelMessages serializes to LLM prompt.",
+      "technology": "TypeScript, Bun, SQLite"
+    },
+    {
+      "id": "web-ui",
+      "system": "opencode",
+      "name": "Web UI",
+      "description": "packages/ui/* — Solid.js components rendering session messages including apply_patch diffs.",
+      "technology": "TypeScript, Solid.js"
+    },
+    {
+      "id": "snapshot-store",
+      "system": "opencode",
+      "name": "Snapshot store",
+      "description": "packages/opencode/src/snapshot/* — git-backed file-content history; canonical source for before/after reconstruction if ever needed.",
+      "technology": "Git"
+    }
+  ],
+  "components": [
+    {
+      "id": "apply-patch-tool",
+      "container": "tool-runtime",
+      "name": "apply_patch tool",
+      "description": "Tool.define('apply_patch'). Patched: return value's metadata.files[] entries omit before/after.",
+      "files": ["packages/opencode/src/tool/apply_patch.ts"]
+    },
+    {
+      "id": "to-model-messages",
+      "container": "session-runtime",
+      "name": "toModelMessages",
+      "description": "Serializes MessageV2 parts to ModelMessage[] for streamText. Reads state.output + state.attachments only; never reads state.metadata. UNCHANGED but quoted as invariant.",
+      "files": ["packages/opencode/src/session/message-v2.ts"]
+    },
+    {
+      "id": "dreaming-pruner",
+      "container": "session-runtime",
+      "name": "pruneToolMetadata",
+      "description": "Strips oversized before/after from tool metadata during dream-pruning sweeps. UNCHANGED — retained for legacy session support.",
+      "files": ["packages/opencode/src/session/storage/dreaming.ts"]
+    },
+    {
+      "id": "message-part",
+      "container": "web-ui",
+      "name": "message-part component",
+      "description": "Renders message parts including apply_patch diffs. Patched: 3 sites switch from before/after feed to hunk-format diff feed; dead edit-tool references removed.",
+      "files": ["packages/ui/src/components/message-part.tsx"]
+    }
+  ],
+  "relationships": [
+    {
+      "from": "apply-patch-tool",
+      "to": "to-model-messages",
+      "description": "Tool result → persisted part → serialized to LLM (state.output only)"
+    },
+    {
+      "from": "apply-patch-tool",
+      "to": "message-part",
+      "description": "Tool result → persisted part → rendered in UI (uses metadata.files[].diff, NOT before/after after this change)"
+    },
+    {
+      "from": "apply-patch-tool",
+      "to": "snapshot-store",
+      "description": "Calls Snapshot.track() to commit file content into git store (unchanged — canonical history source)"
+    },
+    {
+      "from": "dreaming-pruner",
+      "to": "apply-patch-tool",
+      "description": "Operates on persisted parts post-hoc; near-no-op for new sessions, full effect for legacy"
+    }
+  ]
+}

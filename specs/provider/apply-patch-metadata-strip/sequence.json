@@ -1,0 +1,59 @@
+[
+  {
+    "id": "SEQ-1",
+    "title": "apply_patch executes and persists with new metadata shape",
+    "description": "Model calls apply_patch; tool produces patch + diff; processor persists tool part to SQLite. New shape omits before/after.",
+    "participants": [
+      { "id": "model", "name": "LLM (codex)", "kind": "external" },
+      { "id": "processor", "name": "session/processor.ts", "kind": "component" },
+      { "id": "tool", "name": "apply_patch tool (tool/apply_patch.ts)", "kind": "component" },
+      { "id": "snapshot", "name": "Snapshot store (snapshot/index.ts)", "kind": "component" },
+      { "id": "session", "name": "Session.updatePart", "kind": "component" },
+      { "id": "sqlite", "name": "SQLite parts table", "kind": "component" }
+    ],
+    "messages": [
+      { "from": "model", "to": "processor", "label": "tool_call apply_patch({ input: '*** Begin Patch ...' })" },
+      { "from": "processor", "to": "tool", "label": "execute(input, ctx)" },
+      { "from": "tool", "to": "tool", "label": "parse patch; for each touched file:" },
+      { "from": "tool", "to": "snapshot", "label": "read oldContent, compute newContent, Snapshot.track()" },
+      { "from": "tool", "to": "tool", "label": "fileDiff := computeDiff(oldContent, newContent)" },
+      { "from": "tool", "to": "tool", "label": "(NEW) fileMeta := { filePath, relativePath, type, diff: fileDiff, additions, deletions, movePath? } — NO before/after" },
+      { "from": "tool", "to": "processor", "label": "return { output, title, metadata: { phase, files: fileMeta[], diff: totalDiff, diagnostics } }" },
+      { "from": "processor", "to": "session", "label": "Session.updatePart({ ..., state: { status, input, output, metadata, title } })" },
+      { "from": "session", "to": "sqlite", "label": "INSERT INTO parts (payload_json) VALUES (...)" },
+      { "from": "sqlite", "to": "session", "label": "ok (payload ~14KB instead of ~800KB)" }
+    ]
+  },
+  {
+    "id": "SEQ-2",
+    "title": "UI renders apply_patch part (new shape, hunk-driven)",
+    "description": "Web UI loads a session containing an apply_patch part with new metadata; message-part component renders the diff via the existing diff component, feeding hunk-format input.",
+    "participants": [
+      { "id": "session-stream", "name": "MessageV2.stream (SSE)", "kind": "component" },
+      { "id": "message-part", "name": "<MessagePart> (ui/message-part.tsx)", "kind": "component" },
+      { "id": "diff-component", "name": "useDiffComponent() injected renderer", "kind": "component" }
+    ],
+    "messages": [
+      { "from": "session-stream", "to": "message-part", "label": "part: { type:'tool', tool:'apply_patch', state:{ metadata:{ files:[{ filePath, diff, additions, deletions }] } } }" },
+      { "from": "message-part", "to": "message-part", "label": "iterate metadata.files[]" },
+      { "from": "message-part", "to": "diff-component", "label": "(NEW) <Dynamic component={diffComponent} hunks={file.diff} filename={file.filePath} />" },
+      { "from": "diff-component", "to": "message-part", "label": "rendered diff JSX" },
+      { "from": "message-part", "to": "session-stream", "label": "DOM updated; no warning" }
+    ]
+  },
+  {
+    "id": "SEQ-3",
+    "title": "UI renders legacy apply_patch part (old shape, still works)",
+    "description": "Web UI loads a session created before this change; metadata still carries before/after; UI ignores them and renders via the same hunk path.",
+    "participants": [
+      { "id": "session-stream", "name": "MessageV2.stream (SSE)", "kind": "component" },
+      { "id": "message-part", "name": "<MessagePart>", "kind": "component" },
+      { "id": "diff-component", "name": "useDiffComponent()", "kind": "component" }
+    ],
+    "messages": [
+      { "from": "session-stream", "to": "message-part", "label": "part: { ..., metadata:{ files:[{ filePath, diff, before, after, additions, deletions }] } }" },
+      { "from": "message-part", "to": "diff-component", "label": "<Dynamic component={diffComponent} hunks={file.diff} ... />" },
+      { "from": "diff-component", "to": "message-part", "label": "rendered diff JSX" }
+    ]
+  }
+]

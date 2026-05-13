@@ -82,7 +82,7 @@ Exception: pure file creation (`*** Add File`) of a single new file can exceed t
 
 - You must include a header with your intended action (Add/Delete/Update)
 - You must prefix new lines with `+` even when creating a new file
-- File references can only be relative, NEVER ABSOLUTE.
+- File references may be relative to the current worktree or absolute. Non-sudoer sessions may patch paths inside the current user's home directory; root/sudoer sessions may patch system-wide paths. Do not use paths outside the active policy scope.
 - Context Lines (`@@`): The string after `@@ ` is used to find the exact location in the file. It MUST be unique and it MUST exactly match the source code snippet (including indentation, but excluding the line number prefix printed by the `read` tool).
 - Exact Matches (`-`): Lines starting with `-` must precisely match the file's current whitespace and text.
 - Indentation (`+`): Lines starting with `+` will be inserted exactly as written (minus the `+` character). Ensure their indentation aligns with the surrounding code.
