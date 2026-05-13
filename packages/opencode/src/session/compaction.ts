@@ -32,11 +32,7 @@ import { sanitizeAnchorToString, type AnchorKind } from "./anchor-sanitizer"
 import { checkCleanTail } from "./idle-compaction-gate"
 import { SkillLayerRegistry } from "./skill-layer-registry"
 import { diagnoseCacheMiss } from "./cache-miss-diagnostic"
-import {
-  findUnansweredUserMessageId,
-  parsePrevLastRound,
-  serializeRedactedDialog,
-} from "./dialog-serializer"
+import { findUnansweredUserMessageId, parsePrevLastRound, serializeRedactedDialog } from "./dialog-serializer"
 
 // Subscribe to continuation invalidation. compaction-redesign DD-11:
 // state-driven signal — write timestamp onto session.execution; the
@@ -250,9 +246,10 @@ export namespace SessionCompaction {
    *     preserved by codex; classifier returns breaksChain=false +
    *     skipReason="server_side_compaction")
    */
-  function mapCompactionEventMetaToKind(
-    eventMeta?: { observed?: string; kind?: string },
-  ):
+  function mapCompactionEventMetaToKind(eventMeta?: {
+    observed?: string
+    kind?: string
+  }):
     | "compaction_narrative"
     | "compaction_cache_aware"
     | "compaction_stall_recovery"
@@ -1059,19 +1056,12 @@ export namespace SessionCompaction {
     return tryNarrativeRedactedDialog(input, model)
   }
 
-  async function tryNarrativeRedactedDialog(
-    input: RunInput,
-    _model: Provider.Model | undefined,
-  ): Promise<KindAttempt> {
-    const messages = await Session.messages({ sessionID: input.sessionID }).catch(
-      () => [] as MessageV2.WithParts[],
-    )
+  async function tryNarrativeRedactedDialog(input: RunInput, _model: Provider.Model | undefined): Promise<KindAttempt> {
+    const messages = await Session.messages({ sessionID: input.sessionID }).catch(() => [] as MessageV2.WithParts[])
     if (messages.length === 0) return { ok: false, reason: "memory empty" }
 
     const prevAnchor = await Memory.Hybrid.getAnchorMessage(input.sessionID, messages)
-    const prevAnchorIdx = prevAnchor
-      ? messages.findIndex((m) => m.info.id === prevAnchor.info.id)
-      : -1
+    const prevAnchorIdx = prevAnchor ? messages.findIndex((m) => m.info.id === prevAnchor.info.id) : -1
     const prevBody = prevAnchor ? extractAnchorTextBody(prevAnchor) : ""
     const prevLastRound = parsePrevLastRound(prevBody)
 
@@ -1092,10 +1082,7 @@ export namespace SessionCompaction {
     return { ok: true, summaryText: body, kind: "narrative", truncated: false }
   }
 
-  async function tryNarrativeLegacy(
-    input: RunInput,
-    model: Provider.Model | undefined,
-  ): Promise<KindAttempt> {
+  async function tryNarrativeLegacy(input: RunInput, model: Provider.Model | undefined): Promise<KindAttempt> {
     const mem = await Memory.read(input.sessionID)
     const target = await resolveTargetPromptTokens()
     const contextLimit = model?.limit?.context || 0
@@ -1523,13 +1510,9 @@ When constructing the summary, try to stick to this template:
     const allAnchorMsgs = (await Session.messages({ sessionID: input.sessionID })).filter(
       (m) => m.info.role === "assistant" && (m.info as MessageV2.Assistant).summary === true,
     )
-    const prevLlmAnchorId = allAnchorMsgs
-      .filter((m) => m.info.id !== processor.message.id)
-      .at(-1)?.info.id
+    const prevLlmAnchorId = allAnchorMsgs.filter((m) => m.info.id !== processor.message.id).at(-1)?.info.id
 
-    const sanitizedJoined = preSanitizedTextParts
-      .map((p) => (p as any).text ?? "")
-      .join("\n")
+    const sanitizedJoined = preSanitizedTextParts.map((p) => (p as any).text ?? "").join("\n")
     await annotateAnchorWithSkillState({
       sessionID: input.sessionID,
       summaryText: sanitizedJoined,
@@ -1939,8 +1922,7 @@ When constructing the summary, try to stick to this template:
     const contextLimit = model.limit?.context ?? 0
     if (contextLimit <= 0) return null
     const tweaks = Tweaks.compactionSync()
-    const threshold =
-      (tweaks as { sustainabilityRatio?: number }).sustainabilityRatio ?? 0.5
+    const threshold = (tweaks as { sustainabilityRatio?: number }).sustainabilityRatio ?? 0.5
 
     const messages = await Session.messages({ sessionID }).catch(() => undefined)
     if (!messages || messages.length === 0) return null
@@ -2039,8 +2021,7 @@ When constructing the summary, try to stick to this template:
     // low-cost-server first (cheapest); all sessions can fall back to
     // llm-agent. Skip the chain walk machinery — those kinds depend on
     // chain semantics + cooldown that we've already exited from.
-    const contractiveOrder: KindName[] =
-      model.providerId === "codex" ? ["low-cost-server", "llm-agent"] : ["llm-agent"]
+    const contractiveOrder: KindName[] = model.providerId === "codex" ? ["low-cost-server", "llm-agent"] : ["llm-agent"]
 
     const runInput: RunInput = {
       sessionID,
@@ -2165,11 +2146,8 @@ When constructing the summary, try to stick to this template:
       // Last user msg's accountId — needed for plugin auth path. Fall
       // back to the anchor's own accountId if the post-anchor stream has
       // no user msg yet.
-      const lastUser = messagesPre.findLast((m) => m.info.role === "user")?.info as
-        | MessageV2.User
-        | undefined
-      const accountId =
-        lastUser?.model?.accountId ?? (anchorMsg.info as MessageV2.Assistant).accountId ?? ""
+      const lastUser = messagesPre.findLast((m) => m.info.role === "user")?.info as MessageV2.User | undefined
+      const accountId = lastUser?.model?.accountId ?? (anchorMsg.info as MessageV2.Assistant).accountId ?? ""
 
       const conversationItems = [
         {
@@ -2178,9 +2156,7 @@ When constructing the summary, try to stick to this template:
           content: [{ type: "input_text", text: anchorBody }],
         },
       ]
-      const agent = lastUser?.agent
-        ? await Agent.get(lastUser.agent).catch(() => undefined)
-        : undefined
+      const agent = lastUser?.agent ? await Agent.get(lastUser.agent).catch(() => undefined) : undefined
       const instructions = (agent?.prompt ?? "").slice(0, 50_000)
 
       let hookResult: { compactedItems: unknown[] | null; summary: string | null }
@@ -2226,9 +2202,7 @@ When constructing the summary, try to stick to this template:
 
       // STALENESS CHECK: re-read the anchor; if a newer one has been
       // written since we dispatched, abandon the in-place update.
-      const messagesPost = await Session.messages({ sessionID }).catch(
-        () => [] as MessageV2.WithParts[],
-      )
+      const messagesPost = await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[])
       const currentAnchor = await Memory.Hybrid.getAnchorMessage(sessionID, messagesPost)
       if (!currentAnchor || currentAnchor.info.id !== anchorMsg.info.id) {
         log.info("codex recompress: stale anchor detected; skipping in-place update", {
@@ -2244,9 +2218,7 @@ When constructing the summary, try to stick to this template:
         return
       }
 
-      const anchorTextPart = currentAnchor.parts.find((p) => p.type === "text") as
-        | MessageV2.TextPart
-        | undefined
+      const anchorTextPart = currentAnchor.parts.find((p) => p.type === "text") as MessageV2.TextPart | undefined
       if (!anchorTextPart) {
         log.warn("codex recompress: anchor has no text part to update", { sessionID })
         emitRecompressTelemetry({
@@ -2485,10 +2457,7 @@ When constructing the summary, try to stick to this template:
           }
           if (replayEnabled) {
             const anchorIdForGate = await readMostRecentAnchorId(sessionID)
-            if (
-              anchorIdForGate &&
-              (await shouldInjectContinue(sessionID, observed, anchorIdForGate))
-            ) {
+            if (anchorIdForGate && (await shouldInjectContinue(sessionID, observed, anchorIdForGate))) {
               await injectContinueAfterAnchor(sessionID, observed)
             }
           } else if (INJECT_CONTINUE[observed]) {
@@ -2661,12 +2630,8 @@ When constructing the summary, try to stick to this template:
         return false
       }
     }
-    const messages = await Session.messages({ sessionID }).catch(
-      () => [] as MessageV2.WithParts[],
-    )
-    const hasUserMsgPostAnchor = messages.some(
-      (m) => m.info.role === "user" && m.info.id > anchorMessageID,
-    )
+    const messages = await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[])
+    const hasUserMsgPostAnchor = messages.some((m) => m.info.role === "user" && m.info.id > anchorMessageID)
     return !hasUserMsgPostAnchor
   }
 
@@ -2733,8 +2698,7 @@ When constructing the summary, try to stick to this template:
     sessionID: string,
     messages?: MessageV2.WithParts[],
   ): Promise<UserMessageSnapshot | undefined> {
-    const msgs =
-      messages ?? (await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[]))
+    const msgs = messages ?? (await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[]))
     if (msgs.length === 0) return undefined
 
     let userIdx = -1
@@ -2885,17 +2849,14 @@ When constructing the summary, try to stick to this template:
       return { replayed: true, newUserID }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
-      log.error(
-        "self-heal: replay-after-compact failed; user message may be hidden behind anchor",
-        {
-          sessionID: input.sessionID,
-          step: input.step,
-          observed: input.observed,
-          originalUserID,
-          anchorMessageID: input.anchorMessageID,
-          error: errorMessage,
-        },
-      )
+      log.error("self-heal: replay-after-compact failed; user message may be hidden behind anchor", {
+        sessionID: input.sessionID,
+        step: input.step,
+        observed: input.observed,
+        originalUserID,
+        anchorMessageID: input.anchorMessageID,
+        error: errorMessage,
+      })
       emitUserMsgReplayTelemetry({
         ...baseTelemetry,
         outcome: "error",
@@ -2955,9 +2916,7 @@ When constructing the summary, try to stick to this template:
       input.kind === "hybrid_llm"
     if (needsClientSideIndex) {
       try {
-        const allMsgs = await Session.messages({ sessionID: input.sessionID }).catch(
-          () => [] as MessageV2.WithParts[],
-        )
+        const allMsgs = await Session.messages({ sessionID: input.sessionID }).catch(() => [] as MessageV2.WithParts[])
         // Scan the full pre-write message stream for ToolPart entries —
         // these are the calls that will collapse into the anchor body
         // once it lands. Wrap as a single pseudo-journal-entry so the
@@ -3050,8 +3009,7 @@ When constructing the summary, try to stick to this template:
     // post-anchor — e.g. via Spec 1's replay helper). Flag-disabled mode
     // preserves the legacy auto pass-through.
     const replayTweaks = Tweaks.compactionSync()
-    const replayEnabled =
-      (replayTweaks as { enableUserMsgReplay?: boolean }).enableUserMsgReplay !== false
+    const replayEnabled = (replayTweaks as { enableUserMsgReplay?: boolean }).enableUserMsgReplay !== false
     await compactWithSharedContext({
       sessionID: input.sessionID,
       snapshot: sanitized.body,
@@ -3168,9 +3126,7 @@ When constructing the summary, try to stick to this template:
     // metadata so audit + replay can read it from disk. Telemetry log retained
     // as backup signal.
     const snapshot = {
-      active: entries
-        .filter((e) => e.runtimeState === "active" || e.runtimeState === "sticky")
-        .map((e) => e.name),
+      active: entries.filter((e) => e.runtimeState === "active" || e.runtimeState === "sticky").map((e) => e.name),
       summarized: entries.filter((e) => e.runtimeState === "summarized").map((e) => e.name),
       pinned: entries.filter((e) => e.pinned).map((e) => e.name),
     }
@@ -3187,9 +3143,7 @@ When constructing the summary, try to stick to this template:
     // the anchor message; if missing, log and continue (telemetry-only path
     // still preserves the data).
     try {
-      const anchorMsg = (await Session.messages({ sessionID: input.sessionID })).find(
-        (m) => m.info.id === newAnchorId,
-      )
+      const anchorMsg = (await Session.messages({ sessionID: input.sessionID })).find((m) => m.info.id === newAnchorId)
       const compactionPart = anchorMsg?.parts.find(
         (p) => p.type === "compaction" || p.type === "compaction-request",
       ) as MessageV2.CompactionPart | undefined
@@ -3214,9 +3168,7 @@ When constructing the summary, try to stick to this template:
           // ResponseItem[] + chain identity binding when low-cost-server
           // produced them. Skipped (undefined) for narrative/replay-tail/
           // llm-agent kinds which only contribute summaryText.
-          ...(input.serverCompactedItems
-            ? { serverCompactedItems: input.serverCompactedItems }
-            : {}),
+          ...(input.serverCompactedItems ? { serverCompactedItems: input.serverCompactedItems } : {}),
           ...(input.chainBinding ? { chainBinding: input.chainBinding } : {}),
         },
       } as MessageV2.CompactionPart)
