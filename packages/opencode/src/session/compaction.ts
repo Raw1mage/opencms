@@ -1040,23 +1040,20 @@ export namespace SessionCompaction {
       }
 
   /**
-   * Spec compaction/dialog-replay-redaction (DD-3). Builds the narrative
-   * anchor body from the formal model:
+   * Spec compaction/dialog-replay-redaction (DD-3). Builds the local
+   * (zero-API-cost) anchor body from the formal model:
    *   anchor[n+1].body = anchor[n].body + serialize_redacted(tail)
    * where the serialised tail excludes the unanswered user message
    * (Spec 1 synergy — replayed post-anchor by replayUnansweredUserMessage).
    *
-   * Falls back to the legacy Memory.renderForLLMSync body source when the
-   * Tweaks flag is off — atomic rollback path.
+   * compaction_simplification T2a (2026-05-14): renamed from
+   * `tryNarrativeRedactedDialog`; the `enableDialogRedactionAnchor=false`
+   * legacy `Memory.renderForLLMSync` fallback (`tryNarrativeLegacy`) is
+   * retired because production has used the redacted-dialog path
+   * exclusively since the flag's default flipped to true. The
+   * `transformPostAnchorTail` v6 fallback still honours the flag.
    */
-  async function tryNarrative(input: RunInput, model: Provider.Model | undefined): Promise<KindAttempt> {
-    const tweaks = Tweaks.compactionSync()
-    const flag = (tweaks as { enableDialogRedactionAnchor?: boolean }).enableDialogRedactionAnchor
-    if (flag === false) return tryNarrativeLegacy(input, model)
-    return tryNarrativeRedactedDialog(input, model)
-  }
-
-  async function tryNarrativeRedactedDialog(input: RunInput, _model: Provider.Model | undefined): Promise<KindAttempt> {
+  async function tryLocalRedactedDialog(input: RunInput, _model: Provider.Model | undefined): Promise<KindAttempt> {
     const messages = await Session.messages({ sessionID: input.sessionID }).catch(() => [] as MessageV2.WithParts[])
     if (messages.length === 0) return { ok: false, reason: "memory empty" }
 
@@ -1080,20 +1077,6 @@ export namespace SessionCompaction {
     const body = prevBody && tailText ? `${prevBody}\n\n${tailText}` : prevBody || tailText
 
     return { ok: true, summaryText: body, kind: "narrative", truncated: false }
-  }
-
-  async function tryNarrativeLegacy(input: RunInput, model: Provider.Model | undefined): Promise<KindAttempt> {
-    const mem = await Memory.read(input.sessionID)
-    const target = await resolveTargetPromptTokens()
-    const contextLimit = model?.limit?.context || 0
-    const modelBudget = Math.floor(contextLimit * 0.3)
-    const cap = modelBudget > 0 ? Math.min(modelBudget, target) : target
-    const fullText = Memory.renderForLLMSync(mem)
-    if (!fullText) return { ok: false, reason: "memory empty" }
-    const fullEstimate = Math.ceil(fullText.length / 4)
-    const truncated = fullEstimate > cap
-    const text = truncated ? Memory.renderForLLMSync(mem, cap) : fullText
-    return { ok: true, summaryText: text, kind: "narrative", truncated }
   }
 
   function extractAnchorTextBody(anchor: MessageV2.WithParts): string {
@@ -1554,7 +1537,7 @@ When constructing the summary, try to stick to this template:
   async function tryKind(kind: KindName, input: RunInput, model: Provider.Model | undefined): Promise<KindAttempt> {
     switch (kind) {
       case "narrative":
-        return tryNarrative(input, model)
+        return tryLocalRedactedDialog(input, model)
       case "replay-tail":
         return tryReplayTail(input, model)
       case "low-cost-server":
@@ -3204,9 +3187,7 @@ When constructing the summary, try to stick to this template:
     resetReplayHelper() {
       _replayHelper = replayUnansweredUserMessage
     },
-    tryNarrative,
-    tryNarrativeRedactedDialog,
-    tryNarrativeLegacy,
+    tryLocalRedactedDialog,
     extractAnchorTextBody,
     runCodexServerSideRecompress,
     scheduleHybridEnrichment,
