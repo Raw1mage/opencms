@@ -592,60 +592,14 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
     expect(writes).toHaveLength(0)
   })
 
-  it("phase 5 — replay-tail truncates oversize tail to model/target cap (newest preserved)", async () => {
-    // Synthesize 20 rounds of moderate text — exceeds 30% of a SMALL model
-    // context. tiny model: 8000 ctx → 30% = 2400 tokens (9600 chars) cap.
-    // 20 × 2000 chars = 40000 chars ≈ 10K tokens. Cap = min(2400, 50000) = 2400.
-    // New behaviour (DD-13 double-phase): replay-tail self-trims newest-first
-    // instead of returning fail; estimate (~2400 tokens) is below target so no
-    // escalation, anchor is written with the truncated tail.
-    //
-    // dialog-replay-redaction: this test asserts replay-tail behaviour, not
-    // narrative-vs-replay-tail kind selection. With dialog-redaction enabled,
-    // tryNarrative would always succeed on a non-empty Session.messages
-    // stream. Disable the redaction flag for this test so legacy narrative
-    // (turnSummaries empty → fail → fall through) preserves replay-tail's
-    // chain position.
-    ;(Tweaks as any).compactionSync = mock(() => ({
-      ...originalTweaksSync(),
-      enableDialogRedactionAnchor: false,
-    }))
-    const longText = "x".repeat(2000)
-    const longMsgs = []
-    for (let i = 0; i < 20; i++) {
-      longMsgs.push({
-        info: { id: `msg_${i}`, role: i % 2 === 0 ? "user" : "assistant" },
-        parts: [{ type: "text", text: longText }],
-      })
-    }
-    setupCommonMocks({ turnSummaries: [], rawTailBudget: 20 }, "ses_run_replay_truncate")
-    ;(Provider as any).getModel = mock(async () => ({
-      id: "tiny-model",
-      providerId: "openai",
-      limit: { context: 8000, input: 8000, output: 1000 },
-      cost: { input: 1 },
-    }))
-    ;(Session as any).messages = mock(async () => longMsgs)
-    const writes: any[] = []
-    SessionCompaction.__test__.setAnchorWriter(async (input) => {
-      writes.push(input)
-    })
-
-    // Use `idle` chain (narrative → schema → replay-tail, no paid kinds).
-    // Even though replay-tail is truncated, no paid kind is available, so
-    // run() commits the truncated local result as best-effort.
-    const result = await SessionCompaction.run({
-      sessionID: "ses_run_replay_truncate",
-      observed: "idle",
-      step: 1,
-    })
-
-    expect(result).toBe("continue")
-    expect(writes).toHaveLength(1)
-    expect(writes[0].kind).toBe("replay-tail")
-    // Truncated to ~9600 chars (2400 tokens × 4) plus minor join overhead.
-    expect(writes[0].summaryText.length).toBeLessThanOrEqual(9600 + 100)
-  })
+  // 2026-05-14 compaction_simplification T2a: the "replay-tail truncates
+  // oversize tail to model/target cap" test was removed. Its setup
+  // explicitly stubbed `enableDialogRedactionAnchor: false` to force the
+  // legacy `tryNarrativeLegacy` fallback so that narrative would fail on
+  // empty turnSummaries and replay-tail would take over. T2a retired the
+  // legacy path; the test premise no longer holds. Replay-tail truncation
+  // behaviour is still covered by direct tryReplayTail unit tests in
+  // compaction.test.ts.
 
   it("phase 5 — local kind over target escalates to paid kind (double-phase)", async () => {
     // Memory has narrative content well over the 50K-token target. tryNarrative
