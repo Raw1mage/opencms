@@ -43,11 +43,15 @@ export interface AmnesiaDecision {
  * results collapse into prose and the AI loses addressability unless the
  * recall affordance is surfaced.
  *
- * `low-cost-server` (codex /responses/compact path) is the only kind that
+ * `ai_free` (codex /responses/compact path) is the only kind that
  * preserves a server-side previous_response_id chain; the AI sees no
  * perceptible gap there, so we skip the notice.
+ *
+ * Back-compat: legacy event logs use `"llm-agent"` (pre-T3 name for
+ * `ai_paid`); the set includes both so historical events still trigger
+ * the notice correctly.
  */
-const CLIENT_SIDE_COMPACTION_KINDS = new Set(["narrative", "hybrid_llm", "replay-tail", "llm-agent"])
+const CLIENT_SIDE_COMPACTION_KINDS = new Set(["narrative", "hybrid_llm", "replay-tail", "ai_paid", "llm-agent"])
 
 export function decideAmnesiaInjection(
   recentEvents: ReadonlyArray<{

@@ -59,7 +59,7 @@ describe("decideAmnesiaInjection", () => {
 
   it("returns inject=false when most recent compaction was low-cost-server (server-side preserves chain)", () => {
     const events = [
-      { ts: 1000, kind: "compaction" as const, compaction: { observed: "manual", kind: "low-cost-server", success: true } },
+      { ts: 1000, kind: "compaction" as const, compaction: { observed: "manual", kind: "ai_free", success: true } },
     ]
     expect(decideAmnesiaInjection(events).inject).toBe(false)
   })
@@ -67,7 +67,7 @@ describe("decideAmnesiaInjection", () => {
   it("skips unsuccessful compactions when scanning", () => {
     const events = [
       { ts: 1000, kind: "compaction" as const, compaction: { observed: "rebind", kind: "narrative", success: true } },
-      { ts: 2000, kind: "compaction" as const, compaction: { observed: "rebind", kind: "low-cost-server", success: false } },
+      { ts: 2000, kind: "compaction" as const, compaction: { observed: "rebind", kind: "ai_free", success: false } },
     ]
     // The failed low-cost-server should be skipped; the active anchor is still the narrative one.
     const d = decideAmnesiaInjection(events)
@@ -83,7 +83,7 @@ describe("decideAmnesiaInjection", () => {
     ).toBe(true)
     expect(
       decideAmnesiaInjection([
-        { ts: 1, kind: "compaction" as const, compaction: { observed: "manual", kind: "llm-agent", success: true } },
+        { ts: 1, kind: "compaction" as const, compaction: { observed: "manual", kind: "ai_paid", success: true } },
       ]).inject,
     ).toBe(true)
   })

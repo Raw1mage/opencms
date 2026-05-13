@@ -242,7 +242,7 @@ export namespace SessionCompaction {
    *     → compaction_narrative
    *
    * Recognised kind values:
-   *   - "server-side" / "low-cost-server"  → compaction_server_side (chain
+   *   - "server-side" / "ai_free"  → compaction_server_side (chain
    *     preserved by codex; classifier returns breaksChain=false +
    *     skipReason="server_side_compaction")
    */
@@ -255,7 +255,11 @@ export namespace SessionCompaction {
     | "compaction_stall_recovery"
     | "compaction_preemptive_daemon_restart"
     | "compaction_server_side" {
-    if (eventMeta?.kind === "server-side" || eventMeta?.kind === "low-cost-server") {
+    if (
+      eventMeta?.kind === "server-side" ||
+      eventMeta?.kind === "ai_free" ||
+      eventMeta?.kind === "low-cost-server"
+    ) {
       return "compaction_server_side"
     }
     switch (eventMeta?.observed) {
@@ -825,7 +829,7 @@ export namespace SessionCompaction {
     | "idle"
     | "empty-response"
 
-  export type KindName = "narrative" | "replay-tail" | "low-cost-server" | "llm-agent"
+  export type KindName = "narrative" | "replay-tail" | "ai_free" | "ai_paid"
   // Note: hybrid_llm is intentionally NOT a KindName. It runs as a
   // background post-step AFTER the chain commits an anchor. See
   // run() success path + scheduleHybridEnrichment() below.
@@ -865,8 +869,8 @@ export namespace SessionCompaction {
    * Narrative empty → chain falls through to next kind naturally.
    */
   const KIND_CHAIN: Readonly<Record<Observed, ReadonlyArray<KindName>>> = Object.freeze({
-    overflow: Object.freeze(["narrative", "replay-tail", "low-cost-server", "llm-agent"] as const),
-    "cache-aware": Object.freeze(["narrative", "replay-tail", "low-cost-server", "llm-agent"] as const),
+    overflow: Object.freeze(["narrative", "replay-tail", "ai_free", "ai_paid"] as const),
+    "cache-aware": Object.freeze(["narrative", "replay-tail", "ai_free", "ai_paid"] as const),
     idle: Object.freeze(["narrative", "replay-tail"] as const),
     // 2026-05-13 rev1 (specs/session/rebind-procedure-revision/events/
     // event_2026-05-12_rev1-rebind-class-compaction-chain-excludes-server.md):
@@ -877,17 +881,17 @@ export namespace SessionCompaction {
     // rebind-class compactions fall through to real LLM-driven reduction
     // when narrative's deterministic stub-and-concat doesn't actually
     // shrink the context (dialog-heavy sessions).
-    rebind: Object.freeze(["narrative", "replay-tail", "low-cost-server", "llm-agent"] as const),
-    "continuation-invalidated": Object.freeze(["narrative", "replay-tail", "low-cost-server", "llm-agent"] as const),
-    "provider-switched": Object.freeze(["narrative", "replay-tail", "low-cost-server", "llm-agent"] as const),
-    "stall-recovery": Object.freeze(["narrative", "replay-tail", "low-cost-server", "llm-agent"] as const),
-    manual: Object.freeze(["narrative", "low-cost-server", "llm-agent"] as const),
+    rebind: Object.freeze(["narrative", "replay-tail", "ai_free", "ai_paid"] as const),
+    "continuation-invalidated": Object.freeze(["narrative", "replay-tail", "ai_free", "ai_paid"] as const),
+    "provider-switched": Object.freeze(["narrative", "replay-tail", "ai_free", "ai_paid"] as const),
+    "stall-recovery": Object.freeze(["narrative", "replay-tail", "ai_free", "ai_paid"] as const),
+    manual: Object.freeze(["narrative", "ai_free", "ai_paid"] as const),
     // empty-response auto-heal: codex's server-side compact gets first crack
     // because the most likely root cause of the empty packet is codex's own
     // context having silently overflowed; letting codex decide what to keep
     // is more useful than a local narrative replay. Falls through to local
     // kinds for non-codex providers (low-cost-server fails fast there).
-    "empty-response": Object.freeze(["low-cost-server", "narrative", "replay-tail", "llm-agent"] as const),
+    "empty-response": Object.freeze(["ai_free", "narrative", "replay-tail", "ai_paid"] as const),
   })
 
   export function kindChainFor(observed: Observed): ReadonlyArray<KindName> {
@@ -925,9 +929,9 @@ export namespace SessionCompaction {
     // Codex: server-side first regardless of context ratio. Reorder the
     // base chain to put `low-cost-server` at the head; if not already
     // in the base, prepend it.
-    const reordered: KindName[] = ["low-cost-server"]
+    const reordered: KindName[] = ["ai_free"]
     for (const k of base) {
-      if (k !== "low-cost-server") reordered.push(k)
+      if (k !== "ai_free") reordered.push(k)
     }
     return Object.freeze(reordered) as ReadonlyArray<KindName>
   }
@@ -1214,7 +1218,7 @@ export namespace SessionCompaction {
     return {
       ok: true,
       summaryText,
-      kind: "low-cost-server",
+      kind: "ai_free",
       serverCompactedItems: hookResult.compactedItems,
       chainBinding: {
         accountId: userMessage.model.accountId ?? "",
@@ -1313,7 +1317,7 @@ export namespace SessionCompaction {
         observed: input.observed,
       })
       if (!summaryText) return { ok: false, reason: "llm-agent produced empty summary" }
-      return { ok: true, summaryText, kind: "llm-agent", anchorWritten: true }
+      return { ok: true, summaryText, kind: "ai_paid", anchorWritten: true }
     } catch (err) {
       return {
         ok: false,
@@ -1465,7 +1469,7 @@ When constructing the summary, try to stick to this template:
     for (const part of preSanitizedTextParts) {
       const original = (part as any).text ?? ""
       originalLength += original.length
-      const sanitized = sanitizeAnchorToString(original, "llm-agent")
+      const sanitized = sanitizeAnchorToString(original, "ai_paid")
       if (sanitized.imperativePrefixApplied) imperativePrefixApplied = true
       sanitizedLength += sanitized.body.length
       await Session.updatePart({
@@ -1479,7 +1483,7 @@ When constructing the summary, try to stick to this template:
     }
     log.info("compaction.anchor.sanitized", {
       sessionID: input.sessionID,
-      kind: "llm-agent",
+      kind: "ai_paid",
       originalLength,
       sanitizedLength,
       imperativePrefixApplied,
@@ -1500,7 +1504,7 @@ When constructing the summary, try to stick to this template:
       sessionID: input.sessionID,
       summaryText: sanitizedJoined,
       prevAnchorId: prevLlmAnchorId,
-      kind: "llm-agent",
+      kind: "ai_paid",
       explicitAnchorId: processor.message.id,
     })
 
@@ -1515,7 +1519,7 @@ When constructing the summary, try to stick to this template:
 
     void publishCompactedAndResetChain(input.sessionID, {
       observed: input.observed,
-      kind: "llm-agent",
+      kind: "ai_paid",
     })
 
     // Read summary text out for the caller (and the checkpoint save below).
@@ -1540,9 +1544,9 @@ When constructing the summary, try to stick to this template:
         return tryLocalRedactedDialog(input, model)
       case "replay-tail":
         return tryReplayTail(input, model)
-      case "low-cost-server":
+      case "ai_free":
         return tryLowCostServer(input, model)
-      case "llm-agent":
+      case "ai_paid":
         return tryLlmAgent(input, model)
     }
   }
@@ -1901,7 +1905,7 @@ When constructing the summary, try to stick to this template:
     const baseTelemetry = {
       sessionID,
       trigger,
-      kind: "low-cost-server" as const,
+      kind: "ai_free" as const,
       providerId: model.providerId,
       anchorTokensBefore,
     }
@@ -2127,7 +2131,7 @@ When constructing the summary, try to stick to this template:
     })
     // Manual --rich: skip provider-aware chain and go straight to llm-agent.
     const chain: ReadonlyArray<KindName> =
-      observed === "manual" && intent === "rich" ? (["llm-agent"] as const) : baseChain
+      observed === "manual" && intent === "rich" ? (["ai_paid"] as const) : baseChain
     emitKindChainTelemetry({
       observed,
       providerId: model?.providerId,
@@ -2291,7 +2295,7 @@ When constructing the summary, try to stick to this template:
         // others (compactWithSharedContext / tryLlmAgent / tryHybridLlm) do.
         // Publishing here for the kinds that don't ensures the frontend
         // statusFooter reliably clears on every successful exit.
-        if (attempt.kind === "low-cost-server") {
+        if (attempt.kind === "ai_free") {
           void publishCompactedAndResetChain(sessionID, { observed, kind: attempt.kind })
         }
         return "continue"
@@ -2674,7 +2678,7 @@ When constructing the summary, try to stick to this template:
     const needsClientSideIndex =
       input.kind === "narrative" ||
       input.kind === "replay-tail" ||
-      input.kind === "llm-agent" ||
+      input.kind === "ai_paid" ||
       input.kind === "hybrid_llm"
     if (needsClientSideIndex) {
       try {
@@ -3781,7 +3785,7 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         // returned to the caller.
         void publishCompactedAndResetChain(sessionID, {
           observed: opts.observed ?? "manual",
-          kind: "llm-agent",
+          kind: "ai_paid",
         })
       }
     }
