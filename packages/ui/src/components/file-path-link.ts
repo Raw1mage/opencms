@@ -1,9 +1,9 @@
 const FILE_REF_PATTERN =
   /(?:\/[A-Za-z0-9._\-/]+\.[A-Za-z0-9_-]+|(?:[A-Za-z0-9._-]+\/)+[A-Za-z0-9._-]+\.[A-Za-z0-9_-]+|[A-Za-z0-9._-]+\.[A-Za-z0-9_-]+)(?::\d+){0,2}/g
 
-function isInsideWorkspaceAbsolute(path: string, workspaceRoot: string) {
-  const normalizedRoot = workspaceRoot.replace(/\\/g, "/").replace(/\/+$/, "")
-  return path === normalizedRoot || path.startsWith(`${normalizedRoot}/`)
+function isValidAbsolutePath(path: string) {
+  if (!path.startsWith("/")) return false
+  return /\.[A-Za-z0-9_-]+$/.test(path)
 }
 
 function isValidRelativePath(path: string) {
@@ -39,7 +39,7 @@ function detectFileReference(candidate: string, workspaceRoot: string) {
   const line = m[2] ? Number(m[2]) : undefined
   const column = m[3] ? Number(m[3]) : undefined
   if (path.startsWith("/")) {
-    if (!isInsideWorkspaceAbsolute(path, workspaceRoot)) return
+    if (!isValidAbsolutePath(path)) return
     return { original: trimmed, path, line, column }
   }
   if (!isValidRelativePath(path)) return

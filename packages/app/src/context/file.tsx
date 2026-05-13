@@ -439,6 +439,7 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
       tree: {
         list: tree.listDir,
         refresh: (input: string) => tree.listDir(input, { force: true }),
+        refreshSilent: (input: string) => tree.listDir(input, { force: true, silent: true }),
         // refreshLoaded is gated by focus mode: when focused, only
         // revisit dirs on the chain or under the focused folder. This
         // is what stops the 5-second poll from fanning out to every

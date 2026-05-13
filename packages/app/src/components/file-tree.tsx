@@ -17,6 +17,7 @@ import {
   For,
   Match,
   on,
+  onCleanup,
   Show,
   splitProps,
   Switch,
@@ -625,6 +626,20 @@ export default function FileTree(props: {
     void file.tree.list(effectivePath())
   })
 
+  // Phase B: in single-pane mode no dir gets marked `expanded`, so the
+  // global 5s `refreshLoaded` poll skips everything and the user's
+  // current view goes stale under filesystem changes. Run a per-view
+  // silent refresh loop scoped to whichever path the root tree is
+  // currently showing.
+  createEffect(() => {
+    if (!root) return
+    const path = effectivePath()
+    const id = setInterval(() => {
+      void file.tree.refreshSilent(path)
+    }, 5000)
+    onCleanup(() => clearInterval(id))
+  })
+
   const navigateInto = (target: string) => {
     const prev = viewPath()
     setViewHistory([...viewHistory(), prev])
@@ -688,15 +703,25 @@ export default function FileTree(props: {
 
   const nodes = createMemo(() => {
     const raw = file.tree.children(effectivePath()) ?? []
-    // The server may inject a synthetic ".." entry; we never render it as
-    // a list row (it would interleave with files and confuse sorting). At
-    // the root tree it gets surfaced separately as a header "↑" button via
-    // parentInfo() below. At sub-tree levels it's just dropped.
-    // path === "" is the workspace itself (server's path.relative returns
-    // "" when a listed entry IS Instance.directory). It would collide with
-    // the root tree's own key and trip the cycle guard's "..." fallback.
-    // Filter at every level.
-    const nodes = raw.filter((n) => n.name !== ".." && n.path !== "")
+    // Filter out the server's synthetic ".." — it's rendered separately as
+    // a fixed top row (navigateUp affordance). All other entries pass
+    // through, including the workspace-self entry that surfaces with
+    // path === "" when the user navigates into the workspace's parent
+    // directory: clicking it via navigateInto("") just returns to the
+    // workspace root (no recursion concerns in single-pane mode).
+    const nodes = raw.filter((n) => n.name !== "..")
+    if (root && typeof window !== "undefined") {
+      // TEMP debug
+      const proj = raw.find((n) => n.name === "projects")
+      // eslint-disable-next-line no-console
+      console.log("[file-tree DEBUG] effectivePath=", effectivePath(),
+        "raw.length=", raw.length,
+        "nodes.length=", nodes.length,
+        "projects in raw?", !!proj,
+        "projects in nodes?", nodes.some((n) => n.name === "projects"),
+        "projects entry=", proj,
+      )
+    }
     const current = filter()
     if (!current) return nodes
 
@@ -1664,7 +1689,7 @@ export default function FileTree(props: {
       <Show when={root && currentAbsolute()}>
         {(current) => (
           <div
-            class="w-full flex items-center gap-x-1.5 px-1.5 py-1 border-b border-border-weak-base text-text-weak text-12-medium"
+            class="sticky top-0 z-10 w-full flex items-center gap-x-1.5 px-1.5 py-1 border-b border-border-weak-base bg-background-base text-text-base text-12-medium"
             title={current()}
           >
             <span class="truncate flex-1 min-w-0 text-left">{current()}</span>

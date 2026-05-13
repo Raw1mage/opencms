@@ -330,12 +330,25 @@ export default function Page() {
     let stopped = false
     let lastMtime: number | undefined
     let lastSize: number | undefined
+    let handle: ReturnType<typeof setInterval> | undefined
+
+    const stop = () => {
+      stopped = true
+      if (handle !== undefined) clearInterval(handle)
+    }
 
     const tick = async () => {
       if (stopped) return
       try {
         const url = `${sdk.url}/api/v2/file/stat?path=${encodeURIComponent(path)}`
         const response = await sdk.fetch(url)
+        if (stopped) return
+        // 4xx is a confirmed answer (missing / forbidden) — no point polling
+        // the same path forever. Network 5xx or thrown errors keep retrying.
+        if (response.status >= 400 && response.status < 500) {
+          stop()
+          return
+        }
         if (!response.ok) return
         const stat = (await response.json()) as { mtime?: number; size?: number }
         if (stopped) return
@@ -357,11 +370,8 @@ export default function Page() {
     }
 
     void tick()
-    const handle = setInterval(tick, FILE_STAT_POLL_MS)
-    onCleanup(() => {
-      stopped = true
-      clearInterval(handle)
-    })
+    handle = setInterval(tick, FILE_STAT_POLL_MS)
+    onCleanup(stop)
   })
 
   createEffect(() => {

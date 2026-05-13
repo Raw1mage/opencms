@@ -19,9 +19,9 @@ function splitLineSuffix(input: string) {
   return { path: match[1] ?? input, line, column }
 }
 
-function isInsideWorkspaceAbsolute(path: string, workspaceRoot: string) {
-  const normalizedRoot = workspaceRoot.replace(/\\/g, "/").replace(/\/+$/, "")
-  return path === normalizedRoot || path.startsWith(`${normalizedRoot}/`)
+function isValidAbsolutePath(path: string) {
+  if (!path.startsWith("/")) return false
+  return /\.[A-Za-z0-9_-]+$/.test(path)
 }
 
 function isValidRelativePath(path: string) {
@@ -59,7 +59,7 @@ export function detectFileReference(candidate: string, workspaceRoot: string): F
   if (!path) return
 
   if (path.startsWith("/")) {
-    if (!isInsideWorkspaceAbsolute(path, workspaceRoot)) return
+    if (!isValidAbsolutePath(path)) return
     return { original: trimmed, path, line, column }
   }
 

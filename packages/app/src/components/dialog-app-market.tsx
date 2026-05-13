@@ -478,7 +478,7 @@ export const DialogAppMarket: Component = () => {
                         >
                           <Icon name={actionIcon(live()) as any} size="small" />
                           <span class="text-11-regular whitespace-nowrap">
-                            {language.t(sd().labelKey as any)}
+                            {actionLabel(live())}
                           </span>
                         </button>
                       </div>
