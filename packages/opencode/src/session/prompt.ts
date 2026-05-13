@@ -11,7 +11,6 @@ import { Provider } from "../provider/provider"
 import { SessionCompaction } from "./compaction"
 import { transformPostAnchorTail, LayerPurityViolation } from "./post-anchor-transform"
 import { expandAnchorCompactedPrefix } from "./anchor-prefix-expand"
-import { SharedContext } from "./shared-context"
 import { Memory } from "./memory"
 import { Token } from "../util/token"
 import { Config } from "@/config/config"
@@ -3115,54 +3114,36 @@ export namespace SessionPrompt {
       continue
     }
 
-    // ── Session Snapshot + Shared Context: incremental update + idle compaction at turn boundary ──
-    {
-      const config = await Config.get()
-      if (config.compaction?.sharedContext !== false) {
-        try {
-          const { messages: finalMsgs } = await MessageV2.filterCompacted(MessageV2.stream(sessionID))
-          const lastAssistantMsg = finalMsgs.findLast((m) => m.info.role === "assistant")
-          if (lastAssistantMsg) {
-            const assistantText = lastAssistantMsg.parts
-              .filter((p): p is MessageV2.TextPart => p.type === "text")
-              .map((p) => p.text)
-              .join("\n")
-
-            await SharedContext.updateFromTurn({
-              sessionID,
-              parts: lastAssistantMsg.parts,
-              assistantText,
-              turnNumber: step,
-            })
-
-            // Phase 13.3-full: SharedContext.persistSnapshot removed. The
-            // legacy `abstract_template/<sid>` Storage write was a frozen
-            // copy of the regex-extracted snapshot — no consumers remain
-            // (compaction-redesign reads from message-stream anchors and
-            // Memory journal instead).
-
-            if (!session.parentID) {
-              const hasTaskDispatch = lastAssistantMsg.parts.some(
-                (p) => p.type === "tool" && p.tool === "task" && p.state.status !== "pending",
-              )
-              if (hasTaskDispatch) {
-                const lastFinishedInfo = lastAssistantMsg.info as MessageV2.Assistant
-                if (lastFinishedInfo.tokens) {
-                  const model = await Provider.getModel(lastFinishedInfo.providerId, lastFinishedInfo.modelID)
-                  await SessionCompaction.idleCompaction({
-                    sessionID,
-                    model,
-                    config,
-                  })
-                }
-              }
+    // ── Idle compaction trigger at turn boundary ──
+    // T6 (compaction_simplification): SharedContext.updateFromTurn is
+    // retired. The workspace state is now derived in batch at compaction
+    // time (see SharedContext.extractWorkspaceBatch + memory.ts). Only
+    // the task-dispatch-triggered idleCompaction stays here.
+    if (!session.parentID) {
+      try {
+        const config = await Config.get()
+        const { messages: finalMsgs } = await MessageV2.filterCompacted(MessageV2.stream(sessionID))
+        const lastAssistantMsg = finalMsgs.findLast((m) => m.info.role === "assistant")
+        if (lastAssistantMsg) {
+          const hasTaskDispatch = lastAssistantMsg.parts.some(
+            (p) => p.type === "tool" && p.tool === "task" && p.state.status !== "pending",
+          )
+          if (hasTaskDispatch) {
+            const lastFinishedInfo = lastAssistantMsg.info as MessageV2.Assistant
+            if (lastFinishedInfo.tokens) {
+              const model = await Provider.getModel(lastFinishedInfo.providerId, lastFinishedInfo.modelID)
+              await SessionCompaction.idleCompaction({
+                sessionID,
+                model,
+                config,
+              })
             }
           }
-        } catch (err) {
-          log.warn("shared context update failed (non-fatal)", {
-            error: err instanceof Error ? err.message : String(err),
-          })
         }
+      } catch (err) {
+        log.warn("idle compaction trigger failed (non-fatal)", {
+          error: err instanceof Error ? err.message : String(err),
+        })
       }
     }
 

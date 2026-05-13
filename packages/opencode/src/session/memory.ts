@@ -143,25 +143,25 @@ export namespace Memory {
       })
     }
 
-    // Aux: file/action workspace from SharedContext.Space.
-    const space = await SharedContext.get(sessionID).catch(() => undefined)
-    const fileIndex: FileEntry[] = space
-      ? space.files.map((f) => ({
-          path: f.path,
-          operation: f.operation,
-          lines: f.lines ?? null,
-          summary: f.summary ?? null,
-          updatedAt: f.updatedAt,
-        }))
-      : []
-    const actionLog: ActionEntry[] = space
-      ? space.actions.map((a) => ({
-          tool: a.tool,
-          summary: a.summary,
-          turn: a.turn,
-          addedAt: a.addedAt,
-        }))
-      : []
+    // Aux: file/action workspace computed in batch from the current
+    // message stream (T6 compaction_simplification). The legacy
+    // SharedContext.Space sidecar was retired — workspace is now a
+    // function of the messages covered by the current anchor's range,
+    // not a separately persisted accumulator.
+    const space = SharedContext.extractWorkspaceBatch({ sessionID, messages: msgs })
+    const fileIndex: FileEntry[] = space.files.map((f) => ({
+      path: f.path,
+      operation: f.operation,
+      lines: f.lines ?? null,
+      summary: f.summary ?? null,
+      updatedAt: f.updatedAt,
+    }))
+    const actionLog: ActionEntry[] = space.actions.map((a) => ({
+      tool: a.tool,
+      summary: a.summary,
+      turn: a.turn,
+      addedAt: a.addedAt,
+    }))
 
     const lastCompactedAt =
       anchorIdx !== -1
