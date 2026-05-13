@@ -289,7 +289,30 @@ export default function Page() {
     if (!active) return
 
     const path = file.pathFromTab(active)
-    if (path) file.load(path, { force: true })
+    if (!path) return
+
+    // Probe /file/stat first so a stale persisted tab pointing at a
+    // since-deleted file silently prunes itself instead of triggering
+    // the load → 404 → error-toast cascade every time the session reopens.
+    let cancelled = false
+    void (async () => {
+      try {
+        const url = `${sdk.url}/api/v2/file/stat?path=${encodeURIComponent(path)}`
+        const response = await sdk.fetch(url)
+        if (cancelled) return
+        if (response.status >= 400 && response.status < 500) {
+          tabs().close(active)
+          return
+        }
+        if (!response.ok) return
+        file.load(path, { force: true })
+      } catch {
+        // Network errors fall through; user-triggered actions will retry.
+      }
+    })()
+    onCleanup(() => {
+      cancelled = true
+    })
   })
 
   // Active file tab freshness poll: while an active file tab is visible,

@@ -498,6 +498,24 @@ export const { use: useMarked, provider: MarkedProvider } = createSimpleContext(
             const titleAttr = title ? ` title="${title}"` : ""
             return `<a href="${href}"${titleAttr} class="external-link" target="_blank" rel="noopener noreferrer">${inner}</a>`
           },
+          image(token) {
+            const { href, title, text } = token as { href: string; title?: string | null; text: string }
+            // Local-path image refs (![](/abs/path.svg) or ![](rel/path.png))
+            // would otherwise render as <img src="/home/...">, which the
+            // browser fetches against the SPA origin and 404s. Route them
+            // through the fileview-link path so a click opens the file
+            // viewer instead of issuing a doomed asset request.
+            const isExternal = /^(https?:|data:|blob:)/i.test(href)
+            if (!isExternal) {
+              const escapeAttr = (s: string) =>
+                s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+              const label = text && text.trim().length > 0 ? text : href
+              return `<a href="#" class="fileview-link" data-fileview-path="${escapeAttr(href)}">${escapeAttr(label)}</a>`
+            }
+            const titleAttr = title ? ` title="${title}"` : ""
+            const altAttr = text ? ` alt="${text}"` : ""
+            return `<img src="${href}"${altAttr}${titleAttr} />`
+          },
         },
       },
       markedKatex({

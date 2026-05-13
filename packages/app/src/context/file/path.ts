@@ -111,18 +111,26 @@ export function createPathHelpers(scope: () => string) {
     const windows = /^[A-Za-z]:/.test(root)
     const canonRoot = windows ? root.toLowerCase() : root
     const canonPath = windows ? path.toLowerCase() : path
+    let workspaceStripped = false
     if (
       canonPath.startsWith(canonRoot) &&
       (canonRoot.endsWith("/") || canonPath === canonRoot || canonPath[canonRoot.length] === "/")
     ) {
       path = path.slice(root.length)
+      workspaceStripped = true
     }
 
     if (path.startsWith("./") || path.startsWith(".\\")) {
       path = path.slice(2)
     }
 
-    if (path.startsWith("/") || path.startsWith("\\")) {
+    // Strip a single leading separator only when:
+    //  - we just consumed the workspace root (so the remainder is intended-relative), or
+    //  - the input was NOT absolute (defensive: e.g. stray "/foo" relative form).
+    // Absolute paths outside the workspace must be preserved verbatim so backend
+    // file routes can detect them via path.isAbsolute() and look up the real
+    // on-disk location instead of mis-resolving against the workspace root.
+    if ((workspaceStripped || !wasAbsolute) && (path.startsWith("/") || path.startsWith("\\"))) {
       path = path.slice(1)
     }
 
@@ -147,13 +155,39 @@ export function createPathHelpers(scope: () => string) {
     return path
   }
 
+  // Detect "absolute path that is NOT inside the workspace root" so we can
+  // preserve it verbatim through tab/pathFromTab. normalize() collapses such
+  // paths into bogus relative form (e.g. /home/x/foo -> home/x/foo), which
+  // the backend then resolves under the workspace and returns 404. The
+  // backend /file/* routes already accept absolute paths directly.
+  const isOutsideWorkspaceAbsolute = (raw: string) => {
+    if (!(raw.startsWith("/") || /^[A-Za-z]:/.test(raw))) return false
+    const root = scope().replace(/\\/g, "/")
+    const windows = /^[A-Za-z]:/.test(root)
+    const canonRoot = windows ? root.toLowerCase() : root
+    const canonPath = windows ? raw.toLowerCase() : raw
+    const inside =
+      canonPath.startsWith(canonRoot) &&
+      (canonRoot.endsWith("/") || canonPath === canonRoot || canonPath[canonRoot.length] === "/")
+    return !inside
+  }
+
   const tab = (input: string) => {
+    // file:// URLs may already wrap an absolute outside-workspace path; peel
+    // the protocol+query and decode before testing so re-normalizing an
+    // existing tab key (e.g. session.tsx normalizeTab) is idempotent.
+    const peeled = decodeFilePath(stripQueryAndHash(stripFileProtocol(input))).replace(/\\/g, "/")
+    if (isOutsideWorkspaceAbsolute(peeled)) {
+      return `file://${encodeFilePath(peeled)}`
+    }
     const path = normalize(input)
     return `file://${encodeFilePath(path)}`
   }
 
   const pathFromTab = (tabValue: string) => {
     if (!tabValue.startsWith("file://")) return
+    const raw = decodeFilePath(stripQueryAndHash(stripFileProtocol(tabValue))).replace(/\\/g, "/")
+    if (isOutsideWorkspaceAbsolute(raw)) return raw
     return normalize(tabValue)
   }
 

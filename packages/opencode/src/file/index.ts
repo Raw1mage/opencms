@@ -1250,7 +1250,12 @@ export namespace File {
   export async function read(file: string): Promise<Content> {
     using _ = log.time("read", { file })
     const project = Instance.project
-    const full = path.join(Instance.directory, file)
+    // path.join("/workspace", "/abs/path") returns "/workspace/abs/path" — it
+    // does not honour absolute second args. Route absolute inputs through
+    // shouldUseAbsoluteInput so files reachable via the access whitelist (or
+    // when global FS browse is enabled) resolve at their real on-disk
+    // location instead of being mis-rooted under Instance.directory.
+    const full = shouldUseAbsoluteInput(file) ? file : path.join(Instance.directory, file)
     const validated = await assertWithinProject(full)
 
     // Fast path: check extension before any filesystem operations
