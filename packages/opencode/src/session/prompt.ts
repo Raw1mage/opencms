@@ -96,15 +96,20 @@ let _capabilityLoaderRegistered = false
  * as part of its system message on the next turn; the user never sees it.
  *
  * Format design (keep LLM-friendly, human-parseable, stable wording):
- *   [subagent <childSessionID> finished status=<status> elapsed=<seconds>s<extras>]
+ *   [subagent <childSessionID> finished status=<status> elapsed=<seconds>s<extras>]<hint>
  *
  * extras:
  *   rate_limited → errorDetail.resetsInSeconds
  *   quota_low    → rotateHint.exhaustedAccountId + remainingPercent
  *                  + explicit "rotate before next dispatch" instruction
  *   cancelled    → cancelReason (echo)
+ *
+ * hint: success → none. Every non-success status carries an inline
+ *   read_subsession(sessionID="<id>") reference so the parent agent
+ *   can inspect the raw child transcript when the result field is
+ *   incomplete (subagent_self_rotation plan §4).
  */
-function renderNoticeAddendum(n: MessageV2.PendingSubagentNotice): string {
+export function renderNoticeAddendum(n: MessageV2.PendingSubagentNotice): string {
   const elapsedSec = Math.round(n.elapsedMs / 1000)
   const base = `[subagent ${n.childSessionID} finished status=${n.status} finish=${n.finish} elapsed=${elapsedSec}s`
   const tail: string[] = []
@@ -131,14 +136,23 @@ function renderNoticeAddendum(n: MessageV2.PendingSubagentNotice): string {
     if (n.result.preview) tail.push(`result_preview=${JSON.stringify(n.result.preview)}`)
   }
   const tailStr = tail.length > 0 ? " " + tail.join(" ") : ""
+  // For every non-success status, point the parent at read_subsession as
+  // the canonical inspection route. The result field above may be empty
+  // or incomplete (especially for rate_limited / worker_dead); the raw
+  // child transcript is always available through this MCP tool.
+  const readSubsessionHint = ` Inspect the raw child transcript via \`read_subsession(sessionID="${n.childSessionID}")\` if you need more than the result above.`
   const hint =
-    n.status === "quota_low"
-      ? " Switch to a different account before any further dispatch; read the child session for the wrap-up summary."
+    n.status === "success"
+      ? ""
       : n.status === "rate_limited"
-        ? " The account is rate-limited; pick a different account or wait for reset before redispatching."
-        : n.status === "worker_dead" || n.status === "silent_kill"
-          ? " The subagent did not complete cleanly; read the child session for any partial progress before deciding recovery."
-          : ""
+        ? ` The subagent exhausted its rotation candidates; pick a different account or wait for reset before redispatching.${readSubsessionHint}`
+        : n.status === "quota_low"
+          ? ` Switch to a different account before any further dispatch.${readSubsessionHint}`
+          : n.status === "canceled"
+            ? ` The subagent was canceled; its work may be partial.${readSubsessionHint}`
+            : n.status === "worker_dead" || n.status === "silent_kill"
+              ? ` The subagent did not complete cleanly.${readSubsessionHint}`
+              : readSubsessionHint
   return `${base}${tailStr}]${hint}`
 }
 

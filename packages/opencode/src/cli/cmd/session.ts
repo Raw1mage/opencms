@@ -153,7 +153,6 @@ const BRIDGE_EVENT_TYPES = new Set([
   "question.asked",
   "question.replied",
   "question.rejected",
-  "task.rate_limit_escalation",
 ])
 
 function setupTaskEventBridge(sessionID: string) {
@@ -173,22 +172,9 @@ function setupTaskEventBridge(sessionID: string) {
     if (!BRIDGE_EVENT_TYPES.has(event?.type)) return
     if (extractSessionID(event) !== sessionID) return
     try {
-      const written = process.stdout.write(BRIDGE_PREFIX + JSON.stringify(event) + "\n")
-      // [rot-rca] worker bridge-stdout — confirm subscriber received and stdout.write returned
-      if (event.type === "task.rate_limit_escalation") {
-        try {
-          process.stderr.write(
-            `[rot-rca] worker bridge-stdout-write type=${event.type} written=${written} sessionID=${sessionID}\n`,
-          )
-        } catch {}
-      }
-    } catch (e) {
-      // Ignore transport write failures in child process, but log rate-limit drop.
-      if (event.type === "task.rate_limit_escalation") {
-        try {
-          process.stderr.write(`[rot-rca] worker bridge-stdout-fail err=${(e as Error)?.message}\n`)
-        } catch {}
-      }
+      process.stdout.write(BRIDGE_PREFIX + JSON.stringify(event) + "\n")
+    } catch {
+      // Ignore transport write failures in child process.
     }
   })
 
@@ -329,20 +315,11 @@ export const SessionWorkerCommand = cmd({
           typeof msg.providerId === "string" &&
           typeof msg.modelID === "string"
         ) {
-          // [rot-rca] Phase A instrument — worker receipt of parent's model_update
-          const __rotRcaRecvTs = Date.now()
-          const { resolve } = await import("../../session/model-update-signal")
-          const resolved = resolve(msg.sessionID, {
-            providerId: msg.providerId,
-            modelID: msg.modelID,
-            accountId: typeof msg.accountId === "string" ? msg.accountId : undefined,
-          })
-          process.stderr.write(
-            `[rot-rca] worker stdin-recv session=${msg.sessionID} resolved=${resolved} ts=${__rotRcaRecvTs}${
-              resolved ? "" : " (RW-1: no pending wait, payload dropped)"
-            }\n`,
-          )
-          send({ type: "model_updated", sessionID: msg.sessionID, resolved })
+          // Worker acks the model_update; the parent has already called
+          // Session.pinExecutionIdentity, so the next-round processor read
+          // will pick up the new model from session.execution. Mid-stream
+          // interruption is not supported post-escalation-retirement.
+          send({ type: "model_updated", sessionID: msg.sessionID, resolved: false })
           continue
         }
 

@@ -114,18 +114,16 @@ export namespace Tweaks {
   }
 
   /**
-   * responsive-orchestrator R3 / R6 — bounded escalation wait and
-   * proactive quota-low red line for subagent runloop self-protection.
-   * - escalationWaitMs: how long subagent waits for parent's
-   *   ModelUpdateSignal after a 429 escalation before giving up and
-   *   writing a rate_limited terminal finish.
+   * responsive-orchestrator R6 — proactive quota-low red line for
+   * subagent runloop self-protection. Subagent rate-limit handling is
+   * now done via direct self-rotation through rotation3d, identical to
+   * parent sessions — no separate escalation timeout is needed.
    * - quotaLowRedLinePercent: post-turn quota threshold; when remaining
    *   ≤ this percent, subagent triggers proactive wrap-up
    *   (one summary turn then quota_low terminal finish). Set to 0 to
    *   disable the proactive path entirely.
    */
   export interface SubagentConfig {
-    escalationWaitMs: number
     quotaLowRedLinePercent: number
   }
 
@@ -376,7 +374,6 @@ export namespace Tweaks {
   }
 
   const SUBAGENT_DEFAULTS: SubagentConfig = {
-    escalationWaitMs: 30_000,
     quotaLowRedLinePercent: 5,
   }
 
@@ -913,11 +910,6 @@ export namespace Tweaks {
     }
 
     const subagent: SubagentConfig = { ...SUBAGENT_DEFAULTS }
-    const escalationWaitRaw = parsed.get("subagent_escalation_wait_ms")
-    if (escalationWaitRaw !== undefined) {
-      const v = parseIntRange(escalationWaitRaw, "subagent_escalation_wait_ms", 5_000, 300_000)
-      if (v !== undefined) subagent.escalationWaitMs = v
-    }
     const quotaRedLineRaw = parsed.get("subagent_quota_low_red_line_percent")
     if (quotaRedLineRaw !== undefined) {
       const v = parseIntRange(quotaRedLineRaw, "subagent_quota_low_red_line_percent", 0, 50)

@@ -28,7 +28,6 @@ import { Lock } from "@/util/lock"
 import { Global } from "@/global"
 import path from "path"
 import { Instance } from "@/project/instance"
-import { SharedContext } from "@/session/shared-context"
 import { Tweaks } from "@/config/tweaks"
 import { Router as StorageRouter } from "@/session/storage/router"
 import { emitBoundaryRoutingTelemetry } from "@/session/compaction-telemetry"
@@ -300,24 +299,6 @@ export const TaskCompletedEvent = BusEvent.define(
   }),
 )
 
-/**
- * Bridged from worker → parent when a child session hits a rate limit
- * and needs the parent to decide the new model.
- */
-export const TaskRateLimitEscalationEvent = BusEvent.define(
-  "task.rate_limit_escalation",
-  z.object({
-    sessionID: z.string(),
-    currentModel: z.object({
-      providerId: z.string(),
-      modelID: z.string(),
-      accountId: z.string().optional(),
-    }),
-    error: z.string(),
-    triedVectors: z.array(z.string()),
-  }),
-)
-
 const TaskActiveChildTodoSchema = z.object({
   id: z.string(),
   content: z.string(),
@@ -551,177 +532,7 @@ async function publishBridgedEvent(event: { type: string; properties: any }) {
     case Question.Event.Rejected.type:
       await Bus.publish(Question.Event.Rejected, event.properties)
       return
-    case TaskRateLimitEscalationEvent.type: {
-      const log = Log.create({ service: "task.escalation" })
-      log.info("[rot-rca] parent bridge-dispatch", {
-        eventType: event.type,
-        sessionID: event.properties?.sessionID,
-      })
-      await handleRateLimitEscalation(event.properties)
-      return
-    }
   }
-}
-
-/**
- * Handle a rate-limit escalation from a child session.
- *
- * Fix B1 (2026-04-18): run proper rotation3d on the parent side using the
- * child's triedVectors. Previously this just echoed parent.execution back to
- * the worker, which—when parent and child shared a rate-limited account—looped
- * the child through the same vector until either side timed out. Now we:
- *   1. Resolve the child's current Provider.Model and ask rotation3d
- *      for a fresh vector excluding triedVectors.
- *   2. If a fallback exists, push it to the worker via stdin model_update.
- *   3. If no fallback exists, do NOT push parent.execution (that would just
- *      re-hit the same 429). Let ModelUpdateSignal.wait() expire (30s) so
- *      the child fails fast with a clear error.
- */
-async function handleRateLimitEscalation(props: {
-  sessionID: string
-  currentModel: { providerId: string; modelID: string; accountId?: string }
-  error: string
-  triedVectors: string[]
-}) {
-  const log = Log.create({ service: "task.escalation" })
-  const childSessionID = props.sessionID
-  // [rot-rca] Phase A instrument — parent-side timing
-  const __rotRcaParentStart = Date.now()
-  log.info("[rot-rca] parent recv", {
-    childSessionID,
-    accountIdTail: props.currentModel.accountId?.slice(-8),
-    triedCount: props.triedVectors.length,
-    ts: __rotRcaParentStart,
-  })
-
-  // Find the worker running this child session
-  const worker = workers.find((w) => w.current?.sessionID === childSessionID)
-  if (!worker) {
-    log.warn("[rot-rca] parent no-worker — RW-3 race", { childSessionID, elapsedMs: Date.now() - __rotRcaParentStart })
-    return
-  }
-
-  // Find the parent session ID from the worker's current request
-  const parentSessionID = worker.current?.parentSessionID
-  if (!parentSessionID) {
-    log.warn("Escalation received but worker has no parentSessionID", { childSessionID })
-    return
-  }
-
-  // Read parent session's execution identity for sessionIdentity hint only.
-  const parentSession = await Session.get(parentSessionID).catch(() => undefined)
-
-  // Resolve child's current Provider.Model (needed for rotation3d input).
-  let currentProviderModel: Provider.Model | undefined
-  try {
-    currentProviderModel = await Provider.getModel(props.currentModel.providerId, props.currentModel.modelID)
-  } catch (err) {
-    log.error("Escalation: cannot resolve child's current model for rotation", {
-      childSessionID,
-      providerId: props.currentModel.providerId,
-      modelID: props.currentModel.modelID,
-      error: err instanceof Error ? err.message : String(err),
-    })
-    return
-  }
-
-  const triedSet = new Set(props.triedVectors)
-  const sessionIdentity = parentSession?.execution
-    ? { providerId: parentSession.execution.providerId, accountId: parentSession.execution.accountId }
-    : undefined
-  const fallback = await LLM.handleRateLimitFallback(
-    currentProviderModel,
-    "account-first",
-    triedSet,
-    new Error(props.error),
-    props.currentModel.accountId,
-    sessionIdentity,
-    { silent: true },
-    childSessionID,
-  ).catch((err) => {
-    log.warn("[rot-rca] rotation3d threw", {
-      childSessionID,
-      error: err instanceof Error ? err.message : String(err),
-      elapsedMs: Date.now() - __rotRcaParentStart,
-    })
-    return null
-  })
-  log.info("[rot-rca] parent fallback-done", {
-    childSessionID,
-    foundFallback: !!fallback,
-    fallbackElapsedMs: Date.now() - __rotRcaParentStart,
-  })
-
-  if (!fallback) {
-    log.warn("[rot-rca] H1 — no fallback, child will timeout", {
-      childSessionID,
-      parentSessionID,
-      childCurrentModel: props.currentModel,
-      triedVectors: props.triedVectors,
-      elapsedMs: Date.now() - __rotRcaParentStart,
-    })
-    debugCheckpoint("syslog.rotation", "parent escalation: no fallback — child will timeout", {
-      parentSessionID,
-      childSessionID,
-      triedVectors: props.triedVectors,
-    })
-    return
-  }
-
-  const newModel = {
-    providerId: fallback.model.providerId,
-    modelID: fallback.model.id,
-    accountId: fallback.accountId,
-  }
-
-  debugCheckpoint("syslog.rotation", "parent handling child escalation — rotation3d found fallback", {
-    parentSessionID,
-    childSessionID,
-    rotationPicked: newModel,
-    childCurrentModel: props.currentModel,
-    triedVectorCount: triedSet.size,
-  })
-
-  // Send model_update command to worker via stdin
-  const stdin = worker.proc.stdin
-  if (typeof stdin === "number") {
-    log.error("Escalation: worker stdin not writable", { workerID: worker.id, childSessionID })
-    return
-  }
-  const __rotRcaStdinStart = Date.now()
-  try {
-    stdin?.write(
-      JSON.stringify({
-        type: "model_update",
-        sessionID: childSessionID,
-        providerId: newModel.providerId,
-        modelID: newModel.modelID,
-        accountId: newModel.accountId,
-      }) + "\n",
-    )
-    log.info("[rot-rca] parent stdin-send", {
-      childSessionID,
-      stdinWriteMs: Date.now() - __rotRcaStdinStart,
-      totalElapsedMs: Date.now() - __rotRcaParentStart,
-    })
-  } catch (err) {
-    log.error("[rot-rca] RW-6 stdin write failed", {
-      workerID: worker.id,
-      childSessionID,
-      error: err instanceof Error ? err.message : String(err),
-    })
-  }
-
-  // Update child session's pinned execution identity
-  await Session.pinExecutionIdentity({
-    sessionID: childSessionID,
-    model: newModel,
-  }).catch((err) => {
-    log.warn("Escalation: failed to pin child execution identity", {
-      childSessionID,
-      error: err instanceof Error ? err.message : String(err),
-    })
-  })
 }
 
 type WorkerRequest = {
@@ -1090,18 +901,8 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
               worker.current.lastEventAt = now
               if (!worker.current.firstEventAt) worker.current.firstEventAt = now
             }
-            // [rot-rca] parent bridge-line-read — confirm parent stdin reader saw the event
-            if (event?.type === "task.rate_limit_escalation") {
-              log.info("[rot-rca] parent bridge-line-read", {
-                eventType: event.type,
-                sid,
-                workerSid: worker.current?.sessionID,
-              })
-            }
-            void publishBridgedEvent(event).catch((e) => {
-              if (event?.type === "task.rate_limit_escalation") {
-                log.warn("[rot-rca] parent publishBridgedEvent threw", { err: (e as Error)?.message })
-              }
+            void publishBridgedEvent(event).catch(() => {
+              // bridged event publish failed; non-fatal
             })
           } catch {
             // ignore invalid bridge payload
@@ -2548,9 +2349,9 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           // pending-notice path). Bounding here means whichever Phase wires
           // it inherits Layer 2 compliance for free.
           const childBudget = ToolBudget.resolve(ctx, "task")
-          const boundChildBlock = (raw: string, source: "messages" | "shared_context"): string => {
-            const sourceAttr = source === "shared_context" ? ' source="shared_context"' : ""
-            const opening = `\n\n<child_session_output session="${session.id}"${sourceAttr}>\n`
+          const boundChildBlock = (raw: string, source: "messages"): string => {
+            void source
+            const opening = `\n\n<child_session_output session="${session.id}">\n`
             const closing = `\n</child_session_output>`
             const naturalTokens = ToolBudget.estimateTokens(opening + raw + closing)
             if (naturalTokens <= childBudget.tokens) {
@@ -2585,30 +2386,9 @@ export const TaskTool = Tool.define("task", async (ctx) => {
                 childOutput = boundChildBlock(childResultRaw, "messages")
               }
             } catch {
-              // Non-fatal: parent continues without child output detail
-            }
-
-            // Fallback: if message history empty (e.g. compaction), use SharedContext
-            if (!childOutput) {
-              try {
-                const childCtx = await SharedContext.get(session.id)
-                if (childCtx) {
-                  const parts: string[] = []
-                  if (childCtx.currentState) parts.push(`State: ${childCtx.currentState}`)
-                  if (childCtx.actions.length > 0)
-                    parts.push(`Actions:\n${childCtx.actions.map((a: any) => `- ${a.summary}`).join("\n")}`)
-                  if (childCtx.discoveries.length > 0)
-                    parts.push(`Discoveries:\n${childCtx.discoveries.map((d: any) => `- ${d}`).join("\n")}`)
-                  if (childCtx.files.length > 0)
-                    parts.push(`Files touched: ${childCtx.files.map((f: any) => f.path).join(", ")}`)
-                  if (parts.length > 0) {
-                    childResultRaw = parts.join("\n\n")
-                    childOutput = boundChildBlock(childResultRaw, "shared_context")
-                  }
-                }
-              } catch {
-                // Non-fatal
-              }
+              // Non-fatal: parent continues without child output detail.
+              // Raw transcript remains reachable via read_subsession when
+              // the parent agent needs more than the last-3 view.
             }
           }
 
