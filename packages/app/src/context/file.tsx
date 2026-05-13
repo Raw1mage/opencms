@@ -323,7 +323,7 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
         node: tree.node,
         isDirLoaded: tree.isLoaded,
         refreshDir: (dir) => {
-          void tree.listDir(dir, { force: true })
+          void tree.listDir(dir, { force: true, silent: true })
         },
       })
     })
@@ -361,7 +361,7 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
       // 1. Refresh exactly the directories the server reports as affected.
       for (const dir of result.affectedDirectories ?? []) {
         if (!dir && dir !== "") continue
-        void tree.listDir(dir, { force: true })
+        void tree.listDir(dir, { force: true, silent: true })
       }
 
       // 2. Tab reconcile — close on delete, rebind on rename/move.

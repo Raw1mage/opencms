@@ -153,7 +153,8 @@ export const FileRoutes = lazy(() =>
       async (c) => {
         const path = c.req.valid("query").path
         const content = await File.list(path)
-        return c.json(content)
+        const parent = await File.parentEntry(path)
+        return c.json(parent ? [parent, ...content] : content)
       },
     )
     .post(

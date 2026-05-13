@@ -1412,6 +1412,42 @@ export namespace File {
     })
   }
 
+  /**
+   * Resolve the synthetic ".." entry for a listing target, if going up one
+   * level is still within the active project boundary (workspace OR access
+   * whitelist). Used by the /file route handler to give the file explorer
+   * an "up" affordance bounded by the same access policy that governs
+   * reads. Returns undefined when the parent would escape the boundary.
+   */
+  export async function parentEntry(dir?: string): Promise<Node | undefined> {
+    const requested =
+      dir && shouldUseAbsoluteInput(dir) ? dir : dir ? path.join(Instance.directory, dir) : Instance.directory
+    let resolved: string
+    try {
+      resolved = await assertWithinProject(requested)
+    } catch {
+      return undefined
+    }
+    const parentAbs = path.dirname(resolved)
+    // Natural cap: at the filesystem root, path.dirname("/") === "/".
+    // assertWithinProject is the only access gate (workspace + access
+    // whitelist + OPENCODE_ALLOW_GLOBAL_FS_BROWSE) — no extra HOME cap.
+    if (parentAbs === resolved) return undefined
+    try {
+      await assertWithinProject(parentAbs)
+    } catch {
+      return undefined
+    }
+    const rel = path.relative(Instance.directory, parentAbs).replaceAll("\\", "/")
+    return {
+      name: "..",
+      path: rel === "" ? "." : rel,
+      absolute: parentAbs,
+      type: "directory",
+      ignored: false,
+    }
+  }
+
   export async function createDirectory(input: { path: string }): Promise<DirectoryCreateResult> {
     const requested = shouldUseAbsoluteInput(input.path) ? input.path : path.join(Instance.directory, input.path)
     const resolved = await assertWithinProject(requested)

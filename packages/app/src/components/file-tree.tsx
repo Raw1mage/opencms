@@ -592,9 +592,24 @@ export default function FileTree(props: {
     for (const dir of dirs) file.tree.expand(dir)
   })
 
+  // Phase B: single-pane navigation. `viewPath` is the path the file
+  // explorer is currently showing (replaces props.path at the root tree
+  // only). `viewHistory` is the navigation breadcrumb stack — each entry
+  // is the previous viewPath at the moment of navigateInto, so ".." can
+  // pop back to wherever the user came from regardless of how the server
+  // resolves symlinks/realpath (bind mounts like gdrive would otherwise
+  // make the server's HOME-boundary check refuse a parent entry).
+  const [viewPath, setViewPath] = createSignal(props.path)
+  const [viewHistory, setViewHistory] = createSignal<string[]>([])
+  createEffect(() => {
+    setViewPath(props.path)
+    setViewHistory([])
+  })
+  const effectivePath = () => (root ? viewPath() : props.path)
+
   createEffect(
     on(
-      () => props.path,
+      () => effectivePath(),
       (path) => {
         const dir = untrack(() => file.tree.state(path))
         if (!shouldListRoot({ level, dir })) return
@@ -605,13 +620,83 @@ export default function FileTree(props: {
   )
 
   createEffect(() => {
-    const dir = file.tree.state(props.path)
+    const dir = file.tree.state(effectivePath())
     if (!shouldListExpanded({ level, dir })) return
-    void file.tree.list(props.path)
+    void file.tree.list(effectivePath())
+  })
+
+  const navigateInto = (target: string) => {
+    const prev = viewPath()
+    setViewHistory([...viewHistory(), prev])
+    setViewPath(target)
+  }
+
+  const navigateUp = () => {
+    const history = viewHistory()
+    if (history.length > 0) {
+      // Pop history: return to wherever the user came from. Handles
+      // symlinks / bind mounts where realpath escapes the HOME boundary.
+      const prev = history[history.length - 1]
+      setViewHistory(history.slice(0, -1))
+      setViewPath(prev)
+      return
+    }
+    // No history: fall back to server's synthetic ".." entry if present
+    // (allows up-navigation past the initial workspace root, capped at
+    // HOME by the server's boundary check).
+    const info = parentInfo()
+    if (info) setViewPath(info.path)
+  }
+
+  const canNavigateUp = () => viewHistory().length > 0 || !!parentInfo()
+
+  // Pull the server's synthetic ".." entry out so it never renders as a
+  // list row interleaved with real files. Surfaced as a dedicated header
+  // button (renderUpStrip) at the root tree only.
+  const parentInfo = createMemo(() => {
+    if (!root) return undefined
+    const raw = file.tree.children(effectivePath()) ?? []
+    return raw.find((n) => n.name === "..")
+  })
+
+  // Absolute path of the directory currently being viewed (= viewPath()
+  // resolved logically against the workspace). Computed by joining
+  // sdk.directory with viewPath() and resolving "." / ".." segments —
+  // this preserves the user-facing logical path even when entries are
+  // reached via symlinks (server's realpath would otherwise leak the
+  // physical target into the title, causing confusion).
+  const currentAbsolute = createMemo(() => {
+    if (!root) return undefined
+    const base = sdk.directory
+    const rel = effectivePath()
+    if (!rel || rel === "." || rel === "./") return base
+    const out: string[] = []
+    for (const p of (base + "/" + rel).split("/")) {
+      if (p === "") {
+        if (out.length === 0) out.push("")
+        continue
+      }
+      if (p === ".") continue
+      if (p === "..") {
+        if (out.length > 1) out.pop()
+        continue
+      }
+      out.push(p)
+    }
+    return out.length <= 1 ? "/" : out.join("/")
   })
 
   const nodes = createMemo(() => {
-    const nodes = file.tree.children(props.path) ?? []
+    const raw = file.tree.children(effectivePath()) ?? []
+    // The server may inject a synthetic ".." entry; we never render it as
+    // a list row (it would interleave with files and confuse sorting). At
+    // the root tree it gets surfaced separately as a header "↑" button via
+    // parentInfo() below. At sub-tree levels it's just dropped.
+    // path === "" is the workspace itself (server's path.relative returns
+    // "" when a listed entry IS Instance.directory). It would collide with
+    // the root tree's own key and trip the cycle guard's "..." fallback.
+    // Filter at every level.
+    const nodes = raw.filter((n) => n.name !== ".." && n.path !== "")
     const current = filter()
     if (!current) return nodes
 
@@ -1413,7 +1498,7 @@ export default function FileTree(props: {
       <div class="w-full flex flex-wrap gap-1 px-1.5 py-1 border-b border-border-weak-base">
         <For each={pinned()}>
           {(folder) => {
-            const isActive = () => file.tree.focused() === folder
+            const isActive = () => viewPath() === folder
             return (
               <span
                 classList={{
@@ -1421,16 +1506,16 @@ export default function FileTree(props: {
                   "bg-surface-raised-base text-text-base hover:bg-surface-raised-base-hover": !isActive(),
                   "bg-blue-600 text-white hover:bg-blue-500": isActive(),
                 }}
-                title={isActive() ? `${folder} (focused — click to show full tree)` : folder}
+                title={isActive() ? `${folder} (currently viewing)` : folder}
               >
                 <button
                   type="button"
                   class="cursor-pointer max-w-[14ch] truncate text-left"
                   onClick={() => {
                     if (isActive()) {
-                      file.tree.clearFocus()
+                      setViewPath(props.path)
                     } else {
-                      void file.tree.focus(folder)
+                      navigateInto(folder)
                     }
                   }}
                 >
@@ -1576,7 +1661,32 @@ export default function FileTree(props: {
       tabIndex={root ? -1 : undefined}
     >
       <Show when={root}>{renderPinStrip()}</Show>
+      <Show when={root && currentAbsolute()}>
+        {(current) => (
+          <div
+            class="w-full flex items-center gap-x-1.5 px-1.5 py-1 border-b border-border-weak-base text-text-weak text-12-medium"
+            title={current()}
+          >
+            <span class="truncate flex-1 min-w-0 text-left">{current()}</span>
+          </div>
+        )}
+      </Show>
       <Show when={root && props.showHeader}>{renderHeader()}</Show>
+      <Show when={root && canNavigateUp()}>
+        <div
+          class="w-full min-w-0 h-6 flex items-center justify-start gap-x-1.5 rounded-md px-1.5 py-0 text-left hover:bg-surface-raised-base-hover active:bg-surface-base-active transition-colors cursor-pointer"
+          onClick={() => navigateUp()}
+          onDblClick={() => navigateUp()}
+          title="Go up"
+          data-filetree-row="true"
+          data-filetree-row-path=".."
+        >
+          <span class="size-4 flex items-center justify-center text-icon-base shrink-0">
+            <Icon name="chevron-down" size="small" class="rotate-180" />
+          </span>
+          <span class="flex-1 min-w-0 truncate text-text-base">..</span>
+        </div>
+      </Show>
       <For each={focusView().visible}>
         {(node) => {
           const expanded = () => file.tree.state(node.path)?.expanded ?? false
@@ -1586,148 +1696,36 @@ export default function FileTree(props: {
           return (
             <Switch>
               <Match when={node.type === "directory"}>
-                <Collapsible
-                  variant="ghost"
-                  class="w-full"
-                  data-scope="filetree"
-                  forceMount={false}
-                  open={expanded()}
-                  onOpenChange={(open) => {
-                    // Branch-isolation chevron behavior:
-                    //   - Expand any folder → auto-focus on it so siblings
-                    //     collapse to chain.
-                    //   - Collapse the focused folder → step up: focus
-                    //     shifts to its parent and this folder collapses.
-                    //   - Collapse a chain ancestor → focus shifts up to
-                    //     that ancestor; everything below it collapses.
-                    //   - Collapse anything else → normal collapse.
-                    const focused = file.tree.focused()
-                    if (!open && focused) {
-                      if (node.path === focused) {
-                        const idx = node.path.lastIndexOf("/")
-                        const parent = idx === -1 ? "" : node.path.slice(0, idx)
-                        if (parent === "") {
-                          file.tree.clearFocus()
-                          void file.tree.refresh(node.path)
-                          file.tree.collapse(node.path)
-                        } else {
-                          void file.tree.focus(parent)
-                        }
-                        return
-                      }
-                      if (focused.startsWith(node.path + "/")) {
-                        void file.tree.focus(node.path)
-                        return
-                      }
-                    }
-                    if (open) {
-                      void file.tree.focus(node.path)
-                    } else {
-                      void file.tree.refresh(node.path)
-                      file.tree.collapse(node.path)
-                    }
+                <FileTreeNode
+                  node={node}
+                  level={level}
+                  active={props.active}
+                  selected={isSelected(node.path)}
+                  cut={cutPathSet()?.has(node.path)}
+                  nodeClass={props.nodeClass}
+                  draggable={draggable()}
+                  kinds={kinds()}
+                  marks={marks()}
+                  leading={renderLeading(node)}
+                  trailing={renderTrailing(node)}
+                  onClick={(event: MouseEvent) => handleRowClick(node, event)}
+                  onDblClick={() => navigateInto(node.path)}
+                  onContextMenu={(event: MouseEvent) => {
+                    captureMenuAnchor(event)
+                    publishContextMenuTarget(fileTreeRowContextMenuTarget(node))
                   }}
                 >
-                  <FileTreeNode
-                    node={node}
-                    level={level}
-                    active={props.active}
-                    selected={isSelected(node.path)}
-                    cut={cutPathSet()?.has(node.path)}
-                    nodeClass={props.nodeClass}
-                    draggable={draggable()}
-                    kinds={kinds()}
-                    marks={marks()}
-                    leading={renderLeading(node)}
-                    trailing={renderTrailing(node)}
-                    onClick={(event: MouseEvent) => handleRowClick(node, event)}
-                    onDblClick={() => {
-                      // Mirror chevron handler end-to-end. See onOpenChange
-                      // above for the rule set.
-                      const focused = file.tree.focused()
-                      if (focused) {
-                        if (node.path === focused) {
-                          const idx = node.path.lastIndexOf("/")
-                          const parent = idx === -1 ? "" : node.path.slice(0, idx)
-                          if (parent === "") {
-                            file.tree.clearFocus()
-                            void file.tree.refresh(node.path)
-                            file.tree.collapse(node.path)
-                          } else {
-                            void file.tree.focus(parent)
-                          }
-                          return
-                        }
-                        if (focused.startsWith(node.path + "/")) {
-                          void file.tree.focus(node.path)
-                          return
-                        }
-                      }
-                      if (expanded()) {
-                        void file.tree.refresh(node.path)
-                        file.tree.collapse(node.path)
-                      } else {
-                        void file.tree.focus(node.path)
-                      }
-                    }}
-                    onContextMenu={(event: MouseEvent) => {
-                      captureMenuAnchor(event)
-                      publishContextMenuTarget(fileTreeRowContextMenuTarget(node))
+                  <span
+                    class="size-4 flex items-center justify-center text-icon-base shrink-0 cursor-pointer hover:text-text-base"
+                    aria-label="Open folder"
+                    onClick={(e: MouseEvent) => {
+                      e.stopPropagation()
+                      navigateInto(node.path)
                     }}
                   >
-                    <Collapsible.Trigger
-                      as="button"
-                      type="button"
-                      class="size-4 flex items-center justify-center text-icon-base shrink-0 hover:text-text-base"
-                      aria-label={expanded() ? "Collapse" : "Expand"}
-                      onClick={stopPropagation}
-                      onDblClick={stopPropagation}
-                    >
-                      <Icon name={expanded() ? "chevron-down" : "chevron-right"} size="small" />
-                    </Collapsible.Trigger>
-                  </FileTreeNode>
-                  <Collapsible.Content class="relative pt-0.5">
-                    <div
-                      classList={{
-                        "absolute top-0 bottom-0 w-px pointer-events-none bg-border-weak-base opacity-0 transition-opacity duration-150 ease-out motion-reduce:transition-none": true,
-                        "group-hover/filetree:opacity-100": expanded() && deep() === level,
-                        "group-hover/filetree:opacity-50": !(expanded() && deep() === level),
-                      }}
-                      style={`left: ${Math.max(0, 8 + level * 12 - 4) + 8}px`}
-                    />
-                    <Show
-                      when={level < MAX_DEPTH && !chain.includes(key(node.path))}
-                      fallback={<div class="px-2 py-1 text-12-regular text-text-base">...</div>}
-                    >
-                      <FileTree
-                        path={node.path}
-                        level={level + 1}
-                        allowed={props.allowed}
-                        modified={props.modified}
-                        kinds={props.kinds}
-                        active={props.active}
-                        draggable={props.draggable}
-                        onFileClick={props.onFileClick}
-                        onContextMenuTarget={props.onContextMenuTarget}
-                        contextSelection={props.contextSelection}
-                        hasPendingClipboard={props.hasPendingClipboard}
-                        contextMenu={props.contextMenu}
-                        _filter={filter()}
-                        _marks={marks()}
-                        _deeps={deeps()}
-                        _kinds={kinds()}
-                        _chain={chain}
-                        _contextMenuTarget={contextMenuTarget}
-                        _setContextMenuTarget={setContextMenuTarget}
-                        _selection={selection}
-                        _setSelection={setSelection}
-                        _pathTypes={pathTypes}
-                        _clipboard={clipboard}
-                        _setClipboard={setClipboard}
-                      />
-                    </Show>
-                  </Collapsible.Content>
-                </Collapsible>
+                    <Icon name="chevron-right" size="small" />
+                  </span>
+                </FileTreeNode>
               </Match>
               <Match when={node.type === "file"}>
                 <FileTreeNode
