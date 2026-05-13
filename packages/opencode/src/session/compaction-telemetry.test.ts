@@ -37,7 +37,7 @@ describe("compaction telemetry builders", () => {
       isSubscription: true,
       ctxRatio: 0.92,
       codexServerPriorityRatio: 0.8,
-      chain: ["ai_free", "narrative", "replay-tail", "ai_paid"],
+      chain: ["ai_free", "narrative", "ai_paid"],
     })
 
     expect(telemetry.surface).toBe("compaction_kind_chain")

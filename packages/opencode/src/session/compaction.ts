@@ -500,7 +500,7 @@ export namespace SessionCompaction {
 
   /** Local (zero-API-cost) kinds — these get the target-cap escalation path. */
   function isLocalKind(k: KindName): boolean {
-    return k === "narrative" || k === "replay-tail"
+    return k === "narrative"
   }
 
   // Phase 13 follow-up: prune function deleted. See note above the
@@ -538,7 +538,7 @@ export namespace SessionCompaction {
    *
    * Phase 13.3-full (REVISED 2026-04-28): routes through the unified `run()`
    * entry point (DD-9) instead of calling `SharedContext.snapshot` directly.
-   * `KIND_CHAIN["idle"] = ["narrative", "replay-tail"]` covers the same
+   * `KIND_CHAIN["idle"] = ["narrative"]` covers the same
    * "free, no-API" intent that the legacy snapshot path had — but reads from
    * the messages stream + Memory journal instead of the regex-extracted
    * SharedContext text. Single source of truth.
@@ -829,7 +829,7 @@ export namespace SessionCompaction {
     | "idle"
     | "empty-response"
 
-  export type KindName = "narrative" | "replay-tail" | "ai_free" | "ai_paid"
+  export type KindName = "narrative" | "ai_free" | "ai_paid"
   // Note: hybrid_llm is intentionally NOT a KindName. It runs as a
   // background post-step AFTER the chain commits an anchor. See
   // run() success path + scheduleHybridEnrichment() below.
@@ -869,9 +869,9 @@ export namespace SessionCompaction {
    * Narrative empty → chain falls through to next kind naturally.
    */
   const KIND_CHAIN: Readonly<Record<Observed, ReadonlyArray<KindName>>> = Object.freeze({
-    overflow: Object.freeze(["narrative", "replay-tail", "ai_free", "ai_paid"] as const),
-    "cache-aware": Object.freeze(["narrative", "replay-tail", "ai_free", "ai_paid"] as const),
-    idle: Object.freeze(["narrative", "replay-tail"] as const),
+    overflow: Object.freeze(["narrative", "ai_free", "ai_paid"] as const),
+    "cache-aware": Object.freeze(["narrative", "ai_free", "ai_paid"] as const),
+    idle: Object.freeze(["narrative"] as const),
     // 2026-05-13 rev1 (specs/session/rebind-procedure-revision/events/
     // event_2026-05-12_rev1-rebind-class-compaction-chain-excludes-server.md):
     // rebind / continuation-invalidated / provider-switched compactions
@@ -881,17 +881,17 @@ export namespace SessionCompaction {
     // rebind-class compactions fall through to real LLM-driven reduction
     // when narrative's deterministic stub-and-concat doesn't actually
     // shrink the context (dialog-heavy sessions).
-    rebind: Object.freeze(["narrative", "replay-tail", "ai_free", "ai_paid"] as const),
-    "continuation-invalidated": Object.freeze(["narrative", "replay-tail", "ai_free", "ai_paid"] as const),
-    "provider-switched": Object.freeze(["narrative", "replay-tail", "ai_free", "ai_paid"] as const),
-    "stall-recovery": Object.freeze(["narrative", "replay-tail", "ai_free", "ai_paid"] as const),
+    rebind: Object.freeze(["narrative", "ai_free", "ai_paid"] as const),
+    "continuation-invalidated": Object.freeze(["narrative", "ai_free", "ai_paid"] as const),
+    "provider-switched": Object.freeze(["narrative", "ai_free", "ai_paid"] as const),
+    "stall-recovery": Object.freeze(["narrative", "ai_free", "ai_paid"] as const),
     manual: Object.freeze(["narrative", "ai_free", "ai_paid"] as const),
     // empty-response auto-heal: codex's server-side compact gets first crack
     // because the most likely root cause of the empty packet is codex's own
     // context having silently overflowed; letting codex decide what to keep
     // is more useful than a local narrative replay. Falls through to local
     // kinds for non-codex providers (low-cost-server fails fast there).
-    "empty-response": Object.freeze(["ai_free", "narrative", "replay-tail", "ai_paid"] as const),
+    "empty-response": Object.freeze(["ai_free", "narrative", "ai_paid"] as const),
   })
 
   export function kindChainFor(observed: Observed): ReadonlyArray<KindName> {
@@ -1091,74 +1091,6 @@ export namespace SessionCompaction {
       }
     }
     return fragments.join("\n").trim()
-  }
-
-  /**
-   * Replay-tail executor. Serializes the last N raw rounds (user +
-   * assistant text, in chronological order) as plain text. N defaults to
-   * `Memory.rawTailBudget` (default 5). Zero API cost. Used when narrative +
-   * schema both empty AND raw tail still readable. Fallback for crash
-   * recovery per DD-2.
-   *
-   * NOT used for `provider-switched` because raw assistant text may carry
-   * provider-specific tool-call structure that the new provider can't read;
-   * the table excludes it for that observed value.
-   */
-  async function tryReplayTail(input: RunInput, model: Provider.Model | undefined): Promise<KindAttempt> {
-    const mem = await Memory.read(input.sessionID)
-    const budgetN = mem.rawTailBudget || 5
-    const msgs = await Session.messages({ sessionID: input.sessionID }).catch(() => undefined)
-    if (!msgs || msgs.length === 0) return { ok: false, reason: "no messages" }
-
-    // Take the trailing rounds. A "round" here is a user message followed by
-    // its assistant turn; we walk back from the tail collecting until we have
-    // budgetN messages (close enough; consumer just needs context).
-    const tail = msgs.slice(Math.max(0, msgs.length - budgetN * 2))
-    const lines: string[] = []
-    for (const m of tail) {
-      const role = m.info.role
-      if (role !== "user" && role !== "assistant") continue
-      const text = m.parts
-        .filter((p: any) => p.type === "text")
-        .map((p: any) => (p as any).text ?? "")
-        .join("\n")
-        .trim()
-      if (!text) continue
-      lines.push(`${role === "user" ? "User" : "Assistant"}: ${text}`)
-    }
-    if (lines.length === 0) return { ok: false, reason: "tail has no text content" }
-
-    let text = lines.join("\n\n")
-    const target = await resolveTargetPromptTokens()
-    const contextLimit = model?.limit?.context || 0
-    const modelBudget = Math.floor(contextLimit * 0.3)
-    const cap = modelBudget > 0 ? Math.min(modelBudget, target) : target
-    const maxChars = cap * 4
-    let truncated = false
-    if (text.length > maxChars) {
-      truncated = true
-      // Newest-first preservation: walk lines from the end, accumulate until
-      // budget exhausted, then keep that suffix. Drops the oldest rounds.
-      const kept: string[] = []
-      let used = 0
-      for (let i = lines.length - 1; i >= 0; i--) {
-        const candidate = lines[i]
-        const next = used + (used > 0 ? 2 : 0) + candidate.length
-        if (next > maxChars) {
-          if (kept.length === 0) {
-            // Single newest line exceeds cap — truncate from the END to
-            // preserve start (usually the user prompt or assistant headline).
-            kept.unshift(candidate.slice(0, maxChars))
-          }
-          break
-        }
-        kept.unshift(candidate)
-        used = next
-      }
-      text = kept.join("\n\n")
-    }
-    if (!text) return { ok: false, reason: "tail truncated to empty" }
-    return { ok: true, summaryText: text, kind: "replay-tail", truncated }
   }
 
   /**
@@ -1542,8 +1474,6 @@ When constructing the summary, try to stick to this template:
     switch (kind) {
       case "narrative":
         return tryLocalRedactedDialog(input, model)
-      case "replay-tail":
-        return tryReplayTail(input, model)
       case "ai_free":
         return tryLowCostServer(input, model)
       case "ai_paid":
@@ -2677,7 +2607,6 @@ When constructing the summary, try to stick to this template:
     let augmentedSummary = input.summaryText
     const needsClientSideIndex =
       input.kind === "narrative" ||
-      input.kind === "replay-tail" ||
       input.kind === "ai_paid" ||
       input.kind === "hybrid_llm"
     if (needsClientSideIndex) {
