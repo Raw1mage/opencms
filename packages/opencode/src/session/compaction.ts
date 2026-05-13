@@ -3241,6 +3241,114 @@ When constructing the summary, try to stick to this template:
   //
   // Type definitions mirror specs/tool-output-chunking/data-schema.json.
   // ───────────────────────────────────────────────────────────────────
+
+  // ───────────────────────────────────────────────────────────────────
+  // compaction_simplification T1: new strategy taxonomy + unified Anchor
+  // shape. Pure additive in this commit — readers / writers still use
+  // legacy AnchorKind / Hybrid.AnchorMetadata until T2-T9 land.
+  // See plans/compaction_simplification/design.md §1 INV-1, §3.
+  // ───────────────────────────────────────────────────────────────────
+
+  /**
+   * Strategy classification axis: who executes the compaction.
+   * `local`    — deterministic code in this process; 0 product LLM tokens
+   * `ai_free`  — provider's server-side endpoint (codex / Claude server-side)
+   * `ai_paid`  — this product's paid LLM call
+   * See plans/compaction_simplification/design.md §1 INV-1.
+   */
+  export type CompactionStrategy = "local" | "ai_free" | "ai_paid"
+
+  /**
+   * One entry in the chained tool recall index (T1 forward-compat shape).
+   * Allows the anchor to reference past tool calls by id without retaining
+   * their payload. Inherited generation-to-generation under `local`
+   * strategy. See plans/compaction_simplification/design.md §3, §5.
+   */
+  export interface ToolRecallEntry {
+    toolCallId: string
+    toolName: string
+    roundIndex: number
+  }
+
+  /**
+   * Workspace snapshot embedded inside the anchor (subsumes the legacy
+   * `shared_context/<sessionID>` storage key). Populated by batch
+   * extraction over the message range covered by the anchor. See
+   * plans/compaction_simplification/design.md §6.
+   */
+  export interface AnchorWorkspaceFile {
+    path: string
+    lines?: number
+    summary?: string
+    operation: "read" | "edit" | "write" | "grep_match" | "glob_match"
+    updatedAt: number
+  }
+  export interface AnchorWorkspaceAction {
+    tool: string
+    summary: string
+    turn: number
+    addedAt: number
+  }
+  export interface AnchorWorkspace {
+    goal: string
+    files: AnchorWorkspaceFile[]
+    discoveries: string[]
+    actions: AnchorWorkspaceAction[]
+    currentState: string
+  }
+
+  /**
+   * Unified Anchor value (T1 shape). The compaction subsystem's sole
+   * durable output. Subsumes the legacy `Hybrid.AnchorMetadata`,
+   * `SharedContext.Space`, `Hybrid.JournalEntry`, and `PinnedZoneEntry`
+   * surfaces. On-disk shape remains the assistant `summary: true`
+   * message; this value lives in that message's metadata block.
+   *
+   * Pure additive in T1 — production writers still emit
+   * `Hybrid.AnchorMetadata`. T2-T9 migrate writers and readers.
+   *
+   * See plans/compaction_simplification/design.md §3.
+   */
+  export interface Anchor {
+    // Identity
+    sessionID: string
+    anchorId: string
+    version: 1
+    generatedAt: number
+    replacesAnchorId?: string
+
+    // Strategy classification (INV-1)
+    strategy: CompactionStrategy
+    generatedBy?: {
+      provider: string
+      model: string
+      accountId: string
+    }
+
+    // Body + coverage
+    body: string
+    bodyTokens: number
+    coversRounds: { earliest: number; latest: number }
+    priorAnchorTokens: number
+    tailTokens: number
+
+    // Local-only chained recall index (payload-free).
+    toolRecallIndex?: ToolRecallEntry[]
+
+    // Workspace snapshot (subsumes SharedContext.Space).
+    workspace: AnchorWorkspace
+
+    // Upgrade lifecycle for local → ai_paid background promotion
+    // (replaces legacy 5K hybrid_llm threshold; T4 will gate at 20%).
+    upgrade?: {
+      eligibleAt: number
+      scheduledAt?: number
+      completedAt?: number
+      fromStrategy?: "local"
+      failureReason?: string
+    }
+  }
+
   export namespace Hybrid {
     /**
      * Compaction phases. DD-3, DD-9. Phase 1 is the normal path; Phase 2
