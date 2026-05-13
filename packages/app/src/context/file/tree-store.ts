@@ -6,7 +6,14 @@ type DirectoryState = {
   loaded?: boolean
   loading?: boolean
   error?: string
-  children?: string[]
+  // Inline FileNode entries (not keyed by relative path). Storing the
+  // actual node objects per directory avoids the cross-view key collision
+  // we hit when two views legitimately use the same relative path ("..")
+  // to refer to different filesystem entities — e.g. the synthetic ".."
+  // entry of the workspace view and the real "projects" entry seen when
+  // the user navigates to the workspace's parent both end up with
+  // path === ".." and would overwrite each other in a global node map.
+  children?: FileNode[]
 }
 
 type TreeStoreOptions = {
@@ -65,19 +72,22 @@ export function createFileTreeStore(options: TreeStoreOptions) {
       .then((nodes) => {
         if (options.scope() !== directory) return
         const prevChildren = tree.dir[dir]?.children ?? []
-        const nextChildren = nodes.map((node) => node.path)
-        const nextSet = new Set(nextChildren)
+        const nextPaths = new Set(nodes.map((n) => n.path))
 
         setTree(
           "node",
           produce((draft) => {
+            // Maintain the global path→node map for back-compat callers
+            // (watcher invalidation looks up by relative path). Render path
+            // does NOT depend on this map any more; the per-dir inline
+            // children array below is the source of truth for the view.
             const removedDirs: string[] = []
 
             for (const child of prevChildren) {
-              if (nextSet.has(child)) continue
-              const existing = draft[child]
-              if (existing?.type === "directory") removedDirs.push(child)
-              delete draft[child]
+              if (nextPaths.has(child.path)) continue
+              const existing = draft[child.path]
+              if (existing?.type === "directory") removedDirs.push(child.path)
+              delete draft[child.path]
             }
 
             if (removedDirs.length > 0) {
@@ -114,7 +124,7 @@ export function createFileTreeStore(options: TreeStoreOptions) {
           produce((draft) => {
             draft.loaded = true
             draft.loading = false
-            draft.children = nextChildren
+            draft.children = nodes
           }),
         )
       })
@@ -158,14 +168,7 @@ export function createFileTreeStore(options: TreeStoreOptions) {
 
   const children = (input: string) => {
     const dir = options.normalizeDir(input)
-    const ids = tree.dir[dir]?.children
-    if (!ids) return []
-    const out: FileNode[] = []
-    for (const id of ids) {
-      const node = tree.node[id]
-      if (node) out.push(node)
-    }
-    return out
+    return tree.dir[dir]?.children ?? []
   }
 
   /**

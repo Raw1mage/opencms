@@ -710,18 +710,6 @@ export default function FileTree(props: {
     // directory: clicking it via navigateInto("") just returns to the
     // workspace root (no recursion concerns in single-pane mode).
     const nodes = raw.filter((n) => n.name !== "..")
-    if (root && typeof window !== "undefined") {
-      // TEMP debug
-      const proj = raw.find((n) => n.name === "projects")
-      // eslint-disable-next-line no-console
-      console.log("[file-tree DEBUG] effectivePath=", effectivePath(),
-        "raw.length=", raw.length,
-        "nodes.length=", nodes.length,
-        "projects in raw?", !!proj,
-        "projects in nodes?", nodes.some((n) => n.name === "projects"),
-        "projects entry=", proj,
-      )
-    }
     const current = filter()
     if (!current) return nodes
 
