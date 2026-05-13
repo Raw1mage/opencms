@@ -436,6 +436,67 @@ export namespace SharedContext {
     return space
   }
 
+  // ── Batch Extraction (compaction_simplification T5) ──────────
+  //
+  // Builds a fresh Space by replaying the existing per-turn extraction
+  // functions (processToolPart, updateFromAssistantText, consolidate)
+  // over a flat batch of messages. Pure — does not read or write the
+  // `shared_context/<sessionID>` storage key.
+  //
+  // Replaces the per-turn streaming flow at compaction time: instead of
+  // reading the persisted Space, the caller asks for a snapshot derived
+  // directly from the message range the new anchor covers.
+  //
+  // Algorithm is byte-equivalent to N sequential updateFromTurn calls
+  // on a fresh Space (verified by parity test). Turn numbering follows
+  // the same convention: increment per assistant message.
+  export function extractWorkspaceBatch(input: {
+    sessionID: string
+    messages: ReadonlyArray<MessageV2.WithParts>
+    budget?: number
+  }): Space {
+    const budget = input.budget ?? 8192
+    let space = createEmpty(input.sessionID, budget)
+    let turnNumber = 0
+    for (const msg of input.messages) {
+      if (msg.info.role === "assistant") turnNumber++
+      for (const part of msg.parts) {
+        if (part.type !== "tool") continue
+        if (part.state.status !== "completed") continue
+        processToolPart(space, part, turnNumber)
+      }
+      if (msg.info.role === "assistant") {
+        const text = msg.parts
+          .filter((p) => p.type === "text")
+          .map((p) => ((p as { text?: string }).text ?? ""))
+          .join("\n")
+        if (text) updateFromAssistantText(space, text)
+      }
+    }
+    space.files = deduplicateFiles(space.files)
+    const estimated = Token.estimate(serialize(space))
+    if (estimated > budget) space = consolidate(space, budget)
+    return space
+  }
+
+  // Project a Space onto the user-facing Anchor.workspace shape (drops
+  // bookkeeping fields: sessionID, version, updatedAt, budget).
+  export function toAnchorWorkspace(space: Space): {
+    goal: string
+    files: FileEntry[]
+    discoveries: string[]
+    actions: ActionEntry[]
+    currentState: string
+  } {
+    return {
+      goal: space.goal,
+      files: space.files,
+      discoveries: space.discoveries,
+      actions: space.actions,
+      currentState: space.currentState,
+    }
+  }
+
   // SharedContext.Space is the file/action workspace used by subagents
   // (updateFromTurn, mergeFrom, get). Compaction reads from message-stream
   // anchors and the Memory journal — not from this surface.
