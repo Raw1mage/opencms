@@ -410,8 +410,7 @@ function createGlobalSync() {
     if (event?.type === "tui.toast.show") {
       const { message, variant, title, duration, emittedAt } = (event.properties || {}) as any
       // [TOAST-TRACE] receive log — pair with backend [TOAST-TRACE] sse-write
-      // entries to measure publish→browser latency. Always show the toast
-      // regardless of age; this stamp is for RCA only.
+      // entries to measure publish→browser latency.
       const recvAt = Date.now()
       const traversalMs = typeof emittedAt === "number" ? recvAt - emittedAt : undefined
       // eslint-disable-next-line no-console
@@ -424,6 +423,20 @@ function createGlobalSync() {
         messagePreview: String(message ?? "").slice(0, 120),
       })
       if (!message) return
+      // TTL guard (frontend/resync P2.2 / DD-8): drop ephemeral notifications
+      // older than TOAST_TTL_MS. A toast that flashed 30s ago when the user
+      // had backgrounded the app is misleading on return — the underlying
+      // state has moved on. Only apply when we can verify the age; if
+      // emittedAt is absent we have no basis to discard.
+      const TOAST_TTL_MS = 5_000
+      if (typeof traversalMs === "number" && traversalMs > TOAST_TTL_MS) {
+        console.info("[TOAST-TRACE] dropped — TTL exceeded", {
+          traversalMs,
+          ttlMs: TOAST_TTL_MS,
+          title,
+        })
+        return
+      }
       showToast({
         title,
         description: message,

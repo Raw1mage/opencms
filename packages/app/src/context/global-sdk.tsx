@@ -281,14 +281,18 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
             streamOpenCount += 1
             lastEventAt = Date.now()
             if (streamOpenCount > 1 && typeof window !== "undefined") {
-              // Only treat this reconnect as "missed events — full resync needed"
-              // if the stream was truly down for a while. Short flaps (nginx
-              // keepalive / cellular NAT bounce / HTTP/2 ping miss) reconnect
-              // within seconds; racing a force-refetch against an in-flight
-              // streaming reply can wipe partial message parts from the store
-              // because the GET /message response is a point-in-time snapshot
-              // that may predate the current streaming assistant message. Rely
-              // on SSE's natural event delivery for short gaps.
+              // DEPRECATED (frontend/resync P1, since 2026-05-14):
+              // The 30s short-flap-skip-resync logic below is OBSOLETE. It was
+              // the old "trust SSE as data source" model's compromise: skip
+              // resync on short gaps because GET /message snapshot could race
+              // with in-flight streaming partials. P1 made client active poll
+              // the correctness floor + merge-by-part-id with local-streaming
+              // preservation (DD-4, DD-6), so resync race is no longer a
+              // concern. This branch is retained ONLY for the
+              // `opencode:sse_reconnect` window-event consumers that haven't
+              // migrated yet. NEW code MUST NOT introduce more 30s-threshold
+              // logic — use active polling / verifyChannel instead.
+              // Slated for removal in plans/frontend_resync/ P5 cleanup.
               const SSE_LONG_OUTAGE_THRESHOLD_MS = 30_000
               const gapMs = previousEventAt === 0 ? 0 : Date.now() - previousEventAt
               if (gapMs > SSE_LONG_OUTAGE_THRESHOLD_MS) {
@@ -385,18 +389,35 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
       })
     })
 
+    // Lifecycle handlers dispatch `opencode:viewing-session-resync` so the
+    // currently-viewing session view can pull a fresh snapshot independently
+    // of SSE. Client owns the channel — we don't wait for server to push
+    // anything. (frontend/resync P2, AC-5)
+    const dispatchViewingResync = (reason: string) => {
+      if (typeof window === "undefined") return
+      window.dispatchEvent(
+        new CustomEvent("opencode:viewing-session-resync", { detail: { reason } }),
+      )
+    }
     const onVisibility = () => {
       if (document.hidden) return
       reconnect("visibilitychange")
+      dispatchViewingResync("visibilitychange")
     }
     // pageshow fires on every show including initial page load. We only need
     // to force-reconnect when it's a bfcache restore (event.persisted = true);
     // a normal initial load already opened a fresh stream and reconnecting
     // immediately just produces a noisy 65ms-gap "short flap" in the log.
     const onPageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) reconnect("pageshow-bfcache")
+      if (event.persisted) {
+        reconnect("pageshow-bfcache")
+        dispatchViewingResync("pageshow-bfcache")
+      }
     }
-    const onOnline = () => reconnect("online")
+    const onOnline = () => {
+      reconnect("online")
+      dispatchViewingResync("online")
+    }
 
     document.addEventListener("visibilitychange", onVisibility)
     window.addEventListener("pageshow", onPageShow)

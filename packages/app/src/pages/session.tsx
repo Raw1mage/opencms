@@ -76,6 +76,7 @@ import { SessionSidePanel } from "@/pages/session/session-side-panel"
 import { useSessionHashScroll } from "@/pages/session/use-session-hash-scroll"
 import { sessionPermissionRequest, sessionQuestionRequest } from "@/pages/session/session-request-tree"
 import { getAssistantSyncedSessionModel } from "@/pages/session/session-model-sync"
+import { startActivePoll } from "@/context/active-poll"
 
 type HandoffSession = {
   prompt: string
@@ -692,6 +693,44 @@ export default function Page() {
     const assistantParts = assistant ? (sync.data.part[assistant.id] ?? []) : []
     return getSessionArbitrationChips({ userParts, toolParts: assistantParts })
   })
+
+  // Lifecycle-driven resync (frontend/resync P2.1).
+  // Fires on visibilitychange / pageshow-bfcache / online — mobile returns
+  // from background, network reconnects, etc. Triggers a one-shot active
+  // poll to pull the current snapshot. Independent of SSE health.
+  const onViewingResync = (e: Event) => {
+    const sessionID = params.id
+    if (!sessionID) return
+    const reason = (e as CustomEvent).detail?.reason ?? "unknown"
+    console.info("[session] lifecycle resync", { sessionID, reason })
+    // One-shot poll: stop after first successful pull regardless of workflow state.
+    let stopped = false
+    const stop = startActivePoll(
+      sessionID,
+      {
+        client: sdk.client as Parameters<typeof startActivePoll>[1]["client"],
+        directory: sdk.directory,
+        store: sync.data,
+        setStore: sync.set as Parameters<typeof startActivePoll>[1]["setStore"],
+      },
+      {
+        pollMs: () => 500,
+        until: () => {
+          // Stop after first tick — this is a snapshot pull, not a watch loop.
+          if (stopped) return true
+          stopped = true
+          return true
+        },
+        onStop: () => {},
+      },
+    )
+    // Belt-and-suspenders: ensure stop if `until` race ever lags.
+    setTimeout(stop, 5_000)
+  }
+  if (typeof window !== "undefined") {
+    window.addEventListener("opencode:viewing-session-resync", onViewingResync)
+    onCleanup(() => window.removeEventListener("opencode:viewing-session-resync", onViewingResync))
+  }
 
   // Auto-compaction is hidden from the turn view; surface foreground progress
   // through the status footer so it behaves like runloop work instead of a

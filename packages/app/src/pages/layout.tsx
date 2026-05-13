@@ -603,6 +603,23 @@ export default function Layout(props: ParentProps) {
     }
   })
 
+  // Browser tab title — surface total unseen count across project sessions so
+  // a backgrounded tab shows "(3) opencode" the way Gmail / chat apps do.
+  // The currently-viewed session auto-clears via markViewed (L1529), so this
+  // count reflects OTHER sessions in the project with new activity.
+  // (frontend/resync P2.3 — reuses existing notification.session.unseenCount)
+  const baseDocumentTitle = createMemo(() => "opencode")
+  createEffect(() => {
+    if (typeof document === "undefined") return
+    const sessions = currentSessions()
+    let total = 0
+    for (const session of sessions) {
+      total += notification.session.unseenCount(session.id)
+    }
+    const base = baseDocumentTitle()
+    document.title = total > 0 ? `(${total}) ${base}` : base
+  })
+
   const currentSessions = createMemo(() => {
     const project = currentProject()
     if (!project) return [] as Session[]
