@@ -1,9 +1,9 @@
-import { sanitizeAnchor, sanitizeAnchorToString, type AnchorKind } from "./anchor-sanitizer"
+import { sanitizeAnchor, sanitizeAnchorToString, unwrapPriorContext, type AnchorKind } from "./anchor-sanitizer"
 
 describe("anchor sanitizer (DD-6)", () => {
   describe("wrapping", () => {
     it.each<AnchorKind>(["narrative", "replay-tail", "low-cost-server", "llm-agent"])(
-      "wraps body in <prior_context source=\"%s\">",
+      'wraps body in <prior_context source="%s">',
       (kind) => {
         const out = sanitizeAnchor("hello world", kind)
         expect(out.wrapperOpen).toBe(`<prior_context source="${kind}">`)
@@ -15,6 +15,21 @@ describe("anchor sanitizer (DD-6)", () => {
       const out = sanitizeAnchorToString("hello world", "narrative")
       expect(out.body).toBe('<prior_context source="narrative">\nhello world\n</prior_context>')
       expect(out.imperativePrefixApplied).toBe(false)
+    })
+
+    it("flattens an existing prior_context wrapper before writing the next anchor", () => {
+      const previous = '<prior_context source="narrative">\nold summary\n</prior_context>'
+      const out = sanitizeAnchorToString(`${previous}\n\nnew tail`, "narrative")
+      expect(out.body.match(/<prior_context\b/g)).toHaveLength(1)
+      expect(out.body.match(/<\/prior_context>/g)).toHaveLength(1)
+      expect(out.body).toContain("old summary")
+      expect(out.body).toContain("new tail")
+    })
+
+    it("unwraps nested whole-body prior_context wrappers", () => {
+      const nested =
+        '<prior_context source="narrative">\n<prior_context source="llm-agent">\ninner\n</prior_context>\n</prior_context>'
+      expect(unwrapPriorContext(nested)).toBe("inner")
     })
   })
 
