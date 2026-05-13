@@ -243,7 +243,7 @@ describe("session.compaction.kindChainFor", () => {
         isSubscription: true,
         ctxRatio: 0.8,
       }),
-    ).toEqual(["low-cost-server", "narrative", "replay-tail", "llm-agent"])
+    ).toEqual(["ai_free", "narrative", "replay-tail", "ai_paid"])
 
     // codex non-sub at high ctx → ALSO server first (sub flag no longer gates)
     expect(
@@ -253,7 +253,7 @@ describe("session.compaction.kindChainFor", () => {
         isSubscription: false,
         ctxRatio: 0.8,
       }),
-    ).toEqual(["low-cost-server", "narrative", "replay-tail", "llm-agent"])
+    ).toEqual(["ai_free", "narrative", "replay-tail", "ai_paid"])
 
     // codex at low ctx → still server first (no threshold gate anymore)
     expect(
@@ -262,7 +262,7 @@ describe("session.compaction.kindChainFor", () => {
         providerId: "codex",
         ctxRatio: 0.3,
       }),
-    ).toEqual(["low-cost-server", "narrative", "replay-tail", "llm-agent"])
+    ).toEqual(["ai_free", "narrative", "replay-tail", "ai_paid"])
   })
 
   test("non-codex provider: local-first chain unchanged regardless of subscription / context", () => {
@@ -273,14 +273,14 @@ describe("session.compaction.kindChainFor", () => {
         isSubscription: true,
         ctxRatio: 0.8,
       }),
-    ).toEqual(["narrative", "replay-tail", "low-cost-server", "llm-agent"])
+    ).toEqual(["narrative", "replay-tail", "ai_free", "ai_paid"])
 
     expect(
       SessionCompaction.__test__.resolveKindChain({
         observed: "manual",
         providerId: "anthropic",
       }),
-    ).toEqual(["narrative", "low-cost-server", "llm-agent"])
+    ).toEqual(["narrative", "ai_free", "ai_paid"])
   })
 
   test("codex chain handles observed events that don't normally include low-cost-server", () => {
@@ -293,21 +293,21 @@ describe("session.compaction.kindChainFor", () => {
         observed: "idle",
         providerId: "codex",
       }),
-    ).toEqual(["low-cost-server", "narrative", "replay-tail"])
+    ).toEqual(["ai_free", "narrative", "replay-tail"])
 
     expect(
       SessionCompaction.__test__.resolveKindChain({
         observed: "rebind",
         providerId: "codex",
       }),
-    ).toEqual(["low-cost-server", "narrative", "replay-tail"])
+    ).toEqual(["ai_free", "narrative", "replay-tail"])
 
     expect(
       SessionCompaction.__test__.resolveKindChain({
         observed: "empty-response",
         providerId: "codex",
       }),
-    ).toEqual(["low-cost-server", "narrative", "replay-tail", "llm-agent"])
+    ).toEqual(["ai_free", "narrative", "replay-tail", "ai_paid"])
   })
 })
 
@@ -408,7 +408,7 @@ describe("session.prompt trigger inventory", () => {
     })
 
     expect(observed).toBe("stall-recovery")
-    expect(SessionCompaction.kindChainFor("stall-recovery")).toEqual(["narrative", "replay-tail", "low-cost-server", "llm-agent"])
+    expect(SessionCompaction.kindChainFor("stall-recovery")).toEqual(["narrative", "replay-tail", "ai_free", "ai_paid"])
     expect(SessionCompaction.__test__.INJECT_CONTINUE["stall-recovery"]).toBe(false)
   })
 })

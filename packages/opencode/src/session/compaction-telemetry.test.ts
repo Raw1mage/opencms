@@ -37,11 +37,11 @@ describe("compaction telemetry builders", () => {
       isSubscription: true,
       ctxRatio: 0.92,
       codexServerPriorityRatio: 0.8,
-      chain: ["low-cost-server", "narrative", "replay-tail", "llm-agent"],
+      chain: ["ai_free", "narrative", "replay-tail", "ai_paid"],
     })
 
     expect(telemetry.surface).toBe("compaction_kind_chain")
-    expect(telemetry.chain[0]).toBe("low-cost-server")
+    expect(telemetry.chain[0]).toBe("ai_free")
     expect(telemetry.isSubscription).toBe(true)
   })
 

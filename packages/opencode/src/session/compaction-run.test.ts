@@ -149,11 +149,11 @@ function stubAnchorMessage(sid: string, anchorAgeMs: number | null) {
 
 describe("compaction-redesign phase 4 — KIND_CHAIN + INJECT_CONTINUE table structure", () => {
   it("KIND_CHAIN entries are cost-monotonic except explicit server-priority recovery chains (INV-4)", () => {
-    const COST = { narrative: 0, "replay-tail": 0, "low-cost-server": 1, "llm-agent": 2 } as const
+    const COST = { narrative: 0, "replay-tail": 0, "ai_free": 1, "ai_paid": 2 } as const
     const chains = SessionCompaction.__test__.KIND_CHAIN
     for (const [observed, kinds] of Object.entries(chains)) {
       if (observed === "empty-response") {
-        expect(kinds).toEqual(["low-cost-server", "narrative", "replay-tail", "llm-agent"])
+        expect(kinds).toEqual(["ai_free", "narrative", "replay-tail", "ai_paid"])
         continue
       }
       let prev = -1
@@ -183,14 +183,14 @@ describe("compaction-redesign phase 4 — KIND_CHAIN + INJECT_CONTINUE table str
       expect(kinds[0]).toBe("narrative")
       expect(kinds[1]).toBe("replay-tail")
       // paid kinds now present as fallback
-      expect(kinds).toContain("low-cost-server")
-      expect(kinds).toContain("llm-agent")
+      expect(kinds).toContain("ai_free")
+      expect(kinds).toContain("ai_paid")
     }
   })
 
   it("manual chain has narrative + paid kinds (no replay-tail since manual user wants real compression)", () => {
     const kinds = SessionCompaction.__test__.KIND_CHAIN["manual"]
-    expect(kinds).toEqual(["narrative", "low-cost-server", "llm-agent"])
+    expect(kinds).toEqual(["narrative", "ai_free", "ai_paid"])
   })
 
   it("provider-switched chain falls through to paid kinds (rev1 2026-05-13)", () => {
@@ -199,8 +199,8 @@ describe("compaction-redesign phase 4 — KIND_CHAIN + INJECT_CONTINUE table str
     expect(SessionCompaction.__test__.KIND_CHAIN["provider-switched"]).toEqual([
       "narrative",
       "replay-tail",
-      "low-cost-server",
-      "llm-agent",
+      "ai_free",
+      "ai_paid",
     ])
   })
 
@@ -372,8 +372,8 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
     // rev1: paid kinds NOW present as fallback (was previously excluded
     // under the "rebind = small context" assumption — rotation-heavy
     // sessions falsified that).
-    expect(chain).toContain("low-cost-server")
-    expect(chain).toContain("llm-agent")
+    expect(chain).toContain("ai_free")
+    expect(chain).toContain("ai_paid")
     // But local kinds still come first
     expect(chain[0]).toBe("narrative")
     expect(chain[1]).toBe("replay-tail")
@@ -562,7 +562,7 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
 
     expect(result).toBe("continue")
     expect(writes).toHaveLength(1)
-    expect(writes[0].kind).toBe("low-cost-server")
+    expect(writes[0].kind).toBe("ai_free")
     expect(writes[0].summaryText).toContain("Server-compacted")
   })
 
@@ -655,7 +655,7 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
 
     expect(result).toBe("continue")
     expect(writes).toHaveLength(1)
-    expect(writes[0].kind).toBe("low-cost-server")
+    expect(writes[0].kind).toBe("ai_free")
   })
 
   it("writes anchor on successful run (anchor IS the cooldown signal — no separate Memory.markCompacted call)", async () => {

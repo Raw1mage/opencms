@@ -180,7 +180,7 @@ export function emitUserMsgReplayTelemetry(input: Parameters<typeof buildUserMsg
 // ─────────────────────────────────────────────────────────────────────
 
 type RecompressTrigger = "size-ceiling" | "legacy-large-policy"
-type RecompressKind = "low-cost-server" | "hybrid_llm"
+type RecompressKind = "ai_free" | "hybrid_llm"
 type RecompressResult =
   | "success"
   | "stale-anchor-skipped"

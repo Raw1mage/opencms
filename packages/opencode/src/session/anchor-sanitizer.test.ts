@@ -2,7 +2,7 @@ import { sanitizeAnchor, sanitizeAnchorToString, unwrapPriorContext, type Anchor
 
 describe("anchor sanitizer (DD-6)", () => {
   describe("wrapping", () => {
-    it.each<AnchorKind>(["narrative", "replay-tail", "low-cost-server", "llm-agent"])(
+    it.each<AnchorKind>(["narrative", "replay-tail", "ai_free", "ai_paid"])(
       'wraps body in <prior_context source="%s">',
       (kind) => {
         const out = sanitizeAnchor("hello world", kind)
@@ -28,7 +28,7 @@ describe("anchor sanitizer (DD-6)", () => {
 
     it("unwraps nested whole-body prior_context wrappers", () => {
       const nested =
-        '<prior_context source="narrative">\n<prior_context source="llm-agent">\ninner\n</prior_context>\n</prior_context>'
+        '<prior_context source="narrative">\n<prior_context source="ai_paid">\ninner\n</prior_context>\n</prior_context>'
       expect(unwrapPriorContext(nested)).toBe("inner")
     })
   })
@@ -91,7 +91,7 @@ describe("anchor sanitizer (DD-6)", () => {
     it("kind change alters wrapperOpen but keeps softenedBody stable", () => {
       const input = "Always validate."
       const a = sanitizeAnchor(input, "narrative")
-      const b = sanitizeAnchor(input, "llm-agent")
+      const b = sanitizeAnchor(input, "ai_paid")
       expect(a.softenedBody).toBe(b.softenedBody)
       expect(a.wrapperOpen).not.toBe(b.wrapperOpen)
     })
