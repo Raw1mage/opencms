@@ -45,22 +45,27 @@ that observed value when the timestamp is newer than the most recent
 
 `SessionCompaction.kindChainFor(observed)` returns an ordered list of
 kinds. `resolveKindChain` walks the chain and picks the first that
-succeeds. The four kinds are `narrative`, `replay-tail`,
-`low-cost-server`, `llm-agent`; cost is monotonic in that order.
+succeeds. Post compaction_simplification (2026-05-14) the three kinds
+are `narrative`, `ai_free`, `ai_paid` (executor-role taxonomy: local
+narrative summariser, provider server-side compactor, paid LLM call).
+
+`replay-tail` was retired as a Strategy in T2b: tail is not a
+compaction strategy — it is just the messages that naturally follow
+the anchor in storage and are replayed verbatim by the prompt
+builder.
 
 Per-`observed` chain rules:
 
-- `rebind` / `continuation-invalidated` / `provider-switched` — only
-  free kinds (`narrative`, `replay-tail`). Paid kinds are rejected;
-  if no free kind succeeds the call returns `"stop"` with `log.warn`.
-- `manual` — `narrative` → `low-cost-server` → `llm-agent`. Schema/
-  replay-tail are skipped (they would defeat user intent).
-- `manual --rich` — straight to `llm-agent`.
+- `rebind` / `continuation-invalidated` / `provider-switched` —
+  `narrative` first, then `ai_free` + `ai_paid` as fallback. Local
+  narrative still gets first shot (free + fast); paid kinds backstop
+  when narrative does not reduce the context enough.
+- `manual` — `narrative` → `ai_free` → `ai_paid`.
+- `manual --rich` — straight to `ai_paid`.
 - `overflow` / `cache-aware` / `idle` — full chain available.
 
-`provider-switched` further forbids `replay-tail` (raw tail carries
-provider-specific tool-call format) and `low-cost-server` (codex/OpenAI
-format unreadable to other providers).
+For codex sessions the chain is reordered to put `ai_free` first so
+the model leans on codex's server-side compactor when reachable.
 
 ### Memory backed by TurnSummary, captured at runloop exit
 
@@ -78,11 +83,21 @@ Two render functions:
 
 ### Anchors are sanitized and don't shadow L7
 
-When a `narrative` or `llm-agent` kind writes its anchor, the body is
+When a `narrative` or `ai_paid` kind writes its anchor, the body is
 wrapped in `<prior_context source="...">…</prior_context>` and
 imperative-leading lines are rewritten to declarative form
-(`anchor-sanitizer.ts`). The anchor message has `summary === true`. L9
-skill snapshot is recorded in anchor metadata for replay.
+(`anchor-sanitizer.ts`). The anchor message has `summary === true`.
+Anchor lineage is captured via the `replacesAnchorId` field on the
+assistant message (T7), letting consumers walk the chain newest-first
+through `Memory.Hybrid.walkAnchorLineage`. Legacy pre-T7 anchors fall
+back to chronological order for the walk.
+
+Workspace state ({goal, files, discoveries, actions, currentState})
+is no longer maintained as a per-turn streaming sidecar at
+`shared_context/<sessionID>`. T6 retired those writers; workspace is
+now extracted in one batch from the message stream at read time via
+`SharedContext.extractWorkspaceBatch` (used by `Memory.read`'s
+fileIndex / actionLog projection).
 
 ### Idle compaction defers on unclean tail
 

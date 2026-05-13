@@ -393,13 +393,16 @@ rebind-checkpoint, or shared-context snapshot.
   view of the messages stream. `Memory.read(sid)` walks finished
   assistant messages and assembles a `SessionMemory` shape (rolled-up
   prior anchor + post-anchor turn summaries). Auxiliary fields
-  (`fileIndex`, `actionLog`) come from `SharedContext.Space` (a
-  separate file/action workspace). Two render functions:
-  `renderForLLMSync(mem, maxTokens?)` for next-LLM-call compact text
-  with newest-first cap, and `renderForHumanSync(mem)` for UI preview.
-  No file IO.
+  (`fileIndex`, `actionLog`) are derived in batch from the message
+  stream via `SharedContext.extractWorkspaceBatch` (T6
+  compaction_simplification, 2026-05-14). The legacy
+  `shared_context/<sessionID>` sidecar is no longer written. Two
+  render functions: `renderForLLMSync(mem, maxTokens?)` for
+  next-LLM-call compact text with newest-first cap, and
+  `renderForHumanSync(mem)` for UI preview. No file IO.
 - **Anchor**: assistant message with `summary: true`. Written by
-  `compactWithSharedContext` (or `tryLlmAgent` inline). Lives in the
+  `writeAnchorFromBody` (T9 rename of the legacy
+  `compactWithSharedContext`) or `tryLlmAgent` inline. Lives in the
   message stream as a regular member; `filterCompacted` truncates
   history at the most recent one. Restart / rebind / account-rotation
   all recover by scanning the stream for the most recent anchor and
@@ -426,38 +429,42 @@ across iterations (DD-1).
 
 ### Cost-monotonic kind chain
 
+Post compaction_simplification (2026-05-14) there are three Strategy
+values reflecting executor role: `local` (narrative summariser, zero
+product LLM tokens), `ai_free` (provider server-side compactor),
+`ai_paid` (paid LLM call). The KindName union is
+`narrative | ai_free | ai_paid`; the prior `replay-tail` value was
+retired (tail is not a strategy — it is the messages that naturally
+follow the anchor in storage).
+
 ```
 trigger=overflow / cache-aware:
-  narrative → replay-tail → low-cost-server → llm-agent
+  narrative → ai_free → ai_paid
 
-trigger=idle / rebind / continuation-invalidated:
-  narrative → replay-tail  (no paid kinds; maintenance only)
-
-trigger=provider-switched:
-  narrative → replay-tail  (local fallback only; no paid kinds)
+trigger=idle / rebind / continuation-invalidated / provider-switched:
+  narrative → ai_free → ai_paid  (local first, paid kinds as fallback)
 
 trigger=manual:
-  narrative → low-cost-server → llm-agent
+  narrative → ai_free → ai_paid
 
 trigger=manual + intent=rich:
-  llm-agent only
+  ai_paid only
 ```
 
-`schema` kind (legacy `SharedContext.snapshot` regex extractor) was
-retired in Phase 13 — fresh sessions are supposed to be empty, not
-back-filled from regex extracts. Local kinds self-cap at
-`compaction.targetPromptTokens` (default 50K); if a local kind had to
-truncate AND a paid kind remains in the chain, run() escalates
-("double-phase" — see DD-13 in compaction-redesign spec).
+For codex sessions the chain is reordered to put `ai_free` first
+(server-side `/responses/compact` is reachable and free). Local kinds
+self-cap at `compaction.targetPromptTokens` (default 50K); if a local
+kind had to truncate AND a paid kind remains in the chain, run()
+escalates ("double-phase").
 
 `INJECT_CONTINUE` table is frozen: rebind / continuation-invalidated /
 provider-switched / manual all map to `false`. The 2026-04-27 infinite
 loop bug is structurally extinct.
 
 Phase A edge cleanup (2026-05-01, specs/\_archive/compaction-improvements):
-provider-switched compaction now exposes `SessionCompaction.kindChainFor`
-for tests and uses `narrative → replay-tail`, preserving the no-paid-kind
-rule while avoiding silent narrative-only failure. The prompt runloop
+provider-switched compaction exposes `SessionCompaction.kindChainFor`
+for tests; the chain has since converged with the other rebind-class
+triggers (compaction_simplification T2b, 2026-05-14). The prompt runloop
 refreshes `lastFinished.tokens.input` after stream-anchor rebind attempts
 for applied, no-anchor, and unsafe-boundary outcomes so downstream
 predicate checks do not read stale provider usage. If a runloop iteration
