@@ -614,6 +614,9 @@ export namespace SessionCompaction {
     const userMessage = msgs.findLast((m) => m.info.role === "user")?.info as MessageV2.User | undefined
     if (!userMessage) return
 
+    // T7 lineage: stash the previous anchor's id on this new anchor.
+    const prevAnchorId = (await Memory.Hybrid.getAnchorMessage(input.sessionID, msgs).catch(() => null))?.info.id
+
     // Create summary assistant message
     const summaryMsg = (await Session.updateMessage({
       id: Identifier.ascending("message"),
@@ -624,6 +627,7 @@ export namespace SessionCompaction {
       agent: "compaction",
       variant: userMessage.variant,
       summary: true,
+      replacesAnchorId: prevAnchorId,
       path: {
         cwd: Instance.directory,
         root: Instance.worktree,
@@ -1302,6 +1306,9 @@ export namespace SessionCompaction {
     const session = await Session.get(input.sessionID)
     const accountId = agentModel?.accountId ?? input.userMessage.model.accountId ?? session?.execution?.accountId
 
+    // T7 lineage
+    const prevAnchorId = (await Memory.Hybrid.getAnchorMessage(input.sessionID).catch(() => null))?.info.id
+
     const msg = (await Session.updateMessage({
       id: Identifier.ascending("message"),
       role: "assistant",
@@ -1311,6 +1318,7 @@ export namespace SessionCompaction {
       agent: "compaction",
       variant: input.userMessage.variant,
       summary: true,
+      replacesAnchorId: prevAnchorId,
       path: { cwd: Instance.directory, root: Instance.worktree },
       cost: 0,
       tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
@@ -3487,6 +3495,9 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         })
 
         if (isLast) {
+          // T7 lineage: only the final chunk lands as a persisted anchor
+          // (intermediate chunks are throwaway stubs cleaned up below).
+          const prevAnchorId = (await Memory.Hybrid.getAnchorMessage(sessionID).catch(() => null))?.info.id
           // Persist as the actual anchor message via SessionProcessor.
           const stub = (await Session.updateMessage({
             id: Identifier.ascending("message"),
@@ -3497,6 +3508,7 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
             agent: "compaction",
             variant: ctx.userMessage.variant,
             summary: true,
+            replacesAnchorId: prevAnchorId,
             path: { cwd: Instance.directory, root: Instance.worktree },
             cost: 0,
             tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
@@ -3843,6 +3855,8 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
       // (it has the failed body) and the caller may either delete it or
       // overwrite on retry. For simplicity in this initial cut we leave
       // it; a follow-up will clean up failed-attempt anchors.
+      // T7 lineage:
+      const prevAnchorId = (await Memory.Hybrid.getAnchorMessage(sessionID).catch(() => null))?.info.id
       const stub = (await Session.updateMessage({
         id: Identifier.ascending("message"),
         role: "assistant",
@@ -3852,6 +3866,7 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         agent: "compaction",
         variant: userMessage.variant,
         summary: true,
+        replacesAnchorId: prevAnchorId,
         path: { cwd: Instance.directory, root: Instance.worktree },
         cost: 0,
         tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },

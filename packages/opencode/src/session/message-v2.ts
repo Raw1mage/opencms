@@ -678,6 +678,11 @@ export namespace MessageV2 {
       root: z.string(),
     }),
     summary: z.boolean().optional(),
+    // compaction_simplification T7: when this assistant message is a
+    // compaction anchor (summary === true), points at the previous
+    // anchor message it replaces in the lineage chain. Absent on the
+    // very first anchor of a session and on non-anchor messages.
+    replacesAnchorId: z.string().optional(),
     cost: z.number(),
     tokens: z.object({
       total: z.number().optional(),
