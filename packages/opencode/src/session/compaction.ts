@@ -642,15 +642,9 @@ export namespace SessionCompaction {
       },
     })) as MessageV2.Assistant
 
-    // 1. Write transcript summary as a text part.
-    //
-    // Append the post-compaction quick follow-up table (RC fix 2026-05-01):
-    // history truncation drops every prior tool call from the LLM-visible
-    // stream, so the model loses the memory that runtime-persisted state
-    // (todolist, in-flight subagents, ...) already encodes. PostCompaction
-    // walks a registry of providers and renders each one's slice of state
-    // into the summary text. Adding a new follow-up = register a provider;
-    // compaction.ts stays untouched.
+    // 1. Write transcript summary as a text part. PostCompaction no longer
+    // resends runtime state into the anchor; todo/subagent/cache state remains
+    // available through its structured authority instead of narrative hints.
     const followUps = await PostCompaction.gather(input.sessionID)
     const followUpAddendum = PostCompaction.buildSummaryAddendum(followUps)
     await Session.updatePart({
@@ -685,7 +679,11 @@ export namespace SessionCompaction {
     })
 
     if (input.auto) {
-      // Create continue message for auto mode
+      const continueText = PostCompaction.buildContinueText(followUps)
+      if (!continueText) return
+
+      // Create continue message for auto mode only when a non-empty directive
+      // is intentionally produced.
       const continueMsg = await Session.updateMessage({
         id: Identifier.ascending("message"),
         role: "user",
@@ -696,13 +694,6 @@ export namespace SessionCompaction {
         format: userMessage.format,
         variant: userMessage.variant,
       })
-      // Build a concrete continuation directive from the same follow-up
-      // table. Each provider contributes a one-line continueHint; the
-      // builder stitches them into a numbered directive. This replaces the
-      // bare "Continue if you have next steps" wording, which was too
-      // abstract post-compaction and produced the re-establishing-todowrite
-      // loop.
-      const continueText = PostCompaction.buildContinueText(followUps)
       await Session.updatePart({
         id: Identifier.ascending("part"),
         messageID: continueMsg.id,
@@ -2584,19 +2575,9 @@ When constructing the summary, try to stick to this template:
     return "stop"
   }
 
-  /**
-   * Phase 7b: inject the synthetic Continue user message after a kind-5
-   * anchor write (where the executor wrote the anchor inline). Mirrors the
-   * Continue injection behaviour of `compactWithSharedContext(auto:true)`,
-   * factored out so run() controls Continue placement uniformly.
-   *
-   * user-msg-replay-unification (2026-05-09): now uses
-   * PostCompaction.buildContinueText so the synthetic Continue carries
-   * the same provider-aware directive (todolist hints, etc.) the
-   * compactWithSharedContext(auto:true) path used to write inline.
-   * Uniform Continue text across both anchorWritten:true (llm-agent)
-   * and anchorWritten:false (narrative / replay-tail / low-cost-server)
-   * paths.
+  /** Inject the synthetic Continue user message only when PostCompaction
+   * intentionally emits non-empty text. Runtime-state resend is retired; most
+   * paths should skip this entirely and rely on structured authorities.
    */
   async function injectContinueAfterAnchor(sessionID: string, observed: Observed) {
     const messages = await Session.messages({ sessionID }).catch(() => [])
@@ -2607,6 +2588,8 @@ When constructing the summary, try to stick to this template:
     }
     const followUps = await PostCompaction.gather(sessionID).catch(() => [])
     const continueText = PostCompaction.buildContinueText(followUps)
+    if (!continueText) return
+
     const continueMsg = await Session.updateMessage({
       id: Identifier.ascending("message"),
       role: "user",
