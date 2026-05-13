@@ -35,6 +35,70 @@ type EnablementRoute = {
   requires_mcp?: string[]
 }
 
+type McpToolResult = {
+  content: any[]
+  metadata?: Record<string, unknown>
+  isError?: boolean
+  structuredContent?: unknown
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function stringifyForToolContent(value: unknown): string {
+  if (typeof value === "string") return value
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch {
+    return String(value)
+  }
+}
+
+export function normalizeMcpToolResult(toolID: string, result: unknown): McpToolResult {
+  if (isRecord(result) && Array.isArray(result.content)) return result as McpToolResult
+
+  if (isRecord(result) && typeof result.output === "string") {
+    return {
+      content: [{ type: "text", text: result.output }],
+      metadata: {
+        ...(isRecord(result.metadata) ? result.metadata : {}),
+        mcpNormalized: {
+          reason: "native_tool_result_without_content",
+        },
+      },
+    }
+  }
+
+  if (result !== undefined && result !== null) {
+    return {
+      content: [{ type: "text", text: stringifyForToolContent(result) }],
+      metadata: {
+        mcpNormalized: {
+          reason: "plain_result_without_content",
+        },
+      },
+      structuredContent: result,
+    }
+  }
+
+  const error = {
+    error: "mcp_tool_invalid_result",
+    tool: toolID,
+    reason: "MCP tool returned undefined/null instead of a result with content[]",
+  }
+  return {
+    content: [{ type: "text", text: stringifyForToolContent(error) }],
+    metadata: {
+      mcpNormalized: {
+        reason: "missing_result",
+      },
+    },
+    isError: true,
+    structuredContent: error,
+  }
+}
+
 function extractLatestUserText(messages: MessageV2.WithParts[]): string {
   const lastUser = [...messages].reverse().find((m) => m.info.role === "user")
   if (!lastUser) return ""
@@ -228,37 +292,40 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
     if (!execute) continue
 
     item.execute = async (args, opts) => {
-      const result = await ToolInvoker.execute(
-        {
-          execute: async (_args: unknown, ctx: Tool.Context) => {
-            await ctx.ask({
-              permission: key,
-              metadata: {},
-              patterns: ["*"],
-              always: ["*"],
-            })
-            return execute(args, opts)
+      const result = normalizeMcpToolResult(
+        key,
+        await ToolInvoker.execute(
+          {
+            execute: async (_args: unknown, ctx: Tool.Context) => {
+              await ctx.ask({
+                permission: key,
+                metadata: {},
+                patterns: ["*"],
+                always: ["*"],
+              })
+              return execute(args, opts)
+            },
           },
-        },
-        {
-          sessionID: input.session.id,
-          messageID: input.processor.message.id,
-          toolID: key,
-          args,
-          agent: input.agent.name,
-          abort: opts.abortSignal!,
-          messages: input.messages,
-          extra: { model: input.model, bypassAgentCheck: input.bypassAgentCheck },
-          callID: opts.toolCallId,
-          onAsk: async (req) => {
-            await PermissionNext.ask({
-              ...req,
-              sessionID: input.session.id,
-              tool: { messageID: input.processor.message.id, callID: opts.toolCallId },
-              ruleset,
-            })
+          {
+            sessionID: input.session.id,
+            messageID: input.processor.message.id,
+            toolID: key,
+            args,
+            agent: input.agent.name,
+            abort: opts.abortSignal!,
+            messages: input.messages,
+            extra: { model: input.model, bypassAgentCheck: input.bypassAgentCheck },
+            callID: opts.toolCallId,
+            onAsk: async (req) => {
+              await PermissionNext.ask({
+                ...req,
+                sessionID: input.session.id,
+                tool: { messageID: input.processor.message.id, callID: opts.toolCallId },
+                ruleset,
+              })
+            },
           },
-        },
+        ),
       )
 
       const textParts: string[] = []
