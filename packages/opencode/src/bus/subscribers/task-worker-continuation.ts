@@ -4,7 +4,6 @@ import { Session } from "@/session"
 import { MessageV2 } from "@/session/message-v2"
 import { ProcessSupervisor } from "@/process/supervisor"
 import { Instance } from "@/project/instance"
-import { SharedContext } from "@/session/shared-context"
 import { Log } from "@/util/log"
 import { describeTaskNarration, emitSessionNarration } from "@/session/narration"
 import z from "zod"
@@ -160,13 +159,12 @@ async function enqueueParentContinuation(input: {
   // It no longer injects synthetic continuation messages or resumes the
   // parent's LLM loop — that is the task tool caller's responsibility.
 
-  if (input.ok) {
-    // Merge child's SharedContext into parent's Space (retained for compaction/observability)
-    await SharedContext.mergeFrom({
-      targetSessionID: input.parentSessionID,
-      sourceSessionID: input.childSessionID,
-    }).catch(() => undefined)
-  }
+  // T6 (compaction_simplification): SharedContext.mergeFrom retired.
+  // The child session's workspace state is no longer merged into the
+  // parent's persistent Space — parent reconstructs workspace in batch
+  // from its own message stream at memory.read / compaction time.
+  // Subagent results reach the parent via the task tool's done promise
+  // and the parent's normal message-stream evolution.
 
   log.info("Bus subscriber UI update complete (demoted — no longer enqueues continuation)", {
     parentSessionID: input.parentSessionID,

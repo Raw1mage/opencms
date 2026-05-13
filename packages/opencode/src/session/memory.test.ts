@@ -162,26 +162,35 @@ describe("Memory", () => {
     expect(streamCalls).toBe(0) // didn't call Session.messages
   })
 
-  it("read picks up fileIndex + actionLog from SharedContext.Space", async () => {
+  it("read derives fileIndex + actionLog by batch-extracting from message stream (T6)", async () => {
     const sid = "ses_aux"
-    ;(Session as any).messages = mock(async () => [])
-    ;(SharedContext as any).get = mock(async () => ({
-      sessionID: sid,
-      version: 1,
-      updatedAt: 1,
-      budget: 0,
-      goal: "",
-      files: [{ path: "/src/a.ts", operation: "edit", lines: 100, updatedAt: 1 }],
-      discoveries: [],
-      actions: [{ tool: "bash", summary: "git status", turn: 1, addedAt: 1 }],
-      currentState: "",
-    }))
+    // Tool-bearing assistant message — extractWorkspaceBatch should
+    // collect /src/a.ts into files and emit a bash action.
+    const msgs = [
+      {
+        info: { id: "a1", role: "assistant", sessionID: sid, time: { created: 1 } } as any,
+        parts: [
+          {
+            type: "tool",
+            tool: "edit",
+            callID: "tc_edit",
+            state: { status: "completed", input: { file_path: "/src/a.ts" }, output: "" },
+          },
+          {
+            type: "tool",
+            tool: "bash",
+            callID: "tc_bash",
+            state: { status: "completed", input: { command: "git status" }, output: "M file" },
+          },
+          { type: "text", text: "did the work" },
+        ] as any,
+      },
+    ]
+    ;(Session as any).messages = mock(async () => msgs)
 
     const mem = await Memory.read(sid)
-    expect(mem.fileIndex).toHaveLength(1)
-    expect(mem.fileIndex[0].path).toBe("/src/a.ts")
-    expect(mem.actionLog).toHaveLength(1)
-    expect(mem.actionLog[0].summary).toBe("git status")
+    expect(mem.fileIndex.some((f) => f.path === "/src/a.ts")).toBe(true)
+    expect(mem.actionLog.some((a) => a.tool === "bash")).toBe(true)
   })
 
   // ── Render: LLM form ──────────────────────────────────────

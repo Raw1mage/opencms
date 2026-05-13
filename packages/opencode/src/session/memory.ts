@@ -143,25 +143,25 @@ export namespace Memory {
       })
     }
 
-    // Aux: file/action workspace from SharedContext.Space.
-    const space = await SharedContext.get(sessionID).catch(() => undefined)
-    const fileIndex: FileEntry[] = space
-      ? space.files.map((f) => ({
-          path: f.path,
-          operation: f.operation,
-          lines: f.lines ?? null,
-          summary: f.summary ?? null,
-          updatedAt: f.updatedAt,
-        }))
-      : []
-    const actionLog: ActionEntry[] = space
-      ? space.actions.map((a) => ({
-          tool: a.tool,
-          summary: a.summary,
-          turn: a.turn,
-          addedAt: a.addedAt,
-        }))
-      : []
+    // Aux: file/action workspace computed in batch from the current
+    // message stream (T6 compaction_simplification). The legacy
+    // SharedContext.Space sidecar was retired — workspace is now a
+    // function of the messages covered by the current anchor's range,
+    // not a separately persisted accumulator.
+    const space = SharedContext.extractWorkspaceBatch({ sessionID, messages: msgs })
+    const fileIndex: FileEntry[] = space.files.map((f) => ({
+      path: f.path,
+      operation: f.operation,
+      lines: f.lines ?? null,
+      summary: f.summary ?? null,
+      updatedAt: f.updatedAt,
+    }))
+    const actionLog: ActionEntry[] = space.actions.map((a) => ({
+      tool: a.tool,
+      summary: a.summary,
+      turn: a.turn,
+      addedAt: a.addedAt,
+    }))
 
     const lastCompactedAt =
       anchorIdx !== -1
@@ -396,6 +396,49 @@ export namespace Memory {
       const msgs = messages ?? (await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[]))
       const idx = findMostRecentAnchorIndex(msgs)
       return idx === -1 ? null : msgs[idx]
+    }
+
+    /**
+     * T7 (compaction_simplification): walk the anchor lineage from the
+     * most recent back to the session origin via `replacesAnchorId`
+     * pointers. Returns the chain newest-first. When an explicit pointer
+     * is missing (legacy anchors written before T7), falls back to the
+     * preceding `summary: true` message in chronological order so that
+     * mixed-vintage sessions still produce a complete walk.
+     */
+    export async function walkAnchorLineage(
+      sessionID: string,
+      messages?: MessageV2.WithParts[],
+    ): Promise<MessageV2.WithParts[]> {
+      const msgs = messages ?? (await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[]))
+      const anchors: MessageV2.WithParts[] = []
+      const byId = new Map<string, MessageV2.WithParts>()
+      for (const m of msgs) {
+        if (m.info.role !== "assistant") continue
+        if ((m.info as MessageV2.Assistant).summary !== true) continue
+        anchors.push(m)
+        byId.set(m.info.id, m)
+      }
+      if (anchors.length === 0) return []
+      // Newest-first walk starting from the most recent anchor.
+      const chain: MessageV2.WithParts[] = []
+      let cursor: MessageV2.WithParts | undefined = anchors[anchors.length - 1]
+      while (cursor) {
+        chain.push(cursor)
+        const replaces = (cursor.info as MessageV2.Assistant & { replacesAnchorId?: string }).replacesAnchorId
+        if (replaces && byId.has(replaces)) {
+          cursor = byId.get(replaces)
+          continue
+        }
+        // Legacy fallback: pick the next-older anchor in the messages
+        // array if no explicit pointer is present.
+        const cursorIdx = anchors.indexOf(cursor)
+        cursor = cursorIdx > 0 ? anchors[cursorIdx - 1] : undefined
+        // Stop the legacy walk once we've consumed the array prefix —
+        // otherwise we'd loop forever on the very first anchor.
+        if (!cursor || chain.includes(cursor)) break
+      }
+      return chain
     }
 
     /**
