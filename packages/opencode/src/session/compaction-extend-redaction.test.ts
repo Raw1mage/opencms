@@ -144,7 +144,7 @@ describe("tryNarrative (redacted-dialog body source)", () => {
     ])
     stubTweaks({ enableDialogRedactionAnchor: true })
 
-    const result = await SessionCompaction.__test__.tryNarrative(RUN_INPUT_BASE as any, undefined)
+    const result = await SessionCompaction.__test__.tryLocalRedactedDialog(RUN_INPUT_BASE as any, undefined)
     expect(result.ok).toBe(true)
     if (!result.ok) return
     expect(result.kind).toBe("narrative")
@@ -166,7 +166,7 @@ describe("tryNarrative (redacted-dialog body source)", () => {
     ])
     stubTweaks({ enableDialogRedactionAnchor: true })
 
-    const result = await SessionCompaction.__test__.tryNarrative(RUN_INPUT_BASE as any, undefined)
+    const result = await SessionCompaction.__test__.tryLocalRedactedDialog(RUN_INPUT_BASE as any, undefined)
     expect(result.ok).toBe(true)
     if (!result.ok) return
     expect(result.summaryText.startsWith(PREV_BODY)).toBe(true)
@@ -187,7 +187,7 @@ describe("tryNarrative (redacted-dialog body source)", () => {
     ])
     stubTweaks({ enableDialogRedactionAnchor: true })
 
-    const result = await SessionCompaction.__test__.tryNarrative(RUN_INPUT_BASE as any, undefined)
+    const result = await SessionCompaction.__test__.tryLocalRedactedDialog(RUN_INPUT_BASE as any, undefined)
     expect(result.ok).toBe(true)
     if (!result.ok) return
     expect(result.summaryText).toContain("finished question")
@@ -199,7 +199,7 @@ describe("tryNarrative (redacted-dialog body source)", () => {
     stubMessages([])
     stubTweaks({ enableDialogRedactionAnchor: true })
 
-    const result = await SessionCompaction.__test__.tryNarrative(RUN_INPUT_BASE as any, undefined)
+    const result = await SessionCompaction.__test__.tryLocalRedactedDialog(RUN_INPUT_BASE as any, undefined)
     expect(result.ok).toBe(false)
     if (result.ok) return
     expect(result.reason).toBe("memory empty")
@@ -209,7 +209,7 @@ describe("tryNarrative (redacted-dialog body source)", () => {
     stubMessages([userMsg("u_only", "the only msg, unanswered")])
     stubTweaks({ enableDialogRedactionAnchor: true })
 
-    const result = await SessionCompaction.__test__.tryNarrative(RUN_INPUT_BASE as any, undefined)
+    const result = await SessionCompaction.__test__.tryLocalRedactedDialog(RUN_INPUT_BASE as any, undefined)
     expect(result.ok).toBe(false)
   })
 
@@ -234,48 +234,11 @@ describe("tryNarrative (redacted-dialog body source)", () => {
     stubMessages([userMsg("u1", "go"), finishedAssistant])
     stubTweaks({ enableDialogRedactionAnchor: true })
 
-    const result = await SessionCompaction.__test__.tryNarrative(RUN_INPUT_BASE as any, undefined)
+    const result = await SessionCompaction.__test__.tryLocalRedactedDialog(RUN_INPUT_BASE as any, undefined)
     expect(result.ok).toBe(true)
     if (!result.ok) return
     expect(result.summaryText).not.toContain("SECRET_RAW_PAYLOAD_DO_NOT_LEAK")
     expect(result.summaryText).toContain("recall_id: prt_tool_X")
-  })
-})
-
-// ─────────────────────────────────────────────────────────────────────
-// tryNarrative — feature flag rollback to legacy path
-// ─────────────────────────────────────────────────────────────────────
-
-describe("tryNarrative (feature flag rollback)", () => {
-  it("flag=false → falls back to legacy Memory.renderForLLMSync body source", async () => {
-    stubMessages([
-      userMsg("u1", "go"),
-      assistantMsg("a1", "stop", "did stuff"),
-    ])
-    stubTweaks({ enableDialogRedactionAnchor: false })
-
-    const result = await SessionCompaction.__test__.tryNarrative(RUN_INPUT_BASE as any, undefined)
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    expect(result.kind).toBe("narrative")
-    // Legacy renderForLLMSync produces concatenated turn texts WITHOUT
-    // markdown round headers
-    expect(result.summaryText).not.toContain("## Round")
-    expect(result.summaryText).toContain("did stuff")
-  })
-
-  it("flag=undefined (default) → uses redacted-dialog path", async () => {
-    stubMessages([
-      userMsg("u1", "go"),
-      assistantMsg("a1", "stop", "did"),
-    ])
-    // Default tweaks (enableDialogRedactionAnchor true by default)
-    stubTweaks({})
-
-    const result = await SessionCompaction.__test__.tryNarrative(RUN_INPUT_BASE as any, undefined)
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    expect(result.summaryText).toContain("## Round 1")
   })
 })
 

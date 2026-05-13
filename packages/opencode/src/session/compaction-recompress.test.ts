@@ -292,8 +292,12 @@ describe("scheduleHybridEnrichment dispatch", () => {
     expect(pluginCalled).toBe(false)
   })
 
-  it("anchor below 5K skip floor → no dispatch", async () => {
-    const small = "x".repeat(4_000 * 4) // ~4K tokens
+  it("anchor below 20% context ratio → no dispatch", async () => {
+    // compaction_simplification T4 (2026-05-14): the legacy 5K-token
+    // absolute floor was replaced with a context-relative ratio gate
+    // (default 0.20). 4K tokens / 272K codex context = 1.5%, still well
+    // below the new threshold, so the skip behaviour is preserved.
+    const small = "x".repeat(4_000 * 4) // ~4K tokens (~1.5% of 272K)
     const anchorMsg = anchor("msg_anchor", small)
     ;(Session as any).messages = mock(async () => [anchorMsg])
     stubTweaks({ enableHybridLlm: true, enableDialogRedactionAnchor: true })
@@ -310,8 +314,14 @@ describe("scheduleHybridEnrichment dispatch", () => {
     expect(pluginCalled).toBe(false)
   })
 
-  it("flag on + observed=manual + 5K-50K range → routes to hybrid_llm (legacy-large-policy trigger)", async () => {
-    const mid = "x".repeat(20_000 * 4) // ~20K tokens, in 5K-50K range
+  it("flag on + observed=manual + anchor above ratio but below ceiling → legacy-large-policy trigger", async () => {
+    // compaction_simplification T4: ratio gate is 20% × 272K = ~54K tokens.
+    // 60K tokens passes the ratio gate AND is above the 50K size-ceiling,
+    // so trigger labels as "size-ceiling". Original test used 20K (below
+    // ceiling, "legacy-large-policy" trigger label) but 20K is now below
+    // the ratio gate and would skip. Bump to 60K to stay above the gate
+    // while exercising the codex routing path.
+    const mid = "x".repeat(60_000 * 4) // ~60K tokens (~22% of 272K)
     const anchorMsg = anchor("msg_anchor", mid)
     ;(Session as any).messages = mock(async () => [anchorMsg])
     stubTweaks({ enableHybridLlm: true, enableDialogRedactionAnchor: true })

@@ -1040,23 +1040,20 @@ export namespace SessionCompaction {
       }
 
   /**
-   * Spec compaction/dialog-replay-redaction (DD-3). Builds the narrative
-   * anchor body from the formal model:
+   * Spec compaction/dialog-replay-redaction (DD-3). Builds the local
+   * (zero-API-cost) anchor body from the formal model:
    *   anchor[n+1].body = anchor[n].body + serialize_redacted(tail)
    * where the serialised tail excludes the unanswered user message
    * (Spec 1 synergy — replayed post-anchor by replayUnansweredUserMessage).
    *
-   * Falls back to the legacy Memory.renderForLLMSync body source when the
-   * Tweaks flag is off — atomic rollback path.
+   * compaction_simplification T2a (2026-05-14): renamed from
+   * `tryNarrativeRedactedDialog`; the `enableDialogRedactionAnchor=false`
+   * legacy `Memory.renderForLLMSync` fallback (`tryNarrativeLegacy`) is
+   * retired because production has used the redacted-dialog path
+   * exclusively since the flag's default flipped to true. The
+   * `transformPostAnchorTail` v6 fallback still honours the flag.
    */
-  async function tryNarrative(input: RunInput, model: Provider.Model | undefined): Promise<KindAttempt> {
-    const tweaks = Tweaks.compactionSync()
-    const flag = (tweaks as { enableDialogRedactionAnchor?: boolean }).enableDialogRedactionAnchor
-    if (flag === false) return tryNarrativeLegacy(input, model)
-    return tryNarrativeRedactedDialog(input, model)
-  }
-
-  async function tryNarrativeRedactedDialog(input: RunInput, _model: Provider.Model | undefined): Promise<KindAttempt> {
+  async function tryLocalRedactedDialog(input: RunInput, _model: Provider.Model | undefined): Promise<KindAttempt> {
     const messages = await Session.messages({ sessionID: input.sessionID }).catch(() => [] as MessageV2.WithParts[])
     if (messages.length === 0) return { ok: false, reason: "memory empty" }
 
@@ -1080,20 +1077,6 @@ export namespace SessionCompaction {
     const body = prevBody && tailText ? `${prevBody}\n\n${tailText}` : prevBody || tailText
 
     return { ok: true, summaryText: body, kind: "narrative", truncated: false }
-  }
-
-  async function tryNarrativeLegacy(input: RunInput, model: Provider.Model | undefined): Promise<KindAttempt> {
-    const mem = await Memory.read(input.sessionID)
-    const target = await resolveTargetPromptTokens()
-    const contextLimit = model?.limit?.context || 0
-    const modelBudget = Math.floor(contextLimit * 0.3)
-    const cap = modelBudget > 0 ? Math.min(modelBudget, target) : target
-    const fullText = Memory.renderForLLMSync(mem)
-    if (!fullText) return { ok: false, reason: "memory empty" }
-    const fullEstimate = Math.ceil(fullText.length / 4)
-    const truncated = fullEstimate > cap
-    const text = truncated ? Memory.renderForLLMSync(mem, cap) : fullText
-    return { ok: true, summaryText: text, kind: "narrative", truncated }
   }
 
   function extractAnchorTextBody(anchor: MessageV2.WithParts): string {
@@ -1554,7 +1537,7 @@ When constructing the summary, try to stick to this template:
   async function tryKind(kind: KindName, input: RunInput, model: Provider.Model | undefined): Promise<KindAttempt> {
     switch (kind) {
       case "narrative":
-        return tryNarrative(input, model)
+        return tryLocalRedactedDialog(input, model)
       case "replay-tail":
         return tryReplayTail(input, model)
       case "low-cost-server":
@@ -1654,14 +1637,24 @@ When constructing the summary, try to stick to this template:
         const narrativeTokens = Math.ceil(narrativeContent.length / 4)
         const ceilingTokens =
           (tweaks as { anchorRecompressCeilingTokens?: number }).anchorRecompressCeilingTokens ?? 50_000
-        // Skip floor 5K stays. Under flag-on, anchors below the ceiling
-        // (5K..ceiling) still recompress (legacy "enrichment-when-large"
-        // policy). Above the ceiling, recompress trigger labels as
-        // "size-ceiling" for telemetry.
-        if (narrativeTokens < 5_000) {
-          log.info("hybrid_llm enrichment skipped (anchor small)", {
+        // compaction_simplification T4 (2026-05-14, plans/compaction_simplification/
+        // design.md §1 INV-5 + §7): replace the legacy 5_000-token absolute
+        // floor with a context-relative ratio gate. The local anchor body
+        // schedules an ai_paid upgrade only when it occupies at least
+        // `localToAiThresholdRatio` of the current active model's
+        // context_limit (default 0.20). Anchors below that ratio are
+        // assumed cheap enough to leave alone — paying an LLM round-trip
+        // for a 4% anchor is not worth the cost. Operators can tune via
+        // `compaction_local_to_ai_threshold_ratio`.
+        const thresholdRatio = (tweaks as { localToAiThresholdRatio?: number }).localToAiThresholdRatio ?? 0.2
+        const contextLimit = model.limit?.context ?? 0
+        if (contextLimit <= 0 || narrativeTokens / contextLimit < thresholdRatio) {
+          log.info("hybrid_llm enrichment skipped (anchor below ratio threshold)", {
             sessionID,
             anchorTokens: narrativeTokens,
+            contextLimit,
+            ratio: contextLimit > 0 ? narrativeTokens / contextLimit : null,
+            thresholdRatio,
           })
           return
         }
@@ -1882,216 +1875,6 @@ When constructing the summary, try to stick to this template:
       sessionID,
       observed,
     })
-  }
-
-  // ───────────────────────────────────────────────────────────────────
-  // 2026-05-13 rev5 (specs/session/rebind-procedure-revision):
-  // Compaction Sustainability Invariant — synchronous watermark backstop.
-  //
-  // Theory: for any session running on any provider/model, the
-  // multi-dimensional rebind protocol must maintain
-  //   ∀ compaction commit C:  context_residual(C) / model.context_limit ≤ W_rel
-  // where W_rel ∈ (0,1) is tweaks.compactionSync().sustainabilityRatio
-  // (default 0.5). When a LOCAL kind (narrative / replay-tail —
-  // deterministic concat-and-redact, α ≈ 1) commits an anchor whose
-  // post-state exceeds W_rel, force a CONTRACTIVE kind (low-cost-server
-  // first, llm-agent fallback) synchronously to bring the ratio back.
-  //
-  // Model-agnostic by design: uses model.limit.context as the
-  // denominator, so the same threshold scales correctly across providers
-  // (Claude 200K, gpt-5.5 272K, future 1M context, …) without absolute-
-  // value reconfiguration.
-  //
-  // Skipped for contractive kinds (low-cost-server / llm-agent) at the
-  // call site to prevent recursion.
-  // ───────────────────────────────────────────────────────────────────
-
-  interface SustainabilityMeasurement {
-    violated: boolean
-    ratio: number
-    threshold: number
-    contextLimit: number
-    contextResidual: number
-    anchorTokens: number
-  }
-
-  async function measureSustainabilityWatermark(
-    sessionID: string,
-    model: Provider.Model,
-  ): Promise<SustainabilityMeasurement | null> {
-    const contextLimit = model.limit?.context ?? 0
-    if (contextLimit <= 0) return null
-    const tweaks = Tweaks.compactionSync()
-    const threshold = (tweaks as { sustainabilityRatio?: number }).sustainabilityRatio ?? 0.5
-
-    const messages = await Session.messages({ sessionID }).catch(() => undefined)
-    if (!messages || messages.length === 0) return null
-
-    // Most-recent anchor (assistant + summary=true)
-    const anchorIdx = (() => {
-      for (let i = messages.length - 1; i >= 0; i--) {
-        const info = messages[i].info
-        if (info.role === "assistant" && (info as MessageV2.Assistant).summary === true) {
-          return i
-        }
-      }
-      return -1
-    })()
-    if (anchorIdx === -1) return null
-
-    const anchorBody = extractAnchorTextBody(messages[anchorIdx])
-    const anchorTokens = Math.ceil(anchorBody.length / 4)
-
-    const postAnchorTokens = messages.slice(anchorIdx + 1).reduce((sum, m) => {
-      const text = m.parts
-        .filter((p) => p.type === "text")
-        .map((p) => (p as { text?: string }).text ?? "")
-        .join("\n")
-      return sum + Math.ceil(text.length / 4)
-    }, 0)
-
-    const contextResidual = anchorTokens + postAnchorTokens
-    const ratio = contextResidual / contextLimit
-    return {
-      violated: ratio > threshold,
-      ratio,
-      threshold,
-      contextLimit,
-      contextResidual,
-      anchorTokens,
-    }
-  }
-
-  async function emitSustainabilityMeasured(
-    sessionID: string,
-    observed: Observed,
-    wm: SustainabilityMeasurement,
-  ): Promise<void> {
-    try {
-      await RuntimeEventService.append({
-        sessionID,
-        level: "info",
-        domain: "telemetry",
-        eventType: "compaction.sustainability.measured",
-        anomalyFlags: [],
-        payload: {
-          observed,
-          ratio: wm.ratio,
-          threshold: wm.threshold,
-          violated: wm.violated,
-          anchor_tokens: wm.anchorTokens,
-          context_residual: wm.contextResidual,
-          context_limit: wm.contextLimit,
-        },
-      })
-    } catch {
-      // best-effort
-    }
-  }
-
-  /**
-   * Force a contractive compaction kind synchronously when sustainability
-   * watermark is violated. Tries low-cost-server first (codex sessions);
-   * falls back to llm-agent. Re-measures after each attempt; stops once
-   * ratio is restored OR all contractive kinds failed.
-   */
-  async function forceContractiveCompaction(
-    sessionID: string,
-    observed: Observed,
-    model: Provider.Model,
-    wmBefore: SustainabilityMeasurement,
-    step: number,
-  ): Promise<void> {
-    const startedAt = Date.now()
-    await RuntimeEventService.append({
-      sessionID,
-      level: "warn",
-      domain: "workflow",
-      eventType: "compaction.sustainability.fired",
-      anomalyFlags: [],
-      payload: {
-        observed,
-        ratio_before: wmBefore.ratio,
-        threshold: wmBefore.threshold,
-        reason: "post_local_compact_ratio_exceeded",
-      },
-    }).catch(() => undefined)
-
-    // Try contractive kinds in priority order: codex sessions get
-    // low-cost-server first (cheapest); all sessions can fall back to
-    // llm-agent. Skip the chain walk machinery — those kinds depend on
-    // chain semantics + cooldown that we've already exited from.
-    const contractiveOrder: KindName[] = model.providerId === "codex" ? ["low-cost-server", "llm-agent"] : ["llm-agent"]
-
-    const runInput: RunInput = {
-      sessionID,
-      observed,
-      step,
-    }
-
-    let success = false
-    let lastReason: string | undefined
-    let kindUsed: KindName | undefined
-    for (const kind of contractiveOrder) {
-      const attempt = await tryKind(kind, runInput, model)
-      if (!attempt.ok) {
-        lastReason = attempt.reason
-        continue
-      }
-      try {
-        await _writeAnchor({
-          sessionID,
-          summaryText: attempt.summaryText,
-          model,
-          auto: false,
-          kind: attempt.kind,
-          serverCompactedItems: attempt.serverCompactedItems,
-          chainBinding: attempt.chainBinding,
-          observed,
-          step,
-          snapshot: undefined,
-        })
-        success = true
-        kindUsed = attempt.kind
-        break
-      } catch (err) {
-        lastReason = `_writeAnchor threw: ${err instanceof Error ? err.message : String(err)}`
-      }
-    }
-
-    const wmAfter = await measureSustainabilityWatermark(sessionID, model).catch(() => null)
-    if (success && wmAfter) {
-      await RuntimeEventService.append({
-        sessionID,
-        level: "info",
-        domain: "workflow",
-        eventType: "compaction.sustainability.completed",
-        anomalyFlags: [],
-        payload: {
-          observed,
-          kind_used: kindUsed,
-          ratio_before: wmBefore.ratio,
-          ratio_after: wmAfter.ratio,
-          violated_after: wmAfter.violated,
-          ms: Date.now() - startedAt,
-        },
-      }).catch(() => undefined)
-    } else {
-      await RuntimeEventService.append({
-        sessionID,
-        level: "warn",
-        domain: "anomaly",
-        eventType: "compaction.sustainability.failed",
-        anomalyFlags: ["sustainability_compact_failed"],
-        payload: {
-          observed,
-          ratio_before: wmBefore.ratio,
-          ratio_after: wmAfter?.ratio ?? null,
-          last_reason: lastReason ?? "no_contractive_kind_succeeded",
-          ms: Date.now() - startedAt,
-        },
-      }).catch(() => undefined)
-    }
   }
 
   // ───────────────────────────────────────────────────────────────────
@@ -2499,32 +2282,11 @@ When constructing the summary, try to stick to this template:
         if (hybridEnrichmentEligible.has(observed)) {
           scheduleHybridEnrichment(sessionID, observed, model)
         }
-        // 2026-05-13 rev5 (specs/session/rebind-procedure-revision):
-        // Compaction Sustainability Invariant — after a LOCAL kind commit
-        // (narrative / replay-tail are deterministic concat-and-redact and
-        // can leave context still half-full), measure post-state
-        // context_residual / model.context_limit ratio. If it exceeds the
-        // sustainability threshold, SYNCHRONOUSLY invoke a contractive
-        // kind (low-cost-server first, llm-agent fallback) until the bound
-        // is restored OR the contractive kind itself failed.
-        //
-        // Skip when the chain itself committed a contractive kind
-        // (low-cost-server / llm-agent) — those are already the contractive
-        // backstop; re-checking would recurse.
-        if (model && isLocalKind(attempt.kind)) {
-          const watermark = await measureSustainabilityWatermark(sessionID, model).catch(() => null)
-          if (watermark) {
-            await emitSustainabilityMeasured(sessionID, observed, watermark)
-            if (watermark.violated) {
-              await forceContractiveCompaction(sessionID, observed, model, watermark, step).catch((err) => {
-                log.warn("sustainability force-compact threw", {
-                  sessionID,
-                  error: err instanceof Error ? err.message : String(err),
-                })
-              })
-            }
-          }
-        }
+        // compaction_simplification T8 (2026-05-14): rev5 sustainability
+        // watermark backstop retired. The 0.9 overflowThreshold (codex
+        // tuned) is now the sole synchronous overflow guard. The 20%
+        // local→ai_paid upgrade trigger (T4) provides preemptive size
+        // control without the watermark recursion machinery.
         // Some kinds (low-cost-server) do not self-publish Event.Compacted;
         // others (compactWithSharedContext / tryLlmAgent / tryHybridLlm) do.
         // Publishing here for the kinds that don't ensures the frontend
@@ -3204,9 +2966,7 @@ When constructing the summary, try to stick to this template:
     resetReplayHelper() {
       _replayHelper = replayUnansweredUserMessage
     },
-    tryNarrative,
-    tryNarrativeRedactedDialog,
-    tryNarrativeLegacy,
+    tryLocalRedactedDialog,
     extractAnchorTextBody,
     runCodexServerSideRecompress,
     scheduleHybridEnrichment,
@@ -3217,15 +2977,6 @@ When constructing the summary, try to stick to this template:
      * can be unit-tested directly.
      */
     shouldInjectContinue,
-    /**
-     * Test seams (2026-05-13 rev5): expose sustainability watermark
-     * helpers. measureSustainabilityWatermark is pure (read-only) so
-     * unit tests can assert ratio computation directly.
-     * forceContractiveCompaction is impure but mockable via the existing
-     * setAnchorWriter test seam.
-     */
-    measureSustainabilityWatermark,
-    forceContractiveCompaction,
   })
 
   // ───────────────────────────────────────────────────────────────────
@@ -3241,6 +2992,114 @@ When constructing the summary, try to stick to this template:
   //
   // Type definitions mirror specs/tool-output-chunking/data-schema.json.
   // ───────────────────────────────────────────────────────────────────
+
+  // ───────────────────────────────────────────────────────────────────
+  // compaction_simplification T1: new strategy taxonomy + unified Anchor
+  // shape. Pure additive in this commit — readers / writers still use
+  // legacy AnchorKind / Hybrid.AnchorMetadata until T2-T9 land.
+  // See plans/compaction_simplification/design.md §1 INV-1, §3.
+  // ───────────────────────────────────────────────────────────────────
+
+  /**
+   * Strategy classification axis: who executes the compaction.
+   * `local`    — deterministic code in this process; 0 product LLM tokens
+   * `ai_free`  — provider's server-side endpoint (codex / Claude server-side)
+   * `ai_paid`  — this product's paid LLM call
+   * See plans/compaction_simplification/design.md §1 INV-1.
+   */
+  export type CompactionStrategy = "local" | "ai_free" | "ai_paid"
+
+  /**
+   * One entry in the chained tool recall index (T1 forward-compat shape).
+   * Allows the anchor to reference past tool calls by id without retaining
+   * their payload. Inherited generation-to-generation under `local`
+   * strategy. See plans/compaction_simplification/design.md §3, §5.
+   */
+  export interface ToolRecallEntry {
+    toolCallId: string
+    toolName: string
+    roundIndex: number
+  }
+
+  /**
+   * Workspace snapshot embedded inside the anchor (subsumes the legacy
+   * `shared_context/<sessionID>` storage key). Populated by batch
+   * extraction over the message range covered by the anchor. See
+   * plans/compaction_simplification/design.md §6.
+   */
+  export interface AnchorWorkspaceFile {
+    path: string
+    lines?: number
+    summary?: string
+    operation: "read" | "edit" | "write" | "grep_match" | "glob_match"
+    updatedAt: number
+  }
+  export interface AnchorWorkspaceAction {
+    tool: string
+    summary: string
+    turn: number
+    addedAt: number
+  }
+  export interface AnchorWorkspace {
+    goal: string
+    files: AnchorWorkspaceFile[]
+    discoveries: string[]
+    actions: AnchorWorkspaceAction[]
+    currentState: string
+  }
+
+  /**
+   * Unified Anchor value (T1 shape). The compaction subsystem's sole
+   * durable output. Subsumes the legacy `Hybrid.AnchorMetadata`,
+   * `SharedContext.Space`, `Hybrid.JournalEntry`, and `PinnedZoneEntry`
+   * surfaces. On-disk shape remains the assistant `summary: true`
+   * message; this value lives in that message's metadata block.
+   *
+   * Pure additive in T1 — production writers still emit
+   * `Hybrid.AnchorMetadata`. T2-T9 migrate writers and readers.
+   *
+   * See plans/compaction_simplification/design.md §3.
+   */
+  export interface Anchor {
+    // Identity
+    sessionID: string
+    anchorId: string
+    version: 1
+    generatedAt: number
+    replacesAnchorId?: string
+
+    // Strategy classification (INV-1)
+    strategy: CompactionStrategy
+    generatedBy?: {
+      provider: string
+      model: string
+      accountId: string
+    }
+
+    // Body + coverage
+    body: string
+    bodyTokens: number
+    coversRounds: { earliest: number; latest: number }
+    priorAnchorTokens: number
+    tailTokens: number
+
+    // Local-only chained recall index (payload-free).
+    toolRecallIndex?: ToolRecallEntry[]
+
+    // Workspace snapshot (subsumes SharedContext.Space).
+    workspace: AnchorWorkspace
+
+    // Upgrade lifecycle for local → ai_paid background promotion
+    // (replaces legacy 5K hybrid_llm threshold; T4 will gate at 20%).
+    upgrade?: {
+      eligibleAt: number
+      scheduledAt?: number
+      completedAt?: number
+      fromStrategy?: "local"
+      failureReason?: string
+    }
+  }
+
   export namespace Hybrid {
     /**
      * Compaction phases. DD-3, DD-9. Phase 1 is the normal path; Phase 2

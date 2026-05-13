@@ -212,21 +212,19 @@ export namespace Tweaks {
     codexServerPriorityRatio: number
     emptyResponseFloor: number
     /**
-     * 2026-05-13 (specs/session/rebind-procedure-revision rev5):
-     * Compaction Sustainability Invariant — post-compaction
-     * context_residual / model.context_limit ratio ceiling. When a local
-     * compaction kind (narrative / replay-tail) commits an anchor whose
-     * post-state ratio exceeds this threshold, the runloop synchronously
-     * invokes a contractive kind (low-cost-server first, llm-agent
-     * fallback) to bring it back under. Model-agnostic by design —
-     * scales correctly across providers (Claude 200K, gpt-5.5 272K,
-     * future 1M context, etc.) without absolute-value reconfiguration.
+     * compaction_simplification T4 (2026-05-14, plans/compaction_simplification/
+     * design.md §1 INV-5 + §7). Ratio of local anchor body tokens to the
+     * current model's context_limit at which a background ai_paid upgrade
+     * is scheduled. Replaces the legacy 5_000-token absolute floor inside
+     * scheduleHybridEnrichment.
      *
-     * Default 0.5: "if compaction leaves context still half-full, it
-     * didn't actually contract." Tune lower (0.3-0.4) for aggressive
-     * sustainability; higher (0.6-0.7) if false positives observed.
+     * Default 0.20: "if the local anchor body alone already occupies 20%
+     * of the model's context window, pay an LLM round-trip to compress it
+     * back down." Operators on small-context models who want to delay
+     * upgrade can raise this (e.g. 0.30); operators on large-context
+     * models who want earlier promotion can lower it.
      */
-    sustainabilityRatio: number
+    localToAiThresholdRatio: number
     /**
      * compaction-fix Phase 1 (DD-6). Master switch for the post-anchor
      * transformer that folds completed assistant turns (beyond the most
@@ -411,10 +409,10 @@ export namespace Tweaks {
     minUncachedTokens: 40_000,
     stallRecoveryFloor: 0.5,
     stallRecoveryConsecutiveEmpty: 2,
-    sustainabilityRatio: 0.5,
     quotaPressureThreshold: 0.1,
     codexServerPriorityRatio: 0.7,
     emptyResponseFloor: 0.8,
+    localToAiThresholdRatio: 0.2,
     phase1Enabled: false,
     recentRawRounds: 2,
     fallbackThreshold: 5,
@@ -1074,6 +1072,11 @@ export namespace Tweaks {
     if (cmpEmptyResponseFloorRaw !== undefined) {
       const v = parseRatio(cmpEmptyResponseFloorRaw, "compaction_empty_response_floor")
       if (v !== undefined) compaction.emptyResponseFloor = v
+    }
+    const cmpLocalToAiThresholdRaw = parsed.get("compaction_local_to_ai_threshold_ratio")
+    if (cmpLocalToAiThresholdRaw !== undefined) {
+      const v = parseRatio(cmpLocalToAiThresholdRaw, "compaction_local_to_ai_threshold_ratio")
+      if (v !== undefined) compaction.localToAiThresholdRatio = v
     }
     const cmpPhase1EnabledRaw = parsed.get("compaction_phase1_enabled")
     if (cmpPhase1EnabledRaw !== undefined) {
