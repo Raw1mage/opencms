@@ -58,6 +58,17 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
     const FLUSH_FRAME_MS = 16
     const STREAM_YIELD_MS = 8
     const RECONNECT_DELAY_MS = 250
+    // A connection must stay open this long with at least one event received
+    // before we trust it enough to reset the reconnect backoff. Below this
+    // threshold the stream is treated as a flap and backoff continues to grow
+    // exponentially toward its 10s cap. (frontend/resync T1.4.2, DD-10)
+    const CONNECTION_STABLE_MS = 3_000
+    // verifyChannel() considers SSE "fresh" if an event arrived within this
+    // window. Tuned to be larger than typical streaming inter-event gaps
+    // (~100-500ms) but smaller than typical idle gaps. (frontend/resync T1.1.1)
+    const SSE_FRESHNESS_MS = 5_000
+    // verifyChannel() default timeout — caller may override.
+    const SSE_VERIFY_TIMEOUT_MS = 2_000
 
     let queue: Queued[] = []
     let buffer: Queued[] = []
@@ -149,6 +160,71 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
       setReconnectVersion((value) => value + 1)
     }
 
+    // Resolves when the next SSE event arrives, or rejects when the provided
+    // signal aborts. Used by verifyChannel() to race against a timeout. The
+    // listener is a one-shot — emitter.listen returns an unsubscribe fn we
+    // call from both resolve and abort paths to avoid leaks.
+    const waitForFirstEvent = (signal: AbortSignal): Promise<void> =>
+      new Promise<void>((resolve, reject) => {
+        if (signal.aborted) {
+          reject(new DOMException("aborted", "AbortError"))
+          return
+        }
+        let unsubscribe: (() => void) | undefined
+        const onAbort = () => {
+          unsubscribe?.()
+          reject(new DOMException("aborted", "AbortError"))
+        }
+        signal.addEventListener("abort", onAbort, { once: true })
+        unsubscribe = emitter.listen(() => {
+          signal.removeEventListener("abort", onAbort)
+          unsubscribe?.()
+          resolve()
+        })
+      })
+
+    // verifyChannel — Channel-ownership API. Callers ("client" surfaces:
+    // submit handler, permission approve, session switch, etc.) invoke this
+    // before any mutating action that expects a server reply. Contract:
+    //   - Never throws. Always resolves with VerifyChannelResult.
+    //   - If lastEventAt is within SSE_FRESHNESS_MS, return alive immediately.
+    //   - Otherwise force a reconnect and race the first new event against
+    //     the caller-provided timeout (default SSE_VERIFY_TIMEOUT_MS = 2s).
+    //   - Caller MAY observe `timedOut: true` but MUST NOT block on this
+    //     result — active polling is the correctness floor (frontend/resync
+    //     DD-3, DD-4; spec.md AC-2).
+    type VerifyChannelResult = { alive: boolean; rebuilt: boolean; timedOut: boolean }
+    const verifyChannel = async (opts?: { timeoutMs?: number }): Promise<VerifyChannelResult> => {
+      const timeoutMs = opts?.timeoutMs ?? SSE_VERIFY_TIMEOUT_MS
+      try {
+        // Fresh path: SSE delivered an event recently enough that we trust
+        // the channel without forcing a reconnect.
+        if (lastEventAt > 0 && Date.now() - lastEventAt < SSE_FRESHNESS_MS) {
+          return { alive: true, rebuilt: false, timedOut: false }
+        }
+        // Stale path: rebuild and race against timeout.
+        reconnect("verify-channel")
+        const raceAbort = new AbortController()
+        const timer = setTimeout(() => raceAbort.abort(), timeoutMs)
+        try {
+          await waitForFirstEvent(raceAbort.signal)
+          return { alive: true, rebuilt: true, timedOut: false }
+        } catch (raceErr) {
+          // AbortError from raceAbort timeout fires here. Any other error
+          // (shouldn't happen) is treated as timeout too — never throw.
+          return { alive: false, rebuilt: true, timedOut: true }
+        } finally {
+          clearTimeout(timer)
+        }
+      } catch (outerErr) {
+        // Belt-and-suspenders: any unexpected throw (synchronous reconnect
+        // failure, etc.) still returns a sane result instead of throwing.
+        // (frontend/resync errors.md E1)
+        console.warn("[global-sdk] verifyChannel hit unexpected error", { error: outerErr })
+        return { alive: false, rebuilt: true, timedOut: true }
+      }
+    }
+
     // Counts successful SSE stream opens for this provider instance. The
     // FIRST open is the initial load; subsequent opens mean the stream had
     // dropped (daemon restart, network hiccup, Cloudflare keepalive) and
@@ -179,6 +255,12 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
             continue
           }
 
+          // Hoisted across try/catch so the post-iteration backoff decision
+          // applies symmetrically to clean-end and error-end paths. Connection
+          // is "stable" if it stayed open ≥ CONNECTION_STABLE_MS and received
+          // at least one event (frontend/resync T1.4.2).
+          let eventsThisConnection = 0
+          const connectionOpenedAt = Date.now()
           try {
             const events = await loopSdk.global.event({
               onSseError: (error) => {
@@ -228,7 +310,7 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
             let yielded = Date.now()
             for await (const event of events.stream) {
               lastEventAt = Date.now()
-              backoff = RECONNECT_DELAY_MS
+              eventsThisConnection += 1
               streamErrorLogged = false
               const directory = normalizeDirectoryKey(event.directory ?? "global")
               const payload = event.payload
@@ -254,6 +336,15 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
               yielded = Date.now()
               await wait(0)
             }
+            // Clean exit: server / proxy closed the stream without throwing.
+            // Distinct log message from the error path so flap-storm vs real
+            // failure are diagnosable (frontend/resync T1.4.3).
+            console.info("[global-sdk] event stream ended cleanly", {
+              url: server.url,
+              eventsThisConnection,
+              connectionAgeMs: Date.now() - connectionOpenedAt,
+              currentBackoffMs: backoff,
+            })
           } catch (error) {
             if (signal.aborted) return
             if (error instanceof Error && error.name === "AbortError") return
@@ -274,6 +365,16 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
           }
 
           if (signal.aborted) return
+
+          // Reset backoff only when the connection was stable enough to trust
+          // (≥ CONNECTION_STABLE_MS uptime + at least one event). This guards
+          // against flap storms where a connection FIN-ed within a few hundred
+          // ms keeps re-spawning at the minimum backoff (frontend/resync DD-10,
+          // errors.md E6). Either end path (clean / error) reaches here.
+          if (eventsThisConnection > 0 && Date.now() - connectionOpenedAt > CONNECTION_STABLE_MS) {
+            backoff = RECONNECT_DELAY_MS
+          }
+
           await wait(backoff)
           backoff = Math.min(backoff * 2, 10000)
         }
@@ -330,6 +431,10 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
       // existing stream is aborted, a new HTTP GET /global/event is made.
       // Same mechanism as the auto-reconnect loop, just user-initiated.
       forceSseReconnect: (reason: string) => reconnect(reason),
+      // verifyChannel — verify-or-rebuild SSE channel. Never throws. Use
+      // before any mutating action that expects a server reply (submit,
+      // permission approve, abort, etc.). See frontend/resync DD-1/DD-2/DD-3.
+      verifyChannel,
     }
   },
 })
