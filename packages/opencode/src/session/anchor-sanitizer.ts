@@ -9,7 +9,7 @@
 //
 // Pure string transform; byte-deterministic (same input → same output).
 
-export type AnchorKind = "narrative" | "replay-tail" | "ai_free" | "ai_paid"
+export type AnchorKind = "narrative" | "ai_free" | "ai_paid"
 
 export interface SanitizedAnchorBody {
   wrapperOpen: string

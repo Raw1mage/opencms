@@ -149,11 +149,11 @@ function stubAnchorMessage(sid: string, anchorAgeMs: number | null) {
 
 describe("compaction-redesign phase 4 — KIND_CHAIN + INJECT_CONTINUE table structure", () => {
   it("KIND_CHAIN entries are cost-monotonic except explicit server-priority recovery chains (INV-4)", () => {
-    const COST = { narrative: 0, "replay-tail": 0, "ai_free": 1, "ai_paid": 2 } as const
+    const COST = { narrative: 0, "ai_free": 1, "ai_paid": 2 } as const
     const chains = SessionCompaction.__test__.KIND_CHAIN
     for (const [observed, kinds] of Object.entries(chains)) {
       if (observed === "empty-response") {
-        expect(kinds).toEqual(["ai_free", "narrative", "replay-tail", "ai_paid"])
+        expect(kinds).toEqual(["ai_free", "narrative", "ai_paid"])
         continue
       }
       let prev = -1
@@ -179,9 +179,8 @@ describe("compaction-redesign phase 4 — KIND_CHAIN + INJECT_CONTINUE table str
     const chains = SessionCompaction.__test__.KIND_CHAIN
     for (const observed of ["rebind", "continuation-invalidated", "provider-switched"] as const) {
       const kinds = chains[observed]
-      // narrative + replay-tail still come first
+      // narrative still comes first
       expect(kinds[0]).toBe("narrative")
-      expect(kinds[1]).toBe("replay-tail")
       // paid kinds now present as fallback
       expect(kinds).toContain("ai_free")
       expect(kinds).toContain("ai_paid")
@@ -194,11 +193,10 @@ describe("compaction-redesign phase 4 — KIND_CHAIN + INJECT_CONTINUE table str
   })
 
   it("provider-switched chain falls through to paid kinds (rev1 2026-05-13)", () => {
-    // rev1 extension: narrative + replay-tail run first (fast & free),
-    // then paid kinds as fallback when local kinds don't reduce enough.
+    // rev1 extension: narrative runs first (fast & free), then paid kinds
+    // as fallback when local kinds don't reduce enough.
     expect(SessionCompaction.__test__.KIND_CHAIN["provider-switched"]).toEqual([
       "narrative",
-      "replay-tail",
       "ai_free",
       "ai_paid",
     ])
@@ -339,44 +337,11 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
     expect(writes[0].auto).toBe(false) // manual never injects Continue
   })
 
-  it("R-5: run({observed: 'provider-switched'}) tries local kinds first, then falls through to paid kinds (rev1 2026-05-13)", async () => {
-    // Provider-switched may recover from the local message tail. As of rev1
-    // (specs/session/rebind-procedure-revision/events/event_2026-05-12_rev1-*),
-    // the chain ALSO contains low-cost-server + llm-agent as fallback when
-    // narrative + replay-tail don't reduce enough. Local kinds still run
-    // first (this test stub returns a successful replay-tail at position 1).
-    setupCommonMocks({ turnSummaries: [] }, "ses_run_pswitch")
-    ;(Session as any).messages = mock(async () => [
-      {
-        info: { id: "msg_user", role: "user", sessionID: "ses_run_pswitch" },
-        parts: [{ type: "text", text: "recover this provider-switched request" }],
-      },
-    ])
-    const writes: any[] = []
-    SessionCompaction.__test__.setAnchorWriter(async (input) => {
-      writes.push(input)
-    })
-
-    const result = await SessionCompaction.run({
-      sessionID: "ses_run_pswitch",
-      observed: "provider-switched",
-      step: 3,
-    })
-
-    expect(result).toBe("continue")
-    expect(writes).toHaveLength(1)
-    expect(writes[0].kind).toBe("replay-tail")
-    expect(writes[0].auto).toBe(false)
-
+  it("R-5: provider-switched chain shape — narrative first, paid kinds as fallback (rev1 2026-05-13)", () => {
     const chain = SessionCompaction.__test__.KIND_CHAIN["provider-switched"]
-    // rev1: paid kinds NOW present as fallback (was previously excluded
-    // under the "rebind = small context" assumption — rotation-heavy
-    // sessions falsified that).
+    expect(chain[0]).toBe("narrative")
     expect(chain).toContain("ai_free")
     expect(chain).toContain("ai_paid")
-    // But local kinds still come first
-    expect(chain[0]).toBe("narrative")
-    expect(chain[1]).toBe("replay-tail")
   })
 
   it("Cooldown gates the entry: throttled run returns 'continue' without writing anchor", async () => {
@@ -498,36 +463,6 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
     // narrative empty + stubs all fail → "stop".
     expect(result).toBe("stop")
     expect(writes).toHaveLength(0)
-  })
-
-  it("phase 5 — replay-tail executor succeeds when narrative empty + msg stream has text", async () => {
-    setupCommonMocks({ turnSummaries: [] }, "ses_run_replay")
-    ;(Session as any).messages = mock(async () => [
-      {
-        info: { id: "msg_u1", role: "user" },
-        parts: [{ type: "text", text: "fix the auth bug" }],
-      },
-      {
-        info: { id: "msg_a1", role: "assistant" },
-        parts: [{ type: "text", text: "Looked at auth.ts, found token issue, patched." }],
-      },
-    ])
-    const writes: any[] = []
-    SessionCompaction.__test__.setAnchorWriter(async (input) => {
-      writes.push(input)
-    })
-
-    const result = await SessionCompaction.run({
-      sessionID: "ses_run_replay",
-      observed: "overflow",
-      step: 5,
-    })
-
-    expect(result).toBe("continue")
-    expect(writes).toHaveLength(1)
-    expect(writes[0].kind).toBe("replay-tail")
-    expect(writes[0].summaryText).toContain("User: fix the auth bug")
-    expect(writes[0].summaryText).toContain("Assistant: Looked at auth.ts")
   })
 
   it("phase 5 — low-cost-server executor succeeds when plugin returns compactedItems", async () => {

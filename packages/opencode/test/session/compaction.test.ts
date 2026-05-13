@@ -230,8 +230,8 @@ describe("session.compaction.isOverflow", () => {
 })
 
 describe("session.compaction.kindChainFor", () => {
-  test("provider-switched keeps replay-tail as local fallback", () => {
-    expect(SessionCompaction.kindChainFor("provider-switched")).toEqual(["narrative", "replay-tail"])
+  test("provider-switched chain has only local narrative as first kind", () => {
+    expect(SessionCompaction.kindChainFor("provider-switched")).toEqual(["narrative", "ai_free", "ai_paid"])
   })
 
   test("codex provider: server-side compaction first, regardless of context ratio / subscription flag", () => {
@@ -243,7 +243,7 @@ describe("session.compaction.kindChainFor", () => {
         isSubscription: true,
         ctxRatio: 0.8,
       }),
-    ).toEqual(["ai_free", "narrative", "replay-tail", "ai_paid"])
+    ).toEqual(["ai_free", "narrative", "ai_paid"])
 
     // codex non-sub at high ctx → ALSO server first (sub flag no longer gates)
     expect(
@@ -253,7 +253,7 @@ describe("session.compaction.kindChainFor", () => {
         isSubscription: false,
         ctxRatio: 0.8,
       }),
-    ).toEqual(["ai_free", "narrative", "replay-tail", "ai_paid"])
+    ).toEqual(["ai_free", "narrative", "ai_paid"])
 
     // codex at low ctx → still server first (no threshold gate anymore)
     expect(
@@ -262,7 +262,7 @@ describe("session.compaction.kindChainFor", () => {
         providerId: "codex",
         ctxRatio: 0.3,
       }),
-    ).toEqual(["ai_free", "narrative", "replay-tail", "ai_paid"])
+    ).toEqual(["ai_free", "narrative", "ai_paid"])
   })
 
   test("non-codex provider: local-first chain unchanged regardless of subscription / context", () => {
@@ -273,7 +273,7 @@ describe("session.compaction.kindChainFor", () => {
         isSubscription: true,
         ctxRatio: 0.8,
       }),
-    ).toEqual(["narrative", "replay-tail", "ai_free", "ai_paid"])
+    ).toEqual(["narrative", "ai_free", "ai_paid"])
 
     expect(
       SessionCompaction.__test__.resolveKindChain({
@@ -283,31 +283,31 @@ describe("session.compaction.kindChainFor", () => {
     ).toEqual(["narrative", "ai_free", "ai_paid"])
   })
 
-  test("codex chain handles observed events that don't normally include low-cost-server", () => {
-    // For idle/rebind/etc the base chain has no `low-cost-server`. On
-    // codex we still prepend it so the model can lean on the codex
-    // server-side compactor when available; chain falls through to
-    // local kinds if the server is unreachable / errors.
+  test("codex chain handles observed events: server-side prepended, paid fallback at tail", () => {
+    // For idle/rebind/etc the base chain has no `ai_free`. On codex we
+    // still prepend it so the model can lean on the codex server-side
+    // compactor when available; chain falls through to local + paid
+    // kinds if the server is unreachable / errors.
     expect(
       SessionCompaction.__test__.resolveKindChain({
         observed: "idle",
         providerId: "codex",
       }),
-    ).toEqual(["ai_free", "narrative", "replay-tail"])
+    ).toEqual(["ai_free", "narrative"])
 
     expect(
       SessionCompaction.__test__.resolveKindChain({
         observed: "rebind",
         providerId: "codex",
       }),
-    ).toEqual(["ai_free", "narrative", "replay-tail"])
+    ).toEqual(["ai_free", "narrative", "ai_paid"])
 
     expect(
       SessionCompaction.__test__.resolveKindChain({
         observed: "empty-response",
         providerId: "codex",
       }),
-    ).toEqual(["ai_free", "narrative", "replay-tail", "ai_paid"])
+    ).toEqual(["ai_free", "narrative", "ai_paid"])
   })
 })
 
@@ -408,7 +408,7 @@ describe("session.prompt trigger inventory", () => {
     })
 
     expect(observed).toBe("stall-recovery")
-    expect(SessionCompaction.kindChainFor("stall-recovery")).toEqual(["narrative", "replay-tail", "ai_free", "ai_paid"])
+    expect(SessionCompaction.kindChainFor("stall-recovery")).toEqual(["narrative", "ai_free", "ai_paid"])
     expect(SessionCompaction.__test__.INJECT_CONTINUE["stall-recovery"]).toBe(false)
   })
 })

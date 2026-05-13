@@ -48,10 +48,10 @@ export interface AmnesiaDecision {
  * perceptible gap there, so we skip the notice.
  *
  * Back-compat: legacy event logs use `"llm-agent"` (pre-T3 name for
- * `ai_paid`); the set includes both so historical events still trigger
- * the notice correctly.
+ * `ai_paid`) and `"replay-tail"` (pre-T2b separate local kind); the set
+ * includes both so historical events still trigger the notice correctly.
  */
-const CLIENT_SIDE_COMPACTION_KINDS = new Set(["narrative", "hybrid_llm", "replay-tail", "ai_paid", "llm-agent"])
+const CLIENT_SIDE_COMPACTION_KINDS = new Set(["narrative", "hybrid_llm", "ai_paid", "llm-agent", "replay-tail"])
 
 export function decideAmnesiaInjection(
   recentEvents: ReadonlyArray<{

@@ -2,7 +2,7 @@ import { sanitizeAnchor, sanitizeAnchorToString, unwrapPriorContext, type Anchor
 
 describe("anchor sanitizer (DD-6)", () => {
   describe("wrapping", () => {
-    it.each<AnchorKind>(["narrative", "replay-tail", "ai_free", "ai_paid"])(
+    it.each<AnchorKind>(["narrative", "ai_free", "ai_paid"])(
       'wraps body in <prior_context source="%s">',
       (kind) => {
         const out = sanitizeAnchor("hello world", kind)
