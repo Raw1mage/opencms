@@ -841,6 +841,7 @@ export namespace Session {
     async (input) => {
       const result = [] as MessageV2.WithParts[]
       let seenCursor = input.before === undefined
+      let limitReached = false
       for await (const msg of MessageV2.stream(input.sessionID)) {
         if (!seenCursor) {
           if (msg.info?.id === input.before) {
@@ -848,7 +849,19 @@ export namespace Session {
           }
           continue
         }
-        if (input.limit && result.length >= input.limit) break
+        if (input.limit && result.length >= input.limit) {
+          // Keep scanning until we include at least one user message.
+          // Without this, a long agent run (30+ tool-call steps) pushes
+          // the driving user message past the tail limit — the frontend
+          // sees only assistant messages with no user context, so the
+          // entire turn appears blank after page reload or SSE drop.
+          if (!limitReached) {
+            limitReached = true
+          }
+          if (limitReached && result.some((m) => m.info.role === "user")) break
+          // Safety cap: don't scan indefinitely if user message is very old
+          if (result.length >= (input.limit ?? 0) * 2) break
+        }
         result.push(msg)
       }
       result.reverse()
