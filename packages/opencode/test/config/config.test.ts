@@ -1348,9 +1348,9 @@ test("internal MCP binary mode rewrites repo command to system binary path", asy
           JSON.stringify({
             $schema: "https://opencode.ai/config.json",
             mcp: {
-              "refacting-merger": {
+              "system-manager": {
                 type: "local",
-                command: ["/work/repo/packages/mcp/refacting-merger/src/index.ts"],
+                command: ["/work/repo/packages/mcp/system-manager/src/index.ts"],
                 enabled: true,
               },
             },
@@ -1362,9 +1362,9 @@ test("internal MCP binary mode rewrites repo command to system binary path", asy
       directory: tmp.path,
       fn: async () => {
         const config = await Config.get()
-        expect(config.mcp?.["refacting-merger"]).toEqual({
+        expect(config.mcp?.["system-manager"]).toEqual({
           type: "local",
-          command: ["/usr/local/lib/opencode/mcp/refacting-merger"],
+          command: ["/usr/local/lib/opencode/mcp/system-manager"],
           enabled: true,
         })
       },

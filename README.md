@@ -322,7 +322,7 @@ packages/
 ├── web/               Astro web templates
 ├── ui/                共用 UI 元件庫（Kobalte + Tailwind 4）
 ├── desktop/           Tauri 2.x 桌面 app
-├── mcp/               內建 MCP servers（branch-cicd, gcp-grounding, system-manager）
+├── mcp/               內建 MCP servers（gcp-grounding, system-manager）
 ├── provider-claude/   Claude AI SDK 整合
 ├── provider-codex/    Codex WebSocket + delta 整合
 ├── sdk/js/            JavaScript SDK

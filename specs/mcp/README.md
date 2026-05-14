@@ -302,9 +302,6 @@ External MCP packages:
   managed-app reads). Hosts `open_fileview` and the
   `read_subsession` / `list_subagents` tools called out in
   [harness/README.md](../harness/README.md).
-- `packages/mcp/branch-cicd` — `beta-tool` MCP (newbeta / syncback /
-  merge).
-
 docxmcp transport:
 - `packages/opencode/src/incoming/dispatcher.ts` (561 lines) —
   HTTP-uploader path; `before()` multiparts paths to `/files`,

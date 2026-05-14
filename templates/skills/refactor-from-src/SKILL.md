@@ -26,10 +26,10 @@ We are **archaeologists**, not mergers. We dig through `origin/dev` commits to f
 ### 1. ANALYSIS (Archaeology)
 
 - **Goal**: Identify _what_ happened in `origin/dev` that `main` might be missing.
-- **Tools**: `git log`, `git show`, `refacting-merger-mcp`.
+- **Tools**: `git log`, `git show`.
 - **Action**:
   - Fetch `origin/dev`.
-  - list commits using `refacting-merger-mcp` (or similar analysis script).
+  - List commits using `git log` analysis.
   - **Ignore** architecture/refactor commits.
   - **Focus** on `fix:`, `feat:`, `perf:` that touch logic/behavior.
 
@@ -73,5 +73,4 @@ When analyzing commits, categorize them as:
 
 ## Tools & References
 
-- `packages/mcp/refacting-merger/src/index.ts`: Analysis tool (use `--cli` mode).
 - `docs/events/`: Store analysis logs here.

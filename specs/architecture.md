@@ -63,7 +63,7 @@ graph TB
 
     subgraph EXT[External]
         LLM["LLM APIs<br/>OpenAI · Anthropic · Gemini · …<br/>via Vercel AI SDK"]
-        MCPSV["MCP servers<br/>stdio · SSE · HTTP<br/>system-manager · branch-cicd · docxmcp · …"]
+        MCPSV["MCP servers<br/>stdio · SSE · HTTP<br/>system-manager · gcp-grounding · docxmcp · …"]
         OAUTH["OAuth providers<br/>Google · Anthropic · OpenAI Codex"]
     end
 
@@ -347,7 +347,7 @@ Layers 1 (hybrid-llm compaction), 3 (context visibility), 4 (`compact_now` tool)
 ## Builder-Native Beta Workflow Surfaces
 
 - `packages/opencode/src/session/beta-bootstrap.ts` is the builder-native integration layer for beta bootstrap, validation syncback, routine git execution, drift remediation, and finalize behavior.
-- It reuses deterministic git/worktree/runtime primitives from `packages/mcp/branch-cicd/src/project-policy.ts` and project-context resolution from `packages/mcp/branch-cicd/src/context.ts` rather than duplicating branch-cicd logic inside the builder runtime.
+- It implements deterministic git/worktree/runtime primitives and project-context resolution inside the builder runtime.
 - Beta context is resolved and persisted at admission time for plans that opt into the beta workflow; planning itself is performed via the `plan-builder` skill, not via runtime tools.
 - `packages/opencode/src/session/workflow-runner.ts` owns validation-stage behavior during autonomous build execution: it prepares syncback metadata for testing continuations and, when runtime policy is non-manual, performs builder-owned syncback checkout plus runtime command execution before the validation slice continues.
 - The workflow-runner still injects a beta-oriented execution contract for beta-enabled missions, but that text is advisory only after admission succeeds; enforcement now lives in the runtime admission gate plus continuation checks, not in prompt prose.
@@ -359,7 +359,7 @@ Layers 1 (hybrid-llm compaction), 3 (context visibility), 4 (`compact_now` tool)
 - Manual runtime policy remains an explicit operator boundary: builder may prepare syncback metadata, but it must not invent or auto-run runtime commands.
 - Destructive finalize execution now has a builder-native execute path, but it is still explicit-approval-only and cleanup remains conservative by default.
 - Drift remediation execute is implemented only for explicit approval-confirmed rebase flow and fails fast on dirty beta state or rebase conflicts; no silent history rewrite or implicit conflict recovery is allowed.
-- `packages/mcp/branch-cicd/src/beta-tool.ts` remains a historical/migration reference only and is retired from the app-market dashboard. Builder-native beta workflow surfaces are the operational path for beta execution; `beta-tool` must not be treated as a build-admission authority or dashboard capability.
+
 
 ## Account Management (3-Tier Architecture)
 
@@ -901,15 +901,6 @@ Both Google apps share a single OAuth token stored at `~/.config/opencode/gauth.
   - TUI sidebar `Changes` and webapp changes sidebar use workspace-level git status (`file.status`) when the UX is explicitly about current workdir uncommitted files.
 - These two sources must not be silently conflated; session attribution and workdir cleanliness are separate contracts.
 
-## Retired beta-tool MCP Architecture
-
-- `packages/mcp/branch-cicd` originally added a standalone stdio MCP server published as capability `beta-tool`; it is now retained only as historical/migration source material and filtered from `/api/v2/mcp/market`.
-- Public tools are exactly `newbeta`, `syncback`, and `merge`.
-- The package resolves project context before mutating git state: canonical repo root, authoritative base branch, deterministic beta worktree root, and runtime policy.
-- The package is project-aware rather than `cms`-hard-coded: this repo resolves a `webctl.sh` runtime adapter, while non-matching repos must provide explicit runtime policy or complete a bounded clarification step.
-- Ambiguity and destructive confirmation are surfaced as structured orchestrator-question contracts rather than silent fallback: repo root, branch name, runtime policy, merge target, and merge confirmation all stop until explicit selection is supplied.
-- Loop metadata is persisted under XDG state so repeated beta edit → syncback → runtime validation cycles can reuse the same branch/worktree mapping across sessions.
-- `merge` remains approval-gated and re-checks dirty state before merge, worktree removal, or branch deletion.
 
 ## Session Monitor / Telemetry Architecture
 

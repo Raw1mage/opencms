@@ -562,8 +562,8 @@ list_orphan_mcp_candidates() {
             sub(/^[[:space:]]+/, "", $0)
             cmd = $0
 
-            is_internal_mcp_binary = (cmd ~ /\/usr\/local\/lib\/opencode\/mcp\/(system-manager|refacting-merger|gcp-grounding)( |$)/)
-            is_internal_mcp_source = (cmd ~ /\/packages\/mcp\/(system-manager\/src\/index\.ts|refacting-merger\/src\/index\.ts|gcp-grounding\/index\.ts)( |$)/)
+            is_internal_mcp_binary = (cmd ~ /\/usr\/local\/lib\/opencode\/mcp\/(system-manager|gcp-grounding)( |$)/)
+            is_internal_mcp_source = (cmd ~ /\/packages\/mcp\/(system-manager\/src\/index\.ts|gcp-grounding\/index\.ts)( |$)/)
             is_memory_mcp = ((cmd ~ /@modelcontextprotocol\/server-memory/) || (cmd ~ /server-memory( |$)/))
             is_filesystem_mcp = ((cmd ~ /@modelcontextprotocol\/server-filesystem/) || (cmd ~ /server-filesystem( |$)/))
             is_fetch_mcp = ((cmd ~ /@modelcontextprotocol\/server-fetch/) || (cmd ~ /server-fetch( |$)/))
@@ -586,8 +586,8 @@ list_all_mcp_processes() {
             sub(/^[[:space:]]+/, "", $0)
             cmd = $0
 
-            is_internal_mcp_binary = (cmd ~ /\/usr\/local\/lib\/opencode\/mcp\/(system-manager|refacting-merger|gcp-grounding)( |$)/)
-            is_internal_mcp_source = (cmd ~ /\/packages\/mcp\/(system-manager\/src\/index\.ts|refacting-merger\/src\/index\.ts|gcp-grounding\/index\.ts)( |$)/)
+            is_internal_mcp_binary = (cmd ~ /\/usr\/local\/lib\/opencode\/mcp\/(system-manager|gcp-grounding)( |$)/)
+            is_internal_mcp_source = (cmd ~ /\/packages\/mcp\/(system-manager\/src\/index\.ts|gcp-grounding\/index\.ts)( |$)/)
             is_memory_mcp = ((cmd ~ /@modelcontextprotocol\/server-memory/) || (cmd ~ /server-memory( |$)/))
             is_filesystem_mcp = ((cmd ~ /@modelcontextprotocol\/server-filesystem/) || (cmd ~ /server-filesystem( |$)/))
             is_fetch_mcp = ((cmd ~ /@modelcontextprotocol\/server-fetch/) || (cmd ~ /server-fetch( |$)/))
@@ -838,8 +838,8 @@ list_interactive_process_candidates() {
                 cmd ~ /\/packages\/opencode\/src\/index\.ts web( |$)/ ||
                 cmd ~ /(^|[[:space:]])([^[:space:]]*\/)?opencode([[:space:]]|$)/
 
-            is_internal_mcp_binary = (cmd ~ /\/usr\/local\/lib\/opencode\/mcp\/(system-manager|refacting-merger|gcp-grounding)( |$)/)
-            is_internal_mcp_source = (cmd ~ /\/packages\/mcp\/(system-manager\/src\/index\.ts|refacting-merger\/src\/index\.ts|gcp-grounding\/index\.ts)( |$)/)
+            is_internal_mcp_binary = (cmd ~ /\/usr\/local\/lib\/opencode\/mcp\/(system-manager|gcp-grounding)( |$)/)
+            is_internal_mcp_source = (cmd ~ /\/packages\/mcp\/(system-manager\/src\/index\.ts|gcp-grounding\/index\.ts)( |$)/)
             is_memory_mcp = ((cmd ~ /@modelcontextprotocol\/server-memory/) || (cmd ~ /server-memory( |$)/))
             is_filesystem_mcp = ((cmd ~ /@modelcontextprotocol\/server-filesystem/) || (cmd ~ /server-filesystem( |$)/))
             is_fetch_mcp = ((cmd ~ /@modelcontextprotocol\/server-fetch/) || (cmd ~ /server-fetch( |$)/))

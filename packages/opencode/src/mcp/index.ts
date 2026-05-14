@@ -774,7 +774,7 @@ export namespace MCP {
     return result
   }
 
-  const RETIRED_SERVER_APP_IDS = new Set(["beta-tool", "refacting-merger", "gcp-grounding"])
+  const RETIRED_SERVER_APP_IDS = new Set(["gcp-grounding"])
 
   /** Metadata for built-in MCP servers — shown in app market cards */
   const SERVER_META: Record<string, { description: string; icon: string }> = {

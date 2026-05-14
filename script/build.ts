@@ -220,7 +220,7 @@ for (const item of targets) {
   })
 
   // Build internal MCP servers
-  const mcpPackages = ["system-manager", "refacting-merger", "gcp-grounding"]
+  const mcpPackages = ["system-manager", "gcp-grounding"]
   for (const mcpPkg of mcpPackages) {
     const mcpSrc = `./packages/mcp/${mcpPkg}/src/index.ts`
     if (!fs.existsSync(mcpSrc)) continue

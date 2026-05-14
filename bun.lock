@@ -346,21 +346,6 @@
         "typescript": "catalog:",
       },
     },
-    "packages/mcp/branch-cicd": {
-      "name": "beta-tool",
-      "version": "0.1.0",
-      "bin": {
-        "beta-tool": "./src/index.ts",
-      },
-      "dependencies": {
-        "@modelcontextprotocol/sdk": "^1.25.2",
-        "zod": "^4.1.8",
-      },
-      "devDependencies": {
-        "@types/node": "catalog:",
-        "typescript": "catalog:",
-      },
-    },
     "packages/mcp/gcp-grounding": {
       "name": "mcp-gcp-grounding",
       "version": "1.0.0",
@@ -2439,8 +2424,6 @@
     "bcp-47-match": ["bcp-47-match@2.0.3", "", {}, "sha512-JtTezzbAibu8G0R9op9zb3vcWZd9JF6M0xOYGPn0fNCd7wOpRB1mU2mH9T8gaBGbAAyIIVgB2G7xG0GP98zMAQ=="],
 
     "before-after-hook": ["before-after-hook@2.2.3", "", {}, "sha512-NzUnlZexiaH/46WDhANlyR2bXRopNg4F/zuSA3OpZnllCUgRaOF2znDioDWrmbNVsuZk6l9pMquQB38cfBZwkQ=="],
-
-    "beta-tool": ["beta-tool@workspace:packages/mcp/branch-cicd"],
 
     "bignumber.js": ["bignumber.js@9.3.1", "", {}, "sha512-Ko0uX15oIUS7wJ3Rb30Fs6SkVbLmPBAKdlm7q9+ak9bbIeFf0MwuBsQV6z7+X768/cHsfg+WlysDWJcmthjsjQ=="],
 
