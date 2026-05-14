@@ -499,9 +499,10 @@ export function createPromptSubmit(input: PromptSubmitInput) {
     // Client owns the SSE channel — we don't rely on server knowing our state.
     // verifyChannel returns within 2s regardless of outcome; never throws.
     // We don't branch on the result: active polling below carries correctness.
-    const verifyResult = await sdk
-      .verifyChannel?.({ timeoutMs: 2000 })
-      .catch(() => ({ alive: false, rebuilt: true, timedOut: true }))
+    console.info("[submit] pre-verify", { sessionID: session.id, hasVerifyChannel: !!sdk.verifyChannel })
+    const verifyResult = await (sdk.verifyChannel
+      ? sdk.verifyChannel({ timeoutMs: 2000 }).catch(() => ({ alive: false, rebuilt: true, timedOut: true }))
+      : Promise.resolve({ alive: false, rebuilt: false, timedOut: false }))
     console.info("[submit] channel verify", {
       sessionID: session.id,
       ...verifyResult,
@@ -509,7 +510,10 @@ export function createPromptSubmit(input: PromptSubmitInput) {
 
     const send = async () => {
       const ok = await waitForWorktree()
-      if (!ok) return
+      if (!ok) {
+        console.warn("[submit] waitForWorktree returned false — send aborted silently", { sessionID: session.id })
+        return
+      }
       console.info("[submit] send start", telemetryCtx)
       await client.session.promptAsync({
         sessionID: session.id,
@@ -541,12 +545,23 @@ export function createPromptSubmit(input: PromptSubmitInput) {
             const s = sync.session.get(session.id)
             return s?.workflow?.state === "running" ? 500 : 2000
           },
-          until: ({ session: snap, lastAssistant }) => {
-            const ws = snap?.workflow?.state
-            if (ws && ws !== "running" && ws !== "queued") return true
-            if (lastAssistant && lastAssistant.role === "assistant" && lastAssistant.finish) return true
-            return false
-          },
+          until: (() => {
+            // Track whether we've ever seen the workflow enter "running" state.
+            // Without this, the poll terminates immediately when the server
+            // hasn't processed the prompt yet (workflow still "waiting_user"
+            // from the previous turn). The premature stop means neither SSE
+            // nor active polling delivers the response.
+            let sawRunning = false
+            return ({ session: snap, lastAssistant }: { session: { workflow?: { state?: string } } | null; lastAssistant: Message | null }) => {
+              const ws = snap?.workflow?.state
+              if (ws === "running" || ws === "queued") sawRunning = true
+              // Only terminate if we've seen the workflow start (or the server
+              // responded so fast that lastAssistant already has our answer).
+              if (sawRunning && ws && ws !== "running" && ws !== "queued") return true
+              if (lastAssistant && lastAssistant.id > messageID && lastAssistant.role === "assistant" && lastAssistant.finish) return true
+              return false
+            }
+          })(),
           onStop: (reason) => {
             // Remove handle so a future submit doesn't try to cancel an already-stopped poll.
             if (activePolls.get(session.id) === stop) activePolls.delete(session.id)

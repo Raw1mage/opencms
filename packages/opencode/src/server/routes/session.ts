@@ -2437,8 +2437,14 @@ export const SessionRoutes = lazy(() =>
             { once: true },
           )
         }
+        console.info("[prompt_async] accepted", { sessionID, agent: body.agent ?? null, providerId: body.model?.providerId ?? null })
         return stream(c, async () => {
-          SessionPrompt.prompt({ ...body, sessionID })
+          SessionPrompt.prompt({ ...body, sessionID }).catch((err) => {
+            console.error("[prompt_async] prompt threw (fire-and-forget)", {
+              sessionID,
+              error: err instanceof Error ? err.message : String(err),
+            })
+          })
         })
       },
     )
