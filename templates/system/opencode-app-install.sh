@@ -181,16 +181,29 @@ cmd_write_entry() {
     die "Entry file not found: ${entry_file}"
   fi
 
-  # Validate the entry file is valid JSON with required fields
+  # Validate the entry file is valid JSON with required fields.
+  # stdio entries need command; streamable-http/sse entries need url.
   python3 -c "
 import json, sys
 with open('${entry_file}') as f:
     entry = json.load(f)
-required = ['path', 'command', 'enabled']
+required = ['path', 'enabled']
 for key in required:
     if key not in entry:
         print(f'Missing required field: {key}', file=sys.stderr)
         sys.exit(1)
+transport = entry.get('transport', 'stdio')
+if transport == 'stdio':
+    if not entry.get('command'):
+        print('Missing required field: command', file=sys.stderr)
+        sys.exit(1)
+elif transport in ('streamable-http', 'sse'):
+    if not entry.get('url'):
+        print('Missing required field: url', file=sys.stderr)
+        sys.exit(1)
+else:
+    print(f'Unsupported transport: {transport}', file=sys.stderr)
+    sys.exit(1)
 " || die "Invalid entry JSON in ${entry_file}"
 
   # Ensure mcp-apps.json exists

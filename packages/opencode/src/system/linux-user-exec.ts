@@ -57,4 +57,28 @@ export namespace LinuxUserExec {
       return
     }
   }
+
+  export function isSudoer(username: string | undefined) {
+    const safe = sanitizeUsername(username)
+    if (!safe) return false
+    if (process.platform !== "linux") return false
+    try {
+      const group = fs.readFileSync("/etc/group", "utf8")
+      for (const line of group.split(/\r?\n/)) {
+        if (!line || line.startsWith("#")) continue
+        const parts = line.split(":")
+        if (parts.length < 4) continue
+        const name = parts[0]
+        if (name !== "sudo" && name !== "wheel" && name !== "admin") continue
+        const members = parts[3]
+          .split(",")
+          .map((member) => member.trim())
+          .filter(Boolean)
+        if (members.includes(safe)) return true
+      }
+    } catch {
+      return false
+    }
+    return false
+  }
 }
