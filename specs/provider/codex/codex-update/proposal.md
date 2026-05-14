@@ -2,7 +2,7 @@
 
 ## Why
 
-- Codex submodule was just bumped from `5cc5f12ef` to `f7e8ff8e5` (218 commits), introducing wire-format and protocol changes upstream that our `packages/opencode-codex-provider/` has not yet absorbed.
+- Codex submodule was just bumped from `5cc5f12ef` to `f7e8ff8e5` (218 commits), introducing wire-format and protocol changes upstream that our `packages/provider-codex/` has not yet absorbed.
 - Without this work, the provider silently ignores new event frames, may emit stale headers, and may fall behind on cache-key / service-tier propagation — symptoms today are subtle (missed analytics, missing cache hits) but compound as upstream evolves.
 - Codex provider is one of two primary providers; keeping it within ~1 month of upstream is the established cadence (see prior `codex-refactor` history).
 
@@ -24,20 +24,20 @@
 ## Effective Requirement Description
 
 1. Produce a complete, evidence-backed diff audit of the codex submodule range scoped to the surface area we mirror (the four codex-rs paths above).
-2. Land code changes in `packages/opencode-codex-provider/` to bring the provider to feature parity with upstream — additive features adopted, breaking changes accommodated, deprecated/removed surfaces cleaned up.
+2. Land code changes in `packages/provider-codex/` to bring the provider to feature parity with upstream — additive features adopted, breaking changes accommodated, deprecated/removed surfaces cleaned up.
 3. Verify with provider unit tests + a live smoke run against the codex backend before promoting to `verified`.
 
 ## Scope
 
 ### IN
-- `packages/opencode-codex-provider/src/` — all 14 source files are candidates; concrete touch list emerges in design phase
+- `packages/provider-codex/src/` — all 14 source files are candidates; concrete touch list emerges in design phase
 - Codex submodule range `5cc5f12ef..f7e8ff8e5` audit, narrowed to:
   - `codex-rs/core/src/client.rs`
   - `codex-rs/core/src/responses_*` (Responses API client + types)
   - `codex-rs/chatgpt/` (ChatGPT-backend specifics)
   - `codex-rs/login/` (OAuth flow)
   - `codex-rs/protocol/` (wire schemas — only the parts our provider consumes)
-- Provider unit tests under `packages/opencode-codex-provider/src/*.test.ts`
+- Provider unit tests under `packages/provider-codex/src/*.test.ts`
 - A live smoke run hitting the real ChatGPT backend with a refreshed account
 
 ### OUT
@@ -63,10 +63,10 @@
 
 ## What Changes
 
-- `packages/opencode-codex-provider/src/types.ts` — likely add new event type variants
-- `packages/opencode-codex-provider/src/headers.ts` — likely thread_id / session_id semantics adjustment
-- `packages/opencode-codex-provider/src/transport-ws.ts` — likely send-side idle timeout
-- `packages/opencode-codex-provider/src/protocol.ts` — possible compaction request body fields
+- `packages/provider-codex/src/types.ts` — likely add new event type variants
+- `packages/provider-codex/src/headers.ts` — likely thread_id / session_id semantics adjustment
+- `packages/provider-codex/src/transport-ws.ts` — likely send-side idle timeout
+- `packages/provider-codex/src/protocol.ts` — possible compaction request body fields
 - Other files: TBD pending design-phase audit
 - New tests covering each behavioral delta
 - Submodule pointer: NOT changed (stays at `f7e8ff8e5` from commit `dbd8f7215`)
@@ -84,7 +84,7 @@
 
 ## Impact
 
-- **Provider package** (`packages/opencode-codex-provider/`): direct edits + new tests
+- **Provider package** (`packages/provider-codex/`): direct edits + new tests
 - **Runtime telemetry**: more events flowing through the provider's event log; `empty-turn-classifier` may need a quick review to confirm `response.processed` doesn't trip its empty-turn heuristic
 - **Account state**: no schema change expected; but if `thread_id` becomes persisted, account record may grow a field — flag during design
 - **Other providers** (Anthropic, Gemini): no impact

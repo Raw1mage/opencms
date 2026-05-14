@@ -196,7 +196,7 @@ function buildReaderHeaders(input: {
   if (input.accountId) headers["x-opencode-account-id"] = input.accountId
   if (input.model.providerId.startsWith("opencode")) {
     headers["x-opencode-session"] = input.sessionID
-  } else if (input.model.api.npm === "@opencode-ai/codex-provider") {
+  } else if (input.model.api.npm === "@opencode-ai/provider-codex") {
     headers["session_id"] = input.sessionID
     headers["x-opencode-session"] = input.sessionID
     headers["x-opencode-parent-session"] = input.parentID ?? ""

@@ -5,7 +5,7 @@ summary: "M3 verification — installationId reaches body.client_metadata on bot
 
 # M3 verification — installationId reaches body.client_metadata on both HTTP and WS transports
 
-Traced `installationId` through `packages/opencode-codex-provider/`:
+Traced `installationId` through `packages/provider-codex/`:
 
 - `provider.ts:82-83` (`buildResponsesApiRequest`) passes `input.installationId` into `buildClientMetadata`.
 - `provider.ts:199` propagates `this.options.installationId` from per-instance constructor options on the WS path.

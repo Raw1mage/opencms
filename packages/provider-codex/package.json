@@ -1,5 +1,5 @@
 {
-  "name": "@opencode-ai/codex-provider",
+  "name": "@opencode-ai/provider-codex",
   "version": "0.1.0",
   "type": "module",
   "license": "MIT",

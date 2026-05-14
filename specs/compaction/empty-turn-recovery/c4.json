@@ -12,7 +12,7 @@
     {
       "id": "CT1",
       "systemRef": "SYS1",
-      "name": "codex provider (packages/opencode-codex-provider)",
+      "name": "codex provider (packages/provider-codex)",
       "description": "Standalone provider package implementing AI SDK LanguageModelV2 against Codex Responses API"
     },
     {

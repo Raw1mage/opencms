@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="665" viewBox="0 0 1180 665" role="img" aria-label="Chapter 08 — WebSocket Transport">
+<defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#64748b" /></marker></defs>
+
+<style>
+  .bg { fill: #f8fafc; }
+  .title { font: 700 22px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; fill: #0f172a; }
+  .subtitle { font: 600 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; fill: #475569; letter-spacing: .08em; }
+  .box { fill: #ffffff; stroke: #1d4ed8; stroke-width: 2; rx: 14; }
+  .box-alt { fill: #eff6ff; stroke: #2563eb; stroke-width: 2; rx: 14; }
+  .id { font: 700 14px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; fill: #1d4ed8; }
+  .label { font: 600 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; fill: #0f172a; }
+  .arrow { stroke: #64748b; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+  .io { font: 600 12px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; fill: #334155; }
+  .footer { font: 500 11px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; fill: #64748b; }
+</style>
+
+<rect class="bg" x="0" y="0" width="1180" height="665"/>
+<text class="title" x="70" y="42">Chapter 08 — WebSocket Transport</text>
+<text class="subtitle" x="72" y="68">A8 · generated from idef0.08.json</text>
+<rect class="box-alt" x="70" y="110" width="300" height="120" rx="14"/>
+<text class="id" x="88" y="137">A8.1</text>
+<text class="label" x="88" y="164">Build WS Handshake Headers</text>
+<rect class="box" x="440" y="110" width="300" height="120" rx="14"/>
+<text class="id" x="458" y="137">A8.2</text>
+<text class="label" x="458" y="164">Establish WS Connection</text>
+<rect class="box" x="810" y="110" width="300" height="120" rx="14"/>
+<text class="id" x="828" y="137">A8.3</text>
+<text class="label" x="828" y="164">Build WS client_metadata Map</text>
+<rect class="box" x="70" y="285" width="300" height="120" rx="14"/>
+<text class="id" x="88" y="312">A8.4</text>
+<text class="label" x="88" y="339">Prepare Delta-Mode Request</text>
+<rect class="box" x="440" y="285" width="300" height="120" rx="14"/>
+<text class="id" x="458" y="312">A8.5</text>
+<text class="label" x="458" y="339">Send First Frame</text>
+<rect class="box" x="810" y="285" width="300" height="120" rx="14"/>
+<text class="id" x="828" y="312">A8.6</text>
+<text class="label" x="828" y="339">Drive Response Stream</text>
+<rect class="box" x="70" y="460" width="300" height="120" rx="14"/>
+<text class="id" x="88" y="487">A8.7</text>
+<text class="label" x="88" y="514">Optional ACK Back</text>
+<path class="arrow" d="M 362.0 170.0 L 448.0 170.0"/>
+<path class="arrow" d="M 732.0 170.0 L 818.0 170.0"/>
+<path class="arrow" d="M 960.0 222.0 C 960.0 257.5, 220.0 257.5, 220.0 293.0"/>
+<path class="arrow" d="M 362.0 345.0 L 448.0 345.0"/>
+<path class="arrow" d="M 732.0 345.0 L 818.0 345.0"/>
+<path class="arrow" d="M 960.0 397.0 C 960.0 432.5, 220.0 432.5, 220.0 468.0"/>
+<text class="footer" x="70" y="631">Inputs enter from left · Controls from top · Outputs to right · Mechanisms from bottom (IDEF0 convention)</text>
+</svg>

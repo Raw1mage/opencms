@@ -54,7 +54,7 @@
         { "id": "MSG3", "from": "dev", "to": "submodule", "label": "git log rust-v0.122.0..rust-v0.125.0-alpha.1 -- client.rs default_client.rs" },
         { "id": "MSG4", "from": "submodule", "to": "dev", "label": "diff 盤點：新增 header？新增 body 欄位？" },
         { "id": "MSG5", "from": "dev", "to": "constant", "label": "CODEX_CLI_VERSION = '0.125.0-alpha.1'（或 workspace.package.version）" },
-        { "id": "MSG6", "from": "dev", "to": "test", "label": "bun test packages/opencode-codex-provider" },
+        { "id": "MSG6", "from": "dev", "to": "test", "label": "bun test packages/provider-codex" },
         { "id": "MSG7", "from": "test", "to": "dev", "label": "全綠 → 主 repo commit submodule pointer + 常數變更" }
       ]
     },

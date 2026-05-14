@@ -42,7 +42,7 @@ const CHAIN_SEMANTICS: Record<SupportedProviderKey, ProviderChainClass> = {
   openai: "SS",
 
   // Codex CLI — OAuth-authenticated Codex Responses transport; chain
-  // identity lives in lastResponseId (per @opencode-ai/codex-provider).
+  // identity lives in lastResponseId (per @opencode-ai/provider-codex).
   // This is the canonical SS provider this plan was authored against.
   codex: "SS",
 

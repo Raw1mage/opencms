@@ -10,7 +10,7 @@ This spec deliberately **does not raise exceptions** for empty-turn conditions (
 |---|---|
 | Code | `CET-001` |
 | Message (operator-visible) | `[CODEX-EMPTY-TURN] log emission failed: <ENOSPC \| EACCES \| EBADF \| ...>` |
-| Where | `console.error` from [empty-turn-log.ts](../../packages/opencode-codex-provider/src/empty-turn-log.ts) |
+| Where | `console.error` from [empty-turn-log.ts](../../packages/provider-codex/src/empty-turn-log.ts) |
 | When | Append to `<XDG_STATE_HOME>/opencode/codex/empty-turns.jsonl` throws |
 | Recovery | Swallowed; classifier proceeds with recovery action as if log succeeded (per spec.md `Forensic evidence preservation` § Scenario 3) |
 | Operator action | Investigate disk space / permissions on XDG state path; the empty-turn that triggered this is now lost from the JSONL evidence trail (the bus event mirror, if subscribed, may still have it) |
@@ -22,7 +22,7 @@ This spec deliberately **does not raise exceptions** for empty-turn conditions (
 |---|---|
 | Code | `CET-002` |
 | Message | (none — silent per DD-2; bus is non-load-bearing) |
-| Where | [empty-turn-log.ts](../../packages/opencode-codex-provider/src/empty-turn-log.ts) bus publish path |
+| Where | [empty-turn-log.ts](../../packages/provider-codex/src/empty-turn-log.ts) bus publish path |
 | When | `Bus.publish("codex.emptyTurn", ...)` throws or the bus is uninitialized |
 | Recovery | Silently ignored. JSONL append (the load-bearing path) is independent and runs first |
 | Operator action | None — bus is convenience; absence of bus events with JSONL entries present is expected during early process startup or in environments where Bus isn't wired |

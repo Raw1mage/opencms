@@ -6,8 +6,8 @@ Formalized after `main` merge of `test/provider-hotfix` → `1ff8faeb6`. Promote
 
 A bundled hotfix covering four upstream-sync + local-UX items that all surfaced together on 2026-04-18:
 
-- **Phase 1** — codex logout revokes upstream OAuth refresh token (fail-closed). Mirrors codex-rs `22f7ef1cb7`. Entry points: `packages/opencode-codex-provider/src/auth.ts::revokeRefreshToken`, `packages/opencode/src/plugin/codex-auth.ts::logoutCodex`, pre-deletion hook in `packages/opencode/src/account/index.ts::remove`.
-- **Phase 2** — codex `/responses` requests carry the 2026-04 context-window lineage headers (`x-codex-window-id`, `x-codex-parent-thread-id`, `x-openai-subagent`). Mirrors codex-rs `9e19004bc2`. Entry points: `session/llm.ts` sets opencode-side headers; `packages/opencode-codex-provider/src/provider.ts` reads them; `packages/opencode-codex-provider/src/headers.ts::buildHeaders` emits the upstream names.
+- **Phase 1** — codex logout revokes upstream OAuth refresh token (fail-closed). Mirrors codex-rs `22f7ef1cb7`. Entry points: `packages/provider-codex/src/auth.ts::revokeRefreshToken`, `packages/opencode/src/plugin/codex-auth.ts::logoutCodex`, pre-deletion hook in `packages/opencode/src/account/index.ts::remove`.
+- **Phase 2** — codex `/responses` requests carry the 2026-04 context-window lineage headers (`x-codex-window-id`, `x-codex-parent-thread-id`, `x-openai-subagent`). Mirrors codex-rs `9e19004bc2`. Entry points: `session/llm.ts` sets opencode-side headers; `packages/provider-codex/src/provider.ts` reads them; `packages/provider-codex/src/headers.ts::buildHeaders` emits the upstream names.
 - **Phase 3** — Anthropic `xhigh` effort variant for Opus 4.7+. Mirrors claude-cli v2.1.111 CHANGELOG. Entry point: `packages/opencode/src/provider/transform.ts` anthropic branch (gated by model id / release_date).
 - **Phase 4** — `disabled_providers` narrowed from a global kill into an **auto-gate**. `Provider.list()` filters auto-hidden entries; `Provider.getModel(providerId, modelID)` still resolves so explicit pins and session-pinned flows are not silently blocked. Mirrors the manual-pin-bypass philosophy from `plans/manual-pin-bypass-preflight/` (shipped 2026-04-17).
 
@@ -31,9 +31,9 @@ Wham/usage is a metadata endpoint with no token cost — the 10 s cadence is saf
 
 ## Implementation truth
 
-- `packages/opencode-codex-provider/src/auth.ts` + `auth.test.ts` — revoke helper.
-- `packages/opencode-codex-provider/src/headers.ts` + `headers.test.ts` — context-window header builder.
-- `packages/opencode-codex-provider/src/provider.ts` — header threading from opencode-side request headers.
+- `packages/provider-codex/src/auth.ts` + `auth.test.ts` — revoke helper.
+- `packages/provider-codex/src/headers.ts` + `headers.test.ts` — context-window header builder.
+- `packages/provider-codex/src/provider.ts` — header threading from opencode-side request headers.
 - `packages/opencode/src/plugin/codex-auth.ts` — logout wrapper with fail-closed logging.
 - `packages/opencode/src/account/index.ts::remove` — pre-deletion revoke hook.
 - `packages/opencode/src/session/llm.ts` — opencode-side header plumbing + `resolveParentSessionID` helper.

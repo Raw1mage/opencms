@@ -12,7 +12,7 @@ Format note: invariant IDs are `INV-NN`; ordering is by category, not chronology
 
 ### INV-01 — Empty turn never throws an exception out of the codex provider
 
-**Statement**: For every assistant turn that lands as effectively empty (no text-delta or tool-call emitted), no exception, error, or rejected promise propagates from `packages/opencode-codex-provider/` to the AI SDK runloop. The provider always returns a well-formed `LanguageModelV2StreamPart` finish part.
+**Statement**: For every assistant turn that lands as effectively empty (no text-delta or tool-call emitted), no exception, error, or rejected promise propagates from `packages/provider-codex/` to the AI SDK runloop. The provider always returns a well-formed `LanguageModelV2StreamPart` finish part.
 
 **Why**: Decision D-1 mandates max fault tolerance. CMS must continue working. An exception escaping the provider would stall the runloop, which is the very behavior this spec exists to eliminate.
 
@@ -294,7 +294,7 @@ Format note: invariant IDs are `INV-NN`; ordering is by category, not chronology
 
 ## Category F — Provider boundary discipline
 
-### INV-16 — All classification logic stays inside `packages/opencode-codex-provider/`
+### INV-16 — All classification logic stays inside `packages/provider-codex/`
 
 **Statement**: The opencode runloop, session manager, and AI SDK adapter MUST NOT contain any code that knows about cause family values, recovery action values, or empty-turn-specific behavior beyond reading `providerMetadata.openai.emptyTurnClassification` as opaque metadata to attach to the synthetic nudge message.
 
@@ -302,12 +302,12 @@ Format note: invariant IDs are `INV-NN`; ordering is by category, not chronology
 
 **Enforcement**:
 - [proposal.md](proposal.md) Constraint section (cites `feedback_provider_boundary.md`)
-- [design.md](design.md) Goals section ("Implementation is contained inside `packages/opencode-codex-provider/`; runloop changes are minimal (metadata pass-through only)")
+- [design.md](design.md) Goals section ("Implementation is contained inside `packages/provider-codex/`; runloop changes are minimal (metadata pass-through only)")
 - [c4.json](c4.json) Component C7 (runloop guard) marked UNCHANGED in scope
 - [handoff.md](handoff.md) Stop Gate SG-2 (any change touching files outside Critical Files list is scope creep)
 
 **Violation detection**:
-- Code review: any new file under `packages/opencode/src/session/` that imports from `packages/opencode-codex-provider/` for cause-family logic violates this; surface via SG-2
+- Code review: any new file under `packages/opencode/src/session/` that imports from `packages/provider-codex/` for cause-family logic violates this; surface via SG-2
 - A grep for `causeFamily` outside the provider package should match only the runloop's metadata-attachment site, not any decision-making code
 
 ---

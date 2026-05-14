@@ -23,7 +23,7 @@ export interface ProviderCapabilities {
    *
    * The codex provider then lifts that system message into the Responses-API
    * top-level `instructions` field internally (see
-   * packages/opencode-codex-provider/src/convert.ts) — opencode core no
+   * packages/provider-codex/src/convert.ts) — opencode core no
    * longer maintains a parallel options.instructions wire path.
    */
   systemMessageRole: "system" | "user" | "developer"

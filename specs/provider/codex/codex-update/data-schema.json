@@ -5,7 +5,7 @@
   "definitions": {
     "BuildHeadersOptionsDelta": {
       "type": "object",
-      "description": "Additive option on packages/opencode-codex-provider/src/headers.ts BuildHeadersOptions. All existing fields preserved; only new field listed here.",
+      "description": "Additive option on packages/provider-codex/src/headers.ts BuildHeadersOptions. All existing fields preserved; only new field listed here.",
       "properties": {
         "threadId": {
           "type": "string",

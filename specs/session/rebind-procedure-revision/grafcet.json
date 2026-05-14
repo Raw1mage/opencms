@@ -39,7 +39,7 @@
     "StepNumber": 3,
     "ModuleRef": "A3",
     "StepType": "normal",
-    "StepAction": "If decision.breaksChain: dynamic import @opencode-ai/codex-provider/continuation; invalidateContinuationFamily(sessionID); log info / warn (non-fatal)",
+    "StepAction": "If decision.breaksChain: dynamic import @opencode-ai/provider-codex/continuation; invalidateContinuationFamily(sessionID); log info / warn (non-fatal)",
     "LinkInputType": "track",
     "LinkInputNumber": [2],
     "LinkOutputNumber": [4],

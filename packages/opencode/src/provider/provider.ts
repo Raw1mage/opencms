@@ -1291,7 +1291,7 @@ export namespace Provider {
         family: "claude",
         // Native LanguageModelV2 provider — no @ai-sdk/anthropic in call path.
         // Model is created by CUSTOM_LOADERS["claude-cli"].getModel()
-        api: { id: m.id, url: "https://api.anthropic.com", npm: "@opencode-ai/claude-provider" },
+        api: { id: m.id, url: "https://api.anthropic.com", npm: "@opencode-ai/provider-claude" },
         status: "active",
         capabilities: {
           temperature: true,
@@ -1340,7 +1340,7 @@ export namespace Provider {
         name: m.name,
         providerId: "codex",
         family: "openai",
-        api: { id: m.id, url: "https://chatgpt.com/backend-api/codex", npm: "@opencode-ai/codex-provider" },
+        api: { id: m.id, url: "https://chatgpt.com/backend-api/codex", npm: "@opencode-ai/provider-codex" },
         status: "active",
         capabilities: {
           temperature: false,

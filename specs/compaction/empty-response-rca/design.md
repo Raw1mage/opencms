@@ -70,7 +70,7 @@ The decision is made per-turn from the most recent observable signal. continuati
 
 ### DD-2 — Route ws.onerror + ws.onclose-with-frameCount=0 + first_frame_timeout through the empty-turn classifier instead of `endWithError`
 
-L2 culprit: three sites in [packages/opencode-codex-provider/src/transport-ws.ts](../../packages/opencode-codex-provider/src/transport-ws.ts) still throw upward:
+L2 culprit: three sites in [packages/provider-codex/src/transport-ws.ts](../../packages/provider-codex/src/transport-ws.ts) still throw upward:
 
 | Site | Line | Current behavior |
 |---|---|---|
@@ -84,11 +84,11 @@ Each of these throws an Error that reaches `processor.ts:1447`'s catch block, ge
 
 **How to apply:**
 
-1. Add a `wsErrorReason: string | null` field to `WsObservation` and `TransportSnapshot` in [transport-ws.ts](../../packages/opencode-codex-provider/src/transport-ws.ts) (per data-schema.json extension).
+1. Add a `wsErrorReason: string | null` field to `WsObservation` and `TransportSnapshot` in [transport-ws.ts](../../packages/provider-codex/src/transport-ws.ts) (per data-schema.json extension).
 2. Replace `endWithError(new Error(...))` and `controller.error(new Error(...))` at the three sites with:
    - Set `wsObs.wsErrorReason = "<descriptive reason>"`
    - Call `endStream()` instead of `endWithError`
-3. The SSE flush block at [sse.ts](../../packages/opencode-codex-provider/src/sse.ts) already classifies via `getTransportSnapshot`; with `wsFrameCount === 0`, the classifier predicate ladder selects `ws_no_frames` → `retry-once-then-soft-fail`. If retry also fails, soft-fail per INV-08.
+3. The SSE flush block at [sse.ts](../../packages/provider-codex/src/sse.ts) already classifies via `getTransportSnapshot`; with `wsFrameCount === 0`, the classifier predicate ladder selects `ws_no_frames` → `retry-once-then-soft-fail`. If retry also fails, soft-fail per INV-08.
 4. Result: provider returns a normal stream that finishes with `finishReason: "unknown"` + emptyTurnClassification metadata. No exception.
 
 ### DD-3 — `isModelTemporaryError` reads `providerMetadata.openai.emptyTurnClassification` and returns false for any classified empty turn
@@ -181,13 +181,13 @@ Or alternatively: keep `ws_no_frames` as the umbrella and use the new `wsErrorRe
 ## Critical Files
 
 - [packages/opencode/src/session/prompt.ts](../../packages/opencode/src/session/prompt.ts) — DD-1 culprit at line 1884; cache-aware compaction trigger at lines 468-471
-- [packages/opencode-codex-provider/src/transport-ws.ts](../../packages/opencode-codex-provider/src/transport-ws.ts) — DD-2 throw sites at lines 289, 472, 495; WsObservation interface; TransportSnapshot
+- [packages/provider-codex/src/transport-ws.ts](../../packages/provider-codex/src/transport-ws.ts) — DD-2 throw sites at lines 289, 472, 495; WsObservation interface; TransportSnapshot
 - [packages/opencode/src/session/processor.ts](../../packages/opencode/src/session/processor.ts) — DD-3 hook at lines 149-181 (`isModelTemporaryError`) + caller context at line 1447
-- [packages/opencode-codex-provider/src/sse.ts](../../packages/opencode-codex-provider/src/sse.ts) — verify classifier flow remains intact after DD-2 sends new wsErrorReason field
-- `packages/opencode-codex-provider/src/transport-ws.test.ts` — new regression test for DD-2 (ws.onerror frameCount=0 does not throw)
+- [packages/provider-codex/src/sse.ts](../../packages/provider-codex/src/sse.ts) — verify classifier flow remains intact after DD-2 sends new wsErrorReason field
+- `packages/provider-codex/src/transport-ws.test.ts` — new regression test for DD-2 (ws.onerror frameCount=0 does not throw)
 - `packages/opencode/test/session/processor-empty-turn-rotation-guard.test.ts` (NEW) — regression test for DD-3 (isModelTemporaryError returns false when emptyTurnClassification present)
 - `packages/opencode/test/session/compaction-cache-equilibrium.test.ts` (NEW) — regression test for DD-1 (predictedCacheMiss returns "hit" when cache.read > 0 even with continuationInvalidatedAt set)
-- `packages/opencode-codex-provider/src/empty-turn-classifier.ts` — verify ws_no_frames predicate covers the wsErrorReason cases without enum changes
+- `packages/provider-codex/src/empty-turn-classifier.ts` — verify ws_no_frames predicate covers the wsErrorReason cases without enum changes
 - `specs/architecture.md` — extend the codex-empty-turn-recovery section with a paragraph on the throw-leak closure (DD-2) and the rotation-guard (DD-3)
 - `docs/runbooks/codex-empty-turn-log-runbook.md` — add operator query for `wsErrorReason` cluster pattern (DD-5)
 

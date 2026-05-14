@@ -10,7 +10,7 @@
       { "id": "semantics", "name": "ProviderChainSemantics (chain-semantics.ts)", "kind": "component" },
       { "id": "digest", "name": "CommitmentDigest (commitment-digest.ts)", "kind": "component" },
       { "id": "stream", "name": "MessageV2.stream", "kind": "component" },
-      { "id": "invalidate", "name": "@opencode-ai/codex-provider invalidateContinuationFamily", "kind": "component" },
+      { "id": "invalidate", "name": "@opencode-ai/provider-codex invalidateContinuationFamily", "kind": "component" },
       { "id": "session", "name": "Session.execution state", "kind": "component" },
       { "id": "epoch", "name": "RebindEpoch.bumpEpoch", "kind": "component" },
       { "id": "events", "name": "RuntimeEventService", "kind": "component" },

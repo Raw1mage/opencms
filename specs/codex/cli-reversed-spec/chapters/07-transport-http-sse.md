@@ -206,7 +206,7 @@ None. Backend's retry-after / circuit-breaker semantics for 429 / 5xx aren't sou
 
 ## OpenCode delta map
 
-- **A7.1 HTTP POST + path** — OpenCode codex-provider's HTTP fallback path at [packages/opencode-codex-provider/src/provider.ts:362-385](packages/opencode-codex-provider/src/provider.ts#L362-L385) does `fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal })` to `CODEX_API_URL`. **Aligned**: yes.
+- **A7.1 HTTP POST + path** — OpenCode codex-provider's HTTP fallback path at [packages/provider-codex/src/provider.ts:362-385](packages/provider-codex/src/provider.ts#L362-L385) does `fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal })` to `CODEX_API_URL`. **Aligned**: yes.
 - **A7.2 Retry policy** — OpenCode relies on the codex provider's built-in fetch + AI SDK retry semantics; the provider package does not currently emit upstream-style RetryPolicy (no max_attempts / retry_on { 429, 5xx, transport } configuration). **Aligned**: partial. **Drift**: OpenCode retry behaviour is governed by the daemon's rate-limit judge layer instead of per-request HTTP retry. Different model; cache-impact equivalent in practice.
 - **A7.3 Transport stream** — OpenCode uses Node `fetch` returning a Response with a streamed body, then parses SSE via the AI SDK adapter. **Aligned**: yes structurally.
 - **A7.4-A7.5 SSE parsing** — OpenCode's codex-provider uses AI SDK v2's SSE adapter to map upstream events to its own ResponseEvent-equivalent shape. Variants are mapped to AI SDK's StreamPart types (text-delta, tool-call-delta, etc.). **Aligned**: functionally equivalent; the wire SSE events are the same; the in-memory representation differs.
@@ -214,7 +214,7 @@ None. Backend's retry-after / circuit-breaker semantics for 429 / 5xx aren't sou
 
 **Cross-cutting drift findings:**
 
-1. **OpenCode does NOT use HTTP SSE for codex** — it defaults to WebSocket transport via `tryWsTransport` ([provider.ts:288](packages/opencode-codex-provider/src/provider.ts#L288)), with HTTP SSE as fallback only. Upstream codex-cli uses HTTP SSE as the default; WS is an opt-in capability. **Aligned**: partial. **Drift**: by design — OpenCode prefers WS for delta-mode efficiency. Cache implications: WS path uses explicit `previous_response_id` (C10) while HTTP path doesn't — Chapter 08 unpacks the WS path semantics.
+1. **OpenCode does NOT use HTTP SSE for codex** — it defaults to WebSocket transport via `tryWsTransport` ([provider.ts:288](packages/provider-codex/src/provider.ts#L288)), with HTTP SSE as fallback only. Upstream codex-cli uses HTTP SSE as the default; WS is an opt-in capability. **Aligned**: partial. **Drift**: by design — OpenCode prefers WS for delta-mode efficiency. Cache implications: WS path uses explicit `previous_response_id` (C10) while HTTP path doesn't — Chapter 08 unpacks the WS path semantics.
 2. **`response.completed` semantics match** — both implementations treat this as strictly terminal.
 3. **Idle timeout differs** — OpenCode's WS path has its own keepalive / reconnect logic (Chapter 08 territory) rather than codex's 300s default per-event SSE idle.
 

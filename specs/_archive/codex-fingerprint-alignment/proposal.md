@@ -31,7 +31,7 @@
    - 將 `chatgpt-account-id` 改為 upstream 使用的 TitleCase `ChatGPT-Account-Id`。
 2. **Phase 3（優先）— 同步 upstream codex 並更新版本常數**
    - 將 `refs/codex` submodule 從 `d0eff70383` 更新到 tag `rust-v0.125.0-alpha.1`（固定鎖版，不追 rolling HEAD）。
-   - 更新 `packages/opencode-codex-provider/src/protocol.ts` 中的 `CODEX_CLI_VERSION` 常數，使其與 submodule 對齊。
+   - 更新 `packages/provider-codex/src/protocol.ts` 中的 `CODEX_CLI_VERSION` 常數，使其與 submodule 對齊。
    - 檢查同步後 upstream 是否新增 / 改動任何 header / body 欄位；若有，記入本 spec 的 follow-up。
 3. **Phase 2（後續）— 統一 header 建構路徑**
    - 重構 `transport-ws.ts:460-466` 內嵌的 header 建構，改為呼叫 `buildHeaders({ ..., isWebSocket: true })`。
@@ -43,7 +43,7 @@
 ## Scope
 
 ### IN
-- `packages/opencode-codex-provider/src/` 下的 header 建構、WS transport、版本常數。
+- `packages/provider-codex/src/` 下的 header 建構、WS transport、版本常數。
 - `packages/opencode/src/plugin/codex-auth.ts` 的 `buildCodexUserAgent()` 驗證（只確認其輸出被兩個 transport 共用，不改格式）。
 - `refs/codex` submodule pointer 升級，及隨之而來的 upstream header 差異盤點。
 - `specs/_archive/codex-fingerprint-alignment/` 內所有 artifact。
@@ -76,15 +76,15 @@
 - **XDG 備份政策**：Phase 3 動到 submodule 與 plugin 原始碼，執行前需完整備份 `~/.config/opencode/` 至 timestamped 快照。
 - **Daemon 生命週期**：任何需要驗證改動的 daemon 重啟必須透過 `system-manager:restart_self` MCP tool，不得自行 `kill` / `spawn`。
 - **向後相容**：WS 與 HTTP 現有成功路徑（93% 正確分類）不得因本次變更而回歸。
-- **與 `codex-prompt-rebuild-incremental` 的執行順序協調**：本 spec 的四個 phase 應**先於**未來 `/specs/_archive/codex-prompt-rebuild-incremental/` 的任何實作落地（該 spec 由 2026-04-24 `event_20260424_codex_session_cpu_burn.md` 催生，處理 WS REQ 的 prompt O(N) rebuild）。兩者共用 `packages/opencode-codex-provider/src/transport-ws.ts` 但動不同函式（本 spec 改 header 組裝；另一個改 body/prompt 組裝）。先做 fingerprint、再做 prompt rebuild 的原因：(1) 面積窄、風險低先落；(2) 兩 spec 分別綁 beta 驗證，才能獨立確認 7% 是哪個 fix 壓下去的；(3) 避免同檔 diff 交疊造成 merge 噪音。
+- **與 `codex-prompt-rebuild-incremental` 的執行順序協調**：本 spec 的四個 phase 應**先於**未來 `/specs/_archive/codex-prompt-rebuild-incremental/` 的任何實作落地（該 spec 由 2026-04-24 `event_20260424_codex_session_cpu_burn.md` 催生，處理 WS REQ 的 prompt O(N) rebuild）。兩者共用 `packages/provider-codex/src/transport-ws.ts` 但動不同函式（本 spec 改 header 組裝；另一個改 body/prompt 組裝）。先做 fingerprint、再做 prompt rebuild 的原因：(1) 面積窄、風險低先落；(2) 兩 spec 分別綁 beta 驗證，才能獨立確認 7% 是哪個 fix 壓下去的；(3) 避免同檔 diff 交疊造成 merge 噪音。
 
 ## What Changes
 
-- `packages/opencode-codex-provider/src/transport-ws.ts` — WS header 組裝（Phase 1 hotfix，Phase 2 重構至呼叫 `buildHeaders`）。
-- `packages/opencode-codex-provider/src/headers.ts` — 若 Phase 4 新增欄位，擴充 `BuildHeadersOptions` 與 `buildHeaders` 實作。
-- `packages/opencode-codex-provider/src/protocol.ts` — `CODEX_CLI_VERSION` 常數升級（Phase 3）。
+- `packages/provider-codex/src/transport-ws.ts` — WS header 組裝（Phase 1 hotfix，Phase 2 重構至呼叫 `buildHeaders`）。
+- `packages/provider-codex/src/headers.ts` — 若 Phase 4 新增欄位，擴充 `BuildHeadersOptions` 與 `buildHeaders` 實作。
+- `packages/provider-codex/src/protocol.ts` — `CODEX_CLI_VERSION` 常數升級（Phase 3）。
 - `refs/codex` — submodule pointer 升級（Phase 3）。
-- `packages/opencode-codex-provider/src/provider.ts` — 若 Phase 4 需新增 Accept header 或 x-client-request-id 參數傳遞，會順勢調整 `buildHeaders` 的呼叫站。
+- `packages/provider-codex/src/provider.ts` — 若 Phase 4 需新增 Accept header 或 x-client-request-id 參數傳遞，會順勢調整 `buildHeaders` 的呼叫站。
 - 對應 test 檔（`headers.test.ts` / `provider.test.ts` / WS transport 測試若有）— 覆蓋新欄位。
 
 ## Capabilities

@@ -32,8 +32,8 @@ type Context = {
    * session, computed from the locally-stored message stream. Not the
    * exact count `[CODEX-WS] REQ` would log, but a faithful approximation:
    * each user/assistant text/each tool call/each tool result becomes one
-   * input item under [packages/opencode-codex-provider/src/convert.ts](
-   * ../../../../opencode-codex-provider/src/convert.ts) `convertPrompt`.
+   * input item under [packages/provider-codex/src/convert.ts](
+   * ../../../../provider-codex/src/convert.ts) `convertPrompt`.
    * Surfaces because codex backend has a hidden item-array sensitivity
    * (~300+ items → ws_truncation / server_failed). Always provided so
    * the operator can correlate paralysis / failure events with itemCount

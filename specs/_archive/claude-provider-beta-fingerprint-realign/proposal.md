@@ -2,7 +2,7 @@
 
 ## Why
 
-`@opencode-ai/claude-provider` 是 opencode 對 Anthropic API 的「官方 CLI 模擬」層。User-Agent、attribution salt、CLIENT_ID 等靜態指紋都已對齊 claude-code v2.1.112，但 **`anthropic-beta` header 的組裝邏輯**跟上游的 `ZR1` 函式不等價。
+`@opencode-ai/provider-claude` 是 opencode 對 Anthropic API 的「官方 CLI 模擬」層。User-Agent、attribution salt、CLIENT_ID 等靜態指紋都已對齊 claude-code v2.1.112，但 **`anthropic-beta` header 的組裝邏輯**跟上游的 `ZR1` 函式不等價。
 
 跨上游 `cli.js`（pinned `refs/claude-code-npm/` v2.1.112）核對後，找到 5 個具體偏差：
 
@@ -26,7 +26,7 @@
 
 ## Effective Requirement Description
 
-1. 重構 `packages/opencode-claude-provider/src/protocol.ts` 的 `assembleBetas()`，使其輸出（順序 + 內容）跟上游 `ZR1` 函式對任意 (model × auth × env × provider) 組合等價。
+1. 重構 `packages/provider-claude/src/protocol.ts` 的 `assembleBetas()`，使其輸出（順序 + 內容）跟上游 `ZR1` 函式對任意 (model × auth × env × provider) 組合等價。
 2. 拆掉 `MINIMUM_BETAS` 這個概念——上游沒有「永遠送」的 beta 集合，應該模仿上游用「逐項條件 push」的結構。
 3. 補上 `redact-thinking-2026-02-12` 的條件 push。
 4. 不擴張 wire-level 行為到 `structured-outputs-2025-12-15` / `web-search-2025-03-05`（前者要 tengu feature flag，後者只在 vertex/foundry provider 觸發；opencode 用直接 Anthropic 路徑，碰不到）——但程式碼結構要保留將來容易加。
@@ -35,9 +35,9 @@
 ## Scope
 
 ### IN
-- `packages/opencode-claude-provider/src/protocol.ts`：`assembleBetas()` 重構、`MINIMUM_BETAS` 拆解、新增 helper（`isHaikuModel`、`isFirstParty`、`shouldRedactThinking` 等）
-- `packages/opencode-claude-provider/src/headers.ts`：可能需新增 `provider`（"firstParty" / "bedrock" / "vertex" / "foundry"）參數傳遞
-- `packages/opencode-claude-provider/src/provider.ts`：呼叫端把 `provider` / `showThinkingSummaries` 等新條件變數轉發進來
+- `packages/provider-claude/src/protocol.ts`：`assembleBetas()` 重構、`MINIMUM_BETAS` 拆解、新增 helper（`isHaikuModel`、`isFirstParty`、`shouldRedactThinking` 等）
+- `packages/provider-claude/src/headers.ts`：可能需新增 `provider`（"firstParty" / "bedrock" / "vertex" / "foundry"）參數傳遞
+- `packages/provider-claude/src/provider.ts`：呼叫端把 `provider` / `showThinkingSummaries` 等新條件變數轉發進來
 - 新增 unit test：對 (haiku, opus, sonnet) × (oauth, apiKey) × (有/無 1M context) × (firstParty / bedrock / vertex) 矩陣斷言預期 beta 序列
 - 更新 `plans/claude-provider/protocol-datasheet.md` 對應段落到 v2.1.112 邏輯
 
@@ -85,7 +85,7 @@
 
 ## Impact
 
-- **直接影響**：所有透過 `@opencode-ai/claude-provider` 發出的 Anthropic API 請求，header 順序 + 內容會變
+- **直接影響**：所有透過 `@opencode-ai/provider-claude` 發出的 Anthropic API 請求，header 順序 + 內容會變
 - **使用者面**：應該無感（如果 server 過去有靜默接受我們的多送 beta；如果有 fingerprint 比對就會從失敗變成功）
 - **回歸風險**：`context-management-2025-06-27` 從必送變條件送——若 opencode 某些 prompt 行為實質依賴此 beta，需要確保條件閘正確判斷為 true
 - **測試需求**：必須加矩陣 unit test，避免下次升級又偏離

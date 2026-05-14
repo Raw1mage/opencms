@@ -17,7 +17,7 @@
     {
       "id": "A3",
       "title": "Invalidate Codex Chain Family",
-      "description": "When decision.breaksChain is true, call invalidateContinuationFamily(sessionID) from @opencode-ai/codex-provider/continuation. Drops lastResponseId for every per-account shard of the session; no-op for SL providers (anthropic, gemini, etc.). Existing primitive — unchanged.",
+      "description": "When decision.breaksChain is true, call invalidateContinuationFamily(sessionID) from @opencode-ai/provider-codex/continuation. Drops lastResponseId for every per-account shard of the session; no-op for SL providers (anthropic, gemini, etc.). Existing primitive — unchanged.",
       "decomposition": null
     },
     {

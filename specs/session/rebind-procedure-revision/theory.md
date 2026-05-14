@@ -60,7 +60,7 @@ Total `ContinuationEvent` discriminator cardinality across all six axes: **19 ki
 | Layer | Invariant assumed | Concept introduced downstream | Result |
 |---|---|---|---|
 | upstream codex CLI (`refs/codex/`) | `previous_response_id` chain is monotonic; the only way to abandon it is fresh session | — | invariant holds in upstream |
-| opencode (`packages/opencode/`) | inherits the invariant via `@opencode-ai/codex-provider` | account-rotation, admin-panel account-switch, daemon-restart, empty-response-recovery, compaction (5 distinct chain-breaking events) | invariant broken: chain id is cut mid-session, but no init-protocol counterpart |
+| opencode (`packages/opencode/`) | inherits the invariant via `@opencode-ai/provider-codex` | account-rotation, admin-panel account-switch, daemon-restart, empty-response-recovery, compaction (5 distinct chain-breaking events) | invariant broken: chain id is cut mid-session, but no init-protocol counterpart |
 
 **Generalisation.** When inheriting a protocol from a system that operates under stricter constraints, audit the invariants that depended on those constraints. Each invariant that no longer holds in the descendant either (a) needs an additional protocol step to restore the same end-state, or (b) needs explicit acceptance that the invariant is gone and the dependent behavior is downgraded.
 

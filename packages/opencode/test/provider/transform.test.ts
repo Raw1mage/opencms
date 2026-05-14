@@ -1745,7 +1745,7 @@ describe("ProviderTransform.variants", () => {
   })
 
   describe("@ai-sdk/anthropic", () => {
-    test("returns high and max with thinking config", () => {
+    test("returns low/medium/high with thinking config", () => {
       const model = createMockModel({
         id: "anthropic/claude-4",
         providerId: "anthropic",
@@ -1756,17 +1756,23 @@ describe("ProviderTransform.variants", () => {
         },
       })
       const result = ProviderTransform.variants(model)
-      expect(Object.keys(result)).toEqual(["high", "max"])
+      expect(Object.keys(result)).toEqual(["low", "medium", "high"])
+      expect(result.low).toEqual({
+        thinking: {
+          type: "enabled",
+          budgetTokens: 1024,
+        },
+      })
+      expect(result.medium).toEqual({
+        thinking: {
+          type: "enabled",
+          budgetTokens: 8000,
+        },
+      })
       expect(result.high).toEqual({
         thinking: {
           type: "enabled",
           budgetTokens: 16000,
-        },
-      })
-      expect(result.max).toEqual({
-        thinking: {
-          type: "enabled",
-          budgetTokens: 31999,
         },
       })
     })
@@ -1972,7 +1978,7 @@ describe("ProviderTransform.variants", () => {
     })
   })
 
-  describe("@opencode-ai/codex-provider", () => {
+  describe("@opencode-ai/provider-codex", () => {
     test("gpt-5.5 exposes low/medium/high/xhigh reasoningEffort", () => {
       const model = createMockModel({
         id: "gpt-5.5",
@@ -1980,7 +1986,7 @@ describe("ProviderTransform.variants", () => {
         api: {
           id: "gpt-5.5",
           url: "https://chatgpt.com/backend-api/codex",
-          npm: "@opencode-ai/codex-provider",
+          npm: "@opencode-ai/provider-codex",
         },
       })
       const result = ProviderTransform.variants(model)
@@ -1998,7 +2004,7 @@ describe("ProviderTransform.variants", () => {
         api: {
           id: "gpt-5.4-mini",
           url: "https://chatgpt.com/backend-api/codex",
-          npm: "@opencode-ai/codex-provider",
+          npm: "@opencode-ai/provider-codex",
         },
         capabilities: { reasoning: false },
       })

@@ -12,7 +12,7 @@
     {
       "id": "CT1",
       "systemRef": "SYS1",
-      "name": "codex provider package (packages/opencode-codex-provider)",
+      "name": "codex provider package (packages/provider-codex)",
       "description": "DD-2 patches transport-ws.ts throw sites + adds wsErrorReason field"
     },
     {

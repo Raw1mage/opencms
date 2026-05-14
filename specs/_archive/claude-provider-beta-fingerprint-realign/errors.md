@@ -18,7 +18,7 @@ The two error surfaces this plan touches indirectly:
 
 | Failure | Where it surfaces | Recovery |
 |---|---|---|
-| `expected output array does not match` | `bun test packages/opencode-claude-provider/test/protocol.test.ts` | Re-read spec.md Requirement 4 push order; do not edit the test to match buggy code |
+| `expected output array does not match` | `bun test packages/provider-claude/test/protocol.test.ts` | Re-read spec.md Requirement 4 push order; do not edit the test to match buggy code |
 | `MINIMUM_BETAS still imported by X` | `grep` guardrail in Task 5.2 | Find and remove the import; this is a R-2 risk realization |
 | `iO_ predicate disagreement` (matrix expects context-management but assembler omits, or vice versa) | unit test | Re-grep `iO_` definition; update `modelSupportsContextManagement` to match; do NOT silently work around |
 

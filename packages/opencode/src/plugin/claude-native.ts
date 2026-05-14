@@ -46,7 +46,7 @@ const symbols = {
 } as const
 
 const SEARCH_PATHS = [
-  path.join(import.meta.dir, "../../../opencode-claude-provider/build"),
+  path.join(import.meta.dir, "../../../provider-claude/build"),
   "/usr/local/lib",
   "/usr/lib",
   path.join(process.env.HOME ?? "", ".local/lib"),

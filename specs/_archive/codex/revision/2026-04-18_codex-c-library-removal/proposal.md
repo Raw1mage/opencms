@@ -2,8 +2,8 @@
 
 ## Why
 
-- `packages/opencode-codex-provider/` 內含 10 個 `.c` 檔 + `include/codex_provider.h` + `CMakeLists.txt` + `build/` 輸出的 `codex_provider.so`，設計為可被 TS 端 `bun:ffi` 載入的 native library（對照 `packages/opencode/src/plugin/claude-native.ts` 用 `dlopen("claude_provider.so")` 的做法）。
-- **實際情況**：沒有任何 TS 檔載入 `codex_provider.so`，也沒有 `codex-native.ts`。`packages/opencode-codex-provider/src/index.ts` 只 export TS 檔；`provider.ts` 透過 `fetch` + `tryWsTransport` 直接走網路，完全不經 C 層。
+- `packages/provider-codex/` 內含 10 個 `.c` 檔 + `include/codex_provider.h` + `CMakeLists.txt` + `build/` 輸出的 `codex_provider.so`，設計為可被 TS 端 `bun:ffi` 載入的 native library（對照 `packages/opencode/src/plugin/claude-native.ts` 用 `dlopen("claude_provider.so")` 的做法）。
+- **實際情況**：沒有任何 TS 檔載入 `codex_provider.so`，也沒有 `codex-native.ts`。`packages/provider-codex/src/index.ts` 只 export TS 檔；`provider.ts` 透過 `fetch` + `tryWsTransport` 直接走網路，完全不經 C 層。
 - **歷史**：
   - `21f4af0a2` / `29b9cb72d` (2026-Q1) 加入完整 C 實作
   - `9b48a4503` 後轉向 TS `LanguageModelV2` 實作
@@ -23,7 +23,7 @@
 
 ## Effective Requirement Description
 
-1. 刪除 `packages/opencode-codex-provider/` 下所有 C 語言來源與標頭：`src/*.c`、`include/codex_provider.h`。
+1. 刪除 `packages/provider-codex/` 下所有 C 語言來源與標頭：`src/*.c`、`include/codex_provider.h`。
 2. 刪除 `CMakeLists.txt` 與 `build/` 目錄（native library build 產物）。
 3. 保留所有 `*.ts` 檔案（TS provider 實作，線上活動）。
 4. 確認 git 刪除後 `bun install` / `bun run typecheck` 仍能跑；無檔案被 TS 端引用。
@@ -31,15 +31,15 @@
 ## Scope
 
 ### IN
-- `packages/opencode-codex-provider/src/*.c` — 10 個檔案全刪
-- `packages/opencode-codex-provider/include/codex_provider.h`
-- `packages/opencode-codex-provider/CMakeLists.txt`
-- `packages/opencode-codex-provider/build/`（全目錄）
-- `packages/opencode-codex-provider/.gitignore` — 視情況調整
+- `packages/provider-codex/src/*.c` — 10 個檔案全刪
+- `packages/provider-codex/include/codex_provider.h`
+- `packages/provider-codex/CMakeLists.txt`
+- `packages/provider-codex/build/`（全目錄）
+- `packages/provider-codex/.gitignore` — 視情況調整
 
 ### OUT
-- `packages/opencode-codex-provider/src/*.ts` — 線上活動，不動
-- `packages/opencode-codex-provider/src/*.test.ts` — 測試檔，不動
+- `packages/provider-codex/src/*.ts` — 線上活動，不動
+- `packages/provider-codex/src/*.test.ts` — 測試檔，不動
 - `packages/opencode/src/plugin/claude-native.ts` 與 `claude_provider.so` — claude 家族另一個議題，本 spec 不處理
 - 其他 provider 的死碼審查 — 另立
 
@@ -47,7 +47,7 @@
 
 - 不碰 TS provider 行為、API、protocol 定義。
 - 不調整 CI / build pipeline 外的設定。
-- 不重構 `@opencode-ai/codex-provider` package 結構。
+- 不重構 `@opencode-ai/provider-codex` package 結構。
 
 ## Constraints
 
@@ -57,10 +57,10 @@
 
 ## What Changes
 
-1. `git rm packages/opencode-codex-provider/src/{auth,jwt,main,originator,provider,quota,storage,stream,transform,transport}.c`
-2. `git rm packages/opencode-codex-provider/include/codex_provider.h`
-3. `git rm packages/opencode-codex-provider/CMakeLists.txt`
-4. `rm -rf packages/opencode-codex-provider/build/`（若未 tracked）
+1. `git rm packages/provider-codex/src/{auth,jwt,main,originator,provider,quota,storage,stream,transform,transport}.c`
+2. `git rm packages/provider-codex/include/codex_provider.h`
+3. `git rm packages/provider-codex/CMakeLists.txt`
+4. `rm -rf packages/provider-codex/build/`（若未 tracked）
 5. `.gitignore` 整理
 
 ## Capabilities
@@ -69,11 +69,11 @@
 - 無（純清理）。
 
 ### Modified Capabilities
-- `@opencode-ai/codex-provider` package 變為純 TS package，不再宣稱支援 native FFI 路徑。
+- `@opencode-ai/provider-codex` package 變為純 TS package，不再宣稱支援 native FFI 路徑。
 
 ## Impact
 
-- **Code**：僅 `packages/opencode-codex-provider/` 內，不觸及消費端。
+- **Code**：僅 `packages/provider-codex/` 內，不觸及消費端。
 - **Build**：不再執行 CMake build。如果 CI 有呼叫 `cmake` 或 `make` 需同步移除。
 - **Docs**：`specs/_archive/codex/provider_runtime/` 與 `plans/codex-refactor/plan.md` 若有提到 C library 要補「已移除」註記。
 - **Risk**：極低。死碼 = 刪除沒消費者。

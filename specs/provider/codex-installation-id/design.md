@@ -76,8 +76,8 @@ The resolver is called **once per opencode process** at codex-auth bootstrap. Th
 ## Critical Files
 
 - `packages/opencode/src/plugin/codex-auth.ts` (line ~315) — sink that currently receives undefined. Will receive resolved UUID after fix.
-- `packages/opencode-codex-provider/src/headers.ts` (line ~108, `buildClientMetadata`) — already keys `x-codex-installation-id` when installationId is truthy. Verification target only; no code change here.
-- `packages/opencode-codex-provider/src/provider.ts` (line ~82, `buildResponsesApiRequest`) — entry of installationId into outgoing body. Verification target only.
+- `packages/provider-codex/src/headers.ts` (line ~108, `buildClientMetadata`) — already keys `x-codex-installation-id` when installationId is truthy. Verification target only; no code change here.
+- `packages/provider-codex/src/provider.ts` (line ~82, `buildResponsesApiRequest`) — entry of installationId into outgoing body. Verification target only.
 - **NEW** `packages/opencode/src/plugin/codex-installation-id.ts` — resolver module hosting `resolveCodexInstallationId()`.
 - `refs/codex/codex-rs/core/src/installation_id.rs` — upstream reference implementation; mirror semantics (read-or-create, 0644, lock-safe, deterministic UUID per install).
 - `refs/codex/codex-rs/core/src/client.rs` (line ~758) — upstream proof that `client_metadata` is the per-turn carrier for `x-codex-installation-id`, not an HTTP header on the streaming path.
@@ -95,8 +95,8 @@ The resolver is called **once per opencode process** at codex-auth bootstrap. Th
 
 <!-- entries appended via spec_add_code_anchor -->
 - `packages/opencode/src/plugin/codex-auth.ts:315` — `getModel.installationId` — Current sink — receives undefined today; will receive resolved per-install UUID after fix.
-- `packages/opencode-codex-provider/src/headers.ts:108` — `buildClientMetadata` — Builds body.client_metadata; already keys x-codex-installation-id when installationId is truthy. No code change needed; verification target only.
-- `packages/opencode-codex-provider/src/provider.ts:82` — `buildResponsesApiRequest.client_metadata` — Where installationId enters the outgoing body. After fix, body.client_metadata must contain x-codex-installation-id on every turn.
+- `packages/provider-codex/src/headers.ts:108` — `buildClientMetadata` — Builds body.client_metadata; already keys x-codex-installation-id when installationId is truthy. No code change needed; verification target only.
+- `packages/provider-codex/src/provider.ts:82` — `buildResponsesApiRequest.client_metadata` — Where installationId enters the outgoing body. After fix, body.client_metadata must contain x-codex-installation-id on every turn.
 - `refs/codex/codex-rs/core/src/installation_id.rs` — `resolve_installation_id` — Upstream reference implementation. Mirror behaviour: open with read+write+create, file lock, read existing UUID or generate v4, write+fsync, 0644.
 - `refs/codex/codex-rs/core/src/client.rs:758` — `build_responses_request.client_metadata` — Upstream proof point — body.client_metadata is the per-turn carrier for x-codex-installation-id on the normal Responses streaming path, NOT an HTTP header.
 

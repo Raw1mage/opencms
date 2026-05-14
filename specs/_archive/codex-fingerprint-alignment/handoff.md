@@ -42,7 +42,7 @@
 - [ ] `~/.config/opencode.bak-<timestamp>-codex-fingerprint/accounts.json` 存在（白名單快照；依 AGENTS.md XDG 新規則）
 - [ ] beta worktree `opencode-beta/` 可用，branch `beta/codex-fingerprint-alignment` 已建立或可建立
 - [ ] `refs/codex` submodule 目前狀態乾淨（無 local 改動）：`git -C refs/codex status --porcelain` 為空
-- [ ] `bun install` 已跑，`bun test packages/opencode-codex-provider` 當前 baseline 全綠
+- [ ] `bun install` 已跑，`bun test packages/provider-codex` 當前 baseline 全綠
 - [ ] `system-manager:restart_self` MCP tool 可用（beta daemon 連得上 gateway）
 - [ ] OpenAI 官網後台人工查看權限就位（執行 §3.2、§3.4 時需要）
 - [ ] 使用者已同意進入 implementing（或主動說 autorun / build_mode）

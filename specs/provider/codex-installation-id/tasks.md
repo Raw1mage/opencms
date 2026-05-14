@@ -19,8 +19,8 @@ Implementation checklist for provider/codex-installation-id. Tick via `spec_tick
 
 ## M3 — Verification (no code change expected)
 
-- [x] M3-1 Confirm `buildClientMetadata` ([packages/opencode-codex-provider/src/headers.ts:108](packages/opencode-codex-provider/src/headers.ts#L108)) emits `x-codex-installation-id` key whenever `installationId` is truthy.
-- [x] M3-2 Confirm `buildResponsesApiRequest` ([packages/opencode-codex-provider/src/provider.ts:82](packages/opencode-codex-provider/src/provider.ts#L82)) forwards `installationId` from options to `buildClientMetadata`.
+- [x] M3-1 Confirm `buildClientMetadata` ([packages/provider-codex/src/headers.ts:108](packages/provider-codex/src/headers.ts#L108)) emits `x-codex-installation-id` key whenever `installationId` is truthy.
+- [x] M3-2 Confirm `buildResponsesApiRequest` ([packages/provider-codex/src/provider.ts:82](packages/provider-codex/src/provider.ts#L82)) forwards `installationId` from options to `buildClientMetadata`.
 - [x] M3-3 Confirm WS transport path (`transport-ws.ts`) carries the same body shape; the field travels in the first frame's JSON body, not as a WS header.
 
 ## M4 — Tests

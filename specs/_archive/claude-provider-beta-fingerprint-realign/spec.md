@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Bring `assembleBetas()` in `@opencode-ai/claude-provider` to behavioral parity with the upstream `claude-code@2.1.112` `ZR1` function, so that `anthropic-beta` header values produced by opencode are byte-equivalent to those produced by the official CLI for any (model × auth × provider × env) combination relevant to opencode.
+Bring `assembleBetas()` in `@opencode-ai/provider-claude` to behavioral parity with the upstream `claude-code@2.1.112` `ZR1` function, so that `anthropic-beta` header values produced by opencode are byte-equivalent to those produced by the official CLI for any (model × auth × provider × env) combination relevant to opencode.
 
 ## Requirements
 
@@ -129,7 +129,7 @@ The exported `MINIMUM_BETAS` constant MUST be removed. Its three members are rep
 #### Scenario: import of MINIMUM_BETAS fails type check
 
 - **GIVEN** the refactored `protocol.ts` is in place
-- **WHEN** any file imports `MINIMUM_BETAS` from `@opencode-ai/claude-provider/protocol`
+- **WHEN** any file imports `MINIMUM_BETAS` from `@opencode-ai/provider-claude/protocol`
 - **THEN** TypeScript reports a missing-export error
 
 ### Requirement: `prompt-caching-scope-2026-01-05` gated on `ja()`-equivalent
@@ -170,9 +170,9 @@ Even though these flags are not emitted by this plan, the assembler's source cod
 
 ## Acceptance Checks
 
-- [ ] `bun test packages/opencode-claude-provider/test/protocol.test.ts` passes the full matrix in `test-vectors.json`
-- [ ] `grep -c "MINIMUM_BETAS" packages/opencode-claude-provider/src/` returns 0
-- [ ] `grep "redact-thinking" packages/opencode-claude-provider/src/protocol.ts` shows the constant + push site
+- [ ] `bun test packages/provider-claude/test/protocol.test.ts` passes the full matrix in `test-vectors.json`
+- [ ] `grep -c "MINIMUM_BETAS" packages/provider-claude/src/` returns 0
+- [ ] `grep "redact-thinking" packages/provider-claude/src/protocol.ts` shows the constant + push site
 - [ ] Manual diff of a captured `anthropic-beta` header from a live opencode request against the expected output for the same `(model, auth, provider)` triple matches byte-for-byte
 - [ ] `plans/claude-provider/protocol-datasheet.md` § 9 (or rename) reflects v2.1.112 logic with cli.js offset citations
 - [ ] No new dependency on `@ai-sdk/anthropic` introduced (grep returns same count as before)

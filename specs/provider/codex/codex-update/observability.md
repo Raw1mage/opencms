@@ -8,7 +8,7 @@
 
 Existing `[CODEX-WS] REQ` log line is extended with a new field `thread_id=<value>`.
 
-- File: `packages/opencode-codex-provider/src/transport-ws.ts` near line 325
+- File: `packages/provider-codex/src/transport-ws.ts` near line 325
 - Format: append ` thread_id=${threadId}` after existing `session_id` field
 - Purpose: confirm at runtime that thread_id is being emitted; supports the live-smoke acceptance check in spec.md
 
@@ -16,7 +16,7 @@ Existing `[CODEX-WS] REQ` log line is extended with a new field `thread_id=<valu
 
 New log line emitted when send-side idle timeout fires.
 
-- File: `packages/opencode-codex-provider/src/transport-ws.ts` (in the ws_send_timeout handler)
+- File: `packages/provider-codex/src/transport-ws.ts` (in the ws_send_timeout handler)
 - Level: warn
 - Cardinality: rare (only when send actually stalls)
 

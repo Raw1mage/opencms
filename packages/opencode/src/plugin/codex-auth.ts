@@ -3,11 +3,11 @@
  *
  * Responsibilities:
  * - OAuth credential management (browser + device code flows)
- * - Pass credentials to @opencode-ai/codex-provider via provider options
+ * - Pass credentials to @opencode-ai/provider-codex via provider options
  * - Zero model costs for Codex Plus
  * - NO fetch interceptor, NO body transform, NO transport logic
  *
- * All protocol behavior lives in @opencode-ai/codex-provider.
+ * All protocol behavior lives in @opencode-ai/provider-codex.
  */
 import type { Hooks, PluginInput } from "@opencode-ai/plugin"
 import {
@@ -22,12 +22,12 @@ import {
   generatePKCE,
   generateState,
   revokeRefreshToken,
-} from "@opencode-ai/codex-provider"
-import { createCodex } from "@opencode-ai/codex-provider/provider"
-import { isCodexCredentials } from "@opencode-ai/codex-provider/auth"
-import { setContinuationFilePath, invalidateContinuation } from "@opencode-ai/codex-provider/continuation"
-import { setEmptyTurnLogPath, setEmptyTurnLogBus } from "@opencode-ai/codex-provider/empty-turn-log"
-import type { TokenResponse, PkceCodes } from "@opencode-ai/codex-provider"
+} from "@opencode-ai/provider-codex"
+import { createCodex } from "@opencode-ai/provider-codex/provider"
+import { isCodexCredentials } from "@opencode-ai/provider-codex/auth"
+import { setContinuationFilePath, invalidateContinuation } from "@opencode-ai/provider-codex/continuation"
+import { setEmptyTurnLogPath, setEmptyTurnLogBus } from "@opencode-ai/provider-codex/empty-turn-log"
+import type { TokenResponse, PkceCodes } from "@opencode-ai/provider-codex"
 import { Log } from "../util/log"
 import { Installation } from "../installation"
 import { Auth } from "../auth"
@@ -170,7 +170,7 @@ function buildAuthorizeUrl(redirectUri: string, pkce: PkceCodes, state: string):
 }
 
 // Refresh is no longer triggered from the auth-plugin loader path.
-// Sole refresh authority is `ensureValidToken` inside @opencode-ai/codex-provider,
+// Sole refresh authority is `ensureValidToken` inside @opencode-ai/provider-codex,
 // fired on actual API calls. Persistence happens via the `onTokenRefresh`
 // callback wired in getModel below — that callback writes new tokens back to
 // accounts.json so cross-restart state stays correct.

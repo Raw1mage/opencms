@@ -323,8 +323,8 @@ packages/
 ├── ui/                共用 UI 元件庫（Kobalte + Tailwind 4）
 ├── desktop/           Tauri 2.x 桌面 app
 ├── mcp/               內建 MCP servers（branch-cicd, gcp-grounding, system-manager）
-├── opencode-claude-provider/   Claude AI SDK 整合
-├── opencode-codex-provider/    Codex WebSocket + delta 整合
+├── provider-claude/   Claude AI SDK 整合
+├── provider-codex/    Codex WebSocket + delta 整合
 ├── sdk/js/            JavaScript SDK
 ├── plugin/            Plugin 系統
 ├── util/              共用工具

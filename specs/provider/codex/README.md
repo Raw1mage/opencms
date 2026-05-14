@@ -1,7 +1,7 @@
 # provider / codex
 
 > Wiki entry. Source of truth = current code under
-> `packages/opencode-codex-provider/src/` and
+> `packages/provider-codex/src/` and
 > `packages/opencode/src/provider/codex-compaction.ts`.
 > Replaces the legacy spec packages `codex-fingerprint-alignment` and
 > the pre-plan-builder `codex/` folder
@@ -45,7 +45,7 @@ side via prompt cache continuity and (optionally) inline
 ### Header builder — single entry for HTTP + WS
 
 `buildHeaders(options)` in
-`opencode-codex-provider/src/headers.ts` is the single header entry
+`provider-codex/src/headers.ts` is the single header entry
 for both HTTP POST (`provider.ts:222`) and WebSocket upgrade
 (`transport-ws.ts:580`, `isWebSocket: true`). Outputs:
 
@@ -100,7 +100,7 @@ never a pretend-success.
 
 ## Code anchors
 
-Codex provider package (`packages/opencode-codex-provider/src/`):
+Codex provider package (`packages/provider-codex/src/`):
 
 - `protocol.ts` — `ORIGINATOR = "codex_cli_rs"`,
   `CODEX_CLI_VERSION`, `WS_BETA_HEADER`, `buildCodexUserAgent`.
@@ -126,7 +126,7 @@ Codex registration in core registry:
 
 - `packages/opencode/src/provider/provider.ts:1343` — codex
   registration, `api.url = https://chatgpt.com/backend-api/codex`
-  and `api.npm = @opencode-ai/codex-provider`.
+  and `api.npm = @opencode-ai/provider-codex`.
   `CUSTOM_LOADERS["codex"]` returns `{ autoload: true }`; the SDK
   and `getModel` come from the codex AuthHook plugin
   (`codex-auth.ts`).

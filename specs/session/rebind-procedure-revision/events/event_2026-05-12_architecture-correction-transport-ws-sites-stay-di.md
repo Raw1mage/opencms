@@ -5,7 +5,7 @@ summary: "Architecture correction: transport-ws sites stay direct, dispatch at r
 
 # Architecture correction: transport-ws sites stay direct, dispatch at runloop
 
-Phase E (M7-5) originally specified rewiring transport-ws.ts:561/571/581/607 in `@opencode-ai/codex-provider`. On inspection that path created a reverse package dependency (codex-provider would have to import from session/continuation). The architecturally correct dispatch point is at the runloop level where transport's failure outcome is observed — already in packages/opencode/.
+Phase E (M7-5) originally specified rewiring transport-ws.ts:561/571/581/607 in `@opencode-ai/provider-codex`. On inspection that path created a reverse package dependency (codex-provider would have to import from session/continuation). The architecturally correct dispatch point is at the runloop level where transport's failure outcome is observed — already in packages/opencode/.
 
 Resolution:
 - transport-ws.ts sites stay as primitive chain scrubs (`resetWsSession`, `doInvalidate`, length_not_grown, disk-continuation drop).

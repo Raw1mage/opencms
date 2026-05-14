@@ -7,7 +7,7 @@
  * the wire-bytes of `anthropic-beta` are observed end-to-end without a real
  * HTTP send. Compares against the matching test vector.
  */
-import { buildHeaders } from "../packages/opencode-claude-provider/src/headers.ts"
+import { buildHeaders } from "../packages/provider-claude/src/headers.ts"
 
 const opts = {
   // Realistic placeholder; not validated against server

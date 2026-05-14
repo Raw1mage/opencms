@@ -70,7 +70,7 @@
     "requirement": "CODEX_CLI_VERSION 對齊",
     "description": "protocol.ts 常數值更新",
     "input": {
-      "file": "packages/opencode-codex-provider/src/protocol.ts",
+      "file": "packages/provider-codex/src/protocol.ts",
       "pattern": "export const CODEX_CLI_VERSION ="
     },
     "expected": {

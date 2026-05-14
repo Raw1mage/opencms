@@ -58,7 +58,7 @@ itemCount > 250 AND not a subagent:
 runloop iteration top after `lastFinished` is computed. When
 `lastFinished.finish ∈ {unknown, error, other}` (the empty-turn
 classifier's mapped finishReasons per
-[sse.ts:357-367](../../packages/opencode-codex-provider/src/sse.ts#L357-L367))
+[sse.ts:357-367](../../packages/provider-codex/src/sse.ts#L357-L367))
 AND itemCount > 250 AND not a subagent:
 - Run `SessionCompaction.run({observed: "empty-response"})`
 - Single-shot: do NOT wait for a streak
@@ -105,7 +105,7 @@ chainBinding?: { accountId: string; modelId: string; capturedAt: number }
 Anchor message already exists and carries the summary; bolting Phase
 2 onto its metadata avoids schema churn and keeps the L2 anchor-as-a-
 record invariant intact. `unknown[]` because items are codex-format
-ResponseItems whose schema lives in `@opencode-ai/codex-provider`
+ResponseItems whose schema lives in `@opencode-ai/provider-codex`
 types — opaque to opencode core.
 
 ### DD-7: Chain identity binding

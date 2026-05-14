@@ -70,7 +70,7 @@ The existing compaction subsystem is message-stream anchored: anchors are assist
 - `packages/opencode/src/tool/task.ts`
 - `packages/opencode/src/config/tweaks.ts`
 - `packages/opencode/src/provider/codex-compaction.ts`
-- `packages/opencode-codex-provider/src/provider.ts`
+- `packages/provider-codex/src/provider.ts`
 
 ## Risks / Trade-offs
 

@@ -35,7 +35,7 @@ compaction-priority.
 
 - **GIVEN** `lastFinished.finish` is one of `unknown` / `error` /
   `other` (the codex empty-turn classifier's mapped finishReasons
-  per [sse.ts](../../packages/opencode-codex-provider/src/sse.ts))
+  per [sse.ts](../../packages/provider-codex/src/sse.ts))
 - **AND** estimated itemCount > 250
 - **AND** session has no `parentID`
 - **WHEN** runloop iteration reaches the post-`lastFinished` checkpoint

@@ -21,7 +21,7 @@ Before touching any file, the build agent MUST read in this order:
 3. `specs/_archive/claude-provider-beta-fingerprint-realign/design.md` — DD-1 through DD-17, Risks R-1 through R-6, and Research Outcomes (closed gaps)
 4. `specs/_archive/claude-provider-beta-fingerprint-realign/data-schema.json` — `AssembleBetasOptions` field-by-field contract
 5. `specs/_archive/claude-provider-beta-fingerprint-realign/test-vectors.json` — the matrix to satisfy
-6. `packages/opencode-claude-provider/src/protocol.ts` — the file being rewritten (current state)
+6. `packages/provider-claude/src/protocol.ts` — the file being rewritten (current state)
 7. `refs/claude-code-npm/cli.js` — the upstream truth at function `ZR1` (offset ~3482150) and constants block (~2439173)
 8. `AGENTS.md` (project root) — XDG backup rule applies before first `bun test` run
 
@@ -30,7 +30,7 @@ Before touching any file, the build agent MUST read in this order:
 The agent MUST pause and ask the user when:
 
 - **STOP-1** Manual end-to-end diff evidence (Task 4.8) shows a divergence the matrix didn't catch. Do NOT silently fix; surface to user with the captured header bytes.
-- **STOP-2** Removing `MINIMUM_BETAS` (Task 2.2) reveals an external consumer outside `packages/opencode-claude-provider/` (R-2). Stop before deleting; report the call site.
+- **STOP-2** Removing `MINIMUM_BETAS` (Task 2.2) reveals an external consumer outside `packages/provider-claude/` (R-2). Stop before deleting; report the call site.
 - **STOP-3** Any test asserts a different push order than spec.md Requirement 4. Stop, re-read spec, do not "fix" the test.
 - **STOP-4** Discovery during implementation that an additional upstream gate exists (e.g. another helper function our greps missed) for any of the 9 flags. Stop, re-grep cli.js, update spec via `amend` mode before proceeding.
 - **STOP-5** XDG backup not present (`opencode.bak-*-claude-provider-beta-fingerprint-realign/accounts.json` does not exist) before the first `bun test`. AGENTS.md compliance.
@@ -41,8 +41,8 @@ The agent MUST pause and ask the user when:
 - [ ] All Required Reads completed
 - [ ] XDG backup taken to `~/.config/opencode.bak-<YYYYMMDD-HHMM>-claude-provider-beta-fingerprint-realign/`
 - [ ] `git status` clean enough that diffs from this plan are isolatable (existing unstaged edits documented or stashed)
-- [ ] `bun test packages/opencode-claude-provider/` baseline run captured (currently no test file exists; baseline is "no tests")
-- [ ] Branch / commit strategy decided: this plan does NOT need a beta worktree (changes are confined to `@opencode-ai/claude-provider` package, no daemon restart required for verification — the package is consumed at next opencode runtime start). Commit directly on `main`.
+- [ ] `bun test packages/provider-claude/` baseline run captured (currently no test file exists; baseline is "no tests")
+- [ ] Branch / commit strategy decided: this plan does NOT need a beta worktree (changes are confined to `@opencode-ai/provider-claude` package, no daemon restart required for verification — the package is consumed at next opencode runtime start). Commit directly on `main`.
 - [ ] Daemon restart deferred until user explicitly approves (per memory: restart requires user consent)
 
 ## Phase Discipline

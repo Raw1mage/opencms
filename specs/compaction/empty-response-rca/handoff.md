@@ -17,9 +17,9 @@ The executor (human or AI agent) implementing this spec MUST:
 
 This spec's PHASE 1 + PHASE 2 work touches PRODUCT CODE in:
 
-- `packages/opencode-codex-provider/src/transport-ws.ts` (DD-2)
-- `packages/opencode-codex-provider/src/sse.ts` (DD-2/DD-5)
-- `packages/opencode-codex-provider/src/empty-turn-classifier.ts` (DD-5)
+- `packages/provider-codex/src/transport-ws.ts` (DD-2)
+- `packages/provider-codex/src/sse.ts` (DD-2/DD-5)
+- `packages/provider-codex/src/empty-turn-classifier.ts` (DD-5)
 - `packages/opencode/src/session/processor.ts` (DD-3)
 - `packages/opencode/src/session/prompt.ts` (DD-1)
 
@@ -42,7 +42,7 @@ Before touching any code, the executor MUST have read and understood:
 9. [`specs/codex-empty-turn-ws-snapshot-hotfix/`](../codex-empty-turn-ws-snapshot-hotfix/) — sibling hotfix; pattern for boundary normalization (TransportSnapshot interface)
 10. [docs/events/event_20260507_codex-empty-turn-loop-prevention-explained.md](../../docs/events/event_20260507_codex-empty-turn-loop-prevention-explained.md) — original L1-L7 landmine analysis
 11. [packages/opencode/src/session/prompt.ts:1884](../../packages/opencode/src/session/prompt.ts#L1884) — DD-1 culprit
-12. [packages/opencode-codex-provider/src/transport-ws.ts](../../packages/opencode-codex-provider/src/transport-ws.ts) lines 289, 472, 495 — DD-2 throw sites
+12. [packages/provider-codex/src/transport-ws.ts](../../packages/provider-codex/src/transport-ws.ts) lines 289, 472, 495 — DD-2 throw sites
 13. [packages/opencode/src/session/processor.ts](../../packages/opencode/src/session/processor.ts) lines 149-181 + 1447 — DD-3 hook + caller
 14. `~/.claude/skills/plan-builder/SKILL.md` §16 — execution contract during `implementing`
 15. `~/.claude/skills/beta-workflow/SKILL.md` — for the code-change phases
@@ -68,8 +68,8 @@ Stop immediately and request approval / decision if any of the following occurs 
 Before starting Phase 1, the executor confirms:
 
 - [ ] Required Reads 1-16 above completed
-- [ ] Local working copy of `packages/opencode-codex-provider/` and `packages/opencode/src/session/` clean (or beta-workflow worktree set up per code-vs-docs split)
-- [ ] Test runner reachable: `bun test packages/opencode-codex-provider/src/` passes baseline (107 tests from codex-empty-turn-recovery + codex-empty-turn-ws-snapshot-hotfix)
+- [ ] Local working copy of `packages/provider-codex/` and `packages/opencode/src/session/` clean (or beta-workflow worktree set up per code-vs-docs split)
+- [ ] Test runner reachable: `bun test packages/provider-codex/src/` passes baseline (107 tests from codex-empty-turn-recovery + codex-empty-turn-ws-snapshot-hotfix)
 - [ ] `<XDG_STATE_HOME>/opencode/codex/` writable; `cache-equilibrium.jsonl` will be created on first emission
 - [ ] If executing in beta worktree: `OPENCODE_DATA_HOME` is set (per SG-8)
 - [ ] User has been told the production rollout plan: Phase 1 deploys first (throw-leak + rotation guard, immediate observable signal), then Phase 2 (compaction change, after 24h soak)

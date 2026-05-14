@@ -17,7 +17,7 @@
     {
       "id": "CT1",
       "systemRef": "SYS1",
-      "name": "codex provider package (packages/opencode-codex-provider)",
+      "name": "codex provider package (packages/provider-codex)",
       "description": "All changes in this plan land here. Six files touched: headers.ts, provider.ts, transport-ws.ts, types.ts, empty-turn-classifier.ts plus their tests."
     },
     {

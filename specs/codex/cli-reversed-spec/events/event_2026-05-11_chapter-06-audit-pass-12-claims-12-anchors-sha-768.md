@@ -50,7 +50,7 @@ Walked all 6 links:
 1. **`x-codex-window-id` is in OpenCode's `client_metadata`** — upstream emits it as HTTP header only. Extra body-side key vs upstream's "one key" rule. Future ticket if backend keying surfaces.
 2. **OpenCode emits underscore-only session/thread headers** — upstream emits both underscore AND hyphen forms (via build_session_headers). Backend tolerance unknown; low risk.
 3. **`context_management` field is OpenCode-only** — by-design choice (server-side inline compaction vs upstream's Compact sub-endpoint, Ch09). Documented; not a regression target.
-4. **Wire body shape otherwise aligned** — D6-1's 14 fields map cleanly between codex-cli and opencode-codex-provider.
+4. **Wire body shape otherwise aligned** — D6-1's 14 fields map cleanly between codex-cli and provider-codex.
 
 ## Cumulative spec progress (6/12 chapters audited — halfway)
 

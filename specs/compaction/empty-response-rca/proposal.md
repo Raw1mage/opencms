@@ -97,7 +97,7 @@ Preview, subject to designed-state refinement:
 
 - **Compaction trigger logic** (L1): probably in `packages/opencode/src/session/compaction/`; identify the path producing the 37888 stable equilibrium and gate it on actual turn progress, not predicted cache loss
 - **Rotation policy hook** (L2 + L4): probably in `packages/opencode/src/account/rotation3d.ts` and the cockpit quota integration; tighten the rotation trigger so `unknown` doesn't count as a degradation signal, and consider prewarm-before-rotate
-- **Retry orchestration on store flag** (L3): possibly in `packages/opencode-codex-provider/src/provider.ts` retry path — opt into `store: true` for the retry attempt (would be an `extend` revision on codex-empty-turn-recovery)
+- **Retry orchestration on store flag** (L3): possibly in `packages/provider-codex/src/provider.ts` retry path — opt into `store: true` for the retry attempt (would be an `extend` revision on codex-empty-turn-recovery)
 - **Session-scoped nudge counter** (L7): probably in `packages/opencode/src/session/prompt.ts` or a sibling — track consecutive empty-turn classifications per session; on threshold, raise operator alert + suspend nudges
 
 ## Capabilities
@@ -137,7 +137,7 @@ Preview, subject to designed-state refinement:
 ## Decisions
 
 - **D-1 (2026-05-07, user)** — **Scope cut: L1+L2+L3+L4+L7 in scope; L5+L6 out**. L5 stays under codex-empty-turn-recovery's D-3 audit; L6 deferred until L1 investigation surfaces evidence. (Closes Open Question 1.)
-- **D-2 (2026-05-07, user)** — **Peer / standalone spec relationship to codex-empty-turn-recovery**. fix-empty-response-rca runs in its own folder. When L3 needs to mutate `packages/opencode-codex-provider/`, it does so by opening a formal `extend` revision on codex-empty-turn-recovery rather than editing that spec's artifacts directly from this folder. Boundaries stay clean. (Closes Open Question 2.)
+- **D-2 (2026-05-07, user)** — **Peer / standalone spec relationship to codex-empty-turn-recovery**. fix-empty-response-rca runs in its own folder. When L3 needs to mutate `packages/provider-codex/`, it does so by opening a formal `extend` revision on codex-empty-turn-recovery rather than editing that spec's artifacts directly from this folder. Boundaries stay clean. (Closes Open Question 2.)
 - **D-3 (2026-05-07, user)** — **Do NOT block advancement on production JSONL data**. Proceed to `designed` based on analytical severity ranking (L1+L2 high, L3+L4 medium, L7 medium-runloop). Trade-off acknowledged: when production data eventually arrives, phase ordering may need revision (`amend` mode at most; structural change unlikely since severity ordering is stable). (Closes Open Question 3.)
 - **D-4 (2026-05-07, accepted from proposal)** — **No SSDLC profile**. Engineering RCA, not regulated change. `.state.json.profile` stays `[]`. (Closes Open Question 4.)
 - **D-5 (2026-05-07, user)** — **One spec, phase-divided** by landmine in-scope set (L1, L2, L3+L4 paired, L7 separate). Sub-specs only get spawned if a phase grows past 8 tasks during designed-state work. (Closes Open Question 5.)

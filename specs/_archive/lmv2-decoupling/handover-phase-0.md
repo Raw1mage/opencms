@@ -49,13 +49,13 @@ export function fromLmv2(raw: unknown): OcToolResultOutput { ... }
 ```
 
 然後改寫：
-- `packages/opencode-codex-provider/src/convert.ts` 的 `case "tool"`：改成 `switch (oc.kind)` + 沒有 `default`（TypeScript exhaustive check）。把目前 4 個分支對應到 4 個 kind。
+- `packages/provider-codex/src/convert.ts` 的 `case "tool"`：改成 `switch (oc.kind)` + 沒有 `default`（TypeScript exhaustive check）。把目前 4 個分支對應到 4 個 kind。
 - `packages/opencode/src/provider/sdk/copilot/responses/convert-to-openai-responses-input.ts` 與 `.../chat/convert-to-openai-compatible-chat-messages.ts` 同樣改寫 `case "tool"`，共用同一個 `OcToolResultOutput` union。
 - `packages/opencode/src/session/message-v2.ts:710` 的 `toModelOutput` 必要時更新輸出 shape 與 `fromLmv2` 對齊。
 
 完成後：
 - 之前 `c26d7e0bf` 的 hardening throw 應該變成多餘（switch 收斂了所有可能性），可以保留作 defense-in-depth，也可以刪。建議保留並加註「by exhaustive check this branch is unreachable」。
-- `packages/opencode-codex-provider/src/convert.test.ts` 既有 14 個測試必須照通。
+- `packages/provider-codex/src/convert.test.ts` 既有 14 個測試必須照通。
 - 加新 test 覆蓋 `fromLmv2` 對各 raw 形狀的收斂結果。
 
 ## 紀律（請嚴格遵守）
@@ -71,12 +71,12 @@ export function fromLmv2(raw: unknown): OcToolResultOutput { ... }
 
 - 主 repo：`/home/pkcs12/projects/opencode`（branch: `main`）
 - 不要進 `opencode-beta`、`opencode-worktrees`
-- `bun test packages/opencode-codex-provider/src/convert.test.ts` 驗證 14 個測試
+- `bun test packages/provider-codex/src/convert.test.ts` 驗證 14 個測試
 - daemon 重啟用 `system-manager:restart_self`（不要自己 spawn / kill）
 
 ## 開工前先確認
 
-- [ ] 讀完 `packages/opencode-codex-provider/src/convert.ts` 完整內容
+- [ ] 讀完 `packages/provider-codex/src/convert.ts` 完整內容
 - [ ] 讀完 `packages/opencode/src/session/message-v2.ts:680-742` 的 `toModelOutput`
 - [ ] 讀完 `packages/opencode/src/provider/sdk/copilot/responses/convert-to-openai-responses-input.ts:332-365`
 - [ ] 讀過 commit `a7b2812c2` / `5bb6d319e` / `c26d7e0bf` 的 diff（`git show`），理解這次 bug 的修法路徑

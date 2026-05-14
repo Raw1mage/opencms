@@ -6,7 +6,7 @@ This refactor emits no new runtime events. The wire-fingerprint change is observ
 
 | Event | Source | What changes |
 |---|---|---|
-| Outgoing HTTP request `anthropic-beta` header value | `packages/opencode-claude-provider/src/headers.ts` `buildHeaders()` | Order + content of the comma-joined string changes for every request after deploy |
+| Outgoing HTTP request `anthropic-beta` header value | `packages/provider-claude/src/headers.ts` `buildHeaders()` | Order + content of the comma-joined string changes for every request after deploy |
 | Token-refresh event | unchanged | Unaffected by this plan |
 | SSE stream parse events | unchanged | Unaffected (the SSE parser is in `sse.ts`, not touched) |
 

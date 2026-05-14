@@ -157,7 +157,7 @@
     "acceptance": "A4",
     "scenario": "Regression: 107 existing codex-provider tests + new tests in this spec all pass after the patches land",
     "given": { "branch": "post-fix-empty-response-rca-phase-1" },
-    "when": "bun test packages/opencode-codex-provider/src/ + bun test packages/opencode/test/session/",
+    "when": "bun test packages/provider-codex/src/ + bun test packages/opencode/test/session/",
     "then": {
       "totalTests": ">= 110",
       "failedTests": 0,
@@ -190,7 +190,7 @@
   {
     "id": "TV-A6-no-codex-provider-import-in-runtime",
     "acceptance": "A6",
-    "scenario": "INV-16 preservation: processor.ts diff contains no new import from @opencode-ai/codex-provider; emptyTurnClassification accessed as opaque metadata",
+    "scenario": "INV-16 preservation: processor.ts diff contains no new import from @opencode-ai/provider-codex; emptyTurnClassification accessed as opaque metadata",
     "given": {
       "fileBeforeDiff": "packages/opencode/src/session/processor.ts",
       "fileAfterDiff": "packages/opencode/src/session/processor.ts (post DD-3)"

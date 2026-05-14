@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "title": "C4 — claude-provider beta-fingerprint realign",
-  "scope": "Components touched by the assembleBetas refactor inside @opencode-ai/claude-provider, plus the upstream reference and the test surface.",
+  "scope": "Components touched by the assembleBetas refactor inside @opencode-ai/provider-claude, plus the upstream reference and the test surface.",
 
   "systems": [
     {
       "id": "S1",
       "name": "opencode runtime",
-      "description": "The opencode CLI/daemon that issues Anthropic API requests through @opencode-ai/claude-provider.",
+      "description": "The opencode CLI/daemon that issues Anthropic API requests through @opencode-ai/provider-claude.",
       "external": false
     },
     {
@@ -22,7 +22,7 @@
     {
       "id": "C1",
       "systemId": "S1",
-      "name": "@opencode-ai/claude-provider",
+      "name": "@opencode-ai/provider-claude",
       "description": "The wire-fingerprint mimicry layer. TypeScript package, no native deps. Invoked by opencode core via LanguageModelV2 interface.",
       "tech": "TypeScript / bun"
     },
@@ -49,7 +49,7 @@
       "name": "protocol.ts :: assembleBetas",
       "description": "The function being rewritten. After realign, mirrors upstream ZR1's per-flag conditional push ladder.",
       "moduleRef": "A0",
-      "criticalFiles": ["packages/opencode-claude-provider/src/protocol.ts"]
+      "criticalFiles": ["packages/provider-claude/src/protocol.ts"]
     },
     {
       "id": "CMP2",
@@ -57,7 +57,7 @@
       "name": "protocol.ts :: model predicate helpers",
       "description": "isHaikuModel, supports1MContext, supportsThinking, modelSupportsContextManagement. Each carries an `// upstream:` comment.",
       "moduleRef": "A1",
-      "criticalFiles": ["packages/opencode-claude-provider/src/protocol.ts"]
+      "criticalFiles": ["packages/provider-claude/src/protocol.ts"]
     },
     {
       "id": "CMP3",
@@ -65,7 +65,7 @@
       "name": "headers.ts :: buildHeaders",
       "description": "Caller of assembleBetas; passes through the new option fields from BuildHeadersOptions.",
       "moduleRef": "A3",
-      "criticalFiles": ["packages/opencode-claude-provider/src/headers.ts"]
+      "criticalFiles": ["packages/provider-claude/src/headers.ts"]
     },
     {
       "id": "CMP4",
@@ -73,7 +73,7 @@
       "name": "provider.ts :: ClaudeCodeLanguageModel.doStream",
       "description": "Resolves env conditions, sets provider='firstParty', and forwards into buildHeaders.",
       "moduleRef": "A2",
-      "criticalFiles": ["packages/opencode-claude-provider/src/provider.ts"]
+      "criticalFiles": ["packages/provider-claude/src/provider.ts"]
     },
     {
       "id": "CMP5",
@@ -81,7 +81,7 @@
       "name": "test/protocol.test.ts",
       "description": "NEW. Matrix unit tests reading test-vectors.json fixture; asserts byte-equivalent output for each scenario.",
       "moduleRef": "A3",
-      "criticalFiles": ["packages/opencode-claude-provider/test/protocol.test.ts"]
+      "criticalFiles": ["packages/provider-claude/test/protocol.test.ts"]
     },
     {
       "id": "CMP6",

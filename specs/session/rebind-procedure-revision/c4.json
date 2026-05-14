@@ -28,7 +28,7 @@
       "id": "codex-provider",
       "system": "opencode",
       "name": "Codex provider package (external)",
-      "description": "@opencode-ai/codex-provider — owns lastResponseId per-shard storage and invalidateContinuationFamily. Read-only from this plan's perspective.",
+      "description": "@opencode-ai/provider-codex — owns lastResponseId per-shard storage and invalidateContinuationFamily. Read-only from this plan's perspective.",
       "technology": "TypeScript, npm package"
     },
     {

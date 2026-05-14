@@ -20,7 +20,7 @@
     {
       "id": "K2",
       "systemId": "S1",
-      "name": "packages/opencode-codex-provider request builder",
+      "name": "packages/provider-codex request builder",
       "technology": "Bun + TypeScript (LMv2 adapter)",
       "description": "Existing buildResponsesApiRequest + buildClientMetadata pair; consumes installationId, writes body.client_metadata."
     },

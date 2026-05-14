@@ -3,8 +3,8 @@ import { createHash } from "node:crypto"
 import type { Auth as SDKAuth } from "@opencode-ai/sdk"
 import { Log } from "../util/log"
 import { generatePKCE } from "@openauthjs/openauth/pkce"
-import { createClaudeCode } from "@opencode-ai/claude-provider/provider"
-import { isClaudeCredentials } from "@opencode-ai/claude-provider/auth"
+import { createClaudeCode } from "@opencode-ai/provider-claude/provider"
+import { isClaudeCredentials } from "@opencode-ai/provider-claude/auth"
 
 const log = Log.create({ service: "plugin.claude-cli" })
 

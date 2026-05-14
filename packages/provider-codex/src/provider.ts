@@ -4,7 +4,7 @@
  * Native Responses API client that bypasses @ai-sdk/openai entirely.
  * Supports both WebSocket (primary) and HTTP SSE (fallback) transports.
  *
- * Pattern: follows @opencode-ai/claude-provider/provider.ts exactly.
+ * Pattern: follows @opencode-ai/provider-claude/provider.ts exactly.
  */
 import type {
   LanguageModelV2,

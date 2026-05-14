@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Bring `packages/opencode-codex-provider/` to feature parity with the upstream codex submodule range `5cc5f12ef..f7e8ff8e5` for surfaces we mirror, without changing any caller-visible API of the provider beyond additive options.
+Bring `packages/provider-codex/` to feature parity with the upstream codex submodule range `5cc5f12ef..f7e8ff8e5` for surfaces we mirror, without changing any caller-visible API of the provider beyond additive options.
 
 ## Requirements
 
@@ -84,7 +84,7 @@ Per upstream commit `35aaa5d9fc`, the WebSocket send must be bounded by an idle 
 
 ### Requirement: Empty-turn classifier recognizes ws_send_timeout
 
-The empty-turn classifier (`packages/opencode-codex-provider/src/empty-turn-classifier.ts`) must categorize `ws_send_timeout` alongside the existing transient-failure reasons (`first_frame_timeout`, `mid_stream_stall`, etc.).
+The empty-turn classifier (`packages/provider-codex/src/empty-turn-classifier.ts`) must categorize `ws_send_timeout` alongside the existing transient-failure reasons (`first_frame_timeout`, `mid_stream_stall`, etc.).
 
 #### Scenario: ws_send_timeout classified as transient
 
@@ -105,7 +105,7 @@ All other wire-shape fields (model, instructions, input, tools, tool_choice, par
 
 ## Acceptance Checks
 
-- [ ] All existing `bun test packages/opencode-codex-provider/` pass
+- [ ] All existing `bun test packages/provider-codex/` pass
 - [ ] New tests added: thread_id header emission, x-client-request-id sourcing, prompt_cache_key sourcing, ws_send_timeout simulation, classifier categorization
 - [ ] Live smoke: a real codex-account turn shows both `session_id` and `thread_id` headers in `[CODEX-WS] REQ` log lines
 - [ ] No backwards-incompatible change to provider's public exports

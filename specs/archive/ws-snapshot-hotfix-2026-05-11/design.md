@@ -38,10 +38,10 @@ Existing rows that omitted `wsFrameCount` cannot be safely reclassified: `termin
 
 ## Critical Files
 
-- `packages/opencode-codex-provider/src/transport-ws.ts`
-- `packages/opencode-codex-provider/src/sse.ts`
-- `packages/opencode-codex-provider/src/sse.test.ts`
-- `packages/opencode-codex-provider/src/empty-turn-classifier.test.ts`
+- `packages/provider-codex/src/transport-ws.ts`
+- `packages/provider-codex/src/sse.ts`
+- `packages/provider-codex/src/sse.test.ts`
+- `packages/provider-codex/src/empty-turn-classifier.test.ts`
 - `docs/events/event_20260507_codex-empty-turn-ws-snapshot-hotfix.md`
 
 ## Risks / Trade-offs

@@ -2,7 +2,7 @@
 
 ## Context
 
-opencode-codex-provider 有兩條出站傳輸路徑：**WS**（`transport-ws.ts`，優先嘗試）與 **HTTP SSE**（`provider.ts`，fallback）。兩者各自組 header：HTTP 走 `buildHeaders()` 共用函式，WS 在 `transport-ws.ts:460-466` 內嵌 inline 建構。兩條路徑在 `User-Agent` 與 `ChatGPT-Account-Id` header 上出現漂移 — 正好命中 OpenAI 第一方分類器的降級條件。
+provider-codex 有兩條出站傳輸路徑：**WS**（`transport-ws.ts`，優先嘗試）與 **HTTP SSE**（`provider.ts`，fallback）。兩者各自組 header：HTTP 走 `buildHeaders()` 共用函式，WS 在 `transport-ws.ts:460-466` 內嵌 inline 建構。兩條路徑在 `User-Agent` 與 `ChatGPT-Account-Id` header 上出現漂移 — 正好命中 OpenAI 第一方分類器的降級條件。
 
 upstream `refs/codex`（目前 `d0eff70383`，落後 268 commits）對應的 first-party 規格可在 `refs/codex/codex-rs/core/src/client.rs` 與 `refs/codex/codex-rs/login/src/auth/default_client.rs` 查到：UA、originator、ChatGPT-Account-Id、x-client-request-id、Accept 是 WS/HTTP 共用的必送 header。
 
@@ -81,17 +81,17 @@ upstream `refs/codex`（目前 `d0eff70383`，落後 268 commits）對應的 fir
 
 ### 直接修改
 
-- `packages/opencode-codex-provider/src/headers.ts` — `BuildHeadersOptions`、`buildHeaders` 實作（Phase 2 擴充 WS 分支、Phase 4 加欄位）。
-- `packages/opencode-codex-provider/src/transport-ws.ts` — `connectWs` 呼叫站附近的 header 組裝（Phase 1 inline 補 UA + TitleCase；Phase 2 改為呼叫 `buildHeaders`）。
-- `packages/opencode-codex-provider/src/protocol.ts` — `CODEX_CLI_VERSION` 常數（Phase 3）。
-- `packages/opencode-codex-provider/src/provider.ts` — `buildHeaders()` 呼叫站可能增加 `conversationId` / `isWebSocket` 參數（Phase 4）。
+- `packages/provider-codex/src/headers.ts` — `BuildHeadersOptions`、`buildHeaders` 實作（Phase 2 擴充 WS 分支、Phase 4 加欄位）。
+- `packages/provider-codex/src/transport-ws.ts` — `connectWs` 呼叫站附近的 header 組裝（Phase 1 inline 補 UA + TitleCase；Phase 2 改為呼叫 `buildHeaders`）。
+- `packages/provider-codex/src/protocol.ts` — `CODEX_CLI_VERSION` 常數（Phase 3）。
+- `packages/provider-codex/src/provider.ts` — `buildHeaders()` 呼叫站可能增加 `conversationId` / `isWebSocket` 參數（Phase 4）。
 - `refs/codex` — submodule pointer（Phase 3）。
 
 ### 測試
 
-- `packages/opencode-codex-provider/src/headers.test.ts` — 新增 WS + account-id case-sensitivity + Phase 4 欄位。
-- `packages/opencode-codex-provider/src/provider.test.ts` — HTTP path regression + Phase 4 Accept 斷言。
-- `packages/opencode-codex-provider/src/transport-ws.test.ts`（新增，Phase 2） — WS header 集合 snapshot。
+- `packages/provider-codex/src/headers.test.ts` — 新增 WS + account-id case-sensitivity + Phase 4 欄位。
+- `packages/provider-codex/src/provider.test.ts` — HTTP path regression + Phase 4 Accept 斷言。
+- `packages/provider-codex/src/transport-ws.test.ts`（新增，Phase 2） — WS header 集合 snapshot。
 
 ### 參考（不修改，對照用）
 

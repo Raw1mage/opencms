@@ -39,7 +39,7 @@
 - **Recovery**：
   1. 由 `createCodex()` factory 把 `userAgent` 字串透過 options 傳入（目前 HTTP 路徑已是這條路），在 WS 路徑讀 `this.options.userAgent`。
   2. 若 options 也取不到（例如 getModel 階段沒填）→ 修 `codex-auth.ts:295` 確認永遠填值。
-- **Responsible layer**：packages/opencode-codex-provider + packages/opencode/src/plugin/codex-auth.ts。
+- **Responsible layer**：packages/provider-codex + packages/opencode/src/plugin/codex-auth.ts。
 
 ### E-FP-005 — Unit test 回歸（HTTP 現有 header 集合）
 
@@ -49,7 +49,7 @@
   1. 對照 diff 找出被改掉的輸出欄位。
   2. 若測試斷言過嚴（例如綁死 key 順序），放寬斷言。
   3. 若真的是輸出改了 → 回退到 Phase 2 的最小變動，先保 HTTP path 行為等價。
-- **Responsible layer**：packages/opencode-codex-provider。
+- **Responsible layer**：packages/provider-codex。
 
 ### E-FP-006 — Beta soak 後第三方判定比例仍 > 0%（零容忍）
 

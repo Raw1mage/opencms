@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="490" viewBox="0 0 1180 490" role="img" aria-label="Chapter 04 — Context Fragment Assembly">
+<defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#64748b" /></marker></defs>
+
+<style>
+  .bg { fill: #f8fafc; }
+  .title { font: 700 22px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; fill: #0f172a; }
+  .subtitle { font: 600 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; fill: #475569; letter-spacing: .08em; }
+  .box { fill: #ffffff; stroke: #1d4ed8; stroke-width: 2; rx: 14; }
+  .box-alt { fill: #eff6ff; stroke: #2563eb; stroke-width: 2; rx: 14; }
+  .id { font: 700 14px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; fill: #1d4ed8; }
+  .label { font: 600 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; fill: #0f172a; }
+  .arrow { stroke: #64748b; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+  .io { font: 600 12px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; fill: #334155; }
+  .footer { font: 500 11px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; fill: #64748b; }
+</style>
+
+<rect class="bg" x="0" y="0" width="1180" height="490"/>
+<text class="title" x="70" y="42">Chapter 04 — Context Fragment Assembly</text>
+<text class="subtitle" x="72" y="68">A4 · generated from idef0.04.json</text>
+<rect class="box-alt" x="70" y="110" width="300" height="120" rx="14"/>
+<text class="id" x="88" y="137">A4.1</text>
+<text class="label" x="88" y="164">Aggregate Developer Sections</text>
+<rect class="box" x="440" y="110" width="300" height="120" rx="14"/>
+<text class="id" x="458" y="137">A4.2</text>
+<text class="label" x="458" y="164">Aggregate Contextual User</text>
+<text class="label" x="458" y="181">Sections</text>
+<rect class="box" x="810" y="110" width="300" height="120" rx="14"/>
+<text class="id" x="828" y="137">A4.3</text>
+<text class="label" x="828" y="164">Compose Developer ResponseItem</text>
+<rect class="box" x="70" y="285" width="300" height="120" rx="14"/>
+<text class="id" x="88" y="312">A4.4</text>
+<text class="label" x="88" y="339">Compose Contextual User</text>
+<text class="label" x="88" y="356">ResponseItem</text>
+<rect class="box" x="440" y="285" width="300" height="120" rx="14"/>
+<text class="id" x="458" y="312">A4.5</text>
+<text class="label" x="458" y="339">Optionally Emit Multi-Agent V2</text>
+<text class="label" x="458" y="356">Usage Hint</text>
+<rect class="box" x="810" y="285" width="300" height="120" rx="14"/>
+<text class="id" x="828" y="312">A4.6</text>
+<text class="label" x="828" y="339">Optionally Emit Separate</text>
+<text class="label" x="828" y="356">Guardian Developer Message</text>
+<path class="arrow" d="M 362.0 170.0 L 448.0 170.0"/>
+<path class="arrow" d="M 732.0 170.0 L 818.0 170.0"/>
+<path class="arrow" d="M 960.0 222.0 C 960.0 257.5, 220.0 257.5, 220.0 293.0"/>
+<path class="arrow" d="M 362.0 345.0 L 448.0 345.0"/>
+<path class="arrow" d="M 732.0 345.0 L 818.0 345.0"/>
+<text class="footer" x="70" y="456">Inputs enter from left · Controls from top · Outputs to right · Mechanisms from bottom (IDEF0 convention)</text>
+</svg>

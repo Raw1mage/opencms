@@ -571,22 +571,6 @@ export namespace SessionCompaction {
       return
     }
 
-    // Guard: if the newest message is a user message, a new prompt was submitted
-    // while the runloop is in its post-loop cleanup phase. Compacting now would
-    // write an anchor chronologically newer than the user message, causing
-    // filterCompacted (newest-first scan, stops at anchor) to hide it entirely.
-    // The next runloop would see no_user_after_compaction and exit silently,
-    // swallowing the user's input with no response.
-    const newest = tailMessages.at(-1)
-    if (newest && newest.info.role === "user") {
-      log.info("compaction.idle.deferred", {
-        sessionID: input.sessionID,
-        reason: "pending-user-message",
-        newestMessageId: newest.info.id,
-      })
-      return
-    }
-
     await run({
       sessionID: input.sessionID,
       observed: "idle",
@@ -3800,7 +3784,7 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
       // block (3595) which calls publishCompactedAndResetChain →
       // Continuation.run with the correct post-compaction semantics.
       try {
-        const { invalidateContinuationFamily } = await import("@opencode-ai/codex-provider/continuation")
+        const { invalidateContinuationFamily } = await import("@opencode-ai/provider-codex/continuation")
         invalidateContinuationFamily(sessionID)
       } catch {
         // best-effort; non-codex providers don't expose this module

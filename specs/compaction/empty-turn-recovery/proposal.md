@@ -50,9 +50,9 @@ Our prior debugging anchored on a single cause (WS truncation) and missed that t
 ## Scope
 
 ### IN
-- Codex provider's WS transport (`packages/opencode-codex-provider/src/transport-ws.ts`) — premature close handling, terminal-event tracking
-- Codex provider's SSE pipeline (`packages/opencode-codex-provider/src/sse.ts`) — flush behavior when stream ends without terminal event, finishReason mapping for unknown/error
-- Codex provider's request builder (`packages/opencode-codex-provider/src/provider.ts`) — verifying our exposure to OpenHands #2797 cause B (`include: ["reasoning.encrypted_content"]`) and cause C (`reasoning: {effort: ...}`)
+- Codex provider's WS transport (`packages/provider-codex/src/transport-ws.ts`) — premature close handling, terminal-event tracking
+- Codex provider's SSE pipeline (`packages/provider-codex/src/sse.ts`) — flush behavior when stream ends without terminal event, finishReason mapping for unknown/error
+- Codex provider's request builder (`packages/provider-codex/src/provider.ts`) — verifying our exposure to OpenHands #2797 cause B (`include: ["reasoning.encrypted_content"]`) and cause C (`reasoning: {effort: ...}`)
 - Empty-turn classification module (new) — single decision point that maps `(finishReason, usage, deltas-observed, terminal-event-received, request-options)` to a cause family
 - Telemetry channel — emit classification per turn for observability
 - Documentation in event log + `architecture.md` if a new boundary is added
@@ -79,10 +79,10 @@ Our prior debugging anchored on a single cause (WS truncation) and missed that t
 
 ## What Changes
 
-- **New**: `packages/opencode-codex-provider/src/empty-turn-classifier.ts` — pure function mapping observed stream state → cause family enum
-- **Modified**: `packages/opencode-codex-provider/src/sse.ts` — flush block records terminal-event-received, hands state to classifier, emits classification in providerMetadata, picks finishReason based on classification (not blanket `unknown`)
-- **Modified**: `packages/opencode-codex-provider/src/transport-ws.ts` — `ws.onclose` while streaming with `frameCount > 0` no longer silent; routes to classifier and either errors out, signals retry, or marks turn as classifier-decided
-- **Audit**: `packages/opencode-codex-provider/src/provider.ts` — verify our exposure to OpenHands #2797 cause B/C; if exposed, decide whether to omit those params for codex-subscription tier (matching OpenHands fix)
+- **New**: `packages/provider-codex/src/empty-turn-classifier.ts` — pure function mapping observed stream state → cause family enum
+- **Modified**: `packages/provider-codex/src/sse.ts` — flush block records terminal-event-received, hands state to classifier, emits classification in providerMetadata, picks finishReason based on classification (not blanket `unknown`)
+- **Modified**: `packages/provider-codex/src/transport-ws.ts` — `ws.onclose` while streaming with `frameCount > 0` no longer silent; routes to classifier and either errors out, signals retry, or marks turn as classifier-decided
+- **Audit**: `packages/provider-codex/src/provider.ts` — verify our exposure to OpenHands #2797 cause B/C; if exposed, decide whether to omit those params for codex-subscription tier (matching OpenHands fix)
 - **Telemetry**: emit a structured event per classified empty turn (channel TBD during design phase)
 
 ## Capabilities

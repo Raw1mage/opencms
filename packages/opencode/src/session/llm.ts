@@ -616,7 +616,7 @@ export namespace LLM {
       // L1 driver + L7 SYSTEM.md must remain in the static system block. The
       // codex provider's convertPrompt hard-codes the Responses-API
       // `instructions` field to a 28-byte placeholder (see
-      // packages/opencode-codex-provider/src/convert.ts) and ignores
+      // packages/provider-codex/src/convert.ts) and ignores
       // options.instructions; the real system prompt reaches codex by going
       // through the LMv2 system-role message → developer-role input item.
       // Zeroing these layers here would silently strip the persona + global
@@ -1577,7 +1577,7 @@ export namespace LLM {
           }
           // event.response.messages[i].content[j] carries reasoning items as
           // { type: "reasoning", text } per LanguageModelV2 — see
-          // packages/opencode-codex-provider/src/provider.ts ~line 472.
+          // packages/provider-codex/src/provider.ts ~line 472.
           const responseMessages = (event as any)?.response?.messages
           if (Array.isArray(responseMessages)) {
             for (const m of responseMessages) {
@@ -1802,7 +1802,7 @@ export namespace LLM {
               "x-opencode-request": input.user.id,
               "x-opencode-client": Flag.OPENCODE_CLIENT,
             }
-          : input.model.api.npm === "@opencode-ai/codex-provider"
+          : input.model.api.npm === "@opencode-ai/provider-codex"
             ? {
                 session_id: input.sessionID,
                 "x-opencode-session": input.sessionID,
@@ -1813,7 +1813,7 @@ export namespace LLM {
                 "x-opencode-parent-session": parentSessionID ?? "",
                 "x-opencode-subagent": subagentSession ? (input.agent.name ?? "") : "",
               }
-            : input.model.api.npm !== "@opencode-ai/claude-provider"
+            : input.model.api.npm !== "@opencode-ai/provider-claude"
               ? {
                   "User-Agent": `opencode/${Installation.VERSION}`,
                 }

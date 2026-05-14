@@ -1,7 +1,7 @@
 # provider / claude
 
 > Wiki entry. Source of truth = current code under
-> `packages/opencode-claude-provider/src/`,
+> `packages/provider-claude/src/`,
 > `packages/opencode/src/provider/transform.ts` (cache breakpoint
 > logic), and `packages/opencode/src/session/claude-import.ts`
 > (Claude Code native takeover import).
@@ -13,7 +13,7 @@
 shipped (live as of 2026-05-04).
 
 `claude-provider-beta-fingerprint-realign` is shipped: `assembleBetas`
-in `@opencode-ai/claude-provider` mirrors upstream `ZR1` push order
+in `@opencode-ai/provider-claude` mirrors upstream `ZR1` push order
 and `MINIMUM_BETAS` is removed.
 
 Claude Code native takeover (sidebar tab + import/delta + takeover
@@ -26,7 +26,7 @@ package and lifecycle detail.
 ### assembleBetas mirrors upstream ZR1
 
 `assembleBetas(options)` in
-`opencode-claude-provider/src/protocol.ts:232` produces the
+`provider-claude/src/protocol.ts:232` produces the
 `anthropic-beta` header values byte-equivalently to upstream
 `claude-code@2.1.112` `ZR1`. Push order:
 
@@ -69,7 +69,7 @@ places ephemeral cache breakpoints. Phase B explicit breakpoints
 context preface emitter; legacy BP1 (system tail) and BP4
 (conversation tail) are placed by tail-position rule. Caching is
 disabled for subscription sessions and for native providers
-(`@opencode-ai/claude-provider`, `@opencode-ai/codex-provider`)
+(`@opencode-ai/provider-claude`, `@opencode-ai/provider-codex`)
 because those providers manage their own cache.
 
 ### Claude Code native takeover
@@ -105,7 +105,7 @@ the sidebar green-dot affordance.
 
 ## Code anchors
 
-Claude provider package (`packages/opencode-claude-provider/src/`):
+Claude provider package (`packages/provider-claude/src/`):
 
 - `protocol.ts` — `assembleBetas` at L232; per-flag constants
   L77–L86; `isFirstPartyish` L115; model predicates L124–L168.

@@ -8,9 +8,9 @@ Implement the smallest patch that restores `wsFrameCount` at the WS transport to
 
 - `specs/codex-empty-turn-ws-snapshot-hotfix/proposal.md`
 - `specs/codex-empty-turn-ws-snapshot-hotfix/design.md`
-- `packages/opencode-codex-provider/src/transport-ws.ts`
-- `packages/opencode-codex-provider/src/sse.ts`
-- `packages/opencode-codex-provider/src/sse.test.ts`
+- `packages/provider-codex/src/transport-ws.ts`
+- `packages/provider-codex/src/sse.ts`
+- `packages/provider-codex/src/sse.test.ts`
 
 ## Stop Gates In Force
 

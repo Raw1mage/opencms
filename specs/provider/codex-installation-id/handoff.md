@@ -23,9 +23,9 @@ Stages run in order M1 → M2 → M3 → M4; M5 (sibling-spec sync) and M6 (oper
 
 ### Local code (to touch or to verify)
 - [packages/opencode/src/plugin/codex-auth.ts](packages/opencode/src/plugin/codex-auth.ts) — bootstrap + getModel sink (line ~315).
-- [packages/opencode-codex-provider/src/headers.ts](packages/opencode-codex-provider/src/headers.ts) — `buildClientMetadata` at line ~108 (verify only).
-- [packages/opencode-codex-provider/src/provider.ts](packages/opencode-codex-provider/src/provider.ts) — `buildResponsesApiRequest` at line ~82 (verify only).
-- [packages/opencode-codex-provider/src/transport-ws.ts](packages/opencode-codex-provider/src/transport-ws.ts) — WS first-frame carries body (verify only).
+- [packages/provider-codex/src/headers.ts](packages/provider-codex/src/headers.ts) — `buildClientMetadata` at line ~108 (verify only).
+- [packages/provider-codex/src/provider.ts](packages/provider-codex/src/provider.ts) — `buildResponsesApiRequest` at line ~82 (verify only).
+- [packages/provider-codex/src/transport-ws.ts](packages/provider-codex/src/transport-ws.ts) — WS first-frame carries body (verify only).
 - **NEW** `packages/opencode/src/plugin/codex-installation-id.ts` — resolver module to author.
 
 ### Sibling spec

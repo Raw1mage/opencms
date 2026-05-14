@@ -1,6 +1,6 @@
 # Implementation Spec
 
-Patch target: `packages/opencode-codex-provider/src/transport-ws.ts`.
+Patch target: `packages/provider-codex/src/transport-ws.ts`.
 
 Minimal implementation intent:
 

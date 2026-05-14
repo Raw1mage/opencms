@@ -114,13 +114,13 @@ selected via `model.api.npm`.
 
 Self-built / non-AI-SDK paths:
 
-- **codex** — `@opencode-ai/codex-provider` (workspace package
-  `packages/opencode-codex-provider/`). See
+- **codex** — `@opencode-ai/provider-codex` (workspace package
+  `packages/provider-codex/`). See
   [provider/codex/](./codex/README.md) for the full HTTP + WS
   fingerprint, AI-SDK-as-authority direction, and compaction
   integration.
-- **claude-cli** — `@opencode-ai/claude-provider`
-  (`packages/opencode-claude-provider/`). See
+- **claude-cli** — `@opencode-ai/provider-claude`
+  (`packages/provider-claude/`). See
   [provider/claude/](./claude/README.md) for `assembleBetas`,
   cache-breakpoint placement, and Claude takeover import.
 - **gemini-cli** — self-built family added at `provider.ts:1218`,
@@ -137,7 +137,7 @@ Self-built / non-AI-SDK paths:
 `lmv2-decoupling` Phase 0) defines `OcToolResultOutput` as a
 discriminated union (`string` / `text-envelope` /
 `content-envelope` / `structured`). `convert.ts` in
-`opencode-codex-provider` and the OpenAI Responses converters in
+`provider-codex` and the OpenAI Responses converters in
 `provider/sdk/copilot/responses/` switch exhaustively on `kind`.
 The 2026-04-24 hardening throw added in `c26d7e0bf` is retained
 as defense-in-depth even though the exhaustive switch makes it
@@ -230,7 +230,7 @@ fixes live under their respective topic entries:
 ### Deprecation surface
 
 - `MINIMUM_BETAS` export from
-  `@opencode-ai/claude-provider/protocol` — removed (no shim).
+  `@opencode-ai/provider-claude/protocol` — removed (no shim).
   Importers fail at TypeScript compile time.
 - `enforceCodexFamilyOnly` and the 2026-05-02 step-3b same-family
   hotfix in `rotation3d.ts` — deleted (no shim).

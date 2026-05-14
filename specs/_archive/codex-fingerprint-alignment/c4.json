@@ -6,7 +6,7 @@
     { "id": "openai", "label": "OpenAI ChatGPT Codex backend", "description": "外部；first-party classifier + responses endpoint 寄宿處" }
   ],
   "containers": [
-    { "id": "codex-provider", "system": "opencode", "label": "opencode-codex-provider package", "technology": "TypeScript (bun)" },
+    { "id": "codex-provider", "system": "opencode", "label": "provider-codex package", "technology": "TypeScript (bun)" },
     { "id": "codex-auth-plugin", "system": "opencode", "label": "codex-auth plugin", "technology": "TypeScript" },
     { "id": "refs-codex", "system": "opencode", "label": "refs/codex submodule", "technology": "Rust upstream (reference only)" },
     { "id": "openai-classifier", "system": "openai", "label": "first-party request classifier", "technology": "OpenAI internal" },
@@ -18,7 +18,7 @@
       "container": "codex-provider",
       "label": "buildHeaders() header builder",
       "description": "Phase 2 後成為 WS + HTTP 共用唯一入口；接受 isWebSocket flag 分支",
-      "moduleRef": "packages/opencode-codex-provider/src/headers.ts",
+      "moduleRef": "packages/provider-codex/src/headers.ts",
       "idef0Traces": ["A1", "A4", "A7"]
     },
     {
@@ -26,7 +26,7 @@
       "container": "codex-provider",
       "label": "WS transport (transport-ws.ts)",
       "description": "Phase 1 先 inline 補 UA + TitleCase；Phase 2 改呼叫 buildHeaders()",
-      "moduleRef": "packages/opencode-codex-provider/src/transport-ws.ts",
+      "moduleRef": "packages/provider-codex/src/transport-ws.ts",
       "idef0Traces": ["A2", "A5"]
     },
     {
@@ -34,7 +34,7 @@
       "container": "codex-provider",
       "label": "HTTP SSE transport (provider.ts fallback)",
       "description": "既有走 buildHeaders() 路徑；Phase 4 經由 buildHeaders 新增 x-client-request-id + Accept",
-      "moduleRef": "packages/opencode-codex-provider/src/provider.ts",
+      "moduleRef": "packages/provider-codex/src/provider.ts",
       "idef0Traces": ["A3", "A6"]
     },
     {
@@ -42,7 +42,7 @@
       "container": "codex-provider",
       "label": "CODEX_CLI_VERSION constant",
       "description": "Phase 3 更新為 rust-v0.125.0-alpha.1 對應版號",
-      "moduleRef": "packages/opencode-codex-provider/src/protocol.ts",
+      "moduleRef": "packages/provider-codex/src/protocol.ts",
       "idef0Traces": ["A8"]
     },
     {

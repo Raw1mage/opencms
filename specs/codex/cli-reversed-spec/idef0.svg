@@ -1,0 +1,64 @@
+<svg width="1240.0" height="750.0" viewBox="60.0 -100.0 1240.0 750.0" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="60.0" y="-100.0" width="1240.0" height="750.0" fill="white" />
+<rect x="70.0" y="60.0" width="1220.0" height="580.0" stroke="black" fill="none" stroke-width="2" />
+<rect x="432.5" y="-90.0" width="495.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="680.0" y="-64.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >A0</text>
+<text x="680.0" y="-34.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >CODEX-CLI UPSTREAM RUNTIME</text>
+<text x="680.0" y="-4.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >— WIRE-AFFECTING SUBSYSTEMS</text>
+<line x1="432.5" y1="-90.0" x2="70.0" y2="60.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="927.5" y1="-90.0" x2="1290.0" y2="60.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="432.5" y1="20.0" x2="70.0" y2="640.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="927.5" y1="20.0" x2="1290.0" y2="640.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<rect x="130.0" y="120.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="230.0" y="146.8" text-anchor="middle" font-size="10" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
+<text x="230.0" y="171.1" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >PROCESS BOOTSTRAP &amp;</text>
+<text x="230.0" y="193.6" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >ENTRY POINTS (CHAPTER 1)</text>
+<rect x="410.0" y="120.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="510.0" y="143.9" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
+<text x="510.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >AUTH &amp; IDENTITY</text>
+<text x="510.0" y="197.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >(CHAPTER 2)</text>
+<rect x="690.0" y="120.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="790.0" y="145.3" text-anchor="middle" font-size="11" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >A3</text>
+<text x="790.0" y="171.1" text-anchor="middle" font-size="13" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >SESSION &amp; TURN</text>
+<text x="790.0" y="195.4" text-anchor="middle" font-size="13" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >LIFECYCLE (CHAPTER 3)</text>
+<rect x="970.0" y="120.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
+<text x="1070.0" y="143.9" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >A4</text>
+<text x="1070.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >CONTEXT FRAGMENT</text>
+<text x="1070.0" y="197.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >ASSEMBLY (CHAPTER 4)</text>
+<rect x="130.0" y="300.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A5" />
+<text x="230.0" y="323.9" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >A5</text>
+<text x="230.0" y="351.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >TOOLS &amp; MCP</text>
+<text x="230.0" y="377.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >(CHAPTER 5)</text>
+<rect x="410.0" y="300.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A6" />
+<text x="510.0" y="325.3" text-anchor="middle" font-size="11" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >A6</text>
+<text x="510.0" y="351.1" text-anchor="middle" font-size="13" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >RESPONSES API REQUEST</text>
+<text x="510.0" y="375.4" text-anchor="middle" font-size="13" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >BUILD (CHAPTER 6)</text>
+<rect x="690.0" y="300.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A7" />
+<text x="790.0" y="323.9" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A7" >A7</text>
+<text x="790.0" y="351.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A7" >HTTP SSE TRANSPORT</text>
+<text x="790.0" y="377.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A7" >(CHAPTER 7)</text>
+<rect x="970.0" y="300.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A8" />
+<text x="1070.0" y="323.9" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A8" >A8</text>
+<text x="1070.0" y="351.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A8" >WEBSOCKET TRANSPORT</text>
+<text x="1070.0" y="377.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A8" >(CHAPTER 8)</text>
+<rect x="130.0" y="480.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A9" />
+<text x="230.0" y="503.9" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A9" >A9</text>
+<text x="230.0" y="531.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A9" >COMPACT SUB-ENDPOINT</text>
+<text x="230.0" y="557.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A9" >(CHAPTER 9)</text>
+<rect x="410.0" y="480.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A10" />
+<text x="510.0" y="503.9" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A10" >A10</text>
+<text x="510.0" y="531.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A10" >SUBAGENTS</text>
+<text x="510.0" y="557.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A10" >(CHAPTER 10)</text>
+<rect x="690.0" y="480.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A11" />
+<text x="790.0" y="503.9" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >A11</text>
+<text x="790.0" y="531.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >CACHE &amp; PREFIX</text>
+<text x="790.0" y="557.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A11" >MODEL (CHAPTER 11)</text>
+<rect x="970.0" y="480.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A12" />
+<text x="1070.0" y="503.9" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >A12</text>
+<text x="1070.0" y="531.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >ROLLOUT &amp; TELEMETRY</text>
+<text x="1070.0" y="557.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A12" >(CHAPTER 12)</text>
+</svg>

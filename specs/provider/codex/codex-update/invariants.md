@@ -1,6 +1,6 @@
 # Invariants: codex-update
 
-Cross-cut guarantees that any future change to `packages/opencode-codex-provider/` MUST preserve. Bug fixes / hotfixes / revisions on this provider must include this section verbatim per plan-builder §17.
+Cross-cut guarantees that any future change to `packages/provider-codex/` MUST preserve. Bug fixes / hotfixes / revisions on this provider must include this section verbatim per plan-builder §17.
 
 ## INV-1: session_id and thread_id always paired
 
@@ -46,7 +46,7 @@ Per AGENTS.md rule 1 and per project memory `feedback_no_silent_fallback`: if a 
 
 ## INV-7: Provider tests stay deterministic and self-contained
 
-All tests under `packages/opencode-codex-provider/src/*.test.ts` run without network, without filesystem state outside `os.tmpdir()`, and without depending on a live codex account. Live-smoke is a separate, manual procedure.
+All tests under `packages/provider-codex/src/*.test.ts` run without network, without filesystem state outside `os.tmpdir()`, and without depending on a live codex account. Live-smoke is a separate, manual procedure.
 
 - Enforcement point: test files; `bun test` invocation
 - Rationale: CI must run on every commit; flaky live-network tests block the branch.

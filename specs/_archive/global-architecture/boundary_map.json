@@ -48,7 +48,7 @@
         { "provider": "openai", "sdk": "AI SDK @ai-sdk/openai", "auth": "API key", "owner": "A31" },
         { "provider": "google", "sdk": "AI SDK @ai-sdk/google", "auth": "API key / OAuth (google-api)", "owner": "A31" },
         { "provider": "gemini-cli", "sdk": "plugin/gemini-cli/", "auth": "OAuth (gcloud CLI)", "owner": "A31" },
-        { "provider": "codex", "sdk": "opencode-codex-provider", "auth": "OAuth (codex-auth.ts)", "owner": "A31" },
+        { "provider": "codex", "sdk": "provider-codex", "auth": "OAuth (codex-auth.ts)", "owner": "A31" },
         { "provider": "copilot", "sdk": "provider/sdk/copilot/", "auth": "GitHub Copilot token", "owner": "A31" }
       ]
     },

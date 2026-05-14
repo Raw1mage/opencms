@@ -4,7 +4,7 @@
   "version": "1.0",
   "context": {
     "viewpoint": "provider maintenance",
-    "purpose": "Mirror codex submodule range 5cc5f12ef..f7e8ff8e5 in packages/opencode-codex-provider/"
+    "purpose": "Mirror codex submodule range 5cc5f12ef..f7e8ff8e5 in packages/provider-codex/"
   },
   "activities": [
     {

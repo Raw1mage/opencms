@@ -77,7 +77,7 @@ So: **upstream alignment / hygiene**, **not** a cache-4608 hotfix.
 
 ## Impact
 
-- Affected code: `packages/opencode/src/plugin/codex-auth.ts`, new resolver module, `packages/opencode-codex-provider/src/headers.ts` (verification only).
+- Affected code: `packages/opencode/src/plugin/codex-auth.ts`, new resolver module, `packages/provider-codex/src/headers.ts` (verification only).
 - Affected runtime: every codex turn outgoing body grows by ~50 bytes; backend prompt-cache routing should start hitting prior prefixes.
 - Affected operators: a new file appears at `~/.config/opencode/codex-installation-id`; safe to delete (regenerates), safe to copy across machines if intentional.
 - Affected specs: `provider_codex-prompt-realign/` should be notified (link in design.md) — this plan supplies the missing dimension that bundle/prompt_cache_key alignment alone couldn't fix.

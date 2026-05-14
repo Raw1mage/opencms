@@ -13,7 +13,7 @@ This spec's observability surface has one load-bearing channel (JSONL log file) 
 | Channel | `codex.emptyTurn` (in-process Bus) |
 | Payload | Identical to JSONL log entry; conforms to [data-schema.json](data-schema.json) |
 | Frequency | One per empty-turn classification (which is a strict subset of total assistant turns) |
-| Producer | [empty-turn-log.ts](../../packages/opencode-codex-provider/src/empty-turn-log.ts) |
+| Producer | [empty-turn-log.ts](../../packages/provider-codex/src/empty-turn-log.ts) |
 | Subscribers (current) | None mandated by this spec |
 | Subscribers (future) | Admin panel real-time view; telemetry shipper to external observability stack |
 | Failure mode | Silent on publish failure (see CET-002 in errors.md); JSONL append is independent and remains the load-bearing path |
@@ -26,7 +26,7 @@ This spec's observability surface has one load-bearing channel (JSONL log file) 
 |---|---|
 | Path | `${XDG_STATE_HOME:-$HOME/.local/state}/opencode/codex/empty-turns.jsonl` |
 | Format | JSON Lines (one entry per line; conforms to [data-schema.json](data-schema.json)) |
-| Producer | [empty-turn-log.ts](../../packages/opencode-codex-provider/src/empty-turn-log.ts) `appendEmptyTurnLog()` |
+| Producer | [empty-turn-log.ts](../../packages/provider-codex/src/empty-turn-log.ts) `appendEmptyTurnLog()` |
 | Append mode | `O_APPEND`; safe across multiple processes within the same XDG state root |
 | Rotation | External (logrotate or operator-managed) per DD-3; suggested config: weekly rotate + 90-day retention; documented in operator runbook by Phase 4 task 4.2 |
 | Failure mode | `console.error` breadcrumb (CET-001 in errors.md); recovery proceeds; the empty-turn entry that triggered the failure is lost from JSONL but bus subscribers (if any) still received it |

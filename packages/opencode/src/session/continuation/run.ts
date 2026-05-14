@@ -105,7 +105,7 @@ export namespace Continuation {
     let chainInvalidated = false
     if (decision.breaksChain) {
       try {
-        const { invalidateContinuationFamily } = await import("@opencode-ai/codex-provider/continuation")
+        const { invalidateContinuationFamily } = await import("@opencode-ai/provider-codex/continuation")
         invalidateContinuationFamily(event.sessionID)
         chainInvalidated = true
         log.info("chain family invalidated", { sessionID: event.sessionID, kind: event.kind })

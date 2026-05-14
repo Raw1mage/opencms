@@ -2,7 +2,7 @@
 
 ## Purpose
 
-讓 opencode-codex-provider 對 `https://chatgpt.com/backend-api/codex/responses`（HTTP SSE + WebSocket）送出的請求 fingerprint 對齊 upstream `refs/codex@rust-v0.125.0-alpha.1`，使 OpenAI 第一方分類器把本 plugin 視為 first-party，將後台觀察到的第三方判定比例從 ~7% 壓至接近 0%，同時不回歸既有成功路徑。
+讓 provider-codex 對 `https://chatgpt.com/backend-api/codex/responses`（HTTP SSE + WebSocket）送出的請求 fingerprint 對齊 upstream `refs/codex@rust-v0.125.0-alpha.1`，使 OpenAI 第一方分類器把本 plugin 視為 first-party，將後台觀察到的第三方判定比例從 ~7% 壓至接近 0%，同時不回歸既有成功路徑。
 
 ## Definitions
 
@@ -46,7 +46,7 @@ WS 與 HTTP 兩條路徑送出的 `ChatGPT-Account-Id` header 名稱必須與 up
 - **GIVEN** Phase 3 執行完畢
 - **WHEN** 檢查 `refs/codex` submodule 的 commit
 - **THEN** `git -C refs/codex describe --tags --exact-match HEAD` 回傳 `rust-v0.125.0-alpha.1`
-- **AND** `packages/opencode-codex-provider/src/protocol.ts` 的 `CODEX_CLI_VERSION` 常數更新為 `rust-v0.125.0-alpha.1` 對應的語意版本（若 upstream `workspace.package.version` 為 `0.0.0`，採用 `0.125.0-alpha.1` 或 `0.125.0` 作為字面值）
+- **AND** `packages/provider-codex/src/protocol.ts` 的 `CODEX_CLI_VERSION` 常數更新為 `rust-v0.125.0-alpha.1` 對應的語意版本（若 upstream `workspace.package.version` 為 `0.0.0`，採用 `0.125.0-alpha.1` 或 `0.125.0` 作為字面值）
 - **AND** 若同步後 upstream 新增任何必要（非 conditional）header / body 欄位，記入本 spec 的 follow-up 或觸發新的 Requirement
 
 ### Requirement: WS 與 HTTP 共用單一 header builder 入口
@@ -94,7 +94,7 @@ HTTP transport 需顯式送出 upstream 有、但本 plugin 原本缺的兩個 h
 
 2. **Build-level**
    - `bun run build` 成功；無 TypeScript 型別錯誤。
-   - `bun test packages/opencode-codex-provider` 全綠。
+   - `bun test packages/provider-codex` 全綠。
 
 3. **Integration-level（beta worktree）**
    - 在 beta worktree 啟動 daemon，以 codex OAuth 帳號發起一組典型對話（含 tool use、長 context）。

@@ -394,8 +394,8 @@ export namespace ProviderTransform {
     ) {
       // Disable caching for subscription sessions and native providers — caching is handled by the provider itself.
       const isSubscription = options?.subscription || model.providerId.includes("subscription")
-      const isNativeProvider = model.api.npm === "@opencode-ai/claude-provider"
-        || model.api.npm === "@opencode-ai/codex-provider"
+      const isNativeProvider = model.api.npm === "@opencode-ai/provider-claude"
+        || model.api.npm === "@opencode-ai/provider-codex"
       if (!isSubscription && !isNativeProvider) {
         msgs = applyCaching(msgs, model.providerId)
       }
@@ -528,16 +528,23 @@ export namespace ProviderTransform {
             thinking: { thinking_budget: 4000 },
           }
         }
-        return Object.fromEntries(
-          WIDELY_SUPPORTED_EFFORTS.map((effort) => [
-            effort,
-            {
-              reasoningEffort: effort,
-              reasoningSummary: "auto",
-              include: ["reasoning.encrypted_content"],
-            },
-          ]),
-        )
+        {
+          const copilotEfforts = [...WIDELY_SUPPORTED_EFFORTS]
+          // "codex-max" tier and gpt-5.2 family support xhigh reasoning effort
+          if (id.includes("-max") || /gpt-5\.2/.test(id)) {
+            copilotEfforts.push("xhigh")
+          }
+          return Object.fromEntries(
+            copilotEfforts.map((effort) => [
+              effort,
+              {
+                reasoningEffort: effort,
+                reasoningSummary: "auto",
+                include: ["reasoning.encrypted_content"],
+              },
+            ]),
+          )
+        }
 
       case "@ai-sdk/cerebras":
       // https://v5.ai-sdk.dev/providers/ai-sdk-providers/cerebras
@@ -750,12 +757,12 @@ export namespace ProviderTransform {
         // https://v5.ai-sdk.dev/providers/ai-sdk-providers/perplexity
         return {}
 
-      case "@opencode-ai/codex-provider":
+      case "@opencode-ai/provider-codex":
         // Codex ReasoningEffort schema (refs/codex/codex-rs/protocol/src/protocol.rs):
         //   "low" | "medium" | "high" | "xhigh"
         // gpt-5.5 / gpt-5.4 / gpt-5.x-codex all advertise these four levels in
         // refs/codex/codex-rs/models-manager/models.json. Provider sends them via
-        // body.reasoning.effort (see packages/opencode-codex-provider/src/provider.ts:93).
+        // body.reasoning.effort (see packages/provider-codex/src/provider.ts:93).
         return Object.fromEntries(
           [...WIDELY_SUPPORTED_EFFORTS, "xhigh"].map((effort) => [effort, { reasoningEffort: effort }]),
         )
