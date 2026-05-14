@@ -104,7 +104,7 @@ Next after reply:
 
 ### 開發任務預設工作流（Mandatory Trigger）
 
-- 只要使用者提出**非瑣碎開發需求**（例如 implement / build / fix / refactor / debug / write tests / continue plan / make it autonomous），Main Agent **必須**先透過 `plan-builder` skill（已由上方 Mandatory Skills 自動 preload）走完 spec lifecycle 的 `proposed → designed → planned`，再進入 `implementing`。
+- 只要使用者提出**非瑣碎開發需求**（例如 implement / build / fix / refactor / debug / write tests / continue plan / make it autonomous），Main Agent **必須**先透過 `plan-builder` skill（已由上方 Mandatory Skills 自動 preload）走完草稿期 lifecycle，再進入 `implementing`。狀態定義與 mode 規範由 plan-builder SKILL.md 唯一擁有，本檔不複述。
 - 進入 EXECUTION 前必須建立最小可執行骨架：
   - `goal`
   - structured todos（優先使用 `todowrite` + `action` metadata）
@@ -260,15 +260,14 @@ Next after reply:
    - 複雜 debug / 開發任務應優先讀取相關框架文件，而不是每次從原始碼重新建模整個系統。
    - 若框架文件不足，應在本次任務中補齊，而不是接受知識缺口常態化。
 
-8. **Plan / Spec Lifecycle Contract（規劃、實作、升格的強制規則）**
-   - **Active plan workspace 一律在 `/plans/`**：plan-builder 進行中的 dated plan roots 必須建立於 `/plans/<YYYYMMDD>_<slug>/`；AGENTS 不得再把 dated roots 的進行中計畫導向 `/specs/`。
-   - **`specs/architecture.md` 仍是架構單一真相來源**：長期架構、模組邊界、資料流、狀態機、runtime flows 仍以 `specs/architecture.md` 為準，不因 active plans 移到 `/plans/` 而改變。
-   - **Formalized specs 採 semantic per-feature roots**：只有已正式沉澱、需長期維護的功能規格才放入 `/specs/<feature>/`；`/specs/` 不承接進行中的 dated execution roots。
-   - **Tasks Checklist 即時同步**：當 coding agent 依據 `/plans/<YYYYMMDD>_<slug>/` 下的計畫文件實作時，每完成一個 task item，立即更新對應 `tasks.md` 的 checkbox（`[ ]` → `[x]`）。若 task 不適用或需拆分，標記 `[~] <reason>`。禁止所有工作完成後才一次性勾選。
-   - **Session Event Log**：每個 session 結束前（或 commit 前），建立/更新**當前 repo 的** `docs/events/event_<YYYYMMDD>_<topic>.md`，至少包含 Scope（引用 tasks.md item 編號）、Key Decisions、Issues Found、Verification、Remaining。
-   - 上述 Session Event Log 仍屬 mandatory artifact；但在 silent execution 下，不要求 agent 額外用對話文字宣告自己正在做這一步。
-   - **Commit Gate**：commit 前必須確認 (1) `/plans/.../tasks.md` checkbox 已同步 (2) event log 已建立/更新 (3) 架構變更已同步 `specs/architecture.md`。禁止在 tasks.md 和 event log 未更新的情況下 commit code changes。
-   - **Promotion is manual only**：`/plans/<YYYYMMDD>_<slug>/` → `/specs/<feature>/` 的升格只允許在 execution 完成、必要 commit 完成、必要 merge 完成之後，且僅能於使用者明確要求時手動執行；不得自動搬移、不得預設升格、不得使用模糊或 silent fallback wording 暗示稍後會自動落入 `/specs/`。
+8. **Plan / Spec Zone Contract（草稿區與 KB 區的物理隔離）**
+   - **草稿區 `/plans/`**：plan-builder 進行中的 package 一律建立於 `/plans/<category>_<topic>/`，**扁平命名、底線分隔，不帶日期前綴**。range 涵蓋 `proposed → designed → planned → implementing → verified` 全部草稿期狀態。
+   - **KB 區 `/specs/`**：已 graduate 的 spec 落於 `/specs/<category>/<topic>/`，semantic 子目錄結構，是 wiki / KB / Quartz 的可見來源。一旦進入 `/specs/`，後續 `amend` / `revise` / `extend` / `refactor` / `archive` 全部留在原地，**不回退到 `/plans/`**。
+   - **`specs/architecture.md` 是架構單一真相來源**：長期架構、模組邊界、資料流、狀態機、runtime flows 以此為準。
+   - **Tasks Checklist 即時同步**：每完成一個 task item，立即更新對應 `tasks.md` 的 checkbox（`[ ]` → `[x]`）。若 task 不適用或需拆分，標記 `[~] <reason>`。禁止所有工作完成後才一次性勾選。
+   - **Session Event Log**：每個 session 結束前（或 commit 前），建立/更新**當前 repo 的** `docs/events/event_<YYYYMMDD>_<topic>.md`，至少包含 Scope（引用 tasks.md item 編號）、Key Decisions、Issues Found、Verification、Remaining。silent execution 下不需用對話文字宣告。
+   - **Commit Gate**：commit 前必須確認 (1) tasks.md checkbox 已同步 (2) event log 已建立/更新 (3) 架構變更已同步 `specs/architecture.md`。
+   - **Graduation Gate（`plan_graduate`）**：`verified → living` 升格、實體從 `/plans/<category>_<topic>/` 搬移至 `/specs/<category>/<topic>/`，**只允許使用者明確指示時觸發**；AI 偵測 `verified` 狀態僅可向使用者**提示** ready，不得自行呼叫 `plan_graduate`、不得使用模糊或 silent fallback wording 暗示稍後會自動升格。
    - **Beta/Test Branch Cleanup Rule**：`beta/*` 與 `test/*` 分支屬一次性執行面。測試完成且 merge/fetch-back 回主線後，必須立即刪除對應 branch 與 disposable worktree；未刪除不得宣告 workflow 完成。禁止長期保留已完成任務的 beta/test 分支，避免後續被誤當 authoritative mainline 而造成 branch pointer drift。
 
 9. **Web Runtime 單一啟動入口（Fail-Fast）**

@@ -53,6 +53,12 @@
 - **需要改 code 後讓它生效？** 呼叫 `restart_self`；webctl.sh 會 smart-detect dirty 層（daemon / frontend / gateway）並只 rebuild 變動部分。`targets: ["gateway"]` 會附 `--force-gateway` 讓 systemd respawn gateway 本體（期間所有使用者斷線 3-5s）。
 - **rebuild 失敗怎麼辦？** `restart_self` 回 5xx 並帶 `errorLogPath`；系統維持舊版本可用。AI 讀 log、修正、再呼叫。絕不嘗試繞過。
 
+### 系統自癒（opencms-specific）
+
+- 遇到 gateway / daemon / MCP app 故障，優先查閱 **[`docs/troubleshooting.md`](docs/troubleshooting.md)**（診斷路徑、根因、修復步驟、自癒腳本用法集中於此）。
+- 自癒腳本：`scripts/gateway-self-heal.sh`（gateway + daemon）、`scripts/docxmcp-self-heal.sh`（docxmcp MCP app）。
+- 所有自癒腳本**不得**被視為 daemon/gateway lifecycle 入口。需要讓程式碼變更生效仍必須走 `system-manager:restart_self`。
+
 ---
 
 ## 專案背景
