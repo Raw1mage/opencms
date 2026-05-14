@@ -3,7 +3,6 @@ import { useSDK } from "@/context/sdk"
 import { usePrompt, type ContentPart } from "@/context/prompt"
 import { usePrompts } from "@/context/prompts"
 import { encodeFilePath } from "@/context/file/path"
-import { Checkbox } from "@opencode-ai/ui/checkbox"
 import { Collapsible } from "@opencode-ai/ui/collapsible"
 import { ContextMenu } from "@opencode-ai/ui/context-menu"
 import { FileIcon } from "@opencode-ai/ui/file-icon"
@@ -31,9 +30,7 @@ import {
 import { Dynamic } from "solid-js/web"
 import type { FileNode } from "@opencode-ai/sdk/v2"
 import {
-  applyCheckboxToggle,
   applyRowClick,
-  applySelectAllToggle,
   emptySelection,
   type SelectionState,
 } from "./file-tree-selection"
@@ -359,7 +356,6 @@ const FileTreeNode = (
       kinds?: ReadonlyMap<string, Kind>
       marks?: Set<string>
       as?: "div" | "button"
-      leading?: JSX.Element
       trailing?: JSX.Element
     },
 ) => {
@@ -374,7 +370,6 @@ const FileTreeNode = (
     "kinds",
     "marks",
     "as",
-    "leading",
     "trailing",
     "children",
     "class",
@@ -415,7 +410,6 @@ const FileTreeNode = (
       }}
       {...rest}
     >
-      {local.leading}
       {local.children}
       <span
         classList={{
@@ -1423,45 +1417,6 @@ export default function FileTree(props: {
     )
   }
 
-  const handleCheckboxToggle = (node: FileNode) => {
-    remember(node)
-    setSelection((prev) => applyCheckboxToggle(prev, node.path))
-  }
-
-  const handleHeaderToggle = () => {
-    for (const node of nodes()) remember(node)
-    setSelection((prev) => applySelectAllToggle(prev, siblingPaths()))
-  }
-
-  const headerAllSelected = createMemo(() => {
-    const sibs = siblingPaths()
-    if (sibs.length === 0) return false
-    const sel = selection().selected
-    return sibs.every((p) => sel.has(p))
-  })
-
-  const headerIndeterminate = createMemo(() => {
-    const sibs = siblingPaths()
-    if (sibs.length === 0) return false
-    const sel = selection().selected
-    const some = sibs.some((p) => sel.has(p))
-    return some && !headerAllSelected()
-  })
-
-  const stopPropagation = (e: MouseEvent) => e.stopPropagation()
-
-  const renderLeading = (node: FileNode) => (
-    <span class="shrink-0 size-4 flex items-center justify-center" onClick={stopPropagation} onDblClick={stopPropagation}>
-      <Checkbox
-        checked={isSelected(node.path)}
-        onChange={() => handleCheckboxToggle(node)}
-        aria-label={`Select ${node.name}`}
-        hideLabel
-      >
-        {node.name}
-      </Checkbox>
-    </span>
-  )
 
   const renderTrailing = (node: FileNode) => (
     <span class="contents text-text-weak text-12-regular">
@@ -1559,17 +1514,6 @@ export default function FileTree(props: {
 
   const renderHeader = () => (
     <div class="w-full h-6 flex items-center gap-x-1.5 px-1.5 text-text-weak text-12-medium border-b border-border-weak-base">
-      <span class="shrink-0 size-4 flex items-center justify-center">
-        <Checkbox
-          checked={headerAllSelected()}
-          indeterminate={headerIndeterminate()}
-          onChange={handleHeaderToggle}
-          aria-label="Select all visible"
-          hideLabel
-        >
-          select all
-        </Checkbox>
-      </span>
       <span class="w-4 shrink-0" />
       <span class="size-4 shrink-0" />
       <span class="flex-1 min-w-0">Name</span>
@@ -1719,7 +1663,7 @@ export default function FileTree(props: {
                   draggable={draggable()}
                   kinds={kinds()}
                   marks={marks()}
-                  leading={renderLeading(node)}
+
                   trailing={renderTrailing(node)}
                   onClick={(event: MouseEvent) => handleRowClick(node, event)}
                   onDblClick={() => navigateInto(node.path)}
@@ -1751,7 +1695,7 @@ export default function FileTree(props: {
                   draggable={draggable()}
                   kinds={kinds()}
                   marks={marks()}
-                  leading={renderLeading(node)}
+
                   trailing={renderTrailing(node)}
                   onClick={(event: MouseEvent) => handleRowClick(node, event)}
                   onDblClick={() => props.onFileClick?.(node)}

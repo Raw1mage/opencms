@@ -1916,6 +1916,10 @@ static int ensure_daemon_running(DaemonInfo *d) {
             if (allow_browse) setenv("OPENCODE_ALLOW_GLOBAL_FS_BROWSE", allow_browse, 1);
             const char *no_open = getenv("OPENCODE_WEB_NO_OPEN");
             if (no_open) setenv("OPENCODE_WEB_NO_OPEN", no_open, 1);
+            const char *debug_log = getenv("OPENCODE_DEBUG_LOG");
+            if (debug_log) setenv("OPENCODE_DEBUG_LOG", debug_log, 1);
+            const char *log_level = getenv("OPENCODE_LOG_LEVEL");
+            if (log_level) setenv("OPENCODE_LOG_LEVEL", log_level, 1);
 
             /* DD-9: dev mode (bun + source) needs project root as cwd
              * so bun can resolve node_modules/package.json/workspace.
