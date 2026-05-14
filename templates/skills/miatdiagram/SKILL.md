@@ -7,22 +7,34 @@ description: Convert requirements or existing repositories into drawmiat-ready I
 
 中文常稱：**miat方法論 / 方法論**；口語：**miat skill**。
 
-## 1. Overview
+## 1. Overview & first principles
 
-Convert plain-language requirements **or reverse-engineer an existing repository** into drawmiat-ready JSON descriptors.
-Apply the **MIAT (Machine Intelligence and Automation Technology) methodology** which separates system design into static spatial structure and dynamic temporal behavior:
+Produce **spec-grade decomposition documents** for a target subsystem — forward (from requirements) or reverse (from existing code) — using the **MIAT (Machine Intelligence and Automation Technology) methodology**.
 
-- **IDEF0 (Functional Architecture)**: defines module hierarchy, functional decomposition, and ICOM (Input, Control, Output, Mechanism) interfaces.
-- **GRAFCET (Discrete Event Behavior Model)**: defines dynamic control flow, state transitions, and parallel logic on the time axis.
+**Critical role positioning (2026-05-11 reframe)**:
 
-The two models must maintain strict **traceability**: GRAFCET module and state-machine scopes must directly inherit from the IDEF0 module hierarchy.
+- **IDEF0 is NOT global system architecture.** Each IDEF0 model describes the **workflow of one deliverable functional purpose** — Inputs / Controls / Outputs / Mechanisms for one A0 root activity and its recursive children. A repository that delivers N functional purposes needs N IDEF0 models (or a clearly partitioned namespace within one model). Do **not** flatten a multi-purpose system into a single IDEF0 root just because it's one repo.
+- **System-level architecture is a separate first-class artifact.** It is rendered as a **module block diagram** (peer modules with arrows) or **stack diagram** (layered dependencies) — mermaid preferred, ASCII acceptable. This diagram answers "what are the parts and how do they layer", which is a different question from "what is the workflow of this one functional purpose".
+- **GRAFCET (IEC 60848)** describes the runtime evolution of the workflow that IDEF0 decomposes. Steps reference IDEF0 activity ids; transitions describe events / conditions causing the workflow to advance.
+- **Protocol datasheets** specify wire-level packet / message field shapes when the subsystem touches a handshake, protocol, or persisted file format. Datasheets are required for any wire-touching purpose.
 
-Generated JSON follows drawmiat canonical template structures with compatibility-first field naming.
+The four artifacts (architecture, IDEF0, GRAFCET, protocol datasheet) are **load-bearing as a set**. Dropping one to "save time" loses the specific question that artifact answers:
 
-This skill now supports **two entry modes**:
+| Artifact | Question it answers |
+|---|---|
+| Module architecture (block/stack) | What are the parts and how do they layer? |
+| IDEF0 (per functional purpose) | What's the workflow that delivers this purpose? Inputs/Controls/Outputs/Mechanisms per step? |
+| GRAFCET (per IDEF0 model) | How does the workflow evolve at runtime — sequence, branches, parallel, sync? |
+| Protocol datasheet (per handshake) | What does each wire-level message look like field-by-field? |
 
-1. **Forward Design Mode** — start from requirements / ideas / desired workflows.
-2. **Repo Reverse Engineering Mode** — start from a local repo or GitHub repo, extract architecture evidence, then normalize it into IDEF0 + GRAFCET artifacts.
+Generated JSON for IDEF0 + GRAFCET follows drawmiat canonical template structures.
+
+This skill supports **two entry modes as peers** (not one as the default and the other as a variant):
+
+1. **Forward Design Mode** — start from requirements / ideas / desired workflows; produce all four artifact types for the proposed system.
+2. **Reverse Engineering Mode** — start from a local repo or GitHub repo, extract evidence first, then produce the same four artifact types describing the existing system.
+
+The **deliverable artifact set is identical** in both modes; only the input direction differs. Both modes must respect the IDEF0 role positioning above — i.e., a reverse-engineered codebase still needs a separate module architecture diagram on top of its IDEF0 models.
 
 This package is **portable and self-contained**: required references, templates, schemas, and checklists are bundled under `references/`.
 
@@ -31,7 +43,9 @@ This package is **portable and self-contained**: required references, templates,
 - User asks for requirement decomposition, process diagrams, state-machine diagrams, or MVP-first module planning.
 - User asks to reverse engineer an existing repo, infer architecture from source code, or convert a GitHub codebase into architecture diagrams.
 - User asks for repo/module decomposition, subsystem boundaries, runtime flow extraction, or state/control-flow extraction from an existing implementation.
-- Output needs to be directly renderable by drawmiat.
+- User asks for a **protocol / handshake datasheet** — packet field tables, message-format specs, on-disk file format breakdown.
+- User asks for a **system architecture overview** that should be paired with workflow decomposition (block + IDEF0 together).
+- Output needs to be directly renderable by drawmiat (for IDEF0 / GRAFCET portions).
 
 ## 3. Working style
 
@@ -43,8 +57,92 @@ This package is **portable and self-contained**: required references, templates,
 - If drawmiat implementation status conflicts with ideal spec, choose practical interoperability and document trade-offs in `validation_notes`.
 - In reverse-engineering tasks, use **evidence-first decomposition**: docs -> structure -> boundaries -> flows -> state logic -> normalization.
 - Never invent hidden modules or fallback flows; if evidence is insufficient, record uncertainty in `assumptions` / `validation_notes` and ask for clarification.
+- **Do not conflate IDEF0 with system architecture.** When the target spans multiple deliverable functional purposes (e.g. "the whole codex-cli repo"), produce one module-architecture diagram covering the parts AND one IDEF0 model per functional purpose. A single A0 that tries to swallow everything is a smell — break it up.
+- **Datasheet-grade rigor for wire surfaces.** Any handshake, protocol message, on-disk file format, or external-system contract earns a protocol datasheet with field-level columns. Hand-waving with prose where a table is expected is a delivery defect.
 
-## 4. Repo Reverse Engineering Mode
+## 4. Deliverable artifact set (mandatory)
+
+Every miat task — forward or reverse — produces this canonical artifact bundle for each in-scope subsystem / functional purpose. Missing artifacts are delivery defects.
+
+### 4.1 Module architecture diagram (per subsystem)
+
+- **Format**: mermaid block diagram or stack diagram (preferred — auto-renders in wiki / markdown viewers) OR ASCII block/stack art when mermaid is impractical. C4-style multi-zoom diagrams are NOT recommended as a default — they overlap heavily with the block+stack views below and add stakeholder-communication overhead that pure documentation / AI-reproduction workflows do not benefit from. Use C4 only when an explicit multi-stakeholder audience demands its vocabulary.
+- **Content**: every box labelled with its actual path or module identifier (e.g. `codex-rs/core/src/client.rs::ModelClientSession` for code, `packages/opencode/src/session/llm.ts` for OpenCode, or business-domain module name for forward design).
+- **Two complementary views recommended** when the subsystem has layering:
+  - **Block view**: peers + arrows showing dependency / data direction.
+  - **Stack view**: vertical layers showing what calls into what.
+- **NOT the same as IDEF0.** This diagram answers "what are the parts and how do they relate"; IDEF0 answers "what is the workflow inside one part / functional purpose".
+- **Why C4 is deprecated in this set**: the block diagram already covers C4's Component layer, the stack diagram already covers C4's Container layer, and the Module-architecture path labels (e.g. `crate/src/file.rs::Symbol`) already cover C4's Code layer. C4's only unique contribution is its Context-layer (external actors), which can ride as a single external-actor block on the same diagram. Keeping a separate c4.json artifact per chapter is redundant for AI-reproduction and reverse-engineering tasks; reserve C4 for cases where multiple stakeholder roles need a shared zoom-by-zoom vocabulary.
+
+### 4.2 IDEF0 model (per deliverable functional purpose)
+
+- One IDEF0 model per functional purpose. A repo / system that delivers multiple purposes produces multiple IDEF0 models, each with its own A0.
+- Recursive decomposition rules (§6 below) unchanged.
+- ICOM per activity unchanged.
+- **Reminder**: an IDEF0 A0 root must name **one functional purpose**, not "the whole system". If you find yourself unable to write a single-clause active-verb title for A0, that's a sign you need to partition.
+
+### 4.3 GRAFCET (per IDEF0 model)
+
+- Pairs one-to-one with an IDEF0 model. Steps reference IDEF0 activity ids (`ModuleRef`).
+- Rules from §7 below unchanged.
+- An IDEF0 model without a GRAFCET is incomplete (you've described the structure but not the runtime evolution).
+
+### 4.4 Protocol datasheet (when wire / handshake / file format is involved)
+
+For every distinct message / packet / handshake / persisted file format the subsystem touches:
+
+```
+### <Message Name> (<direction>)
+
+**Transport**: <HTTP METHOD path | WS frame opcode | SSE event name | on-disk file path | RPC method>
+**Triggered by**: <event / call site / user action>
+**Source**: <file:line where the writer/sender is implemented>
+
+| Field | Type / Encoding | Required | Source (file:line) | Stability | Notes |
+|---|---|---|---|---|---|
+| `field_a` | UUID v4 string | required | `core/src/installation_id.rs:50` | stable-per-install | mirrors $CODEX_HOME/installation_id |
+
+**Example payload** (sanitized — no real tokens / PII):
+```json
+{ "field_a": "00000000-0000-4000-8000-000000000000" }
+```
+```
+
+Field columns explained:
+- **Field**: exact name on the wire / in the file.
+- **Type / Encoding**: e.g. "UUID v4 string", "uint64 LE", "JSON object", "newline-delimited UTF-8".
+- **Required**: required vs optional. If conditional, name the condition.
+- **Source (file:line)**: where the field is set or parsed in the codebase (reverse mode) or specified (forward mode).
+- **Stability**: `stable-per-install` | `stable-per-session` | `stable-per-turn` | `per-turn` | `daily-flip` | `varies` — describes the cache / replay impact of the field's value changing.
+- **Notes**: anything else worth flagging (anti-abuse signal, cache-key dimension, upstream-aligned vs OpenCode-only, etc.).
+
+**Datasheets are mandatory** for subsystems that emit / consume wire bytes, handshakes, RPCs, or persisted file formats. Subsystems that don't touch any of those may replace the section with one line: `Protocol datasheet: N/A — this subsystem produces no wire-level messages; see <other-section> for downstream emission`.
+
+### 4.5 Traceability matrix (mandatory for reverse mode, recommended for forward)
+
+A table mapping every IDEF0 activity + GRAFCET step + datasheet field to the evidence that supports it. In reverse mode, evidence is `file:line` in the target repo. In forward mode, evidence is the requirement / decision id that introduced the artifact.
+
+### 4.6 Open questions
+
+Numbered list of claims that could not be verified (reverse mode) or specified (forward mode). Better to surface a gap than fabricate a citation or a spec line.
+
+### 4.7 Cross-diagram traceability (load-bearing)
+
+The four artifact types are **not independent** — they describe one system from different angles and MUST keep mutual references intact. Without these links, an architecture diagram drifts from its workflows, datasheets float without origin context, and the audit pass cannot prove the spec is internally consistent.
+
+Required cross-links:
+
+- **Module architecture → IDEF0 models**: every architecture box that delivers a functional purpose names the IDEF0 model (A0 id) that decomposes its workflow. Boxes that are pure infrastructure (a database, a 3rd-party service) need no IDEF0 link but must be reachable from at least one IDEF0 Mechanism cell.
+- **IDEF0 Mechanisms → Module architecture**: every Mechanism cell in any A_N.M activity names the architecture box (or external mechanism) that performs the work. Mechanisms with no matching architecture box are a delivery defect — either the architecture is incomplete or the IDEF0 invented a phantom worker.
+- **IDEF0 → GRAFCET**: every GRAFCET Step's `ModuleRef` references an existing A_N.M id in the paired IDEF0. (Already mandated in §8 IDEF0-GRAFCET Traceability — repeated here for completeness.)
+- **GRAFCET → IDEF0**: the inverse is recommended but not enforced — an IDEF0 activity without any GRAFCET coverage is a hint that runtime semantics are missing, but legitimate for purely-structural activities.
+- **Protocol datasheet → IDEF0 activity**: every datasheet's `Triggered by` field names the IDEF0 activity that emits or consumes the message. The datasheet's `Source (file:line)` field is the second leg of the link, pointing into Mechanism code.
+- **Protocol datasheet → Module architecture**: implicit via the IDEF0 link, but the datasheet's transport (HTTP path / WS frame / file path) should be discoverable in the architecture box's I/O surface.
+- **Across chapters (when batched like codex/cli-reversed-spec)**: forward references only to *audited* chapters; backward references freely. A chapter MUST NOT cite a not-yet-audited chapter's claim as load-bearing evidence.
+
+The audit pass walks the cross-links explicitly: pick a random sample of IDEF0 Mechanism cells and verify each names a real architecture box; pick a random datasheet and verify it's reachable from an IDEF0 activity which is reachable from an architecture box.
+
+## 5. Repo Reverse Engineering Mode
 
 Use this mode when the user wants to derive diagrams from an existing codebase rather than from greenfield requirements.
 
@@ -117,7 +215,7 @@ In addition to normal outputs, include:
 4. `traceability_matrix`
 5. `confidence_notes`
 
-## 5. IDEF0 Normative Profile
+## 6. IDEF0 Normative Profile
 
 IDEF0 structurally describes system functions and data flow.
 
@@ -162,7 +260,7 @@ IDEF0 decomposition is **recursive and unlimited in depth**. Any activity can be
 - Control and Mechanism arrows are recommended but not mandatory.
 - Parent-child boundary arrows must map consistently during decomposition.
 
-## 6. GRAFCET Normative Profile
+## 7. GRAFCET Normative Profile
 
 GRAFCET (IEC 60848) describes discrete-event behavior with emphasis on parallel processing and synchronization.
 
@@ -202,7 +300,7 @@ Steps (states) and Transitions must alternate strictly. No Step-to-Step or Trans
 - Each independent graph must have at least 1 initial step (unless explicitly modularized).
 - All branch conditions must be explicitly defined.
 
-## 7. IDEF0-GRAFCET Traceability
+## 8. IDEF0-GRAFCET Traceability
 
 - **Mapping**: Every GRAFCET module MUST correspond to one IDEF0 module (e.g. A1, A11).
 - **Key field**: Every GRAFCET Step object MUST include `ModuleRef` referencing its IDEF0 module ID.
@@ -210,7 +308,7 @@ Steps (states) and Transitions must alternate strictly. No Step-to-Step or Trans
 - **Parent chain**: If GRAFCET module `A11` exists, its parent chain (`A1` → `A11`) must exist in the IDEF0 hierarchy.
 - **Evidence chain**: In reverse-engineering mode, every top-level IDEF0 activity and every GRAFCET module SHOULD be explainable from repo evidence (file, component, route, event, lifecycle, or runtime contract).
 
-## 8. Output files & JSON format
+## 9. Output files & JSON format
 
 Write normalized files to user-selected directory (default `<repo>/docs/`).
 Minimum decomposition baseline: must output at least `a0`, `a1`, `a2`.
@@ -259,37 +357,44 @@ Root is an array of Step objects:
 
 `ModuleRef` MUST point to an existing activity ID in the IDEF0 hierarchy.
 
-## 9. Release gate checklist
+## 10. Release gate checklist
 
 Before delivering final JSON, the internal normalization pipeline must pass:
 
-1. JSON format valid; all required fields present (including `analysis_summary`, `idef0_descriptor`, `grafcet_descriptor`, `decision_trace`).
-2. IDEF0-GRAFCET traceability complete: no orphan GRAFCET modules, all `ModuleRef` values valid.
-3. Numbering convention correct: IDEF0 nodes follow `A0`, `A1`.. rules; each parent has at most 9 children.
-4. Minimum decomposition baseline exists (`a0`, `a1`, `a2` artifacts).
-5. Semantically correct: GRAFCET transition conditions explicit, no undefined switch targets.
-6. `decision_trace` and `assumptions` included in output payload.
-7. Reverse-engineering mode must include evidence-backed `source_inventory`, `boundary_map`, and `traceability_matrix`.
+1. **Module architecture diagram present** for each in-scope subsystem (§4.1). Block / stack / C4 form, mermaid preferred.
+2. **One IDEF0 model per deliverable functional purpose** (§4.2). No single-IDEF0-for-whole-multi-purpose-system anti-pattern. A0 title is a single-clause active-verb phrase.
+3. JSON format valid; all required fields present (including `analysis_summary`, `idef0_descriptor`, `grafcet_descriptor`, `decision_trace`).
+4. IDEF0-GRAFCET traceability complete: no orphan GRAFCET modules, all `ModuleRef` values valid.
+5. Numbering convention correct: IDEF0 nodes follow `A0`, `A1`.. rules; each parent has at most 9 children.
+6. Minimum decomposition baseline exists (`a0`, `a1`, `a2` artifacts).
+7. Semantically correct: GRAFCET transition conditions explicit, no undefined switch targets.
+8. **Protocol datasheet present** for every wire / handshake / file-format touched by an in-scope subsystem (§4.4). Datasheet field columns complete (Field / Type / Required / Source / Stability / Notes) and example payload sanitized.
+8a. **Cross-diagram traceability intact** (§4.7): every IDEF0 Mechanism resolves to an architecture box (or named external mechanism); every datasheet's `Triggered by` resolves to an IDEF0 activity; every architecture box that delivers a functional purpose names its IDEF0 A0 id.
+9. `decision_trace`, `assumptions`, and **`open_questions`** included in output payload.
+10. Reverse-engineering mode must include evidence-backed `source_inventory`, `boundary_map`, and `traceability_matrix`; forward-design mode must include traceability from each artifact to the requirement / decision id that introduced it.
 
-## 10. Output payload
+## 11. Output payload
 
 Return:
 
 1. `analysis_summary`
 2. `mvp_priority_order`
-3. `idef0_descriptor`
-4. `grafcet_descriptor`
-5. `assumptions`
-6. `validation_notes`
-7. `written_files`
-8. `decision_trace`
-9. `source_inventory` (required for reverse-engineering mode)
-10. `boundary_map` (required for reverse-engineering mode)
-11. `evidence_trace` (required for reverse-engineering mode)
-12. `traceability_matrix` (required for reverse-engineering mode)
-13. `confidence_notes` (required for reverse-engineering mode)
+3. `module_architecture` — block / stack / C4 diagram(s), mermaid or ascii (§4.1, mandatory)
+4. `idef0_descriptor` — one entry per deliverable functional purpose (§4.2)
+5. `grafcet_descriptor` — paired with each idef0 entry (§4.3)
+6. `protocol_datasheets` — array of datasheet entries (§4.4); empty array allowed for purely-internal subsystems with N/A explanation
+7. `assumptions`
+8. `validation_notes`
+9. `open_questions` — numbered list of gaps not yet closed (§4.6, mandatory if any exist)
+10. `written_files`
+11. `decision_trace`
+12. `source_inventory` (required for reverse-engineering mode)
+13. `boundary_map` (required for reverse-engineering mode)
+14. `evidence_trace` (required for reverse-engineering mode)
+15. `traceability_matrix` (required in reverse-engineering mode; recommended in forward-design mode)
+16. `confidence_notes` (required for reverse-engineering mode)
 
-## 11. drawmiat Rendering Service
+## 12. drawmiat Rendering Service
 
 Generated JSON MUST be rendered into SVG diagrams. The rendering service is provided by **drawmiat**, which exposes both a web UI and an MCP server.
 

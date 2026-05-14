@@ -224,6 +224,24 @@ The cost is one tool call (≤1s). The benefit is the README index stays current
 
 Triggered automatically by every plan-builder write tool when the target path is a legacy `plans/<slug>/`.
 
+### 9.1 Legacy plan → specbase compatibility SOP
+
+Use this SOP when the user asks to整理已完成 legacy plan、把舊 `plans/<slug>/` 放進 specbase、or rebuild the KB from historical plan artifacts.
+
+1. **Preflight, don't guess.** Run `plan_check` / `specbase_plan_check` on the legacy path first. If it reports `.state.json missing`, classify the folder as a legacy plan package, not as a specbase/MCP failure.
+2. **Inventory source evidence.** Read at minimum `tasks.md`, `proposal.md`, `requirements.md`, `implementation-architecture.md` or `design.md`, `data-schema.md`, `validation-plan.md`, and current `specs/architecture.md` when present. Record unresolved task markers (`[ ]`, `[~]`, `[>]`, `[!]`, `[?]`) explicitly; do not silently convert them to complete.
+3. **Choose the compatibility path.**
+   - If the user explicitly wants lifecycle migration and accepts moving files, use the normal migration path (`ensureNewFormat` / `plan-state` / `plan-migrate`) and then `spec_sync` + `wiki_rebuild_index`.
+   - If the user only asks to make completed knowledge searchable, create an index-only wiki entry under `specs/<scope>/<topic>/README.md` or an equivalent repo convention without calling `plan_graduate` and without moving the active legacy plan.
+4. **Fill the required wiki metadata.** The README frontmatter must include at least `id`/slug, `title`, `status`, `scope`, `layer`, `type`, `tags`, `source_plan`, and `updated`. Avoid leaving `scope`, `layer`, or `type` null because wiki filters and dashboards depend on them.
+5. **Preserve gaps as knowledge.** If evidence is partial, add `Remaining` / `Known gaps` instead of overstating completion. Historical `[~]` and `[>]` tasks should be explained as deferred, superseded, delegated, or validated-by-later-architecture with evidence.
+6. **Create graph edges.** Add `related` / backlink references where the wiki schema supports them, or explicit cross-links in the body, so `wiki_validate` does not leave the entry orphaned.
+7. **Scrub safely.** Generalize secrets, credentials, private hosts, raw IPs, emails, cookies, session tokens, and raw sensitive logs. Do not delete the fact that a signal exists; describe it as a sanitized endpoint, identity, or evidence source.
+8. **Rebuild and validate.** Run `wiki_rebuild_index`, then `wiki_get`, `wiki_list`, `wiki_search` or `wiki_query`, and `wiki_validate`. Success means: the slug is visible, search finds it, required metadata columns are populated, and there are no broken links. Orphans are a warning to fix graph edges, not an MCP failure.
+9. **Record the event.** Append an event log with Scope, Key decisions, Validation, and Remaining. Include the `plan_check` result so future agents know whether this was full lifecycle migration or index-only compatibility.
+
+Never report "specbase MCP unavailable" unless an actual MCP call failed. If the MCP call succeeds but `plan_check` rejects the package, the root cause is package compatibility (`.state.json` / artifact contract), not specbase code.
+
 ## 10. SSDLC profile (optional)
 
 Some specs (security-relevant, regulated) need extra evidence:
@@ -255,6 +273,14 @@ Sub-packages (e.g. `compaction/working-cache/`, `harness/autonomous-opt-in/`) ge
 | archived | (no new requirements) |
 
 Failed validation is non-destructive — the call returns errors; you fix the artifacts and retry. plan_check pre-flights without making changes.
+
+### 12.1 c4.json is opt-in (2026-05-13)
+
+`c4.json` is **not required** at any lifecycle state. `plan-validate.ts` keeps a C4 ArtifactCheck purely as a lint pass: if you author a `c4.json`, its structure is validated (`systems / containers / components / relationships` must each be non-empty); if you don't, validation silently skips it. `state-inference.ts` likewise does not treat c4 as a state-advance signal.
+
+Rationale: C4's Component/Container/Code layers overlap with the Module Architecture (block + stack) diagrams produced by the miatdiagram skill §4.1. For most specs — documentation products, reverse-engineering, and even most new-system specs — block/stack diagrams plus IDEF0 + sequence + data-schema cover the architectural communication need. A separate c4 artifact rarely pays for the authoring cost.
+
+Author a `c4.json` only when there is a concrete multi-stakeholder consumer (PM + architect + DBA + devops) who benefits from the C4 abstraction layers specifically. Default is to skip it. See miatdiagram skill §4.1 for the broader deprecation rationale.
 
 ## 13. Drift detection
 

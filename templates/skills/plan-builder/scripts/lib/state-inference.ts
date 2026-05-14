@@ -114,8 +114,9 @@ export function inferState(specPath: string): State {
     return "planned"
   }
 
-  // Rule 4: design / c4 / IDEF0 exist but no tasks → designed
-  if (a.proposal && (a.design || a.c4 || a.idef0 || a.sequence || a.dataSchema || a.spec)) {
+  // Rule 4: design / IDEF0 / sequence / data-schema / spec exist but no tasks → designed
+  // c4 is intentionally excluded (opt-in artifact; see plan-validate.ts C4 comment).
+  if (a.proposal && (a.design || a.idef0 || a.sequence || a.dataSchema || a.spec)) {
     return "designed"
   }
 
