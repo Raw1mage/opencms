@@ -78,8 +78,6 @@ OPENCODE_CFG="${OPENCODE_SERVER_CFG:-/etc/opencode/opencode.cfg}"
 WEB_PORT="${OPENCODE_PORT:-1080}"
 WEB_HOSTNAME="${OPENCODE_HOSTNAME:-0.0.0.0}"
 FRONTEND_PORT="${OPENCODE_FRONTEND_DEV_PORT:-3000}"
-AUTH_MODE="${OPENCODE_AUTH_MODE:-pam}"
-HTPASSWD_PATH="${OPENCODE_SERVER_HTPASSWD:-}"
 OPENCODE_PROFILE="${OPENCODE_PROFILE:-default}"
 DISPLAY_URL="${OPENCODE_PUBLIC_URL:-http://localhost:${WEB_PORT}}"
 FRONTEND_DIST="${FRONTEND_DIST}"
@@ -109,8 +107,6 @@ load_server_cfg() {
     WEB_PORT="${OPENCODE_PORT:-1080}"
     WEB_HOSTNAME="${OPENCODE_HOSTNAME:-0.0.0.0}"
     FRONTEND_PORT="${OPENCODE_FRONTEND_DEV_PORT:-3000}"
-    AUTH_MODE="${OPENCODE_AUTH_MODE:-pam}"
-    HTPASSWD_PATH="${OPENCODE_SERVER_HTPASSWD:-}"
     DISPLAY_URL="${OPENCODE_PUBLIC_URL:-http://localhost:${WEB_PORT}}"
 
     if [ -z "${OPENCODE_FRONTEND_PATH:-}" ]; then
@@ -341,38 +337,7 @@ ensure_non_interactive_sudo() {
 }
 
 print_auth_mode() {
-    local mode="${AUTH_MODE:-pam}"
-    case "${mode}" in
-        pam)
-            echo "  Auth: PAM (${USER})"
-            ;;
-        htpasswd)
-            if [ -n "${HTPASSWD_PATH}" ] && [ -f "${HTPASSWD_PATH}" ]; then
-                echo "  Auth: htpasswd (${HTPASSWD_PATH})"
-            else
-                log_warn "Auth mode=htpasswd but OPENCODE_SERVER_HTPASSWD is missing or file not found."
-            fi
-            ;;
-        legacy)
-            if [ -n "${OPENCODE_SERVER_PASSWORD}" ]; then
-                echo "  Auth: ${OPENCODE_SERVER_USERNAME:-opencode}:**** (env legacy)"
-            else
-                log_warn "Auth mode=legacy but OPENCODE_SERVER_PASSWORD is not set."
-            fi
-            ;;
-        auto)
-            if [ -n "${HTPASSWD_PATH}" ] && [ -f "${HTPASSWD_PATH}" ]; then
-                echo "  Auth: auto -> htpasswd (${HTPASSWD_PATH})"
-            elif [ -n "${OPENCODE_SERVER_PASSWORD}" ]; then
-                echo "  Auth: auto -> ${OPENCODE_SERVER_USERNAME:-opencode}:**** (env legacy)"
-            else
-                echo "  Auth: auto -> PAM (${USER})"
-            fi
-            ;;
-        *)
-            log_warn "Unknown OPENCODE_AUTH_MODE='${mode}'. Expected: pam|htpasswd|legacy|auto"
-            ;;
-    esac
+    echo "  Auth: PAM (${USER})"
 }
 
 print_runtime_context() {
@@ -1241,7 +1206,6 @@ _dev_start_direct() {
     OPENCODE_LAUNCH_MODE=webctl \
     OPENCODE_FRONTEND_PATH="${FRONTEND_DIST}" \
     OPENCODE_WEB_NO_OPEN="${OPENCODE_WEB_NO_OPEN:-1}" \
-    OPENCODE_AUTH_MODE="${AUTH_MODE}" \
     nohup "${BUN_BIN}" --conditions=browser \
         "${PROJECT_ROOT}/packages/opencode/src/index.ts" \
         web --port "${dev_port}" --hostname "${dev_host}" \
@@ -1751,6 +1715,18 @@ sync_frontend_dist_if_needed() {
         return 1
     fi
 
+    # Content-based skip: compare index.html hash between source build and
+    # deploy target. If they match, the deployed copy is already current.
+    # This lets callers invoke sync unconditionally without rsync overhead.
+    local _src_hash="" _dst_hash=""
+    _src_hash="$(sha256sum "${source_dist}/index.html" 2>/dev/null | cut -d' ' -f1)"
+    if [ -f "${FRONTEND_DIST}/index.html" ]; then
+        _dst_hash="$(sha256sum "${FRONTEND_DIST}/index.html" 2>/dev/null | cut -d' ' -f1)"
+    fi
+    if [ -n "${_src_hash}" ] && [ "${_src_hash}" = "${_dst_hash}" ]; then
+        return 0
+    fi
+
     if ! command -v rsync >/dev/null 2>&1; then
         log_error "rsync is required to sync frontend dist to ${FRONTEND_DIST}."
         return 1
@@ -2198,7 +2174,6 @@ start_gateway() {
         "OPENCODE_ALLOW_GLOBAL_FS_BROWSE=${OPENCODE_ALLOW_GLOBAL_FS_BROWSE:-1}"
         "OPENCODE_FRONTEND_PATH=${FRONTEND_DIST}"
         "OPENCODE_WEB_NO_OPEN=${OPENCODE_WEB_NO_OPEN:-1}"
-        "OPENCODE_AUTH_MODE=${AUTH_MODE}"
     )
 
     if [ "${EUID}" -eq 0 ]; then
@@ -2646,10 +2621,13 @@ do_reload() {
         log_info "Frontend source unchanged — skip build"
     fi
 
-    # 2. Sync frontend dist if served from a separate path
-    if [ "${did_build_fe}" -eq 1 ]; then
-        sync_frontend_dist_if_needed
-    fi
+    # 2. Sync frontend dist to system path if out of date.
+    #    Runs unconditionally — sync has its own content-based skip via
+    #    index.html hash comparison, so this is cheap when already current.
+    #    Decoupled from did_build_fe because the build output may already
+    #    exist (e.g. built in a previous run) but never synced to the
+    #    system deploy path.
+    sync_frontend_dist_if_needed
 
     if [ "${mode}" = "prod" ]; then
         # ── Prod mode: build binary + atomic install + deploy frontend ──
@@ -2883,12 +2861,8 @@ do_help() {
     echo "  OPENCODE_PORT              Port to listen on (default: 1080)"
     echo "  OPENCODE_PUBLIC_URL        Public URL shown in status/start output"
     echo "  OPENCODE_PROFILE           Runtime profile label (default: default)"
-    echo "  OPENCODE_AUTH_MODE         Auth mode: pam|htpasswd|legacy|auto (default: pam)"
     echo "  OPENCODE_ALLOW_INLINE_RESTART  Allow risky inline restart (default: 0)"
     echo "  OPENCODE_AUTO_SWITCH_OWNER Auto-switch to repo owner (default: 1)"
-    echo "  OPENCODE_SERVER_HTPASSWD   Path to htpasswd file (required when mode=htpasswd)"
-    echo "  OPENCODE_SERVER_PASSWORD   Password env (legacy mode only)"
-    echo "  OPENCODE_SERVER_USERNAME   Username for legacy mode"
     echo "  OPENCODE_SYSTEM_SERVICE_NAME systemd service basename (default: opencode-web)"
     echo "  HOME / XDG_*               Set these to isolate runtime state per user/profile"
     echo ""

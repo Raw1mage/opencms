@@ -231,23 +231,9 @@ async function readServerRuntimeConfig() {
   return map
 }
 
-async function getServerRequestHeaders(method: string) {
-  const headers = new Headers()
-  const config = await readServerRuntimeConfig()
-  const username = process.env.OPENCODE_SERVER_USERNAME?.trim() || config.get("OPENCODE_SERVER_USERNAME")?.trim() || ""
-  const password = process.env.OPENCODE_SERVER_PASSWORD?.trim() || ""
-  const htpasswd = config.get("OPENCODE_SERVER_HTPASSWD")?.trim() || ""
-
-  if (username && password) {
-    headers.set("Authorization", `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`)
-    return headers
-  }
-
-  if (method !== "GET" && htpasswd) {
-    return headers
-  }
-
-  return headers
+async function getServerRequestHeaders(_method: string) {
+  // MCP system-manager runs on the same loopback as the daemon — no auth needed.
+  return new Headers()
 }
 
 async function readSessionMessagesFromDaemon(sessionID: string, input?: { limit?: number; before?: string }) {
@@ -935,8 +921,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           "itself and need those changes live. " +
           "DO NOT use this to restart any of the following, even if the user's " +
           "project is ALSO a web application: " +
-          "Flask/Django/Node/etc servers under /home/pkcs12/projects/<anything> " +
-          "other than /home/pkcs12/projects/opencode; the user's docker compose " +
+          "Flask/Django/Node/etc servers under the user's project directories; " +
+          "the user's docker compose " +
           "stacks; systemd services owned by the user's project; nginx; " +
           "anything launched by the user's own webctl / make / start scripts. " +
           "If the user's project needs its own server restarted, read its " +

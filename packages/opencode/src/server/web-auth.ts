@@ -84,8 +84,7 @@ function cleanup() {
 function secret() {
   const user = username()
   const password = Flag.OPENCODE_SERVER_PASSWORD ?? ""
-  const file = WebAuthCredentials.filePath() ?? ""
-  return process.env.OPENCODE_SERVER_AUTH_SECRET ?? `${user}:${password}:${file}:opencode:web-auth:v1`
+  return process.env.OPENCODE_SERVER_AUTH_SECRET ?? `${user}:${password}:opencode:web-auth:v1`
 }
 
 function sign(raw: string) {

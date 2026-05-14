@@ -62,19 +62,10 @@ export const ServeCommand = cmd({
     }
 
     // TCP mode (existing behaviour)
-    const authMode = WebAuthCredentials.mode()
     if (!WebAuthCredentials.enabled()) {
-      console.log(`Warning: Web auth is not configured for mode '${authMode}'.`)
-    } else if (authMode === "pam") {
-      console.log("Info: Web auth enabled via PAM mode.")
-    } else if (authMode === "htpasswd") {
-      console.log(`Info: Web auth enabled via credential file mode (${WebAuthCredentials.filePath()}).`)
-    } else if (authMode === "legacy") {
-      console.log("Info: Web auth enabled via OPENCODE_SERVER_PASSWORD mode (legacy).")
-    } else if (WebAuthCredentials.filePath()) {
-      console.log(`Info: Web auth enabled via auto mode (credential file ${WebAuthCredentials.filePath()}).`)
+      console.log("Warning: Web auth is not enabled (non-Linux or daemon mode).")
     } else {
-      console.log("Info: Web auth enabled via auto mode (legacy/PAM fallback).")
+      console.log("Info: Web auth enabled via PAM.")
     }
     const opts = await resolveNetworkOptions(args)
     const server = Server.listen(opts)

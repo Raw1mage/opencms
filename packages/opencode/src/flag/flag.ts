@@ -31,9 +31,6 @@ export namespace Flag {
   export declare const OPENCODE_CLIENT: string
   export const OPENCODE_SERVER_PASSWORD = process.env["OPENCODE_SERVER_PASSWORD"]
   export const OPENCODE_SERVER_USERNAME = process.env["OPENCODE_SERVER_USERNAME"]
-  export const OPENCODE_SERVER_HTPASSWD = process.env["OPENCODE_SERVER_HTPASSWD"]
-  export const OPENCODE_SERVER_PASSWORD_FILE = process.env["OPENCODE_SERVER_PASSWORD_FILE"]
-  export const OPENCODE_AUTH_MODE = process.env["OPENCODE_AUTH_MODE"]
   export const OPENCODE_ENABLE_QUESTION_TOOL = truthy("OPENCODE_ENABLE_QUESTION_TOOL")
 
   // Experimental

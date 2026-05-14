@@ -65,21 +65,10 @@ export const WebCommand = cmd({
     }
 
     const disableBrowserOpen = process.env.OPENCODE_WEB_NO_OPEN === "1" || process.env.OPENCODE_WEB_NO_OPEN === "true"
-    const authMode = WebAuthCredentials.mode()
     if (!WebAuthCredentials.enabled()) {
-      UI.println(UI.Style.TEXT_WARNING_BOLD + "!  " + `Web auth is not configured for mode '${authMode}'.`)
-    } else if (authMode === "pam") {
-      UI.println(UI.Style.TEXT_INFO_BOLD + "i  " + "Web auth: PAM mode")
-    } else if (authMode === "htpasswd") {
-      UI.println(UI.Style.TEXT_INFO_BOLD + "i  " + `Web auth: credential file mode (${WebAuthCredentials.filePath()})`)
-    } else if (authMode === "legacy") {
-      UI.println(UI.Style.TEXT_INFO_BOLD + "i  " + "Web auth: OPENCODE_SERVER_PASSWORD mode (legacy)")
-    } else if (WebAuthCredentials.filePath()) {
-      UI.println(
-        UI.Style.TEXT_INFO_BOLD + "i  " + `Web auth: auto mode (credential file ${WebAuthCredentials.filePath()})`,
-      )
+      UI.println(UI.Style.TEXT_WARNING_BOLD + "!  " + "Web auth is not enabled (non-Linux or daemon mode).")
     } else {
-      UI.println(UI.Style.TEXT_INFO_BOLD + "i  " + "Web auth: auto mode (legacy/PAM fallback)")
+      UI.println(UI.Style.TEXT_INFO_BOLD + "i  " + "Web auth: PAM mode")
     }
     const opts = await resolveNetworkOptions(args)
     const server = Server.listen(opts)
