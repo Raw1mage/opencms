@@ -571,6 +571,31 @@ export namespace SessionCompaction {
       return
     }
 
+    // Guard: if the newest message is a user message, a new prompt arrived
+    // while the previous runloop is still in its post-loop cleanup phase
+    // (idle compaction runs INSIDE the old runloop's `using _ = defer(finishRuntime)`
+    // window, before the runtime slot is released). The user message was
+    // already written to DB by createUserMessage, but the new runLoop hasn't
+    // started yet (it's blocked on waitForRuntimeSlot).
+    //
+    // Writing a compaction anchor here would give it a newer ID than the user
+    // message. filterCompacted scans newest-first and stops at the anchor,
+    // hiding the user message entirely. The new runloop would then hit
+    // no_user_after_compaction and exit silently — swallowing the user's
+    // input with no response.
+    //
+    // tailMessages is chronological (oldest→newest), so .at(-1) is the most
+    // recent message.
+    const newest = tailMessages.at(-1)
+    if (newest && newest.info.role === "user") {
+      log.info("compaction.idle.deferred", {
+        sessionID: input.sessionID,
+        reason: "pending-user-message",
+        newestMessageId: newest.info.id,
+      })
+      return
+    }
+
     await run({
       sessionID: input.sessionID,
       observed: "idle",
