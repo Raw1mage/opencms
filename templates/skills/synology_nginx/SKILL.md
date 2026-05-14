@@ -58,7 +58,7 @@ Example patch for WebSocket support:
         proxy_set_header        Upgrade             $http_upgrade;
         proxy_set_header        Connection          "upgrade";
 
-        proxy_pass http://192.168.100.10:1080;
+        proxy_pass http://<backend-ip>:<backend-port>;
 ```
 
 **Important**: Do NOT add `proxy_read_timeout` if one already exists earlier in the same `location` block — nginx will reject duplicate directives.
@@ -166,20 +166,15 @@ DSM's reverse proxy UI only exposes basic settings (backend host/port, HTTPS, HS
 ## NAS Access Pattern
 
 ```bash
-ssh yeatsluo@192.168.100.40    # IP address (hostname 'rawdb' may not resolve)
-sudo su                         # passwordless sudo available
+ssh ${SYNOLOGY_USER}@${SYNOLOGY_IP}    # env vars: SYNOLOGY_USER, SYNOLOGY_IP
+sudo su                                 # passwordless sudo available
 ```
 
 ## Known Reverse Proxy Entries
 
+> **Note**: This table is environment-specific. Maintain your own entries
+> by setting `SYNOLOGY_IP` and updating the table below for your deployment.
+
 | Domain | UUID | Backend | WebSocket Patched |
 |--------|------|---------|-------------------|
-| cms.thesmart.cc | `9cf85df0-7ceb-4ec5-88e4-88305d9eaa86` | 192.168.100.10:1080 | Yes (2026-03-25) |
-| crm.sob.com.tw | `d84c0bcb-cde9-4122-8d4c-26bc498400e5` | 192.168.100.10:1080 | Yes (prior) |
-| ytlite.sob.com.tw | `2aa49d4e-76de-484b-bab2-d703f5c22336` | 192.168.100.10:1214 | No |
-| suno.thesmart.cc | `462ab55c-b966-49bf-ab03-5f9bd09093e9` | 192.168.100.10:60108 | No |
-| sunobeta.thesmart.cc | `ca6ae81b-4b85-422d-8662-df5c09e338db` | 192.168.100.10:60109 | No |
-| miat.thesmart.cc | `d155ec09-1f65-450d-b01d-cefe15e6375a` | 192.168.100.10:1222 | No |
-| www.thesmart.cc | `4e4c820c-71b9-45a4-9863-3da1273c955d` | 192.168.100.80:80 | No |
-| www.jewelcity.com.tw | `ac691f24-7261-4f1b-b4b8-7d69065d155c` | 192.168.100.80:80 | No |
-| registore.thesmart.cc | `962a1cb5-48ee-46bf-a7c2-70dc753a9468` | 192.168.100.40:5050 | No |
+| *(populate per deployment)* | | | |
