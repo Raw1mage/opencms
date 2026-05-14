@@ -3,7 +3,13 @@ import { Bus } from "../index"
 import { RuntimeEventService, TelemetryProjector } from "@/system/runtime-event-service"
 import z from "zod"
 
-const SUPPORTED_TYPES = new Set(["llm.prompt.telemetry", "session.round.telemetry", "session.compaction.telemetry"])
+const SUPPORTED_TYPES = new Set([
+  "llm.prompt.telemetry",
+  "session.round.telemetry",
+  "session.compaction.telemetry",
+  "rotation.executed",
+  "continuation.dispatched",
+])
 
 export const SessionTelemetryUpdatedEvent = BusEvent.define(
   "session.telemetry.updated",

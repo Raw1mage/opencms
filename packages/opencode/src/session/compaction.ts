@@ -178,7 +178,7 @@ export namespace SessionCompaction {
    */
   export async function publishCompactedAndResetChain(
     sessionID: string,
-    eventMeta?: { observed?: string; kind?: string; tokensBefore?: number; tokensAfter?: number },
+    eventMeta?: { observed?: string; kind?: string; tokensBefore?: number; tokensAfter?: number; success?: boolean },
   ) {
     Bus.publish(Event.Compacted, { sessionID })
     // 2026-05-09: append to per-session recentEvents ring for the Q card.
@@ -195,7 +195,7 @@ export namespace SessionCompaction {
       compaction: {
         observed: eventMeta?.observed ?? "unknown",
         kind: eventMeta?.kind,
-        success: true,
+        success: eventMeta?.success !== false,
         tokensBefore: eventMeta?.tokensBefore,
         tokensAfter: eventMeta?.tokensAfter,
       },
@@ -2282,7 +2282,7 @@ When constructing the summary, try to stick to this template:
     // Chain exhausted without writing an anchor — still publish Compacted
     // so the frontend statusFooter clears (otherwise spinner sticks
     // indefinitely after a silent failure).
-    void publishCompactedAndResetChain(sessionID, { observed, kind: "narrative" })
+    void publishCompactedAndResetChain(sessionID, { observed, success: false })
     return "stop"
   }
 

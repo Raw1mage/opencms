@@ -102,6 +102,7 @@ export const LlmErrorEvent = BusEvent.define(
 export const RotationExecutedEvent = BusEvent.define(
   "rotation.executed",
   z.object({
+    sessionID: z.string().optional(),
     fromProviderId: z.string(),
     fromModelId: z.string(),
     fromAccountId: z.string(),
@@ -2144,6 +2145,7 @@ export namespace LLM {
 
         // Publish rotation event for LLM status card history chain
         Bus.publish(RotationExecutedEvent, {
+          sessionID,
           fromProviderId: currentModel.providerId,
           fromModelId: currentModel.id,
           fromAccountId: currentAccountId,

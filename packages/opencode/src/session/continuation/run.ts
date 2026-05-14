@@ -17,7 +17,10 @@
  * can find degraded paths.
  */
 
+import { z } from "zod"
 import { Log } from "../../util/log"
+import { Bus } from "../../bus"
+import { BusEvent } from "../../bus/bus-event"
 import { RebindEpoch, type RebindTrigger } from "../rebind-epoch"
 import { RuntimeEventService } from "../../system/runtime-event-service"
 import { captureDigest, type CommitmentDigest } from "./commitment-digest"
@@ -31,6 +34,24 @@ import { dedupKeyFor, DispatchDedup } from "./dispatch-dedup"
 import { PendingInjectionStore } from "./pending-injection"
 
 const log = Log.create({ service: "continuation.run" })
+
+/**
+ * Bus event published on every (non-deduped) Continuation.run dispatch.
+ * Captured by telemetry-runtime into RuntimeEventService so daemon
+ * restart, account rotation, rebind, and other chain-affecting events
+ * have durable persistence beyond the 10-entry recentEvents ring.
+ */
+export const ContinuationDispatchedEvent = BusEvent.define(
+  "continuation.dispatched",
+  z.object({
+    sessionID: z.string(),
+    kind: z.string(),
+    breaksChain: z.boolean(),
+    chainBreakClass: z.string(),
+    providerId: z.string().optional(),
+    timestamp: z.number(),
+  }),
+)
 
 export interface ContinuationOutcome {
   decision: ContinuationDecision
@@ -87,6 +108,18 @@ export namespace Continuation {
       injectsAmnesia: decision.injectsAmnesia,
       chainBreakClass: decision.chainBreakClass,
     })
+
+    // Durable telemetry: publish to Bus so telemetry-runtime persists
+    // the dispatch into RuntimeEventService (covers all 5 families:
+    // daemon restart, account rotation, rebind, compaction, etc.)
+    Bus.publish(ContinuationDispatchedEvent, {
+      sessionID: event.sessionID,
+      kind: event.kind,
+      breaksChain: decision.breaksChain,
+      chainBreakClass: decision.chainBreakClass,
+      providerId: "providerId" in event ? (event as Record<string, unknown>).providerId as string : undefined,
+      timestamp: Date.now(),
+    }).catch(() => {})
 
     // Step 1: capture digest BEFORE invalidation (DD-8 ordering invariant)
     let digest: CommitmentDigest | null = null
