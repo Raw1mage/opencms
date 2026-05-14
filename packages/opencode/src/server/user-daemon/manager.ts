@@ -49,14 +49,23 @@ export namespace UserDaemonManager {
   }
 
   function serviceUnitName() {
-    return process.env.OPENCODE_PER_USER_DAEMON_SYSTEMD_UNIT || "opencode-user-daemon@.service"
+    return process.env.OPENCODE_PER_USER_DAEMON_SYSTEMD_UNIT || "opencms-daemon-user@.service"
+  }
+
+  function sudoerServiceUnitName() {
+    return process.env.OPENCODE_PER_USER_DAEMON_SUDOER_SYSTEMD_UNIT || "opencms-daemon-wheel@.service"
   }
 
   function serviceUnitNameFor(username: string) {
-    const pattern = serviceUnitName()
+    const sudoer = LinuxUserExec.isSudoer(username)
+    const pattern = sudoer ? sudoerServiceUnitName() : serviceUnitName()
     if (pattern.includes("@.service")) return pattern.replace("@.service", `@${username}.service`)
     if (pattern.includes("%u")) return pattern.replaceAll("%u", username)
     return pattern
+  }
+
+  function sandboxProfileFor(username: string) {
+    return LinuxUserExec.isSudoer(username) ? "sudoer-full-rw" : "default-strict"
   }
 
   function daemonPortFor(uid: number) {
@@ -157,6 +166,7 @@ export namespace UserDaemonManager {
       uid,
       port,
       socketPath,
+      sandboxProfile: sandboxProfileFor(safe),
     })
     maybeTriggerLazyStart(entry)
   }
@@ -199,6 +209,7 @@ export namespace UserDaemonManager {
           username: entry.username,
           uid: entry.uid,
           unit: unitName,
+          sandboxProfile: sandboxProfileFor(entry.username),
           port: entry.port,
           socketPath: entry.socketPath,
         })
@@ -211,6 +222,7 @@ export namespace UserDaemonManager {
         username: entry.username,
         uid: entry.uid,
         unit: unitName,
+        sandboxProfile: sandboxProfileFor(entry.username),
         error: entry.lastStartError,
       })
     })

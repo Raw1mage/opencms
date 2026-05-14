@@ -11,8 +11,14 @@ export namespace SelfUpdate {
     | {
         type: "install-file"
         source: string
-        target: "/usr/local/bin/opencode-gateway" | "/etc/opencode/webctl.sh"
-        mode?: "0755"
+        target:
+          | "/usr/local/bin/opencode-gateway"
+          | "/etc/opencode/webctl.sh"
+          | "/usr/local/libexec/opencms-daemon-launch"
+          | "/etc/systemd/system/opencode-gateway.service"
+          | "/etc/systemd/system/opencms-daemon-user@.service"
+          | "/etc/systemd/system/opencms-daemon-wheel@.service"
+        mode?: "0644" | "0755"
       }
     | {
         type: "sync-directory"
@@ -22,6 +28,9 @@ export namespace SelfUpdate {
     | {
         type: "restart-service"
         service: "opencode-gateway.service"
+      }
+    | {
+        type: "daemon-reload"
       }
 
   export type ActionResult = {
@@ -97,7 +106,14 @@ export namespace SelfUpdate {
 
   async function actionToArgv(action: Action): Promise<{ argv: string[]; sourceSha256?: string }> {
     if (action.type === "install-file") {
-      if (action.target !== "/usr/local/bin/opencode-gateway" && action.target !== "/etc/opencode/webctl.sh") {
+      if (
+        action.target !== "/usr/local/bin/opencode-gateway" &&
+        action.target !== "/etc/opencode/webctl.sh" &&
+        action.target !== "/usr/local/libexec/opencms-daemon-launch" &&
+        action.target !== "/etc/systemd/system/opencode-gateway.service" &&
+        action.target !== "/etc/systemd/system/opencms-daemon-user@.service" &&
+        action.target !== "/etc/systemd/system/opencms-daemon-wheel@.service"
+      ) {
         throw new Error(`invalid install target: ${action.target}`)
       }
       await stat(action.source)
@@ -116,6 +132,10 @@ export namespace SelfUpdate {
     if (action.type === "restart-service") {
       if (action.service !== "opencode-gateway.service") throw new Error(`invalid service: ${action.service}`)
       return { argv: ["sudo", "-n", "systemctl", "restart", action.service] }
+    }
+
+    if (action.type === "daemon-reload") {
+      return { argv: ["sudo", "-n", "systemctl", "daemon-reload"] }
     }
 
     throw new Error("unknown self-update action")

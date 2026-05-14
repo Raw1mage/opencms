@@ -2698,17 +2698,35 @@ do_reload() {
     # 6. Compile stale internal MCP servers
     compile_internal_mcp_if_stale 2>/dev/null || true
 
-    # 7. Kill daemons
+    # 7. Restart daemons (only if artifacts changed)
+    local should_restart_daemons=0
     if [ "${mode}" = "dev" ]; then
-        # Dev mode: bun re-reads source on spawn, always kill to pick up changes
-        log_info "Killing per-user daemons (dev mode — respawn picks up source changes)..."
-        do_daemon_killall
-        did_kill=1
+        should_restart_daemons=1
     elif [ "${did_install_bin}" -eq 1 ] || [ "${did_deploy_fe}" -eq 1 ] || [ "${force}" -eq 1 ]; then
-        # Prod mode: kill only if artifacts actually changed
-        log_info "Killing per-user daemons (new artifacts installed)..."
-        do_daemon_killall
-        did_kill=1
+        should_restart_daemons=1
+    fi
+
+    if [ "${should_restart_daemons}" -eq 1 ]; then
+        # Prefer systemctl restart for systemd-managed daemons — this lets
+        # systemd handle cgroup lifecycle cleanly and avoids killing a
+        # webctl child process that triggered this reload.
+        local _restarted=0
+        for _unit in $(systemctl list-units 'opencms-daemon-wheel@*' 'opencms-daemon-user@*' \
+                       --no-pager --no-legend --state=active 2>/dev/null | awk '{print $1}'); do
+            log_info "Restarting ${_unit} via systemctl..."
+            sudo systemctl restart "${_unit}" 2>/dev/null && _restarted=$((_restarted + 1)) || true
+        done
+        if [ "${_restarted}" -gt 0 ]; then
+            log_success "Restarted ${_restarted} daemon(s) via systemctl"
+            did_kill=1
+        elif [ "${mode}" = "dev" ]; then
+            # Fallback for non-systemd daemons (dev mode)
+            log_info "No systemd daemons found, falling back to killall..."
+            do_daemon_killall
+            did_kill=1
+        else
+            log_info "No running daemons to restart"
+        fi
     else
         log_info "No artifacts changed — daemons untouched"
     fi
@@ -2731,7 +2749,7 @@ do_reload() {
         echo "  Frontend:  $([ "${did_build_fe}" -eq 1 ] && echo "rebuilt" || echo "unchanged")"
     fi
     echo "  Gateway:   untouched (pid $(systemctl show -p MainPID --value ${SYSTEM_SERVICE_NAME}.service 2>/dev/null || echo '?'))"
-    echo "  Daemons:   $([ "${did_kill}" -eq 1 ] && echo "killed — will respawn on next request" || echo "untouched")"
+    echo "  Daemons:   $([ "${did_kill}" -eq 1 ] && echo "restarted" || echo "untouched")"
     echo ""
 }
 

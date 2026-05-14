@@ -1645,6 +1645,96 @@ static int wait_for_daemon_ready(DaemonInfo *d, pid_t pid, int timeout_ms) {
     }
 }
 
+static int wait_for_daemon_socket_ready(DaemonInfo *d, int timeout_ms) {
+    struct timespec deadline, now;
+    int last_connect_errno = 0;
+
+    clock_gettime(CLOCK_MONOTONIC, &deadline);
+    deadline.tv_sec += timeout_ms / 1000;
+    deadline.tv_nsec += (long)(timeout_ms % 1000) * 1000000L;
+    if (deadline.tv_nsec >= 1000000000L) { deadline.tv_sec++; deadline.tv_nsec -= 1000000000L; }
+
+    while (1) {
+        struct stat st;
+        if (stat(d->socket_path, &st) == 0 && S_ISSOCK(st.st_mode)) {
+            int probe_fd = connect_unix(d->socket_path);
+            if (probe_fd >= 0) {
+                close(probe_fd);
+                return 1;
+            }
+            last_connect_errno = errno;
+        }
+
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        if (now.tv_sec > deadline.tv_sec ||
+            (now.tv_sec == deadline.tv_sec && now.tv_nsec >= deadline.tv_nsec)) {
+            LOGE("systemd daemon for %s did not become ready within %dms (last connect error: %s)",
+                 d->username, timeout_ms,
+                 last_connect_errno ? strerror(last_connect_errno) : "socket not present");
+            reset_daemon_state(d);
+            return 0;
+        }
+        usleep(100000);
+    }
+}
+
+static int user_is_sudoer(DaemonInfo *d) {
+    struct passwd *pw = getpwnam(d->username);
+    if (!pw) return 0;
+
+    gid_t groups[256];
+    int ngroups = 256;
+    if (getgrouplist(d->username, pw->pw_gid, groups, &ngroups) < 0) return 0;
+
+    for (int i = 0; i < ngroups; i++) {
+        struct group *gr = getgrgid(groups[i]);
+        if (!gr) continue;
+        if (strcmp(gr->gr_name, "sudo") == 0 ||
+            strcmp(gr->gr_name, "wheel") == 0 ||
+            strcmp(gr->gr_name, "admin") == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int start_sudoer_daemon_via_systemd(DaemonInfo *d) {
+    char unit[160];
+    snprintf(unit, sizeof(unit), "opencms-daemon-wheel@%s.service", d->username);
+
+    LOGI("starting sudoer daemon via systemd unit=%s socket='%s'", unit, d->socket_path);
+    pid_t pid = fork();
+    if (pid < 0) { LOGE("fork systemctl: %s", strerror(errno)); return 0; }
+    if (pid == 0) {
+        int devnull = open("/dev/null", O_RDWR);
+        if (devnull >= 0) {
+            dup2(devnull, 0);
+            dup2(devnull, 1);
+            dup2(devnull, 2);
+            close(devnull);
+        }
+        execlp("systemctl", "systemctl", "start", unit, (char *)NULL);
+        _exit(127);
+    }
+
+    int status = 0;
+    if (waitpid(pid, &status, 0) != pid) {
+        LOGE("systemctl start %s wait failed: %s", unit, strerror(errno));
+        return 0;
+    }
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+        LOGE("systemctl start %s failed status=%d", unit, status);
+        return 0;
+    }
+
+    if (!wait_for_daemon_socket_ready(d, DAEMON_WAIT_MS)) return 0;
+
+    d->pid = -1;
+    d->state = DAEMON_READY;
+    LOGI("sudoer daemon for %s ready via systemd", d->username);
+    return 1;
+}
+
 static int try_adopt_from_discovery(DaemonInfo *d) {
     char discovery_path[256];
     {
@@ -1713,7 +1803,11 @@ static int ensure_daemon_running(DaemonInfo *d) {
          d->username, d->state, d->pid, d->socket_path);
 
     if (d->state == DAEMON_READY) {
-        if (d->pid > 0 && kill(d->pid, 0) == 0) {
+        if (d->pid <= 0) {
+            int probe_fd = connect_unix(d->socket_path);
+            if (probe_fd >= 0) { close(probe_fd); LOGI("systemd daemon still connectable"); return 1; }
+            LOGW("systemd daemon for %s marked stale: socket connect failed: %s", d->username, strerror(errno));
+        } else if (kill(d->pid, 0) == 0) {
             int probe_fd = connect_unix(d->socket_path);
             if (probe_fd >= 0) { close(probe_fd); LOGI("daemon still alive and connectable"); return 1; }
             LOGW("daemon for %s marked stale: socket connect failed: %s", d->username, strerror(errno));
@@ -1756,6 +1850,10 @@ static int ensure_daemon_running(DaemonInfo *d) {
         }
 
         unlink(d->socket_path);
+        if (user_is_sudoer(d)) {
+            return start_sudoer_daemon_via_systemd(d);
+        }
+
         LOGI("spawning daemon for %s (uid %u) socket='%s'", d->username, d->uid, d->socket_path);
         d->state = DAEMON_STARTING;
 
@@ -2764,17 +2862,28 @@ static void route_complete_request(PendingRequest *pr) {
                     d->state = DAEMON_DEAD;
                 }
             }
-            /* Daemon failed — clear cookie via HTTP header + JS and redirect to login */
-            LOGW("daemon unavailable for '%s', clearing JWT and redirecting to login", username);
-            const char *clear_body =
+            /* Daemon temporarily unavailable — serve a retry page that
+             * auto-reloads after a few seconds.  Do NOT clear the JWT
+             * cookie: the user is still authenticated, the daemon is
+             * just restarting (e.g. webctl.sh restart).  Clearing the
+             * cookie would force re-login on every routine restart. */
+            LOGW("daemon unavailable for '%s', serving retry page (JWT preserved)", username);
+            const char *retry_body =
                 "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
-                "<script>"
-                "document.cookie=\"oc_jwt=; Path=/; Max-Age=0\";"
-                "window.location.replace(\"/\");"
-                "</script></head><body></body></html>";
-            http_send(fd, 401, "Unauthorized", "text/html; charset=utf-8",
-                      "Cache-Control: no-store\r\nSet-Cookie: oc_jwt=; Path=/; Max-Age=0\r\n",
-                      clear_body, strlen(clear_body));
+                "<title>Starting\xe2\x80\xa6</title>"
+                "<style>body{display:flex;justify-content:center;align-items:center;"
+                "height:100vh;margin:0;font-family:system-ui;background:#111;color:#ddd}"
+                ".box{text-align:center}h2{margin-bottom:.5em}"
+                ".spin{animation:r 1s linear infinite;display:inline-block}"
+                "@keyframes r{to{transform:rotate(360deg)}}</style>"
+                "</head><body><div class=\"box\">"
+                "<h2><span class=\"spin\">\xe2\x9f\xb3</span> Service restarting</h2>"
+                "<p>Reconnecting automatically\xe2\x80\xa6</p>"
+                "<script>setTimeout(function(){location.reload()},3000)</script>"
+                "</div></body></html>";
+            http_send(fd, 503, "Service Unavailable", "text/html; charset=utf-8",
+                      "Cache-Control: no-store\r\nRetry-After: 3\r\n",
+                      retry_body, strlen(retry_body));
             close(fd);
             return;
         }

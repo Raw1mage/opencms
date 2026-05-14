@@ -1,6 +1,7 @@
 import { Hono } from "hono"
 import { describeRoute, resolver, validator } from "hono-openapi"
 import { streamSSE } from "hono/streaming"
+import fs from "node:fs"
 import path from "node:path"
 import z from "zod"
 import { BusEvent } from "@/bus/bus-event"
@@ -37,10 +38,13 @@ function isGatewayDaemon(): boolean {
 }
 
 function resolveWebctlPath() {
-  if (process.env.OPENCODE_LAUNCH_MODE === "webctl" && process.env.OPENCODE_REPO_ROOT) {
-    return path.join(process.env.OPENCODE_REPO_ROOT, "webctl.sh")
-  }
   if (process.env.OPENCODE_WEBCTL_PATH) return process.env.OPENCODE_WEBCTL_PATH
+  // Prefer source repo webctl when repo root is known (supports frontend rebuild)
+  const repoRoot = process.env.OPENCODE_REPO_ROOT
+  if (repoRoot) {
+    const candidate = path.join(repoRoot, "webctl.sh")
+    if (fs.existsSync(candidate)) return candidate
+  }
   return "/etc/opencode/webctl.sh"
 }
 
@@ -607,10 +611,35 @@ export const GlobalRoutes = lazy(() =>
               },
               {
                 type: "install-file",
+                source: path.join(repoRoot, "daemon/opencode-gateway.service"),
+                target: "/etc/systemd/system/opencode-gateway.service",
+                mode: "0644",
+              },
+              {
+                type: "install-file",
+                source: path.join(repoRoot, "templates/system/opencms-daemon-launch.sh"),
+                target: "/usr/local/libexec/opencms-daemon-launch",
+                mode: "0755",
+              },
+              {
+                type: "install-file",
+                source: path.join(repoRoot, "templates/system/opencms-daemon-user@.service"),
+                target: "/etc/systemd/system/opencms-daemon-user@.service",
+                mode: "0644",
+              },
+              {
+                type: "install-file",
+                source: path.join(repoRoot, "templates/system/opencms-daemon-wheel@.service"),
+                target: "/etc/systemd/system/opencms-daemon-wheel@.service",
+                mode: "0644",
+              },
+              {
+                type: "install-file",
                 source: compiled.output,
                 target: "/usr/local/bin/opencode-gateway",
                 mode: "0755",
               },
+              { type: "daemon-reload" },
             ])
             if (!install.ok) {
               log.error("privileged gateway self-update install failed", { txid, install })
@@ -655,8 +684,11 @@ export const GlobalRoutes = lazy(() =>
             reason: body.reason,
           })
 
+          // Use setsid to escape the daemon's systemd cgroup.
+          // Without this, systemd KillMode=control-group kills webctl
+          // when the daemon is terminated during the restart sequence.
           Bun.spawn({
-            cmd,
+            cmd: ["setsid", "--fork", ...cmd],
             stdout: "ignore",
             stderr: Bun.file(errorLogPath),
             stdin: "ignore",
