@@ -134,7 +134,7 @@ export function PromptsLayer() {
                 }}
               >
                 <div
-                  class="fixed bg-slate-900 border-2 border-slate-600 rounded-md shadow-xl text-slate-100 p-3 text-12-regular"
+                  class="fixed bg-white border-2 border-slate-200 rounded-md shadow-xl text-black p-3 text-12-regular"
                   style={{
                     "max-width": `${POPUP_MAX_W}px`,
                     "max-height": `${POPUP_MAX_H}px`,
@@ -146,14 +146,14 @@ export function PromptsLayer() {
                 >
                   <div class="text-14-medium mb-1">{req().title}</div>
                   <Show when={req().description}>
-                    <div class="text-text-weak break-words whitespace-pre-line mb-3 max-h-32 overflow-auto">
+                    <div class="text-slate-700 break-words whitespace-pre-line mb-3 max-h-32 overflow-auto">
                       {req().description}
                     </div>
                   </Show>
                   <div class="flex justify-end gap-2">
                     <button
                       type="button"
-                      class="px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-100"
+                      class="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-black"
                       onClick={() => settle("cancel")}
                     >
                       {req().cancelLabel ?? "取消"}
@@ -161,7 +161,7 @@ export function PromptsLayer() {
                     <Show when={req().applyAllLabel}>
                       <button
                         type="button"
-                        class="px-2 py-1 rounded bg-amber-600 hover:bg-amber-500 text-white"
+                        class="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-black"
                         onClick={() => settle("apply-all")}
                       >
                         {req().applyAllLabel}
@@ -170,9 +170,9 @@ export function PromptsLayer() {
                     <button
                       type="button"
                       classList={{
-                        "px-2 py-1 rounded text-white": true,
-                        "bg-red-600 hover:bg-red-500": !!req().destructive,
-                        "bg-blue-600 hover:bg-blue-500": !req().destructive,
+                        "px-2 py-1 rounded text-black": true,
+                        "bg-red-100 hover:bg-red-200": !!req().destructive,
+                        "bg-slate-100 hover:bg-slate-200": !req().destructive,
                       }}
                       onClick={() => settle("confirm")}
                     >
@@ -232,7 +232,7 @@ export function PromptsLayer() {
                 }}
               >
                 <div
-                  class="fixed bg-slate-900 border-2 border-slate-600 rounded-md shadow-xl text-slate-100 p-3 text-12-regular flex flex-col gap-2"
+                  class="fixed bg-white border-2 border-slate-200 rounded-md shadow-xl text-black p-3 text-12-regular flex flex-col gap-2"
                   style={{
                     "max-width": `${POPUP_MAX_W}px`,
                     "max-height": `${POPUP_MAX_H}px`,
@@ -245,14 +245,14 @@ export function PromptsLayer() {
                 >
                   <div class="text-14-medium">{req().title}</div>
                   <Show when={req().description}>
-                    <div class="text-text-weak break-words whitespace-pre-line">{req().description}</div>
+                    <div class="text-slate-700 break-words whitespace-pre-line">{req().description}</div>
                   </Show>
                   <input
                     ref={(el) => {
                       inputRef = el
                     }}
                     type="text"
-                    class="px-2 py-1 rounded bg-slate-800 border border-slate-600 text-slate-100 outline-none focus:border-blue-500"
+                    class="px-2 py-1 rounded bg-white border border-slate-300 text-black outline-none focus:border-blue-500"
                     value={value()}
                     placeholder={req().placeholder}
                     onInput={(e) => setValue(e.currentTarget.value)}
@@ -263,14 +263,14 @@ export function PromptsLayer() {
                   <div class="flex justify-end gap-2">
                     <button
                       type="button"
-                      class="px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-100"
+                      class="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-black"
                       onClick={() => settle(undefined)}
                     >
                       {req().cancelLabel ?? "取消"}
                     </button>
                     <button
                       type="button"
-                      class="px-2 py-1 rounded bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white"
+                      class="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-black"
                       disabled={!!validation() || value().length === 0}
                       onClick={submit}
                     >
