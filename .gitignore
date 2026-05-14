@@ -78,6 +78,12 @@ daemon/opencode-gateway
 settings.local.json
 plans/*/.state.json
 
+# Codex tool state
+.codex
+
+# Prompt backups (timestamped snapshots)
+*.bak-*
+
 # personal / local-only dotdirs (never publish)
 .anthropic/
 .cursorrules
