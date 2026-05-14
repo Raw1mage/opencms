@@ -96,7 +96,7 @@ export const DialogPublishedWeb: Component = () => {
           <span class="text-13-regular text-text-weak">{grouped().length} route(s)</span>
           <button
             onClick={() => void refresh()}
-            class="ml-auto mr-8 shrink-0 px-2.5 py-1 rounded-sm border border-border-base bg-background-input text-12-regular text-text-base hover:bg-white/5 transition-colors cursor-pointer"
+            class="ml-auto mr-8 shrink-0 px-2.5 py-1 rounded-sm border border-border-base bg-input-base text-12-regular text-text-base hover:bg-surface-base-hover transition-colors cursor-pointer"
           >
             Refresh
           </button>
@@ -130,7 +130,7 @@ export const DialogPublishedWeb: Component = () => {
               const isToggling = () => toggling() === entryName()
 
               return (
-                <div class="group/route flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors">
+                <div class="group/route flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-surface-base-hover transition-colors">
                   {/* Status indicator */}
                   <div class="shrink-0 flex items-center justify-center w-5">
                     <Show when={!isToggling()} fallback={
@@ -170,7 +170,7 @@ export const DialogPublishedWeb: Component = () => {
                     <Icon name="share" size="small" class="text-icon-dimmed" />
                   </div>
                   <DropdownMenu placement="bottom-end">
-                    <DropdownMenu.Trigger class="shrink-0 flex items-center justify-center size-6 rounded-md opacity-0 group-hover/route:opacity-100 text-icon-base hover:bg-white/10 cursor-pointer transition-opacity">
+                    <DropdownMenu.Trigger class="shrink-0 flex items-center justify-center size-6 rounded-md opacity-0 group-hover/route:opacity-100 text-icon-base hover:bg-surface-base-hover cursor-pointer transition-opacity">
                       <Icon name="dot-grid" size="small" />
                     </DropdownMenu.Trigger>
                     <DropdownMenu.Content>

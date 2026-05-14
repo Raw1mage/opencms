@@ -297,21 +297,6 @@ export const DialogAppMarket: Component = () => {
     return performManagedAction(app)
   }
 
-  function actionLabel(app: MarketApp): string {
-    if (actionLoading() === app.id) return language.t("app_market.action.loading")
-    if (app.kind === "mcp-server" || app.kind === "mcp-app") {
-      return app.enabled || app.status === "connected"
-        ? language.t("app_market.action.disable")
-        : language.t("app_market.action.enable")
-    }
-    // managed-app
-    if (app.status === "ready") return language.t("app_market.action.disable")
-    if (app.status === "pending_auth" || app.status === "pending_config") return language.t("app_market.action.connect")
-    if (app.status === "disabled") return language.t("app_market.action.enable")
-    if (app.status === "error") return language.t("app_market.action.repair")
-    return language.t("app_market.action.install")
-  }
-
   /** Per-app action buttons: gear icon for apps with auth/settings */
   function renderAppActions(app: MarketApp, isLoading: boolean) {
     const hasAuth = app.auth && app.auth.type !== "none"
@@ -324,7 +309,7 @@ export const DialogAppMarket: Component = () => {
           <button
             onClick={() => openSettings(app)}
             disabled={isLoading}
-            class="p-1 rounded text-text-weak hover:text-text-base hover:bg-white/5 transition-colors disabled:opacity-50"
+            class="p-1 rounded text-text-weak hover:text-text-base hover:bg-surface-base-hover transition-colors disabled:opacity-50"
             title="Settings"
           >
             <Icon name="settings-gear" size="small" />
@@ -337,7 +322,7 @@ export const DialogAppMarket: Component = () => {
         <button
           onClick={() => openOAuthConnect(storeId)}
           disabled={isLoading}
-          class="p-1 rounded text-text-weak hover:text-text-base hover:bg-white/5 transition-colors disabled:opacity-50"
+          class="p-1 rounded text-text-weak hover:text-text-base hover:bg-surface-base-hover transition-colors disabled:opacity-50"
           title="Settings"
         >
           <Icon name="settings-gear" size="small" />
@@ -347,16 +332,25 @@ export const DialogAppMarket: Component = () => {
     return null
   }
 
-  /** Icon name for the toggle action button */
-  function actionIcon(app: MarketApp): string {
+  /** Is this app in a simple on/off toggleable state? */
+  function isToggleable(app: MarketApp): boolean {
+    if (app.kind === "mcp-server" || app.kind === "mcp-app") return true
+    return app.status === "ready" || app.status === "disabled"
+  }
+
+  /** Is this app currently "on"? */
+  function isOn(app: MarketApp): boolean {
     if (app.kind === "mcp-server" || app.kind === "mcp-app") {
-      return (app.enabled || app.status === "connected") ? "circle-ban-sign" : "circle-check"
+      return app.enabled || app.status === "connected"
     }
-    if (app.status === "ready") return "circle-ban-sign"
-    if (app.status === "pending_auth" || app.status === "pending_config") return "eye"
-    if (app.status === "disabled") return "circle-check"
-    if (app.status === "error") return "pencil-line"
-    return "plus-small"
+    return app.status === "ready"
+  }
+
+  /** Non-toggle action label for managed apps needing install/connect/repair */
+  function nonToggleLabel(app: MarketApp): string {
+    if (app.status === "pending_auth" || app.status === "pending_config") return language.t("app_market.action.connect")
+    if (app.status === "error") return language.t("app_market.action.repair")
+    return language.t("app_market.action.install")
   }
 
   return (
@@ -371,7 +365,7 @@ export const DialogAppMarket: Component = () => {
           </div>
           <button
             onClick={() => setShowAddDialog(true)}
-            class="shrink-0 px-2.5 py-1 rounded-sm border border-border-base bg-background-input text-12-regular text-text-base hover:bg-white/5 transition-colors"
+            class="shrink-0 px-2.5 py-1 rounded-sm border border-border-base bg-input-base text-12-regular text-text-base hover:bg-surface-base-hover transition-colors"
           >
             + Add App
           </button>
@@ -384,7 +378,7 @@ export const DialogAppMarket: Component = () => {
               placeholder={language.t("app_market.search.placeholder")}
               value={filter()}
               onInput={(e) => setFilter(e.currentTarget.value)}
-              class="w-full pl-8 pr-3 py-1 bg-background-input border border-border-base rounded-sm text-12-regular text-text-base placeholder:text-text-weaker focus:outline-none focus:border-border-focus font-normal"
+              class="w-full pl-8 pr-3 py-1 bg-input-base border border-border-base rounded-sm text-12-regular text-text-base placeholder:text-text-weaker focus:outline-none focus:border-border-focus font-normal"
             />
           </div>
         </div>
@@ -420,7 +414,7 @@ export const DialogAppMarket: Component = () => {
                 const isActive = () => live().enabled || live().status === "connected"
 
                 return (
-                  <div class="app-market-card flex flex-col rounded-lg border border-border-base bg-[#1a1a2e] hover:border-border-hover transition-colors overflow-hidden">
+                  <div class="app-market-card flex flex-col rounded-lg border border-border-base bg-surface-raised-base hover:border-border-hover transition-colors overflow-hidden">
                     <div class="px-2.5 pt-2.5 md:px-2 md:pt-2">
                       <span class="app-market-card-title block min-w-0 whitespace-normal break-words leading-tight text-[15px] font-semibold text-text-strong md:truncate md:text-13-medium md:font-medium md:text-text-base">
                         {live().name}
@@ -436,7 +430,7 @@ export const DialogAppMarket: Component = () => {
                             "bg-success-base/15 text-success-base": live().status === "connected" || live().status === "ready",
                             "bg-warning-base/15 text-warning-base": live().status === "needs_auth" || live().status === "pending_auth",
                             "bg-danger-base/15 text-danger-base": live().status === "failed" || live().status === "error",
-                            "bg-white/5 text-text-weaker": live().status === "disabled",
+                            "bg-surface-base text-text-weaker": live().status === "disabled",
                           }}>
                             <Show when={live().status === "connected" || live().status === "ready"} fallback={
                               <Show when={live().status === "disabled"} fallback={<>&#9888; {live().auth!.type === "oauth" ? "OAuth" : "Key"}</>}>
@@ -460,27 +454,40 @@ export const DialogAppMarket: Component = () => {
                           <button
                             onClick={() => uninstallManaged(live())}
                             disabled={loading()}
-                            class="p-1 rounded text-danger-base hover:bg-white/5 transition-colors disabled:opacity-50"
+                            class="p-1 rounded text-danger-base hover:bg-surface-base-hover transition-colors disabled:opacity-50"
                             title={language.t("app_market.action.uninstall")}
                           >
                             <Icon name="trash" size="small" />
                           </button>
                         </Show>
-                        <button
-                          onClick={() => handleAction(live())}
-                          disabled={loading()}
-                          classList={{
-                            "flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors disabled:opacity-50": true,
-                            "hover:bg-white/5": true,
-                            [sd().color]: true,
-                          }}
-                          title={actionLabel(live())}
-                        >
-                          <Icon name={actionIcon(live()) as any} size="small" />
-                          <span class="text-11-regular whitespace-nowrap">
-                            {actionLabel(live())}
-                          </span>
-                        </button>
+                        <Show when={isToggleable(live())} fallback={
+                          <button
+                            onClick={() => handleAction(live())}
+                            disabled={loading()}
+                            class="px-2 py-0.5 rounded text-11-regular text-text-weak hover:text-text-base hover:bg-surface-base-hover transition-colors disabled:opacity-50"
+                          >
+                            {nonToggleLabel(live())}
+                          </button>
+                        }>
+                          <button
+                            onClick={() => handleAction(live())}
+                            disabled={loading()}
+                            class="transition-opacity disabled:opacity-50"
+                            title={isOn(live()) ? "Turn off" : "Turn on"}
+                          >
+                            <svg width="36" height="20" viewBox="0 0 36 20" fill="none">
+                              <Show when={isOn(live())} fallback={
+                                <>
+                                  <rect x="0.5" y="0.5" width="35" height="19" rx="9.5" fill="#4a2020" stroke="#ef4444" stroke-opacity="0.4" />
+                                  <circle cx="10" cy="10" r="7" fill="#ef4444" />
+                                </>
+                              }>
+                                <rect x="0.5" y="0.5" width="35" height="19" rx="9.5" fill="#1a3a2a" stroke="#22c55e" stroke-opacity="0.4" />
+                                <circle cx="26" cy="10" r="7" fill="#22c55e" />
+                              </Show>
+                            </svg>
+                          </button>
+                        </Show>
                       </div>
                     </div>
 
@@ -509,7 +516,7 @@ export const DialogAppMarket: Component = () => {
                       <div class="app-market-tools mx-3 mb-3 md:mx-2 md:mb-2">
                         <button
                           onClick={() => toggleToolsExpand(live().id)}
-                          class="flex items-center gap-1 w-full px-2 py-1 rounded-t bg-background-base/60 border border-border-base/30 text-[11px] text-text-weaker hover:text-text-weak transition-colors"
+                          class="flex items-center gap-1 w-full px-2 py-1 rounded-t bg-surface-base border border-border-base/30 text-[11px] text-text-weaker hover:text-text-weak transition-colors"
                         >
                           <Icon
                             name={expandedTools().has(live().id) ? "chevron-down" : "chevron-right"}
@@ -518,11 +525,11 @@ export const DialogAppMarket: Component = () => {
                           <span>{language.t("app_market.tools_count", { count: String(live().tools.length || (live() as any).toolCount || 0) })}</span>
                         </button>
                         <Show when={expandedTools().has(live().id)}>
-                          <div class="app-market-tools-list flex flex-wrap gap-1 px-2 py-1.5 rounded-b bg-background-base/60 border border-t-0 border-border-base/30 content-start overflow-y-auto">
+                          <div class="app-market-tools-list flex flex-wrap gap-1 px-2 py-1.5 rounded-b bg-surface-base border border-t-0 border-border-base/30 content-start overflow-y-auto">
                             <For each={live().tools}>
                               {(tool) => (
                                 <span
-                                  class="px-1.5 py-0.5 rounded bg-white/5 text-[11px] text-text-weak h-fit"
+                                  class="px-1.5 py-0.5 rounded bg-surface-base text-[11px] text-text-weak h-fit"
                                   title={tool.description || tool.name}
                                 >
                                   {tool.name}
@@ -543,8 +550,8 @@ export const DialogAppMarket: Component = () => {
 
       {/* Add App Dialog Overlay */}
       <Show when={showAddDialog()}>
-        <div class="absolute inset-0 bg-black/60 flex items-center justify-center z-10 rounded-lg">
-          <div class="bg-[#1a1a2e] border border-border-base rounded-lg p-6 w-[400px] max-w-[90%]">
+        <div class="absolute inset-0 bg-black/30 flex items-center justify-center z-10 rounded-lg">
+          <div class="bg-surface-strong border border-border-base rounded-lg p-6 w-[400px] max-w-[90%]">
             <h3 class="text-14-medium text-text-strong mb-3">Add MCP App</h3>
             <p class="text-12-regular text-text-weak mb-4">
               Enter a local path to an MCP App directory, or a GitHub URL to clone.
@@ -555,7 +562,7 @@ export const DialogAppMarket: Component = () => {
               value={addSource()}
               onInput={(e) => { setAddSource(e.currentTarget.value); setAddError(null) }}
               onKeyDown={(e) => { if (e.key === "Enter") addNewApp() }}
-              class="w-full px-3 py-2 bg-background-input border border-border-base rounded-sm text-13-regular text-text-base placeholder:text-text-weaker focus:outline-none focus:border-border-focus mb-3"
+              class="w-full px-3 py-2 bg-input-base border border-border-base rounded-sm text-13-regular text-text-base placeholder:text-text-weaker focus:outline-none focus:border-border-focus mb-3"
             />
             <Show when={addError()}>
               <p class="text-12-regular text-danger-base mb-3">{addError()}</p>
@@ -587,8 +594,8 @@ export const DialogAppMarket: Component = () => {
           const hasSettings = () => app()?.settingsSchema && app()!.settingsSchema!.fields.length > 0
 
           return (
-            <div class="absolute inset-0 bg-black/60 flex items-center justify-center z-10 rounded-lg">
-              <div class="bg-[#1a1a2e] border border-border-base rounded-lg p-6 w-[480px] max-w-[90%] max-h-[80vh] overflow-y-auto">
+            <div class="absolute inset-0 bg-black/30 flex items-center justify-center z-10 rounded-lg">
+              <div class="bg-surface-strong border border-border-base rounded-lg p-6 w-[480px] max-w-[90%] max-h-[80vh] overflow-y-auto">
                 <h3 class="text-14-medium text-text-strong mb-1">{app()?.name ?? "Settings"}</h3>
                 <p class="text-11-regular text-text-weaker mb-4">Configure app settings and authentication</p>
 
@@ -599,7 +606,7 @@ export const DialogAppMarket: Component = () => {
                       <Icon name="eye" size="small" />
                       Authentication
                     </h4>
-                    <div class="rounded border border-border-base bg-background-base/40 p-3">
+                    <div class="rounded border border-border-base bg-surface-base p-3">
                       <Show when={app()!.auth!.type === "oauth"}>
                         <div class="flex items-center justify-between">
                           <div>
@@ -615,7 +622,7 @@ export const DialogAppMarket: Component = () => {
                               const storeId = app()!.id.replace(/^store-/, "")
                               openOAuthConnect(storeId)
                             }}
-                            class="px-2.5 py-1 rounded-sm border border-border-base text-12-regular text-text-base hover:bg-white/5 transition-colors"
+                            class="px-2.5 py-1 rounded-sm border border-border-base text-12-regular text-text-base hover:bg-surface-base-hover transition-colors"
                           >
                             {app()!.status === "connected" || app()!.status === "ready" ? "Reconnect" : "Connect"}
                           </button>
@@ -631,7 +638,7 @@ export const DialogAppMarket: Component = () => {
                             value={String(settingsValues()[app()!.auth!.tokenEnv ?? "API_KEY"] ?? "")}
                             onInput={(e) => updateSettingsValue(app()!.auth!.tokenEnv ?? "API_KEY", e.currentTarget.value)}
                             placeholder="Enter API key"
-                            class="w-full px-3 py-1.5 bg-background-input border border-border-base rounded-sm text-12-regular text-text-base placeholder:text-text-weaker focus:outline-none focus:border-border-focus"
+                            class="w-full px-3 py-1.5 bg-input-base border border-border-base rounded-sm text-12-regular text-text-base placeholder:text-text-weaker focus:outline-none focus:border-border-focus"
                           />
                         </div>
                       </Show>
@@ -646,7 +653,7 @@ export const DialogAppMarket: Component = () => {
                       <Icon name="settings-gear" size="small" />
                       Configuration
                     </h4>
-                    <div class="rounded border border-border-base bg-background-base/40 p-3 flex flex-col gap-3">
+                    <div class="rounded border border-border-base bg-surface-base p-3 flex flex-col gap-3">
                       <For each={app()!.settingsSchema!.fields}>
                         {(field) => (
                           <div>
@@ -666,7 +673,7 @@ export const DialogAppMarket: Component = () => {
                                 type={field.secret ? "password" : "text"}
                                 value={String(settingsValues()[field.key] ?? field.default ?? "")}
                                 onInput={(e) => updateSettingsValue(field.key, e.currentTarget.value)}
-                                class="w-full px-3 py-1.5 bg-background-input border border-border-base rounded-sm text-12-regular text-text-base placeholder:text-text-weaker focus:outline-none focus:border-border-focus"
+                                class="w-full px-3 py-1.5 bg-input-base border border-border-base rounded-sm text-12-regular text-text-base placeholder:text-text-weaker focus:outline-none focus:border-border-focus"
                               />
                             </Show>
 
@@ -676,7 +683,7 @@ export const DialogAppMarket: Component = () => {
                                 type="number"
                                 value={String(settingsValues()[field.key] ?? field.default ?? "")}
                                 onInput={(e) => updateSettingsValue(field.key, Number(e.currentTarget.value))}
-                                class="w-full px-3 py-1.5 bg-background-input border border-border-base rounded-sm text-12-regular text-text-base placeholder:text-text-weaker focus:outline-none focus:border-border-focus"
+                                class="w-full px-3 py-1.5 bg-input-base border border-border-base rounded-sm text-12-regular text-text-base placeholder:text-text-weaker focus:outline-none focus:border-border-focus"
                               />
                             </Show>
 
@@ -709,7 +716,7 @@ export const DialogAppMarket: Component = () => {
                               <select
                                 value={String(settingsValues()[field.key] ?? field.default ?? "")}
                                 onChange={(e) => updateSettingsValue(field.key, e.currentTarget.value)}
-                                class="w-full px-3 py-1.5 bg-background-input border border-border-base rounded-sm text-12-regular text-text-base focus:outline-none focus:border-border-focus"
+                                class="w-full px-3 py-1.5 bg-input-base border border-border-base rounded-sm text-12-regular text-text-base focus:outline-none focus:border-border-focus"
                               >
                                 <For each={field.options}>
                                   {(opt) => <option value={opt.value}>{opt.label}</option>}

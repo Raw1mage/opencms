@@ -17,14 +17,23 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  background: var(--surface-raised-stronger-non-alpha);
 }
 
 .app-market-resizable [data-slot="dialog-title"] {
-  color: var(--text-strong);
   font-size: 18px;
   line-height: 26px;
   font-weight: var(--font-weight-semibold);
+}
+
+/* Card background slightly lighter than dialog body (#2d3748) for depth */
+.app-market-card {
+  height: 200px;
+  background-color: #222b38 !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+}
+
+.app-market-card:hover {
+  border-color: rgba(255, 255, 255, 0.22) !important;
 }
 
 .app-market-grid {
@@ -33,11 +42,6 @@
 
 .app-market-description {
   display: block;
-}
-
-/* Fixed card height — tools list scrolls inside */
-.app-market-card {
-  height: 200px;
 }
 
 .app-market-tools {
@@ -87,7 +91,6 @@
     font-size: 15px;
     line-height: 19px;
     font-weight: var(--font-weight-semibold);
-    color: var(--text-strong);
   }
 
   .app-market-description {

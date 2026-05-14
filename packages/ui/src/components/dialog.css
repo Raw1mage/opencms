@@ -48,10 +48,26 @@
       /* padding: 8px; */
       /* padding: 8px 8px 0 8px; */
       border-radius: var(--radius-xl);
-      background: #ffffff;
+      background-color: #191f2a !important;
       background-clip: padding-box;
-      color: #000000;
+      color: #f0f4f8 !important;
       box-shadow: var(--shadow-lg-border-base);
+
+      * {
+        color: #f0f4f8 !important;
+      }
+
+      input, textarea, select {
+        background-color: #111620 !important;
+        color: #f0f4f8 !important;
+      }
+
+      svg {
+        color: #e2e8f0 !important;
+      }
+
+      /* Light-mode variable overrides moved to top-level @media block below
+         to avoid CSS nesting + @media compilation issues. */
 
       [data-slot="dialog-header"] {
         display: flex;
@@ -62,7 +78,7 @@
         align-self: stretch;
 
         [data-slot="dialog-title"] {
-          color: #000000;
+          color: #ffffff !important;
 
           /* text-16-medium */
           font-family: var(--font-family-sans);
@@ -86,7 +102,7 @@
         flex-shrink: 0;
         align-self: stretch;
 
-        color: #000000;
+        color: #cbd5e0 !important;
 
         /* text-14-regular */
         font-family: var(--font-family-sans);
@@ -178,5 +194,59 @@
   to {
     opacity: 0;
     transform: scale(0.98);
+  }
+}
+
+/* Force light-mode theme variables inside the white-background dialog.
+   In dark mode, utility classes (text-text-weak, etc.) override :where(*)
+   and resolve to light/white text → invisible on #fff background.
+   Flat top-level @media block avoids CSS-nesting compilation issues. */
+@media (prefers-color-scheme: dark) {
+  [data-component="dialog"] [data-slot="dialog-content"] {
+    /* Text — light on mid-tone blue-gray */
+    --text-base: #e2e8f0;
+    --text-weak: #cbd5e0;
+    --text-weaker: #a0aec0;
+    --text-strong: #ffffff;
+    --text-interactive-base: #63b3ed;
+
+    /* Icons */
+    --icon-base: #cbd5e0;
+    --icon-hover: #e2e8f0;
+    --icon-active: #ffffff;
+    --icon-selected: #ffffff;
+    --icon-disabled: #8a9bb5;
+    --icon-weak-base: #a0aec0;
+    --icon-strong-base: #ffffff;
+    --icon-interactive-base: #63b3ed;
+    --icon-success-base: #68d391;
+    --icon-warning-base: #f6c85b;
+    --icon-critical-base: #fc8181;
+    --icon-danger-base: #fc8181;
+    --icon-info-base: #b794f4;
+
+    /* Surfaces — on #2d3748 base */
+    --surface-base: rgba(255, 255, 255, 0.05);
+    --surface-base-hover: rgba(255, 255, 255, 0.08);
+    --surface-raised-base: rgba(255, 255, 255, 0.07);
+    --surface-raised-base-hover: rgba(255, 255, 255, 0.10);
+    --surface-raised-base-active: rgba(255, 255, 255, 0.14);
+    --surface-raised-strong: #242d3a;
+    --surface-raised-stronger: #2a3545;
+    --surface-raised-stronger-non-alpha: #191f2a;
+    --surface-inset-base: rgba(0, 0, 0, 0.15);
+    --surface-inset-strong: rgba(0, 0, 0, 0.25);
+    --surface-strong: #242d3a;
+
+    /* Borders */
+    --border-base: rgba(255, 255, 255, 0.14);
+    --border-hover: rgba(255, 255, 255, 0.22);
+    --border-strong-base: rgba(255, 255, 255, 0.18);
+    --border-weak-base: rgba(255, 255, 255, 0.10);
+    --border-critical-base: #fc8181;
+
+    /* Input */
+    --input-base: #111620;
+    --input-hover: #0d1018;
   }
 }
