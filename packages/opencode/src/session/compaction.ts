@@ -2536,11 +2536,21 @@ When constructing the summary, try to stick to this template:
       }
       await Session.updateMessage(newUser)
       for (const part of input.snapshot.parts) {
-        await Session.updatePart({
+        const copy = {
           ...part,
           id: Identifier.ascending("part"),
           messageID: newUserID,
-        } as MessageV2.Part)
+        } as MessageV2.Part
+        // Tag text parts so the frontend can suppress the replayed bubble
+        // from the visible conversation (the user already saw the original).
+        // Backend treats this as a normal user message (synthetic flag untouched).
+        if (copy.type === "text") {
+          ;(copy as MessageV2.TextPart).metadata = {
+            ...((part as MessageV2.TextPart).metadata || {}),
+            compactionReplay: true,
+          }
+        }
+        await Session.updatePart(copy)
       }
       if (input.snapshot.emptyAssistantID) {
         await Session.removeMessage({

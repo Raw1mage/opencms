@@ -298,7 +298,9 @@ export default function Page() {
     void (async () => {
       try {
         const url = `${sdk.url}/api/v2/file/stat?path=${encodeURIComponent(path)}`
-        const response = await sdk.fetch(url)
+        const response = await sdk.fetch(url, {
+          headers: { "x-opencode-directory": sdk.directory },
+        })
         if (cancelled) return
         if (response.status >= 400 && response.status < 500) {
           tabs().close(active)
@@ -364,7 +366,9 @@ export default function Page() {
       if (stopped) return
       try {
         const url = `${sdk.url}/api/v2/file/stat?path=${encodeURIComponent(path)}`
-        const response = await sdk.fetch(url)
+        const response = await sdk.fetch(url, {
+          headers: { "x-opencode-directory": sdk.directory },
+        })
         if (stopped) return
         // 4xx is a confirmed answer (missing / forbidden) — no point polling
         // the same path forever. Network 5xx or thrown errors keep retrying.
@@ -691,14 +695,21 @@ export default function Page() {
   // filters synthetic text from the textPart memo, but the container
   // itself still appears unless we drop the message at the list level.
   const isPureSyntheticUser = (m: UserMessage): boolean => {
-    const parts = (sync.data.part[m.id] ?? []) as Array<{ type?: string; synthetic?: boolean }>
+    const parts = (sync.data.part[m.id] ?? []) as Array<{
+      type?: string
+      synthetic?: boolean
+      metadata?: Record<string, unknown>
+    }>
     if (parts.length === 0) return false
     let hasNonSynthetic = false
     let hasText = false
     for (const p of parts) {
       if (p.type !== "text") continue
       hasText = true
-      if (!p.synthetic) hasNonSynthetic = true
+      // Compaction replay messages are backend-internal copies of the user's
+      // original question repositioned after the anchor. The user already saw
+      // the original — suppress the replay from the visible conversation.
+      if (!p.synthetic && !p.metadata?.compactionReplay) hasNonSynthetic = true
     }
     return hasText && !hasNonSynthetic
   }
