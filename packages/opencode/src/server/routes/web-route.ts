@@ -32,6 +32,7 @@ interface RegistryEntry {
   primaryPort: number
   webctlPath: string
   enabled: boolean
+  autostart?: boolean
   access: string
 }
 
@@ -48,6 +49,10 @@ function registryPath(): string {
 async function readRegistry(): Promise<Registry> {
   const raw = await fs.readFile(registryPath(), "utf-8")
   return JSON.parse(raw) as Registry
+}
+
+async function writeRegistry(registry: Registry): Promise<void> {
+  await fs.writeFile(registryPath(), JSON.stringify(registry, null, 2) + "\n", "utf-8")
 }
 
 /* ── Health probe ── */
@@ -73,9 +78,28 @@ function tcpProbe(host: string, port: number, timeoutMs = 2000): Promise<boolean
 
 /* ── webctl.sh runner ── */
 
+/**
+ * Run a webctl.sh action.
+ *
+ * For "start", we launch via `systemd-run --user --scope` so the spawned
+ * service lives in its own cgroup scope, independent of the daemon unit.
+ * Without this, systemd's default KillMode=control-group kills all web
+ * services when the daemon unit restarts.
+ *
+ * "stop" and other actions run directly (they just send signals/teardown).
+ */
 function runWebctl(webctlPath: string, action: string, timeoutMs = 30000): Promise<{ ok: boolean; output: string }> {
   return new Promise((resolve) => {
-    const child = spawn("bash", [webctlPath, action], {
+    // Derive a stable scope unit name from the webctl path
+    const scopeName = path.basename(path.dirname(webctlPath)).replace(/[^a-zA-Z0-9_-]/g, "_")
+
+    const useScope = action === "start"
+    const cmd = useScope ? "systemd-run" : "bash"
+    const args = useScope
+      ? ["--user", "--scope", `--unit=webctl-${scopeName}`, "--", "bash", webctlPath, action]
+      : [webctlPath, action]
+
+    const child = spawn(cmd, args, {
       stdio: ["ignore", "pipe", "pipe"],
       timeout: timeoutMs,
     })
@@ -86,7 +110,21 @@ function runWebctl(webctlPath: string, action: string, timeoutMs = 30000): Promi
       resolve({ ok: code === 0, output: out.trim() })
     })
     child.on("error", (err) => {
-      resolve({ ok: false, output: err.message })
+      // If systemd-run is not available, fall back to direct execution
+      if (useScope && err.message.includes("ENOENT")) {
+        log.warn("systemd-run not available, falling back to direct spawn", { entry: scopeName })
+        const fallback = spawn("bash", [webctlPath, action], {
+          stdio: ["ignore", "pipe", "pipe"],
+          timeout: timeoutMs,
+        })
+        let fbOut = ""
+        fallback.stdout.on("data", (d: Buffer) => { fbOut += d.toString() })
+        fallback.stderr.on("data", (d: Buffer) => { fbOut += d.toString() })
+        fallback.on("close", (code) => resolve({ ok: code === 0, output: fbOut.trim() }))
+        fallback.on("error", (e) => resolve({ ok: false, output: e.message }))
+      } else {
+        resolve({ ok: false, output: err.message })
+      }
     })
   })
 }
@@ -135,6 +173,50 @@ function ctlRequest(payload: Record<string, unknown>): Promise<Record<string, un
       reject(new Error("gateway ctl.sock timeout"))
     })
   })
+}
+
+/**
+ * Auto-start services marked with autostart: true in web_registry.json.
+ * Called during daemon boot — runs in background, never throws.
+ */
+export async function autoStartServices(): Promise<void> {
+  let registry: Registry
+  try {
+    registry = await readRegistry()
+  } catch {
+    log.info("no web_registry.json found, skipping auto-start")
+    return
+  }
+
+  const targets = registry.entries.filter((e) => e.enabled && e.autostart)
+  if (targets.length === 0) return
+
+  log.info("auto-starting web services", { count: targets.length, names: targets.map((e) => e.entryName) })
+
+  await Promise.allSettled(
+    targets.map(async (entry) => {
+      // Skip if already alive
+      const alive = await tcpProbe(entry.host, entry.primaryPort)
+      if (alive) {
+        log.info("service already running, skipping", { entry: entry.entryName })
+        return
+      }
+
+      try {
+        await fs.access(entry.webctlPath)
+      } catch {
+        log.warn("webctl.sh not found, skipping", { entry: entry.entryName, path: entry.webctlPath })
+        return
+      }
+
+      const result = await runWebctl(entry.webctlPath, "start")
+      if (result.ok) {
+        log.info("auto-started service", { entry: entry.entryName })
+      } else {
+        log.warn("auto-start failed", { entry: entry.entryName, output: result.output })
+      }
+    }),
+  )
 }
 
 export const WebRouteRoutes = lazy(() =>
@@ -341,6 +423,12 @@ export const WebRouteRoutes = lazy(() =>
           if (!result.ok) {
             log.warn("webctl.sh failed", { entry: body.entryName, action: body.action, output: result.output })
           }
+
+          // Persist autostart state: start → autostart: true, stop → autostart: false
+          entry.autostart = body.action === "start"
+          writeRegistry(registry).catch((err) =>
+            log.warn("failed to persist autostart flag", { error: err instanceof Error ? err.message : String(err) }),
+          )
 
           return c.json({ ok: result.ok, output: result.output })
         } catch (err) {

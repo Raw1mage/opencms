@@ -7,6 +7,7 @@ import { Restart } from "./restart"
 import { CronRetention } from "../cron/retention"
 import { Heartbeat } from "../cron/heartbeat"
 import { ZombieSweep } from "../session/zombie-sweep"
+import { autoStartServices } from "../server/routes/web-route"
 
 export { GatewayLock } from "./gateway-lock"
 export { Signals } from "./signals"
@@ -90,6 +91,12 @@ export namespace Daemon {
       .catch((err) =>
         log.warn("zombie sweep threw", { error: err instanceof Error ? err.message : String(err) }),
       )
+
+    // Auto-start web services that were previously running (autostart: true
+    // in web_registry.json). Runs in background so daemon start is not blocked.
+    autoStartServices().catch((err) =>
+      log.warn("auto-start web services threw", { error: err instanceof Error ? err.message : String(err) }),
+    )
 
     return true
   }
