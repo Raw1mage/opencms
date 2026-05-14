@@ -112,19 +112,26 @@ export function startActivePoll(
       }
 
       try {
-        // Pull session info + tail messages in parallel.
-        const [sessionResp, messagesResp] = await Promise.all([
-          deps.client.session.get({ sessionID, directory: deps.directory }),
-          deps.client.session.messages({ sessionID, directory: deps.directory, limit: messageLimit }),
-        ])
+        // Only pull session info — NOT messages/parts. During streaming,
+        // SSE event-reducer owns the message/part store and uses delta
+        // appends + index-based setStore. Running reconcile on the same
+        // store paths concurrently causes duplicate text and visual
+        // doubling. Active poll's job is to detect WHEN the turn
+        // completes (via workflow.state), not to mirror streaming
+        // content. When `until` fires, we do one final loadMessages to
+        // catch any content SSE may have missed. (frontend/resync
+        // regression fix 2026-05-14)
+        const sessionResp = await deps.client.session.get({
+          sessionID,
+          directory: deps.directory,
+        })
 
         const sessionInfo = (sessionResp.data ?? null) as SessionInfo | null
-        const messages = messagesResp.data ?? []
 
-        // Merge into store.
-        const merged = mergeSnapshot(deps.store, sessionID, messages)
-        batch(() => {
-          if (sessionInfo) {
+        // Update session info only (workflow.state for `until` predicate).
+        // Message/part store stays under SSE ownership during streaming.
+        if (sessionInfo) {
+          batch(() => {
             deps.setStore("session", (prev) => {
               const idx = prev.findIndex((s) => s.id === sessionID)
               if (idx < 0) return [...prev, sessionInfo as State["session"][number]]
@@ -132,25 +139,47 @@ export function startActivePoll(
               next[idx] = sessionInfo as State["session"][number]
               return next
             })
-          }
-          // Replace message list (additions / order changes safe per ID-key reconcile).
-          deps.setStore("message", sessionID, reconcile(merged.messages, { key: "id" }))
-          for (const m of merged.perMessageParts) {
-            deps.setStore("part", m.messageID, reconcile(m.parts, { key: "id" }))
-          }
-        })
+          })
+        }
 
-        // Determine lastAssistant for `until` predicate.
-        const lastAssistant = [...merged.messages].reverse().find((m) => m.role === "assistant") ?? null
+        // Determine lastAssistant from current store (not from a snapshot
+        // pull) — avoids reading messages from server during streaming.
+        const localMessages = (deps.store.message[sessionID] ?? []) as Message[]
+        const lastAssistant = [...localMessages].reverse().find((m) => m.role === "assistant") ?? null
         config.onPull?.({
           session: sessionInfo,
           lastAssistant,
-          parts_inserted: merged.stats.inserted,
-          parts_replaced: merged.stats.replaced,
-          parts_kept_local: merged.stats.kept_local,
+          parts_inserted: 0,
+          parts_replaced: 0,
+          parts_kept_local: 0,
         })
 
         if (config.until({ session: sessionInfo, lastAssistant })) {
+          // Turn is done. Do ONE final message sync to catch anything
+          // SSE may have missed (e.g. if SSE was dead the whole time).
+          // This is the only moment active poll touches message/part store.
+          try {
+            const messagesResp = await deps.client.session.messages({
+              sessionID,
+              directory: deps.directory,
+              limit: messageLimit,
+            })
+            const messages = messagesResp.data ?? []
+            if (messages.length > 0) {
+              const merged = mergeSnapshot(deps.store, sessionID, messages)
+              batch(() => {
+                deps.setStore("message", sessionID, reconcile(merged.messages, { key: "id" }))
+                for (const m of merged.perMessageParts) {
+                  deps.setStore("part", m.messageID, reconcile(m.parts, { key: "id" }))
+                }
+              })
+            }
+          } catch (syncErr) {
+            console.warn("[active-poll] final message sync failed", {
+              sessionID,
+              error: syncErr instanceof Error ? syncErr.message : String(syncErr),
+            })
+          }
           stop("completed")
           return
         }
