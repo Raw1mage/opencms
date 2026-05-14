@@ -5,6 +5,7 @@ import { useLanguage } from "@/context/language"
 import { useLayout, type LocalProject, getAvatarColors } from "@/context/layout"
 import { useNotification } from "@/context/notification"
 import { usePermission } from "@/context/permission"
+import { usePrompts } from "@/context/prompts"
 import { DirtyCountBubble } from "@/components/dirty-count-bubble"
 import { base64Encode } from "@opencode-ai/util/encode"
 import { Avatar } from "@opencode-ai/ui/avatar"
@@ -272,6 +273,7 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
   const permission = usePermission()
   const globalSync = useGlobalSync()
   const dialog = useDialog()
+  const prompts = usePrompts()
   const unseenCount = createMemo(() => notification.session.unseenCount(props.session.id))
   const hasError = createMemo(() => notification.session.unseenHasError(props.session.id))
   const [sessionStore, setSessionStore] = globalSync.child(props.session.directory)
@@ -334,9 +336,20 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
 
   const hoverPrefetch = { current: undefined as ReturnType<typeof setTimeout> | undefined }
   const recentAction = { until: 0 }
+  let actionTriggerRef: HTMLElement | undefined
   const [menuOpen, setMenuOpen] = createSignal(false)
+  const [renameAnchor, setRenameAnchor] = createSignal<{ x: number; y: number } | undefined>()
   const markRecentAction = () => {
     recentAction.until = Date.now() + 900
+  }
+  const rememberRenameAnchor = (target = actionTriggerRef) => {
+    if (!target) return
+    const rect = target.getBoundingClientRect()
+    setRenameAnchor({ x: rect.right + 8, y: rect.top })
+  }
+  const currentRenameAnchor = () => {
+    rememberRenameAnchor()
+    return renameAnchor()
   }
   const shouldIgnoreActiveClose = () => menuOpen() || Date.now() < recentAction.until
   const cancelHoverPrefetch = () => {
@@ -420,21 +433,27 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
           }}
         >
           <DropdownMenu.Trigger
+            ref={(el: HTMLElement) => {
+              actionTriggerRef = el
+            }}
             data-session-action
             class="flex items-center justify-center size-6 rounded-md text-icon-base bg-surface-raised-base hover:bg-surface-raised-base-hover data-[expanded]:bg-surface-base-active border border-border-weak-base shadow-xs"
             aria-label={language.t("common.moreOptions")}
             onTouchStart={(event: TouchEvent) => {
               markRecentAction()
+              rememberRenameAnchor(event.currentTarget as HTMLElement)
               event.preventDefault()
               event.stopPropagation()
             }}
             onPointerDown={(event: PointerEvent) => {
               markRecentAction()
+              rememberRenameAnchor(event.currentTarget as HTMLElement)
               event.preventDefault()
               event.stopPropagation()
             }}
             onClick={(event: MouseEvent) => {
               markRecentAction()
+              rememberRenameAnchor(event.currentTarget as HTMLElement)
               event.preventDefault()
               event.stopPropagation()
             }}
@@ -464,7 +483,14 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
   )
 
   const renameSession = async () => {
-    const next = window.prompt(language.t("common.rename"), props.session.title)?.trim()
+    const next = (
+      await prompts.promptInput({
+        title: language.t("common.rename"),
+        initial: props.session.title,
+        submitLabel: language.t("common.rename"),
+        anchor: currentRenameAnchor(),
+      })
+    )?.trim()
     if (!next || next === props.session.title) return
     await globalSDK.client.session
       .update({
