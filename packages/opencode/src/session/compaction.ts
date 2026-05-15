@@ -1124,7 +1124,33 @@ export namespace SessionCompaction {
       return { ok: false, reason: "memory empty" }
     }
 
-    const body = prevBody && tailText ? `${prevBody}\n\n${tailText}` : prevBody || tailText
+    let body = prevBody && tailText ? `${prevBody}\n\n${tailText}` : prevBody || tailText
+
+    // Cap narrative anchor body at 40% of context to prevent floor
+    // escalation. When chained concat grows beyond the cap, drop the
+    // oldest rounds from the head (newest rounds are highest-value).
+    // This is a local-only operation — no API call needed.
+    const NARRATIVE_BODY_RATIO_CAP = 0.40
+    const contextLimit = _model?.limit?.context ?? 0
+    if (contextLimit > 0) {
+      const capChars = Math.floor(contextLimit * NARRATIVE_BODY_RATIO_CAP * 4)
+      if (body.length > capChars) {
+        const originalLen = body.length
+        body = body.slice(-capChars)
+        // Clean cut: find the first complete round boundary (## Round)
+        const roundBoundary = body.indexOf("\n## Round ")
+        if (roundBoundary > 0 && roundBoundary < body.length * 0.3) {
+          body = body.slice(roundBoundary + 1)
+        }
+        log.info("narrative anchor body capped (oldest rounds dropped)", {
+          sessionID: input.sessionID,
+          originalTokens: Math.ceil(originalLen / 4),
+          cappedTokens: Math.ceil(body.length / 4),
+          contextLimit,
+          capRatio: NARRATIVE_BODY_RATIO_CAP,
+        })
+      }
+    }
 
     return { ok: true, summaryText: body, kind: "narrative", truncated: false }
   }
