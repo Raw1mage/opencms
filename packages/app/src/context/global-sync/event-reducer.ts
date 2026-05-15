@@ -30,6 +30,31 @@ import { computeGlobalEvictions, isMessageLive, platformStoreCap } from "@/utils
 // that stamps completion. Eviction skips IDs in this set.
 const _liveStreamingIds = new Set<string>()
 
+// Tombstone set: messageIDs recently removed via "message.removed" SSE events.
+// Prevents mergeSnapshot (active-poll) from re-introducing deleted messages
+// when a stale poll response arrives after the removal event was processed.
+// Entries auto-expire after TOMBSTONE_TTL_MS.
+const _messageTombstones = new Map<string, number>()
+const TOMBSTONE_TTL_MS = 120_000
+
+function pruneExpiredTombstones() {
+  if (_messageTombstones.size === 0) return
+  const cutoff = Date.now() - TOMBSTONE_TTL_MS
+  for (const [id, ts] of _messageTombstones) {
+    if (ts < cutoff) _messageTombstones.delete(id)
+  }
+}
+
+export function isMessageTombstoned(messageID: string): boolean {
+  const ts = _messageTombstones.get(messageID)
+  if (ts === undefined) return false
+  if (Date.now() - ts > TOMBSTONE_TTL_MS) {
+    _messageTombstones.delete(messageID)
+    return false
+  }
+  return true
+}
+
 export function evictGlobalIfOverCap(store: Store<State>, setStore: SetStoreFunction<State>) {
   const cap = platformStoreCap()
   const decisions = computeGlobalEvictions(store.message, cap, _liveStreamingIds)
@@ -372,6 +397,10 @@ export function applyDirectoryEvent(input: {
     case "message.removed": {
       const props = event.properties as { sessionID: string; messageID: string }
       _liveStreamingIds.delete(props.messageID)
+      // Tombstone: prevent mergeSnapshot from resurrecting this message
+      // via a stale active-poll response that was in-flight during deletion.
+      _messageTombstones.set(props.messageID, Date.now())
+      pruneExpiredTombstones()
       input.setStore(
         produce((draft) => {
           const messages = draft.message[props.sessionID]

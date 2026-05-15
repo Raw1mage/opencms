@@ -430,7 +430,10 @@ export function SessionTurn(
               break
             }
           }
-          if (hasText && !hasNonSynthetic) {
+          // Transparent user messages: either all-synthetic text parts,
+          // or no text parts at all (e.g. compaction-request triggers).
+          // Absorb their id so post-compaction assistants aren't orphaned.
+          if (!hasText || (hasText && !hasNonSynthetic)) {
             acceptedParents.add(item.id)
             continue
           }

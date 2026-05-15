@@ -2,6 +2,7 @@ import { batch } from "solid-js"
 import { reconcile, type SetStoreFunction, type Store } from "solid-js/store"
 import type { Message, Part } from "@opencode-ai/sdk/v2/client"
 import type { State } from "./global-sync/types"
+import { isMessageTombstoned } from "./global-sync/event-reducer"
 
 /**
  * Active polling — channel-independent correctness floor.
@@ -283,8 +284,11 @@ export function mergeSnapshot(
   }
 
   // Append any snapshot-only messages (in their original order).
+  // Skip tombstoned messages — these were recently removed via SSE
+  // "message.removed" and must not be resurrected by a stale poll response.
   for (const snap of snapshot) {
     if (seen.has(snap.info.id)) continue
+    if (isMessageTombstoned(snap.info.id)) continue
     messages.push(snap.info)
     const localParts = (store.part[snap.info.id] ?? []) as Part[]
     const mergedParts = mergeParts(localParts, snap.parts, stats)

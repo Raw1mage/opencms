@@ -524,21 +524,28 @@ export async function deriveObservedCondition(input: {
 
 function hasUnreadAttachmentRefs(msgs: MessageV2.WithParts[]): boolean {
   const seen = new Set<string>()
-  const read = new Set<string>()
+  const attempted = new Set<string>()
   for (const msg of msgs) {
     for (const part of msg.parts) {
       if (part.type === "attachment_ref") {
         seen.add(part.ref_id)
         continue
       }
-      if (part.type === "tool" && part.tool === "attachment" && part.state.status === "completed") {
+      // Count both completed AND errored attachment reads as "attempted".
+      // A 429 or other runtime error should not permanently lock the agent
+      // to attachment-only mode — the agent tried, the runtime failed.
+      if (
+        part.type === "tool" &&
+        part.tool === "attachment" &&
+        (part.state.status === "completed" || part.state.status === "error")
+      ) {
         const refID = (part.state.input as { ref_id?: unknown })?.ref_id
-        if (typeof refID === "string") read.add(refID)
+        if (typeof refID === "string") attempted.add(refID)
       }
     }
   }
   for (const ref of seen) {
-    if (!read.has(ref)) return true
+    if (!attempted.has(ref)) return true
   }
   return false
 }

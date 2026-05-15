@@ -16,6 +16,8 @@ This profile is a practical normalization of IEC 60848-style modeling for portab
 - **LinkOutputNumber**: next step IDs
 - **LinkOutputType**: `track` | `divergence_or` | `divergence_and` | `convergence_and`
 - **Condition**: transition guard condition list
+- **Gates[]**: explicit divergence/convergence gate definitions required for every fan-out/fan-in in strict design.
+- **Edges[]**: explicit connection list; every edge must have `EdgeId = From + To` using standard port codes such as `S1O1G1I1` or `G1O1S2I1`.
 
 ## Strict alternation rule
 
@@ -49,6 +51,23 @@ Steps (states) and Transitions must alternate strictly. No Step-to-Step or Trans
 5. Synchronization logic is explicit when converging parallel branches.
 6. Complex nested control should use `SubGrafcet`.
 7. Every step has `ModuleRef`, and `ModuleRef` must exist in IDEF0 hierarchy.
+8. Every multi-output source must define an explicit divergence gate in `Gates[]`; the AI must choose `divergence_or` vs `divergence_and` from workflow semantics.
+9. Every multi-input target must define an explicit convergence gate in `Gates[]`; the AI must choose `convergence_or` vs `convergence_and` from workflow semantics.
+10. Every gate must have stable `GateNumber` / `GateId`, `Inputs[]`, and `Outputs[]`; every connection must be represented in `Edges[]`.
+
+## Validator-only repair loop
+
+The drawmiat MCP validator is the hard-coded compliance checker. It reports structural violations and repair targets, but it must not rewrite JSON or infer OR/AND semantics.
+
+Use this loop for every GRAFCET artifact:
+
+1. Draft or edit candidate JSON.
+2. Call `validate_grafcet_json(json_payload)` from the miatdiagram workflow, implemented by drawmiat MCP `validate_diagram` with `diagram_type="grafcet"` and `validation_profile="strict_design"`.
+3. The AI updates the source JSON according to diagnostics: add missing `Gates[]`, add missing `Edges[]`, correct `EdgeId`, correct port references, or choose explicit gate semantics.
+4. Repeat validation until `ok=true`.
+5. Render only after validation passes.
+
+The validator may suggest where a gate or edge is required, but the AI is responsible for redesigning JSON semantics. Do not use an auto-canonicalizer as a substitute for design.
 
 ## Recommended requirements (SHOULD)
 
