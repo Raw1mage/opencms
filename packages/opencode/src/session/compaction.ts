@@ -714,6 +714,10 @@ export namespace SessionCompaction {
       kind: "narrative",
     })
 
+    // Schedule background enrichment (merge N→1 if anchor floor > 20%).
+    // Previously only run() called this; create() (used by /compact) skipped it.
+    scheduleHybridEnrichment(input.sessionID, input.observed ?? "manual", input.model)
+
     if (input.auto) {
       const continueText = PostCompaction.buildContinueText(followUps)
       if (!continueText) return
@@ -1547,7 +1551,9 @@ When constructing the summary, try to stick to this template:
    * enrichments on the same session. Cleared when the background
    * promise settles.
    */
-  const hybridEnrichInFlight = new Map<string, Promise<unknown>>()
+  const hybridEnrichInFlight = new Map<string, { promise: Promise<unknown>; startedAt: number }>()
+  /** Max time an enrichment can stay in-flight before being considered stale (5 min). */
+  const ENRICHMENT_IN_FLIGHT_TIMEOUT_MS = 5 * 60 * 1000
 
   /**
    * Background enrichment dispatch. Called AFTER the legacy KIND_CHAIN
@@ -1582,10 +1588,19 @@ When constructing the summary, try to stick to this template:
       emitTelemetry("session.hybrid_enrichment.skipped", { reason: "flag_disabled" })
       return
     }
-    if (hybridEnrichInFlight.has(sessionID)) {
+    const existing = hybridEnrichInFlight.get(sessionID)
+    if (existing && Date.now() - existing.startedAt < ENRICHMENT_IN_FLIGHT_TIMEOUT_MS) {
       log.info("hybrid_llm enrichment skipped (already in flight)", { sessionID })
       emitTelemetry("session.hybrid_enrichment.skipped", { reason: "in_flight" })
       return
+    }
+    if (existing) {
+      // Stale entry — previous enrichment hung or leaked. Clear it.
+      log.warn("hybrid_llm enrichment: cleared stale in-flight entry", {
+        sessionID,
+        staleSinceMs: Date.now() - existing.startedAt,
+      })
+      hybridEnrichInFlight.delete(sessionID)
     }
     emitTelemetry("session.hybrid_enrichment.scheduled")
 
@@ -1932,7 +1947,7 @@ When constructing the summary, try to stick to this template:
         hybridEnrichInFlight.delete(sessionID)
       }
     })()
-    hybridEnrichInFlight.set(sessionID, promise)
+    hybridEnrichInFlight.set(sessionID, { promise, startedAt: Date.now() })
     log.info("hybrid_llm enrichment scheduled (background)", {
       sessionID,
       observed,
