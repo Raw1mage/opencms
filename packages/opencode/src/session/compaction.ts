@@ -2073,11 +2073,13 @@ When constructing the summary, try to stick to this template:
         log.info("codex recompress: plugin did not handle", {
           sessionID,
           itemCount: conversationItems.length,
+          // hookResult may carry a failReason from the transport layer
+          hookResult: JSON.stringify(hookResult).slice(0, 200),
         })
         emitRecompressTelemetry({
           ...baseTelemetry,
           result: "provider-error",
-          errorMessage: "plugin did not handle",
+          errorMessage: `plugin did not handle (${conversationItems.length} items)`,
           latencyMs: Date.now() - startedAt,
         })
         return

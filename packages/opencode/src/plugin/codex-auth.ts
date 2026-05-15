@@ -223,7 +223,14 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
         parallel_tool_calls: true,
       })
 
-      if (!result.success || !result.output) return
+      if (!result.success || !result.output) {
+        log.warn("codex server compaction failed", {
+          sessionID: _input.sessionID,
+          failReason: result.failReason ?? "unknown",
+          inputItems: (_input.conversationItems as unknown[]).length,
+        })
+        return
+      }
 
       // Extract human-readable summary from compacted output
       output.compactedItems = result.output

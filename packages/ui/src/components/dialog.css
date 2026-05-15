@@ -57,6 +57,28 @@
         color: #f0f4f8 !important;
       }
 
+      /* Primary buttons: force light bg + dark text regardless of OS theme */
+      [data-component="button"][data-variant="primary"] {
+        background-color: #f1ecec !important;
+        border-color: rgba(255, 255, 255, 0.10) !important;
+      }
+      [data-component="button"][data-variant="primary"]:hover:not(:disabled) {
+        background-color: #e8e2e2 !important;
+      }
+      [data-component="button"][data-variant="primary"],
+      [data-component="button"][data-variant="primary"] * {
+        color: #1a202c !important;
+      }
+
+      /* Secondary buttons: ensure dark bg + light text regardless of OS theme */
+      [data-component="button"][data-variant="secondary"] {
+        background-color: #2a2f3a !important;
+        color: #f0f4f8 !important;
+      }
+      [data-component="button"][data-variant="secondary"]:hover:not(:disabled) {
+        background-color: #343a47 !important;
+      }
+
       input, textarea, select {
         background-color: #111620 !important;
         color: #f0f4f8 !important;

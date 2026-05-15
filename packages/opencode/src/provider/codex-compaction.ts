@@ -46,6 +46,8 @@ export interface CompactResult {
   success: boolean
   /** Compacted output items — the canonical next context window */
   output?: unknown[]
+  /** Diagnostic: why the call failed (HTTP status, timeout, etc.) */
+  failReason?: string
 }
 
 /**
@@ -98,11 +100,13 @@ export async function codexServerCompact(request: CompactRequest): Promise<Compa
     clearTimeout(timeout)
 
     if (!response.ok) {
+      const errorBody = await response.text().catch(() => "")
       log.warn("codex compact failed", {
         status: response.status,
         statusText: response.statusText,
+        bodyPreview: errorBody.slice(0, 200),
       })
-      return { success: false }
+      return { success: false, failReason: `HTTP ${response.status}: ${errorBody.slice(0, 200)}` }
     }
 
     const result = await response.json() as any
@@ -111,7 +115,7 @@ export async function codexServerCompact(request: CompactRequest): Promise<Compa
     const output = result.output
     if (!output || !Array.isArray(output)) {
       log.warn("codex compact: unexpected response shape", { keys: Object.keys(result) })
-      return { success: false }
+      return { success: false, failReason: `unexpected shape: keys=${Object.keys(result).join(",")}` }
     }
 
     log.info("codex compact success", {
