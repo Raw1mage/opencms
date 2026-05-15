@@ -1749,10 +1749,26 @@ When constructing the summary, try to stick to this template:
           emitTelemetry("session.hybrid_enrichment.fallback_to_ai_paid")
           // Fall through to the LLM path below.
         }
+        // Truncate oversized anchor bodies for the LLM path.
+        // Chained-concat anchors can reach 158K+ tokens — far too large
+        // for LLM summarisation (hangs mid-stream). Keep the tail (most
+        // recent rounds) which carries the highest-value context.
+        const LLM_INPUT_TOKEN_CAP = 30_000
+        const llmInputCharCap = LLM_INPUT_TOKEN_CAP * 4
+        const llmBody = latestBody.length > llmInputCharCap
+          ? latestBody.slice(-llmInputCharCap)
+          : latestBody
+        if (llmBody.length < latestBody.length) {
+          log.info("hybrid_llm enrichment: truncated anchor body for LLM input", {
+            sessionID,
+            originalTokens: narrativeTokens,
+            truncatedTokens: Math.ceil(llmBody.length / 4),
+          })
+        }
         const priorAnchor: Hybrid.Anchor = {
           role: "assistant",
           summary: true,
-          content: latestBody,
+          content: llmBody,
           metadata: {
             anchorVersion: 1,
             generatedAt: new Date(narrativeAnchorMsg.info?.time?.created ?? Date.now()).toISOString(),
@@ -1763,7 +1779,7 @@ When constructing the summary, try to stick to this template:
             },
             coversRounds: { earliest: 0, latest: 0 },
             inputTokens: 0,
-            outputTokens: narrativeTokens,
+            outputTokens: Math.ceil(llmBody.length / 4),
             phase: 1,
           },
         }
