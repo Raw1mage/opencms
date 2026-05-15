@@ -63,8 +63,6 @@
 
 ## 專案背景
 
-本專案源自 `origin/dev` 分支，現已衍生為 `main` 分支作為主要產品線。
-
 ### main 分支主要特色
 
 - **全域多帳號管理系統** — 支援多個 provider 帳號的統一管理
@@ -75,14 +73,6 @@
 ---
 
 ## 整合規範
-
-### 從 origin/dev 引進更新
-
-任何從 GitHub pull 的 `origin/dev` 新 commits，都必須經過分析後再到 `main` 中重構，**不可直接 merge**。
-
-### 外部 Plugin 管理
-
-引進的外部 plugin 都集中放在 `/refs` 目錄。若有更新，也必須逐一分析後再到 `main` 中重構，**不可直接 merge**。
 
 ### Pull Request 預設策略
 
