@@ -1241,6 +1241,11 @@ export namespace SessionCompaction {
   function buildConversationItemsForPlugin(msgs: MessageV2.WithParts[]): unknown[] {
     const items: unknown[] = []
     for (const msg of msgs) {
+      // Skip compaction anchor messages (summary=true). These are our
+      // own compaction output — sending them back to /responses/compact
+      // inflates the payload massively (55 anchors × 150K chars each)
+      // and the server cannot process them.
+      if (msg.info.role === "assistant" && (msg.info as MessageV2.Assistant).summary === true) continue
       if (msg.info.role === "user") {
         const textParts = msg.parts.filter((p) => p.type === "text")
         if (textParts.length > 0) {
