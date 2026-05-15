@@ -1648,8 +1648,37 @@ When constructing the summary, try to stick to this template:
           })
           return
         }
+
+        // Merge all anchor bodies (anchors[1..N]) into a single input
+        // for the compressor. After success the compressed output lands
+        // on the latest anchor; all older anchors are demoted
+        // (summary=false) so they stop contributing to the floor.
+        const allAnchorMsgs: MessageV2.WithParts[] = []
+        const mergedParts: string[] = []
+        for (const m of messagesPre) {
+          if (m.info.role !== "assistant") continue
+          if ((m.info as MessageV2.Assistant).summary !== true) continue
+          allAnchorMsgs.push(m)
+          const body = m.parts
+            .filter((p) => p.type === "text")
+            .map((p) => ((p as { text?: string }).text ?? ""))
+            .join("\n")
+          if (body.trim()) mergedParts.push(body)
+        }
+        const mergedBody = mergedParts.join("\n\n---\n\n")
+        const mergedTokens = Math.ceil(mergedBody.length / 4)
+        log.info("hybrid_llm enrichment: merging anchors for recompress", {
+          sessionID,
+          anchorCount: allAnchorMsgs.length,
+          mergedTokens,
+          cumulativeAnchorTokens,
+        })
+
+        // Anchors to demote after successful recompress (all except the latest).
+        const anchorsTodemote = allAnchorMsgs.slice(0, -1)
+
         const trigger: "size-ceiling" | "legacy-large-policy" =
-          dialogRedactionFlag && narrativeTokens >= ceilingTokens ? "size-ceiling" : "legacy-large-policy"
+          dialogRedactionFlag && mergedTokens >= ceilingTokens ? "size-ceiling" : "legacy-large-policy"
         // Provider dispatch: codex sessions go to /responses/compact via the
         // existing low-cost-server plugin path; non-codex sessions fall
         // through to Hybrid.runHybridLlm. Both paths share the post-LLM
@@ -1658,17 +1687,30 @@ When constructing the summary, try to stick to this template:
           await runCodexServerSideRecompress({
             sessionID,
             anchorMsg: narrativeAnchorMsg,
-            anchorTokensBefore: narrativeTokens,
+            anchorTokensBefore: mergedTokens,
             model,
             trigger,
             messagesPre,
+            overrideBody: mergedBody,
+            onSuccess: async () => {
+              for (const old of anchorsTodemote) {
+                await Session.updateMessage({
+                  ...(old.info as any),
+                  summary: false,
+                }).catch(() => undefined)
+              }
+              log.info("hybrid_llm enrichment: demoted old anchors after merge", {
+                sessionID,
+                demoted: anchorsTodemote.length,
+              })
+            },
           })
           return
         }
         const priorAnchor: Hybrid.Anchor = {
           role: "assistant",
           summary: true,
-          content: narrativeContent,
+          content: mergedBody,
           metadata: {
             anchorVersion: 1,
             generatedAt: new Date(narrativeAnchorMsg.info?.time?.created ?? Date.now()).toISOString(),
@@ -1828,6 +1870,20 @@ When constructing the summary, try to stick to this template:
           summary: false,
         })
 
+        // Demote old anchors when merging N→1 (non-codex path).
+        for (const old of anchorsTodemote) {
+          await Session.updateMessage({
+            ...(old.info as any),
+            summary: false,
+          }).catch(() => undefined)
+        }
+        if (anchorsTodemote.length > 0) {
+          log.info("hybrid_llm enrichment: demoted old anchors after merge", {
+            sessionID,
+            demoted: anchorsTodemote.length,
+          })
+        }
+
         log.info("hybrid_llm enrichment: upgraded narrative anchor in place", {
           sessionID,
           narrativeAnchorId,
@@ -1885,6 +1941,10 @@ When constructing the summary, try to stick to this template:
     model: Provider.Model
     trigger: "size-ceiling" | "legacy-large-policy"
     messagesPre: MessageV2.WithParts[]
+    /** Override body to feed to the compressor (e.g. merged N anchors). */
+    overrideBody?: string
+    /** Called after successful in-place update (e.g. demote old anchors). */
+    onSuccess?: () => Promise<void>
   }): Promise<void> {
     const { sessionID, anchorMsg, anchorTokensBefore, model, trigger, messagesPre } = input
     const startedAt = Date.now()
@@ -1901,7 +1961,7 @@ When constructing the summary, try to stick to this template:
       // message. The plugin returns server-compacted items that, for our
       // purposes here, we discard — only the textual `summary` matters
       // for the in-place body update.
-      const anchorBody = anchorMsg.parts
+      const anchorBody = input.overrideBody ?? anchorMsg.parts
         .filter((p) => p.type === "text")
         .map((p) => (p as MessageV2.TextPart).text ?? "")
         .join("\n")
@@ -2015,6 +2075,8 @@ When constructing the summary, try to stick to this template:
         replacedTokens: anchorTokensBefore,
         trigger,
       })
+      // Post-success hook: demote old anchors when merging N→1.
+      if (input.onSuccess) await input.onSuccess().catch(() => undefined)
       emitRecompressTelemetry({
         ...baseTelemetry,
         result: "success",
