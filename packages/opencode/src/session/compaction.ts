@@ -2044,30 +2044,9 @@ When constructing the summary, try to stick to this template:
       // compress ResponseItem[] conversation history, not prose text.
       // Reuses the same buildConversationItemsForPlugin that the normal
       // ai_free kind chain (tryLowCostServer) uses.
-      let conversationItems = buildConversationItemsForPlugin(messagesPre)
+      const allConversationItems = buildConversationItemsForPlugin(messagesPre)
 
-      // Upstream codex-rs trims conversation history to fit the context
-      // window before sending to /responses/compact (compact_remote.rs:
-      // trim_function_call_history_to_fit_context_window). Without this,
-      // long sessions produce multi-MB payloads that the server rejects.
-      // Trim from the HEAD (drop oldest items), keeping the tail which
-      // has the most recent context. Estimate ~100 chars per item avg.
-      // Empirical: ai_free succeeds at ~1000-1200 items, fails at 8000+.
-      // Cap at 2000 items (tail-preserved) to stay within server limits.
-      const MAX_ITEMS_ESTIMATE = 2000
-      if (conversationItems.length > MAX_ITEMS_ESTIMATE) {
-        const trimmed = conversationItems.length - MAX_ITEMS_ESTIMATE
-        conversationItems = conversationItems.slice(-MAX_ITEMS_ESTIMATE)
-        log.info("codex recompress: trimmed conversation items to fit context window", {
-          sessionID,
-          originalItems: trimmed + conversationItems.length,
-          trimmedItems: trimmed,
-          remainingItems: conversationItems.length,
-          contextWindow,
-        })
-      }
-
-      if (conversationItems.length === 0) {
+      if (allConversationItems.length === 0) {
         log.warn("codex recompress: no conversation items to compact", { sessionID })
         emitRecompressTelemetry({
           ...baseTelemetry,
@@ -2083,55 +2062,79 @@ When constructing the summary, try to stick to this template:
       const agent = lastUser?.agent ? await Agent.get(lastUser.agent).catch(() => undefined) : undefined
       const instructions = (agent?.prompt ?? "").slice(0, 50_000)
 
-      log.info("codex recompress: sending conversation items to /responses/compact", {
+      // Batched compaction: codex /responses/compact empirically handles
+      // ~1000-1200 items. Split into batches of BATCH_SIZE, compact each
+      // independently, then join the summary texts to form the anchor body.
+      const BATCH_SIZE = 1500
+      const batches: unknown[][] = []
+      for (let i = 0; i < allConversationItems.length; i += BATCH_SIZE) {
+        batches.push(allConversationItems.slice(i, i + BATCH_SIZE))
+      }
+
+      log.info("codex recompress: batched compaction", {
         sessionID,
-        itemCount: conversationItems.length,
+        totalItems: allConversationItems.length,
+        batches: batches.length,
+        batchSizes: batches.map(b => b.length),
         anchorTokensBefore,
       })
 
-      let hookResult: { compactedItems: unknown[] | null; summary: string | null }
-      try {
-        hookResult = (await Plugin.trigger(
-          "session.compact",
-          {
+      const summaries: string[] = []
+      for (let i = 0; i < batches.length; i++) {
+        const batch = batches[i]
+        let hookResult: { compactedItems: unknown[] | null; summary: string | null }
+        try {
+          hookResult = (await Plugin.trigger(
+            "session.compact",
+            {
+              sessionID,
+              model: { providerId: model.providerId, modelID: model.id, accountId },
+              conversationItems: batch,
+              instructions,
+            },
+            { compactedItems: null as unknown[] | null, summary: null as string | null },
+          )) as { compactedItems: unknown[] | null; summary: string | null }
+        } catch (err) {
+          log.warn("codex recompress: batch plugin threw", {
             sessionID,
-            model: { providerId: model.providerId, modelID: model.id, accountId },
-            conversationItems,
-            instructions,
-          },
-          { compactedItems: null as unknown[] | null, summary: null as string | null },
-        )) as { compactedItems: unknown[] | null; summary: string | null }
-      } catch (err) {
-        log.warn("codex recompress: plugin threw", {
+            batch: i,
+            batchItems: batch.length,
+            error: err instanceof Error ? err.message : String(err),
+          })
+          emitRecompressTelemetry({
+            ...baseTelemetry,
+            result: "provider-error",
+            errorMessage: `batch ${i}/${batches.length} threw: ${err instanceof Error ? err.message : String(err)}`,
+            latencyMs: Date.now() - startedAt,
+          })
+          return
+        }
+
+        if (!hookResult.compactedItems || !hookResult.summary?.trim()) {
+          log.info("codex recompress: batch plugin did not handle", {
+            sessionID,
+            batch: i,
+            batchItems: batch.length,
+          })
+          emitRecompressTelemetry({
+            ...baseTelemetry,
+            result: "provider-error",
+            errorMessage: `batch ${i}/${batches.length} not handled (${batch.length} items)`,
+            latencyMs: Date.now() - startedAt,
+          })
+          return
+        }
+
+        summaries.push(hookResult.summary.trim())
+        log.info("codex recompress: batch succeeded", {
           sessionID,
-          error: err instanceof Error ? err.message : String(err),
+          batch: i,
+          inputItems: batch.length,
+          summaryTokens: Math.ceil(hookResult.summary.length / 4),
         })
-        emitRecompressTelemetry({
-          ...baseTelemetry,
-          result: "provider-error",
-          errorMessage: err instanceof Error ? err.message : String(err),
-          latencyMs: Date.now() - startedAt,
-        })
-        return
       }
 
-      if (!hookResult.compactedItems || !hookResult.summary?.trim()) {
-        log.info("codex recompress: plugin did not handle", {
-          sessionID,
-          itemCount: conversationItems.length,
-          // hookResult may carry a failReason from the transport layer
-          hookResult: JSON.stringify(hookResult).slice(0, 200),
-        })
-        emitRecompressTelemetry({
-          ...baseTelemetry,
-          result: "provider-error",
-          errorMessage: `plugin did not handle (${conversationItems.length} items)`,
-          latencyMs: Date.now() - startedAt,
-        })
-        return
-      }
-
-      const upgradedBody = hookResult.summary.trim()
+      const upgradedBody = summaries.join("\n\n")
 
       // STALENESS CHECK: re-read the anchor; if a newer one has been
       // written since we dispatched, abandon the in-place update.
