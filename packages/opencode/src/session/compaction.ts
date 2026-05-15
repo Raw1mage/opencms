@@ -1351,6 +1351,14 @@ export namespace SessionCompaction {
     // T7 lineage
     const prevAnchorId = (await Memory.Hybrid.getAnchorMessage(input.sessionID).catch(() => null))?.info.id
 
+    // AI-generated anchor = zero anchor: demote all existing anchors
+    // so this LLM summary starts fresh (same logic as defaultWriteAnchor).
+    for (const m of input.messages) {
+      if (m.info.role !== "assistant") continue
+      if ((m.info as MessageV2.Assistant).summary !== true) continue
+      await Session.updateMessage({ ...(m.info as any), summary: false }).catch(() => undefined)
+    }
+
     const msg = (await Session.updateMessage({
       id: Identifier.ascending("message"),
       role: "assistant",
@@ -2864,6 +2872,30 @@ When constructing the summary, try to stick to this template:
           kind: input.kind,
           markerPresent: indexCheck.found,
           anchorBytes: sanitized.body.length,
+        })
+      }
+    }
+
+    // AI-generated anchors (ai_free / ai_paid) are complete summaries —
+    // they become a "zero anchor" that replaces all predecessors. Demote
+    // every existing summary:true message so the new anchor is the sole
+    // active one. This breaks the chained-concat floor escalation:
+    // narrative anchors accumulate (each containing all predecessors),
+    // but an AI anchor resets the floor to just its own compressed size.
+    if (input.kind === "ai_free" || input.kind === "ai_paid") {
+      const allMsgs = await Session.messages({ sessionID: input.sessionID }).catch(() => [] as MessageV2.WithParts[])
+      let demoted = 0
+      for (const m of allMsgs) {
+        if (m.info.role !== "assistant") continue
+        if ((m.info as MessageV2.Assistant).summary !== true) continue
+        await Session.updateMessage({ ...(m.info as any), summary: false }).catch(() => undefined)
+        demoted++
+      }
+      if (demoted > 0) {
+        log.info("compaction.zero_anchor: demoted predecessors before AI anchor write", {
+          sessionID: input.sessionID,
+          kind: input.kind,
+          demoted,
         })
       }
     }
