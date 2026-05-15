@@ -1589,6 +1589,21 @@ When constructing the summary, try to stick to this template:
     }
     emitTelemetry("session.hybrid_enrichment.scheduled")
 
+    // Surface enrichment lifecycle in recentEvents so the sidebar Q card
+    // shows background recompress status (started → success/failure).
+    const emitEnrichmentStatus = (status: "started" | "success" | "failed", detail?: string) => {
+      void Session.appendRecentEvent(sessionID, {
+        ts: Date.now(),
+        kind: "compaction",
+        compaction: {
+          observed: `enrichment:${status}`,
+          kind: model?.providerId === "codex" ? "ai_free" : "ai_paid",
+          success: status === "success",
+          ...(detail ? { tokensAfter: undefined } : {}),
+        },
+      }).catch(() => undefined)
+    }
+
     // dialog-replay-redaction DD-4: when the redaction master flag is on,
     // recompress fires on size (50K ceiling) regardless of `observed`. When
     // off, retain the legacy observed-gate {overflow, cache-aware, manual}.
@@ -1598,6 +1613,7 @@ When constructing the summary, try to stick to this template:
 
     const promise = (async () => {
       try {
+        emitEnrichmentStatus("started")
         // STEP 1: capture the just-written narrative anchor (the chain's
         // fast intermediate). We will UPDATE this message's text part
         // when hybrid_llm finishes — same anchor position, upgraded
@@ -1692,7 +1708,9 @@ When constructing the summary, try to stick to this template:
             trigger,
             messagesPre,
             overrideBody: mergedBody,
+            onError: async (reason: string) => { emitEnrichmentStatus("failed", reason) },
             onSuccess: async () => {
+              emitEnrichmentStatus("success")
               for (const old of anchorsTodemote) {
                 await Session.updateMessage({
                   ...(old.info as any),
@@ -1897,7 +1915,9 @@ When constructing the summary, try to stick to this template:
           anchorTokensAfter: Math.ceil(upgradedBody.length / 4),
           latencyMs: Date.now() - recompressStartedAt,
         })
+        emitEnrichmentStatus("success")
       } catch (err) {
+        emitEnrichmentStatus("failed", err instanceof Error ? err.message : String(err))
         log.error("hybrid_llm enrichment threw", {
           sessionID,
           error: err instanceof Error ? err.message : String(err),
@@ -1945,6 +1965,8 @@ When constructing the summary, try to stick to this template:
     overrideBody?: string
     /** Called after successful in-place update (e.g. demote old anchors). */
     onSuccess?: () => Promise<void>
+    /** Called on any failure path (e.g. surface status to recentEvents). */
+    onError?: (reason: string) => Promise<void>
   }): Promise<void> {
     const { sessionID, anchorMsg, anchorTokensBefore, model, trigger, messagesPre } = input
     const startedAt = Date.now()
@@ -1956,6 +1978,7 @@ When constructing the summary, try to stick to this template:
       anchorTokensBefore,
     }
 
+    let succeeded = false
     try {
       // Build a single-item conversation: just the anchor body as a user
       // message. The plugin returns server-compacted items that, for our
@@ -2076,6 +2099,7 @@ When constructing the summary, try to stick to this template:
         trigger,
       })
       // Post-success hook: demote old anchors when merging N→1.
+      succeeded = true
       if (input.onSuccess) await input.onSuccess().catch(() => undefined)
       emitRecompressTelemetry({
         ...baseTelemetry,
@@ -2094,6 +2118,10 @@ When constructing the summary, try to stick to this template:
         errorMessage: err instanceof Error ? err.message : String(err),
         latencyMs: Date.now() - startedAt,
       })
+    } finally {
+      if (!succeeded && input.onError) {
+        await input.onError("codex recompress failed").catch(() => undefined)
+      }
     }
   }
 
