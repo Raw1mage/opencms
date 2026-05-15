@@ -1737,7 +1737,7 @@ When constructing the summary, try to stick to this template:
             model,
             trigger,
             messagesPre,
-            overrideBody: latestBody,
+
             onError: async () => { /* will fallthrough to LLM below */ },
             onSuccess: async () => {
               codexSucceeded = true
@@ -1990,8 +1990,6 @@ When constructing the summary, try to stick to this template:
     model: Provider.Model
     trigger: "size-ceiling" | "legacy-large-policy"
     messagesPre: MessageV2.WithParts[]
-    /** Override body to feed to the compressor (e.g. merged N anchors). */
-    overrideBody?: string
     /** Called after successful in-place update (e.g. demote old anchors). */
     onSuccess?: () => Promise<void>
     /** Called on any failure path (e.g. surface status to recentEvents). */
@@ -2009,122 +2007,75 @@ When constructing the summary, try to stick to this template:
 
     let succeeded = false
     try {
-      // Build a single-item conversation: just the anchor body as a user
-      // message. The plugin returns server-compacted items that, for our
-      // purposes here, we discard — only the textual `summary` matters
-      // for the in-place body update.
-      const anchorBody = input.overrideBody ?? anchorMsg.parts
-        .filter((p) => p.type === "text")
-        .map((p) => (p as MessageV2.TextPart).text ?? "")
-        .join("\n")
-      if (!anchorBody.trim()) {
-        log.warn("codex recompress: anchor body empty; skipping", { sessionID })
+      // Build conversation items from the ACTUAL session messages (not
+      // the anchor body). Codex /responses/compact is designed to
+      // compress ResponseItem[] conversation history, not prose text.
+      // Reuses the same buildConversationItemsForPlugin that the normal
+      // ai_free kind chain (tryLowCostServer) uses.
+      const conversationItems = buildConversationItemsForPlugin(messagesPre)
+      if (conversationItems.length === 0) {
+        log.warn("codex recompress: no conversation items to compact", { sessionID })
         emitRecompressTelemetry({
           ...baseTelemetry,
           result: "exception",
-          errorMessage: "anchor body empty",
+          errorMessage: "no conversation items",
           latencyMs: Date.now() - startedAt,
         })
         return
       }
 
-      // Last user msg's accountId — needed for plugin auth path. Fall
-      // back to the anchor's own accountId if the post-anchor stream has
-      // no user msg yet.
       const lastUser = messagesPre.findLast((m) => m.info.role === "user")?.info as MessageV2.User | undefined
       const accountId = lastUser?.model?.accountId ?? (anchorMsg.info as MessageV2.Assistant).accountId ?? ""
-
       const agent = lastUser?.agent ? await Agent.get(lastUser.agent).catch(() => undefined) : undefined
       const instructions = (agent?.prompt ?? "").slice(0, 50_000)
 
-      // Chunked compaction: split the anchor body into segments of
-      // CHUNK_TOKEN_LIMIT tokens, compact each independently, then
-      // concatenate the summaries. Codex /responses/compact rejects
-      // bodies above ~100K tokens; 30K is a conservative batch size.
-      const CHUNK_TOKEN_LIMIT = 30_000
-      const CHUNK_CHAR_LIMIT = CHUNK_TOKEN_LIMIT * 4
+      log.info("codex recompress: sending conversation items to /responses/compact", {
+        sessionID,
+        itemCount: conversationItems.length,
+        anchorTokensBefore,
+      })
 
-      async function compactOneChunk(text: string): Promise<{ ok: boolean; summary: string }> {
-        try {
-          const result = (await Plugin.trigger(
-            "session.compact",
-            {
-              sessionID,
-              model: { providerId: model.providerId, modelID: model.id, accountId },
-              conversationItems: [{
-                type: "message",
-                role: "user",
-                content: [{ type: "input_text", text }],
-              }],
-              instructions,
-            },
-            { compactedItems: null as unknown[] | null, summary: null as string | null },
-          )) as { compactedItems: unknown[] | null; summary: string | null }
-          if (!result.compactedItems || !result.summary?.trim()) return { ok: false, summary: "" }
-          return { ok: true, summary: result.summary.trim() }
-        } catch {
-          return { ok: false, summary: "" }
-        }
-      }
-
-      let upgradedBody: string
-      if (anchorBody.length <= CHUNK_CHAR_LIMIT) {
-        // Small enough for single-shot
-        const r = await compactOneChunk(anchorBody)
-        if (!r.ok) {
-          log.info("codex recompress: plugin did not handle (single-shot)", { sessionID })
-          emitRecompressTelemetry({
-            ...baseTelemetry,
-            result: "provider-error",
-            errorMessage: "plugin did not handle",
-            latencyMs: Date.now() - startedAt,
-          })
-          return
-        }
-        upgradedBody = r.summary
-      } else {
-        // Chunked: split by paragraphs, batch into chunks ≤ limit
-        const paragraphs = anchorBody.split(/\n\n+/)
-        const chunks: string[] = []
-        let current = ""
-        for (const para of paragraphs) {
-          if (current.length + para.length + 2 > CHUNK_CHAR_LIMIT && current) {
-            chunks.push(current)
-            current = para
-          } else {
-            current = current ? current + "\n\n" + para : para
-          }
-        }
-        if (current) chunks.push(current)
-
-        log.info("codex recompress: chunked compaction", {
+      let hookResult: { compactedItems: unknown[] | null; summary: string | null }
+      try {
+        hookResult = (await Plugin.trigger(
+          "session.compact",
+          {
+            sessionID,
+            model: { providerId: model.providerId, modelID: model.id, accountId },
+            conversationItems,
+            instructions,
+          },
+          { compactedItems: null as unknown[] | null, summary: null as string | null },
+        )) as { compactedItems: unknown[] | null; summary: string | null }
+      } catch (err) {
+        log.warn("codex recompress: plugin threw", {
           sessionID,
-          totalChars: anchorBody.length,
-          chunks: chunks.length,
-          chunkSizes: chunks.map(c => Math.ceil(c.length / 4)),
+          error: err instanceof Error ? err.message : String(err),
         })
-
-        const summaries: string[] = []
-        for (let i = 0; i < chunks.length; i++) {
-          const r = await compactOneChunk(chunks[i])
-          if (!r.ok) {
-            log.warn("codex recompress: chunk failed", { sessionID, chunk: i, chunkTokens: Math.ceil(chunks[i].length / 4) })
-            emitRecompressTelemetry({
-              ...baseTelemetry,
-              result: "provider-error",
-              errorMessage: `chunk ${i}/${chunks.length} failed`,
-              latencyMs: Date.now() - startedAt,
-            })
-            return
-          }
-          summaries.push(r.summary)
-          log.info("codex recompress: chunk succeeded", {
-            sessionID, chunk: i, inputTokens: Math.ceil(chunks[i].length / 4),
-            outputTokens: Math.ceil(r.summary.length / 4),
-          })
-        }
-        upgradedBody = summaries.join("\n\n")
+        emitRecompressTelemetry({
+          ...baseTelemetry,
+          result: "provider-error",
+          errorMessage: err instanceof Error ? err.message : String(err),
+          latencyMs: Date.now() - startedAt,
+        })
+        return
       }
+
+      if (!hookResult.compactedItems || !hookResult.summary?.trim()) {
+        log.info("codex recompress: plugin did not handle", {
+          sessionID,
+          itemCount: conversationItems.length,
+        })
+        emitRecompressTelemetry({
+          ...baseTelemetry,
+          result: "provider-error",
+          errorMessage: "plugin did not handle",
+          latencyMs: Date.now() - startedAt,
+        })
+        return
+      }
+
+      const upgradedBody = hookResult.summary.trim()
 
       // STALENESS CHECK: re-read the anchor; if a newer one has been
       // written since we dispatched, abandon the in-place update.
