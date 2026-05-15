@@ -158,7 +158,11 @@ const useTerminalUiBindings = (input: {
 
   const handleTextareaFocus = () => {
     input.term.options.cursorBlink = true
-    input.container.scrollIntoView({ block: "end", behavior: "smooth" })
+    // Only scroll into view when NOT inside a session scroller — otherwise
+    // it hijacks the session's auto-scroll and yanks the viewport mid-stream.
+    if (!input.container.closest(".session-scroller")) {
+      input.container.scrollIntoView({ block: "end", behavior: "smooth" })
+    }
   }
   const handleTextareaBlur = () => {
     input.term.options.cursorBlink = false
@@ -434,9 +438,10 @@ export const Terminal = (props: TerminalProps) => {
   const focusTerminal = () => {
     const t = term
     if (!t) return
+    const prevent = !!container.closest(".session-scroller")
     t.focus()
-    t.textarea?.focus()
-    setTimeout(() => t.textarea?.focus(), 0)
+    t.textarea?.focus({ preventScroll: prevent })
+    setTimeout(() => t.textarea?.focus({ preventScroll: prevent }), 0)
   }
 
   const handlePointerDown = (event: PointerEvent) => {
@@ -597,7 +602,7 @@ export const Terminal = (props: TerminalProps) => {
         if (visualViewport) {
           const handleVisualViewportChange = () => {
             scheduleFit()
-            if (container.ownerDocument.activeElement === t.textarea) {
+            if (container.ownerDocument.activeElement === t.textarea && !container.closest(".session-scroller")) {
               requestAnimationFrame(() => container.scrollIntoView({ block: "end", behavior: "smooth" }))
             }
           }

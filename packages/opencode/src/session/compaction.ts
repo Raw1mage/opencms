@@ -1124,33 +1124,7 @@ export namespace SessionCompaction {
       return { ok: false, reason: "memory empty" }
     }
 
-    let body = prevBody && tailText ? `${prevBody}\n\n${tailText}` : prevBody || tailText
-
-    // Cap narrative anchor body at 40% of context to prevent floor
-    // escalation. When chained concat grows beyond the cap, drop the
-    // oldest rounds from the head (newest rounds are highest-value).
-    // This is a local-only operation — no API call needed.
-    const NARRATIVE_BODY_RATIO_CAP = 0.40
-    const contextLimit = _model?.limit?.context ?? 0
-    if (contextLimit > 0) {
-      const capChars = Math.floor(contextLimit * NARRATIVE_BODY_RATIO_CAP * 4)
-      if (body.length > capChars) {
-        const originalLen = body.length
-        body = body.slice(-capChars)
-        // Clean cut: find the first complete round boundary (## Round)
-        const roundBoundary = body.indexOf("\n## Round ")
-        if (roundBoundary > 0 && roundBoundary < body.length * 0.3) {
-          body = body.slice(roundBoundary + 1)
-        }
-        log.info("narrative anchor body capped (oldest rounds dropped)", {
-          sessionID: input.sessionID,
-          originalTokens: Math.ceil(originalLen / 4),
-          cappedTokens: Math.ceil(body.length / 4),
-          contextLimit,
-          capRatio: NARRATIVE_BODY_RATIO_CAP,
-        })
-      }
-    }
+    const body = prevBody && tailText ? `${prevBody}\n\n${tailText}` : prevBody || tailText
 
     return { ok: true, summaryText: body, kind: "narrative", truncated: false }
   }
@@ -1854,8 +1828,41 @@ When constructing the summary, try to stick to this template:
           errorCode: event.errorCode,
         })
         if (event.result !== "success") {
-          // hybrid_llm failed — narrative's anchor stays as the active
-          // version. Nothing more to do.
+          // ai_paid also failed — last resort: truncate anchor body
+          // by dropping oldest rounds (zero API cost).
+          log.info("hybrid_llm enrichment: ai_paid failed, falling back to body truncation", {
+            sessionID,
+            errorCode: event.errorCode,
+          })
+          emitTelemetry("session.hybrid_enrichment.fallback_to_truncation")
+          const TRUNCATION_RATIO_CAP = 0.40
+          const capChars = Math.floor((model.limit?.context ?? 272_000) * TRUNCATION_RATIO_CAP * 4)
+          if (latestBody.length > capChars) {
+            let truncated = latestBody.slice(-capChars)
+            const roundBoundary = truncated.indexOf("\n## Round ")
+            if (roundBoundary > 0 && roundBoundary < truncated.length * 0.3) {
+              truncated = truncated.slice(roundBoundary + 1)
+            }
+            const anchorTextPart = narrativeAnchorMsg.parts.find((p) => p.type === "text")
+            if (anchorTextPart) {
+              await Session.updatePart({ ...(anchorTextPart as any), text: truncated })
+              await demoteOldAnchors()
+              log.info("hybrid_llm enrichment: truncated anchor body as last resort", {
+                sessionID,
+                originalTokens: narrativeTokens,
+                truncatedTokens: Math.ceil(truncated.length / 4),
+              })
+              emitEnrichmentStatus("success")
+              emitRecompressTelemetry({
+                ...baseTelemetry,
+                result: "success",
+                errorMessage: "fallback: body truncation",
+                anchorTokensAfter: Math.ceil(truncated.length / 4),
+                latencyMs: Date.now() - recompressStartedAt,
+              })
+              return
+            }
+          }
           emitRecompressTelemetry({
             ...baseTelemetry,
             result: "provider-error",

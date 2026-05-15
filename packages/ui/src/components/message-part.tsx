@@ -2232,7 +2232,7 @@ function QuestionPrompt(props: { request: QuestionRequest }) {
             <Show when={store.editing}>
               <form data-slot="custom-input-form" onSubmit={handleCustomSubmit}>
                 <input
-                  ref={(el) => setTimeout(() => el.focus(), 0)}
+                  ref={(el) => setTimeout(() => el.focus({ preventScroll: true }), 0)}
                   type="text"
                   data-slot="custom-input"
                   placeholder={i18n.t("ui.question.custom.placeholder")}
