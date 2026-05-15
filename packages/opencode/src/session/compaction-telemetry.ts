@@ -214,5 +214,18 @@ export function buildRecompressTelemetry(input: {
 }
 
 export function emitRecompressTelemetry(input: Parameters<typeof buildRecompressTelemetry>[0]) {
-  debugCheckpoint("compaction.telemetry", "recompressed", buildRecompressTelemetry(input))
+  const payload = buildRecompressTelemetry(input)
+  debugCheckpoint("compaction.telemetry", "recompressed", payload)
+  // Persist to RuntimeEventService so recompress results are visible
+  // even when debug.log is disabled. Previously this was a black hole.
+  void import("../system/runtime-event-service").then(({ RuntimeEventService }) =>
+    RuntimeEventService.append({
+      sessionID: input.sessionID,
+      level: input.result === "success" ? "info" : "warn",
+      domain: "telemetry",
+      eventType: "compaction.recompress",
+      anomalyFlags: input.result !== "success" ? [input.result] : [],
+      payload: payload as Record<string, unknown>,
+    }).catch(() => undefined),
+  )
 }

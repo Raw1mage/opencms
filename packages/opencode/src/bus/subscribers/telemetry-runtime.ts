@@ -7,6 +7,7 @@ const SUPPORTED_TYPES = new Set([
   "llm.prompt.telemetry",
   "session.round.telemetry",
   "session.compaction.telemetry",
+  "compaction.recompress",
   "rotation.executed",
   "continuation.dispatched",
 ])
