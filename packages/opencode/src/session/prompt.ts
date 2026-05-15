@@ -2184,7 +2184,7 @@ export namespace SessionPrompt {
         // Healthy / freshly-anchored sessions skip naturally (items
         // already low after slice, tokens below threshold).
         const REBIND_PREEMPT_ITEM_THRESHOLD = 250
-        const REBIND_PREEMPT_TOKEN_RATIO = 0.7
+        const REBIND_PREEMPT_TOKEN_RATIO = 0.8
         try {
           let estimatedItemCount = 0
           for (const m of msgs) {
@@ -2214,14 +2214,12 @@ export namespace SessionPrompt {
                 ?.limit?.context ?? 0)
             : 0
           const tokenRatio = tokenLimit > 0 ? lastFinishedTokens / tokenLimit : 0
-          const itemsHeavy = estimatedItemCount > REBIND_PREEMPT_ITEM_THRESHOLD
           const tokensHeavy = tokenRatio > REBIND_PREEMPT_TOKEN_RATIO
-          if (itemsHeavy || tokensHeavy) {
+          if (tokensHeavy) {
             log.warn("rebind handed off bloated session, pre-emptive compaction before WS open", {
               sessionID,
               step,
               estimatedItemCount,
-              itemsHeavy,
               tokensHeavy,
               tokenRatio: Number(tokenRatio.toFixed(3)),
               tokenLimit,
