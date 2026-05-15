@@ -637,6 +637,51 @@ export namespace Patch {
     return { added, modified, deleted }
   }
 
+  /**
+   * Idempotency guard: check whether an update-type hunk's new_lines
+   * are already present in the file at the expected positions. Used by
+   * apply_patch to short-circuit duplicate invocations after rotation /
+   * compaction instead of surfacing a confusing "Failed to find expected
+   * lines" error.
+   *
+   * Returns true when every chunk's new_lines sequence is found in the
+   * file (same seekSequence tolerance as normal patch application).
+   */
+  export function isChunksAlreadyApplied(filePath: string, chunks: UpdateFileChunk[]): boolean {
+    let content: string
+    try {
+      content = readFileSync(filePath, "utf-8")
+    } catch {
+      return false
+    }
+
+    let lines = content.split("\n")
+    if (lines.length > 0 && lines[lines.length - 1] === "") {
+      lines.pop()
+    }
+
+    let lineIndex = 0
+    for (const chunk of chunks) {
+      // Pure deletion chunk (old_lines present, new_lines empty): already
+      // applied means the old_lines are gone. We can't positively confirm
+      // deletion without knowing what was there before, so skip the chunk
+      // — if the file has genuinely diverged, a subsequent chunk will fail.
+      if (chunk.new_lines.length === 0) continue
+
+      if (chunk.change_context) {
+        const contextIdx = seekSequence(lines, [chunk.change_context], lineIndex)
+        if (contextIdx === -1) return false
+        lineIndex = contextIdx + 1
+      }
+
+      const found = seekSequence(lines, chunk.new_lines, lineIndex, chunk.is_end_of_file)
+      if (found === -1) return false
+      lineIndex = found + chunk.new_lines.length
+    }
+
+    return true
+  }
+
   // Main patch application function
   export async function applyPatch(patchText: string): Promise<AffectedPaths> {
     const { hunks } = parsePatch(patchText)

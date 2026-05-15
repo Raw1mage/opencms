@@ -197,6 +197,14 @@ export namespace SessionProcessor {
       parts.includes("unauthorized") ||
       parts.includes("authenticatetoken") ||
       parts.includes("authentication failed") ||
+      // HTML error page from gateway/CDN (Cloudflare, nginx, etc.) — the
+      // upstream API returned an HTML 502/503 page instead of JSON. This
+      // happens transiently; rotation to another account/endpoint self-heals.
+      // Without this, WS-transport errors that wrap the HTML body as a plain
+      // Error (no statusCode) fall through to the catch-all and surface an
+      // ugly raw-HTML toast to the user.
+      parts.includes("<!doctype") ||
+      parts.includes("<html") ||
       status === 401 ||
       status === 429 ||
       status === 500 ||

@@ -267,7 +267,9 @@ describe("tool.apply_patch freeform", () => {
         await fs.writeFile(target, "same\n", "utf-8")
         const patchText = "*** Begin Patch\n*** Update File: same.txt\n@@\n-same\n+same\n*** End Patch"
 
-        await expect(execute({ patchText }, ctx)).rejects.toThrow("patch would not change file")
+        // Idempotency guard: no-op update returns success instead of throwing
+        const result = await execute({ patchText }, ctx)
+        expect(result.output).toContain("already")
         expect(await fs.readFile(target, "utf-8")).toBe("same\n")
       },
     })
@@ -602,7 +604,7 @@ describe("tool.apply_patch freeform", () => {
     })
   })
 
-  test("rejects delete when file is missing", async () => {
+  test("idempotent delete when file already missing", async () => {
     await using fixture = await tmpdir()
     const { ctx } = makeCtx()
 
@@ -611,7 +613,9 @@ describe("tool.apply_patch freeform", () => {
       fn: async () => {
         const patchText = "*** Begin Patch\n*** Delete File: missing.txt\n*** End Patch"
 
-        await expect(execute({ patchText }, ctx)).rejects.toThrow()
+        // Idempotency guard: deleting a missing file returns success
+        const result = await execute({ patchText }, ctx)
+        expect(result.output).toContain("already")
       },
     })
   })

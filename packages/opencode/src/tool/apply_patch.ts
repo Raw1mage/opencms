@@ -272,6 +272,7 @@ export const ApplyPatchTool = Tool.define("apply_patch", {
       }> = []
 
       let totalDiff = ""
+      let idempotentSkips = 0
       reportMetadata({
         metadata: {
           phase: "planning",
@@ -298,7 +299,8 @@ export const ApplyPatchTool = Tool.define("apply_patch", {
             const newContent =
               hunk.contents.length === 0 || hunk.contents.endsWith("\n") ? hunk.contents : `${hunk.contents}\n`
             if (oldContent === newContent) {
-              throw new Error(`apply_patch verification failed: patch would not change file: ${filePath}`)
+              idempotentSkips++
+              continue
             }
             const diff = trimDiff(createTwoFilesPatch(filePath, filePath, oldContent, newContent))
 
@@ -343,11 +345,21 @@ export const ApplyPatchTool = Tool.define("apply_patch", {
               const fileUpdate = Patch.deriveNewContentsFromChunks(filePath, hunk.chunks)
               newContent = fileUpdate.content
             } catch (error) {
+              // Idempotency guard: if old_lines can't be found but all
+              // new_lines are already in the file, the patch was already
+              // applied (common after rotation/compaction replay).
+              if (Patch.isChunksAlreadyApplied(filePath, hunk.chunks)) {
+                idempotentSkips++
+                continue
+              }
               throw new Error(`apply_patch verification failed: ${error}`)
             }
 
             if (!hunk.move_path && oldContent === newContent) {
-              throw new Error(`apply_patch verification failed: patch would not change file: ${filePath}`)
+              // deriveNewContentsFromChunks succeeded but produced identical
+              // content — patch is a no-op on this file.
+              idempotentSkips++
+              continue
             }
 
             const diff = trimDiff(createTwoFilesPatch(filePath, filePath, oldContent, newContent))
@@ -388,6 +400,12 @@ export const ApplyPatchTool = Tool.define("apply_patch", {
           }
 
           case "delete": {
+            const deleteExists = await fs.stat(filePath).catch(() => null)
+            if (!deleteExists) {
+              // File already gone — idempotent skip
+              idempotentSkips++
+              continue
+            }
             const contentToDelete = await fs.readFile(filePath, "utf-8").catch((error) => {
               throw new Error(`apply_patch verification failed: ${error}`)
             })
@@ -413,6 +431,33 @@ export const ApplyPatchTool = Tool.define("apply_patch", {
             totalDiff += deleteDiff + "\n"
             break
           }
+        }
+      }
+
+      // Idempotency short-circuit: all hunks were already applied.
+      // Return a clean success so the AI doesn't retry with a different approach.
+      if (idempotentSkips > 0 && fileChanges.length === 0) {
+        const msg =
+          idempotentSkips === 1
+            ? "Patch already applied — file already contains the expected content. No changes made."
+            : `All ${idempotentSkips} file(s) already contain the patched content — no changes made.`
+        reportMetadata({
+          metadata: {
+            phase: "completed",
+            completedCount: idempotentSkips,
+            totalCount: idempotentSkips,
+            files: [],
+          },
+        })
+        return {
+          title: "apply_patch (idempotent)",
+          output: msg,
+          metadata: {
+            phase: "completed" as const,
+            diff: "",
+            files: [] as ApplyPatchFileMetadata[],
+            diagnostics: {} as Awaited<ReturnType<typeof LSP.diagnostics>>,
+          },
         }
       }
 
@@ -609,7 +654,7 @@ export const ApplyPatchTool = Tool.define("apply_patch", {
       return {
         title: output,
         metadata: {
-          phase: "completed",
+          phase: "completed" as const,
           diff: totalDiff,
           files,
           diagnostics,
