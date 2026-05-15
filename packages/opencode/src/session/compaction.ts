@@ -1243,16 +1243,14 @@ export namespace SessionCompaction {
                 typeof (p as any).input === "string" ? (p as any).input : JSON.stringify((p as any).input ?? {}),
             })
             const stateOutput = p.state.output
-            if (stateOutput != null && typeof stateOutput !== "string") {
-              throw new Error(
-                `compaction.run low-cost-server: tool ${p.tool} state.output is non-string (${typeof stateOutput}); ` +
-                  `add an explicit unwrap before sending to plugin compact.`,
-              )
-            }
+            const outputStr =
+              stateOutput == null ? "" :
+              typeof stateOutput === "string" ? stateOutput :
+              JSON.stringify(stateOutput)
             items.push({
               type: "function_call_output",
               call_id: (p as any).toolCallId ?? p.id,
-              output: stateOutput ?? "",
+              output: outputStr,
             })
           }
         }
