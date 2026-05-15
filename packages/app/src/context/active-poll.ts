@@ -158,6 +158,13 @@ export function startActivePoll(
           // Turn is done. Do ONE final message sync to catch anything
           // SSE may have missed (e.g. if SSE was dead the whole time).
           // This is the only moment active poll touches message/part store.
+          console.info("[active-poll] until=true, running final sync", {
+            sessionID,
+            ws: sessionInfo?.workflow?.state,
+            lastAssistantId: lastAssistant?.id ?? null,
+            lastAssistantFinish: (lastAssistant as any)?.finish ?? null,
+            localMessageCount: localMessages.length,
+          })
           try {
             const messagesResp = await deps.client.session.messages({
               sessionID,
@@ -165,8 +172,18 @@ export function startActivePoll(
               limit: messageLimit,
             })
             const messages = messagesResp.data ?? []
+            console.info("[active-poll] final sync fetched", {
+              sessionID,
+              serverCount: messages.length,
+              serverRoles: messages.map((m: any) => m.info?.role ?? m.role).join(","),
+            })
             if (messages.length > 0) {
               const merged = mergeSnapshot(deps.store, sessionID, messages)
+              console.info("[active-poll] final sync merged", {
+                sessionID,
+                mergedCount: merged.messages.length,
+                stats: merged.stats,
+              })
               batch(() => {
                 deps.setStore("message", sessionID, reconcile(merged.messages, { key: "id" }))
                 for (const m of merged.perMessageParts) {

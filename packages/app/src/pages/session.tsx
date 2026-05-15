@@ -706,10 +706,13 @@ export default function Page() {
     for (const p of parts) {
       if (p.type !== "text") continue
       hasText = true
-      // Compaction replay messages are backend-internal copies of the user's
-      // original question repositioned after the anchor. The user already saw
-      // the original — suppress the replay from the visible conversation.
-      if (!p.synthetic && !p.metadata?.compactionReplay) hasNonSynthetic = true
+      // Compaction replay messages are backend copies of the user's
+      // original question repositioned after the anchor. They carry
+      // metadata.compactionReplay but are NOT synthetic — they contain
+      // the user's actual text and must be visible. When the original
+      // pre-anchor message is outside the tail window, the replay is
+      // the ONLY copy the frontend has. Suppressing it hides the turn.
+      if (!p.synthetic) hasNonSynthetic = true
     }
     return hasText && !hasNonSynthetic
   }
