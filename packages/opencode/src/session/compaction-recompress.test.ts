@@ -248,9 +248,11 @@ describe("runCodexServerSideRecompress", () => {
 
 describe("scheduleHybridEnrichment dispatch", () => {
   it("flag on + codex provider + anchor > floor → routes to codex server-side", async () => {
-    const big = "x".repeat(170_000 * 4) // ~170K tokens (~63% of 272K, above 60% gate)
+    const big = "x".repeat(120_000 * 4) // ~120K tokens (~44% of 272K, above 40% gate)
     const anchorMsg = anchor("msg_anchor", big)
-    ;(Session as any).messages = mock(async () => [anchorMsg])
+    // Include non-anchor messages so buildConversationItemsForPlugin has items to send
+    const uMsg = userMsg("u_pre", "do the thing")
+    ;(Session as any).messages = mock(async () => [uMsg, anchorMsg])
     stubTweaks({
       enableHybridLlm: true,
       enableDialogRedactionAnchor: true,
@@ -276,7 +278,7 @@ describe("scheduleHybridEnrichment dispatch", () => {
   })
 
   it("flag off + observed=rebind → does NOT dispatch (legacy observed-gate)", async () => {
-    const big = "x".repeat(170_000 * 4)
+    const big = "x".repeat(120_000 * 4)
     const anchorMsg = anchor("msg_anchor", big)
     ;(Session as any).messages = mock(async () => [anchorMsg])
     stubTweaks({ enableHybridLlm: true, enableDialogRedactionAnchor: false })
@@ -293,10 +295,10 @@ describe("scheduleHybridEnrichment dispatch", () => {
     expect(pluginCalled).toBe(false)
   })
 
-  it("anchor below 60% context ratio → no dispatch", async () => {
+  it("anchor below 40% context ratio → no dispatch", async () => {
     // compaction_simplification T4 (2026-05-14): the legacy 5K-token
     // absolute floor was replaced with a context-relative ratio gate
-    // (default 0.60). 4K tokens / 272K codex context = 1.5%, well
+    // (default 0.40). 4K tokens / 272K codex context = 1.5%, well
     // below the threshold, so the skip behaviour is preserved.
     const small = "x".repeat(4_000 * 4) // ~4K tokens (~1.5% of 272K)
     const anchorMsg = anchor("msg_anchor", small)
@@ -316,12 +318,13 @@ describe("scheduleHybridEnrichment dispatch", () => {
   })
 
   it("flag on + observed=manual + anchor above ratio → size-ceiling trigger", async () => {
-    // compaction_simplification T4: ratio gate is 60% × 272K = ~163K tokens.
+    // compaction_simplification T4: ratio gate is 40% × 272K = ~109K tokens.
     // 170K tokens passes the ratio gate AND is above the 50K size-ceiling,
     // so trigger labels as "size-ceiling".
-    const mid = "x".repeat(170_000 * 4) // ~170K tokens (~63% of 272K)
+    const mid = "x".repeat(120_000 * 4) // ~120K tokens (~44% of 272K)
     const anchorMsg = anchor("msg_anchor", mid)
-    ;(Session as any).messages = mock(async () => [anchorMsg])
+    const uMsg = userMsg("u_pre", "do the thing")
+    ;(Session as any).messages = mock(async () => [uMsg, anchorMsg])
     stubTweaks({ enableHybridLlm: true, enableDialogRedactionAnchor: true })
 
     let pluginCalled = false

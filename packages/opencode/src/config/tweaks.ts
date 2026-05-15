@@ -218,11 +218,11 @@ export namespace Tweaks {
      * is scheduled. Replaces the legacy 5_000-token absolute floor inside
      * scheduleHybridEnrichment.
      *
-     * Default 0.60: "if the cumulative anchor floor occupies 60% of the
-     * model's context window, schedule a background server-side or LLM
-     * compression." At 60% the remaining workspace (~80K on 272K models)
-     * is still comfortable; lower values trigger too frequently (each
-     * individual anchor is ~15%, so 20% fires on every compaction).
+     * Default 0.40: background enrichment fires when context exceeds
+     * 40% after narrative compaction. The enrichment chain is:
+     * ai_free → drop old anchors (keep latest only) → ai_paid.
+     * At 40% there is still comfortable workspace; the enrichment
+     * runs in background without blocking the user.
      */
     localToAiThresholdRatio: number
     /**
@@ -412,7 +412,7 @@ export namespace Tweaks {
     quotaPressureThreshold: 0.1,
     codexServerPriorityRatio: 0.7,
     emptyResponseFloor: 0.8,
-    localToAiThresholdRatio: 0.6,
+    localToAiThresholdRatio: 0.4,
     phase1Enabled: false,
     recentRawRounds: 2,
     fallbackThreshold: 5,

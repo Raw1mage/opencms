@@ -1666,7 +1666,7 @@ When constructing the summary, try to stick to this template:
         // is small (2-6% of context), but the accumulated floor can
         // reach 79%+. The gate must trigger on the floor, not on one
         // slice. Operators tune via `compaction_local_to_ai_threshold_ratio`.
-        const thresholdRatio = (tweaks as { localToAiThresholdRatio?: number }).localToAiThresholdRatio ?? 0.6
+        const thresholdRatio = (tweaks as { localToAiThresholdRatio?: number }).localToAiThresholdRatio ?? 0.4
         const contextLimit = model.limit?.context ?? 0
         // Cumulative anchor floor: walk all summary:true messages.
         let cumulativeAnchorTokens = 0
@@ -1738,7 +1738,24 @@ When constructing the summary, try to stick to this template:
           }
         }
 
-        // Try codex server-side (ai_free) first; fallback to LLM (ai_paid).
+        // ── Enrichment priority chain ──────────────────────────────
+        // 1. ai_free  — codex server-side /responses/compact (free)
+        // 2. drop old anchors — demote all but latest (zero cost, instant)
+        // 3. ai_paid  — LLM summarisation (paid, last resort)
+        //
+        // Each step produces a zero anchor (demotes predecessors).
+        // Chain stops at the first success.
+
+        const recompressStartedAt = Date.now()
+        const baseTelemetry = {
+          sessionID,
+          trigger,
+          kind: "hybrid_llm" as const,
+          providerId: model.providerId,
+          anchorTokensBefore: narrativeTokens,
+        }
+
+        // ── Step 1: ai_free ──
         if (dialogRedactionFlag && model.providerId === "codex") {
           let codexSucceeded = false
           await runCodexServerSideRecompress({
@@ -1748,34 +1765,71 @@ When constructing the summary, try to stick to this template:
             model,
             trigger,
             messagesPre,
-
-            onError: async () => { /* will fallthrough to LLM below */ },
+            onError: async () => { /* fallthrough */ },
             onSuccess: async () => {
               codexSucceeded = true
               await demoteOldAnchors()
             },
           })
-          if (codexSucceeded) return
-          log.info("hybrid_llm enrichment: codex ai_free failed, falling through to ai_paid LLM", { sessionID })
-          emitTelemetry("session.hybrid_enrichment.fallback_to_ai_paid")
-          // Fall through to the LLM path below.
+          if (codexSucceeded) {
+            emitEnrichmentStatus("success")
+            return
+          }
+          log.info("enrichment step 1 (ai_free) failed, trying step 2 (drop old anchors)", { sessionID })
         }
-        // Truncate oversized anchor bodies for the LLM path.
-        // Chained-concat anchors can reach 158K+ tokens — far too large
-        // for LLM summarisation (hangs mid-stream). Keep the tail (most
-        // recent rounds) which carries the highest-value context.
+
+        // ── Step 2: drop old history from anchor body ──
+        // Chained concat means the latest anchor body contains all
+        // predecessor content. "Drop old" = truncate the body to keep
+        // only the most recent generation (the tail text that was
+        // appended in the last narrative compaction). Also demote all
+        // predecessor anchor messages.
+        {
+          emitTelemetry("session.hybrid_enrichment.drop_old_history")
+          // The tail from the last compaction = everything after the
+          // previous anchor's content boundary. We approximate by
+          // keeping only the last ~40% of context worth of body text.
+          const KEEP_RATIO = 0.40
+          const keepChars = Math.floor((model.limit?.context ?? 272_000) * KEEP_RATIO * 4)
+          let trimmedBody = latestBody
+          if (latestBody.length > keepChars) {
+            trimmedBody = latestBody.slice(-keepChars)
+            // Clean cut at a round boundary
+            const roundBoundary = trimmedBody.indexOf("\n## Round ")
+            if (roundBoundary > 0 && roundBoundary < trimmedBody.length * 0.3) {
+              trimmedBody = trimmedBody.slice(roundBoundary + 1)
+            }
+          }
+          const anchorTextPart = narrativeAnchorMsg.parts.find((p) => p.type === "text")
+          if (anchorTextPart && trimmedBody.length < latestBody.length) {
+            await Session.updatePart({ ...(anchorTextPart as any), text: trimmedBody })
+            await demoteOldAnchors()
+            log.info("enrichment step 2: dropped old history from anchor body", {
+              sessionID,
+              originalTokens: narrativeTokens,
+              keptTokens: Math.ceil(trimmedBody.length / 4),
+              demoted: anchorsTodemote.length,
+            })
+            emitEnrichmentStatus("success")
+            emitRecompressTelemetry({
+              ...baseTelemetry,
+              result: "success",
+              errorMessage: "drop_old_history",
+              anchorTokensAfter: Math.ceil(trimmedBody.length / 4),
+              latencyMs: Date.now() - recompressStartedAt,
+            })
+            return
+          }
+        }
+
+        // ── Step 3: ai_paid (LLM) — only if single anchor is still too large ──
+        log.info("enrichment step 3 (ai_paid LLM): single anchor too large, attempting LLM compress", { sessionID })
+        emitTelemetry("session.hybrid_enrichment.fallback_to_ai_paid")
         const LLM_INPUT_TOKEN_CAP = 30_000
         const llmInputCharCap = LLM_INPUT_TOKEN_CAP * 4
         const llmBody = latestBody.length > llmInputCharCap
           ? latestBody.slice(-llmInputCharCap)
           : latestBody
-        if (llmBody.length < latestBody.length) {
-          log.info("hybrid_llm enrichment: truncated anchor body for LLM input", {
-            sessionID,
-            originalTokens: narrativeTokens,
-            truncatedTokens: Math.ceil(llmBody.length / 4),
-          })
-        }
         const priorAnchor: Hybrid.Anchor = {
           role: "assistant",
           summary: true,
@@ -1796,19 +1850,6 @@ When constructing the summary, try to stick to this template:
         }
         const ctx = model.limit?.context ?? 200_000
         const targetTokens = Math.max(5_000, Math.round(ctx * 0.3))
-        const recompressStartedAt = Date.now()
-        const baseTelemetry = {
-          sessionID,
-          trigger,
-          kind: "hybrid_llm" as const,
-          providerId: model.providerId,
-          anchorTokensBefore: narrativeTokens,
-        }
-
-        // STEP 2: run hybrid_llm in background. It creates its OWN stub
-        // anchor message (the SessionProcessor pattern requires a
-        // persisted message to stream into). On success, the stub
-        // contains the higher-quality body.
         const event = await Hybrid.runHybridLlm(sessionID, {
           abort: new AbortController().signal,
           priorAnchor,
@@ -1818,51 +1859,13 @@ When constructing the summary, try to stick to this template:
           busMode: "hybrid_llm_background",
           observed,
         })
-        log.info("hybrid_llm enrichment finished", {
+        log.info("enrichment step 3 (ai_paid) finished", {
           sessionID,
-          eventId: event.eventId,
           result: event.result,
           inputTokens: event.inputTokens,
           outputTokens: event.outputTokens,
-          latencyMs: event.latencyMs,
-          errorCode: event.errorCode,
         })
         if (event.result !== "success") {
-          // ai_paid also failed — last resort: truncate anchor body
-          // by dropping oldest rounds (zero API cost).
-          log.info("hybrid_llm enrichment: ai_paid failed, falling back to body truncation", {
-            sessionID,
-            errorCode: event.errorCode,
-          })
-          emitTelemetry("session.hybrid_enrichment.fallback_to_truncation")
-          const TRUNCATION_RATIO_CAP = 0.40
-          const capChars = Math.floor((model.limit?.context ?? 272_000) * TRUNCATION_RATIO_CAP * 4)
-          if (latestBody.length > capChars) {
-            let truncated = latestBody.slice(-capChars)
-            const roundBoundary = truncated.indexOf("\n## Round ")
-            if (roundBoundary > 0 && roundBoundary < truncated.length * 0.3) {
-              truncated = truncated.slice(roundBoundary + 1)
-            }
-            const anchorTextPart = narrativeAnchorMsg.parts.find((p) => p.type === "text")
-            if (anchorTextPart) {
-              await Session.updatePart({ ...(anchorTextPart as any), text: truncated })
-              await demoteOldAnchors()
-              log.info("hybrid_llm enrichment: truncated anchor body as last resort", {
-                sessionID,
-                originalTokens: narrativeTokens,
-                truncatedTokens: Math.ceil(truncated.length / 4),
-              })
-              emitEnrichmentStatus("success")
-              emitRecompressTelemetry({
-                ...baseTelemetry,
-                result: "success",
-                errorMessage: "fallback: body truncation",
-                anchorTokensAfter: Math.ceil(truncated.length / 4),
-                latencyMs: Date.now() - recompressStartedAt,
-              })
-              return
-            }
-          }
           emitRecompressTelemetry({
             ...baseTelemetry,
             result: "provider-error",
