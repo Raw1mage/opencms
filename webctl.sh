@@ -127,7 +127,7 @@ load_server_cfg() {
                             IS_SOURCE_REPO=1
                             PROJECT_ROOT="${candidate_root}"
                             FRONTEND_DIST="${PROJECT_ROOT}/packages/app/dist"
-                            FRONTEND_BUILD_STAMP_FILE="${PROJECT_ROOT}/packages/app/dist/.source-stamp"
+                            FRONTEND_BUILD_STAMP_FILE="${PROJECT_ROOT}/packages/app/.source-stamp"
                             GATEWAY_SRC="${PROJECT_ROOT}/daemon/opencode-gateway.c"
                             GATEWAY_BIN="${PROJECT_ROOT}/daemon/opencode-gateway"
                             REPO_OWNER="$(stat -c '%U' "${PROJECT_ROOT}" 2>/dev/null || id -un)"
@@ -147,7 +147,7 @@ load_server_cfg() {
                     IS_SOURCE_REPO=1
                     PROJECT_ROOT="${candidate_root}"
                     OPENCODE_BIN=""
-                    FRONTEND_BUILD_STAMP_FILE="${PROJECT_ROOT}/packages/app/dist/.source-stamp"
+                    FRONTEND_BUILD_STAMP_FILE="${PROJECT_ROOT}/packages/app/.source-stamp"
                     GATEWAY_SRC="${PROJECT_ROOT}/daemon/opencode-gateway.c"
                     GATEWAY_BIN="${PROJECT_ROOT}/daemon/opencode-gateway"
                     REPO_OWNER="$(stat -c '%U' "${PROJECT_ROOT}" 2>/dev/null || id -un)"
@@ -1928,7 +1928,7 @@ _frontend_source_fingerprint() {
     } | sha256sum | cut -d' ' -f1
 }
 
-FRONTEND_BUILD_STAMP_FILE="${PROJECT_ROOT}/packages/app/dist/.source-stamp"
+FRONTEND_BUILD_STAMP_FILE="${PROJECT_ROOT}/packages/app/.source-stamp"
 
 _frontend_needs_build() {
     # Returns 0 (true) if frontend source content differs from the last

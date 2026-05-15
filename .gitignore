@@ -16,6 +16,9 @@ tmp
 typecheck.log
 dist
 ts-dist
+# Frontend build fingerprint stamps (must live outside dist/ to survive Vite emptyOutDir)
+packages/app/.source-stamp
+packages/app/.build-hash
 .turbo
 **/.serena
 .serena/

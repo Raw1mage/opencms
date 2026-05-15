@@ -139,7 +139,7 @@ await $`rm -rf dist`
 await $`mkdir -p dist`
 
 // Build frontend for release bundling — skip if source unchanged
-const frontendHashFile = path.join(dir, "packages/app/dist/.build-hash")
+const frontendHashFile = path.join(dir, "packages/app/.build-hash")
 const computeFrontendHash = async () => {
   // Hash all source files + package.json to detect changes
   const result = await $`find packages/app/src packages/ui/src -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum`.text()
