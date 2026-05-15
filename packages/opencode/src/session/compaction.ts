@@ -1665,28 +1665,24 @@ When constructing the summary, try to stick to this template:
           return
         }
 
-        // Merge all anchor bodies (anchors[1..N]) into a single input
-        // for the compressor. After success the compressed output lands
-        // on the latest anchor; all older anchors are demoted
-        // (summary=false) so they stop contributing to the floor.
+        // Collect all anchors. Because narrative compaction uses chained
+        // concat (anchor N = anchor N-1 body + new dialog), the LATEST
+        // anchor already contains all predecessor content. Feeding all
+        // bodies to the compressor would repeat content N times. Instead,
+        // compress only the latest anchor body and demote all older ones.
         const allAnchorMsgs: MessageV2.WithParts[] = []
-        const mergedParts: string[] = []
         for (const m of messagesPre) {
           if (m.info.role !== "assistant") continue
           if ((m.info as MessageV2.Assistant).summary !== true) continue
           allAnchorMsgs.push(m)
-          const body = m.parts
-            .filter((p) => p.type === "text")
-            .map((p) => ((p as { text?: string }).text ?? ""))
-            .join("\n")
-          if (body.trim()) mergedParts.push(body)
         }
-        const mergedBody = mergedParts.join("\n\n---\n\n")
-        const mergedTokens = Math.ceil(mergedBody.length / 4)
-        log.info("hybrid_llm enrichment: merging anchors for recompress", {
+        // Latest anchor body = the superset (chained concat).
+        const latestBody = narrativeContent
+        const latestTokens = narrativeTokens
+        log.info("hybrid_llm enrichment: compressing latest anchor + demoting old", {
           sessionID,
           anchorCount: allAnchorMsgs.length,
-          mergedTokens,
+          latestAnchorTokens: latestTokens,
           cumulativeAnchorTokens,
         })
 
@@ -1694,7 +1690,7 @@ When constructing the summary, try to stick to this template:
         const anchorsTodemote = allAnchorMsgs.slice(0, -1)
 
         const trigger: "size-ceiling" | "legacy-large-policy" =
-          dialogRedactionFlag && mergedTokens >= ceilingTokens ? "size-ceiling" : "legacy-large-policy"
+          dialogRedactionFlag && latestTokens >= ceilingTokens ? "size-ceiling" : "legacy-large-policy"
         // Provider dispatch: codex sessions go to /responses/compact via the
         // existing low-cost-server plugin path; non-codex sessions fall
         // through to Hybrid.runHybridLlm. Both paths share the post-LLM
@@ -1703,11 +1699,11 @@ When constructing the summary, try to stick to this template:
           await runCodexServerSideRecompress({
             sessionID,
             anchorMsg: narrativeAnchorMsg,
-            anchorTokensBefore: mergedTokens,
+            anchorTokensBefore: latestTokens,
             model,
             trigger,
             messagesPre,
-            overrideBody: mergedBody,
+            overrideBody: latestBody,
             onError: async (reason: string) => { emitEnrichmentStatus("failed", reason) },
             onSuccess: async () => {
               emitEnrichmentStatus("success")
@@ -1728,7 +1724,7 @@ When constructing the summary, try to stick to this template:
         const priorAnchor: Hybrid.Anchor = {
           role: "assistant",
           summary: true,
-          content: mergedBody,
+          content: latestBody,
           metadata: {
             anchorVersion: 1,
             generatedAt: new Date(narrativeAnchorMsg.info?.time?.created ?? Date.now()).toISOString(),
