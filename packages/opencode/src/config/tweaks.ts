@@ -218,11 +218,11 @@ export namespace Tweaks {
      * is scheduled. Replaces the legacy 5_000-token absolute floor inside
      * scheduleHybridEnrichment.
      *
-     * Default 0.20: "if the local anchor body alone already occupies 20%
-     * of the model's context window, pay an LLM round-trip to compress it
-     * back down." Operators on small-context models who want to delay
-     * upgrade can raise this (e.g. 0.30); operators on large-context
-     * models who want earlier promotion can lower it.
+     * Default 0.60: "if the cumulative anchor floor occupies 60% of the
+     * model's context window, schedule a background server-side or LLM
+     * compression." At 60% the remaining workspace (~80K on 272K models)
+     * is still comfortable; lower values trigger too frequently (each
+     * individual anchor is ~15%, so 20% fires on every compaction).
      */
     localToAiThresholdRatio: number
     /**
@@ -412,7 +412,7 @@ export namespace Tweaks {
     quotaPressureThreshold: 0.1,
     codexServerPriorityRatio: 0.7,
     emptyResponseFloor: 0.8,
-    localToAiThresholdRatio: 0.2,
+    localToAiThresholdRatio: 0.6,
     phase1Enabled: false,
     recentRawRounds: 2,
     fallbackThreshold: 5,

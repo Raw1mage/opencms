@@ -110,7 +110,7 @@ function fakeCodexModel(): Provider.Model {
 // ─────────────────────────────────────────────────────────────────────
 
 describe("runCodexServerSideRecompress", () => {
-  it("calls plugin with anchor body as single conversationItem and updates anchor in place on success", async () => {
+  it("calls plugin with actual conversation items from session messages and updates anchor on success", async () => {
     const anchorMsg = anchor("msg_anchor", "## Round 1\n\n**User**\n\nlong dialog\n\n**Assistant**\n\nlong answer ".repeat(100))
     const messagesPre = [userMsg("u_pre", "go"), anchorMsg]
     ;(Session as any).messages = mock(async () => messagesPre)
@@ -138,11 +138,12 @@ describe("runCodexServerSideRecompress", () => {
       messagesPre,
     })
 
-    // Plugin called with single conversationItem holding anchor body
+    // Plugin called with conversation items built from session messages
+    // (user message + anchor as assistant message)
     expect(pluginCalledWith).not.toBeNull()
-    expect(pluginCalledWith.conversationItems).toHaveLength(1)
+    expect(pluginCalledWith.conversationItems.length).toBeGreaterThanOrEqual(1)
+    // First item is the user message from messagesPre
     expect(pluginCalledWith.conversationItems[0].role).toBe("user")
-    expect(pluginCalledWith.conversationItems[0].content[0].text).toContain("## Round 1")
 
     // Anchor body updated in place
     expect(updateCalls).toHaveLength(1)
@@ -247,7 +248,7 @@ describe("runCodexServerSideRecompress", () => {
 
 describe("scheduleHybridEnrichment dispatch", () => {
   it("flag on + codex provider + anchor > floor → routes to codex server-side", async () => {
-    const big = "x".repeat(60_000 * 4) // > 50K tokens estimate
+    const big = "x".repeat(170_000 * 4) // ~170K tokens (~63% of 272K, above 60% gate)
     const anchorMsg = anchor("msg_anchor", big)
     ;(Session as any).messages = mock(async () => [anchorMsg])
     stubTweaks({
@@ -275,7 +276,7 @@ describe("scheduleHybridEnrichment dispatch", () => {
   })
 
   it("flag off + observed=rebind → does NOT dispatch (legacy observed-gate)", async () => {
-    const big = "x".repeat(60_000 * 4)
+    const big = "x".repeat(170_000 * 4)
     const anchorMsg = anchor("msg_anchor", big)
     ;(Session as any).messages = mock(async () => [anchorMsg])
     stubTweaks({ enableHybridLlm: true, enableDialogRedactionAnchor: false })
@@ -292,11 +293,11 @@ describe("scheduleHybridEnrichment dispatch", () => {
     expect(pluginCalled).toBe(false)
   })
 
-  it("anchor below 20% context ratio → no dispatch", async () => {
+  it("anchor below 60% context ratio → no dispatch", async () => {
     // compaction_simplification T4 (2026-05-14): the legacy 5K-token
     // absolute floor was replaced with a context-relative ratio gate
-    // (default 0.20). 4K tokens / 272K codex context = 1.5%, still well
-    // below the new threshold, so the skip behaviour is preserved.
+    // (default 0.60). 4K tokens / 272K codex context = 1.5%, well
+    // below the threshold, so the skip behaviour is preserved.
     const small = "x".repeat(4_000 * 4) // ~4K tokens (~1.5% of 272K)
     const anchorMsg = anchor("msg_anchor", small)
     ;(Session as any).messages = mock(async () => [anchorMsg])
@@ -314,14 +315,11 @@ describe("scheduleHybridEnrichment dispatch", () => {
     expect(pluginCalled).toBe(false)
   })
 
-  it("flag on + observed=manual + anchor above ratio but below ceiling → legacy-large-policy trigger", async () => {
-    // compaction_simplification T4: ratio gate is 20% × 272K = ~54K tokens.
-    // 60K tokens passes the ratio gate AND is above the 50K size-ceiling,
-    // so trigger labels as "size-ceiling". Original test used 20K (below
-    // ceiling, "legacy-large-policy" trigger label) but 20K is now below
-    // the ratio gate and would skip. Bump to 60K to stay above the gate
-    // while exercising the codex routing path.
-    const mid = "x".repeat(60_000 * 4) // ~60K tokens (~22% of 272K)
+  it("flag on + observed=manual + anchor above ratio → size-ceiling trigger", async () => {
+    // compaction_simplification T4: ratio gate is 60% × 272K = ~163K tokens.
+    // 170K tokens passes the ratio gate AND is above the 50K size-ceiling,
+    // so trigger labels as "size-ceiling".
+    const mid = "x".repeat(170_000 * 4) // ~170K tokens (~63% of 272K)
     const anchorMsg = anchor("msg_anchor", mid)
     ;(Session as any).messages = mock(async () => [anchorMsg])
     stubTweaks({ enableHybridLlm: true, enableDialogRedactionAnchor: true })

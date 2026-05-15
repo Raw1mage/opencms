@@ -1655,7 +1655,7 @@ When constructing the summary, try to stick to this template:
         // is small (2-6% of context), but the accumulated floor can
         // reach 79%+. The gate must trigger on the floor, not on one
         // slice. Operators tune via `compaction_local_to_ai_threshold_ratio`.
-        const thresholdRatio = (tweaks as { localToAiThresholdRatio?: number }).localToAiThresholdRatio ?? 0.2
+        const thresholdRatio = (tweaks as { localToAiThresholdRatio?: number }).localToAiThresholdRatio ?? 0.6
         const contextLimit = model.limit?.context ?? 0
         // Cumulative anchor floor: walk all summary:true messages.
         let cumulativeAnchorTokens = 0
