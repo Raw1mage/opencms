@@ -29,6 +29,12 @@
  *      it into the main text channel it surfaces as raw JSON the user
  *      sees as garbage.
  *
+ *   4. **Pipe-delimited tool execution log regurgitation**:
+ *      Model reproduces internal tool call traces in the shape
+ *      `call_<ID> | <tool> | {json...} | ok | <size>` — typically
+ *      multiple consecutive entries. This happens under context
+ *      overflow when the model attends to runtime trace metadata.
+ *
  * The filter is a pure function — no I/O, no side effects. The caller
  * applies the result by setting `MessageV2.TextPart.ignored = true`.
  */
@@ -46,9 +52,17 @@ const LINE_NUMBERED_DUMP_PATTERN =
 
 const CACHE_DIGEST_FENCE_PATTERN = /```cache-digest\b/
 
+/**
+ * Match 2+ occurrences of pipe-delimited tool execution logs:
+ *   call_<id> | <tool> | {json...} | ok | <num>
+ * The `call_` prefix + pipe separators are the distinguishing signal.
+ */
+const TOOL_TRACE_LOG_PATTERN =
+  /call_[A-Za-z0-9]{10,}\s*\|.+?\|.+?\|[\s\S]*?call_[A-Za-z0-9]{10,}\s*\|/
+
 export interface EmissionDetection {
   hidden: boolean
-  reason: "trace_marker" | "line_numbered_dump" | "cache_digest_fence" | null
+  reason: "trace_marker" | "line_numbered_dump" | "cache_digest_fence" | "tool_trace_log" | null
 }
 
 const RESULT_CLEAN: EmissionDetection = Object.freeze({ hidden: false, reason: null })
@@ -77,6 +91,10 @@ export function detectEmissionGarbage(text: string): EmissionDetection {
 
   if (CACHE_DIGEST_FENCE_PATTERN.test(text)) {
     return { hidden: true, reason: "cache_digest_fence" }
+  }
+
+  if (TOOL_TRACE_LOG_PATTERN.test(text)) {
+    return { hidden: true, reason: "tool_trace_log" }
   }
 
   return RESULT_CLEAN
