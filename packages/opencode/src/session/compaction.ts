@@ -1710,7 +1710,26 @@ When constructing the summary, try to stick to this template:
         // existing low-cost-server plugin path; non-codex sessions fall
         // through to Hybrid.runHybridLlm. Both paths share the post-LLM
         // in-place anchor update logic via applyRecompressInPlaceUpdate.
+        // Shared success callback for both codex and LLM paths.
+        const demoteOldAnchors = async () => {
+          emitEnrichmentStatus("success")
+          for (const old of anchorsTodemote) {
+            await Session.updateMessage({
+              ...(old.info as any),
+              summary: false,
+            }).catch(() => undefined)
+          }
+          if (anchorsTodemote.length > 0) {
+            log.info("hybrid_llm enrichment: demoted old anchors after merge", {
+              sessionID,
+              demoted: anchorsTodemote.length,
+            })
+          }
+        }
+
+        // Try codex server-side (ai_free) first; fallback to LLM (ai_paid).
         if (dialogRedactionFlag && model.providerId === "codex") {
+          let codexSucceeded = false
           await runCodexServerSideRecompress({
             sessionID,
             anchorMsg: narrativeAnchorMsg,
@@ -1719,22 +1738,16 @@ When constructing the summary, try to stick to this template:
             trigger,
             messagesPre,
             overrideBody: latestBody,
-            onError: async (reason: string) => { emitEnrichmentStatus("failed", reason) },
+            onError: async () => { /* will fallthrough to LLM below */ },
             onSuccess: async () => {
-              emitEnrichmentStatus("success")
-              for (const old of anchorsTodemote) {
-                await Session.updateMessage({
-                  ...(old.info as any),
-                  summary: false,
-                }).catch(() => undefined)
-              }
-              log.info("hybrid_llm enrichment: demoted old anchors after merge", {
-                sessionID,
-                demoted: anchorsTodemote.length,
-              })
+              codexSucceeded = true
+              await demoteOldAnchors()
             },
           })
-          return
+          if (codexSucceeded) return
+          log.info("hybrid_llm enrichment: codex ai_free failed, falling through to ai_paid LLM", { sessionID })
+          emitTelemetry("session.hybrid_enrichment.fallback_to_ai_paid")
+          // Fall through to the LLM path below.
         }
         const priorAnchor: Hybrid.Anchor = {
           role: "assistant",
@@ -1899,19 +1912,8 @@ When constructing the summary, try to stick to this template:
           summary: false,
         })
 
-        // Demote old anchors when merging N→1 (non-codex path).
-        for (const old of anchorsTodemote) {
-          await Session.updateMessage({
-            ...(old.info as any),
-            summary: false,
-          }).catch(() => undefined)
-        }
-        if (anchorsTodemote.length > 0) {
-          log.info("hybrid_llm enrichment: demoted old anchors after merge", {
-            sessionID,
-            demoted: anchorsTodemote.length,
-          })
-        }
+        // Demote old anchors when merging N→1 (shared callback).
+        await demoteOldAnchors()
 
         log.info("hybrid_llm enrichment: upgraded narrative anchor in place", {
           sessionID,
