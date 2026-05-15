@@ -2044,7 +2044,28 @@ When constructing the summary, try to stick to this template:
       // compress ResponseItem[] conversation history, not prose text.
       // Reuses the same buildConversationItemsForPlugin that the normal
       // ai_free kind chain (tryLowCostServer) uses.
-      const conversationItems = buildConversationItemsForPlugin(messagesPre)
+      let conversationItems = buildConversationItemsForPlugin(messagesPre)
+
+      // Upstream codex-rs trims conversation history to fit the context
+      // window before sending to /responses/compact (compact_remote.rs:
+      // trim_function_call_history_to_fit_context_window). Without this,
+      // long sessions produce multi-MB payloads that the server rejects.
+      // Trim from the HEAD (drop oldest items), keeping the tail which
+      // has the most recent context. Estimate ~100 chars per item avg.
+      const contextWindow = model.limit?.context ?? 272_000
+      const MAX_ITEMS_ESTIMATE = Math.floor(contextWindow / 25) // ~25 tokens per item avg
+      if (conversationItems.length > MAX_ITEMS_ESTIMATE) {
+        const trimmed = conversationItems.length - MAX_ITEMS_ESTIMATE
+        conversationItems = conversationItems.slice(-MAX_ITEMS_ESTIMATE)
+        log.info("codex recompress: trimmed conversation items to fit context window", {
+          sessionID,
+          originalItems: trimmed + conversationItems.length,
+          trimmedItems: trimmed,
+          remainingItems: conversationItems.length,
+          contextWindow,
+        })
+      }
+
       if (conversationItems.length === 0) {
         log.warn("codex recompress: no conversation items to compact", { sessionID })
         emitRecompressTelemetry({
