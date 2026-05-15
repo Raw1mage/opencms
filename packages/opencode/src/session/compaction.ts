@@ -2193,10 +2193,10 @@ When constructing the summary, try to stick to this template:
         latencyMs: Date.now() - startedAt,
       })
     } catch (err) {
-      log.error("codex recompress threw", {
-        sessionID,
-        error: err instanceof Error ? err.message : String(err),
-      })
+      const errMsg = err instanceof Error ? `${err.message}\n${err.stack}` : String(err)
+      log.error("codex recompress threw", { sessionID, error: errMsg })
+      // eslint-disable-next-line no-console
+      console.error("[codex-recompress-crash]", sessionID, errMsg)
       emitRecompressTelemetry({
         ...baseTelemetry,
         result: "exception",
