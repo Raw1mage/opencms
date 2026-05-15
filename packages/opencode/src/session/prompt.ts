@@ -522,18 +522,45 @@ export async function deriveObservedCondition(input: {
   return null
 }
 
+/**
+ * Check whether the LAST user message contains attachment_ref parts that
+ * have not yet been dispatched to the `attachment` tool (completed OR
+ * errored). Only the latest user message is checked — older unread refs
+ * from previous turns must not permanently lock the agent into
+ * attachment-only mode.
+ *
+ * Bug history:
+ *   - Pre-fix: scanned ALL messages; a 429 on any historical ref locked
+ *     the agent forever because `error` was not counted as "attempted".
+ *   - First fix: counted `error` as attempted, but old refs that were
+ *     never even attempted (skipped by the model) still locked the gate.
+ *   - Current: scope the gate to the latest user message only. If the
+ *     model skips an older ref, that's its choice — not a deadlock.
+ */
 function hasUnreadAttachmentRefs(msgs: MessageV2.WithParts[]): boolean {
+  // Find the last user message
+  let lastUserMsg: MessageV2.WithParts | undefined
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    if (msgs[i].info.role === "user") {
+      lastUserMsg = msgs[i]
+      break
+    }
+  }
+  if (!lastUserMsg) return false
+
+  // Collect attachment_refs from the last user message only
   const seen = new Set<string>()
+  for (const part of lastUserMsg.parts) {
+    if (part.type === "attachment_ref") {
+      seen.add(part.ref_id)
+    }
+  }
+  if (seen.size === 0) return false
+
+  // Scan ALL messages for attachment tool calls that cover these refs
   const attempted = new Set<string>()
   for (const msg of msgs) {
     for (const part of msg.parts) {
-      if (part.type === "attachment_ref") {
-        seen.add(part.ref_id)
-        continue
-      }
-      // Count both completed AND errored attachment reads as "attempted".
-      // A 429 or other runtime error should not permanently lock the agent
-      // to attachment-only mode — the agent tried, the runtime failed.
       if (
         part.type === "tool" &&
         part.tool === "attachment" &&
@@ -544,6 +571,7 @@ function hasUnreadAttachmentRefs(msgs: MessageV2.WithParts[]): boolean {
       }
     }
   }
+
   for (const ref of seen) {
     if (!attempted.has(ref)) return true
   }
