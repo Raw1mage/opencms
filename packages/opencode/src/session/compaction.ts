@@ -1617,23 +1617,33 @@ When constructing the summary, try to stick to this template:
         const narrativeTokens = Math.ceil(narrativeContent.length / 4)
         const ceilingTokens =
           (tweaks as { anchorRecompressCeilingTokens?: number }).anchorRecompressCeilingTokens ?? 50_000
-        // compaction_simplification T4 (2026-05-14, plans/compaction_simplification/
-        // design.md §1 INV-5 + §7): replace the legacy 5_000-token absolute
-        // floor with a context-relative ratio gate. The local anchor body
-        // schedules an ai_paid upgrade only when it occupies at least
-        // `localToAiThresholdRatio` of the current active model's
-        // context_limit (default 0.20). Anchors below that ratio are
-        // assumed cheap enough to leave alone — paying an LLM round-trip
-        // for a 4% anchor is not worth the cost. Operators can tune via
-        // `compaction_local_to_ai_threshold_ratio`.
+        // compaction_simplification T4 fix (2026-05-15): measure the
+        // cumulative anchor floor — sum of ALL summary:true message
+        // bodies in the stream — not just the latest anchor. Rebind
+        // compaction fires incrementally; each individual anchor body
+        // is small (2-6% of context), but the accumulated floor can
+        // reach 79%+. The gate must trigger on the floor, not on one
+        // slice. Operators tune via `compaction_local_to_ai_threshold_ratio`.
         const thresholdRatio = (tweaks as { localToAiThresholdRatio?: number }).localToAiThresholdRatio ?? 0.2
         const contextLimit = model.limit?.context ?? 0
-        if (contextLimit <= 0 || narrativeTokens / contextLimit < thresholdRatio) {
-          log.info("hybrid_llm enrichment skipped (anchor below ratio threshold)", {
+        // Cumulative anchor floor: walk all summary:true messages.
+        let cumulativeAnchorTokens = 0
+        for (const m of messagesPre) {
+          if (m.info.role !== "assistant") continue
+          if ((m.info as MessageV2.Assistant).summary !== true) continue
+          const bodyLen = m.parts
+            .filter((p) => p.type === "text")
+            .map((p) => ((p as { text?: string }).text ?? "").length)
+            .reduce((a, b) => a + b, 0)
+          cumulativeAnchorTokens += Math.ceil(bodyLen / 4)
+        }
+        if (contextLimit <= 0 || cumulativeAnchorTokens / contextLimit < thresholdRatio) {
+          log.info("hybrid_llm enrichment skipped (anchor floor below ratio threshold)", {
             sessionID,
-            anchorTokens: narrativeTokens,
+            latestAnchorTokens: narrativeTokens,
+            cumulativeAnchorTokens,
             contextLimit,
-            ratio: contextLimit > 0 ? narrativeTokens / contextLimit : null,
+            ratio: contextLimit > 0 ? cumulativeAnchorTokens / contextLimit : null,
             thresholdRatio,
           })
           return
