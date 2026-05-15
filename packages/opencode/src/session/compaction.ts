@@ -2052,8 +2052,9 @@ When constructing the summary, try to stick to this template:
       // long sessions produce multi-MB payloads that the server rejects.
       // Trim from the HEAD (drop oldest items), keeping the tail which
       // has the most recent context. Estimate ~100 chars per item avg.
-      const contextWindow = model.limit?.context ?? 272_000
-      const MAX_ITEMS_ESTIMATE = Math.floor(contextWindow / 25) // ~25 tokens per item avg
+      // Empirical: ai_free succeeds at ~1000-1200 items, fails at 8000+.
+      // Cap at 2000 items (tail-preserved) to stay within server limits.
+      const MAX_ITEMS_ESTIMATE = 2000
       if (conversationItems.length > MAX_ITEMS_ESTIMATE) {
         const trimmed = conversationItems.length - MAX_ITEMS_ESTIMATE
         conversationItems = conversationItems.slice(-MAX_ITEMS_ESTIMATE)
