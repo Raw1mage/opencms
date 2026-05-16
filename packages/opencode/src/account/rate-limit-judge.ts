@@ -366,7 +366,7 @@ export namespace RateLimitJudge {
 
     // Persist "Need login" on the account so admin panel shows status.
     // token_invalidated = session revoked remotely; other accounts may still work.
-    const { isTokenInvalidated } = await import("./error-classifier")
+    const { isTokenInvalidated } = await import("./rotation/error-classifier")
     if (isTokenInvalidated(error)) {
       const family = (await Account.resolveProvider(providerId)) ?? providerId
       try {
