@@ -214,6 +214,7 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
     "session.compact": async (_input, output) => {
       // Only handle compaction for codex/openai providers
       if (_input.model.providerId !== "codex" && _input.model.providerId !== "openai") return
+      console.error(`[COMPACT-HOOK] provider=${_input.model.providerId} model=${_input.model.modelID} account=${_input.model.accountId} items=${(_input.conversationItems as unknown[]).length}`)
 
       const result = await codexServerCompact({
         model: _input.model.modelID,

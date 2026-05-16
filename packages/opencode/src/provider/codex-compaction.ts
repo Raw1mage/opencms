@@ -25,7 +25,7 @@ import { resolveCodexInstallationId } from "../plugin/codex-installation-id"
 const log = Log.create({ service: "codex-compaction" })
 
 const CODEX_COMPACT_ENDPOINT = "https://chatgpt.com/backend-api/codex/responses/compact"
-const COMPACT_TIMEOUT_MS = 60000
+const COMPACT_TIMEOUT_MS = 300_000 // 5 minutes — large sessions (10K+ items) need time
 
 // ---------------------------------------------------------------------------
 // Standalone compaction: POST /responses/compact
@@ -118,6 +118,8 @@ export async function codexServerCompact(request: CompactRequest): Promise<Compa
         bodyBytes: body.length,
         hasInstallationId: !!installationId,
       })
+      // Temporary stdout diagnostic — structured log not reaching disk
+      console.error(`[COMPACT-FAIL] status=${response.status} body=${errorBody.slice(0, 300)} items=${request.input.length} bytes=${body.length} model=${request.model} installId=${!!installationId} acct=${accountId}`)
       return { success: false, failReason: `HTTP ${response.status}: ${errorBody.slice(0, 200)}` }
     }
 
@@ -134,6 +136,7 @@ export async function codexServerCompact(request: CompactRequest): Promise<Compa
       inputItemsBefore: request.input.length,
       outputItems: output.length,
     })
+    console.error(`[COMPACT-OK] items=${request.input.length}→${output.length} model=${request.model} acct=${accountId}`)
 
     return { success: true, output }
   } catch (err) {

@@ -971,15 +971,11 @@ export namespace SessionCompaction {
     codexServerPriorityRatio?: number
   }): ReadonlyArray<KindName> {
     const base = KIND_CHAIN[input.observed]
-    if (input.providerId !== "codex") return base
-    // Codex: server-side first regardless of context ratio. Reorder the
-    // base chain to put `low-cost-server` at the head; if not already
-    // in the base, prepend it.
-    const reordered: KindName[] = ["ai_free"]
-    for (const k of base) {
-      if (k !== "ai_free") reordered.push(k)
-    }
-    return Object.freeze(reordered) as ReadonlyArray<KindName>
+    // Codex: narrative first (instant unblock), ai_free runs as background
+    // enrichment via scheduleHybridEnrichment. Don't put ai_free in the
+    // synchronous chain — it blocks the runloop for minutes on large sessions.
+    // Non-codex providers also use the base chain (narrative-first).
+    return base
   }
 
   function isSubscriptionCostModel(model: Provider.Model | undefined): boolean {
@@ -1614,23 +1610,6 @@ When constructing the summary, try to stick to this template:
       hybridEnrichInFlight.delete(sessionID)
     }
 
-    // Post-compaction context ratio gate: if narrative already brought context
-    // below 50%, enrichment adds no value — skip to avoid wasted API calls.
-    const postCompactionTokens = await getLastAssistantTokens(sessionID).catch(() => undefined)
-    const contextWindow = model.limit?.context ?? 0
-    if (postCompactionTokens && contextWindow > 0) {
-      const postRatio = (postCompactionTokens.input + postCompactionTokens.cache.read) / contextWindow
-      if (postRatio < 0.5) {
-        log.info("hybrid_llm enrichment skipped (post-compaction context < 50%)", {
-          sessionID,
-          postRatio,
-          contextWindow,
-        })
-        emitTelemetry("session.hybrid_enrichment.skipped", { reason: "low_context_ratio", postRatio })
-        return
-      }
-    }
-
     emitTelemetry("session.hybrid_enrichment.scheduled")
 
     // Surface enrichment lifecycle in recentEvents so the sidebar Q card
@@ -1657,6 +1636,23 @@ When constructing the summary, try to stick to this template:
 
     const promise = (async () => {
       try {
+        // Post-compaction context ratio gate: if narrative already brought
+        // context below 50%, enrichment adds no value.
+        const postCompactionTokens = await getLastAssistantTokens(sessionID).catch(() => undefined)
+        const contextWindow = model.limit?.context ?? 0
+        if (postCompactionTokens && contextWindow > 0) {
+          const postRatio = (postCompactionTokens.input + postCompactionTokens.cache.read) / contextWindow
+          if (postRatio < 0.5) {
+            log.info("hybrid_llm enrichment skipped (post-compaction context < 50%)", {
+              sessionID,
+              postRatio,
+              contextWindow,
+            })
+            emitTelemetry("session.hybrid_enrichment.skipped", { reason: "low_context_ratio", postRatio })
+            return
+          }
+        }
+
         emitEnrichmentStatus("started")
         // STEP 1: capture the just-written narrative anchor (the chain's
         // fast intermediate). We will UPDATE this message's text part
