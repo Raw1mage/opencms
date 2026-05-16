@@ -2013,7 +2013,13 @@ When constructing the summary, try to stick to this template:
       }
 
       const lastUser = messagesPre.findLast((m) => m.info.role === "user")?.info as MessageV2.User | undefined
-      const accountId = lastUser?.model?.accountId ?? (anchorMsg.info as MessageV2.Assistant).accountId ?? ""
+      // Resolve accountId from session execution (pinned by rotation),
+      // falling back to last user message or anchor message.
+      const sessionExec = (await Session.get(sessionID).catch(() => undefined))?.execution
+      const accountId = sessionExec?.accountId
+        ?? lastUser?.model?.accountId
+        ?? (anchorMsg.info as MessageV2.Assistant).accountId
+        ?? ""
       const agent = lastUser?.agent ? await Agent.get(lastUser.agent).catch(() => undefined) : undefined
       const instructions = (agent?.prompt ?? "").slice(0, 50_000)
 

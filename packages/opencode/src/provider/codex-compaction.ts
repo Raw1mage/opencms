@@ -66,7 +66,8 @@ export async function codexServerCompact(request: CompactRequest): Promise<Compa
 
     if (!accessToken) {
       log.warn("codex compact: no auth token")
-      return { success: false }
+      console.error(`[COMPACT-FAIL] reason=no_auth_token requestAccountId=${request.accountId ?? "(empty)"} resolvedAccountId=${accountId ?? "(empty)"}`)
+      return { success: false, failReason: `no auth token for account ${request.accountId ?? "(empty)"}` }
     }
 
     // Per spec D9-2: compact endpoint requires x-codex-installation-id as
