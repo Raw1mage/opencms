@@ -914,30 +914,19 @@ export namespace SessionCompaction {
    * but a fresh session should be empty, not back-filled from regex extracts.
    * Narrative empty → chain falls through to next kind naturally.
    */
+  // Foreground chain: narrative only. All AI-based compaction (ai_free,
+  // ai_paid) is handled by background enrichment via scheduleHybridEnrichment.
+  // Foreground must never block the user waiting for API calls.
   const KIND_CHAIN: Readonly<Record<Observed, ReadonlyArray<KindName>>> = Object.freeze({
-    overflow: Object.freeze(["narrative", "ai_free", "ai_paid"] as const),
-    "cache-aware": Object.freeze(["narrative", "ai_free", "ai_paid"] as const),
+    overflow: Object.freeze(["narrative"] as const),
+    "cache-aware": Object.freeze(["narrative"] as const),
     idle: Object.freeze(["narrative"] as const),
-    // 2026-05-13 rev1 (specs/session/rebind-procedure-revision/events/
-    // event_2026-05-12_rev1-rebind-class-compaction-chain-excludes-server.md):
-    // rebind / continuation-invalidated / provider-switched compactions
-    // hit the same chain-reset semantics as overflow/cache-aware in
-    // rotation-heavy sessions — narrative alone leaves context full and
-    // re-fires within minutes. Append low-cost-server + llm-agent so
-    // rebind-class compactions fall through to real LLM-driven reduction
-    // when narrative's deterministic stub-and-concat doesn't actually
-    // shrink the context (dialog-heavy sessions).
-    rebind: Object.freeze(["narrative", "ai_free", "ai_paid"] as const),
-    "continuation-invalidated": Object.freeze(["narrative", "ai_free", "ai_paid"] as const),
-    "provider-switched": Object.freeze(["narrative", "ai_free", "ai_paid"] as const),
-    "stall-recovery": Object.freeze(["narrative", "ai_free", "ai_paid"] as const),
-    manual: Object.freeze(["narrative", "ai_free", "ai_paid"] as const),
-    // empty-response auto-heal: codex's server-side compact gets first crack
-    // because the most likely root cause of the empty packet is codex's own
-    // context having silently overflowed; letting codex decide what to keep
-    // is more useful than a local narrative replay. Falls through to local
-    // kinds for non-codex providers (low-cost-server fails fast there).
-    "empty-response": Object.freeze(["ai_free", "narrative", "ai_paid"] as const),
+    rebind: Object.freeze(["narrative"] as const),
+    "continuation-invalidated": Object.freeze(["narrative"] as const),
+    "provider-switched": Object.freeze(["narrative"] as const),
+    "stall-recovery": Object.freeze(["narrative"] as const),
+    manual: Object.freeze(["narrative"] as const),
+    "empty-response": Object.freeze(["narrative"] as const),
   })
 
   export function kindChainFor(observed: Observed): ReadonlyArray<KindName> {
