@@ -2788,26 +2788,18 @@ export namespace SessionPrompt {
         }
       }
 
-      // compaction-fix Phase 2 — anchor-prefix expansion (DD-8..DD-13).
-      // When the anchor message carries codex-issued `serverCompactedItems`
-      // bound to the current execution chain, replace the anchor's free-form
-      // summary projection with the structured items. Runs AFTER the Phase 1
-      // transformer so the anchor projection swap is the last shaping step
-      // before the messages flow into MessageV2.toModelMessages.
+      // compaction-fix Phase 2 — encrypted anchor prefix injection.
       //
-      // DD-13: phase2Enabled flag-gated. Phase 2 also short-circuits when
-      // Phase 1 is off (anchor projection contract assumes Phase 1 slicing).
-      // DD-9: chain-binding validated inside the expander; mismatch → leave
-      // messages unchanged.
-      // Decoupled from phase1Enabled (2026-05-08): Phase 2 acts purely on
-      // the anchor message's CompactionPart metadata and is independent of
-      // Phase 1's tail transformer. Upstream codex-rs does not do per-turn
-      // tail drop (verified: refs/codex/codex-rs/core/src/context_manager/
-      // history.rs `for_prompt` returns full history; aggressive drop only
-      // runs inside compact.rs `build_compacted_history` at explicit
-      // compaction events). Phase 1 transformer disabled by default; Phase
-      // 2 still benefits the post-compaction anchor when codex
-      // `/responses/compact` returns structured items.
+      // When the anchor carries codex-issued `serverCompactedItems` bound
+      // to the current execution chain, pass them directly to the codex
+      // provider via the process-level compacted-items-store. The provider
+      // prepends them as raw ResponseItem[] to input[], bypassing the
+      // LMv2→ResponseItem text conversion. The anchor message is dropped
+      // from sessionMessages (its context is in the encrypted blob);
+      // post-anchor tail messages continue through the normal pipeline.
+      //
+      // Non-codex providers and chain-mismatch cases: leave messages as-is
+      // (narrative body flows through the normal text pipeline).
       if (compactionTweakPhase1.phase2Enabled && !session.parentID) {
         try {
           const phase2Result = expandAnchorCompactedPrefix(sessionMessages, {
@@ -2815,18 +2807,42 @@ export namespace SessionPrompt {
             accountId: effectiveAccountId,
             modelID: activeModel.id,
           })
-          if (phase2Result.applied) {
+          if (phase2Result.applied && activeModel.providerId === "codex") {
+            // Extract raw serverCompactedItems from anchor metadata and
+            // store them for the codex provider to consume. Drop anchor
+            // from messages — its content is in the encrypted items.
+            const anchorMeta = sessionMessages[0]?.parts.find((p: any) => p.type === "compaction")
+            const serverItems = (anchorMeta as any)?.metadata?.serverCompactedItems as unknown[] | undefined
+            if (serverItems && serverItems.length > 0) {
+              const { setCompactedItemsPrefix } = await import("@opencode-ai/provider-codex/compacted-items-store")
+              setCompactedItemsPrefix(sessionID, serverItems)
+              sessionMessages = sessionMessages.slice(1) // drop anchor
+              log.info("phase2-encrypted-prefix: stored for codex", {
+                sessionID,
+                step,
+                itemCount: serverItems.length,
+                hasEncryptedBlob: serverItems.some((i: any) => (i as any)?.type === "compaction_summary"),
+              })
+            } else {
+              // phase2Result.applied but no raw items — use the expanded
+              // synthetic messages as fallback (legacy Phase 2 path).
+              sessionMessages = phase2Result.messages
+              log.info("phase2-anchor-prefix-expand: applied (synthetic fallback)", {
+                sessionID,
+                step,
+                expandedItemCount: phase2Result.expandedItemCount,
+              })
+            }
+          } else if (phase2Result.applied) {
+            // Non-codex provider — use expanded synthetic messages
             sessionMessages = phase2Result.messages
-            log.info("phase2-anchor-prefix-expand: applied", {
+            log.info("phase2-anchor-prefix-expand: applied (non-codex)", {
               sessionID,
               step,
               expandedItemCount: phase2Result.expandedItemCount,
-              messagesAdded: phase2Result.messagesAdded,
-              mappableItemCount: phase2Result.mappableItemCount,
-              unmappableItemCount: phase2Result.unmappableItemCount,
             })
           } else if (phase2Result.reason === "chain-mismatch") {
-            log.warn("phase2-anchor-prefix-expand: chain-binding mismatch, falling back", {
+            log.warn("phase2-anchor-prefix-expand: chain-binding mismatch, falling back to narrative", {
               sessionID,
               step,
               accountId: effectiveAccountId,
