@@ -1685,7 +1685,6 @@ When constructing the summary, try to stick to this template:
           sessionID,
           anchorCount: allAnchorMsgs.length,
           latestAnchorTokens: latestTokens,
-          cumulativeAnchorTokens,
         })
 
         // Anchors to demote after successful recompress (all except the latest).
@@ -2001,12 +2000,17 @@ When constructing the summary, try to stick to this template:
 
     let succeeded = false
     try {
-      // Build conversation items from the ACTUAL session messages (not
-      // the anchor body). Codex /responses/compact is designed to
-      // compress ResponseItem[] conversation history, not prose text.
-      // Reuses the same buildConversationItemsForPlugin that the normal
-      // ai_free kind chain (tryLowCostServer) uses.
-      const allConversationItems = buildConversationItemsForPlugin(messagesPre)
+      // Send the narrative anchor body as a single assistant message.
+      // The anchor is already a compressed dialog context (tool outputs
+      // stripped, only conversation skeleton). Let the server compress
+      // this prose into an even more compact real anchor.
+      const anchorBody = input.anchorMsg.parts
+        .filter((p) => p.type === "text")
+        .map((p) => (p as any).text ?? "")
+        .join("\n")
+      const allConversationItems: unknown[] = anchorBody.trim()
+        ? [{ type: "message", role: "assistant", content: [{ type: "output_text", text: anchorBody }] }]
+        : buildConversationItemsForPlugin(messagesPre) // fallback if anchor has no body
 
       if (allConversationItems.length === 0) {
         log.warn("codex recompress: no conversation items to compact", { sessionID })
