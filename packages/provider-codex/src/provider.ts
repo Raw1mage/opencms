@@ -18,6 +18,7 @@ import type {
 import { CODEX_API_URL, CODEX_WS_URL } from "./protocol.js"
 import { getCompactThreshold, getMaxOutput } from "./models.js"
 import { convertPrompt, convertTools } from "./convert.js"
+import { consumeCompactedItemsPrefix } from "./compacted-items-store.js"
 import { buildHeaders, buildClientMetadata } from "./headers.js"
 import { parseSSEStream, mapResponseStream, mapFinishReason } from "./sse.js"
 import type { RequestOptionsShape } from "./empty-turn-classifier.js"
@@ -189,11 +190,20 @@ class CodexLanguageModel implements LanguageModelV2 {
       ?? callOptions.providerOptions
       ?? {}) as Record<string, unknown>
 
-    // § 2.1.6  Build request body — match old AI SDK adapter output exactly
+    // § 2.1.6  Prepend encrypted compacted items if present. These are
+    // opaque ResponseItem[] from /responses/compact (encrypted blob) that
+    // bypass the LMv2→ResponseItem conversion pipeline. They go directly
+    // into the Codex input[] as-is, before the converted messages.
+    // Written by prompt.ts Phase 2 (anchor-prefix-expand); consumed once.
+    const compactedPrefix = sessionId
+      ? consumeCompactedItemsPrefix(sessionId)
+      : []
+    const finalInput = compactedPrefix.length > 0 ? [...compactedPrefix, ...input] : input
+
     const body = buildResponsesApiRequest({
       modelId: this.modelId,
       instructions,
-      input,
+      input: finalInput,
       tools,
       promptCacheKey: cacheKey,
       installationId: this.options.installationId,

@@ -234,13 +234,15 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
         return
       }
 
-      // Extract human-readable summary from compacted output
+      // compactedItems is the canonical output — may contain encrypted
+      // compaction_summary blobs with no human-readable text. summary is
+      // best-effort fallback for non-codex paths.
       output.compactedItems = result.output
-      output.summary =
-        result.output
-          .filter((item: any) => item.type === "message")
-          .flatMap((item: any) => (item.content ?? []).map((c: any) => c.text ?? ""))
-          .join("\n") || "[Server-compacted conversation history]"
+      const messageTexts = result.output
+        .filter((item: any) => item.type === "message")
+        .flatMap((item: any) => (item.content ?? []).map((c: any) => c.text ?? ""))
+        .join("\n")
+      output.summary = messageTexts || "[Server-compacted conversation history]"
 
       log.info("codex server compaction via hook", {
         sessionID: _input.sessionID,

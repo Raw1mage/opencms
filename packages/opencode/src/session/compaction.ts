@@ -2029,6 +2029,7 @@ When constructing the summary, try to stick to this template:
       })
 
       const summaries: string[] = []
+      const allCompactedItems: unknown[] = []
       for (let i = 0; i < batches.length; i++) {
         const batch = batches[i]
         let hookResult: { compactedItems: unknown[] | null; summary: string | null }
@@ -2059,7 +2060,7 @@ When constructing the summary, try to stick to this template:
           return
         }
 
-        if (!hookResult.compactedItems || !hookResult.summary?.trim()) {
+        if (!hookResult.compactedItems) {
           log.info("codex recompress: batch plugin did not handle", {
             sessionID,
             batch: i,
@@ -2074,16 +2075,20 @@ When constructing the summary, try to stick to this template:
           return
         }
 
-        summaries.push(hookResult.summary.trim())
+        // Collect compacted items from all batches (typically 1 batch for
+        // anchor-body input). Summary text is best-effort — server may
+        // return only compaction_summary (encrypted blob) with no message.
+        allCompactedItems.push(...(hookResult.compactedItems as unknown[]))
+        if (hookResult.summary?.trim()) {
+          summaries.push(hookResult.summary.trim())
+        }
         log.info("codex recompress: batch succeeded", {
           sessionID,
           batch: i,
           inputItems: batch.length,
-          summaryTokens: Math.ceil(hookResult.summary.length / 4),
+          compactedItemCount: (hookResult.compactedItems as unknown[]).length,
         })
       }
-
-      const upgradedBody = summaries.join("\n\n")
 
       // STALENESS CHECK: re-read the anchor; if a newer one has been
       // written since we dispatched, abandon the in-place update.
@@ -2103,29 +2108,40 @@ When constructing the summary, try to stick to this template:
         return
       }
 
-      const anchorTextPart = currentAnchor.parts.find((p) => p.type === "text") as MessageV2.TextPart | undefined
-      if (!anchorTextPart) {
-        log.warn("codex recompress: anchor has no text part to update", { sessionID })
+      // Store compactedItems + chainBinding in the anchor's compaction
+      // part metadata. Narrative text body is NOT overwritten — it stays
+      // for human readability, sidebar display, and non-codex fallback.
+      const compactionPart = currentAnchor.parts.find((p) => p.type === "compaction")
+      if (!compactionPart) {
+        log.warn("codex recompress: anchor has no compaction part", { sessionID })
         emitRecompressTelemetry({
           ...baseTelemetry,
           result: "exception",
-          errorMessage: "anchor has no text part",
+          errorMessage: "anchor has no compaction part",
           latencyMs: Date.now() - startedAt,
         })
         return
       }
 
       await Session.updatePart({
-        ...(anchorTextPart as any),
-        text: upgradedBody,
+        ...(compactionPart as any),
+        metadata: {
+          ...((compactionPart as any).metadata ?? {}),
+          serverCompactedItems: allCompactedItems,
+          chainBinding: {
+            accountId,
+            modelId: model.id,
+            capturedAt: Date.now(),
+          },
+        },
       })
 
-      log.info("codex recompress: upgraded anchor body in place", {
+      log.info("codex recompress: stored encrypted anchor in metadata", {
         sessionID,
         anchorId: anchorMsg.info.id,
-        upgradedTokens: Math.ceil(upgradedBody.length / 4),
-        replacedTokens: anchorTokensBefore,
-        trigger,
+        compactedItemCount: allCompactedItems.length,
+        hasEncryptedBlob: allCompactedItems.some((i: any) => i.type === "compaction_summary"),
+        narrativeBodyPreserved: true,
       })
       // Post-success hook: demote old anchors when merging N→1.
       succeeded = true
@@ -2133,7 +2149,7 @@ When constructing the summary, try to stick to this template:
       emitRecompressTelemetry({
         ...baseTelemetry,
         result: "success",
-        anchorTokensAfter: Math.ceil(upgradedBody.length / 4),
+        anchorTokensAfter: allCompactedItems.length,
         latencyMs: Date.now() - startedAt,
       })
     } catch (err) {
