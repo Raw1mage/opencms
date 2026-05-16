@@ -20,6 +20,7 @@
 
 import { Auth } from "../auth"
 import { Log } from "../util/log"
+import { resolveCodexInstallationId } from "../plugin/codex-installation-id"
 
 const log = Log.create({ service: "codex-compaction" })
 
@@ -40,6 +41,9 @@ export interface CompactRequest {
   instructions: string
   tools: unknown[]
   parallel_tool_calls: boolean
+  /** Account ID to use for auth. When provided, Auth.get uses this specific
+   *  account instead of the generic active codex account. */
+  accountId?: string
 }
 
 export interface CompactResult {
@@ -56,14 +60,18 @@ export interface CompactResult {
  */
 export async function codexServerCompact(request: CompactRequest): Promise<CompactResult> {
   try {
-    const liveAuth = await Auth.get("codex")
+    const liveAuth = await Auth.get("codex", request.accountId)
     const accessToken = (liveAuth as any)?.access
-    const accountId = (liveAuth as any)?.accountId
+    const accountId = (liveAuth as any)?.accountId ?? request.accountId
 
     if (!accessToken) {
       log.warn("codex compact: no auth token")
       return { success: false }
     }
+
+    // Per spec D9-2: compact endpoint requires x-codex-installation-id as
+    // HTTP header (unique to this endpoint — streaming path uses body field).
+    const installationId = await resolveCodexInstallationId().catch(() => undefined)
 
     const headers: Record<string, string> = {
       "Authorization": `Bearer ${accessToken}`,
@@ -71,6 +79,7 @@ export async function codexServerCompact(request: CompactRequest): Promise<Compa
       "OpenAI-Beta": "responses=v1",
     }
     if (accountId) headers["chatgpt-account-id"] = accountId
+    if (installationId) headers["x-codex-installation-id"] = installationId
 
     const body = JSON.stringify({
       model: request.model,
@@ -104,7 +113,10 @@ export async function codexServerCompact(request: CompactRequest): Promise<Compa
       log.warn("codex compact failed", {
         status: response.status,
         statusText: response.statusText,
-        bodyPreview: errorBody.slice(0, 200),
+        errorBody: errorBody.slice(0, 500),
+        inputItems: request.input.length,
+        bodyBytes: body.length,
+        hasInstallationId: !!installationId,
       })
       return { success: false, failReason: `HTTP ${response.status}: ${errorBody.slice(0, 200)}` }
     }

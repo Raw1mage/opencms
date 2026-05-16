@@ -221,6 +221,7 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
         instructions: _input.instructions,
         tools: [],
         parallel_tool_calls: true,
+        accountId: _input.model.accountId,
       })
 
       if (!result.success || !result.output) {
