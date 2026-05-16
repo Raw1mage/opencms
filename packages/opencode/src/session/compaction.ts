@@ -1718,10 +1718,9 @@ When constructing the summary, try to stick to this template:
         const trigger: "size-ceiling" | "legacy-large-policy" =
           dialogRedactionFlag && latestTokens >= ceilingTokens ? "size-ceiling" : "legacy-large-policy"
         // Provider dispatch: codex sessions go to /responses/compact via the
-        // existing low-cost-server plugin path; non-codex sessions fall
-        // through to Hybrid.runHybridLlm. Both paths share the post-LLM
-        // in-place anchor update logic via applyRecompressInPlaceUpdate.
-        // Shared success callback for both codex and LLM paths.
+        // existing low-cost-server plugin path. If that fails, enrichment
+        // stops — no paid LLM fallback for background quality upgrades.
+        // Shared success callback for codex path + drop-old-history path.
         const demoteOldAnchors = async () => {
           emitEnrichmentStatus("success")
           for (const old of anchorsTodemote) {
@@ -1738,12 +1737,11 @@ When constructing the summary, try to stick to this template:
           }
         }
 
-        // ── Enrichment priority chain ──────────────────────────────
-        // 1. ai_free  — codex server-side /responses/compact (free)
-        // 2. drop old anchors — demote all but latest (zero cost, instant)
-        // 3. ai_paid  — LLM summarisation (paid, last resort)
+        // -- Enrichment priority chain ---------------------------------
+        // 1. ai_free  -- codex server-side /responses/compact (free)
+        // 2. drop old history -- trim anchor body to recent 20% of context (free)
+        // 3. ai_paid  -- LLM summarisation (last resort)
         //
-        // Each step produces a zero anchor (demotes predecessors).
         // Chain stops at the first success.
 
         const recompressStartedAt = Date.now()
@@ -1822,7 +1820,7 @@ When constructing the summary, try to stick to this template:
           }
         }
 
-        // ── Step 3: ai_paid (LLM) — only if single anchor is still too large ──
+        // ── Step 3: ai_paid (LLM) — last resort when free methods fail ──
         log.info("enrichment step 3 (ai_paid LLM): single anchor too large, attempting LLM compress", { sessionID })
         emitTelemetry("session.hybrid_enrichment.fallback_to_ai_paid")
         const LLM_INPUT_TOKEN_CAP = 30_000
@@ -1875,12 +1873,10 @@ When constructing the summary, try to stick to this template:
           return
         }
 
-        // STEP 3: read hybrid_llm's stub anchor body, then UPDATE the
-        // narrative anchor in place. Demote the stub anchor (set
-        // summary=false) so Memory.read no longer treats it as an
-        // active anchor candidate.
+        // Read hybrid_llm's stub anchor body, then UPDATE the narrative
+        // anchor in place. Demote the stub anchor (set summary=false) so
+        // Memory.read no longer treats it as an active anchor candidate.
         const messagesPost = await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[])
-        // Find the stub: the most recent assistant+summary message.
         const stubIdx = (() => {
           for (let i = messagesPost.length - 1; i >= 0; i--) {
             const m = messagesPost[i]
@@ -1896,19 +1892,9 @@ When constructing the summary, try to stick to this template:
         }
         const stubMsg = messagesPost[stubIdx]
         if (stubMsg.info.id === narrativeAnchorId) {
-          // No new stub was written (race / unexpected). Nothing to do.
-          log.info("hybrid_llm enrichment: stub === narrative anchor, no upgrade needed", {
-            sessionID,
-          })
+          log.info("hybrid_llm enrichment: stub === narrative anchor, no upgrade needed", { sessionID })
           return
         }
-        // STALENESS CHECK: between the narrative anchor and the stub,
-        // has anyone else written another anchor? If yes, the narrative
-        // anchor is no longer the "previous" anchor relative to the
-        // stub — abandon the in-place update to avoid corrupting
-        // history. The stub stays as the new active anchor (which is
-        // reasonable: it was distilled from a snapshot taken at start,
-        // but the runtime will adapt on the next round).
         const narrativeIdx = messagesPost.findIndex((m) => m.info?.id === narrativeAnchorId)
         if (narrativeIdx === -1) {
           log.warn("hybrid_llm enrichment: narrative anchor disappeared", { sessionID })
@@ -1936,26 +1922,15 @@ When constructing the summary, try to stick to this template:
           return
         }
 
-        // Read stub's body
         const upgradedBody = stubMsg.parts
           .filter((p) => p.type === "text")
           .map((p) => (p as any).text ?? "")
           .join("\n")
         if (!upgradedBody.trim()) {
-          log.warn("hybrid_llm enrichment: stub anchor has no text body; leaving narrative anchor unchanged", {
-            sessionID,
-          })
+          log.warn("hybrid_llm enrichment: stub anchor has no text body; leaving narrative anchor unchanged", { sessionID })
           return
         }
 
-        // Update narrative anchor's text part(s) with the upgraded body.
-        // Strategy: find narrative's first text part; overwrite its text
-        // with the full upgraded body. If narrative had multiple text
-        // parts, the others are left as-is — they don't matter because
-        // Memory.read joins all text parts; the joined text will be
-        // upgradedBody + leftover. To get a clean result, we'd need to
-        // delete the leftover parts, but Storage doesn't support delete
-        // directly. In practice narrative writes a single text part.
         const narrativeFresh = messagesPost[narrativeIdx]
         const narrativeTextPart = narrativeFresh.parts.find((p) => p.type === "text")
         if (!narrativeTextPart) {
@@ -1967,15 +1942,11 @@ When constructing the summary, try to stick to this template:
           text: upgradedBody,
         })
 
-        // Demote the stub anchor: set summary=false so Memory.read no
-        // longer picks it. The stub remains in stream as a hidden
-        // compaction trace.
         await Session.updateMessage({
           ...(stubMsg.info as any),
           summary: false,
         })
 
-        // Demote old anchors when merging N→1 (shared callback).
         await demoteOldAnchors()
 
         log.info("hybrid_llm enrichment: upgraded narrative anchor in place", {
