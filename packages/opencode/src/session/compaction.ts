@@ -1576,17 +1576,19 @@ When constructing the summary, try to stick to this template:
       }).catch(() => undefined)
     }
     if (!model) {
+      console.error(`[ENRICH-SKIP] reason=no_model session=${sessionID}`)
       emitTelemetry("session.hybrid_enrichment.skipped", { reason: "no_model" })
       return
     }
     const tweaks = Tweaks.compactionSync()
     if (!tweaks.enableHybridLlm) {
+      console.error(`[ENRICH-SKIP] reason=flag_disabled session=${sessionID}`)
       emitTelemetry("session.hybrid_enrichment.skipped", { reason: "flag_disabled" })
       return
     }
     const existing = hybridEnrichInFlight.get(sessionID)
     if (existing && Date.now() - existing.startedAt < ENRICHMENT_IN_FLIGHT_TIMEOUT_MS) {
-      log.info("hybrid_llm enrichment skipped (already in flight)", { sessionID })
+      console.error(`[ENRICH-SKIP] reason=in_flight session=${sessionID} age=${Date.now() - existing.startedAt}ms`)
       emitTelemetry("session.hybrid_enrichment.skipped", { reason: "in_flight" })
       return
     }
@@ -1621,8 +1623,12 @@ When constructing the summary, try to stick to this template:
     // off, retain the legacy observed-gate {overflow, cache-aware, manual}.
     const dialogRedactionFlag =
       (tweaks as { enableDialogRedactionAnchor?: boolean }).enableDialogRedactionAnchor !== false
-    if (!dialogRedactionFlag && !new Set<Observed>(["overflow", "cache-aware", "manual"]).has(observed)) return
+    if (!dialogRedactionFlag && !new Set<Observed>(["overflow", "cache-aware", "manual"]).has(observed)) {
+      console.error(`[ENRICH-SKIP] reason=observed_not_eligible observed=${observed} dialogRedactionFlag=${dialogRedactionFlag} session=${sessionID}`)
+      return
+    }
 
+    console.error(`[ENRICH-GO] session=${sessionID} observed=${observed} provider=${model.providerId}`)
     const promise = (async () => {
       try {
         emitEnrichmentStatus("started")
@@ -2404,7 +2410,10 @@ When constructing the summary, try to stick to this template:
         // anchor with a higher-quality one. Always non-blocking; failures
         // are logged but don't affect the runloop or the user.
         if (hybridEnrichmentEligible.has(observed)) {
+          console.error(`[ENRICH-CALL] observed=${observed} kind=${attempt.kind} session=${sessionID}`)
           scheduleHybridEnrichment(sessionID, observed, model)
+        } else {
+          console.error(`[ENRICH-INELIGIBLE] observed=${observed} session=${sessionID}`)
         }
         // compaction_simplification T8 (2026-05-14): rev5 sustainability
         // watermark backstop retired. The 0.9 overflowThreshold (codex
