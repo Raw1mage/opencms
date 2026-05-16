@@ -82,6 +82,9 @@ export function DialogAccount() {
 
   const getAccountStatus = (info: Account.Info): { icon: string; color: any; text: string } | null => {
     if (info.type === "subscription") {
+      if (info.cooldownReason === "Need login") {
+        return { icon: "🔑", color: theme.error, text: "Need login" }
+      }
       if (info.coolingDownUntil && info.coolingDownUntil > Date.now()) {
         const remaining = Math.ceil((info.coolingDownUntil - Date.now()) / 1000 / 60)
         return { icon: "⏳", color: theme.warning, text: `Rate limited (${remaining}m)` }

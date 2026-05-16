@@ -364,6 +364,19 @@ export namespace RateLimitJudge {
     const rateLimitTracker = getRateLimitTracker()
     rateLimitTracker.markRateLimited(accountId, providerId, "AUTH_FAILED", 3_600_000, modelId)
 
+    // Persist "Need login" on the account so admin panel shows status.
+    // token_invalidated = session revoked remotely; other accounts may still work.
+    const { isTokenInvalidated } = await import("./error-classifier")
+    if (isTokenInvalidated(error)) {
+      const family = (await Account.resolveProvider(providerId)) ?? providerId
+      try {
+        await Account.update(family, accountId, { cooldownReason: "Need login" } as Partial<Account.Info>)
+        log.warn("Account marked as needing re-login", { providerId, accountId })
+      } catch {
+        // Account may not exist or be API type (no cooldownReason field) — ignore
+      }
+    }
+
     const errorMessage =
       error instanceof Error ? error.message : typeof error === "string" ? error : "Authentication failed"
 

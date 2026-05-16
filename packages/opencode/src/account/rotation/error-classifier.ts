@@ -71,6 +71,27 @@ export function isRateLimitError(error: unknown): boolean {
 }
 
 /**
+ * Check if the error is specifically a "token_invalidated" error from the API.
+ * This means the session/token was revoked remotely — the account needs re-login,
+ * but other accounts in the same provider may still be healthy (unlike invalid_scope
+ * which poisons the shared refresh token).
+ */
+export function isTokenInvalidated(error: unknown): boolean {
+  const errorObj = asErrorWithMetadata(error)
+  if (!errorObj) return false
+
+  const status = errorObj.status ?? errorObj.statusCode
+  if (status !== 401) return false
+
+  const message = errorObj.message ?? ""
+  if (typeof message === "string") {
+    const lower = message.toLowerCase()
+    return lower.includes("token_invalidated") || lower.includes("token has been invalidated")
+  }
+  return false
+}
+
+/**
  * Utility to check if an error is an authentication error
  */
 export function isAuthError(error: unknown): boolean {
