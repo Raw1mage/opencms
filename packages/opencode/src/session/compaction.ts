@@ -1625,23 +1625,6 @@ When constructing the summary, try to stick to this template:
 
     const promise = (async () => {
       try {
-        // Post-compaction context ratio gate: if narrative already brought
-        // context below 50%, enrichment adds no value.
-        const postCompactionTokens = await getLastAssistantTokens(sessionID).catch(() => undefined)
-        const contextWindow = model.limit?.context ?? 0
-        if (postCompactionTokens && contextWindow > 0) {
-          const postRatio = (postCompactionTokens.input + postCompactionTokens.cache.read) / contextWindow
-          if (postRatio < 0.5) {
-            log.info("hybrid_llm enrichment skipped (post-compaction context < 50%)", {
-              sessionID,
-              postRatio,
-              contextWindow,
-            })
-            emitTelemetry("session.hybrid_enrichment.skipped", { reason: "low_context_ratio", postRatio })
-            return
-          }
-        }
-
         emitEnrichmentStatus("started")
         // STEP 1: capture the just-written narrative anchor (the chain's
         // fast intermediate). We will UPDATE this message's text part
