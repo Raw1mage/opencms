@@ -1613,6 +1613,24 @@ When constructing the summary, try to stick to this template:
       })
       hybridEnrichInFlight.delete(sessionID)
     }
+
+    // Post-compaction context ratio gate: if narrative already brought context
+    // below 50%, enrichment adds no value — skip to avoid wasted API calls.
+    const postCompactionTokens = await getLastAssistantTokens(sessionID).catch(() => undefined)
+    const contextWindow = model.limit?.context ?? 0
+    if (postCompactionTokens && contextWindow > 0) {
+      const postRatio = (postCompactionTokens.input + postCompactionTokens.cache.read) / contextWindow
+      if (postRatio < 0.5) {
+        log.info("hybrid_llm enrichment skipped (post-compaction context < 50%)", {
+          sessionID,
+          postRatio,
+          contextWindow,
+        })
+        emitTelemetry("session.hybrid_enrichment.skipped", { reason: "low_context_ratio", postRatio })
+        return
+      }
+    }
+
     emitTelemetry("session.hybrid_enrichment.scheduled")
 
     // Surface enrichment lifecycle in recentEvents so the sidebar Q card
