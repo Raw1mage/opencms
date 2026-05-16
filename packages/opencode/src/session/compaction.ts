@@ -1606,6 +1606,8 @@ When constructing the summary, try to stick to this template:
     // Surface enrichment lifecycle in recentEvents so the sidebar Q card
     // shows background recompress status (started → success/failure).
     const emitEnrichmentStatus = (status: "started" | "success" | "failed", detail?: string) => {
+      // "started" is noise in the sidebar — only emit success/failed
+      if (status === "started") return
       void Session.appendRecentEvent(sessionID, {
         ts: Date.now(),
         kind: "compaction",
@@ -1613,7 +1615,6 @@ When constructing the summary, try to stick to this template:
           observed: `enrichment:${status}`,
           kind: model?.providerId === "codex" ? "ai_free" : "ai_paid",
           success: status === "success",
-          ...(detail ? { tokensAfter: undefined } : {}),
         },
       }).catch(() => undefined)
     }
@@ -1686,7 +1687,6 @@ When constructing the summary, try to stick to this template:
         // stops — no paid LLM fallback for background quality upgrades.
         // Shared success callback for codex path + drop-old-history path.
         const demoteOldAnchors = async () => {
-          emitEnrichmentStatus("success")
           for (const old of anchorsTodemote) {
             await Session.updateMessage({
               ...(old.info as any),
