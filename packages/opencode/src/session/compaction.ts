@@ -1676,34 +1676,7 @@ When constructing the summary, try to stick to this template:
         // compaction_simplification T4 fix (2026-05-15): measure the
         // cumulative anchor floor — sum of ALL summary:true message
         // bodies in the stream — not just the latest anchor. Rebind
-        // compaction fires incrementally; each individual anchor body
-        // is small (2-6% of context), but the accumulated floor can
-        // reach 79%+. The gate must trigger on the floor, not on one
-        // slice. Operators tune via `compaction_local_to_ai_threshold_ratio`.
-        const thresholdRatio = (tweaks as { localToAiThresholdRatio?: number }).localToAiThresholdRatio ?? 0.4
         const contextLimit = model.limit?.context ?? 0
-        // Cumulative anchor floor: walk all summary:true messages.
-        let cumulativeAnchorTokens = 0
-        for (const m of messagesPre) {
-          if (m.info.role !== "assistant") continue
-          if ((m.info as MessageV2.Assistant).summary !== true) continue
-          const bodyLen = m.parts
-            .filter((p) => p.type === "text")
-            .map((p) => ((p as { text?: string }).text ?? "").length)
-            .reduce((a, b) => a + b, 0)
-          cumulativeAnchorTokens += Math.ceil(bodyLen / 4)
-        }
-        if (contextLimit <= 0 || cumulativeAnchorTokens / contextLimit < thresholdRatio) {
-          log.info("hybrid_llm enrichment skipped (anchor floor below ratio threshold)", {
-            sessionID,
-            latestAnchorTokens: narrativeTokens,
-            cumulativeAnchorTokens,
-            contextLimit,
-            ratio: contextLimit > 0 ? cumulativeAnchorTokens / contextLimit : null,
-            thresholdRatio,
-          })
-          return
-        }
 
         // Collect all anchors. Because narrative compaction uses chained
         // concat (anchor N = anchor N-1 body + new dialog), the LATEST
