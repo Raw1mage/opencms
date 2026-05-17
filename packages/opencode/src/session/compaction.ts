@@ -1767,8 +1767,8 @@ When constructing the summary, try to stick to this template:
           }
         }
 
-        // ── Step 3: ai_paid (LLM) — last resort when free methods fail ──
-        log.info("enrichment step 3 (ai_paid LLM): single anchor too large, attempting LLM compress", { sessionID })
+        // ── Step 2: ai_paid (LLM) — last resort when drop_old didn't apply ──
+        log.info("enrichment step 2 (ai_paid LLM): anchor not trimmed by drop_old, attempting LLM compress", { sessionID })
         emitTelemetry("session.hybrid_enrichment.fallback_to_ai_paid")
         const LLM_INPUT_TOKEN_CAP = 30_000
         const llmInputCharCap = LLM_INPUT_TOKEN_CAP * 4
@@ -1811,6 +1811,7 @@ When constructing the summary, try to stick to this template:
           outputTokens: event.outputTokens,
         })
         if (event.result !== "success") {
+          emitEnrichmentStatus("failed", `ai_paid: ${event.errorCode ?? event.result}`)
           emitRecompressTelemetry({
             ...baseTelemetry,
             result: "provider-error",
