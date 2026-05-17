@@ -198,6 +198,9 @@ class CodexLanguageModel implements LanguageModelV2 {
     const compactedPrefix = sessionId
       ? consumeCompactedItemsPrefix(sessionId)
       : []
+    if (compactedPrefix.length > 0) {
+      console.error(`[CODEX-PREFIX] session=${sessionId} items=${compactedPrefix.length} types=${compactedPrefix.map((i: any) => (i as any)?.type).join(",")}`)
+    }
     const finalInput = compactedPrefix.length > 0 ? [...compactedPrefix, ...input] : input
 
     const body = buildResponsesApiRequest({

@@ -576,6 +576,18 @@ export namespace Account {
 
       providersOf(storage)[provider].accounts[accountId] = { ...existing, ...info } as Info
       await save(storage)
+
+      // Credential fields changed → cached SDK/model instances hold stale tokens
+      // in closures (e.g. codex createCodex() captures access/refresh at
+      // construction time). Invalidate provider model cache so the next
+      // getLanguage() call rebuilds with fresh credentials.
+      const credentialFields = ["refreshToken", "accessToken", "expiresAt", "apiKey"] as const
+      const hasCredentialChange = credentialFields.some((k) => k in info)
+      if (hasCredentialChange) {
+        const { Provider } = await import("../provider/provider")
+        Provider.reset()
+        await Bus.publish(Bus.AccountUpdated, { providerKey: provider, accountId }).catch(() => {})
+      }
     })
   }
 

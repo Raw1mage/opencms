@@ -1796,7 +1796,7 @@ export const DialogSelectModel: Component<{
                         </span>
                         <Show when={!accountManagementMode() && accountRowDisplay(row).cooldown}>
                           {(cd) => (
-                            <span class="shrink-0 w-[124px] text-right text-11-regular text-icon-warning-base tabular-nums whitespace-nowrap">
+                            <span class="shrink-0 w-[124px] text-right text-11-regular text-icon-danger-base tabular-nums whitespace-nowrap">
                               {cd()}
                             </span>
                           )}

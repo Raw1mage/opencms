@@ -34,6 +34,14 @@ export namespace Bus {
     }),
   )
 
+  export const AccountUpdated = BusEvent.define(
+    "account.updated",
+    z.object({
+      providerKey: z.string(),
+      accountId: z.string(),
+    }),
+  )
+
   export const AccountRemoved = BusEvent.define(
     "account.removed",
     z.object({

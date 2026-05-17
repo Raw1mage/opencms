@@ -2807,12 +2807,14 @@ export namespace SessionPrompt {
             accountId: effectiveAccountId,
             modelID: activeModel.id,
           })
+          console.error(`[PHASE2] applied=${phase2Result.applied} reason=${(phase2Result as any).reason ?? "n/a"} provider=${activeModel.providerId} anchor0Role=${sessionMessages[0]?.info?.role ?? "none"}`)
           if (phase2Result.applied && activeModel.providerId === "codex") {
             // Extract raw serverCompactedItems from anchor metadata and
             // store them for the codex provider to consume. Drop anchor
             // from messages — its content is in the encrypted items.
             const anchorMeta = sessionMessages[0]?.parts.find((p: any) => p.type === "compaction")
             const serverItems = (anchorMeta as any)?.metadata?.serverCompactedItems as unknown[] | undefined
+            console.error(`[PHASE2-CODEX] hasAnchorMeta=${!!anchorMeta} hasServerItems=${!!serverItems} itemCount=${serverItems?.length ?? 0}`)
             if (serverItems && serverItems.length > 0) {
               const { setCompactedItemsPrefix } = await import("@opencode-ai/provider-codex/compacted-items-store")
               setCompactedItemsPrefix(sessionID, serverItems)

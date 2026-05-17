@@ -108,6 +108,22 @@ function hasInit<TResult>(tool: InvokableTool<TResult>): tool is Tool.Info {
   return typeof (tool as Tool.Info).init === "function"
 }
 
+/**
+ * In-flight dedup map. When two parallel tool calls with identical
+ * (sessionID, toolID, args) arrive in the same step, the DB-based dedup
+ * misses because the first call's part hasn't reached "completed" yet.
+ * This map lets the second call await the first's result instead.
+ *
+ * Key: `${sessionID}\0${toolID}\0${stableStringify(args)}`
+ * Value: Promise that resolves to the first call's ToolExecutionResult.
+ * Entry is deleted when the promise settles (success or failure).
+ */
+const inflightDedup = new Map<string, Promise<ToolExecutionResult>>()
+
+function inflightKey(sessionID: string, toolID: string, args: unknown): string {
+  return `${sessionID}\0${toolID}\0${stableStringify(args)}`
+}
+
 export namespace ToolInvoker {
   /**
    * Options for tool invocation
@@ -159,14 +175,45 @@ export namespace ToolInvoker {
       agent,
     })
 
-    // Duplicate tool-call dedup (2026-05-10 hotfix). Codex occasionally
-    // issues identical (toolID, args) tool calls within the same user
-    // turn — parallel within a step, across steps in one assistant
-    // message, or across consecutive assistant messages before the next
-    // user reply. Short-circuit by returning the prior sibling's output
-    // so we don't re-execute the tool. Saves user tokens and prevents
-    // wasted compute. See header comment on findDuplicateSibling for
-    // boundary rules.
+    // ── Dedup layer 1: in-flight (parallel call within same step) ──
+    // When the model issues two identical tool calls in one step, AI SDK
+    // invokes both execute() concurrently. The DB-based dedup (layer 2)
+    // can't help because neither part has reached "completed" yet. This
+    // layer uses an in-memory promise map: the first call registers its
+    // execution promise; the second call finds the key and awaits it.
+    const iflKey = inflightKey(sessionID, toolID, args)
+    const inflight = inflightDedup.get(iflKey)
+    if (inflight) {
+      try {
+        const result = await inflight
+        log.info("dedup: in-flight short-circuit (parallel identical call)", {
+          toolID,
+          callID,
+        })
+        debugCheckpoint("tool.invoke", "dedup-inflight", {
+          tool: toolID,
+          sessionID,
+          messageID,
+          callID,
+        })
+        return {
+          title: (result as any)?.title ?? "",
+          output: (result as any)?.output ?? "",
+          metadata: {
+            dedup: {
+              shortCircuited: true,
+              reason: "in-flight parallel dedup",
+            },
+          },
+        } as ToolExecutionResult
+      } catch {
+        // First call failed — let this one try independently.
+      }
+    }
+
+    // ── Dedup layer 2: DB-based (sequential call in same turn) ──
+    // Catches identical calls across consecutive assistant messages
+    // within the same user turn (the first already completed in DB).
     try {
       const dup = await findDuplicateSibling(sessionID, toolID, args, callID)
       if (dup) {
@@ -207,6 +254,16 @@ export namespace ToolInvoker {
         error: err instanceof Error ? err.message : String(err),
       })
     }
+
+    // Register this execution in the in-flight map so parallel
+    // duplicates can await it instead of re-executing.
+    let resolveInflight: (v: ToolExecutionResult) => void
+    let rejectInflight: (e: unknown) => void
+    const inflightPromise = new Promise<ToolExecutionResult>((res, rej) => {
+      resolveInflight = res
+      rejectInflight = rej
+    })
+    inflightDedup.set(iflKey, inflightPromise)
 
     await Plugin.trigger(
       "tool.execute.before",
@@ -280,6 +337,7 @@ export namespace ToolInvoker {
         result,
       )
 
+      resolveInflight!(result as ToolExecutionResult)
       return result
     } catch (error) {
       debugCheckpoint("tool.invoke", "error", {
@@ -289,7 +347,10 @@ export namespace ToolInvoker {
         message: error instanceof Error ? error.message : String(error),
       })
       log.error("tool execution failed", { toolID, error })
+      rejectInflight!(error)
       throw error
+    } finally {
+      inflightDedup.delete(iflKey)
     }
   }
 
