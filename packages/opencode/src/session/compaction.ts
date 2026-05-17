@@ -1652,10 +1652,22 @@ When constructing the summary, try to stick to this template:
         const narrativeTokens = Math.ceil(narrativeContent.length / 4)
         const ceilingTokens =
           (tweaks as { anchorRecompressCeilingTokens?: number }).anchorRecompressCeilingTokens ?? 50_000
-        // compaction_simplification T4 fix (2026-05-15): measure the
-        // cumulative anchor floor — sum of ALL summary:true message
-        // bodies in the stream — not just the latest anchor. Rebind
         const contextLimit = model.limit?.context ?? 0
+
+        // Gate: skip enrichment if anchor body is small relative to context.
+        // Rebind triggers on every rotation regardless of context pressure —
+        // no point polishing a 5% anchor.
+        const anchorRatio = contextLimit > 0 ? narrativeTokens / contextLimit : 0
+        if (anchorRatio < 0.5) {
+          log.info("hybrid_llm enrichment skipped (anchor body < 50% of context)", {
+            sessionID,
+            narrativeTokens,
+            contextLimit,
+            anchorRatio,
+          })
+          console.error(`[ENRICH-SKIP] reason=anchor_small ratio=${(anchorRatio * 100).toFixed(0)}% tokens=${narrativeTokens} session=${sessionID}`)
+          return
+        }
 
         // Collect all anchors. Because narrative compaction uses chained
         // concat (anchor N = anchor N-1 body + new dialog), the LATEST
