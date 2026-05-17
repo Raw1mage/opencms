@@ -282,10 +282,10 @@ export namespace SessionCompaction {
   const SMALL_CONTEXT_RESERVED_TOKENS = 5_000
   const CHARS_PER_TOKEN = 4
 
-  // Billing-aware compaction: by-token providers benefit from aggressive
-  // compaction (smaller context = lower cost per round), while by-request
-  // providers should preserve context (no per-token cost, compaction only
-  // loses information). models.dev marks by-request providers with cost=0.
+  // Billing-aware compaction: by-token providers pay per token (aggressive
+  // compaction saves money). By-request providers (copilot etc) pay per
+  // request — compaction costs nothing extra and is mandatory for small
+  // context windows (128K) where anchor + tail easily overflow.
   const BY_TOKEN_HEADROOM = 80_000
   const BY_TOKEN_COOLDOWN_ROUNDS = 4
   const BY_REQUEST_OPPORTUNISTIC_THRESHOLD = 1.0 // effectively disabled
@@ -978,12 +978,17 @@ export namespace SessionCompaction {
     isSubscription?: boolean
     ctxRatio?: number
     codexServerPriorityRatio?: number
+    byRequest?: boolean
   }): ReadonlyArray<KindName> {
     const base = KIND_CHAIN[input.observed]
-    // Codex: narrative first (instant unblock), ai_free runs as background
-    // enrichment via scheduleHybridEnrichment. Don't put ai_free in the
-    // synchronous chain — it blocks the runloop for minutes on large sessions.
-    // Non-codex providers also use the base chain (narrative-first).
+    // By-request providers (copilot, etc): compaction costs nothing extra
+    // (charged per request, not per token). Small context windows (128K)
+    // make aggressive compaction mandatory — without it, anchor + tail
+    // overflow and session is paralyzed. Append ai_paid to the chain
+    // so narrative failure or overflow escalates to LLM summarization.
+    if (input.byRequest && (input.observed === "overflow" || input.observed === "cache-aware")) {
+      return Object.freeze([...base, "ai_paid"] as const)
+    }
     return base
   }
 
@@ -2271,11 +2276,13 @@ When constructing the summary, try to stick to this template:
     const model = await resolveActiveModel(sessionID)
     const ctxRatio = await sessionContextRatio(sessionID, model)
     const isSubscription = isSubscriptionCostModel(model)
+    const byRequest = model ? !isByTokenBilling(model) : false
     const baseChain = resolveKindChain({
       observed,
       providerId: model?.providerId,
       isSubscription,
       ctxRatio,
+      byRequest,
     })
     // Manual --rich: skip provider-aware chain and go straight to llm-agent.
     const chain: ReadonlyArray<KindName> =
