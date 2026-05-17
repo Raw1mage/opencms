@@ -1222,6 +1222,23 @@ export default function Page() {
   )
 
   const status = createMemo(() => sync.data.session_status[params.id ?? ""] ?? idle)
+
+  // Stale-busy recovery: if frontend thinks session is busy but backend
+  // says idle, the SSE event was lost. Poll every 15s to self-correct.
+  {
+    const staleBusyTimer = setInterval(() => {
+      const s = sync.data.session_status[params.id ?? ""]
+      if (!s || s.type === "idle") return
+      sdk.client.session.status().then((x) => {
+        if (!x.data) return
+        const now = Date.now()
+        const stamped: Record<string, any> = {}
+        for (const [sid, st] of Object.entries(x.data)) stamped[sid] = { ...st, receivedAt: now }
+        ;(sync.set as any)("session_status", stamped)
+      }).catch(() => {})
+    }, 15_000)
+    onCleanup(() => clearInterval(staleBusyTimer))
+  }
   const authoritativeParentSessionID = createMemo(() => info()?.parentID ?? params.id)
   const activeChild = createMemo(() => {
     const sessionID = authoritativeParentSessionID()
