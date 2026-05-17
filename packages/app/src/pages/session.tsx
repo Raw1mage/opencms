@@ -852,6 +852,7 @@ export default function Page() {
   // through the status footer so it behaves like runloop work instead of a
   // user-facing notification. Backend publishes session.compaction.started
   // immediately and session.compacted on finish.
+  let compactionFooterTimeout: ReturnType<typeof setTimeout> | undefined
   const stopCompactionListener = sdk.event.listen((e) => {
     const event = e.details as { type: string; properties?: { sessionID?: string; mode?: string } }
     if (!event.properties?.sessionID || event.properties.sessionID !== params.id) return
@@ -861,7 +862,12 @@ export default function Page() {
         ? language.t("toast.session.compact.background.loading")
         : language.t("toast.session.compact.loading")
       setUi("statusFooter", (prev) => prev ?? { label, startedAt: Date.now() })
+      // Auto-clear after 60s — background enrichment may hang or complete
+      // without publishing session.compacted.
+      if (compactionFooterTimeout) clearTimeout(compactionFooterTimeout)
+      compactionFooterTimeout = setTimeout(() => setUi("statusFooter", undefined), 60_000)
     } else if (event.type === "session.compacted") {
+      if (compactionFooterTimeout) clearTimeout(compactionFooterTimeout)
       setUi("statusFooter", undefined)
     }
   })
