@@ -2816,15 +2816,25 @@ export namespace SessionPrompt {
             const serverItems = (anchorMeta as any)?.metadata?.serverCompactedItems as unknown[] | undefined
             console.error(`[PHASE2-CODEX] hasAnchorMeta=${!!anchorMeta} hasServerItems=${!!serverItems} itemCount=${serverItems?.length ?? 0}`)
             if (serverItems && serverItems.length > 0) {
-              const { setCompactedItemsPrefix } = await import("@opencode-ai/provider-codex/compacted-items-store")
-              setCompactedItemsPrefix(sessionID, serverItems)
-              sessionMessages = sessionMessages.slice(1) // drop anchor
-              log.info("phase2-encrypted-prefix: stored for codex", {
-                sessionID,
-                step,
-                itemCount: serverItems.length,
-                hasEncryptedBlob: serverItems.some((i: any) => (i as any)?.type === "compaction_summary"),
-              })
+              // ai_free encrypted anchor: store items for codex provider to
+              // consume as raw ResponseItem[] prefix. Use require() not
+              // dynamic import() — the latter hangs when module path
+              // doesn't resolve in the bundle.
+              try {
+                const { setCompactedItemsPrefix } = require("@opencode-ai/provider-codex/compacted-items-store")
+                setCompactedItemsPrefix(sessionID, serverItems)
+                sessionMessages = sessionMessages.slice(1) // drop anchor
+                log.info("phase2-encrypted-prefix: stored for codex", {
+                  sessionID,
+                  step,
+                  itemCount: serverItems.length,
+                  hasEncryptedBlob: serverItems.some((i: any) => (i as any)?.type === "compaction_summary"),
+                })
+              } catch {
+                // Module not available — fall back to synthetic messages
+                sessionMessages = phase2Result.messages
+                log.warn("phase2-encrypted-prefix: store unavailable, using synthetic fallback", { sessionID, step })
+              }
             } else {
               // phase2Result.applied but no raw items — use the expanded
               // synthetic messages as fallback (legacy Phase 2 path).
