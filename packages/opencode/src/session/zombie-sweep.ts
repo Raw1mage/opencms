@@ -22,6 +22,7 @@ export namespace ZombieSweep {
   export interface Result {
     scanned: number
     stamped: number
+    partsStamped: number
   }
 
   export async function sweep(): Promise<Result> {
@@ -30,6 +31,7 @@ export namespace ZombieSweep {
     const now = Date.now()
     let scanned = 0
     let stamped = 0
+    let partsStamped = 0
 
     const glob = new Glob("*.db")
     for await (const entry of glob.scan({ cwd: dir, absolute: true })) {
@@ -52,6 +54,42 @@ export namespace ZombieSweep {
             count: changes,
           })
         }
+
+        // Reap orphaned tool parts: any tool part with status "running"
+        // belonging to a message that is no longer in-flight (has finish set
+        // or time_completed set) is a zombie — its execute() promise died
+        // with the old daemon process.
+        const orphanParts = db
+          .prepare(
+            `SELECT p.id, p.payload_json FROM parts p
+             JOIN messages m ON p.message_id = m.id
+             WHERE p.type = 'tool'
+               AND (m.finish IS NOT NULL OR m.time_completed IS NOT NULL)
+               AND p.payload_json LIKE '%"status":"running"%'`,
+          )
+          .all() as { id: string; payload_json: string }[]
+
+        if (orphanParts.length > 0) {
+          const update = db.prepare("UPDATE parts SET payload_json = $json WHERE id = $id")
+          for (const row of orphanParts) {
+            try {
+              const payload = JSON.parse(row.payload_json)
+              payload.state = {
+                ...payload.state,
+                status: "error",
+                error: "Tool call interrupted: daemon restarted while in-flight.",
+              }
+              update.run({ $json: JSON.stringify(payload), $id: row.id })
+              partsStamped++
+            } catch {
+              // Malformed JSON — skip
+            }
+          }
+          log.info("stamped zombie tool parts", {
+            session: path.basename(entry, ".db"),
+            count: orphanParts.length,
+          })
+        }
       } catch (err) {
         log.warn("zombie sweep failed for session", {
           dbPath: entry,
@@ -63,6 +101,6 @@ export namespace ZombieSweep {
         } catch {}
       }
     }
-    return { scanned, stamped }
+    return { scanned, stamped, partsStamped }
   }
 }
