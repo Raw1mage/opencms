@@ -809,6 +809,16 @@ export default function Page() {
     if (!sessionID) return
     const reason = (e as CustomEvent).detail?.reason ?? "unknown"
     console.info("[session] lifecycle resync", { sessionID, reason })
+    // Re-fetch session_status to clear stale "busy" entries that survive
+    // daemon restart (in-process status resets to idle but frontend store
+    // retains old value → spinner never stops).
+    sdk.client.session.status().then((x) => {
+      if (!x.data) return
+      const now = Date.now()
+      const stamped: Record<string, any> = {}
+      for (const [sid, status] of Object.entries(x.data)) stamped[sid] = { ...status, receivedAt: now }
+      ;(sync.set as any)("session_status", stamped)
+    }).catch(() => {})
     // One-shot poll: stop after first successful pull regardless of workflow state.
     let stopped = false
     const stop = startActivePoll(

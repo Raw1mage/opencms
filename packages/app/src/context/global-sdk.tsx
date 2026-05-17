@@ -294,6 +294,8 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
               window.dispatchEvent(new CustomEvent("opencode:viewing-session-resync", {
                 detail: { reason: "sse-reconnect" },
               }))
+              // session_status resync is handled by the viewing-session-resync
+              // handler in session.tsx (re-fetches session.status() from daemon).
               // Legacy event retained for consumers not yet migrated to P2.
               const SSE_LONG_OUTAGE_THRESHOLD_MS = 30_000
               if (gapMs > SSE_LONG_OUTAGE_THRESHOLD_MS) {
