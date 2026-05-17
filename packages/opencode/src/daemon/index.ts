@@ -6,7 +6,7 @@ import { Lanes } from "./lanes"
 import { Restart } from "./restart"
 import { CronRetention } from "../cron/retention"
 import { Heartbeat } from "../cron/heartbeat"
-import { ZombieSweep } from "../session/zombie-sweep"
+// import { ZombieSweep } from "../session/zombie-sweep"  // DISABLED
 import { autoStartServices } from "../server/routes/web-route"
 
 export { GatewayLock } from "./gateway-lock"
@@ -82,31 +82,12 @@ export namespace Daemon {
     daemonState = "running"
     log.info("daemon started", { pid: process.pid })
 
-    // Boot-time zombie recovery: stamp any mid-stream messages whose runtime
-    // got SIGTERM'd by the previous daemon's shutdown (webctl restart, OOM,
-    // crash). Run in background so daemon start doesn't block on disk scan;
-    // the sweep is idempotent and safe to skip if it errors.
-    ZombieSweep.sweep()
-      .then((r) => log.info("zombie sweep complete", r))
-      .catch((err) =>
-        log.warn("zombie sweep threw", { error: err instanceof Error ? err.message : String(err) }),
-      )
-
-    // Periodic zombie sweep: catch orphaned tool parts stuck in "running"
-    // state mid-session (e.g. MCP read_subsession hung on a TCP stall).
-    // Only scans recently-modified DBs so the overhead stays minimal.
-    const ZOMBIE_SWEEP_INTERVAL_MS = 3 * 60_000
-    setInterval(() => {
-      ZombieSweep.sweepRecent()
-        .then((r) => {
-          if (r.stamped > 0 || r.partsStamped > 0) {
-            log.info("periodic zombie sweep reaped", r)
-          }
-        })
-        .catch((err) =>
-          log.warn("periodic zombie sweep threw", { error: err instanceof Error ? err.message : String(err) }),
-        )
-    }, ZOMBIE_SWEEP_INTERVAL_MS)
+    // Zombie sweep DISABLED — 60s stale threshold kills legitimate long-thinking
+    // tool calls (codex GPT-5.5 can think 2-5min per tool call). The false
+    // positives destroy sessions worse than orphaned spinners.
+    // ZombieSweep.sweep()
+    // ZombieSweep.sweepRecent() periodic timer also removed.
+    log.info("zombie sweep disabled (long-thinking tool calls)")
 
     // Auto-start web services that were previously running (autostart: true
     // in web_registry.json). Runs in background so daemon start is not blocked.
