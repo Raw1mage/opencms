@@ -2808,7 +2808,7 @@ export namespace SessionPrompt {
             modelID: activeModel.id,
           })
           console.error(`[PHASE2] applied=${phase2Result.applied} reason=${(phase2Result as any).reason ?? "n/a"} provider=${activeModel.providerId} anchor0Role=${sessionMessages[0]?.info?.role ?? "none"}`)
-          if (phase2Result.applied && activeModel.providerId === "codex") {
+          if (phase2Result.applied && activeModel.providerId === "codex" && (compactionTweakPhase1 as { enableHybridLlm?: boolean }).enableHybridLlm) {
             // Extract raw serverCompactedItems from anchor metadata and
             // store them for the codex provider to consume. Drop anchor
             // from messages — its content is in the encrypted items.
