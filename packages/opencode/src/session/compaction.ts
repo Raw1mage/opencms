@@ -1682,8 +1682,11 @@ When constructing the summary, try to stick to this template:
         // Gate: skip enrichment if anchor body is small relative to context.
         // Rebind triggers on every rotation regardless of context pressure —
         // no point polishing a 5% anchor.
+        // Dynamic threshold: small context (≤128K) → 25% (every token counts),
+        // large context (>128K) → 40% (more room to spare).
+        const enrichGateRatio = contextLimit <= 128_000 ? 0.25 : 0.40
         const anchorRatio = contextLimit > 0 ? narrativeTokens / contextLimit : 0
-        if (anchorRatio < 0.4) {
+        if (anchorRatio < enrichGateRatio) {
           log.info("hybrid_llm enrichment skipped (anchor body < 50% of context)", {
             sessionID,
             narrativeTokens,
