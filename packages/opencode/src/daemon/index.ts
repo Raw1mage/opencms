@@ -92,6 +92,22 @@ export namespace Daemon {
         log.warn("zombie sweep threw", { error: err instanceof Error ? err.message : String(err) }),
       )
 
+    // Periodic zombie sweep: catch orphaned tool parts stuck in "running"
+    // state mid-session (e.g. MCP read_subsession hung on a TCP stall).
+    // Only scans recently-modified DBs so the overhead stays minimal.
+    const ZOMBIE_SWEEP_INTERVAL_MS = 3 * 60_000
+    setInterval(() => {
+      ZombieSweep.sweepRecent()
+        .then((r) => {
+          if (r.stamped > 0 || r.partsStamped > 0) {
+            log.info("periodic zombie sweep reaped", r)
+          }
+        })
+        .catch((err) =>
+          log.warn("periodic zombie sweep threw", { error: err instanceof Error ? err.message : String(err) }),
+        )
+    }, ZOMBIE_SWEEP_INTERVAL_MS)
+
     // Auto-start web services that were previously running (autostart: true
     // in web_registry.json). Runs in background so daemon start is not blocked.
     autoStartServices().catch((err) =>

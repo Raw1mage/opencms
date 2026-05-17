@@ -751,7 +751,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "read_subsession",
         description:
-          "Read the messages of a child subagent's session. Use this when a PendingSubagentNotice in your system prompt indicates a subagent finished and you need its actual output (summary, tool results, reasoning). Pass `sinceMessageID` for incremental reads. Returns {sessionID, messages[], hasMore} on success, or {error: 'session_not_found'|'session_not_accessible', sessionID} on failure (never throws).",
+          "Read a summary of a child subagent's session. Returns assistant text and tool call metadata (tool name, status, input summary) but NOT tool output bodies — those are typically 97%+ of raw transcript size and rarely useful to the parent. Use this when a PendingSubagentNotice indicates a subagent finished and you need its conclusions. Returns {sessionID, messages[], hasMore} on success, or {error} on failure.",
         inputSchema: {
           type: "object",
           properties: {
@@ -1749,7 +1749,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
       }
       try {
-        await readSessionInfoFromDaemon(sessionID)
+        const sessionInfo = await readSessionInfoFromDaemon(sessionID)
         const messages = await readSessionMessagesFromDaemon(sessionID, { limit: 200 })
         let filtered = messages
         if (sinceMessageID) {
@@ -1757,52 +1757,73 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           if (idx >= 0) filtered = messages.slice(idx + 1)
         }
         const hasMoreByLimit = filtered.length > limit
-        let sliced = filtered.slice(0, limit)
+        const sliced = filtered.slice(0, limit)
 
-        // Layer 2 (specs/tool-output-chunking/, DD-2): token-aware bound.
-        // The MCP package can't import the opencode ToolBudget helper
-        // (cross-package), so we inline the same default formula:
-        // 50K-token absolute cap (matches tool_output_budget_absolute_cap
-        // default from tweaks.cfg). Reduce slice further if assembled
-        // JSON exceeds budget; hint references next sinceMessageID.
-        // INV-8: when limit-bounded slice fits, output is byte-identical
-        // to pre-Layer-2 behaviour.
-        const BUDGET_TOKENS = 50_000
-        const estimateTokens = (s: string) => Math.ceil(s.length / 4)
-        let layer2Truncated = false
-        let assembled = JSON.stringify({ sessionID, messages: sliced, hasMore: hasMoreByLimit }, null, 2)
-        if (estimateTokens(assembled) > BUDGET_TOKENS) {
-          let kept = sliced.length
-          while (kept > 0) {
-            const trial = sliced.slice(0, kept)
-            const lastID = trial[trial.length - 1]?.info?.id ?? sinceMessageID ?? null
-            const candidate = JSON.stringify(
-              {
-                sessionID,
-                messages: trial,
-                hasMore: true,
-                layer2_bounded: {
-                  reason: `assembled JSON exceeded ~${BUDGET_TOKENS} tokens`,
-                  returned: kept,
-                  requested: sliced.length,
-                  next_since_message_id: lastID,
-                  hint: "Call read_subsession again with sinceMessageID set to next_since_message_id to continue.",
-                },
-              },
-              null,
-              2,
-            )
-            if (estimateTokens(candidate) <= BUDGET_TOKENS) {
-              assembled = candidate
-              sliced = trial
-              layer2Truncated = true
-              break
+        // Summary projection: strip tool output bodies (typically 97%+ of
+        // raw transcript). Keep assistant text, tool metadata (name, status,
+        // input keys), and message-level info. This reduces a 163KB raw
+        // transcript to ~5KB, preventing the parent LLM from spending
+        // minutes reasoning over file contents and diffs it doesn't need.
+        const summarized = sliced.map((m: any) => {
+          const parts = (m.parts ?? []).map((p: any) => {
+            if (p.type === "tool") {
+              const state = p.state ?? {}
+              // Compact input: just show keys + truncated string values
+              let inputSummary: any = undefined
+              if (state.input != null) {
+                if (typeof state.input === "object" && !Array.isArray(state.input)) {
+                  inputSummary = Object.fromEntries(
+                    Object.entries(state.input).map(([k, v]) => [
+                      k,
+                      typeof v === "string" ? (v.length > 120 ? v.slice(0, 120) + "…" : v) : v,
+                    ]),
+                  )
+                } else {
+                  inputSummary = state.input
+                }
+              }
+              // Compact output: first 200 chars as preview
+              let outputPreview: string | undefined = undefined
+              if (typeof state.output === "string" && state.output.length > 0) {
+                outputPreview = state.output.slice(0, 200) + (state.output.length > 200 ? "…" : "")
+              }
+              return {
+                type: "tool",
+                tool: p.tool,
+                callID: p.callID,
+                status: state.status,
+                title: state.title,
+                inputSummary,
+                outputPreview,
+                outputBytes: typeof state.output === "string" ? state.output.length : 0,
+              }
             }
-            kept = Math.max(0, Math.floor(kept * 0.85))
+            // text, reasoning, step-start, step-finish — keep as-is
+            return p
+          })
+          return {
+            info: {
+              id: m.info?.id,
+              role: m.info?.role,
+              finish: m.info?.finish,
+              time: m.info?.time,
+              agent: m.info?.agent,
+            },
+            parts,
           }
+        })
+
+        // Session-level summary header
+        const header = {
+          sessionID,
+          title: sessionInfo?.title,
+          totalMessages: messages.length,
+          returned: summarized.length,
+          hasMore: hasMoreByLimit,
+          note: "Tool output bodies stripped. Only assistant text, tool metadata, and output previews (first 200 chars) are included.",
         }
-        // hasMore stays true if either the limit cap or the Layer 2 bound trimmed
-        const _hasMore = hasMoreByLimit || layer2Truncated
+
+        const assembled = JSON.stringify({ ...header, messages: summarized }, null, 2)
         return {
           content: [
             {

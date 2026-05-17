@@ -2362,8 +2362,8 @@ export const TaskTool = Tool.define("task", async (ctx) => {
             const hint =
               `\n\n[child output bounded at ~${childBudget.tokens} tokens by Layer 2 (${childBudget.source}); ` +
               `~${naturalTokens - ToolBudget.estimateTokens(opening + head + closing)} tokens omitted from tail. ` +
-              `Use system-manager_read_subsession with sessionId="${session.id}" and msgIdx_from=<N> ` +
-              `to read the full child transcript in slices.]`
+              `Use system-manager_read_subsession with sessionID="${session.id}" ` +
+              `to read a summary of the child session (assistant text + tool metadata, output bodies stripped).]`
             return opening + head + hint + closing
           }
           let childOutput = ""

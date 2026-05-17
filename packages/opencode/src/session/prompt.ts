@@ -137,9 +137,10 @@ export function renderNoticeAddendum(n: MessageV2.PendingSubagentNotice): string
   const tailStr = tail.length > 0 ? " " + tail.join(" ") : ""
   // For every non-success status, point the parent at read_subsession as
   // the canonical inspection route. The result field above may be empty
-  // or incomplete (especially for rate_limited / worker_dead); the raw
-  // child transcript is always available through this MCP tool.
-  const readSubsessionHint = ` Inspect the raw child transcript via \`read_subsession(sessionID="${n.childSessionID}")\` if you need more than the result above.`
+  // or incomplete (especially for rate_limited / worker_dead); the child
+  // session summary (assistant text + tool metadata, output bodies stripped)
+  // is available through this MCP tool.
+  const readSubsessionHint = ` Inspect the child session summary via \`read_subsession(sessionID="${n.childSessionID}")\` if you need more than the result above.`
   const hint =
     n.status === "success"
       ? ""
