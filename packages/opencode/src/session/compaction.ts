@@ -648,6 +648,15 @@ export namespace SessionCompaction {
     // T7 lineage: stash the previous anchor's id on this new anchor.
     const prevAnchorId = (await Memory.Hybrid.getAnchorMessage(input.sessionID, msgs).catch(() => null))?.info.id
 
+    // Demote all existing anchors before writing the new one.
+    // Without this, multiple summary=1 anchors accumulate and
+    // filterCompacted slices from the newest → tail shrinks → context loss.
+    for (const m of msgs) {
+      if (m.info.role !== "assistant") continue
+      if ((m.info as MessageV2.Assistant).summary !== true) continue
+      await Session.updateMessage({ ...(m.info as any), summary: false }).catch(() => undefined)
+    }
+
     // Create summary assistant message
     const summaryMsg = (await Session.updateMessage({
       id: Identifier.ascending("message"),
