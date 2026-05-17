@@ -1702,10 +1702,11 @@ When constructing the summary, try to stick to this template:
         }
 
         // -- Enrichment priority chain ---------------------------------
-        // 1. ai_free  -- codex server-side /responses/compact (free)
-        // 2. drop old history -- trim anchor body to recent 20% of context (free)
-        // 3. ai_paid  -- LLM summarisation (last resort)
+        // 1. drop old history -- trim anchor body (free, instant)
+        // 2. ai_paid  -- LLM summarisation (last resort)
         //
+        // ai_free disabled: encrypted blob anchor incompatible with
+        // rotation-heavy sessions (chain binding invalidated on switch).
         // Chain stops at the first success.
 
         const recompressStartedAt = Date.now()
@@ -1717,30 +1718,12 @@ When constructing the summary, try to stick to this template:
           anchorTokensBefore: narrativeTokens,
         }
 
-        // ── Step 1: ai_free ──
-        if (dialogRedactionFlag && model.providerId === "codex") {
-          let codexSucceeded = false
-          await runCodexServerSideRecompress({
-            sessionID,
-            anchorMsg: narrativeAnchorMsg,
-            anchorTokensBefore: latestTokens,
-            model,
-            trigger,
-            messagesPre,
-            onError: async () => { /* fallthrough */ },
-            onSuccess: async () => {
-              codexSucceeded = true
-              await demoteOldAnchors()
-            },
-          })
-          if (codexSucceeded) {
-            emitEnrichmentStatus("success")
-            return
-          }
-          log.info("enrichment step 1 (ai_free) failed, trying step 2 (drop old anchors)", { sessionID })
-        }
+        // ai_free (codex /responses/compact) disabled — encrypted blob
+        // anchor is incompatible with rotation-heavy sessions (chain
+        // binding invalidated on every account switch). Enrichment chain
+        // is now: drop_old_history → ai_paid.
 
-        // ── Step 2: drop old history from anchor body ──
+        // ── Step 1: drop old history from anchor body ──
         // Chained concat means the latest anchor body contains all
         // predecessor content. "Drop old" = truncate the body to keep
         // only the most recent generation (the tail text that was
