@@ -645,73 +645,84 @@ export namespace SessionCompaction {
     const userMessage = msgs.findLast((m) => m.info.role === "user")?.info as MessageV2.User | undefined
     if (!userMessage) return
 
-    // T7 lineage: stash the previous anchor's id on this new anchor.
-    const prevAnchorId = (await Memory.Hybrid.getAnchorMessage(input.sessionID, msgs).catch(() => null))?.info.id
-
-    // Demote all existing anchors before writing the new one.
-    // Without this, multiple summary=1 anchors accumulate and
-    // filterCompacted slices from the newest → tail shrinks → context loss.
-    for (const m of msgs) {
-      if (m.info.role !== "assistant") continue
-      if ((m.info as MessageV2.Assistant).summary !== true) continue
-      await Session.updateMessage({ ...(m.info as any), summary: false }).catch(() => undefined)
-    }
-
-    // Create summary assistant message
-    const summaryMsg = (await Session.updateMessage({
-      id: Identifier.ascending("message"),
-      role: "assistant",
-      parentID,
-      sessionID: input.sessionID,
-      mode: "compaction",
-      agent: "compaction",
-      variant: userMessage.variant,
-      summary: true,
-      replacesAnchorId: prevAnchorId,
-      path: {
-        cwd: Instance.directory,
-        root: Instance.worktree,
-      },
-      cost: 0,
-      tokens: {
-        output: 0,
-        input: 0,
-        reasoning: 0,
-        cache: { read: 0, write: 0 },
-      },
-      modelID: input.model.id,
-      providerId: input.model.providerId,
-      accountId: userMessage.model.accountId,
-      time: {
-        created: Date.now(),
-      },
-    })) as MessageV2.Assistant
-
-    // 1. Write transcript summary as a text part. PostCompaction no longer
-    // resends runtime state into the anchor; todo/subagent/cache state remains
-    // available through its structured authority instead of narrative hints.
+    // In-place anchor update: if an existing anchor exists, update its
+    // text body instead of creating a new message. This prevents the
+    // exponential DB growth where each rebind creates a full copy of the
+    // accumulated history. Only create a new anchor on first compaction.
+    const prevAnchor = await Memory.Hybrid.getAnchorMessage(input.sessionID, msgs).catch(() => null)
     const followUps = await PostCompaction.gather(input.sessionID)
     const followUpAddendum = PostCompaction.buildSummaryAddendum(followUps)
-    await Session.updatePart({
-      id: Identifier.ascending("part"),
-      messageID: summaryMsg.id,
-      sessionID: input.sessionID,
-      type: "text",
-      text: input.snapshot + followUpAddendum,
-      time: {
-        start: Date.now(),
-        end: Date.now(),
-      },
-    })
+    const fullBody = input.snapshot + followUpAddendum
 
-    // 2. Write the CRITICAL compaction anchor point for history truncation
-    await Session.updatePart({
-      id: Identifier.ascending("part"),
-      messageID: summaryMsg.id,
-      sessionID: input.sessionID,
-      type: "compaction",
-      auto: input.auto,
-    })
+    if (prevAnchor) {
+      // Update existing anchor's text part in place
+      const textPart = prevAnchor.parts.find((p) => p.type === "text")
+      if (textPart) {
+        await Session.updatePart({
+          ...(textPart as any),
+          text: fullBody,
+        })
+      } else {
+        // Anchor exists but no text part — create one
+        await Session.updatePart({
+          id: Identifier.ascending("part"),
+          messageID: prevAnchor.info.id,
+          sessionID: input.sessionID,
+          type: "text",
+          text: fullBody,
+          time: { start: Date.now(), end: Date.now() },
+        })
+      }
+      // Update anchor timestamp so cooldown works correctly
+      await Session.updateMessage({
+        ...(prevAnchor.info as any),
+        time: { created: Date.now() },
+      }).catch(() => undefined)
+    } else {
+      // First compaction — create new anchor message
+      const summaryMsg = (await Session.updateMessage({
+        id: Identifier.ascending("message"),
+        role: "assistant",
+        parentID,
+        sessionID: input.sessionID,
+        mode: "compaction",
+        agent: "compaction",
+        variant: userMessage.variant,
+        summary: true,
+        path: {
+          cwd: Instance.directory,
+          root: Instance.worktree,
+        },
+        cost: 0,
+        tokens: {
+          output: 0,
+          input: 0,
+          reasoning: 0,
+          cache: { read: 0, write: 0 },
+        },
+        modelID: input.model.id,
+        providerId: input.model.providerId,
+        accountId: userMessage.model.accountId,
+        time: { created: Date.now() },
+      })) as MessageV2.Assistant
+
+      await Session.updatePart({
+        id: Identifier.ascending("part"),
+        messageID: summaryMsg.id,
+        sessionID: input.sessionID,
+        type: "text",
+        text: fullBody,
+        time: { start: Date.now(), end: Date.now() },
+      })
+
+      await Session.updatePart({
+        id: Identifier.ascending("part"),
+        messageID: summaryMsg.id,
+        sessionID: input.sessionID,
+        type: "compaction",
+        auto: input.auto,
+      })
+    }
 
     log.info("shared context compaction complete", { sessionID: input.sessionID })
 
