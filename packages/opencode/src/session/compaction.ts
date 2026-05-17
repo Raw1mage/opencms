@@ -1622,7 +1622,7 @@ When constructing the summary, try to stick to this template:
         kind: "compaction",
         compaction: {
           observed: `enrichment:${status}`,
-          kind: model?.providerId === "codex" ? "ai_free" : "ai_paid",
+          kind: "enrichment",
           success: status === "success",
         },
       }).catch(() => undefined)
