@@ -1139,6 +1139,24 @@ export namespace SessionCompaction {
     return { ok: true, summaryText: body, kind: "narrative", truncated: false }
   }
 
+  /**
+   * Demote any summary=true anchors that have no text body (stub anchors
+   * left behind by failed ai_paid runs). Without this, filterCompacted
+   * slices from a bodyless anchor → context drops to near zero.
+   */
+  async function demoteStubAnchors(sessionID: string, msgs?: MessageV2.WithParts[]) {
+    const messages = msgs ?? await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[])
+    for (const m of messages) {
+      if (m.info.role !== "assistant") continue
+      if ((m.info as MessageV2.Assistant).summary !== true) continue
+      const hasTextBody = m.parts.some((p) => p.type === "text" && (p as any).text?.trim())
+      if (!hasTextBody) {
+        await Session.updateMessage({ ...(m.info as any), summary: false }).catch(() => undefined)
+        log.warn("demoted stub anchor (no text body)", { sessionID, anchorId: m.info.id })
+      }
+    }
+  }
+
   function extractAnchorTextBody(anchor: MessageV2.WithParts): string {
     const fragments: string[] = []
     for (const p of anchor.parts) {
@@ -1307,9 +1325,16 @@ export namespace SessionCompaction {
         auto: false,
         observed: input.observed,
       })
-      if (!summaryText) return { ok: false, reason: "llm-agent produced empty summary" }
+      if (!summaryText) {
+        // LLM agent wrote a stub anchor (summary=true) but produced no text.
+        // Demote it so filterCompacted doesn't slice from a bodyless anchor.
+        await demoteStubAnchors(input.sessionID, messages)
+        return { ok: false, reason: "llm-agent produced empty summary" }
+      }
       return { ok: true, summaryText, kind: "ai_paid", anchorWritten: true }
     } catch (err) {
+      // LLM agent may have written a stub anchor before throwing.
+      await demoteStubAnchors(input.sessionID).catch(() => {})
       return {
         ok: false,
         reason: `llm-agent threw: ${err instanceof Error ? err.message : String(err)}`,
