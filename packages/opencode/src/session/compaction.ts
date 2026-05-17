@@ -2287,9 +2287,12 @@ When constructing the summary, try to stick to this template:
       ctxRatio,
       byRequest,
     })
-    // Manual --rich: skip provider-aware chain and go straight to llm-agent.
+    // Manual --rich OR by-request manual: skip narrative and go straight to
+    // llm-agent. By-request providers (copilot) have tiny context windows —
+    // narrative append doesn't shrink context, only ai_paid does.
+    const forceRich = intent === "rich" || (observed === "manual" && byRequest)
     const chain: ReadonlyArray<KindName> =
-      observed === "manual" && intent === "rich" ? (["ai_paid"] as const) : baseChain
+      observed === "manual" && forceRich ? (["ai_paid"] as const) : baseChain
     emitKindChainTelemetry({
       observed,
       providerId: model?.providerId,
