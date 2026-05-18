@@ -100,20 +100,23 @@ export namespace Command {
       }
     }
     const reinject = await CapabilityLayer.reinject(ctx.sessionID, outcome.currentEpoch)
-    if (reinject.failures.length > 0) {
-      const details = reinject.failures.map((f) => `${f.layer}:${f.error}`).join(", ")
-      return {
-        output: `Capability layer partial refresh (${outcome.previousEpoch} → ${outcome.currentEpoch}). Failures: ${details}`,
-        title: "Reload — Partial",
-      }
-    }
-    const pinned = reinject.pinnedSkills.length > 0 ? reinject.pinnedSkills.join(", ") : "(none)"
-    const missing =
-      reinject.missingSkills.length > 0
-        ? `; missing: ${reinject.missingSkills.join(", ")}`
-        : ""
+
+    // Step 3: text-only stream rebuild (session healing)
+    // Reads DB conversation text, discards tool history, writes a clean
+    // narrative anchor. The session resumes with minimal items.
+    const { SessionCompaction } = await import("../session/compaction")
+    const rebuild = await SessionCompaction.rebuildStreamFromText(ctx.sessionID)
+
+    // Step 4: auto-continue — trigger AI to respond based on new anchor (DD-8)
+    const { SessionPrompt } = await import("../session/prompt")
+    void SessionPrompt.loop(ctx.sessionID)
+
+    const capStatus = reinject.failures.length > 0
+      ? `capabilities: partial (${reinject.failures.map((f) => `${f.layer}:${f.error}`).join(", ")})`
+      : "capabilities: refreshed"
+
     return {
-      output: `Capability layer refreshed (${outcome.previousEpoch} → ${outcome.currentEpoch}). Pinned: ${pinned}${missing}`,
+      output: `Session healed. ${capStatus}. Stream rebuilt from ${rebuild.roundsIncluded} text rounds (${Math.round(rebuild.charsUsed / 4)}/${Math.round(rebuild.charsBudget / 4)} tokens used). AI resuming...`,
       title: "Reload",
     }
   }
