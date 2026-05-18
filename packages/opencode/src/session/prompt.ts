@@ -438,6 +438,18 @@ export async function deriveObservedCondition(input: {
     return input.compactionRequestAuto === true ? "overflow" : "manual"
   }
 
+  // Item-count pressure: codex WS has an undocumented item-array limit.
+  // Payloads past ~250 items trigger ws_truncation (empty response,
+  // finishReason=unknown). Unlike token overflow this is transport-level
+  // — the only fix is shrinking the message stream before the next call.
+  // Check independently of lastFinished: even the first call can exceed
+  // the threshold if the session accumulated items across restarts.
+  //
+  // MUST run before identity-drift / rebind checks — those return null
+  // (chain reset only, no compaction), but a 500-item session needs
+  // compaction regardless of account switch.
+  if (estimateCodexItemCount(input.msgs) > 350) return "overflow"
+
   // DD-11: continuation-invalidated takes priority over identity drift.
   // The signal is fresh iff the timestamp is newer than the most recent
   // Anchor's time.created (state-driven cooldown via anchor-recency
@@ -492,14 +504,6 @@ export async function deriveObservedCondition(input: {
       return null
     }
   }
-
-  // Item-count pressure: codex WS has an undocumented item-array limit.
-  // Payloads past ~250 items trigger ws_truncation (empty response,
-  // finishReason=unknown). Unlike token overflow this is transport-level
-  // — the only fix is shrinking the message stream before the next call.
-  // Check independently of lastFinished: even the first call can exceed
-  // the threshold if the session accumulated items across restarts.
-  if (estimateCodexItemCount(input.msgs) > 350) return "overflow"
 
   // Token-pressure conditions (from the existing isOverflow / cache-aware
   // helpers; we accept them as injected predicates so this function stays
