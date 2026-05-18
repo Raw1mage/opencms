@@ -288,13 +288,13 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
 
       const roles = options.prompt.map(m => m.role)
       const hasTool = roles.includes("tool")
-      log.info("doStream called", { modelId, useResponses, roles: roles.join(","), hasTool, msgCount: options.prompt.length })
+      console.error(`[copilot-cli-adapter] doStream: model=${modelId} useResponses=${useResponses} roles=${roles.join(",")} hasTool=${hasTool} msgCount=${options.prompt.length}`)
 
       if (useResponses) {
         // Responses API streaming
         const input = promptToResponsesInput(options.prompt)
         const tools = toolsToResponses(options.tools)
-        log.info("responses input", { inputLength: input.length, inputTypes: input.map((i: any) => i.type ?? i.role).join(",") })
+        console.error(`[copilot-cli-adapter] responses input: len=${input.length} types=${input.map((i: any) => i.type ?? i.role).join(",")}`)
         const chunks = streamResponses(
           { model: modelId, input, tools, temperature: options.temperature ?? undefined, max_output_tokens: options.maxOutputTokens ?? undefined },
           { model: modelId },
