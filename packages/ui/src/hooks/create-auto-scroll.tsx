@@ -518,104 +518,26 @@ export function createAutoScroll(options: AutoScrollOptions) {
         resumeOnly: options.resumeOnly === true,
       })
 
-      if (distance > followThreshold() && !explicitFollow) {
-        stopRafLoop()
-        setMode("free-reading", "resize-away-from-bottom", {
-          delta,
-          distance,
-          followThreshold: followThreshold(),
-          newScrollHeight,
-          prevLastScrollHeight: newScrollHeight - delta,
-        })
-        debug("resize-blocked-away-from-bottom", { delta, distance, ...metrics(el) })
-        return
-      }
-
+      // Follow-bottom mode + content grew → snap to bottom unconditionally.
+      // ResizeObserver NEVER changes scroll mode. Only user gestures
+      // (wheel / touch / click) flip to free-reading. Content growth and
+      // viewport position are independent concerns.
       markAuto(el)
-
-      let writeTrace: {
-        beforeWrite: { scrollTop: number; scrollHeight: number; clientHeight: number }
-        afterWrite: { scrollTop: number; scrollHeight: number; clientHeight: number }
-        target: number
-      } | undefined
       if (delta > 0) {
-        const target = bottomScrollTop(el)
-        const beforeWrite = {
-          scrollTop: el.scrollTop,
-          scrollHeight: el.scrollHeight,
-          clientHeight: el.clientHeight,
-        }
-        el.scrollTop = target
-        writeTrace = {
-          beforeWrite,
-          afterWrite: {
-            scrollTop: el.scrollTop,
-            scrollHeight: el.scrollHeight,
-            clientHeight: el.clientHeight,
-          },
-          target,
-        }
+        el.scrollTop = bottomScrollTop(el)
       }
 
-      // Safety net: if we're far from bottom after the adjustment (or after
-      // a scrollHeight shrink caused by SolidJS re-renders clamping scrollTop),
-      // snap to bottom. But first check circuit breaker — repeated snaps
-      // mean iOS anchor is fighting back every resize cycle.
       const remaining = distanceFromBottom(el)
       if (remaining > followThreshold()) {
-        if (isScrollIncidentCaptureEnabled()) {
-          let scrollerAnchor: string | undefined
-          let firstChildAnchor: string | undefined
-          let userMessageAnchor: string | undefined
-          let firstChildOuterHTML: string | undefined
-          try {
-            scrollerAnchor = getComputedStyle(el).overflowAnchor
-            const content = store.contentRef
-            const first = content?.firstElementChild as HTMLElement | undefined
-            firstChildAnchor = first ? getComputedStyle(first).overflowAnchor : undefined
-            firstChildOuterHTML = first ? first.outerHTML.slice(0, 240) : undefined
-            const userMsg = content?.querySelector<HTMLElement>('[id^="message-"]')
-            userMessageAnchor = userMsg ? getComputedStyle(userMsg).overflowAnchor : undefined
-          } catch {}
-          void captureScrollIncident("anchor-hit", {
-            delta,
-            remaining,
-            followThreshold: followThreshold(),
-            explicitFollow,
-            circuitBroken,
-            anchorHitsPriorToThis: anchorHitTimes.length,
-            writeTrace,
-            computedAnchors: {
-              scroller: scrollerAnchor,
-              firstContentChild: firstChildAnchor,
-              firstUserMessage: userMessageAnchor,
-            },
-            firstChildOuterHTML,
-            metrics: metrics(el),
-            lastScrollHeight,
-            mode: store.mode,
-          })
-        }
+        // Still far after first snap — browser anchor or layout shift
+        // fought back. Record for diagnostics and retry once.
         recordAnchorHit()
-        if (circuitBroken) {
-          debug("resize-circuit-broken-snap", { delta, remaining })
-          return
-        }
-        if (explicitFollow) {
+        if (!circuitBroken) {
           markAuto(el)
           el.scrollTop = bottomScrollTop(el)
           lastScrollHeight = el.scrollHeight
-          debug("resize-explicit-follow-snap", { delta, remaining, ...metrics(el) })
-          return
         }
-        setMode("free-reading", "resize-remaining-away-from-bottom", {
-          delta,
-          remaining,
-          followThreshold: followThreshold(),
-          writeTrace,
-          anchorHitsAtFlip: anchorHitTimes.length,
-        })
-        debug("resize-delta-blocked-snap", { delta, remaining, ...metrics(el) })
+        debug("resize-snap-retry", { delta, remaining, circuitBroken, ...metrics(el) })
       } else {
         debug("resize-bottom-applied", { delta, ...metrics(el) })
       }
@@ -637,13 +559,6 @@ export function createAutoScroll(options: AutoScrollOptions) {
           window.history.replaceState(null, "", window.location.href.replace(/#.*$/, ""))
         }
         if (!userScrolled()) {
-          const el = scroll
-          if (el && canScroll(el) && distanceFromBottom(el) > threshold() && !explicitFollow) {
-            stopRafLoop()
-            setMode("free-reading", "working-start-away-from-bottom")
-            debug("working-start-blocked-away-from-bottom", metrics(el))
-            return
-          }
           scrollToBottom(true)
           startRafLoop()
         }
@@ -655,7 +570,7 @@ export function createAutoScroll(options: AutoScrollOptions) {
       settling = true
       settleTimer = setTimeout(() => {
         settling = false
-      }, 300)
+      }, 2000)
     }),
   )
 
