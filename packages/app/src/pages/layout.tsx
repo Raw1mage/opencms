@@ -608,7 +608,11 @@ export default function Layout(props: ParentProps) {
   // The currently-viewed session auto-clears via markViewed (L1529), so this
   // count reflects OTHER sessions in the project with new activity.
   // (frontend/resync P2.3 — reuses existing notification.session.unseenCount)
-  const baseDocumentTitle = createMemo(() => "opencode")
+  const baseDocumentTitle = createMemo(() => {
+    const project = currentProject()
+    const stem = project ? getFilename(project.worktree) : undefined
+    return stem ? `${stem} — opencode` : "opencode"
+  })
   createEffect(() => {
     if (typeof document === "undefined") return
     const sessions = currentSessions()

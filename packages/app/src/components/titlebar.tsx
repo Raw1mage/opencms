@@ -1,16 +1,18 @@
 import { createEffect, createMemo, Show, untrack } from "solid-js"
 import { createStore } from "solid-js/store"
-import { useLocation, useNavigate } from "@solidjs/router"
+import { useLocation, useNavigate, useParams } from "@solidjs/router"
 import { IconButton } from "@opencode-ai/ui/icon-button"
 import { Icon } from "@opencode-ai/ui/icon"
 import { Button } from "@opencode-ai/ui/button"
 import { Tooltip, TooltipKeybind } from "@opencode-ai/ui/tooltip"
 import { useTheme } from "@opencode-ai/ui/theme"
+import { getFilename } from "@opencode-ai/util/path"
 
 import { useLayout } from "@/context/layout"
 import { usePlatform } from "@/context/platform"
 import { useCommand } from "@/context/command"
 import { useLanguage } from "@/context/language"
+import { decode64 } from "@/utils/base64"
 import { applyPath, backPath, forwardPath } from "./titlebar-history"
 
 type TauriDesktopWindow = {
@@ -43,6 +45,12 @@ export function Titlebar() {
   const theme = useTheme()
   const navigate = useNavigate()
   const location = useLocation()
+  const params = useParams()
+
+  const projectStem = createMemo(() => {
+    const dir = params.dir ? decode64(params.dir) : undefined
+    return dir ? getFilename(dir) : ""
+  })
 
   const mac = createMemo(() => platform.platform === "desktop" && platform.os === "macos")
   const windows = createMemo(() => platform.platform === "desktop" && platform.os === "windows")
@@ -240,6 +248,13 @@ export function Titlebar() {
             </Tooltip>
           </div>
         </div>
+        <Show when={projectStem()}>
+          {(stem) => (
+            <span class="text-12-regular text-text-weak truncate max-w-[200px] shrink-0 pl-1">
+              {stem()}
+            </span>
+          )}
+        </Show>
         <div id="opencode-titlebar-left" class="flex items-center gap-3 min-w-0 px-2" />
       </div>
 
