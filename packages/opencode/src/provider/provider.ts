@@ -1033,9 +1033,12 @@ export namespace Provider {
       log.info("Injected bundled github-copilot models", { count: Object.keys(copilotModels).length })
 
       // copilot-cli: same model set, different provider family (DD-10)
+      // DD-9: copilot-cli uses own adapter, no AI SDK npm needed — override api.npm
       const copilotCliModels: Record<string, Model> = {}
       for (const m of GITHUB_COPILOT_DEFAULT_MODELS) {
-        copilotCliModels[m.id] = createCopilotModel("copilot-cli", m)
+        const model = createCopilotModel("copilot-cli", m)
+        model.api.npm = "@opencode-ai/provider-copilot-cli" // dummy — loader handles everything
+        copilotCliModels[m.id] = model
       }
       if (!database["copilot-cli"]) {
         database["copilot-cli"] = {
