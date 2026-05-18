@@ -1000,7 +1000,7 @@ export namespace Provider {
   }
 
   async function initState() {
-    await Bun.write("/tmp/copilot-cli-debug.log", `[${new Date().toISOString()}] initState: ENTERED\n`)
+    process.stderr.write(`[copilot-cli-debug] initState: ENTERED at ${new Date().toISOString()}\n`)
     debugCheckpoint("provider", "state init start")
     using _ = log.time("state")
     const config = await Config.get()
@@ -1929,7 +1929,7 @@ export namespace Provider {
 
     // Merge inline CUSTOM_LOADERS with imported ones (imported takes precedence)
     const mergedCustomLoaders = { ...CUSTOM_LOADERS, ...IMPORTED_CUSTOM_LOADERS }
-    await Bun.write("/tmp/copilot-cli-debug.log", `[${new Date().toISOString()}] loader-loop: loaderKeys=${Object.keys(mergedCustomLoaders).join(",")} dbKeys=${Object.keys(database).filter(k => k.includes("copilot")).join(",") || "NONE"} disabledKeys=${[...disabled].join(",") || "NONE"}\n`)
+    process.stderr.write(`[copilot-cli-debug] loader-loop: loaderKeys=${Object.keys(mergedCustomLoaders).join(",")} dbKeys=${Object.keys(database).filter(k => k.includes("copilot")).join(",") || "NONE"} disabledKeys=${[...disabled].join(",") || "NONE"}\n`)
     for (const [providerId, fn] of Object.entries(mergedCustomLoaders)) {
       if (disabled.has(providerId)) continue
       const data = database[providerId]

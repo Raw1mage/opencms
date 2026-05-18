@@ -187,6 +187,39 @@ const platform: Platform = {
 installDynamicImportRecovery()
 installClickInspect()
 
+// DEBUG: trace all history.pushState / replaceState calls to diagnose session snap-back.
+// Enable with: localStorage.setItem("opencode:nav-trace", "1")
+// Disable with: localStorage.removeItem("opencode:nav-trace")
+{
+  const origPush = history.pushState.bind(history)
+  const origReplace = history.replaceState.bind(history)
+  const enabled = () => localStorage.getItem("opencode:nav-trace") === "1"
+  const trace = (method: string, url: unknown) => {
+    if (!enabled()) return
+    const stack = new Error().stack?.split("\n").slice(2, 8).join("\n") ?? ""
+    const sessionMatch = String(url).match(/\/session\/([^/?#]+)/)
+    console.warn(`[nav-trace] ${method} → ${url}${sessionMatch ? ` (session: ${sessionMatch[1]})` : ""}`, {
+      from: location.pathname,
+      to: url,
+      stack,
+    })
+  }
+  history.pushState = function (...args: Parameters<typeof origPush>) {
+    trace("pushState", args[2])
+    return origPush(...args)
+  }
+  history.replaceState = function (...args: Parameters<typeof origReplace>) {
+    trace("replaceState", args[2])
+    return origReplace(...args)
+  }
+  window.addEventListener("popstate", () => {
+    if (!enabled()) return
+    console.warn(`[nav-trace] popstate → ${location.pathname}`, {
+      to: location.pathname + location.search + location.hash,
+    })
+  })
+}
+
 if (root instanceof HTMLElement) {
   render(
     () => (
