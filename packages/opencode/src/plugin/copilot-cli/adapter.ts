@@ -15,8 +15,10 @@ import type {
 } from "@ai-sdk/provider"
 import {
   streamCompletions,
+  streamResponses,
   callCompletions,
   type CompletionsChunk,
+  type ResponsesChunk,
 } from "./client"
 import { shouldUseResponsesApi } from "./models"
 
@@ -136,40 +138,58 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
       const messages = promptToMessages(options.prompt)
       const tools = toolsToOpenAI(options.tools)
       const warnings: LanguageModelV2CallWarning[] = []
+      const useResponses = shouldUseResponsesApi(modelId)
 
+      if (useResponses) {
+        // Collect full response from Responses API streaming
+        let text = ""
+        let inputTokens = 0
+        let outputTokens = 0
+        let reason: LanguageModelV2FinishReason = "other"
+        const toolCalls: any[] = []
+
+        for await (const chunk of streamResponses(
+          { model: modelId, input: messages, tools, temperature: options.temperature ?? undefined, max_output_tokens: options.maxOutputTokens ?? undefined },
+          { model: modelId },
+        )) {
+          if (chunk.type === "response.output_text.delta") text += chunk.delta ?? ""
+          else if (chunk.type === "response.completed") {
+            const resp = chunk.response
+            inputTokens = resp?.usage?.input_tokens ?? 0
+            outputTokens = resp?.usage?.output_tokens ?? 0
+            reason = resp?.status === "completed" ? "stop" : "other"
+            for (const item of resp?.output ?? []) {
+              if (item.type === "function_call") {
+                toolCalls.push({ id: item.call_id, function: { name: item.name, arguments: item.arguments } })
+              }
+            }
+          }
+        }
+
+        const content: any[] = []
+        if (text) content.push({ type: "text", text, id: nextId() })
+        for (const tc of toolCalls) {
+          content.push({ type: "tool-call", toolCallType: "function", toolCallId: tc.id, toolName: tc.function?.name, args: tc.function?.arguments ?? "{}", id: nextId() })
+        }
+        return { content, finishReason: reason, usage: { inputTokens, outputTokens }, warnings }
+      }
+
+      // Chat Completions path
       const result = await callCompletions(
-        {
-          model: modelId,
-          messages,
-          tools,
-          temperature: options.temperature ?? undefined,
-          max_tokens: options.maxOutputTokens ?? undefined,
-        },
+        { model: modelId, messages, tools, temperature: options.temperature ?? undefined, max_tokens: options.maxOutputTokens ?? undefined },
         { model: modelId },
       )
 
       const content: any[] = []
-      if (result.content) {
-        content.push({ type: "text", text: result.content, id: nextId() })
-      }
+      if (result.content) content.push({ type: "text", text: result.content, id: nextId() })
       for (const tc of result.toolCalls) {
-        content.push({
-          type: "tool-call",
-          toolCallType: "function",
-          toolCallId: tc.id,
-          toolName: tc.function?.name,
-          args: tc.function?.arguments ?? "{}",
-          id: nextId(),
-        })
+        content.push({ type: "tool-call", toolCallType: "function", toolCallId: tc.id, toolName: tc.function?.name, args: tc.function?.arguments ?? "{}", id: nextId() })
       }
 
       return {
         content,
         finishReason: mapFinishReason(result.finishReason),
-        usage: {
-          inputTokens: result.usage.promptTokens,
-          outputTokens: result.usage.completionTokens,
-        },
+        usage: { inputTokens: result.usage.promptTokens, outputTokens: result.usage.completionTokens },
         warnings,
       }
     },
@@ -178,26 +198,86 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
       const messages = promptToMessages(options.prompt)
       const tools = toolsToOpenAI(options.tools)
       const warnings: LanguageModelV2CallWarning[] = []
-
       const useResponses = shouldUseResponsesApi(modelId)
 
-      // For now, stream via completions API (responses API adapter comes in a future phase)
+      if (useResponses) {
+        // Responses API streaming
+        const chunks = streamResponses(
+          { model: modelId, input: messages, tools, temperature: options.temperature ?? undefined, max_output_tokens: options.maxOutputTokens ?? undefined },
+          { model: modelId },
+        )
+
+        const stream = new ReadableStream<LanguageModelV2StreamPart>({
+          async start(controller) {
+            let textId: string | null = null
+            const toolIds = new Map<string, string>() // call_id → our id
+            let inputTokens = 0
+            let outputTokens = 0
+            let finishReason: LanguageModelV2FinishReason = "other"
+
+            controller.enqueue({ type: "stream-start", warnings })
+
+            try {
+              for await (const chunk of chunks) {
+                if (chunk.type === "response.output_text.delta") {
+                  if (!textId) {
+                    textId = nextId()
+                    controller.enqueue({ type: "text-start", id: textId })
+                  }
+                  controller.enqueue({ type: "text-delta", id: textId, delta: chunk.delta ?? "" })
+                } else if (chunk.type === "response.output_text.done") {
+                  if (textId) {
+                    controller.enqueue({ type: "text-end", id: textId })
+                    textId = null
+                  }
+                } else if (chunk.type === "response.function_call_arguments.start") {
+                  if (textId) { controller.enqueue({ type: "text-end", id: textId }); textId = null }
+                  const id = nextId()
+                  toolIds.set(chunk.call_id ?? chunk.item_id ?? "", id)
+                  controller.enqueue({ type: "tool-input-start", id, toolName: chunk.name ?? "" })
+                } else if (chunk.type === "response.function_call_arguments.delta") {
+                  const id = toolIds.get(chunk.call_id ?? chunk.item_id ?? "")
+                  if (id) controller.enqueue({ type: "tool-input-delta", id, delta: chunk.delta ?? "" })
+                } else if (chunk.type === "response.function_call_arguments.done") {
+                  const id = toolIds.get(chunk.call_id ?? chunk.item_id ?? "")
+                  if (id) controller.enqueue({ type: "tool-input-end", id })
+                } else if (chunk.type === "response.completed") {
+                  const resp = chunk.response
+                  inputTokens = resp?.usage?.input_tokens ?? 0
+                  outputTokens = resp?.usage?.output_tokens ?? 0
+                  finishReason = resp?.status === "completed" ? "stop" : "other"
+                }
+              }
+
+              if (textId) controller.enqueue({ type: "text-end", id: textId })
+
+              controller.enqueue({
+                type: "finish",
+                usage: { inputTokens, outputTokens },
+                finishReason,
+                providerMetadata: undefined,
+              })
+            } catch (err) {
+              controller.error(err)
+              return
+            }
+            controller.close()
+          },
+        })
+
+        return { stream }
+      }
+
+      // Chat Completions streaming
       const chunks = streamCompletions(
-        {
-          model: modelId,
-          messages,
-          tools,
-          temperature: options.temperature ?? undefined,
-          max_tokens: options.maxOutputTokens ?? undefined,
-        },
+        { model: modelId, messages, tools, temperature: options.temperature ?? undefined, max_tokens: options.maxOutputTokens ?? undefined },
         { model: modelId },
       )
 
       const stream = new ReadableStream<LanguageModelV2StreamPart>({
         async start(controller) {
           let textId: string | null = null
-          const toolCallIds = new Map<number, string>() // index → id
-          const toolCallNames = new Map<number, string>()
+          const toolCallIds = new Map<number, string>()
           let promptTokens = 0
           let completionTokens = 0
           let finishReason: LanguageModelV2FinishReason = "other"
@@ -208,77 +288,39 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
             for await (const chunk of chunks) {
               const choice = chunk.choices?.[0]
               if (!choice) continue
-
               const delta = choice.delta
 
-              // Text content
               if (delta.content) {
-                if (!textId) {
-                  textId = nextId()
-                  controller.enqueue({ type: "text-start", id: textId })
-                }
+                if (!textId) { textId = nextId(); controller.enqueue({ type: "text-start", id: textId }) }
                 controller.enqueue({ type: "text-delta", id: textId, delta: delta.content })
               }
 
-              // Tool calls
               if (delta.tool_calls) {
                 for (const tc of delta.tool_calls) {
                   const idx = tc.index
                   if (tc.id && !toolCallIds.has(idx)) {
-                    // Close text if open
-                    if (textId) {
-                      controller.enqueue({ type: "text-end", id: textId })
-                      textId = null
-                    }
+                    if (textId) { controller.enqueue({ type: "text-end", id: textId }); textId = null }
                     const id = nextId()
                     toolCallIds.set(idx, id)
-                    toolCallNames.set(idx, tc.function?.name ?? "")
-                    controller.enqueue({
-                      type: "tool-input-start",
-                      id,
-                      toolName: tc.function?.name ?? "",
-                    })
+                    controller.enqueue({ type: "tool-input-start", id, toolName: tc.function?.name ?? "" })
                   }
                   if (tc.function?.arguments) {
                     const id = toolCallIds.get(idx)!
-                    controller.enqueue({
-                      type: "tool-input-delta",
-                      id,
-                      delta: tc.function.arguments,
-                    })
+                    controller.enqueue({ type: "tool-input-delta", id, delta: tc.function.arguments })
                   }
                 }
               }
 
-              // Finish
-              if (choice.finish_reason) {
-                finishReason = mapFinishReason(choice.finish_reason)
-              }
-
-              // Usage (often in the last chunk)
-              if (chunk.usage) {
-                promptTokens = chunk.usage.prompt_tokens
-                completionTokens = chunk.usage.completion_tokens
-              }
+              if (choice.finish_reason) finishReason = mapFinishReason(choice.finish_reason)
+              if (chunk.usage) { promptTokens = chunk.usage.prompt_tokens; completionTokens = chunk.usage.completion_tokens }
             }
 
-            // Close open text
-            if (textId) {
-              controller.enqueue({ type: "text-end", id: textId })
-            }
+            if (textId) controller.enqueue({ type: "text-end", id: textId })
+            for (const [, id] of toolCallIds) controller.enqueue({ type: "tool-input-end", id })
 
-            // Close open tool calls
-            for (const [, id] of toolCallIds) {
-              controller.enqueue({ type: "tool-input-end", id })
-            }
-
-            // Finish event
             controller.enqueue({
               type: "finish",
-              usage: {
-                inputTokens: promptTokens,
-                outputTokens: completionTokens,
-              },
+              usage: { inputTokens: promptTokens, outputTokens: completionTokens },
               finishReason,
               providerMetadata: undefined,
             })
@@ -286,7 +328,6 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
             controller.error(err)
             return
           }
-
           controller.close()
         },
       })
