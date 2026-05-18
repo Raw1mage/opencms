@@ -39,7 +39,6 @@ import {
   RateLimitJudge,
   isRateLimitError,
   isAuthError,
-  formatRateLimitReason,
   CodexFamilyExhausted,
 } from "@/account/rate-limit-judge"
 
@@ -223,10 +222,9 @@ export namespace LLM {
 
   export const OUTPUT_TOKEN_MAX = Flag.OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX || 32_000
 
-  // Toast debouncing for rate-limit and rotation notifications
+  // Toast debouncing for rotation notifications
   const TOAST_DEBOUNCE_MS = 15_000
 
-  let lastRateLimitToastAt = 0
   let lastRotationToastAt = 0
 
   export type StreamInput = {
@@ -1672,24 +1670,12 @@ export namespace LLM {
         }
 
         if (isRateLimitError(error)) {
-          const result = await RateLimitJudge.judge(input.model.providerId, accountId, input.model.id, error)
-
-          // Publish toast notification (debounced)
-          const now = Date.now()
-          if (now - lastRateLimitToastAt >= TOAST_DEBOUNCE_MS) {
-            lastRateLimitToastAt = now
-            const waitMinutes = Math.ceil(result.backoffMs / 60000)
-            const reasonText = formatRateLimitReason(result.reason)
-            publishToastTraced(
-              {
-                title: "Rate Limit",
-                message: `${input.model.id}: ${reasonText}. Cooling down for ${waitMinutes}m.`,
-                variant: "warning",
-                duration: 8000,
-              },
-              { source: "llm.onError.rateLimit" },
-            ).catch(() => {})
-          }
+          // Classify & update trackers + broadcast RateLimitEvent.Detected to bus.
+          // Toast is intentionally NOT shown here — the retry loop in processor.ts
+          // will either rotate (showing an "info" toast) or surface a session error
+          // when all accounts are exhausted.  Showing a "warning" toast here was
+          // redundant noise when rotation succeeds moments later.
+          await RateLimitJudge.judge(input.model.providerId, accountId, input.model.id, error)
         }
       },
       async experimental_repairToolCall(failed) {
@@ -2091,7 +2077,7 @@ export namespace LLM {
         const purpose = typeof purposeValue === "string" ? purposeValue : fallbackReason
         const reasonLabel = PURPOSE_LABELS[purpose] || fallback.reason
 
-        // Extract error label from error object or fallback to reason label
+        // Build a concise label: "(429)rate-limit" instead of dumping raw error JSON.
         let errorLabel = `(${reasonLabel})`
         if (error) {
           const errorObject = error && typeof error === "object" ? (error as Record<string, any>) : undefined
@@ -2100,8 +2086,7 @@ export namespace LLM {
               ? (errorObject.data as Record<string, any>)
               : undefined
           const status = errorObject?.status ?? errorObject?.statusCode ?? data?.status
-          const message = errorObject?.message ?? data?.message ?? String(error)
-          errorLabel = `(${status ?? "Error"})${message}`
+          errorLabel = status ? `(${status})${reasonLabel}` : `(${reasonLabel})`
         }
 
         const sanitizedErrorLabel = errorLabel.replace(/\s*Retry later or choose another model\.?/gi, "").trim()
