@@ -316,7 +316,7 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
       const warnings: LanguageModelV2CallWarning[] = []
       const useResponses = shouldUseResponsesApi(modelId)
 
-      // Debug: log prompt and tool structure
+      // Debug: log prompt and tool structure to file
       {
         const roles = options.prompt.map((m: any) => m.role)
         const systemLen = options.prompt.filter((m: any) => m.role === "system").map((m: any) => {
@@ -324,13 +324,17 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
           return typeof c === "string" ? c.length : Array.isArray(c) ? c.reduce((a: number, p: any) => a + (p.text?.length ?? 0), 0) : 0
         })
         const toolCount = options.tools?.length ?? 0
-        const toolNames = options.tools?.map((t: any) => t.name).slice(0, 10) ?? []
-        const firstToolSchema = options.tools?.[0] ? JSON.stringify({
-          hasParams: !!(options.tools[0] as any).parameters,
-          hasInput: !!(options.tools[0] as any).inputSchema,
-          props: Object.keys(((options.tools[0] as any).parameters ?? (options.tools[0] as any).inputSchema ?? {}).properties ?? {}),
+        const firstTool = options.tools?.[0] as any
+        const toolDebug = firstTool ? JSON.stringify({
+          name: firstTool.name,
+          keys: Object.keys(firstTool),
+          hasParams: !!firstTool.parameters,
+          hasInputSchema: !!firstTool.inputSchema,
+          schemaType: (firstTool.parameters ?? firstTool.inputSchema)?.type,
+          schemaProps: Object.keys((firstTool.parameters ?? firstTool.inputSchema)?.properties ?? {}),
         }) : "none"
-        log.info("doStream debug", { modelId, roles: roles.join(","), systemCharLen: systemLen, toolCount, toolNames, firstToolSchema })
+        const line = `[${new Date().toISOString()}] doStream: model=${modelId} roles=${roles.join(",")} systemLen=${systemLen} toolCount=${toolCount} firstTool=${toolDebug}\n`
+        Bun.write(Bun.file("/tmp/copilot-cli-debug.log"), (await Bun.file("/tmp/copilot-cli-debug.log").text().catch(() => "")) + line).catch(() => {})
       }
 
       if (useResponses) {
