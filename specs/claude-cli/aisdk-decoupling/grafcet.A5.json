@@ -1,0 +1,104 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A5",
+    "StepType": "initial",
+    "StepAction": "Phase 3+4 start — ready to update tests and verify",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "Condition": ["Phase 2 complete (anthropic.ts deleted, project compiles)"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Read anthropic.test.ts and anthropic-cli.test.ts, triage each test case: keep(migrate)/update(path change)/delete(tests dead code)",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "Condition": ["Triage decision documented for each test case"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Create plugin/claude-cli/claude-cli.test.ts covering: TV1 (registration), TV3 (getModel), TV6 (OAuth URL), TV7 (no residual imports)",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3],
+    "Condition": ["New test file created and compiles"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Execute bun test — full test suite",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "divergence_or",
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4, 2],
+    "Condition": [
+      "All tests pass",
+      "Test failure — fix test or code, re-run"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Session regression: run claude-cli text streaming session",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5],
+    "Condition": ["Text streaming works end-to-end"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Session regression: run claude-cli tool call session",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [6],
+    "Condition": ["Tool calls work (mcp_ prefix applied/stripped by provider-claude)"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Verify import chain: grep for @ai-sdk/anthropic in transitive imports from plugin/claude-cli/",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "divergence_or",
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [7, 5],
+    "Condition": [
+      "@ai-sdk/anthropic not found — isolation confirmed",
+      "@ai-sdk/anthropic found — investigate and fix"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "All acceptance criteria (AC-1 through AC-7) verified — plan complete",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [6],
+    "LinkOutputNumber": [],
+    "Condition": [],
+    "SubGrafcet": []
+  }
+]

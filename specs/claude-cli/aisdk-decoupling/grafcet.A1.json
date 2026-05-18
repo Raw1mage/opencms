@@ -1,0 +1,101 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "Phase 0 start — ready to inject dead code detection",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "Condition": ["Phase 0 started"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Add log.warn('DEAD_CODE_CHECK: fetch interceptor invoked') at anthropic.ts L143",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "Condition": ["Log injection complete"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Add log.info('CHECKPOINT: getModel via provider-claude') at anthropic.ts L548",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3],
+    "Condition": ["Checkpoint log injection complete"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Execute claude-cli session: send text message, wait for streaming response",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4],
+    "Condition": ["Text streaming response received"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Execute claude-cli tool call: send message requiring file read or similar tool",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5],
+    "Condition": ["Tool call completed with result"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Grep logs for 'DEAD_CODE_CHECK' and 'CHECKPOINT: getModel'",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "divergence_or",
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [6, 7],
+    "Condition": [
+      "DEAD_CODE_CHECK=0 hits AND CHECKPOINT=1+ hits → dead code confirmed",
+      "DEAD_CODE_CHECK=1+ hits → fetch interceptor is alive, HALT"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Dead code confirmed — remove detection logs, proceed to Phase 1",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [],
+    "Condition": [],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "HALT — fetch interceptor is NOT dead code. Record trigger path, revise design.md",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [],
+    "Condition": [],
+    "SubGrafcet": []
+  }
+]

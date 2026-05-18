@@ -1,0 +1,77 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A4",
+    "StepType": "initial",
+    "StepAction": "Phase 2 start — ready to rewire imports",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "Condition": ["plugin/claude-cli/index.ts + auth.ts compile (A2+A3 complete)"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Update plugin/index.ts: change import source from './anthropic' to './claude-cli' and export name if needed",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "Condition": ["plugin/index.ts compiles with new import"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Update plugin/claude-native.ts: change import from AnthropicAuthPlugin to ClaudeCliPlugin, update FFI wrapper",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3],
+    "Condition": ["claude-native.ts compiles, ClaudeNativeAuthPlugin still wraps correctly"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Delete plugin/anthropic.ts",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4],
+    "Condition": ["File removed from filesystem"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Grep entire plugin/ directory for residual 'anthropic.ts' or './anthropic' imports",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "divergence_or",
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5, 3],
+    "Condition": [
+      "Zero matches — clean state",
+      "Residual found — fix import and re-delete check"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Full project compilation check (bun build or tsc --noEmit)",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [],
+    "Condition": ["Project compiles clean with anthropic.ts deleted"],
+    "SubGrafcet": []
+  }
+]

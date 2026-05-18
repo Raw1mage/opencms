@@ -1,0 +1,35 @@
+{
+  "diagram_title": "A1 — Verify Fetch Interceptor Is Dead Code",
+  "node_reference": "A1",
+  "activities": [
+    {
+      "id": "A11",
+      "title": "Inject detection log",
+      "description": "Add log.warn('DEAD_CODE_CHECK') at anthropic.ts L143 (fetch interceptor entry)"
+    },
+    {
+      "id": "A12",
+      "title": "Execute test session",
+      "description": "Run claude-cli session covering text streaming + tool call paths"
+    },
+    {
+      "id": "A13",
+      "title": "Analyze logs",
+      "description": "Grep runtime logs for DEAD_CODE_CHECK; confirm zero hits"
+    },
+    {
+      "id": "A14",
+      "title": "Confirm getModel checkpoint",
+      "description": "Verify getModel log appears, confirming provider-claude path is active"
+    }
+  ],
+  "arrows": [
+    { "id": "I1", "source": "anthropic.ts:L143", "target": "A11", "label": "Fetch interceptor function", "type": "input" },
+    { "id": "I2", "source": "claude-cli account", "target": "A12", "label": "Active auth credentials", "type": "input" },
+    { "id": "O1", "source": "A13", "target": "Phase 0 Gate", "label": "Dead code confirmed (0 hits)", "type": "output" },
+    { "id": "O2", "source": "A13", "target": "STOP", "label": "Fetch triggered (>0 hits) — halt plan", "type": "output" },
+    { "id": "O3", "source": "A14", "target": "Evidence", "label": "getModel checkpoint log", "type": "output" },
+    { "id": "C1", "source": "Test coverage", "target": "A12", "label": "Must cover: text streaming, tool call, multi-turn", "type": "control" },
+    { "id": "M1", "source": "log.warn", "target": "A11", "label": "Runtime log injection", "type": "mechanism" }
+  ]
+}

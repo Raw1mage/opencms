@@ -1,0 +1,44 @@
+{
+  "diagram_title": "A5 — Update Tests and Verify",
+  "node_reference": "A5",
+  "activities": [
+    {
+      "id": "A51",
+      "title": "Triage existing test files",
+      "description": "Review anthropic.test.ts and anthropic-cli.test.ts. Determine which tests are still relevant, which test dead code, which need path updates."
+    },
+    {
+      "id": "A52",
+      "title": "Create claude-cli.test.ts",
+      "description": "New test file covering: plugin registration, getModel via provider-claude, auth.methods URL generation, credential passthrough."
+    },
+    {
+      "id": "A53",
+      "title": "Run unit test suite",
+      "description": "bun test — all existing + new tests must pass"
+    },
+    {
+      "id": "A54",
+      "title": "Run session regression",
+      "description": "Manual: text streaming session + tool call session on claude-cli provider"
+    },
+    {
+      "id": "A55",
+      "title": "Verify import chain isolation",
+      "description": "Grep: @ai-sdk/anthropic must not appear in claude-cli's transitive import chain"
+    }
+  ],
+  "arrows": [
+    { "id": "I1", "source": "anthropic.test.ts", "target": "A51", "label": "Existing test file", "type": "input" },
+    { "id": "I2", "source": "anthropic-cli.test.ts", "target": "A51", "label": "Existing test file", "type": "input" },
+    { "id": "I3", "source": "plugin/claude-cli/", "target": "A52", "label": "New plugin to test", "type": "input" },
+    { "id": "O1", "source": "A51", "target": "Triage decision", "label": "Keep/update/delete per test file", "type": "output" },
+    { "id": "O2", "source": "A52", "target": "claude-cli.test.ts", "label": "New test file", "type": "output" },
+    { "id": "O3", "source": "A53", "target": "Green suite", "label": "All tests pass", "type": "output" },
+    { "id": "O4", "source": "A54", "target": "Session evidence", "label": "Streaming + tool calls work", "type": "output" },
+    { "id": "O5", "source": "A55", "target": "Isolation evidence", "label": "@ai-sdk/anthropic not in chain", "type": "output" },
+    { "id": "C1", "source": "Test vectors", "target": "A52", "label": "TV1-TV7 from test-vectors.json", "type": "control" },
+    { "id": "C2", "source": "Acceptance criteria", "target": "A54", "label": "AC-1 through AC-7", "type": "control" },
+    { "id": "M1", "source": "bun test", "target": "A53", "label": "Test runner", "type": "mechanism" }
+  ]
+}

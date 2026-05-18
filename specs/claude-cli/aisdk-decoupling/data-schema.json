@@ -1,0 +1,49 @@
+{
+  "title": "claude-cli Decoupling — Data Interfaces",
+  "schemas": [
+    {
+      "id": "DS-1",
+      "name": "ClaudeCliPlugin Hooks",
+      "description": "Plugin output interface — what plugin/claude-cli/ exports",
+      "fields": {
+        "auth.provider": { "type": "string", "value": "claude-cli" },
+        "auth.loader": { "type": "function", "signature": "(getAuth, provider, accountId?) => Promise<LoaderResult>" },
+        "auth.methods": { "type": "AuthMethod[]", "description": "OAuth PKCE flows (subscription + console)" }
+      }
+    },
+    {
+      "id": "DS-2",
+      "name": "LoaderResult",
+      "description": "Return value of auth.loader — what gets merged into provider options",
+      "fields": {
+        "getModel": { "type": "CustomModelLoader", "description": "Creates LanguageModelV2 via provider-claude" },
+        "type": { "type": "string", "enum": ["oauth", "subscription"] },
+        "refresh": { "type": "string", "description": "OAuth refresh token" },
+        "access": { "type": "string", "optional": true, "description": "OAuth access token" },
+        "expires": { "type": "number", "optional": true, "description": "Token expiry timestamp (ms)" },
+        "orgID": { "type": "string", "optional": true },
+        "email": { "type": "string", "optional": true },
+        "accountId": { "type": "string", "optional": true }
+      },
+      "notes": [
+        "NO fetch field — dead code removed",
+        "NO apiKey field — subscription auth uses access token directly",
+        "getModel delegates to createClaudeCode() from provider-claude"
+      ]
+    },
+    {
+      "id": "DS-3",
+      "name": "ClaudeCredentials (from provider-claude, unchanged)",
+      "description": "Credentials passed to createClaudeCode()",
+      "fields": {
+        "type": { "type": "string", "enum": ["oauth", "subscription", "api"] },
+        "refresh": { "type": "string" },
+        "access": { "type": "string", "optional": true },
+        "expires": { "type": "number", "optional": true },
+        "orgID": { "type": "string", "optional": true },
+        "email": { "type": "string", "optional": true },
+        "accountId": { "type": "string", "optional": true }
+      }
+    }
+  ]
+}

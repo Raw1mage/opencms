@@ -1,0 +1,41 @@
+{
+  "diagram_title": "A2 — Extract Auth into plugin/claude-cli/auth.ts",
+  "node_reference": "A2",
+  "activities": [
+    {
+      "id": "A21",
+      "title": "Extract authorize() function",
+      "description": "Move OAuth PKCE URL generation (anthropic.ts L65-79) to auth.ts. Includes CLIENT_ID, scopes, PKCE challenge."
+    },
+    {
+      "id": "A22",
+      "title": "Extract exchange() function",
+      "description": "Move authorization code → token exchange (anthropic.ts L82-104) to auth.ts."
+    },
+    {
+      "id": "A23",
+      "title": "Extract auth.methods array",
+      "description": "Move subscription + console OAuth flows (anthropic.ts L568-621) to auth.ts."
+    },
+    {
+      "id": "A24",
+      "title": "Extract helper types",
+      "description": "Move ClaudeOAuthAuth type, isClaudeOAuthAuth guard, toUrlString helper."
+    },
+    {
+      "id": "A25",
+      "title": "Verify compilation",
+      "description": "Ensure auth.ts compiles standalone with no import errors."
+    }
+  ],
+  "arrows": [
+    { "id": "I1", "source": "anthropic.ts:L65-79", "target": "A21", "label": "authorize() source", "type": "input" },
+    { "id": "I2", "source": "anthropic.ts:L82-104", "target": "A22", "label": "exchange() source", "type": "input" },
+    { "id": "I3", "source": "anthropic.ts:L568-621", "target": "A23", "label": "auth.methods source", "type": "input" },
+    { "id": "I4", "source": "anthropic.ts:L37-58", "target": "A24", "label": "Helper types source", "type": "input" },
+    { "id": "O1", "source": "A25", "target": "plugin/claude-cli/auth.ts", "label": "Compiled auth module", "type": "output" },
+    { "id": "C1", "source": "OAuth PKCE spec", "target": "A21", "label": "PKCE flow must be byte-identical", "type": "control" },
+    { "id": "C2", "source": "Hooks.auth.methods", "target": "A23", "label": "Must conform to AuthMethod[] interface", "type": "control" },
+    { "id": "M1", "source": "Code extraction", "target": "A21", "label": "Copy, not rewrite", "type": "mechanism" }
+  ]
+}

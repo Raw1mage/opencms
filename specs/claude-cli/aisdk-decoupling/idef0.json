@@ -1,0 +1,94 @@
+{
+  "diagram_title": "Consolidate claude-cli Provider — AI SDK Decoupling",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A0",
+      "title": "Consolidate claude-cli plugin and remove AI SDK coupling",
+      "description": "Integrate scattered claude-cli logic into a unified plugin/claude-cli/ package, confirm provider-claude as sole data path, delete dead code"
+    },
+    {
+      "id": "A1",
+      "title": "Verify fetch interceptor is dead code",
+      "description": "Inject runtime log in anthropic.ts fetch interceptor, run session, confirm never triggered"
+    },
+    {
+      "id": "A2",
+      "title": "Extract auth into plugin/claude-cli/auth.ts",
+      "description": "Move OAuth PKCE authorize/exchange/auth.methods from anthropic.ts"
+    },
+    {
+      "id": "A3",
+      "title": "Build plugin/claude-cli/index.ts",
+      "description": "Create Hooks entry with auth.loader + getModel, delegates to createClaudeCode"
+    },
+    {
+      "id": "A4",
+      "title": "Rewire imports and delete anthropic.ts",
+      "description": "Update plugin/index.ts + claude-native.ts imports, remove anthropic.ts"
+    },
+    {
+      "id": "A5",
+      "title": "Update tests and verify",
+      "description": "Create claude-cli.test.ts, update/delete old tests, run regression"
+    }
+  ],
+  "arrows": [
+    {
+      "id": "I1",
+      "source": "anthropic.ts",
+      "target": "A0",
+      "label": "Scattered plugin (624 lines)",
+      "type": "input"
+    },
+    {
+      "id": "I2",
+      "source": "provider-claude",
+      "target": "A0",
+      "label": "Independent LanguageModelV2 package",
+      "type": "input"
+    },
+    {
+      "id": "I3",
+      "source": "claude-native.ts",
+      "target": "A0",
+      "label": "FFI bridge",
+      "type": "input"
+    },
+    {
+      "id": "O1",
+      "source": "A0",
+      "target": "plugin/claude-cli/",
+      "label": "Unified thin plugin",
+      "type": "output"
+    },
+    {
+      "id": "O2",
+      "source": "A0",
+      "target": "deleted",
+      "label": "Removed anthropic.ts",
+      "type": "output"
+    },
+    {
+      "id": "C1",
+      "source": "Hooks interface",
+      "target": "A0",
+      "label": "@opencode-ai/plugin Hooks contract",
+      "type": "control"
+    },
+    {
+      "id": "C2",
+      "source": "Zero global impact",
+      "target": "A0",
+      "label": "No changes to streamText/tool/LanguageModelV2",
+      "type": "control"
+    },
+    {
+      "id": "M1",
+      "source": "TypeScript",
+      "target": "A0",
+      "label": "Code extraction and refactoring",
+      "type": "mechanism"
+    }
+  ]
+}

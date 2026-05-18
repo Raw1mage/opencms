@@ -1,0 +1,74 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A3",
+    "StepType": "initial",
+    "StepAction": "Phase 1B start — ready to build plugin entry",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "Condition": ["auth.ts created and compiles (A2 complete)"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Create index.ts with ClaudeCliPlugin function skeleton: async (input: PluginInput) => Promise<Hooks>",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "Condition": ["Skeleton compiles with empty Hooks return"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Implement auth.loader: copy L113-131 credential loading + cost reset for subscription. SKIP L143-546 (dead fetch interceptor)",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3],
+    "Condition": ["auth.loader returns { getModel, type, refresh, access, ... } — no fetch field"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Implement getModel: import createClaudeCode from @opencode-ai/provider-claude, import isClaudeCredentials for type guard",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4],
+    "Condition": ["getModel returns provider.languageModel(modelId)"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Wire auth.methods: import from ./auth.ts, attach to Hooks return",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5],
+    "Condition": ["Hooks.auth.methods is array with 2 items"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Verify full compilation: index.ts exports ClaudeCliPlugin, all types resolve",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [],
+    "Condition": ["Clean compilation, export named ClaudeCliPlugin"],
+    "SubGrafcet": []
+  }
+]

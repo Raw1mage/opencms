@@ -1,0 +1,37 @@
+{
+  "diagram_title": "A4 — Rewire Imports and Delete anthropic.ts",
+  "node_reference": "A4",
+  "activities": [
+    {
+      "id": "A41",
+      "title": "Update plugin/index.ts import",
+      "description": "Change: import { AnthropicAuthPlugin } from './anthropic' → import { ClaudeCliPlugin } from './claude-cli'"
+    },
+    {
+      "id": "A42",
+      "title": "Update plugin/claude-native.ts import",
+      "description": "Change: import { AnthropicAuthPlugin } from './anthropic' → import { ClaudeCliPlugin } from './claude-cli'. Update wrapper logic."
+    },
+    {
+      "id": "A43",
+      "title": "Delete plugin/anthropic.ts",
+      "description": "Remove the 624-line file entirely. All live code has been migrated to plugin/claude-cli/."
+    },
+    {
+      "id": "A44",
+      "title": "Verify no residual imports",
+      "description": "grep -r for 'anthropic.ts' and './anthropic' in plugin/ directory. Must be zero matches."
+    }
+  ],
+  "arrows": [
+    { "id": "I1", "source": "plugin/index.ts", "target": "A41", "label": "Plugin registry file", "type": "input" },
+    { "id": "I2", "source": "plugin/claude-native.ts", "target": "A42", "label": "FFI bridge file", "type": "input" },
+    { "id": "I3", "source": "plugin/anthropic.ts", "target": "A43", "label": "File to delete", "type": "input" },
+    { "id": "O1", "source": "A41", "target": "Updated plugin/index.ts", "label": "New import path", "type": "output" },
+    { "id": "O2", "source": "A42", "target": "Updated claude-native.ts", "label": "New import path", "type": "output" },
+    { "id": "O3", "source": "A43", "target": "Deleted", "label": "anthropic.ts removed", "type": "output" },
+    { "id": "O4", "source": "A44", "target": "Clean state", "label": "Zero residual imports", "type": "output" },
+    { "id": "C1", "source": "Plugin naming", "target": "A41", "label": "Provider name stays 'claude-cli'", "type": "control" },
+    { "id": "C2", "source": "FFI bridge contract", "target": "A42", "label": "ClaudeNativeAuthPlugin wraps the plugin, not replaces it", "type": "control" }
+  ]
+}

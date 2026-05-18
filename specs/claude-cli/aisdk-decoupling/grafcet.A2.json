@@ -1,0 +1,89 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A2",
+    "StepType": "initial",
+    "StepAction": "Phase 1A start — ready to extract auth module",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "Condition": ["Phase 0 passed (dead code confirmed)"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Create plugin/claude-cli/ directory and auth.ts file with imports",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "Condition": ["Directory and file created"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Copy ClaudeOAuthAuth type + isClaudeOAuthAuth guard + constants (CLIENT_ID, VERSION, ATTRIBUTION_SALT)",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "divergence_or",
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3, 2],
+    "Condition": [
+      "Types compile — use provider-claude constants where available",
+      "Type mismatch with provider-claude — reconcile"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Copy authorize() function (L65-79) — OAuth PKCE URL generation with generatePKCE",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4],
+    "Condition": ["authorize() compiles and returns correct URL shape"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Copy exchange() function (L82-104) — authorization code → token exchange",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5],
+    "Condition": ["exchange() compiles"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Copy auth.methods array (L568-621) — subscription + console flows with profile fetch",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [6],
+    "Condition": ["auth.methods compiles, both flows present"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Export all public items. Verify auth.ts compiles standalone (tsc --noEmit or bun build check)",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [],
+    "Condition": ["Clean compilation, all exports accessible"],
+    "SubGrafcet": []
+  }
+]

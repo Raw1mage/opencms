@@ -22,7 +22,7 @@ export namespace Plugin {
 
   async function getInternalPlugins(_config: { disabled_providers?: string[] }) {
     // Built-in plugins that are directly imported (not installed from npm)
-    // AnthropicAuthPlugin is internal to use correct Claude Code headers for OAuth
+    // ClaudeCliPlugin (via ClaudeNativeAuthPlugin) provides Claude Code auth + model factory
     const internalPlugins: { name: string; plugin: PluginInstance }[] = [
       { name: "codex", plugin: CodexNativeAuthPlugin },
       { name: "copilot", plugin: CopilotAuthPlugin },

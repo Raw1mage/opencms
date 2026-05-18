@@ -3,7 +3,7 @@ import { CString, FFIType, dlopen, ptr, suffix } from "bun:ffi"
 import path from "node:path"
 import fs from "node:fs"
 import { Log } from "../util/log"
-import { AnthropicAuthPlugin } from "./anthropic"
+import { ClaudeCliPlugin } from "./claude-cli"
 
 const log = Log.create({ service: "plugin.claude-native" })
 
@@ -166,7 +166,7 @@ function getStatus() {
 }
 
 export async function ClaudeNativeAuthPlugin(input: PluginInput): Promise<Hooks> {
-  const baseHooks = await AnthropicAuthPlugin(input)
+  const baseHooks = await ClaudeCliPlugin(input)
   const baseLoader = baseHooks.auth?.loader
   if (!baseHooks.auth || !baseLoader) return baseHooks
 
@@ -195,7 +195,7 @@ export async function ClaudeNativeAuthPlugin(input: PluginInput): Promise<Hooks>
             })
           }
         } else {
-          log.info("claude-native unavailable; using anthropic transport path")
+          log.info("claude-native unavailable; using claude-cli plugin transport path")
         }
 
         return baseLoader(getAuth, provider)

@@ -1,0 +1,86 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A0",
+    "StepType": "initial",
+    "StepAction": "Idle — plan approved, ready to start",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "Condition": ["Plan approved by user"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Verify fetch interceptor is dead code: inject log.warn, run session, check logs",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "divergence_or",
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2, 1],
+    "Condition": ["Fetch interceptor confirmed dead (no log output)", "Fetch interceptor triggered — investigate before proceeding"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Extract auth module: create plugin/claude-cli/auth.ts from anthropic.ts authorize/exchange/methods",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3],
+    "Condition": ["auth.ts created and compiles"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Build plugin entry: create plugin/claude-cli/index.ts with Hooks, auth.loader, getModel delegating to createClaudeCode",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4],
+    "Condition": ["index.ts created and compiles"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Rewire and delete: update plugin/index.ts + claude-native.ts imports, delete anthropic.ts",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5],
+    "Condition": ["Imports rewired, anthropic.ts deleted, compiles clean"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Test and verify: create claude-cli.test.ts, run test suite, run session regression",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "divergence_or",
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [6, 4],
+    "Condition": ["All tests pass + session regression pass", "Test failure — fix and retry from S4"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A0",
+    "StepType": "normal",
+    "StepAction": "Complete — claude-cli fully decoupled from AI SDK",
+    "LinkInputType": ["track"],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [],
+    "Condition": [],
+    "SubGrafcet": []
+  }
+]

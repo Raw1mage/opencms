@@ -1,0 +1,42 @@
+[
+  {
+    "diagram_title": "claude-cli Model Creation (getLanguage path — after decoupling)",
+    "scenario": "Session starts, Provider.getLanguage resolves LanguageModelV2",
+    "moduleRef": "A3",
+    "participants": [
+      { "id": "llm", "name": "session/llm.ts", "componentRef": "orchestration" },
+      { "id": "registry", "name": "provider/provider.ts", "componentRef": "provider-registry" },
+      { "id": "plugin", "name": "plugin/claude-cli", "componentRef": "plugin" },
+      { "id": "provider", "name": "provider-claude", "componentRef": "provider-package" }
+    ],
+    "messages": [
+      { "id": "M1", "from": "llm", "to": "registry", "label": "Provider.getLanguage(model)" },
+      { "id": "M2", "from": "registry", "to": "registry", "label": "lookup modelLoaders['claude-cli']" },
+      { "id": "M3", "from": "registry", "to": "registry", "label": "getSDK().catch(() => null) — SDK not needed" },
+      { "id": "M4", "from": "registry", "to": "plugin", "label": "loader(sdk=null, modelId, loaderOptions)" },
+      { "id": "M5", "from": "plugin", "to": "provider", "label": "createClaudeCode(credentials).languageModel(modelId)" },
+      { "id": "M6", "from": "provider", "to": "plugin", "label": "return ClaudeCodeLanguageModel" },
+      { "id": "M7", "from": "plugin", "to": "registry", "label": "return LanguageModelV2" },
+      { "id": "M8", "from": "registry", "to": "llm", "label": "return cached LanguageModelV2" }
+    ]
+  },
+  {
+    "diagram_title": "claude-cli Streaming Request (doStream — self-built HTTP)",
+    "scenario": "streamText invokes ClaudeCodeLanguageModel.doStream",
+    "moduleRef": "A0",
+    "participants": [
+      { "id": "ai", "name": "ai core (streamText)", "componentRef": "orchestration" },
+      { "id": "lm", "name": "ClaudeCodeLanguageModel", "componentRef": "provider-claude" },
+      { "id": "api", "name": "Anthropic Messages API", "componentRef": "external" }
+    ],
+    "messages": [
+      { "id": "M1", "from": "ai", "to": "lm", "label": "doStream(callOptions)" },
+      { "id": "M2", "from": "lm", "to": "lm", "label": "ensureValidToken() — refresh if expired" },
+      { "id": "M3", "from": "lm", "to": "lm", "label": "convertPrompt() + convertTools() + buildHeaders()" },
+      { "id": "M4", "from": "lm", "to": "api", "label": "POST /v1/messages?beta=true (raw fetch, whitelisted headers)" },
+      { "id": "M5", "from": "api", "to": "lm", "label": "SSE stream (message_start, content_block_delta, ...)" },
+      { "id": "M6", "from": "lm", "to": "lm", "label": "parseAnthropicSSE() → LanguageModelV2StreamPart" },
+      { "id": "M7", "from": "lm", "to": "ai", "label": "yield ReadableStream<LanguageModelV2StreamPart>" }
+    ]
+  }
+]

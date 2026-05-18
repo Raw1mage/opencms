@@ -1,0 +1,43 @@
+{
+  "diagram_title": "A3 — Build plugin/claude-cli/index.ts",
+  "node_reference": "A3",
+  "activities": [
+    {
+      "id": "A31",
+      "title": "Define ClaudeCliPlugin function signature",
+      "description": "Export async function ClaudeCliPlugin(input: PluginInput): Promise<Hooks>"
+    },
+    {
+      "id": "A32",
+      "title": "Implement auth.loader (without fetch interceptor)",
+      "description": "From anthropic.ts L113-567: keep getModel + credential passthrough. Remove fetch interceptor (L143-546, confirmed dead). Keep cost reset for subscription."
+    },
+    {
+      "id": "A33",
+      "title": "Implement getModel delegation",
+      "description": "From anthropic.ts L548-564: call createClaudeCode(credentials).languageModel(modelId). Import from @opencode-ai/provider-claude."
+    },
+    {
+      "id": "A34",
+      "title": "Wire auth.methods from auth.ts",
+      "description": "Import and attach auth.methods from ./auth.ts"
+    },
+    {
+      "id": "A35",
+      "title": "Verify compilation and export",
+      "description": "Ensure index.ts compiles, exports ClaudeCliPlugin as default/named export"
+    }
+  ],
+  "arrows": [
+    { "id": "I1", "source": "anthropic.ts:L113-567", "target": "A32", "label": "auth.loader source (minus dead code)", "type": "input" },
+    { "id": "I2", "source": "anthropic.ts:L548-564", "target": "A33", "label": "getModel source", "type": "input" },
+    { "id": "I3", "source": "plugin/claude-cli/auth.ts", "target": "A34", "label": "Extracted auth.methods", "type": "input" },
+    { "id": "I4", "source": "Dead code evidence (A1)", "target": "A32", "label": "Confirmation to delete fetch interceptor", "type": "input" },
+    { "id": "O1", "source": "A35", "target": "plugin/claude-cli/index.ts", "label": "Compiled plugin entry", "type": "output" },
+    { "id": "C1", "source": "Hooks interface", "target": "A31", "label": "@opencode-ai/plugin Hooks contract", "type": "control" },
+    { "id": "C2", "source": "provider-claude API", "target": "A33", "label": "createClaudeCode + ClaudeCredentials types", "type": "control" },
+    { "id": "C3", "source": "No fetch interceptor", "target": "A32", "label": "Dead code removed — loader returns no fetch function", "type": "control" },
+    { "id": "M1", "source": "createClaudeCode", "target": "A33", "label": "@opencode-ai/provider-claude/provider", "type": "mechanism" },
+    { "id": "M2", "source": "isClaudeCredentials", "target": "A33", "label": "@opencode-ai/provider-claude/auth", "type": "mechanism" }
+  ]
+}

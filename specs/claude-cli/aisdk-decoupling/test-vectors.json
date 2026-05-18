@@ -1,0 +1,107 @@
+[
+  {
+    "id": "TV1",
+    "requirementRef": "R1",
+    "description": "Plugin registration returns correct Hooks shape",
+    "input": {
+      "action": "import ClaudeCliPlugin from plugin/claude-cli/index.ts",
+      "call": "ClaudeCliPlugin(pluginInput)"
+    },
+    "expected": {
+      "auth.provider": "claude-cli",
+      "auth.loader": "function",
+      "auth.methods": "array with 2 items (subscription + console)"
+    },
+    "notes": "Replaces AnthropicAuthPlugin from anthropic.ts"
+  },
+  {
+    "id": "TV2",
+    "requirementRef": "R2",
+    "description": "Fetch interceptor is dead code — never invoked during session",
+    "input": {
+      "action": "Run claude-cli session with text streaming + tool call",
+      "instrumentation": "log.warn in anthropic.ts fetch interceptor"
+    },
+    "expected": {
+      "fetchInterceptorInvoked": false,
+      "sessionCompletes": true
+    },
+    "notes": "If fetch IS invoked, Phase 0 gate fails — must investigate before proceeding"
+  },
+  {
+    "id": "TV3",
+    "requirementRef": "R3",
+    "description": "getModel creates LanguageModelV2 via provider-claude, not @ai-sdk/anthropic",
+    "input": {
+      "action": "Provider.getLanguage(claudeModel)",
+      "modelId": "claude-sonnet-4-5-20250514"
+    },
+    "expected": {
+      "instanceOf": "ClaudeCodeLanguageModel",
+      "provider": "claude-code",
+      "specificationVersion": "v2",
+      "importChainIncludes_ai_sdk_anthropic": false
+    },
+    "notes": "SDK is null (getSDK().catch(() => null)) because modelLoader exists"
+  },
+  {
+    "id": "TV4",
+    "requirementRef": "R4",
+    "description": "Text streaming works after migration",
+    "input": {
+      "action": "Send text message to claude-cli session",
+      "content": "Hello, respond briefly."
+    },
+    "expected": {
+      "streaming": true,
+      "hasTextContent": true,
+      "noErrors": true
+    },
+    "notes": "Basic smoke test — streaming path goes through ClaudeCodeLanguageModel.doStream"
+  },
+  {
+    "id": "TV5",
+    "requirementRef": "R4",
+    "description": "Tool calls work after migration",
+    "input": {
+      "action": "Send message requiring tool invocation",
+      "content": "Read the file package.json"
+    },
+    "expected": {
+      "toolCallGenerated": true,
+      "toolResultReturned": true,
+      "mcpPrefixApplied": true,
+      "mcpPrefixStripped": true
+    },
+    "notes": "mcp_ prefix applied by provider-claude convertTools(), stripped by SSE parser"
+  },
+  {
+    "id": "TV6",
+    "requirementRef": "R1",
+    "description": "OAuth PKCE authorize URL is correctly formed",
+    "input": {
+      "action": "Call auth.methods[0].authorize()"
+    },
+    "expected": {
+      "urlHost": "platform.claude.com",
+      "urlPath": "/oauth/authorize",
+      "hasClientId": true,
+      "hasCodeChallenge": true,
+      "hasScope": true,
+      "scopeContains": ["user:profile", "user:inference", "user:sessions:claude_code"]
+    },
+    "notes": "Moved from anthropic.ts authorize() to plugin/claude-cli/auth.ts"
+  },
+  {
+    "id": "TV7",
+    "requirementRef": "R4",
+    "description": "No residual imports of anthropic.ts after deletion",
+    "input": {
+      "action": "grep -r 'anthropic.ts\\|from.*./anthropic' packages/opencode/src/plugin/"
+    },
+    "expected": {
+      "matchCount": 0
+    },
+    "notes": "Ensures clean deletion — no dangling imports"
+  }
+]

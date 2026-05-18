@@ -1551,7 +1551,7 @@ export namespace Provider {
           if (accountInfo.accessToken && family !== "anthropic") {
             options.apiKey = accountInfo.accessToken
           }
-          // REMOVED: Anthropic subscription logic moved to AnthropicAuthPlugin
+          // REMOVED: Anthropic subscription logic moved to plugin/claude-cli/
           // to ensure strict Claude Code protocol compliance.
         }
         if (accountInfo.type === "api" && accountInfo.apiKey) {
