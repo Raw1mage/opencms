@@ -7,6 +7,7 @@
 import { Log } from "../../util/log"
 import { Installation } from "../../installation"
 import { getBearer, getProfile } from "./auth"
+import { getCircuitBreaker } from "./circuit-breaker"
 
 const log = Log.create({ service: "copilot-cli.client" })
 
@@ -61,6 +62,21 @@ export async function* parseSSE(stream: ReadableStream<Uint8Array>): AsyncIterab
 // ---------------------------------------------------------------------------
 // Request builder
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Circuit-breaker-aware fetch
+// ---------------------------------------------------------------------------
+
+async function guardedFetch(url: string, init: RequestInit): Promise<Response> {
+  const cb = getCircuitBreaker()
+  if (!cb.canRequest()) {
+    throw new Error(`Copilot API circuit breaker OPEN — requests blocked (state: ${cb.getState()})`)
+  }
+
+  const resp = await fetch(url, init)
+  cb.recordResponse(resp.status)
+  return resp
+}
 
 function getBaseUrl(): string {
   const profile = getProfile()
@@ -144,7 +160,7 @@ export async function* streamCompletions(
 
   const body = { ...request, stream: true }
 
-  const resp = await fetch(url, {
+  const resp = await guardedFetch(url, {
     method: "POST",
     headers,
     body: JSON.stringify(body),
@@ -183,7 +199,7 @@ export async function callCompletions(
 
   const body = { ...request, stream: false }
 
-  const resp = await fetch(url, {
+  const resp = await guardedFetch(url, {
     method: "POST",
     headers,
     body: JSON.stringify(body),
@@ -238,7 +254,7 @@ export async function* streamResponses(
 
   const body = { ...request, stream: true }
 
-  const resp = await fetch(url, {
+  const resp = await guardedFetch(url, {
     method: "POST",
     headers,
     body: JSON.stringify(body),
