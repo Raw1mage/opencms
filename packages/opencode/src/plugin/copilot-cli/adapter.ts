@@ -83,12 +83,12 @@ function promptToResponsesInput(prompt: LanguageModelV2CallOptions["prompt"]): a
             input.push({ role: "assistant", content: [...textParts] })
             textParts.length = 0
           }
-          // function_call is top-level
+          // function_call is top-level — arguments MUST be a non-empty string
           input.push({
             type: "function_call",
             call_id: p.toolCallId,
             name: p.toolName,
-            arguments: typeof p.args === "string" ? p.args : JSON.stringify(p.args),
+            arguments: typeof p.args === "string" ? (p.args || "{}") : JSON.stringify(p.args ?? {}),
           })
         }
       }
