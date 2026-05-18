@@ -493,6 +493,14 @@ export async function deriveObservedCondition(input: {
     }
   }
 
+  // Item-count pressure: codex WS has an undocumented item-array limit.
+  // Payloads past ~250 items trigger ws_truncation (empty response,
+  // finishReason=unknown). Unlike token overflow this is transport-level
+  // — the only fix is shrinking the message stream before the next call.
+  // Check independently of lastFinished: even the first call can exceed
+  // the threshold if the session accumulated items across restarts.
+  if (estimateCodexItemCount(input.msgs) > 350) return "overflow"
+
   // Token-pressure conditions (from the existing isOverflow / cache-aware
   // helpers; we accept them as injected predicates so this function stays
   // pure-ish and testable).
@@ -521,6 +529,43 @@ export async function deriveObservedCondition(input: {
   }
 
   return null
+}
+
+/**
+ * Estimate the number of codex Responses API input items in a message
+ * stream. Codex WS has an undocumented item-array limit (~400-500);
+ * payloads past ~250 items start hitting ws_truncation intermittently.
+ *
+ * Counting rules (mirrors codex's input serialisation):
+ *   - 1 per user message
+ *   - 1 per assistant text part with content
+ *   - 1 per tool call (function_call)
+ *   - 1 per completed/errored tool output (function_call_output)
+ */
+export function estimateCodexItemCount(msgs: MessageV2.WithParts[]): number {
+  let count = 0
+  for (const m of msgs) {
+    if (m.info.role === "user") {
+      count += 1
+      continue
+    }
+    if (m.info.role === "assistant") {
+      const hasText = m.parts.some(
+        (p) =>
+          p.type === "text" &&
+          typeof (p as { text?: string }).text === "string" &&
+          ((p as { text: string }).text.length ?? 0) > 0,
+      )
+      if (hasText) count += 1
+      for (const p of m.parts) {
+        if (p.type !== "tool") continue
+        count += 1
+        const status = (p as MessageV2.ToolPart).state?.status
+        if (status === "completed" || status === "error") count += 1
+      }
+    }
+  }
+  return count
 }
 
 /**
@@ -1361,92 +1406,15 @@ export namespace SessionPrompt {
       const contextBudgetSource = findContextBudgetSource(msgs)
       const format = lastUser.format ?? { type: "text" }
 
-      // 2026-05-09: ws-truncation × bloated-input single-shot compaction.
-      // When the latest finished assistant turn carries an empty-turn
-      // classification (ws_truncation / server_failed / ws_no_frames / …)
-      // AND the estimated codex input item count is past the codex
-      // backend's hidden item-array bug zone, fire compaction immediately
-      // — do NOT wait for a streak. Each retry of a 451-item request
-      // forces a full re-send (chain reset on every backend failure
-      // path, see transport-ws.ts:561/571/581/607), and codex
-      // subscription rate-limit windows still account for it even when
-      // input billing is $0. Eagerly compacting at first sign of
-      // backend rejection caps the burn.
-      //
-      // Independent of the paralysis × bloated-input trigger below
-      // (which requires a 3-turn signature/narrative repetition) —
-      // this single-shot path triggers on the empty-turn classifier
-      // signal alone, which is a strictly stronger and earlier
-      // indicator than narrative paralysis.
-      if (lastFinished && !session.parentID) {
-        // Empty-turn classifier metadata is captured at runtime in
-        // processor.ts but NOT persisted onto a part — by the time this
-        // runloop reads from DB, only the message-level `finish` field
-        // remains. classifier → finishReason mapping (sse.ts:357-367):
-        //   ws_truncation / ws_no_frames / unclassified → "unknown"
-        //   server_failed                              → "error"
-        //   server_incomplete                          → "other"
-        //   server_empty_output_with_reasoning         → "other"
-        // We treat ALL three as "backend rejected this request" signal.
-        // "stop" / "tool-calls" / "length" are healthy — those don't
-        // trigger.
-        const finishReason = lastFinished.finish
-        const isClassifierFailureFinish =
-          finishReason === "unknown" || finishReason === "error" || finishReason === "other"
-        if (isClassifierFailureFinish) {
-          // Estimate codex input item count (same algorithm used by the
-          // paralysis × bloated-input trigger and surfaced in the UI
-          // telemetry tooltip). One per user message, one per assistant
-          // text part with content, one per ToolPart (function_call) +
-          // one when its state is completed/error (function_call_output).
-          let estimatedItemCount = 0
-          for (const m of msgs) {
-            if (m.info.role === "user") {
-              estimatedItemCount += 1
-              continue
-            }
-            if (m.info.role === "assistant") {
-              const hasText = m.parts.some(
-                (p) =>
-                  p.type === "text" &&
-                  typeof (p as { text?: string }).text === "string" &&
-                  ((p as { text: string }).text.length ?? 0) > 0,
-              )
-              if (hasText) estimatedItemCount += 1
-              for (const p of m.parts) {
-                if (p.type !== "tool") continue
-                estimatedItemCount += 1
-                const status = (p as MessageV2.ToolPart).state?.status
-                if (status === "completed" || status === "error") estimatedItemCount += 1
-              }
-            }
-          }
-          const WS_TRUNCATION_ITEMCOUNT_COMPACT_THRESHOLD = 250
-          if (estimatedItemCount > WS_TRUNCATION_ITEMCOUNT_COMPACT_THRESHOLD) {
-            log.warn("ws-truncation × bloated-input single-shot, triggering overflow compaction", {
-              sessionID,
-              step,
-              estimatedItemCount,
-              threshold: WS_TRUNCATION_ITEMCOUNT_COMPACT_THRESHOLD,
-            })
-            try {
-              await SessionCompaction.run({
-                sessionID,
-                observed: "empty-response",
-                step,
-                abort,
-              })
-              continue
-            } catch (err) {
-              log.warn("ws-truncation × bloated-input: compaction failed, falling through", {
-                sessionID,
-                step,
-                error: err instanceof Error ? err.message : String(err),
-              })
-            }
-          }
-        }
-      }
+      // 2026-05-18: ws-truncation × bloated-input compaction REMOVED.
+      // Empty response is NOT evidence of context overflow. The cause
+      // family can be ws_truncation, server_failed, ws_no_frames, etc.
+      // — none of which are fixed by compacting. Real context overflow
+      // is handled by deriveObservedCondition (isOverflow / isCacheAware)
+      // which uses actual token counts, not empty-response heuristics.
+      // The removed block was the root cause of a 100+ cycle compaction
+      // flood on session ses_1c875cc1 (2026-05-18): ws_truncation at
+      // 34% context → compact → retry → still truncated → compact → ...
 
       // Guard: detect empty-response loop (finish=unknown|other, 0 tokens).
       // "other" comes from codex SSE/WS that closed without a terminal event,
@@ -1593,124 +1561,22 @@ export namespace SessionPrompt {
           })
         }
 
-        // Self-heal on transient empty response.
+        // 2026-05-18: empty-response compaction REMOVED.
+        // Empty response ≠ context overflow. The original 2026-05-01
+        // assumption ("dominant cause is silent server-side context
+        // overflow") was wrong — empty responses come from ws_truncation,
+        // server_failed, model burps, etc. Real overflow is handled by
+        // deriveObservedCondition which uses actual token counts. The
+        // removed block fired compaction on empty response + overflowSuspected,
+        // but even that gate couldn't prevent floods: the chain reset
+        // (already done above via Continuation.run) is sufficient for
+        // chain corruption; compaction adds nothing for transport failures.
         //
-        // 2026-05-01: empirical data shows the dominant cause of an
-        // empty packet from codex is silent server-side context overflow
-        // — the dialog hits ~80-85% of nominal context and codex starts
-        // returning finishReason:unknown / totalTokens:0 instead of a
-        // real reply. A text nudge cannot recover this; only shrinking
-        // the context can. Trigger SessionCompaction with the dedicated
-        // "empty-response" observed condition (chain prefers codex's own
-        // /responses/compact via low-cost-server, falls through to local
-        // narrative / replay-tail / llm-agent). After compaction the
-        // anchor + Continue nudge takes us into the next iteration with
-        // a small enough prompt that codex can actually respond.
-        //
-        // Subagents do not auto-compact (DD-12: parent owns context
-        // management); they keep the legacy retry-nudge path so a real
-        // transient blink still self-heals without disturbing parent.
-        //
-        // Storm-prevention gate (2026-05-05): the original hotfix targeted
-        // codex silent overflow ("empirical data shows the dominant cause
-        // of an empty packet from codex is silent server-side context
-        // overflow — the dialog hits ~80-85% of nominal context"). Without
-        // a usage gate, ANY transient SSE blip / network 5xx / model burp
-        // at low context also fires destructive compaction, producing the
-        // observed storm pattern (~83% of compactions in long sessions
-        // traceable to empty rounds rather than real pressure). Only
-        // compact when the last well-formed turn was already past the
-        // configured floor (default 0.8 — matches the original 80-85%
-        // window). Below that floor, fall through to the nudge path so a
-        // genuine transient still self-heals without burning context.
-        let overflowSuspected = false
-        let probeRatio = 0
-        const emptyResponseFloor = Tweaks.compactionSync().emptyResponseFloor
-        if (contextBudgetSource) {
-          const probeModel = await Provider.getModel(
-            contextBudgetSource.providerId ?? lastUser.model.providerId,
-            contextBudgetSource.modelID ?? lastUser.model.modelID,
-          ).catch(() => undefined)
-          const gate = evaluateEmptyResponseGate({
-            used: contextBudgetSource.tokens?.input ?? 0,
-            window: probeModel?.limit.input ?? probeModel?.limit.context ?? 0,
-            floor: emptyResponseFloor,
-          })
-          overflowSuspected = gate.overflowSuspected
-          probeRatio = gate.ratio
-          log.info("self-heal: empty round usage probe", {
-            sessionID,
-            step,
-            ratio: Number(probeRatio.toFixed(3)),
-            floor: emptyResponseFloor,
-            overflowSuspected,
-          })
-        }
-        if (emptyRoundCount === 1 && !session.parentID && overflowSuspected) {
-          log.info("self-heal: empty round 1 — triggering empty-response compaction", {
-            sessionID,
-            step,
-          })
-          // user-msg-replay-unification (2026-05-09): the inline replay
-          // block (~70 lines) that lived here as the 5/5 hotfix is now
-          // extracted to SessionCompaction.replayUnansweredUserMessage
-          // and fires automatically inside SessionCompaction.run via
-          // defaultWriteAnchor. Same post-condition; covers all four
-          // commit paths (overflow / cache-aware / rebind / provider-
-          // switched) instead of just empty-response.
-          try {
-            const result = await SessionCompaction.run({
-              sessionID,
-              observed: "empty-response",
-              step,
-            })
-            log.info("self-heal: empty-response compaction returned", { sessionID, step, result })
-            // Helper inside run() handles snapshot+replay. Whether replay
-            // succeeded, was skipped, or failed gracefully, the runloop
-            // should re-evaluate with the new (potentially smaller) stream.
-            continue
-          } catch (err) {
-            log.warn("self-heal: empty-response compaction threw, falling back to nudge", {
-              sessionID,
-              step,
-              error: err instanceof Error ? err.message : String(err),
-            })
-            // fall through to the nudge path below
-          }
-        }
-        // 2026-05-08 — Pure-"?" nudge removed at user direction.
-        // Previous behavior: emptyRoundCount === 1 (non-overflow path)
-        // injected a synthetic user message with text "?" (+ optional
-        // context budget) to nudge the model to continue. Empirical
-        // result: model frequently interpreted "?" as "what?" /
-        // "explain again" and re-emitted the same plan, fueling
-        // narrative loops. Per memory feedback_break_chain_save_session,
-        // chain reset alone (already executed above on every empty
-        // round) is the right recovery; an additional cryptic nudge
-        // adds noise and tokens without changing outcome.
-        //
-        // New behavior: any empty round whose context-overflow probe
-        // does not suspect overflow (so the compaction-replay branch
-        // above didn't fire) falls straight through to natural-stop.
-        // The compaction-replay path still handles real context
-        // overflow; the rest are treated as the model's clean
-        // "natural stop" signal.
-        //
-        // Two interpretations of an empty round at this point:
-        //   (a) genuine codex overflow / chain corruption — runaway
-        //       (compaction-replay branch already attempted on
-        //        emptyRoundCount === 1 + overflowSuspected)
-        //   (b) model truly has nothing more to say (tools succeeded
-        //       last round, this round is "natural stop" that codex
-        //       didn't tag with a terminal event)
-        //
-        // (b) is the dominant case empirically (per 2026-04-30 obs).
-        // Hard-erroring with a red toast on (b) is a bad UX: the
-        // assistant claims failure when the work is actually complete.
-        // Treat it as a clean stop — no error attached, finish=stop.
-        // The warn log remains so a sustained (a) case is still
-        // diagnosable from debug.log.
-        log.warn("empty-response loop closed as natural stop", {
+        // Recovery path: chain reset (above) + natural stop (below).
+        // If the context IS actually overflowing, deriveObservedCondition
+        // will fire compaction on the NEXT iteration using real token
+        // pressure signals — not the empty-response heuristic.
+        log.warn("empty-response: chain reset done, closing as natural stop", {
           sessionID,
           emptyRounds: emptyRoundCount,
           step,
