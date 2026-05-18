@@ -168,7 +168,8 @@ function promptToMessages(prompt: LanguageModelV2CallOptions["prompt"]): any[] {
   return messages
 }
 
-function toolsToOpenAI(tools: LanguageModelV2CallOptions["tools"]): any[] | undefined {
+/** Chat Completions format: { type: "function", function: { name, description, parameters } } */
+function toolsToCompletions(tools: LanguageModelV2CallOptions["tools"]): any[] | undefined {
   if (!tools || tools.length === 0) return undefined
   return tools
     .filter((t: any) => t.type === "function")
@@ -179,6 +180,19 @@ function toolsToOpenAI(tools: LanguageModelV2CallOptions["tools"]): any[] | unde
         description: t.description,
         parameters: t.parameters,
       },
+    }))
+}
+
+/** Responses API format: { type: "function", name, description, parameters } — flat, no nested function object */
+function toolsToResponses(tools: LanguageModelV2CallOptions["tools"]): any[] | undefined {
+  if (!tools || tools.length === 0) return undefined
+  return tools
+    .filter((t: any) => t.type === "function")
+    .map((t: any) => ({
+      type: "function",
+      name: t.name,
+      description: t.description,
+      parameters: t.parameters,
     }))
 }
 
@@ -194,12 +208,12 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
     supportedUrls: {},
 
     async doGenerate(options: LanguageModelV2CallOptions) {
-      const tools = toolsToOpenAI(options.tools)
       const warnings: LanguageModelV2CallWarning[] = []
       const useResponses = shouldUseResponsesApi(modelId)
 
       if (useResponses) {
         const input = promptToResponsesInput(options.prompt)
+        const tools = toolsToResponses(options.tools)
         let text = ""
         let inputTokens = 0
         let outputTokens = 0
@@ -234,6 +248,7 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
 
       // Chat Completions path
       const messages = promptToMessages(options.prompt)
+      const tools = toolsToCompletions(options.tools)
       const result = await callCompletions(
         { model: modelId, messages, tools, temperature: options.temperature ?? undefined, max_tokens: options.maxOutputTokens ?? undefined },
         { model: modelId },
@@ -254,13 +269,13 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
     },
 
     async doStream(options: LanguageModelV2CallOptions) {
-      const tools = toolsToOpenAI(options.tools)
       const warnings: LanguageModelV2CallWarning[] = []
       const useResponses = shouldUseResponsesApi(modelId)
 
       if (useResponses) {
         // Responses API streaming
         const input = promptToResponsesInput(options.prompt)
+        const tools = toolsToResponses(options.tools)
         const chunks = streamResponses(
           { model: modelId, input, tools, temperature: options.temperature ?? undefined, max_output_tokens: options.maxOutputTokens ?? undefined },
           { model: modelId },
@@ -329,6 +344,7 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
 
       // Chat Completions streaming
       const messages = promptToMessages(options.prompt)
+      const tools = toolsToCompletions(options.tools)
       const chunks = streamCompletions(
         { model: modelId, messages, tools, temperature: options.temperature ?? undefined, max_tokens: options.maxOutputTokens ?? undefined },
         { model: modelId },
