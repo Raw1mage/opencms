@@ -894,6 +894,7 @@ export namespace SessionCompaction {
     | "manual"
     | "idle"
     | "empty-response"
+    | "reload"
 
   export type KindName = "narrative" | "ai_free" | "ai_paid"
   // Note: hybrid_llm is intentionally NOT a KindName. It runs as a
@@ -2827,6 +2828,160 @@ When constructing the summary, try to stick to this template:
         errorMessage,
       })
       return { replayed: false, reason: "exception" }
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Session healing: text-only stream rebuild (/reload Step 3)
+  //
+  // Reads all messages from DB, extracts only user text + assistant
+  // text (what the user saw in the UI), discards everything else
+  // (tool calls, step markers, synthetic messages, old anchors).
+  // Writes a single clean narrative anchor with amnesia header.
+  // Demotes ALL old anchors. Resets codex chain.
+  // ─────────────────────────────────────────────────────────────
+
+  export async function rebuildStreamFromText(sessionID: string): Promise<{
+    roundsIncluded: number
+    charsBudget: number
+    charsUsed: number
+  }> {
+    const model = await resolveActiveModel(sessionID)
+    const contextWindow = model?.limit?.context ?? 200_000
+    const charBudget = Math.floor(contextWindow * 0.3) * 4 // 30% of context, ~4 chars/token
+
+    // Read all messages from DB
+    const allMsgs = await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[])
+
+    // Extract text-only rounds: walk backwards from tail
+    const rounds: Array<{ role: "user" | "assistant"; text: string }> = []
+    let totalChars = 0
+
+    for (let i = allMsgs.length - 1; i >= 0 && totalChars < charBudget; i--) {
+      const msg = allMsgs[i]
+      const info = msg.info
+
+      // Skip compaction anchors (summary=true) — DD-7: discard old summaries
+      if (info.role === "assistant" && (info as MessageV2.Assistant).summary === true) continue
+
+      // Extract only non-synthetic text parts (what the user saw in UI)
+      const textParts = msg.parts.filter((p) => {
+        if (p.type !== "text") return false
+        if ((p as { synthetic?: boolean }).synthetic) return false
+        const text = (p as { text?: string }).text
+        return typeof text === "string" && text.length > 0
+      })
+
+      if (textParts.length === 0) continue
+
+      const combinedText = textParts
+        .map((p) => (p as { text: string }).text)
+        .join("\n")
+        .trim()
+
+      if (!combinedText) continue
+
+      const role = info.role as "user" | "assistant"
+      rounds.unshift({ role, text: combinedText })
+      totalChars += combinedText.length
+    }
+
+    // Build anchor body
+    const amnesiaHeader = [
+      "---",
+      "\u26a0\ufe0f Session reloaded \u2014 conversation history reconstructed from text only.",
+      "Tool call history, file contents, and intermediate results are lost.",
+      "Do NOT assume you know file contents or previous tool outputs.",
+      "Re-read any file before acting on it.",
+      "---",
+      "",
+    ].join("\n")
+
+    let roundNumber = 0
+    const roundBodies: string[] = []
+    for (const round of rounds) {
+      if (round.role === "user") roundNumber++
+      const label = round.role === "user" ? `## Round ${roundNumber} (user)` : `## Round ${roundNumber} (assistant)`
+      roundBodies.push(`${label}\n${round.text}`)
+    }
+
+    const anchorBody = amnesiaHeader + roundBodies.join("\n\n")
+
+    // Demote ALL existing anchors (DD-5)
+    for (const m of allMsgs) {
+      if (m.info.role !== "assistant") continue
+      if ((m.info as MessageV2.Assistant).summary !== true) continue
+      await Session.updateMessage({ ...(m.info as any), summary: false }).catch(() => undefined)
+    }
+
+    // Find model info for the anchor message
+    const lastUser = allMsgs.findLast((m) => m.info.role === "user")?.info as MessageV2.User | undefined
+    const anchorModel = model ?? { id: "unknown", providerId: "unknown" }
+
+    // Write new anchor
+    const parentID = allMsgs.at(-1)?.info.id
+    if (parentID) {
+      const summaryMsg = (await Session.updateMessage({
+        id: Identifier.ascending("message"),
+        role: "assistant",
+        parentID,
+        sessionID,
+        mode: "compaction",
+        agent: "compaction",
+        variant: lastUser?.variant,
+        summary: true,
+        path: {
+          cwd: Instance.directory,
+          root: Instance.worktree,
+        },
+        cost: 0,
+        tokens: {
+          output: 0,
+          input: 0,
+          reasoning: 0,
+          cache: { read: 0, write: 0 },
+        },
+        modelID: anchorModel.id,
+        providerId: anchorModel.providerId,
+        accountId: lastUser?.model?.accountId,
+        time: { created: Date.now() },
+      })) as MessageV2.Assistant
+
+      await Session.updatePart({
+        id: Identifier.ascending("part"),
+        messageID: summaryMsg.id,
+        sessionID,
+        type: "text",
+        text: anchorBody,
+        time: { start: Date.now(), end: Date.now() },
+      })
+
+      await Session.updatePart({
+        id: Identifier.ascending("part"),
+        messageID: summaryMsg.id,
+        sessionID,
+        type: "compaction",
+        auto: false,
+      })
+    }
+
+    // Chain reset
+    void publishCompactedAndResetChain(sessionID, {
+      observed: "reload",
+      kind: "text-only rebuild",
+    })
+
+    log.info("rebuildStreamFromText complete", {
+      sessionID,
+      roundsIncluded: roundNumber,
+      charsBudget: charBudget,
+      charsUsed: totalChars,
+    })
+
+    return {
+      roundsIncluded: roundNumber,
+      charsBudget: charBudget,
+      charsUsed: totalChars,
     }
   }
 
