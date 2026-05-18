@@ -11,6 +11,7 @@ import { CodexNativeAuthPlugin } from "./codex-auth"
 import { Session } from "../session"
 import { NamedError } from "@opencode-ai/util/error"
 import { CopilotAuthPlugin } from "./copilot"
+import { CopilotCLIPlugin } from "./copilot-cli"
 import GitlabAuthPlugin from "@gitlab/opencode-gitlab-auth"
 
 import { GeminiCLIOAuthPlugin } from "./gemini-cli"
@@ -25,6 +26,7 @@ export namespace Plugin {
     const internalPlugins: { name: string; plugin: PluginInstance }[] = [
       { name: "codex", plugin: CodexNativeAuthPlugin },
       { name: "copilot", plugin: CopilotAuthPlugin },
+      { name: "copilot-cli", plugin: CopilotCLIPlugin },
       { name: "gitlab", plugin: GitlabAuthPlugin },
       { name: "gemini-cli", plugin: GeminiCLIOAuthPlugin as PluginInstance },
       { name: "claude-cli", plugin: ClaudeNativeAuthPlugin },

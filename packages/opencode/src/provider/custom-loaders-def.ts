@@ -28,6 +28,17 @@ export const CUSTOM_LOADERS: Record<string, CustomLoader> = {
   // (codex-auth.ts and anthropic.ts respectively)
   "codex": async () => ({ autoload: true, options: {} }),
   "claude-cli": async () => ({ autoload: true, options: {} }),
+  // copilot-cli: self-contained plugin (DD-8/9). Uses own adapter, bypasses AI SDK provider.
+  "copilot-cli": async () => {
+    return {
+      autoload: false,
+      async getModel(_sdk: any, modelID: string, _options?: Record<string, any>) {
+        const { createCopilotCLIModel } = await import("@/plugin/copilot-cli/adapter")
+        return createCopilotCLIModel(modelID)
+      },
+      options: {},
+    }
+  },
   async opencode(input) {
     const hasKey = await (async () => {
       const env = Env.all()
