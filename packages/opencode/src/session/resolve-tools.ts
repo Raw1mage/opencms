@@ -1,5 +1,13 @@
 import z from "zod"
 import { type Tool as AITool, tool, jsonSchema, dynamicTool } from "ai"
+
+/**
+ * Side-channel registry for raw JSON schemas. In bun compiled binaries,
+ * AI SDK's Symbol-based Schema wrappers break during prepareToolsAndToolChoice,
+ * causing inputSchema to lose properties. Providers (e.g. copilot-cli) that
+ * build their own HTTP requests read from this Map to get the real schemas.
+ */
+export const rawToolSchemas = new Map<string, Record<string, unknown>>()
 import { Log } from "../util/log"
 import { debugCheckpoint } from "@/util/debug"
 import { ProviderTransform } from "../provider/transform"
@@ -240,7 +248,7 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
     seen.set(item.id, item.source)
     const schema = ProviderTransform.schema(input.model, z.toJSONSchema(item.parameters))
 
-    tools[item.id] = tool({
+    const toolDef = tool({
       id: item.id as `${string}.${string}`,
       description: item.description,
       inputSchema: jsonSchema(schema as Record<string, unknown>),
@@ -284,6 +292,11 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
         })
       },
     })
+    // Store raw JSON schema in a side-channel registry for providers that bypass AI SDK's
+    // prepareToolsAndToolChoice (e.g. copilot-cli adapter). In bun compiled binaries, Symbol-based
+    // Schema wrappers can break, causing inputSchema to lose its properties.
+    rawToolSchemas.set(item.id, schema as Record<string, unknown>)
+    tools[item.id] = toolDef
   }
 
   for (const [key, item] of Object.entries(await MCP.tools())) {

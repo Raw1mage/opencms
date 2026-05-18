@@ -208,25 +208,25 @@ function promptToMessages(prompt: LanguageModelV2CallOptions["prompt"]): any[] {
  *  In compiled binaries, Symbol identity can break causing asSchema() to produce empty schemas.
  *  We unwrap defensively: try .jsonSchema getter first, then fall back to raw object.
  */
+/** Lazily imported rawToolSchemas from resolve-tools.ts */
+let _rawSchemas: Map<string, Record<string, unknown>> | null = null
+async function getRawSchemas() {
+  if (!_rawSchemas) {
+    try {
+      const mod = await import("../../session/resolve-tools")
+      _rawSchemas = mod.rawToolSchemas
+    } catch {
+      _rawSchemas = new Map()
+    }
+  }
+  return _rawSchemas
+}
+
 function getToolSchema(t: any): any {
   const raw = t.inputSchema ?? t.parameters
   if (raw == null) return { type: "object", properties: {} }
 
-  // Debug: dump everything about this schema object
-  const debugInfo = {
-    typeof: typeof raw,
-    keys: typeof raw === "object" ? Object.keys(raw) : [],
-    hasJsonSchema: typeof raw === "object" && "jsonSchema" in raw,
-    jsonSchemaType: typeof raw === "object" && "jsonSchema" in raw ? typeof raw.jsonSchema : "N/A",
-    rawProps: typeof raw === "object" ? Object.keys(raw.properties ?? {}) : [],
-    stringify: JSON.stringify(raw)?.slice(0, 300),
-  }
-  Bun.write(
-    Bun.file("/tmp/copilot-cli-debug.log"),
-    Bun.file("/tmp/copilot-cli-debug.log").text().then(t => t + `[getToolSchema] ${t.name ?? "?"}: ${JSON.stringify(debugInfo)}\n`).catch(() => `[getToolSchema] ${t.name ?? "?"}: ${JSON.stringify(debugInfo)}\n`)
-  ).catch(() => {})
-
-  // If it's a Schema wrapper, unwrap via .jsonSchema
+  // Try unwrap Schema wrapper .jsonSchema getter
   if (typeof raw === "object" && "jsonSchema" in raw) {
     const unwrapped = typeof raw.jsonSchema === "function" ? raw.jsonSchema() : raw.jsonSchema
     if (unwrapped && typeof unwrapped === "object" && Object.keys(unwrapped.properties ?? {}).length > 0) {
@@ -234,6 +234,7 @@ function getToolSchema(t: any): any {
     }
   }
 
+  // Raw object with properties
   if (raw.properties && Object.keys(raw.properties).length > 0) {
     if (!raw.type) raw.type = "object"
     return raw
@@ -242,32 +243,52 @@ function getToolSchema(t: any): any {
   return { type: "object", properties: {} }
 }
 
+/** Get tool schema with side-channel fallback for bun compiled binary Symbol breakage */
+async function getToolSchemaWithFallback(t: any): Promise<any> {
+  const schema = getToolSchema(t)
+  if (Object.keys(schema.properties ?? {}).length > 0) return schema
+
+  // Fallback: read from rawToolSchemas side-channel (populated by resolve-tools.ts)
+  const registry = await getRawSchemas()
+  const raw = registry.get(t.name)
+  if (raw && typeof raw === "object" && Object.keys((raw as any).properties ?? {}).length > 0) {
+    if (!(raw as any).type) (raw as any).type = "object"
+    return raw
+  }
+
+  return schema
+}
+
 /** Chat Completions format: { type: "function", function: { name, description, parameters } } */
-function toolsToCompletions(tools: LanguageModelV2CallOptions["tools"]): any[] | undefined {
+async function toolsToCompletions(tools: LanguageModelV2CallOptions["tools"]): Promise<any[] | undefined> {
   if (!tools || tools.length === 0) return undefined
-  return tools
-    .filter((t: any) => t.type === "function")
-    .map((t: any) => ({
-      type: "function",
-      function: {
-        name: t.name,
-        description: t.description,
-        parameters: getToolSchema(t),
-      },
-    }))
+  return Promise.all(
+    tools
+      .filter((t: any) => t.type === "function")
+      .map(async (t: any) => ({
+        type: "function",
+        function: {
+          name: t.name,
+          description: t.description,
+          parameters: await getToolSchemaWithFallback(t),
+        },
+      }))
+  )
 }
 
 /** Responses API format: { type: "function", name, description, parameters } — flat, no nested function object */
-function toolsToResponses(tools: LanguageModelV2CallOptions["tools"]): any[] | undefined {
+async function toolsToResponses(tools: LanguageModelV2CallOptions["tools"]): Promise<any[] | undefined> {
   if (!tools || tools.length === 0) return undefined
-  return tools
-    .filter((t: any) => t.type === "function")
-    .map((t: any) => ({
-      type: "function",
-      name: t.name,
-      description: t.description,
-      parameters: getToolSchema(t),
-    }))
+  return Promise.all(
+    tools
+      .filter((t: any) => t.type === "function")
+      .map(async (t: any) => ({
+        type: "function",
+        name: t.name,
+        description: t.description,
+        parameters: await getToolSchemaWithFallback(t),
+      }))
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -287,7 +308,7 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
 
       if (useResponses) {
         const input = promptToResponsesInput(options.prompt)
-        const tools = toolsToResponses(options.tools)
+        const tools = await toolsToResponses(options.tools)
         let text = ""
         let inputTokens = 0
         let outputTokens = 0
@@ -322,7 +343,7 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
 
       // Chat Completions path
       const messages = promptToMessages(options.prompt)
-      const tools = toolsToCompletions(options.tools)
+      const tools = await toolsToCompletions(options.tools)
       const result = await callCompletions(
         { model: modelId, messages, tools, temperature: options.temperature ?? undefined, max_tokens: options.maxOutputTokens ?? undefined },
         { model: modelId },
@@ -346,31 +367,12 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
       const warnings: LanguageModelV2CallWarning[] = []
       const useResponses = shouldUseResponsesApi(modelId)
 
-      // Debug: log prompt and tool structure to file
-      {
-        const roles = options.prompt.map((m: any) => m.role)
-        const systemLen = options.prompt.filter((m: any) => m.role === "system").map((m: any) => {
-          const c = m.content
-          return typeof c === "string" ? c.length : Array.isArray(c) ? c.reduce((a: number, p: any) => a + (p.text?.length ?? 0), 0) : 0
-        })
-        const toolCount = options.tools?.length ?? 0
-        const firstTool = options.tools?.[0] as any
-        const toolDebug = firstTool ? JSON.stringify({
-          name: firstTool.name,
-          keys: Object.keys(firstTool),
-          hasParams: !!firstTool.parameters,
-          hasInputSchema: !!firstTool.inputSchema,
-          schemaType: (firstTool.parameters ?? firstTool.inputSchema)?.type,
-          schemaProps: Object.keys((firstTool.parameters ?? firstTool.inputSchema)?.properties ?? {}),
-        }) : "none"
-        const line = `[${new Date().toISOString()}] doStream: model=${modelId} roles=${roles.join(",")} systemLen=${systemLen} toolCount=${toolCount} firstTool=${toolDebug}\n`
-        Bun.write(Bun.file("/tmp/copilot-cli-debug.log"), (await Bun.file("/tmp/copilot-cli-debug.log").text().catch(() => "")) + line).catch(() => {})
-      }
+      // no-op (debug removed)
 
       if (useResponses) {
         // Responses API streaming
         const input = promptToResponsesInput(options.prompt)
-        const tools = toolsToResponses(options.tools)
+        const tools = await toolsToResponses(options.tools)
         const chunks = streamResponses(
           { model: modelId, input, tools, temperature: options.temperature ?? undefined, max_output_tokens: options.maxOutputTokens ?? undefined },
           { model: modelId },
@@ -379,7 +381,9 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
         const stream = new ReadableStream<LanguageModelV2StreamPart>({
           async start(controller) {
             let textId: string | null = null
-            const toolIds = new Map<string, string>() // call_id → our id
+            const toolIds = new Map<string, string>() // output_index → call_id
+            const toolNames = new Map<string, string>() // output_index → tool name
+            const toolArgs = new Map<string, string>() // output_index → accumulated args JSON
             let inputTokens = 0
             let outputTokens = 0
             let finishReason: LanguageModelV2FinishReason = "other"
@@ -400,19 +404,36 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
                     textId = null
                   }
                 } else if (chunk.type === "response.output_item.added" && chunk.item?.type === "function_call") {
-                  // Tool call start — use the real call_id so runloop can match tool results
                   if (textId) { controller.enqueue({ type: "text-end", id: textId }); textId = null }
-                  const id = chunk.item.call_id ?? nextId()
+                  const callId = chunk.item.call_id ?? nextId()
                   const outputIdx = String(chunk.output_index ?? "")
-                  toolIds.set(outputIdx, id)
-                  controller.enqueue({ type: "tool-input-start", id, toolName: chunk.item.name ?? "" })
+                  toolIds.set(outputIdx, callId)
+                  toolNames.set(outputIdx, chunk.item.name ?? "")
+                  toolArgs.set(outputIdx, "")
+                  controller.enqueue({ type: "tool-input-start", id: callId, toolName: chunk.item.name ?? "" })
                 } else if (chunk.type === "response.function_call_arguments.delta") {
-                  // Match by output_index (item_id is opaque, not same as call_id)
-                  const id = toolIds.get(String(chunk.output_index ?? ""))
-                  if (id) controller.enqueue({ type: "tool-input-delta", id, delta: chunk.delta ?? "" })
+                  const outputIdx = String(chunk.output_index ?? "")
+                  const callId = toolIds.get(outputIdx)
+                  if (callId) {
+                    controller.enqueue({ type: "tool-input-delta", id: callId, delta: chunk.delta ?? "" })
+                    toolArgs.set(outputIdx, (toolArgs.get(outputIdx) ?? "") + (chunk.delta ?? ""))
+                  }
                 } else if (chunk.type === "response.function_call_arguments.done") {
-                  const id = toolIds.get(String(chunk.output_index ?? ""))
-                  if (id) controller.enqueue({ type: "tool-input-end", id })
+                  const outputIdx = String(chunk.output_index ?? "")
+                  const callId = toolIds.get(outputIdx)
+                  if (callId) {
+                    // Use the full arguments from .done event (more reliable than accumulated deltas)
+                    const fullArgs = chunk.arguments ?? toolArgs.get(outputIdx) ?? "{}"
+                    controller.enqueue({ type: "tool-input-end", id: callId })
+                    // Emit tool-call event — AI SDK needs this to trigger tool execution
+                    controller.enqueue({
+                      type: "tool-call",
+                      toolCallType: "function",
+                      toolCallId: callId,
+                      toolName: toolNames.get(outputIdx) ?? "",
+                      input: fullArgs,
+                    } as any)
+                  }
                 } else if (chunk.type === "response.completed") {
                   const resp = chunk.response
                   inputTokens = resp?.usage?.input_tokens ?? 0
@@ -444,7 +465,7 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
 
       // Chat Completions streaming
       const messages = promptToMessages(options.prompt)
-      const tools = toolsToCompletions(options.tools)
+      const tools = await toolsToCompletions(options.tools)
       const chunks = streamCompletions(
         { model: modelId, messages, tools, temperature: options.temperature ?? undefined, max_tokens: options.maxOutputTokens ?? undefined },
         { model: modelId },
@@ -454,6 +475,8 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
         async start(controller) {
           let textId: string | null = null
           const toolCallIds = new Map<number, string>()
+          const toolCallNames = new Map<number, string>()
+          const toolCallArgsAcc = new Map<number, string>()
           let promptTokens = 0
           let completionTokens = 0
           let finishReason: LanguageModelV2FinishReason = "other"
@@ -476,13 +499,16 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
                   const idx = tc.index
                   if (tc.id && !toolCallIds.has(idx)) {
                     if (textId) { controller.enqueue({ type: "text-end", id: textId }); textId = null }
-                    const id = tc.id  // Use real tool_call_id so runloop can match results
+                    const id = tc.id
                     toolCallIds.set(idx, id)
+                    toolCallNames.set(idx, tc.function?.name ?? "")
+                    toolCallArgsAcc.set(idx, "")
                     controller.enqueue({ type: "tool-input-start", id, toolName: tc.function?.name ?? "" })
                   }
                   if (tc.function?.arguments) {
                     const id = toolCallIds.get(idx)!
                     controller.enqueue({ type: "tool-input-delta", id, delta: tc.function.arguments })
+                    toolCallArgsAcc.set(idx, (toolCallArgsAcc.get(idx) ?? "") + tc.function.arguments)
                   }
                 }
               }
@@ -492,7 +518,17 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
             }
 
             if (textId) controller.enqueue({ type: "text-end", id: textId })
-            for (const [, id] of toolCallIds) controller.enqueue({ type: "tool-input-end", id })
+            for (const [idx, id] of toolCallIds) {
+              controller.enqueue({ type: "tool-input-end", id })
+              // Emit tool-call event — AI SDK needs this to trigger tool execution
+              controller.enqueue({
+                type: "tool-call",
+                toolCallType: "function",
+                toolCallId: id,
+                toolName: toolCallNames.get(idx) ?? "",
+                input: toolCallArgsAcc.get(idx) ?? "{}",
+              } as any)
+            }
 
             controller.enqueue({
               type: "finish",
