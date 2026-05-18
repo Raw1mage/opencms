@@ -1459,6 +1459,9 @@ export namespace Provider {
     if (database["github-copilot"]) {
       mergeProvider("github-copilot", { source: "custom" })
     }
+    if (database["copilot-cli"]) {
+      mergeProvider("copilot-cli", { source: "custom" })
+    }
     if (database["github-copilot-enterprise"]) {
       mergeProvider("github-copilot-enterprise", { source: "custom" })
     }

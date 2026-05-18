@@ -52,6 +52,7 @@ const CHAIN_SEMANTICS: Record<SupportedProviderKey, ProviderChainClass> = {
   // format choice, not a runtime mode toggle (DD-6). Chain identity is
   // still previous_response_id when present.
   "github-copilot": "SS",
+  "copilot-cli": "SS",
 
   // Anthropic — stateless Messages API. Every request carries full
   // context; no chain id exists.

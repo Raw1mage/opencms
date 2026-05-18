@@ -54,7 +54,7 @@ export namespace ProviderError {
   }
 
   function error(providerId: string, error: APICallError) {
-    if (providerId.includes("github-copilot") && error.statusCode === 403) {
+    if ((providerId.includes("github-copilot") || providerId === "copilot-cli") && error.statusCode === 403) {
       return "Please reauthenticate with the copilot provider to ensure your credentials work properly with OpenCode."
     }
 

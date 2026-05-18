@@ -88,7 +88,7 @@ async function selectSubscriptionModel(
   const { cfg, list, sort, onSubscriptionSelected } = deps
   const { getHealthTracker, getRateLimitTracker } = await import("@/account/rotation")
 
-  const subscriptionPriority = ["opencode", "claude-cli", "openai", "google-api", "github-copilot"]
+  const subscriptionPriority = ["opencode", "claude-cli", "openai", "google-api", "github-copilot", "copilot-cli"]
 
   const healthTracker = getHealthTracker()
   const rateLimitTracker = getRateLimitTracker()

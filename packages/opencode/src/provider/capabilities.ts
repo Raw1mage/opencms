@@ -128,8 +128,8 @@ export function getCapabilities(provider: Provider.Info, auth?: Auth.Info): Prov
     }
   }
 
-  // GitHub Copilot
-  if (id.includes("github-copilot")) {
+  // GitHub Copilot + Copilot CLI
+  if (id.includes("github-copilot") || id === "copilot-cli") {
     return {
       ...DEFAULT_CAPABILITIES,
       skipMaxOutputTokens: true,
