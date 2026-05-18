@@ -209,9 +209,22 @@ function promptToMessages(prompt: LanguageModelV2CallOptions["prompt"]): any[] {
  *  We unwrap defensively: try .jsonSchema getter first, then fall back to raw object.
  */
 function getToolSchema(t: any): any {
-  // Try the jsonSchema getter (Schema wrapper object from AI SDK)
   const raw = t.inputSchema ?? t.parameters
   if (raw == null) return { type: "object", properties: {} }
+
+  // Debug: dump everything about this schema object
+  const debugInfo = {
+    typeof: typeof raw,
+    keys: typeof raw === "object" ? Object.keys(raw) : [],
+    hasJsonSchema: typeof raw === "object" && "jsonSchema" in raw,
+    jsonSchemaType: typeof raw === "object" && "jsonSchema" in raw ? typeof raw.jsonSchema : "N/A",
+    rawProps: typeof raw === "object" ? Object.keys(raw.properties ?? {}) : [],
+    stringify: JSON.stringify(raw)?.slice(0, 300),
+  }
+  Bun.write(
+    Bun.file("/tmp/copilot-cli-debug.log"),
+    Bun.file("/tmp/copilot-cli-debug.log").text().then(t => t + `[getToolSchema] ${t.name ?? "?"}: ${JSON.stringify(debugInfo)}\n`).catch(() => `[getToolSchema] ${t.name ?? "?"}: ${JSON.stringify(debugInfo)}\n`)
+  ).catch(() => {})
 
   // If it's a Schema wrapper, unwrap via .jsonSchema
   if (typeof raw === "object" && "jsonSchema" in raw) {
@@ -221,13 +234,11 @@ function getToolSchema(t: any): any {
     }
   }
 
-  // If raw already has properties, use it directly
   if (raw.properties && Object.keys(raw.properties).length > 0) {
     if (!raw.type) raw.type = "object"
     return raw
   }
 
-  // Last resort: empty schema
   return { type: "object", properties: {} }
 }
 
