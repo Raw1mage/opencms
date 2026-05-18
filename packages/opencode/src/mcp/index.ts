@@ -190,7 +190,7 @@ export namespace MCP {
   // Convert MCP tool definition to AI SDK Tool type
   async function convertMcpTool(
     mcpTool: MCPToolDef,
-    client: MCPClient,
+    _client: MCPClient,
     timeout?: number,
     serverName?: string,
   ): Promise<Tool> {
@@ -214,11 +214,24 @@ export namespace MCP {
     relaxTokenFieldsForDispatcher(schema)
 
     const appId = serverName ? appIdFromServerName(serverName) : "unknown"
+    // Capture server name so execute() can resolve the live client at
+    // call time instead of closing over a potentially stale reference.
+    const clientKey = serverName ?? ""
 
     return dynamicTool({
       description: mcpTool.description ?? "",
       inputSchema: jsonSchema(schema),
       execute: async (args: unknown) => {
+        log.info("mcp tool execute: entered", { tool: mcpTool.name, clientKey })
+        // Resolve the LIVE client from state — never use a captured reference
+        // which may have been closed and replaced by a reconnect.
+        const s = await state()
+        const liveClient = s.clients[clientKey]
+        if (!liveClient) {
+          throw new Error(`MCP client "${clientKey}" is not connected (was it disconnected or replaced?)`)
+        }
+        log.info("mcp tool execute: client resolved", { tool: mcpTool.name, clientKey })
+
         const argsObj = (args || {}) as Record<string, unknown>
         // sessionID is not available through the AI SDK dynamicTool seam.
         // History entries written by the dispatcher carry null sessionId
@@ -238,9 +251,6 @@ export namespace MCP {
 
         let rawResult: unknown
         if (dispatch?.ctx.skipMcpCall) {
-          // DD-17 cache hit: synthesize a result indicating the bundle is
-          // already published. The shape mirrors a normal mcp tools/call
-          // CallToolResultSchema response.
           rawResult = {
             content: [
               {
@@ -256,7 +266,8 @@ export namespace MCP {
             },
           }
         } else {
-          rawResult = await client.callTool(
+          log.info("mcp tool execute: calling callTool", { tool: mcpTool.name, clientKey })
+          rawResult = await liveClient.callTool(
             {
               name: mcpTool.name,
               arguments: dispatch ? dispatch.rewrittenArgs : argsObj,
@@ -267,6 +278,7 @@ export namespace MCP {
               timeout,
             },
           )
+          log.info("mcp tool execute: callTool returned", { tool: mcpTool.name, clientKey })
         }
 
         if (!dispatch) return rawResult
@@ -355,8 +367,13 @@ export namespace MCP {
     // NOTE: Google OAuth token startup sweep removed (mcp-separation).
     // Gmail/Calendar now run as standalone servers; token injected via env.
 
-    // Phase 2: Auto-connect enabled servers in background (progressive)
+    // Phase 2: Auto-connect enabled servers in background (progressive).
+    // Mark as "connecting" immediately so on-demand connect (from
+    // applyOnDemandMcpPolicy / tools()) doesn't race and spawn a duplicate.
     if (pendingAutoConnect.length > 0) {
+      for (const { key } of pendingAutoConnect) {
+        status[key] = { status: "connecting" as any }
+      }
       Promise.resolve().then(async () => {
         for (const { key, mcp } of pendingAutoConnect) {
           try {
@@ -496,7 +513,27 @@ export namespace MCP {
     }
   }
 
+  // Global dedup: prevents multiple Instance workspaces from spawning
+  // duplicate stdio MCP servers for the same config key.  The first
+  // Instance that calls create() wins; subsequent callers get the same
+  // client.  HTTP/remote MCP entries are excluded (they don't spawn).
+  const createInFlight = new Map<string, Promise<{ mcpClient: MCPClient | undefined; status: Status } | undefined>>()
+
   async function create(key: string, mcp: Config.Mcp) {
+    if (mcp.type === "local") {
+      const existing = createInFlight.get(key)
+      if (existing) {
+        log.info("create: joining in-flight create", { key })
+        return existing
+      }
+      const promise = createInner(key, mcp).finally(() => createInFlight.delete(key))
+      createInFlight.set(key, promise)
+      return promise
+    }
+    return createInner(key, mcp)
+  }
+
+  async function createInner(key: string, mcp: Config.Mcp) {
     if (mcp.enabled === false) {
       log.info("mcp server disabled", { key })
       return {
@@ -900,7 +937,32 @@ export namespace MCP {
     return out
   }
 
+  // In-flight connect guards: prevents two concurrent connect() calls for the
+  // same server from spawning duplicate child processes.  The first caller
+  // wins; the second awaits the same promise.
+  const connectInFlight = new Map<string, Promise<void>>()
+
   export async function connect(name: string) {
+    const existing = connectInFlight.get(name)
+    if (existing) {
+      log.info("connect: already in-flight, joining existing", { name })
+      return existing
+    }
+
+    const doConnect = async () => {
+      try {
+        await connectInner(name)
+      } finally {
+        connectInFlight.delete(name)
+      }
+    }
+
+    const promise = doConnect()
+    connectInFlight.set(name, promise)
+    return promise
+  }
+
+  async function connectInner(name: string) {
     const cfg = await Config.get()
     const config = cfg.mcp ?? {}
     const mcp = config[name]
@@ -911,6 +973,15 @@ export namespace MCP {
 
     if (!isMcpConfigured(mcp)) {
       log.error("Ignoring MCP connect request for config without type", { name })
+      return
+    }
+
+    // Skip if already connected or connecting — avoids spawning a duplicate
+    // server when auto-connect and on-demand connect race during daemon startup.
+    const s0 = await state()
+    const currentStatus = s0.status[name]?.status
+    if ((currentStatus === "connected" && s0.clients[name]) || currentStatus === "connecting") {
+      log.info("connect: already connected/connecting, skipping", { name, status: currentStatus })
       return
     }
 

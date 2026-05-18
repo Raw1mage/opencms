@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="958" viewBox="0 0 1100 958">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#111827"/></marker></defs>
+<rect width="100%" height="100%" fill="white"/>
+<text x="550" y="34" text-anchor="middle" font-size="22" font-weight="700" font-family="serif">GRAFCET Chapter 01 — Entry Points &amp; Process Bootstrap</text>
+<rect x="120" y="70" width="860" height="64" rx="8" fill="#eef2ff" stroke="#111827" stroke-width="1.5"/>
+<text x="150" y="95" font-size="15" font-weight="700" font-family="serif">S0 · A1.0 · initial</text>
+<text x="150" y="119" font-size="13" font-family="serif">process not yet started; OS-level invocation pending</text>
+<line x1="550" y1="134" x2="550" y2="162" stroke="#111827" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="120" y="162" width="860" height="64" rx="8" fill="#f8fafc" stroke="#111827" stroke-width="1.5"/>
+<text x="150" y="187" font-size="15" font-weight="700" font-family="serif">S1 · A1.1 · normal</text>
+<text x="150" y="211" font-size="13" font-family="serif">Parse argv and merge with config.toml + env overrides</text>
+<line x1="550" y1="226" x2="550" y2="254" stroke="#111827" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="120" y="254" width="860" height="64" rx="8" fill="#f8fafc" stroke="#111827" stroke-width="1.5"/>
+<text x="150" y="279" font-size="15" font-weight="700" font-family="serif">S2 · A1.2 · normal</text>
+<text x="150" y="303" font-size="13" font-family="serif">Resolve auth: read $CODEX_HOME/auth.json or env API key; refresh OAuth if expired</text>
+<line x1="550" y1="318" x2="550" y2="346" stroke="#111827" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="120" y="346" width="860" height="64" rx="8" fill="#f8fafc" stroke="#111827" stroke-width="1.5"/>
+<text x="150" y="371" font-size="15" font-weight="700" font-family="serif">S3 · A1.3 · normal</text>
+<text x="150" y="395" font-size="13" font-family="serif">Resolve installation_id (read-or-create UUID at $CODEX_HOME/installation_id)</text>
+<line x1="550" y1="410" x2="550" y2="438" stroke="#111827" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="120" y="438" width="860" height="64" rx="8" fill="#f8fafc" stroke="#111827" stroke-width="1.5"/>
+<text x="150" y="463" font-size="15" font-weight="700" font-family="serif">S4 · A1.4 · normal</text>
+<text x="150" y="487" font-size="13" font-family="serif">Construct ModelClient with Config + Auth + installation_id; populate state struct</text>
+<line x1="550" y1="502" x2="550" y2="530" stroke="#111827" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="120" y="530" width="860" height="64" rx="8" fill="#f8fafc" stroke="#111827" stroke-width="1.5"/>
+<text x="150" y="555" font-size="15" font-weight="700" font-family="serif">S5 · A1.5 · normal</text>
+<text x="150" y="579" font-size="13" font-family="serif">Construct Session (Session::new); assign session_id / thread_id; initialise Turn state</text>
+<line x1="550" y1="594" x2="550" y2="622" stroke="#111827" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="120" y="622" width="860" height="64" rx="8" fill="#f8fafc" stroke="#111827" stroke-width="1.5"/>
+<text x="150" y="647" font-size="15" font-weight="700" font-family="serif">S6 · A1.6 · normal</text>
+<text x="150" y="671" font-size="13" font-family="serif">Enter per-binary main loop (TUI render / exec one-shot / app-server accept / mcp-server RPC)</text>
+<line x1="550" y1="686" x2="550" y2="714" stroke="#111827" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="120" y="714" width="860" height="64" rx="8" fill="#fef3c7" stroke="#111827" stroke-width="1.5"/>
+<text x="150" y="739" font-size="15" font-weight="700" font-family="serif">S7 · A1.6 · final</text>
+<text x="150" y="763" font-size="13" font-family="serif">Process ready; control passes to Chapter 03 (Session &amp; Turn Lifecycle) for first turn dispatch</text>
+<line x1="550" y1="778" x2="550" y2="806" stroke="#111827" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="120" y="806" width="860" height="64" rx="8" fill="#fef3c7" stroke="#111827" stroke-width="1.5"/>
+<text x="150" y="831" font-size="15" font-weight="700" font-family="serif">S9 · A1.0 · final</text>
+<text x="150" y="855" font-size="13" font-family="serif">Bootstrap error: propagate, exit non-zero; no silent fallback</text>
+</svg>

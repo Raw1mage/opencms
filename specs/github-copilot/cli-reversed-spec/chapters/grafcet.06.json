@@ -1,0 +1,122 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A0",
+    "StepType": "initial",
+    "StepAction": "Idle — orchestrator awaiting triggering event",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [9],
+    "LinkOutputNumber": [1, 5],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["event_received"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A0",
+    "StepType": "normal",
+    "StepAction": "Receive user.message — AND-fork main processing and sidekick trigger",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2, 3],
+    "LinkOutputType": "divergence_and",
+    "Condition": ["event_type == user.message"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Sidekick Launch — spawn background agents (github-context, subconscious) asynchronously",
+    "LinkInputType": ["divergence_and"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["sidekick_enabled"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Main Agent — select and configure agent for primary request processing",
+    "LinkInputType": ["divergence_and"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["agent_selected"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A7",
+    "StepType": "normal",
+    "StepAction": "Join — AND-convergence, collect results from main agent and all sidekicks",
+    "LinkInputType": ["convergence_and"],
+    "LinkInputNumber": [2, 3],
+    "LinkOutputNumber": [9],
+    "LinkOutputType": "track",
+    "Condition": ["all_branches_complete"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A6",
+    "StepType": "normal",
+    "StepAction": "Fleet Start — spawn parallel agent pool for batch/multi-file operations",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["event_type == fleet.start"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A6",
+    "StepType": "normal",
+    "StepAction": "Parallel Agents — each fleet member executing independently on assigned partition",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [7],
+    "LinkOutputType": "track",
+    "Condition": ["fleet_agents_launched"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A7",
+    "StepType": "normal",
+    "StepAction": "Fleet Collect — gather results from all fleet members, merge outputs",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [6],
+    "LinkOutputNumber": [9],
+    "LinkOutputType": "track",
+    "Condition": ["all_fleet_members_done"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 8,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Configure Agent — apply persona, tools subset, context window for selected agent",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [3],
+    "LinkOutputType": "track",
+    "Condition": ["configuration_needed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 9,
+    "ModuleRef": "A7",
+    "StepType": "normal",
+    "StepAction": "Deliver Results — emit collected outputs to session, return to Idle",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [4, 7],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["results_delivered"],
+    "SubGrafcet": []
+  }
+]

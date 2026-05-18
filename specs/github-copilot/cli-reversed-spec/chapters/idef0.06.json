@@ -1,0 +1,172 @@
+{
+  "diagram_title": "Orchestrate Sub-agents and Sidekicks",
+  "node_reference": "A0",
+  "purpose": "Load, select, configure, and execute sub-agents and sidekicks — from YAML definitions through triggered background execution and fleet coordination, delivering results back to the main session",
+  "source_repo": "@github/copilot@1.0.48",
+  "source_files": ["app.js (bundled)", "schemas/api.schema.json"],
+  "activities": [
+    {
+      "id": "A1",
+      "name": "Load Agent Definitions",
+      "description": "Parse definitions/*.agent.yaml files including code-review, explore, research, rubber-duck, task, rem-agent; extract tools, model, system prompt, and description fields"
+    },
+    {
+      "id": "A2",
+      "name": "Load Sidekick Definitions",
+      "description": "Parse definitions/sidekick/*.yaml (github-context, subconscious); configure triggers (e.g., user.message event), launch conditions, and background execution parameters"
+    },
+    {
+      "id": "A3",
+      "name": "Select Agent for Request",
+      "description": "Match user intent to agent via description/inference or explicit /agent select command; resolve to specific agent definition for session creation"
+    },
+    {
+      "id": "A4",
+      "name": "Configure Agent Session",
+      "description": "Apply agent-specific tools restriction, model override, system prompt injection, MCP server bindings; create isolated sub-session with parent context"
+    },
+    {
+      "id": "A5",
+      "name": "Execute Sidekick on Trigger",
+      "description": "On user.message event, launch sidekick agents (github-context, subconscious) in background; cancel running sidekicks on new turn to prevent stale context"
+    },
+    {
+      "id": "A6",
+      "name": "Coordinate Fleet Mode",
+      "description": "When session.fleet.start() called, orchestrate parallel agent execution across multiple sub-sessions with shared workspace access"
+    },
+    {
+      "id": "A7",
+      "name": "Collect Sub-agent Results",
+      "description": "Gather subagent.completed/subagent.failed events from sub-sessions; relay results to main session via send_inbox tool; merge findings into parent context"
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "Agent YAML definitions (definitions/*.agent.yaml)",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A2:input",
+      "label": "Sidekick YAML definitions (definitions/sidekick/*.yaml)",
+      "type": "input"
+    },
+    {
+      "id": "AR3",
+      "source": "EXTERNAL",
+      "target": "A3:control",
+      "label": "Feature flag: copilot_cli_multi_turn_agents",
+      "type": "control"
+    },
+    {
+      "id": "AR4",
+      "source": "EXTERNAL",
+      "target": "A5:control",
+      "label": "Feature flag: copilot_cli_session_based_subagents",
+      "type": "control"
+    },
+    {
+      "id": "AR5",
+      "source": "EXTERNAL",
+      "target": "A3:input",
+      "label": "User intent or /agent select command",
+      "type": "input"
+    },
+    {
+      "id": "AR6",
+      "source": "A1",
+      "target": "A3:mechanism",
+      "label": "Loaded agent registry (name → definition map)",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR7",
+      "source": "A3",
+      "target": "A4:input",
+      "label": "Selected agent definition",
+      "type": "input"
+    },
+    {
+      "id": "AR8",
+      "source": "EXTERNAL",
+      "target": "A4:mechanism",
+      "label": "Model router (resolves agent model override)",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR9",
+      "source": "EXTERNAL",
+      "target": "A4:mechanism",
+      "label": "Tool system (provides restricted tool set for agent)",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR10",
+      "source": "A4",
+      "target": "A5:mechanism",
+      "label": "Configured sub-session (ready to execute)",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR11",
+      "source": "EXTERNAL",
+      "target": "A5:input",
+      "label": "user.message event (sidekick trigger)",
+      "type": "input"
+    },
+    {
+      "id": "AR12",
+      "source": "A2",
+      "target": "A5:control",
+      "label": "Sidekick trigger conditions and launch config",
+      "type": "control"
+    },
+    {
+      "id": "AR13",
+      "source": "EXTERNAL",
+      "target": "A6:input",
+      "label": "session.fleet.start() invocation",
+      "type": "input"
+    },
+    {
+      "id": "AR14",
+      "source": "A4",
+      "target": "A6:mechanism",
+      "label": "Multiple configured sub-sessions for parallel execution",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR15",
+      "source": "A5",
+      "target": "A7:input",
+      "label": "Sidekick completion/failure events",
+      "type": "input"
+    },
+    {
+      "id": "AR16",
+      "source": "A6",
+      "target": "A7:input",
+      "label": "Fleet agent completion/failure events",
+      "type": "input"
+    },
+    {
+      "id": "AR17",
+      "source": "A7",
+      "target": "EXTERNAL:output",
+      "label": "Sub-agent results relayed via send_inbox tool to main session",
+      "type": "output"
+    },
+    {
+      "id": "AR18",
+      "source": "A7",
+      "target": "EXTERNAL:output",
+      "label": "subagent.completed / subagent.failed events to SDK client",
+      "type": "output"
+    }
+  ]
+}

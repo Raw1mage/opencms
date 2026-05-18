@@ -1,0 +1,98 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "No credentials resolved — detect credential source from priority chain",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1, 2, 3],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["explicit gitHubToken provided", "env var detected (COPILOT_GITHUB_TOKEN/GH_TOKEN/GITHUB_TOKEN)", "BYOK provider config provided"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Embed gitHubToken in connect() RPC handshake — useLoggedInUser=false for explicit tokens",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["connect() succeeds with token"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "CLI reads env var and uses as GitHub token — useLoggedInUser=true (default)",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["env token accepted by CLI"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Configure BYOK — pass ProviderConfig (type, baseUrl, apiKey, modelId) in session creation",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["BYOK config accepted → skip GitHub token exchange"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "CLI exchanges GitHub token for Copilot API token — internal endpoint, transparent to SDK",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [1, 2],
+    "LinkOutputNumber": [5, 7],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["API token issued (subscription valid)", "subscription invalid / token expired"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A6",
+    "StepType": "normal",
+    "StepAction": "Authenticated — Copilot API token cached; model access granted",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["proceed to session ready state"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Active session — auto-refresh on token expiry during turns (transparent)",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [3, 5],
+    "LinkOutputNumber": [],
+    "LinkOutputType": "track",
+    "Condition": [],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A6",
+    "StepType": "normal",
+    "StepAction": "Auth failure — subscription invalid or token cannot be exchanged; session rejected",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["error surfaced to SDK → return to unauthenticated"],
+    "SubGrafcet": []
+  }
+]

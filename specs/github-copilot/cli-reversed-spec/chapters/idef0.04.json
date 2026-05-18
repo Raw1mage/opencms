@@ -1,0 +1,139 @@
+{
+  "diagram_title": "Manage Built-in and External Tools",
+  "node_reference": "A0",
+  "purpose": "Register, discover, gate, and dispatch all tool executions — from built-in file/shell tools through MCP servers and skill-based extensions, producing structured ToolResult objects",
+  "source_repo": "@github/copilot@1.0.48",
+  "source_files": ["app.js (bundled)", "schemas/api.schema.json"],
+  "activities": [
+    {
+      "id": "A1",
+      "name": "Register Built-in Tools",
+      "description": "Load grep, glob, view, edit, bash, shell, rm, mkdir, mv, cp, ls, pwd, cat, tail, head, find, understand_codebase, ask_user tools with their JSON schemas and handler functions"
+    },
+    {
+      "id": "A2",
+      "name": "Discover MCP Servers",
+      "description": "Load MCP server definitions from .mcp.json, .vscode/mcp.json, ~/.copilot/mcp-config.json; support stdio and HTTP transports; establish connections and enumerate available tools"
+    },
+    {
+      "id": "A3",
+      "name": "Load Skills",
+      "description": "Discover skill definitions from ~/.copilot/skills/ and builtin-skills/ directory; feature-flagged via copilot_cli_skills_instructions; register skill tools into unified tool registry"
+    },
+    {
+      "id": "A4",
+      "name": "Gate Tool Execution Through Permissions",
+      "description": "Apply permission types: shell, write, mcp, read, url, custom-tool, memory, hook, extension-management, extension-permission-access, commands; prompt user or auto-allow based on policy"
+    },
+    {
+      "id": "A5",
+      "name": "Dispatch Tool Call to Handler",
+      "description": "Route to built-in handler, MCP server, or external SDK handler based on tool origin; pass arguments, handle timeouts and cancellation"
+    },
+    {
+      "id": "A6",
+      "name": "Collect and Format Tool Results",
+      "description": "Gather textResultForLlm + optional binaryResultsForLlm; classify resultType (success/failure/rejected/denied/timeout); format for model consumption"
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "Built-in tool definitions (schemas + handlers)",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A2:input",
+      "label": "MCP config files (.mcp.json, .vscode/mcp.json, ~/.copilot/mcp-config.json)",
+      "type": "input"
+    },
+    {
+      "id": "AR3",
+      "source": "EXTERNAL",
+      "target": "A3:input",
+      "label": "Skill directory contents (~/.copilot/skills/, builtin-skills/)",
+      "type": "input"
+    },
+    {
+      "id": "AR4",
+      "source": "EXTERNAL",
+      "target": "A3:control",
+      "label": "Feature flag: copilot_cli_skills_instructions",
+      "type": "control"
+    },
+    {
+      "id": "AR5",
+      "source": "EXTERNAL",
+      "target": "A4:control",
+      "label": "Permission policy (allow/deny/ask per permission type)",
+      "type": "control"
+    },
+    {
+      "id": "AR6",
+      "source": "EXTERNAL",
+      "target": "A4:control",
+      "label": "Content exclusion patterns (.copilotignore, .gitignore)",
+      "type": "control"
+    },
+    {
+      "id": "AR7",
+      "source": "A1",
+      "target": "A5:mechanism",
+      "label": "Built-in tool handler registry",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR8",
+      "source": "A2",
+      "target": "A5:mechanism",
+      "label": "Connected MCP server instances",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR9",
+      "source": "A3",
+      "target": "A5:mechanism",
+      "label": "Skill-based tool handlers",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR10",
+      "source": "EXTERNAL",
+      "target": "A5:input",
+      "label": "Tool call request (name + arguments from model)",
+      "type": "input"
+    },
+    {
+      "id": "AR11",
+      "source": "A5",
+      "target": "A4:input",
+      "label": "Permission check request (tool + operation type)",
+      "type": "input"
+    },
+    {
+      "id": "AR12",
+      "source": "A4",
+      "target": "A5:control",
+      "label": "Permission verdict (allowed/denied/rejected)",
+      "type": "control"
+    },
+    {
+      "id": "AR13",
+      "source": "A5",
+      "target": "A6:input",
+      "label": "Raw tool execution result + metadata",
+      "type": "input"
+    },
+    {
+      "id": "AR14",
+      "source": "A6",
+      "target": "EXTERNAL:output",
+      "label": "Formatted ToolResult (textResultForLlm + binaryResultsForLlm + resultType)",
+      "type": "output"
+    }
+  ]
+}

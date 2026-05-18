@@ -1,0 +1,98 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "Idle — no pending tool calls",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["external_tool.requested event OR tool-call RPC received from CLI"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Fire onPreToolUse hook — may modify args, inject context, or pre-decide permission",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2, 6],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["hook did not deny (proceed to permission)", "hook returned deny decision (short-circuit)"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Call permissionHandler — evaluate tool against policy (approve-once/always, deny-once/always, ask)",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3, 6],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["permission approved", "permission denied"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Resolve handler — lookup toolHandlers map by name; check overridesBuiltInTool; skipPermission flag",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4, 7],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["custom handler found", "no handler (fall through to CLI built-in)"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Execute custom tool handler(args, invocation) — awaits ToolResult or ToolResultObject",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["handler returned result (success/failure/timeout)"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A6",
+    "StepType": "normal",
+    "StepAction": "Fire onPostToolUse hook — may modify result, inject additionalContext",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [4, 7],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["hook complete → send result"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A7",
+    "StepType": "normal",
+    "StepAction": "Return ToolCallResponsePayload to CLI — textResultForLlm + resultType + optional binary",
+    "LinkInputType": ["track", "divergence_or"],
+    "LinkInputNumber": [5, 1, 2],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["response sent → return to idle"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "CLI built-in tool execution — handled server-side; result returned as event",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["CLI returns tool result"],
+    "SubGrafcet": []
+  }
+]

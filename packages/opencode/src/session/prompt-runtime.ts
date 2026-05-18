@@ -93,6 +93,16 @@ export function isRuntimeRegistered(sessionID: string): boolean {
 }
 
 /**
+ * Return all session IDs that currently have a registered runtime.
+ * Used by abort-all to supplement SessionStatus.list() — the runtime
+ * registry is the authoritative source for "a runloop is alive", while
+ * SessionStatus can have transient gaps between loop iterations.
+ */
+export function listActiveSessionIDs(): string[] {
+  return Object.keys(state())
+}
+
+/**
  * Cross-module hook so the runtime can ask "does this session have an
  * active subagent right now?" without importing tool/task.ts directly
  * (which would create a session ↔ tool/task module cycle).

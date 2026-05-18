@@ -1,0 +1,122 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A0",
+    "StepType": "initial",
+    "StepAction": "Unauthenticated — no valid token in memory or cache",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [9],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["start OR session_end OR token_revoked"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A6",
+    "StepType": "normal",
+    "StepAction": "Detect auth source — check GITHUB_TOKEN env, HMAC header, gh-cli credential store",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2, 5],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["auth_request_received"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Initiate Device Flow — POST /login/device/code, display user_code to user",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3],
+    "LinkOutputType": "track",
+    "Condition": ["source == device_flow"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Poll for device authorization — POST /login/oauth/access_token at interval",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4, 3],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["device_code_issued"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Device Flow success — access_token received from poll response",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["poll_response == access_token_granted"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A6",
+    "StepType": "normal",
+    "StepAction": "Direct credential extraction — read token from env/HMAC/gh-cli without interactive flow",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["source == env OR source == hmac OR source == gh_cli"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Fetch user profile — GET /user with token, validate copilot entitlement",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [4, 5],
+    "LinkOutputNumber": [7],
+    "LinkOutputType": "track",
+    "Condition": ["raw_token_available"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Exchange token — POST /copilot_internal/v2/token to get scoped Copilot token",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [6],
+    "LinkOutputNumber": [8],
+    "LinkOutputType": "track",
+    "Condition": ["user_profile_valid AND copilot_enabled"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 8,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Authenticated — scoped token cached in memory with expiry timestamp",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [7],
+    "LinkOutputNumber": [9, 0],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["token_exchange_success"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 9,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Refresh token — re-exchange using stored GitHub token when Copilot token expires",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [8],
+    "LinkOutputNumber": [8],
+    "LinkOutputType": "track",
+    "Condition": ["token_expired AND github_token_valid"],
+    "SubGrafcet": []
+  }
+]

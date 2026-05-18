@@ -1928,7 +1928,7 @@ export namespace Provider {
 
     // Merge inline CUSTOM_LOADERS with imported ones (imported takes precedence)
     const mergedCustomLoaders = { ...CUSTOM_LOADERS, ...IMPORTED_CUSTOM_LOADERS }
-    try { require("fs").appendFileSync("/tmp/copilot-cli-debug.log", `[${new Date().toISOString()}] loader-loop: loaderKeys=${Object.keys(mergedCustomLoaders).join(",")} dbKeys=${Object.keys(database).filter(k => k.includes("copilot")).join(",") || "NONE"} disabledKeys=${[...disabled].join(",") || "NONE"}\n`) } catch {}
+    try { const fs = await import("fs"); fs.appendFileSync("/tmp/copilot-cli-debug.log", `[${new Date().toISOString()}] loader-loop: loaderKeys=${Object.keys(mergedCustomLoaders).join(",")} dbKeys=${Object.keys(database).filter(k => k.includes("copilot")).join(",") || "NONE"} disabledKeys=${[...disabled].join(",") || "NONE"}\n`) } catch {}
     for (const [providerId, fn] of Object.entries(mergedCustomLoaders)) {
       if (disabled.has(providerId)) continue
       const data = database[providerId]

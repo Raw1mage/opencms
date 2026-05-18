@@ -1,0 +1,252 @@
+{
+  "Steps": [
+    {
+      "StepNumber": 0,
+      "StepType": "initial",
+      "StepAction": "process not yet started; OS-level invocation pending",
+      "ModuleRef": "A1.0"
+    },
+    {
+      "StepNumber": 1,
+      "StepType": "normal",
+      "StepAction": "Parse argv and merge with config.toml + env overrides",
+      "ModuleRef": "A1.1"
+    },
+    {
+      "StepNumber": 2,
+      "StepType": "normal",
+      "StepAction": "Resolve auth: read $CODEX_HOME/auth.json or env API key; refresh OAuth if expired",
+      "ModuleRef": "A1.2"
+    },
+    {
+      "StepNumber": 3,
+      "StepType": "normal",
+      "StepAction": "Resolve installation_id (read-or-create UUID at $CODEX_HOME/installation_id)",
+      "ModuleRef": "A1.3"
+    },
+    {
+      "StepNumber": 4,
+      "StepType": "normal",
+      "StepAction": "Construct ModelClient with Config + Auth + installation_id; populate state struct",
+      "ModuleRef": "A1.4"
+    },
+    {
+      "StepNumber": 5,
+      "StepType": "normal",
+      "StepAction": "Construct Session (Session::new); assign session_id / thread_id; initialise Turn state",
+      "ModuleRef": "A1.5"
+    },
+    {
+      "StepNumber": 6,
+      "StepType": "normal",
+      "StepAction": "Enter per-binary main loop (TUI render / exec one-shot / app-server accept / mcp-server RPC)",
+      "ModuleRef": "A1.6"
+    },
+    {
+      "StepNumber": 7,
+      "StepType": "normal",
+      "StepAction": "Process ready; control passes to Chapter 03 (Session & Turn Lifecycle) for first turn dispatch",
+      "ModuleRef": "A1.6"
+    },
+    {
+      "StepNumber": 9,
+      "StepType": "normal",
+      "StepAction": "Bootstrap error: propagate, exit non-zero; no silent fallback",
+      "ModuleRef": "A1.0"
+    }
+  ],
+  "Gates": [
+    {
+      "GateNumber": 1,
+      "GateId": "G1",
+      "GateType": "divergence_or",
+      "Owner": {
+        "Kind": "source",
+        "StepNumber": 1
+      },
+      "Inputs": [
+        {
+          "Port": "I1",
+          "From": "S1O1"
+        }
+      ],
+      "Outputs": [
+        {
+          "Port": "O1",
+          "To": "S2I1",
+          "Condition": "parse OK → 2"
+        },
+        {
+          "Port": "O2",
+          "To": "G4I1",
+          "Condition": "parse fails → 9"
+        }
+      ]
+    },
+    {
+      "GateNumber": 2,
+      "GateId": "G2",
+      "GateType": "divergence_or",
+      "Owner": {
+        "Kind": "source",
+        "StepNumber": 2
+      },
+      "Inputs": [
+        {
+          "Port": "I1",
+          "From": "S2O1"
+        }
+      ],
+      "Outputs": [
+        {
+          "Port": "O1",
+          "To": "S3I1",
+          "Condition": "auth OK → 3"
+        },
+        {
+          "Port": "O2",
+          "To": "G4I2",
+          "Condition": "auth fails / refresh dead → 9"
+        }
+      ]
+    },
+    {
+      "GateNumber": 3,
+      "GateId": "G3",
+      "GateType": "divergence_or",
+      "Owner": {
+        "Kind": "source",
+        "StepNumber": 3
+      },
+      "Inputs": [
+        {
+          "Port": "I1",
+          "From": "S3O1"
+        }
+      ],
+      "Outputs": [
+        {
+          "Port": "O1",
+          "To": "S4I1",
+          "Condition": "resolver OK → 4"
+        },
+        {
+          "Port": "O2",
+          "To": "G4I3",
+          "Condition": "IO error → 9"
+        }
+      ]
+    },
+    {
+      "GateNumber": 4,
+      "GateId": "G4",
+      "GateType": "convergence_or",
+      "Owner": {
+        "Kind": "target",
+        "StepNumber": 9
+      },
+      "Inputs": [
+        {
+          "Port": "I1",
+          "From": "G1O2"
+        },
+        {
+          "Port": "I2",
+          "From": "G2O2"
+        },
+        {
+          "Port": "I3",
+          "From": "G3O2"
+        }
+      ],
+      "Outputs": [
+        {
+          "Port": "O1",
+          "To": "S9I1"
+        }
+      ]
+    }
+  ],
+  "Edges": [
+    {
+      "EdgeId": "S0O1S1I1",
+      "From": "S0O1",
+      "To": "S1I1",
+      "Condition": "exec() into codex binary"
+    },
+    {
+      "EdgeId": "S1O1G1I1",
+      "From": "S1O1",
+      "To": "G1I1"
+    },
+    {
+      "EdgeId": "G1O1S2I1",
+      "From": "G1O1",
+      "To": "S2I1",
+      "Condition": "parse OK → 2"
+    },
+    {
+      "EdgeId": "G1O2G4I1",
+      "From": "G1O2",
+      "To": "G4I1",
+      "Condition": "parse fails → 9"
+    },
+    {
+      "EdgeId": "S2O1G2I1",
+      "From": "S2O1",
+      "To": "G2I1"
+    },
+    {
+      "EdgeId": "G2O1S3I1",
+      "From": "G2O1",
+      "To": "S3I1",
+      "Condition": "auth OK → 3"
+    },
+    {
+      "EdgeId": "G2O2G4I2",
+      "From": "G2O2",
+      "To": "G4I2",
+      "Condition": "auth fails / refresh dead → 9"
+    },
+    {
+      "EdgeId": "S3O1G3I1",
+      "From": "S3O1",
+      "To": "G3I1"
+    },
+    {
+      "EdgeId": "G3O1S4I1",
+      "From": "G3O1",
+      "To": "S4I1",
+      "Condition": "resolver OK → 4"
+    },
+    {
+      "EdgeId": "G3O2G4I3",
+      "From": "G3O2",
+      "To": "G4I3",
+      "Condition": "IO error → 9"
+    },
+    {
+      "EdgeId": "S4O1S5I1",
+      "From": "S4O1",
+      "To": "S5I1",
+      "Condition": "ModelClient instance ready"
+    },
+    {
+      "EdgeId": "S5O1S6I1",
+      "From": "S5O1",
+      "To": "S6I1",
+      "Condition": "Session ready"
+    },
+    {
+      "EdgeId": "S6O1S7I1",
+      "From": "S6O1",
+      "To": "S7I1",
+      "Condition": "loop entered"
+    },
+    {
+      "EdgeId": "G4O1S9I1",
+      "From": "G4O1",
+      "To": "S9I1"
+    }
+  ]
+}

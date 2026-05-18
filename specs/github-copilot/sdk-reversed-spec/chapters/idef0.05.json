@@ -1,0 +1,58 @@
+{
+  "diagram_title": "Stream and Dispatch Events",
+  "node_reference": "A0",
+  "purpose": "Receive, classify, accumulate, and dispatch 40+ event types from CLI to application handlers",
+  "source_repo": "github/copilot-sdk",
+  "source_files": ["nodejs/src/session.ts", "nodejs/src/generated/session-events.ts"],
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Receive Raw Event Notification",
+      "description": "CLI sends JSON-RPC notification with SessionEvent envelope (id, timestamp, parentId, ephemeral, type, data)",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Classify Event by Type",
+      "description": "Discriminate event into category: lifecycle (session.*), agent (assistant.*), tool (tool.*), subagent (subagent.*), error (error.*)",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Accumulate Delta Content",
+      "description": "For assistant.message_delta events, append deltaContent to buffer; emit partial updates for streaming UX",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Dispatch to Typed Handlers",
+      "description": "Route event to type-specific handlers registered via session.on(type, handler); fire in registration order",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Dispatch to Wildcard Handlers",
+      "description": "Route every event to wildcard handlers registered via session.on(handler); fire after typed handlers",
+      "decomposition": null
+    },
+    {
+      "id": "A6",
+      "title": "Emit Session Lifecycle Signals",
+      "description": "Map key events to lifecycle signals: session.idle -> resolve sendAndWait; session.error -> reject promise; session.end -> cleanup",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {"id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "JSON-RPC Notification (SessionEvent)", "type": "input"},
+    {"id": "AR2", "source": "EXTERNAL", "target": "A3:input", "label": "assistant.message_delta payload", "type": "input"},
+    {"id": "AR3", "source": "EXTERNAL", "target": "A2:control", "label": "SessionEventType enum (40+ types)", "type": "control"},
+    {"id": "AR4", "source": "EXTERNAL", "target": "A4:control", "label": "typedEventHandlers Map", "type": "control"},
+    {"id": "AR5", "source": "EXTERNAL", "target": "A5:control", "label": "eventHandlers Set (wildcard)", "type": "control"},
+    {"id": "AR6", "source": "A3:output", "target": "EXTERNAL", "label": "Accumulated Full Response", "type": "output"},
+    {"id": "AR7", "source": "A4:output", "target": "EXTERNAL", "label": "Handler Invocation (typed)", "type": "output"},
+    {"id": "AR8", "source": "A5:output", "target": "EXTERNAL", "label": "Handler Invocation (wildcard)", "type": "output"},
+    {"id": "AR9", "source": "A6:output", "target": "EXTERNAL", "label": "Promise Resolution / Rejection", "type": "output"},
+    {"id": "AR10", "source": "EXTERNAL", "target": "A1:mechanism", "label": "vscode-jsonrpc NotificationMessage", "type": "mechanism"},
+    {"id": "AR11", "source": "EXTERNAL", "target": "A4:mechanism", "label": "CopilotSession event dispatch loop", "type": "mechanism"}
+  ]
+}

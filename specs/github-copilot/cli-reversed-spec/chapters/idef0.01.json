@@ -1,0 +1,146 @@
+{
+  "diagram_title": "Authenticate User and Obtain API Token",
+  "node_reference": "A0",
+  "purpose": "Establish authenticated session with GitHub Copilot service — from OAuth device flow through token caching and alternative auth source detection",
+  "source_repo": "@github/copilot@1.0.48",
+  "source_files": ["app.js (bundled)", "schemas/api.schema.json"],
+  "activities": [
+    {
+      "id": "A1",
+      "name": "Initiate Device Code Flow",
+      "description": "POST to github.com/login/device/code with client_id=Ov23ctDVkRmgkPke0Mmm, scope=read:user,read:org,repo,gist; returns device_code, user_code, verification_uri"
+    },
+    {
+      "id": "A2",
+      "name": "Poll for User Authorization",
+      "description": "POST to github.com/login/oauth/access_token with device_code, grant_type=urn:ietf:params:oauth:grant-type:device_code; poll at interval until user completes browser auth"
+    },
+    {
+      "id": "A3",
+      "name": "Fetch User Profile",
+      "description": "GET api.github.com/copilot_internal/user to obtain copilotUser object containing subscription tier, feature flags, and endpoint configuration"
+    },
+    {
+      "id": "A4",
+      "name": "Exchange GitHub Token for Copilot API Token",
+      "description": "Internal exchange converting GitHub OAuth access_token into capiSessionToken — a short-lived bearer token for LLM API calls"
+    },
+    {
+      "id": "A5",
+      "name": "Cache and Auto-Refresh Token",
+      "description": "Store capiSessionToken locally, monitor expiry timestamp, proactively refresh before expiration during active agent turns"
+    },
+    {
+      "id": "A6",
+      "name": "Detect Alternative Auth Sources",
+      "description": "Check environment variables (COPILOT_GITHUB_TOKEN > GH_TOKEN > GITHUB_TOKEN), HMAC key, and gh CLI credential store as alternative token sources"
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "Device code request (user initiates login)",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "CLIENT_ID (Ov23ctDVkRmgkPke0Mmm)",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "EXTERNAL",
+      "target": "A1:mechanism",
+      "label": "GitHub OAuth service (github.com/login/device/code)",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR4",
+      "source": "A1",
+      "target": "A2:input",
+      "label": "device_code + user_code + verification_uri",
+      "type": "input"
+    },
+    {
+      "id": "AR5",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "label": "GitHub OAuth service (github.com/login/oauth/access_token)",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR6",
+      "source": "A2",
+      "target": "A3:input",
+      "label": "access_token (GitHub OAuth)",
+      "type": "input"
+    },
+    {
+      "id": "AR7",
+      "source": "EXTERNAL",
+      "target": "A3:mechanism",
+      "label": "GitHub Copilot Internal API (api.github.com/copilot_internal/user)",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR8",
+      "source": "A3",
+      "target": "A4:input",
+      "label": "access_token + copilotUser profile",
+      "type": "input"
+    },
+    {
+      "id": "AR9",
+      "source": "A3",
+      "target": "A2:control",
+      "label": "Feature flags (from copilotUser) gate auth behavior",
+      "type": "control"
+    },
+    {
+      "id": "AR10",
+      "source": "A4",
+      "target": "A5:input",
+      "label": "capiSessionToken + expiry metadata",
+      "type": "input"
+    },
+    {
+      "id": "AR11",
+      "source": "A4",
+      "target": "EXTERNAL:output",
+      "label": "capiSessionToken (bearer for LLM calls)",
+      "type": "output"
+    },
+    {
+      "id": "AR12",
+      "source": "A5",
+      "target": "A4:input",
+      "label": "Refresh trigger (token near expiry)",
+      "type": "input"
+    },
+    {
+      "id": "AR13",
+      "source": "A6",
+      "target": "A3:input",
+      "label": "Alternative token (env var or gh CLI credential)",
+      "type": "input"
+    },
+    {
+      "id": "AR14",
+      "source": "EXTERNAL",
+      "target": "A6:input",
+      "label": "Environment variables (COPILOT_GITHUB_TOKEN, GH_TOKEN, GITHUB_TOKEN, HMAC key)",
+      "type": "input"
+    },
+    {
+      "id": "AR15",
+      "source": "A3",
+      "target": "EXTERNAL:output",
+      "label": "Feature flags + endpoint config (controls model routing downstream)",
+      "type": "output"
+    }
+  ]
+}

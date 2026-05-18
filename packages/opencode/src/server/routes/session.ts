@@ -1593,11 +1593,13 @@ export const SessionRoutes = lazy(() =>
         const workersCanceled = terminateAllActiveWorkers()
 
         // 2. Cancel all sessions tracked in the main process.
-        //    Also terminate their active child workers — the orchestrator
-        //    session may be "busy" waiting for a tool call, but its child
-        //    worker might not have been caught by terminateAllActiveWorkers
-        //    if worker.current was already cleared.
-        const busyIDs = await KillSwitchService.listBusySessionIDs()
+        //    SessionStatus.list() can have transient gaps (idle entries are
+        //    deleted, not stored), so we union it with the prompt-runtime
+        //    registry which is the authoritative "runloop alive" source.
+        const { listActiveSessionIDs } = await import("@/session/prompt-runtime")
+        const statusBusyIDs = await KillSwitchService.listBusySessionIDs()
+        const runtimeIDs = listActiveSessionIDs()
+        const busyIDs = [...new Set([...statusBusyIDs, ...runtimeIDs])]
         for (const id of busyIDs) {
           SessionPrompt.cancel(id, "manual-stop")
           terminateActiveChild(id).catch(() => {})

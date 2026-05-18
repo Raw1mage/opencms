@@ -1,0 +1,74 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "Listening — JSON-RPC connection open, event handler sets registered",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["JSON-RPC notification received from CLI"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Classify event — extract type field; determine category (lifecycle/agent/tool/subagent/error)",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2, 3, 4],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["type is assistant.message_delta (streaming)", "type is session.idle/session.end (lifecycle)", "other event type (dispatch directly)"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Accumulate delta — append deltaContent to buffer; emit partial to streaming handlers",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["delta appended → proceed to dispatch"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A6",
+    "StepType": "normal",
+    "StepAction": "Emit lifecycle signal — resolve/reject sendAndWait promise; trigger cleanup if session.end",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["lifecycle signal emitted → proceed to dispatch"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Dispatch to typed handlers — route to handlers registered for this specific event type",
+    "LinkInputType": ["track", "divergence_or"],
+    "LinkInputNumber": [2, 3, 1],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["typed handlers invoked"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Dispatch to wildcard handlers — fire all session.on(handler) callbacks with full event",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["all handlers complete → return to listening"],
+    "SubGrafcet": []
+  }
+]

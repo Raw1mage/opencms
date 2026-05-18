@@ -250,7 +250,7 @@ export function Titlebar() {
         </div>
         <Show when={projectStem()}>
           {(stem) => (
-            <span class="text-12-regular text-text-weak truncate max-w-[200px] shrink-0 pl-1">
+            <span class="text-12-medium text-text-strong truncate max-w-[200px] shrink-0 pl-1">
               {stem()}
             </span>
           )}

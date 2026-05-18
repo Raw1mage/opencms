@@ -1,0 +1,153 @@
+{
+  "diagram_title": "Persist and Stream Session State",
+  "node_reference": "A0",
+  "purpose": "Create, record, stream, compact, persist, and optionally export all session events — maintaining full audit trail while managing context window limits and enabling remote steering",
+  "source_repo": "@github/copilot@1.0.48",
+  "source_files": ["app.js (bundled)", "schemas/api.schema.json"],
+  "activities": [
+    {
+      "id": "A1",
+      "name": "Create Session State Container",
+      "description": "Allocate session ID, initialize workspace directory structure (checkpoints/, plan.md, files/) under ~/.copilot/session-state/<id>/"
+    },
+    {
+      "id": "A2",
+      "name": "Record Events to Session Log",
+      "description": "Append each event (100+ types including assistant.message, tool.call, user.message, session.compacted, etc.) to session JSONL log at ~/.copilot/session-state/<id>/events.jsonl"
+    },
+    {
+      "id": "A3",
+      "name": "Stream Events to SDK Client",
+      "description": "Forward events via JSON-RPC notifications (assistant.*, session.*, tool.*, subagent.*, error.*, etc.) to connected SDK client in real-time"
+    },
+    {
+      "id": "A4",
+      "name": "Manage Context Window",
+      "description": "Track token utilization against model context limit; trigger background compaction at 80% threshold; trigger blocking compaction at 95% threshold; summarize older turns"
+    },
+    {
+      "id": "A5",
+      "name": "Persist and Resume Sessions",
+      "description": "Save checkpoints with full conversation state; support resume via client.resumeSession(id); fork sessions via sessions.fork preserving history"
+    },
+    {
+      "id": "A6",
+      "name": "Export to Remote (Mission Control)",
+      "description": "When session.remote.enable() called, stream events to GitHub Mission Control service for web/mobile steering and collaborative observation"
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "Session creation request (new or resume)",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "A1",
+      "target": "A2:mechanism",
+      "label": "Session workspace (filesystem path + session ID)",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR3",
+      "source": "EXTERNAL",
+      "target": "A2:input",
+      "label": "Session events (all types: assistant, tool, user, system)",
+      "type": "input"
+    },
+    {
+      "id": "AR4",
+      "source": "A2",
+      "target": "A3:input",
+      "label": "Recorded event (post-persist)",
+      "type": "input"
+    },
+    {
+      "id": "AR5",
+      "source": "A3",
+      "target": "EXTERNAL:output",
+      "label": "JSON-RPC event stream to SDK client",
+      "type": "output"
+    },
+    {
+      "id": "AR6",
+      "source": "EXTERNAL",
+      "target": "A4:control",
+      "label": "Compaction thresholds (80% background, 95% blocking)",
+      "type": "control"
+    },
+    {
+      "id": "AR7",
+      "source": "A2",
+      "target": "A4:input",
+      "label": "Accumulated token count from recorded events",
+      "type": "input"
+    },
+    {
+      "id": "AR8",
+      "source": "A4",
+      "target": "A2:input",
+      "label": "session.compacted event (summary replaces old turns)",
+      "type": "input"
+    },
+    {
+      "id": "AR9",
+      "source": "A2",
+      "target": "A5:input",
+      "label": "Event log for checkpoint serialization",
+      "type": "input"
+    },
+    {
+      "id": "AR10",
+      "source": "A5",
+      "target": "A1:input",
+      "label": "Resume/fork request with checkpoint data",
+      "type": "input"
+    },
+    {
+      "id": "AR11",
+      "source": "A5",
+      "target": "EXTERNAL:output",
+      "label": "Persisted session state (checkpoints + JSONL log)",
+      "type": "output"
+    },
+    {
+      "id": "AR12",
+      "source": "EXTERNAL",
+      "target": "A6:control",
+      "label": "session.remote.enable() trigger",
+      "type": "control"
+    },
+    {
+      "id": "AR13",
+      "source": "A3",
+      "target": "A6:input",
+      "label": "Event stream (forwarded to remote)",
+      "type": "input"
+    },
+    {
+      "id": "AR14",
+      "source": "A6",
+      "target": "EXTERNAL:output",
+      "label": "Remote event stream to GitHub Mission Control",
+      "type": "output"
+    },
+    {
+      "id": "AR15",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "label": "Filesystem (~/.copilot/session-state/)",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR16",
+      "source": "EXTERNAL",
+      "target": "A6:mechanism",
+      "label": "GitHub API (Mission Control endpoint)",
+      "type": "mechanism"
+    }
+  ]
+}

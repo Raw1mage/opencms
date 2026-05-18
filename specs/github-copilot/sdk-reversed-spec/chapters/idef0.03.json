@@ -1,0 +1,65 @@
+{
+  "diagram_title": "Execute Tool Requests",
+  "node_reference": "A0",
+  "purpose": "Receive tool-call requests from CLI, gate through permissions and hooks, execute, and return results",
+  "source_repo": "github/copilot-sdk",
+  "source_files": ["nodejs/src/session.ts", "nodejs/src/types.ts"],
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Receive Tool Call Request",
+      "description": "CLI sends external_tool.requested or tool execution RPC to SDK with toolName + args + invocation context",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Invoke Pre-Tool-Use Hook",
+      "description": "Fire onPreToolUse hook; allows modifiedArgs, permissionDecision override, additionalContext injection, or suppression",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Gate Through Permission Handler",
+      "description": "Call permissionHandler(request); decision = approve-once | approve-always | deny-once | deny-always | ask",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Resolve Tool Handler",
+      "description": "Look up registered toolHandler by name; check overridesBuiltInTool flag; fall through to CLI built-in if not registered",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Execute Tool Handler",
+      "description": "Invoke handler(args, invocation) -> ToolResult; handle timeout, errors, binary results",
+      "decomposition": null
+    },
+    {
+      "id": "A6",
+      "title": "Invoke Post-Tool-Use Hook",
+      "description": "Fire onPostToolUse hook with toolResult; allows modifiedResult, additionalContext, suppressOutput",
+      "decomposition": null
+    },
+    {
+      "id": "A7",
+      "title": "Return Tool Result to CLI",
+      "description": "Send ToolResultObject back via RPC; includes textResultForLlm, resultType, optional binaryResultsForLlm",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {"id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "ToolCallRequestPayload (toolName, args, invocation)", "type": "input"},
+    {"id": "AR2", "source": "EXTERNAL", "target": "A3:input", "label": "PermissionRequest (type, toolName, args)", "type": "input"},
+    {"id": "AR3", "source": "EXTERNAL", "target": "A5:input", "label": "Resolved Args (possibly modified by hook)", "type": "input"},
+    {"id": "AR4", "source": "EXTERNAL", "target": "A2:control", "label": "SessionHooks.onPreToolUse config", "type": "control"},
+    {"id": "AR5", "source": "EXTERNAL", "target": "A3:control", "label": "Permission Policy (approve-all / per-tool)", "type": "control"},
+    {"id": "AR6", "source": "EXTERNAL", "target": "A4:control", "label": "Tool Registry (custom + MCP + built-in)", "type": "control"},
+    {"id": "AR7", "source": "EXTERNAL", "target": "A6:control", "label": "SessionHooks.onPostToolUse config", "type": "control"},
+    {"id": "AR8", "source": "A7:output", "target": "EXTERNAL", "label": "ToolCallResponsePayload", "type": "output"},
+    {"id": "AR9", "source": "A3:output", "target": "EXTERNAL", "label": "Permission Decision", "type": "output"},
+    {"id": "AR10", "source": "EXTERNAL", "target": "A1:mechanism", "label": "JSON-RPC notification from CLI", "type": "mechanism"},
+    {"id": "AR11", "source": "EXTERNAL", "target": "A4:mechanism", "label": "toolHandlers Map<name, handler>", "type": "mechanism"},
+    {"id": "AR12", "source": "EXTERNAL", "target": "A5:mechanism", "label": "User-defined handler function", "type": "mechanism"}
+  ]
+}

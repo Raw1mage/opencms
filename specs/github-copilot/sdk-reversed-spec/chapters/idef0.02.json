@@ -1,0 +1,68 @@
+{
+  "diagram_title": "Orchestrate Conversation Session",
+  "node_reference": "A0",
+  "purpose": "Create, configure, send messages to, and manage the lifecycle of a Copilot conversation session",
+  "source_repo": "github/copilot-sdk",
+  "source_files": ["nodejs/src/session.ts", "nodejs/src/client.ts"],
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Create Session Instance",
+      "description": "Allocate CopilotSession via client.createSession(config) — configures model, provider, system message, tools, hooks, agents, MCP servers",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Send User Prompt",
+      "description": "Dispatch prompt to CLI via session.send() or session.sendAndWait(); triggers agent loop on server",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Process Agent Loop Turns",
+      "description": "CLI iterates LLM calls; each turn = 1 API call; SDK receives turn_start/turn_end events; loop continues until no tool calls remain",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Handle Session Idle",
+      "description": "Receive session.idle event indicating agent finished; resolve sendAndWait promise",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Compact Session History",
+      "description": "Trigger history compaction when context utilization exceeds threshold (80% background, 95% blocking)",
+      "decomposition": null
+    },
+    {
+      "id": "A6",
+      "title": "Resume Existing Session",
+      "description": "Reconnect to persisted session via client.resumeSession(sessionId); restore conversation state from checkpoints",
+      "decomposition": null
+    },
+    {
+      "id": "A7",
+      "title": "Disconnect Session",
+      "description": "Clean up session resources; fire onSessionEnd hook; optionally persist state",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {"id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "SessionConfig (model, provider, tools, hooks, agents)", "type": "input"},
+    {"id": "AR2", "source": "EXTERNAL", "target": "A2:input", "label": "MessageOptions (prompt, attachments, reasoningEffort)", "type": "input"},
+    {"id": "AR3", "source": "EXTERNAL", "target": "A3:input", "label": "LLM Response Stream", "type": "input"},
+    {"id": "AR4", "source": "EXTERNAL", "target": "A5:input", "label": "Context Utilization Metric", "type": "input"},
+    {"id": "AR5", "source": "EXTERNAL", "target": "A6:input", "label": "Session ID + ResumeSessionConfig", "type": "input"},
+    {"id": "AR6", "source": "EXTERNAL", "target": "A1:control", "label": "Model Capabilities (from models.list)", "type": "control"},
+    {"id": "AR7", "source": "EXTERNAL", "target": "A3:control", "label": "Tool Definitions + Permission Policy", "type": "control"},
+    {"id": "AR8", "source": "EXTERNAL", "target": "A5:control", "label": "Compaction Thresholds (80% / 95%)", "type": "control"},
+    {"id": "AR9", "source": "A2:output", "target": "EXTERNAL", "label": "messageId", "type": "output"},
+    {"id": "AR10", "source": "A3:output", "target": "EXTERNAL", "label": "SessionEvent Stream", "type": "output"},
+    {"id": "AR11", "source": "A4:output", "target": "EXTERNAL", "label": "AssistantMessageEvent (final response)", "type": "output"},
+    {"id": "AR12", "source": "A5:output", "target": "EXTERNAL", "label": "HistoryCompactResult", "type": "output"},
+    {"id": "AR13", "source": "EXTERNAL", "target": "A2:mechanism", "label": "session.send RPC", "type": "mechanism"},
+    {"id": "AR14", "source": "EXTERNAL", "target": "A3:mechanism", "label": "CLI Agent Loop (LLM + tool execution)", "type": "mechanism"},
+    {"id": "AR15", "source": "EXTERNAL", "target": "A6:mechanism", "label": "Checkpoint Filesystem", "type": "mechanism"}
+  ]
+}

@@ -1,0 +1,151 @@
+{
+  "diagram_title": "Execute Agent Loop Turns",
+  "node_reference": "A0",
+  "purpose": "Orchestrate the agentic turn loop — receive user prompt, construct LLM request with system prompt segments, dispatch to provider, parse tool calls, execute tools, and loop until completion or compaction",
+  "source_repo": "@github/copilot@1.0.48",
+  "source_files": ["app.js (bundled)", "schemas/api.schema.json"],
+  "activities": [
+    {
+      "id": "A1",
+      "name": "Receive User Prompt",
+      "description": "Accept user input via session.send RPC or interactive TUI input; validate and normalize into message structure"
+    },
+    {
+      "id": "A2",
+      "name": "Construct LLM Request",
+      "description": "Build messages array with system prompt segments (identity, tone, tool_efficiency, environment_context, code_change_rules, guidelines, safety, tool_instructions, custom_instructions, last_instructions), user message, and conversation history"
+    },
+    {
+      "id": "A3",
+      "name": "Call LLM Provider",
+      "description": "Dispatch request via model router (idef0.02); receive streaming response with assistant content and/or tool_use blocks"
+    },
+    {
+      "id": "A4",
+      "name": "Parse Tool Requests",
+      "description": "Extract tool calls from LLM response; classify as external (SDK-handled: read_file, edit_file, bash, etc.) or built-in (think, todowrite); validate parameters against tool schema"
+    },
+    {
+      "id": "A5",
+      "name": "Execute Tool Calls",
+      "description": "Dispatch each tool call to the tool system (idef0.04); apply permission policy (ask/auto-approve/deny); collect results with output content"
+    },
+    {
+      "id": "A6",
+      "name": "Check Loop Continuation",
+      "description": "If tool results exist, loop back to A2/A3 with results appended to context; if no tool calls in response, emit session.idle event and exit loop"
+    },
+    {
+      "id": "A7",
+      "name": "Handle Compaction",
+      "description": "If context token utilization exceeds threshold, trigger history.compact (summary-based or server-side) before next turn to stay within model context window"
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "User prompt (text, attachments, images)",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "A1",
+      "target": "A2:input",
+      "label": "Normalized user message",
+      "type": "input"
+    },
+    {
+      "id": "AR3",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "Tool definitions + system prompt segments (identity, tone, safety, etc.)",
+      "type": "control"
+    },
+    {
+      "id": "AR4",
+      "source": "A2",
+      "target": "A3:input",
+      "label": "Complete messages array (system + user + history)",
+      "type": "input"
+    },
+    {
+      "id": "AR5",
+      "source": "EXTERNAL",
+      "target": "A3:mechanism",
+      "label": "Model router (idef0.02) + capiSessionToken",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR6",
+      "source": "A3",
+      "target": "A4:input",
+      "label": "LLM response stream (assistant content + tool_use blocks)",
+      "type": "input"
+    },
+    {
+      "id": "AR7",
+      "source": "A4",
+      "target": "A5:input",
+      "label": "Parsed tool call list (name, parameters, id)",
+      "type": "input"
+    },
+    {
+      "id": "AR8",
+      "source": "EXTERNAL",
+      "target": "A5:control",
+      "label": "Permission policy (ask/auto-approve/deny per tool)",
+      "type": "control"
+    },
+    {
+      "id": "AR9",
+      "source": "A5",
+      "target": "A6:input",
+      "label": "Tool execution results (content, errors, outputs)",
+      "type": "input"
+    },
+    {
+      "id": "AR10",
+      "source": "A6",
+      "target": "A2:input",
+      "label": "Loop-back: tool results appended to conversation context",
+      "type": "input"
+    },
+    {
+      "id": "AR11",
+      "source": "A6",
+      "target": "EXTERNAL:output",
+      "label": "session.idle event (turn complete, no pending tool calls)",
+      "type": "output"
+    },
+    {
+      "id": "AR12",
+      "source": "A3",
+      "target": "EXTERNAL:output",
+      "label": "Final assistant.message (streamed to UI)",
+      "type": "output"
+    },
+    {
+      "id": "AR13",
+      "source": "A6",
+      "target": "A7:input",
+      "label": "Context utilization check (token count vs threshold)",
+      "type": "input"
+    },
+    {
+      "id": "AR14",
+      "source": "A7",
+      "target": "A2:control",
+      "label": "Compacted history (reduced token footprint)",
+      "type": "control"
+    },
+    {
+      "id": "AR15",
+      "source": "EXTERNAL",
+      "target": "A7:control",
+      "label": "Compaction threshold + strategy (summary-based or server-side)",
+      "type": "control"
+    }
+  ]
+}

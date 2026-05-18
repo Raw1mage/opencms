@@ -1,0 +1,122 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A0",
+    "StepType": "initial",
+    "StepAction": "Awaiting Prompt — agent idle, ready to receive user input",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [8, 9],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["prompt_received"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Receive Prompt — validate input, attach system context and conversation history",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["input_valid"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Construct Request — build messages array, apply model parameters, inject tools schema",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3],
+    "LinkOutputType": "track",
+    "Condition": ["context_assembled"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Call LLM — send request to model endpoint via routing layer, stream response",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [2, 6],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["request_ready"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Parse Response — extract text content and tool_calls from streamed response",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5, 7],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["response_complete"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Execute Tools — dispatch each tool_call to tool execution subsystem",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["has_tool_calls"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A6",
+    "StepType": "normal",
+    "StepAction": "Check Continuation — verify tool results collected, append to context for next LLM call",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [3],
+    "LinkOutputType": "track",
+    "Condition": ["tool_results_ready AND continuation_needed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Emit Idle — no tool calls, response is final text; check context size",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [8, 9],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["NOT has_tool_calls"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 8,
+    "ModuleRef": "A7",
+    "StepType": "normal",
+    "StepAction": "Compact — context exceeds threshold, summarize and truncate conversation history",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [7],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["context_tokens > compaction_threshold"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 9,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Return to idle — deliver final response to user, reset turn state",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [7],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["context_tokens <= compaction_threshold"],
+    "SubGrafcet": []
+  }
+]

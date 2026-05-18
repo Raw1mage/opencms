@@ -1,0 +1,110 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "Idle — no CLI connection; connectionState = disconnected",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["client.start() called OR autoStart=true on first session create"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Resolve CLI binary path via require.resolve('@github/copilot') or cliPath option",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["path resolved successfully", "path resolution failed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Spawn CLI child process (stdio) OR connect TCP socket (cliUrl); connectionState = connecting",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3],
+    "LinkOutputType": "track",
+    "Condition": ["process spawned / socket connected"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Create MessageConnection via StreamMessageReader + StreamMessageWriter",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["MessageConnection established"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Send connect() RPC with sdkProtocolVersion=3, gitHubToken, connectionToken",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5, 8],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["server.protocolVersion >= 2 (success)", "server.protocolVersion < 2 (reject)"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Register client-side RPC handlers (sessionFs, permissions, tools, elicitation, commands)",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["all handlers registered"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A6",
+    "StepType": "normal",
+    "StepAction": "Connected — connectionState = connected; ready for session operations",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [7, 8],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["client.stop() called OR process exit", "connection error / process crash"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A7",
+    "StepType": "normal",
+    "StepAction": "Graceful shutdown — dispose connection, kill process, emit lifecycle event",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [6],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["cleanup complete → return to idle"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 8,
+    "ModuleRef": "A6",
+    "StepType": "normal",
+    "StepAction": "Error state — connectionState = error; emit error event",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [4, 6],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["error handled → return to idle"],
+    "SubGrafcet": []
+  }
+]

@@ -303,7 +303,22 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
                 patterns: ["*"],
                 always: ["*"],
               })
-              return execute(args, opts)
+              // Race the MCP call against the abort signal so a stuck server
+              // doesn't block the runloop indefinitely (liveness invariant).
+              const abortSignal = opts.abortSignal
+              if (!abortSignal) return execute(args, opts)
+              const abortPromise = new Promise<never>((_, reject) => {
+                if (abortSignal.aborted) {
+                  reject(new DOMException("MCP tool call aborted", "AbortError"))
+                  return
+                }
+                abortSignal.addEventListener(
+                  "abort",
+                  () => reject(new DOMException("MCP tool call aborted", "AbortError")),
+                  { once: true },
+                )
+              })
+              return Promise.race([execute(args, opts), abortPromise])
             },
           },
           {

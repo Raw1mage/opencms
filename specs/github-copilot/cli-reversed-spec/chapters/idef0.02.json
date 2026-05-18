@@ -1,0 +1,139 @@
+{
+  "diagram_title": "Route Model Requests to LLM Providers",
+  "node_reference": "A0",
+  "purpose": "Resolve which LLM model and provider endpoint to use for a given request, attach auth, apply circuit breaker health checks, and execute the API call",
+  "source_repo": "@github/copilot@1.0.48",
+  "source_files": ["app.js (bundled)", "schemas/api.schema.json"],
+  "activities": [
+    {
+      "id": "A1",
+      "name": "List Available Models",
+      "description": "Call models.list RPC; result filtered by subscription plan, feature flags, and policy state"
+    },
+    {
+      "id": "A2",
+      "name": "Select Model for Request",
+      "description": "Apply model picker categories (lightweight/versatile/powerful) and default model flags (copilot_cli_opus_1m_default_model, copilot_cli_gpt_default_model) to choose target model"
+    },
+    {
+      "id": "A3",
+      "name": "Resolve Provider Endpoint",
+      "description": "Map model ID to provider URL: api.githubcopilot.com for standard models, BYOK baseUrl for custom providers, api.anthropic.com for direct Anthropic routing"
+    },
+    {
+      "id": "A4",
+      "name": "Attach Auth Headers",
+      "description": "Add Bearer capiSessionToken plus copilot-specific headers: Openai-Intent, x-initiator, Copilot-Vision-Request, x-request-id"
+    },
+    {
+      "id": "A5",
+      "name": "Apply Circuit Breaker",
+      "description": "Check provider health state (CLOSED/OPEN/HALF_OPEN); block request if OPEN, send probe if HALF_OPEN. Threshold: 5 consecutive failures opens circuit, 30s timeout before half-open probe"
+    },
+    {
+      "id": "A6",
+      "name": "Execute LLM API Call",
+      "description": "Send request to resolved endpoint; handle streaming response (SSE chunks), timeout, and error classification for circuit breaker feedback"
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "SessionConfig (session context, user preference)",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "Feature flags + subscription tier (from idef0.01 A3)",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "A1",
+      "target": "A2:input",
+      "label": "Available model list",
+      "type": "input"
+    },
+    {
+      "id": "AR4",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "Default model flags (copilot_cli_opus_1m_default_model, copilot_cli_gpt_default_model)",
+      "type": "control"
+    },
+    {
+      "id": "AR5",
+      "source": "A2",
+      "target": "A3:input",
+      "label": "Selected model ID",
+      "type": "input"
+    },
+    {
+      "id": "AR6",
+      "source": "EXTERNAL",
+      "target": "A3:control",
+      "label": "Provider registry (standard, BYOK, direct Anthropic mappings)",
+      "type": "control"
+    },
+    {
+      "id": "AR7",
+      "source": "A3",
+      "target": "A4:input",
+      "label": "Resolved provider URL + model ID",
+      "type": "input"
+    },
+    {
+      "id": "AR8",
+      "source": "EXTERNAL",
+      "target": "A4:mechanism",
+      "label": "capiSessionToken (from idef0.01 A4)",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR9",
+      "source": "A4",
+      "target": "A5:input",
+      "label": "Fully-formed request (URL + headers + body)",
+      "type": "input"
+    },
+    {
+      "id": "AR10",
+      "source": "EXTERNAL",
+      "target": "A5:control",
+      "label": "Circuit breaker state (failure count, last failure time)",
+      "type": "control"
+    },
+    {
+      "id": "AR11",
+      "source": "A5",
+      "target": "A6:input",
+      "label": "Approved request (circuit CLOSED or HALF_OPEN probe)",
+      "type": "input"
+    },
+    {
+      "id": "AR12",
+      "source": "A6",
+      "target": "EXTERNAL:output",
+      "label": "Streaming LLM response (SSE chunks)",
+      "type": "output"
+    },
+    {
+      "id": "AR13",
+      "source": "A6",
+      "target": "A5:control",
+      "label": "Request outcome (success/failure) feeds circuit breaker state",
+      "type": "control"
+    },
+    {
+      "id": "AR14",
+      "source": "EXTERNAL",
+      "target": "A6:mechanism",
+      "label": "LLM provider service (api.githubcopilot.com, api.anthropic.com, BYOK)",
+      "type": "mechanism"
+    }
+  ]
+}

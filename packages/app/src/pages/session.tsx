@@ -474,7 +474,12 @@ export default function Page() {
       ([id, hasInfo, ready]) => {
         if (!id) return
         if (initialHydratedSessionID !== id) initialHydratedSessionID = undefined
-        if (hasInfo && ready) return
+        // ready (messagesReady) can be true from SSE-delivered messages alone,
+        // without a proper tail load. Check hydrated() to ensure loadMessages
+        // ran — otherwise entering a running session shows only live-streamed
+        // messages (often just the in-progress assistant response) with no
+        // historical tail.
+        if (hasInfo && ready && sync.session.hydrated(id)) return
         if (initialHydratedSessionID === id) return
         initialHydratedSessionID = id
         if (false /* disabled */)

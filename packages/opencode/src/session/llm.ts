@@ -1893,22 +1893,6 @@ export namespace LLM {
   }
 
   /**
-   * Get the active account ID for a provider.
-   * Used for rate limit tracking.
-   */
-  async function getAccountIdForProvider(providerId: string): Promise<string | undefined> {
-    const { Account } = await import("@/account")
-
-    // Resolve canonical provider key from provider ID
-    const resolveProviderKey = (Account as any).resolveProvider ?? (Account as any).resolveFamily
-    const providerKey = await resolveProviderKey(providerId)
-    if (!providerKey) return undefined
-
-    // Get active account
-    return Account.getActive(providerKey)
-  }
-
-  /**
    * Record a successful request for the current provider.
    * Call this after a stream completes successfully.
    *
@@ -1919,13 +1903,18 @@ export namespace LLM {
     log.info("recordSuccess called", { providerId, modelID, accountId })
     debugCheckpoint("health", "llm.recordSuccess", { providerId, modelID, accountId })
 
-    const resolvedAccountId = accountId ?? (await getAccountIdForProvider(providerId))
-    if (resolvedAccountId && modelID) {
-      await RateLimitJudge.recordSuccess(providerId, resolvedAccountId, modelID)
-    } else if (resolvedAccountId) {
-      // Fallback: if no modelID, use the old path
+    // Session-scoped: caller must supply accountId. Don't fall back to
+    // global activeAccount — that records success against the wrong
+    // account's health tracker (RCA 2026-05-18).
+    if (!accountId) {
+      log.warn("recordSuccess: no accountId provided, skipping", { providerId, modelID })
+      return
+    }
+    if (modelID) {
+      await RateLimitJudge.recordSuccess(providerId, accountId, modelID)
+    } else {
       const { Account } = await import("@/account")
-      await Account.recordSuccess(resolvedAccountId, providerId)
+      await Account.recordSuccess(accountId, providerId)
     }
   }
 
@@ -1968,9 +1957,17 @@ export namespace LLM {
     const providerKey = await resolveProviderKey(currentModel.providerId)
     if (!providerKey) return null
 
-    // Get current account
-    const currentAccountId = currentAccountIdInput ?? (await Account.getActive(providerKey))
-    if (!currentAccountId) return null
+    // Session-scoped: caller must supply accountId. Don't fall back to
+    // global activeAccount (RCA 2026-05-18).
+    const currentAccountId = currentAccountIdInput
+    if (!currentAccountId) {
+      log.warn("handleRateLimitFallback: no accountId provided, skipping rotation", {
+        providerId: currentModel.providerId,
+        modelID: currentModel.id,
+        sessionID,
+      })
+      return null
+    }
 
     // === Rotation storm prevention ===
     // Eligibility: only "first-time" rotation attempts (no prior triedVectors)

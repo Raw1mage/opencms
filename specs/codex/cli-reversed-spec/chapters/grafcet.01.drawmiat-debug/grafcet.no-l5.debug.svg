@@ -1,0 +1,156 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="412" height="1800" viewBox="14.00 0.00 40.30 176.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+.debug-gap-band{fill:#fff3bf;stroke:#f59f00;stroke-width:.04;opacity:.22}.debug-gap-area{fill:#74c0fc;stroke:#1971c2;stroke-width:.05;opacity:.24}.debug-gap-line{stroke:#e67700;stroke-width:.05;stroke-dasharray:.4 .25}.debug-gap-label{font:bold 1.64px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;fill:#0b7285;text-anchor:start;dominant-baseline:hanging;paint-order:stroke;stroke:#fff;stroke-width:.36}.debug-gap-area-label{font:bold .96px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;fill:#0b7285;text-anchor:start;dominant-baseline:hanging;paint-order:stroke;stroke:#fff;stroke-width:.24}.debug-gap-label-right{text-anchor:end}.debug-object-label{font:bold .96px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;fill:#c92a2a;text-anchor:start;dominant-baseline:hanging;paint-order:stroke;stroke:#fff;stroke-width:.24}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="14.00" y="0.00" width="40.30" height="176.00" fill="white"/>
+<rect class="debug-gap-band" x="14.50" y="7.00" width="39.30" height="20.00" data-gap-id="gap:0"/>
+<line class="debug-gap-line" x1="14.50" y1="7.00" x2="53.80" y2="7.00"/>
+<line class="debug-gap-line" x1="14.50" y1="27.00" x2="53.80" y2="27.00"/>
+<text class="debug-gap-label debug-gap-label-right" x="53.45" y="10.60" data-gap-id="gap:0"><tspan x="53.45" dy="0">gap:0</tspan></text>
+<rect class="debug-gap-band" x="14.50" y="30.00" width="39.30" height="20.00" data-gap-id="gap:1"/>
+<line class="debug-gap-line" x1="14.50" y1="30.00" x2="53.80" y2="30.00"/>
+<line class="debug-gap-line" x1="14.50" y1="50.00" x2="53.80" y2="50.00"/>
+<text class="debug-gap-label debug-gap-label-right" x="53.45" y="33.60" data-gap-id="gap:1"><tspan x="53.45" dy="0">gap:1</tspan></text>
+<rect class="debug-gap-band" x="14.50" y="53.00" width="39.30" height="20.00" data-gap-id="gap:2"/>
+<line class="debug-gap-line" x1="14.50" y1="53.00" x2="53.80" y2="53.00"/>
+<line class="debug-gap-line" x1="14.50" y1="73.00" x2="53.80" y2="73.00"/>
+<text class="debug-gap-label debug-gap-label-right" x="53.45" y="56.60" data-gap-id="gap:2"><tspan x="53.45" dy="0">gap:2</tspan></text>
+<rect class="debug-gap-band" x="14.50" y="76.00" width="39.30" height="24.00" data-gap-id="gap:3"/>
+<line class="debug-gap-line" x1="14.50" y1="76.00" x2="53.80" y2="76.00"/>
+<line class="debug-gap-line" x1="14.50" y1="100.00" x2="53.80" y2="100.00"/>
+<text class="debug-gap-label debug-gap-label-right" x="53.45" y="80.32" data-gap-id="gap:3"><tspan x="53.45" dy="0">gap:3</tspan></text>
+<rect class="debug-gap-band" x="14.50" y="103.00" width="39.30" height="20.00" data-gap-id="gap:4"/>
+<line class="debug-gap-line" x1="14.50" y1="103.00" x2="53.80" y2="103.00"/>
+<line class="debug-gap-line" x1="14.50" y1="123.00" x2="53.80" y2="123.00"/>
+<text class="debug-gap-label debug-gap-label-right" x="53.45" y="106.60" data-gap-id="gap:4"><tspan x="53.45" dy="0">gap:4</tspan></text>
+<rect class="debug-gap-band" x="14.50" y="126.00" width="39.30" height="20.00" data-gap-id="gap:5"/>
+<line class="debug-gap-line" x1="14.50" y1="126.00" x2="53.80" y2="126.00"/>
+<line class="debug-gap-line" x1="14.50" y1="146.00" x2="53.80" y2="146.00"/>
+<text class="debug-gap-label debug-gap-label-right" x="53.45" y="129.60" data-gap-id="gap:5"><tspan x="53.45" dy="0">gap:5</tspan></text>
+<rect class="debug-gap-band" x="14.50" y="149.00" width="39.30" height="20.00" data-gap-id="gap:6"/>
+<line class="debug-gap-line" x1="14.50" y1="149.00" x2="53.80" y2="149.00"/>
+<line class="debug-gap-line" x1="14.50" y1="169.00" x2="53.80" y2="169.00"/>
+<text class="debug-gap-label debug-gap-label-right" x="53.45" y="152.60" data-gap-id="gap:6"><tspan x="53.45" dy="0">gap:6</tspan></text>
+<path class="edge edge-arrow" data-edge-id="edge:S0O1S1I1" data-segment-ids="S0O1S1I1:1S" d="M 20.00 7.00 L 20.00 27.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:S1O1G1I1" data-segment-ids="S1O1G1I1:1S" d="M 20.00 30.00 L 20.00 38.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:G1O1S2I1" data-segment-ids="G1O1S2I1:1S" d="M 20.00 38.00 L 20.00 50.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:G1O2G4I1" data-segment-ids="G1O2G4I1:1E G1O2G4I1:2S G1O2G4I1:3W G1O2G4I1:4S" d="M 20.00 38.00 L 46.80 38.00 Q 47.30 38.00 47.30 38.50 L 47.30 89.50 Q 47.30 90.00 46.80 90.00 L 38.65 90.00 Q 38.15 90.00 38.15 90.50 L 38.15 96.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:S2O1G2I1" data-segment-ids="S2O1G2I1:1S" d="M 20.00 53.00 L 20.00 61.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:G2O1S3I1" data-segment-ids="G2O1S3I1:1S" d="M 20.00 61.00 L 20.00 73.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:G2O2G4I2" data-segment-ids="G2O2G4I2:1E G2O2G4I2:2S G2O2G4I2:3W G2O2G4I2:4S" d="M 20.00 61.00 L 48.80 61.00 Q 49.30 61.00 49.30 61.50 L 49.30 91.50 Q 49.30 92.00 48.80 92.00 L 42.65 92.00 Q 42.15 92.00 42.15 92.50 L 42.15 96.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:S3O1G3I1" data-segment-ids="S3O1G3I1:1S" d="M 20.00 76.00 L 20.00 84.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:G3O1S4I1" data-segment-ids="G3O1S4I1:1S" d="M 20.00 84.00 L 20.00 100.00"/>
+<path class="edge" data-edge-id="edge:G3O2G4I3" data-segment-ids="G3O2G4I3:2E" d="M 20.00 94.00 L 34.15 94.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:G3O2G4I3" data-segment-ids="G3O2G4I3:3S" d="M 34.15 94.00 L 34.15 96.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:S4O1S5I1" data-segment-ids="S4O1S5I1:1S" d="M 20.00 103.00 L 20.00 123.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:S5O1S6I1" data-segment-ids="S5O1S6I1:1S" d="M 20.00 126.00 L 20.00 146.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:S6O1S7I1" data-segment-ids="S6O1S7I1:1S" d="M 20.00 149.00 L 20.00 169.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:G4O1S9I1" data-segment-ids="G4O1S9I1:1S" d="M 34.15 96.00 L 34.15 100.00"/>
+<rect class="step" x="18.00" y="4.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<rect class="step-inner" x="18.25" y="4.25" width="3.50" height="2.50" rx="0.22" ry="0.22"/>
+<text class="label" x="20.00" y="5.50">0</text>
+<rect class="step" x="18.00" y="27.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.00" y="28.50">1</text>
+<rect class="step" x="18.00" y="50.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.00" y="51.50">2</text>
+<rect class="step" x="18.00" y="73.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.00" y="74.50">3</text>
+<rect class="step" x="18.00" y="100.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.00" y="101.50">4</text>
+<rect class="step" x="18.00" y="123.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.00" y="124.50">5</text>
+<rect class="step" x="18.00" y="146.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.00" y="147.50">6</text>
+<rect class="step" x="18.00" y="169.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.00" y="170.50">7</text>
+<rect class="step" x="32.15" y="100.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="34.15" y="101.50">9</text>
+<line class="assoc" x1="22.00" y1="5.50" x2="23.00" y2="5.50"/>
+<rect class="action" x="23.00" y="4.07" width="8.15" height="2.86"/>
+<text class="action-label" x="27.07" y="5.09"><tspan x="27.07" dy="0">process not yet started; O</tspan><tspan x="27.07" dy="0.82">S-level invocation pending</tspan></text>
+<line class="assoc" x1="22.00" y1="28.50" x2="23.00" y2="28.50"/>
+<rect class="action" x="23.00" y="27.07" width="8.15" height="2.86"/>
+<text class="action-label" x="27.07" y="28.09"><tspan x="27.07" dy="0">Parse argv and merge with</tspan><tspan x="27.07" dy="0.82">config.toml + env overrides</tspan></text>
+<line class="assoc" x1="22.00" y1="51.50" x2="23.00" y2="51.50"/>
+<rect class="action" x="23.00" y="50.07" width="8.15" height="2.86"/>
+<text class="action-label" x="27.07" y="50.68"><tspan x="27.07" dy="0">Resolve auth: read $CODEX_</tspan><tspan x="27.07" dy="0.82">HOME/auth.json or env API</tspan><tspan x="27.07" dy="0.82">key; refresh OAuth if expired</tspan></text>
+<line class="assoc" x1="22.00" y1="74.50" x2="23.00" y2="74.50"/>
+<rect class="action" x="23.00" y="73.07" width="8.15" height="2.86"/>
+<text class="action-label" x="27.07" y="73.68"><tspan x="27.07" dy="0">Resolve installation_id (re</tspan><tspan x="27.07" dy="0.82">ad-or-create UUID at $CO</tspan><tspan x="27.07" dy="0.82">DEX_HOME/installation_id)</tspan></text>
+<line class="assoc" x1="22.00" y1="101.50" x2="23.00" y2="101.50"/>
+<rect class="action" x="23.00" y="100.07" width="8.15" height="2.86"/>
+<text class="action-label" x="27.07" y="100.68"><tspan x="27.07" dy="0">Construct ModelClient with</tspan><tspan x="27.07" dy="0.82">Config + Auth + installatio</tspan><tspan x="27.07" dy="0.82">n_id; populate state struct</tspan></text>
+<line class="assoc" x1="22.00" y1="124.50" x2="23.00" y2="124.50"/>
+<rect class="action" x="23.00" y="123.07" width="8.15" height="2.86"/>
+<text class="action-label" x="27.07" y="123.68"><tspan x="27.07" dy="0">Construct Session (Session:</tspan><tspan x="27.07" dy="0.82">:new); assign session_id / th</tspan><tspan x="27.07" dy="0.82">read_id; initialise Turn state</tspan></text>
+<line class="assoc" x1="22.00" y1="147.50" x2="23.00" y2="147.50"/>
+<rect class="action" x="23.00" y="146.07" width="8.15" height="2.86"/>
+<text class="action-label" x="27.07" y="146.68"><tspan x="27.07" dy="0">Enter per-binary main loop (TUI</tspan><tspan x="27.07" dy="0.82">render / exec one-shot / app-s</tspan><tspan x="27.07" dy="0.82">erver accept / mcp-server RPC)</tspan></text>
+<line class="assoc" x1="22.00" y1="170.50" x2="23.00" y2="170.50"/>
+<rect class="action" x="23.00" y="169.07" width="8.15" height="2.86"/>
+<text class="action-label" x="27.07" y="169.68"><tspan x="27.07" dy="0">Process ready; control passes t</tspan><tspan x="27.07" dy="0.82">o Chapter 03 (Session &amp; Turn L</tspan><tspan x="27.07" dy="0.82">ifecycle) for first turn dispatch</tspan></text>
+<line class="assoc" x1="36.15" y1="101.50" x2="37.15" y2="101.50"/>
+<rect class="action" x="37.15" y="100.07" width="8.15" height="2.86"/>
+<text class="action-label" x="41.23" y="101.09"><tspan x="41.23" dy="0">Bootstrap error: propagate, e</tspan><tspan x="41.23" dy="0.82">xit non-zero; no silent fallback</tspan></text>
+<circle class="branch-junction" cx="20.00" cy="38.00" r="0.28"/>
+<circle class="branch-junction" cx="20.00" cy="61.00" r="0.28"/>
+<circle class="branch-junction" cx="20.00" cy="84.00" r="0.28"/>
+<line class="gate" x1="32.15" y1="96.00" x2="44.15" y2="96.00"/>
+<line class="gate" x1="19.00" y1="9.00" x2="21.00" y2="9.00"/>
+<text class="gate-label" x="21.40" y="9.00"><tspan x="21.40" dy="0">exec() into codex binary</tspan></text>
+<line class="gate" x1="19.00" y1="40.00" x2="21.00" y2="40.00"/>
+<text class="gate-label-left" x="18.60" y="40.00"><tspan x="18.60" dy="0">parse OK → 2</tspan></text>
+<line class="gate" x1="46.30" y1="40.00" x2="48.30" y2="40.00"/>
+<text class="gate-label" x="48.70" y="40.00"><tspan x="48.70" dy="0">parse fails → 9</tspan></text>
+<line class="gate" x1="19.00" y1="63.00" x2="21.00" y2="63.00"/>
+<text class="gate-label-left" x="18.60" y="63.00"><tspan x="18.60" dy="0">auth OK → 3</tspan></text>
+<line class="gate" x1="48.30" y1="63.00" x2="50.30" y2="63.00"/>
+<text class="gate-label" x="50.70" y="62.32"><tspan x="50.70" dy="0">auth fails</tspan><tspan x="50.70" dy="0.68">/ refresh</tspan><tspan x="50.70" dy="0.68">dead → 9</tspan></text>
+<line class="gate" x1="19.00" y1="86.00" x2="21.00" y2="86.00"/>
+<text class="gate-label-left" x="18.60" y="86.00"><tspan x="18.60" dy="0">resolver OK → 4</tspan></text>
+<line class="gate" x1="19.00" y1="86.00" x2="21.00" y2="86.00"/>
+<text class="gate-label-left" x="18.60" y="86.00"><tspan x="18.60" dy="0">IO er</tspan><tspan x="18.60" dy="0.68">ror</tspan><tspan x="18.60" dy="0.68">→ 9</tspan></text>
+<line class="gate" x1="19.00" y1="105.00" x2="21.00" y2="105.00"/>
+<text class="gate-label" x="21.40" y="105.00"><tspan x="21.40" dy="0">ModelClient instance ready</tspan></text>
+<line class="gate" x1="19.00" y1="128.00" x2="21.00" y2="128.00"/>
+<text class="gate-label" x="21.40" y="128.00"><tspan x="21.40" dy="0">Session ready</tspan></text>
+<line class="gate" x1="19.00" y1="151.00" x2="21.00" y2="151.00"/>
+<text class="gate-label" x="21.40" y="151.00"><tspan x="21.40" dy="0">loop entered</tspan></text>
+<text class="debug-object-label" x="18.00" y="37.12">G1</text>
+<text class="debug-object-label" x="18.00" y="60.12">G2</text>
+<text class="debug-object-label" x="18.00" y="83.12">G3</text>
+<text class="debug-object-label" x="32.15" y="95.12">G4</text>
+<text class="debug-object-label" x="20.35" y="9.35">T1</text>
+<text class="debug-object-label" x="20.35" y="40.35">T2</text>
+<text class="debug-object-label" x="47.65" y="40.35">T3</text>
+<text class="debug-object-label" x="20.35" y="63.35">T4</text>
+<text class="debug-object-label" x="49.65" y="63.35">T5</text>
+<text class="debug-object-label" x="20.35" y="86.35">T6</text>
+<text class="debug-object-label" x="20.35" y="86.35">T7</text>
+<text class="debug-object-label" x="20.35" y="105.35">T8</text>
+<text class="debug-object-label" x="20.35" y="128.35">T9</text>
+<text class="debug-object-label" x="20.35" y="151.35">T10</text>
+<text class="debug-object-label" x="20.25" y="17.25">S0O1S1I1</text>
+<text class="debug-object-label" x="20.25" y="34.25">S1O1G1I1</text>
+<text class="debug-object-label" x="20.25" y="44.25">G1O1S2I1</text>
+<text class="debug-object-label" x="42.97" y="90.25">G1O2G4I1</text>
+<text class="debug-object-label" x="20.25" y="57.25">S2O1G2I1</text>
+<text class="debug-object-label" x="20.25" y="67.25">G2O1S3I1</text>
+<text class="debug-object-label" x="45.97" y="92.25">G2O2G4I2</text>
+<text class="debug-object-label" x="20.25" y="80.25">S3O1G3I1</text>
+<text class="debug-object-label" x="20.25" y="92.25">G3O1S4I1</text>
+<text class="debug-object-label" x="27.32" y="94.25">G3O2G4I3</text>
+<text class="debug-object-label" x="20.25" y="113.25">S4O1S5I1</text>
+<text class="debug-object-label" x="20.25" y="136.25">S5O1S6I1</text>
+<text class="debug-object-label" x="20.25" y="159.25">S6O1S7I1</text>
+<text class="debug-object-label" x="34.40" y="98.25">G4O1S9I1</text>
+</svg>

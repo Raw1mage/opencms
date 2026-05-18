@@ -459,6 +459,10 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
             parts: input.parts,
           })
         },
+        hydrated(sessionID: string) {
+          const key = keyFor(sdk.directory, sessionID)
+          return meta.limit[key] !== undefined
+        },
         async sync(sessionID: string) {
           // specs/mobile-tail-first-simplification: one initial-load path.
           // If hydrated, skip (live updates arrive via SSE). Otherwise fetch

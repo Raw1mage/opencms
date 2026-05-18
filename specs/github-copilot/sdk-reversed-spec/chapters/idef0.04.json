@@ -1,0 +1,58 @@
+{
+  "diagram_title": "Authenticate and Authorize",
+  "node_reference": "A0",
+  "purpose": "Provide credentials to CLI server — GitHub OAuth, BYOK keys, env vars, or stored tokens — enabling model API access",
+  "source_repo": "github/copilot-sdk",
+  "source_files": ["docs/auth/authenticate.md", "docs/auth/byok.md", "docs/setup/github-oauth.md", "nodejs/src/client.ts"],
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Detect Credential Source",
+      "description": "Priority: explicit gitHubToken > HMAC_KEY > COPILOT_API_URL direct > env vars (COPILOT_GITHUB_TOKEN > GH_TOKEN > GITHUB_TOKEN) > stored OAuth > gh CLI auth",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Pass Token via Connect Handshake",
+      "description": "Include gitHubToken and useLoggedInUser in connect() RPC params; CLI server validates and stores for session lifetime",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Configure BYOK Provider",
+      "description": "Pass ProviderConfig (type, baseUrl, apiKey/bearerToken, modelId, wireModel, maxInputTokens) in SessionConfig; CLI routes to custom endpoint",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Exchange Token for Copilot API Access",
+      "description": "CLI-internal: GitHub OAuth token exchanged for short-lived Copilot API token via internal endpoint; transparent to SDK",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Handle Token Expiry Mid-Session",
+      "description": "CLI auto-refreshes expired session tokens during a turn without requiring user re-authentication or message resend",
+      "decomposition": null
+    },
+    {
+      "id": "A6",
+      "title": "Validate Subscription Entitlement",
+      "description": "CLI verifies Copilot Pro/Pro+/Business/Enterprise subscription is active; rejects unsubscribed users",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {"id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "CopilotClientOptions (gitHubToken, env)", "type": "input"},
+    {"id": "AR2", "source": "EXTERNAL", "target": "A3:input", "label": "ProviderConfig (BYOK)", "type": "input"},
+    {"id": "AR3", "source": "EXTERNAL", "target": "A1:control", "label": "Credential Priority Order (6 levels)", "type": "control"},
+    {"id": "AR4", "source": "EXTERNAL", "target": "A3:control", "label": "Supported Provider Types (openai/azure/anthropic)", "type": "control"},
+    {"id": "AR5", "source": "EXTERNAL", "target": "A6:control", "label": "GitHub Copilot Subscription Plans", "type": "control"},
+    {"id": "AR6", "source": "A2:output", "target": "EXTERNAL", "label": "Authenticated Connection", "type": "output"},
+    {"id": "AR7", "source": "A4:output", "target": "EXTERNAL", "label": "Copilot API Bearer Token (short-lived)", "type": "output"},
+    {"id": "AR8", "source": "A6:output", "target": "EXTERNAL", "label": "Entitlement Status (allowed/denied)", "type": "output"},
+    {"id": "AR9", "source": "EXTERNAL", "target": "A1:mechanism", "label": "process.env + system keychain", "type": "mechanism"},
+    {"id": "AR10", "source": "EXTERNAL", "target": "A4:mechanism", "label": "GitHub Copilot Internal API (server-side)", "type": "mechanism"},
+    {"id": "AR11", "source": "EXTERNAL", "target": "A5:mechanism", "label": "CLI Token Refresh Loop (automatic)", "type": "mechanism"}
+  ]
+}

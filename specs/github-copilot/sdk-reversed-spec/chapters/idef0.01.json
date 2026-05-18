@@ -1,0 +1,70 @@
+{
+  "diagram_title": "Manage CLI Connection Lifecycle",
+  "node_reference": "A0",
+  "purpose": "Spawn, connect to, negotiate protocol with, and disconnect from the Copilot CLI server process",
+  "source_repo": "github/copilot-sdk",
+  "source_files": ["nodejs/src/client.ts"],
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Resolve CLI Binary Path",
+      "description": "Locate @github/copilot binary via node_modules require.resolve or user-provided cliPath",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Spawn CLI Server Process",
+      "description": "Fork CLI as child process (stdio mode) or connect to external TCP server (cliUrl mode)",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Establish JSON-RPC Connection",
+      "description": "Create MessageConnection over stdio pipes or TCP socket using vscode-jsonrpc",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Negotiate Protocol Version",
+      "description": "Send connect() RPC with sdkProtocolVersion=3; verify server responds with version >= MIN_PROTOCOL_VERSION (2)",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Register Client-Side RPC Handlers",
+      "description": "Bind sessionFs, permission, tool-call, elicitation, and command handlers on the SDK side",
+      "decomposition": null
+    },
+    {
+      "id": "A6",
+      "title": "Monitor Connection Health",
+      "description": "Track connectionState (disconnected/connecting/connected/error); emit lifecycle events",
+      "decomposition": null
+    },
+    {
+      "id": "A7",
+      "title": "Terminate Connection",
+      "description": "Dispose MessageConnection, kill child process, cleanup resources",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {"id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "CopilotClientOptions", "type": "input"},
+    {"id": "AR2", "source": "EXTERNAL", "target": "A2:input", "label": "Resolved Binary Path", "type": "input"},
+    {"id": "AR3", "source": "EXTERNAL", "target": "A3:input", "label": "Child Process Streams / TCP Socket", "type": "input"},
+    {"id": "AR4", "source": "EXTERNAL", "target": "A4:input", "label": "Raw MessageConnection", "type": "input"},
+    {"id": "AR5", "source": "EXTERNAL", "target": "A4:control", "label": "MIN_PROTOCOL_VERSION = 2", "type": "control"},
+    {"id": "AR6", "source": "EXTERNAL", "target": "A4:control", "label": "sdkProtocolVersion = 3", "type": "control"},
+    {"id": "AR7", "source": "EXTERNAL", "target": "A2:control", "label": "Transport Mode (stdio/tcp/external)", "type": "control"},
+    {"id": "AR8", "source": "EXTERNAL", "target": "A5:input", "label": "Negotiated Connection", "type": "input"},
+    {"id": "AR9", "source": "EXTERNAL", "target": "A6:input", "label": "Active Connection", "type": "input"},
+    {"id": "AR10", "source": "EXTERNAL", "target": "A7:input", "label": "Stop Signal", "type": "input"},
+    {"id": "AR11", "source": "A4:output", "target": "EXTERNAL", "label": "ConnectResult (protocolVersion, sdkPackageVersion)", "type": "output"},
+    {"id": "AR12", "source": "A6:output", "target": "EXTERNAL", "label": "ConnectionState Events", "type": "output"},
+    {"id": "AR13", "source": "A7:output", "target": "EXTERNAL", "label": "Cleanup Complete", "type": "output"},
+    {"id": "AR14", "source": "EXTERNAL", "target": "A1:mechanism", "label": "Node.js require.resolve", "type": "mechanism"},
+    {"id": "AR15", "source": "EXTERNAL", "target": "A2:mechanism", "label": "child_process.spawn / net.Socket", "type": "mechanism"},
+    {"id": "AR16", "source": "EXTERNAL", "target": "A3:mechanism", "label": "vscode-jsonrpc (StreamMessageReader/Writer)", "type": "mechanism"},
+    {"id": "AR17", "source": "EXTERNAL", "target": "A4:mechanism", "label": "createServerRpc()", "type": "mechanism"}
+  ]
+}

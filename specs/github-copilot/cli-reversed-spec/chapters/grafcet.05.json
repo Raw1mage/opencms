@@ -1,0 +1,122 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A0",
+    "StepType": "initial",
+    "StepAction": "No Session — no active session in memory, awaiting create or resume",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [9],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["create_request OR resume_request"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Create or Resume — initialize new session or hydrate from persisted state (A5)",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["session_initialized"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Active — session recording events (A2), streaming responses (A3), accepting input",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [1, 4, 6, 7],
+    "LinkOutputNumber": [3, 5, 6, 7, 8],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["session_active"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Process user input — forward message to agent loop, record event",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["user_message_received"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Background Compact — non-blocking context summarization while session stays active",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["context_usage > 0.80 AND context_usage <= 0.95"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Blocking Compact — halt input processing until compaction completes",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["context_usage > 0.95"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A6",
+    "StepType": "normal",
+    "StepAction": "Export — serialize session to remote storage when remote.enable is set",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["remote_enable == true AND export_trigger"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Stream response — relay LLM output chunks to connected clients in real-time",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["llm_response_streaming"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 8,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Persist — flush session state to disk/DB, release resources",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [9],
+    "LinkOutputType": "track",
+    "Condition": ["disconnect OR explicit_close"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 9,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Session closed — state persisted, return to No Session",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [8],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["persist_complete"],
+    "SubGrafcet": []
+  }
+]

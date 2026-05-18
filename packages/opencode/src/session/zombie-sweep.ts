@@ -16,6 +16,7 @@ import path from "path"
 
 import { Global } from "@/global"
 import { Log } from "@/util/log"
+import { listActiveSessionIDs } from "@/session/prompt-runtime"
 
 const log = Log.create({ service: "session.zombie-sweep" })
 
@@ -130,6 +131,9 @@ export namespace ZombieSweep {
    * Lightweight periodic sweep: only check session DBs whose file was
    * modified within the last RECENT_WINDOW_MS. Keeps the scan to a
    * handful of DBs instead of the full archive.
+   *
+   * CRITICAL: skip sessions that have an active runtime — their messages
+   * and tool parts are legitimately in-flight, not zombies.
    */
   export async function sweepRecent(): Promise<Result> {
     const dir = path.join(Global.Path.data, "storage", "session")
@@ -140,8 +144,14 @@ export namespace ZombieSweep {
     let stamped = 0
     let partsStamped = 0
 
+    // Sessions with a live runloop must not be swept.
+    const liveSessionIDs = new Set(listActiveSessionIDs())
+
     const glob = new Glob("*.db")
     for await (const entry of glob.scan({ cwd: dir, absolute: true })) {
+      const sessionID = path.basename(entry, ".db")
+      if (liveSessionIDs.has(sessionID)) continue
+
       try {
         const stat = fs.statSync(entry)
         if (stat.mtimeMs < recentCutoff) continue

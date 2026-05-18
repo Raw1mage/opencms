@@ -1,0 +1,110 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "No active session — client connected, awaiting createSession or resumeSession call",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["client.createSession(config) called", "client.resumeSession(id) called"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Create session — send session config (model, provider, tools, hooks, agents, systemMessage) to CLI via RPC",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["session created, onSessionStart hook fired"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Session ready — awaiting user prompt (session.send or session.sendAndWait)",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [1, 5, 7],
+    "LinkOutputNumber": [3, 8],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["session.send(prompt) called", "session.disconnect() called"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Prompt dispatched — onUserPromptSubmitted hook fired; CLI enters agent loop",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["assistant.turn_start event received"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Agent turn active — LLM API call in progress; streaming deltas arrive",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5, 6],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["assistant.turn_end with no tool requests (done)", "tool.execution_start (tool needed)"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Session idle — session.idle event emitted; sendAndWait resolved; awaiting next prompt",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["return to ready state"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Tool execution in progress — SDK processes tool call, returns result to CLI",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["tool result returned → CLI makes next LLM call (loop)"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Compaction — context exceeds threshold; history.compact() triggered (background or blocking)",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["compaction complete → return to ready"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 8,
+    "ModuleRef": "A7",
+    "StepType": "normal",
+    "StepAction": "Disconnect — onSessionEnd hook fired; session resources released; optionally persisted",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["cleanup complete → return to no-session state"],
+    "SubGrafcet": []
+  }
+]
