@@ -203,6 +203,15 @@ function promptToMessages(prompt: LanguageModelV2CallOptions["prompt"]): any[] {
   return messages
 }
 
+/** Extract JSON Schema from AI SDK tool — handles both .parameters and .inputSchema (AI SDK v5) */
+function getToolSchema(t: any): any {
+  const schema = t.parameters ?? t.inputSchema ?? {}
+  // Ensure type: "object" is always present — Copilot API rejects schemas without it
+  if (!schema.type) schema.type = "object"
+  if (!schema.properties) schema.properties = {}
+  return schema
+}
+
 /** Chat Completions format: { type: "function", function: { name, description, parameters } } */
 function toolsToCompletions(tools: LanguageModelV2CallOptions["tools"]): any[] | undefined {
   if (!tools || tools.length === 0) return undefined
@@ -213,7 +222,7 @@ function toolsToCompletions(tools: LanguageModelV2CallOptions["tools"]): any[] |
       function: {
         name: t.name,
         description: t.description,
-        parameters: t.parameters,
+        parameters: getToolSchema(t),
       },
     }))
 }
@@ -227,7 +236,7 @@ function toolsToResponses(tools: LanguageModelV2CallOptions["tools"]): any[] | u
       type: "function",
       name: t.name,
       description: t.description,
-      parameters: t.parameters,
+      parameters: getToolSchema(t),
     }))
 }
 
@@ -357,7 +366,8 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
                   const resp = chunk.response
                   inputTokens = resp?.usage?.input_tokens ?? 0
                   outputTokens = resp?.usage?.output_tokens ?? 0
-                  finishReason = resp?.status === "completed" ? "stop" : "other"
+                  // If we emitted tool calls, finishReason MUST be "tool-calls" for AI SDK to continue the loop
+                  finishReason = toolIds.size > 0 ? "tool-calls" : (resp?.status === "completed" ? "stop" : "other")
                 }
               }
 
