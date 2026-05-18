@@ -70,13 +70,21 @@ function promptToResponsesInput(prompt: LanguageModelV2CallOptions["prompt"]): a
       }
       input.push({ role: "user", content: parts })
     } else if (msg.role === "assistant") {
-      const items: any[] = []
+      // Responses API: text goes in { role: "assistant", content: [{type: "output_text"}] }
+      // but function_call is a TOP-LEVEL input item, NOT nested in content
+      const textParts: any[] = []
       const aContent = Array.isArray(msg.content) ? msg.content : typeof msg.content === "string" ? [{ type: "text", text: msg.content }] : []
       for (const p of aContent) {
         if (p.type === "text") {
-          items.push({ type: "output_text", text: p.text })
+          textParts.push({ type: "output_text", text: p.text })
         } else if (p.type === "tool-call") {
-          items.push({
+          // Flush text first if any
+          if (textParts.length > 0) {
+            input.push({ role: "assistant", content: [...textParts] })
+            textParts.length = 0
+          }
+          // function_call is top-level
+          input.push({
             type: "function_call",
             call_id: p.toolCallId,
             name: p.toolName,
@@ -84,8 +92,11 @@ function promptToResponsesInput(prompt: LanguageModelV2CallOptions["prompt"]): a
           })
         }
       }
-      input.push({ role: "assistant", content: items })
+      if (textParts.length > 0) {
+        input.push({ role: "assistant", content: textParts })
+      }
     } else if (msg.role === "tool") {
+      // function_call_output is also top-level
       const tContent = Array.isArray(msg.content) ? msg.content : []
       for (const p of tContent) {
         if (p.type === "tool-result") {
@@ -305,9 +316,9 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
                     textId = null
                   }
                 } else if (chunk.type === "response.output_item.added" && chunk.item?.type === "function_call") {
-                  // Tool call start — output_item.added carries call_id + name
+                  // Tool call start — use the real call_id so runloop can match tool results
                   if (textId) { controller.enqueue({ type: "text-end", id: textId }); textId = null }
-                  const id = nextId()
+                  const id = chunk.item.call_id ?? nextId()
                   const outputIdx = String(chunk.output_index ?? "")
                   toolIds.set(outputIdx, id)
                   controller.enqueue({ type: "tool-input-start", id, toolName: chunk.item.name ?? "" })
@@ -379,7 +390,7 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
                   const idx = tc.index
                   if (tc.id && !toolCallIds.has(idx)) {
                     if (textId) { controller.enqueue({ type: "text-end", id: textId }); textId = null }
-                    const id = nextId()
+                    const id = tc.id  // Use real tool_call_id so runloop can match results
                     toolCallIds.set(idx, id)
                     controller.enqueue({ type: "tool-input-start", id, toolName: tc.function?.name ?? "" })
                   }
