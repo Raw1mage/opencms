@@ -7,6 +7,10 @@
 //
 // This means flipping between sessions never loses state just because you
 // switched; you only lose the oldest messages once total exceeds cap.
+//
+// IMPORTANT: protected sessions (active viewing, busy) are NEVER evicted.
+// Compaction rewrites message IDs with fresh timestamps, making the ID-based
+// "oldest first" heuristic unreliable for those sessions.
 
 import type { Message } from "@opencode-ai/sdk/v2/client"
 import { frontendTweaks } from "@/context/frontend-tweaks"
@@ -43,17 +47,23 @@ export type EvictDecision = {
  * - Messages in `liveStreamingIds` are NEVER evicted; if cap is breached
  *   but all overage are live, we return fewer than `overage` evictions
  *   and the store temporarily exceeds cap (acceptable per spec).
+ * - Messages belonging to `protectedSessionIds` are NEVER evicted.
+ *   This prevents evicting the session the user is currently viewing
+ *   or any session that is actively running (busy).
  */
 export function computeGlobalEvictions(
   messagesBySession: MessagesBySession,
   cap: number,
   liveStreamingIds: ReadonlySet<string>,
+  protectedSessionIds?: ReadonlySet<string>,
 ): EvictDecision[] {
   // Gather all (sessionID, messageID) pairs, keyed by id for global sort.
   const all: { sessionID: string; id: string }[] = []
   for (const sessionID of Object.keys(messagesBySession)) {
     const list = messagesBySession[sessionID]
     if (!list) continue
+    // Skip entire session if protected — never evict from active/busy sessions.
+    if (protectedSessionIds?.has(sessionID)) continue
     for (const msg of list) {
       if (msg?.id) all.push({ sessionID, id: msg.id })
     }

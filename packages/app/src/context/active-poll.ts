@@ -185,12 +185,22 @@ export function startActivePoll(
                 mergedCount: merged.messages.length,
                 stats: merged.stats,
               })
+              const localCountBefore = (deps.store.message[sessionID] ?? []).length
               batch(() => {
                 deps.setStore("message", sessionID, reconcile(merged.messages, { key: "id" }))
                 for (const m of merged.perMessageParts) {
                   deps.setStore("part", m.messageID, reconcile(m.parts, { key: "id" }))
                 }
               })
+              const localCountAfter = (deps.store.message[sessionID] ?? []).length
+              if (localCountAfter < localCountBefore) {
+                console.warn("[active-poll] final sync REDUCED message count!", {
+                  sessionID,
+                  before: localCountBefore,
+                  after: localCountAfter,
+                  delta: localCountAfter - localCountBefore,
+                })
+              }
             }
           } catch (syncErr) {
             console.warn("[active-poll] final message sync failed", {

@@ -25,6 +25,16 @@ import type { SessionMonitorInfo } from "@opencode-ai/sdk/v2/client"
 import { frontendTweaks } from "../frontend-tweaks"
 import { computeGlobalEvictions, isMessageLive, platformStoreCap } from "@/utils/store-cap"
 
+// Synchronous dedup set for message insertion. Prevents duplicate push() when
+// two message.updated events for the same ID arrive within a single SolidJS
+// batch (reactive store hasn't flushed yet so findIndex misses the first push).
+const _knownMessageIds = new Set<string>()
+
+/** Seed the dedup set after bootstrap/cold-load writes messages to store. */
+export function seedKnownMessageIds(messageIds: Iterable<string>) {
+  for (const id of messageIds) _knownMessageIds.add(id)
+}
+
 // Module-level live-streaming tracker. An assistant messageID stays in this
 // set while time.completed is absent; removed on the final message.updated
 // that stamps completion. Eviction skips IDs in this set.
@@ -55,10 +65,44 @@ export function isMessageTombstoned(messageID: string): boolean {
   return true
 }
 
-export function evictGlobalIfOverCap(store: Store<State>, setStore: SetStoreFunction<State>) {
+// Deferred eviction: schedule at most one idle-time sweep per frame to avoid
+// synchronous store mutations during the same batch as message completion
+// (which can invalidate the rendering tree and cause "content disappears").
+let _evictionScheduled = false
+let _evictionStore: Store<State> | null = null
+let _evictionSetStore: SetStoreFunction<State> | null = null
+
+function buildProtectedSessionIds(store: Store<State>): Set<string> {
+  const ids = new Set<string>()
+  // Protect the currently-viewed session.
+  const activeId = store.workspace?.attachments?.activeSessionId
+  if (activeId) ids.add(activeId)
+  // Protect any session that is currently busy (running/streaming).
+  for (const [sid, status] of Object.entries(store.session_status ?? {})) {
+    if (status && status.type !== "idle") ids.add(sid)
+  }
+  return ids
+}
+
+function runDeferredEviction() {
+  _evictionScheduled = false
+  const store = _evictionStore
+  const setStore = _evictionSetStore
+  if (!store || !setStore) return
+
   const cap = platformStoreCap()
-  const decisions = computeGlobalEvictions(store.message, cap, _liveStreamingIds)
+  const protectedIds = buildProtectedSessionIds(store)
+  const decisions = computeGlobalEvictions(store.message, cap, _liveStreamingIds, protectedIds)
   if (decisions.length === 0) return
+
+  console.warn("[eviction] deferred LRU sweep", {
+    cap,
+    evicting: decisions.length,
+    protectedSessions: [...protectedIds],
+    sessions: [...new Set(decisions.map((d) => d.sessionID))],
+    messageIDs: decisions.map((d) => d.messageID),
+  })
+
   setStore(
     produce((draft) => {
       for (const { sessionID, messageID } of decisions) {
@@ -70,6 +114,20 @@ export function evictGlobalIfOverCap(store: Store<State>, setStore: SetStoreFunc
       }
     }),
   )
+}
+
+export function evictGlobalIfOverCap(store: Store<State>, setStore: SetStoreFunction<State>) {
+  _evictionStore = store
+  _evictionSetStore = setStore
+  if (_evictionScheduled) return
+  _evictionScheduled = true
+
+  // Defer to next idle frame — never synchronously during message.updated handling.
+  if (typeof requestIdleCallback !== "undefined") {
+    requestIdleCallback(runDeferredEviction, { timeout: 500 })
+  } else {
+    setTimeout(runDeferredEviction, 50)
+  }
 }
 
 // Non-reactive dedup map for delta events.
@@ -319,9 +377,19 @@ export function applyDirectoryEvent(input: {
     }
     case "session.status": {
       const props = event.properties as { sessionID: string; status: SessionStatus }
+      const prevStatus = input.store.session_status[props.sessionID]
       // session-ui-freshness R1.S1 / DD-1: stamp client receivedAt on every arrival.
       const entry: StoreSessionStatusEntry = { ...props.status, receivedAt: Date.now() }
       input.setStore("session_status", props.sessionID, reconcile(entry))
+      // Log status transitions — especially "busy→idle" which is the completion boundary.
+      if (prevStatus?.type !== props.status.type) {
+        console.info("[session.status] transition", {
+          sessionID: props.sessionID,
+          from: prevStatus?.type ?? "unknown",
+          to: props.status.type,
+          messageCount: (input.store.message[props.sessionID] ?? []).length,
+        })
+      }
       break
     }
     case "session.active-child.updated": {
@@ -367,28 +435,60 @@ export function applyDirectoryEvent(input: {
     case "message.updated": {
       const info = (event.properties as { info: Message }).info
       // Phase 10: live-streaming tracker. Add when streaming, remove when done.
+      const wasLive = _liveStreamingIds.has(info.id)
       if (isMessageLive(info)) _liveStreamingIds.add(info.id)
       else _liveStreamingIds.delete(info.id)
 
+      // Log streaming→completed transitions (the moment eviction protection lifts).
+      if (wasLive && !isMessageLive(info)) {
+        console.info("[message.updated] streaming→completed", {
+          messageID: info.id,
+          sessionID: info.sessionID,
+          role: info.role,
+          liveCount: _liveStreamingIds.size,
+        })
+      }
+
       const messages = input.store.message[info.sessionID]
       if (!messages) {
+        _knownMessageIds.add(info.id)
         input.setStore("message", info.sessionID, [info])
         evictGlobalIfOverCap(input.store, input.setStore)
         break
       }
-      const result = Binary.search(messages, info.id, (m) => m.id)
-      if (result.found) {
-        input.setStore("message", info.sessionID, result.index, reconcile(info))
+      // Linear scan — Binary.search assumes ID lex order = chronological,
+      // which breaks after compaction rewrites IDs with fresh timestamps.
+      const existingIdx = messages.findIndex((m) => m.id === info.id)
+      if (existingIdx >= 0) {
+        input.setStore("message", info.sessionID, existingIdx, reconcile(info))
         // Update-in-place doesn't grow the store, but completing a streaming
         // message makes it newly LRU-eligible, so we still sweep.
         evictGlobalIfOverCap(input.store, input.setStore)
         break
       }
+      // Synchronous dedup guard: SolidJS batch() defers setStore, so a second
+      // message.updated for the same ID within the same flush won't see the
+      // prior push in the reactive store. _knownMessageIds updates synchronously.
+      if (_knownMessageIds.has(info.id)) {
+        // Already pushed in this batch — find via produce's draft instead.
+        input.setStore(
+          "message",
+          info.sessionID,
+          produce((draft) => {
+            const idx = draft.findIndex((m) => m.id === info.id)
+            if (idx >= 0) Object.assign(draft[idx], info)
+          }),
+        )
+        break
+      }
+      _knownMessageIds.add(info.id)
+      // New message: append at end. SSE delivers in chronological order;
+      // never insert mid-array based on ID comparison.
       input.setStore(
         "message",
         info.sessionID,
         produce((draft) => {
-          draft.splice(result.index, 0, info)
+          draft.push(info)
         }),
       )
       evictGlobalIfOverCap(input.store, input.setStore)
@@ -396,6 +496,12 @@ export function applyDirectoryEvent(input: {
     }
     case "message.removed": {
       const props = event.properties as { sessionID: string; messageID: string }
+      console.warn("[message.removed] SSE", {
+        messageID: props.messageID,
+        sessionID: props.sessionID,
+        hadParts: !!(input.store.part[props.messageID]?.length),
+      })
+      _knownMessageIds.delete(props.messageID)
       _liveStreamingIds.delete(props.messageID)
       // Tombstone: prevent mergeSnapshot from resurrecting this message
       // via a stale active-poll response that was in-flight during deletion.
@@ -405,8 +511,8 @@ export function applyDirectoryEvent(input: {
         produce((draft) => {
           const messages = draft.message[props.sessionID]
           if (messages) {
-            const result = Binary.search(messages, props.messageID, (m) => m.id)
-            if (result.found) messages.splice(result.index, 1)
+            const idx = messages.findIndex((m) => m.id === props.messageID)
+            if (idx >= 0) messages.splice(idx, 1)
           }
           delete draft.part[props.messageID]
         }),

@@ -8,7 +8,7 @@ import { useSDK } from "./sdk"
 import { sendSessionReloadDebugBeacon } from "@/utils/debug-beacon"
 import type { Message, Part } from "@opencode-ai/sdk/v2/client"
 import type { State } from "./global-sync/types"
-import { evictGlobalIfOverCap } from "./global-sync/event-reducer"
+import { evictGlobalIfOverCap, seedKnownMessageIds } from "./global-sync/event-reducer"
 import { buildMonitorEntries, buildSessionTelemetryFromProjector } from "@/pages/session/monitor-helper"
 import { frontendTweaks } from "./frontend-tweaks"
 
@@ -287,6 +287,8 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
             setMeta("limit", key, input.limit)
             setMeta("complete", key, next.complete)
           })
+          // Seed dedup set so SSE events arriving after bootstrap don't re-push.
+          seedKnownMessageIds(next.session.map((m: Message) => m.id))
           // Phase 10: enforce global cap after cold load.
           evictGlobalIfOverCap(input.store, input.setStore)
         })
