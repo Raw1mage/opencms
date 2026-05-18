@@ -894,6 +894,7 @@ export namespace SessionCompaction {
     | "manual"
     | "idle"
     | "empty-response"
+    | "reload"
 
   export type KindName = "narrative" | "ai_free" | "ai_paid"
   // Note: hybrid_llm is intentionally NOT a KindName. It runs as a
@@ -2966,8 +2967,8 @@ When constructing the summary, try to stick to this template:
 
     // Chain reset
     void publishCompactedAndResetChain(sessionID, {
-      observed: "manual",
-      kind: "narrative",
+      observed: "reload",
+      kind: "text-only rebuild",
     })
 
     log.info("rebuildStreamFromText complete", {
