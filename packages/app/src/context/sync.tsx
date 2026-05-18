@@ -279,6 +279,20 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
               complete: next.complete,
             },
           })
+          const existingMessages = (input.store.message[input.sessionID] ?? []) as Message[]
+          if (existingMessages.length > 0) {
+            const existTail = existingMessages.slice(-3).map((m) => m.id)
+            const newTail = next.session.slice(-3).map((m: Message) => m.id)
+            if (existTail.join(",") !== newTail.join(",")) {
+              console.warn("[loadMessages] reconcile REORDERS message tail!", {
+                sessionID: input.sessionID,
+                existTail,
+                newTail,
+                existCount: existingMessages.length,
+                newCount: next.session.length,
+              })
+            }
+          }
           batch(() => {
             input.setStore("message", input.sessionID, reconcile(next.session, { key: "id" }))
             for (const message of next.part) {
@@ -351,7 +365,17 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
               known.add(msg.id)
             }
             // id prefix encodes creation time, so id sort is chronological.
+            const tailBefore = draft.slice(-3).map((m) => m?.id)
             draft.sort((a, b) => cmp(a?.id ?? "", b?.id ?? ""))
+            const tailAfter = draft.slice(-3).map((m) => m?.id)
+            if (tailBefore.join(",") !== tailAfter.join(",")) {
+              console.warn("[loadOlderMessages] sort REORDERED message tail!", {
+                sessionID: input.sessionID,
+                tailBefore,
+                tailAfter,
+                totalCount: draft.length,
+              })
+            }
           }),
         )
         for (const item of incoming) {

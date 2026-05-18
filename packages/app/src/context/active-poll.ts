@@ -186,6 +186,19 @@ export function startActivePoll(
                 stats: merged.stats,
               })
               const localCountBefore = (deps.store.message[sessionID] ?? []).length
+              // Detect order changes: compare local tail IDs with merged tail IDs.
+              const localTailIds = ((deps.store.message[sessionID] ?? []) as Message[]).slice(-5).map((m) => m.id)
+              const mergedTailIds = merged.messages.slice(-5).map((m) => m.id)
+              const orderChanged = localTailIds.join(",") !== mergedTailIds.join(",")
+              if (orderChanged) {
+                console.warn("[active-poll] final sync REORDERS message tail!", {
+                  sessionID,
+                  localTail: localTailIds,
+                  mergedTail: mergedTailIds,
+                  localCount: localCountBefore,
+                  mergedCount: merged.messages.length,
+                })
+              }
               batch(() => {
                 deps.setStore("message", sessionID, reconcile(merged.messages, { key: "id" }))
                 for (const m of merged.perMessageParts) {
