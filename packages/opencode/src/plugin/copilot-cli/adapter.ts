@@ -203,13 +203,32 @@ function promptToMessages(prompt: LanguageModelV2CallOptions["prompt"]): any[] {
   return messages
 }
 
-/** Extract JSON Schema from AI SDK tool — handles both .parameters and .inputSchema (AI SDK v5) */
+/** Extract JSON Schema from AI SDK tool.
+ *  AI SDK v5 passes inputSchema as a Schema wrapper object with a .jsonSchema getter.
+ *  In compiled binaries, Symbol identity can break causing asSchema() to produce empty schemas.
+ *  We unwrap defensively: try .jsonSchema getter first, then fall back to raw object.
+ */
 function getToolSchema(t: any): any {
-  const schema = t.parameters ?? t.inputSchema ?? {}
-  // Ensure type: "object" is always present — Copilot API rejects schemas without it
-  if (!schema.type) schema.type = "object"
-  if (!schema.properties) schema.properties = {}
-  return schema
+  // Try the jsonSchema getter (Schema wrapper object from AI SDK)
+  const raw = t.inputSchema ?? t.parameters
+  if (raw == null) return { type: "object", properties: {} }
+
+  // If it's a Schema wrapper, unwrap via .jsonSchema
+  if (typeof raw === "object" && "jsonSchema" in raw) {
+    const unwrapped = typeof raw.jsonSchema === "function" ? raw.jsonSchema() : raw.jsonSchema
+    if (unwrapped && typeof unwrapped === "object" && Object.keys(unwrapped.properties ?? {}).length > 0) {
+      return unwrapped
+    }
+  }
+
+  // If raw already has properties, use it directly
+  if (raw.properties && Object.keys(raw.properties).length > 0) {
+    if (!raw.type) raw.type = "object"
+    return raw
+  }
+
+  // Last resort: empty schema
+  return { type: "object", properties: {} }
 }
 
 /** Chat Completions format: { type: "function", function: { name, description, parameters } } */
