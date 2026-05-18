@@ -1031,6 +1031,25 @@ export namespace Provider {
         database["github-copilot"].models = copilotModels
       }
       log.info("Injected bundled github-copilot models", { count: Object.keys(copilotModels).length })
+
+      // copilot-cli: same model set, different provider family (DD-10)
+      const copilotCliModels: Record<string, Model> = {}
+      for (const m of GITHUB_COPILOT_DEFAULT_MODELS) {
+        copilotCliModels[m.id] = createCopilotModel("copilot-cli", m)
+      }
+      if (!database["copilot-cli"]) {
+        database["copilot-cli"] = {
+          id: "copilot-cli",
+          source: "custom",
+          name: "Copilot CLI",
+          env: [],
+          options: {},
+          models: copilotCliModels,
+        }
+      } else {
+        database["copilot-cli"].models = copilotCliModels
+      }
+      log.info("Injected bundled copilot-cli models", { count: Object.keys(copilotCliModels).length })
     }
 
     // @plans/config-restructure Phase 2: availability is now derived from

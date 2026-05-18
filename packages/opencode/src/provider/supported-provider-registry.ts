@@ -4,6 +4,7 @@ export type SupportedProviderKey =
   | "google-api"
   | "gemini-cli"
   | "github-copilot"
+  | "copilot-cli"
   | "gmicloud"
   | "openrouter"
   | "vercel"
@@ -37,6 +38,10 @@ export const SUPPORTED_PROVIDER_REGISTRY: Record<SupportedProviderKey, Supported
   "github-copilot": {
     key: "github-copilot",
     label: "GitHub Copilot",
+  },
+  "copilot-cli": {
+    key: "copilot-cli",
+    label: "Copilot CLI",
   },
   gmicloud: {
     key: "gmicloud",
