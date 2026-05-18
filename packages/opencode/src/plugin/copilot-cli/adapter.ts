@@ -21,6 +21,9 @@ import {
   type ResponsesChunk,
 } from "./client"
 import { shouldUseResponsesApi } from "./models"
+import { Log } from "../../util/log"
+
+const log = Log.create({ service: "copilot-cli.adapter" })
 
 let idCounter = 0
 function nextId(): string {
@@ -40,6 +43,27 @@ function mapFinishReason(reason: string | null): LanguageModelV2FinishReason {
     default:
       return "other"
   }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Normalize tool result output to a plain string. AI SDK may pass string, array, object, or undefined. */
+function stringifyOutput(output: unknown): string {
+  if (typeof output === "string") return output || "{}"
+  if (output == null) return "{}"
+  // AI SDK streamText sends output as [{ type: "text", text: "..." }, ...] array
+  if (Array.isArray(output)) {
+    const texts = output
+      .filter((p: any) => p?.type === "text" && typeof p?.text === "string")
+      .map((p: any) => p.text)
+    if (texts.length > 0) return texts.join("\n")
+    return JSON.stringify(output)
+  }
+  // Object with .text property
+  if (typeof output === "object" && "text" in (output as any)) return String((output as any).text)
+  return JSON.stringify(output)
 }
 
 // ---------------------------------------------------------------------------
@@ -103,7 +127,7 @@ function promptToResponsesInput(prompt: LanguageModelV2CallOptions["prompt"]): a
           input.push({
             type: "function_call_output",
             call_id: p.toolCallId,
-            output: typeof p.output === "string" ? p.output : JSON.stringify(p.output),
+            output: stringifyOutput(p.output),
           })
         }
       }
@@ -170,7 +194,7 @@ function promptToMessages(prompt: LanguageModelV2CallOptions["prompt"]): any[] {
           messages.push({
             role: "tool",
             tool_call_id: p.toolCallId,
-            content: typeof p.output === "string" ? p.output : JSON.stringify(p.output),
+            content: stringifyOutput(p.output),
           })
         }
       }
@@ -346,6 +370,7 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
                 providerMetadata: undefined,
               })
             } catch (err) {
+              log.error("doStream error", { modelId, error: err instanceof Error ? err.message : String(err) })
               controller.error(err)
               return
             }
