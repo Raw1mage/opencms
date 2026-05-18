@@ -304,16 +304,19 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
                     controller.enqueue({ type: "text-end", id: textId })
                     textId = null
                   }
-                } else if (chunk.type === "response.function_call_arguments.start") {
+                } else if (chunk.type === "response.output_item.added" && chunk.item?.type === "function_call") {
+                  // Tool call start — output_item.added carries call_id + name
                   if (textId) { controller.enqueue({ type: "text-end", id: textId }); textId = null }
                   const id = nextId()
-                  toolIds.set(chunk.call_id ?? chunk.item_id ?? "", id)
-                  controller.enqueue({ type: "tool-input-start", id, toolName: chunk.name ?? "" })
+                  const outputIdx = String(chunk.output_index ?? "")
+                  toolIds.set(outputIdx, id)
+                  controller.enqueue({ type: "tool-input-start", id, toolName: chunk.item.name ?? "" })
                 } else if (chunk.type === "response.function_call_arguments.delta") {
-                  const id = toolIds.get(chunk.call_id ?? chunk.item_id ?? "")
+                  // Match by output_index (item_id is opaque, not same as call_id)
+                  const id = toolIds.get(String(chunk.output_index ?? ""))
                   if (id) controller.enqueue({ type: "tool-input-delta", id, delta: chunk.delta ?? "" })
                 } else if (chunk.type === "response.function_call_arguments.done") {
-                  const id = toolIds.get(chunk.call_id ?? chunk.item_id ?? "")
+                  const id = toolIds.get(String(chunk.output_index ?? ""))
                   if (id) controller.enqueue({ type: "tool-input-end", id })
                 } else if (chunk.type === "response.completed") {
                   const resp = chunk.response
