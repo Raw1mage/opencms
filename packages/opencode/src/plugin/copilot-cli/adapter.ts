@@ -316,6 +316,23 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
       const warnings: LanguageModelV2CallWarning[] = []
       const useResponses = shouldUseResponsesApi(modelId)
 
+      // Debug: log prompt and tool structure
+      {
+        const roles = options.prompt.map((m: any) => m.role)
+        const systemLen = options.prompt.filter((m: any) => m.role === "system").map((m: any) => {
+          const c = m.content
+          return typeof c === "string" ? c.length : Array.isArray(c) ? c.reduce((a: number, p: any) => a + (p.text?.length ?? 0), 0) : 0
+        })
+        const toolCount = options.tools?.length ?? 0
+        const toolNames = options.tools?.map((t: any) => t.name).slice(0, 10) ?? []
+        const firstToolSchema = options.tools?.[0] ? JSON.stringify({
+          hasParams: !!(options.tools[0] as any).parameters,
+          hasInput: !!(options.tools[0] as any).inputSchema,
+          props: Object.keys(((options.tools[0] as any).parameters ?? (options.tools[0] as any).inputSchema ?? {}).properties ?? {}),
+        }) : "none"
+        log.info("doStream debug", { modelId, roles: roles.join(","), systemCharLen: systemLen, toolCount, toolNames, firstToolSchema })
+      }
+
       if (useResponses) {
         // Responses API streaming
         const input = promptToResponsesInput(options.prompt)
