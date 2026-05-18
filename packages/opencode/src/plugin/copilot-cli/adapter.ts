@@ -21,9 +21,6 @@ import {
   type ResponsesChunk,
 } from "./client"
 import { shouldUseResponsesApi } from "./models"
-import { Log } from "../../util/log"
-
-const log = Log.create({ service: "copilot-cli.adapter" })
 
 let idCounter = 0
 function nextId(): string {
@@ -286,16 +283,10 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
       const warnings: LanguageModelV2CallWarning[] = []
       const useResponses = shouldUseResponsesApi(modelId)
 
-      const roles = options.prompt.map(m => m.role)
-      const hasTool = roles.includes("tool")
-      const _debugLine = `[${new Date().toISOString()}] doStream: model=${modelId} useResponses=${useResponses} roles=${roles.join(",")} hasTool=${hasTool} msgCount=${options.prompt.length}\n`
-      try { Bun.write(Bun.file("/tmp/copilot-cli-debug.log"), (await Bun.file("/tmp/copilot-cli-debug.log").text().catch(() => "")) + _debugLine) } catch {}
-
       if (useResponses) {
         // Responses API streaming
         const input = promptToResponsesInput(options.prompt)
         const tools = toolsToResponses(options.tools)
-        try { Bun.write(Bun.file("/tmp/copilot-cli-debug.log"), (await Bun.file("/tmp/copilot-cli-debug.log").text().catch(() => "")) + `[${new Date().toISOString()}] responses input: len=${input.length} types=${input.map((i: any) => i.type ?? i.role).join(",")}\n${JSON.stringify(input.map((i: any) => ({ type: i.type ?? i.role, call_id: i.call_id, name: i.name, hasArgs: !!i.arguments })), null, 0)}\n`) } catch {}
         const chunks = streamResponses(
           { model: modelId, input, tools, temperature: options.temperature ?? undefined, max_output_tokens: options.maxOutputTokens ?? undefined },
           { model: modelId },

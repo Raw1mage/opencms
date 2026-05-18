@@ -30,11 +30,9 @@ export const CUSTOM_LOADERS: Record<string, CustomLoader> = {
   "claude-cli": async () => ({ autoload: true, options: {} }),
   // copilot-cli: self-contained plugin (DD-8/9). Uses own adapter, bypasses AI SDK provider.
   "copilot-cli": async () => {
-    try { Bun.write(Bun.file("/tmp/copilot-cli-debug.log"), (await Bun.file("/tmp/copilot-cli-debug.log").text().catch(() => "")) + `[${new Date().toISOString()}] custom-loader: copilot-cli init called\n`) } catch {}
     return {
       autoload: true,
       async getModel(_sdk: any, modelID: string, _options?: Record<string, any>) {
-        try { Bun.write(Bun.file("/tmp/copilot-cli-debug.log"), (await Bun.file("/tmp/copilot-cli-debug.log").text().catch(() => "")) + `[${new Date().toISOString()}] custom-loader: getModel called for ${modelID}\n`) } catch {}
         const { createCopilotCLIModel } = await import("@/plugin/copilot-cli/adapter")
         return createCopilotCLIModel(modelID)
       },

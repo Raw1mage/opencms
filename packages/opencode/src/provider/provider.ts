@@ -310,6 +310,8 @@ export namespace Provider {
     // Type cast needed because OpenaiCompatibleProvider has a subset of SDK interface
     // We only use language model capabilities, not embeddings or image models
     "@ai-sdk/github-copilot": createGitHubCopilotOpenAICompatible as unknown as (options: any) => SDK,
+    // copilot-cli: no-op SDK — adapter handles everything, this just prevents BunProc.install hang
+    "@opencode-ai/provider-copilot-cli": (() => ({})) as unknown as (options: any) => SDK,
   }
 
   type CustomModelLoader = (sdk: any, modelID: string, options?: Record<string, any>) => Promise<any>
@@ -1000,7 +1002,6 @@ export namespace Provider {
   }
 
   async function initState() {
-    process.stderr.write(`[copilot-cli-debug] initState: ENTERED at ${new Date().toISOString()}\n`)
     debugCheckpoint("provider", "state init start")
     using _ = log.time("state")
     const config = await Config.get()
@@ -1929,7 +1930,6 @@ export namespace Provider {
 
     // Merge inline CUSTOM_LOADERS with imported ones (imported takes precedence)
     const mergedCustomLoaders = { ...CUSTOM_LOADERS, ...IMPORTED_CUSTOM_LOADERS }
-    process.stderr.write(`[copilot-cli-debug] loader-loop: loaderKeys=${Object.keys(mergedCustomLoaders).join(",")} dbKeys=${Object.keys(database).filter(k => k.includes("copilot")).join(",") || "NONE"} disabledKeys=${[...disabled].join(",") || "NONE"}\n`)
     for (const [providerId, fn] of Object.entries(mergedCustomLoaders)) {
       if (disabled.has(providerId)) continue
       const data = database[providerId]
