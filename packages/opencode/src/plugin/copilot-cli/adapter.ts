@@ -43,7 +43,66 @@ function mapFinishReason(reason: string | null): LanguageModelV2FinishReason {
 }
 
 // ---------------------------------------------------------------------------
-// Convert AI SDK prompt to OpenAI messages format
+// Convert AI SDK prompt to Responses API input format
+// ---------------------------------------------------------------------------
+
+function promptToResponsesInput(prompt: LanguageModelV2CallOptions["prompt"]): any[] {
+  const input: any[] = []
+  for (const msg of prompt) {
+    if (msg.role === "system") {
+      const text = typeof msg.content === "string"
+        ? msg.content
+        : Array.isArray(msg.content)
+          ? msg.content.filter((p: any) => p.type === "text").map((p: any) => p.text).join("\n")
+          : String(msg.content ?? "")
+      input.push({ role: "system", content: text })
+    } else if (msg.role === "user") {
+      const parts: any[] = []
+      const content = Array.isArray(msg.content) ? msg.content : [{ type: "text", text: String(msg.content ?? "") }]
+      for (const p of content) {
+        if (p.type === "text") {
+          parts.push({ type: "input_text", text: p.text })
+        } else if (p.type === "file") {
+          if ("data" in p && typeof p.data === "string" && p.mediaType?.startsWith("image/")) {
+            parts.push({ type: "input_image", image_url: `data:${p.mediaType};base64,${p.data}` })
+          }
+        }
+      }
+      input.push({ role: "user", content: parts })
+    } else if (msg.role === "assistant") {
+      const items: any[] = []
+      const aContent = Array.isArray(msg.content) ? msg.content : typeof msg.content === "string" ? [{ type: "text", text: msg.content }] : []
+      for (const p of aContent) {
+        if (p.type === "text") {
+          items.push({ type: "output_text", text: p.text })
+        } else if (p.type === "tool-call") {
+          items.push({
+            type: "function_call",
+            call_id: p.toolCallId,
+            name: p.toolName,
+            arguments: typeof p.args === "string" ? p.args : JSON.stringify(p.args),
+          })
+        }
+      }
+      input.push({ role: "assistant", content: items })
+    } else if (msg.role === "tool") {
+      const tContent = Array.isArray(msg.content) ? msg.content : []
+      for (const p of tContent) {
+        if (p.type === "tool-result") {
+          input.push({
+            type: "function_call_output",
+            call_id: p.toolCallId,
+            output: typeof p.output === "string" ? p.output : JSON.stringify(p.output),
+          })
+        }
+      }
+    }
+  }
+  return input
+}
+
+// ---------------------------------------------------------------------------
+// Convert AI SDK prompt to Chat Completions messages format
 // ---------------------------------------------------------------------------
 
 function promptToMessages(prompt: LanguageModelV2CallOptions["prompt"]): any[] {
@@ -135,13 +194,12 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
     supportedUrls: {},
 
     async doGenerate(options: LanguageModelV2CallOptions) {
-      const messages = promptToMessages(options.prompt)
       const tools = toolsToOpenAI(options.tools)
       const warnings: LanguageModelV2CallWarning[] = []
       const useResponses = shouldUseResponsesApi(modelId)
 
       if (useResponses) {
-        // Collect full response from Responses API streaming
+        const input = promptToResponsesInput(options.prompt)
         let text = ""
         let inputTokens = 0
         let outputTokens = 0
@@ -149,7 +207,7 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
         const toolCalls: any[] = []
 
         for await (const chunk of streamResponses(
-          { model: modelId, input: messages, tools, temperature: options.temperature ?? undefined, max_output_tokens: options.maxOutputTokens ?? undefined },
+          { model: modelId, input, tools, temperature: options.temperature ?? undefined, max_output_tokens: options.maxOutputTokens ?? undefined },
           { model: modelId },
         )) {
           if (chunk.type === "response.output_text.delta") text += chunk.delta ?? ""
@@ -175,6 +233,7 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
       }
 
       // Chat Completions path
+      const messages = promptToMessages(options.prompt)
       const result = await callCompletions(
         { model: modelId, messages, tools, temperature: options.temperature ?? undefined, max_tokens: options.maxOutputTokens ?? undefined },
         { model: modelId },
@@ -195,15 +254,15 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
     },
 
     async doStream(options: LanguageModelV2CallOptions) {
-      const messages = promptToMessages(options.prompt)
       const tools = toolsToOpenAI(options.tools)
       const warnings: LanguageModelV2CallWarning[] = []
       const useResponses = shouldUseResponsesApi(modelId)
 
       if (useResponses) {
         // Responses API streaming
+        const input = promptToResponsesInput(options.prompt)
         const chunks = streamResponses(
-          { model: modelId, input: messages, tools, temperature: options.temperature ?? undefined, max_output_tokens: options.maxOutputTokens ?? undefined },
+          { model: modelId, input, tools, temperature: options.temperature ?? undefined, max_output_tokens: options.maxOutputTokens ?? undefined },
           { model: modelId },
         )
 
@@ -269,6 +328,7 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
       }
 
       // Chat Completions streaming
+      const messages = promptToMessages(options.prompt)
       const chunks = streamCompletions(
         { model: modelId, messages, tools, temperature: options.temperature ?? undefined, max_tokens: options.maxOutputTokens ?? undefined },
         { model: modelId },
