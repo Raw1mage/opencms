@@ -21,6 +21,9 @@ import {
   type ResponsesChunk,
 } from "./client"
 import { shouldUseResponsesApi } from "./models"
+import { Log } from "../../util/log"
+
+const log = Log.create({ service: "copilot-cli.adapter" })
 
 let idCounter = 0
 function nextId(): string {
@@ -283,10 +286,15 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
       const warnings: LanguageModelV2CallWarning[] = []
       const useResponses = shouldUseResponsesApi(modelId)
 
+      const roles = options.prompt.map(m => m.role)
+      const hasTool = roles.includes("tool")
+      log.info("doStream called", { modelId, useResponses, roles: roles.join(","), hasTool, msgCount: options.prompt.length })
+
       if (useResponses) {
         // Responses API streaming
         const input = promptToResponsesInput(options.prompt)
         const tools = toolsToResponses(options.tools)
+        log.info("responses input", { inputLength: input.length, inputTypes: input.map((i: any) => i.type ?? i.role).join(",") })
         const chunks = streamResponses(
           { model: modelId, input, tools, temperature: options.temperature ?? undefined, max_output_tokens: options.maxOutputTokens ?? undefined },
           { model: modelId },
