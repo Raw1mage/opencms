@@ -48,14 +48,16 @@ function promptToMessages(prompt: LanguageModelV2CallOptions["prompt"]): any[] {
   const messages: any[] = []
   for (const msg of prompt) {
     if (msg.role === "system") {
-      const text = msg.content
-        .filter((p: any) => p.type === "text")
-        .map((p: any) => p.text)
-        .join("\n")
+      const text = typeof msg.content === "string"
+        ? msg.content
+        : Array.isArray(msg.content)
+          ? msg.content.filter((p: any) => p.type === "text").map((p: any) => p.text).join("\n")
+          : String(msg.content ?? "")
       messages.push({ role: "system", content: text })
     } else if (msg.role === "user") {
       const parts: any[] = []
-      for (const p of msg.content) {
+      const content = Array.isArray(msg.content) ? msg.content : [{ type: "text", text: String(msg.content ?? "") }]
+      for (const p of content) {
         if (p.type === "text") {
           parts.push({ type: "text", text: p.text })
         } else if (p.type === "file") {
@@ -71,7 +73,8 @@ function promptToMessages(prompt: LanguageModelV2CallOptions["prompt"]): any[] {
     } else if (msg.role === "assistant") {
       const toolCalls: any[] = []
       let text = ""
-      for (const p of msg.content) {
+      const aContent = Array.isArray(msg.content) ? msg.content : typeof msg.content === "string" ? [{ type: "text", text: msg.content }] : []
+      for (const p of aContent) {
         if (p.type === "text") text += p.text
         else if (p.type === "tool-call") {
           toolCalls.push({
@@ -89,7 +92,8 @@ function promptToMessages(prompt: LanguageModelV2CallOptions["prompt"]): any[] {
       if (toolCalls.length > 0) m.tool_calls = toolCalls
       messages.push(m)
     } else if (msg.role === "tool") {
-      for (const p of msg.content) {
+      const tContent = Array.isArray(msg.content) ? msg.content : []
+      for (const p of tContent) {
         if (p.type === "tool-result") {
           messages.push({
             role: "tool",
