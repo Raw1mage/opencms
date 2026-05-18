@@ -456,12 +456,19 @@ export namespace LLM {
       modelID: input.model.id,
       providerId: input.model.providerId,
     })
-    // Get account ID for rate limit tracking and provider options
+    // Get account ID for rate limit tracking and provider options.
+    // Session-scoped work MUST use the session-pinned account; global
+    // activeAccount is for UI defaults / new-session init, not a silent
+    // fallback for in-flight requests (RCA 2026-05-18: removing
+    // activeAccount caused empty-response compaction loop because
+    // multiple code paths fell through to Account.getActive).
     const sessionPinnedAccountId = input.accountId ?? input.user.model.accountId
-    let currentAccountId = sessionPinnedAccountId ?? (await getAccountIdForProvider(input.model.providerId))
+    let currentAccountId = sessionPinnedAccountId
 
-    // Pre-flight: if resolved account is rate-limited, proactively select a healthy one
-    if (currentAccountId && !sessionPinnedAccountId) {
+    // Pre-flight: if session-pinned account is rate-limited, select a
+    // healthy account from the SAME provider's account pool — never
+    // fall back to global activeAccount.
+    if (currentAccountId) {
       const { getRateLimitTracker, getHealthTracker } = await import("@/account/rotation")
       const rateLimitTracker = getRateLimitTracker()
       if (rateLimitTracker.isRateLimited(currentAccountId, input.model.providerId, input.model.id)) {
@@ -504,19 +511,9 @@ export namespace LLM {
         providerId: input.model.providerId,
         modelID: input.model.id,
         accountId: currentAccountId,
-        source: sessionPinnedAccountId ? "session-pinned" : "global-active",
+        source: "session-pinned",
         inputAccountId: input.accountId,
         userMessageAccountId: input.user.model.accountId,
-        stack: new Error().stack,
-      })
-    }
-
-    if (!sessionPinnedAccountId && currentAccountId) {
-      debugCheckpoint("llm", "LLM.stream fell back to global active account", {
-        providerId: input.model.providerId,
-        modelID: input.model.id,
-        accountId: currentAccountId,
-        sessionID: input.sessionID,
       })
     }
     logSessionAccountAudit({

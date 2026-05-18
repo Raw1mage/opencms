@@ -439,8 +439,12 @@ export namespace SessionProcessor {
                   sessionExecution = undefined
                 }
               }
+              // Session-scoped work: account comes from session execution
+              // or explicit caller input. Never fall back to global
+              // activeAccount — that's for UI defaults / new-session init
+              // (RCA 2026-05-18).
               const sessionPinnedAccountId = explicitAccountId ?? sessionExecution
-              const accountId = sessionPinnedAccountId ?? (family ? await Account.getActive(family) : undefined)
+              const accountId = sessionPinnedAccountId
 
               // SYSLOG: Full account resolution trace for Bug #1 diagnosis
               debugCheckpoint("syslog.session", "preflight account resolution trace", {
@@ -454,13 +458,12 @@ export namespace SessionProcessor {
                   userMessageAccountId: streamInput.user.model.accountId,
                   sessionExecutionAccountId: sessionExecution,
                   sessionPinnedAccountId,
-                  globalActiveAccountId: family ? await Account.getActive(family) : undefined,
                   resolvedAccountId: accountId,
                   source: sessionPinnedAccountId
                     ? sessionExecution && sessionPinnedAccountId === sessionExecution
                       ? "session-execution"
                       : "pinned"
-                    : "global-active",
+                    : "no-account",
                 },
                 family,
                 fallbackAttempts,
@@ -473,7 +476,7 @@ export namespace SessionProcessor {
                   providerId: streamInput.model.providerId,
                   modelID: streamInput.model.id,
                   accountId,
-                  source: sessionPinnedAccountId ? "session-pinned" : "global-active",
+                  source: "session-pinned",
                   pinChain: {
                     streamInputAccountId: streamInput.accountId,
                     inputAccountId: input.accountId,
@@ -481,40 +484,7 @@ export namespace SessionProcessor {
                     userMessageAccountId: streamInput.user.model.accountId,
                   },
                   fallbackAttempts,
-                  stack: new Error().stack,
                 })
-              }
-
-              if (!sessionPinnedAccountId && accountId) {
-                debugCheckpoint("rotation3d", "Pre-flight fell back to global active account", {
-                  providerId: streamInput.model.providerId,
-                  modelID: streamInput.model.id,
-                  accountId,
-                  sessionID: input.sessionID,
-                })
-                // FIX(Bug #1): Pin resolved account onto session so subsequent
-                // requests in this session won't drift when the global active
-                // account changes (e.g. via TUI dialog or another session).
-                streamInput.accountId = accountId
-                input.accountId = accountId
-                input.assistantMessage.accountId = accountId
-                await Session.pinExecutionIdentity({
-                  sessionID: input.sessionID,
-                  model: {
-                    providerId: streamInput.model.providerId,
-                    modelID: streamInput.model.id,
-                    accountId,
-                  },
-                })
-                debugCheckpoint("syslog.session", "pinned global-active account to session identity", {
-                  sessionID: input.sessionID,
-                  accountId,
-                  providerId: streamInput.model.providerId,
-                  modelID: streamInput.model.id,
-                  note: "prevents silent account drift from global active changes",
-                })
-                // Update session identity constraint for rotation
-                sessionIdentity = { providerId: streamInput.model.providerId, accountId }
               }
               if (accountId) {
                 logSessionAccountAudit({
