@@ -41,7 +41,7 @@ type BuildCanonicalProviderKeyRowsInput = {
 type BuildCanonicalProviderFamilyRowsInput = BuildCanonicalProviderKeyRowsInput
 
 const LEGACY_BLOCKLIST = new Set(["google"])
-const GENERIC_RUNTIME_FAMILIES = new Set(["claude-cli", "github-copilot", "github-copilot-enterprise", "opencode"])
+const GENERIC_RUNTIME_FAMILIES = new Set(["claude-cli", "github-copilot", "github-copilot-enterprise", "copilot-cli", "opencode"])
 
 export function normalizeCanonicalProviderKey(id: string | undefined | null): string | undefined {
   if (!id) return undefined
