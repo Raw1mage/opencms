@@ -396,7 +396,21 @@ export const TRIGGER_INVENTORY = Object.freeze([
   { id: "predicted-cache-miss", observed: "cache-aware", description: "predicted cache miss at high context" },
   { id: "quota-pressure", observed: null, description: "quota pressure placeholder disabled until schema is pinned" },
   { id: "cache-aware", observed: "cache-aware", description: "prompt crosses cache-aware threshold" },
+  { id: "cache-cliff", observed: "continuation-invalidated", description: "cache_read dropped >50% between turns — server lost chain" },
 ] as const)
+
+/**
+ * Per-session cache_read tracker for detecting catastrophic server-side
+ * cache loss. When cache_read drops dramatically between consecutive turns
+ * (same account, no compaction), the server silently evicted the chain
+ * and the model is running on a near-empty context. The only recovery is
+ * a continuation-invalidated rebind that forces full prompt resend.
+ *
+ * Incident 2026-05-19 ses_1c875cc15ffe5ds18JVdNAT4e6: codex server
+ * evicted 193K cache mid-session; client kept sending delta; model ran
+ * on 3K tokens for 10+ minutes producing repetitive nonsense.
+ */
+const lastCacheRead = new Map<string, number>()
 
 export async function deriveObservedCondition(input: {
   sessionID: string
@@ -436,6 +450,37 @@ export async function deriveObservedCondition(input: {
     // compaction-request with auto:true is system-initiated (overflow-equivalent
     // — caller wants synthetic Continue injection); auto:false is user-initiated.
     return input.compactionRequestAuto === true ? "overflow" : "manual"
+  }
+
+  // Cache cliff detection: if cache_read dropped >50% from the previous
+  // turn AND the previous turn had substantial cache (>50K), the server
+  // silently lost the chain. Force continuation-invalidated to trigger
+  // chain reset + full prompt resend on the next call.
+  //
+  // Incident 2026-05-19: codex server evicted 193K→24K mid-session;
+  // client kept delta mode; model ran on 3K tokens for 10+ minutes.
+  if (input.lastFinished) {
+    const currentCache = input.lastFinished.tokens.cache.read ?? 0
+    const prevCache = lastCacheRead.get(input.sessionID)
+    lastCacheRead.set(input.sessionID, currentCache)
+    if (prevCache !== undefined && prevCache > 50_000 && currentCache < prevCache * 0.5) {
+      debugCheckpoint("prompt", "cache_cliff_detected", {
+        sessionID: input.sessionID,
+        step: input.step,
+        prevCacheRead: prevCache,
+        currentCacheRead: currentCache,
+        dropRatio: currentCache / prevCache,
+      })
+      void Session.appendRecentEvent(input.sessionID, {
+        ts: Date.now(),
+        kind: "cache-cliff",
+        cacheCliff: {
+          prevCacheRead: prevCache,
+          currentCacheRead: currentCache,
+        },
+      }).catch(() => {})
+      return "continuation-invalidated"
+    }
   }
 
   // Item-count pressure: codex WS has an undocumented item-array limit.

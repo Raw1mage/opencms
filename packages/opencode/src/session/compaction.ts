@@ -50,6 +50,22 @@ Bus.subscribe(ContinuationInvalidatedEvent, (evt) => {
 export namespace SessionCompaction {
   const log = Log.create({ service: "session.compaction" })
 
+  /**
+   * Resolve the current accountId for anchor writes. User messages may
+   * not carry model.accountId (they are user-typed, not LLM-generated),
+   * so we fall back to the session's execution state which is always
+   * updated by the rotation system.
+   */
+  async function resolveAccountId(
+    sessionID: string,
+    userMessage?: { model?: { accountId?: string } } | null,
+  ): Promise<string | undefined> {
+    const fromMsg = userMessage?.model?.accountId
+    if (fromMsg) return fromMsg
+    const session = await Session.get(sessionID).catch(() => undefined)
+    return session?.execution?.accountId
+  }
+
   // Phase 7: pendingRebindCompaction Set, markRebindCompaction, and
   // consumeRebindCompaction deleted. Continuation-invalidated signal is now
   // state-driven via session.execution.continuationInvalidatedAt (DD-11);
@@ -645,83 +661,65 @@ export namespace SessionCompaction {
     const userMessage = msgs.findLast((m) => m.info.role === "user")?.info as MessageV2.User | undefined
     if (!userMessage) return
 
-    // In-place anchor update: if an existing anchor exists, update its
-    // text body instead of creating a new message. This prevents the
-    // exponential DB growth where each rebind creates a full copy of the
-    // accumulated history. Only create a new anchor on first compaction.
+    // Ping-pong anchor: always create a fresh anchor so its ID sorts
+    // correctly in the message stream, then retire the old one.  If the
+    // new write fails, the old anchor is still intact — no data loss.
+    // At most two anchors coexist briefly; the reader (getAnchorMessage)
+    // picks the newest by ID.
     const prevAnchor = await Memory.Hybrid.getAnchorMessage(input.sessionID, msgs).catch(() => null)
     const followUps = await PostCompaction.gather(input.sessionID)
     const followUpAddendum = PostCompaction.buildSummaryAddendum(followUps)
     const fullBody = input.snapshot + followUpAddendum
 
+    const accountId = await resolveAccountId(input.sessionID, userMessage)
+
+    // Step 1: create new anchor
+    const summaryMsg = (await Session.updateMessage({
+      id: Identifier.ascending("message"),
+      role: "assistant",
+      parentID,
+      sessionID: input.sessionID,
+      mode: "compaction",
+      agent: "compaction",
+      variant: userMessage.variant,
+      summary: true,
+      path: {
+        cwd: Instance.directory,
+        root: Instance.worktree,
+      },
+      cost: 0,
+      tokens: {
+        output: 0,
+        input: 0,
+        reasoning: 0,
+        cache: { read: 0, write: 0 },
+      },
+      modelID: input.model.id,
+      providerId: input.model.providerId,
+      accountId,
+      time: { created: Date.now() },
+    })) as MessageV2.Assistant
+
+    await Session.updatePart({
+      id: Identifier.ascending("part"),
+      messageID: summaryMsg.id,
+      sessionID: input.sessionID,
+      type: "text",
+      text: fullBody,
+      time: { start: Date.now(), end: Date.now() },
+    })
+
+    await Session.updatePart({
+      id: Identifier.ascending("part"),
+      messageID: summaryMsg.id,
+      sessionID: input.sessionID,
+      type: "compaction",
+      auto: input.auto,
+    })
+
+    // Step 2: retire old anchor now that the new one is safely written
     if (prevAnchor) {
-      // Update existing anchor's text part in place
-      const textPart = prevAnchor.parts.find((p) => p.type === "text")
-      if (textPart) {
-        await Session.updatePart({
-          ...(textPart as any),
-          text: fullBody,
-        })
-      } else {
-        // Anchor exists but no text part — create one
-        await Session.updatePart({
-          id: Identifier.ascending("part"),
-          messageID: prevAnchor.info.id,
-          sessionID: input.sessionID,
-          type: "text",
-          text: fullBody,
-          time: { start: Date.now(), end: Date.now() },
-        })
-      }
-      // Update anchor timestamp so cooldown works correctly
-      await Session.updateMessage({
-        ...(prevAnchor.info as any),
-        time: { created: Date.now() },
-      }).catch(() => undefined)
-    } else {
-      // First compaction — create new anchor message
-      const summaryMsg = (await Session.updateMessage({
-        id: Identifier.ascending("message"),
-        role: "assistant",
-        parentID,
-        sessionID: input.sessionID,
-        mode: "compaction",
-        agent: "compaction",
-        variant: userMessage.variant,
-        summary: true,
-        path: {
-          cwd: Instance.directory,
-          root: Instance.worktree,
-        },
-        cost: 0,
-        tokens: {
-          output: 0,
-          input: 0,
-          reasoning: 0,
-          cache: { read: 0, write: 0 },
-        },
-        modelID: input.model.id,
-        providerId: input.model.providerId,
-        accountId: userMessage.model.accountId,
-        time: { created: Date.now() },
-      })) as MessageV2.Assistant
-
-      await Session.updatePart({
-        id: Identifier.ascending("part"),
-        messageID: summaryMsg.id,
-        sessionID: input.sessionID,
-        type: "text",
-        text: fullBody,
-        time: { start: Date.now(), end: Date.now() },
-      })
-
-      await Session.updatePart({
-        id: Identifier.ascending("part"),
-        messageID: summaryMsg.id,
-        sessionID: input.sessionID,
-        type: "compaction",
-        auto: input.auto,
-      })
+      await Session.removeMessage({ sessionID: input.sessionID, messageID: prevAnchor.info.id }).catch(() => undefined)
     }
 
     log.info("shared context compaction complete", { sessionID: input.sessionID })
@@ -939,8 +937,8 @@ export namespace SessionCompaction {
   // ai_paid) is handled by background enrichment via scheduleHybridEnrichment.
   // Foreground must never block the user waiting for API calls.
   const KIND_CHAIN: Readonly<Record<Observed, ReadonlyArray<KindName>>> = Object.freeze({
-    overflow: Object.freeze(["narrative"] as const),
-    "cache-aware": Object.freeze(["narrative"] as const),
+    overflow: Object.freeze(["narrative", "ai_paid"] as const),
+    "cache-aware": Object.freeze(["narrative", "ai_paid"] as const),
     idle: Object.freeze(["narrative"] as const),
     rebind: Object.freeze(["narrative"] as const),
     "continuation-invalidated": Object.freeze(["narrative"] as const),
@@ -1121,6 +1119,25 @@ export namespace SessionCompaction {
     const prevAnchor = await Memory.Hybrid.getAnchorMessage(input.sessionID, messages)
     const prevAnchorIdx = prevAnchor ? messages.findIndex((m) => m.info.id === prevAnchor.info.id) : -1
     const prevBody = prevAnchor ? extractAnchorTextBody(prevAnchor) : ""
+
+    // Anchor bloat guard: if the existing anchor already consumes ≥50%
+    // of the context window, narrative concatenation will only make it
+    // bigger.  Bail out so the kind chain escalates to ai_paid which
+    // can actually re-summarize and shrink the anchor.
+    if (prevBody && _model) {
+      const anchorTokenEstimate = Math.ceil(prevBody.length / 4)
+      const contextLimit = _model.limit.context
+      if (contextLimit > 0 && anchorTokenEstimate >= contextLimit * 0.5) {
+        log.info("narrative.anchor_bloat_escalation", {
+          sessionID: input.sessionID,
+          anchorTokenEstimate,
+          contextLimit,
+          ratio: Math.round((anchorTokenEstimate / contextLimit) * 100),
+        })
+        return { ok: false, reason: "anchor exceeds 50% of context — escalating to ai_paid" }
+      }
+    }
+
     const prevLastRound = parsePrevLastRound(prevBody)
 
     const unansweredId = findUnansweredUserMessageId(messages, prevAnchorIdx === -1 ? undefined : prevAnchorIdx)
@@ -1192,6 +1209,8 @@ export namespace SessionCompaction {
     const agent = await Agent.get(userMessage.agent ?? "default").catch(() => undefined)
     const instructions = (agent?.prompt ?? "").slice(0, 50000)
 
+    const accountId = await resolveAccountId(input.sessionID, userMessage)
+
     let hookResult: { compactedItems: unknown[] | null; summary: string | null }
     try {
       hookResult = (await Plugin.trigger(
@@ -1201,7 +1220,7 @@ export namespace SessionCompaction {
           model: {
             providerId: model.providerId,
             modelID: model.id,
-            accountId: userMessage.model.accountId,
+            accountId,
           },
           conversationItems,
           instructions,
@@ -1228,7 +1247,7 @@ export namespace SessionCompaction {
       kind: "ai_free",
       serverCompactedItems: hookResult.compactedItems,
       chainBinding: {
-        accountId: userMessage.model.accountId ?? "",
+        accountId: accountId ?? "",
         modelId: model.id,
         capturedAt: Date.now(),
       },
@@ -1797,11 +1816,11 @@ When constructing the summary, try to stick to this template:
         // predecessor anchor messages.
         {
           emitTelemetry("session.hybrid_enrichment.drop_old_history")
-          // The tail from the last compaction = everything after the
-          // previous anchor's content boundary. We approximate by
-          // keeping only the last ~40% of context worth of body text.
+          // Keep 40% of the anchor's own body length (not 40% of context).
+          // If anchor is 40% of context, keeping 40% of it = 16% of context.
+          // This ensures meaningful compression regardless of anchor size.
           const KEEP_RATIO = 0.40
-          const keepChars = Math.floor((model.limit?.context ?? 272_000) * KEEP_RATIO * 4)
+          const keepChars = Math.floor(latestBody.length * KEEP_RATIO)
           let trimmedBody = latestBody
           if (latestBody.length > keepChars) {
             trimmedBody = latestBody.slice(-keepChars)
@@ -1812,13 +1831,20 @@ When constructing the summary, try to stick to this template:
             }
           }
           const anchorTextPart = narrativeAnchorMsg.parts.find((p) => p.type === "text")
-          if (anchorTextPart && trimmedBody.length < latestBody.length) {
+          const trimmedTokens = Math.ceil(trimmedBody.length / 4)
+          const trimmedRatio = contextLimit > 0 ? trimmedTokens / contextLimit : 0
+          // Only count drop_old as success if it actually compressed
+          // enough (< 35% of context). Otherwise fall through to ai_paid.
+          // reload-generated anchors have no Round boundaries to cut at,
+          // so drop_old barely shaves anything — must not block ai_paid.
+          if (anchorTextPart && trimmedBody.length < latestBody.length && trimmedRatio < 0.35) {
             await Session.updatePart({ ...(anchorTextPart as any), text: trimmedBody })
             await demoteOldAnchors()
             log.info("enrichment step 2: dropped old history from anchor body", {
               sessionID,
               originalTokens: narrativeTokens,
-              keptTokens: Math.ceil(trimmedBody.length / 4),
+              keptTokens: trimmedTokens,
+              trimmedRatio,
               demoted: anchorsTodemote.length,
             })
             emitEnrichmentStatus("success")
@@ -1826,10 +1852,18 @@ When constructing the summary, try to stick to this template:
               ...baseTelemetry,
               result: "success",
               errorMessage: "drop_old_history",
-              anchorTokensAfter: Math.ceil(trimmedBody.length / 4),
+              anchorTokensAfter: trimmedTokens,
               latencyMs: Date.now() - recompressStartedAt,
             })
             return
+          }
+          if (anchorTextPart && trimmedBody.length < latestBody.length) {
+            log.info("enrichment: drop_old_history insufficient, falling through to ai_paid", {
+              sessionID,
+              trimmedTokens,
+              trimmedRatio: Math.round(trimmedRatio * 100),
+              contextLimit,
+            })
           }
         }
 
@@ -2848,7 +2882,7 @@ When constructing the summary, try to stick to this template:
   }> {
     const model = await resolveActiveModel(sessionID)
     const contextWindow = model?.limit?.context ?? 200_000
-    const charBudget = Math.floor(contextWindow * 0.3) * 4 // 30% of context, ~4 chars/token
+    const charBudget = Math.floor(contextWindow * 0.2) * 4 // 20% of context, ~4 chars/token
 
     // Read all messages from DB
     const allMsgs = await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[])
@@ -2917,6 +2951,7 @@ When constructing the summary, try to stick to this template:
     // Find model info for the anchor message
     const lastUser = allMsgs.findLast((m) => m.info.role === "user")?.info as MessageV2.User | undefined
     const anchorModel = model ?? { id: "unknown", providerId: "unknown" }
+    const accountId = await resolveAccountId(sessionID, lastUser)
 
     // Write new anchor
     const parentID = allMsgs.at(-1)?.info.id
@@ -2943,7 +2978,7 @@ When constructing the summary, try to stick to this template:
         },
         modelID: anchorModel.id,
         providerId: anchorModel.providerId,
-        accountId: lastUser?.model?.accountId,
+        accountId,
         time: { created: Date.now() },
       })) as MessageV2.Assistant
 

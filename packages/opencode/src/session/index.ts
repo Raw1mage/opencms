@@ -251,7 +251,7 @@ export namespace Session {
   export const SessionRecentEvent = z
     .object({
       ts: z.number(),
-      kind: z.enum(["rotation", "compaction"]),
+      kind: z.enum(["rotation", "compaction", "cache-cliff"]),
       rotation: z
         .object({
           fromProviderId: z.string().optional(),
@@ -268,6 +268,12 @@ export namespace Session {
           success: z.boolean(),
           tokensBefore: z.number().optional(),
           tokensAfter: z.number().optional(),
+        })
+        .optional(),
+      cacheCliff: z
+        .object({
+          prevCacheRead: z.number(),
+          currentCacheRead: z.number(),
         })
         .optional(),
     })

@@ -732,30 +732,24 @@ export async function tryWsTransport(
   const { sessionId, accessToken, accountId, body, wsUrl } = input
   const state = getSession(sessionId)
 
-  // 2026-05-18: disk-persisted continuation is now KEPT, not dropped.
-  // Previous behavior: preemptively drop lastResponseId from disk before
-  // the first call, forcing a full cold send. "Trading one round's
-  // continuation-cache benefit for reliability."
+  // 2026-05-19: revert to unconditional chain reset on reload.
+  // The 2026-05-18 change tried keeping disk-persisted continuation to
+  // avoid slow full cold sends. But codex server silently evicts sessions
+  // without reporting previous_response_not_found — the client keeps
+  // sending delta while the model runs on near-empty context (3K tokens
+  // instead of 200K+), producing repetitive nonsense for 10+ minutes.
+  // Incident ses_1c875cc15ffe5ds18JVdNAT4e6: twice in one night.
   //
-  // Problem: for long sessions (200+ items), the cold full send is
-  // catastrophically slow — no server-side cache, model quality drops,
-  // users see "jumping needle" repetition loops. Every daemon restart
-  // (frequent during development) triggers this.
-  //
-  // New behavior: try the disk-persisted chain. Two outcomes:
-  //   (a) Server still has the session → delta works, instant resume
-  //   (b) Server lost it → "previous_response_not_found" error →
-  //       existing handler at line ~470 invalidates chain →
-  //       next runloop iteration sends full (same end state as before,
-  //       one extra round-trip)
-  //
-  // Outcome (a) is the common case after normal daemon restarts (codex
-  // server sessions live ~30min+). Outcome (b) is the same fallback
-  // we had before, just deferred by one round-trip.
+  // Full cold send is slower but correct. With 5H quota burning in ~10
+  // minutes, session lifetime is short enough that the performance hit
+  // is acceptable.
   if (state.continuationFromDisk && !state.validatedInProcess && state.lastResponseId) {
     console.error(
-      `[CODEX-WS] keeping disk-persisted continuation for first call session=${sessionId} lastResponseId=${state.lastResponseId.slice(0, 12)}... (will fallback on server rejection)`,
+      `[CODEX-WS] dropping disk-persisted continuation on reload session=${sessionId} lastResponseId=${state.lastResponseId.slice(0, 12)}...`,
     )
+    state.lastResponseId = undefined
+    state.lastInputLength = undefined
+    invalidateContinuation(sessionId)
   }
 
   // Account switch: close WS, preserve per-account continuation

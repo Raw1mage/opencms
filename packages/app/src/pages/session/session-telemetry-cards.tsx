@@ -152,7 +152,7 @@ export function PromptTelemetryCard(props: {
  */
 export type RecentExecutionEvent = {
   ts: number
-  kind: "rotation" | "compaction"
+  kind: "rotation" | "compaction" | "cache-cliff"
   rotation?: {
     fromProviderId?: string
     fromAccountId?: string
@@ -166,6 +166,10 @@ export type RecentExecutionEvent = {
     success: boolean
     tokensBefore?: number
     tokensAfter?: number
+  }
+  cacheCliff?: {
+    prevCacheRead: number
+    currentCacheRead: number
   }
 }
 
@@ -202,6 +206,11 @@ function formatRecentEventLine(
         ? ` (${(c.tokensBefore / 1000).toFixed(0)}k → ${(c.tokensAfter / 1000).toFixed(0)}k)`
         : ""
     return `${hh}:${mm} compaction: ${c.observed}${kind}${c.success ? "" : " ✗"}${tokens}`
+  }
+  if (e.kind === "cache-cliff" && e.cacheCliff) {
+    const prev = (e.cacheCliff.prevCacheRead / 1000).toFixed(0)
+    const curr = (e.cacheCliff.currentCacheRead / 1000).toFixed(0)
+    return `${hh}:${mm} ⚠ cache cliff: ${prev}k → ${curr}k`
   }
   return `${hh}:${mm} (unknown event)`
 }
