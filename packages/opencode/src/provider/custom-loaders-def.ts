@@ -28,6 +28,19 @@ export const CUSTOM_LOADERS: Record<string, CustomLoader> = {
   // (codex-auth.ts and anthropic.ts respectively)
   "codex": async () => ({ autoload: true, options: {} }),
   "claude-cli": async () => ({ autoload: true, options: {} }),
+  // copilot-cli: self-contained plugin (DD-8/9), getModel provided by auth plugin via AuthHook.loader()
+  "copilot-cli": async () => {
+    return {
+      autoload: false,
+      async getModel(sdk: any, modelID: string, _options?: Record<string, any>) {
+        if (sdk.responses === undefined && sdk.chat === undefined) return sdk.languageModel(modelID)
+        // Feature-flag routing will be handled by the plugin's adapter layer (Phase 3).
+        // For now, use the same heuristic as github-copilot.
+        return shouldUseCopilotResponsesApi(modelID) ? sdk.responses(modelID) : sdk.chat(modelID)
+      },
+      options: {},
+    }
+  },
   async opencode(input) {
     const hasKey = await (async () => {
       const env = Env.all()

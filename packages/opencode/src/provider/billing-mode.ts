@@ -11,6 +11,7 @@ const DEFAULT_PROVIDER_BILLING_MODE: Partial<Record<string, ProviderBillingMode>
   vercel: "token",
   gmicloud: "token",
   "github-copilot": "request",
+  "copilot-cli": "request",
 }
 
 export function normalizeProviderBillingKey(providerId: string) {
