@@ -1776,7 +1776,14 @@ export default function Layout(props: ParentProps) {
     openSidebar: (directory?: string) => {
       if (directory) {
         setState("openProject", directory)
-        navigateToProject(directory)
+        // Only navigate if we're not already viewing this project's sessions.
+        // navigateToProject is async (awaits session.get ~1s) — if the user
+        // clicks a session before it resolves, the late resolve overwrites
+        // their navigation with store.lastSession, causing a snap-back.
+        const alreadyInProject = currentDir() && workspaceKey(currentDir()) === workspaceKey(directory)
+        if (!alreadyInProject) {
+          navigateToProject(directory)
+        }
       }
       layout.sidebar.open()
     },
