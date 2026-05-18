@@ -1000,6 +1000,7 @@ export namespace Provider {
   }
 
   async function initState() {
+    await Bun.write("/tmp/copilot-cli-debug.log", `[${new Date().toISOString()}] initState: ENTERED\n`)
     debugCheckpoint("provider", "state init start")
     using _ = log.time("state")
     const config = await Config.get()
