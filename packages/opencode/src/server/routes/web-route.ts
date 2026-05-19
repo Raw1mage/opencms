@@ -89,43 +89,63 @@ function tcpProbe(host: string, port: number, timeoutMs = 2000): Promise<boolean
  * "stop" and other actions run directly (they just send signals/teardown).
  */
 function runWebctl(webctlPath: string, action: string, timeoutMs = 30000): Promise<{ ok: boolean; output: string }> {
-  return new Promise((resolve) => {
-    // Derive a stable scope unit name from the webctl path
-    const scopeName = path.basename(path.dirname(webctlPath)).replace(/[^a-zA-Z0-9_-]/g, "_")
+  const scopeName = path.basename(path.dirname(webctlPath)).replace(/[^a-zA-Z0-9_-]/g, "_")
+  const unitName = `webctl-${scopeName}.scope`
 
-    const useScope = action === "start"
-    const cmd = useScope ? "systemd-run" : "bash"
-    const args = useScope
-      ? ["--user", "--scope", `--unit=webctl-${scopeName}`, "--", "bash", webctlPath, action]
-      : [webctlPath, action]
+  const doSpawn = (): Promise<{ ok: boolean; output: string }> =>
+    new Promise((resolve) => {
+      const useScope = action === "start"
+      const cmd = useScope ? "systemd-run" : "bash"
+      const args = useScope
+        ? ["--user", "--scope", `--unit=webctl-${scopeName}`, "--", "bash", webctlPath, action]
+        : [webctlPath, action]
 
-    const child = spawn(cmd, args, {
-      stdio: ["ignore", "pipe", "pipe"],
-      timeout: timeoutMs,
+      const child = spawn(cmd, args, {
+        stdio: ["ignore", "pipe", "pipe"],
+        timeout: timeoutMs,
+      })
+      let out = ""
+      child.stdout.on("data", (d: Buffer) => { out += d.toString() })
+      child.stderr.on("data", (d: Buffer) => { out += d.toString() })
+      child.on("close", (code) => {
+        resolve({ ok: code === 0, output: out.trim() })
+      })
+      child.on("error", (err) => {
+        // If systemd-run is not available, fall back to direct execution
+        if (useScope && err.message.includes("ENOENT")) {
+          log.warn("systemd-run not available, falling back to direct spawn", { entry: scopeName })
+          const fallback = spawn("bash", [webctlPath, action], {
+            stdio: ["ignore", "pipe", "pipe"],
+            timeout: timeoutMs,
+          })
+          let fbOut = ""
+          fallback.stdout.on("data", (d: Buffer) => { fbOut += d.toString() })
+          fallback.stderr.on("data", (d: Buffer) => { fbOut += d.toString() })
+          fallback.on("close", (code) => resolve({ ok: code === 0, output: fbOut.trim() }))
+          fallback.on("error", (e) => resolve({ ok: false, output: e.message }))
+        } else {
+          resolve({ ok: false, output: err.message })
+        }
+      })
     })
-    let out = ""
-    child.stdout.on("data", (d: Buffer) => { out += d.toString() })
-    child.stderr.on("data", (d: Buffer) => { out += d.toString() })
-    child.on("close", (code) => {
-      resolve({ ok: code === 0, output: out.trim() })
+
+  // On start, clear any stale scope unit before spawning a new one
+  if (action !== "start") return doSpawn()
+
+  return new Promise<{ ok: boolean; output: string }>((resolve) => {
+    const reset = spawn("systemctl", ["--user", "reset-failed", unitName], {
+      stdio: "ignore",
+      timeout: 5000,
     })
-    child.on("error", (err) => {
-      // If systemd-run is not available, fall back to direct execution
-      if (useScope && err.message.includes("ENOENT")) {
-        log.warn("systemd-run not available, falling back to direct spawn", { entry: scopeName })
-        const fallback = spawn("bash", [webctlPath, action], {
-          stdio: ["ignore", "pipe", "pipe"],
-          timeout: timeoutMs,
-        })
-        let fbOut = ""
-        fallback.stdout.on("data", (d: Buffer) => { fbOut += d.toString() })
-        fallback.stderr.on("data", (d: Buffer) => { fbOut += d.toString() })
-        fallback.on("close", (code) => resolve({ ok: code === 0, output: fbOut.trim() }))
-        fallback.on("error", (e) => resolve({ ok: false, output: e.message }))
-      } else {
-        resolve({ ok: false, output: err.message })
-      }
+    reset.on("close", () => {
+      const stop = spawn("systemctl", ["--user", "stop", unitName], {
+        stdio: "ignore",
+        timeout: 5000,
+      })
+      stop.on("close", () => doSpawn().then(resolve))
+      stop.on("error", () => doSpawn().then(resolve))
     })
+    reset.on("error", () => doSpawn().then(resolve))
   })
 }
 
