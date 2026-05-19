@@ -301,10 +301,16 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
 
   for (const [key, item] of Object.entries(await MCP.tools())) {
     if (!toolAllowed(key)) continue
-    const execute = item.execute
-    if (!execute) continue
+    const rawExecute = item.execute
+    if (!rawExecute) continue
 
-    item.execute = async (args, opts) => {
+    // CRITICAL: create a NEW tool object instead of mutating item.execute.
+    // MCP.tools() caches items by reference — mutating item.execute causes
+    // wrap-stacking on subsequent resolveTools() calls (each step re-wraps),
+    // leading to ToolInvoker dedup deadlock (inner ToolInvoker awaits outer's
+    // inflight promise which awaits inner's completion — circular).
+    const wrappedItem = { ...item }
+    wrappedItem.execute = async (args: any, opts: any) => {
       const result = normalizeMcpToolResult(
         key,
         await ToolInvoker.execute(
@@ -319,7 +325,7 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
               // Race the MCP call against the abort signal so a stuck server
               // doesn't block the runloop indefinitely (liveness invariant).
               const abortSignal = opts.abortSignal
-              if (!abortSignal) return execute(args, opts)
+              if (!abortSignal) return rawExecute(args, opts)
               const abortPromise = new Promise<never>((_, reject) => {
                 if (abortSignal.aborted) {
                   reject(new DOMException("MCP tool call aborted", "AbortError"))
@@ -331,7 +337,7 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
                   { once: true },
                 )
               })
-              return Promise.race([execute(args, opts), abortPromise])
+              return Promise.race([rawExecute(args, opts), abortPromise])
             },
           },
           {
@@ -400,7 +406,7 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
       }
     }
 
-    tools[key] = item
+    tools[key] = wrappedItem
   }
 
   const config = await Config.get()

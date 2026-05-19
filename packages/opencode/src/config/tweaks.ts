@@ -328,6 +328,7 @@ export namespace Tweaks {
     sessionStorage: SessionStorageConfig
     bigContentBoundary: BigContentBoundaryConfig
     attachmentInline: AttachmentInlineConfig
+    debugLogEnabled: boolean
     source: { path: string; present: boolean }
   }
 
@@ -610,6 +611,7 @@ export namespace Tweaks {
     "boundary_subagent_result_max_bytes",
     "attachment_inline_enabled",
     "attachment_active_set_max",
+    "debug_log_enabled",
   ])
 
   function parseFlag01(raw: string, key: string): 0 | 1 | undefined {
@@ -705,6 +707,7 @@ export namespace Tweaks {
         sessionStorage: { ...SESSION_STORAGE_DEFAULTS },
         bigContentBoundary: { ...BIG_CONTENT_BOUNDARY_DEFAULTS },
         attachmentInline: { ...ATTACHMENT_INLINE_DEFAULTS },
+        debugLogEnabled: false,
         source: { path: cfgPath, present: false },
       }
     }
@@ -1155,6 +1158,13 @@ export namespace Tweaks {
       if (v !== undefined) attachmentInline.activeSetMax = v
     }
 
+    let debugLogEnabled = false
+    const debugLogRaw = parsed.get("debug_log_enabled")
+    if (debugLogRaw !== undefined) {
+      const v = parseBool(debugLogRaw, "debug_log_enabled")
+      if (v !== undefined) debugLogEnabled = v
+    }
+
     log.info("tweaks.cfg loaded", {
       path: cfgPath,
       effective: {
@@ -1172,6 +1182,7 @@ export namespace Tweaks {
         sessionStorage,
         bigContentBoundary,
         attachmentInline,
+        debugLogEnabled,
       },
     })
     return {
@@ -1189,6 +1200,7 @@ export namespace Tweaks {
       sessionStorage,
       bigContentBoundary,
       attachmentInline,
+      debugLogEnabled,
       source: { path: cfgPath, present: true },
     }
   }
@@ -1310,6 +1322,14 @@ export namespace Tweaks {
    */
   export function attachmentInlineSync(): AttachmentInlineConfig {
     return _effective?.attachmentInline ?? ATTACHMENT_INLINE_DEFAULTS
+  }
+
+  export async function debugLogEnabled(): Promise<boolean> {
+    return (await effective()).debugLogEnabled
+  }
+
+  export function debugLogEnabledSync(): boolean {
+    return _effective?.debugLogEnabled ?? false
   }
 
   export async function loadEffective(): Promise<Effective> {

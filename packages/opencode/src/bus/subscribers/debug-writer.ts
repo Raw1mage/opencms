@@ -11,6 +11,7 @@ import fs from "fs"
 import path from "path"
 import { Bus } from "../index"
 import { DEBUG_LOG_PATH } from "../../util/debug"
+import { Tweaks } from "../../config/tweaks"
 
 const file = DEBUG_LOG_PATH
 const root = path.dirname(file)
@@ -147,6 +148,8 @@ function ensure() {
 // File writing requires explicit opt-in: OPENCODE_DEBUG_LOG=1 or OPENCODE_LOG_LEVEL set.
 // Without this gate, all users would get a debug.log by default (logLevel defaults to 2).
 function isFileEnabled() {
+  // Tweaks.cfg takes priority, then env vars for backward compat.
+  if (Tweaks.debugLogEnabledSync()) return true
   return process.env.OPENCODE_DEBUG_LOG === "1" || process.env.OPENCODE_LOG_LEVEL !== undefined
 }
 
