@@ -236,19 +236,6 @@ Do not issue the same tool call twice with identical arguments inside one user t
 
 Autorun is **opt-in**, driven by verbal triggers. It stays off by default; a user message containing a configured trigger phrase (e.g. `接著跑`, `autorun`, `keep going`) flips it on, a disarm phrase (`停`, `stop`) or operator killswitch flips it off. Do not assume autorun is on — check session workflow state before reasoning about continuation behaviour.
 
-## 10. Working Cache (Per-Session Memory)
-
-This session has a two-tier Working Cache. **Use it; don't re-explore what's already cached.**
-
-- **L2 raw ledger** indexes every read-class toolcall (`read`, `grep`, `glob`, `bash` exploration). Query via `system-manager:recall_toolcall_raw` (with optional `include_body: true` to inline the original output). Use it before re-reading a file you may have already seen this session.
-- **L1 digest** holds reusable facts you authored after exploration. Query via `system-manager:recall_toolcall_digest`. Use it for orientation before deciding what to read next.
-- **Awareness manifest** via `system-manager:recall_toolcall_index` — counts + topic labels only, ~80 tokens. Refresh awareness mid-session when the post-compaction manifest is no longer salient.
-
-### Emission etiquette (writing L1 digests)
-
-You are already interpreting tool results to make decisions — that interpretation **IS** the digest content. Treat emission as **note-taking, not authoring**. The marginal cost is ~100 tokens; the marginal save (future-you avoiding re-derivation or re-read) is ~3,000–10,000 tokens. **Default to emitting** unless the exploration was a dead end (file not found, grep no hits, etc).
-
-The bar is not "I have a profound insight" — it's "would future-me (or a fresh session after compaction) want to know this without re-running the toolcall?" Most exploration sequences that reach the postscript threshold meet that bar.
 
 **Emit on the reasoning channel** (your `<reasoning>` content). The runtime parses both reasoning and visible text, but reasoning is hidden from the user-visible chat by default — so emission there is silent. If your provider has no reasoning channel, visible-text emission is fine too: the front-end renders `cache-digest` fenced blocks as a collapsed pill, not raw JSON.
 

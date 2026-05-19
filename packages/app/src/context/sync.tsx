@@ -55,8 +55,8 @@ export function applyOptimisticAdd(draft: OptimisticStore, input: OptimisticAddI
     draft.message[input.sessionID] = [input.message]
   }
   if (messages) {
-    const result = Binary.search(messages, input.message.id, (m) => m.id)
-    messages.splice(result.index, 0, input.message)
+    // Append at end — optimistic user messages are always the newest.
+    messages.push(input.message)
   }
   draft.part[input.message.id] = sortParts(input.parts)
 }
@@ -64,8 +64,8 @@ export function applyOptimisticAdd(draft: OptimisticStore, input: OptimisticAddI
 export function applyOptimisticRemove(draft: OptimisticStore, input: OptimisticRemoveInput) {
   const messages = draft.message[input.sessionID]
   if (messages) {
-    const result = Binary.search(messages, input.messageID, (m) => m.id)
-    if (result.found) messages.splice(result.index, 1)
+    const idx = messages.findIndex((m) => m.id === input.messageID)
+    if (idx >= 0) messages.splice(idx, 1)
   }
   delete draft.part[input.messageID]
 }
@@ -73,10 +73,7 @@ export function applyOptimisticRemove(draft: OptimisticStore, input: OptimisticR
 function setOptimisticAdd(setStore: (...args: unknown[]) => void, input: OptimisticAddInput) {
   setStore("message", input.sessionID, (messages: Message[] | undefined) => {
     if (!messages) return [input.message]
-    const result = Binary.search(messages, input.message.id, (m) => m.id)
-    const next = [...messages]
-    next.splice(result.index, 0, input.message)
-    return next
+    return [...messages, input.message]
   })
   setStore("part", input.message.id, sortParts(input.parts))
 }
@@ -84,10 +81,10 @@ function setOptimisticAdd(setStore: (...args: unknown[]) => void, input: Optimis
 function setOptimisticRemove(setStore: (...args: unknown[]) => void, input: OptimisticRemoveInput) {
   setStore("message", input.sessionID, (messages: Message[] | undefined) => {
     if (!messages) return messages
-    const result = Binary.search(messages, input.messageID, (m) => m.id)
-    if (!result.found) return messages
+    const idx = messages.findIndex((m) => m.id === input.messageID)
+    if (idx < 0) return messages
     const next = [...messages]
-    next.splice(result.index, 1)
+    next.splice(idx, 1)
     return next
   })
   setStore("part", (part: Record<string, Part[] | undefined>) => {
@@ -364,9 +361,14 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
               draft.push(msg)
               known.add(msg.id)
             }
-            // id prefix encodes creation time, so id sort is chronological.
+            // Sort by time.created (epoch ms), not ID. Compaction rewrites
+            // IDs with fresh timestamps so ID lex order ≠ chronological order.
             const tailBefore = draft.slice(-3).map((m) => m?.id)
-            draft.sort((a, b) => cmp(a?.id ?? "", b?.id ?? ""))
+            draft.sort((a, b) => {
+              const ta = (a as any)?.time?.created ?? 0
+              const tb = (b as any)?.time?.created ?? 0
+              return ta - tb || cmp(a?.id ?? "", b?.id ?? "")
+            })
             const tailAfter = draft.slice(-3).map((m) => m?.id)
             if (tailBefore.join(",") !== tailAfter.join(",")) {
               console.warn("[loadOlderMessages] sort REORDERED message tail!", {
@@ -462,6 +464,20 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         hydrated(sessionID: string) {
           const key = keyFor(sdk.directory, sessionID)
           return meta.limit[key] !== undefined
+        },
+        async forceReload(sessionID: string) {
+          // Force re-fetch messages even if already hydrated. Used when
+          // SSE channel was rebuilt and the store may contain stale data
+          // from a dead SSE connection. Equivalent to the message-loading
+          // portion of a page reload.
+          const directory = sdk.directory
+          const client = sdk.client
+          const [store, setStore] = globalSync.child(directory)
+          const tweaks = frontendTweaks()
+          const limit = isMobile()
+            ? tweaks.session_tail_mobile
+            : tweaks.session_tail_desktop
+          await loadMessages({ directory, client, setStore, store, sessionID, limit })
         },
         async sync(sessionID: string) {
           // specs/mobile-tail-first-simplification: one initial-load path.

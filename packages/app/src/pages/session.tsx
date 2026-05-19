@@ -824,29 +824,12 @@ export default function Page() {
       for (const [sid, status] of Object.entries(x.data)) stamped[sid] = { ...status, receivedAt: now }
       ;(sync.set as any)("session_status", stamped)
     }).catch(() => {})
-    // One-shot poll: stop after first successful pull regardless of workflow state.
-    let stopped = false
-    const stop = startActivePoll(
-      sessionID,
-      {
-        client: sdk.client as Parameters<typeof startActivePoll>[1]["client"],
-        directory: sdk.directory,
-        store: sync.data,
-        setStore: sync.set as Parameters<typeof startActivePoll>[1]["setStore"],
-      },
-      {
-        pollMs: () => 500,
-        until: () => {
-          // Stop after first tick — this is a snapshot pull, not a watch loop.
-          if (stopped) return true
-          stopped = true
-          return true
-        },
-        onStop: () => {},
-      },
-    )
-    // Belt-and-suspenders: ensure stop if `until` race ever lags.
-    setTimeout(stop, 5_000)
+    // Force-reload messages so the user sees the current conversation
+    // state, not stale data from before SSE died. SSE reconnect means
+    // events were missed — the only way to recover is a full pull.
+    // Incident 2026-05-19: user saw 15-minute-old waiting screen after
+    // SSE reconnect because messages store was never refreshed.
+    sync.session.forceReload(sessionID).catch(() => {})
   }
   if (typeof window !== "undefined") {
     window.addEventListener("opencode:viewing-session-resync", onViewingResync)
@@ -1228,11 +1211,35 @@ export default function Page() {
 
   const status = createMemo(() => sync.data.session_status[params.id ?? ""] ?? idle)
 
-  // Stale-busy recovery: if frontend thinks session is busy but backend
-  // says idle, the SSE event was lost. Poll every 15s to self-correct.
+  // SSE liveness watchdog: if SSE is dead, the message store is stale
+  // regardless of whether the server is busy or idle. Poll every 15s;
+  // when SSE is dead, force-reload messages + status. When SSE is alive
+  // but frontend shows busy while server says idle, just fix status.
+  // Incident 2026-05-19: UI spun 15 minutes on stale state while SSE
+  // was dead — no recovery mechanism fired.
   {
-    const staleBusyTimer = setInterval(() => {
-      const s = sync.data.session_status[params.id ?? ""]
+    let lastForceReloadAt = 0
+    const livenessTimer = setInterval(() => {
+      const sessionID = params.id
+      if (!sessionID) return
+
+      const alive = sdk.isStreamAlive?.() ?? true
+      if (!alive && Date.now() - lastForceReloadAt > 15_000) {
+        lastForceReloadAt = Date.now()
+        console.info("[session] SSE dead, force-reloading", { sessionID })
+        sync.session.forceReload(sessionID).catch(() => {})
+        sdk.client.session.status().then((x) => {
+          if (!x.data) return
+          const now = Date.now()
+          const stamped: Record<string, any> = {}
+          for (const [sid, st] of Object.entries(x.data)) stamped[sid] = { ...st, receivedAt: now }
+          ;(sync.set as any)("session_status", stamped)
+        }).catch(() => {})
+        return
+      }
+
+      // SSE alive path: only fix stale-busy (server idle, frontend busy)
+      const s = sync.data.session_status[sessionID]
       if (!s || s.type === "idle") return
       sdk.client.session.status().then((x) => {
         if (!x.data) return
@@ -1242,7 +1249,7 @@ export default function Page() {
         ;(sync.set as any)("session_status", stamped)
       }).catch(() => {})
     }, 15_000)
-    onCleanup(() => clearInterval(staleBusyTimer))
+    onCleanup(() => clearInterval(livenessTimer))
   }
   const authoritativeParentSessionID = createMemo(() => info()?.parentID ?? params.id)
   const activeChild = createMemo(() => {

@@ -508,6 +508,10 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       ...verifyResult,
     })
 
+    // verifyChannel's reconnect dispatches viewing-session-resync which
+    // triggers forceReload in session.tsx. No additional message reload
+    // needed here — the resync handler covers it.
+
     const send = async () => {
       const ok = await waitForWorktree()
       if (!ok) {

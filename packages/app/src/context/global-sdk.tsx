@@ -234,6 +234,7 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
     // disconnected and the UI silently goes stale until the next
     // visibilitychange / pageshow / online.
     let streamOpenCount = 0
+    let streamAlive = false
 
     createEffect(() => {
       reconnectVersion()
@@ -303,6 +304,7 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
               }
             }
             let yielded = Date.now()
+            streamAlive = true
             for await (const event of events.stream) {
               lastEventAt = Date.now()
               eventsThisConnection += 1
@@ -331,6 +333,16 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
               yielded = Date.now()
               await wait(0)
             }
+            streamAlive = false
+            // SSE died — store is now stale. Dispatch resync immediately so
+            // the session view force-reloads messages + status. Don't wait
+            // for reconnect or 15s poll. Incident 2026-05-19: UI showed
+            // 15-minute stale spinner because nothing fired until reconnect.
+            if (typeof window !== "undefined" && streamOpenCount > 0) {
+              window.dispatchEvent(new CustomEvent("opencode:viewing-session-resync", {
+                detail: { reason: "sse-stream-ended" },
+              }))
+            }
             // Clean exit: server / proxy closed the stream without throwing.
             // Distinct log message from the error path so flap-storm vs real
             // failure are diagnosable (frontend/resync T1.4.3).
@@ -341,6 +353,12 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
               currentBackoffMs: backoff,
             })
           } catch (error) {
+            streamAlive = false
+            if (typeof window !== "undefined" && streamOpenCount > 0) {
+              window.dispatchEvent(new CustomEvent("opencode:viewing-session-resync", {
+                detail: { reason: "sse-stream-error" },
+              }))
+            }
             if (signal.aborted) return
             if (error instanceof Error && error.name === "AbortError") return
             if ((error as DOMException)?.name === "AbortError") return
@@ -443,6 +461,9 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
       // existing stream is aborted, a new HTTP GET /global/event is made.
       // Same mechanism as the auto-reconnect loop, just user-initiated.
       forceSseReconnect: (reason: string) => reconnect(reason),
+      // Direct SSE liveness flag — true while inside the `for await` event
+      // loop, false during reconnect/backoff. No timeout heuristic needed.
+      isStreamAlive: () => streamAlive,
       // verifyChannel — verify-or-rebuild SSE channel. Never throws. Use
       // before any mutating action that expects a server reply (submit,
       // permission approve, abort, etc.). See frontend/resync DD-1/DD-2/DD-3.

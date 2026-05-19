@@ -147,7 +147,7 @@ describe("serializeRedactedDialog", () => {
     expect(result.messagesEmitted).toBe(2)
   })
 
-  it("round with reasoning + tool call renders all sections in order", () => {
+  it("round with reasoning + tool call: only assistant text is preserved", () => {
     const result = serializeRedactedDialog([
       userMsg("u1", "fix the bug"),
       assistantMsg("a1", "tool-calls", {
@@ -156,9 +156,9 @@ describe("serializeRedactedDialog", () => {
       }),
       assistantMsg("a2", "stop", { text: "found it: typo at line 42" }),
     ])
-    expect(result.text).toContain("**Reasoning**")
-    expect(result.text).toContain("let me grep for the symbol")
-    expect(result.text).toContain('**Tool**: `grep({"pattern":"frame_count"})` → `recall_id: prt_grep_1`')
+    // Reasoning and tool calls are no longer serialized (2026-05-19 anchor slim-down)
+    expect(result.text).not.toContain("**Reasoning**")
+    expect(result.text).not.toContain("recall_id")
     expect(result.text).toContain("**Assistant**")
     expect(result.text).toContain("found it: typo at line 42")
     expect(result.lastRound).toBe(1)
@@ -194,7 +194,7 @@ describe("serializeRedactedDialog", () => {
     expect(result.lastRound).toBe(48)
   })
 
-  it("tool args > 500 chars truncated with ellipsis", () => {
+  it("tool calls are not rendered in anchor (2026-05-19 slim-down)", () => {
     const longCmd = "x".repeat(800)
     const result = serializeRedactedDialog([
       userMsg("u1", "go"),
@@ -202,14 +202,8 @@ describe("serializeRedactedDialog", () => {
         tools: [{ id: "prt_shell_1", tool: "shell", input: { cmd: longCmd } }],
       }),
     ])
-    const toolLine = result.text.split("\n").find((l) => l.startsWith("**Tool**"))
-    expect(toolLine).toBeDefined()
-    // Args section between '(' and ')' should be capped at 500 + ellipsis
-    expect(toolLine!).toContain("…")
-    // Total args portion no longer than 501 chars
-    const argsMatch = toolLine!.match(/`shell\((.+?)\)` →/)
-    expect(argsMatch).toBeTruthy()
-    expect(argsMatch![1].length).toBeLessThanOrEqual(501)
+    expect(result.text).not.toContain("**Tool**")
+    expect(result.text).not.toContain("shell")
   })
 
   it("tool with status=pending NOT rendered (skipped)", () => {
@@ -233,14 +227,15 @@ describe("serializeRedactedDialog", () => {
     expect(result.text).not.toContain("**Tool**")
   })
 
-  it("tool with status=error IS rendered (output redacted same as completed)", () => {
+  it("tool with status=error is NOT rendered (2026-05-19 slim-down)", () => {
     const result = serializeRedactedDialog([
       userMsg("u1", "go"),
       assistantMsg("a1", "tool-calls", {
         tools: [{ id: "prt_err", tool: "read", status: "error", input: { file: "x" } }],
       }),
     ])
-    expect(result.text).toContain('**Tool**: `read({"file":"x"})` → `recall_id: prt_err`')
+    expect(result.text).not.toContain("**Tool**")
+    expect(result.text).not.toContain("recall_id")
   })
 
   it("multi-round monotonic numbering", () => {
@@ -265,7 +260,7 @@ describe("serializeRedactedDialog", () => {
     expect(idx2).toBeLessThan(idx3)
   })
 
-  it("output never contains raw tool output payload (redacted to recall_id)", () => {
+  it("tool output payload never appears in anchor", () => {
     const result = serializeRedactedDialog([
       userMsg("u1", "go"),
       assistantMsg("a1", "tool-calls", {
@@ -273,7 +268,7 @@ describe("serializeRedactedDialog", () => {
       }),
     ])
     expect(result.text).not.toContain("OUTPUT_PAYLOAD_REDACT_ME")
-    expect(result.text).toContain("recall_id: prt_x")
+    expect(result.text).not.toContain("recall_id")
   })
 
   it("user msg with empty text shows _(empty)_ placeholder", () => {

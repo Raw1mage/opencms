@@ -1,8 +1,5 @@
 import type { MessageV2 } from "./message-v2"
 
-const ARGS_TRUNCATION_CAP = 500
-const TRUNCATION_MARKER = "…"
-
 export interface SerializeOptions {
   /** Round number to start counting from. Default 1. */
   startRound?: number
@@ -105,21 +102,18 @@ function userMessageText(msg: MessageV2.WithParts): string {
 
 function renderAssistantParts(msg: MessageV2.WithParts): string[] {
   const out: string[] = []
-  const reasoning = collectText(msg.parts, "reasoning")
-  if (reasoning) {
-    out.push("**Reasoning**")
-    out.push(reasoning)
-  }
+  // 2026-05-19: reasoning and tool-call history removed from narrative
+  // anchor. Analysis of a 32h/420KB anchor showed these two categories
+  // consumed ~62% of body volume but provided zero value to the model:
+  // - Reasoning: model never re-reads its own prior CoT
+  // - Tool calls + recall_id: IDs are meaningless after chain reset,
+  //   file contents are stale, args are truncated. Model needs the
+  //   *conclusions*, not the *procedure*.
+  // Only assistant text (the visible output) is preserved.
   const text = collectText(msg.parts, "text")
   if (text) {
     out.push("**Assistant**")
     out.push(text)
-  }
-  for (const p of msg.parts) {
-    if (p.type !== "tool") continue
-    const status = (p as MessageV2.ToolPart).state?.status
-    if (status !== "completed" && status !== "error") continue
-    out.push(renderToolPart(p as MessageV2.ToolPart))
   }
   return out
 }
@@ -134,22 +128,6 @@ function collectText(parts: MessageV2.Part[], type: "text" | "reasoning"): strin
     }
   }
   return fragments.join("\n").trim()
-}
-
-function renderToolPart(part: MessageV2.ToolPart): string {
-  const args = serializeToolArgs(part.state?.input ?? {})
-  return `**Tool**: \`${part.tool}(${args})\` → \`recall_id: ${part.id}\``
-}
-
-function serializeToolArgs(input: unknown): string {
-  let json: string
-  try {
-    json = JSON.stringify(input ?? {})
-  } catch {
-    json = "{}"
-  }
-  if (json.length <= ARGS_TRUNCATION_CAP) return json
-  return json.slice(0, ARGS_TRUNCATION_CAP) + TRUNCATION_MARKER
 }
 
 /**
