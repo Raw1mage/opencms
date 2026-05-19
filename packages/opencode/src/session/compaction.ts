@@ -1016,7 +1016,11 @@ export namespace SessionCompaction {
     "cache-aware": true,
     idle: true,
     rebind: false,
-    "continuation-invalidated": false,
+    // 2026-05-19: changed to true. Cache cliff (silent server eviction)
+    // triggers continuation-invalidated. Without synthetic Continue,
+    // the runloop exits after compaction because the user message was
+    // folded into the anchor and no user message remains post-anchor.
+    "continuation-invalidated": true,
     "provider-switched": false,
     "stall-recovery": false,
     manual: false,
