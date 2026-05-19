@@ -1,0 +1,128 @@
+[
+  {
+    "id": "TV-01",
+    "requirementRef": "R1",
+    "description": "VERSION constant matches 2.1.144",
+    "input": { "section": "SS1", "field": "VERSION" },
+    "expected": "2.1.144"
+  },
+  {
+    "id": "TV-02",
+    "requirementRef": "R1",
+    "description": "API_VERSION is unchanged at 2023-06-01",
+    "input": { "section": "SS1", "field": "API_VERSION" },
+    "expected": "2023-06-01"
+  },
+  {
+    "id": "TV-03",
+    "requirementRef": "R1",
+    "description": "Beta flag count is exactly 24 active entries",
+    "input": { "section": "SS4", "field": "U31 active count" },
+    "expected": 24
+  },
+  {
+    "id": "TV-04",
+    "requirementRef": "R2",
+    "description": "SDK maxRetries is 2",
+    "input": { "section": "SS5.2", "field": "maxRetries" },
+    "expected": 2
+  },
+  {
+    "id": "TV-05",
+    "requirementRef": "R2",
+    "description": "SDK timeout is 600000ms (10 minutes)",
+    "input": { "section": "SS5.2", "field": "timeout" },
+    "expected": 600000
+  },
+  {
+    "id": "TV-06",
+    "requirementRef": "R2",
+    "description": "SDK backoff base is 0.5s with 8s cap",
+    "input": { "section": "SS5.2", "field": "backoff" },
+    "expected": { "base": 0.5, "cap": 8 }
+  },
+  {
+    "id": "TV-07",
+    "requirementRef": "R2",
+    "description": "App DEFAULT_MAX_RETRIES is 10",
+    "input": { "section": "SS5.3", "field": "DEFAULT_MAX_RETRIES" },
+    "expected": 10
+  },
+  {
+    "id": "TV-08",
+    "requirementRef": "R2",
+    "description": "App BACKOFF_BASE_MS is 500",
+    "input": { "section": "SS5.3", "field": "BACKOFF_BASE_MS" },
+    "expected": 500
+  },
+  {
+    "id": "TV-09",
+    "requirementRef": "R2",
+    "description": "App MAX_RETRY_DELAY_NON_WATCHDOG is 60000ms",
+    "input": { "section": "SS5.3", "field": "MAX_RETRY_DELAY_NON_WATCHDOG" },
+    "expected": 60000
+  },
+  {
+    "id": "TV-10",
+    "requirementRef": "R2",
+    "description": "Watchdog mode backoff cap is 300000ms (5 minutes)",
+    "input": { "section": "SS5.3", "field": "PERSISTENT_RETRY_MAX_BACKOFF" },
+    "expected": 300000
+  },
+  {
+    "id": "TV-11",
+    "requirementRef": "R2",
+    "description": "Watchdog yield interval is 30000ms (30 seconds)",
+    "input": { "section": "SS5.3", "field": "YIELD_INTERVAL" },
+    "expected": 30000
+  },
+  {
+    "id": "TV-12",
+    "requirementRef": "R3",
+    "description": "Delta section lists at least 10 major changes",
+    "input": { "section": "SS12", "field": "major change count" },
+    "expected": { "minimum": 10 }
+  },
+  {
+    "id": "TV-13",
+    "requirementRef": "R1",
+    "description": "CLIENT_ID matches known value",
+    "input": { "section": "SS1", "field": "CLIENT_ID" },
+    "expected": "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
+  },
+  {
+    "id": "TV-14",
+    "requirementRef": "R1",
+    "description": "OAuth scope count is 6",
+    "input": { "section": "SS2.2", "field": "scope count" },
+    "expected": 6
+  },
+  {
+    "id": "TV-15",
+    "requirementRef": "R3",
+    "description": "cch field is now hardcoded 00000",
+    "input": { "section": "SS3.2", "field": "cch" },
+    "expected": "00000"
+  },
+  {
+    "id": "TV-16",
+    "requirementRef": "R1",
+    "description": "SSE event types include compaction_delta and signature_delta",
+    "input": { "section": "SS7.1", "field": "new event types" },
+    "expected": ["compaction_delta", "signature_delta"]
+  },
+  {
+    "id": "TV-17",
+    "requirementRef": "R2",
+    "description": "MAX_CONSECUTIVE_529_FOR_FALLBACK is 3",
+    "input": { "section": "SS5.3", "field": "MAX_CONSECUTIVE_529_FOR_FALLBACK" },
+    "expected": 3
+  },
+  {
+    "id": "TV-18",
+    "requirementRef": "R3",
+    "description": "Beta flag expansion from 7 to 24",
+    "input": { "section": "SS4", "field": "expansion" },
+    "expected": { "from": 7, "to": 24 }
+  }
+]

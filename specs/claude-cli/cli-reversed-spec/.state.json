@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "state": "living",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-05-19T02:34:23.196Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-05-19T02:41:45.348Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "All designed-state artifacts created: proposal.md, spec.md, design.md, idef0.json, grafcet.json, sequence.json, data-schema.json, plus chapters/protocol-datasheets.md (12 sections covering full wire protocol)."
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-05-19T02:44:31.345Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "All work complete, graduation gate task unchecked for state machine compliance."
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-05-19T02:44:36.767Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Documentation work already complete. Advancing through states."
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-05-19T02:44:49.331Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "All 34 tasks checked. Protocol datasheet complete (12 sections). IDEF0/GRAFCET/sequence diagrams created. Ready for graduation."
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-05-19T02:44:54.650Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Complete reversed engineering spec for Claude Code CLI 2.1.144 wire protocol. 12-section protocol datasheet, retry architecture, delta from 2.1.126."
+    }
+  ]
+}

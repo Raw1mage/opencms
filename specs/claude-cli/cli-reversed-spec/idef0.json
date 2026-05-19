@@ -1,0 +1,64 @@
+{
+  "diagram_title": "Claude Code CLI 2.1.144 — Retry & Rate Limit Pipeline",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A0",
+      "title": "Handle API Request with Retry",
+      "inputs": ["User prompt", "Model config", "Auth credentials"],
+      "outputs": ["Streamed response", "Fatal error"],
+      "controls": ["Rate limit headers", "Retry policy constants"],
+      "mechanisms": ["Anthropic SDK", "App retry loop"]
+    },
+    {
+      "id": "A1",
+      "title": "Build Request",
+      "inputs": ["User prompt", "Model config", "Auth credentials"],
+      "outputs": ["HTTP request (headers + body + stream flag)"],
+      "controls": ["Beta flag registry (U31)", "Billing header format"],
+      "mechanisms": ["Header builder", "Model ID normalizer"]
+    },
+    {
+      "id": "A2",
+      "title": "Execute SDK Request with Layer-1 Retry",
+      "inputs": ["HTTP request"],
+      "outputs": ["SSE stream OR SDK error"],
+      "controls": ["maxRetries=2", "timeout=600000", "backoff 0.5s–8s"],
+      "mechanisms": ["Anthropic SDK fetch", "shouldRetry evaluator"]
+    },
+    {
+      "id": "A3",
+      "title": "Evaluate App-Level Retry Decision",
+      "inputs": ["SDK error", "Current attempt count", "Response headers"],
+      "outputs": ["Retry signal", "Fatal throw", "Model fallback signal"],
+      "controls": ["DEFAULT_MAX_RETRIES=10", "MAX_RETRY_DELAY_NON_WATCHDOG=60s", "Watchdog mode flag"],
+      "mechanisms": ["d35 retryable check", "Fast mode evaluator", "OAuth refresh"]
+    },
+    {
+      "id": "A4",
+      "title": "Compute Retry Delay",
+      "inputs": ["Attempt number", "retry-after header", "Retry mode (normal/persistent/CCR)"],
+      "outputs": ["Delay duration (ms)"],
+      "controls": ["BACKOFF_BASE_MS=500", "Max backoff per mode (32s/5min/6h)"],
+      "mechanisms": ["rt() backoff function", "Jitter generator"]
+    },
+    {
+      "id": "A5",
+      "title": "Parse Rate Limit State",
+      "inputs": ["Response headers"],
+      "outputs": ["Unified rate limit status", "Reset timestamp", "Overage state"],
+      "controls": ["anthropic-ratelimit-unified-* header schema"],
+      "mechanisms": ["Header parser"]
+    }
+  ],
+  "arrows": [
+    {"from": "A1", "to": "A2", "label": "HTTP request"},
+    {"from": "A2", "to": "A3", "label": "SDK error (after L1 retries exhausted)"},
+    {"from": "A2", "to": "A0", "label": "SSE stream (success path)"},
+    {"from": "A3", "to": "A4", "label": "Retry signal with attempt metadata"},
+    {"from": "A3", "to": "A0", "label": "Fatal throw (non-retryable or max retries)"},
+    {"from": "A4", "to": "A2", "label": "After delay: re-execute request"},
+    {"from": "A5", "to": "A3", "label": "Rate limit context for retry decision"},
+    {"from": "A2", "to": "A5", "label": "Response headers (on every response)"}
+  ]
+}

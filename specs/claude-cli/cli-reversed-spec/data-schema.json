@@ -1,0 +1,81 @@
+{
+  "title": "Claude Code CLI 2.1.144 — Key Data Structures",
+  "structures": {
+    "SDKRetryConfig": {
+      "description": "Anthropic SDK Layer-1 retry configuration",
+      "fields": {
+        "maxRetries": {"type": "number", "value": 2},
+        "timeout": {"type": "number", "value": 600000, "unit": "ms"},
+        "backoffBase": {"type": "number", "value": 0.5, "unit": "s"},
+        "backoffCap": {"type": "number", "value": 8, "unit": "s"},
+        "jitterRange": {"type": "string", "value": "0.75–1.0 multiplier"}
+      }
+    },
+    "AppRetryConfig": {
+      "description": "App Layer-2 retry configuration (CD8)",
+      "fields": {
+        "DEFAULT_MAX_RETRIES": {"type": "number", "value": 10},
+        "BACKOFF_BASE_MS": {"type": "number", "value": 500},
+        "maxBackoff": {"type": "number", "value": 32000, "unit": "ms"},
+        "MAX_RETRY_DELAY_NON_WATCHDOG": {"type": "number", "value": 60000, "unit": "ms"},
+        "MAX_CONSECUTIVE_529_FOR_FALLBACK": {"type": "number", "value": 3},
+        "MAX_OAUTH_REFRESH_ATTEMPTS": {"type": "number", "value": 2},
+        "MAX_OAUTH_SAME_TOKEN_RETRIES": {"type": "number", "value": 2},
+        "CCR_AUTH_RETRY_DELAY": {"type": "number", "value": 1000, "unit": "ms"},
+        "PERSISTENT_RETRY_MAX_BACKOFF": {"type": "number", "value": 300000, "unit": "ms"},
+        "ABSOLUTE_MAX_DELAY": {"type": "number", "value": 21600000, "unit": "ms"},
+        "YIELD_INTERVAL": {"type": "number", "value": 30000, "unit": "ms"}
+      }
+    },
+    "UnifiedRateLimitState": {
+      "description": "Parsed from anthropic-ratelimit-unified-* response headers",
+      "fields": {
+        "status": {"type": "enum", "values": ["allowed", "allowed_warning", "rejected"]},
+        "reset": {"type": "number", "description": "Epoch seconds when quota resets"},
+        "fallback": {"type": "enum", "values": ["available", null]},
+        "representativeClaim": {"type": "string", "description": "Claim ID"},
+        "overageStatus": {"type": "string", "description": "Overage state"},
+        "overageReset": {"type": "number", "description": "Overage reset epoch seconds"},
+        "overageDisabledReason": {"type": "string", "description": "Why overage is disabled"},
+        "upgradePaths": {"type": "string", "description": "Available upgrade paths"},
+        "windows": {
+          "type": "object",
+          "description": "Per-window utilization",
+          "keys": ["5h", "7d", "overage"],
+          "valueFields": ["utilization", "reset"]
+        }
+      }
+    },
+    "RequestHeaders": {
+      "description": "Always-present headers on every /v1/messages request",
+      "fields": {
+        "Authorization": {"format": "Bearer {access_token}"},
+        "anthropic-version": {"value": "2023-06-01"},
+        "Content-Type": {"value": "application/json"},
+        "User-Agent": {"format": "claude-code/{VERSION}"},
+        "anthropic-beta": {"format": "comma-joined beta flags from U31"},
+        "x-anthropic-billing-header": {"format": "cc_version={VERSION}.{model_suffix}; cc_entrypoint={entrypoint}; cch=00000; cc_workload={workload};"},
+        "anthropic-client-platform": {"format": "claude_code_{entrypoint_category}", "note": "NEW in 2.1.144"}
+      }
+    },
+    "BetaFlagEntry": {
+      "description": "Single entry in the U31 beta flag registry",
+      "fields": {
+        "internalName": {"type": "string", "example": "claude_code"},
+        "headerValue": {"type": "string", "example": "claude-code-20250219"},
+        "deltaStatus": {"type": "enum", "values": ["same", "new"]}
+      }
+    },
+    "SSEEvent": {
+      "description": "Server-Sent Event types in the streaming response",
+      "fields": {
+        "event": {"type": "enum", "values": [
+          "message_start", "content_block_start", "content_block_delta",
+          "content_block_stop", "message_delta", "message_stop",
+          "ping", "error", "compaction_delta", "signature_delta"
+        ]},
+        "data": {"type": "string", "description": "JSON-encoded event payload"}
+      }
+    }
+  }
+}

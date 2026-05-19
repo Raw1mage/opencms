@@ -1,0 +1,59 @@
+[
+  {
+    "title": "429 Rate Limit Handling — Two-Layer Retry Flow",
+    "participants": [
+      {"id": "app", "label": "App Retry Loop (CD8)"},
+      {"id": "sdk", "label": "Anthropic SDK (L1)"},
+      {"id": "api", "label": "Anthropic API"},
+      {"id": "ui", "label": "UI / Progress"}
+    ],
+    "messages": [
+      {"from": "app", "to": "sdk", "label": "1. sendRequest(headers, body, stream:true)"},
+      {"from": "sdk", "to": "api", "label": "2. POST /v1/messages?beta=true"},
+      {"from": "api", "to": "sdk", "label": "3. 429 + retry-after: 2 + ratelimit-unified-status: rejected"},
+      {"from": "sdk", "to": "sdk", "label": "4. shouldRetry(429)=true, retriesRemaining=2→1, backoff=0.5s+jitter"},
+      {"from": "sdk", "to": "api", "label": "5. Retry #1: POST /v1/messages?beta=true + X-Stainless-Retry-Count: 1"},
+      {"from": "api", "to": "sdk", "label": "6. 429 + retry-after: 4"},
+      {"from": "sdk", "to": "sdk", "label": "7. shouldRetry(429)=true, retriesRemaining=1→0, backoff=max(4s, 1s+jitter)"},
+      {"from": "sdk", "to": "api", "label": "8. Retry #2: POST /v1/messages?beta=true + X-Stainless-Retry-Count: 2"},
+      {"from": "api", "to": "sdk", "label": "9. 429 + retry-after: 8"},
+      {"from": "sdk", "to": "app", "label": "10. SDK retries exhausted → throw RateLimitError(429)"},
+      {"from": "app", "to": "app", "label": "11. d35 check: 429 is retryable, attempt=1/10"},
+      {"from": "app", "to": "app", "label": "12. rt(1, retryAfter=8s, cap=32s) → delay=max(8000, 500+jitter)=8000ms"},
+      {"from": "app", "to": "ui", "label": "13. 'Rate limited - retrying in 8s'"},
+      {"from": "app", "to": "sdk", "label": "14. After 8s delay: sendRequest (attempt 2)"},
+      {"from": "sdk", "to": "api", "label": "15. POST /v1/messages?beta=true"},
+      {"from": "api", "to": "sdk", "label": "16. 200 + SSE stream begin"},
+      {"from": "sdk", "to": "app", "label": "17. Stream events: message_start → content_block_delta → message_stop"},
+      {"from": "app", "to": "ui", "label": "18. Forward streamed response to consumer"}
+    ]
+  },
+  {
+    "title": "529 Overloaded — Fallback Model Switch",
+    "participants": [
+      {"id": "app", "label": "App Retry Loop (CD8)"},
+      {"id": "sdk", "label": "Anthropic SDK (L1)"},
+      {"id": "api", "label": "Anthropic API"}
+    ],
+    "messages": [
+      {"from": "app", "to": "sdk", "label": "1. sendRequest(model=claude-opus-4-6)"},
+      {"from": "sdk", "to": "api", "label": "2. POST /v1/messages"},
+      {"from": "api", "to": "sdk", "label": "3. 529 overloaded_error"},
+      {"from": "sdk", "to": "app", "label": "4. SDK retries exhausted → throw OverloadedError"},
+      {"from": "app", "to": "app", "label": "5. consecutive529Count=1, attempt=1"},
+      {"from": "app", "to": "sdk", "label": "6. Retry with backoff"},
+      {"from": "sdk", "to": "api", "label": "7. POST /v1/messages"},
+      {"from": "api", "to": "sdk", "label": "8. 529 overloaded_error"},
+      {"from": "sdk", "to": "app", "label": "9. throw OverloadedError"},
+      {"from": "app", "to": "app", "label": "10. consecutive529Count=2, attempt=2"},
+      {"from": "app", "to": "sdk", "label": "11. Retry with backoff"},
+      {"from": "sdk", "to": "api", "label": "12. POST /v1/messages"},
+      {"from": "api", "to": "sdk", "label": "13. 529 overloaded_error"},
+      {"from": "sdk", "to": "app", "label": "14. throw OverloadedError"},
+      {"from": "app", "to": "app", "label": "15. consecutive529Count=3 ≥ MAX_CONSECUTIVE_529_FOR_FALLBACK → switch to fallback model"},
+      {"from": "app", "to": "sdk", "label": "16. sendRequest(model=fallback_model)"},
+      {"from": "sdk", "to": "api", "label": "17. POST /v1/messages (fallback model)"},
+      {"from": "api", "to": "sdk", "label": "18. 200 OK"}
+    ]
+  }
+]
