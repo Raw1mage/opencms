@@ -414,7 +414,7 @@ export namespace SessionProcessor {
                 streamInput.accountId ??
                 input.accountId ??
                 input.assistantMessage.accountId ??
-                streamInput.user.model.accountId
+                streamInput.user.model?.accountId
               let sessionExecution = !explicitAccountId
                 ? (await Session.get(input.sessionID))?.execution?.accountId
                 : undefined
@@ -455,7 +455,7 @@ export namespace SessionProcessor {
                   streamInputAccountId: streamInput.accountId,
                   inputAccountId: input.accountId,
                   assistantMessageAccountId: input.assistantMessage.accountId,
-                  userMessageAccountId: streamInput.user.model.accountId,
+                  userMessageAccountId: streamInput.user.model?.accountId,
                   sessionExecutionAccountId: sessionExecution,
                   sessionPinnedAccountId,
                   resolvedAccountId: accountId,
@@ -481,7 +481,7 @@ export namespace SessionProcessor {
                     streamInputAccountId: streamInput.accountId,
                     inputAccountId: input.accountId,
                     assistantMessageAccountId: input.assistantMessage.accountId,
-                    userMessageAccountId: streamInput.user.model.accountId,
+                    userMessageAccountId: streamInput.user.model?.accountId,
                   },
                   fallbackAttempts,
                 })
@@ -497,7 +497,7 @@ export namespace SessionProcessor {
                   accountId,
                   source: resolveAccountAuditSource({
                     explicitAccountId: streamInput.accountId ?? input.accountId ?? input.assistantMessage.accountId,
-                    userMessageAccountId: streamInput.user.model.accountId,
+                    userMessageAccountId: streamInput.user.model?.accountId,
                     resolvedAccountId: accountId,
                   }),
                   note: "processor preflight selected execution identity",
@@ -1423,7 +1423,7 @@ export namespace SessionProcessor {
                     streamInput.accountId ??
                       input.accountId ??
                       input.assistantMessage.accountId ??
-                      streamInput.user.model.accountId,
+                      streamInput.user.model?.accountId,
                     sessionIdentity,
                     { silent: streamInput.agent.name === "cron" },
                     streamInput.sessionID,
@@ -1494,7 +1494,7 @@ export namespace SessionProcessor {
                       streamInput.accountId ??
                       input.accountId ??
                       input.assistantMessage.accountId ??
-                      streamInput.user.model.accountId,
+                      streamInput.user.model?.accountId,
                     source: "temporary-error-fallback",
                     fallbackAttempts,
                     error: e?.message,
@@ -1526,7 +1526,10 @@ export namespace SessionProcessor {
                       note: "immediate break prevents infinite retry with rate-limited vector",
                     },
                   )
+                  input.assistantMessage.finish = "rate_limited"
                   input.assistantMessage.error = MessageV2.fromError(e, { providerId: input.model.providerId })
+                  input.assistantMessage.time.completed = Date.now()
+                  await Session.updateMessage(input.assistantMessage)
                   Bus.publish(Session.Event.Error, {
                     sessionID: input.assistantMessage.sessionID,
                     error: input.assistantMessage.error,
@@ -1568,7 +1571,7 @@ export namespace SessionProcessor {
                     streamInput.accountId ??
                       input.accountId ??
                       input.assistantMessage.accountId ??
-                      streamInput.user.model.accountId,
+                      streamInput.user.model?.accountId,
                     sessionIdentity,
                     { silent: streamInput.agent.name === "cron" },
                     streamInput.sessionID,
@@ -1639,7 +1642,7 @@ export namespace SessionProcessor {
                       streamInput.accountId ??
                       input.accountId ??
                       input.assistantMessage.accountId ??
-                      streamInput.user.model.accountId,
+                      streamInput.user.model?.accountId,
                     source: "permanent-error-fallback",
                     fallbackAttempts,
                     error: e?.message,
@@ -1708,7 +1711,10 @@ export namespace SessionProcessor {
               if (isRateLimitRetry && fallbackAttempts > MAX_FALLBACK_ATTEMPTS) {
                 // All fallback attempts exhausted — surface error, don't retry
                 log.error("Rate limit retry: fallback attempts exhausted", { fallbackAttempts })
+                input.assistantMessage.finish = "rate_limited"
                 input.assistantMessage.error = error
+                input.assistantMessage.time.completed = Date.now()
+                await Session.updateMessage(input.assistantMessage)
                 Bus.publish(Session.Event.Error, {
                   sessionID: input.assistantMessage.sessionID,
                   error: input.assistantMessage.error,
@@ -1729,7 +1735,7 @@ export namespace SessionProcessor {
                     streamInput.accountId ??
                       input.accountId ??
                       input.assistantMessage.accountId ??
-                      streamInput.user.model.accountId,
+                      streamInput.user.model?.accountId,
                     sessionIdentity,
                     { silent: streamInput.agent.name === "cron" },
                     streamInput.sessionID,
@@ -1810,7 +1816,10 @@ export namespace SessionProcessor {
                     retryMessage: retry,
                     fallbackAttempts,
                   })
+                  input.assistantMessage.finish = "rate_limited"
                   input.assistantMessage.error = error
+                  input.assistantMessage.time.completed = Date.now()
+                  await Session.updateMessage(input.assistantMessage)
                   Bus.publish(Session.Event.Error, {
                     sessionID: input.assistantMessage.sessionID,
                     error: input.assistantMessage.error,

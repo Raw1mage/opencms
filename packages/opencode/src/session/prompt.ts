@@ -83,6 +83,7 @@ import { RebindEpoch } from "./rebind-epoch"
 import { CapabilityLayer, CrossAccountRebindError } from "./capability-layer"
 import { registerProductionCapabilityLoader } from "./capability-layer-loader"
 import { emitCompactionPredicateTelemetry, emitContextBudgetTelemetry } from "./compaction-telemetry"
+import { lastModel } from "./last-model"
 
 // Production capability-layer loader is registered once per process. The
 // context resolver reads runtime-known fields (agent, isSubagent) from the
@@ -454,11 +455,17 @@ export async function deriveObservedCondition(input: {
 
   // Cache cliff detection: if cache_read dropped >50% from the previous
   // turn AND the previous turn had substantial cache (>50K), the server
-  // silently lost the chain. Force continuation-invalidated to trigger
-  // chain reset + full prompt resend on the next call.
+  // silently lost the chain. Response: reset the WS continuation chain
+  // so the next call sends full input (not delta), allowing the server
+  // to rebuild its cache from the unchanged prompt. Do NOT trigger
+  // compaction — compaction rewrites the anchor, producing a brand-new
+  // prefix the server hasn't seen, which under high-pressure load gets
+  // evicted again immediately → compaction cascade.
   //
-  // Incident 2026-05-19: codex server evicted 193K→24K mid-session;
-  // client kept delta mode; model ran on 3K tokens for 10+ minutes.
+  // Incident 2026-05-19: codex server evicted cache under load; old code
+  // returned "continuation-invalidated" here → narrative compaction →
+  // full resend with new anchor → server evicts again → 37 cascading
+  // compactions in 2 hours (ses_1c875cc15ffe5ds18JVdNAT4e6).
   if (input.lastFinished) {
     const currentCache = input.lastFinished.tokens.cache.read ?? 0
     const prevCache = lastCacheRead.get(input.sessionID)
@@ -479,7 +486,16 @@ export async function deriveObservedCondition(input: {
           currentCacheRead: currentCache,
         },
       }).catch(() => {})
-      return "continuation-invalidated"
+      // Chain-reset only: invalidate WS continuation so the next call
+      // sends the full (unchanged) prompt instead of delta. The server
+      // re-caches the same prefix it already knows — no compaction needed.
+      try {
+        const { invalidateContinuationFamily } = await import("@opencode-ai/provider-codex/continuation")
+        invalidateContinuationFamily(input.sessionID)
+      } catch {}
+      // Return null — no compaction. The runloop proceeds to the LLM
+      // call with the existing prompt, just without delta mode.
+      return null
     }
   }
 
@@ -802,6 +818,18 @@ export namespace SessionPrompt {
   const log = Log.create({ service: "session.prompt" })
   export const OUTPUT_TOKEN_MAX = Flag.OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX || 32_000
 
+  /**
+   * Reset the cache baseline for a session after compaction. Without this,
+   * the first post-rebind round (which naturally has low cache — only the
+   * anchor prefix hits) is compared against the pre-compaction cache value,
+   * triggering a false cache-cliff → continuation-invalidated → compaction
+   * loop. Incident 2026-05-19 ses_1c875cc15ffe5ds18JVdNAT4e6: 37 cascading
+   * compactions in 2 hours from this self-reinforcing cycle.
+   */
+  export function resetCacheBaseline(sessionID: string) {
+    lastCacheRead.delete(sessionID)
+  }
+
   export function assertNotBusy(sessionID: string) {
     return assertNotBusyRuntime(sessionID)
   }
@@ -962,13 +990,13 @@ export namespace SessionPrompt {
     }
 
     const shouldReplaceRuntime = await shouldInterruptForIncomingPrompt(input.sessionID)
-    if (shouldReplaceRuntime) {
+    if (shouldReplaceRuntime && (message.info.model ?? input.model)) {
       await emitSessionNarration({
         sessionID: input.sessionID,
         parentID: message.info.id,
         agent: message.info.agent,
         variant: message.info.variant,
-        model: message.info.model,
+        model: message.info.model ?? input.model ?? { providerId: "", modelID: "" },
         text: "Interrupted the previous autonomous run and replanning around your latest message.",
         kind: "interrupt",
       })
@@ -1247,16 +1275,24 @@ export namespace SessionPrompt {
           const info = msgs[i].info
           if (info.role === "assistant" && (info as MessageV2.Assistant).finish) {
             const a = info as MessageV2.Assistant
-            return { providerId: a.providerId, accountId: a.accountId }
+            return { providerId: a.providerId, accountId: a.accountId, mode: a.mode, agent: a.agent }
           }
         }
         return undefined
       })()
+      // Imported assistant messages carry a historical providerId that
+      // doesn't represent a live API chain. Skip provider switch detection
+      // so the first post-import prompt doesn't trigger a compaction that
+      // swallows the user message. mode="import" covers transcript messages;
+      // the takeover anchor has mode="compaction" + agent="claude-import".
+      const prevIsImport =
+        lastAssistantIdentity?.mode === "import" ||
+        (lastAssistantIdentity?.mode === "compaction" && lastAssistantIdentity?.agent === "claude-import")
       const prevProvider = lastAssistantIdentity?.providerId
       const nextProvider = options.incomingModel.providerId
       const prevAccount = lastAssistantIdentity?.accountId
       const nextAccount = options.incomingModel.accountId
-      const providerChanged = !!prevProvider && prevProvider !== nextProvider
+      const providerChanged = !!prevProvider && !prevIsImport && prevProvider !== nextProvider
       const accountChanged =
         !providerChanged && !!prevProvider && prevAccount !== nextAccount && !!(prevAccount || nextAccount)
       if (providerChanged) {
@@ -1452,6 +1488,10 @@ export namespace SessionPrompt {
         })
         break
       }
+      // Imported sessions have no model on user messages. Resolve once
+      // so every downstream site can use resolvedModel instead of
+      // lastUser.model with optional chaining everywhere.
+      const resolvedModel = lastUser.model ?? (await lastModel(sessionID))
       const contextBudgetSource = findContextBudgetSource(msgs)
       const format = lastUser.format ?? { type: "text" }
 
@@ -1779,7 +1819,7 @@ export namespace SessionPrompt {
               role: "user",
               time: { created: Date.now() },
               agent: lastUser.agent,
-              model: lastUser.model,
+              model: resolvedModel,
               variant: lastUser.variant,
             }
             await Session.updateMessage(nudgeUser)
@@ -1909,7 +1949,7 @@ export namespace SessionPrompt {
                 role: "user",
                 time: { created: Date.now() },
                 agent: lastUser.agent,
-                model: lastUser.model,
+                model: resolvedModel,
                 variant: lastUser.variant,
               }
               await Session.updateMessage(nudgeUser)
@@ -1991,8 +2031,8 @@ export namespace SessionPrompt {
       if (step === 1)
         ensureTitle({
           session,
-          modelID: lastUser.model.modelID,
-          providerId: lastUser.model.providerId,
+          modelID: resolvedModel.modelID,
+          providerId: resolvedModel.providerId,
           history: msgs,
         })
 
@@ -2000,9 +2040,9 @@ export namespace SessionPrompt {
       // Without this, each tool-loop iteration re-resolves to the original (rate-limited) model,
       // causing a retry storm as rotation fires on every iteration.
       const sessionExec = step > 1 ? (await Session.get(sessionID).catch(() => undefined))?.execution : undefined
-      const effectiveProviderId = sessionExec?.providerId ?? lastUser.model.providerId
-      const effectiveModelID = sessionExec?.modelID ?? lastUser.model.modelID
-      const effectiveAccountId = sessionExec?.accountId ?? lastUser.model.accountId
+      const effectiveProviderId = sessionExec?.providerId ?? resolvedModel.providerId
+      const effectiveModelID = sessionExec?.modelID ?? resolvedModel.modelID
+      const effectiveAccountId = sessionExec?.accountId ?? resolvedModel.accountId
       const model = await Provider.getModel(effectiveProviderId, effectiveModelID).catch((e) => {
         if (Provider.ModelNotFoundError.isInstance(e)) {
           const hint = e.data.suggestions?.length ? ` Did you mean: ${e.data.suggestions.join(", ")}?` : ""
@@ -2125,8 +2165,8 @@ export namespace SessionPrompt {
             }
           }
           const lastFinishedTokens = lastFinished?.tokens?.total ?? 0
-          const tokenLimit = lastUser.model
-            ? ((await Provider.getModel(lastUser.model.providerId, lastUser.model.modelID).catch(() => undefined))
+          const tokenLimit = resolvedModel
+            ? ((await Provider.getModel(resolvedModel.providerId, resolvedModel.modelID).catch(() => undefined))
                 ?.limit?.context ?? 0)
             : 0
           const tokenRatio = tokenLimit > 0 ? lastFinishedTokens / tokenLimit : 0
@@ -2173,8 +2213,8 @@ export namespace SessionPrompt {
         const taskModel = task.model ? await Provider.getModel(task.model.providerId, task.model.modelID) : model
         const sessionExecution = (await Session.get(sessionID).catch(() => undefined))?.execution
         const taskAccountId =
-          task.model?.providerId === (sessionExecution?.providerId ?? lastUser.model.providerId)
-            ? (sessionExecution?.accountId ?? lastUser.model.accountId)
+          task.model?.providerId === (sessionExecution?.providerId ?? resolvedModel.providerId)
+            ? (sessionExecution?.accountId ?? resolvedModel.accountId)
             : task.model?.accountId
         const assistantMessage = (await Session.updateMessage({
           id: Identifier.ascending("message"),
@@ -2321,7 +2361,7 @@ export namespace SessionPrompt {
               created: Date.now(),
             },
             agent: lastUser.agent,
-            model: lastUser.model,
+            model: resolvedModel,
             variant: lastUser.variant,
           }
           await Session.updateMessage(summaryUserMsg)
@@ -2458,7 +2498,7 @@ export namespace SessionPrompt {
       const userMsg = msgs.findLast((m) => m.info.role === "user")
       const imageResolution = await resolveImageRequest({
         model,
-        accountId: lastUser.model.accountId,
+        accountId: resolvedModel.accountId,
         message: userMsg,
         sessionID,
       })
@@ -2482,7 +2522,7 @@ export namespace SessionPrompt {
           updatedInfo.model = {
             providerId: activeModel.providerId,
             modelID: activeModel.id,
-            accountId: lastUser.model.accountId,
+            accountId: resolvedModel.accountId,
           }
           await Session.updateMessage(updatedInfo)
         }
@@ -2496,7 +2536,7 @@ export namespace SessionPrompt {
           model: {
             providerId: activeModel.providerId,
             modelID: activeModel.id,
-            accountId: lastUser?.model.accountId,
+            accountId: lastUser?.model?.accountId,
           },
         }).catch((err) => {
           log.warn("image-router: failed to pin execution identity", {
@@ -3017,6 +3057,47 @@ export namespace SessionPrompt {
         // or assistant error. Workflow state is already set inside processor.
         // Child sessions must also stop here — parent/task completion wiring
         // owns any follow-up, and child self-nudging can create synthetic loops.
+        //
+        // Rate-limit exhaustion recovery: when all accounts are rate-limited
+        // but autonomous todos remain, enqueue a delayed continuation so the
+        // supervisor resumes after the rate limit clears. Without this, the
+        // session goes idle permanently even though work remains.
+        if (processor.message.finish === "rate_limited" && !session.parentID) {
+          const decision = await decideAutonomousContinuation({ sessionID, lastDecisionReason })
+          if (decision.continue) {
+            await handleContinuationSideEffects({
+              sessionID,
+              user: lastUser,
+              decision,
+              autonomousRounds,
+            })
+            // Compute rate-limit backoff: use the shortest wait across all
+            // accounts for this provider/model. Floor at 30s to avoid busy-loop.
+            const { Account } = await import("@/account")
+            const family = (await Account.resolveFamily(resolvedModel.providerId)) ?? resolvedModel.providerId
+            const waitMs = await Account.getMinWaitTime(family, resolvedModel.id).catch(() => 0)
+            const retryAt = Date.now() + Math.max(waitMs, 30_000)
+            await Session.setWorkflowState({
+              sessionID,
+              state: "waiting_user",
+              stopReason: "rate_limited_retry",
+              lastRunAt: Date.now(),
+            }).catch(() => undefined)
+            await Session.updateWorkflowSupervisor({
+              sessionID,
+              patch: { retryAt },
+              clear: ["leaseOwner", "leaseExpiresAt"],
+            }).catch(() => undefined)
+            log.info("loop:rate_limited_enqueued_continuation", {
+              sessionID,
+              step,
+              autonomousRounds,
+              retryAt,
+              waitMs,
+            })
+            break
+          }
+        }
         break
       }
       if (result === "compact") {
@@ -3026,14 +3107,14 @@ export namespace SessionPrompt {
             sessionID,
             step,
             consecutiveCompactions,
-            model: lastUser.model,
+            model: resolvedModel,
           })
           break
         }
         await SessionCompaction.create({
           sessionID,
           agent: lastUser.agent,
-          model: lastUser.model,
+          model: resolvedModel,
           format: lastUser.format,
           auto: true,
         })
