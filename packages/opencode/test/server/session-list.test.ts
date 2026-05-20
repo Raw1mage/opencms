@@ -6,6 +6,7 @@ import { Instance } from "../../src/project/instance"
 import { Server } from "../../src/server/server"
 import { Session } from "../../src/session"
 import { ClaudeImport } from "../../src/session/claude-import"
+import { lastModel } from "../../src/session/last-model"
 import { MessageV2 } from "../../src/session/message-v2"
 import { shouldReuseProviderSwitchAnchor } from "../../src/session/prompt"
 import { Log } from "../../src/util/log"
@@ -296,6 +297,8 @@ describe("session.list", () => {
         const textParts = messages.flatMap((msg) => msg.parts).filter((part) => part.type === "text")
         expect(textParts.length).toBe(2)
         expect(textParts.some((part) => part.synthetic === true)).toBe(false)
+        const nextLiveModel = await lastModel(firstBody.sessionID)
+        expect(nextLiveModel.modelID).not.toBe("claude-native-transcript")
         // Evidence is now stripped — only the turn-by-turn dialog text remains.
         const assistantText = messages[1].parts.map((part) => (part.type === "text" ? part.text : "")).join("\n")
         expect(assistantText).toBe("I inspected it.")
@@ -319,6 +322,51 @@ describe("session.list", () => {
         expect(secondBody.sessionID).toBe(firstBody.sessionID)
         expect(secondBody.imported).toBe(false)
         expect(secondBody.appended).toBe(1)
+      },
+    })
+  })
+
+  test("seeds imported Claude session execution from explicit last usable identity", async () => {
+    await Instance.provide({
+      directory: projectRoot,
+      fn: async () => {
+        const app = Server.App()
+        const transcriptPath = path.join(os.tmpdir(), `opencode-test-claude-import-execution-${process.pid}.jsonl`)
+        const execution = { providerId: "codex", modelID: "gpt-5.2-codex-max", accountId: "acct_previous" }
+        await fs.writeFile(
+          transcriptPath,
+          JSON.stringify({
+            timestamp: "2026-05-04T10:00:00.000Z",
+            message: { role: "user", content: [{ type: "text", text: "Import with runnable identity." }] },
+          }) + "\n",
+        )
+
+        const response = await app.request("/session/import/claude", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            directory: projectRoot,
+            sourceSessionID: "claude-execution",
+            transcriptPath,
+            execution,
+          }),
+        })
+        if (Flag.OPENCODE_SERVER_PASSWORD) {
+          expect(response.status).toBe(401)
+          return
+        }
+        expect(response.status).toBe(200)
+        const body = (await response.json()) as { sessionID: string; imported: boolean; appended: number }
+        expect(body.imported).toBe(true)
+        expect(body.appended).toBe(1)
+
+        const session = await Session.get(body.sessionID)
+        expect(session.execution?.providerId).toBe(execution.providerId)
+        expect(session.execution?.modelID).toBe(execution.modelID)
+        expect(session.execution?.accountId).toBe(execution.accountId)
+
+        const nextLiveModel = await lastModel(body.sessionID)
+        expect(nextLiveModel).toMatchObject(execution)
       },
     })
   })

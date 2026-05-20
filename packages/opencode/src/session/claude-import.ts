@@ -33,6 +33,13 @@ export namespace ClaudeImport {
     directory: z.string().optional(),
     sourceSessionID: z.string().min(1),
     transcriptPath: z.string().optional(),
+    execution: z
+      .object({
+        providerId: z.string().min(1),
+        modelID: z.string().min(1),
+        accountId: z.string().optional(),
+      })
+      .optional(),
   })
   export type Input = z.infer<typeof Input>
 
@@ -214,6 +221,8 @@ export namespace ClaudeImport {
     "preloaded_context",
     "env_context",
     "skill_context",
+    "ide_opened_file",
+    "ide_selection",
   ] as const
 
   function stripTaggedBlock(text: string, tag: string) {
@@ -357,8 +366,8 @@ export namespace ClaudeImport {
       role: "assistant",
       time: { created: now, completed: now },
       parentID: input.parentID,
-      modelID: "claude-native-transcript-anchor",
-      providerId: "claude-cli",
+      modelID: "claude",
+      providerId: "anthropic",
       mode: "compaction",
       agent: "claude-import",
       path: { cwd: input.directory, root: input.directory },
@@ -479,7 +488,12 @@ export namespace ClaudeImport {
           aiTitle = line.aiTitle.trim()
           continue
         }
-        if (!lastPrompt && line.type === "last-prompt" && typeof line.lastPrompt === "string" && line.lastPrompt.trim()) {
+        if (
+          !lastPrompt &&
+          line.type === "last-prompt" &&
+          typeof line.lastPrompt === "string" &&
+          line.lastPrompt.trim()
+        ) {
           lastPrompt = line.lastPrompt.trim()
           continue
         }
@@ -517,7 +531,9 @@ export namespace ClaudeImport {
     const titleSource = aiTitle ?? summary ?? lastPrompt ?? firstUserText ?? fallback
     const title = (titleSource.split("\n")[0] ?? fallback).slice(0, 80) || fallback
     const previewLimit = 120
-    const firstUserPreview = firstUserText ? firstUserText.replace(/\s+/g, " ").trim().slice(0, previewLimit) : undefined
+    const firstUserPreview = firstUserText
+      ? firstUserText.replace(/\s+/g, " ").trim().slice(0, previewLimit)
+      : undefined
     const lastUserPreview =
       lastUserText && lastUserText !== firstUserText
         ? lastUserText.replace(/\s+/g, " ").trim().slice(0, previewLimit)
@@ -636,7 +652,6 @@ export namespace ClaudeImport {
           role: "user",
           time: { created },
           agent: "build",
-          model: { providerId: "claude-cli", modelID: "claude-native-transcript" },
         })
       } else {
         await Session.updateMessage({
@@ -645,8 +660,8 @@ export namespace ClaudeImport {
           role: "assistant",
           time: { created, completed: created },
           parentID: parentID ?? messageID,
-          modelID: line.message?.model ?? "claude-native-transcript",
-          providerId: "claude-cli",
+          modelID: line.message?.model ?? "claude",
+          providerId: "anthropic",
           mode: "import",
           agent: "claude",
           path: { cwd: line.cwd ?? directory, root: directory },
@@ -702,10 +717,12 @@ export namespace ClaudeImport {
       // derived AI title on next import. User-edited titles (anything else)
       // are preserved.
       if (draft.title === "Claude takeover") draft.title = claudeTitle
-      draft.execution = Session.nextExecutionIdentity({
-        current: draft.execution,
-        model: { providerId: "claude-cli", modelID: "claude-native-transcript" },
-      })
+      if (input.execution) {
+        draft.execution = Session.nextExecutionIdentity({
+          current: draft.execution,
+          model: input.execution,
+        })
+      }
     })
     await writeSourceMetadata(
       session.id,

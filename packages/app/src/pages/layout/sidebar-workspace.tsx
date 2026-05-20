@@ -270,6 +270,7 @@ const WorkspaceSessionList = (props: {
   language: ReturnType<typeof useLanguage>
 }): JSX.Element => {
   const navigate = useNavigate()
+  const params = useParams()
   const globalSDK = useGlobalSDK()
   // Persisted state for date group collapsing
   const [dateGroupExpanded, setDateGroupExpanded] = persisted(
@@ -309,6 +310,22 @@ const WorkspaceSessionList = (props: {
   )
   const activeLoading = createMemo(() => (sessionTab.value === "claude" ? claudeSessions.loading : props.loading()))
   const activeHasMore = createMemo(() => (sessionTab.value === "claude" ? false : props.hasMore()))
+  const lastUsableExecution = createMemo(() => {
+    const sessions = props.allSessions()
+    const current = sessions.find((session) => session.id === params.id)
+    const candidate = current?.execution
+      ? current
+      : [...sessions]
+          .filter((session) => session.execution)
+          .sort((a, b) => (b.time.updated ?? b.time.created ?? 0) - (a.time.updated ?? a.time.created ?? 0))[0]
+    const execution = candidate?.execution
+    if (!execution) return undefined
+    return {
+      providerId: execution.providerId,
+      modelID: execution.modelID,
+      ...(execution.accountId ? { accountId: execution.accountId } : {}),
+    }
+  })
 
   const openClaudeSession = async (row: ClaudeNativeSession) => {
     setImportError(undefined)
@@ -321,6 +338,7 @@ const WorkspaceSessionList = (props: {
           directory: props.directory,
           sourceSessionID: row.sourceSessionID,
           transcriptPath: row.transcriptPath,
+          ...(lastUsableExecution() ? { execution: lastUsableExecution() } : {}),
         }),
       })
       if (!response.ok) {
