@@ -637,13 +637,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "manage_session",
         description:
-          "Manage opencode sessions for non-switching operations (fork, summarize, undo, redo, create, list, search). Use switch_session / rename_session / switch_model / switch_account / switch_provider for session-based control actions. If a user asks in natural language to switch session/provider/account/model or rename a session, prefer those dedicated tools over manage_session.\n\nFor operation='create' you may pass sessionID as a handover source: the new session will inherit the source's directory and model, and (unless handoverAutoPrompt=false) will be auto-seeded with a prompt telling the new session to read the source's eventlog / checkpoint / SharedContext and continue. Pass handover for extra free-form context appended after the canned instruction.",
+          "Manage opencode sessions for non-switching operations (fork, summarize, undo, redo, create, list, search, rename). Dedicated tools switch_session / switch_model / switch_account / switch_provider remain the canonical path for execution-identity changes. rename_session is also still available as a dedicated alias; operation='rename' here is an accepted shortcut that hits the same PATCH endpoint — pick whichever is closer at hand.\n\nFor operation='create' you may pass sessionID as a handover source: the new session will inherit the source's directory and model, and (unless handoverAutoPrompt=false) will be auto-seeded with a prompt telling the new session to read the source's eventlog / checkpoint / SharedContext and continue. Pass handover for extra free-form context appended after the canned instruction.\n\nFor operation='rename' pass sessionID + title; title is the new session title.",
         inputSchema: {
           type: "object",
           properties: {
             operation: {
               type: "string",
-              enum: ["fork", "summarize", "undo", "redo", "create", "list", "search"],
+              enum: ["fork", "summarize", "undo", "redo", "create", "list", "search", "rename"],
             },
             sessionID: {
               type: "string",
@@ -653,7 +653,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             messageID: { type: "string", description: "Message ID to fork from" },
             query: { type: "string", description: "Search keyword for session titles (used with 'search' operation)" },
             limit: { type: "number", description: "Max results for search (default 10)" },
-            title: { type: "string", description: "Title for the new session (operation='create')" },
+            title: { type: "string", description: "Session title. For operation='create', the new session's title. For operation='rename', the new title applied to sessionID." },
             handover: {
               type: "string",
               description:
@@ -1347,6 +1347,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         kv.ui_trigger = "session.list"
         await fs.writeFile(KV_PATH, JSON.stringify(kv, null, 2))
         return { content: [{ type: "text", text: "Opening session list UI..." }] }
+      }
+
+      if (operation === "rename") {
+        if (!sessionID) throw new Error("sessionID is required for rename operation")
+        if (!title) throw new Error("title is required for rename operation")
+        const baseUrl = await getServerApiBaseUrl()
+        const headers = await getServerRequestHeaders("PATCH")
+        await patchSessionViaApi({
+          fetchImpl: serverFetch as any,
+          baseUrl,
+          headers,
+          sessionID,
+          body: { title },
+          errorPrefix: `Failed to rename session ${sessionID}`,
+        })
+        return { content: [{ type: "text", text: `Renamed session ${sessionID} to "${title}"` }] }
       }
 
       if (operation === "create") {
