@@ -93,18 +93,29 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
     })
 
     // ── Pinned folders ────────────────────────────────────────────────
-    // Per-workspace shortcut list rendered in file-tree header. Click a
+    // Per-session shortcut list rendered in file-tree header. Click a
     // chip → focus(): expand all ancestors, scroll the row into view,
     // briefly highlight. Population is driven by the file-tree
     // right-click @Mention action (file → pin parent folder; folder →
-    // pin self). Workspace-scoped so pins survive across sessions and
-    // daemon restarts.
-    const pinKey = createMemo(() => {
-      const t = Persist.workspace(scope(), "pinned-folders")
+    // pin self). Session-scoped so each session keeps its own pinned
+    // folders and they auto-restore when the session is reopened.
+    // When no session is active (workspace-only view), falls back to
+    // the workspace bucket so pins set before a session was opened
+    // remain visible and double as default seeds for new sessions.
+    const pinTarget = createMemo(() => {
+      const sid = params.id
+      const t = sid
+        ? Persist.session(scope(), sid, "pinned-folders")
+        : Persist.workspace(scope(), "pinned-folders")
       // Build the full localStorage key including the storage bucket
       // prefix, matching how localStorageWithPrefix stores data. This
       // keeps pin entries inside the managed `opencode.*` namespace so
       // they participate in quota eviction and diagnostic tooling.
+      const full = t.storage ? `${t.storage}:${t.key}` : t.key
+      return { full, hasSession: !!sid }
+    })
+    const workspacePinKey = createMemo(() => {
+      const t = Persist.workspace(scope(), "pinned-folders")
       return t.storage ? `${t.storage}:${t.key}` : t.key
     })
     const [pinned, setPinned] = createSignal<string[]>([])
@@ -124,22 +135,23 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
       setFocused(undefined)
     })
     createEffect(() => {
-      const k = pinKey()
+      const { full, hasSession } = pinTarget()
       try {
         if (typeof localStorage === "undefined") {
           setPinned([])
           return
         }
-        // Try current workspace-scoped key first.
-        let raw = localStorage.getItem(k)
-        // Migration: check legacy session-scoped key (pre-workspace pins).
-        if (!raw && params.id) {
-          const legacyKey = `session:${params.id}:pinned-folders`
-          raw = localStorage.getItem(legacyKey)
-          if (raw) {
-            // Promote to workspace scope and remove legacy entry.
-            localStorage.setItem(k, raw)
-            localStorage.removeItem(legacyKey)
+        let raw = localStorage.getItem(full)
+        // First-read seed: when this session has no pin entry yet,
+        // copy the workspace-level pin list as defaults. Lets existing
+        // workspace pins survive the workspace → session migration and
+        // act as a starting point for newly-opened sessions. After the
+        // session writes its own pins, the two diverge.
+        if (raw === null && hasSession) {
+          const wsRaw = localStorage.getItem(workspacePinKey())
+          if (wsRaw) {
+            localStorage.setItem(full, wsRaw)
+            raw = wsRaw
           }
         }
         setPinned(raw ? (JSON.parse(raw) as string[]) : [])
@@ -150,7 +162,7 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
     const writePins = (next: string[]) => {
       setPinned(next)
       try {
-        if (typeof localStorage !== "undefined") localStorage.setItem(pinKey(), JSON.stringify(next))
+        if (typeof localStorage !== "undefined") localStorage.setItem(pinTarget().full, JSON.stringify(next))
       } catch {}
     }
     const pinFolder = (input: string) => {
