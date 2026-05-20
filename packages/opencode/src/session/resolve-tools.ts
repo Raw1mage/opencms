@@ -535,6 +535,12 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
 
   const lazyCatalogPrompt = lazyTools ? formatLazyCatalogPrompt(lazyTools) : undefined
 
+  // Snapshot all known tool IDs (active + lazy) so tool_loader can validate
+  // requests instead of blindly reporting success for non-existent tools.
+  const allKnown = new Set(Object.keys(tools))
+  if (lazyTools) for (const id of lazyTools.keys()) allKnown.add(id)
+  UnlockedTools.setAvailable(input.session.id, allKnown)
+
   return {
     tools,
     lazyTools,

@@ -156,11 +156,48 @@ export const ToolLoaderTool = Tool.define("tool_loader", async () => ({
   }),
   async execute(args, ctx) {
     log.info("tool_loader invoked", { sessionID: ctx.sessionID, requested: args.tools })
-    UnlockedTools.unlock(ctx.sessionID, args.tools)
+    const available = UnlockedTools.getAvailable(ctx.sessionID)
+
+    const found: string[] = []
+    const notFound: string[] = []
+    for (const name of args.tools) {
+      if (available.has(name)) {
+        found.push(name)
+      } else {
+        notFound.push(name)
+      }
+    }
+
+    if (found.length > 0) {
+      UnlockedTools.unlock(ctx.sessionID, found)
+    }
+
+    const lines: string[] = []
+    if (found.length > 0) {
+      lines.push(`Loaded tools: ${found.join(", ")}. They are available on your next action.`)
+    }
+    if (notFound.length > 0) {
+      lines.push(
+        `ERROR — tools not found: ${notFound.join(", ")}. ` +
+          "These tools do not exist in the current tool pool. " +
+          "Possible causes: the MCP server providing them is not connected, " +
+          "the tool name is misspelled, or the tool is not registered. " +
+          "Check MCP server status and tool catalog before retrying.",
+      )
+      log.warn("tool_loader: requested tools not in available pool", {
+        sessionID: ctx.sessionID,
+        notFound,
+        availableCount: available.size,
+      })
+    }
+
+    const allFailed = found.length === 0
     return {
-      title: `Loaded ${args.tools.length} tool(s)`,
+      title: allFailed
+        ? `Failed to load ${notFound.length} tool(s)`
+        : `Loaded ${found.length} tool(s)${notFound.length > 0 ? `, ${notFound.length} not found` : ""}`,
       metadata: { truncated: false as const },
-      output: `Loaded tools: ${args.tools.join(", ")}. They are available on your next action.`,
+      output: lines.join("\n"),
     }
   },
 }))

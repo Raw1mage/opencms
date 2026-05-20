@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "last_updated": "2026-04-14",
+  "last_updated": "2026-05-21",
   "purpose": "Single source of truth for tool/skill/MCP capability discovery and routing.",
   "usage_contract": {
     "prompt_injection": "Inject a concise snapshot from this registry into SYSTEM prompt context.",
@@ -130,33 +130,83 @@
   "mcp_servers": {
     "runtime_observed": [
       {
-        "name": "filesystem",
-        "enabled": false,
-        "capability": "Scoped local filesystem operations via MCP"
-      },
-      {
-        "name": "fetch",
-        "enabled": true,
-        "capability": "HTTP/web content retrieval and conversion"
-      },
-      {
         "name": "memory",
         "enabled": true,
         "capability": "Knowledge-graph memory persistence and retrieval"
       },
       {
-        "name": "sequential-thinking",
-        "enabled": false,
-        "capability": "Structured decomposition for long reasoning tasks"
-      },
-      {
         "name": "system-manager",
         "enabled": true,
-        "capability": "OpenCMS runtime control, model/account switching, MCP toggling"
+        "capability": "OpenCMS runtime control, model/account switching, MCP toggling, log level, theme, session/app management, transcript export"
+      },
+      {
+        "name": "specbase",
+        "enabled": true,
+        "capability": "Plan / spec / wiki knowledge base — drives the plan-builder skill lifecycle (proposed → designed → planned → implementing → verified → living → archived). Use for plan creation, advancement, graduation, amendment, task ticking, decisions, code anchors, and wiki queries."
+      },
+      {
+        "name": "drawmiat",
+        "enabled": true,
+        "capability": "IDEF0 / Grafcet (IEC 60848) diagram renderer — generates SVG from structured JSON",
+        "tools": [
+          {
+            "name": "generate_diagram",
+            "description": "Generate SVG diagram(s) from IDEF0 or Grafcet JSON. Accepts diagram_type (grafcet|idef0), json_payload (string), and optional output_dir. Returns inline SVG + saved paths + diagnostics. For Grafcet debug overlays, the underlying drawmiat L5 diagnostic renderer supports debug_gaps / --debug-gaps to emit a separate debug SVG with gap overlays."
+          },
+          {
+            "name": "validate_diagram",
+            "description": "Validate IDEF0 or Grafcet JSON structure without generating SVG. Returns validation logs, warnings, and errors."
+          }
+        ]
+      },
+      {
+        "name": "docxmcp",
+        "enabled": true,
+        "registry_layer": "mcp-apps.json",
+        "transport": "streamable-http (Unix domain socket)",
+        "capability": "Word/PDF/XLSX/ODT document toolkit (~44 MCP tools) — extract, decompose, surgically edit, and rebuild .docx/.pdf files while preserving original formatting. Runs as isolated Docker container. The server emits ResourceLink-style file tokens; full HTTP protocol details (token TTL, pagination, output schemas, ingest paths) are surfaced via the docxmcp manifest instructions block at runtime.",
+        "key_prefix_note": "Because docxmcp registers tools with a self-prefix `docxmcp_*` and opencode adds another `mcpapp-<id>_` App Store prefix, the runtime tool keys are `mcpapp-docxmcp_docxmcp_<tool>` (double prefix). Always reference the full key when calling tool_loader.",
+        "tools": [
+          {
+            "name": "docxmcp_extract_all",
+            "description": "Decompose a .docx into editable components (body.md, outline.md, blocks/, manifest.json) under <stem>.src/"
+          },
+          {
+            "name": "docxmcp_pdf_extract_all",
+            "description": "Decompose a .pdf into editable components, parallel structure to docx_extract_all"
+          },
+          {
+            "name": "docxmcp_extract_text",
+            "description": "Extract plain text content from a document"
+          },
+          {
+            "name": "docxmcp_extract_outline",
+            "description": "Extract document outline / heading structure"
+          },
+          {
+            "name": "docxmcp_extract_chapter",
+            "description": "Extract a specific chapter or section by id/range"
+          },
+          {
+            "name": "docxmcp_rebuild_docx",
+            "description": "Rebuild a .docx from the edited <stem>.src/ components, preserving formatting"
+          },
+          {
+            "name": "docxmcp_stage_dir",
+            "description": "Stage host-authored files into docxmcp via inline files-map; returns token + doc_dir for downstream tool consumption"
+          },
+          {
+            "name": "docxmcp_docx_to_images",
+            "description": "Convert .docx pages to images (for visual review / OCR)"
+          }
+        ],
+        "ops_note": "If tool calls fail with connection / 404 errors, the underlying Docker container or Unix socket may be down. Check `docker ps` for the docxmcp container and the host socket at `/run/user/$UID/opencode/sockets/docxmcp/docxmcp.sock`."
       },
       {
         "name": "gmail",
-        "enabled": true,
+        "enabled": false,
+        "registry_layer": "mcp-apps.json",
+        "default_state": "registered but disabled — toggle on demand via system-manager when needed",
         "capability": "Gmail integration — search, read, send, reply, forward emails. Read-only tools save HTML files; use open_fileview to display them.",
         "tools": [
           {
@@ -183,26 +233,13 @@
       },
       {
         "name": "google-calendar",
-        "enabled": true,
-        "capability": "Google Calendar — list calendars, query/create/update/delete events, check availability"
-      },
-      {
-        "name": "drawmiat",
         "enabled": false,
-        "capability": "IDEF0 / Grafcet (IEC 60848) diagram renderer — generates SVG from structured JSON",
-        "tools": [
-          {
-            "name": "generate_diagram",
-            "description": "Generate SVG diagram(s) from IDEF0 or Grafcet JSON. Accepts diagram_type (grafcet|idef0), json_payload (string), and optional output_dir. Returns inline SVG + saved paths + diagnostics."
-          },
-          {
-            "name": "validate_diagram",
-            "description": "Validate IDEF0 or Grafcet JSON structure without generating SVG. Returns validation logs, warnings, and errors."
-          }
-        ]
+        "registry_layer": "mcp-apps.json",
+        "default_state": "registered but disabled — toggle on demand via system-manager when needed",
+        "capability": "Google Calendar — list calendars, query/create/update/delete events, check availability"
       }
     ],
-    "discovery": "Source status from global opencode.json and system-manager_get_system_status before deciding toggles."
+    "discovery": "Source status from global opencode.json and system-manager_get_system_status before deciding toggles. Entries marked `registered but disabled` exist in mcp-apps.json but won't auto-connect; enable them explicitly when intent matches."
   },
   "routing": {
     "intent_to_capability": [
@@ -263,15 +300,111 @@
         "fallback": ["miatdiagram skill for JSON generation, then drawmiat MCP for SVG rendering"],
         "notes": [
           "Use miatdiagram skill for text-to-JSON conversion, then drawmiat MCP for JSON-to-SVG rendering.",
-          "drawmiat supports hierarchical IDEF0 decomposition (multiple SVGs) and Grafcet sub-grafcets."
+          "drawmiat supports hierarchical IDEF0 decomposition (multiple SVGs) and Grafcet sub-grafcets.",
+          "When the request is to inspect Grafcet routing/layout problems, prefer the drawmiat L5 diagnostic renderer's debug_gaps / --debug-gaps mode so the output includes gap overlays in a separate debug SVG."
+        ]
+      },
+      {
+        "intent": "docx/pdf document decomposition and editing workflow",
+        "keywords": [
+          "docx",
+          "word document",
+          ".docx",
+          ".pdf",
+          "pdf document",
+          "document workflow",
+          "拆文件",
+          "拆解文件",
+          "標案",
+          "標書",
+          "投標",
+          "rfp",
+          "服務建議書",
+          "企劃書",
+          "公文",
+          "公告",
+          "政府採購",
+          "doc-workflow",
+          "編輯文件",
+          "重組文件",
+          "重寫文件",
+          "renormalize document",
+          "rebuild docx",
+          "outline",
+          "doc to images",
+          "ocr docx"
+        ],
+        "requires_mcp": ["docxmcp"],
+        "prefer": [
+          "mcpapp-docxmcp_docxmcp_extract_all",
+          "mcpapp-docxmcp_docxmcp_pdf_extract_all",
+          "mcpapp-docxmcp_docxmcp_extract_text",
+          "mcpapp-docxmcp_docxmcp_extract_outline",
+          "mcpapp-docxmcp_docxmcp_extract_chapter",
+          "mcpapp-docxmcp_docxmcp_rebuild_docx",
+          "mcpapp-docxmcp_docxmcp_stage_dir",
+          "skill:doc-workflow"
+        ],
+        "fallback": [
+          "skill:doc-workflow with docxmcp backend script as last resort (bypasses MCP layer, no schema validation)"
+        ],
+        "notes": [
+          "ALWAYS prefer the MCP tool keys (`mcpapp-docxmcp_docxmcp_*`) over running docxmcp's backend Python script via bash.",
+          "Note the DOUBLE prefix: opencode adds `mcpapp-docxmcp_` (App Store namespace) on top of the registry's own `docxmcp_` self-prefix.",
+          "The doc-workflow skill describes the .src/ component package conventions; the docxmcp MCP server provides the actual tool implementations.",
+          "If a docxmcp tool returns connection errors, the container or Unix socket may be down — surface the error to the user rather than silently falling back to bash."
+        ]
+      },
+      {
+        "intent": "plan / spec / wiki knowledge base lifecycle (plan-builder)",
+        "keywords": [
+          "plan",
+          "spec",
+          "specbase",
+          "wiki",
+          "plan_create",
+          "plan_advance",
+          "plan_graduate",
+          "spec_amend",
+          "decision log",
+          "code anchor",
+          "計畫",
+          "規格",
+          "立案",
+          "promote",
+          "graduate"
+        ],
+        "requires_mcp": ["specbase"],
+        "prefer": [
+          "mcp__specbase__plan_create",
+          "mcp__specbase__plan_advance",
+          "mcp__specbase__plan_graduate",
+          "mcp__specbase__plan_check",
+          "mcp__specbase__plan_archive",
+          "mcp__specbase__spec_amend",
+          "mcp__specbase__spec_tick_task",
+          "mcp__specbase__spec_record_decision",
+          "mcp__specbase__spec_record_event",
+          "mcp__specbase__spec_add_code_anchor",
+          "mcp__specbase__spec_sync",
+          "mcp__specbase__wiki_search",
+          "mcp__specbase__wiki_query",
+          "skill:plan-builder"
+        ],
+        "fallback": ["skill:plan-builder"],
+        "notes": [
+          "specbase is the canonical backing store for the plan-builder skill — never edit /plans/ or /specs/ files by hand when a specbase tool exists for the operation.",
+          "/plans/ is gitignored on this repo (private drafts). Only `plan_graduate` (verified → living) moves a package into tracked /specs/."
         ]
       },
       {
         "intent": "web docs/api retrieval",
         "keywords": ["url", "docs", "documentation", "api", "endpoint", "fetch", "http"],
-        "requires_mcp": ["fetch"],
-        "prefer": ["fetch_get_markdown_summary", "fetch_get_markdown", "webfetch"],
-        "fallback": ["webfetch"]
+        "prefer": ["webfetch"],
+        "fallback": ["webfetch"],
+        "notes": [
+          "fetch MCP server is not currently registered — use built-in webfetch tool."
+        ]
       },
       {
         "intent": "db/schema/query troubleshooting",
