@@ -854,6 +854,19 @@ export namespace MCP {
     enabled: boolean
   }
 
+  export function toolID(clientName: string, toolName: string): string {
+    const sanitizedClientName = clientName.replace(/[^a-zA-Z0-9_-]/g, "_")
+    const sanitizedToolName = toolName.replace(/[^a-zA-Z0-9_-]/g, "_")
+    if (clientName.startsWith("mcpapp-")) {
+      const appId = clientName.slice("mcpapp-".length).replace(/[^a-zA-Z0-9_-]/g, "_")
+      const duplicatedPrefix = `${appId}_`
+      if (sanitizedToolName.startsWith(duplicatedPrefix)) {
+        return sanitizedToolName
+      }
+    }
+    return `${sanitizedClientName}_${sanitizedToolName}`
+  }
+
   /** Return all MCP servers as app-market-compatible cards */
   export async function serverApps(): Promise<ServerApp[]> {
     const s = await state()
@@ -1379,9 +1392,7 @@ export namespace MCP {
       const entry = isMcpConfigured(mcpConfig) ? mcpConfig : undefined
       const timeout = entry?.timeout ?? defaultTimeout
       for (const mcpTool of toolsResult.tools) {
-        const sanitizedClientName = clientName.replace(/[^a-zA-Z0-9_-]/g, "_")
-        const sanitizedToolName = mcpTool.name.replace(/[^a-zA-Z0-9_-]/g, "_")
-        result[sanitizedClientName + "_" + sanitizedToolName] = await convertMcpTool(
+        result[toolID(clientName, mcpTool.name)] = await convertMcpTool(
           mcpTool,
           client,
           timeout,
