@@ -661,9 +661,9 @@ export const GlobalRoutes = lazy(() =>
               probePath: "/api/v2/global/health",
               txid,
               handoverPath: handover.path,
-              recommendedInitialDelayMs: 1000,
-              fallbackReloadAfterMs: 5000,
-              recoveryDeadlineMs: 30000,
+              recommendedInitialDelayMs: 2500,
+              fallbackReloadAfterMs: 15000,
+              recoveryDeadlineMs: 120000,
             })
           }
 
@@ -713,9 +713,9 @@ export const GlobalRoutes = lazy(() =>
             probePath: "/api/v2/global/health",
             txid,
             handoverPath: handover.path,
-            recommendedInitialDelayMs: 1000,
-            fallbackReloadAfterMs: 5000,
-            recoveryDeadlineMs: 30000,
+            recommendedInitialDelayMs: 2500,
+            fallbackReloadAfterMs: 15000,
+            recoveryDeadlineMs: 120000,
           })
         }
 
