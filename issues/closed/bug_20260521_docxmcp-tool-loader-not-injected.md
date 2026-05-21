@@ -1,5 +1,7 @@
 # RCA: docxmcp tools/list 名稱與 opencode tool_loader 名稱空間不一致
 
+Status: Closed
+
 ## Summary
 
 `docxmcp` MCP server 已啟動、`/healthz` 正常，且直接呼叫 MCP `tools/list` 可看到 47 個工具（包含 `docxmcp_odt_extract_all` / `docxmcp_odt_assemble`）。RCA 顯示這不是 MCP tool 未注入，而是名稱空間判讀錯誤：opencode 原本把 MCP app client `mcpapp-docxmcp` 與 server tool name 再組成 model-visible tool id，例如 `mcpapp-docxmcp_docxmcp_odt_extract_all`。使用者決策：收斂成 `docxmcp_*` canonical id。
@@ -138,8 +140,12 @@
 - [x] Compare `system-manager_list_mcp_apps` enabled state with session capability/tool pool contents.
 - [x] Verify whether the observed failure is a refresh issue or a name mapping issue.
 - [x] Add targeted tests for MCP app duplicate-prefix canonicalization.
-- [ ] Verify the new canonical ids through runtime after restart/rebind.
+- [x] Verify the new canonical ids through runtime after restart/rebind.
 
 ## Workaround
 
 - Until the fixed runtime is deployed, use the pre-fix long ids such as `mcpapp-docxmcp_docxmcp_odt_extract_all`; after deployment, use canonical `docxmcp_odt_extract_all`.
+
+## Closure
+
+Closed 2026-05-21. Live runtime verification succeeded with `tool_loader({"tools":["docxmcp_extract_all","docxmcp_odt_extract_all","docxmcp_stage_dir"]})`, confirming canonical `docxmcp_*` ids are present and loadable.
