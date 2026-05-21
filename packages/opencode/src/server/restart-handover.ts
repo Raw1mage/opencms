@@ -3,7 +3,7 @@ import path from "node:path"
 import { Global } from "@/global"
 
 export namespace RestartHandover {
-  export type Status = "restart-requested"
+  export type Status = "restart-requested" | "restart-completed"
 
   export type Input = {
     txid: string
@@ -31,6 +31,26 @@ export namespace RestartHandover {
     errorLogPath?: string
     webctlPath?: string
     validationNextSteps: string[]
+    completedAt?: string
+    completedBy?: {
+      pid: number
+      ppid: number
+      socketPath?: string
+      port?: number
+      hostname?: string
+      startupLogPath: string
+    }
+  }
+
+  export type CompletionInput = {
+    txid: string
+    checkpointPath: string
+    startupLogPath: string
+    pid: number
+    ppid: number
+    socketPath?: string
+    port?: number
+    hostname?: string
   }
 
   export function dir() {
@@ -100,5 +120,52 @@ export namespace RestartHandover {
     )
     await fs.rename(pendingTmp, pending)
     return { path: target, checkpoint }
+  }
+
+  export async function complete(input: CompletionInput) {
+    const completedAt = new Date().toISOString()
+    const checkpointRaw = await fs.readFile(input.checkpointPath, "utf8")
+    const checkpoint = JSON.parse(checkpointRaw) as Checkpoint
+    if (checkpoint.txid !== input.txid) {
+      throw new Error(`restart checkpoint txid mismatch: expected ${input.txid}, got ${checkpoint.txid}`)
+    }
+
+    const completed: Checkpoint = {
+      ...checkpoint,
+      status: "restart-completed",
+      completedAt,
+      completedBy: {
+        pid: input.pid,
+        ppid: input.ppid,
+        socketPath: input.socketPath,
+        port: input.port,
+        hostname: input.hostname,
+        startupLogPath: input.startupLogPath,
+      },
+    }
+    const checkpointTmp = `${input.checkpointPath}.tmp-${process.pid}`
+    await fs.writeFile(checkpointTmp, JSON.stringify(completed, null, 2) + "\n", { mode: 0o600 })
+    await fs.rename(checkpointTmp, input.checkpointPath)
+
+    const pending = pendingPath()
+    const pendingTmp = `${pending}.tmp-${process.pid}`
+    await fs.writeFile(
+      pendingTmp,
+      JSON.stringify(
+        {
+          schemaVersion: 1,
+          txid: input.txid,
+          checkpointPath: input.checkpointPath,
+          createdAt: checkpoint.createdAt,
+          status: completed.status,
+          completedAt,
+        },
+        null,
+        2,
+      ) + "\n",
+      { mode: 0o600 },
+    )
+    await fs.rename(pendingTmp, pending)
+    return completed
   }
 }

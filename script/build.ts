@@ -3,6 +3,7 @@
 import solidPlugin from "../node_modules/@opentui/solid/scripts/solid-plugin"
 import path from "path"
 import fs from "fs"
+import os from "os"
 import { $ } from "bun"
 import { fileURLToPath } from "url"
 
@@ -61,78 +62,78 @@ const allTargets: {
   abi?: "musl"
   avx2?: false
 }[] = [
-    {
-      os: "linux",
-      arch: "arm64",
-    },
-    {
-      os: "linux",
-      arch: "x64",
-    },
-    {
-      os: "linux",
-      arch: "x64",
-      avx2: false,
-    },
-    {
-      os: "linux",
-      arch: "arm64",
-      abi: "musl",
-    },
-    {
-      os: "linux",
-      arch: "x64",
-      abi: "musl",
-    },
-    {
-      os: "linux",
-      arch: "x64",
-      abi: "musl",
-      avx2: false,
-    },
-    {
-      os: "darwin",
-      arch: "arm64",
-    },
-    {
-      os: "darwin",
-      arch: "x64",
-    },
-    {
-      os: "darwin",
-      arch: "x64",
-      avx2: false,
-    },
-    {
-      os: "win32",
-      arch: "x64",
-    },
-    {
-      os: "win32",
-      arch: "x64",
-      avx2: false,
-    },
-  ]
+  {
+    os: "linux",
+    arch: "arm64",
+  },
+  {
+    os: "linux",
+    arch: "x64",
+  },
+  {
+    os: "linux",
+    arch: "x64",
+    avx2: false,
+  },
+  {
+    os: "linux",
+    arch: "arm64",
+    abi: "musl",
+  },
+  {
+    os: "linux",
+    arch: "x64",
+    abi: "musl",
+  },
+  {
+    os: "linux",
+    arch: "x64",
+    abi: "musl",
+    avx2: false,
+  },
+  {
+    os: "darwin",
+    arch: "arm64",
+  },
+  {
+    os: "darwin",
+    arch: "x64",
+  },
+  {
+    os: "darwin",
+    arch: "x64",
+    avx2: false,
+  },
+  {
+    os: "win32",
+    arch: "x64",
+  },
+  {
+    os: "win32",
+    arch: "x64",
+    avx2: false,
+  },
+]
 
 const targets = singleFlag
   ? allTargets.filter((item) => {
-    if (item.os !== process.platform || item.arch !== process.arch) {
-      return false
-    }
+      if (item.os !== process.platform || item.arch !== process.arch) {
+        return false
+      }
 
-    // When building for the current platform, prefer a single native binary by default.
-    // Baseline binaries require additional Bun artifacts and can be flaky to download.
-    if (item.avx2 === false) {
-      return baselineFlag
-    }
+      // When building for the current platform, prefer a single native binary by default.
+      // Baseline binaries require additional Bun artifacts and can be flaky to download.
+      if (item.avx2 === false) {
+        return baselineFlag
+      }
 
-    // also skip abi-specific builds for the same reason
-    if (item.abi !== undefined) {
-      return false
-    }
+      // also skip abi-specific builds for the same reason
+      if (item.abi !== undefined) {
+        return false
+      }
 
-    return true
-  })
+      return true
+    })
   : allTargets
 
 await $`rm -rf dist`
@@ -142,7 +143,8 @@ await $`mkdir -p dist`
 const frontendHashFile = path.join(dir, "packages/app/.build-hash")
 const computeFrontendHash = async () => {
   // Hash all source files + package.json to detect changes
-  const result = await $`find packages/app/src packages/ui/src -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum`.text()
+  const result =
+    await $`find packages/app/src packages/ui/src -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum`.text()
   const pkgHash = await $`sha256sum packages/app/package.json packages/ui/package.json`.text()
   const hasher = new Bun.CryptoHasher("sha256")
   hasher.update(result)
@@ -163,7 +165,17 @@ if (fs.existsSync(frontendHashFile)) {
 
 if (!frontendSkipped) {
   console.log("building frontend")
-  await $`bun run --cwd packages/app build`
+  const appDir = path.join(dir, "packages/app")
+  const viteEntry = path.join(appDir, "node_modules/vite/bin/vite.js")
+  const bunExe = path.join(os.homedir(), ".bun/bin/bun")
+  if (!fs.existsSync(bunExe)) throw new Error(`bun executable not found: ${bunExe}`)
+  const frontendBuild = Bun.spawn([bunExe, viteEntry, "build"], {
+    cwd: appDir,
+    stdout: "inherit",
+    stderr: "inherit",
+  })
+  const frontendBuildExit = await frontendBuild.exited
+  if (frontendBuildExit !== 0) throw new Error(`frontend build failed with exit code ${frontendBuildExit}`)
   fs.writeFileSync(frontendHashFile, currentFrontendHash)
 }
 await $`tar -czf dist/opencode-frontend.tar.gz -C packages/app/dist .`

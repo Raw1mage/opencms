@@ -1,6 +1,7 @@
 import path from "node:path"
 import fs from "node:fs/promises"
 import { Global } from "@/global"
+import { RestartHandover } from "./restart-handover"
 
 export namespace DaemonStartupLog {
   export type Input = {
@@ -54,6 +55,7 @@ export namespace DaemonStartupLog {
     try {
       const parsed = JSON.parse(raw) as Partial<PendingRestart>
       if (parsed.schemaVersion !== 1 || typeof parsed.txid !== "string") return undefined
+      if (parsed.status !== "restart-requested" && parsed.status !== "webctl-restart-requested") return undefined
       return parsed as PendingRestart
     } catch {
       return undefined
@@ -83,9 +85,22 @@ export namespace DaemonStartupLog {
   }
 
   export async function record(input: Input = {}) {
+    const pending = await readPendingRestart()
     const event = await build(input)
     await fs.mkdir(dir(), { recursive: true })
     await fs.appendFile(logPath(), JSON.stringify(event) + "\n", { mode: 0o600 })
+    if (pending) {
+      await RestartHandover.complete({
+        txid: pending.txid,
+        checkpointPath: pending.checkpointPath,
+        startupLogPath: logPath(),
+        pid: event.pid,
+        ppid: event.ppid,
+        socketPath: event.socketPath,
+        port: event.port,
+        hostname: event.hostname,
+      })
+    }
     return { path: logPath(), event }
   }
 }
