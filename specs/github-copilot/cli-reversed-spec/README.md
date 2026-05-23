@@ -181,6 +181,7 @@ copilot_cli_websocket_responses
 ```
 README.md                          — this file
 chapters/
+  ── CLI Binary Reversed (01-06) ──
   idef0.01.json                    — Auth & Token Lifecycle
   idef0.02.json                    — Model Routing
   idef0.03.json                    — Agent Loop Execution
@@ -193,6 +194,22 @@ chapters/
   grafcet.04.json                  — Tool execution flow
   grafcet.05.json                  — Session lifecycle
   grafcet.06.json                  — Sub-agent coordination
-  protocol-datasheets.md           — Internal APIs, token formats, telemetry
-  traceability.md                  — Evidence + open questions
+
+  ── OpenCMS Implementation (07-09) ──
+  idef0.07.json                    — Tool Call Round-Trip (detect → execute → result → next turn)
+  idef0.08.json                    — Dual-Path API Routing (Chat Completions vs Responses API)
+  idef0.09.json                    — Circuit Breaker Fault Isolation (3-state machine)
+  grafcet.07.json                  — Tool call round-trip state machine
+  grafcet.08.json                  — Dual-path routing state machine
+  grafcet.09.json                  — Circuit breaker state transitions
+
+  ── Datasheets ──
+  protocol-datasheets.md           — Wire-level spec: OAuth, token exchange, dual-path API,
+                                     tool call round-trip, circuit breaker, bun compile workaround
+                                     (§1-§12 + appendices A-C)
 ```
+
+## Cross-Reference: specs/provider/new-provider-sop/
+
+Provider registration SOP (DD-13) with IDEF0 + GRAFCET covering the 13-step chain
+from plugin declaration to UI visibility. Based on copilot-cli implementation experience.

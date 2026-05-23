@@ -1,0 +1,62 @@
+{
+  "diagram_title": "Execute Tool Call Round-Trip via Copilot API",
+  "node_reference": "A0",
+  "purpose": "AI 在串流回應中宣告要呼叫工具 → 系統收集引數 → 執行工具 → 把結果送回下一輪 API 呼叫 → AI 繼續回答。這是 agent 迴圈的核心資料流。",
+  "source_repo": "opencode (OpenCMS) — copilot-cli plugin",
+  "source_files": [
+    "packages/opencode/src/plugin/copilot-cli/adapter.ts",
+    "packages/opencode/src/plugin/copilot-cli/client.ts",
+    "packages/opencode/src/plugin/copilot-cli/models.ts"
+  ],
+  "activities": [
+    {
+      "id": "A1",
+      "name": "Detect Tool Call in Stream",
+      "description": "在 SSE 串流中偵測到 AI 要呼叫工具。Chat Completions 看 delta.tool_calls[i]；Responses API 看 response.output_item.added（type=function_call）。這是整個 round-trip 的起點。"
+    },
+    {
+      "id": "A2",
+      "name": "Accumulate Tool Arguments",
+      "description": "工具引數以 JSON 碎片的方式逐段送達。系統把每個碎片串接起來，直到串流結束或收到完整引數事件。Chat Completions 用 delta.tool_calls[i].function.arguments；Responses API 用 response.function_call_arguments.delta。"
+    },
+    {
+      "id": "A3",
+      "name": "Assemble and Emit Tool Call Event",
+      "description": "串流結束後，把收集到的 toolCallId、toolName、完整引數組裝成 AI SDK 的 tool-call event。同時把 finish reason 強制設為 tool-calls（即使 API 回傳 stop），否則 AI SDK 不會觸發執行。"
+    },
+    {
+      "id": "A4",
+      "name": "Execute Tool via OpenCMS Runloop",
+      "description": "AI SDK 攔截到 finish reason = tool-calls，交給 OpenCMS 的 runloop step manager 去執行實際工具（例如讀檔案、跑指令）。這步由框架負責，不是 copilot-cli plugin 的邏輯。"
+    },
+    {
+      "id": "A5",
+      "name": "Serialize Tool Result for Next Turn",
+      "description": "工具執行結果需要轉成正確格式放進下一輪 API 請求。Chat Completions 用 { role: tool, tool_call_id, content }；Responses API 用 { type: function_call_output, call_id, output }。結果型態可能是 string、array、object，需經 stringifyOutput() 統一處理。"
+    },
+    {
+      "id": "A6",
+      "name": "Convert Tool Schemas for API",
+      "description": "AI SDK 傳入的 tool 定義需要轉成 API 能接受的格式。Chat Completions 需要 { type: function, function: { name, ... } } 巢狀結構；Responses API 需要 { type: function, name, ... } 扁平結構。另外要處理 bun compile 的 Symbol 斷裂問題（rawToolSchemas fallback）。"
+    },
+    {
+      "id": "A7",
+      "name": "Send Next Turn with Tool Result",
+      "description": "把工具結果嵌入新的 API 請求中送出。AI 收到結果後會繼續回答，或者再呼叫另一個工具（回到 A1 形成迴圈）。"
+    }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "SSE stream from Copilot API (text + tool call events)", "type": "input" },
+    { "id": "AR2", "source": "A1", "target": "A2", "label": "Tool call detected: toolCallId + toolName identified", "type": "output" },
+    { "id": "AR3", "source": "A2", "target": "A3", "label": "Complete arguments JSON string assembled", "type": "output" },
+    { "id": "AR4", "source": "A3", "target": "A4", "label": "tool-call event emitted to AI SDK (type, id, name, args)", "type": "output" },
+    { "id": "AR5", "source": "A4", "target": "A5", "label": "Tool execution result (string, object, or array)", "type": "output" },
+    { "id": "AR6", "source": "A5", "target": "A7", "label": "Serialized tool result in correct API format", "type": "output" },
+    { "id": "AR7", "source": "A6", "target": "A7", "label": "Tool schema definitions in API-compatible format", "type": "output" },
+    { "id": "AR8", "source": "A7", "target": "EXTERNAL", "label": "Next API request with tool result → may trigger more tool calls (loop back to A1)", "type": "output" },
+    { "id": "AR9", "source": "EXTERNAL", "target": "A3:control", "label": "Finish reason override rule: any tool call → must be 'tool-calls'", "type": "control" },
+    { "id": "AR10", "source": "EXTERNAL", "target": "A6:control", "label": "rawToolSchemas side-channel (bun compile Symbol workaround)", "type": "control" },
+    { "id": "AR11", "source": "EXTERNAL", "target": "A1:control", "label": "Dual-path routing decision (Chat Completions vs Responses API) determines event format", "type": "control" },
+    { "id": "AR12", "source": "EXTERNAL", "target": "A4:mechanism", "label": "OpenCMS runloop + tool executor framework", "type": "mechanism" }
+  ]
+}

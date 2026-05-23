@@ -1,0 +1,82 @@
+{
+  "diagram_title": "Route Request to Chat Completions or Responses API",
+  "node_reference": "A0",
+  "purpose": "根據模型和伺服器 feature flags 決定 API 請求走 Chat Completions（舊版）還是 Responses API（新版），並執行對應的格式轉換和串流解析。",
+  "source_repo": "opencode (OpenCMS) — copilot-cli plugin",
+  "source_files": [
+    "packages/opencode/src/plugin/copilot-cli/models.ts",
+    "packages/opencode/src/plugin/copilot-cli/adapter.ts",
+    "packages/opencode/src/plugin/copilot-cli/client.ts"
+  ],
+  "activities": [
+    {
+      "id": "A1",
+      "name": "Evaluate Routing Decision",
+      "description": "收到 AI SDK 的 doStream/doGenerate 請求後，呼叫 shouldUseResponsesApi(modelId) 決定走哪條路。優先看 profile 裡的 copilot_cli_websocket_responses flag，沒有的話看模型版本號（GPT-5+ 走新版，但 gpt-5-mini 例外）。"
+    },
+    {
+      "id": "A2",
+      "name": "Convert Prompt to Chat Completions Format",
+      "description": "呼叫 promptToMessages()：把 AI SDK 的 prompt 結構轉成 OpenAI messages 陣列。使用者文字 → role:user + content；助手回覆 → role:assistant + content + tool_calls[]；工具結果 → role:tool + tool_call_id + content。"
+    },
+    {
+      "id": "A3",
+      "name": "Convert Tools to Chat Completions Format",
+      "description": "呼叫 toolsToCompletions()：把 AI SDK tool 定義轉成巢狀格式 { type: function, function: { name, description, parameters } }。需要處理 bun compile Symbol 斷裂（rawToolSchemas fallback）。"
+    },
+    {
+      "id": "A4",
+      "name": "Send Chat Completions Request",
+      "description": "POST 到 /chat/completions，body 含 model、messages、tools、stream:true。經 circuit breaker 檢查和 header injection 後發出。"
+    },
+    {
+      "id": "A5",
+      "name": "Parse Chat Completions SSE Stream",
+      "description": "解析 data: {json} 格式的 SSE 事件。文字在 choices[0].delta.content；工具呼叫在 choices[0].delta.tool_calls[]；結束在 [DONE] marker。"
+    },
+    {
+      "id": "A6",
+      "name": "Convert Prompt to Responses API Format",
+      "description": "呼叫 promptToResponsesInput()：把 AI SDK prompt 轉成 Responses API 的 input 陣列。使用者文字 → input_text；助手回覆 → output_text；工具呼叫 → 頂層 function_call（不是包在 message 裡）；工具結果 → 頂層 function_call_output。"
+    },
+    {
+      "id": "A7",
+      "name": "Convert Tools to Responses API Format",
+      "description": "呼叫 toolsToResponses()：把 tool 定義轉成扁平格式 { type: function, name, description, parameters }（name 在頂層，沒有 nested function:）。同樣處理 Symbol 斷裂。"
+    },
+    {
+      "id": "A8",
+      "name": "Send Responses API Request",
+      "description": "POST 到 /responses，body 含 model、input、tools、stream:true。經 circuit breaker 和 header injection 後發出。"
+    },
+    {
+      "id": "A9",
+      "name": "Parse Responses API SSE Stream",
+      "description": "解析 Responses API 特有的事件格式：response.output_text.delta（文字片段）、response.output_item.added（新項目）、response.function_call_arguments.delta/done（工具引數）、response.completed（結束）。"
+    },
+    {
+      "id": "A10",
+      "name": "Emit Unified Stream Parts",
+      "description": "不管走哪條路，最終都轉成統一的 LanguageModelV2StreamPart 格式輸出：text-delta、tool-call、tool-call-delta、finish 等事件。AI SDK 和 OpenCMS runloop 只看這一層。"
+    }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "AI SDK doStream/doGenerate request (prompt + tools + modelId)", "type": "input" },
+    { "id": "AR2", "source": "A1", "target": "A2", "label": "Decision: Chat Completions path", "type": "output" },
+    { "id": "AR3", "source": "A1", "target": "A6", "label": "Decision: Responses API path", "type": "output" },
+    { "id": "AR4", "source": "A2", "target": "A4", "label": "Formatted messages array", "type": "output" },
+    { "id": "AR5", "source": "A3", "target": "A4", "label": "Formatted tools array (nested function:)", "type": "output" },
+    { "id": "AR6", "source": "A4", "target": "A5", "label": "SSE stream (data: {json})", "type": "output" },
+    { "id": "AR7", "source": "A6", "target": "A8", "label": "Formatted input array", "type": "output" },
+    { "id": "AR8", "source": "A7", "target": "A8", "label": "Formatted tools array (flat)", "type": "output" },
+    { "id": "AR9", "source": "A8", "target": "A9", "label": "SSE stream (response.* events)", "type": "output" },
+    { "id": "AR10", "source": "A5", "target": "A10", "label": "Parsed completions chunks", "type": "output" },
+    { "id": "AR11", "source": "A9", "target": "A10", "label": "Parsed responses chunks", "type": "output" },
+    { "id": "AR12", "source": "A10", "target": "EXTERNAL", "label": "Unified LanguageModelV2StreamPart events → AI SDK", "type": "output" },
+    { "id": "AR13", "source": "EXTERNAL", "target": "A1:control", "label": "Profile feature flags (copilot_cli_websocket_responses)", "type": "control" },
+    { "id": "AR14", "source": "EXTERNAL", "target": "A3:control", "label": "rawToolSchemas side-channel (bun compile workaround)", "type": "control" },
+    { "id": "AR15", "source": "EXTERNAL", "target": "A7:control", "label": "rawToolSchemas side-channel (bun compile workaround)", "type": "control" },
+    { "id": "AR16", "source": "EXTERNAL", "target": "A4:mechanism", "label": "Circuit breaker + header injection (client.ts)", "type": "mechanism" },
+    { "id": "AR17", "source": "EXTERNAL", "target": "A8:mechanism", "label": "Circuit breaker + header injection (client.ts)", "type": "mechanism" }
+  ]
+}

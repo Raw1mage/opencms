@@ -1,0 +1,65 @@
+{
+  "diagram_title": "Manage Circuit Breaker for API Fault Isolation",
+  "node_reference": "A0",
+  "purpose": "當 Copilot API 連續出錯時自動斷路保護系統，避免雪崩式故障。三態狀態機（CLOSED → OPEN → HALF_OPEN）搭配 exponential backoff，確保故障時快速失敗、恢復時漸進探測。",
+  "source_repo": "opencode (OpenCMS) — copilot-cli plugin",
+  "source_files": [
+    "packages/opencode/src/plugin/copilot-cli/circuit-breaker.ts",
+    "packages/opencode/src/plugin/copilot-cli/client.ts",
+    "packages/opencode/src/plugin/copilot-cli/types.ts"
+  ],
+  "activities": [
+    {
+      "id": "A1",
+      "name": "Check Request Permission",
+      "description": "每次要打 API 前，先問 circuit breaker「現在能不能發請求？」。CLOSED 狀態全部放行；OPEN 狀態全部拒絕（直接丟錯誤，不浪費網路）；HALF_OPEN 狀態只放行一個探測請求。"
+    },
+    {
+      "id": "A2",
+      "name": "Record Response Outcome",
+      "description": "API 回來之後，把 HTTP 狀態碼交給 circuit breaker 記錄。500/502/503/504 算「失敗」，其他算「成功」。這決定了失敗計數的走向。"
+    },
+    {
+      "id": "A3",
+      "name": "Evaluate Failure Threshold",
+      "description": "每次記錄失敗後，檢查連續失敗次數是否達到門檻（預設 5 次）。未達門檻就繼續正常；達到門檻就觸發斷路。"
+    },
+    {
+      "id": "A4",
+      "name": "Trip Circuit to OPEN",
+      "description": "連續 5 次失敗後，狀態切換到 OPEN。記錄斷路時間戳，啟動計時器。在 OPEN 期間，所有請求直接被拒絕，不會打到 API。"
+    },
+    {
+      "id": "A5",
+      "name": "Transition to HALF_OPEN after Timeout",
+      "description": "等待 resetTimeout（30 秒，可能因退避加倍到 60s / 120s）過後，狀態切換到 HALF_OPEN。這時開放一個名額給「探測請求」。"
+    },
+    {
+      "id": "A6",
+      "name": "Execute Probe Request",
+      "description": "HALF_OPEN 狀態下，第一個到來的請求被當作探測。只允許這一個通過，其餘阻擋。探測有 30 秒超時限制。"
+    },
+    {
+      "id": "A7",
+      "name": "Evaluate Probe Result",
+      "description": "探測成功 → 重設一切，回到 CLOSED（正常）。探測失敗或超時 → 回到 OPEN，等待時間加倍（exponential backoff，上限 120 秒）。"
+    }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "Outbound API request from client.ts guardedFetch()", "type": "input" },
+    { "id": "AR2", "source": "A1", "target": "EXTERNAL", "label": "Request allowed → proceed to actual API call", "type": "output" },
+    { "id": "AR3", "source": "A1", "target": "EXTERNAL", "label": "Request blocked (OPEN state) → throw CircuitOpenError", "type": "output" },
+    { "id": "AR4", "source": "EXTERNAL", "target": "A2:input", "label": "HTTP response status code from API", "type": "input" },
+    { "id": "AR5", "source": "A2", "target": "A3", "label": "Failure recorded (500/502/503/504) → check threshold", "type": "output" },
+    { "id": "AR6", "source": "A2", "target": "A7", "label": "Success recorded → may close circuit if in HALF_OPEN", "type": "output" },
+    { "id": "AR7", "source": "A3", "target": "A4", "label": "Threshold reached (5 consecutive failures)", "type": "output" },
+    { "id": "AR8", "source": "A4", "target": "A5", "label": "Timer started: wait resetTimeoutMs", "type": "output" },
+    { "id": "AR9", "source": "A5", "target": "A6", "label": "Timeout expired → allow one probe", "type": "output" },
+    { "id": "AR10", "source": "A6", "target": "A7", "label": "Probe response (success, failure, or timeout)", "type": "output" },
+    { "id": "AR11", "source": "A7", "target": "A1", "label": "Probe success → CLOSED, all requests allowed", "type": "output" },
+    { "id": "AR12", "source": "A7", "target": "A4", "label": "Probe failure → OPEN again, backoff doubled", "type": "output" },
+    { "id": "AR13", "source": "EXTERNAL", "target": "A3:control", "label": "Configuration: failureThreshold=5, statusCodes=[500,502,503,504]", "type": "control" },
+    { "id": "AR14", "source": "EXTERNAL", "target": "A5:control", "label": "Configuration: resetTimeoutMs=30000, max backoff=120000", "type": "control" },
+    { "id": "AR15", "source": "EXTERNAL", "target": "A6:control", "label": "Configuration: probeTimeoutMs=30000", "type": "control" }
+  ]
+}

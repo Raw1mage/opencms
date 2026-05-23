@@ -1,0 +1,110 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A0",
+    "StepType": "initial",
+    "StepAction": "CLOSED 正常 — circuit breaker 初始狀態，所有請求放行，失敗計數 = 0",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [7],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["system_start OR circuit_reset"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "檢查是否允許 — canRequest() 回傳 true（CLOSED 狀態一律放行）",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["api_request_incoming"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "記錄回應 — recordResponse(statusCode) 判斷成功或失敗",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [0, 3],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["response_received"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "失敗累積 — 連續失敗計數 +1，檢查是否達到門檻（5 次）",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [0, 4],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["status_code IN [500, 502, 503, 504]"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "OPEN 斷路 — 第 5 次連續失敗，記錄斷路時間戳，所有後續請求直接拒絕",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["failureCount >= failureThreshold (5)"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "等待超時 — updateState() 在每次 getState() 時檢查是否已過 resetTimeoutMs",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["now - tripTimestamp >= currentResetTimeoutMs"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A6",
+    "StepType": "normal",
+    "StepAction": "HALF_OPEN 探測 — 允許一個請求通過作為探測，其餘阻擋",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [7, 8],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["probe_request_sent"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A7",
+    "StepType": "normal",
+    "StepAction": "探測成功 — recordSuccess() 重設失敗計數和退避時間，回到 CLOSED",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [6],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["probe_status NOT IN [500, 502, 503, 504]"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 8,
+    "ModuleRef": "A7",
+    "StepType": "normal",
+    "StepAction": "探測失敗 — 回到 OPEN，退避時間加倍（30s → 60s → 120s，上限 120s）",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [6],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["probe_status IN [500, 502, 503, 504] OR probe_timeout (30s)"],
+    "SubGrafcet": []
+  }
+]
