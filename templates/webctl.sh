@@ -1675,7 +1675,7 @@ do_build_binary() {
         "${BUN_BIN}" install
     fi
 
-    "${BUN_BIN}" run build --single
+    "${BUN_BIN}" run script/build.ts --single
 
     log_success "Binary built: ${PROJECT_ROOT}/dist/opencode-linux-x64/bin/opencode"
 }

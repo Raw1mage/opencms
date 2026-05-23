@@ -1987,19 +1987,21 @@ do_build_frontend() {
 # ---------------------------------------------------------------------------
 
 # Compute a fingerprint of source dirs relevant to the backend binary.
-# Uses git tree hashes + dirty-file list so uncommitted changes invalidate.
+# Uses git tree hashes + dirty-file content so uncommitted changes invalidate.
 _binary_source_fingerprint() {
     cd "${PROJECT_ROOT}"
-    local parts=""
-    # Git tree hashes for source packages
-    for dir in packages/opencode packages/app; do
-        parts="${parts}$(git rev-parse HEAD:"${dir}" 2>/dev/null || echo dirty)"
-    done
-    # Append list of uncommitted changes in those dirs (catches dirty tree)
-    parts="${parts}$(git diff --name-only HEAD -- packages/opencode packages/app 2>/dev/null)"
-    # Also include untracked files
-    parts="${parts}$(git ls-files --others --exclude-standard -- packages/opencode packages/app 2>/dev/null)"
-    echo "${parts}" | sha256sum | cut -d' ' -f1
+    local dirs="packages/opencode packages/app"
+    {
+        for dir in ${dirs}; do
+            [ -d "${dir}" ] || continue
+            git rev-parse "HEAD:${dir}" 2>/dev/null || echo dirty
+        done
+        git diff HEAD -- ${dirs} 2>/dev/null
+        git ls-files --others --exclude-standard -- ${dirs} 2>/dev/null \
+            | while IFS= read -r f; do
+                [ -f "${f}" ] && printf '%s\n' "${f}" && cat -- "${f}" 2>/dev/null
+            done
+    } | sha256sum | cut -d' ' -f1
 }
 
 BINARY_STAMP_FILE="${PROJECT_ROOT}/dist/.binary-stamp"
@@ -2074,7 +2076,7 @@ do_build_binary() {
         "${BUN_BIN}" install
     fi
 
-    "${BUN_BIN}" run build --single
+    "${BUN_BIN}" run script/build.ts --single
 
     _write_binary_stamp
     log_success "Binary built: ${PROJECT_ROOT}/dist/opencode-linux-x64/bin/opencode"
@@ -2634,7 +2636,7 @@ do_reload() {
         # 3. Build binary (smart: skip if source unchanged)
         if [ "${force}" -eq 1 ] || _binary_needs_build; then
             log_info "Binary source changed — building..."
-            "${BUN_BIN}" run build -- --single --skip-install
+            "${BUN_BIN}" run script/build.ts --single --skip-install
             _write_binary_stamp
             did_build_bin=1
         else
@@ -2919,7 +2921,7 @@ case "${1:-}" in
     status)         do_status         ;;
     logs)           do_logs           ;;
     build-frontend) do_build_frontend ;;
-    build-binary)   do_build_binary   ;;
+    build-binary)   do_build_binary "${@:2}" ;;
     compile-mcp)    compile_internal_mcp_if_stale ;;
     publish-route)   do_publish_route "${@:2}" ;;
     remove-route)    do_remove_route "${@:2}" ;;
