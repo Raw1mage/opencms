@@ -79,6 +79,51 @@ export const AccountRoutes = lazy(() =>
       },
     )
     .get(
+      "/rate-limits",
+      describeRoute({
+        summary: "Get per-model rate-limit state",
+        description:
+          "Returns active rate-limit cooldowns from RateLimitTracker, filtered by provider and optionally account. Each entry is a 3D vector (provider, account, model) with remaining wait time.",
+        operationId: "account.rateLimits",
+        responses: {
+          200: {
+            description: "Active rate-limit entries",
+            content: {
+              "application/json": {
+                schema: resolver(
+                  z.array(
+                    z.object({
+                      accountId: z.string(),
+                      providerId: z.string(),
+                      modelID: z.string().optional(),
+                      waitMs: z.number(),
+                      reason: z.string(),
+                    }),
+                  ),
+                ),
+              },
+            },
+          },
+        },
+      }),
+      validator(
+        "query",
+        z.object({
+          providerId: z.string(),
+          accountId: z.string().optional(),
+        }),
+      ),
+      async (c) => {
+        const { providerId, accountId } = c.req.valid("query")
+        const { getRateLimitTracker } = await import("../../account/rotation")
+        const snapshot = getRateLimitTracker().getSnapshot3D()
+        const filtered = snapshot.filter(
+          (e) => e.providerId === providerId && (!accountId || e.accountId === accountId),
+        )
+        return c.json(filtered)
+      },
+    )
+    .get(
       "/",
       describeRoute({
         summary: "List all accounts",

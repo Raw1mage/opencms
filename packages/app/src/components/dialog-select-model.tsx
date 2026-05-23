@@ -669,6 +669,7 @@ const ModelItem: Component<{
   enabled: boolean
   unavailableReason?: string
   showUnavailableTag?: boolean
+  cooldown?: string
   onToggleEnabled: (e: MouseEvent) => void
 }> = (props) => {
   const language = useLanguage()
@@ -687,17 +688,29 @@ const ModelItem: Component<{
           <Tag>{language.t("dialog.model.activity.unavailable")}</Tag>
         </Show>
       </div>
-      <IconButton
-        icon={props.enabled ? "eye" : "circle-ban-sign"}
-        variant="ghost"
-        class={cn(
-          "size-6 shrink-0 opacity-100 transition-opacity",
-          props.enabled
-            ? "[&_[data-slot=icon-svg]]:text-icon-success-base hover:[&_[data-slot=icon-svg]]:text-icon-success-base"
-            : "[&_[data-slot=icon-svg]]:text-icon-danger-base hover:[&_[data-slot=icon-svg]]:text-icon-danger-base",
+      <Show when={props.cooldown}>
+        {(cd) => (
+          <span class="shrink-0 text-right text-11-regular text-icon-danger-base tabular-nums whitespace-nowrap">
+            {cd()}
+          </span>
         )}
-        onClick={props.onToggleEnabled}
-      />
+      </Show>
+      <Show
+        when={!props.cooldown}
+        fallback={<div class="size-6 shrink-0" />}
+      >
+        <IconButton
+          icon={props.enabled ? "eye" : "circle-ban-sign"}
+          variant="ghost"
+          class={cn(
+            "size-6 shrink-0 opacity-100 transition-opacity",
+            props.enabled
+              ? "[&_[data-slot=icon-svg]]:text-icon-success-base hover:[&_[data-slot=icon-svg]]:text-icon-success-base"
+              : "[&_[data-slot=icon-svg]]:text-icon-danger-base hover:[&_[data-slot=icon-svg]]:text-icon-danger-base",
+          )}
+          onClick={props.onToggleEnabled}
+        />
+      </Show>
     </div>
   )
 }
@@ -1263,10 +1276,54 @@ export const DialogSelectModel: Component<{
     })
   })
 
+  // Fetch per-model rate-limit cooldowns from the new rate-limits endpoint.
+  // Keyed by modelID → { resetAt, reason } for display in the model list column.
+  const [modelRateLimits, setModelRateLimits] = createSignal<Record<string, { resetAt: number; reason: string }>>({})
+
+  createEffect(() => {
+    const providerId = selectedProviderId()
+    const accountId = selectedAccountId()
+    if (!providerId) return
+    let dead = false
+
+    void (async () => {
+      try {
+        const fetchFn = sdk?.fetch ?? globalSDK.fetch
+        const baseUrl = sdk?.url ?? globalSDK.url
+        const params = new URLSearchParams({ providerId })
+        if (accountId) params.set("accountId", accountId)
+        const res = await fetchFn(`${baseUrl}/api/v2/account/rate-limits?${params}`)
+        if (dead || !res.ok) return
+        const data = (await res.json()) as Array<{
+          accountId: string
+          providerId: string
+          modelID?: string
+          waitMs: number
+          reason: string
+        }>
+        if (dead) return
+        const now = Date.now()
+        const map: Record<string, { resetAt: number; reason: string }> = {}
+        for (const entry of data) {
+          if (entry.modelID && entry.waitMs > 0) {
+            map[entry.modelID] = { resetAt: now + entry.waitMs, reason: entry.reason }
+          }
+        }
+        setModelRateLimits(map)
+      } catch {
+        // ignore fetch errors
+      }
+    })()
+
+    onCleanup(() => {
+      dead = true
+    })
+  })
+
   // 1Hz tick so cooldown rows re-render and count down in seconds.
   const [nowMs, setNowMs] = createSignal(Date.now())
   createEffect(() => {
-    if (Object.keys(rateLimitCooldowns()).length === 0) return
+    if (Object.keys(rateLimitCooldowns()).length === 0 && Object.keys(modelRateLimits()).length === 0) return
     const id = setInterval(() => setNowMs(Date.now()), 1000)
     onCleanup(() => clearInterval(id))
   })
@@ -1905,13 +1962,17 @@ export const DialogSelectModel: Component<{
                 setSelectedModelKey(`${x.provider.id}:${x.id}`)
               }}
             >
-              {(item: ModelListEntry) => (
+              {(item: ModelListEntry) => {
+                 const mlr = modelRateLimits()[item.id]
+                 const cooldown = mlr && mlr.resetAt > nowMs() ? formatWait(mlr.resetAt - nowMs()) : undefined
+                return (
                 <ModelItem
                   item={item}
                   selected={false}
                   enabled={modelApi.visible({ modelID: item.id, providerID: item.provider.id })}
                   unavailableReason={modelUnavailableReason(item.provider.id, selectedAccountId())}
                   showUnavailableTag={mode() !== "all"}
+                  cooldown={cooldown}
                   onToggleEnabled={(e: MouseEvent) => {
                     e.stopPropagation()
                     e.preventDefault()
@@ -1923,7 +1984,7 @@ export const DialogSelectModel: Component<{
                     )
                   }}
                 />
-              )}
+              )}}
             </List>
           </div>
         </div>
