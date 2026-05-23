@@ -5,9 +5,10 @@ import { useTerminalDimensions } from "@opentui/solid"
 import { SplitBorder } from "../component/border"
 import { TextAttributes } from "@opentui/core"
 import z from "zod"
-import { TuiEvent } from "../event"
+import { ToastShowInput, TuiEvent } from "../event"
 
-export type ToastOptions = z.infer<typeof TuiEvent.ToastShow.properties>
+type ToastPayload = z.infer<typeof TuiEvent.ToastShow.properties>
+export type ToastOptions = ToastShowInput | ToastPayload
 
 export function Toast() {
   const toast = useToast()
@@ -49,14 +50,20 @@ export function Toast() {
 
 function init() {
   const [store, setStore] = createStore({
-    currentToast: null as ToastOptions | null,
+    currentToast: null as ToastPayload | null,
   })
 
   let timeoutHandle: NodeJS.Timeout | null = null
 
   const toast = {
     show(options: ToastOptions) {
-      const parsedOptions = TuiEvent.ToastShow.properties.parse(options)
+      const emittedAt = Date.now()
+      const parsedOptions = TuiEvent.ToastShow.properties.parse({
+        ...options,
+        emittedAt: "emittedAt" in options ? options.emittedAt : emittedAt,
+        ttlMs: options.ttlMs ?? options.duration ?? 5000,
+        scope: options.scope ?? "user",
+      })
       const { duration, ...currentToast } = parsedOptions
       setStore("currentToast", currentToast)
       if (timeoutHandle) clearTimeout(timeoutHandle)
@@ -75,7 +82,7 @@ function init() {
         message: "An unknown error has occurred",
       })
     },
-    get currentToast(): ToastOptions | null {
+    get currentToast(): ToastPayload | null {
       return store.currentToast
     },
   }
