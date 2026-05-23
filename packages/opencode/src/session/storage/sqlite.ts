@@ -346,7 +346,11 @@ ON CONFLICT(id) DO UPDATE SET
 // give ASC here, filterCompacted's reverse turns it into DESC, and the
 // walk lands on the OLDEST user — which silently breaks every multi-turn
 // session. (Diagnosed 2026-04-29 from cross-turn parent_id corruption.)
-const SQL_LIST_MESSAGES = `SELECT * FROM messages ORDER BY id DESC`
+//
+// time_created is the primary sort key so that compaction-rewritten IDs
+// (which carry fresh timestamps) don't reorder messages. id is the
+// tiebreaker for messages created in the same millisecond.
+const SQL_LIST_MESSAGES = `SELECT * FROM messages ORDER BY time_created DESC, id DESC`
 const SQL_GET_MESSAGE = `SELECT * FROM messages WHERE id = $id`
 const SQL_LIST_PARTS = `SELECT * FROM parts WHERE message_id = $message_id ORDER BY sequence ASC, id ASC`
 const SQL_DELETE_MESSAGE = `DELETE FROM messages WHERE id = $id`
