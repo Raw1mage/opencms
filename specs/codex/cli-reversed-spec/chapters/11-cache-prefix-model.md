@@ -1,6 +1,6 @@
 # Chapter 11: Cache & Prefix Model
 
-> Status: **audited (2026-05-11)** | refs/codex SHA `76845d716b` | 12 claims / 12 anchors / 0 open questions in source-derivable claims (3 acknowledged open questions about backend behaviour are recorded separately — see § Open questions)
+> Status: **audited (2026-05-22, rev2)** | refs/codex SHA `fd72e99` | 14 claims / 14 anchors / 0 open questions in source-derivable claims (3 acknowledged open questions about backend behaviour are recorded separately — see § Open questions)
 
 ## Scope
 
@@ -25,13 +25,13 @@ graph TB
   end
 
   subgraph ClientObservation["Client-side cache observability"]
-    tu["TokenUsage.cached_input_tokens<br/>(protocol.rs:1987)"]
+    tu["TokenUsage.cached_input_tokens<br/>(protocol.rs:1895)"]
     ev_completed["ResponseEvent::Completed<br/>(carries token_usage — Ch07 D7-1)"]
   end
 
   subgraph IncrementalLogic["Incremental-mode internals (WS path)"]
-    gii["client.rs::get_incremental_items<br/>(line 988)"]
-    last_resp["LastResponse { response_id, items_added }<br/>(line 249)"]
+    gii["client.rs::get_incremental_items<br/>(line 996)"]
+    last_resp["LastResponse { response_id, items_added }<br/>(line 252)"]
     ws_session["WebsocketSession.last_request<br/>(stored prior body for diff)"]
   end
 
@@ -112,17 +112,17 @@ A11.1 has 7+ cache-affecting dimensions (enumerated in module-architecture diagr
 
 ### D11-1: Client-observable cache state per turn
 
-**Source**: `ResponseEvent::Completed.token_usage` ([protocol.rs:1983](refs/codex/codex-rs/protocol/src/protocol.rs#L1983)) reported on every successful turn.
+**Source**: `ResponseEvent::Completed.token_usage` ([protocol.rs:1890](refs/codex/codex-rs/protocol/src/protocol.rs#L1890)) reported on every successful turn.
 
 | Field | Type | Required | Source | Notes |
 |---|---|---|---|---|
-| `input_tokens` | i64 | required | TokenUsage line 1985 | Total input tokens the backend counted for this turn (includes cached + non-cached). |
-| `cached_input_tokens` | i64 | required | TokenUsage line 1987 | **The cache observability signal.** 0 = no cache hit; positive = prefix matched up to N tokens. |
-| `output_tokens` | i64 | required | TokenUsage line 1989 | Tokens generated this turn. |
-| `reasoning_output_tokens` | i64 | required | TokenUsage line 1991 | Reasoning portion of output. |
-| `total_tokens` | i64 | required | TokenUsage line 1993 | input + output sum (or backend-computed total). |
+| `input_tokens` | i64 | required | TokenUsage line 1893 | Total input tokens the backend counted for this turn (includes cached + non-cached). |
+| `cached_input_tokens` | i64 | required | TokenUsage line 1895 | **The cache observability signal.** 0 = no cache hit; positive = prefix matched up to N tokens. |
+| `output_tokens` | i64 | required | TokenUsage line 1897 | Tokens generated this turn. |
+| `reasoning_output_tokens` | i64 | required | TokenUsage line 1899 | Reasoning portion of output. |
+| `total_tokens` | i64 | required | TokenUsage line 1901 | input + output sum (or backend-computed total). |
 
-Derived signals via `TokenUsage::cached_input()` (line 2118, returns `cached_input_tokens.max(0)`) and `non_cached_input()` (line 2122, returns `(input_tokens - cached_input()).max(0)`).
+Derived signals via `TokenUsage::cached_input()` (line 2026, returns `cached_input_tokens.max(0)`), `non_cached_input()` (line 2030, returns `(input_tokens - cached_input()).max(0)`), and `blended_total()` (line 2034, returns `non_cached_input() + output_tokens.max(0)`).
 
 ### D11-2: Cache-affecting dimensions (consolidated from Ch02–Ch10)
 
@@ -149,14 +149,14 @@ Derived signals via `TokenUsage::cached_input()` (line 2118, returns `cached_inp
 
 ### D11-3: Incremental-mode delta contract (WS path)
 
-**Source**: [`refs/codex/codex-rs/core/src/client.rs:988-1024`](refs/codex/codex-rs/core/src/client.rs#L988-L1024) (`get_incremental_items`).
+**Source**: [`refs/codex/codex-rs/core/src/client.rs:996-1033`](refs/codex/codex-rs/core/src/client.rs#L996-L1033) (`get_incremental_items`).
 
 | Gate | Required for delta-mode | Notes |
 |---|---|---|
-| Prior `WebsocketSession.last_request` exists | yes | Otherwise immediate `None` return. |
-| Non-input fields match prior request exactly (model, tools, instructions, reasoning, service_tier, prompt_cache_key, text, etc.) | yes | Cloned both requests, cleared input, compared with `!=` — any mismatch returns `None`. |
-| Current `input` is a **strict prefix-extension** of `(prior_input ++ last_response.items_added)` | yes | `request.input.starts_with(&baseline) && baseline_len < request.input.len()` (unless `allow_empty_delta`). |
-| `LastResponse.response_id` is non-empty | yes (Ch08 C7) | Empty id → trace log "incremental request failed, no previous response id". |
+| Prior `WebsocketSession.last_request` exists | yes | Otherwise immediate `None` return (line 1007). |
+| Non-input fields match prior request exactly (model, tools, instructions, reasoning, service_tier, prompt_cache_key, text, etc.) | yes | Cloned both requests, cleared input, compared with `!=` — any mismatch returns `None` (line 1012-1017). |
+| Current `input` is a **strict prefix-extension** of `(prior_input ++ last_response.items_added)` | yes | `request.input.starts_with(&baseline) && (allow_empty_delta ‖ baseline_len < request.input.len())` (line 1025-1026). `allow_empty_delta=true` permits retries without new content. |
+| `LastResponse.response_id` is non-empty | yes (Ch08 C7) | Empty id → trace log "incremental request failed, no previous response id" (line 1063-1066 in prepare_websocket_request). |
 
 When all gates pass → emit `previous_response_id = Some(last_response.response_id)` + `input = request.input[baseline_len..]`.
 
@@ -166,20 +166,22 @@ When any gate fails → fall back to full-mode → backend may still cache via p
 
 | Claim | Anchor | Kind |
 |---|---|---|
-| **C1**: `TokenUsage` struct carries the observed cache signal: `input_tokens, cached_input_tokens, output_tokens, reasoning_output_tokens, total_tokens` (all i64). Derived helpers `cached_input()` and `non_cached_input()` return clamped values. | [`refs/codex/codex-rs/protocol/src/protocol.rs:1983`](refs/codex/codex-rs/protocol/src/protocol.rs#L1983) | **struct (TYPE)** |
+| **C1**: `TokenUsage` struct carries the observed cache signal: `input_tokens, cached_input_tokens, output_tokens, reasoning_output_tokens, total_tokens` (all i64). Derived helpers `cached_input()` (line 2026), `non_cached_input()` (line 2030), and `blended_total()` (line 2034) return clamped values. `is_zero()` checks `total_tokens == 0` (line 2022). | [`refs/codex/codex-rs/protocol/src/protocol.rs:1890`](refs/codex/codex-rs/protocol/src/protocol.rs#L1890) | **struct (TYPE)** |
 | **C2**: `prompt_cache_key` (= `thread_id.to_string()`) is the canonical cache namespace key. Pure thread_id, no install/account/model mix-in (Ch06 C2 — re-anchored here for the cache model). Stable for the lifetime of a Codex session; backend uses it to route requests to the same cache lineage. | [`refs/codex/codex-rs/core/src/client.rs:742`](refs/codex/codex-rs/core/src/client.rs#L742) | local assignment (cross-ref) |
 | **C3**: `client_metadata` carries identity dimensions on both HTTP (Ch06 C3, one key) and WS (Ch08 C5, 2-5 keys) paths. Backend may key cache routing on these. Streaming HTTP: only `x-codex-installation-id`. WS: installation_id + window_id always; subagent + parent_thread_id + turn_metadata conditional. | [`refs/codex/codex-rs/core/src/client.rs:625`](refs/codex/codex-rs/core/src/client.rs#L625) | fn (cross-ref) |
-| **C4**: `LastResponse { response_id: String, items_added: Vec<ResponseItem> }` holds the baseline for the next turn's delta computation. `response_id` becomes the next turn's `previous_response_id`; `items_added` extends the prior input as the cache-baseline for `get_incremental_items`. | [`refs/codex/codex-rs/core/src/client.rs:249`](refs/codex/codex-rs/core/src/client.rs#L249) | **struct (TYPE)** |
-| **C5**: `WebsocketSession { connection, last_request: Option<ResponsesApiRequest>, last_response_rx, connection_reused }` stores the prior request body so `get_incremental_items` can diff against it. The `last_request` field is what makes delta-mode possible across turns within the same WS connection. | [`refs/codex/codex-rs/core/src/client.rs:255`](refs/codex/codex-rs/core/src/client.rs#L255) | **struct (TYPE)** |
-| **C6**: `get_incremental_items(request, last_response, allow_empty_delta) -> Option<Vec<ResponseItem>>` is strict: clones both requests, clears input, `!=` on the rest. ANY non-input field mismatch (model, tools, reasoning, prompt_cache_key, etc.) → return None. Then `request.input.starts_with(&baseline)` strict-prefix check on `(prior_input ++ last_response.items_added)`. Failures emit `trace!` log; deltaModeDecision falls back to full-mode. | [`refs/codex/codex-rs/core/src/client.rs:988`](refs/codex/codex-rs/core/src/client.rs#L988) | fn |
-| **C7**: `items_added: Vec<ResponseItem>` is populated during the server's response stream by accumulating `OutputItemDone`-derived items (line 1754 init + 1777 push). At stream completion these are sent via `LastResponse` oneshot to set up the next turn's baseline. | [`refs/codex/codex-rs/core/src/client.rs:1754`](refs/codex/codex-rs/core/src/client.rs#L1754) | local + push |
+| **C4**: `LastResponse { response_id: String, items_added: Vec<ResponseItem> }` holds the baseline for the next turn's delta computation. `response_id` becomes the next turn's `previous_response_id`; `items_added` extends the prior input as the cache-baseline for `get_incremental_items`. | [`refs/codex/codex-rs/core/src/client.rs:252`](refs/codex/codex-rs/core/src/client.rs#L252) | **struct (TYPE)** |
+| **C5**: `WebsocketSession { connection, last_request: Option<ResponsesApiRequest>, last_response_rx: Option<oneshot::Receiver<LastResponse>>, last_response_from_untraced_warmup: bool, connection_reused: StdMutex<bool> }` stores the prior request body so `get_incremental_items` can diff against it. The `last_request` field is what makes delta-mode possible across turns within the same WS connection. **Cleared when `needs_new=true`** (Ch08 C14). | [`refs/codex/codex-rs/core/src/client.rs:258`](refs/codex/codex-rs/core/src/client.rs#L258) | **struct (TYPE)** |
+| **C6**: `get_incremental_items(request, last_response, allow_empty_delta) -> Option<Vec<ResponseItem>>` is strict: clones both requests, clears input, `!=` on the rest. ANY non-input field mismatch (model, tools, reasoning, prompt_cache_key, etc.) → return None (line 1012-1017). Then `request.input.starts_with(&baseline)` strict-prefix check on `(prior_input ++ last_response.items_added)` (line 1025-1026). `allow_empty_delta=true` permits retries without new content. Failures emit `trace!` log; deltaModeDecision falls back to full-mode. | [`refs/codex/codex-rs/core/src/client.rs:996`](refs/codex/codex-rs/core/src/client.rs#L996) | fn |
+| **C7**: `items_added: Vec<ResponseItem>` is populated during the server's response stream by accumulating `OutputItemDone`-derived items. At stream completion these are sent via `LastResponse` oneshot to set up the next turn's baseline. `last_response_rx` is set at line 1468; `last_request` is set at line 1441. | [`refs/codex/codex-rs/core/src/client.rs:1441`](refs/codex/codex-rs/core/src/client.rs#L1441) | local + push |
 | **C8**: Compaction advances `window_generation` (Ch03 C8: counts `RolloutItem::Compacted`); window_id format `"{thread_id}:{window_generation}"` (Ch06 C10). When compaction fires, `x-codex-window-id` changes → cache namespace shifts on the WS client_metadata dimension. This is **by design** — compacted history is a new logical "window" on the same thread. | [`refs/codex/codex-rs/core/src/client.rs:381`](refs/codex/codex-rs/core/src/client.rs#L381) | fn current_window_id |
 | **C9**: Tools list is an **independent cache dimension** (Ch05 C12 re-anchor). MCP connector reconnects, skill registry rebuilds, or agent capability changes mid-session all mutate the `tools[]` JSON-Value vector → tools dimension cache breaks; backend may still cache `input[]` prefix separately. Observable in practice: cached_input_tokens drops to the "tools-only floor" (≈ size of static tools serialisation alone). | [`refs/codex/codex-rs/codex-api/src/common.rs:175`](refs/codex/codex-rs/codex-api/src/common.rs#L175) | struct field (cross-ref) |
 | **C10**: Known cache hazard ledger (recorded from OpenCode debugging campaign, 2026-05-09 → 2026-05-11): (a) **`openai/codex#20301` — GPT-5.5 server-side regression**, reported by upstream codex maintainers; cache hit rate degraded for the GPT-5.5 model class; **does not** fully explain client-controllable differential cases like OpenCode's "subagent caches normally, main stays at 4608". (b) **Mid-session identity dimension change** — adding a new client_metadata key mid-chain orphans the prior cache lineage on the server side (observed live on 2026-05-11). (c) **Account rotation mid-session** — `Authorization` header changes; may shift account-pool routing. | (multiple — see body) | empirical evidence log |
 | **C11**: TEST `responses_websocket_v2_incremental_requests_are_reused_across_turns` constructs a real WS exchange and asserts that turn 2's request emits `previous_response_id` from turn 1's response_id. Pins the incremental-mode wire-shape contract. | [`refs/codex/codex-rs/core/tests/suite/client_websockets.rs:812`](refs/codex/codex-rs/core/tests/suite/client_websockets.rs#L812) | **test (TEST)** |
 | **C12**: TEST `responses_websocket_uses_incremental_create_on_prefix` asserts that when turn N+1's input is a strict prefix-extension of turn N's input (+items_added), the WS payload uses `previous_response_id` + reduced input vector. Pins the `get_incremental_items` strict-extension contract. | [`refs/codex/codex-rs/core/tests/suite/client_websockets.rs:1361`](refs/codex/codex-rs/core/tests/suite/client_websockets.rs#L1361) | **test (TEST)** |
+| **C13**: **WS reconnect kills delta mode** (cross-ref to Ch08 C14). When `websocket_connection()` determines `needs_new = true` (connection closed or absent), it clears `last_request` and `last_response_rx` (line 1152-1153), destroying the delta-mode baseline. Combined with server-side idle timeout (~60s inactivity → server closes WS), this means **any idle gap > 60s permanently drops delta mode for the rest of the session** — unless the client re-establishes it (which upstream does not attempt after reconnect). This is the root cause of the OpenCode cache death spiral documented in `provider-codex_ws-turn-state-capture` plan. | [`refs/codex/codex-rs/core/src/client.rs:1151`](refs/codex/codex-rs/core/src/client.rs#L1151) | fn body (cross-ref Ch08 C14) |
+| **C14**: **`prepare_websocket_request` 4-gate delta decision** (line 1045-1076, cross-ref Ch08 C7). Gate 1: `get_last_response()` exists (oneshot receiver). Gate 2: `get_incremental_items()` returns `Some` (strict extension check). Gate 3: `last_response.response_id` non-empty. Gate 4 (implicit): `last_response_from_untraced_warmup` flag propagated for telemetry. When all pass → `previous_response_id = Some(...)` + incremental `input`. When any fails → full-mode request. **The 3-gate chain means delta mode requires: (a) prior response completed, (b) request body unchanged except input, (c) input strictly extends baseline.** | [`refs/codex/codex-rs/core/src/client.rs:1045`](refs/codex/codex-rs/core/src/client.rs#L1045) | fn |
 
-Anchor totals: 12 claims, 12 anchors. TEST/TYPE diversity: **3 TYPE** (C1 TokenUsage, C4 LastResponse, C5 WebsocketSession) + **2 TEST** (C11, C12). 7 fn / cross-ref anchors.
+Anchor totals: 14 claims, 14 anchors. TEST/TYPE diversity: **3 TYPE** (C1 TokenUsage, C4 LastResponse, C5 WebsocketSession) + **2 TEST** (C11, C12). 9 fn / cross-ref anchors.
 
 ## Cross-diagram traceability (per miatdiagram §4.7)
 
@@ -191,6 +193,8 @@ Anchor totals: 12 claims, 12 anchors. TEST/TYPE diversity: **3 TYPE** (C1 TokenU
 - `core/src/client.rs::current_window_id` (C8) → A11.3 ✓
 - Cross-ref to Ch05 C12 (tools dimension) (C9) → A11.1 D11-2 row 8 ✓
 - TEST C11, C12 → D11-3 incremental-mode contract ✓
+- `core/src/client.rs::websocket_connection` needs_new gate (C13) → A11.2 failure mode + A11.6 hazard ✓
+- `core/src/client.rs::prepare_websocket_request` 4-gate decision (C14) → A11.2 delta-mode entry ✓
 
 All cross-links verified.
 
@@ -204,9 +208,15 @@ This chapter cannot derive backend cache behaviour from source. The following ar
 2. **The `4608` floor** is a recurring number observed across many OpenCode main sessions (recorded in `provider_codex-prompt-realign/events/`). It approximates the byte cost of static prefix + tools list + identity headers — the "instructions+tools only" cache that survives when conversation prefix doesn't match.
 3. **OpenCode subagent sessions hit much higher cache values** (40448, 77824+) on the same model + same installation_id + same backend, observed within the same time window as 4608-stuck main sessions (`provider_codex-prompt-realign/events/event_2026-05-11_rca-content-parts-shape-divergence-subagent-vs-main.md`). This **proves** the differential is not purely a server-side ceiling.
 
+**Confirmed by recorded observation (2026-05-22):**
+
+4. **WS reconnect kills delta mode → cache death spiral.** Production telemetry (session `0MBnssDY`, 2026-05-22 16:44→16:52) shows: delta mode healthy (input=641, cache=116K) → 77s idle gap → WS timeout → reconnect → chain cleared → input=73K (full resend), cache=33K (system prompt floor). **Permanently stuck**: all subsequent requests at 73K-114K input, 33K cache. Cache cliff at 16:39:31 self-recovered in 7s (16:39:38 cache=83K); the WS reconnect chain clear did NOT self-recover. Root cause: `websocket_connection()` clearing `last_request`/`last_response_rx` on `needs_new=true` (C13). Fix applied in OpenCode's `transport-ws.ts` as a deliberate divergence from upstream (Ch08 § Upstream divergence analysis).
+
 **Empirically falsified hypotheses (recorded for future-self):**
 
 1. **Hypothesis H1 (2026-05-11): "Content[] cardinality (1-joined vs N-split parts) is the differential lever."** Tested via A/B patch on 2026-05-11 evening. Result: **falsified**. After changing OpenCode's `userBundle` from `[{text: joined}]` to `[{text: a}, {text: b}, {text: c}]` (and equivalent for developer bundle), main-session `cached_input_tokens` did not improve. Patch is on the main branch; the architectural improvement stands but the cache improvement did not materialise.
+
+2. **Hypothesis H2 (2026-05-22): "x-codex-turn-state not captured → random GPU routing → 0% cache."** Initial hypothesis based on Bun WebSocket upgrade response header limitation. Result: **falsified**. Production telemetry showed 80%+ of requests had 63K-154K cache hits — routing was working fine without explicit turn-state. The permanent cache loss was caused by WS reconnect chain clearing (H3 above), not GPU routing.
 
 **Open backend questions (not source-derivable from upstream codex-cli alone):**
 
@@ -230,11 +240,11 @@ These remain **open**. The reversed-spec deliberately does NOT speculate beyond 
   - `X-OpenAI-Fedramp` header: NOT emitted by OpenCode (Ch02 delta).
   - Underscore-only session/thread headers (no dash form): OpenCode misses (Ch06 D6-2).
   - Subagent label / parent_thread_id keys in client_metadata: caller-controlled, not centralised (Ch10 delta).
-- **A11.2 Incremental-mode** — OpenCode's WS transport tracks chain via a different mechanism (continuation.ts state) and computes delta differently (prevLen-based, not strict-extension via items_added). **Aligned**: functionally equivalent in the happy path; failure modes may differ. Worth a future deep dive if cache lineage analysis surfaces incrementality bugs.
+- **A11.2 Incremental-mode** — OpenCode's WS transport tracks chain via a different mechanism (continuation.ts state) and computes delta differently (prevLen-based, not strict-extension via items_added). **Aligned**: functionally equivalent in the happy path; failure modes may differ. **Key divergence (2026-05-22)**: OpenCode now **preserves** the delta chain across WS reconnects (transport-ws.ts fix), while upstream clears it (C13). See Ch08 § Upstream divergence analysis for rationale and safety assessment.
 - **A11.3 Compaction → window shift** — OpenCode uses inline `context_management` instead of bumping window_generation through the compact endpoint (Ch09 architectural divergence). **Aligned**: no. **Drift**: by design.
 - **A11.4 Observability** — OpenCode reads `cached_input_tokens` from the AI SDK adapter output, then logs via `bus.session.round.telemetry` (`cacheReadTokens` field). Same signal, different log surface.
-- **A11.5 Baseline stash** — OpenCode's `WebsocketSession`-equivalent state lives in the codex-provider package's transport-ws.ts; doesn't use `LastResponse { response_id, items_added }` Rust struct. **Aligned**: functionally yes; structurally no.
-- **A11.6 Known hazards** — All three hazards in C10 apply to OpenCode. The "subagent caches, main doesn't" differential (Q1 above) is **active investigation territory** as of 2026-05-11 evening; this chapter records the question and notes that the answer is not in upstream source.
+- **A11.5 Baseline stash** — OpenCode's `WebsocketSession`-equivalent state lives in the codex-provider package's transport-ws.ts `sessions` Map; doesn't use `LastResponse { response_id, items_added }` Rust struct. OpenCode tracks `lastResponseId` + `lastInputLength` instead. **Aligned**: functionally yes; structurally no. **Key difference**: OpenCode's stash is per-provider-instance and keyed by sessionId; upstream's is per-ModelClient and uses take/store at turn boundaries (Ch08 C15).
+- **A11.6 Known hazards** — All three hazards in C10 apply to OpenCode, plus a fourth: **WS reconnect chain clearing** (C13). This hazard is now **mitigated** in OpenCode via the 2026-05-22 fix (Ch08 § Upstream divergence analysis) but remains unmitigated in upstream (mitigated indirectly by preconnect warmup keeping WS alive). The "subagent caches, main doesn't" differential (Q1 above) is **active investigation territory** as of 2026-05-11 evening.
 
 **Most important takeaway for downstream specs:**
 

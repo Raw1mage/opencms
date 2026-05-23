@@ -1,12 +1,12 @@
 # Chapter 08: WebSocket Transport
 
-> Status: **audited (2026-05-11)** | refs/codex SHA `76845d716b` | 12 claims / 12 anchors / 0 open questions
+> Status: **audited (2026-05-22, rev2)** | refs/codex SHA `fd72e99` | 18 claims / 18 anchors / 0 open questions
 
 ## Scope
 
 Covers **Responses-over-WebSocket** — the higher-performance transport that codex prefers when supported. Same wire body content (Chapter 06 D6-1) but framed differently: WS handshake → first frame carries `ResponseCreateWsRequest` → server streams `ResponseEvent`-equivalent frames → optional `response.processed` ACK back. Adds **delta-mode** (incremental input via `previous_response_id`) and **sticky-routing** via `x-codex-turn-state`.
 
-What's **here**: WS endpoint URL semantics (same path + Beta header), `OpenAI-Beta: responses_websockets=2026-02-06` negotiation, handshake header set (overlaps with HTTP), first-frame body shape (`ResponsesWsRequest` discriminated union), `ResponseProcessedWsRequest` ACK shape, delta-mode logic via `prepare_websocket_request`, `build_ws_client_metadata` composition (CRITICAL: this is richer than HTTP's `client_metadata`), turn-state sticky routing, reconnect / cached session reuse.
+What's **here**: WS endpoint URL semantics (same path + Beta header), `OpenAI-Beta: responses_websockets=2026-02-06` negotiation, handshake header set (overlaps with HTTP), first-frame body shape (`ResponsesWsRequest` discriminated union), `ResponseProcessedWsRequest` ACK shape, delta-mode logic via `prepare_websocket_request`, `build_ws_client_metadata` composition (CRITICAL: this is richer than HTTP's `client_metadata`), turn-state sticky routing, reconnect / cached session reuse, **WS reconnect state-clearing behaviour** (CRITICAL for cache continuity), **`cached_websocket_session` cross-turn lifecycle**, **`preconnect_websocket` warmup**.
 
 **Deferred**:
 - Compact sub-endpoint (Chapter 09) — uses its own variant.
@@ -27,9 +27,11 @@ graph TB
   subgraph CoreClient["codex-rs/core/src/client.rs"]
     bld_ws_hdrs["build_websocket_headers<br/>(line 890)"]
     bld_ws_meta["build_ws_client_metadata<br/>(line 625)"]
-    prepare_ws["prepare_websocket_request<br/>(line 1037, delta-mode logic)"]
-    stream_ws["stream_responses_websocket<br/>(line 1338)"]
-    preconnect["preconnect_websocket<br/>(line 1068)"]
+    prepare_ws["prepare_websocket_request<br/>(line 1045, delta-mode logic)"]
+    stream_ws["stream_responses_websocket<br/>(line 1337)"]
+    preconnect["preconnect_websocket<br/>(line 1081)"]
+    ws_reconnect["websocket_connection<br/>(line 1146, needs_new + state clear)"]
+    cached_ws["cached_websocket_session<br/>(line 183, cross-turn stash)"]
     ws_consts["OPENAI_BETA_HEADER, RESPONSES_WEBSOCKETS_V2_BETA_HEADER_VALUE constants"]
   end
 
@@ -64,12 +66,32 @@ Stack view (turn dispatch → WS frames):
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ stream_responses_websocket (core/client.rs:1338)                 │
+│ Turn start: take_cached_websocket_session (client.rs:392)        │
+│   ModelClientState.cached_websocket_session → ModelClientSession │
+│   (moves WebsocketSession from cross-turn stash into per-turn)   │
+├─────────────────────────────────────────────────────────────────┤
+│ stream_responses_websocket (core/client.rs:1337)                 │
 │   - build ResponsesApiRequest via build_responses_request (Ch06) │
 │   - ResponseCreateWsRequest::from(&request)  (copies all fields) │
 │   - overwrite client_metadata via build_ws_client_metadata (richer) │
-│   - prepare_websocket_request: maybe insert previous_response_id  │
-│     + incremental_items for delta-mode                            │
+│   - if warmup: set generate=false (line 1383-1385)               │
+├─────────────────────────────────────────────────────────────────┤
+│ websocket_connection (client.rs:1146)  ★ RECONNECT GATE ★        │
+│   needs_new = conn.is_closed().await || no prior connection      │
+│   if needs_new:                                                   │
+│     ┌ last_request = None           (line 1152) ← kills delta   │
+│     ├ last_response_rx = None       (line 1153) ← kills chain   │
+│     ├ last_response_from_untraced_warmup = false (line 1154)     │
+│     └ create new WS via connect_websocket()                      │
+│   if !needs_new:                                                  │
+│     connection_reused = true → delta-mode baseline preserved     │
+├─────────────────────────────────────────────────────────────────┤
+│ prepare_websocket_request (client.rs:1045)                       │
+│   Gate 1: get_last_response() exists?                             │
+│   Gate 2: get_incremental_items() returns Some?                   │
+│   Gate 3: last_response.response_id non-empty?                    │
+│   All pass → delta-mode: previous_response_id + incremental input │
+│   Any fail → full-mode: full input[], no previous_response_id    │
 ├─────────────────────────────────────────────────────────────────┤
 │ Handshake (one-time per WS connection)                           │
 │   build_websocket_headers (core/client.rs:890):                  │
@@ -101,10 +123,15 @@ Stack view (turn dispatch → WS frames):
 │   reads response headers (x-codex-turn-state stored per turn)    │
 │   parses each frame → ResponseEvent (same enum as HTTP, Ch07 D7-1)│
 │   emits via mpsc::Sender<Result<ResponseEvent, ApiError>> (1600 cap)│
+│   stores last_request (line 1441) + last_response_rx (line 1468) │
 ├─────────────────────────────────────────────────────────────────┤
 │ Optional ACK back: ResponsesWsRequest::ResponseProcessed         │
 │   { type: "response.processed", response_id }                    │
 │   sent by send_response_processed when caller confirms consume   │
+├─────────────────────────────────────────────────────────────────┤
+│ Turn end: store_cached_websocket_session (client.rs:401, Drop)   │
+│   ModelClientSession.websocket_session → ModelClientState cache   │
+│   (preserves connection + last_request + last_response_rx)       │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -119,6 +146,9 @@ See [`idef0.08.json`](idef0.08.json). Activities:
 - **A8.5** Send first frame — `ResponsesWsRequest::ResponseCreate(payload)` serialised + sent as a Text WS message.
 - **A8.6** Drive response stream — `run_websocket_response_stream` reads server frames, maps to `ResponseEvent`, emits via mpsc.
 - **A8.7** Optional ACK — `send_response_processed` posts `ResponsesWsRequest::ResponseProcessed { response_id }` after caller consumes the response.
+- **A8.8** WS reconnect gate — `websocket_connection()` checks `is_closed()` to decide `needs_new`; if true, **clears all delta-mode state** (last_request, last_response_rx) before creating fresh connection.
+- **A8.9** Cross-turn WS session cache — `take_cached_websocket_session()` at turn start / `store_cached_websocket_session()` at turn end (Drop); preserves delta baseline across turns when WS stays alive.
+- **A8.10** Preconnect warmup — `preconnect_websocket()` opens WS eagerly before first request; prevents idle timeout between session creation and first turn.
 
 ## GRAFCET workflow
 
@@ -210,8 +240,14 @@ A8.3 (build_ws_client_metadata) has 5 independent conditional sources contributi
 | **C10**: `Endpoint::stream_request(request: ResponsesWsRequest, connection_reused: bool) -> Result<ResponseStream, ApiError>`. The `connection_reused` flag is the sticky-routing signal — true when reusing a cached WS connection within the same session. Emits seed events (ServerModel, ModelsEtag, ServerReasoningIncluded) from cached state before forwarding to `run_websocket_response_stream`. | [`refs/codex/codex-rs/codex-api/src/endpoint/responses_websocket.rs:248`](refs/codex/codex-rs/codex-api/src/endpoint/responses_websocket.rs#L248) | fn |
 | **C11**: `X_CODEX_TURN_STATE_HEADER = "x-codex-turn-state"` is the sticky-routing token. Server stores its value via reading response headers; client replays it on subsequent requests in the same turn so the backend routes the continuation to the same machine. The .get() call at line 441 reads it from the response. | [`refs/codex/codex-rs/codex-api/src/endpoint/responses_websocket.rs:155`](refs/codex/codex-rs/codex-api/src/endpoint/responses_websocket.rs#L155) | const + read site |
 | **C12**: TEST `build_ws_client_metadata_includes_window_lineage_and_turn_metadata` (line 272 of client_tests.rs). Constructs a ModelClient with `SubAgentSource::ThreadSpawn { parent_thread_id, depth: 2, ... }`, advances window_generation, calls `build_ws_client_metadata(Some(r#"{"turn_id":"turn-123"}"#))`. Asserts the resulting map equals all 5 keys: x-codex-installation-id, x-codex-window-id (`{thread_id}:1` — confirming advance_window_generation incremented), x-openai-subagent ("collab_spawn"), x-codex-parent-thread-id, x-codex-turn-metadata (verbatim JSON). Pins the WS client_metadata shape byte-exact under subagent + turn_metadata conditions. | [`refs/codex/codex-rs/core/src/client_tests.rs:272`](refs/codex/codex-rs/core/src/client_tests.rs#L272) | **test (TEST)** |
+| **C13**: `WebsocketSession` struct (line 258-265) holds per-turn WS state: `connection: Option<ApiWebSocketConnection>`, `last_request: Option<ResponsesApiRequest>`, `last_response_rx: Option<oneshot::Receiver<LastResponse>>`, `last_response_from_untraced_warmup: bool`, `connection_reused: StdMutex<bool>`. Default-derived (all None/false). | [`refs/codex/codex-rs/core/src/client.rs:258`](refs/codex/codex-rs/core/src/client.rs#L258) | **struct (TYPE)** |
+| **C14**: **WS reconnect gate** — `websocket_connection()` (line 1146-1186) computes `needs_new = conn.is_closed().await ‖ no connection`. When `needs_new = true`: **unconditionally clears** `last_request = None` (line 1152), `last_response_rx = None` (line 1153), `last_response_from_untraced_warmup = false` (line 1154), then creates a fresh WS via `connect_websocket()`. When `needs_new = false`: sets `connection_reused = true`, preserving all delta-mode state. **This is the mechanism that kills delta mode after WS idle timeout.** | [`refs/codex/codex-rs/core/src/client.rs:1146`](refs/codex/codex-rs/core/src/client.rs#L1146) | fn |
+| **C15**: **Cross-turn WS session cache** — `ModelClientState.cached_websocket_session: StdMutex<WebsocketSession>` (line 183). `take_cached_websocket_session()` (line 392-398) moves the session into `ModelClientSession` at turn start via `std::mem::take`. `store_cached_websocket_session()` (line 401-407) writes it back at turn end (invoked from `ModelClientSession::Drop`, line 936). This preserves WS connection + delta baseline across turns **as long as the connection stays alive**. | [`refs/codex/codex-rs/core/src/client.rs:183`](refs/codex/codex-rs/core/src/client.rs#L183) | field + fn pair |
+| **C16**: **Preconnect warmup** — `preconnect_websocket()` (line 1081-1119) opens a WS connection eagerly before the first actual request, passing `turn_state: Some(Arc::clone(&self.turn_state))` but no turn_metadata. Best-effort: returns `Ok(())` even if connection fails. Does NOT set `generate=false` — that is done by `stream_responses_websocket` when `warmup=true` (line 1383-1385). Prevents WS idle timeout between session creation and first user turn. | [`refs/codex/codex-rs/core/src/client.rs:1081`](refs/codex/codex-rs/core/src/client.rs#L1081) | fn |
+| **C17**: **Window generation clearing** — `set_window_generation()` (line 374-378) and `advance_window_generation()` (line 380-384) both call `store_cached_websocket_session(WebsocketSession::default())`, **resetting all WS session state**. Similarly, `force_http_fallback()` (line 409-428) clears the cached session and sets `disable_websockets = true`. These are the three explicit clearing paths besides `needs_new` reconnect. | [`refs/codex/codex-rs/core/src/client.rs:374`](refs/codex/codex-rs/core/src/client.rs#L374) | fn group |
+| **C18**: **`ResponsesWebsocketConnection`** struct (responses_websocket.rs line 163-202): `stream: Arc<Mutex<Option<WsStream>>>`, `idle_timeout: Duration`, `server_reasoning_included: bool`, `models_etag: Option<String>`, `server_model: Option<String>`, `telemetry: Option<Arc<dyn WebsocketTelemetry>>`. The `connect_websocket()` function (line 471-540) extracts `x-codex-turn-state`, `x-reasoning-included`, `x-models-etag`, `openai-model` from the HTTP 101 upgrade response headers. | [`refs/codex/codex-rs/codex-api/src/endpoint/responses_websocket.rs:163`](refs/codex/codex-rs/codex-api/src/endpoint/responses_websocket.rs#L163) | **struct (TYPE)** |
 
-Anchor totals: 12 claims, 12 anchors. TEST/TYPE diversity: **2 TYPE** (C3 enum, C4 struct) + **1 TEST** (C12). 9 fn-body anchors. Sufficient.
+Anchor totals: 18 claims, 18 anchors. TEST/TYPE diversity: **4 TYPE** (C3 enum, C4 struct, C13 struct, C18 struct) + **1 TEST** (C12). 13 fn-body / field anchors. Sufficient.
 
 ## Cross-diagram traceability (per miatdiagram §4.7)
 
@@ -219,14 +255,17 @@ Anchor totals: 12 claims, 12 anchors. TEST/TYPE diversity: **2 TYPE** (C3 enum, 
 - `tokio_tungstenite::connect_async_tls_with_config` → A8.2 ✓
 - `core/src/client.rs::build_ws_client_metadata` → A8.3 → D8-3 (verified via C5 + TEST C12) ✓
 - `core/src/client.rs::prepare_websocket_request` → A8.4 → D8-2 previous_response_id + input columns ✓
-- `core/src/client.rs::stream_responses_websocket` (line 1377-1383) → A8.5 → D8-2 ✓
+- `core/src/client.rs::stream_responses_websocket` (line 1337) → A8.5 → D8-2 ✓
 - `codex-api/src/endpoint/responses_websocket.rs::stream_request` → A8.6 → forward link to Ch07's D7-1 (same ResponseEvent enum) ✓
 - `codex-api/src/common.rs::ResponseProcessedWsRequest` → A8.7 → D8-4 ✓
+- `core/src/client.rs::websocket_connection` → A8.8 → C14 (needs_new gate + state clear) ✓
+- `core/src/client.rs::cached_websocket_session` (take/store pair) → A8.9 → C15 ✓
+- `core/src/client.rs::preconnect_websocket` → A8.10 → C16 ✓
 - TEST C12 → D8-3 byte-exact composition under subagent + turn_metadata ✓
 
 ## Open questions
 
-None for Chapter 08. The reconnect-on-error path (lines 1402-1410 around `StatusCode::UPGRADE_REQUIRED`) is mechanically clear; full state machine for cached-session reuse is implementation detail that belongs to Chapter 11 if cache observability needs it.
+None for Chapter 08. Reconnect-on-error, cached-session reuse lifecycle, and delta-mode state clearing are all fully documented in C13-C17.
 
 ## Correction to Chapter 06 OpenCode delta map
 
@@ -246,4 +285,22 @@ The actual divergence sits at the **transport-choice** layer: OpenCode emits `x-
 - **A8.6 Drive stream** — OpenCode processes server frames via its own event mapping. **Aligned**: ResponseEvent variants match Ch07 D7-1 byte-equivalently.
 - **A8.7 ACK back** — OpenCode does not currently send `{ type: "response.processed", response_id }` ACKs. **Drift**: server may not rely on this signal (it's optional confirmation), but worth verifying. Not a cache concern; backend telemetry / state-tracking concern.
 
-**Cumulative key OpenCode finding for WS path**: structurally aligned to upstream where it matters. The flagged drift items (subagent client_metadata keys, ACK back, traceparent injection) are feature gaps rather than wire-shape regressions.
+- **A8.8 WS reconnect gate** — OpenCode tracks WS session state in `transport-ws.ts`'s per-session `sessions` Map. **Before fix (pre-2026-05-22)**: OpenCode unconditionally cleared `lastResponseId` + `lastInputLength` on WS disconnect AND on fresh WS connection — exactly mirroring upstream's C14 behaviour. **After fix (2026-05-22 `provider-codex_ws-turn-state-capture` plan)**: OpenCode **preserves** `lastResponseId` across WS disconnect, attempts delta mode on fresh WS, and falls back to stateless retry on `previous_response_not_found`. **This is a DELIBERATE DIVERGENCE from upstream** (see § Upstream divergence analysis below). **Drift**: intentional — upstream mitigates the loss via `preconnect_websocket` warmup (A8.10) which keeps the WS alive; OpenCode has no equivalent warmup, making preservation necessary.
+- **A8.9 Cross-turn WS session cache** — OpenCode's equivalent is the `sessions: Map<string, SessionState>` in `transport-ws.ts`, which persists across calls to `tryWsTransport()`. Functionally equivalent to upstream's `cached_websocket_session` take/store pattern (C15), but OpenCode's is keyed by sessionId and lives for the lifetime of the provider instance, not gated by turn lifecycle. **Aligned**: functionally yes, structurally different.
+- **A8.10 Preconnect warmup** — OpenCode does **NOT** implement `preconnect_websocket`. This is the architectural gap that makes the A8.8 divergence necessary: without warmup, the WS connection inevitably times out between turns (server idle timeout ~60s), triggering `needs_new` on every subsequent turn after idle periods.
+
+### Upstream divergence analysis (2026-05-22)
+
+**The core question**: upstream clears delta state on WS reconnect (C14). Why does this not cause the same death spiral for codex-rs that it causes for OpenCode?
+
+**Answer (3 architectural differences)**:
+
+1. **`preconnect_websocket` warmup (C16)**: upstream eagerly opens a WS before the first request. This prevents the "WS idle → server closes → reconnect" cycle from happening between session creation and first turn. OpenCode has no equivalent.
+
+2. **Per-turn session lifecycle (C15)**: upstream's `WebsocketSession` is `take`-d from a cross-turn cache at turn start and `store`-d back at turn end. Between turns, the session (including the live WS connection) is parked in `ModelClientState`. If the WS connection stays alive during the inter-turn gap, delta mode survives. The key mitigation is that codex-rs turns tend to happen in rapid sequence (user types → agent loops → done → user types again), minimising idle windows.
+
+3. **Turn-scoped reconnect**: upstream's `needs_new` check happens inside `websocket_connection()` which runs **per turn**, not per WS-message-within-a-turn. During a multi-message tool-call loop, the WS stays alive and `connection_reused = true` → delta mode preserved. OpenCode's `tryWsTransport()` similarly checks per-call.
+
+**Why the divergence is safe**: our fix adds `previous_response_id` to fresh WS requests when the server-side chain might still exist. If the server has evicted the chain, it returns `previous_response_not_found` → we catch `CONTINUATION_INVALIDATED` → retry stateless on the same WS. Worst case: 1 wasted request per session after an idle gap where the server has also evicted the chain. Best case (expected): delta mode preserved, cache_read stays at 80K-150K instead of crashing to 33K floor.
+
+**Cumulative key OpenCode finding for WS path**: structurally aligned to upstream where it matters. The flagged drift items (subagent client_metadata keys, ACK back, traceparent injection) are feature gaps rather than wire-shape regressions. The A8.8 delta-mode preservation divergence is the most significant behavioural difference — intentional and safe with proper fallback.
