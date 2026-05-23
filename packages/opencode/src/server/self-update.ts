@@ -91,12 +91,13 @@ export namespace SelfUpdate {
   export async function canSudo() {
     const uid = process.getuid?.() ?? -1
     const user = os.userInfo().username
-    const probe = await run(["sudo", "-n", "-v"])
+    const probe = await run(["sudo", "-n", "true"])
     const sudoer = probe.exitCode === 0
     await audit({
       event: "sudo-probe",
       uid,
       user,
+      probe: "sudo -n true",
       sudoer,
       exitCode: probe.exitCode,
       stderr: probe.stderr.slice(0, 500),
