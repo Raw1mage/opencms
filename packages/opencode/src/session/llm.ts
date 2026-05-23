@@ -35,12 +35,7 @@ import { Bus } from "@/bus"
 import { BusEvent } from "@/bus/bus-event"
 import { TuiEvent, publishToastTraced } from "@/cli/cmd/tui/event"
 import { debugCheckpoint } from "@/util/debug"
-import {
-  RateLimitJudge,
-  isRateLimitError,
-  isAuthError,
-  CodexFamilyExhausted,
-} from "@/account/rate-limit-judge"
+import { RateLimitJudge, isRateLimitError, isAuthError, CodexFamilyExhausted } from "@/account/rate-limit-judge"
 
 import { RequestMonitor } from "@/account/monitor"
 import ENABLEMENT from "./prompt/enablement.json"
@@ -460,7 +455,7 @@ export namespace LLM {
     // fallback for in-flight requests (RCA 2026-05-18: removing
     // activeAccount caused empty-response compaction loop because
     // multiple code paths fell through to Account.getActive).
-    const sessionPinnedAccountId = input.accountId ?? input.user.model.accountId
+    const sessionPinnedAccountId = input.accountId ?? input.user.model?.accountId
     let currentAccountId = sessionPinnedAccountId
 
     // Pre-flight: if session-pinned account is rate-limited, select a
@@ -511,7 +506,7 @@ export namespace LLM {
         accountId: currentAccountId,
         source: "session-pinned",
         inputAccountId: input.accountId,
-        userMessageAccountId: input.user.model.accountId,
+        userMessageAccountId: input.user.model?.accountId,
       })
     }
     logSessionAccountAudit({
@@ -523,7 +518,7 @@ export namespace LLM {
       accountId: currentAccountId,
       source: resolveAccountAuditSource({
         explicitAccountId: input.accountId,
-        userMessageAccountId: input.user.model.accountId,
+        userMessageAccountId: input.user.model?.accountId,
         resolvedAccountId: currentAccountId,
       }),
       note: "llm stream starting with resolved execution identity",
@@ -720,185 +715,185 @@ export namespace LLM {
       // from conversation growth without dynamic noise.
       recordSystemBlockHash(input.sessionID, staticBlock.hash)
 
-    if (!useUpstreamWire) {
-      // Phase B (DD-1, DD-2, DD-4, DD-5): build the user-role context preface
-      // with T1 (preload + pinned skills + date) and T2 (active + summarized
-      // skills) ranked slow-first. Per-turn extras (input.system carry-over
-      // for lazy catalog / structured output / notices / quota-low addenda)
-      // ride the trailing tier.
-      //
-      // plans/provider_codex-prompt-realign Stage A.3-2: codex provider
-      // takes the upstream-aligned wire (driver-only instructions + fragment
-      // bundles in input[]); preface is skipped on that path. The fragment
-      // assembly + bundle injection runs after this block.
-      const enablementText = injectEnablementSnapshot ? buildEnablementSnapshot(input.messages) : ""
-      const partitioned = SkillLayerRegistry.partitionForPreface(skillLayerEntries)
+      if (!useUpstreamWire) {
+        // Phase B (DD-1, DD-2, DD-4, DD-5): build the user-role context preface
+        // with T1 (preload + pinned skills + date) and T2 (active + summarized
+        // skills) ranked slow-first. Per-turn extras (input.system carry-over
+        // for lazy catalog / structured output / notices / quota-low addenda)
+        // ride the trailing tier.
+        //
+        // plans/provider_codex-prompt-realign Stage A.3-2: codex provider
+        // takes the upstream-aligned wire (driver-only instructions + fragment
+        // bundles in input[]); preface is skipped on that path. The fragment
+        // assembly + bundle injection runs after this block.
+        const enablementText = injectEnablementSnapshot ? buildEnablementSnapshot(input.messages) : ""
+        const partitioned = SkillLayerRegistry.partitionForPreface(skillLayerEntries)
 
-      // attachment-lifecycle v4/v5 (DD-19/DD-20/DD-22): assemble
-      //   1. activeImageBlocks — actual image binary for the AI to view
-      //      this turn (only filenames in activeImageRefs, populated by
-      //      reread_attachment voucher calls — v5 no longer auto-adds on
-      //      upload).
-      //   2. inventory text — `<attached_images>` block listing every
-      //      session-attached image so the AI knows what's available
-      //      and can call reread_attachment for the ones it needs.
-      // Both ride the trailing tier (BP4 zone) so per-turn churn never
-      // invalidates T1/T2 prefix.
-      let activeImageBlocks: InlineImageContentBlock[] = []
-      let inventoryText = ""
-      const inlineCfg = Tweaks.attachmentInlineSync()
-      if (inlineCfg.enabled) {
-        try {
-          const { Session: SessionMod } = await import("@/session")
-          const { buildAttachedImagesInventory } = await import("./attached-images-inventory")
-          const sessionInfo = await SessionMod.get(input.sessionID).catch(() => undefined)
-          const refs = sessionInfo?.execution?.activeImageRefs ?? []
-          const messagesV2 = await SessionMod.messages({ sessionID: input.sessionID }).catch(() => [])
+        // attachment-lifecycle v4/v5 (DD-19/DD-20/DD-22): assemble
+        //   1. activeImageBlocks — actual image binary for the AI to view
+        //      this turn (only filenames in activeImageRefs, populated by
+        //      reread_attachment voucher calls — v5 no longer auto-adds on
+        //      upload).
+        //   2. inventory text — `<attached_images>` block listing every
+        //      session-attached image so the AI knows what's available
+        //      and can call reread_attachment for the ones it needs.
+        // Both ride the trailing tier (BP4 zone) so per-turn churn never
+        // invalidates T1/T2 prefix.
+        let activeImageBlocks: InlineImageContentBlock[] = []
+        let inventoryText = ""
+        const inlineCfg = Tweaks.attachmentInlineSync()
+        if (inlineCfg.enabled) {
+          try {
+            const { Session: SessionMod } = await import("@/session")
+            const { buildAttachedImagesInventory } = await import("./attached-images-inventory")
+            const sessionInfo = await SessionMod.get(input.sessionID).catch(() => undefined)
+            const refs = sessionInfo?.execution?.activeImageRefs ?? []
+            const messagesV2 = await SessionMod.messages({ sessionID: input.sessionID }).catch(() => [])
 
-          // v5 inventory: built from ALL image attachment_refs, regardless
-          // of whether they're in the active set this turn. Empty when 0
-          // images so caller can omit cleanly.
-          inventoryText = buildAttachedImagesInventory(messagesV2, { activeImageRefs: refs })
+            // v5 inventory: built from ALL image attachment_refs, regardless
+            // of whether they're in the active set this turn. Empty when 0
+            // images so caller can omit cleanly.
+            inventoryText = buildAttachedImagesInventory(messagesV2, { activeImageRefs: refs })
 
-          if (refs.length > 0) {
-            const { IncomingPaths } = await import("@/incoming/paths")
-            const { SessionIncomingPaths } = await import("@/incoming/session-paths")
-            const pathMod = await import("node:path")
-            let projectRoot = ""
-            try {
-              projectRoot = IncomingPaths.projectRoot()
-            } catch {
-              projectRoot = ""
-            }
-            const refsByFilename = new Map<string, InlineImageRefInput>()
-            for (const m of messagesV2) {
-              for (const part of m.parts ?? []) {
-                if (part.type !== "attachment_ref") continue
-                if (!part.filename || !part.mime?.startsWith("image/")) continue
-                // Hotfix: prefer session_path over repo_path for new image
-                // attachments. Old image refs (pre-hotfix) keep working via
-                // repo_path fallback.
-                let absPath = ""
-                if (part.session_path) {
-                  try {
-                    absPath = SessionIncomingPaths.resolveAbsolute(input.sessionID, part.session_path)
-                  } catch {
-                    absPath = ""
+            if (refs.length > 0) {
+              const { IncomingPaths } = await import("@/incoming/paths")
+              const { SessionIncomingPaths } = await import("@/incoming/session-paths")
+              const pathMod = await import("node:path")
+              let projectRoot = ""
+              try {
+                projectRoot = IncomingPaths.projectRoot()
+              } catch {
+                projectRoot = ""
+              }
+              const refsByFilename = new Map<string, InlineImageRefInput>()
+              for (const m of messagesV2) {
+                for (const part of m.parts ?? []) {
+                  if (part.type !== "attachment_ref") continue
+                  if (!part.filename || !part.mime?.startsWith("image/")) continue
+                  // Hotfix: prefer session_path over repo_path for new image
+                  // attachments. Old image refs (pre-hotfix) keep working via
+                  // repo_path fallback.
+                  let absPath = ""
+                  if (part.session_path) {
+                    try {
+                      absPath = SessionIncomingPaths.resolveAbsolute(input.sessionID, part.session_path)
+                    } catch {
+                      absPath = ""
+                    }
+                  } else if (part.repo_path && projectRoot) {
+                    absPath = pathMod.join(projectRoot, part.repo_path)
                   }
-                } else if (part.repo_path && projectRoot) {
-                  absPath = pathMod.join(projectRoot, part.repo_path)
+                  if (!absPath) continue
+                  refsByFilename.set(part.filename, {
+                    filename: part.filename,
+                    mime: part.mime,
+                    absPath,
+                  })
                 }
-                if (!absPath) continue
-                refsByFilename.set(part.filename, {
-                  filename: part.filename,
-                  mime: part.mime,
-                  absPath,
-                })
+              }
+              if (refsByFilename.size > 0) {
+                activeImageBlocks = await buildActiveImageContentBlocks(refs, refsByFilename)
               }
             }
-            if (refsByFilename.size > 0) {
-              activeImageBlocks = await buildActiveImageContentBlocks(refs, refsByFilename)
-            }
+            // attachment-lifecycle v6: do not drain here. `addOnReread`
+            // enforces a FIFO cap (`Tweaks.attachmentInline.activeSetMax`,
+            // default 8) so refs cannot grow unbounded; images persist
+            // across turns of the same task and new reread calls FIFO-evict
+            // older ones. Token cost: up to activeSetMax images × bytes
+            // inline per turn while in the active set.
+          } catch (err) {
+            l.warn("active image inline failed; preface continues without images", {
+              error: err instanceof Error ? err.message : String(err),
+            })
           }
-          // attachment-lifecycle v6: do not drain here. `addOnReread`
-          // enforces a FIFO cap (`Tweaks.attachmentInline.activeSetMax`,
-          // default 8) so refs cannot grow unbounded; images persist
-          // across turns of the same task and new reread calls FIFO-evict
-          // older ones. Token cost: up to activeSetMax images × bytes
-          // inline per turn while in the active set.
-        } catch (err) {
-          l.warn("active image inline failed; preface continues without images", {
-            error: err instanceof Error ? err.message : String(err),
-          })
         }
-      }
 
-      const prefaceInput = {
-        preload: input.preload ?? { readmeSummary: "", cwdListing: "" },
-        skills: {
-          pinned: partitioned.pinned,
-          active: partitioned.active,
-          summarized: partitioned.summarized,
-        },
-        todaysDate: input.todaysDate ?? new Date().toDateString(),
-        trailingExtras: [
-          ...input.system.filter(Boolean),
-          ...(enablementText ? [enablementText] : []),
-          // v5: inventory comes LAST in text trailing extras so it sits
-          // immediately before the actual image blocks (also trailing tier).
-          // AI reads "what's available" → sees pixels → uses both signals.
-          ...(inventoryText ? [inventoryText] : []),
-        ],
-        activeImageBlocks,
-      }
-
-      // DD-11: experimental.chat.context.transform hook. Plugins can mutate
-      // preface fields (preload / skills / date / trailingExtras) before
-      // buildPreface serializes them. This is the new hook for Phase B
-      // dynamic content, complementing experimental.chat.system.transform
-      // which now receives only the static block.
-      const contextTransformOutput = {
-        preface: {
-          t1: {
-            readmeSummary: prefaceInput.preload.readmeSummary,
-            cwdListing: prefaceInput.preload.cwdListing,
-            pinnedSkills: prefaceInput.skills.pinned,
-            todaysDate: prefaceInput.todaysDate,
+        const prefaceInput = {
+          preload: input.preload ?? { readmeSummary: "", cwdListing: "" },
+          skills: {
+            pinned: partitioned.pinned,
+            active: partitioned.active,
+            summarized: partitioned.summarized,
           },
-          t2: {
-            activeSkills: prefaceInput.skills.active,
-            summarizedSkills: prefaceInput.skills.summarized,
-          },
-        },
-        trailingExtras: prefaceInput.trailingExtras,
-      }
-      await Plugin.trigger(
-        "experimental.chat.context.transform",
-        { sessionID: input.sessionID, model: input.model },
-        contextTransformOutput,
-      )
-      // Reconstruct prefaceInput from possibly-mutated hook output.
-      preface = buildPreface({
-        preload: {
-          readmeSummary: contextTransformOutput.preface.t1.readmeSummary,
-          cwdListing: contextTransformOutput.preface.t1.cwdListing,
-        },
-        skills: {
-          pinned: contextTransformOutput.preface.t1.pinnedSkills,
-          active: contextTransformOutput.preface.t2.activeSkills,
-          summarized: contextTransformOutput.preface.t2.summarizedSkills,
-        },
-        todaysDate: contextTransformOutput.preface.t1.todaysDate,
-        trailingExtras: contextTransformOutput.trailingExtras,
-        activeImageBlocks: prefaceInput.activeImageBlocks,
-      })
+          todaysDate: input.todaysDate ?? new Date().toDateString(),
+          trailingExtras: [
+            ...input.system.filter(Boolean),
+            ...(enablementText ? [enablementText] : []),
+            // v5: inventory comes LAST in text trailing extras so it sits
+            // immediately before the actual image blocks (also trailing tier).
+            // AI reads "what's available" → sees pixels → uses both signals.
+            ...(inventoryText ? [inventoryText] : []),
+          ],
+          activeImageBlocks,
+        }
 
-      // DD-13 (assembly-time telemetry): emit the breakpoint plan so we can
-      // observe the static-vs-dynamic split per turn. Cache hit/miss
-      // telemetry from provider response headers is deferred — the existing
-      // cachedInputTokens in usage stats already covers that signal at a
-      // coarser granularity.
-      const t1Block = preface.contentBlocks.find((b) => b.type === "text" && b.tier === "t1")
-      const t2Block = preface.contentBlocks.find((b) => b.type === "text" && b.tier === "t2")
-      const trailingTextBlock = preface.contentBlocks.find((b) => b.type === "text" && b.tier === "trailing")
-      const inlineImageCount = preface.contentBlocks.filter((b) => b.type === "file").length
-      log.info("prompt.preface.assembled", {
-        sessionID: input.sessionID,
-        staticBlockChars: staticBlock.text.length,
-        staticBlockHash: staticBlock.hash.slice(0, 12),
-        t1Chars: t1Block && t1Block.type === "text" ? t1Block.text.length : 0,
-        t2Chars: t2Block && t2Block.type === "text" ? t2Block.text.length : 0,
-        trailingChars: trailingTextBlock && trailingTextBlock.type === "text" ? trailingTextBlock.text.length : 0,
-        inlineImageCount,
-        t2Empty: preface.t2Empty,
-        breakpointPlan: {
-          BP1: "static-system-end",
-          BP2: t1Block ? "preface-t1-end" : "omitted",
-          BP3: t2Block ? "preface-t2-end" : "omitted",
-          BP4: "conversation-final",
-        },
-      })
-    }
+        // DD-11: experimental.chat.context.transform hook. Plugins can mutate
+        // preface fields (preload / skills / date / trailingExtras) before
+        // buildPreface serializes them. This is the new hook for Phase B
+        // dynamic content, complementing experimental.chat.system.transform
+        // which now receives only the static block.
+        const contextTransformOutput = {
+          preface: {
+            t1: {
+              readmeSummary: prefaceInput.preload.readmeSummary,
+              cwdListing: prefaceInput.preload.cwdListing,
+              pinnedSkills: prefaceInput.skills.pinned,
+              todaysDate: prefaceInput.todaysDate,
+            },
+            t2: {
+              activeSkills: prefaceInput.skills.active,
+              summarizedSkills: prefaceInput.skills.summarized,
+            },
+          },
+          trailingExtras: prefaceInput.trailingExtras,
+        }
+        await Plugin.trigger(
+          "experimental.chat.context.transform",
+          { sessionID: input.sessionID, model: input.model },
+          contextTransformOutput,
+        )
+        // Reconstruct prefaceInput from possibly-mutated hook output.
+        preface = buildPreface({
+          preload: {
+            readmeSummary: contextTransformOutput.preface.t1.readmeSummary,
+            cwdListing: contextTransformOutput.preface.t1.cwdListing,
+          },
+          skills: {
+            pinned: contextTransformOutput.preface.t1.pinnedSkills,
+            active: contextTransformOutput.preface.t2.activeSkills,
+            summarized: contextTransformOutput.preface.t2.summarizedSkills,
+          },
+          todaysDate: contextTransformOutput.preface.t1.todaysDate,
+          trailingExtras: contextTransformOutput.trailingExtras,
+          activeImageBlocks: prefaceInput.activeImageBlocks,
+        })
+
+        // DD-13 (assembly-time telemetry): emit the breakpoint plan so we can
+        // observe the static-vs-dynamic split per turn. Cache hit/miss
+        // telemetry from provider response headers is deferred — the existing
+        // cachedInputTokens in usage stats already covers that signal at a
+        // coarser granularity.
+        const t1Block = preface.contentBlocks.find((b) => b.type === "text" && b.tier === "t1")
+        const t2Block = preface.contentBlocks.find((b) => b.type === "text" && b.tier === "t2")
+        const trailingTextBlock = preface.contentBlocks.find((b) => b.type === "text" && b.tier === "trailing")
+        const inlineImageCount = preface.contentBlocks.filter((b) => b.type === "file").length
+        log.info("prompt.preface.assembled", {
+          sessionID: input.sessionID,
+          staticBlockChars: staticBlock.text.length,
+          staticBlockHash: staticBlock.hash.slice(0, 12),
+          t1Chars: t1Block && t1Block.type === "text" ? t1Block.text.length : 0,
+          t2Chars: t2Block && t2Block.type === "text" ? t2Block.text.length : 0,
+          trailingChars: trailingTextBlock && trailingTextBlock.type === "text" ? trailingTextBlock.text.length : 0,
+          inlineImageCount,
+          t2Empty: preface.t2Empty,
+          breakpointPlan: {
+            BP1: "static-system-end",
+            BP2: t1Block ? "preface-t1-end" : "omitted",
+            BP3: t2Block ? "preface-t2-end" : "omitted",
+            BP4: "conversation-final",
+          },
+        })
+      }
     } // end of if (!useUpstreamWire) — preface buildup
 
     // Splice the preface message into the outbound messages list. DD-1 says
@@ -1089,9 +1084,8 @@ export namespace LLM {
       // reasoning chain was reset; carries the commitment digest so the
       // model knows what's already done.
       try {
-        const { decideChainInitInjection, buildChainInitNoticeFragment } = await import(
-          "./context-fragments/chain-init-notice"
-        )
+        const { decideChainInitInjection, buildChainInitNoticeFragment } =
+          await import("./context-fragments/chain-init-notice")
         const chainInitMark = decideChainInitInjection(pendingInjection)
         if (chainInitMark) {
           fragments.push(
