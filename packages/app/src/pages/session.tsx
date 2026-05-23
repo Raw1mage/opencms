@@ -785,7 +785,11 @@ export default function Page() {
       }
 
       if (!revert) return all
-      return all.filter((m) => m.id < revert)
+      // Filter by array position, not lexicographic ID. After compaction,
+      // rewritten IDs may not be lexicographically ordered.
+      const revertIdx = all.findIndex((m) => m.id === revert)
+      if (revertIdx < 0) return all
+      return all.slice(0, revertIdx)
     },
     emptyUserMessages,
     {
@@ -1201,7 +1205,7 @@ export default function Page() {
     on(
       () => visibleUserMessages().at(-1)?.id,
       (lastId, prevLastId) => {
-        if (lastId && prevLastId && lastId > prevLastId) {
+        if (lastId && prevLastId && lastId !== prevLastId) {
           setStore("messageId", undefined)
         }
       },

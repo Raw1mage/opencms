@@ -16,7 +16,6 @@ import { DialogSelectModel } from "@/components/dialog-select-model"
 import { DialogSelectMcp } from "@/components/dialog-select-mcp"
 import { DialogFork } from "@/components/dialog-fork"
 import { showToast } from "@opencode-ai/ui/toast"
-import { findLast } from "@opencode-ai/util/array"
 import { extractPromptFromParts } from "@/utils/prompt"
 import { UserMessage } from "@opencode-ai/sdk/v2"
 import { combineCommandSections } from "@/pages/session/helpers"
@@ -325,7 +324,17 @@ export const useSessionCommands = (input: SessionCommandContext) => {
           await input.sdk.client.session.abort({ sessionID }).catch(() => {})
         }
         const revert = input.info()?.revert?.messageID
-        const message = findLast(input.userMessages(), (x) => !revert || x.id < revert)
+        const msgs = input.userMessages()
+        // Use array position, not lexicographic ID. After compaction IDs
+        // are rewritten so lex order ≠ chronological order.
+        let targetIdx: number
+        if (!revert) {
+          targetIdx = msgs.length - 1
+        } else {
+          const revertIdx = msgs.findIndex((x) => x.id === revert)
+          targetIdx = revertIdx > 0 ? revertIdx - 1 : -1
+        }
+        const message = targetIdx >= 0 ? msgs[targetIdx] : undefined
         if (!message) return
         await input.sdk.client.session.revert({ sessionID, messageID: message.id })
         const parts = input.sync.data.part[message.id]
@@ -333,7 +342,7 @@ export const useSessionCommands = (input: SessionCommandContext) => {
           const restored = extractPromptFromParts(parts, { directory: input.sdk.directory })
           input.prompt.set(restored)
         }
-        const priorMessage = findLast(input.userMessages(), (x) => x.id < message.id)
+        const priorMessage = targetIdx > 0 ? msgs[targetIdx - 1] : undefined
         input.setActiveMessage(priorMessage)
       },
     }),
@@ -348,16 +357,20 @@ export const useSessionCommands = (input: SessionCommandContext) => {
         if (!sessionID) return
         const revertMessageID = input.info()?.revert?.messageID
         if (!revertMessageID) return
-        const nextMessage = input.userMessages().find((x) => x.id > revertMessageID)
+        // Use array position, not lexicographic ID comparison.
+        const msgs = input.userMessages()
+        const revertIdx = msgs.findIndex((x) => x.id === revertMessageID)
+        if (revertIdx < 0) return
+        const nextMessage = revertIdx < msgs.length - 1 ? msgs[revertIdx + 1] : undefined
         if (!nextMessage) {
           await input.sdk.client.session.unrevert({ sessionID })
           input.prompt.reset()
-          const lastMsg = findLast(input.userMessages(), (x) => x.id >= revertMessageID)
-          input.setActiveMessage(lastMsg)
+          input.setActiveMessage(msgs.at(-1))
           return
         }
         await input.sdk.client.session.revert({ sessionID, messageID: nextMessage.id })
-        const priorMsg = findLast(input.userMessages(), (x) => x.id < nextMessage.id)
+        const nextIdx = msgs.findIndex((x) => x.id === nextMessage.id)
+        const priorMsg = nextIdx > 0 ? msgs[nextIdx - 1] : undefined
         input.setActiveMessage(priorMsg)
       },
     }),

@@ -235,7 +235,13 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       const session = items
         .map((x) => x.info)
         .filter((m) => !!m?.id)
-        .sort((a, b) => cmp(a.id, b.id))
+        .sort((a, b) => {
+          // Sort by time.created (epoch ms), not ID. Compaction rewrites
+          // IDs with fresh timestamps so ID lex order ≠ chronological order.
+          const ta = (a as any)?.time?.created ?? 0
+          const tb = (b as any)?.time?.created ?? 0
+          return ta - tb || cmp(a.id, b.id)
+        })
       const part = items.map((message) => ({ id: message.info.id, part: sortParts(message.parts) }))
       return {
         session,
@@ -646,13 +652,9 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
               // already did).
               return
             }
-            // id prefix encodes creation time, so lexicographically smallest
-            // known id is the oldest — the cursor for the next older page.
-            let oldest = existing[0]?.id
-            for (const msg of existing) {
-              if (!msg?.id) continue
-              if (!oldest || msg.id < oldest) oldest = msg.id
-            }
+            // Messages are sorted by time.created (ascending); first
+            // element is the oldest — use its id as the pagination cursor.
+            const oldest = existing[0]?.id
             if (!oldest) return
             setMeta("loading", key, true)
             try {
