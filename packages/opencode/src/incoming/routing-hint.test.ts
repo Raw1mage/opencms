@@ -228,7 +228,11 @@ describe("renderOfficeRoutingHint", () => {
     expect(hint).toContain("背景拆解中")
     expect(hint).toContain("body")
     expect(hint).toContain("chapter")
-    expect(hint).toContain("extract_all_collect")
+    // docxmcp tool-group-consolidation Phase 1b: the routing hint now
+    // refers to the docxmcp_document facade's action=status instead of
+    // the legacy extract_all_collect tool.
+    expect(hint).toContain("docxmcp_document")
+    expect(hint).toContain("action=status")
   })
 
   it("shows ⚠️ banner when background failed", async () => {

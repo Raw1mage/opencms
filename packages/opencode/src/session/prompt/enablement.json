@@ -164,40 +164,16 @@
         "enabled": true,
         "registry_layer": "mcp-apps.json",
         "transport": "streamable-http (Unix domain socket)",
-        "capability": "Word/PDF/XLSX/ODT document toolkit (~44 MCP tools) — extract, decompose, surgically edit, and rebuild .docx/.pdf files while preserving original formatting. Runs as isolated Docker container. The server emits ResourceLink-style file tokens; full HTTP protocol details (token TTL, pagination, output schemas, ingest paths) are surfaced via the docxmcp manifest instructions block at runtime.",
-        "key_prefix_note": "Because docxmcp registers tools with a self-prefix `docxmcp_*` and opencode adds another `mcpapp-<id>_` App Store prefix, the runtime tool keys are `mcpapp-docxmcp_docxmcp_<tool>` (double prefix). Always reference the full key when calling tool_loader.",
+        "capability": "Word/PDF/XLSX/ODT/PPTX document toolkit — extract, decompose, surgically edit, and rebuild documents while preserving formatting. Runs as isolated Docker container. Default unified profile lists exactly 2 facade tools (docxmcp_document + docxmcp_stage) — the former is action-keyed across two operating modes; the latter is a single-purpose constructor primitive. Full HTTP protocol details (token TTL, output schemas) are surfaced via the docxmcp manifest instructions block at runtime.",
+        "key_prefix_note": "Because docxmcp registers tools with a self-prefix `docxmcp_*` and opencode adds another `mcpapp-<id>_` App Store prefix, the runtime tool keys are `mcpapp-docxmcp_docxmcp_<tool>` (double prefix). Always reference the full key when calling tool_loader. The unified profile lists only docxmcp_document and docxmcp_stage; legacy tool names remain reachable under DOCXMCP_TOOL_PROFILE=legacy.",
         "tools": [
           {
-            "name": "docxmcp_extract_all",
-            "description": "Decompose a .docx into editable components (body.md, outline.md, blocks/, manifest.json) under <stem>.src/"
+            "name": "docxmcp_document",
+            "description": "All-in-one document workflow facade. action enum (Mode tag) — Mode A (build from markdown): decompose / extract_template / extract_chapter / assemble / add_front_matter / status. Mode B (surgery on docx; byte-preserving): open_for_revise / scout / apply_chapter_md / unpack / pack. Both: probe / preview. For probe / decompose / open_for_revise / scout / apply_chapter_md pass exactly one of token or path; for assemble / add_front_matter pass doc_dir."
           },
           {
-            "name": "docxmcp_pdf_extract_all",
-            "description": "Decompose a .pdf into editable components, parallel structure to docx_extract_all"
-          },
-          {
-            "name": "docxmcp_extract_text",
-            "description": "Extract plain text content from a document"
-          },
-          {
-            "name": "docxmcp_extract_outline",
-            "description": "Extract document outline / heading structure"
-          },
-          {
-            "name": "docxmcp_extract_chapter",
-            "description": "Extract a specific chapter or section by id/range"
-          },
-          {
-            "name": "docxmcp_rebuild_docx",
-            "description": "Rebuild a .docx from the edited <stem>.src/ components, preserving formatting"
-          },
-          {
-            "name": "docxmcp_stage_dir",
-            "description": "Stage host-authored files into docxmcp via inline files-map; returns token + doc_dir for downstream tool consumption"
-          },
-          {
-            "name": "docxmcp_docx_to_images",
-            "description": "Convert .docx pages to images (for visual review / OCR)"
+            "name": "docxmcp_stage",
+            "description": "Constructor primitive — stage an inline files-map into a fresh token doc_dir. Use when AI authored markdown / staging files in conversation and wants to feed them into docxmcp_document actions. Single-purpose, no action enum."
           }
         ],
         "ops_note": "If tool calls fail with connection / 404 errors, the underlying Docker container or Unix socket may be down. Check `docker ps` for the docxmcp container and the host socket at `/run/user/$UID/opencode/sockets/docxmcp/docxmcp.sock`."
@@ -336,22 +312,20 @@
         ],
         "requires_mcp": ["docxmcp"],
         "prefer": [
-          "mcpapp-docxmcp_docxmcp_extract_all",
-          "mcpapp-docxmcp_docxmcp_pdf_extract_all",
-          "mcpapp-docxmcp_docxmcp_extract_text",
-          "mcpapp-docxmcp_docxmcp_extract_outline",
-          "mcpapp-docxmcp_docxmcp_extract_chapter",
-          "mcpapp-docxmcp_docxmcp_rebuild_docx",
-          "mcpapp-docxmcp_docxmcp_stage_dir",
+          "mcpapp-docxmcp_docxmcp_document",
+          "mcpapp-docxmcp_docxmcp_stage",
           "skill:doc-workflow"
         ],
         "fallback": [
           "skill:doc-workflow with docxmcp backend script as last resort (bypasses MCP layer, no schema validation)"
         ],
         "notes": [
-          "ALWAYS prefer the MCP tool keys (`mcpapp-docxmcp_docxmcp_*`) over running docxmcp's backend Python script via bash.",
+          "Mode A — build from markdown: docxmcp_document(action=decompose, …) → edit chapter md → docxmcp_document(action=assemble, doc_dir=…). Use for full content rewrites and structural reorganisation.",
+          "Mode B — surgery on docx (byte-preserving): docxmcp_document(action=open_for_revise, path=…) → docxmcp_document(action=scout, path=…) → docxmcp_document(action=apply_chapter_md, path=…, section_id=…, md_content=…). Use when only specific paragraphs change and the rest must remain byte-identical.",
+          "ALWAYS prefer the MCP tool keys (`mcpapp-docxmcp_docxmcp_document`, `mcpapp-docxmcp_docxmcp_stage`) over running docxmcp's backend Python script via bash.",
           "Note the DOUBLE prefix: opencode adds `mcpapp-docxmcp_` (App Store namespace) on top of the registry's own `docxmcp_` self-prefix.",
-          "The doc-workflow skill describes the .src/ component package conventions; the docxmcp MCP server provides the actual tool implementations.",
+          "Legacy tool names (`docxmcp_extract_all`, `docxmcp_rebuild_docx`, etc.) are reachable only under DOCXMCP_TOOL_PROFILE=legacy; new code SHOULD use the facade actions.",
+          "The doc-workflow skill describes the doc_dir / chapter md / template.dotx conventions; the docxmcp MCP server provides the actual tool implementations.",
           "If a docxmcp tool returns connection errors, the container or Unix socket may be down — surface the error to the user rather than silently falling back to bash."
         ]
       },

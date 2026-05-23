@@ -38,6 +38,16 @@ export const POLL_INTERVAL_MS = 5_000
 export const POLL_SAFETY_CAP_MS = 180_000
 // docxmcp service-revision (2026-05-13 plan, Phase 2 DD-2): all
 // docxmcp tools now carry the `docxmcp_` service prefix.
+// docxmcp tool-group-consolidation Phase 1b (2026-05-23): the legacy
+// docxmcp_extract_all_collect tool is now reached via the unified
+// docxmcp_document facade as action=status. The legacy name still
+// works under DOCXMCP_TOOL_PROFILE=legacy but we exclusively go
+// through the facade to stay MCP-only (no manifest-internal reads).
+export const DOCXMCP_TOOL_DOCUMENT = "docxmcp_document"
+/**
+ * @deprecated kept as a string constant for reference; the runtime no
+ * longer calls this name directly. See pollOnce() below.
+ */
 export const DOCXMCP_TOOL_COLLECT = "docxmcp_extract_all_collect"
 
 export interface StartPollLoopInput {
@@ -82,9 +92,9 @@ async function runLoop(input: StartPollLoopInput): Promise<void> {
   while (Date.now() - startedAt < POLL_SAFETY_CAP_MS) {
     await sleep(POLL_INTERVAL_MS)
 
-    let manifest: Manifest | null
+    let mcpState: "pending" | "complete" | "failed"
     try {
-      manifest = await pollOnce(input)
+      mcpState = await pollOnce(input)
     } catch (err) {
       const reason = formatCollectError(err)
       log.warn("poll cycle error; recording bg_failed and stopping", {
@@ -101,16 +111,14 @@ async function runLoop(input: StartPollLoopInput): Promise<void> {
       return
     }
 
-    const bgStatus = manifest?.decompose.background_status
-    if (bgStatus !== "running") {
-      log.info("poll loop done", { stem: input.stem, bgStatus })
-      // Bug fix 2026-05-03: bundle producer ships new files but does
-      // NOT ship file deletions. _PENDING.md markers were created at
-      // fast-phase return and the docxmcp-side background phase deletes
-      // them inside the container; that deletion never reaches the
-      // host. Clean them up here on the host side as part of the loop's
-      // terminal step. Idempotent (rmSync force ignores ENOENT).
-      if (bgStatus === "done") {
+    // docxmcp tool-group-consolidation Phase 1b: read the MCP-level
+    // state field from the docxmcp_document.action=status response.
+    // manifest.decompose.background_status is no longer the contract
+    // surface — it is docxmcp-internal storage we deliberately stop
+    // depending on (see /plans/mcp_tool-group-consolidation/ D2).
+    if (mcpState !== "pending") {
+      log.info("poll loop done", { stem: input.stem, mcpState })
+      if (mcpState === "complete") {
         await cleanupPendingMarkers(input)
       }
       await cleanupToken(input)
@@ -129,21 +137,27 @@ async function runLoop(input: StartPollLoopInput): Promise<void> {
 }
 
 /**
- * One poll cycle: call extract_all_collect against the ORIGINAL
- * extract_all token (so the docxmcp-side background phase the call
- * looks at is actually the one we care about), land any new files
- * in the bundle, return the latest manifest.
+ * One poll cycle: call docxmcp_document.action=status against the
+ * ORIGINAL extract_all token's doc_dir (so the docxmcp-side background
+ * phase we look at is actually the one we care about), land any new
+ * resource links the response carries, and return the MCP-level state
+ * for the runLoop terminator. The MCP outputSchema is the cross-repo
+ * contract — we no longer read manifest internals here.
  */
-async function pollOnce(input: StartPollLoopInput): Promise<Manifest | null> {
+async function pollOnce(input: StartPollLoopInput): Promise<"pending" | "complete" | "failed"> {
   const clients = await MCP.clients()
   const client = clients[`mcpapp-${input.appId}`] ?? clients[input.appId]
   if (!client) throw new Error("docxmcp mcp client not connected")
 
-  let result
-  result = await client.callTool(
+  const result = await client.callTool(
     {
-      name: DOCXMCP_TOOL_COLLECT,
-      arguments: { token: input.token, doc_dir: input.repoPath, wait: 0 },
+      name: DOCXMCP_TOOL_DOCUMENT,
+      arguments: {
+        action: "status",
+        token: input.token,
+        doc_dir: input.repoPath,
+        wait: 0,
+      },
     },
     CallToolResultSchema,
     { timeout: POLL_INTERVAL_MS, resetTimeoutOnProgress: false },
@@ -152,7 +166,13 @@ async function pollOnce(input: StartPollLoopInput): Promise<Manifest | null> {
   // DD-10 rev 3: produced files arrive as MCP resource_link entries
   // in result.content[]. The from_cache flag (used for bus telemetry)
   // is still attached to structuredContent.
-  const sc = (result as { structuredContent?: { from_cache?: boolean } }).structuredContent
+  const sc = (result as {
+    structuredContent?: {
+      from_cache?: boolean
+      data?: { state?: "pending" | "complete" | "failed" }
+      state?: "pending" | "complete" | "failed"
+    }
+  }).structuredContent
   const links = IncomingDispatcher.extractResourceLinks(result)
   if (links.length > 0) {
     await IncomingDispatcher.materializeResourceLinks({
@@ -164,8 +184,11 @@ async function pollOnce(input: StartPollLoopInput): Promise<Manifest | null> {
     })
   }
 
-  const stemDir = stemDirForStem(input.stem, input.projectRoot)
-  return await readManifest(stemDir)
+  // The state field can land at structuredContent.state (legacy) or
+  // structuredContent.data.state (envelope from document_status.py).
+  // Default to "complete" when the response carries no state at all so
+  // a non-docx call path doesn't dead-loop.
+  return sc?.state ?? sc?.data?.state ?? "complete"
 }
 
 /**

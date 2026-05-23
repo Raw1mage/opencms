@@ -78,6 +78,16 @@ export function isAnyOffice(kind: OfficeKind): boolean {
  *   docx → docxmcp.extract_all
  *   doc / xls / ppt → opencode.legacy_ole2_scanner
  *   xlsx / pptx → opencode.unsupported_writer
+ *
+ * docxmcp tool-group-consolidation Phase 1b note (2026-05-23):
+ * the label "docxmcp.extract_all" is now stale at the runtime level —
+ * decompose-hook.ts calls docxmcp_document(action=decompose) via the
+ * facade, not docxmcp_extract_all directly. The label survives as an
+ * opencode-internal telemetry / manifest tag; it is NOT part of any
+ * cross-repo contract (docxmcp never sees this value). A rename to
+ * "docxmcp.document.decompose" is deferred — it would touch manifest
+ * cache compatibility + 3 test files; not worth the churn for a tag
+ * that callers do not interpret semantically.
  */
 export type DecomposerName =
   | "docxmcp.extract_all"
