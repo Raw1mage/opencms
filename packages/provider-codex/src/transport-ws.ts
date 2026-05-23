@@ -7,7 +7,7 @@
  *
  * Extracted from plugin/codex-websocket.ts.
  */
-import { WS_CONNECT_TIMEOUT_MS, WS_IDLE_TIMEOUT_MS, WS_FIRST_FRAME_TIMEOUT_MS } from "./protocol.js"
+import { WS_CONNECT_TIMEOUT_MS, WS_IDLE_TIMEOUT_MS, WS_FIRST_FRAME_TIMEOUT_MS, WS_KEEPALIVE_INTERVAL_MS } from "./protocol.js"
 import {
   getContinuation,
   updateContinuation,
@@ -42,9 +42,40 @@ interface WsSessionState {
   // process. Used to distinguish "stale carry-over" from "freshly
   // earned". Cleared once validatedInProcess becomes true.
   continuationFromDisk?: boolean
+  keepaliveTimer?: ReturnType<typeof setInterval>
+  lastModel?: string
+  lastRequestAt?: number
 }
 
 const sessions = new Map<string, WsSessionState>()
+
+let activeSessionId: string | undefined
+const WS_BG_IDLE_MS = 5 * 60_000
+
+function startKeepalive(state: WsSessionState, sessionId: string) {
+  stopKeepalive(state)
+  state.keepaliveTimer = setInterval(() => {
+    if (!state.ws || state.ws.readyState !== WebSocket.OPEN || state.status !== "open") return
+    if (sessionId !== activeSessionId && state.lastRequestAt && Date.now() - state.lastRequestAt > WS_BG_IDLE_MS) {
+      console.error(`[CODEX-WS] BG IDLE CLOSE session=${sessionId} idle=${Math.round((Date.now() - state.lastRequestAt) / 1000)}s`)
+      stopKeepalive(state)
+      try { state.ws.close() } catch {}
+      state.ws = null
+      state.status = "idle"
+      return
+    }
+    try {
+      state.ws.ping()
+    } catch {}
+  }, WS_KEEPALIVE_INTERVAL_MS)
+}
+
+function stopKeepalive(state: WsSessionState) {
+  if (state.keepaliveTimer) {
+    clearInterval(state.keepaliveTimer)
+    state.keepaliveTimer = undefined
+  }
+}
 
 function getSession(sessionId: string): WsSessionState {
   let state = sessions.get(sessionId)
@@ -70,6 +101,7 @@ function getSession(sessionId: string): WsSessionState {
 export function resetWsSession(sessionId: string) {
   const state = sessions.get(sessionId)
   if (state) {
+    stopKeepalive(state)
     if (state.ws) {
       try {
         state.ws.close()
@@ -85,12 +117,15 @@ export function resetWsSession(sessionId: string) {
 
 export function closeWsSession(sessionId: string) {
   const state = sessions.get(sessionId)
-  if (state?.ws) {
-    try {
-      state.ws.close()
-    } catch {}
-    state.ws = null
-    state.status = "idle"
+  if (state) {
+    stopKeepalive(state)
+    if (state.ws) {
+      try {
+        state.ws.close()
+      } catch {}
+      state.ws = null
+      state.status = "idle"
+    }
   }
 }
 
@@ -549,6 +584,7 @@ function wsRequest(input: {
             // can now trust lastResponseId as continuation input.
             state.validatedInProcess = true
             state.continuationFromDisk = false
+            state.status = "open"
             endStream()
             return
           }
@@ -754,6 +790,7 @@ export async function tryWsTransport(
 
   // Account switch: close WS, preserve per-account continuation
   if (state.accountId !== undefined && state.accountId !== accountId) {
+    stopKeepalive(state)
     updateContinuation(`${sessionId}:${state.accountId}`, {
       lastResponseId: state.lastResponseId,
       lastInputLength: state.lastInputLength,
@@ -775,6 +812,12 @@ export async function tryWsTransport(
 
   if (state.disableWebsockets) return null
 
+  stopKeepalive(state)
+
+  if (typeof body.model === "string") state.lastModel = body.model
+  state.lastRequestAt = Date.now()
+  activeSessionId = sessionId
+
   // Reuse existing connection
   if (state.ws && state.status === "open" && state.ws.readyState === WebSocket.OPEN) {
     const reqBody = { ...body }
@@ -785,7 +828,10 @@ export async function tryWsTransport(
     try {
       const { events, getSnapshot } = wsRequest({ ws: state.ws, body: reqBody, sessionId, state })
       const probed = await probeFirstFrame(events, sessionId, state)
-      if (probed) return { events: probed, getSnapshot }
+      if (probed) {
+        startKeepalive(state, sessionId)
+        return { events: probed, getSnapshot }
+      }
     } catch {}
 
     state.ws = null
@@ -794,9 +840,11 @@ export async function tryWsTransport(
   } else if (state.ws) {
     state.ws = null
     state.status = "failed"
-    state.lastResponseId = undefined
-    state.lastInputLength = undefined
-    invalidateContinuation(sessionId)
+    // Preserve lastResponseId / lastInputLength — the server-side
+    // conversation state likely survived the WS disconnect (idle timeout,
+    // network blip). The fresh WS will attempt delta mode; if the server
+    // rejects it (previous_response_not_found), the error handler inside
+    // wsRequest clears the chain and we retry without it.
   }
 
   const headers = buildHeaders({
@@ -817,17 +865,41 @@ export async function tryWsTransport(
 
     const reqBody = { ...body }
 
-    // Fresh WS connection: no continuation state, start clean.
-    delete reqBody.previous_response_id
-    state.lastResponseId = undefined
-    state.lastInputLength = undefined
-    invalidateContinuation(sessionId)
+    // Try to reuse the existing chain on the fresh WS. The server keeps
+    // conversation state independently of the transport connection; delta
+    // mode avoids full resend and preserves server-side KV cache. If the
+    // server has evicted the chain, it replies previous_response_not_found
+    // which the error handler inside wsRequest converts to
+    // CONTINUATION_INVALIDATED — caught below for a stateless retry.
+    if (state.lastResponseId && !reqBody.previous_response_id) {
+      reqBody.previous_response_id = state.lastResponseId
+    }
 
     try {
       const { events, getSnapshot } = wsRequest({ ws, body: reqBody, sessionId, state })
       const probed = await probeFirstFrame(events, sessionId, state)
-      if (probed) return { events: probed, getSnapshot }
-    } catch {}
+      if (probed) {
+        startKeepalive(state, sessionId)
+        return { events: probed, getSnapshot }
+      }
+    } catch (err) {
+      if (err instanceof Error && err.message === "CONTINUATION_INVALIDATED") {
+        // Server lost the chain — retry stateless on the same WS.
+        // doInvalidate() inside wsRequest already cleared lastResponseId.
+        if (ws.readyState === WebSocket.OPEN) {
+          const retryBody = { ...body }
+          delete retryBody.previous_response_id
+          try {
+            const { events: e2, getSnapshot: gs2 } = wsRequest({ ws, body: retryBody, sessionId, state })
+            const probed2 = await probeFirstFrame(e2, sessionId, state)
+            if (probed2) {
+              startKeepalive(state, sessionId)
+              return { events: probed2, getSnapshot: gs2 }
+            }
+          } catch {}
+        }
+      }
+    }
 
     state.ws = null
     state.status = "failed"
