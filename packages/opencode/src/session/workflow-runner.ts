@@ -9,6 +9,7 @@ import { Lock } from "@/util/lock"
 import { Agent } from "@/agent/agent"
 import { orchestrateModelSelection, shouldAutoSwitchMainModel } from "./model-orchestration"
 import { Account } from "@/account"
+import { Provider } from "@/provider/provider"
 import { isAuthError, isRateLimitError } from "@/account/rate-limit-judge"
 import { PermissionNext } from "@/permission/next"
 import { Question } from "@/question"
@@ -538,10 +539,11 @@ async function resolvePendingContinuationBudget(item: PendingContinuationInfo) {
   const textPart = message.parts.findLast((part) => part.type === "text")
   const selectedProviderId =
     textPart?.type === "text" ? (textPart.metadata?.modelArbitration as any)?.selected?.providerId : undefined
-  const providerId = selectedProviderId ?? message.info.model.providerId
+  const providerId = selectedProviderId ?? message.info.model?.providerId
   const modelID =
     (textPart?.type === "text" ? (textPart.metadata?.modelArbitration as any)?.selected?.modelID : undefined) ??
-    message.info.model.modelID
+    message.info.model?.modelID
+  if (!providerId || !modelID) return undefined
   const family = (await Account.resolveFamily(providerId)) ?? providerId
   const waitTimeMs = await Account.getMinWaitTime(family, modelID).catch(() => 0)
   return { family, waitTimeMs }
@@ -1088,7 +1090,7 @@ export async function enqueueAutonomousContinue(input: {
         modelID: session.execution.modelID,
         accountId: session.execution.accountId,
       }
-    : input.user.model
+    : (input.user.model ?? (await Provider.defaultModel()))
   const messageID = Identifier.ascending("message")
   const textPart: MessageV2.TextPart = {
     id: Identifier.ascending("part"),

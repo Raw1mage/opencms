@@ -32,10 +32,10 @@ export namespace ShareNext {
       await sync(evt.properties.info.sessionID, [
         {
           type: "message",
-          data: evt.properties.info,
+          data: evt.properties.info as SDK.Message,
         },
       ])
-      if (evt.properties.info.role === "user") {
+      if (evt.properties.info.role === "user" && evt.properties.info.model) {
         await sync(evt.properties.info.sessionID, [
           {
             type: "model",
@@ -187,8 +187,8 @@ export namespace ShareNext {
     const messages = await Array.fromAsync(MessageV2.stream(sessionID))
     const models = await Promise.all(
       messages
-        .filter((m) => m.info.role === "user")
-        .map((m) => (m.info as SDK.UserMessage).model)
+        .filter((m) => m.info.role === "user" && m.info.model)
+        .map((m) => (m.info as SDK.UserMessage).model!)
         .map((m) => Provider.getModel(m.providerId, m.modelID).then((m) => m)),
     )
     await sync(sessionID, [
@@ -198,9 +198,9 @@ export namespace ShareNext {
       },
       ...messages.map((x) => ({
         type: "message" as const,
-        data: x.info,
+        data: x.info as SDK.Message,
       })),
-      ...messages.flatMap((x) => x.parts.map((y) => ({ type: "part" as const, data: y }))),
+      ...messages.flatMap((x) => x.parts.map((y) => ({ type: "part" as const, data: y as SDK.Part }))),
       {
         type: "session_diff",
         data: diffs,

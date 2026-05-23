@@ -528,7 +528,7 @@ export namespace ACP {
           })
 
         const lastUser = messages?.findLast((m) => m.info.role === "user")?.info
-        if (lastUser?.role === "user") {
+        if (lastUser?.role === "user" && lastUser.model) {
           result.models.currentModelId = `${lastUser.model.providerId}/${lastUser.model.modelID}`
           this.sessionManager.setModel(sessionId, {
             providerId: lastUser.model.providerId,

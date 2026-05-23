@@ -617,7 +617,9 @@ export async function buildUserMessageParts(input: {
 
               await ReadTool.init()
                 .then(async (t) => {
-                  const model = await Provider.getModel(input.info.model.providerId, input.info.model.modelID)
+                  const model = input.info.model
+                    ? await Provider.getModel(input.info.model.providerId, input.info.model.modelID)
+                    : await Provider.defaultModel().then((m) => Provider.getModel(m.providerId, m.modelID))
                   const readCtx: Tool.Context = {
                     sessionID: input.sessionID,
                     abort: new AbortController().signal,

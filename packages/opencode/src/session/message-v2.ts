@@ -602,11 +602,13 @@ export namespace MessageV2 {
       })
       .optional(),
     agent: z.string(),
-    model: z.object({
-      providerId: z.string(),
-      modelID: z.string(),
-      accountId: z.string().optional(),
-    }),
+    model: z
+      .object({
+        providerId: z.string(),
+        modelID: z.string(),
+        accountId: z.string().optional(),
+      })
+      .optional(),
     format: Format.optional(),
     system: z.string().optional(),
     tools: z.record(z.string(), z.boolean()).optional(),
