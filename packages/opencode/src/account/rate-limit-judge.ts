@@ -32,6 +32,7 @@ import {
 } from "./rotation"
 import { RequestMonitor } from "./monitor"
 import { debugCheckpoint } from "../util/debug"
+import type { Account as AccountNamespace } from "./index"
 
 const log = Log.create({ service: "rate-limit-judge" })
 const PROVIDER_COOLDOWN_MIN_MS = 5 * 60 * 60 * 1000
@@ -370,7 +371,7 @@ export namespace RateLimitJudge {
     if (isTokenInvalidated(error)) {
       const family = (await Account.resolveProvider(providerId)) ?? providerId
       try {
-        await Account.update(family, accountId, { cooldownReason: "Need login" } as Partial<Account.Info>)
+        await Account.update(family, accountId, { cooldownReason: "Need login" } as Partial<AccountNamespace.Info>)
         log.warn("Account marked as needing re-login", { providerId, accountId })
       } catch {
         // Account may not exist or be API type (no cooldownReason field) — ignore

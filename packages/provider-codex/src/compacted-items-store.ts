@@ -10,7 +10,9 @@
  * state that may not survive restart either).
  */
 
-const store = new Map<string, unknown[]>()
+import type { ResponseItem } from "./types.js"
+
+const store = new Map<string, ResponseItem[]>()
 
 /**
  * Store compacted items for a session. Called by prompt builder Phase 2
@@ -18,14 +20,14 @@ const store = new Map<string, unknown[]>()
  * Overwrites any previous entry for the same session.
  */
 export function setCompactedItemsPrefix(sessionID: string, items: unknown[]): void {
-  store.set(sessionID, items)
+  store.set(sessionID, items as ResponseItem[])
 }
 
 /**
  * Consume compacted items for a session. Returns the items and clears
  * the entry. Consume-once: next doStream without a fresh set() gets [].
  */
-export function consumeCompactedItemsPrefix(sessionID: string): unknown[] {
+export function consumeCompactedItemsPrefix(sessionID: string): ResponseItem[] {
   const items = store.get(sessionID)
   store.delete(sessionID)
   return items ?? []

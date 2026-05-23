@@ -56,7 +56,7 @@ const CLIENT_SIDE_COMPACTION_KINDS = new Set(["narrative", "hybrid_llm", "ai_pai
 export function decideAmnesiaInjection(
   recentEvents: ReadonlyArray<{
     ts: number
-    kind: "rotation" | "compaction"
+    kind: "rotation" | "compaction" | "cache-cliff"
     compaction?: { observed: string; kind?: string; success: boolean }
   }> | undefined,
 ): AmnesiaDecision {

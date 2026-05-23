@@ -157,11 +157,16 @@ export function convertPrompt(prompt: LanguageModelV2Prompt): {
                 return { type: "input_text", text: typeof item.text === "string" ? item.text : "" }
               }
               if (item?.type === "media" && typeof item.data === "string" && item.mediaType) {
-                return {
-                  type: "input_image",
-                  image_url: `data:${item.mediaType};base64,${item.data}`,
-                  detail: DEFAULT_INLINE_IMAGE_DETAIL,
+                if (typeof item.mediaType === "string" && item.mediaType.startsWith("image/")) {
+                  return {
+                    type: "input_image",
+                    image_url: `data:${item.mediaType};base64,${item.data}`,
+                    detail: DEFAULT_INLINE_IMAGE_DETAIL,
+                  }
                 }
+                // Non-image media (PDF, docx, etc.) — include as text reference
+                // to avoid Codex API 400 "Expected image MIME type"
+                return { type: "input_text", text: `[binary tool output: ${item.mediaType}, ${item.data.length} bytes base64]` }
               }
               return { type: "input_text", text: JSON.stringify(item ?? "") }
             })
