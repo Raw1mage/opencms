@@ -15,7 +15,9 @@ const CTL_SOCK_PATH = "/run/opencode-gateway/ctl.sock"
 
 const WebRouteSchema = z.object({
   prefix: z.string(),
+  type: z.enum(["tcp", "uds"]).default("tcp"),
   host: z.string(),
+  socketPath: z.string().optional(),
   port: z.number(),
   uid: z.number(),
 })
@@ -28,8 +30,10 @@ interface RegistryEntry {
   entryName: string
   projectRoot: string
   publicBasePath: string
-  host: string
-  primaryPort: number
+  upstreamType?: "tcp" | "uds"
+  host?: string
+  primaryPort?: number
+  upstreamSocket?: string
   webctlPath: string
   enabled: boolean
   autostart?: boolean
@@ -74,6 +78,29 @@ function tcpProbe(host: string, port: number, timeoutMs = 2000): Promise<boolean
       resolve(false)
     })
   })
+}
+
+function udsProbe(socketPath: string, timeoutMs = 2000): Promise<boolean> {
+  return new Promise((resolve) => {
+    const sock = net.createConnection(socketPath)
+    sock.setTimeout(timeoutMs)
+    sock.on("connect", () => {
+      sock.destroy()
+      resolve(true)
+    })
+    sock.on("error", () => {
+      sock.destroy()
+      resolve(false)
+    })
+    sock.on("timeout", () => {
+      sock.destroy()
+      resolve(false)
+    })
+  })
+}
+
+function registryEntryType(entry: RegistryEntry): "tcp" | "uds" {
+  return entry.upstreamType ?? "tcp"
 }
 
 /* ── webctl.sh runner ── */
@@ -216,7 +243,10 @@ export async function autoStartServices(): Promise<void> {
   await Promise.allSettled(
     targets.map(async (entry) => {
       // Skip if already alive
-      const alive = await tcpProbe(entry.host, entry.primaryPort)
+      const upstreamType = registryEntryType(entry)
+      const alive = upstreamType === "uds"
+        ? await udsProbe(entry.upstreamSocket ?? "")
+        : await tcpProbe(entry.host ?? "127.0.0.1", entry.primaryPort ?? 0)
       if (alive) {
         log.info("service already running, skipping", { entry: entry.entryName })
         return
@@ -293,18 +323,37 @@ export const WebRouteRoutes = lazy(() =>
         "json",
         z.object({
           prefix: z.string().min(1),
+          upstreamType: z.enum(["tcp", "uds"]).default("tcp"),
           host: z.string().default("127.0.0.1"),
-          port: z.number().int().min(1).max(65535),
+          port: z.number().int().min(1).max(65535).optional(),
+          socketPath: z.string().optional(),
+          auth: z.number().int().min(0).max(1).optional(),
         }),
       ),
       async (c) => {
-        const body = c.req.valid("json" as never) as { prefix: string; host: string; port: number }
+        const body = c.req.valid("json" as never) as {
+          prefix: string
+          upstreamType: "tcp" | "uds"
+          host: string
+          port?: number
+          socketPath?: string
+          auth?: number
+        }
         try {
+          if (body.upstreamType === "tcp" && !body.port) {
+            return c.json({ ok: false, error: "missing port" }, 400)
+          }
+          if (body.upstreamType === "uds" && !body.socketPath) {
+            return c.json({ ok: false, error: "missing socketPath" }, 400)
+          }
           const result = await ctlRequest({
             action: "publish",
             prefix: body.prefix,
+            upstreamType: body.upstreamType,
             host: body.host,
-            port: body.port,
+            port: body.port ?? 0,
+            socketPath: body.socketPath,
+            auth: body.auth ?? 0,
           })
           return c.json(result)
         } catch (err) {
@@ -376,16 +425,21 @@ export const WebRouteRoutes = lazy(() =>
       async (c) => {
         try {
           const registry = await readRegistry()
-          const results: Record<string, { alive: boolean; host: string; port: number; webctlPath: string }> = {}
+          const results: Record<string, { alive: boolean; type: "tcp" | "uds"; host?: string; port?: number; socketPath?: string; webctlPath: string }> = {}
           await Promise.all(
             registry.entries
               .filter((e) => e.enabled)
               .map(async (entry) => {
-                const alive = await tcpProbe(entry.host, entry.primaryPort)
+                const type = registryEntryType(entry)
+                const alive = type === "uds"
+                  ? await udsProbe(entry.upstreamSocket ?? "")
+                  : await tcpProbe(entry.host ?? "127.0.0.1", entry.primaryPort ?? 0)
                 results[entry.entryName] = {
                   alive,
+                  type,
                   host: entry.host,
                   port: entry.primaryPort,
+                  socketPath: entry.upstreamSocket,
                   webctlPath: entry.webctlPath,
                 }
               }),
