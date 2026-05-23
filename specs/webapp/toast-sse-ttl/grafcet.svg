@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="401" height="760" viewBox="12.00 -2.00 20.06 38.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.action-inner{fill:none;stroke:#111;stroke-width:.08}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="12.00" y="-2.00" width="20.06" height="38.00" fill="white"/>
+<path class="edge edge-arrow" data-edge-id="edge:S1O1S2I1" data-segment-ids="S1O1S2I1:1S" d="M 20.00 7.00 L 20.00 11.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:S2O1S3I1" data-segment-ids="S2O1S3I1:1S" d="M 20.00 14.00 L 20.00 18.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:S3O1S4I1" data-segment-ids="S3O1S4I1:1S" d="M 20.00 21.00 L 20.00 25.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:S4O1S1I1" data-segment-ids="S4O1S1I1:1S S4O1S1I1:2W S4O1S1I1:3N S4O1S1I1:4E S4O1S1I1:5S" d="M 20.00 28.00 L 20.00 31.50 Q 20.00 32.00 19.50 32.00 L 16.50 32.00 Q 16.00 32.00 16.00 31.50 L 16.00 2.50 Q 16.00 2.00 16.50 2.00 L 19.50 2.00 Q 20.00 2.00 20.00 2.50 L 20.00 4.00"/>
+<rect class="step" x="18.00" y="4.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<rect class="step-inner" x="18.25" y="4.25" width="3.50" height="2.50" rx="0.22" ry="0.22"/>
+<text class="label" x="20.00" y="5.50">1</text>
+<rect class="step" x="18.00" y="11.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.00" y="12.50">2</text>
+<rect class="step" x="18.00" y="18.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.00" y="19.50">3</text>
+<rect class="step" x="18.00" y="25.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.00" y="26.50">4</text>
+<line class="assoc" x1="22.00" y1="5.50" x2="23.00" y2="5.50"/>
+<rect class="action" x="23.00" y="4.07" width="5.06" height="2.86"/>
+<text class="action-label" x="25.53" y="4.68"><tspan x="25.53" dy="0">Receive toast publis</tspan><tspan x="25.53" dy="0.82">h request and deter</tspan><tspan x="25.53" dy="0.82">mine intended scope</tspan></text>
+<line class="assoc" x1="22.00" y1="12.50" x2="23.00" y2="12.50"/>
+<rect class="action" x="23.00" y="11.07" width="5.06" height="2.86"/>
+<text class="action-label" x="25.53" y="12.09"><tspan x="25.53" dy="0">Stamp emitte</tspan><tspan x="25.53" dy="0.82">dAt and ttlMs</tspan></text>
+<line class="assoc" x1="22.00" y1="19.50" x2="23.00" y2="19.50"/>
+<rect class="action" x="23.00" y="18.07" width="5.06" height="2.86"/>
+<text class="action-label" x="25.53" y="18.68"><tspan x="25.53" dy="0">Forward toast t</tspan><tspan x="25.53" dy="0.82">hrough global SS</tspan><tspan x="25.53" dy="0.82">E event stream</tspan></text>
+<line class="assoc" x1="22.00" y1="26.50" x2="23.00" y2="26.50"/>
+<rect class="action" x="23.00" y="25.07" width="5.06" height="2.86"/>
+<text class="action-label" x="25.53" y="25.68"><tspan x="25.53" dy="0">Display fresh toa</tspan><tspan x="25.53" dy="0.82">st or drop stale/</tspan><tspan x="25.53" dy="0.82">malformed toast</tspan></text>
+<line class="gate" x1="19.00" y1="9.00" x2="21.00" y2="9.00"/>
+<text class="gate-label" x="21.40" y="9.00"><tspan x="21.40" dy="0">scope is valid</tspan></text>
+<line class="gate" x1="19.00" y1="16.00" x2="21.00" y2="16.00"/>
+<text class="gate-label" x="21.40" y="16.00"><tspan x="21.40" dy="0">freshness metadata exists</tspan></text>
+<line class="gate" x1="19.00" y1="23.00" x2="21.00" y2="23.00"/>
+<text class="gate-label" x="21.40" y="23.00"><tspan x="21.40" dy="0">client receives event</tspan></text>
+<line class="gate" x1="19.00" y1="30.00" x2="21.00" y2="30.00"/>
+<text class="gate-label" x="21.40" y="30.00"><tspan x="21.40" dy="0">next toast request</tspan></text>
+</svg>

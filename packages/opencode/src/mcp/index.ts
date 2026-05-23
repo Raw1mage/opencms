@@ -634,6 +634,7 @@ export namespace MCP {
                   message: `Server "${key}" requires a pre-registered client ID. Add clientId to your config.`,
                   variant: "warning",
                   duration: 8000,
+                  scope: "user",
                 },
                 { source: "mcp.needs_client_registration" },
               ).catch((e) => log.debug("failed to show toast", { error: e }))
@@ -648,6 +649,7 @@ export namespace MCP {
                   message: `Server "${key}" requires authentication. Run: opencode mcp auth ${key}`,
                   variant: "warning",
                   duration: 8000,
+                  scope: "user",
                 },
                 { source: "mcp.needs_auth" },
               ).catch((e) => log.debug("failed to show toast", { error: e }))

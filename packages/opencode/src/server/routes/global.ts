@@ -18,8 +18,29 @@ import { errors } from "../error"
 import { WebAuth } from "../web-auth"
 import { SelfUpdate } from "../self-update"
 import { RestartHandover } from "../restart-handover"
+import { TuiEvent } from "@/cli/cmd/tui/event"
 
 const log = Log.create({ service: "server" })
+const RESTART_TOAST_TTL_MS = 15_000
+
+function emitSystemToast(message: string) {
+  const context = { directory: "", worktree: "", projectId: "global" }
+  GlobalBus.emit("event", {
+    directory: "",
+    context,
+    payload: {
+      type: TuiEvent.ToastShow.type,
+      properties: {
+        message,
+        variant: "info",
+        duration: RESTART_TOAST_TTL_MS,
+        emittedAt: Date.now(),
+        ttlMs: RESTART_TOAST_TTL_MS,
+        scope: "system",
+      },
+    },
+  })
+}
 
 type RestartRuntimeMode = "dev-source" | "dev-standalone" | "service" | "gateway-daemon" | "unknown"
 
@@ -646,6 +667,8 @@ export const GlobalRoutes = lazy(() =>
               return c.json({ ...install, txid }, install.code === "SELF_UPDATE_REQUIRES_SUDOER" ? 403 : 500)
             }
 
+            emitSystemToast(`Gateway restarting… (${body.reason ?? "manual"})`)
+
             setTimeout(async () => {
               const restart = await SelfUpdate.runActions([
                 { type: "restart-service", service: "opencode-gateway.service" },
@@ -683,6 +706,8 @@ export const GlobalRoutes = lazy(() =>
             wantsGateway,
             reason: body.reason,
           })
+
+          emitSystemToast(`System restarting… (${body.reason ?? "manual"})`)
 
           // Use setsid to escape the daemon's systemd cgroup.
           // Without this, systemd KillMode=control-group kills webctl
@@ -745,6 +770,8 @@ export const GlobalRoutes = lazy(() =>
             500,
           )
         }
+
+        emitSystemToast(`System restarting… (${body.reason ?? "manual"})`)
 
         const proc = Bun.spawn({
           cmd: [webctlPath, "restart", "--graceful"],

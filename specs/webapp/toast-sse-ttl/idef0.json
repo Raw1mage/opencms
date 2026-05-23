@@ -1,0 +1,19 @@
+{
+  "diagram_title": "Toast Scope and TTL Delivery",
+  "node_reference": "A0",
+  "activities": [
+    { "id": "A1", "title": "Classify Toast Scope" },
+    { "id": "A2", "title": "Stamp Freshness Metadata" },
+    { "id": "A3", "title": "Forward SSE Event" },
+    { "id": "A4", "title": "Gate Frontend Display" }
+  ],
+  "arrows": [
+    { "id": "I1", "type": "input", "source": "EXTERNAL", "target": "A1:input", "label": "Toast publish request" },
+    { "id": "C1", "type": "control", "source": "EXTERNAL", "target": "A1:control", "label": "Scope policy" },
+    { "id": "O1", "type": "output", "source": "A1:output", "target": "A2:input", "label": "Scoped toast" },
+    { "id": "O2", "type": "output", "source": "A2:output", "target": "A3:input", "label": "Fresh toast envelope" },
+    { "id": "O3", "type": "output", "source": "A3:output", "target": "A4:input", "label": "SSE toast event" },
+    { "id": "C2", "type": "control", "source": "EXTERNAL", "target": "A4:control", "label": "TTL policy" },
+    { "id": "O4", "type": "output", "source": "A4:output", "target": "EXTERNAL", "label": "Displayed or dropped toast" }
+  ]
+}

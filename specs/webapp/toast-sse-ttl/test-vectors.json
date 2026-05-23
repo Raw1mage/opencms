@@ -1,0 +1,22 @@
+[
+  {
+    "name": "fresh-system-toast",
+    "input": { "message": "System restarting", "variant": "info", "scope": "system", "emittedAtOffsetMs": -1000, "ttlMs": 15000 },
+    "expected": { "showToast": true }
+  },
+  {
+    "name": "stale-user-toast",
+    "input": { "message": "Rate limit", "variant": "warning", "scope": "user", "emittedAtOffsetMs": -3600000, "ttlMs": 5000 },
+    "expected": { "showToast": false, "dropReason": "TOAST_STALE" }
+  },
+  {
+    "name": "missing-freshness",
+    "input": { "message": "Old format", "variant": "info", "scope": "user" },
+    "expected": { "showToast": false, "dropReason": "TOAST_MISSING_FRESHNESS" }
+  },
+  {
+    "name": "invalid-scope",
+    "input": { "message": "Bad scope", "variant": "info", "scope": "global", "emittedAtOffsetMs": -1000, "ttlMs": 5000 },
+    "expected": { "showToast": false, "dropReason": "TOAST_INVALID_SCOPE" }
+  }
+]

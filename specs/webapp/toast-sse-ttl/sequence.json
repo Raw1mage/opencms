@@ -1,0 +1,19 @@
+[
+  {
+    "title": "Toast Scope TTL Sequence",
+    "actors": [
+      { "id": "publisher", "name": "Backend Toast Publisher" },
+      { "id": "bus", "name": "Bus / GlobalBus" },
+      { "id": "sse", "name": "/global/event SSE" },
+      { "id": "frontend", "name": "GlobalSync" },
+      { "id": "ui", "name": "Toast UI" }
+    ],
+    "messages": [
+      { "from": "publisher", "to": "bus", "label": "publish scoped toast with emittedAt + ttlMs" },
+      { "from": "bus", "to": "sse", "label": "forward event envelope" },
+      { "from": "sse", "to": "frontend", "label": "deliver SSE event" },
+      { "from": "frontend", "to": "frontend", "label": "validate scope and freshness" },
+      { "from": "frontend", "to": "ui", "label": "show only if fresh and valid" }
+    ]
+  }
+]

@@ -1,0 +1,47 @@
+<svg width="1145.1" height="625.8" viewBox="-172.6 -165.8 1145.1 625.8" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-172.6" y="-165.8" width="1145.1" height="625.8" fill="white" />
+<rect x="130.0" y="120.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="230.0" y="157.0" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
+<text x="230.0" y="184.2" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >CLASSIFY TOAST SCOPE</text>
+<rect x="470.0" y="120.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="570.0" y="143.9" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
+<text x="570.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >STAMP FRESHNESS</text>
+<text x="570.0" y="197.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >METADATA</text>
+<rect x="130.0" y="310.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="230.0" y="346.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >A3</text>
+<text x="230.0" y="376.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >FORWARD SSE EVENT</text>
+<rect x="470.0" y="310.0" width="200.0" height="100.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
+<text x="570.0" y="333.9" text-anchor="middle" font-size="12" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >A4</text>
+<text x="570.0" y="361.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >GATE FRONTEND</text>
+<text x="570.0" y="387.3" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >DISPLAY</text>
+<rect x="40.0" y="44.2" width="720.0" height="405.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="260.0" y="-155.8" width="280.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="400.0" y="-129.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >A0</text>
+<text x="400.0" y="-99.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >TOAST SCOPE AND</text>
+<text x="400.0" y="-69.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >TTL DELIVERY</text>
+<line x1="260.0" y1="-155.8" x2="40.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="540.0" y1="-155.8" x2="760.0" y2="44.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="260.0" y1="-45.8" x2="40.0" y2="450.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="540.0" y1="-45.8" x2="760.0" y2="450.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 330.0 170.0 L 470.0 170.0" stroke="black" stroke-width="1.2" data-arrow-id="O1" data-waypoints="330.0,170.0 470.0,170.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 360.0 L 470.0 360.0" stroke="black" stroke-width="1.2" data-arrow-id="O3" data-waypoints="330.0,360.0 470.0,360.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 670.0 170.0 L 700.0 170.0 Q 710.0 170.0 710.0 180.0 L 710.0 250.0 Q 710.0 260.0 700.0 260.0 L 100.0 260.0 Q 90.0 260.0 90.0 270.0 L 90.0 350.0 Q 90.0 360.0 100.0 360.0 L 130.0 360.0" stroke="black" stroke-width="1.2" data-arrow-id="O2" data-waypoints="670.0,170.0 710.0,170.0 710.0,260.0 90.0,260.0 90.0,360.0 130.0,360.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -10.0 170.0 L 130.0 170.0" stroke="black" stroke-width="1.2" data-arrow-id="I1" data-waypoints="-10.0,170.0 130.0,170.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C1" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 570.0 274.2 L 570.0 310.0" stroke="black" stroke-width="1.2" data-arrow-id="C2" data-waypoints="570.0,274.2 570.0,310.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 670.0 360.0 L 810.0 360.0" stroke="black" stroke-width="1.2" data-arrow-id="O4" data-waypoints="670.0,360.0 810.0,360.0" marker-end="url(#arrow)" fill="none" />
+<text x="230.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="C1">Scope policy</text>
+<text x="564.0" y="304.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="C2">TTL</text>
+<text x="576.0" y="304.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="C2">policy</text>
+<text x="400.0" y="162.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="O1" >Scoped toast</text>
+<text x="400.0" y="352.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="O3" >SSE toast event</text>
+<text x="230.0" y="278.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="O2" >Fresh toast envelope</text>
+<text x="-14.0" y="161.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="I1">Toast publish</text>
+<text x="-14.0" y="187.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="I1">request</text>
+<text x="814.0" y="351.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="O4">Displayed or</text>
+<text x="814.0" y="377.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="O4">dropped toast</text>
+</svg>

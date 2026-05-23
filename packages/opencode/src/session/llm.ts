@@ -1663,6 +1663,7 @@ export namespace LLM {
               message: `Auth failed for ${accountId}. Please re-authenticate.`,
               variant: "error",
               duration: 15000,
+              scope: "session",
             },
             { source: "llm.onError.auth" },
           ).catch(() => {})
@@ -2187,6 +2188,7 @@ export namespace LLM {
                   message: toastMsg,
                   variant: "info",
                   duration: 8000,
+                  scope: sessionID ? "session" : "user",
                 },
                 { source: "llm.rotation.sameProvider" },
               ).catch(() => {})
@@ -2228,6 +2230,7 @@ export namespace LLM {
                 message: toastMsg,
                 variant: "info",
                 duration: 8000,
+                scope: sessionID ? "session" : "user",
               },
               { source: "llm.rotation.crossProvider" },
             ).catch(() => {})

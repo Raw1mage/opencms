@@ -62,6 +62,26 @@ function normalizeDirectoryKey(value: string) {
   return normalized.replace(/\/+$/, "")
 }
 
+export function toastDisplayDecision(
+  properties: any,
+  now = Date.now(),
+):
+  | { show: true; traversalMs: number; scope: "system" | "user" | "workspace" | "session" }
+  | { show: false; reason: "missing_freshness" | "invalid_scope" | "stale"; traversalMs?: number } {
+  const emittedAt = properties?.emittedAt
+  const ttlMs = properties?.ttlMs
+  const scope = properties?.scope
+  const validScope = scope === "system" || scope === "user" || scope === "workspace" || scope === "session"
+  const traversalMs = typeof emittedAt === "number" ? now - emittedAt : undefined
+
+  if (!validScope) return { show: false, reason: "invalid_scope", traversalMs }
+  if (typeof emittedAt !== "number" || typeof ttlMs !== "number" || !Number.isFinite(ttlMs) || ttlMs <= 0) {
+    return { show: false, reason: "missing_freshness", traversalMs }
+  }
+  if (now - emittedAt > ttlMs) return { show: false, reason: "stale", traversalMs: now - emittedAt }
+  return { show: true, traversalMs: now - emittedAt, scope }
+}
+
 function normalizeStringList(value: unknown): string[] {
   if (!Array.isArray(value)) return []
   return [...new Set(value.filter((item): item is string => typeof item === "string"))]
@@ -408,31 +428,44 @@ function createGlobalSync() {
     const event = e.details
 
     if (event?.type === "tui.toast.show") {
-      const { message, variant, title, duration, emittedAt } = (event.properties || {}) as any
+      const { message, variant, title, duration, emittedAt, ttlMs, scope } = (event.properties || {}) as any
       // [TOAST-TRACE] receive log — pair with backend [TOAST-TRACE] sse-write
       // entries to measure publish→browser latency.
       const recvAt = Date.now()
-      const traversalMs = typeof emittedAt === "number" ? recvAt - emittedAt : undefined
+      const display = toastDisplayDecision(event.properties, recvAt)
       // eslint-disable-next-line no-console
       console.log("[TOAST-TRACE] recv", {
         emittedAt,
+        ttlMs,
+        scope,
         recvAt,
-        traversalMs,
+        traversalMs: display.traversalMs,
         title,
         variant,
         messagePreview: String(message ?? "").slice(0, 120),
       })
       if (!message) return
-      // TTL guard (frontend/resync P2.2 / DD-8): drop ephemeral notifications
-      // older than TOAST_TTL_MS. A toast that flashed 30s ago when the user
-      // had backgrounded the app is misleading on return — the underlying
-      // state has moved on. Only apply when we can verify the age; if
-      // emittedAt is absent we have no basis to discard.
-      const TOAST_TTL_MS = 5_000
-      if (typeof traversalMs === "number" && traversalMs > TOAST_TTL_MS) {
+      if (!display.show && display.reason === "invalid_scope") {
+        console.info("[TOAST-TRACE] dropped — invalid scope", {
+          scope,
+          title,
+        })
+        return
+      }
+      if (!display.show && display.reason === "missing_freshness") {
+        console.info("[TOAST-TRACE] dropped — missing freshness", {
+          emittedAt,
+          ttlMs,
+          scope,
+          title,
+        })
+        return
+      }
+      if (!display.show && display.reason === "stale") {
         console.info("[TOAST-TRACE] dropped — TTL exceeded", {
-          traversalMs,
-          ttlMs: TOAST_TTL_MS,
+          traversalMs: display.traversalMs,
+          ttlMs,
+          scope,
           title,
         })
         return

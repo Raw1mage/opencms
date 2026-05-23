@@ -1,0 +1,46 @@
+[
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "Receive toast publish request and determine intended scope",
+    "LinkOutputType": "track",
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [2],
+    "Condition": ["scope is valid"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Stamp emittedAt and ttlMs",
+    "LinkOutputType": "track",
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3],
+    "Condition": ["freshness metadata exists"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Forward toast through global SSE event stream",
+    "LinkOutputType": "track",
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4],
+    "Condition": ["client receives event"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Display fresh toast or drop stale/malformed toast",
+    "LinkOutputType": "track",
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [1],
+    "Condition": ["next toast request"],
+    "SubGrafcet": []
+  }
+]

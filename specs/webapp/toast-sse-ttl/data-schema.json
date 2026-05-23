@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ToastShow",
+  "type": "object",
+  "required": ["message", "variant", "emittedAt", "ttlMs", "scope"],
+  "properties": {
+    "title": { "type": "string" },
+    "message": { "type": "string", "minLength": 1 },
+    "variant": { "enum": ["info", "success", "warning", "error"] },
+    "duration": { "type": "number", "minimum": 0 },
+    "emittedAt": { "type": "number", "minimum": 0 },
+    "ttlMs": { "type": "number", "exclusiveMinimum": 0 },
+    "scope": { "enum": ["system", "user", "workspace", "session"] }
+  },
+  "additionalProperties": false
+}
