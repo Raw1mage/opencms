@@ -197,6 +197,12 @@ export namespace SessionCompaction {
     eventMeta?: { observed?: string; kind?: string; tokensBefore?: number; tokensAfter?: number; success?: boolean },
   ) {
     Bus.publish(Event.Compacted, { sessionID })
+    // 2026-05-20: reset cache baseline so the first post-rebind round
+    // (which naturally has low cache — only the anchor prefix hits) is
+    // not compared against the pre-compaction value. Without this, the
+    // cliff detector fires a false continuation-invalidated → compaction
+    // self-reinforcing loop. Incident ses_1c875cc15ffe5ds18JVdNAT4e6.
+    SessionPrompt.resetCacheBaseline(sessionID)
     // 2026-05-09: append to per-session recentEvents ring for the Q card.
     // 2026-05-13: moved BEFORE Continuation.run so the ring entry lands
     // in the synchronous microtask path. publishCompactedAndResetChain is
@@ -946,6 +952,7 @@ export namespace SessionCompaction {
     "stall-recovery": Object.freeze(["narrative"] as const),
     manual: Object.freeze(["narrative"] as const),
     "empty-response": Object.freeze(["narrative"] as const),
+    reload: Object.freeze(["narrative"] as const),
   })
 
   export function kindChainFor(observed: Observed): ReadonlyArray<KindName> {
@@ -1028,6 +1035,7 @@ export namespace SessionCompaction {
     // "Continue from where you left off" after the anchor lets the model
     // resume the user's actual request without a fresh user prompt.
     "empty-response": true,
+    reload: false,
   })
 
   /**
@@ -1395,7 +1403,9 @@ export namespace SessionCompaction {
     log.info("triggering TRUE Summary Compaction (LLM agent)", { sessionID: input.sessionID })
     const model = agent.model
       ? await Provider.getModel(agent.model.providerId, agent.model.modelID)
-      : await Provider.getModel(input.userMessage.model.providerId, input.userMessage.model.modelID)
+      : input.userMessage.model
+        ? await Provider.getModel(input.userMessage.model.providerId, input.userMessage.model.modelID)
+        : await Provider.getModel(...(await Provider.defaultModel().then((m) => [m.providerId, m.modelID] as const)))
 
     if (!canSummarize(model)) {
       log.warn("skipping LLM compaction: model context too small for meaningful summary", {
@@ -1408,7 +1418,7 @@ export namespace SessionCompaction {
 
     const agentModel = agent.model as { accountId?: string } | undefined
     const session = await Session.get(input.sessionID)
-    const accountId = agentModel?.accountId ?? input.userMessage.model.accountId ?? session?.execution?.accountId
+    const accountId = agentModel?.accountId ?? input.userMessage.model?.accountId ?? session?.execution?.accountId
 
     // T7 lineage
     const prevAnchorId = (await Memory.Hybrid.getAnchorMessage(input.sessionID).catch(() => null))?.info.id
@@ -3069,8 +3079,7 @@ When constructing the summary, try to stick to this template:
     let augmentedSummary = input.summaryText
     const needsClientSideIndex =
       input.kind === "narrative" ||
-      input.kind === "ai_paid" ||
-      input.kind === "hybrid_llm"
+      input.kind === "ai_paid"
     if (needsClientSideIndex) {
       try {
         const allMsgs = await Session.messages({ sessionID: input.sessionID }).catch(() => [] as MessageV2.WithParts[])
@@ -3968,8 +3977,8 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         }
         const userText = buildUserPayload(chunkRequest, {
           generatedAt: new Date().toISOString(),
-          provider: ctx.model.providerId ?? ctx.userMessage.model.providerId,
-          model: ctx.model.id ?? ctx.userMessage.model.modelID,
+          provider: ctx.model.providerId ?? ctx.userMessage.model?.providerId ?? "unknown",
+          model: ctx.model.id ?? ctx.userMessage.model?.modelID ?? "unknown",
         })
 
         if (isLast) {
@@ -4271,7 +4280,9 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         ? await Provider.getModel(agent.model.providerId, agent.model.modelID)
         : exec?.providerId && exec?.modelID
           ? await Provider.getModel(exec.providerId, exec.modelID)
-          : await Provider.getModel(userMessage.model.providerId, userMessage.model.modelID)
+          : userMessage.model
+            ? await Provider.getModel(userMessage.model.providerId, userMessage.model.modelID)
+            : await Provider.getModel(...(await Provider.defaultModel().then((m) => [m.providerId, m.modelID] as const)))
       if (!canSummarize(model)) {
         return {
           ok: false,
@@ -4300,7 +4311,7 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
       // Account priority (mirrors model resolution above): the
       // frontend-current account from session.execution wins. Falls
       // back to compaction agent's account, then user message account.
-      const accountId = agentModel?.accountId ?? exec?.accountId ?? userMessage.model.accountId
+      const accountId = agentModel?.accountId ?? exec?.accountId ?? userMessage.model?.accountId
 
       // Phase 2.7 chunk-and-merge: when single-pass input exceeds the
       // LLM's per-request budget, switch to sequential digest building.
@@ -4324,8 +4335,8 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
 
       const userText = buildUserPayload(request, {
         generatedAt: new Date().toISOString(),
-        provider: model.providerId ?? userMessage.model.providerId,
-        model: model.id ?? userMessage.model.modelID,
+        provider: model.providerId ?? userMessage.model?.providerId ?? "unknown",
+        model: model.id ?? userMessage.model?.modelID ?? "unknown",
       })
 
       // Stub assistant message in the stream — becomes the anchor when
