@@ -29,11 +29,7 @@ import {
 } from "solid-js"
 import { Dynamic } from "solid-js/web"
 import type { FileNode } from "@opencode-ai/sdk/v2"
-import {
-  applyRowClick,
-  emptySelection,
-  type SelectionState,
-} from "./file-tree-selection"
+import { applyRowClick, emptySelection, type SelectionState } from "./file-tree-selection"
 
 const MAX_DEPTH = 128
 
@@ -190,8 +186,7 @@ export function fileTreeContextMenuActionGroups(input: {
         {
           id: "mention",
           label: effectiveCount > 1 ? `@Mention ${effectiveCount} items` : "@Mention in chat",
-          enabled:
-            input.target.kind === "row" || (input.target.kind === "folder" && input.target.path !== ""),
+          enabled: input.target.kind === "row" || (input.target.kind === "folder" && input.target.path !== ""),
           reason: "Right-click a file or folder row.",
         },
       ],
@@ -836,7 +831,10 @@ export default function FileTree(props: {
     if (!name) return
     try {
       const response = await sdk.client.file.create({ parent, name, type })
-      finishOperation(response.data, `${type === "directory" ? "Folder" : "File"} created: ${parent ? parent + "/" : ""}${name}`)
+      finishOperation(
+        response.data,
+        `${type === "directory" ? "Folder" : "File"} created: ${parent ? parent + "/" : ""}${name}`,
+      )
     } catch (err) {
       surfaceError(err, `Create ${type} failed`)
     }
@@ -1123,9 +1121,9 @@ export default function FileTree(props: {
           }
           resolved = true
         } catch (err) {
-          const data = (err && typeof err === "object" && "data" in err ? (err as { data?: unknown }).data : undefined) as
-            | { code?: string }
-            | undefined
+          const data = (
+            err && typeof err === "object" && "data" in err ? (err as { data?: unknown }).data : undefined
+          ) as { code?: string } | undefined
           if (data?.code === "FILE_OP_DUPLICATE" && !overwrite) {
             const basename = entry.path.split("/").pop() ?? entry.path
             const remaining = cb.entries.length - (succeeded + cancelled + 1)
@@ -1235,7 +1233,9 @@ export default function FileTree(props: {
       showToast({
         variant: "error",
         title: "External paste blocked",
-        description: result?.reason ? `${result.reason}: ${result.canonicalPath ?? requested}` : "Destination is not writable.",
+        description: result?.reason
+          ? `${result.reason}: ${result.canonicalPath ?? requested}`
+          : "Destination is not writable.",
       })
       return
     }
@@ -1417,7 +1417,6 @@ export default function FileTree(props: {
     )
   }
 
-
   const renderTrailing = (node: FileNode) => (
     <span class="contents text-text-weak text-12-regular">
       <span class="shrink-0 w-16 text-right tabular-nums truncate @max-[220px]/filetree:hidden">
@@ -1546,7 +1545,7 @@ export default function FileTree(props: {
   }
   const pasteParentFromAnchor = (): string => {
     const anchor = selection().anchor
-    if (!anchor) return props.path  // tree root
+    if (!anchor) return props.path // tree root
     const type = pathTypes.get(anchor)
     if (type === "directory") return anchor
     const idx = anchor.lastIndexOf("/")
@@ -1663,7 +1662,6 @@ export default function FileTree(props: {
                   draggable={draggable()}
                   kinds={kinds()}
                   marks={marks()}
-
                   trailing={renderTrailing(node)}
                   onClick={(event: MouseEvent) => handleRowClick(node, event)}
                   onDblClick={() => navigateInto(node.path)}
@@ -1695,11 +1693,13 @@ export default function FileTree(props: {
                   draggable={draggable()}
                   kinds={kinds()}
                   marks={marks()}
-
                   trailing={renderTrailing(node)}
                   onClick={(event: MouseEvent) => handleRowClick(node, event)}
                   onDblClick={() => props.onFileClick?.(node)}
-                  onContextMenu={() => publishContextMenuTarget(fileTreeRowContextMenuTarget(node))}
+                  onContextMenu={(event: MouseEvent) => {
+                    captureMenuAnchor(event)
+                    publishContextMenuTarget(fileTreeRowContextMenuTarget(node))
+                  }}
                 >
                   <div class="w-4 shrink-0" />
                   <FileIcon node={node} class="text-icon-base size-4" />
@@ -1726,7 +1726,7 @@ export default function FileTree(props: {
           // Kobalte its overlay-based outside detection so the menu closes
           // when the user clicks elsewhere. Blue tint distinguishes the menu
           // from the same-toned file tree underneath.
-          class="!bg-blue-950 !border-2 !border-blue-500 !shadow-lg"
+          class="file-tree-context-menu !bg-blue-950 !border-2 !border-blue-500 !shadow-lg"
         >
           <Show when={contextMenuTarget()}>{(target) => (props.contextMenu ?? defaultContextMenu)(target())}</Show>
         </ContextMenu.Content>
