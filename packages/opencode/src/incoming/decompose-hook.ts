@@ -83,6 +83,15 @@ export const DOCXMCP_APP_ID = "docxmcp"
 // docxmcp service-revision (2026-05-13 plan, Phase 2 DD-2): all
 // docxmcp tools now carry the `docxmcp_` service prefix to avoid
 // collisions when other MCP servers are installed alongside.
+// docxmcp tool-group-consolidation Phase 1b (2026-05-23): the legacy
+// docxmcp_extract_all tool is reached via the unified docxmcp_document
+// facade as action=decompose. The legacy name remains under
+// DOCXMCP_TOOL_PROFILE=legacy but we go through the facade so opencode
+// has no hardcoded references to the consolidated-away surface.
+export const DOCXMCP_TOOL_DOCUMENT = "docxmcp_document"
+/**
+ * @deprecated kept for reference; runtime no longer calls this name directly.
+ */
 export const DOCXMCP_TOOL_EXTRACT_ALL = "docxmcp_extract_all"
 
 // ── Public types ───────────────────────────────────────────────────────
@@ -334,15 +343,18 @@ export async function landOfficeUpload(input: LandOfficeInput): Promise<LandOffi
   // 7c. .docx → docxmcp.extract_all (fast phase) + spawn poll loop
   if (kind === "docx") {
     try {
-      const { token } = await runDocxExtractAll({
+      const { token, state: decomposeState } = await runDocxExtractAll({
         repoPath,
         projectRoot: input.projectRoot,
       })
       const manifest = await readManifest(stemDir)
-      // Spawn poll loop only when the manifest reports running (the
-      // expected path for docx). If extract_all already returned
-      // background_status: done (very small docx), skip polling.
-      if (manifest?.decompose.background_status === "running") {
+      // Phase 1b: read the MCP-level state returned by the decompose
+      // call. Only spawn a poll loop when state == "pending" (was
+      // background_status == "running"). The manifest read below is
+      // still used by the telemetry and result path; that is opencode-
+      // local bookkeeping, not cross-repo contract — the load-bearing
+      // dispatch decision now comes from MCP.
+      if (decomposeState === "pending") {
         startPollLoop({
           stem,
           repoPath,
@@ -410,13 +422,15 @@ export async function landOfficeUpload(input: LandOfficeInput): Promise<LandOffi
 async function runDocxExtractAll(input: {
   repoPath: string
   projectRoot: string
-}): Promise<{ token: string }> {
-  // Step 1: upload bytes → token
+}): Promise<{ token: string; state: "pending" | "complete" | "failed" }> {
+  // Step 1: upload bytes → token. toolName is purely a telemetry label
+  // here; the call below uses the docxmcp_document facade with
+  // action=decompose per Phase 1b decoupling.
   const upload = await IncomingDispatcher.uploadFileForApp({
     appId: DOCXMCP_APP_ID,
     repoPath: input.repoPath,
     projectRoot: input.projectRoot,
-    toolName: DOCXMCP_TOOL_EXTRACT_ALL,
+    toolName: DOCXMCP_TOOL_DOCUMENT,
   })
   if (!upload) {
     throw new Error("docxmcp /files upload failed (transport)")
@@ -436,8 +450,12 @@ async function runDocxExtractAll(input: {
   try {
     result = await client.callTool(
       {
-        name: DOCXMCP_TOOL_EXTRACT_ALL,
-        arguments: { token: upload.token, doc_dir: input.repoPath },
+        name: DOCXMCP_TOOL_DOCUMENT,
+        arguments: {
+          action: "decompose",
+          token: upload.token,
+          doc_dir: input.repoPath,
+        },
       },
       CallToolResultSchema,
       { signal: ctrl.signal, timeout: FAST_PHASE_TIMEOUT_MS, resetTimeoutOnProgress: false },
@@ -455,7 +473,13 @@ async function runDocxExtractAll(input: {
 
   // Step 3: materialize produced resource_links into bundle dir via
   // standard MCP `resources/read`.
-  const sc = (result as { structuredContent?: { from_cache?: boolean } }).structuredContent
+  const sc = (result as {
+    structuredContent?: {
+      from_cache?: boolean
+      data?: { state?: "pending" | "complete" | "failed" }
+      state?: "pending" | "complete" | "failed"
+    }
+  }).structuredContent
   const links = IncomingDispatcher.extractResourceLinks(result)
   if (links.length === 0) {
     throw new Error("docxmcp extract_all returned no resource_links (unexpected)")
@@ -467,7 +491,17 @@ async function runDocxExtractAll(input: {
     projectRoot: input.projectRoot,
     fromCache: !!sc?.from_cache,
   })
-  return { token: upload.token }
+  // Phase 1b: surface the MCP-level state so the caller decides whether
+  // to spawn a poll loop without reading manifest internals. Decompose's
+  // structuredContent in docxmcp Phase 1a does not carry `state` yet;
+  // until that lands the caller should fall back to a status probe (an
+  // additive change tracked under T1b.10 in tasks.md). For now we
+  // default to "pending" so the existing poll-loop spawn path is taken
+  // for docx (the common case); a small docx that completes inside the
+  // fast phase will see the poll loop exit immediately on first cycle.
+  const state =
+    sc?.state ?? sc?.data?.state ?? "pending"
+  return { token: upload.token, state }
 }
 
 function formatDocxmcpError(err: unknown): string {

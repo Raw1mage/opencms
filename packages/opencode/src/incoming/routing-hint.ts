@@ -140,8 +140,11 @@ function renderFromManifest(input: RenderFromManifestInput): string {
     const pending = manifest.decompose.pending_kinds ?? []
     const pendingLabel = pending.join("、") || "尚有"
     lines.push("")
+    // docxmcp tool-group-consolidation Phase 1b: refer to the facade
+    // action that replaces the legacy extract_all_collect tool. The
+    // legacy name still works under DOCXMCP_TOOL_PROFILE=legacy.
     lines.push(
-      `⏳ **背景拆解中**：${pendingLabel}。host 端每 5 秒同步增量；要立刻等完成可呼叫 \`mcpapp-docxmcp_extract_all_collect\`。`,
+      `⏳ **背景拆解中**：${pendingLabel}。host 端每 5 秒同步增量；要立刻等完成可呼叫 \`mcpapp-docxmcp_docxmcp_document\` 並設 \`action=status, wait=60\`。`,
     )
   } else if (bgStatus === "failed") {
     const err = manifest.decompose.background_error ?? "(unknown)"
