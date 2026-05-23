@@ -30,6 +30,7 @@ import { materializeToolAttachments } from "./attachment-ownership"
 import { clearPendingContinuation } from "./workflow-runner"
 import { describeTaskNarration, emitSessionNarration } from "./narration"
 import { logSessionAccountAudit, resolveAccountAuditSource } from "./account-audit"
+import { isMutationToolCall } from "./continuation/commitment-digest"
 import z from "zod"
 
 export const SessionRoundTelemetryEvent = BusEvent.define(
@@ -941,9 +942,30 @@ export namespace SessionProcessor {
                     if (isRetryable) {
                       const firstLine = errorMsg.split("\n")[0]
                       const isSchemaMiss = errorMsg.includes("[schema-miss:")
-                      const output = isSchemaMiss
-                        ? `${errorMsg}\n\nRetry this tool on your next turn using the shape above. Do not skip it.`
-                        : `[skip] ${firstLine}\nThis is expected. Continue with your next step.`
+                      // Mutation tools (apply_patch/edit/write/move_file/delete_file)
+                      // are routed through `isMutationToolCall`, the project-wide
+                      // mutation allowlist in continuation/commitment-digest.ts.
+                      // For these, "[skip] ... Continue with your next step." is
+                      // ambiguous and observed to cause the model to resend the
+                      // identical failing input multiple times (spec
+                      // session/tool-retry-and-dedup, DD-6). Use an explicit
+                      // no-modification + re-read imperative instead.
+                      const isMutationRetryable =
+                        !isSchemaMiss && isMutationToolCall(match)
+                      let output: string
+                      let mutationHint = false
+                      if (isSchemaMiss) {
+                        output = `${errorMsg}\n\nRetry this tool on your next turn using the shape above. Do not skip it.`
+                      } else if (isMutationRetryable) {
+                        output =
+                          `[skip-mutation] ${firstLine}\n` +
+                          `The file was NOT modified. Do NOT resend the same input — it will fail the same way. ` +
+                          `Before retrying, call \`read\` on the target file to refresh your view, ` +
+                          `then build a new patch from the actual current content.`
+                        mutationHint = true
+                      } else {
+                        output = `[skip] ${firstLine}\nThis is expected. Continue with your next step.`
+                      }
                       await Session.updatePart({
                         ...match,
                         state: {
@@ -951,7 +973,9 @@ export namespace SessionProcessor {
                           input: value.input ?? match.state.input,
                           title: firstLine.slice(0, 80),
                           output,
-                          metadata: { truncated: false, retryable: true },
+                          metadata: mutationHint
+                            ? { truncated: false, retryable: true, mutationHint: true }
+                            : { truncated: false, retryable: true },
                           time: {
                             start: match.state.time.start,
                             end: Date.now(),

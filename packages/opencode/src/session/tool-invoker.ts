@@ -196,9 +196,16 @@ export namespace ToolInvoker {
           messageID,
           callID,
         })
+        // Surface the dedup to the model — without the prefix, the deduped
+        // output is byte-identical to a fresh execution and the model can't
+        // tell it has already issued this call. Spec session/tool-retry-and-dedup
+        // DD-9. Per-message metadata is invisible to the model; output text is not.
+        const firstOutput = (result as any)?.output ?? ""
+        const prefixed =
+          `[dedup: in-flight parallel duplicate; reusing first call's result]\n` + firstOutput
         return {
           title: (result as any)?.title ?? "",
-          output: (result as any)?.output ?? "",
+          output: prefixed,
           metadata: {
             dedup: {
               shortCircuited: true,
@@ -232,9 +239,15 @@ export namespace ToolInvoker {
           callID,
           siblingCallID: dup.callID,
         })
+        // Make the dedup visible in the output text so the model recognises it
+        // has already issued this call. Metadata alone (below) is invisible to
+        // the model. Spec session/tool-retry-and-dedup DD-9.
+        const prefixed =
+          `[dedup: identical (tool, args) already executed at ${dup.callID} in this turn — reusing its output; do not resend the same call]\n` +
+          dupOutput
         return {
           title: "",
-          output: dupOutput,
+          output: prefixed,
           metadata: {
             dedup: {
               shortCircuited: true,
