@@ -53,6 +53,11 @@ function mapFinishReason(reason: string | null): LanguageModelV2FinishReason {
 function stringifyOutput(output: unknown): string {
   if (typeof output === "string") return output || "{}"
   if (output == null) return "{}"
+  if (typeof output === "object" && "type" in output && "value" in output) {
+    const typed = output as { type: string; value: unknown }
+    if (typed.type === "text" || typed.type === "error-text") return String(typed.value || "{}")
+    return JSON.stringify(typed.value)
+  }
   // AI SDK streamText sends output as [{ type: "text", text: "..." }, ...] array
   if (Array.isArray(output)) {
     const texts = output
@@ -66,6 +71,10 @@ function stringifyOutput(output: unknown): string {
   return JSON.stringify(output)
 }
 
+function usage(inputTokens: number, outputTokens: number) {
+  return { inputTokens, outputTokens, totalTokens: inputTokens + outputTokens }
+}
+
 // ---------------------------------------------------------------------------
 // Convert AI SDK prompt to Responses API input format
 // ---------------------------------------------------------------------------
@@ -74,12 +83,7 @@ function promptToResponsesInput(prompt: LanguageModelV2CallOptions["prompt"]): a
   const input: any[] = []
   for (const msg of prompt) {
     if (msg.role === "system") {
-      const text = typeof msg.content === "string"
-        ? msg.content
-        : Array.isArray(msg.content)
-          ? msg.content.filter((p: any) => p.type === "text").map((p: any) => p.text).join("\n")
-          : String(msg.content ?? "")
-      input.push({ role: "system", content: text })
+      input.push({ role: "system", content: msg.content })
     } else if (msg.role === "user") {
       const parts: any[] = []
       const content = Array.isArray(msg.content) ? msg.content : [{ type: "text", text: String(msg.content ?? "") }]
@@ -97,7 +101,7 @@ function promptToResponsesInput(prompt: LanguageModelV2CallOptions["prompt"]): a
       // Responses API: text goes in { role: "assistant", content: [{type: "output_text"}] }
       // but function_call is a TOP-LEVEL input item, NOT nested in content
       const textParts: any[] = []
-      const aContent = Array.isArray(msg.content) ? msg.content : typeof msg.content === "string" ? [{ type: "text", text: msg.content }] : []
+      const aContent = msg.content
       for (const p of aContent) {
         if (p.type === "text") {
           textParts.push({ type: "output_text", text: p.text })
@@ -112,7 +116,7 @@ function promptToResponsesInput(prompt: LanguageModelV2CallOptions["prompt"]): a
             type: "function_call",
             call_id: p.toolCallId,
             name: p.toolName,
-            arguments: typeof p.args === "string" ? (p.args || "{}") : JSON.stringify(p.args ?? {}),
+            arguments: typeof p.input === "string" ? (p.input || "{}") : JSON.stringify(p.input ?? {}),
           })
         }
       }
@@ -144,12 +148,7 @@ function promptToMessages(prompt: LanguageModelV2CallOptions["prompt"]): any[] {
   const messages: any[] = []
   for (const msg of prompt) {
     if (msg.role === "system") {
-      const text = typeof msg.content === "string"
-        ? msg.content
-        : Array.isArray(msg.content)
-          ? msg.content.filter((p: any) => p.type === "text").map((p: any) => p.text).join("\n")
-          : String(msg.content ?? "")
-      messages.push({ role: "system", content: text })
+      messages.push({ role: "system", content: msg.content })
     } else if (msg.role === "user") {
       const parts: any[] = []
       const content = Array.isArray(msg.content) ? msg.content : [{ type: "text", text: String(msg.content ?? "") }]
@@ -169,7 +168,7 @@ function promptToMessages(prompt: LanguageModelV2CallOptions["prompt"]): any[] {
     } else if (msg.role === "assistant") {
       const toolCalls: any[] = []
       let text = ""
-      const aContent = Array.isArray(msg.content) ? msg.content : typeof msg.content === "string" ? [{ type: "text", text: msg.content }] : []
+      const aContent = msg.content
       for (const p of aContent) {
         if (p.type === "text") text += p.text
         else if (p.type === "tool-call") {
@@ -178,7 +177,7 @@ function promptToMessages(prompt: LanguageModelV2CallOptions["prompt"]): any[] {
             type: "function",
             function: {
               name: p.toolName,
-              arguments: typeof p.args === "string" ? p.args : JSON.stringify(p.args),
+              arguments: typeof p.input === "string" ? p.input : JSON.stringify(p.input),
             },
           })
         }
@@ -336,9 +335,9 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
         const content: any[] = []
         if (text) content.push({ type: "text", text, id: nextId() })
         for (const tc of toolCalls) {
-          content.push({ type: "tool-call", toolCallType: "function", toolCallId: tc.id, toolName: tc.function?.name, args: tc.function?.arguments ?? "{}", id: nextId() })
+          content.push({ type: "tool-call", toolCallId: tc.id, toolName: tc.function?.name, input: tc.function?.arguments ?? "{}" })
         }
-        return { content, finishReason: reason, usage: { inputTokens, outputTokens }, warnings }
+        return { content, finishReason: reason, usage: usage(inputTokens, outputTokens), warnings }
       }
 
       // Chat Completions path
@@ -352,13 +351,13 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
       const content: any[] = []
       if (result.content) content.push({ type: "text", text: result.content, id: nextId() })
       for (const tc of result.toolCalls) {
-        content.push({ type: "tool-call", toolCallType: "function", toolCallId: tc.id, toolName: tc.function?.name, args: tc.function?.arguments ?? "{}", id: nextId() })
+        content.push({ type: "tool-call", toolCallId: tc.id, toolName: tc.function?.name, input: tc.function?.arguments ?? "{}" })
       }
 
       return {
         content,
         finishReason: mapFinishReason(result.finishReason),
-        usage: { inputTokens: result.usage.promptTokens, outputTokens: result.usage.completionTokens },
+        usage: usage(result.usage.promptTokens, result.usage.completionTokens),
         warnings,
       }
     },
@@ -447,7 +446,7 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
 
               controller.enqueue({
                 type: "finish",
-                usage: { inputTokens, outputTokens },
+                usage: usage(inputTokens, outputTokens),
                 finishReason,
                 providerMetadata: undefined,
               })
@@ -532,7 +531,7 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
 
             controller.enqueue({
               type: "finish",
-              usage: { inputTokens: promptTokens, outputTokens: completionTokens },
+              usage: usage(promptTokens, completionTokens),
               finishReason,
               providerMetadata: undefined,
             })
