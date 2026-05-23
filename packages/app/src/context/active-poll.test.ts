@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { mergeSnapshot } from "./active-poll"
+import { hasCompletedAssistantAfterUser, mergeSnapshot } from "./active-poll"
 import { isMessageTombstoned } from "./global-sync/event-reducer"
 import type { State } from "./global-sync/types"
 import type { Message, Part } from "@opencode-ai/sdk/v2/client"
@@ -57,14 +57,9 @@ describe("mergeSnapshot (frontend/resync DD-6, AC-6, errors.md E5)", () => {
     const local = textPart("part1", "msg_a1", "Hello world streamed live") // streaming (no time.end)
     const snap = textPart("part1", "msg_a1", "Hello") // also streaming, less content
 
-    const store = makeStore(
-      { ses_test: [assistantMessage("msg_a1")] },
-      { msg_a1: [local] },
-    )
+    const store = makeStore({ ses_test: [assistantMessage("msg_a1")] }, { msg_a1: [local] })
 
-    const result = mergeSnapshot(store, "ses_test", [
-      { info: assistantMessage("msg_a1"), parts: [snap] },
-    ])
+    const result = mergeSnapshot(store, "ses_test", [{ info: assistantMessage("msg_a1"), parts: [snap] }])
 
     const partsForMsg = result.perMessageParts.find((m) => m.messageID === "msg_a1")?.parts
     expect(partsForMsg).toHaveLength(1)
@@ -77,14 +72,9 @@ describe("mergeSnapshot (frontend/resync DD-6, AC-6, errors.md E5)", () => {
     const local = textPart("part1", "msg_a1", "Old text", 1500)
     const snap = textPart("part1", "msg_a1", "New text", 2000)
 
-    const store = makeStore(
-      { ses_test: [assistantMessage("msg_a1", "stop")] },
-      { msg_a1: [local] },
-    )
+    const store = makeStore({ ses_test: [assistantMessage("msg_a1", "stop")] }, { msg_a1: [local] })
 
-    const result = mergeSnapshot(store, "ses_test", [
-      { info: assistantMessage("msg_a1", "stop"), parts: [snap] },
-    ])
+    const result = mergeSnapshot(store, "ses_test", [{ info: assistantMessage("msg_a1", "stop"), parts: [snap] }])
 
     const partsForMsg = result.perMessageParts.find((m) => m.messageID === "msg_a1")?.parts
     expect((partsForMsg![0] as { text: string }).text).toBe("New text")
@@ -96,10 +86,7 @@ describe("mergeSnapshot (frontend/resync DD-6, AC-6, errors.md E5)", () => {
     const snapPart1 = textPart("part1", "msg_a1", "Existing")
     const snapPart2 = textPart("part2", "msg_a1", "Brand new", 2000)
 
-    const store = makeStore(
-      { ses_test: [assistantMessage("msg_a1")] },
-      { msg_a1: [local] },
-    )
+    const store = makeStore({ ses_test: [assistantMessage("msg_a1")] }, { msg_a1: [local] })
 
     const result = mergeSnapshot(store, "ses_test", [
       { info: assistantMessage("msg_a1"), parts: [snapPart1, snapPart2] },
@@ -117,14 +104,9 @@ describe("mergeSnapshot (frontend/resync DD-6, AC-6, errors.md E5)", () => {
     const localPart2 = textPart("part2", "msg_a1", "Arrived after snapshot was taken")
     const snapPart1 = textPart("part1", "msg_a1", "Already in snapshot")
 
-    const store = makeStore(
-      { ses_test: [assistantMessage("msg_a1")] },
-      { msg_a1: [localPart1, localPart2] },
-    )
+    const store = makeStore({ ses_test: [assistantMessage("msg_a1")] }, { msg_a1: [localPart1, localPart2] })
 
-    const result = mergeSnapshot(store, "ses_test", [
-      { info: assistantMessage("msg_a1"), parts: [snapPart1] },
-    ])
+    const result = mergeSnapshot(store, "ses_test", [{ info: assistantMessage("msg_a1"), parts: [snapPart1] }])
 
     const partsForMsg = result.perMessageParts.find((m) => m.messageID === "msg_a1")?.parts!
     expect(partsForMsg).toHaveLength(2)
@@ -132,12 +114,21 @@ describe("mergeSnapshot (frontend/resync DD-6, AC-6, errors.md E5)", () => {
   })
 
   test("appends new snapshot messages while preserving existing local order", () => {
-    const localMsgs = [userMessage("msg_u1"), assistantMessage("msg_a1", "stop")]
+    const user1 = userMessage("msg_u1")
+    user1.time.created = 100
+    const assistant1 = assistantMessage("msg_a1", "stop")
+    assistant1.time.created = 101
+    const user2 = userMessage("msg_u2")
+    user2.time.created = 200
+    const assistant2 = assistantMessage("msg_a2")
+    assistant2.time.created = 201
+
+    const localMsgs = [user1, assistant1]
     const snapMsgs = [
-      { info: userMessage("msg_u1"), parts: [] },
-      { info: assistantMessage("msg_a1", "stop"), parts: [] },
-      { info: userMessage("msg_u2"), parts: [] }, // new user turn
-      { info: assistantMessage("msg_a2"), parts: [] }, // new assistant streaming
+      { info: user1, parts: [] },
+      { info: assistant1, parts: [] },
+      { info: user2, parts: [] },
+      { info: assistant2, parts: [] },
     ]
     const store = makeStore({ ses_test: localMsgs }, {})
 
@@ -146,9 +137,48 @@ describe("mergeSnapshot (frontend/resync DD-6, AC-6, errors.md E5)", () => {
     expect(result.messages.map((m) => m.id)).toEqual(["msg_u1", "msg_a1", "msg_u2", "msg_a2"])
   })
 
+  test("orders older snapshot-only messages before newer local tail messages", () => {
+    const oldUser = userMessage("msg_e100_old")
+    oldUser.time.created = 100
+    const oldAssistant = assistantMessage("msg_e101_old_assistant", "stop")
+    oldAssistant.time.created = 101
+    const newUser = userMessage("msg_e900_new")
+    newUser.time.created = 900
+    const newAssistant = assistantMessage("msg_e901_new_assistant", "stop")
+    newAssistant.time.created = 901
+
+    const store = makeStore({ ses_test: [newUser, newAssistant] }, {})
+
+    const result = mergeSnapshot(store, "ses_test", [
+      { info: oldUser, parts: [] },
+      { info: oldAssistant, parts: [] },
+      { info: newUser, parts: [] },
+      { info: newAssistant, parts: [] },
+    ])
+
+    expect(result.messages.map((m) => m.id)).toEqual([
+      "msg_e100_old",
+      "msg_e101_old_assistant",
+      "msg_e900_new",
+      "msg_e901_new_assistant",
+    ])
+  })
+
+  test("detects completed assistant by message order, not lexicographic id order", () => {
+    const messages = [userMessage("msg_z_user"), assistantMessage("msg_a_assistant", "stop")]
+
+    expect("msg_a_assistant" > "msg_z_user").toBe(false)
+    expect(hasCompletedAssistantAfterUser(messages, "msg_z_user")).toBe(true)
+    expect(
+      hasCompletedAssistantAfterUser([assistantMessage("msg_z_old", "stop"), userMessage("msg_a_new")], "msg_a_new"),
+    ).toBe(false)
+  })
+
   test("preserves local-only messages that snapshot tail-truncated out", () => {
     const oldUser = userMessage("msg_u0") // older message, not in snapshot tail
+    oldUser.time.created = 100
     const recent = assistantMessage("msg_a1", "stop")
+    recent.time.created = 200
     const store = makeStore({ ses_test: [oldUser, recent] }, {})
 
     const result = mergeSnapshot(store, "ses_test", [
@@ -161,14 +191,9 @@ describe("mergeSnapshot (frontend/resync DD-6, AC-6, errors.md E5)", () => {
   test("does not duplicate parts when ID is in both local and snapshot", () => {
     const local = textPart("part1", "msg_a1", "Hi")
     const snap = textPart("part1", "msg_a1", "Hi", 2000)
-    const store = makeStore(
-      { ses_test: [assistantMessage("msg_a1", "stop")] },
-      { msg_a1: [local] },
-    )
+    const store = makeStore({ ses_test: [assistantMessage("msg_a1", "stop")] }, { msg_a1: [local] })
 
-    const result = mergeSnapshot(store, "ses_test", [
-      { info: assistantMessage("msg_a1", "stop"), parts: [snap] },
-    ])
+    const result = mergeSnapshot(store, "ses_test", [{ info: assistantMessage("msg_a1", "stop"), parts: [snap] }])
 
     const partsForMsg = result.perMessageParts.find((m) => m.messageID === "msg_a1")?.parts!
     expect(partsForMsg).toHaveLength(1)

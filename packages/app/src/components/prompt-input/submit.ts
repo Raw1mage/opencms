@@ -19,7 +19,7 @@ import type { FileSelection } from "@/context/file"
 import { setCursorPosition } from "./editor-dom"
 import { buildRequestParts } from "./build-request-parts"
 import { formatApiErrorMessage } from "@/utils/api-error"
-import { startActivePoll } from "@/context/active-poll"
+import { hasCompletedAssistantAfterUser, startActivePoll } from "@/context/active-poll"
 
 type PendingPrompt = {
   abort: AbortController
@@ -274,6 +274,8 @@ export function createPromptSubmit(input: PromptSubmitInput) {
     // enters a "message sent but no reply" death loop because each client is
     // submitting a different triple against the same session.
     // Only new sessions (no params.id) fall back to local selection.
+    // Imported sessions have no execution pin, so they naturally fall through
+    // to the local model selection — same as a brand-new session.
     const sessionExec = params.id ? sync.session.get(params.id)?.execution : undefined
     const model = sessionExec
       ? {
@@ -556,13 +558,19 @@ export function createPromptSubmit(input: PromptSubmitInput) {
             // from the previous turn). The premature stop means neither SSE
             // nor active polling delivers the response.
             let sawRunning = false
-            return ({ session: snap, lastAssistant }: { session: { workflow?: { state?: string } } | null; lastAssistant: Message | null }) => {
+            return ({
+              session: snap,
+            }: {
+              session: { workflow?: { state?: string } } | null
+              lastAssistant: Message | null
+            }) => {
               const ws = snap?.workflow?.state
               if (ws === "running" || ws === "queued") sawRunning = true
-              // Only terminate if we've seen the workflow start (or the server
-              // responded so fast that lastAssistant already has our answer).
+              // Only terminate if we've seen workflow start, or local message order
+              // proves this prompt already has a completed assistant response.
               if (sawRunning && ws && ws !== "running" && ws !== "queued") return true
-              if (lastAssistant && lastAssistant.id > messageID && lastAssistant.role === "assistant" && lastAssistant.finish) return true
+              const localMessages = (sync.data.message[session.id] ?? []) as Message[]
+              if (hasCompletedAssistantAfterUser(localMessages, messageID)) return true
               return false
             }
           })(),

@@ -82,11 +82,13 @@ const FAILURE_BACKOFF_CEILING_MS = 30_000
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
-export function startActivePoll(
-  sessionID: string,
-  deps: ActivePollDeps,
-  config: ActivePollConfig,
-): () => void {
+export function hasCompletedAssistantAfterUser(messages: Message[], userMessageID: string): boolean {
+  const userIndex = messages.findIndex((message) => message.id === userMessageID && message.role === "user")
+  if (userIndex < 0) return false
+  return messages.slice(userIndex + 1).some((message) => message.role === "assistant" && !!message.finish)
+}
+
+export function startActivePoll(sessionID: string, deps: ActivePollDeps, config: ActivePollConfig): () => void {
   const startedAt = Date.now()
   const maxDurationMs = config.maxDurationMs ?? DEFAULT_MAX_DURATION_MS
   const messageLimit = config.messageLimit ?? DEFAULT_MESSAGE_LIMIT
@@ -279,13 +281,15 @@ export function mergeSnapshot(
   snapshot: Array<{ info: Message; parts: Part[] }>,
 ): MergeResult {
   const stats = { inserted: 0, replaced: 0, kept_local: 0 }
-  const messages: Message[] = []
-  const perMessageParts: Array<{ messageID: string; parts: Part[] }> = []
+  const mergedByMessageID = new Map<string, { info: Message; parts: Part[] }>()
 
   // Build snapshot map for O(1) lookup.
   const snapshotByMessageID = new Map(snapshot.map((m) => [m.info.id, m]))
 
-  // Iterate union of local + snapshot messages, preserving local order then appending new ones.
+  // Iterate union of local + snapshot messages. The final order is sorted below
+  // by message chronology; preserving local order here can append older
+  // snapshot-only messages after newer local tail messages when final sync
+  // repairs a tail-truncated local store.
   const localMessages = (store.message[sessionID] ?? []) as Message[]
   const seen = new Set<string>()
   for (const local of localMessages) {
@@ -294,31 +298,38 @@ export function mergeSnapshot(
     if (!snap) {
       // Snapshot doesn't have it — keep local. (Probably because messageLimit
       // tail-truncated the older messages; we don't drop them from store.)
-      messages.push(local)
       const localParts = (store.part[local.id] ?? []) as Part[]
-      perMessageParts.push({ messageID: local.id, parts: localParts })
+      mergedByMessageID.set(local.id, { info: local, parts: localParts })
       continue
     }
     // Both present.
-    messages.push(snap.info)
     const localParts = (store.part[local.id] ?? []) as Part[]
     const mergedParts = mergeParts(localParts, snap.parts, stats)
-    perMessageParts.push({ messageID: local.id, parts: mergedParts })
+    mergedByMessageID.set(local.id, { info: snap.info, parts: mergedParts })
   }
 
-  // Append any snapshot-only messages (in their original order).
+  // Add any snapshot-only messages.
   // Skip tombstoned messages — these were recently removed via SSE
   // "message.removed" and must not be resurrected by a stale poll response.
   for (const snap of snapshot) {
     if (seen.has(snap.info.id)) continue
     if (isMessageTombstoned(snap.info.id)) continue
-    messages.push(snap.info)
     const localParts = (store.part[snap.info.id] ?? []) as Part[]
     const mergedParts = mergeParts(localParts, snap.parts, stats)
-    perMessageParts.push({ messageID: snap.info.id, parts: mergedParts })
+    mergedByMessageID.set(snap.info.id, { info: snap.info, parts: mergedParts })
   }
 
+  const entries = Array.from(mergedByMessageID.values()).sort((a, b) => compareMessagesChronologically(a.info, b.info))
+  const messages = entries.map((entry) => entry.info)
+  const perMessageParts = entries.map((entry) => ({ messageID: entry.info.id, parts: entry.parts }))
+
   return { messages, perMessageParts, stats }
+}
+
+function compareMessagesChronologically(a: Message, b: Message): number {
+  const aCreated = (a as { time?: { created?: number } }).time?.created ?? 0
+  const bCreated = (b as { time?: { created?: number } }).time?.created ?? 0
+  return aCreated - bCreated || a.id.localeCompare(b.id)
 }
 
 function mergeParts(localParts: Part[], snapshotParts: Part[], stats: MergeResult["stats"]): Part[] {
