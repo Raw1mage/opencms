@@ -253,6 +253,7 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
       description: item.description,
       inputSchema: jsonSchema(schema as Record<string, unknown>),
       async execute(args, options) {
+        const stateInput = args && typeof args === "object" && !Array.isArray(args) ? args as Record<string, any> : {}
         return ToolInvoker.execute(item, {
           sessionID: input.session.id,
           messageID: input.processor.message.id,
@@ -272,7 +273,7 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
                   title: val.title,
                   metadata: val.metadata,
                   status: "running",
-                  input: args,
+                  input: stateInput,
                   time: {
                     start: Date.now(),
                   },
