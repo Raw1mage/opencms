@@ -52,6 +52,11 @@ export namespace Project {
           start: z.string().optional().describe("Startup script to run when creating a new workspace (worktree)"),
         })
         .optional(),
+      fileExplorer: z
+        .object({
+          pinnedFolders: z.array(z.string()).optional(),
+        })
+        .optional(),
       time: z.object({
         created: z.number(),
         updated: z.number(),
@@ -326,6 +331,7 @@ export namespace Project {
       name: z.string().optional(),
       icon: Info.shape.icon.optional(),
       commands: Info.shape.commands.optional(),
+      fileExplorer: Info.shape.fileExplorer.optional(),
     }),
     async (input) => {
       const result = await Storage.update<Info>(["project", input.projectID], (draft) => {
@@ -346,6 +352,17 @@ export namespace Project {
           }
           draft.commands.start = start
           if (!draft.commands.start) draft.commands = undefined
+        }
+
+        if (input.fileExplorer !== undefined) {
+          draft.fileExplorer = {
+            ...(draft.fileExplorer ?? {}),
+          }
+          if (input.fileExplorer.pinnedFolders !== undefined) {
+            const next = [...new Set(input.fileExplorer.pinnedFolders.map((item) => item.trim()).filter(Boolean))]
+            draft.fileExplorer.pinnedFolders = next
+          }
+          if (!draft.fileExplorer.pinnedFolders?.length) draft.fileExplorer = undefined
         }
 
         draft.time.updated = Date.now()

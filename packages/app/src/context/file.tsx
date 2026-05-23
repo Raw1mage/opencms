@@ -1,6 +1,5 @@
-import { batch, createEffect, createMemo, onCleanup, createSignal } from "solid-js"
+import { batch, createEffect, createMemo, on, onCleanup, createSignal } from "solid-js"
 import { createStore, produce, reconcile } from "solid-js/store"
-import { Persist } from "@/utils/persist"
 import { createSimpleContext } from "@opencode-ai/ui/context"
 import { showToast } from "@opencode-ai/ui/toast"
 import { useParams } from "@solidjs/router"
@@ -8,7 +7,6 @@ import { getFilename } from "@opencode-ai/util/path"
 import type { FileOperationResult } from "@opencode-ai/sdk/v2"
 import { useSDK } from "./sdk"
 import { useSync } from "./sync"
-import { useGlobalSync } from "./global-sync"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { createPathHelpers } from "./file/path"
@@ -63,7 +61,6 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
   init: () => {
     const sdk = useSDK()
     useSync()
-    const globalSync = useGlobalSync()
     const params = useParams()
     const language = useLanguage()
     const layout = useLayout()
@@ -93,32 +90,13 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
     })
 
     // ── Pinned folders ────────────────────────────────────────────────
-    // Per-session shortcut list rendered in file-tree header. Click a
-    // chip → focus(): expand all ancestors, scroll the row into view,
-    // briefly highlight. Population is driven by the file-tree
-    // right-click @Mention action (file → pin parent folder; folder →
-    // pin self). Session-scoped so each session keeps its own pinned
-    // folders and they auto-restore when the session is reopened.
-    // When no session is active (workspace-only view), falls back to
-    // the workspace bucket so pins set before a session was opened
-    // remain visible and double as default seeds for new sessions.
-    const pinTarget = createMemo(() => {
-      const sid = params.id
-      const t = sid
-        ? Persist.session(scope(), sid, "pinned-folders")
-        : Persist.workspace(scope(), "pinned-folders")
-      // Build the full localStorage key including the storage bucket
-      // prefix, matching how localStorageWithPrefix stores data. This
-      // keeps pin entries inside the managed `opencode.*` namespace so
-      // they participate in quota eviction and diagnostic tooling.
-      const full = t.storage ? `${t.storage}:${t.key}` : t.key
-      return { full, hasSession: !!sid }
-    })
-    const workspacePinKey = createMemo(() => {
-      const t = Persist.workspace(scope(), "pinned-folders")
-      return t.storage ? `${t.storage}:${t.key}` : t.key
-    })
+    // Repo-scoped shortcut list rendered in the file-tree header. The
+    // durable authority is Project.Info.fileExplorer.pinnedFolders on the
+    // daemon, so every session for the same repo sees the same pins and
+    // browser localStorage can no longer lose or cross-wire this state.
     const [pinned, setPinned] = createSignal<string[]>([])
+    const [projectID, setProjectID] = createSignal<string>()
+    let writeVersion = 0
     // Focus mode: when set, the file-tree renders only the chain from
     // root through ancestors of this path + the focused folder's
     // children. All sibling branches collapse into a "N more" button.
@@ -134,37 +112,55 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
       params.id
       setFocused(undefined)
     })
-    createEffect(() => {
-      const { full, hasSession } = pinTarget()
-      try {
-        if (typeof localStorage === "undefined") {
+    createEffect(
+      on(
+        scope,
+        async (directory) => {
+          const version = ++writeVersion
+          setProjectID(undefined)
           setPinned([])
-          return
-        }
-        let raw = localStorage.getItem(full)
-        // First-read seed: when this session has no pin entry yet,
-        // copy the workspace-level pin list as defaults. Lets existing
-        // workspace pins survive the workspace → session migration and
-        // act as a starting point for newly-opened sessions. After the
-        // session writes its own pins, the two diverge.
-        if (raw === null && hasSession) {
-          const wsRaw = localStorage.getItem(workspacePinKey())
-          if (wsRaw) {
-            localStorage.setItem(full, wsRaw)
-            raw = wsRaw
+          try {
+            const project = await sdk.client.project.current({ directory }).then((x) => x.data)
+            if (version !== writeVersion) return
+            if (!project) return
+            setProjectID(project.id)
+            setPinned(project.fileExplorer?.pinnedFolders ?? [])
+          } catch {
+            if (version !== writeVersion) return
+            setPinned([])
           }
-        }
-        setPinned(raw ? (JSON.parse(raw) as string[]) : [])
-      } catch {
-        setPinned([])
-      }
+        },
+        { defer: false },
+      ),
+    )
+    const stopProjectUpdated = sdk.event.on("project.updated", (event) => {
+      const project = event.properties
+      if (project.id !== projectID()) return
+      setPinned(project.fileExplorer?.pinnedFolders ?? [])
     })
     const writePins = (next: string[]) => {
-      setPinned(next)
-      try {
-        if (typeof localStorage !== "undefined") localStorage.setItem(pinTarget().full, JSON.stringify(next))
-      } catch {}
+      const normalized = [...new Set(next.map(path.normalizeDir).filter(Boolean))]
+      setPinned(normalized)
+      const id = projectID()
+      if (!id) return
+      const version = ++writeVersion
+      void sdk.client.project
+        .update({ projectID: id, directory: scope(), fileExplorer: { pinnedFolders: normalized } })
+        .then((response) => {
+          if (version !== writeVersion) return
+          setPinned(response.data?.fileExplorer?.pinnedFolders ?? [])
+        })
+        .catch(() => {
+          if (version !== writeVersion) return
+          void sdk.client.project.current({ directory: scope() }).then((response) => {
+            if (version !== writeVersion) return
+            setPinned(response.data?.fileExplorer?.pinnedFolders ?? [])
+          })
+        })
     }
+    onCleanup(() => {
+      stopProjectUpdated()
+    })
     const pinFolder = (input: string) => {
       const folder = path.normalizeDir(input)
       // Skip pinning the workspace root — it's always visible, no value.
@@ -401,13 +397,7 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
       // 2. Tab reconcile — close on delete, rebind on rename/move.
       if (result.source) {
         const allTabs = tabs.all()
-        const reconciled = reconcileTabsForOperation(
-          allTabs,
-          tabs.active(),
-          result,
-          path.pathFromTab,
-          path.tab,
-        )
+        const reconciled = reconcileTabsForOperation(allTabs, tabs.active(), result, path.pathFromTab, path.tab)
         if (reconciled.closed.length > 0 || reconciled.rebound.length > 0) {
           batch(() => {
             tabs.setAll(reconciled.kept)
@@ -417,7 +407,8 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
       }
 
       // 3. Content / store reconcile.
-      const isRebind = (result.operation === "rename" || result.operation === "move") && result.source && result.destination
+      const isRebind =
+        (result.operation === "rename" || result.operation === "move") && result.source && result.destination
       const isDelete = result.operation === "delete-to-recyclebin" && result.source
 
       if (isRebind && result.source && result.destination) {
@@ -487,7 +478,7 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
               dir === "" ||
               dir === f ||
               f.startsWith(dir + "/") || // dir is ancestor of focus
-              dir.startsWith(f + "/"),  // dir is descendant of focus
+              dir.startsWith(f + "/"), // dir is descendant of focus
           )
         },
         state: tree.dirState,
