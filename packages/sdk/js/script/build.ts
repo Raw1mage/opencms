@@ -1,13 +1,14 @@
 import path from "node:path"
 import { fileURLToPath } from "node:url"
-import { $ } from "bun"
 import { createClient } from "@hey-api/openapi-ts"
-import { execSync } from "child_process"
+import { execFileSync } from "child_process"
 
 const dir = fileURLToPath(new URL("..", import.meta.url))
+const rootDir = path.resolve(dir, "../../..")
+const bun = process.execPath
 
-const opencodeDir = path.resolve(dir, "../../opencode")
-execSync(`bun run ./src/openapi/generate.ts ${dir}/openapi.json`, { cwd: opencodeDir, stdio: "inherit" });
+const openapiGenerator = path.resolve(rootDir, "packages/opencode/src/openapi/generate.ts")
+execFileSync(bun, [openapiGenerator, `${dir}/openapi.json`], { cwd: rootDir, stdio: "inherit" })
 
 await createClient({
   input: "./openapi.json",
@@ -36,6 +37,12 @@ await createClient({
   ],
 })
 
-await $`bun prettier --write src/gen`
-await $`bun prettier --write src/v2`
-await $`bun tsc`
+execFileSync(bun, ["run", "--cwd", rootDir, "node_modules/.bin/prettier", "--write", "packages/sdk/js/src/gen"], {
+  stdio: "inherit",
+})
+execFileSync(bun, ["run", "--cwd", rootDir, "node_modules/.bin/prettier", "--write", "packages/sdk/js/src/v2"], {
+  stdio: "inherit",
+})
+execFileSync(bun, ["run", "--cwd", rootDir, "node_modules/.bin/tsc", "-p", "packages/sdk/js/tsconfig.json"], {
+  stdio: "inherit",
+})

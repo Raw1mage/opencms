@@ -14,7 +14,7 @@
     "dev:perfprobe": "bun run sync:back && bash script/dev-sync-config.sh && bun run script/runtime-init-check.ts && OPENCODE_TUI_PERF_PROBE=1 OPENCODE_TUI_DISABLE_FOOTER_META=1 OPENCODE_TUI_DISABLE_MONITOR_POLL=1 bun --conditions=browser ./packages/opencode/src/index.ts",
     "check": "bun run lint && bun run verify:typecheck",
     "lint": "eslint .",
-    "typecheck": "bun turbo typecheck",
+    "typecheck": "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/snap/bin bun scripts/typecheck-workspace.ts",
     "verify:typecheck": "bun scripts/typecheck-with-baseline.ts",
     "test": "bun scripts/test-with-baseline.ts",
     "build": "bun run script/build.ts",

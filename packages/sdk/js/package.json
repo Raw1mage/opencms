@@ -5,8 +5,8 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "typecheck": "tsgo --noEmit",
-    "build": "bun ./script/build.ts"
+    "typecheck": "bun run --cwd ../../.. node_modules/.bin/tsgo -p packages/sdk/js/tsconfig.json --noEmit",
+    "build": "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/snap/bin bun ./script/build.ts"
   },
   "exports": {
     ".": "./src/index.ts",

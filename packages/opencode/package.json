@@ -6,7 +6,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "typecheck": "tsgo --noEmit",
+    "typecheck": "bun run --cwd ../.. node_modules/.bin/tsgo -p packages/opencode/tsconfig.json --noEmit",
     "test": "bun test --timeout 30000",
     "build": "bun run ../../script/build.ts",
     "dev": "bun run --conditions=browser ./src/index.ts",

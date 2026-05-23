@@ -9,7 +9,7 @@
     "./index.css": "./src/index.css"
   },
   "scripts": {
-    "typecheck": "tsgo -b",
+    "typecheck": "bun run --cwd ../.. node_modules/.bin/tsgo -p packages/app/tsconfig.json --noEmit",
     "start": "vite",
     "dev": "vite",
     "build": "vite build",

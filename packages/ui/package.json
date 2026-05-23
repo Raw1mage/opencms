@@ -23,7 +23,7 @@
     "./audio/*": "./src/assets/audio/*"
   },
   "scripts": {
-    "typecheck": "tsgo --noEmit",
+    "typecheck": "bun run --cwd ../.. node_modules/.bin/tsgo -p packages/ui/tsconfig.json --noEmit",
     "dev": "vite",
     "generate:tailwind": "bun run script/tailwind.ts"
   },

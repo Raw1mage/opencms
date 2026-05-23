@@ -68,7 +68,7 @@ Sibling webapps (`/cisopro`, `/linebot`, `/cecelearn`,
 - **`~/.config/web_registry.json`** — user-level declaration
   (`entryName`, `projectRoot`, `publicBasePath`, `host`, `primaryPort`,
   `webctlPath`, `enabled`, `access`). Used by webapp's introspection
-  endpoints to know what *should* be reachable.
+  endpoints to know what _should_ be reachable.
 - **`/etc/opencode/web_routes.conf`** — system-level route table
   (`<prefix> <host> <port> <owner_uid> [auth]`). The gateway reads it
   at start and on `SIGHUP`; it is mutated by `webctl.sh publish-route`
@@ -88,6 +88,18 @@ Production system accounts (`pkcs12`, `cece`, `rooroo`, `liam`,
 daemons because each is a separate OS process with its own
 `~/.config/opencode/` view (XDG-isolated). Login redirect clears
 `localStorage` on cross-user switch.
+
+### Ephemeral toast delivery
+
+Global SSE still carries `tui.toast.show`, but toast display is now a
+freshness-gated UI side effect rather than durable replay state.
+Backend publishers must serialize `scope`, `emittedAt`, and `ttlMs`;
+`publishToastTraced()` stamps those fields for normal publish paths,
+while `/tui/show-toast` accepts unstamped `ToastShowInput` and stamps it
+before Bus publication. Frontend `GlobalSync` runs
+`toastDisplayDecision()` before `showToast`, dropping stale, malformed,
+or invalid-scope events so reconnecting clients do not surface hours-old
+toasters.
 
 ### Admin Panel (`/admin`)
 
@@ -136,6 +148,7 @@ explicit (no silent fallback).
 ## Code anchors
 
 Frontend:
+
 - `packages/app/src/app.tsx` — router root, providers (L102–L141),
   `AppInterface` (L243).
 - `packages/app/src/pages/layout.tsx` — chrome (opens
@@ -151,12 +164,19 @@ Frontend:
   voice input plumbing.
 - `packages/app/src/components/dialog-manage-models.tsx` — Admin
   Panel: provider / model.
+- `packages/app/src/context/global-sync.tsx` — global SSE reducer and
+  `toastDisplayDecision()` freshness/scope gate for ephemeral toasts.
 
 Backend / orchestration:
+
 - `packages/opencode/src/server/routes/session.ts` —
   `POST /:sessionID/transcribe` (~L2563).
 - `packages/opencode/src/server/routes/web-route.ts` —
   `web_registry.json` introspection + TCP probe + ctl.sock bridge.
+- `packages/opencode/src/cli/cmd/tui/event.ts` — `tui.toast.show`
+  schema, `ToastShowInput`, and `publishToastTraced()` metadata stamping.
+- `packages/opencode/src/server/routes/tui.ts` — `/tui/show-toast`
+  input route that publishes through the traced toast helper.
 - `packages/opencode/src/server/routes/mcp.ts` — `/mcp/market`
   feeding the App Market dialog.
 - `webctl.sh` — `do_build_frontend` (~L1934), `do_dev_start`
@@ -166,9 +186,10 @@ Backend / orchestration:
 - `/etc/opencode/web_routes.conf`, `~/.config/web_registry.json` —
   two-layer route registration.
 
-Tests: `packages/app/src/utils/speech.test.ts` and
+Tests: `packages/app/src/utils/speech.test.ts`,
 `pages/session/markdown-file-viewer.test.ts`,
-`message-file-links.test.ts`.
+`message-file-links.test.ts`, `packages/app/src/context/global-sync.toast.test.ts`,
+and `packages/opencode/src/cli/cmd/tui/event.test.ts`.
 
 ## Notes
 

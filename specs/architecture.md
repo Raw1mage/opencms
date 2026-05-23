@@ -233,6 +233,7 @@ The frontend is built with Solid.js and uses a bottom-up dependency model:
 - Backend events stream into the SDK, then into `GlobalSync`, where reducers update Solid stores.
 - UI components consume fine-grained reactive state so updates stay localized.
 - User actions flow through feature/control contexts into the SDK, with optimistic UI where required, then reconcile against server-driven events.
+- Ephemeral toast events are not durable replay state: every backend `tui.toast.show` payload must carry `scope`, `emittedAt`, and `ttlMs`, and `GlobalSync` must run the freshness/scope gate before calling `showToast` so SSE reconnects cannot display stale or cross-scope toasters.
 - Session list freshness is reducer-first: normal delete/archive flows rely on SSE `session.deleted` / `session.updated` events, while out-of-band mutations under `Global.Path.data/storage/session/` are bridged back into the same refresh queue by the daemon-side `session-storage-watch` publisher, which emits `global.disposed` for a root-session-list revalidate instead of adding frontend polling.
 
 ### Frontend State Rules

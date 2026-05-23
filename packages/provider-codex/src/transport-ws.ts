@@ -52,6 +52,8 @@ const sessions = new Map<string, WsSessionState>()
 let activeSessionId: string | undefined
 const WS_BG_IDLE_MS = 5 * 60_000
 
+type PingableWebSocket = WebSocket & { ping: () => void }
+
 function startKeepalive(state: WsSessionState, sessionId: string) {
   stopKeepalive(state)
   state.keepaliveTimer = setInterval(() => {
@@ -65,7 +67,7 @@ function startKeepalive(state: WsSessionState, sessionId: string) {
       return
     }
     try {
-      state.ws.ping()
+      ;(state.ws as PingableWebSocket).ping()
     } catch {}
   }, WS_KEEPALIVE_INTERVAL_MS)
 }
