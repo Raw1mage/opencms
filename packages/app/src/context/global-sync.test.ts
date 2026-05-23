@@ -69,10 +69,7 @@ describe("loadRootSessionsWithFallback", () => {
 
     expect(result.data).toEqual([])
     expect(result.limited).toBe(false)
-    expect(calls).toEqual([
-      { directory: "dir", limit: 25 },
-      { directory: "dir" },
-    ])
+    expect(calls).toEqual([{ directory: "dir", limit: 25 }, { directory: "dir" }])
     expect(fallback).toBe(1)
   })
 })

@@ -7,7 +7,12 @@
  *
  * Extracted from plugin/codex-websocket.ts.
  */
-import { WS_CONNECT_TIMEOUT_MS, WS_IDLE_TIMEOUT_MS, WS_FIRST_FRAME_TIMEOUT_MS, WS_KEEPALIVE_INTERVAL_MS } from "./protocol.js"
+import {
+  WS_CONNECT_TIMEOUT_MS,
+  WS_IDLE_TIMEOUT_MS,
+  WS_FIRST_FRAME_TIMEOUT_MS,
+  WS_KEEPALIVE_INTERVAL_MS,
+} from "./protocol.js"
 import {
   getContinuation,
   updateContinuation,
@@ -59,9 +64,13 @@ function startKeepalive(state: WsSessionState, sessionId: string) {
   state.keepaliveTimer = setInterval(() => {
     if (!state.ws || state.ws.readyState !== WebSocket.OPEN || state.status !== "open") return
     if (sessionId !== activeSessionId && state.lastRequestAt && Date.now() - state.lastRequestAt > WS_BG_IDLE_MS) {
-      console.error(`[CODEX-WS] BG IDLE CLOSE session=${sessionId} idle=${Math.round((Date.now() - state.lastRequestAt) / 1000)}s`)
+      console.error(
+        `[CODEX-WS] BG IDLE CLOSE session=${sessionId} idle=${Math.round((Date.now() - state.lastRequestAt) / 1000)}s`,
+      )
       stopKeepalive(state)
-      try { state.ws.close() } catch {}
+      try {
+        state.ws.close()
+      } catch {}
       state.ws = null
       state.status = "idle"
       return
@@ -366,21 +375,19 @@ function wsRequest(input: {
   const prevRespPrefix =
     typeof wsBody.previous_response_id === "string" ? (wsBody.previous_response_id as string).slice(0, 16) : "—"
   const tail = Array.isArray(wsBody.input)
-    ? (wsBody.input as Array<{ role?: string; type?: string; content?: unknown }>)
-        .slice(-3)
-        .map((it) => {
-          const role = (it as { role?: string }).role ?? (it as { type?: string }).type ?? "?"
-          const c = (it as { content?: unknown }).content
-          const preview =
-            typeof c === "string"
-              ? c.slice(0, 60)
-              : Array.isArray(c)
+    ? (wsBody.input as Array<{ role?: string; type?: string; content?: unknown }>).slice(-3).map((it) => {
+        const role = (it as { role?: string }).role ?? (it as { type?: string }).type ?? "?"
+        const c = (it as { content?: unknown }).content
+        const preview =
+          typeof c === "string"
+            ? c.slice(0, 60)
+            : Array.isArray(c)
+              ? JSON.stringify(c).slice(0, 60)
+              : c != null
                 ? JSON.stringify(c).slice(0, 60)
-                : c != null
-                  ? JSON.stringify(c).slice(0, 60)
-                  : ""
-          return `${role}:${preview}`
-        })
+                : ""
+        return `${role}:${preview}`
+      })
     : []
   console.error(
     `[CODEX-WS] REQ session=${sessionId} delta=${deltaMode} inputItems=${trimmedInputLength} fullItems=${fullInputLength} prevLen=${priorLastInputLength ?? "—"} prevResp=${prevRespPrefix} hasPrevResp=${!!wsBody.previous_response_id}${chainResetReason ? ` chainResetReason=${chainResetReason}` : ""} tail=${JSON.stringify(tail)}`,
@@ -425,8 +432,7 @@ function wsRequest(input: {
         sendWatchdog = armSendStallWatchdog({
           ws,
           timeoutMs: WS_IDLE_TIMEOUT_MS,
-          shouldFire: () =>
-            ws.bufferedAmount > 0 && wsObs.frameCount === 0 && state.status === "streaming",
+          shouldFire: () => ws.bufferedAmount > 0 && wsObs.frameCount === 0 && state.status === "streaming",
           onFire: () => {
             const threadIdHint = (state.lastResponseId ?? "—").slice(0, 12)
             console.warn(
@@ -546,10 +552,8 @@ function wsRequest(input: {
           // SSE layer hasn't run flush yet (e.g., classifier called from
           // ws.onclose before flush). Keeps INV-10 invariant intact.
           if (parsed.type === "response.output_text.delta") wsObs.deltasObserved.text++
-          else if (parsed.type === "response.function_call_arguments.delta")
-            wsObs.deltasObserved.toolCallArguments++
-          else if (parsed.type === "response.reasoning_summary_text.delta")
-            wsObs.deltasObserved.reasoning++
+          else if (parsed.type === "response.function_call_arguments.delta") wsObs.deltasObserved.toolCallArguments++
+          else if (parsed.type === "response.reasoning_summary_text.delta") wsObs.deltasObserved.reasoning++
 
           // Detect stream end
           if (parsed.type === "response.completed") {
