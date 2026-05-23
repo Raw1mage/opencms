@@ -127,6 +127,12 @@ Self-built / non-AI-SDK paths:
   inherits from `google-api`/`google` only when missing from
   `database` (event_2026-02-17). Uses the AI-SDK Google adapter but
   has its own model curation.
+- **copilot-cli** — self-built plugin
+  (`packages/opencode/src/plugin/copilot-cli/`). See
+  [provider/copilot-cli/](./copilot-cli/README.md) for OAuth device
+  flow, dual-path API routing (Chat Completions vs Responses API),
+  circuit breaker, and bun compile workaround. Validates DD-12:
+  self-built data path without AI SDK runtime dependency.
 - **google-api** — uses the AI-SDK Google adapter with a custom
   fetch (`provider.ts:1537`) that injects `thoughtSignature` into
   generativelanguage request bodies.
@@ -289,6 +295,11 @@ Marker written to
   fingerprint, takeover import.
 - [provider/codex/](./codex/README.md) — codex header + WS layer +
   compaction integration.
+- [provider/copilot-cli/](./copilot-cli/README.md) — self-built
+  Copilot provider (OAuth, dual-path API, circuit breaker, bun
+  compile workaround). Validates DD-12 self-built data path.
+- [provider/new-provider-sop/](./new-provider-sop/README.md) —
+  new-provider registration SOP (13-step chain, DD-13).
 - [account/](../account/README.md) — auth side, account storage,
   rotation3d.
 - [session/](../session/README.md) — runloop, identity, capability layer

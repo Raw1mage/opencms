@@ -1,0 +1,103 @@
+{
+  "diagram_title": "Register New LLM Provider in OpenCMS",
+  "node_reference": "A0",
+  "purpose": "Complete registration chain from plugin code to UI visibility — 13 steps across 5 phases covering plugin declaration, provider registry, dynamic model discovery, API exposure, and UI rendering",
+  "source_repo": "opencode (OpenCMS)",
+  "source_files": [
+    "packages/opencode/src/plugin/index.ts",
+    "packages/opencode/src/plugin/copilot-cli/index.ts",
+    "packages/opencode/src/provider/supported-provider-registry.ts",
+    "packages/opencode/src/provider/provider.ts",
+    "packages/opencode/src/provider/auth.ts",
+    "packages/opencode/src/server/routes/provider.ts",
+    "packages/opencode/src/server/routes/model.ts",
+    "packages/app/src/components/model-selector-state.ts",
+    "packages/console/app/src/routes/workspace/[id]/provider-section.tsx"
+  ],
+  "activities": [
+    {
+      "id": "A1",
+      "name": "Declare Plugin Entry",
+      "description": "在 getInternalPlugins() 陣列中加入新 plugin 的名稱和 import。這是系統知道新 provider 存在的起點。"
+    },
+    {
+      "id": "A2",
+      "name": "Initialize Plugin Hooks",
+      "description": "系統啟動時 Plugin.init() 自動呼叫所有 plugin，觸發 config callback、載入 auth handler。"
+    },
+    {
+      "id": "A3",
+      "name": "Register Auth Hooks",
+      "description": "Plugin 回傳 Hooks 物件，宣告 provider ID、token loader、OAuth 登入流程、每次 API 呼叫要加的 header。"
+    },
+    {
+      "id": "A4",
+      "name": "Declare Provider in Registry",
+      "description": "在 supported-provider-registry 加入 key + label，讓 API 層認可這是一個合法的 provider family。"
+    },
+    {
+      "id": "A5",
+      "name": "Inject Bundled Models",
+      "description": "在 initState() 中定義 hardcoded 模型列表（名稱、cost、capability），讓 UI 在無 API 連線時也能顯示。"
+    },
+    {
+      "id": "A6",
+      "name": "Assemble Provider Catalog",
+      "description": "Provider.list() 合併 bundled models + dynamic models + disabled 過濾，組裝出完整的 provider 目錄。"
+    },
+    {
+      "id": "A7",
+      "name": "Discover Dynamic Models",
+      "description": "啟動時呼叫 plugin 的 models() hook，取得 runtime 才知道的模型列表（如需要）。"
+    },
+    {
+      "id": "A8",
+      "name": "Merge Dynamic Models",
+      "description": "addDynamicModels() 把動態發現的模型合併進 provider state，避免重複。"
+    },
+    {
+      "id": "A9",
+      "name": "Expose Auth Methods via API",
+      "description": "ProviderAuth.methods() 從 plugin hooks 萃取 auth 方法，讓前端透過 /provider/auth 取得登入選項。"
+    },
+    {
+      "id": "A10",
+      "name": "Serve Provider Listing API",
+      "description": "GET /provider/ 回傳所有 provider + 模型，正規化 family rows，供前端渲染。"
+    },
+    {
+      "id": "A11",
+      "name": "Persist Model Preferences",
+      "description": "Model preferences API 讓使用者隱藏或標記最愛模型，狀態持久化在 config。"
+    },
+    {
+      "id": "A12",
+      "name": "Build Model Selector State",
+      "description": "前端 model-selector-state 根據 KNOWN_PROVIDER_FAMILIES 和 PROVIDER_LABEL_MAP 組裝選擇器 UI 資料。"
+    },
+    {
+      "id": "A13",
+      "name": "Render Provider Configuration UI",
+      "description": "Workspace console 的 provider-section 元件渲染 provider 設定介面（登入、模型切換等）。"
+    }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "New provider source code (plugin module)", "type": "input" },
+    { "id": "AR2", "source": "A1", "target": "A2", "label": "Plugin entry registered in internal plugins array", "type": "output" },
+    { "id": "AR3", "source": "A2", "target": "A3", "label": "Plugin initialized, config callbacks triggered", "type": "output" },
+    { "id": "AR4", "source": "A3", "target": "A9", "label": "Auth hooks object (provider, loader, methods)", "type": "output" },
+    { "id": "AR5", "source": "EXTERNAL", "target": "A4:control", "label": "Provider family key + label definition", "type": "control" },
+    { "id": "AR6", "source": "A4", "target": "A6", "label": "Registry entry → Provider.list() recognizes family", "type": "output" },
+    { "id": "AR7", "source": "A5", "target": "A6", "label": "Bundled model definitions injected into database", "type": "output" },
+    { "id": "AR8", "source": "A7", "target": "A8", "label": "Dynamic models discovered from plugin hook", "type": "output" },
+    { "id": "AR9", "source": "A8", "target": "A6", "label": "Merged dynamic models", "type": "output" },
+    { "id": "AR10", "source": "A6", "target": "A10", "label": "Complete provider catalog", "type": "output" },
+    { "id": "AR11", "source": "A9", "target": "A10", "label": "Auth methods per provider", "type": "output" },
+    { "id": "AR12", "source": "A10", "target": "A12", "label": "Provider + model data (JSON API response)", "type": "output" },
+    { "id": "AR13", "source": "A11", "target": "A12", "label": "User preferences (hidden/favorite)", "type": "output" },
+    { "id": "AR14", "source": "A12", "target": "A13", "label": "Selector state → UI components", "type": "output" },
+    { "id": "AR15", "source": "A13", "target": "EXTERNAL", "label": "Provider visible and usable in UI", "type": "output" },
+    { "id": "AR16", "source": "EXTERNAL", "target": "A2:mechanism", "label": "InstanceBootstrap (system startup)", "type": "mechanism" },
+    { "id": "AR17", "source": "EXTERNAL", "target": "A5:control", "label": "Model cost + capability definitions", "type": "control" }
+  ]
+}

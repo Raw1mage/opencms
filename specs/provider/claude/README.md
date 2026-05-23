@@ -99,6 +99,11 @@ provider-switch compaction is non-continuing (`auto:false`) so a
 defensive rebind never fabricates a follow-up prompt from an
 imported handoff.
 
+`packages/opencode/src/session/last-model.ts` treats
+`claude-native-transcript` and `claude-native-transcript-anchor` as
+import-only identities; live user prompts typed after import must
+resolve a runnable model rather than reusing transcript metadata.
+
 The deterministic new-content indicator
 (`currentLineCount`, `importedLineCount`, `hasNewContent`) drives
 the sidebar green-dot affordance.
@@ -129,6 +134,8 @@ Claude takeover import:
   `POST /session/import/claude` import/delta endpoint.
 - `packages/opencode/src/session/prompt.ts` — provider-switch
   recovery handling for stale takeover anchors.
+- `packages/opencode/src/session/last-model.ts` — skips import-only
+  transcript identities when resolving the next live prompt model.
 
 Registration in core registry:
 
