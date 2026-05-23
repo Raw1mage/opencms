@@ -16,6 +16,7 @@ import { useGlobalSDK } from "@/context/global-sdk"
 import { useSettings, monoFontFamily } from "@/context/settings"
 import { useSync } from "@/context/sync"
 import { formatRestartErrorResponse } from "@/utils/restart-errors"
+import { setRestartStatus } from "@/context/restart-status"
 import { playSound, SOUND_OPTIONS } from "@/utils/sound"
 import { Link } from "./link"
 
@@ -99,6 +100,8 @@ export const SettingsGeneral: Component = () => {
   const performRestart = async () => {
     setRestartState("restarting")
     setRestartMessage("Requesting controlled web restart…")
+    const startedAt = Date.now()
+    setRestartStatus({ label: "Requesting restart…", startedAt })
     try {
       const response = await globalSDK.fetch(`${globalSDK.url}/api/v2/global/web/restart`, {
         method: "POST",
@@ -125,6 +128,7 @@ export const SettingsGeneral: Component = () => {
                 ? "dev-source"
                 : "runtime"
       setRestartMessage(`Restarting ${modeLabel}… this page will reload automatically after recovery.`)
+      setRestartStatus({ label: `Restarting ${modeLabel}…`, startedAt })
       await waitForRestartRecovery({
         initialDelayMs: data.recommendedInitialDelayMs,
         fallbackReloadAfterMs: data.fallbackReloadAfterMs,
@@ -133,6 +137,7 @@ export const SettingsGeneral: Component = () => {
     } catch (error) {
       setRestartState("error")
       setRestartMessage(error instanceof Error ? error.message : String(error))
+      setRestartStatus(undefined)
     }
   }
 

@@ -77,6 +77,7 @@ import { useSessionHashScroll } from "@/pages/session/use-session-hash-scroll"
 import { sessionPermissionRequest, sessionQuestionRequest } from "@/pages/session/session-request-tree"
 import { getAssistantSyncedSessionModel } from "@/pages/session/session-model-sync"
 import { startActivePoll } from "@/context/active-poll"
+import { restartStatus } from "@/context/restart-status"
 
 type HandoffSession = {
   prompt: string
@@ -849,6 +850,7 @@ export default function Page() {
     const event = e.details as { type: string; properties?: { sessionID?: string; mode?: string } }
     if (!event.properties?.sessionID || event.properties.sessionID !== params.id) return
     if (event.type === "session.compaction.started") {
+      if (restartStatus()) return
       const isBackground = event.properties.mode === "hybrid_llm_background"
       const label = isBackground
         ? language.t("toast.session.compact.background.loading")
@@ -866,6 +868,11 @@ export default function Page() {
   onCleanup(() => {
     setUi("statusFooter", undefined)
     stopCompactionListener()
+  })
+
+  createEffect(() => {
+    const rs = restartStatus()
+    if (rs) setUi("statusFooter", rs)
   })
 
   const [statusLine, setStatusLine] = createSignal<StatusLineSnapshot | undefined>()
