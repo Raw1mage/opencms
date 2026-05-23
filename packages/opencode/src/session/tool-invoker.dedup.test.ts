@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test"
-import { findDuplicateSiblingInMessages, stableStringify } from "./tool-invoker"
+import { findDuplicateSiblingInMessages, normalizeArgsForDedup, stableStringify } from "./tool-invoker"
 import type { MessageV2 } from "./message-v2"
 
 // ─────────────────────────────────────────────────────────────────────
@@ -105,6 +105,34 @@ describe("stableStringify", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────
+// normalizeArgsForDedup
+// ─────────────────────────────────────────────────────────────────────
+
+describe("normalizeArgsForDedup", () => {
+  it("canonicalizes apply_patch patchText to input", () => {
+    const patch = "*** Begin Patch\n..."
+    const a = normalizeArgsForDedup("apply_patch", { input: patch })
+    const b = normalizeArgsForDedup("apply_patch", { patchText: patch })
+    expect(stableStringify(a)).toBe(stableStringify(b))
+  })
+
+  it("prefers input over patchText when both present", () => {
+    const result = normalizeArgsForDedup("apply_patch", { input: "A", patchText: "B" })
+    expect(result).toEqual({ input: "A" })
+  })
+
+  it("passes through non-apply_patch tools unchanged", () => {
+    const args = { filePath: "/foo", offset: 10 }
+    expect(normalizeArgsForDedup("read", args)).toBe(args)
+  })
+
+  it("passes through non-object args unchanged", () => {
+    expect(normalizeArgsForDedup("apply_patch", "raw string")).toBe("raw string")
+    expect(normalizeArgsForDedup("apply_patch", null)).toBe(null)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────
 // findDuplicateSiblingInMessages
 // ─────────────────────────────────────────────────────────────────────
 
@@ -191,6 +219,27 @@ describe("findDuplicateSiblingInMessages", () => {
       assistantWithTool("a1", "glob", { path: "/x", pattern: "*" }),
     ]
     const dup = findDuplicateSiblingInMessages(msgs, "glob", { pattern: "*", path: "/x" }, "call_other")
+    expect(dup).toBeDefined()
+  })
+
+  it("matches apply_patch calls with aliased parameter names (input vs patchText)", () => {
+    const patchContent = "*** Begin Patch\n*** Update File: /foo/bar.ts\n@@\n-old\n+new\n*** End Patch"
+    const msgs = [
+      userMsg("u1"),
+      assistantWithTool("a1", "apply_patch", { patchText: patchContent }),
+    ]
+    const dup = findDuplicateSiblingInMessages(msgs, "apply_patch", { input: patchContent }, "call_other")
+    expect(dup).toBeDefined()
+    expect(dup!.callID).toBe("call_a1")
+  })
+
+  it("matches apply_patch calls with reversed alias direction", () => {
+    const patchContent = "*** Begin Patch\n*** End Patch"
+    const msgs = [
+      userMsg("u1"),
+      assistantWithTool("a1", "apply_patch", { input: patchContent }),
+    ]
+    const dup = findDuplicateSiblingInMessages(msgs, "apply_patch", { patchText: patchContent }, "call_other")
     expect(dup).toBeDefined()
   })
 

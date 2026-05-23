@@ -15,6 +15,32 @@ const MAX_LINE_LENGTH = 2000
 const MAX_LINE_SUFFIX = `... (line truncated to ${MAX_LINE_LENGTH} chars)`
 const MAX_BYTES = 50 * 1024
 
+const READ_CACHE_TTL_MS = 30_000
+const READ_CACHE_MAX_ENTRIES = 100
+
+type ReadCacheEntry = {
+  result: { title: string; output: string; metadata: { preview: string; truncated: boolean } }
+  mtimeMs: number
+  cachedAt: number
+}
+
+const readCache = new Map<string, ReadCacheEntry>()
+
+function readCacheKey(filepath: string, offset: number, limit: number): string {
+  return `${filepath}\0${offset}\0${limit}`
+}
+
+function readCacheEvict() {
+  if (readCache.size <= READ_CACHE_MAX_ENTRIES) return
+  const now = Date.now()
+  for (const [key, entry] of readCache) {
+    if (now - entry.cachedAt > READ_CACHE_TTL_MS) readCache.delete(key)
+  }
+  if (readCache.size <= READ_CACHE_MAX_ENTRIES) return
+  const oldest = [...readCache.entries()].sort((a, b) => a[1].cachedAt - b[1].cachedAt)
+  for (let i = 0; i < oldest.length - READ_CACHE_MAX_ENTRIES; i++) readCache.delete(oldest[i][0])
+}
+
 export const ReadTool = Tool.define("read", {
   description: DESCRIPTION,
   parameters: z.object({
@@ -149,6 +175,15 @@ export const ReadTool = Tool.define("read", {
 
     const limit = params.limit ?? DEFAULT_READ_LIMIT
     const offset = params.offset || 0
+
+    const cacheKey = readCacheKey(filepath, offset, limit)
+    const cached = readCache.get(cacheKey)
+    if (cached && Date.now() - cached.cachedAt < READ_CACHE_TTL_MS && stat.mtimeMs === cached.mtimeMs) {
+      LSP.touchFile(filepath, false)
+      FileTime.read(ctx.sessionID, filepath)
+      return cached.result
+    }
+
     const stream = fs.createReadStream(filepath, { encoding: "utf8" })
     const rl = createInterface({
       input: stream,
@@ -247,7 +282,7 @@ export const ReadTool = Tool.define("read", {
     LSP.touchFile(filepath, false)
     FileTime.read(ctx.sessionID, filepath)
 
-    return {
+    const result = {
       title,
       output,
       metadata: {
@@ -255,6 +290,11 @@ export const ReadTool = Tool.define("read", {
         truncated,
       },
     }
+
+    readCache.set(cacheKey, { result, mtimeMs: stat.mtimeMs, cachedAt: Date.now() })
+    readCacheEvict()
+
+    return result
   },
 })
 

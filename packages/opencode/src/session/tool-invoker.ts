@@ -74,7 +74,7 @@ export function findDuplicateSiblingInMessages(
   args: unknown,
   callID: string,
 ): MessageV2.ToolPart | undefined {
-  const sigKey = stableStringify(args)
+  const sigKey = stableStringify(normalizeArgsForDedup(toolID, args))
   for (let i = msgs.length - 1; i >= 0; i--) {
     const msg = msgs[i]
     if (msg.info.role === "user") break // turn boundary
@@ -87,7 +87,7 @@ export function findDuplicateSiblingInMessages(
       const state = tp.state as { status: string; input?: unknown; output?: string }
       if (state.status !== "completed") continue
       if (typeof state.output !== "string") continue
-      if (stableStringify(state.input) !== sigKey) continue
+      if (stableStringify(normalizeArgsForDedup(toolID, state.input)) !== sigKey) continue
       return tp
     }
   }
@@ -120,8 +120,28 @@ function hasInit<TResult>(tool: InvokableTool<TResult>): tool is Tool.Info {
  */
 const inflightDedup = new Map<string, Promise<ToolExecutionResult>>()
 
+/**
+ * Canonicalize tool args for dedup signature. Handles known parameter aliases
+ * so two calls with identical semantic content but different key names hash to
+ * the same signature. Without this, e.g. apply_patch({input: X}) and
+ * apply_patch({patchText: X}) produce different hashes and bypass dedup.
+ */
+export function normalizeArgsForDedup(toolID: string, args: unknown): unknown {
+  if (toolID === "apply_patch" && args && typeof args === "object" && !Array.isArray(args)) {
+    const obj = args as Record<string, unknown>
+    const text =
+      typeof obj.input === "string" && obj.input
+        ? obj.input
+        : typeof obj.patchText === "string" && obj.patchText
+          ? obj.patchText
+          : undefined
+    if (text) return { input: text }
+  }
+  return args
+}
+
 function inflightKey(sessionID: string, toolID: string, args: unknown): string {
-  return `${sessionID}\0${toolID}\0${stableStringify(args)}`
+  return `${sessionID}\0${toolID}\0${stableStringify(normalizeArgsForDedup(toolID, args))}`
 }
 
 export namespace ToolInvoker {
@@ -196,13 +216,11 @@ export namespace ToolInvoker {
           messageID,
           callID,
         })
-        // Surface the dedup to the model — without the prefix, the deduped
-        // output is byte-identical to a fresh execution and the model can't
-        // tell it has already issued this call. Spec session/tool-retry-and-dedup
-        // DD-9. Per-message metadata is invisible to the model; output text is not.
         const firstOutput = (result as any)?.output ?? ""
-        const prefixed =
-          `[dedup: in-flight parallel duplicate; reusing first call's result]\n` + firstOutput
+        const isExploration = Tool.kind(toolID) === "exploration"
+        const prefixed = isExploration
+          ? firstOutput
+          : `[already executed — reusing result]\n` + firstOutput
         return {
           title: (result as any)?.title ?? "",
           output: prefixed,
@@ -239,12 +257,10 @@ export namespace ToolInvoker {
           callID,
           siblingCallID: dup.callID,
         })
-        // Make the dedup visible in the output text so the model recognises it
-        // has already issued this call. Metadata alone (below) is invisible to
-        // the model. Spec session/tool-retry-and-dedup DD-9.
-        const prefixed =
-          `[dedup: identical (tool, args) already executed at ${dup.callID} in this turn — reusing its output; do not resend the same call]\n` +
-          dupOutput
+        const isExploration = Tool.kind(toolID) === "exploration"
+        const prefixed = isExploration
+          ? dupOutput
+          : `[already executed — reusing result]\n` + dupOutput
         return {
           title: "",
           output: prefixed,
