@@ -850,6 +850,17 @@
                         "type": "string"
                       }
                     }
+                  },
+                  "fileExplorer": {
+                    "type": "object",
+                    "properties": {
+                      "pinnedFolders": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
                   }
                 }
               }
@@ -5536,6 +5547,26 @@
                   },
                   "transcriptPath": {
                     "type": "string"
+                  },
+                  "execution": {
+                    "type": "object",
+                    "properties": {
+                      "providerId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "modelID": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "accountId": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "providerId",
+                      "modelID"
+                    ]
                   }
                 },
                 "required": [
@@ -14090,8 +14121,20 @@
                     "default": 5000,
                     "type": "number"
                   },
-                  "emittedAt": {
-                    "type": "number"
+                  "ttlMs": {
+                    "description": "Maximum age in milliseconds before the frontend must drop display",
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "scope": {
+                    "description": "Audience/sensitivity scope for this toast",
+                    "type": "string",
+                    "enum": [
+                      "system",
+                      "user",
+                      "workspace",
+                      "session"
+                    ]
                   }
                 },
                 "required": [
@@ -14397,6 +14440,75 @@
                     "providerKey",
                     "family"
                   ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/account/rate-limits": {
+      "get": {
+        "operationId": "account.rateLimits",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "providerId",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "accountId",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Get per-model rate-limit state",
+        "description": "Returns active rate-limit cooldowns from RateLimitTracker, filtered by provider and optionally account. Each entry is a 3D vector (provider, account, model) with remaining wait time.",
+        "responses": {
+          "200": {
+            "description": "Active rate-limit entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "accountId": {
+                        "type": "string"
+                      },
+                      "providerId": {
+                        "type": "string"
+                      },
+                      "modelID": {
+                        "type": "string"
+                      },
+                      "waitMs": {
+                        "type": "number"
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "accountId",
+                      "providerId",
+                      "waitMs",
+                      "reason"
+                    ]
+                  }
                 }
               }
             }
@@ -15123,6 +15235,75 @@
                     "providerKey",
                     "family"
                   ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/accounts/rate-limits": {
+      "get": {
+        "operationId": "account.rateLimits",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "providerId",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "accountId",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Get per-model rate-limit state",
+        "description": "Returns active rate-limit cooldowns from RateLimitTracker, filtered by provider and optionally account. Each entry is a 3D vector (provider, account, model) with remaining wait time.",
+        "responses": {
+          "200": {
+            "description": "Active rate-limit entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "accountId": {
+                        "type": "string"
+                      },
+                      "providerId": {
+                        "type": "string"
+                      },
+                      "modelID": {
+                        "type": "string"
+                      },
+                      "waitMs": {
+                        "type": "number"
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "accountId",
+                      "providerId",
+                      "waitMs",
+                      "reason"
+                    ]
+                  }
                 }
               }
             }
@@ -18854,7 +19035,18 @@
                           "prefix": {
                             "type": "string"
                           },
+                          "type": {
+                            "default": "tcp",
+                            "type": "string",
+                            "enum": [
+                              "tcp",
+                              "uds"
+                            ]
+                          },
                           "host": {
+                            "type": "string"
+                          },
+                          "socketPath": {
                             "type": "string"
                           },
                           "port": {
@@ -18932,6 +19124,14 @@
                     "type": "string",
                     "minLength": 1
                   },
+                  "upstreamType": {
+                    "default": "tcp",
+                    "type": "string",
+                    "enum": [
+                      "tcp",
+                      "uds"
+                    ]
+                  },
                   "host": {
                     "default": "127.0.0.1",
                     "type": "string"
@@ -18940,11 +19140,18 @@
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 65535
+                  },
+                  "socketPath": {
+                    "type": "string"
+                  },
+                  "auth": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1
                   }
                 },
                 "required": [
-                  "prefix",
-                  "port"
+                  "prefix"
                 ]
               }
             }
@@ -22018,6 +22225,17 @@
                       "start": {
                         "description": "Startup script to run when creating a new workspace (worktree)",
                         "type": "string"
+                      }
+                    }
+                  },
+                  "fileExplorer": {
+                    "type": "object",
+                    "properties": {
+                      "pinnedFolders": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
                       }
                     }
                   }
@@ -26706,6 +26924,26 @@
                   },
                   "transcriptPath": {
                     "type": "string"
+                  },
+                  "execution": {
+                    "type": "object",
+                    "properties": {
+                      "providerId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "modelID": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "accountId": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "providerId",
+                      "modelID"
+                    ]
                   }
                 },
                 "required": [
@@ -35260,8 +35498,20 @@
                     "default": 5000,
                     "type": "number"
                   },
-                  "emittedAt": {
-                    "type": "number"
+                  "ttlMs": {
+                    "description": "Maximum age in milliseconds before the frontend must drop display",
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "scope": {
+                    "description": "Audience/sensitivity scope for this toast",
+                    "type": "string",
+                    "enum": [
+                      "system",
+                      "user",
+                      "workspace",
+                      "session"
+                    ]
                   }
                 },
                 "required": [
@@ -35567,6 +35817,75 @@
                     "providerKey",
                     "family"
                   ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/account/rate-limits": {
+      "get": {
+        "operationId": "account.rateLimits",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "providerId",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "accountId",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Get per-model rate-limit state",
+        "description": "Returns active rate-limit cooldowns from RateLimitTracker, filtered by provider and optionally account. Each entry is a 3D vector (provider, account, model) with remaining wait time.",
+        "responses": {
+          "200": {
+            "description": "Active rate-limit entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "accountId": {
+                        "type": "string"
+                      },
+                      "providerId": {
+                        "type": "string"
+                      },
+                      "modelID": {
+                        "type": "string"
+                      },
+                      "waitMs": {
+                        "type": "number"
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "accountId",
+                      "providerId",
+                      "waitMs",
+                      "reason"
+                    ]
+                  }
                 }
               }
             }
@@ -36293,6 +36612,75 @@
                     "providerKey",
                     "family"
                   ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/accounts/rate-limits": {
+      "get": {
+        "operationId": "account.rateLimits",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "providerId",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "accountId",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Get per-model rate-limit state",
+        "description": "Returns active rate-limit cooldowns from RateLimitTracker, filtered by provider and optionally account. Each entry is a 3D vector (provider, account, model) with remaining wait time.",
+        "responses": {
+          "200": {
+            "description": "Active rate-limit entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "accountId": {
+                        "type": "string"
+                      },
+                      "providerId": {
+                        "type": "string"
+                      },
+                      "modelID": {
+                        "type": "string"
+                      },
+                      "waitMs": {
+                        "type": "number"
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "accountId",
+                      "providerId",
+                      "waitMs",
+                      "reason"
+                    ]
+                  }
                 }
               }
             }
@@ -40024,7 +40412,18 @@
                           "prefix": {
                             "type": "string"
                           },
+                          "type": {
+                            "default": "tcp",
+                            "type": "string",
+                            "enum": [
+                              "tcp",
+                              "uds"
+                            ]
+                          },
                           "host": {
+                            "type": "string"
+                          },
+                          "socketPath": {
                             "type": "string"
                           },
                           "port": {
@@ -40102,6 +40501,14 @@
                     "type": "string",
                     "minLength": 1
                   },
+                  "upstreamType": {
+                    "default": "tcp",
+                    "type": "string",
+                    "enum": [
+                      "tcp",
+                      "uds"
+                    ]
+                  },
                   "host": {
                     "default": "127.0.0.1",
                     "type": "string"
@@ -40110,11 +40517,18 @@
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 65535
+                  },
+                  "socketPath": {
+                    "type": "string"
+                  },
+                  "auth": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1
                   }
                 },
                 "required": [
-                  "prefix",
-                  "port"
+                  "prefix"
                 ]
               }
             }
@@ -42388,6 +42802,17 @@
               }
             }
           },
+          "fileExplorer": {
+            "type": "object",
+            "properties": {
+              "pinnedFolders": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "time": {
             "type": "object",
             "properties": {
@@ -42504,6 +42929,34 @@
               "providerKey",
               "accountId",
               "info"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.account.updated": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "account.updated"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "providerKey": {
+                "type": "string"
+              },
+              "accountId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "providerKey",
+              "accountId"
             ]
           }
         },
@@ -43228,8 +43681,7 @@
           "sessionID",
           "role",
           "time",
-          "agent",
-          "model"
+          "agent"
         ]
       },
       "ProviderAuthError": {
@@ -43583,6 +44035,9 @@
           },
           "summary": {
             "type": "boolean"
+          },
+          "replacesAnchorId": {
+            "type": "string"
           },
           "cost": {
             "type": "number"
@@ -45518,166 +45973,6 @@
           "properties"
         ]
       },
-      "Event.incoming.dispatcher.http-upload-started": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "incoming.dispatcher.http-upload-started"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "appId": {
-                "type": "string"
-              },
-              "toolName": {
-                "type": "string"
-              },
-              "repoPath": {
-                "type": "string"
-              },
-              "sizeBytes": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "appId",
-              "toolName",
-              "repoPath",
-              "sizeBytes"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.incoming.dispatcher.http-upload-succeeded": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "incoming.dispatcher.http-upload-succeeded"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "appId": {
-                "type": "string"
-              },
-              "toolName": {
-                "type": "string"
-              },
-              "repoPath": {
-                "type": "string"
-              },
-              "token": {
-                "type": "string"
-              },
-              "sha256": {
-                "type": "string"
-              },
-              "sizeBytes": {
-                "type": "number"
-              },
-              "durationMs": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "appId",
-              "toolName",
-              "repoPath",
-              "token",
-              "sha256",
-              "sizeBytes",
-              "durationMs"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.incoming.dispatcher.http-upload-failed": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "incoming.dispatcher.http-upload-failed"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "appId": {
-                "type": "string"
-              },
-              "toolName": {
-                "type": "string"
-              },
-              "repoPath": {
-                "type": "string"
-              },
-              "errorCode": {
-                "type": "string"
-              },
-              "message": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "appId",
-              "toolName",
-              "repoPath",
-              "errorCode",
-              "message"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.incoming.dispatcher.bundle-published": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "incoming.dispatcher.bundle-published"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "appId": {
-                "type": "string"
-              },
-              "bundleRepoPath": {
-                "type": "string"
-              },
-              "sizeBytes": {
-                "type": "number"
-              },
-              "fromCache": {
-                "type": "boolean"
-              }
-            },
-            "required": [
-              "appId",
-              "bundleRepoPath",
-              "sizeBytes",
-              "fromCache"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
       "PermissionAction": {
         "type": "string",
         "enum": [
@@ -45721,7 +46016,8 @@
             "type": "string",
             "enum": [
               "rotation",
-              "compaction"
+              "compaction",
+              "cache-cliff"
             ]
           },
           "rotation": {
@@ -45766,6 +46062,21 @@
             "required": [
               "observed",
               "success"
+            ]
+          },
+          "cacheCliff": {
+            "type": "object",
+            "properties": {
+              "prevCacheRead": {
+                "type": "number"
+              },
+              "currentCacheRead": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "prevCacheRead",
+              "currentCacheRead"
             ]
           }
         },
@@ -46217,1347 +46528,6 @@
             },
             "required": [
               "info"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.tui.provider.refresh": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "tui.provider.refresh"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {}
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.tui.prompt.append": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "tui.prompt.append"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "text": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "text"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.tui.command.execute": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "tui.command.execute"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "command": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                    "enum": [
-                      "session.list",
-                      "session.new",
-                      "session.share",
-                      "session.interrupt",
-                      "session.compact",
-                      "session.page.up",
-                      "session.page.down",
-                      "session.line.up",
-                      "session.line.down",
-                      "session.half.page.up",
-                      "session.half.page.down",
-                      "session.first",
-                      "session.last",
-                      "prompt.clear",
-                      "prompt.submit",
-                      "agent.cycle"
-                    ]
-                  },
-                  {
-                    "type": "string"
-                  }
-                ]
-              }
-            },
-            "required": [
-              "command"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.tui.toast.show": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "tui.toast.show"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "title": {
-                "type": "string"
-              },
-              "message": {
-                "type": "string"
-              },
-              "variant": {
-                "type": "string",
-                "enum": [
-                  "info",
-                  "success",
-                  "warning",
-                  "error"
-                ]
-              },
-              "duration": {
-                "description": "Duration in milliseconds",
-                "default": 5000,
-                "type": "number"
-              },
-              "emittedAt": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "message",
-              "variant"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.tui.session.select": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "tui.session.select"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "description": "Session ID to navigate to",
-                "type": "string",
-                "pattern": "^ses"
-              }
-            },
-            "required": [
-              "sessionID"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.ratelimit.detected": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "ratelimit.detected"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "providerId": {
-                "type": "string"
-              },
-              "accountId": {
-                "type": "string"
-              },
-              "modelId": {
-                "type": "string"
-              },
-              "reason": {
-                "type": "string"
-              },
-              "backoffMs": {
-                "type": "number"
-              },
-              "source": {
-                "type": "string",
-                "enum": [
-                  "error-response",
-                  "rpm-inference",
-                  "rpd-inference",
-                  "cockpit"
-                ]
-              },
-              "dailyFailures": {
-                "type": "number"
-              },
-              "timestamp": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "providerId",
-              "accountId",
-              "modelId",
-              "reason",
-              "backoffMs",
-              "source",
-              "dailyFailures",
-              "timestamp"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.ratelimit.cleared": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "ratelimit.cleared"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "providerId": {
-                "type": "string"
-              },
-              "accountId": {
-                "type": "string"
-              },
-              "modelId": {
-                "type": "string"
-              },
-              "timestamp": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "providerId",
-              "accountId",
-              "modelId",
-              "timestamp"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.ratelimit.auth_failed": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "ratelimit.auth_failed"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "providerId": {
-                "type": "string"
-              },
-              "accountId": {
-                "type": "string"
-              },
-              "modelId": {
-                "type": "string"
-              },
-              "message": {
-                "type": "string"
-              },
-              "timestamp": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "providerId",
-              "accountId",
-              "modelId",
-              "message",
-              "timestamp"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.llm.error": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "llm.error"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "providerId": {
-                "type": "string"
-              },
-              "modelId": {
-                "type": "string"
-              },
-              "accountId": {
-                "type": "string"
-              },
-              "sessionID": {
-                "type": "string"
-              },
-              "status": {
-                "type": "number"
-              },
-              "message": {
-                "type": "string"
-              },
-              "timestamp": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "providerId",
-              "modelId",
-              "accountId",
-              "sessionID",
-              "message",
-              "timestamp"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.rotation.executed": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "rotation.executed"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "fromProviderId": {
-                "type": "string"
-              },
-              "fromModelId": {
-                "type": "string"
-              },
-              "fromAccountId": {
-                "type": "string"
-              },
-              "toProviderId": {
-                "type": "string"
-              },
-              "toModelId": {
-                "type": "string"
-              },
-              "toAccountId": {
-                "type": "string"
-              },
-              "reason": {
-                "type": "string"
-              },
-              "timestamp": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "fromProviderId",
-              "fromModelId",
-              "fromAccountId",
-              "toProviderId",
-              "toModelId",
-              "toAccountId",
-              "reason",
-              "timestamp"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.llm.prompt.telemetry": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "llm.prompt.telemetry"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "type": "string"
-              },
-              "promptId": {
-                "type": "string"
-              },
-              "providerId": {
-                "type": "string"
-              },
-              "modelId": {
-                "type": "string"
-              },
-              "accountId": {
-                "type": "string"
-              },
-              "finalSystemTokens": {
-                "type": "number"
-              },
-              "finalSystemChars": {
-                "type": "number"
-              },
-              "finalSystemMessages": {
-                "type": "number"
-              },
-              "messageCount": {
-                "type": "number"
-              },
-              "blocks": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "key": {
-                      "type": "string"
-                    },
-                    "name": {
-                      "type": "string"
-                    },
-                    "chars": {
-                      "type": "number"
-                    },
-                    "tokens": {
-                      "type": "number"
-                    },
-                    "injected": {
-                      "type": "boolean"
-                    },
-                    "policy": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "key",
-                    "name",
-                    "chars",
-                    "tokens",
-                    "injected",
-                    "policy"
-                  ]
-                }
-              },
-              "timestamp": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "sessionID",
-              "promptId",
-              "providerId",
-              "modelId",
-              "finalSystemTokens",
-              "finalSystemChars",
-              "finalSystemMessages",
-              "messageCount",
-              "blocks",
-              "timestamp"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Todo": {
-        "type": "object",
-        "properties": {
-          "content": {
-            "description": "Brief description of the task",
-            "type": "string"
-          },
-          "status": {
-            "description": "Current status of the task: pending, in_progress, completed, cancelled",
-            "type": "string"
-          },
-          "priority": {
-            "description": "Priority level of the task: high, medium, low (defaults to medium if omitted)",
-            "default": "medium",
-            "type": "string"
-          },
-          "id": {
-            "description": "Unique identifier for the todo item (auto-generated if omitted)",
-            "default": "todo_mp2e7yge_a9sk8n",
-            "type": "string"
-          },
-          "action": {
-            "description": "Structured planner metadata for autonomous session execution",
-            "type": "object",
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "implement",
-                  "delegate",
-                  "wait",
-                  "approval",
-                  "decision",
-                  "push",
-                  "destructive",
-                  "architecture_change"
-                ]
-              },
-              "risk": {
-                "type": "string",
-                "enum": [
-                  "low",
-                  "medium",
-                  "high"
-                ]
-              },
-              "needsApproval": {
-                "type": "boolean"
-              },
-              "canDelegate": {
-                "type": "boolean"
-              },
-              "waitingOn": {
-                "type": "string",
-                "enum": [
-                  "subagent",
-                  "approval",
-                  "decision",
-                  "external"
-                ]
-              },
-              "dependsOn": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
-            },
-            "required": [
-              "kind"
-            ]
-          }
-        },
-        "required": [
-          "content",
-          "status"
-        ]
-      },
-      "Event.todo.updated": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "todo.updated"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "type": "string"
-              },
-              "todos": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/Todo"
-                }
-              }
-            },
-            "required": [
-              "sessionID",
-              "todos"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.task.worker.assigned": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "task.worker.assigned"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "workerID": {
-                "type": "string"
-              },
-              "sessionID": {
-                "type": "string",
-                "pattern": "^ses.*"
-              }
-            },
-            "required": [
-              "workerID",
-              "sessionID"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.task.worker.done": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "task.worker.done"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "workerID": {
-                "type": "string"
-              },
-              "sessionID": {
-                "type": "string",
-                "pattern": "^ses.*"
-              },
-              "parentSessionID": {
-                "type": "string",
-                "pattern": "^ses.*"
-              },
-              "parentMessageID": {
-                "type": "string",
-                "pattern": "^msg.*"
-              },
-              "toolCallID": {
-                "type": "string"
-              },
-              "linkedTodoID": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "workerID",
-              "sessionID",
-              "parentSessionID",
-              "parentMessageID",
-              "toolCallID"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.task.worker.failed": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "task.worker.failed"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "workerID": {
-                "type": "string"
-              },
-              "sessionID": {
-                "type": "string",
-                "pattern": "^ses.*"
-              },
-              "parentSessionID": {
-                "type": "string",
-                "pattern": "^ses.*"
-              },
-              "parentMessageID": {
-                "type": "string",
-                "pattern": "^msg.*"
-              },
-              "toolCallID": {
-                "type": "string"
-              },
-              "linkedTodoID": {
-                "type": "string"
-              },
-              "error": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "workerID",
-              "sessionID",
-              "parentSessionID",
-              "parentMessageID",
-              "toolCallID"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.task.worker.removed": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "task.worker.removed"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "workerID": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "workerID"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.task.worker.orphan_recovered": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "task.worker.orphan_recovered"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "type": "string"
-              },
-              "parentSessionID": {
-                "type": "string"
-              },
-              "parentMessageID": {
-                "type": "string"
-              },
-              "toolCallID": {
-                "type": "string"
-              },
-              "partID": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "sessionID",
-              "parentSessionID",
-              "parentMessageID",
-              "toolCallID",
-              "partID"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.task.completed": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "task.completed"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "jobId": {
-                "type": "string"
-              },
-              "parentSessionID": {
-                "type": "string",
-                "pattern": "^ses.*"
-              },
-              "childSessionID": {
-                "type": "string",
-                "pattern": "^ses.*"
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "success",
-                  "error",
-                  "canceled",
-                  "rate_limited",
-                  "quota_low",
-                  "worker_dead",
-                  "silent_kill"
-                ]
-              },
-              "finish": {
-                "type": "string"
-              },
-              "elapsedMs": {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 9007199254740991
-              },
-              "errorDetail": {
-                "type": "object",
-                "properties": {
-                  "message": {
-                    "type": "string"
-                  },
-                  "code": {
-                    "type": "string"
-                  },
-                  "resetsInSeconds": {
-                    "type": "integer",
-                    "minimum": -9007199254740991,
-                    "maximum": 9007199254740991
-                  }
-                }
-              },
-              "rotateHint": {
-                "type": "object",
-                "properties": {
-                  "exhaustedAccountId": {
-                    "type": "string"
-                  },
-                  "exhaustedAt": {
-                    "type": "string"
-                  },
-                  "remainingPercent": {
-                    "type": "number"
-                  },
-                  "directive": {
-                    "type": "string",
-                    "const": "rotate-before-redispatch"
-                  }
-                },
-                "required": [
-                  "exhaustedAccountId",
-                  "directive"
-                ]
-              },
-              "cancelReason": {
-                "type": "string"
-              },
-              "result": {
-                "type": "object",
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "inline",
-                      "attachment_ref"
-                    ]
-                  },
-                  "text": {
-                    "type": "string"
-                  },
-                  "refID": {
-                    "type": "string"
-                  },
-                  "byteSize": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 9007199254740991
-                  },
-                  "estTokens": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 9007199254740991
-                  },
-                  "preview": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "type"
-                ]
-              }
-            },
-            "required": [
-              "jobId",
-              "parentSessionID",
-              "childSessionID",
-              "status",
-              "finish",
-              "elapsedMs"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.task.rate_limit_escalation": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "task.rate_limit_escalation"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "type": "string"
-              },
-              "currentModel": {
-                "type": "object",
-                "properties": {
-                  "providerId": {
-                    "type": "string"
-                  },
-                  "modelID": {
-                    "type": "string"
-                  },
-                  "accountId": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "providerId",
-                  "modelID"
-                ]
-              },
-              "error": {
-                "type": "string"
-              },
-              "triedVectors": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
-            },
-            "required": [
-              "sessionID",
-              "currentModel",
-              "error",
-              "triedVectors"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.session.active-child.updated": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "session.active-child.updated"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "parentSessionID": {
-                "type": "string",
-                "pattern": "^ses.*"
-              },
-              "activeChild": {
-                "anyOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "sessionID": {
-                        "type": "string",
-                        "pattern": "^ses.*"
-                      },
-                      "parentMessageID": {
-                        "type": "string",
-                        "pattern": "^msg.*"
-                      },
-                      "toolCallID": {
-                        "type": "string"
-                      },
-                      "workerID": {
-                        "type": "string"
-                      },
-                      "title": {
-                        "type": "string"
-                      },
-                      "agent": {
-                        "type": "string"
-                      },
-                      "status": {
-                        "type": "string",
-                        "enum": [
-                          "running",
-                          "handoff"
-                        ]
-                      },
-                      "dispatchedAt": {
-                        "type": "number"
-                      },
-                      "todo": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "content": {
-                            "type": "string"
-                          },
-                          "status": {
-                            "type": "string"
-                          },
-                          "action": {
-                            "description": "Structured planner metadata for autonomous session execution",
-                            "type": "object",
-                            "properties": {
-                              "kind": {
-                                "type": "string",
-                                "enum": [
-                                  "implement",
-                                  "delegate",
-                                  "wait",
-                                  "approval",
-                                  "decision",
-                                  "push",
-                                  "destructive",
-                                  "architecture_change"
-                                ]
-                              },
-                              "risk": {
-                                "type": "string",
-                                "enum": [
-                                  "low",
-                                  "medium",
-                                  "high"
-                                ]
-                              },
-                              "needsApproval": {
-                                "type": "boolean"
-                              },
-                              "canDelegate": {
-                                "type": "boolean"
-                              },
-                              "waitingOn": {
-                                "type": "string",
-                                "enum": [
-                                  "subagent",
-                                  "approval",
-                                  "decision",
-                                  "external"
-                                ]
-                              },
-                              "dependsOn": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              }
-                            },
-                            "required": [
-                              "kind"
-                            ]
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "content",
-                          "status"
-                        ]
-                      }
-                    },
-                    "required": [
-                      "sessionID",
-                      "parentMessageID",
-                      "toolCallID",
-                      "workerID",
-                      "title",
-                      "agent",
-                      "status"
-                    ]
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              }
-            },
-            "required": [
-              "parentSessionID",
-              "activeChild"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.session.round.telemetry": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "session.round.telemetry"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "type": "string"
-              },
-              "roundIndex": {
-                "type": "number"
-              },
-              "requestId": {
-                "type": "string"
-              },
-              "providerId": {
-                "type": "string"
-              },
-              "modelId": {
-                "type": "string"
-              },
-              "accountId": {
-                "type": "string"
-              },
-              "finishReason": {
-                "type": "string"
-              },
-              "inputTokens": {
-                "type": "number"
-              },
-              "outputTokens": {
-                "type": "number"
-              },
-              "cacheReadTokens": {
-                "type": "number"
-              },
-              "cacheWriteTokens": {
-                "type": "number"
-              },
-              "totalTokens": {
-                "type": "number"
-              },
-              "cost": {
-                "type": "number"
-              },
-              "contextLimit": {
-                "type": "number"
-              },
-              "inputLimit": {
-                "type": "number"
-              },
-              "reservedTokens": {
-                "type": "number"
-              },
-              "usableTokens": {
-                "type": "number"
-              },
-              "observedTokens": {
-                "type": "number"
-              },
-              "needsCompaction": {
-                "type": "boolean"
-              },
-              "compactionResult": {
-                "type": "string"
-              },
-              "compactionDraftTokens": {
-                "type": "number"
-              },
-              "compactionCount": {
-                "type": "number"
-              },
-              "timestamp": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "sessionID",
-              "providerId",
-              "modelId",
-              "finishReason",
-              "inputTokens",
-              "outputTokens",
-              "cacheReadTokens",
-              "cacheWriteTokens",
-              "totalTokens",
-              "cost",
-              "contextLimit",
-              "reservedTokens",
-              "usableTokens",
-              "observedTokens",
-              "needsCompaction",
-              "timestamp"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.session.compaction.telemetry": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "session.compaction.telemetry"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "type": "string"
-              },
-              "roundIndex": {
-                "type": "number"
-              },
-              "requestId": {
-                "type": "string"
-              },
-              "providerId": {
-                "type": "string"
-              },
-              "modelId": {
-                "type": "string"
-              },
-              "accountId": {
-                "type": "string"
-              },
-              "compactionAttemptId": {
-                "type": "string"
-              },
-              "compactionCount": {
-                "type": "number"
-              },
-              "compactionResult": {
-                "type": "string"
-              },
-              "compactionDraftTokens": {
-                "type": "number"
-              },
-              "timestamp": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "sessionID",
-              "providerId",
-              "modelId",
-              "compactionAttemptId",
-              "compactionResult",
-              "timestamp"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.session.compacted": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "session.compacted"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "sessionID"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.session.compaction.started": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "session.compaction.started"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "type": "string"
-              },
-              "mode": {
-                "type": "string",
-                "enum": [
-                  "auto",
-                  "plugin",
-                  "llm",
-                  "hybrid_llm",
-                  "hybrid_llm_background"
-                ]
-              }
-            },
-            "required": [
-              "sessionID",
-              "mode"
             ]
           }
         },
@@ -48086,6 +47056,186 @@
           "properties"
         ]
       },
+      "Event.tui.provider.refresh": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tui.provider.refresh"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {}
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.tui.prompt.append": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tui.prompt.append"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "text"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.tui.command.execute": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tui.command.execute"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "command": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "session.list",
+                      "session.new",
+                      "session.share",
+                      "session.interrupt",
+                      "session.compact",
+                      "session.page.up",
+                      "session.page.down",
+                      "session.line.up",
+                      "session.line.down",
+                      "session.half.page.up",
+                      "session.half.page.down",
+                      "session.first",
+                      "session.last",
+                      "prompt.clear",
+                      "prompt.submit",
+                      "agent.cycle"
+                    ]
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "command"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.tui.toast.show": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tui.toast.show"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "variant": {
+                "type": "string",
+                "enum": [
+                  "info",
+                  "success",
+                  "warning",
+                  "error"
+                ]
+              },
+              "duration": {
+                "description": "Duration in milliseconds",
+                "default": 5000,
+                "type": "number"
+              },
+              "emittedAt": {
+                "description": "Publish timestamp in epoch milliseconds for freshness checks",
+                "type": "number"
+              },
+              "ttlMs": {
+                "description": "Maximum age in milliseconds before the frontend must drop display",
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "scope": {
+                "description": "Audience/sensitivity scope for this toast",
+                "type": "string",
+                "enum": [
+                  "system",
+                  "user",
+                  "workspace",
+                  "session"
+                ]
+              }
+            },
+            "required": [
+              "message",
+              "variant",
+              "emittedAt",
+              "ttlMs",
+              "scope"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.tui.session.select": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tui.session.select"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "description": "Session ID to navigate to",
+                "type": "string",
+                "pattern": "^ses"
+              }
+            },
+            "required": [
+              "sessionID"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
       "Event.mcp.tools.changed": {
         "type": "object",
         "properties": {
@@ -48130,6 +47280,1295 @@
             "required": [
               "mcpName",
               "url"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.incoming.dispatcher.http-upload-started": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "incoming.dispatcher.http-upload-started"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "appId": {
+                "type": "string"
+              },
+              "toolName": {
+                "type": "string"
+              },
+              "repoPath": {
+                "type": "string"
+              },
+              "sizeBytes": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "appId",
+              "toolName",
+              "repoPath",
+              "sizeBytes"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.incoming.dispatcher.http-upload-succeeded": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "incoming.dispatcher.http-upload-succeeded"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "appId": {
+                "type": "string"
+              },
+              "toolName": {
+                "type": "string"
+              },
+              "repoPath": {
+                "type": "string"
+              },
+              "token": {
+                "type": "string"
+              },
+              "sha256": {
+                "type": "string"
+              },
+              "sizeBytes": {
+                "type": "number"
+              },
+              "durationMs": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "appId",
+              "toolName",
+              "repoPath",
+              "token",
+              "sha256",
+              "sizeBytes",
+              "durationMs"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.incoming.dispatcher.http-upload-failed": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "incoming.dispatcher.http-upload-failed"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "appId": {
+                "type": "string"
+              },
+              "toolName": {
+                "type": "string"
+              },
+              "repoPath": {
+                "type": "string"
+              },
+              "errorCode": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "appId",
+              "toolName",
+              "repoPath",
+              "errorCode",
+              "message"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.incoming.dispatcher.bundle-published": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "incoming.dispatcher.bundle-published"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "appId": {
+                "type": "string"
+              },
+              "bundleRepoPath": {
+                "type": "string"
+              },
+              "sizeBytes": {
+                "type": "number"
+              },
+              "fromCache": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "appId",
+              "bundleRepoPath",
+              "sizeBytes",
+              "fromCache"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Todo": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "description": "Brief description of the task",
+            "type": "string"
+          },
+          "status": {
+            "description": "Current status of the task: pending, in_progress, completed, cancelled",
+            "type": "string"
+          },
+          "priority": {
+            "description": "Priority level of the task: high, medium, low (defaults to medium if omitted)",
+            "default": "medium",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier for the todo item (auto-generated if omitted)",
+            "default": "todo_mpifqng8_aa9mui",
+            "type": "string"
+          },
+          "action": {
+            "description": "Structured planner metadata for autonomous session execution",
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "implement",
+                  "delegate",
+                  "wait",
+                  "approval",
+                  "decision",
+                  "push",
+                  "destructive",
+                  "architecture_change"
+                ]
+              },
+              "risk": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              "needsApproval": {
+                "type": "boolean"
+              },
+              "canDelegate": {
+                "type": "boolean"
+              },
+              "waitingOn": {
+                "type": "string",
+                "enum": [
+                  "subagent",
+                  "approval",
+                  "decision",
+                  "external"
+                ]
+              },
+              "dependsOn": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        },
+        "required": [
+          "content",
+          "status"
+        ]
+      },
+      "Event.todo.updated": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "todo.updated"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "todos": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Todo"
+                }
+              }
+            },
+            "required": [
+              "sessionID",
+              "todos"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.task.worker.assigned": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "task.worker.assigned"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "workerID": {
+                "type": "string"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses.*"
+              }
+            },
+            "required": [
+              "workerID",
+              "sessionID"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.task.worker.done": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "task.worker.done"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "workerID": {
+                "type": "string"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses.*"
+              },
+              "parentSessionID": {
+                "type": "string",
+                "pattern": "^ses.*"
+              },
+              "parentMessageID": {
+                "type": "string",
+                "pattern": "^msg.*"
+              },
+              "toolCallID": {
+                "type": "string"
+              },
+              "linkedTodoID": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "workerID",
+              "sessionID",
+              "parentSessionID",
+              "parentMessageID",
+              "toolCallID"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.task.worker.failed": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "task.worker.failed"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "workerID": {
+                "type": "string"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses.*"
+              },
+              "parentSessionID": {
+                "type": "string",
+                "pattern": "^ses.*"
+              },
+              "parentMessageID": {
+                "type": "string",
+                "pattern": "^msg.*"
+              },
+              "toolCallID": {
+                "type": "string"
+              },
+              "linkedTodoID": {
+                "type": "string"
+              },
+              "error": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "workerID",
+              "sessionID",
+              "parentSessionID",
+              "parentMessageID",
+              "toolCallID"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.task.worker.removed": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "task.worker.removed"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "workerID": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "workerID"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.task.worker.orphan_recovered": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "task.worker.orphan_recovered"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "parentSessionID": {
+                "type": "string"
+              },
+              "parentMessageID": {
+                "type": "string"
+              },
+              "toolCallID": {
+                "type": "string"
+              },
+              "partID": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "parentSessionID",
+              "parentMessageID",
+              "toolCallID",
+              "partID"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.task.completed": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "task.completed"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "jobId": {
+                "type": "string"
+              },
+              "parentSessionID": {
+                "type": "string",
+                "pattern": "^ses.*"
+              },
+              "childSessionID": {
+                "type": "string",
+                "pattern": "^ses.*"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "error",
+                  "canceled",
+                  "rate_limited",
+                  "quota_low",
+                  "worker_dead",
+                  "silent_kill"
+                ]
+              },
+              "finish": {
+                "type": "string"
+              },
+              "elapsedMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "errorDetail": {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "string"
+                  },
+                  "code": {
+                    "type": "string"
+                  },
+                  "resetsInSeconds": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                }
+              },
+              "rotateHint": {
+                "type": "object",
+                "properties": {
+                  "exhaustedAccountId": {
+                    "type": "string"
+                  },
+                  "exhaustedAt": {
+                    "type": "string"
+                  },
+                  "remainingPercent": {
+                    "type": "number"
+                  },
+                  "directive": {
+                    "type": "string",
+                    "const": "rotate-before-redispatch"
+                  }
+                },
+                "required": [
+                  "exhaustedAccountId",
+                  "directive"
+                ]
+              },
+              "cancelReason": {
+                "type": "string"
+              },
+              "result": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "inline",
+                      "attachment_ref"
+                    ]
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "refID": {
+                    "type": "string"
+                  },
+                  "byteSize": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "estTokens": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "preview": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ]
+              }
+            },
+            "required": [
+              "jobId",
+              "parentSessionID",
+              "childSessionID",
+              "status",
+              "finish",
+              "elapsedMs"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.session.active-child.updated": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "session.active-child.updated"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "parentSessionID": {
+                "type": "string",
+                "pattern": "^ses.*"
+              },
+              "activeChild": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "sessionID": {
+                        "type": "string",
+                        "pattern": "^ses.*"
+                      },
+                      "parentMessageID": {
+                        "type": "string",
+                        "pattern": "^msg.*"
+                      },
+                      "toolCallID": {
+                        "type": "string"
+                      },
+                      "workerID": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "agent": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "running",
+                          "handoff"
+                        ]
+                      },
+                      "dispatchedAt": {
+                        "type": "number"
+                      },
+                      "todo": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "content": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "action": {
+                            "description": "Structured planner metadata for autonomous session execution",
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "implement",
+                                  "delegate",
+                                  "wait",
+                                  "approval",
+                                  "decision",
+                                  "push",
+                                  "destructive",
+                                  "architecture_change"
+                                ]
+                              },
+                              "risk": {
+                                "type": "string",
+                                "enum": [
+                                  "low",
+                                  "medium",
+                                  "high"
+                                ]
+                              },
+                              "needsApproval": {
+                                "type": "boolean"
+                              },
+                              "canDelegate": {
+                                "type": "boolean"
+                              },
+                              "waitingOn": {
+                                "type": "string",
+                                "enum": [
+                                  "subagent",
+                                  "approval",
+                                  "decision",
+                                  "external"
+                                ]
+                              },
+                              "dependsOn": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "kind"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "content",
+                          "status"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "sessionID",
+                      "parentMessageID",
+                      "toolCallID",
+                      "workerID",
+                      "title",
+                      "agent",
+                      "status"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "parentSessionID",
+              "activeChild"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.ratelimit.detected": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "ratelimit.detected"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "providerId": {
+                "type": "string"
+              },
+              "accountId": {
+                "type": "string"
+              },
+              "modelId": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "backoffMs": {
+                "type": "number"
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "error-response",
+                  "rpm-inference",
+                  "rpd-inference",
+                  "cockpit"
+                ]
+              },
+              "dailyFailures": {
+                "type": "number"
+              },
+              "timestamp": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "providerId",
+              "accountId",
+              "modelId",
+              "reason",
+              "backoffMs",
+              "source",
+              "dailyFailures",
+              "timestamp"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.ratelimit.cleared": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "ratelimit.cleared"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "providerId": {
+                "type": "string"
+              },
+              "accountId": {
+                "type": "string"
+              },
+              "modelId": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "providerId",
+              "accountId",
+              "modelId",
+              "timestamp"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.ratelimit.auth_failed": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "ratelimit.auth_failed"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "providerId": {
+                "type": "string"
+              },
+              "accountId": {
+                "type": "string"
+              },
+              "modelId": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "providerId",
+              "accountId",
+              "modelId",
+              "message",
+              "timestamp"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.llm.error": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "llm.error"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "providerId": {
+                "type": "string"
+              },
+              "modelId": {
+                "type": "string"
+              },
+              "accountId": {
+                "type": "string"
+              },
+              "sessionID": {
+                "type": "string"
+              },
+              "status": {
+                "type": "number"
+              },
+              "message": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "providerId",
+              "modelId",
+              "accountId",
+              "sessionID",
+              "message",
+              "timestamp"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.rotation.executed": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "rotation.executed"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "fromProviderId": {
+                "type": "string"
+              },
+              "fromModelId": {
+                "type": "string"
+              },
+              "fromAccountId": {
+                "type": "string"
+              },
+              "toProviderId": {
+                "type": "string"
+              },
+              "toModelId": {
+                "type": "string"
+              },
+              "toAccountId": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "fromProviderId",
+              "fromModelId",
+              "fromAccountId",
+              "toProviderId",
+              "toModelId",
+              "toAccountId",
+              "reason",
+              "timestamp"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.llm.prompt.telemetry": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "llm.prompt.telemetry"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "promptId": {
+                "type": "string"
+              },
+              "providerId": {
+                "type": "string"
+              },
+              "modelId": {
+                "type": "string"
+              },
+              "accountId": {
+                "type": "string"
+              },
+              "finalSystemTokens": {
+                "type": "number"
+              },
+              "finalSystemChars": {
+                "type": "number"
+              },
+              "finalSystemMessages": {
+                "type": "number"
+              },
+              "messageCount": {
+                "type": "number"
+              },
+              "blocks": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "chars": {
+                      "type": "number"
+                    },
+                    "tokens": {
+                      "type": "number"
+                    },
+                    "injected": {
+                      "type": "boolean"
+                    },
+                    "policy": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "name",
+                    "chars",
+                    "tokens",
+                    "injected",
+                    "policy"
+                  ]
+                }
+              },
+              "timestamp": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "sessionID",
+              "promptId",
+              "providerId",
+              "modelId",
+              "finalSystemTokens",
+              "finalSystemChars",
+              "finalSystemMessages",
+              "messageCount",
+              "blocks",
+              "timestamp"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.session.round.telemetry": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "session.round.telemetry"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "roundIndex": {
+                "type": "number"
+              },
+              "requestId": {
+                "type": "string"
+              },
+              "providerId": {
+                "type": "string"
+              },
+              "modelId": {
+                "type": "string"
+              },
+              "accountId": {
+                "type": "string"
+              },
+              "finishReason": {
+                "type": "string"
+              },
+              "inputTokens": {
+                "type": "number"
+              },
+              "outputTokens": {
+                "type": "number"
+              },
+              "cacheReadTokens": {
+                "type": "number"
+              },
+              "cacheWriteTokens": {
+                "type": "number"
+              },
+              "totalTokens": {
+                "type": "number"
+              },
+              "cost": {
+                "type": "number"
+              },
+              "contextLimit": {
+                "type": "number"
+              },
+              "inputLimit": {
+                "type": "number"
+              },
+              "reservedTokens": {
+                "type": "number"
+              },
+              "usableTokens": {
+                "type": "number"
+              },
+              "observedTokens": {
+                "type": "number"
+              },
+              "needsCompaction": {
+                "type": "boolean"
+              },
+              "compactionResult": {
+                "type": "string"
+              },
+              "compactionDraftTokens": {
+                "type": "number"
+              },
+              "compactionCount": {
+                "type": "number"
+              },
+              "timestamp": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "sessionID",
+              "providerId",
+              "modelId",
+              "finishReason",
+              "inputTokens",
+              "outputTokens",
+              "cacheReadTokens",
+              "cacheWriteTokens",
+              "totalTokens",
+              "cost",
+              "contextLimit",
+              "reservedTokens",
+              "usableTokens",
+              "observedTokens",
+              "needsCompaction",
+              "timestamp"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.session.compaction.telemetry": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "session.compaction.telemetry"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "roundIndex": {
+                "type": "number"
+              },
+              "requestId": {
+                "type": "string"
+              },
+              "providerId": {
+                "type": "string"
+              },
+              "modelId": {
+                "type": "string"
+              },
+              "accountId": {
+                "type": "string"
+              },
+              "compactionAttemptId": {
+                "type": "string"
+              },
+              "compactionCount": {
+                "type": "number"
+              },
+              "compactionResult": {
+                "type": "string"
+              },
+              "compactionDraftTokens": {
+                "type": "number"
+              },
+              "timestamp": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "sessionID",
+              "providerId",
+              "modelId",
+              "compactionAttemptId",
+              "compactionResult",
+              "timestamp"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.session.compacted": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "session.compacted"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.session.compaction.started": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "session.compaction.started"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "plugin",
+                  "llm",
+                  "hybrid_llm",
+                  "hybrid_llm_background"
+                ]
+              }
+            },
+            "required": [
+              "sessionID",
+              "mode"
             ]
           }
         },
@@ -50188,6 +50627,9 @@
             "$ref": "#/components/schemas/Event.account.added"
           },
           {
+            "$ref": "#/components/schemas/Event.account.updated"
+          },
+          {
             "$ref": "#/components/schemas/Event.account.removed"
           },
           {
@@ -50293,19 +50735,10 @@
             "$ref": "#/components/schemas/Event.incoming.history.appended"
           },
           {
-            "$ref": "#/components/schemas/Event.incoming.dispatcher.http-upload-started"
-          },
-          {
-            "$ref": "#/components/schemas/Event.incoming.dispatcher.http-upload-succeeded"
-          },
-          {
-            "$ref": "#/components/schemas/Event.incoming.dispatcher.http-upload-failed"
-          },
-          {
-            "$ref": "#/components/schemas/Event.incoming.dispatcher.bundle-published"
-          },
-          {
             "$ref": "#/components/schemas/Event.session.deleted"
+          },
+          {
+            "$ref": "#/components/schemas/Event.managed_app.updated"
           },
           {
             "$ref": "#/components/schemas/Event.tui.provider.refresh"
@@ -50323,22 +50756,22 @@
             "$ref": "#/components/schemas/Event.tui.session.select"
           },
           {
-            "$ref": "#/components/schemas/Event.ratelimit.detected"
+            "$ref": "#/components/schemas/Event.mcp.tools.changed"
           },
           {
-            "$ref": "#/components/schemas/Event.ratelimit.cleared"
+            "$ref": "#/components/schemas/Event.mcp.browser.open.failed"
           },
           {
-            "$ref": "#/components/schemas/Event.ratelimit.auth_failed"
+            "$ref": "#/components/schemas/Event.incoming.dispatcher.http-upload-started"
           },
           {
-            "$ref": "#/components/schemas/Event.llm.error"
+            "$ref": "#/components/schemas/Event.incoming.dispatcher.http-upload-succeeded"
           },
           {
-            "$ref": "#/components/schemas/Event.rotation.executed"
+            "$ref": "#/components/schemas/Event.incoming.dispatcher.http-upload-failed"
           },
           {
-            "$ref": "#/components/schemas/Event.llm.prompt.telemetry"
+            "$ref": "#/components/schemas/Event.incoming.dispatcher.bundle-published"
           },
           {
             "$ref": "#/components/schemas/Event.todo.updated"
@@ -50362,10 +50795,25 @@
             "$ref": "#/components/schemas/Event.task.completed"
           },
           {
-            "$ref": "#/components/schemas/Event.task.rate_limit_escalation"
+            "$ref": "#/components/schemas/Event.session.active-child.updated"
           },
           {
-            "$ref": "#/components/schemas/Event.session.active-child.updated"
+            "$ref": "#/components/schemas/Event.ratelimit.detected"
+          },
+          {
+            "$ref": "#/components/schemas/Event.ratelimit.cleared"
+          },
+          {
+            "$ref": "#/components/schemas/Event.ratelimit.auth_failed"
+          },
+          {
+            "$ref": "#/components/schemas/Event.llm.error"
+          },
+          {
+            "$ref": "#/components/schemas/Event.rotation.executed"
+          },
+          {
+            "$ref": "#/components/schemas/Event.llm.prompt.telemetry"
           },
           {
             "$ref": "#/components/schemas/Event.session.round.telemetry"
@@ -50378,15 +50826,6 @@
           },
           {
             "$ref": "#/components/schemas/Event.session.compaction.started"
-          },
-          {
-            "$ref": "#/components/schemas/Event.managed_app.updated"
-          },
-          {
-            "$ref": "#/components/schemas/Event.mcp.tools.changed"
-          },
-          {
-            "$ref": "#/components/schemas/Event.mcp.browser.open.failed"
           },
           {
             "$ref": "#/components/schemas/Event.command.executed"
@@ -51494,6 +51933,10 @@
             "items": {
               "type": "string"
             }
+          },
+          "cwd": {
+            "description": "Working directory for the MCP server process. Defaults to the current opencode instance directory.",
+            "type": "string"
           },
           "environment": {
             "description": "Environment variables to set when running the MCP server",

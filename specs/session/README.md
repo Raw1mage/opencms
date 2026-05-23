@@ -135,6 +135,19 @@ and the failure surfaces in `GET /api/v2/server/cache/health`.
 There is no silent fall-back; `log.warn` is mandatory (AGENTS.md
 rule 1).
 
+### Session catalog refresh bridge
+
+`server/session-storage-watch.ts` is the out-of-band bridge for
+catalog-level filesystem mutations under `Global.Path.data/storage/session`.
+It publishes `global.disposed`, which the web global reducer treats as
+a root session-list revalidate. The bridge is intentionally catalog-only:
+only top-level `rename` events whose filename starts with `ses_` are
+eligible. Plain `change` events on `ses_*` entries and nested writes
+such as `session/<sid>/info.json` are not catalog mutations; those must
+flow through normal `session.updated` / `session.deleted` Bus events or
+the session-cache invalidation path. This prevents LSP/file-touch noise
+and MCP mislaunch artifacts from amplifying into `session.list` floods.
+
 ### Rate limit
 
 `server/rate-limit.ts` is a Hono middleware mounted in `app.ts` at
@@ -203,8 +216,7 @@ loading the last session (AGENTS.md rule 1).
 
 Parts whose text exceeds `part_inline_cap_kb` (default 64 KB) and
 belong to a `completed` message are rendered as a
-`FoldableMarkdown` preview (first `part_fold_preview_lines`, default
-20) with an "expand" button. Streaming parts that exceed the cap
+`FoldableMarkdown` preview (first `part_fold_preview_lines`, default 20) with an "expand" button. Streaming parts that exceed the cap
 render only the last 64 KB with a "streaming, last 64 KB" hint;
 when the message completes, they collapse to the standard fold UI.
 
@@ -307,6 +319,7 @@ not been executed.
 ## Code anchors
 
 Storage:
+
 - `packages/opencode/src/session/storage/index.ts` — Backend
   contract + namespace seam (L13).
 - `packages/opencode/src/session/storage/router.ts` — `detectFormat`
@@ -325,6 +338,7 @@ Storage:
   one-shot diff body stripper.
 
 Capability layer + rebind:
+
 - `packages/opencode/src/session/rebind-epoch.ts` — epoch registry,
   rate limit (`REBIND_RATE_LIMIT` at L226), `bumpEpoch` (L132),
   bus subscription (L67–73).
@@ -340,6 +354,7 @@ Capability layer + rebind:
   handler (L82).
 
 Server cache + ETag + rate limit:
+
 - `packages/opencode/src/server/session-cache.ts` — LRU + version
   counter + ETag (L96 process-epoch comment, `currentEtag`,
   `isEtagMatch`, `get`); 100 ms PartUpdated debounce at L76.
@@ -351,6 +366,7 @@ Server cache + ETag + rate limit:
   per-key parsers + warn-on-malformed.
 
 Session HTTP routes:
+
 - `packages/opencode/src/server/routes/session.ts`
   - `/:id/meta` (L457).
   - `/:id/resume` (L736–828) silent refresh.
@@ -359,6 +375,7 @@ Session HTTP routes:
   - `/:id` (L429) and message-by-id (L1919) — both ETag-cached.
 
 Frontend (web):
+
 - `packages/app/src/context/sync.tsx` — `pageSizeFor` (L190),
   `fetchSessionMeta` (L205), `loadOlderMessages` (L321),
   `patchPart` for FoldableMarkdown expand (L367), `isMobile()`
@@ -380,6 +397,7 @@ Frontend (web):
   rebuild-vs-append heuristic.
 
 Tests (representative):
+
 - `session/rebind-epoch.test.ts`,
   `session/capability-layer.test.ts`,
   `session/capability-layer.cross-account.test.ts`.
@@ -397,12 +415,12 @@ Tests (representative):
 ### Open / partial work
 
 - `session-storage-db` is `implementing`. The storage layer + router
-  + dreaming worker + inspect CLI are merged, and the runloop reads
-  through the new `Backend` API. Legacy directories on disk drain
-  asynchronously as DreamingWorker reaches them; the dual-track path
-  is the steady state until that backlog is empty. The 70 % runloop
-  speed-up acceptance check has not been re-verified end-to-end on
-  the 2253-message reference session.
+  - dreaming worker + inspect CLI are merged, and the runloop reads
+    through the new `Backend` API. Legacy directories on disk drain
+    asynchronously as DreamingWorker reaches them; the dual-track path
+    is the steady state until that backlog is empty. The 70 % runloop
+    speed-up acceptance check has not been re-verified end-to-end on
+    the 2253-message reference session.
 - `session-poll-cache` is `implementing`. R-1 cache + R-2 ETag +
   R-4 health + R-5 tweaks loader + R-3 rate-limit middleware are
   all live, but the original AC-1 (CPU drop) and AC-2 (304 ratio)

@@ -681,7 +681,7 @@ export namespace MCP {
       // Use /tmp as cwd for any binary outside the project tree to avoid
       // picking up the project-level preload config.
       const isExternalBinary = cmd.startsWith("/usr/local/lib/opencode/mcp/") || cmd.startsWith("/opt/opencode-apps/")
-      const cwd = isExternalBinary ? "/tmp" : Instance.directory
+      const cwd = mcp.cwd ? path.resolve(Instance.directory, mcp.cwd) : isExternalBinary ? "/tmp" : Instance.directory
 
       const expandedEnvironment = expandEnvironment(mcp.environment)
 
@@ -709,6 +709,11 @@ export namespace MCP {
         }
       }
 
+      let childMislaunchError: Error | undefined
+      let rejectChildMislaunch: ((error: Error) => void) | undefined
+      const childMislaunch = new Promise<never>((_, reject) => {
+        rejectChildMislaunch = reject
+      })
       const transport = new StdioClientTransport({
         stderr: "pipe",
         command: cmd,
@@ -722,7 +727,15 @@ export namespace MCP {
         },
       })
       transport.stderr?.on("data", (chunk: Buffer) => {
-        log.info(`mcp stderr: ${chunk.toString()}`, { key })
+        const text = chunk.toString()
+        log.info(`mcp stderr: ${text}`, { key })
+        if (childMislaunchError) return
+        if (text.includes("[opencode]") || text.includes("session.request.identity.selected")) {
+          childMislaunchError = new Error(
+            `local MCP ${key} appears to have launched an opencode AI runtime instead of an MCP server`,
+          )
+          rejectChildMislaunch?.(childMislaunchError)
+        }
       })
 
       const connectTimeout = mcp.timeout ?? DEFAULT_TIMEOUT
@@ -731,7 +744,8 @@ export namespace MCP {
           name: "opencode",
           version: Installation.VERSION,
         })
-        await withTimeout(client.connect(transport), connectTimeout)
+        await Promise.race([withTimeout(client.connect(transport), connectTimeout), childMislaunch])
+        if (childMislaunchError) throw childMislaunchError
         registerNotificationHandlers(client, key)
         mcpClient = client
         status = {
@@ -994,7 +1008,7 @@ export namespace MCP {
     // Skip if already connected or connecting — avoids spawning a duplicate
     // server when auto-connect and on-demand connect race during daemon startup.
     const s0 = await state()
-    const currentStatus = s0.status[name]?.status
+    const currentStatus = (s0.status[name] as { status?: string } | undefined)?.status
     if ((currentStatus === "connected" && s0.clients[name]) || currentStatus === "connecting") {
       log.info("connect: already connected/connecting, skipping", { name, status: currentStatus })
       return
@@ -1224,33 +1238,73 @@ export namespace MCP {
     log.info("background gauth refresh timer started", { intervalMs: REFRESH_INTERVAL })
   }
 
-  let mcpAppsInitialized = false
+  // Per-app retry state for App Store connections (mcp-apps.json).
+  // Replaces the previous one-shot `mcpAppsInitialized` gate so transient
+  // failures (container not yet ready, socket missing, network blip) are
+  // recovered automatically on subsequent tools() calls. App Store apps
+  // are treated as long-lived infrastructure — never given up on.
+  type AppRetryState = { lastAttemptAt: number; nextBackoffMs: number }
+  const appRetryState = new Map<string, AppRetryState>()
+  const appInFlight = new Set<string>()
+  let gauthRefreshTimerStarted = false
+  // Backoff ladder: 5s, 15s, 60s, 5min — caps at 5min so we keep trying
+  // forever without burning CPU on a persistently-broken endpoint.
+  const APP_RETRY_BACKOFF_MS = [5_000, 15_000, 60_000, 300_000]
+
+  function shouldAttemptApp(appId: string): boolean {
+    const s = appRetryState.get(appId)
+    if (!s) return true
+    return Date.now() - s.lastAttemptAt >= s.nextBackoffMs
+  }
+
+  function recordAppFailure(appId: string): void {
+    const prev = appRetryState.get(appId)
+    const prevIdx = prev ? APP_RETRY_BACKOFF_MS.indexOf(prev.nextBackoffMs) : -1
+    const nextIdx = Math.min(prevIdx + 1, APP_RETRY_BACKOFF_MS.length - 1)
+    appRetryState.set(appId, {
+      lastAttemptAt: Date.now(),
+      nextBackoffMs: APP_RETRY_BACKOFF_MS[nextIdx],
+    })
+  }
+
+  function recordAppSuccess(appId: string): void {
+    appRetryState.delete(appId)
+  }
 
   /**
-   * Connect all enabled Apps from mcp-apps.json on first tools() call.
-   * Uses the existing MCP.add() path so they appear as regular MCP servers
-   * in the tool pool — no separate tool collection logic needed.
+   * Connect all enabled Apps from mcp-apps.json. Called from tools() and
+   * therefore re-entered on every session tool-resolve. Per-app retry
+   * state ensures we don't spam reconnect attempts: a connected app is
+   * skipped; a recently-failed app is skipped until its backoff elapses;
+   * an in-flight attempt is skipped to prevent thundering herd.
    */
   async function connectMcpApps(): Promise<void> {
-    if (mcpAppsInitialized) return
-    mcpAppsInitialized = true
-    log.info("connectMcpApps: starting")
-
     try {
       const config = await McpAppStore.loadConfig()
       const enabledApps = Object.entries(config.apps).filter(([, entry]) => entry.enabled)
 
       if (enabledApps.length === 0) return
 
-      log.info("loading mcp-apps.json apps", { count: enabledApps.length })
-
       await Promise.allSettled(
         enabledApps.map(async ([id, entry]) => {
-          // Skip if already connected (e.g. via opencode.json.mcp)
+          const namespacedId = `mcpapp-${id}`
+          // Skip if already connected (e.g. via opencode.json.mcp or a prior attempt)
           const s = await state()
-          if (s.status[`mcpapp-${id}`]?.status === "connected") return
+          if (s.status[namespacedId]?.status === "connected") return
+          // Skip if another concurrent caller is mid-attempt for this app
+          if (appInFlight.has(id)) return
+          // Skip if backoff window for prior failure has not elapsed
+          if (!shouldAttemptApp(id)) return
 
+          const isRetry = appRetryState.has(id)
+          appInFlight.add(id)
           try {
+            if (isRetry) {
+              log.info("mcp-apps.json app retry attempt", {
+                id,
+                backoffMs: appRetryState.get(id)?.nextBackoffMs,
+              })
+            }
             // /specs/docxmcp-http-transport DD-8: HTTP transport branch.
             // Entries that declare transport=streamable-http use `url`
             // (which may be unix:// for Unix domain socket) instead of
@@ -1259,6 +1313,7 @@ export namespace MCP {
             if (entry.transport === "streamable-http" || entry.transport === "sse") {
               if (!entry.url) {
                 log.warn("mcp-apps.json http-transport entry missing url", { id })
+                recordAppFailure(id)
                 return
               }
               const result = await add(`mcpapp-${id}`, {
@@ -1271,8 +1326,15 @@ export namespace MCP {
               if (addedStatus?.status === "failed") {
                 const errorMsg = "error" in addedStatus ? addedStatus.error : "unknown"
                 log.warn("mcp-apps.json http app failed to start", { id, url: entry.url, error: errorMsg })
+                recordAppFailure(id)
               } else {
-                log.info("mcp-apps.json http app connected", { id, url: entry.url, transport: entry.transport })
+                log.info("mcp-apps.json http app connected", {
+                  id,
+                  url: entry.url,
+                  transport: entry.transport,
+                  recovered: isRetry,
+                })
+                recordAppSuccess(id)
               }
               return
             }
@@ -1281,6 +1343,7 @@ export namespace MCP {
             // by the sudo wrapper or addApp(). No re-resolution needed here.
             if (!entry.command || entry.command.length === 0) {
               log.warn("mcp-apps.json app has no command", { id, path: entry.path })
+              recordAppFailure(id)
               return
             }
 
@@ -1329,8 +1392,15 @@ export namespace MCP {
             if (addedStatus?.status === "failed") {
               const errorMsg = "error" in addedStatus ? addedStatus.error : "unknown"
               log.warn("mcp-apps.json app failed to start", { id, error: errorMsg })
+              recordAppFailure(id)
             } else {
-              log.info("mcp-apps.json app connected", { id, command: entry.command, tools: "via tools/list" })
+              log.info("mcp-apps.json app connected", {
+                id,
+                command: entry.command,
+                tools: "via tools/list",
+                recovered: isRetry,
+              })
+              recordAppSuccess(id)
             }
           } catch (err) {
             log.warn("mcp-apps.json app failed to connect", {
@@ -1338,6 +1408,9 @@ export namespace MCP {
               path: entry.path,
               error: err instanceof Error ? err.message : String(err),
             })
+            recordAppFailure(id)
+          } finally {
+            appInFlight.delete(id)
           }
         }),
       )
@@ -1347,8 +1420,11 @@ export namespace MCP {
       })
     }
 
-    // Start background token refresh for Google OAuth apps
-    startGauthRefreshTimer()
+    // Start background token refresh for Google OAuth apps (once per daemon lifetime)
+    if (!gauthRefreshTimerStarted) {
+      gauthRefreshTimerStarted = true
+      startGauthRefreshTimer()
+    }
   }
 
   export async function tools() {
@@ -1394,12 +1470,7 @@ export namespace MCP {
       const entry = isMcpConfigured(mcpConfig) ? mcpConfig : undefined
       const timeout = entry?.timeout ?? defaultTimeout
       for (const mcpTool of toolsResult.tools) {
-        result[toolID(clientName, mcpTool.name)] = await convertMcpTool(
-          mcpTool,
-          client,
-          timeout,
-          clientName,
-        )
+        result[toolID(clientName, mcpTool.name)] = await convertMcpTool(mcpTool, client, timeout, clientName)
       }
     }
 

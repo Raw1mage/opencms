@@ -841,6 +841,10 @@ export namespace Config {
     .object({
       type: z.literal("local").describe("Type of MCP server connection"),
       command: z.string().array().describe("Command and arguments to run the MCP server"),
+      cwd: z
+        .string()
+        .optional()
+        .describe("Working directory for the MCP server process. Defaults to the current opencode instance directory."),
       environment: z
         .record(z.string(), z.string())
         .optional()

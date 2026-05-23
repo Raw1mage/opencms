@@ -21,6 +21,10 @@ import type {
   AccountQuotaHint3Responses,
   AccountQuotaHint4Responses,
   AccountQuotaHintResponses,
+  AccountRateLimits2Responses,
+  AccountRateLimits3Responses,
+  AccountRateLimits4Responses,
+  AccountRateLimitsResponses,
   AccountRemove2Errors,
   AccountRemove2Responses,
   AccountRemove3Errors,
@@ -1449,6 +1453,9 @@ export class Project extends HeyApiClient {
          */
         start?: string
       }
+      fileExplorer?: {
+        pinnedFolders?: Array<string>
+      }
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -1462,6 +1469,7 @@ export class Project extends HeyApiClient {
             { in: "body", key: "name" },
             { in: "body", key: "icon" },
             { in: "body", key: "commands" },
+            { in: "body", key: "fileExplorer" },
           ],
         },
       ],
@@ -1537,6 +1545,9 @@ export class Project extends HeyApiClient {
          */
         start?: string
       }
+      fileExplorer?: {
+        pinnedFolders?: Array<string>
+      }
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -1550,6 +1561,7 @@ export class Project extends HeyApiClient {
             { in: "body", key: "name" },
             { in: "body", key: "icon" },
             { in: "body", key: "commands" },
+            { in: "body", key: "fileExplorer" },
           ],
         },
       ],
@@ -4515,6 +4527,11 @@ export class Session2 extends HeyApiClient {
       body_directory?: string
       sourceSessionID?: string
       transcriptPath?: string
+      execution?: {
+        providerId: string
+        modelID: string
+        accountId?: string
+      }
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -4535,6 +4552,7 @@ export class Session2 extends HeyApiClient {
             },
             { in: "body", key: "sourceSessionID" },
             { in: "body", key: "transcriptPath" },
+            { in: "body", key: "execution" },
           ],
         },
       ],
@@ -5723,6 +5741,11 @@ export class Session2 extends HeyApiClient {
       body_directory?: string
       sourceSessionID?: string
       transcriptPath?: string
+      execution?: {
+        providerId: string
+        modelID: string
+        accountId?: string
+      }
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -5743,6 +5766,7 @@ export class Session2 extends HeyApiClient {
             },
             { in: "body", key: "sourceSessionID" },
             { in: "body", key: "transcriptPath" },
+            { in: "body", key: "execution" },
           ],
         },
       ],
@@ -9214,7 +9238,8 @@ export class Tui extends HeyApiClient {
       message?: string
       variant?: "info" | "success" | "warning" | "error"
       duration?: number
-      emittedAt?: number
+      ttlMs?: number
+      scope?: "system" | "user" | "workspace" | "session"
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -9228,7 +9253,8 @@ export class Tui extends HeyApiClient {
             { in: "body", key: "message" },
             { in: "body", key: "variant" },
             { in: "body", key: "duration" },
-            { in: "body", key: "emittedAt" },
+            { in: "body", key: "ttlMs" },
+            { in: "body", key: "scope" },
           ],
         },
       ],
@@ -9516,7 +9542,8 @@ export class Tui extends HeyApiClient {
       message?: string
       variant?: "info" | "success" | "warning" | "error"
       duration?: number
-      emittedAt?: number
+      ttlMs?: number
+      scope?: "system" | "user" | "workspace" | "session"
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -9530,7 +9557,8 @@ export class Tui extends HeyApiClient {
             { in: "body", key: "message" },
             { in: "body", key: "variant" },
             { in: "body", key: "duration" },
-            { in: "body", key: "emittedAt" },
+            { in: "body", key: "ttlMs" },
+            { in: "body", key: "scope" },
           ],
         },
       ],
@@ -9662,6 +9690,38 @@ export class Account extends HeyApiClient {
     )
     return (options?.client ?? this.client).get<AccountQuotaHintResponses, unknown, ThrowOnError>({
       url: "/api/v2/account/quota",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get per-model rate-limit state
+   *
+   * Returns active rate-limit cooldowns from RateLimitTracker, filtered by provider and optionally account. Each entry is a 3D vector (provider, account, model) with remaining wait time.
+   */
+  public rateLimits<ThrowOnError extends boolean = false>(
+    parameters: {
+      directory?: string
+      providerId: string
+      accountId?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "providerId" },
+            { in: "query", key: "accountId" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<AccountRateLimitsResponses, unknown, ThrowOnError>({
+      url: "/api/v2/account/rate-limits",
       ...options,
       ...params,
     })
@@ -9907,6 +9967,38 @@ export class Account extends HeyApiClient {
   }
 
   /**
+   * Get per-model rate-limit state
+   *
+   * Returns active rate-limit cooldowns from RateLimitTracker, filtered by provider and optionally account. Each entry is a 3D vector (provider, account, model) with remaining wait time.
+   */
+  public rateLimits2<ThrowOnError extends boolean = false>(
+    parameters: {
+      directory?: string
+      providerId: string
+      accountId?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "providerId" },
+            { in: "query", key: "accountId" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<AccountRateLimits2Responses, unknown, ThrowOnError>({
+      url: "/api/v2/accounts/rate-limits",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
    * List all accounts
    *
    * Get a list of all configured accounts grouped by provider key. Response keeps legacy 'families' for compatibility and also returns 'providers'.
@@ -10146,6 +10238,38 @@ export class Account extends HeyApiClient {
   }
 
   /**
+   * Get per-model rate-limit state
+   *
+   * Returns active rate-limit cooldowns from RateLimitTracker, filtered by provider and optionally account. Each entry is a 3D vector (provider, account, model) with remaining wait time.
+   */
+  public rateLimits3<ThrowOnError extends boolean = false>(
+    parameters: {
+      directory?: string
+      providerId: string
+      accountId?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "providerId" },
+            { in: "query", key: "accountId" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<AccountRateLimits3Responses, unknown, ThrowOnError>({
+      url: "/account/rate-limits",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
    * List all accounts
    *
    * Get a list of all configured accounts grouped by provider key. Response keeps legacy 'families' for compatibility and also returns 'providers'.
@@ -10379,6 +10503,38 @@ export class Account extends HeyApiClient {
     )
     return (options?.client ?? this.client).get<AccountQuotaHint4Responses, unknown, ThrowOnError>({
       url: "/accounts/quota",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get per-model rate-limit state
+   *
+   * Returns active rate-limit cooldowns from RateLimitTracker, filtered by provider and optionally account. Each entry is a 3D vector (provider, account, model) with remaining wait time.
+   */
+  public rateLimits4<ThrowOnError extends boolean = false>(
+    parameters: {
+      directory?: string
+      providerId: string
+      accountId?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "providerId" },
+            { in: "query", key: "accountId" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<AccountRateLimits4Responses, unknown, ThrowOnError>({
+      url: "/accounts/rate-limits",
       ...options,
       ...params,
     })
@@ -12032,8 +12188,11 @@ export class WebRoute extends HeyApiClient {
     parameters?: {
       directory?: string
       prefix?: string
+      upstreamType?: "tcp" | "uds"
       host?: string
       port?: number
+      socketPath?: string
+      auth?: number
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -12044,8 +12203,11 @@ export class WebRoute extends HeyApiClient {
           args: [
             { in: "query", key: "directory" },
             { in: "body", key: "prefix" },
+            { in: "body", key: "upstreamType" },
             { in: "body", key: "host" },
             { in: "body", key: "port" },
+            { in: "body", key: "socketPath" },
+            { in: "body", key: "auth" },
           ],
         },
       ],
@@ -12181,8 +12343,11 @@ export class WebRoute extends HeyApiClient {
     parameters?: {
       directory?: string
       prefix?: string
+      upstreamType?: "tcp" | "uds"
       host?: string
       port?: number
+      socketPath?: string
+      auth?: number
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -12193,8 +12358,11 @@ export class WebRoute extends HeyApiClient {
           args: [
             { in: "query", key: "directory" },
             { in: "body", key: "prefix" },
+            { in: "body", key: "upstreamType" },
             { in: "body", key: "host" },
             { in: "body", key: "port" },
+            { in: "body", key: "socketPath" },
+            { in: "body", key: "auth" },
           ],
         },
       ],

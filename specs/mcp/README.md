@@ -107,6 +107,25 @@ which is gated by the process-level boolean `mcpAppsInitialized` flag
 That means **store-app clients are pinned for the daemon's
 lifetime** — see `mcp-idle-unload` proposal under Notes.
 
+### Local stdio process boundary
+
+Raw `opencode.json` / `mcp.json` local entries use
+`MCP.add({type:"local", command, cwd?, environment?})` and are spawned
+through `StdioClientTransport`. `cwd` is now part of `McpLocalConfig`:
+if set, it is resolved relative to the current `Instance.directory`
+unless already absolute; if omitted, store-installed external binaries
+under `/usr/local/lib/opencode/mcp/` or `/opt/opencode-apps/` still run
+from `/tmp`, while other local MCPs run from `Instance.directory`.
+
+The local child process boundary is fail-fast: a stdio MCP server must
+emit MCP JSON-RPC on stdout. If stderr shows OpenCMS AI-runtime
+fingerprints such as `[opencode]` or `session.request.identity.selected`,
+startup is rejected as a mislaunch instead of waiting for the normal
+30-second MCP connect timeout. This prevents malformed local MCP
+commands (for example `bun run <absolute ts>` from the wrong cwd) from
+accidentally launching `opencode run` sessions and polluting the session
+catalog.
+
 ### Per-app transport switch
 
 `mcp-apps.json` entries carry `transport: "stdio" | "streamable-http"
@@ -258,6 +277,7 @@ new mcp-app or debugging a transport-level issue.
 ## Code anchors
 
 Core:
+
 - `packages/opencode/src/mcp/index.ts` — `MCP` namespace (1577 lines).
   `tools()` at L1187, `create()` at L490, `connectMcpApps()` at L1067,
   `convertMcpTool()` at L180, `parseUnixSocketUrl()` at L20,
@@ -281,6 +301,7 @@ Core:
   MCP servers.
 
 Tool surface:
+
 - `packages/opencode/src/session/resolve-tools.ts` — aggregation
   boundary; lazy `tool_loader` catalog at L329, enablement injection
   at L18.
@@ -292,17 +313,19 @@ Tool surface:
   sync.
 
 Routes / server:
+
 - `packages/opencode/src/server/routes/mcp.ts` — `/api/v2/mcp/*`:
   store CRUD, OAuth connect/callback, `audit-bind-mounts`, market
   preview/add.
 
 External MCP packages:
+
 - `packages/mcp/system-manager/src/index.ts` — built-in
   `system-manager` MCP (account switch, session monitor, fileview,
   managed-app reads). Hosts `open_fileview` and the
   `read_subsession` / `list_subagents` tools called out in
   [harness/README.md](../harness/README.md).
-docxmcp transport:
+  docxmcp transport:
 - `packages/opencode/src/incoming/dispatcher.ts` (561 lines) —
   HTTP-uploader path; `before()` multiparts paths to `/files`,
   `after()` decodes `bundle_tar_b64` and `DELETE`s tokens.
@@ -310,6 +333,7 @@ docxmcp transport:
   pipeline.
 
 Tests (representative):
+
 - `mcp.test.ts`, `mcp-app-store.test.ts`,
   `app-store.bind-mount-lint.test.ts`,
   `manifest.infer.test.ts`,
@@ -388,4 +412,4 @@ written.
   `resolve-tools.ts`.
 - [architecture.md](./architecture.md) — system-wide MCP overview;
   `## Managed App Registry (MCP Apps)` and `## Incoming Attachments
-  Lifecycle` sections give the cross-system view.
+Lifecycle` sections give the cross-system view.

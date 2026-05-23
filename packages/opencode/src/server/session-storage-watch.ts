@@ -12,7 +12,8 @@ const SESSION_REFRESH_DEBOUNCE_MS = 150
 let started = false
 let pending: ReturnType<typeof setTimeout> | undefined
 
-export function isSessionCatalogMutation(filename?: string | null): boolean {
+export function isSessionCatalogMutation(eventType: string, filename?: string | null): boolean {
+  if (eventType !== "rename") return false
   if (!filename) return false
   return filename.startsWith("ses_")
 }
@@ -35,8 +36,8 @@ export function ensureSessionStorageWatch() {
 
   const sessionDir = path.join(Global.Path.data, "storage", "session")
   try {
-    const watcher = watch(sessionDir, (_eventType, filename) => {
-      if (!isSessionCatalogMutation(filename)) return
+    const watcher = watch(sessionDir, (eventType, filename) => {
+      if (!isSessionCatalogMutation(eventType, filename)) return
       scheduleRefresh()
     })
     watcher.on("error", (error) => {

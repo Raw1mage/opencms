@@ -20,6 +20,9 @@ export type Project = {
      */
     start?: string
   }
+  fileExplorer?: {
+    pinnedFolders?: Array<string>
+  }
   time: {
     created: number
     updated: number
@@ -50,6 +53,14 @@ export type EventAccountAdded = {
       name: string
       addedAt: number
     }
+  }
+}
+
+export type EventAccountUpdated = {
+  type: "account.updated"
+  properties: {
+    providerKey: string
+    accountId: string
   }
 }
 
@@ -246,7 +257,7 @@ export type UserMessage = {
     diffs: Array<FileDiff>
   }
   agent: string
-  model: {
+  model?: {
     providerId: string
     modelID: string
     accountId?: string
@@ -366,6 +377,7 @@ export type AssistantMessage = {
     root: string
   }
   summary?: boolean
+  replacesAnchorId?: string
   cost: number
   tokens: {
     total?: number
@@ -937,50 +949,6 @@ export type EventIncomingHistoryAppended = {
   }
 }
 
-export type EventIncomingDispatcherHttpUploadStarted = {
-  type: "incoming.dispatcher.http-upload-started"
-  properties: {
-    appId: string
-    toolName: string
-    repoPath: string
-    sizeBytes: number
-  }
-}
-
-export type EventIncomingDispatcherHttpUploadSucceeded = {
-  type: "incoming.dispatcher.http-upload-succeeded"
-  properties: {
-    appId: string
-    toolName: string
-    repoPath: string
-    token: string
-    sha256: string
-    sizeBytes: number
-    durationMs: number
-  }
-}
-
-export type EventIncomingDispatcherHttpUploadFailed = {
-  type: "incoming.dispatcher.http-upload-failed"
-  properties: {
-    appId: string
-    toolName: string
-    repoPath: string
-    errorCode: string
-    message: string
-  }
-}
-
-export type EventIncomingDispatcherBundlePublished = {
-  type: "incoming.dispatcher.bundle-published"
-  properties: {
-    appId: string
-    bundleRepoPath: string
-    sizeBytes: number
-    fromCache: boolean
-  }
-}
-
 export type PermissionAction = "allow" | "deny" | "ask"
 
 export type PermissionRule = {
@@ -993,7 +961,7 @@ export type PermissionRuleset = Array<PermissionRule>
 
 export type SessionRecentEvent = {
   ts: number
-  kind: "rotation" | "compaction"
+  kind: "rotation" | "compaction" | "cache-cliff"
   rotation?: {
     fromProviderId?: string
     fromAccountId?: string
@@ -1007,6 +975,10 @@ export type SessionRecentEvent = {
     success: boolean
     tokensBefore?: number
     tokensAfter?: number
+  }
+  cacheCliff?: {
+    prevCacheRead: number
+    currentCacheRead: number
   }
 }
 
@@ -1131,6 +1103,108 @@ export type EventSessionDeleted = {
   }
 }
 
+export type EventManagedAppUpdated = {
+  type: "managed_app.updated"
+  properties: {
+    app: {
+      id: string
+      name: string
+      description: string
+      version: string
+      source: {
+        type: "builtin"
+        owner: "opencode"
+        package: string
+        entrypoint: string
+        localOnly: true
+      }
+      capabilities: Array<{
+        id: string
+        label: string
+        kind: "tool" | "oauth" | "resource" | "service"
+        description: string
+        operations: Array<"list" | "read" | "create" | "update" | "delete" | "query">
+      }>
+      permissions: Array<{
+        id: string
+        label: string
+        required: boolean
+      }>
+      requiredConfig: Array<string>
+      auth: {
+        providerKey: string
+        ownership: "canonical-account"
+        type: "oauth"
+        required: boolean
+        allowImplicitActiveAccount: boolean
+        scopes: Array<string>
+      }
+      configContract: {
+        fields: Array<{
+          key: string
+          label: string
+          required: boolean
+          secret: boolean
+        }>
+      }
+      toolContract: {
+        namespace: string
+        tools: Array<{
+          id: string
+          label: string
+          capabilityId: string
+          description: string
+          mutates: boolean
+          requiresConfirmation: boolean
+          arguments: Array<{
+            name: string
+            type: "string" | "string[]" | "datetime" | "datetime[]" | "number" | "boolean" | "object"
+            description: string
+            required: boolean
+          }>
+        }>
+      }
+      state: {
+        appId: string
+        source: {
+          type: "builtin"
+          owner: "opencode"
+          package: string
+          entrypoint: string
+          localOnly: true
+        }
+        installState: "available" | "installing" | "installed" | "uninstalling"
+        enableState: "disabled" | "enabled"
+        configStatus: "unknown" | "required" | "configured" | "invalid"
+        config?: {
+          keys: Array<string>
+          updatedAt: number
+        }
+        error?: {
+          code: string
+          message: string
+          ts: number
+        }
+        installedAt?: number
+        updatedAt: number
+      }
+      authBinding: {
+        providerKey: string
+        accountId?: string
+        status: "not_required" | "required" | "authenticated" | "invalid"
+      }
+      runtimeStatus: "ready" | "disabled" | "error" | "pending_config" | "pending_install" | "pending_auth"
+      operator: {
+        install: "available" | "installed"
+        auth: "not_required" | "required" | "authenticated" | "invalid"
+        config: "not_required" | "required" | "configured" | "invalid"
+        runtime: "inactive" | "ready" | "error"
+        error: "none" | "auth_required" | "invalid_auth" | "invalid_config" | "runtime_error"
+      }
+    }
+  }
+}
+
 export type EventTuiProviderRefresh = {
   type: "tui.provider.refresh"
   properties: {
@@ -1179,7 +1253,18 @@ export type EventTuiToastShow = {
      * Duration in milliseconds
      */
     duration?: number
-    emittedAt?: number
+    /**
+     * Publish timestamp in epoch milliseconds for freshness checks
+     */
+    emittedAt: number
+    /**
+     * Maximum age in milliseconds before the frontend must drop display
+     */
+    ttlMs: number
+    /**
+     * Audience/sensitivity scope for this toast
+     */
+    scope: "system" | "user" | "workspace" | "session"
   }
 }
 
@@ -1193,89 +1278,62 @@ export type EventTuiSessionSelect = {
   }
 }
 
-export type EventRatelimitDetected = {
-  type: "ratelimit.detected"
+export type EventMcpToolsChanged = {
+  type: "mcp.tools.changed"
   properties: {
-    providerId: string
-    accountId: string
-    modelId: string
-    reason: string
-    backoffMs: number
-    source: "error-response" | "rpm-inference" | "rpd-inference" | "cockpit"
-    dailyFailures: number
-    timestamp: number
+    server: string
   }
 }
 
-export type EventRatelimitCleared = {
-  type: "ratelimit.cleared"
+export type EventMcpBrowserOpenFailed = {
+  type: "mcp.browser.open.failed"
   properties: {
-    providerId: string
-    accountId: string
-    modelId: string
-    timestamp: number
+    mcpName: string
+    url: string
   }
 }
 
-export type EventRatelimitAuthFailed = {
-  type: "ratelimit.auth_failed"
+export type EventIncomingDispatcherHttpUploadStarted = {
+  type: "incoming.dispatcher.http-upload-started"
   properties: {
-    providerId: string
-    accountId: string
-    modelId: string
+    appId: string
+    toolName: string
+    repoPath: string
+    sizeBytes: number
+  }
+}
+
+export type EventIncomingDispatcherHttpUploadSucceeded = {
+  type: "incoming.dispatcher.http-upload-succeeded"
+  properties: {
+    appId: string
+    toolName: string
+    repoPath: string
+    token: string
+    sha256: string
+    sizeBytes: number
+    durationMs: number
+  }
+}
+
+export type EventIncomingDispatcherHttpUploadFailed = {
+  type: "incoming.dispatcher.http-upload-failed"
+  properties: {
+    appId: string
+    toolName: string
+    repoPath: string
+    errorCode: string
     message: string
-    timestamp: number
   }
 }
 
-export type EventLlmError = {
-  type: "llm.error"
+export type EventIncomingDispatcherBundlePublished = {
+  type: "incoming.dispatcher.bundle-published"
   properties: {
-    providerId: string
-    modelId: string
-    accountId: string
-    sessionID: string
-    status?: number
-    message: string
-    timestamp: number
-  }
-}
-
-export type EventRotationExecuted = {
-  type: "rotation.executed"
-  properties: {
-    fromProviderId: string
-    fromModelId: string
-    fromAccountId: string
-    toProviderId: string
-    toModelId: string
-    toAccountId: string
-    reason: string
-    timestamp: number
-  }
-}
-
-export type EventLlmPromptTelemetry = {
-  type: "llm.prompt.telemetry"
-  properties: {
-    sessionID: string
-    promptId: string
-    providerId: string
-    modelId: string
-    accountId?: string
-    finalSystemTokens: number
-    finalSystemChars: number
-    finalSystemMessages: number
-    messageCount: number
-    blocks: Array<{
-      key: string
-      name: string
-      chars: number
-      tokens: number
-      injected: boolean
-      policy: string
-    }>
-    timestamp: number
+    appId: string
+    bundleRepoPath: string
+    sizeBytes: number
+    fromCache: boolean
   }
 }
 
@@ -1400,20 +1458,6 @@ export type EventTaskCompleted = {
   }
 }
 
-export type EventTaskRateLimitEscalation = {
-  type: "task.rate_limit_escalation"
-  properties: {
-    sessionID: string
-    currentModel: {
-      providerId: string
-      modelID: string
-      accountId?: string
-    }
-    error: string
-    triedVectors: Array<string>
-  }
-}
-
 export type EventSessionActiveChildUpdated = {
   type: "session.active-child.updated"
   properties: {
@@ -1452,6 +1496,93 @@ export type EventSessionActiveChildUpdated = {
         }
       }
     } | null
+  }
+}
+
+export type EventRatelimitDetected = {
+  type: "ratelimit.detected"
+  properties: {
+    providerId: string
+    accountId: string
+    modelId: string
+    reason: string
+    backoffMs: number
+    source: "error-response" | "rpm-inference" | "rpd-inference" | "cockpit"
+    dailyFailures: number
+    timestamp: number
+  }
+}
+
+export type EventRatelimitCleared = {
+  type: "ratelimit.cleared"
+  properties: {
+    providerId: string
+    accountId: string
+    modelId: string
+    timestamp: number
+  }
+}
+
+export type EventRatelimitAuthFailed = {
+  type: "ratelimit.auth_failed"
+  properties: {
+    providerId: string
+    accountId: string
+    modelId: string
+    message: string
+    timestamp: number
+  }
+}
+
+export type EventLlmError = {
+  type: "llm.error"
+  properties: {
+    providerId: string
+    modelId: string
+    accountId: string
+    sessionID: string
+    status?: number
+    message: string
+    timestamp: number
+  }
+}
+
+export type EventRotationExecuted = {
+  type: "rotation.executed"
+  properties: {
+    sessionID?: string
+    fromProviderId: string
+    fromModelId: string
+    fromAccountId: string
+    toProviderId: string
+    toModelId: string
+    toAccountId: string
+    reason: string
+    timestamp: number
+  }
+}
+
+export type EventLlmPromptTelemetry = {
+  type: "llm.prompt.telemetry"
+  properties: {
+    sessionID: string
+    promptId: string
+    providerId: string
+    modelId: string
+    accountId?: string
+    finalSystemTokens: number
+    finalSystemChars: number
+    finalSystemMessages: number
+    messageCount: number
+    blocks: Array<{
+      key: string
+      name: string
+      chars: number
+      tokens: number
+      injected: boolean
+      policy: string
+    }>
+    timestamp: number
   }
 }
 
@@ -1513,123 +1644,6 @@ export type EventSessionCompactionStarted = {
   properties: {
     sessionID: string
     mode: "auto" | "plugin" | "llm" | "hybrid_llm" | "hybrid_llm_background"
-  }
-}
-
-export type EventManagedAppUpdated = {
-  type: "managed_app.updated"
-  properties: {
-    app: {
-      id: string
-      name: string
-      description: string
-      version: string
-      source: {
-        type: "builtin"
-        owner: "opencode"
-        package: string
-        entrypoint: string
-        localOnly: true
-      }
-      capabilities: Array<{
-        id: string
-        label: string
-        kind: "tool" | "oauth" | "resource" | "service"
-        description: string
-        operations: Array<"list" | "read" | "create" | "update" | "delete" | "query">
-      }>
-      permissions: Array<{
-        id: string
-        label: string
-        required: boolean
-      }>
-      requiredConfig: Array<string>
-      auth: {
-        providerKey: string
-        ownership: "canonical-account"
-        type: "oauth"
-        required: boolean
-        allowImplicitActiveAccount: boolean
-        scopes: Array<string>
-      }
-      configContract: {
-        fields: Array<{
-          key: string
-          label: string
-          required: boolean
-          secret: boolean
-        }>
-      }
-      toolContract: {
-        namespace: string
-        tools: Array<{
-          id: string
-          label: string
-          capabilityId: string
-          description: string
-          mutates: boolean
-          requiresConfirmation: boolean
-          arguments: Array<{
-            name: string
-            type: "string" | "string[]" | "datetime" | "datetime[]" | "number" | "boolean" | "object"
-            description: string
-            required: boolean
-          }>
-        }>
-      }
-      state: {
-        appId: string
-        source: {
-          type: "builtin"
-          owner: "opencode"
-          package: string
-          entrypoint: string
-          localOnly: true
-        }
-        installState: "available" | "installing" | "installed" | "uninstalling"
-        enableState: "disabled" | "enabled"
-        configStatus: "unknown" | "required" | "configured" | "invalid"
-        config?: {
-          keys: Array<string>
-          updatedAt: number
-        }
-        error?: {
-          code: string
-          message: string
-          ts: number
-        }
-        installedAt?: number
-        updatedAt: number
-      }
-      authBinding: {
-        providerKey: string
-        accountId?: string
-        status: "not_required" | "required" | "authenticated" | "invalid"
-      }
-      runtimeStatus: "ready" | "disabled" | "error" | "pending_config" | "pending_install" | "pending_auth"
-      operator: {
-        install: "available" | "installed"
-        auth: "not_required" | "required" | "authenticated" | "invalid"
-        config: "not_required" | "required" | "configured" | "invalid"
-        runtime: "inactive" | "ready" | "error"
-        error: "none" | "auth_required" | "invalid_auth" | "invalid_config" | "runtime_error"
-      }
-    }
-  }
-}
-
-export type EventMcpToolsChanged = {
-  type: "mcp.tools.changed"
-  properties: {
-    server: string
-  }
-}
-
-export type EventMcpBrowserOpenFailed = {
-  type: "mcp.browser.open.failed"
-  properties: {
-    mcpName: string
-    url: string
   }
 }
 
@@ -2078,6 +2092,7 @@ export type Event =
   | EventProjectUpdated
   | EventServerInstanceDisposed
   | EventAccountAdded
+  | EventAccountUpdated
   | EventAccountRemoved
   | EventAccountActivated
   | EventCronDeliveryAnnounce
@@ -2113,22 +2128,19 @@ export type Event =
   | EventFileOperationRejected
   | EventFileWatcherUpdated
   | EventIncomingHistoryAppended
-  | EventIncomingDispatcherHttpUploadStarted
-  | EventIncomingDispatcherHttpUploadSucceeded
-  | EventIncomingDispatcherHttpUploadFailed
-  | EventIncomingDispatcherBundlePublished
   | EventSessionDeleted
+  | EventManagedAppUpdated
   | EventTuiProviderRefresh
   | EventTuiPromptAppend
   | EventTuiCommandExecute
   | EventTuiToastShow
   | EventTuiSessionSelect
-  | EventRatelimitDetected
-  | EventRatelimitCleared
-  | EventRatelimitAuthFailed
-  | EventLlmError
-  | EventRotationExecuted
-  | EventLlmPromptTelemetry
+  | EventMcpToolsChanged
+  | EventMcpBrowserOpenFailed
+  | EventIncomingDispatcherHttpUploadStarted
+  | EventIncomingDispatcherHttpUploadSucceeded
+  | EventIncomingDispatcherHttpUploadFailed
+  | EventIncomingDispatcherBundlePublished
   | EventTodoUpdated
   | EventTaskWorkerAssigned
   | EventTaskWorkerDone
@@ -2136,15 +2148,17 @@ export type Event =
   | EventTaskWorkerRemoved
   | EventTaskWorkerOrphanRecovered
   | EventTaskCompleted
-  | EventTaskRateLimitEscalation
   | EventSessionActiveChildUpdated
+  | EventRatelimitDetected
+  | EventRatelimitCleared
+  | EventRatelimitAuthFailed
+  | EventLlmError
+  | EventRotationExecuted
+  | EventLlmPromptTelemetry
   | EventSessionRoundTelemetry
   | EventSessionCompactionTelemetry
   | EventSessionCompacted
   | EventSessionCompactionStarted
-  | EventManagedAppUpdated
-  | EventMcpToolsChanged
-  | EventMcpBrowserOpenFailed
   | EventCommandExecuted
   | EventIncomingDecompose
   | EventSessionCreated
@@ -2795,6 +2809,10 @@ export type McpLocalConfig = {
    * Command and arguments to run the MCP server
    */
   command: Array<string>
+  /**
+   * Working directory for the MCP server process. Defaults to the current opencode instance directory.
+   */
+  cwd?: string
   /**
    * Environment variables to set when running the MCP server
    */
@@ -4212,6 +4230,9 @@ export type ProjectUpdateData = {
        * Startup script to run when creating a new workspace (worktree)
        */
       start?: string
+    }
+    fileExplorer?: {
+      pinnedFolders?: Array<string>
     }
   }
   path: {
@@ -6049,6 +6070,11 @@ export type SessionImportClaudeData = {
     directory?: string
     sourceSessionID: string
     transcriptPath?: string
+    execution?: {
+      providerId: string
+      modelID: string
+      accountId?: string
+    }
   }
   path?: never
   query?: {
@@ -9129,7 +9155,14 @@ export type TuiShowToastData = {
      * Duration in milliseconds
      */
     duration?: number
-    emittedAt?: number
+    /**
+     * Maximum age in milliseconds before the frontend must drop display
+     */
+    ttlMs?: number
+    /**
+     * Audience/sensitivity scope for this toast
+     */
+    scope?: "system" | "user" | "workspace" | "session"
   }
   path?: never
   query?: {
@@ -9293,6 +9326,32 @@ export type AccountQuotaHintResponses = {
 }
 
 export type AccountQuotaHintResponse = AccountQuotaHintResponses[keyof AccountQuotaHintResponses]
+
+export type AccountRateLimitsData = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    providerId: string
+    accountId?: string
+  }
+  url: "/api/v2/account/rate-limits"
+}
+
+export type AccountRateLimitsResponses = {
+  /**
+   * Active rate-limit entries
+   */
+  200: Array<{
+    accountId: string
+    providerId: string
+    modelID?: string
+    waitMs: number
+    reason: string
+  }>
+}
+
+export type AccountRateLimitsResponse = AccountRateLimitsResponses[keyof AccountRateLimitsResponses]
 
 export type AccountListAllData = {
   body?: never
@@ -9626,6 +9685,32 @@ export type AccountQuotaHint2Responses = {
 }
 
 export type AccountQuotaHint2Response = AccountQuotaHint2Responses[keyof AccountQuotaHint2Responses]
+
+export type AccountRateLimits2Data = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    providerId: string
+    accountId?: string
+  }
+  url: "/api/v2/accounts/rate-limits"
+}
+
+export type AccountRateLimits2Responses = {
+  /**
+   * Active rate-limit entries
+   */
+  200: Array<{
+    accountId: string
+    providerId: string
+    modelID?: string
+    waitMs: number
+    reason: string
+  }>
+}
+
+export type AccountRateLimits2Response = AccountRateLimits2Responses[keyof AccountRateLimits2Responses]
 
 export type AccountListAll2Data = {
   body?: never
@@ -10936,7 +11021,9 @@ export type WebRouteListResponses = {
     ok: boolean
     routes: Array<{
       prefix: string
+      type?: "tcp" | "uds"
       host: string
+      socketPath?: string
       port: number
       uid: number
     }>
@@ -10948,8 +11035,11 @@ export type WebRouteListResponse = WebRouteListResponses[keyof WebRouteListRespo
 export type WebRoutePublishData = {
   body: {
     prefix: string
+    upstreamType?: "tcp" | "uds"
     host?: string
-    port: number
+    port?: number
+    socketPath?: string
+    auth?: number
   }
   path?: never
   query?: {
@@ -12302,6 +12392,9 @@ export type ProjectUpdate2Data = {
        * Startup script to run when creating a new workspace (worktree)
        */
       start?: string
+    }
+    fileExplorer?: {
+      pinnedFolders?: Array<string>
     }
   }
   path: {
@@ -14142,6 +14235,11 @@ export type SessionImportClaude2Data = {
     directory?: string
     sourceSessionID: string
     transcriptPath?: string
+    execution?: {
+      providerId: string
+      modelID: string
+      accountId?: string
+    }
   }
   path?: never
   query?: {
@@ -17223,7 +17321,14 @@ export type TuiShowToast2Data = {
      * Duration in milliseconds
      */
     duration?: number
-    emittedAt?: number
+    /**
+     * Maximum age in milliseconds before the frontend must drop display
+     */
+    ttlMs?: number
+    /**
+     * Audience/sensitivity scope for this toast
+     */
+    scope?: "system" | "user" | "workspace" | "session"
   }
   path?: never
   query?: {
@@ -17387,6 +17492,32 @@ export type AccountQuotaHint3Responses = {
 }
 
 export type AccountQuotaHint3Response = AccountQuotaHint3Responses[keyof AccountQuotaHint3Responses]
+
+export type AccountRateLimits3Data = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    providerId: string
+    accountId?: string
+  }
+  url: "/account/rate-limits"
+}
+
+export type AccountRateLimits3Responses = {
+  /**
+   * Active rate-limit entries
+   */
+  200: Array<{
+    accountId: string
+    providerId: string
+    modelID?: string
+    waitMs: number
+    reason: string
+  }>
+}
+
+export type AccountRateLimits3Response = AccountRateLimits3Responses[keyof AccountRateLimits3Responses]
 
 export type AccountListAll3Data = {
   body?: never
@@ -17720,6 +17851,32 @@ export type AccountQuotaHint4Responses = {
 }
 
 export type AccountQuotaHint4Response = AccountQuotaHint4Responses[keyof AccountQuotaHint4Responses]
+
+export type AccountRateLimits4Data = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    providerId: string
+    accountId?: string
+  }
+  url: "/accounts/rate-limits"
+}
+
+export type AccountRateLimits4Responses = {
+  /**
+   * Active rate-limit entries
+   */
+  200: Array<{
+    accountId: string
+    providerId: string
+    modelID?: string
+    waitMs: number
+    reason: string
+  }>
+}
+
+export type AccountRateLimits4Response = AccountRateLimits4Responses[keyof AccountRateLimits4Responses]
 
 export type AccountListAll4Data = {
   body?: never
@@ -19030,7 +19187,9 @@ export type WebRouteList2Responses = {
     ok: boolean
     routes: Array<{
       prefix: string
+      type?: "tcp" | "uds"
       host: string
+      socketPath?: string
       port: number
       uid: number
     }>
@@ -19042,8 +19201,11 @@ export type WebRouteList2Response = WebRouteList2Responses[keyof WebRouteList2Re
 export type WebRoutePublish2Data = {
   body: {
     prefix: string
+    upstreamType?: "tcp" | "uds"
     host?: string
-    port: number
+    port?: number
+    socketPath?: string
+    auth?: number
   }
   path?: never
   query?: {
