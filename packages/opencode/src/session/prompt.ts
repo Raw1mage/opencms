@@ -397,7 +397,11 @@ export const TRIGGER_INVENTORY = Object.freeze([
   { id: "predicted-cache-miss", observed: "cache-aware", description: "predicted cache miss at high context" },
   { id: "quota-pressure", observed: null, description: "quota pressure placeholder disabled until schema is pinned" },
   { id: "cache-aware", observed: "cache-aware", description: "prompt crosses cache-aware threshold" },
-  { id: "cache-cliff", observed: "continuation-invalidated", description: "cache_read dropped >50% between turns — server lost chain" },
+  {
+    id: "cache-cliff",
+    observed: "continuation-invalidated",
+    description: "cache_read dropped >50% between turns — server lost chain",
+  },
 ] as const)
 
 /**
@@ -2166,8 +2170,8 @@ export namespace SessionPrompt {
           }
           const lastFinishedTokens = lastFinished?.tokens?.total ?? 0
           const tokenLimit = resolvedModel
-            ? ((await Provider.getModel(resolvedModel.providerId, resolvedModel.modelID).catch(() => undefined))
-                ?.limit?.context ?? 0)
+            ? ((await Provider.getModel(resolvedModel.providerId, resolvedModel.modelID).catch(() => undefined))?.limit
+                ?.context ?? 0)
             : 0
           const tokenRatio = tokenLimit > 0 ? lastFinishedTokens / tokenLimit : 0
           const tokensHeavy = tokenRatio > REBIND_PREEMPT_TOKEN_RATIO
@@ -2511,6 +2515,7 @@ export namespace SessionPrompt {
             message: `Using ${change} for image input`,
             variant: "info",
             duration: 4000,
+            scope: "session",
           },
           { source: "prompt.imageRouter.rotated" },
         ).catch(() => {})
@@ -2763,14 +2768,22 @@ export namespace SessionPrompt {
             accountId: effectiveAccountId,
             modelID: activeModel.id,
           })
-          console.error(`[PHASE2] applied=${phase2Result.applied} reason=${(phase2Result as any).reason ?? "n/a"} provider=${activeModel.providerId} anchor0Role=${sessionMessages[0]?.info?.role ?? "none"}`)
-          if (phase2Result.applied && activeModel.providerId === "codex" && (compactionTweakPhase1 as { enableHybridLlm?: boolean }).enableHybridLlm) {
+          console.error(
+            `[PHASE2] applied=${phase2Result.applied} reason=${(phase2Result as any).reason ?? "n/a"} provider=${activeModel.providerId} anchor0Role=${sessionMessages[0]?.info?.role ?? "none"}`,
+          )
+          if (
+            phase2Result.applied &&
+            activeModel.providerId === "codex" &&
+            (compactionTweakPhase1 as { enableHybridLlm?: boolean }).enableHybridLlm
+          ) {
             // Extract raw serverCompactedItems from anchor metadata and
             // store them for the codex provider to consume. Drop anchor
             // from messages — its content is in the encrypted items.
             const anchorMeta = sessionMessages[0]?.parts.find((p: any) => p.type === "compaction")
             const serverItems = (anchorMeta as any)?.metadata?.serverCompactedItems as unknown[] | undefined
-            console.error(`[PHASE2-CODEX] hasAnchorMeta=${!!anchorMeta} hasServerItems=${!!serverItems} itemCount=${serverItems?.length ?? 0}`)
+            console.error(
+              `[PHASE2-CODEX] hasAnchorMeta=${!!anchorMeta} hasServerItems=${!!serverItems} itemCount=${serverItems?.length ?? 0}`,
+            )
             if (serverItems && serverItems.length > 0) {
               // ai_free encrypted anchor: store items for codex provider to
               // consume as raw ResponseItem[] prefix. Use require() not
@@ -3075,7 +3088,7 @@ export namespace SessionPrompt {
             // accounts for this provider/model. Floor at 30s to avoid busy-loop.
             const { Account } = await import("@/account")
             const family = (await Account.resolveFamily(resolvedModel.providerId)) ?? resolvedModel.providerId
-            const waitMs = await Account.getMinWaitTime(family, resolvedModel.id).catch(() => 0)
+            const waitMs = await Account.getMinWaitTime(family, resolvedModel.modelID).catch(() => 0)
             const retryAt = Date.now() + Math.max(waitMs, 30_000)
             await Session.setWorkflowState({
               sessionID,
