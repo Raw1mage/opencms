@@ -773,6 +773,9 @@ export async function tryWsTransport(
 ): Promise<{ events: ReadableStream<ResponseStreamEvent>; getSnapshot: () => TransportSnapshot } | null> {
   const { sessionId, accessToken, accountId, body, wsUrl } = input
   const state = getSession(sessionId)
+  console.error(
+    `[CODEX-ENTRY] tryWs:enter session=${sessionId} status=${state.status} hasWs=${!!state.ws} disableWs=${state.disableWebsockets} hasLastResp=${!!state.lastResponseId} acctChange=${state.accountId !== undefined && state.accountId !== accountId}`,
+  )
 
   // 2026-05-19: revert to unconditional chain reset on reload.
   // The 2026-05-18 change tried keeping disk-persisted continuation to
@@ -863,7 +866,11 @@ export async function tryWsTransport(
     isWebSocket: true,
   })
 
+  const _connectStart = Date.now()
   const ws = await connectWs(wsUrl, headers)
+  console.error(
+    `[CODEX-ENTRY] tryWs:after_connect session=${sessionId} ok=${!!ws} elapsedMs=${Date.now() - _connectStart}`,
+  )
   if (ws) {
     state.ws = ws
     state.status = "open"
@@ -915,5 +922,6 @@ export async function tryWsTransport(
   state.disableWebsockets = true
   state.ws = null
   state.status = "failed"
+  console.error(`[CODEX-ENTRY] tryWs:fallback_to_http session=${sessionId}`)
   return null
 }

@@ -136,8 +136,12 @@ class CodexLanguageModel implements LanguageModelV2 {
     request?: { body?: unknown }
     response?: { headers?: Record<string, string> }
   }> {
+    const _entrySid =
+      (callOptions.headers as Record<string, string> | undefined)?.["x-opencode-session"] ?? this.options.sessionId
+    console.error(`[CODEX-ENTRY] doStream:start session=${_entrySid} model=${this.modelId} t=${Date.now()}`)
     // § 2.1.1  Ensure valid token
     await this.ensureValidToken()
+    console.error(`[CODEX-ENTRY] doStream:token_ok session=${_entrySid} t=${Date.now()}`)
 
     // § 2.1.2  Resolve per-request session context from headers/providerOptions
     // Model instance is cached and reused across sessions — session context must
@@ -219,6 +223,7 @@ class CodexLanguageModel implements LanguageModelV2 {
 
     // § 2.1.5  Try WebSocket transport first
     const wsSessionId = sessionId ?? this.window.conversationId
+    console.error(`[CODEX-ENTRY] doStream:before_ws session=${wsSessionId} t=${Date.now()}`)
     const wsTransport = await tryWsTransport({
       sessionId: wsSessionId,
       accessToken: this.options.credentials.access!,
@@ -230,6 +235,7 @@ class CodexLanguageModel implements LanguageModelV2 {
       threadId: threadId ?? this.window.conversationId,
       conversationId: this.window.conversationId,
     })
+    console.error(`[CODEX-ENTRY] doStream:after_ws session=${wsSessionId} ws_ok=${!!wsTransport} t=${Date.now()}`)
 
     // Build classifier log context once (reused for WS + HTTP paths).
     // spec codex-empty-turn-recovery: log payload assembly per data-schema.json.
@@ -389,12 +395,18 @@ class CodexLanguageModel implements LanguageModelV2 {
     })
 
     const url = this.options.baseURL ?? CODEX_API_URL
+    console.error(`[CODEX-ENTRY] http_fallback:before_fetch session=${wsSessionId} url=${url} hasAbortSig=${!!callOptions.abortSignal} t=${Date.now()}`)
+    const _httpStart = Date.now()
     const response = await fetch(url, {
       method: "POST",
       headers,
       body: JSON.stringify(body),
       signal: callOptions.abortSignal,
+    }).catch((err) => {
+      console.error(`[CODEX-ENTRY] http_fallback:fetch_err session=${wsSessionId} elapsedMs=${Date.now() - _httpStart} errName=${(err as any)?.name} errMsg=${(err as any)?.message}`)
+      throw err
     })
+    console.error(`[CODEX-ENTRY] http_fallback:after_fetch session=${wsSessionId} elapsedMs=${Date.now() - _httpStart} status=${response.status}`)
 
     // Capture turn state from response
     const newTurnState = response.headers.get("x-codex-turn-state")
