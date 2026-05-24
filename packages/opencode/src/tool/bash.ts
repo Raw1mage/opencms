@@ -320,7 +320,7 @@ export const BashTool = Tool.define("bash", async () => {
       // If the command is a search command (grep, rg), we want to be more aggressive
       // about truncation to keep the conversation clean.
       const isSearch = params.command.includes("grep") || params.command.includes("rg")
-      const threshold = isSearch ? 2000 : 30000
+      const threshold = isSearch ? 65536 : 30000
 
       // Layer 2 (specs/tool-output-chunking/, DD-2): token-aware bound
       // using bashOverride knob (default 40K tokens ≈ 160K chars). The
@@ -333,20 +333,23 @@ export const BashTool = Tool.define("bash", async () => {
       const overBudget = ToolBudget.estimateTokens(output) > budget.tokens
 
       if (overChars || overBudget) {
-        // For search commands, use maxLines: 0 to return only the hint
         const truncated = await Truncate.output(
           output,
-          { maxLines: isSearch ? 0 : 50 },
+          { maxLines: 50 },
           ctx.extra?.agent,
           ctx.sessionID,
         )
         const reason = overBudget
           ? `Layer 2 budget (~${budget.tokens} tokens, ${budget.source}) exceeded`
           : `output > ${threshold} chars`
+        const tailHint = isSearch
+          ? `If you only need a count or filenames, narrow with -l / --files-with-matches or a more specific pattern.`
+          : `For long-running commands, redirect stdout to a file (e.g. '> /tmp/out.log') then read the file in slices.`
         const hint = truncated.truncated
-          ? `This output is redirected to ${truncated.outputPath} (${reason}). ` +
-            `For long-running commands, redirect stdout to a file (e.g. '> /tmp/out.log') ` +
-            `then read the file in slices.`
+          ? `${truncated.content}\n\n` +
+            `Full output was redirected to ${truncated.outputPath} (${reason}). ` +
+            `Read this file with the read tool using offset/limit to inspect the rest; ` +
+            `do not rerun the same command unless you need a different query. ${tailHint}`
           : "This output is redirected to internal error"
 
         return {

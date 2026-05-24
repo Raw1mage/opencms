@@ -173,17 +173,20 @@ export const GrepTool = Tool.define("grep", {
     // pre-Layer-2 behaviour.
     const budget = ToolBudget.resolve(ctx, "grep")
     const tokenizedSize = ToolBudget.estimateTokens(fullOutput)
-    const overChars = fullOutput.length > 2000
+    const INLINE_CHAR_CAP = 65536
+    const overChars = fullOutput.length > INLINE_CHAR_CAP
     const overBudget = tokenizedSize > budget.tokens
     if (overChars || overBudget) {
-      // Use Truncate logic to save file but return a specialized minimalist hint
-      const result = await Truncate.output(fullOutput, { maxLines: 0 }, ctx.extra?.agent, ctx.sessionID)
+      const result = await Truncate.output(fullOutput, { maxLines: 50 }, ctx.extra?.agent, ctx.sessionID)
       const reason = overBudget
         ? `Layer 2 budget (~${budget.tokens} tokens, ${budget.source}) exceeded`
-        : "output > 2000 chars"
+        : `output > ${INLINE_CHAR_CAP} chars`
       const hint = result.truncated
-        ? `This output is redirected to ${result.outputPath} (${reason}). ` +
-          `Consider a more specific pattern or path to narrow results.`
+        ? `${result.content}\n\n` +
+          `Full grep output (${totalMatches} matches) was redirected to ${result.outputPath} (${reason}). ` +
+          `Read this file with the read tool using offset/limit to inspect the rest; ` +
+          `do not rerun the same grep unless you need a different query. ` +
+          `If you only need a count or filenames, narrow with -l / --files-with-matches or a more specific pattern.`
         : "This output is redirected to internal error"
 
       return {

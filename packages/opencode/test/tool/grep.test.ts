@@ -33,7 +33,7 @@ describe("tool.grep", () => {
         )
         expect(result.metadata.matches).toBeGreaterThan(0)
         const isDirectOutput = result.output.includes("Found")
-        const isRedirectOutput = result.output.startsWith("This output is redirected to ")
+        const isRedirectOutput = result.output.includes("was redirected to ")
         expect(isDirectOutput || isRedirectOutput).toBe(true)
       },
     })
