@@ -202,6 +202,45 @@ async function assertPatchPathAllowed(filePath: string, label: string) {
   )
 }
 
+/**
+ * Returns the subset of `paths` that git considers ignored. Resolution
+ * is per-worktree (where git is configured); paths outside any git
+ * worktree return false. Single batch invocation via `git check-ignore
+ * --stdin` to keep overhead bounded for multi-file patches.
+ *
+ * Used by apply_patch summary to flag gitignored writes so the model
+ * doesn't run `git status` to verify and conclude the write failed.
+ */
+async function detectGitignored(paths: string[]): Promise<Set<string>> {
+  const result = new Set<string>()
+  if (paths.length === 0) return result
+  try {
+    const proc = Bun.spawn(["git", "check-ignore", "--stdin", "-z"], {
+      cwd: Instance.worktree,
+      stdin: "pipe",
+      stdout: "pipe",
+      stderr: "ignore",
+    })
+    proc.stdin.write(paths.join("\0") + "\0")
+    await proc.stdin.end()
+    const out = await new Response(proc.stdout).text()
+    await proc.exited
+    // git check-ignore exits 0 if any path ignored, 1 if none, 128 on error.
+    // -z output is NUL-separated absolute/relative paths matching input.
+    if (proc.exitCode === 0 || proc.exitCode === 1) {
+      for (const line of out.split("\0")) {
+        if (!line) continue
+        const abs = path.isAbsolute(line) ? line : path.resolve(Instance.worktree, line)
+        result.add(abs)
+      }
+    }
+  } catch {
+    // Not in a git worktree, git not installed, etc. — treat as nothing
+    // ignored. Hint is purely advisory; absence is harmless.
+  }
+  return result
+}
+
 async function resolvePatchPath(input: string, label: string) {
   if (!input) throw new Error(`apply_patch verification failed: ${label} is empty`)
   if (input.includes("\0")) throw new Error(`apply_patch verification failed: ${label} contains NUL byte: ${input}`)
@@ -606,18 +645,24 @@ export const ApplyPatchTool = Tool.define("apply_patch", {
       }
       const diagnostics = await LSP.diagnostics()
 
-      // Generate output summary
+      // Generate output summary. Mark gitignored paths so the model
+      // doesn't waste a turn running `git status` to verify and then
+      // concluding "apply_patch lied" when the file legitimately doesn't
+      // show up (2026-05-26 warroom RCA — coherent-but-confused loop).
+      const gitignoredPaths = await detectGitignored(
+        fileChanges.map((change) => change.movePath ?? change.filePath),
+      )
       const summaryLines = fileChanges.map((change) => {
-        if (change.type === "add") {
-          return `A ${path.relative(Instance.worktree, change.filePath).replaceAll("\\", "/")}`
-        }
-        if (change.type === "delete") {
-          return `D ${path.relative(Instance.worktree, change.filePath).replaceAll("\\", "/")}`
-        }
-        const target = change.movePath ?? change.filePath
-        return `M ${path.relative(Instance.worktree, target).replaceAll("\\", "/")}`
+        const target = change.type === "delete" ? change.filePath : (change.movePath ?? change.filePath)
+        const rel = path.relative(Instance.worktree, target).replaceAll("\\", "/")
+        const marker = change.type === "add" ? "A" : change.type === "delete" ? "D" : "M"
+        const ignored = gitignoredPaths.has(target) ? " (gitignored — not in `git status`)" : ""
+        return `${marker} ${rel}${ignored}`
       })
       let output = `Success. Updated the following files:\n${summaryLines.join("\n")}`
+      if (gitignoredPaths.size > 0) {
+        output += `\n\n[hint: gitignored paths above WILL be on disk; verify via \`read\`, not \`git status\`.]`
+      }
 
       // Report LSP errors for changed files
       const MAX_DIAGNOSTICS_PER_FILE = 20

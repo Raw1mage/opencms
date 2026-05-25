@@ -9,6 +9,7 @@ import { Session } from "."
 import { Agent } from "../agent/agent"
 import { Provider } from "../provider/provider"
 import { SessionCompaction } from "./compaction"
+import { detectIdentityChange } from "./identity-change"
 import { transformPostAnchorTail, LayerPurityViolation } from "./post-anchor-transform"
 import { expandAnchorCompactedPrefix } from "./anchor-prefix-expand"
 import { Memory } from "./memory"
@@ -1373,9 +1374,36 @@ export namespace SessionPrompt {
       const nextProvider = options.incomingModel.providerId
       const prevAccount = lastAssistantIdentity?.accountId
       const nextAccount = options.incomingModel.accountId
-      const providerChanged = !!prevProvider && !prevIsImport && prevProvider !== nextProvider
-      const accountChanged =
-        !providerChanged && !!prevProvider && prevAccount !== nextAccount && !!(prevAccount || nextAccount)
+      // Identity-change decision is delegated to detectIdentityChange so
+      // boundary cases (undefined prev/next, import anchors, fresh session)
+      // are unit-tested in isolation. See identity-change.ts for the full
+      // history including the 2026-05-26 phantom-switch RCA.
+      const identityDecision = detectIdentityChange(
+        lastAssistantIdentity
+          ? {
+              providerId: lastAssistantIdentity.providerId,
+              accountId: lastAssistantIdentity.accountId,
+              isImport: prevIsImport,
+            }
+          : undefined,
+        { providerId: nextProvider, accountId: nextAccount },
+      )
+      // Always log the decision (even "none") so phantom-switch regressions
+      // and silent skip paths are both greppable under [identity-change].
+      // The reason field distinguishes all 8 code paths.
+      log.info("identity-change decision", {
+        channel: "identity-change",
+        sessionID,
+        kind: identityDecision.kind,
+        reason: identityDecision.reason,
+        prevProvider,
+        nextProvider,
+        prevAccount,
+        nextAccount,
+        prevIsImport,
+      })
+      const providerChanged = identityDecision.kind === "provider"
+      const accountChanged = identityDecision.kind === "account"
       if (providerChanged) {
         log.warn("provider switch detected (pre-loop), forcing context reinit", {
           sessionID,

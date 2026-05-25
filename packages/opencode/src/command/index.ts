@@ -101,23 +101,45 @@ export namespace Command {
     }
     const reinject = await CapabilityLayer.reinject(ctx.sessionID, outcome.currentEpoch)
 
-    // Step 3: text-only stream rebuild (session healing)
-    // Reads DB conversation text, discards tool history, writes a clean
-    // narrative anchor. The session resumes with minimal items.
-    const { SessionCompaction } = await import("../session/compaction")
-    const rebuild = await SessionCompaction.rebuildStreamFromText(ctx.sessionID)
+    // 2026-05-26 warroom RCA: previously /reload also called
+    // SessionCompaction.rebuildStreamFromText, which discards tool
+    // history and writes a "you have amnesia — re-verify everything"
+    // header into a narrative anchor. That turned ANY /reload (even
+    // on a healthy session) into a pidgin self-doubt spiral. The name
+    // "/reload" promises capability refresh, not history nuke. If a
+    // user genuinely wants the nuke, expose it explicitly as /compact
+    // or /heal; do not bundle it here.
+    //
+    // Conversation history stays in DB; the next prompt assembly sends
+    // the full stream to the server (one cache miss, then re-builds),
+    // which is the correct fallback per the cache_cliff design.
 
-    // Step 4: auto-continue — trigger AI to respond based on new anchor (DD-8)
+    // Auto-continue so the next response uses the refreshed capabilities.
+    // If the session is idle this resumes work; if it was already busy
+    // loop() is a no-op on the active runner. Best-effort — swallow
+    // rejections so an auto-continue failure (e.g. missing session info
+    // in test fixtures) doesn't taint the /reload outcome.
     const { SessionPrompt } = await import("../session/prompt")
-    void SessionPrompt.loop(ctx.sessionID)
+    void SessionPrompt.loop(ctx.sessionID).catch(() => {})
 
-    const capStatus = reinject.failures.length > 0
-      ? `capabilities: partial (${reinject.failures.map((f) => `${f.layer}:${f.error}`).join(", ")})`
-      : "capabilities: refreshed"
+    const partial = reinject.failures.length > 0
+    const skillBits: string[] = []
+    if (reinject.pinnedSkills.length > 0) {
+      skillBits.push(`pinned: ${reinject.pinnedSkills.join(", ")}`)
+    }
+    if (reinject.missingSkills.length > 0) {
+      skillBits.push(`missing: ${reinject.missingSkills.join(", ")}`)
+    }
+    const skillSummary = skillBits.length > 0 ? ` ${skillBits.join("; ")}.` : ""
+    const partialSuffix = partial
+      ? ` partial refresh — ${reinject.failures.map((f) => `${f.layer}:${f.error}`).join(", ")}.`
+      : ""
 
     return {
-      output: `Session healed. ${capStatus}. Stream rebuilt from ${rebuild.roundsIncluded} text rounds (${Math.round(rebuild.charsUsed / 4)}/${Math.round(rebuild.charsBudget / 4)} tokens used). AI resuming...`,
-      title: "Reload",
+      output:
+        `Capability layer refreshed (${outcome.previousEpoch} → ${outcome.currentEpoch}).${skillSummary}${partialSuffix}` +
+        ` Conversation history preserved; next request will send the full stream (one cache miss expected).`,
+      title: partial ? "Reload — Partial" : "Reload",
     }
   }
 

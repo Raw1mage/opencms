@@ -3083,10 +3083,10 @@ When constructing the summary, try to stick to this template:
     // Build anchor body
     const amnesiaHeader = [
       "---",
-      "\u26a0\ufe0f Session reloaded \u2014 conversation history reconstructed from text only.",
-      "Tool call history, file contents, and intermediate results are lost.",
-      "Do NOT assume you know file contents or previous tool outputs.",
-      "Re-read any file before acting on it.",
+      "\u2139\ufe0f Session context was compacted \u2014 only a short narrative anchor is in your prompt.",
+      "Full tool call history, reasoning, and patch records ARE PRESERVED in the session database.",
+      "Use the `session_recall` tool to query past actions, outputs, or reasoning when you need them.",
+      "Re-read files directly via `read` if you need current bytes.",
       "---",
       "",
     ].join("\n")

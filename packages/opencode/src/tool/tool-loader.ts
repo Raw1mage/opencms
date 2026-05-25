@@ -23,6 +23,10 @@ export const ALWAYS_PRESENT_TOOLS = new Set([
   "apply_patch",
   "grep",
   "glob",
+  // Self-memory recall. Must be always-present so a post-compaction /
+  // post-rotation / post-amnesia-anchor agent can query its own
+  // history without first having to discover the tool exists.
+  "session_recall",
 ])
 
 export interface CatalogEntry {
