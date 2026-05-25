@@ -2423,7 +2423,7 @@ When constructing the summary, try to stick to this template:
     const tweaks = Tweaks.compactionSync()
     const replayEnabled = (tweaks as { enableUserMsgReplay?: boolean }).enableUserMsgReplay !== false
     const preReplaySnapshot = replayEnabled
-      ? await snapshotUnansweredUserMessage(sessionID).catch(() => undefined)
+      ? await snapshotUnansweredUserMessage(sessionID, observed).catch(() => undefined)
       : undefined
 
     for (let i = 0; i < chain.length; i++) {
@@ -2694,11 +2694,24 @@ When constructing the summary, try to stick to this template:
    *   - the most recent user message has a properly finished assistant
    *     child (= already answered, no replay needed)
    *
+   * 2026-05-25 overflow-replay-length-fix:
+   *   - Path A: when observed === "overflow", finish=length is treated as
+   *     unanswered (length-truncation is the literal symptom of overflow,
+   *     not a completed answer). Other observed values keep length-as-
+   *     answered semantics (e.g. user asked for a deliberately long doc
+   *     and the model legitimately ran to length).
+   *   - Path B: skip user messages whose only parts are compaction-request
+   *     placeholders (written by SessionCompaction.create when the LLM
+   *     itself throws ContextOverflowError). Walking past them finds the
+   *     real user request that triggered the in-flight turn so replay
+   *     carries the actual intent across the anchor.
+   *
    * Pure read function. Does not mutate storage. Caller may pass an
    * already-loaded `messages` array to avoid a second fetch.
    */
   export async function snapshotUnansweredUserMessage(
     sessionID: string,
+    observed: Observed,
     messages?: MessageV2.WithParts[],
   ): Promise<UserMessageSnapshot | undefined> {
     const msgs = messages ?? (await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[]))
@@ -2706,10 +2719,13 @@ When constructing the summary, try to stick to this template:
 
     let userIdx = -1
     for (let i = msgs.length - 1; i >= 0; i--) {
-      if (msgs[i].info.role === "user") {
-        userIdx = i
-        break
-      }
+      const m = msgs[i]
+      if (m.info.role !== "user") continue
+      // Path B: skip compaction-request placeholders so replay carries the
+      // real user intent, not the synthetic "please compact" marker.
+      if (m.parts.length > 0 && m.parts.every((p) => p.type === "compaction-request")) continue
+      userIdx = i
+      break
     }
     if (userIdx === -1) return undefined
 
@@ -2728,7 +2744,8 @@ When constructing the summary, try to stick to this template:
     // all signal an interrupted or empty turn — user msg is unanswered.
     if (assistantChild) {
       const finish = (assistantChild.info as MessageV2.Assistant).finish
-      if (finish === "stop" || finish === "tool-calls" || finish === "length") {
+      const lengthIsAnswered = observed !== "overflow"
+      if (finish === "stop" || finish === "tool-calls" || (lengthIsAnswered && finish === "length")) {
         return undefined
       }
     }

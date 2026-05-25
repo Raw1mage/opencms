@@ -1352,7 +1352,10 @@ export namespace SessionPrompt {
           // resolves to a real message instead of falling through to the
           // synthetic Continue path (INJECT_CONTINUE['provider-switched']
           // is false → no Continue would be injected → silent exit).
-          const replaySnapshot = await SessionCompaction.snapshotUnansweredUserMessage(sessionID).catch(() => undefined)
+          const replaySnapshot = await SessionCompaction.snapshotUnansweredUserMessage(
+            sessionID,
+            "provider-switched",
+          ).catch(() => undefined)
           // Phase 13.1: Memory.markCompacted call removed (Memory.lastCompactedAt
           // is derived from the most recent anchor's time.created, not stored).
           await SessionCompaction.compactWithSharedContext({

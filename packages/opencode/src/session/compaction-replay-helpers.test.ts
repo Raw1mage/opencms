@@ -76,6 +76,30 @@ function assistantMsg(
   }
 }
 
+function compactionRequestMsg(id: string): MessageV2.WithParts {
+  return {
+    info: {
+      id,
+      role: "user",
+      sessionID: "ses_test",
+      time: { created: 1 },
+      agent: "default",
+      model: { providerId: "codex", modelID: "gpt-5.5" },
+      format: { type: "text" },
+      variant: "default",
+    } as MessageV2.User,
+    parts: [
+      {
+        id: `prt_${id}_req`,
+        messageID: id,
+        sessionID: "ses_test",
+        type: "compaction-request",
+        auto: true,
+      } as MessageV2.CompactionPart,
+    ],
+  }
+}
+
 function stubMessages(msgs: MessageV2.WithParts[]) {
   ;(Session as any).messages = mock(async () => msgs)
 }
@@ -94,37 +118,37 @@ function stubTweaks(overrides: Record<string, unknown> = {}) {
 describe("SessionCompaction.snapshotUnansweredUserMessage", () => {
   it("returns undefined for empty stream", async () => {
     stubMessages([])
-    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test")
+    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test", "manual")
     expect(result).toBeUndefined()
   })
 
   it("returns undefined when no user message exists", async () => {
     stubMessages([assistantMsg("msg_a", "stop")])
-    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test")
+    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test", "manual")
     expect(result).toBeUndefined()
   })
 
   it("returns undefined when user message has properly finished assistant child (finish=stop)", async () => {
     stubMessages([userMsg("msg_u"), assistantMsg("msg_a", "stop")])
-    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test")
+    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test", "manual")
     expect(result).toBeUndefined()
   })
 
   it("returns undefined when assistant child has finish=tool-calls", async () => {
     stubMessages([userMsg("msg_u"), assistantMsg("msg_a", "tool-calls")])
-    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test")
+    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test", "manual")
     expect(result).toBeUndefined()
   })
 
   it("returns undefined when assistant child has finish=length", async () => {
     stubMessages([userMsg("msg_u"), assistantMsg("msg_a", "length")])
-    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test")
+    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test", "manual")
     expect(result).toBeUndefined()
   })
 
   it("returns snapshot when user msg has no assistant child yet", async () => {
     stubMessages([userMsg("msg_u", "what about X?")])
-    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test")
+    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test", "manual")
     expect(result).toBeDefined()
     expect(result!.info.id).toBe("msg_u")
     expect(result!.parts).toHaveLength(1)
@@ -134,7 +158,7 @@ describe("SessionCompaction.snapshotUnansweredUserMessage", () => {
 
   it("returns snapshot when assistant child has finish=unknown (5/5 empty-response scenario)", async () => {
     stubMessages([userMsg("msg_u"), assistantMsg("msg_a", "unknown")])
-    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test")
+    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test", "manual")
     expect(result).toBeDefined()
     expect(result!.info.id).toBe("msg_u")
     expect(result!.emptyAssistantID).toBe("msg_a")
@@ -142,14 +166,14 @@ describe("SessionCompaction.snapshotUnansweredUserMessage", () => {
 
   it("returns snapshot when assistant child has finish=error", async () => {
     stubMessages([userMsg("msg_u"), assistantMsg("msg_a", "error")])
-    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test")
+    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test", "manual")
     expect(result).toBeDefined()
     expect(result!.emptyAssistantID).toBe("msg_a")
   })
 
   it("returns snapshot when assistant child has finish=undefined (in-flight)", async () => {
     stubMessages([userMsg("msg_u"), assistantMsg("msg_a", undefined)])
-    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test")
+    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test", "manual")
     expect(result).toBeDefined()
     expect(result!.emptyAssistantID).toBe("msg_a")
   })
@@ -160,7 +184,7 @@ describe("SessionCompaction.snapshotUnansweredUserMessage", () => {
       assistantMsg("msg_a1", "stop"),
       userMsg("msg_u2", "second — unanswered"),
     ])
-    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test")
+    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test", "manual")
     expect(result).toBeDefined()
     expect(result!.info.id).toBe("msg_u2")
     expect((result!.parts[0] as any).text).toBe("second — unanswered")
@@ -172,14 +196,14 @@ describe("SessionCompaction.snapshotUnansweredUserMessage", () => {
       userMsg("msg_u2", "second"),
       assistantMsg("msg_a", "stop"),
     ])
-    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test")
+    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test", "manual")
     expect(result).toBeUndefined()
   })
 
   it("snapshot is independent — mutations don't affect storage", async () => {
     const userM = userMsg("msg_u")
     stubMessages([userM])
-    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test")
+    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test", "manual")
     expect(result).toBeDefined()
     ;(result!.info as any).id = "tampered"
     expect(userM.info.id).toBe("msg_u") // original untouched
@@ -192,7 +216,7 @@ describe("SessionCompaction.snapshotUnansweredUserMessage", () => {
       return [userMsg("msg_u")]
     })
     const preLoaded = [userMsg("msg_pre", "explicit input")]
-    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test", preLoaded)
+    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test", "manual", preLoaded)
     expect(called).toBe(0)
     expect(result!.info.id).toBe("msg_pre")
   })
@@ -201,8 +225,57 @@ describe("SessionCompaction.snapshotUnansweredUserMessage", () => {
     ;(Session as any).messages = mock(async () => {
       throw new Error("storage unavailable")
     })
-    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test")
+    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test", "manual")
     expect(result).toBeUndefined()
+  })
+
+  // ── 2026-05-25 overflow-replay-length-fix ────────────────────────────
+  // Path A: observed=overflow + finish=length → finish=length is the literal
+  // symptom of overflow (assistant got cut off). Snapshot must return the
+  // user msg so replay carries the intent across the anchor.
+  it("Path A: returns snapshot when observed=overflow + assistant child finish=length", async () => {
+    stubMessages([userMsg("msg_u", "do task X"), assistantMsg("msg_a", "length")])
+    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test", "overflow")
+    expect(result).toBeDefined()
+    expect(result!.info.id).toBe("msg_u")
+    expect(result!.emptyAssistantID).toBe("msg_a")
+  })
+
+  // Path A complement: non-overflow observed values keep length-as-answered.
+  // Covers the legitimate "user asked for a long doc, model finished at the
+  // length cap" scenario where we shouldn't replay the request.
+  it("Path A complement: returns undefined when observed=manual + assistant child finish=length", async () => {
+    stubMessages([userMsg("msg_u"), assistantMsg("msg_a", "length")])
+    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test", "manual")
+    expect(result).toBeUndefined()
+  })
+
+  // Path B: SessionCompaction.create writes a user-role msg whose only part
+  // is a compaction-request placeholder. Snapshot must skip past it and find
+  // the real user msg behind it — otherwise replay copies a meaningless
+  // placeholder and the AI loses the actual user intent.
+  it("Path B: skips compaction-request placeholder, returns previous real user msg", async () => {
+    stubMessages([
+      userMsg("msg_u_real", "the real request"),
+      compactionRequestMsg("msg_u_placeholder"),
+    ])
+    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test", "overflow")
+    expect(result).toBeDefined()
+    expect(result!.info.id).toBe("msg_u_real")
+    expect((result!.parts[0] as any).text).toBe("the real request")
+  })
+
+  // Path B + multi-turn: placeholder skip must not stop at the placeholder;
+  // it must keep walking back. Verifies the skip is a `continue`, not a stop.
+  it("Path B: placeholder skip walks past multiple placeholders if stacked", async () => {
+    stubMessages([
+      userMsg("msg_u_real", "original"),
+      compactionRequestMsg("msg_u_p1"),
+      compactionRequestMsg("msg_u_p2"),
+    ])
+    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test", "overflow")
+    expect(result).toBeDefined()
+    expect(result!.info.id).toBe("msg_u_real")
   })
 })
 
