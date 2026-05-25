@@ -414,8 +414,25 @@ export const TRIGGER_INVENTORY = Object.freeze([
  * Incident 2026-05-19 ses_1c875cc15ffe5ds18JVdNAT4e6: codex server
  * evicted 193K cache mid-session; client kept sending delta; model ran
  * on 3K tokens for 10+ minutes producing repetitive nonsense.
+ *
+ * 2026-05-24 (cache-cliff-false-positive-chain-reset): tracker extended
+ * to remember accountId / providerId / continuationInvalidatedAt / our
+ * own prior invalidate so we can classify drops as planned (we caused
+ * them) vs unplanned (server silently evicted). Only unplanned drops
+ * invalidate; planned drops are telemetry-only.
  */
-const lastCacheRead = new Map<string, number>()
+type CacheReadState = {
+  cacheRead: number
+  accountId: string | undefined
+  providerId: string
+  continuationInvalidatedAt: number | undefined
+  ts: number
+  /** True if the previous turn's cliff check decided to invalidate. The
+   *  immediate next turn's cache_read will naturally drop as the server
+   *  re-caches from the full resend — that echo is planned, not a cliff. */
+  selfInvalidated: boolean
+}
+const lastCacheReadState = new Map<string, CacheReadState>()
 
 export async function deriveObservedCondition(input: {
   sessionID: string
@@ -472,34 +489,94 @@ export async function deriveObservedCondition(input: {
   // compactions in 2 hours (ses_1c875cc15ffe5ds18JVdNAT4e6).
   if (input.lastFinished) {
     const currentCache = input.lastFinished.tokens.cache.read ?? 0
-    const prevCache = lastCacheRead.get(input.sessionID)
-    lastCacheRead.set(input.sessionID, currentCache)
-    if (prevCache !== undefined && prevCache > 50_000 && currentCache < prevCache * 0.5) {
-      debugCheckpoint("prompt", "cache_cliff_detected", {
-        sessionID: input.sessionID,
-        step: input.step,
-        prevCacheRead: prevCache,
-        currentCacheRead: currentCache,
-        dropRatio: currentCache / prevCache,
-      })
-      void Session.appendRecentEvent(input.sessionID, {
-        ts: Date.now(),
-        kind: "cache-cliff",
-        cacheCliff: {
-          prevCacheRead: prevCache,
+    const prev = lastCacheReadState.get(input.sessionID)
+    const nextState: CacheReadState = {
+      cacheRead: currentCache,
+      accountId: input.pinnedAccountId,
+      providerId: input.pinnedProviderId,
+      continuationInvalidatedAt: input.continuationInvalidatedAt,
+      ts: Date.now(),
+      selfInvalidated: false,
+    }
+
+    if (prev !== undefined && prev.cacheRead > 50_000 && currentCache < prev.cacheRead * 0.5) {
+      // Classify: did WE cause this drop? If yes it's planned — telemetry
+      // only, fall through to remaining triggers. If no it's a real
+      // unplanned server-side eviction — invalidate as before.
+      const plannedSources: string[] = []
+      if (prev.selfInvalidated) plannedSources.push("self_invalidate_echo")
+      if (prev.accountId !== input.pinnedAccountId) plannedSources.push("account_switch")
+      if (prev.providerId !== input.pinnedProviderId) plannedSources.push("provider_switch")
+      if (
+        input.continuationInvalidatedAt !== undefined &&
+        input.continuationInvalidatedAt !== prev.continuationInvalidatedAt
+      ) {
+        plannedSources.push("continuation_invalidated_event")
+      }
+      // Anchor drift: the line-549 identity-drift handler may have run on
+      // a prior turn (which itself returns null and updates our prev to
+      // the new accountId) — but the anchor still carries the old account
+      // until a compaction rewrites it, so the cache won't rebind for
+      // several turns. Treat any unresolved anchor drift as planned.
+      const anchor = findMostRecentAnchor(input.msgs)
+      if (anchor) {
+        if (anchor.accountId && input.pinnedAccountId && anchor.accountId !== input.pinnedAccountId) {
+          plannedSources.push("anchor_account_drift")
+        }
+        if (anchor.providerId && anchor.providerId !== input.pinnedProviderId) {
+          plannedSources.push("anchor_provider_drift")
+        }
+        // Recent compaction echo: anchor was written *after* our last
+        // observation, so the new prefix wasn't cached on the server yet.
+        // The cooldown gate at the top already blocks the within-30s
+        // window; this catches the first turn after cooldown expires.
+        if (anchor.createdAt && anchor.createdAt > prev.ts) {
+          plannedSources.push("recent_compaction")
+        }
+      }
+
+      if (plannedSources.length > 0) {
+        debugCheckpoint("prompt", "cache_cliff_planned", {
+          sessionID: input.sessionID,
+          step: input.step,
+          prevCacheRead: prev.cacheRead,
           currentCacheRead: currentCache,
-        },
-      }).catch(() => {})
-      // Chain-reset only: invalidate WS continuation so the next call
-      // sends the full (unchanged) prompt instead of delta. The server
-      // re-caches the same prefix it already knows — no compaction needed.
-      try {
-        const { invalidateContinuationFamily } = await import("@opencode-ai/provider-codex/continuation")
-        invalidateContinuationFamily(input.sessionID)
-      } catch {}
-      // Return null — no compaction. The runloop proceeds to the LLM
-      // call with the existing prompt, just without delta mode.
-      return null
+          dropRatio: currentCache / prev.cacheRead,
+          plannedSources,
+        })
+        lastCacheReadState.set(input.sessionID, nextState)
+        // Do not invalidate — drop was expected. Fall through.
+      } else {
+        debugCheckpoint("prompt", "cache_cliff_detected", {
+          sessionID: input.sessionID,
+          step: input.step,
+          prevCacheRead: prev.cacheRead,
+          currentCacheRead: currentCache,
+          dropRatio: currentCache / prev.cacheRead,
+        })
+        void Session.appendRecentEvent(input.sessionID, {
+          ts: Date.now(),
+          kind: "cache-cliff",
+          cacheCliff: {
+            prevCacheRead: prev.cacheRead,
+            currentCacheRead: currentCache,
+          },
+        }).catch(() => {})
+        // Chain-reset only: invalidate WS continuation so the next call
+        // sends the full (unchanged) prompt instead of delta. The server
+        // re-caches the same prefix it already knows — no compaction needed.
+        try {
+          const { invalidateContinuationFamily } = await import("@opencode-ai/provider-codex/continuation")
+          invalidateContinuationFamily(input.sessionID)
+        } catch {}
+        nextState.selfInvalidated = true
+        lastCacheReadState.set(input.sessionID, nextState)
+        // Return null — no compaction. The runloop proceeds to the LLM
+        // call with the existing prompt, just without delta mode.
+        return null
+      }
+    } else {
+      lastCacheReadState.set(input.sessionID, nextState)
     }
   }
 
@@ -831,7 +908,7 @@ export namespace SessionPrompt {
    * compactions in 2 hours from this self-reinforcing cycle.
    */
   export function resetCacheBaseline(sessionID: string) {
-    lastCacheRead.delete(sessionID)
+    lastCacheReadState.delete(sessionID)
   }
 
   export function assertNotBusy(sessionID: string) {

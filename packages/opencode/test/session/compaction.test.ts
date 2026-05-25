@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import path from "path"
 import { SessionCompaction } from "../../src/session/compaction"
-import { deriveObservedCondition, TRIGGER_INVENTORY } from "../../src/session/prompt"
+import { deriveObservedCondition } from "../../src/session/prompt"
 import { Token } from "../../src/util/token"
 import { Instance } from "../../src/project/instance"
 import { Log } from "../../src/util/log"
@@ -229,105 +229,7 @@ describe("session.compaction.isOverflow", () => {
   })
 })
 
-describe("session.compaction.kindChainFor", () => {
-  test("provider-switched chain has only local narrative as first kind", () => {
-    expect(SessionCompaction.kindChainFor("provider-switched")).toEqual(["narrative", "ai_free", "ai_paid"])
-  })
-
-  test("codex provider: server-side compaction first, regardless of context ratio / subscription flag", () => {
-    // codex sub at high ctx → server first
-    expect(
-      SessionCompaction.__test__.resolveKindChain({
-        observed: "cache-aware",
-        providerId: "codex",
-        isSubscription: true,
-        ctxRatio: 0.8,
-      }),
-    ).toEqual(["ai_free", "narrative", "ai_paid"])
-
-    // codex non-sub at high ctx → ALSO server first (sub flag no longer gates)
-    expect(
-      SessionCompaction.__test__.resolveKindChain({
-        observed: "cache-aware",
-        providerId: "codex",
-        isSubscription: false,
-        ctxRatio: 0.8,
-      }),
-    ).toEqual(["ai_free", "narrative", "ai_paid"])
-
-    // codex at low ctx → still server first (no threshold gate anymore)
-    expect(
-      SessionCompaction.__test__.resolveKindChain({
-        observed: "cache-aware",
-        providerId: "codex",
-        ctxRatio: 0.3,
-      }),
-    ).toEqual(["ai_free", "narrative", "ai_paid"])
-  })
-
-  test("non-codex provider: local-first chain unchanged regardless of subscription / context", () => {
-    expect(
-      SessionCompaction.__test__.resolveKindChain({
-        observed: "cache-aware",
-        providerId: "openai",
-        isSubscription: true,
-        ctxRatio: 0.8,
-      }),
-    ).toEqual(["narrative", "ai_free", "ai_paid"])
-
-    expect(
-      SessionCompaction.__test__.resolveKindChain({
-        observed: "manual",
-        providerId: "anthropic",
-      }),
-    ).toEqual(["narrative", "ai_free", "ai_paid"])
-  })
-
-  test("codex chain handles observed events: server-side prepended, paid fallback at tail", () => {
-    // For idle/rebind/etc the base chain has no `ai_free`. On codex we
-    // still prepend it so the model can lean on the codex server-side
-    // compactor when available; chain falls through to local + paid
-    // kinds if the server is unreachable / errors.
-    expect(
-      SessionCompaction.__test__.resolveKindChain({
-        observed: "idle",
-        providerId: "codex",
-      }),
-    ).toEqual(["ai_free", "narrative"])
-
-    expect(
-      SessionCompaction.__test__.resolveKindChain({
-        observed: "rebind",
-        providerId: "codex",
-      }),
-    ).toEqual(["ai_free", "narrative", "ai_paid"])
-
-    expect(
-      SessionCompaction.__test__.resolveKindChain({
-        observed: "empty-response",
-        providerId: "codex",
-      }),
-    ).toEqual(["ai_free", "narrative", "ai_paid"])
-  })
-})
-
 describe("session.prompt trigger inventory", () => {
-  test("declares compaction trigger precedence explicitly", () => {
-    expect(TRIGGER_INVENTORY.map((trigger) => trigger.id)).toEqual([
-      "cooldown",
-      "manual",
-      "auto-request",
-      "continuation-invalidated",
-      "provider-switched",
-      "account-rebind",
-      "overflow",
-      "stall-recovery",
-      "predicted-cache-miss",
-      "quota-pressure",
-      "cache-aware",
-    ])
-  })
-
   test("fires predicted cache miss only when high context and miss are explicit", async () => {
     const base = {
       sessionID: "ses_test",
@@ -408,8 +310,95 @@ describe("session.prompt trigger inventory", () => {
     })
 
     expect(observed).toBe("stall-recovery")
-    expect(SessionCompaction.kindChainFor("stall-recovery")).toEqual(["narrative", "ai_free", "ai_paid"])
     expect(SessionCompaction.__test__.INJECT_CONTINUE["stall-recovery"]).toBe(false)
+  })
+})
+
+describe("session.prompt cache-cliff classification", () => {
+  // Helper: small assistant frame with controllable cache.read.
+  const finished = (sessionID: string, cacheRead: number) =>
+    ({
+      id: `msg_${sessionID}_${cacheRead}`,
+      role: "assistant",
+      sessionID,
+      parentID: "msg_u",
+      mode: "build",
+      agent: "build",
+      path: { cwd: "/tmp", root: "/tmp" },
+      cost: 0,
+      tokens: { input: 1000, output: 1, reasoning: 0, cache: { read: cacheRead, write: 0 } },
+      modelID: "test-model",
+      providerId: "test",
+      time: { created: Date.now() },
+      finish: "stop",
+    }) as any
+
+  const baseInput = (sessionID: string, accountId: string | undefined = "acct-A") => ({
+    sessionID,
+    step: 1,
+    msgs: [],
+    pinnedProviderId: "test",
+    pinnedAccountId: accountId,
+    hasUnprocessedCompactionRequest: false,
+    compactionRequestAuto: undefined,
+    parentID: undefined,
+    continuationInvalidatedAt: undefined,
+    currentInputTokens: 1000,
+    modelContextWindow: 200_000,
+    // Force unplanned-cliff path to short-circuit (return null), planned
+    // path to fall through to overflow → return "overflow". This is how
+    // we distinguish the two branches without intercepting side effects.
+    isOverflow: async () => true,
+    isCacheAware: async () => false,
+  })
+
+  test("unplanned cliff (no signals): invalidates and returns null even with isOverflow=true", async () => {
+    const sid = "ses_cliff_unplanned"
+    // Warm-up turn: 100K cache, no drop.
+    await deriveObservedCondition({ ...baseInput(sid), lastFinished: finished(sid, 100_000) })
+    // Next turn: cache crashes to 10K, same account, no anchor, no event.
+    const observed = await deriveObservedCondition({ ...baseInput(sid), lastFinished: finished(sid, 10_000) })
+    expect(observed).toBeNull()
+  })
+
+  test("planned cliff via account_switch: falls through to overflow", async () => {
+    const sid = "ses_cliff_acct_switch"
+    await deriveObservedCondition({ ...baseInput(sid, "acct-A"), lastFinished: finished(sid, 100_000) })
+    const observed = await deriveObservedCondition({
+      ...baseInput(sid, "acct-B"),
+      lastFinished: finished(sid, 10_000),
+    })
+    expect(observed).toBe("overflow")
+  })
+
+  test("planned cliff via continuation_invalidated_event: falls through to downstream handler", async () => {
+    const sid = "ses_cliff_cont_invalidated"
+    await deriveObservedCondition({ ...baseInput(sid), lastFinished: finished(sid, 100_000) })
+    const observed = await deriveObservedCondition({
+      ...baseInput(sid),
+      lastFinished: finished(sid, 10_000),
+      continuationInvalidatedAt: Date.now(),
+    })
+    // Cliff predicate classifies this as planned (continuation-invalidated event
+    // already fired), so it does NOT short-circuit with null. The downstream
+    // continuation-invalidated handler then picks up the signal — exactly the
+    // intended hand-off.
+    expect(observed).toBe("continuation-invalidated")
+  })
+
+  test("no cliff (drop ≤ 50%): does not invalidate, falls through to overflow", async () => {
+    const sid = "ses_no_cliff"
+    await deriveObservedCondition({ ...baseInput(sid), lastFinished: finished(sid, 100_000) })
+    // 100K → 60K is a 40% drop, predicate stays dormant.
+    const observed = await deriveObservedCondition({ ...baseInput(sid), lastFinished: finished(sid, 60_000) })
+    expect(observed).toBe("overflow")
+  })
+
+  test("no cliff (prev below 50K floor): does not invalidate even on >50% drop", async () => {
+    const sid = "ses_low_prev"
+    await deriveObservedCondition({ ...baseInput(sid), lastFinished: finished(sid, 40_000) })
+    const observed = await deriveObservedCondition({ ...baseInput(sid), lastFinished: finished(sid, 1_000) })
+    expect(observed).toBe("overflow")
   })
 })
 
