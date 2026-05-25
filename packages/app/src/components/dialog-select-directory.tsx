@@ -107,7 +107,7 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
   const [rows] = createResource(currentDir, async (directory) => {
     return listDirectory(directory).then((nodes) =>
       nodes
-        .filter((n) => n.type === "directory")
+        .filter((n) => n.type === "directory" && n.name !== "..")
         .map((n) => ({ name: n.name, absolute: trimTrailing(n.absolute) }))
         .sort((a, b) => a.name.localeCompare(b.name)),
     )
