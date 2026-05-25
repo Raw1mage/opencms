@@ -2467,6 +2467,14 @@ When constructing the summary, try to stick to this template:
           if (preReplaySnapshot) {
             const newAnchorId = await readMostRecentAnchorId(sessionID)
             if (newAnchorId) {
+              log.info("compaction.replay.invoked", {
+                sessionID,
+                observed,
+                step,
+                callSite: "run_anchorWritten",
+                anchorMessageID: newAnchorId,
+                snapshotUserID: preReplaySnapshot.info.id,
+              })
               await _replayHelper({
                 sessionID,
                 snapshot: preReplaySnapshot,
@@ -2474,7 +2482,23 @@ When constructing the summary, try to stick to this template:
                 observed,
                 step,
               })
+            } else {
+              log.info("compaction.replay.skipped", {
+                sessionID,
+                observed,
+                step,
+                callSite: "run_anchorWritten",
+                reason: "no_anchor_id_after_inline_write",
+              })
             }
+          } else {
+            log.info("compaction.replay.skipped", {
+              sessionID,
+              observed,
+              step,
+              callSite: "run_anchorWritten",
+              reason: "no_snapshot",
+            })
           }
           if (replayEnabled) {
             const anchorIdForGate = await readMostRecentAnchorId(sessionID)
@@ -2556,11 +2580,21 @@ When constructing the summary, try to stick to this template:
     const userMessage = messages.findLast((m) => m.info.role === "user")?.info as MessageV2.User | undefined
     if (!userMessage) {
       log.warn("compaction.run injectContinue: no user message found, skipping", { sessionID, observed })
+      log.info("compaction.continue.injected", { sessionID, observed, decision: false, reason: "no_user_message" })
       return
     }
     const followUps = await PostCompaction.gather(sessionID).catch(() => [])
     const continueText = PostCompaction.buildContinueText(followUps)
-    if (!continueText) return
+    if (!continueText) {
+      log.info("compaction.continue.injected", {
+        sessionID,
+        observed,
+        decision: false,
+        reason: "empty_continue_text",
+        followUpCount: Array.isArray(followUps) ? followUps.length : -1,
+      })
+      return
+    }
 
     const continueMsg = await Session.updateMessage({
       id: Identifier.ascending("message"),
@@ -2580,6 +2614,14 @@ When constructing the summary, try to stick to this template:
       synthetic: true,
       text: continueText,
       time: { start: Date.now(), end: Date.now() },
+    })
+    log.info("compaction.continue.injected", {
+      sessionID,
+      observed,
+      decision: true,
+      continueMsgId: continueMsg.id,
+      textLength: continueText.length,
+      followUpCount: Array.isArray(followUps) ? followUps.length : -1,
     })
   }
 
@@ -2622,20 +2664,57 @@ When constructing the summary, try to stick to this template:
     // override path here only fires for genuinely user-initiated
     // rebind / provider-switch / model-switch events, preserving the
     // belt-and-suspenders defence against the original bug class.
-    if (!INJECT_CONTINUE[observed]) {
+    const staticIntent = INJECT_CONTINUE[observed]
+    let overrideUsed = false
+    if (!staticIntent) {
       try {
         const { PendingInjectionStore } = await import("./continuation/pending-injection")
         const pending = PendingInjectionStore.peek(sessionID)
-        if (!pending || !pending.chainInit) return false
+        if (!pending || !pending.chainInit) {
+          log.info("compaction.continue.gate", {
+            sessionID,
+            observed,
+            anchorMessageID,
+            decision: false,
+            reason: "static_intent_false_no_chain_init_pending",
+            staticIntent,
+            chainInitPending: !!pending?.chainInit,
+          })
+          return false
+        }
         // chain-init pending → real user-initiated event → fall through
+        overrideUsed = true
       } catch {
         // continuation module not loadable → preserve legacy behaviour
+        log.info("compaction.continue.gate", {
+          sessionID,
+          observed,
+          anchorMessageID,
+          decision: false,
+          reason: "pending_injection_module_unavailable",
+          staticIntent,
+        })
         return false
       }
     }
     const messages = await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[])
     const hasUserMsgPostAnchor = messages.some((m) => m.info.role === "user" && m.info.id > anchorMessageID)
-    return !hasUserMsgPostAnchor
+    const decision = !hasUserMsgPostAnchor
+    log.info("compaction.continue.gate", {
+      sessionID,
+      observed,
+      anchorMessageID,
+      decision,
+      reason: decision
+        ? overrideUsed
+          ? "no_post_anchor_user_via_chain_init_override"
+          : "no_post_anchor_user_static_intent"
+        : "post_anchor_user_exists",
+      staticIntent,
+      overrideUsed,
+      hasUserMsgPostAnchor,
+    })
+    return decision
   }
 
   // ───────────────────────────────────────────────────────────────────
@@ -2715,28 +2794,55 @@ When constructing the summary, try to stick to this template:
     messages?: MessageV2.WithParts[],
   ): Promise<UserMessageSnapshot | undefined> {
     const msgs = messages ?? (await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[]))
-    if (msgs.length === 0) return undefined
+    if (msgs.length === 0) {
+      log.info("compaction.snapshot.skipped", { sessionID, observed, reason: "no_messages" })
+      return undefined
+    }
 
     let userIdx = -1
+    let placeholdersSkipped = 0
     for (let i = msgs.length - 1; i >= 0; i--) {
       const m = msgs[i]
       if (m.info.role !== "user") continue
       // Path B: skip compaction-request placeholders so replay carries the
       // real user intent, not the synthetic "please compact" marker.
-      if (m.parts.length > 0 && m.parts.every((p) => p.type === "compaction-request")) continue
+      if (m.parts.length > 0 && m.parts.every((p) => p.type === "compaction-request")) {
+        placeholdersSkipped++
+        continue
+      }
       userIdx = i
       break
     }
-    if (userIdx === -1) return undefined
+    if (userIdx === -1) {
+      log.info("compaction.snapshot.skipped", {
+        sessionID,
+        observed,
+        reason: "no_real_user_msg",
+        totalMessages: msgs.length,
+        placeholdersSkipped,
+      })
+      return undefined
+    }
 
     const userMsg = msgs[userIdx]
 
+    // Walk ALL assistant children of this user msg (until next user msg / end).
+    // assistantChild keeps the FIRST (current snapshot semantics), but the
+    // chain inventory is captured for telemetry so we can detect mid-tool-
+    // call-chain overflow scenarios where the first child's finish is
+    // tool-calls but no terminal stop ever arrived. 2026-05-25 instrumentation.
     let assistantChild: MessageV2.WithParts | undefined
+    let chainLen = 0
+    let firstStopIdx = -1
+    let lastChildFinish: MessageV2.Assistant["finish"] | undefined
     for (let i = userIdx + 1; i < msgs.length; i++) {
-      if (msgs[i].info.role === "assistant") {
-        assistantChild = msgs[i]
-        break
-      }
+      const m = msgs[i]
+      if (m.info.role !== "assistant") break
+      if (!assistantChild) assistantChild = m
+      chainLen++
+      const f = (m.info as MessageV2.Assistant).finish
+      lastChildFinish = f
+      if (firstStopIdx === -1 && f === "stop") firstStopIdx = chainLen
     }
 
     // "Properly finished" = assistant ran to completion in a way that
@@ -2746,9 +2852,32 @@ When constructing the summary, try to stick to this template:
       const finish = (assistantChild.info as MessageV2.Assistant).finish
       const lengthIsAnswered = observed !== "overflow"
       if (finish === "stop" || finish === "tool-calls" || (lengthIsAnswered && finish === "length")) {
+        log.info("compaction.snapshot.skipped", {
+          sessionID,
+          observed,
+          reason: "first_child_answered",
+          firstChildFinish: finish,
+          chainLen,
+          lastChildFinish,
+          firstStopIdx, // -1 if no stop anywhere in chain; positive if stop reached at that position
+          placeholdersSkipped,
+          userMsgId: userMsg.info.id,
+        })
         return undefined
       }
     }
+
+    log.info("compaction.snapshot.captured", {
+      sessionID,
+      observed,
+      userMsgId: userMsg.info.id,
+      hasAssistantChild: !!assistantChild,
+      firstChildFinish: assistantChild ? (assistantChild.info as MessageV2.Assistant).finish : undefined,
+      chainLen,
+      lastChildFinish,
+      firstStopIdx,
+      placeholdersSkipped,
+    })
 
     return {
       info: { ...(userMsg.info as MessageV2.User) },
@@ -3234,6 +3363,14 @@ When constructing the summary, try to stick to this template:
     if (input.snapshot) {
       const newAnchorId = await readMostRecentAnchorId(input.sessionID)
       if (newAnchorId && newAnchorId !== prevAnchorId) {
+        log.info("compaction.replay.invoked", {
+          sessionID: input.sessionID,
+          observed: input.observed,
+          step: input.step,
+          callSite: "defaultWriteAnchor",
+          anchorMessageID: newAnchorId,
+          snapshotUserID: input.snapshot.info.id,
+        })
         await _replayHelper({
           sessionID: input.sessionID,
           snapshot: input.snapshot,
@@ -3241,7 +3378,25 @@ When constructing the summary, try to stick to this template:
           observed: input.observed,
           step: input.step,
         })
+      } else {
+        log.info("compaction.replay.skipped", {
+          sessionID: input.sessionID,
+          observed: input.observed,
+          step: input.step,
+          callSite: "defaultWriteAnchor",
+          reason: !newAnchorId ? "no_new_anchor_id" : "anchor_id_unchanged",
+          prevAnchorId,
+          newAnchorId,
+        })
       }
+    } else {
+      log.info("compaction.replay.skipped", {
+        sessionID: input.sessionID,
+        observed: input.observed,
+        step: input.step,
+        callSite: "defaultWriteAnchor",
+        reason: "no_snapshot",
+      })
     }
 
     // user-msg-replay-unification DD-4: post-replay Continue decision.
