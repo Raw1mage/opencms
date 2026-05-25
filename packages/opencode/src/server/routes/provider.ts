@@ -125,10 +125,27 @@ export const ProviderRoutes = lazy(() =>
           .filter((row) => row.inConnectedProviders)
           .map((row) => row.providerKey)
 
+        // Expose non-canonical (custom) providers loaded from opencode.json
+        // so the frontend can read model.limit.context / billingMode for them.
+        // canonicalProviders only covers SUPPORTED_PROVIDER_KEYS; user-defined
+        // providers (e.g. @ai-sdk/openai-compatible against a local llama.cpp)
+        // would otherwise vanish from /provider/all and the UI sidebar shows
+        // "—" for context limit / usage.
+        const customConnected: string[] = []
+        for (const [id, info] of Object.entries(connected)) {
+          if (providers[id]) continue
+          if (disabledProviderIds.includes(id)) continue
+          providers[id] = {
+            ...info,
+            billingMode: resolveProviderBillingMode(config, id),
+          }
+          customConnected.push(id)
+        }
+
         return c.json({
           all: Object.values(providers),
           default: mapValues(providers, (item) => Provider.sort(Object.values(item.models))[0].id),
-          connected: connectedCanonical,
+          connected: [...connectedCanonical, ...customConnected],
         })
       },
     )
