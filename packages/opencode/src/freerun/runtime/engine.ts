@@ -28,25 +28,32 @@ import { MetaFS } from "../storage/meta-fs"
 import type { ExperimentConfig, FreerunFinalStatus, TriggerMode } from "../types"
 
 /**
- * Load project conventions + operational rules from disk. Both are optional;
- * a missing file is silently skipped (the engine still runs, just without
- * that block in the prompt). Resolution order:
+ * Load the freerun-specific operational manual (FREERUN.md). This is the
+ * SSOT for what the engine tells the AI about its role + rules — it
+ * deliberately replaces SYSTEM.md (turn-mode-heavy) and AGENTS.md
+ * (orchestrator-flavored) with a single freerun-tuned document.
  *
- *   AGENTS.md:
- *     1. ~/.config/opencode/AGENTS.md     (user global)
- *     2. <Instance.directory>/AGENTS.md   (per-project)
- *   Concatenated with a "## ---" separator if both present.
+ * Resolution order:
+ *   1. ~/.config/opencode/prompts/FREERUN.md   (user override — preferred)
+ *   2. <project>/FREERUN.md                    (per-project override, rare)
+ *   3. /usr/local/share/opencode/templates/prompts/FREERUN.md  (installed)
  *
- *   SYSTEM.md:
- *     1. ~/.config/opencode/prompts/SYSTEM.md  (user override)
- *     2. /usr/local/share/opencode/templates/prompts/SYSTEM.md  (installed default)
+ * Read once per session at Engine.run start; cached for the session's
+ * lifetime. Returns the full content as `freerunMdContent`, which Engine.run
+ * forwards as both `systemMdContent` AND `agentsMdContent` to the prompt
+ * template — the template injects them in their respective slots
+ * (SYSTEM prompt block + USER message block) so the rules are visible
+ * to the model regardless of which section it's reading.
  *
- * Read once per session at Engine.run start; cached for the session's lifetime.
+ * For ablation experiments (e.g. "what happens with no rules?") set
+ * `OPENCODE_FREERUN_DISABLE_RULES=1` in the environment.
  */
 async function loadRulesContent(opts: { directory?: string }): Promise<{
   agentsMdContent?: string
   systemMdContent?: string
 }> {
+  if (process.env.OPENCODE_FREERUN_DISABLE_RULES === "1") return {}
+
   const home = process.env.HOME ?? "/home/pkcs12"
   const projectDir = opts.directory ?? process.cwd()
 
@@ -58,28 +65,27 @@ async function loadRulesContent(opts: { directory?: string }): Promise<{
     }
   }
 
-  const [userAgents, projectAgents] = await Promise.all([
-    readIfPresent(path.join(home, ".config", "opencode", "AGENTS.md")),
-    readIfPresent(path.join(projectDir, "AGENTS.md")),
-  ])
-  const agentsParts: string[] = []
-  if (userAgents) agentsParts.push(userAgents.trim())
-  if (projectAgents) agentsParts.push(projectAgents.trim())
-  const agentsMdContent = agentsParts.length > 0 ? agentsParts.join("\n\n---\n\n") : undefined
-
-  let systemMdContent: string | undefined
+  let freerunMd: string | null = null
   for (const p of [
-    path.join(home, ".config", "opencode", "prompts", "SYSTEM.md"),
-    "/usr/local/share/opencode/templates/prompts/SYSTEM.md",
+    path.join(home, ".config", "opencode", "prompts", "FREERUN.md"),
+    path.join(projectDir, "FREERUN.md"),
+    "/usr/local/share/opencode/templates/prompts/FREERUN.md",
   ]) {
     const t = await readIfPresent(p)
     if (t) {
-      systemMdContent = t.trim()
+      freerunMd = t.trim()
       break
     }
   }
 
-  return { agentsMdContent, systemMdContent }
+  if (freerunMd === null) return {}
+
+  // FREERUN.md is the SSOT for freerun-mode rules — inject only into the
+  // systemMd slot (which lands in the SYSTEM prompt under "Operational
+  // rules"). We deliberately do NOT also fill agentsMdContent because
+  // double-injecting wastes tokens; FREERUN.md is freerun-tuned so it
+  // already covers what AGENTS.md would convey for this mode.
+  return { systemMdContent: freerunMd }
 }
 
 export namespace Engine {
