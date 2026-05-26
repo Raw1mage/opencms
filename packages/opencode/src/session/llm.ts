@@ -542,8 +542,16 @@ export namespace LLM {
       Auth.get(executionModel.providerId, currentAccountId ?? undefined),
     ])
     const billingMode = resolveProviderBillingMode(cfg, executionModel.providerId)
-    const isLiteProvider =
-      (cfg.provider as Record<string, { lite?: boolean }> | undefined)?.[executionModel.providerId]?.lite === true
+    // Resolve effective prompt-injection mode for this provider.
+    // New: `mode: "full" | "lite" | "freerun"`. Legacy: `lite: true` → "lite".
+    // freerun-mode treats prompt injection as lite-equivalent (no skill injection,
+    // no heavy system prompt) because per-iteration ContextNode rendering replaces them.
+    const providerCfg = (cfg.provider as Record<string, { lite?: boolean; mode?: "full" | "lite" | "freerun" }> | undefined)?.[
+      executionModel.providerId
+    ]
+    const effectiveMode: "full" | "lite" | "freerun" =
+      providerCfg?.mode ?? (providerCfg?.lite === true ? "lite" : "full")
+    const isLiteProvider = effectiveMode === "lite" || effectiveMode === "freerun"
     const skillLayerEntries = isLiteProvider
       ? []
       : SkillLayerRegistry.listForInjection(input.sessionID, {

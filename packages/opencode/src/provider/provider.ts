@@ -1167,7 +1167,12 @@ export namespace Provider {
             temperature: model.temperature ?? existingModel?.capabilities.temperature ?? false,
             reasoning: model.reasoning ?? existingModel?.capabilities.reasoning ?? false,
             attachment: model.attachment ?? existingModel?.capabilities.attachment ?? false,
-            toolcall: provider.lite ? false : (model.tool_call ?? existingModel?.capabilities.toolcall ?? true),
+            // freerun mode shares lite's "no aggressive tool injection" property at provider capability level;
+            // tool calls themselves still work via the freerun iteration driver's own tool dispatch.
+            // For the static capability advertised to upstream/UI: both lite and freerun signal "do not pre-inject".
+            toolcall: ((provider as any).mode === "lite" || (provider as any).mode === "freerun" || ((provider as any).mode === undefined && provider.lite))
+              ? false
+              : (model.tool_call ?? existingModel?.capabilities.toolcall ?? true),
             input: {
               text: model.modalities?.input?.includes("text") ?? existingModel?.capabilities.input.text ?? true,
               audio: model.modalities?.input?.includes("audio") ?? existingModel?.capabilities.input.audio ?? false,

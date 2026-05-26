@@ -187,6 +187,18 @@ export const dict = {
   "provider.custom.field.lite.label": "Lite 模式（小型本地模型）",
   "provider.custom.field.lite.description":
     "跳過工具呼叫、MCP、代理和龐大的系統提示詞。僅注入精簡的系統提示。適用於處理簡單問答任務的小型本地模型。",
+  "provider.custom.field.mode.label": "Prompt 注入模式",
+  "provider.custom.field.mode.description":
+    "此 provider 的 session 如何接收 context。可用 /freerun slash command 做 per-session 切換。",
+  "provider.custom.field.mode.option.full.label": "Full（完整）",
+  "provider.custom.field.mode.option.full.description":
+    "標準 system prompt + 技能 + 工具 + 專案脈絡 + 對話歷史。",
+  "provider.custom.field.mode.option.lite.label": "Lite（精簡）",
+  "provider.custom.field.mode.option.lite.description":
+    "僅基本 system prompt。跳過工具、MCP、agent、繁重提示。適合小型本地模型做簡單問答。",
+  "provider.custom.field.mode.option.freerun.label": "Freerun（研究模式）",
+  "provider.custom.field.mode.option.freerun.description":
+    "每輪 iteration 重新從 disk 上的 ContextNode tree 組裝 context，無對話歷史。適用於長跑目標導向自主任務、研究實驗用途。",
   "provider.custom.field.apiKey.label": "API 金鑰",
   "provider.custom.field.apiKey.placeholder": "API 金鑰",
   "provider.custom.field.apiKey.description": "選填。若您透過標頭管理驗證，可留空。",
