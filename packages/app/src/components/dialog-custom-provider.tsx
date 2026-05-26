@@ -35,7 +35,7 @@ type FormState = {
   name: string
   baseURL: string
   freeToUse: boolean
-  lite: boolean
+  mode: "full" | "lite" | "freerun"
   models: ModelRow[]
   headers: HeaderRow[]
   saving: boolean
@@ -175,7 +175,9 @@ function validateCustomProvider(input: ValidateArgs) {
         npm: OPENAI_COMPATIBLE,
         name,
         freeToUse: input.form.freeToUse,
-        lite: input.form.lite || undefined,
+        // Only write `mode` field; never write deprecated `lite` boolean.
+        // Default "full" is omitted to keep configs clean (absence == full).
+        mode: input.form.mode === "full" ? undefined : input.form.mode,
         options,
         models,
       },
@@ -208,6 +210,7 @@ export function DialogCustomProvider(props: Props) {
           name?: string
           freeToUse?: boolean
           lite?: boolean
+          mode?: "full" | "lite" | "freerun"
           options?: { baseURL?: string; headers?: Record<string, string> }
           models?: Record<string, { name?: string; limit?: { context?: number } }>
         }
@@ -256,7 +259,8 @@ export function DialogCustomProvider(props: Props) {
     name: editConfig()?.name ?? editProvider()?.name ?? "",
     baseURL: editConfig()?.options?.baseURL ?? "",
     freeToUse: editConfig()?.freeToUse ?? false,
-    lite: editConfig()?.lite ?? false,
+    // Resolve effective mode: prefer explicit `mode` field; fall back to legacy `lite: true` → "lite".
+    mode: editConfig()?.mode ?? (editConfig()?.lite === true ? "lite" : "full"),
     models: initModels(),
     headers: initHeaders(),
     saving: false,
@@ -445,22 +449,36 @@ export function DialogCustomProvider(props: Props) {
                 </span>
               </div>
             </label>
-            <label class="flex items-start gap-3 rounded-lg border border-border-base px-3 py-2 text-14-regular text-text-base">
-              <input
-                type="checkbox"
-                class="mt-0.5"
-                checked={form.lite}
-                onChange={(event) => setForm("lite", event.currentTarget.checked)}
-              />
-              <div class="flex flex-col gap-1">
-                <span class="text-14-medium text-text-strong">
-                  {language.t("provider.custom.field.lite.label")}
-                </span>
-                <span class="text-12-regular text-text-weak">
-                  {language.t("provider.custom.field.lite.description")}
-                </span>
-              </div>
-            </label>
+            <fieldset class="flex flex-col gap-2 rounded-lg border border-border-base px-3 py-2 text-14-regular text-text-base">
+              <legend class="text-12-medium text-text-weak px-1">
+                {language.t("provider.custom.field.mode.label")}
+              </legend>
+              <span class="text-12-regular text-text-weak px-1">
+                {language.t("provider.custom.field.mode.description")}
+              </span>
+              <For each={["full", "lite", "freerun"] as const}>
+                {(option) => (
+                  <label class="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="provider-mode"
+                      class="mt-0.5"
+                      value={option}
+                      checked={form.mode === option}
+                      onChange={() => setForm("mode", option)}
+                    />
+                    <div class="flex flex-col gap-0.5">
+                      <span class="text-14-medium text-text-strong">
+                        {language.t(`provider.custom.field.mode.option.${option}.label` as any)}
+                      </span>
+                      <span class="text-12-regular text-text-weak">
+                        {language.t(`provider.custom.field.mode.option.${option}.description` as any)}
+                      </span>
+                    </div>
+                  </label>
+                )}
+              </For>
+            </fieldset>
           </div>
 
           <div class="flex flex-col gap-3">
