@@ -217,6 +217,26 @@
     ],
     "discovery": "Source status from global opencode.json and system-manager_get_system_status before deciding toggles. Entries marked `registered but disabled` exist in mcp-apps.json but won't auto-connect; enable them explicitly when intent matches."
   },
+  "runtime_modes": {
+    "freerun": {
+      "capability": "Stateless iteration runloop driven by a structured ContextNode tree. Each iteration synthesizes a fresh prompt from the current tree state — no dialog history persisted between iterations. Selected per-provider via opencode.json `mode: \"freerun\"` on custom providers.",
+      "primitives": [
+        {
+          "name": "freerun_iterate",
+          "purpose": "One iteration: pick next node → render context → LLM call → write back. Mode-dispatched on node.mode."
+        },
+        {
+          "name": "freerun_plan",
+          "purpose": "Planning iteration: emit children for a pending-plan node under server-enforced PlanningOutcome json_schema."
+        },
+        {
+          "name": "freerun_execute",
+          "purpose": "Execution iteration: Claude-style tool use + post-parsed ExecutionOutcome JSON; one retry on parse fail then mark blocked."
+        }
+      ],
+      "selection_rule": "Engaged automatically when an active provider has `mode: \"freerun\"`. Turn-based mode resumes on direct user message; engine pauses while user is in the loop."
+    }
+  },
   "routing": {
     "intent_to_capability": [
       {
