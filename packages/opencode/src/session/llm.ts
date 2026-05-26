@@ -1611,6 +1611,9 @@ export namespace LLM {
           `[freerun-debug] stateless rewrite: ${input.messages.length} → ${llmMessages.length}\n`,
         )
       } catch (err) {
+        process.stderr.write(
+          `[freerun-debug] stateless rewrite THREW: ${err instanceof Error ? err.message : err}\n${err instanceof Error && err.stack ? err.stack.split("\n").slice(0, 5).join("\n") : ""}\n`,
+        )
         log.warn("freerun stateless rewrite failed; falling through to full history", {
           sessionID: input.sessionID,
           error: err instanceof Error ? err.message : String(err),
