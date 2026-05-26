@@ -16,9 +16,21 @@
  *     sudo gate I added earlier both fire automatically.
  */
 
-import { ToolRegistry } from "../../tool/registry"
-import { ALWAYS_PRESENT_TOOLS } from "../../tool/tool-loader"
+// Direct imports — ToolRegistry.all() is module-private; importing the
+// individual tool exports gives us a stable, type-safe surface without
+// reaching into registry internals.
+import { BashTool } from "../../tool/bash"
+import { ReadTool } from "../../tool/read"
+import { WriteTool } from "../../tool/write"
+import { EditTool } from "../../tool/edit"
+import { GlobTool } from "../../tool/glob"
+import { GrepTool } from "../../tool/grep"
+import { ApplyPatchTool } from "../../tool/apply_patch"
+import { TodoWriteTool, TodoReadTool } from "../../tool/todo"
+import { SessionRecallTool } from "../../tool/session-recall"
+import { ToolLoaderTool } from "../../tool/tool-loader"
 import { Log } from "../../util/log"
+import type { Tool } from "../../tool/tool"
 import type { Iterate } from "../runtime/iterate"
 import type { ToolFilter } from "../render/tool-filter"
 import { asSchema, type Tool as AITool } from "@ai-sdk/provider-utils"
@@ -38,23 +50,38 @@ export namespace OpencodeToolBridge {
    *     because turn-mode AIs are expected to apply_patch instead, but
    *     freerun's smaller models do better with direct write/edit)
    */
-  const FREERUN_DEFAULT_TOOL_NAMES = new Set<string>([
-    ...Array.from(ALWAYS_PRESENT_TOOLS),
-    "write",
-    "edit",
-  ])
-  FREERUN_DEFAULT_TOOL_NAMES.delete("task")
-  FREERUN_DEFAULT_TOOL_NAMES.delete("cancel_task")
-  FREERUN_DEFAULT_TOOL_NAMES.delete("question")
-  FREERUN_DEFAULT_TOOL_NAMES.delete("invalid") // exposed only as model-redirect fallback
+  /**
+   * The freerun engine's default tool set. Chosen for code-producing
+   * tasks (bash + file mutation) plus the lazy-loader for self-service
+   * unlocking. Excludes `task` / `cancel_task` (DD-20), `question` (no
+   * interactive user during iteration), and MCP tools (catalog kept
+   * small + predictable; model can `tool_loader` if it really needs).
+   */
+  const FREERUN_TOOLS: Tool.Info[] = [
+    BashTool,
+    ReadTool,
+    WriteTool,
+    EditTool,
+    GlobTool,
+    GrepTool,
+    ApplyPatchTool,
+    TodoWriteTool,
+    TodoReadTool,
+    SessionRecallTool,
+    ToolLoaderTool,
+  ]
 
   /** Build the tool catalog (shapes consumed by Iterate / ToolFilter). */
   export async function buildCatalog(): Promise<ToolFilter.ToolRecord[]> {
-    const all = await ToolRegistry.all()
     const out: ToolFilter.ToolRecord[] = []
-    for (const t of all) {
-      if (!FREERUN_DEFAULT_TOOL_NAMES.has(t.id)) continue
-      const init = await t.init().catch(() => null)
+    for (const t of FREERUN_TOOLS) {
+      const init = await t.init().catch((err) => {
+        log.warn("tool init failed during catalog build", {
+          tool: t.id,
+          error: err instanceof Error ? err.message : err,
+        })
+        return null
+      })
       if (!init) continue
       const parameters = jsonSchemaFromZod(init.parameters as any)
       out.push({
@@ -68,11 +95,8 @@ export namespace OpencodeToolBridge {
 
   /** Build a tool-loader-style table-of-contents string for FREERUN.md / prompt injection. */
   export async function buildToc(): Promise<string> {
-    const all = await ToolRegistry.all()
     const lines: string[] = ["<freerun-tool-catalog>"]
-    const sorted = all.slice().sort((a, b) => a.id.localeCompare(b.id))
-    for (const t of sorted) {
-      if (!FREERUN_DEFAULT_TOOL_NAMES.has(t.id)) continue
+    for (const t of FREERUN_TOOLS) {
       const init = await t.init().catch(() => null)
       if (!init) continue
       const firstLine = init.description.split("\n")[0].slice(0, 100)
@@ -98,19 +122,13 @@ export namespace OpencodeToolBridge {
 
     return {
       async dispatch(name: string, args: unknown): Promise<string> {
-        const all = await ToolRegistry.all()
-        const tool = all.find((t) => t.id === name)
+        const tool = FREERUN_TOOLS.find((t) => t.id === name)
         if (!tool) {
-          const reason = `tool '${name}' not found in registry`
+          // Tool not in freerun's default set. Could be hallucinated, or
+          // model thought it could use an MCP tool. Suggest tool_loader.
+          const reason = `tool '${name}' is not in the freerun default catalog`
           log.warn(reason, { sessionID: opts.sessionID })
-          return `Error: ${reason}.`
-        }
-        if (!FREERUN_DEFAULT_TOOL_NAMES.has(name)) {
-          // Tool exists but not in freerun's default set → not unlocked.
-          // The model should have used tool_loader first; bounce with a
-          // helpful error that suggests it.
-          return `Error: tool '${name}' is not unlocked for this freerun session. ` +
-            `Call tool_loader with {"tools": ["${name}"]} first, then retry.`
+          return `Error: ${reason}. If you genuinely need it, call tool_loader with {"tools":["${name}"]} first (note: freerun-mode strips subagent/MCP tools by default — many tool names you remember from turn-mode are not present here).`
         }
         const init = await tool.init().catch((err) => {
           log.warn("tool init failed", { tool: name, error: err instanceof Error ? err.message : err })
